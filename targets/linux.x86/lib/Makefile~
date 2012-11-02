@@ -1,0 +1,10 @@
+# Build the platform libraries.
+LIBRARIES = os if core
+
+all:
+
+clean::
+	$(foreach lib, $(LIBRARIES), $(MAKE) -C $(lib) clean || exit 1;)
+
+veryclean:: clean
+
