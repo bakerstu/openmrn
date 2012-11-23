@@ -91,7 +91,7 @@ nmranet_queue_t nmranet_queue_create(void);
  * @param queue queue to add buffer to
  * @param buffer buffer to add to queue
  */
-void nmranet_queue_insert(nmranet_queue_t queue, void *buffer);
+void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer);
 
 /** Get a buffer from the front of the queue.
  * @param queue queue get buffer from

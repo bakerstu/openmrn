@@ -43,9 +43,17 @@ extern "C" {
 
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
+ * @param model node decription
+ * @param priv private data to store with the the node for later retrieveal
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id);
+node_t nmranet_node_create(node_id_t node_id, const char *model, void *priv);
+
+/** Lookup the node handle for a given node ID.
+ * @param node_id 48-bit unique Node ID
+ * @return if it exists, handle to the node id, else NULL
+ */
+node_t nmranet_node(node_id_t node_id);
 
 /** Move node into the intitialized state.
  * @param node node instance to act on
@@ -71,6 +79,24 @@ int nmranet_node_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *
  * @param event event number to post
  */
 void nmranet_node_post_event(node_t node, uint64_t event);
+
+/** Post the reception of a datagram with to given node.
+ * @param node to post event to
+ * @param datagram datagram to post
+ */
+void nmranet_node_post_datagram(node_t node, const void *datagram);
+
+/** Obtain the Node ID of a node handle
+ * @param node node to get a the Node ID from
+ * @return 48-bit NMRAnet Node ID
+ */
+node_id_t nmranet_node_id(node_t node);
+
+/** Lookup the private data pointer for a given handle.
+ * @param node node to get a the Node ID from
+ * @return if it exists, handle to the node id, else NULL
+ */
+void *nmranet_node_private(node_t node);
 
 #ifdef __cplusplus
 }

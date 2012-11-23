@@ -24,15 +24,51 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_lo_if.h
- * This file defines the NMRAnet local or loopback interface.
+ * \file nmranet_train_control.h
+ * This file handles the NMRAnet datagram protocol for train control.
  *
  * @author Stuart W. Baker
- * @date 24 September 2012
+ * @date 11 November 2012
  */
 
-#ifndef _nmranet_lo_if_h_
-#define _nmranet_lo_if_h_
+#ifndef _nmranet_train_control_h_
+#define _nmranet_train_control_h_
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/** Type of velocity inquiry or report. */
+enum tc_velocity_kind
+{
+    VELOCITY_KIND_COMMANDED = 0x00, /**< commanded velocity */
+    VELOCITY_KIND_INTENDED  = 0x01, /**< intended velocity */
+    VELOCITY_KIND_ACTUAL    = 0x03 /**< actual velocity */
+};
+
+/** Process the datagram automatically for train control.
+ * @param node node handle the datagram was received from
+ * @param datagram datagram to process
+ */
+void nmranet_train_control_process(node_t node, Datagram *datagram);
+
+/** Callback type for handling emergency stop of a node */
+typedef void (*TCEstopCallback)(node_t node, node_id_t from);
+
+/** Callback type for handling velocity of a node */
+typedef void (*TCVelocityCallback)(node_t node, node_id_t from, float velocity);
+
+/** Callback type for handling velocity inquire of a node */
+typedef void (*TCVelocityInquireCallback)(node_t node, node_id_t from, int kind);
+
+/** Callback type for handling velocity report of a node */
+typedef void (*TCVelocityReportCallback)(node_t node, node_id_t from, int kind, float velocity);
 
 
-#endif /* _nmrenet_lo_if_h_ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _nmranet_train_control_h_ */

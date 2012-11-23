@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -41,6 +41,15 @@
 extern "C" {
 #endif
 
+/** Manufacture of the product. */
+extern const char *nmranet_manufacturer;
+
+/** Hardware revision of the product. */
+extern const char *nmranet_hardware_rev;
+
+/** Software revision of the product. */
+extern const char *nmranet_software_rev;
+
 typedef void* nmranet_if_t; /**< interface handle */
 
 /** Known Message type indicators.
@@ -72,6 +81,9 @@ enum mti_value
     MTI_LEARN_EVENT               = 0x0594, /**< */
     MTI_EVENT_REPORT              = 0x05B4, /**< */
     MTI_XPRESSNET                 = 0x09C0, /**< */
+    MTI_IDENT_INFO_REQUEST        = 0x0DE8, /**< request node identity */
+    MTI_IDENT_INFO_REPLY          = 0x0A08, /**< node identity reply */
+    MTI_DATAGRAM                  = 0x1C48, /**< datagram */
     
 };
 
@@ -258,8 +270,7 @@ enum mti_value
 /** Information about the interface */
 typedef struct nmranet_if
 {
-    /* place up stream node table */
-    /* place down stream node table */
+    const char *name; /**< name of interface */
     /** method for putting data onto interface */
     int (*write)(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data);
     struct nmranet_if *next; /**< next link in the list of interfaces */
@@ -269,11 +280,15 @@ typedef struct nmranet_if
  */
 void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data);
 
+/** Initialize the network stack.
+ * @param node_id Node ID used to identify the built in bridge, 0 for no bridge
+ */
+void nmranet_init(node_id_t node_id);
+
 /** Initialize a NMRAnet interface.
  * @param nmranet_if instance of this interface
- * @param node_id Node ID to associate with this interface
  */
-void nmranet_if_init(NMRAnetIF* nmranet_if, node_id_t node_id);
+void nmranet_if_init(NMRAnetIF* nmranet_if);
 
 /** Initialize a Grid Connect interface.
  * @param node_id node ID of interface
@@ -285,6 +300,16 @@ void nmranet_gc_if_init(node_id_t node_id, const char *device);
  * @param node_id Node ID to place in message payload
  */
 void nmranet_if_verify_node_id_number(node_id_t node_id);
+
+/** Send an ident info reply message.
+ * @param node_id Node ID to respond as
+ * @param dst destination Node ID to respond to
+ * @param description index 0 name of manufacturer
+ *                    index 1 name of model
+ *                    index 2 hardware revision
+ *                    index 3 software revision
+ */
+void nmranet_if_ident_info_reply(node_id_t node_id, node_id_t dst, const char *description[4]);
 
 /** Get the local interface instance.
  * @return local interface instance

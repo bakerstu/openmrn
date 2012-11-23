@@ -35,6 +35,7 @@
 #include <sys/tree.h>
 #include "core/nmranet_node.h"
 #include "core/nmranet_buf.h"
+#include "core/nmranet_datagram.h"
 #include "os/os.h"
 #include "endian.h"
 
@@ -50,7 +51,9 @@ typedef struct node_priv
 {
     NodeState state; /**< node's current operational state */
     nmranet_queue_t eventQueue; /**< queue for delivering events */
+    nmranet_queue_t datagramQueue; /**< queue for delivering datagrams */
     os_sem_t *wait; /**< semaphore used to wakeup thread waiting on node */
+    const char *model; /**< model number for the ident info */
 } NodePriv;
 
 /** Red Black tree node for sorting by node ID.
@@ -64,6 +67,7 @@ struct id_node
         node_id_t id;
         int64_t key;
     };
+    void *userPrivate; /**< Private data from the application */
     NodePriv priv; /**< Private data for the node ID */
 };
     
@@ -90,9 +94,11 @@ static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
+ * @param model node decription
+ * @param priv private data to store with the the node for later retrieveal
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id)
+node_t nmranet_node_create(node_id_t node_id, const char* model, void *priv)
 {
     struct id_node  id_lookup;
     struct id_node *id_node;
@@ -111,12 +117,32 @@ node_t nmranet_node_create(node_id_t node_id)
     {
         id_node = malloc(sizeof(struct id_node));
         id_node->id = node_id;
+        id_node->userPrivate = priv;
         id_node->priv.state = NODE_UNINITIALIZED;
-        id_node->priv.eventQueue = NULL;
+        id_node->priv.eventQueue = nmranet_queue_create();
+        id_node->priv.datagramQueue = nmranet_queue_create();
         id_node->priv.wait = NULL;
+        id_node->priv.model = model;
         
         RB_INSERT(id_tree, &idHead, id_node);
     }
+    os_mutex_unlock(&mutex);
+    return id_node;
+}
+
+/** Lookup the node handle for a given node ID.
+ * @param node_id 48-bit unique Node ID
+ * @return if it exists, handle to the node id, else NULL
+ */
+node_t nmranet_node(node_id_t node_id)
+{
+    struct id_node  id_lookup;
+    struct id_node *id_node;
+
+    id_lookup.id = node_id;
+
+    os_mutex_lock(&mutex);
+    id_node = RB_FIND(id_tree, &idHead, &id_lookup);
     os_mutex_unlock(&mutex);
     return id_node;
 }
@@ -153,6 +179,17 @@ node_id_t nmranet_node_id(node_t node)
     return n->id;
 }
 
+/** Lookup the private data pointer for a given handle.
+ * @param node node to get a the Node ID from
+ * @return if it exists, handle to the node id, else NULL
+ */
+void *nmranet_node_private(node_t node)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    return n->userPrivate;
+}
+
 /** Wait for data to come in from the network.
  * @param node node to wait on
  */
@@ -162,24 +199,20 @@ void nmranet_node_wait(node_t node)
     os_sem_t        sem;
 
     os_mutex_lock(&mutex);
-    if (n->priv.eventQueue)
+    if (nmranet_queue_empty(n->priv.eventQueue) &&
+        nmranet_queue_empty(n->priv.datagramQueue))
     {
-        if (!nmranet_queue_empty(n->priv.eventQueue))
-        {
-            /* we already have an event ready to be received */
-            return;
-        }
+        /* nothing ready to be received */
+        os_sem_init(&sem, 0);
+        n->priv.wait = &sem;
+        os_mutex_unlock(&mutex);
+
+        /* wait for something interesting to happen */
+        os_sem_wait(&sem);
+        
+        os_mutex_lock(&mutex);
+        n->priv.wait = NULL;
     }
-
-    os_sem_init(&sem, 0);
-    n->priv.wait = &sem;
-    os_mutex_unlock(&mutex);
-
-    /* wait for something interesting to happen */
-    os_sem_wait(&sem);
-    
-    os_mutex_lock(&mutex);
-    n->priv.wait = NULL;
     os_mutex_unlock(&mutex);
 }
 
@@ -218,7 +251,7 @@ int nmranet_node_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *
                 }
                 os_mutex_unlock(&mutex);
             }
-            break;
+            return 0;
         case MTI_VERIFY_NODE_ID_GLOBAL:
             os_mutex_lock(&mutex);
             for (id_node = RB_MIN(id_tree, &idHead);
@@ -232,10 +265,29 @@ int nmranet_node_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *
                 }
             }
             os_mutex_unlock(&mutex);
-            break;
+            return 0;
+        case MTI_IDENT_INFO_REQUEST:
+            if (dst != 0)
+            {
+                /* valid Node ID */
+                id_lookup.id = dst;
+
+                os_mutex_lock(&mutex);
+                id_node = RB_FIND(id_tree, &idHead, &id_lookup);
+                if (id_node != NULL)
+                {
+                    const char *description[4] = {nmranet_manufacturer,
+                                                  id_node->priv.model,
+                                                  nmranet_hardware_rev,
+                                                  nmranet_software_rev};
+                    nmranet_if_ident_info_reply(dst, src, description);
+                }
+                os_mutex_unlock(&mutex);
+            }
+            return 0;
     }
     
-    return 0;
+    return 1;
 }
 
 /** Post the reception of an event with to given node.
@@ -247,10 +299,6 @@ void nmranet_node_post_event(node_t node, uint64_t event)
     struct id_node *n = (struct id_node*)node;
     
     os_mutex_lock(&mutex);
-    if (n->priv.eventQueue == NULL)
-    {
-        n->priv.eventQueue = nmranet_queue_create();
-    }
 
     uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
     *buffer = event;
@@ -274,34 +322,51 @@ uint64_t nmranet_event_consume(node_t node)
     struct id_node *n = (struct id_node*)node;
 
     os_mutex_lock(&mutex);
-    if (n->priv.eventQueue)
+    uint64_t *event = nmranet_queue_next(n->priv.eventQueue);
+    if (event != NULL)
     {
-        uint64_t *event = nmranet_queue_next(n->priv.eventQueue);
-        if (event != NULL)
-        {
-            os_mutex_unlock(&mutex);
-            uint64_t result = *event;
-            nmranet_buffer_free(event);
-            return result;
-        }
+        os_mutex_unlock(&mutex);
+        uint64_t result = *event;
+        nmranet_buffer_free(event);
+        return result;
     }
     os_mutex_unlock(&mutex);
     
     return 0;
 }
 
-/** Produce an event from.
- * @param node node to produce event from
- * @param event event to produce
+/** Post the reception of a datagram with to given node.
+ * @param node to post event to
+ * @param datagram datagram to post
  */
-void nmranet_event_produce(node_t node, uint64_t event)
+void nmranet_node_post_datagram(node_t node, const void *datagram)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    os_mutex_lock(&mutex);
+
+    nmranet_queue_insert(n->priv.eventQueue, datagram);
+
+    if (n->priv.wait != NULL)
+    {
+        /* wakeup whoever is waiting */
+        os_sem_post(n->priv.wait);
+    }
+    os_mutex_unlock(&mutex);
+}
+
+/** Grab a datagram from the datagram queue of the node.
+ * @param node to grab datagram from
+ * @return NULL if queue is empty, else pointer to the datagram
+ */
+Datagram *nmranet_datagram_consume(node_t node)
 {
     struct id_node *n = (struct id_node*)node;
 
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-    *buffer = htobe64(event);
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-
-    nmranet_if_rx_data(nmranet_lo_if(), MTI_EVENT_REPORT, n->id, 0, buffer);
+    os_mutex_lock(&mutex);
+    Datagram *datagram = nmranet_queue_next(n->priv.eventQueue);
+    os_mutex_unlock(&mutex);
+    
+    return datagram;
 }
 

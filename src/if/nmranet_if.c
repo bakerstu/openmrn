@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -47,6 +47,9 @@ static NMRAnetIF *head = NULL;
 
 /** Mutual exclusion for interfaces. */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
+
+/**< Node ID of the bridge. */
+static node_id_t bridgeId = 0;
 
 /** Red Black tree node for sorting by node ID.
  */
@@ -96,11 +99,55 @@ NMRAnetIF *nmranet_lo_if(void)
     return head;
 }
 
+/** Process a bridge packet.
+ * @param mti Message Type Indicator
+ * @param src source node ID, 0 if unavailable
+ * @param dst destination node ID, 0 if unavailable
+ * @param data NMRAnet packet data
+ * @return 0 upon success
+ */
+static int nmranet_bridge_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data)
+{
+    if (bridgeId != 0)
+    {
+        switch (mti)
+        {
+            default:
+                /* we don't care about these MTI's */
+                break;
+            case MTI_VERIFY_NODE_ID_ADDRESSED:
+                if (dst == bridgeId)
+                {
+                    os_mutex_unlock(&mutex);
+                    nmranet_if_verify_node_id_number(dst);
+                    os_mutex_lock(&mutex);
+                }
+                return 0;
+            case MTI_VERIFY_NODE_ID_GLOBAL:
+                os_mutex_unlock(&mutex);
+                nmranet_if_verify_node_id_number(bridgeId);
+                os_mutex_lock(&mutex);
+                return 0;
+            case MTI_IDENT_INFO_REQUEST:
+                if (dst == bridgeId)
+                {
+                    const char *description[4] = {nmranet_manufacturer,
+                                                  "OpenMRN Bridge",
+                                                  nmranet_hardware_rev,
+                                                  "0.1"};
+                    os_mutex_unlock(&mutex);
+                    nmranet_if_ident_info_reply(bridgeId, src, description);
+                }
+                return 0;
+        }
+    }
+    return 1;
+}
+
 /** This method can be called by any interface to indicate it has incoming data.
  */
 void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data)
 {
-    os_mutex_lock(&mutex);
     if (head == NULL)
     {
         /* the local interface is not initialized yet */
@@ -108,9 +155,11 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t s
         {
             nmranet_buffer_free(data);
         }
-        os_mutex_unlock(&mutex);
         return;
     }
+
+    os_mutex_lock(&mutex);
+
     if (src != 0)
     {
         /* update the node id routing table */
@@ -128,44 +177,73 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t s
     }
     if (dst != 0)
     {
-        struct id_node  id_lookup;
-        struct id_node *id_node;
-        id_lookup.id = dst;
-        id_node = RB_FIND(id_tree, &idHead, &id_lookup);
-        if (id_node)
+        int status = 1;
+        if (dst == bridgeId)
         {
-            /* we have a route for this Node ID so forward it on */
-            if (id_node->nmranetIF && id_node->nmranetIF != nmranet_if)
+            status = nmranet_bridge_packet(mti, src, dst, data);
+        }
+        else
+        {
+            struct id_node  id_lookup;
+            struct id_node *id_node;
+            id_lookup.id = dst;
+            id_node = RB_FIND(id_tree, &idHead, &id_lookup);
+            if (id_node)
             {
-                (*id_node->nmranetIF->write)(id_node->nmranetIF, mti, src, dst, data);
+                /* we have a route for this Node ID so forward it on */
+                if (id_node->nmranetIF && id_node->nmranetIF != nmranet_if)
+                {
+                    os_mutex_unlock(&mutex);
+                    status = (*id_node->nmranetIF->write)(id_node->nmranetIF, mti, src, dst, data);
+                    os_mutex_lock(&mutex);
+                }
+            }
+        }
+        if (status != 0)
+        {
+            /* nobody was able to consume the message, lets free up the data */
+            if (data)
+            {
+                nmranet_buffer_free(data);
             }
         }
     }
     else
     {
         /* global message */
+        nmranet_bridge_packet(mti, src, dst, data);
+
         for (NMRAnetIF *now = head; now != NULL; now = now->next)
         {
             /** @todo should we always forward to our self or not */
             if (now != nmranet_if || now == head)
             {
+                os_mutex_unlock(&mutex);
                 (*now->write)(now, mti, src, dst, data);
+                os_mutex_unlock(&mutex);
             }
+        }
+        if (data)
+        {
+            nmranet_buffer_free(data);
         }
     }
 
-    if (data)
-    {
-        nmranet_buffer_free(data);
-    }
     os_mutex_unlock(&mutex);
+}
+
+/** Initialize the network stack.
+ * @param node_id Node ID used to identify the built in bridge, 0 for no bridge
+ */
+void nmranet_init(node_id_t node_id)
+{
+    bridgeId = node_id;
 }
 
 /** Initialize a NMRAnet interface.
  * @param nmranet_if instance of this interface
- * @param node_id Node ID to associate with this interface
  */
-void nmranet_if_init(NMRAnetIF *nmranet_if, node_id_t node_id)
+void nmranet_if_init(NMRAnetIF *nmranet_if)
 {
     os_mutex_lock(&mutex);
     os_thread_once(&if_once, if_init);
@@ -180,7 +258,10 @@ void nmranet_if_init(NMRAnetIF *nmranet_if, node_id_t node_id)
         current->next = nmranet_if;
         nmranet_if->next = NULL;
         /* identify everyone on this segment */
-        (*nmranet_if->write)(nmranet_if, MTI_VERIFY_NODE_ID_GLOBAL, node_id, 0, NULL);
+        if (bridgeId)
+        {
+            (*nmranet_if->write)(nmranet_if, MTI_VERIFY_NODE_ID_GLOBAL, bridgeId, 0, NULL);
+        }
     }
     os_mutex_unlock(&mutex);
 }
@@ -203,3 +284,41 @@ void nmranet_if_verify_node_id_number(node_id_t node_id)
     
     nmranet_if_rx_data(head, MTI_VERIFIED_NODE_ID_NUMBER, node_id, 0, buffer);
 }
+
+/** Send an ident info reply message.
+ * @param node_id Node ID to respond as
+ * @param dst destination Node ID to respond to
+ * @param description index 0 name of manufacturer
+ *                    index 1 name of model
+ *                    index 2 hardware revision
+ *                    index 3 software revision
+ */
+void nmranet_if_ident_info_reply(node_id_t node_id, node_id_t dst, const char *description[4])
+{
+    size_t  size = 4;
+    char   *buffer;
+    char   *pos;
+
+    for (int i = 0; i < 4; i++)
+    {
+        size += strlen(description[i]) + 1;
+    }
+
+    buffer = nmranet_buffer_alloc(size);
+    
+    buffer[0] = 0x01;
+    pos = nmranet_buffer_advance(buffer, 1);
+    for (int i = 0; i < 4; i++)
+    {
+        size_t len = strlen(description[i]) + 1;
+        memcpy(pos, description[i], len);
+        pos = nmranet_buffer_advance(buffer, len);
+    }
+    pos[0] = 0x01;
+    pos[1] = 0x00;
+    pos[2] = 0x00;
+    pos = nmranet_buffer_advance(buffer, 3);
+    
+    nmranet_if_rx_data(head, MTI_IDENT_INFO_REPLY, node_id, dst, buffer);
+}
+

@@ -35,6 +35,7 @@
 #include "if/nmranet_if.h"
 #include "core/nmranet_node.h"
 #include "core/nmranet_event.h"
+#include "core/nmranet_datagram.h"
 
 /** Information about the interface. */
 typedef struct
@@ -57,16 +58,18 @@ static int lo_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_id_
         default:
             /* we don't care about these MTI's */
             break;
+        case MTI_IDENT_INFO_REQUEST:
+            /* fall through */
         case MTI_VERIFY_NODE_ID_ADDRESSED:
             /* fall through */
         case MTI_VERIFY_NODE_ID_GLOBAL:
-            nmranet_node_packet(mti, src, dst, data);
-            break;
+            return nmranet_node_packet(mti, src, dst, data);
         case MTI_EVENT_REPORT:
-            nmranet_event_packet(mti, src, dst, data);
-            break;
+            return nmranet_event_packet(mti, src, dst, data);
+        case MTI_DATAGRAM:
+            return nmranet_datagram_packet(mti, src, dst, data);
     }
-    return 0;
+    return 1;
 }
 
 /** Initialize the local loopback interface.

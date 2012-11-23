@@ -40,6 +40,10 @@
 #include "core/nmranet_node.h"
 #include "core/nmranet_event.h"
 
+const char *nmranet_manufacturer = "Stuart W. Baker";
+const char *nmranet_hardware_rev = "N/A";
+const char *nmranet_software_rev = "0.1";
+
 /** Entry point to program.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
@@ -47,6 +51,8 @@
  */
 int main(int argc, char *argv[])
 {
+    nmranet_init(0x02010d000000);
+
     if (argc >= 2)
     {
         nmranet_gc_if_init(0x02010d000000, argv[1]);
@@ -56,7 +62,7 @@ int main(int argc, char *argv[])
         nmranet_gc_if_init(0x02010d000000, "/dev/ttyUSB1");
     }
     
-    node_t node = nmranet_node_create(0x02010d000001);
+    node_t node = nmranet_node_create(0x02010d000001, "Virtual Node", NULL);
     nmranet_node_initialized(node);
     nmranet_event_consumer(node, 0x0502010202650013);
 
@@ -65,11 +71,16 @@ int main(int argc, char *argv[])
 #if 1
         //nmranet_node_wait(node);
         //printf("wokeup\n");
-        uint64_t event = nmranet_event_consume(node);
-        if (event == 0x0502010202650013)
+        uint64_t event;
+        do
         {
-            printf("we got the right one\n");
+            event = nmranet_event_consume(node);
+            if (event == 0x0502010202650013)
+            {
+                printf("we got the right one\n");
+            }
         }
+        while (event != 0);
 #endif
         sleep(2);
         nmranet_event_produce(node, 0x0502010202650012);

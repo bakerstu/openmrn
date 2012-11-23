@@ -37,6 +37,7 @@
 #include <sys/tree.h>
 #include "core/nmranet_event.h"
 #include "core/nmranet_node.h"
+#include "core/nmranet_buf.h"
 #include "os/os.h"
 
 /** Mutual exclusion for socket library */
@@ -60,7 +61,7 @@ struct event_node
         uint64_t event;
         int64_t key;
     };
-    EventPriv *priv; /**< socket associated with event */
+    EventPriv *priv; /**< node associated with event */
 };
     
 /** Mathematically compare two event ID's.
@@ -111,6 +112,19 @@ void nmranet_event_consumer(node_t node, uint64_t event)
     os_mutex_unlock(&mutex);
 }
 
+/** Produce an event from.
+ * @param node node to produce event from
+ * @param event event to produce
+ */
+void nmranet_event_produce(node_t node, uint64_t event)
+{
+    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
+    *buffer = htobe64(event);
+    nmranet_buffer_advance(buffer, sizeof(uint64_t));
+
+    nmranet_if_rx_data(nmranet_lo_if(), MTI_EVENT_REPORT, nmranet_node_id(node), 0, buffer);
+}
+
 /** Process an event packet.
  * @param mti Message Type Indicator
  * @param src source node ID, 0 if unavailable
@@ -139,9 +153,12 @@ int nmranet_event_packet(uint16_t mti, node_id_t src, node_id_t dst, const void 
         {
             nmranet_node_post_event(current->node, event);
         }
+        os_mutex_unlock(&mutex);
+        return 0;
     }
     os_mutex_unlock(&mutex);
     
-    return 0;
+    return 1;
 }
+
 

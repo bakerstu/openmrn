@@ -34,6 +34,8 @@
 #include "os/os.h"
 #include "core/nmranet_buf.h"
 
+#include <stdio.h>
+
 /** Mutual exclusion for queues. */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
@@ -54,6 +56,8 @@ typedef struct queue
     Buffer *head; /**< head buffer in queue */
     Buffer *tail; /**< tail buffer in queue */
 } Queue;
+
+static size_t totalSize = 0;
 
 /** Array of power of 2 buffer sizes
  */
@@ -99,6 +103,9 @@ void *nmranet_buffer_alloc(size_t size)
         buf = malloc(size + sizeof(Buffer));
         buf->next = NULL;
         buf->size = size;
+        buf->free = size;
+        totalSize += size + sizeof(Buffer);
+        printf("buffer total size: %zu\n", totalSize);
         return buf->data;
     }
 
@@ -111,12 +118,15 @@ void *nmranet_buffer_alloc(size_t size)
     else
     {
         buf = malloc(size + sizeof(Buffer));
+        totalSize += size + sizeof(Buffer);
+        printf("buffer total size: %zu\n", totalSize);
     }
     os_mutex_unlock(&mutex);
 
     buf->next = NULL;
     buf->size = size;
     buf->free = size;
+    
     return buf->data;
 }
 
@@ -132,6 +142,8 @@ void nmranet_buffer_free(const void *buffer)
     {
         default:
             /* big buffers are just freed */
+            totalSize -= buf->size;
+            totalSize -= sizeof(Buffer);
             free(buf);
             return;
         case 4:
@@ -229,7 +241,7 @@ nmranet_queue_t nmranet_queue_create(void)
  * @param queue queue to add buffer to
  * @param buffer buffer to add to queue
  */
-void nmranet_queue_insert(nmranet_queue_t queue, void *buffer)
+void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer)
 {
     Queue *q = (Queue*)queue;
     Buffer *buf = BUFFER(buffer);
@@ -258,6 +270,11 @@ void *nmranet_queue_next(nmranet_queue_t queue)
     Buffer *buf;
 
     os_mutex_lock(&mutex);
+    if (q->head == NULL)
+    {
+        os_mutex_unlock(&mutex);
+        return NULL;
+    }
     buf = q->head;
     q->head = buf->next;
     os_mutex_unlock(&mutex);

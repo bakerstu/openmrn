@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -39,6 +39,7 @@
 
 #define constant 0x1B0CA37ABA9 /**< constant for random number generation */
 #define ALIAS_POOL_SIZE 16 /**< number of aliases */
+#define ALIAS_TRACK_SIZE 4 /**< number of aliases tracked */
 
 #define CONTROL_FRAME_SEQUENCE_MASK 0x7000000 /**< sequence mask for a control frame */
 #define RID_FRAME 0x0700 /**< Reserve ID Frame */
@@ -50,6 +51,7 @@ typedef int16_t node_alias_t; /**< node alias type */
 
 #define CAN_ID_SOURCE_MASK         0x00000fff /**< mask for source field of CAN ID */
 #define CAN_ID_MTI_MASK            0x00fff000 /**< mask for MTI field of CAN ID */
+#define CAN_ID_DST_MASK            0x00fff000 /**< mask for MTI field of CAN ID */
 #define CAN_ID_CAN_FRAME_TYPE_MASK 0x07000000 /**< mask for can frame type field of CAN ID */
 #define CAN_ID_FRAME_TYPE_MASK     0x08000000 /**< mask for frame type field of CAN ID */
 #define CAN_ID_PRIORITY_MASK       0x10000000 /**< mask for priority field of CAN ID */
@@ -57,6 +59,7 @@ typedef int16_t node_alias_t; /**< node alias type */
 
 #define CAN_ID_SOURCE_SHIFT          0 /**< shift for source field of CAN ID */
 #define CAN_ID_MTI_SHIFT            12 /**< shift for MTI field of CAN ID */
+#define CAN_ID_DST_SHIFT            12 /**< shift for MTI field of CAN ID */
 #define CAN_ID_CAN_FRAME_TYPE_SHIFT 24 /**< shift for can frame type field of CAN ID */
 #define CAN_ID_FRAME_TYPE_SHIFT     27 /**< shift for frame type field of CAN ID */
 #define CAN_ID_PRIORITY_SHIFT       28 /**< shift for priority field of CAN ID */
@@ -75,6 +78,13 @@ typedef int16_t node_alias_t; /**< node alias type */
  */
 #define GET_CAN_ID_MTI(_can_id) \
     (((_can_id) & CAN_ID_MTI_MASK) >> CAN_ID_MTI_SHIFT)
+
+/** Get the destination field value of the CAN ID.
+ * @param _can_id identifier to act upon
+ * @return destination field value
+ */
+#define GET_CAN_ID_DST(_can_id) \
+    (((_can_id) & CAN_ID_DST_MASK) >> CAN_ID_DST_SHIFT)
 
 /** Get the CAN frame type field value of the CAN ID.
  * @param _can_id identifier to act upon
@@ -115,6 +125,16 @@ typedef int16_t node_alias_t; /**< node alias type */
 {                                            \
     (_can_id) &= ~CAN_ID_MTI_MASK;           \
     (_can_id) |= (_mti) << CAN_ID_MTI_SHIFT; \
+}
+
+/** Set the destination field value of the CAN ID.
+ * @param _can_id identifier to act upon
+ * @param _dst destination field value
+ */
+#define SET_CAN_ID_DST(_can_id, _dst)        \
+{                                            \
+    (_can_id) &= ~CAN_ID_DST_MASK;           \
+    (_can_id) |= (_dst) << CAN_ID_DST_SHIFT; \
 }
 
 /** Set the CAN frame type field value of the CAN ID.
