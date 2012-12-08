@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,24 +24,26 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_types.h
- * Interesting NMRAnet types.
+ * \file nmranet_node_id.h
+ * This file defines NMRAnet node id and alias handling.
  *
  * @author Stuart W. Baker
- * @date 19 September 2012
+ * @date 23 November 2012
  */
 
-#ifndef _nmranet_types_h_
-#define _nmranet_types_h_
+#ifndef _nmranet_node_id_h_
+#define _nmranet_node_id_h_
 
-#include <stdint.h>
+#include "nmranet_types.h"
 
-#define NUM_ALIAS_IF 2
-
-typedef uint64_t node_id_t; /**< 48-bit node id type */
-typedef void *node_t; /**< handle to an NMRAnet node */
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
-#endif /* _nmranet_types_h_ */
 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _nmranet_node_id_h_ */

@@ -145,6 +145,12 @@ static int nmranet_bridge_packet(uint16_t mti, node_id_t src, node_id_t dst, con
 }
 
 /** This method can be called by any interface to indicate it has incoming data.
+ * It is for interfaces that use full 48-bit Node ID's.
+ * @param nmranet_if interface that the message came in on.
+ * @param mti Message Type Indeicator
+ * @param src source Node ID
+ * @param dst destination Node ID
+ * @param data data payload
  */
 void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data)
 {
