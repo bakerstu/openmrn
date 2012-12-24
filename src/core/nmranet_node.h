@@ -41,13 +41,39 @@
 extern "C" {
 #endif
 
+/** Well known events Node ID */
+#define NODE_ID_WELL_KNOWN_EVENTS 0x010100000000
+/** CBUS events base */
+#define NODE_ID_CBUS_EVENTS_BASE  0x010101000000
+/** CBUS events mask */
+#define NODE_ID_CBUS_EVENTS_MASK  0xffffff000000
+/** XpressNet translation base */
+#define NODE_ID_XPRESSNET_BASE    0x016300000000
+/** XpressNet translation mask */
+#define NODE_ID_XPRESSNET_MASK    0xffff00000000
+/** NocoNet translation base */
+#define NODE_ID_LOCONET_BASE      0x018100000000
+/** LocoNet translation mask */
+#define NODE_ID_LOCONET_MASK      0xffff00000000
+/** DCC translation base */
+#define NODE_ID_DCC_BASE          0x01ee00000000
+/** DCC translation mask */
+#define NODE_ID_DCC_MASK          0xffff00000000
+/** Mask to get all messages */
+#define NODE_ID_ALL_MASK          0x000000000000
+/** Mask for exact node ID */
+#define NODE_ID_EXACT_MASK        0xffffffffffff
+
+
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
+ * @param node_id_mask mask used for routing messages to this node
+ * @param nmranet_if interface to bind the node to
  * @param model node decription
  * @param priv private data to store with the the node for later retrieveal
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id, const char *model, void *priv);
+node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF *nmranet_if, const char* model, void *priv);
 
 /** Lookup the node handle for a given node ID.
  * @param node_id 48-bit unique Node ID
@@ -64,15 +90,6 @@ void nmranet_node_initialized(node_t node);
  * @param node node to wait on
  */
 void nmranet_node_wait(node_t node);
-
-/** Process a node management packet.
- * @param mti Message Type Indicator
- * @param src source node ID, 0 if unavailable
- * @param dst destination node ID, 0 if unavailable
- * @param data NMRAnet packet data
- * @return 0 upon success
- */
-int nmranet_node_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data);
 
 /** Post the reception of an event with to given node.
  * @param node to post event to
@@ -97,6 +114,16 @@ node_id_t nmranet_node_id(node_t node);
  * @return if it exists, handle to the node id, else NULL
  */
 void *nmranet_node_private(node_t node);
+
+/** Write a message from a node.
+ * @param node node to write message from
+ * @param mti Message Type Indicator
+ * @param dst destination node ID, 0 if unavailable
+ * @param data NMRAnet packet data
+ * @return 0 upon success
+ */
+int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void *data);
+
 
 #ifdef __cplusplus
 }

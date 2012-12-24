@@ -37,8 +37,7 @@
 
 #include "if/nmranet_if.h"
 
-#define constant 0x1B0CA37ABA9 /**< constant for random number generation */
-#define ALIAS_POOL_SIZE 16 /**< number of aliases */
+#define ALIAS_POOL_SIZE 8 /**< number of aliases */
 #define ALIAS_TRACK_SIZE 4 /**< number of aliases tracked */
 
 #define CONTROL_FRAME_SEQUENCE_MASK 0x7000000 /**< sequence mask for a control frame */
@@ -46,8 +45,6 @@
 #define AMD_FRAME 0x0701 /**< Alias Map Definition frame */
 #define AMI_FRAME 0x0702 /**< Alias Mapping Inquery */
 #define AMR_FRAME 0x0703 /**< Alias Map Reset */
-
-typedef int16_t node_alias_t; /**< node alias type */
 
 #define CAN_ID_SOURCE_MASK         0x00000fff /**< mask for source field of CAN ID */
 #define CAN_ID_MTI_MASK            0x00fff000 /**< mask for MTI field of CAN ID */
@@ -352,10 +349,11 @@ enum can_frame_type
  * @param device description for this instance
  * @param if_read read method for this interface
  * @param if_write write method for this interface
+ * @return handle to the NMRAnet interface
  */
-void nmranet_can_if_init(node_id_t node_id, const char *device,
-                         ssize_t (*if_read)(int, void*, size_t),
-                         ssize_t (*if_write)(int, const void*, size_t));
+NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
+                               ssize_t (*if_read)(int, void*, size_t),
+                               ssize_t (*if_write)(int, const void*, size_t));
 
 #endif /* _nmranet_can_if_h_ */
 

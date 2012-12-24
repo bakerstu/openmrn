@@ -176,8 +176,13 @@ int os_thread_create(os_thread_t *thread, int priority,
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 
+#if defined (__nuttx__)
 /** Static initializer for recursive mutexes */
-#define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+#define OS_RECURSIVE_MUTEX_INITIALIZER {0, SEM_INITIALIZER(1), PTHREAD_MUTEX_RECURSIVE, 0}
+#else
+/** Static initializer for recursive mutexes */
+#define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#endif
 
 /** Create a new timer.
  * @param callback callback associated with timer
@@ -393,13 +398,28 @@ static inline int os_mq_timedreceive(os_mq_t queue, void *data, const struct tim
  */
 static inline long long os_get_time_monotonic(void)
 {
+    static long long last = 0;
     struct timespec ts;
 #if defined (__nuttx__)
     clock_gettime(CLOCK_REALTIME, &ts);
 #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
-    return ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+    long long time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+    
+    /* This logic ensures that every successive call is one value larger
+     * than the last.  Each call returns a unique value.
+     */
+    if (time <= last)
+    {
+        last++;
+    }
+    else
+    {
+        last = time;
+    }
+
+    return last;
 }
 
 #ifdef __cplusplus

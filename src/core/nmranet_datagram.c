@@ -39,6 +39,7 @@
 #include "core/nmranet_train_control.h"
 #include "os/os.h"
 
+#if 0
 /** Mutual exclusion for socket library */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
@@ -243,3 +244,4 @@ void nmranet_datagram_process(node_t node, Datagram *datagram)
     nmranet_datagram_release(datagram);
 }
 
+#endif

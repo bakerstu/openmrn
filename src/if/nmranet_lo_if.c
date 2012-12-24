@@ -37,6 +37,7 @@
 #include "core/nmranet_event.h"
 #include "core/nmranet_datagram.h"
 
+#if 0
 /** Information about the interface. */
 typedef struct
 {
@@ -84,3 +85,4 @@ NMRAnetIF *nmranet_lo_if_init(void)
     return &lo_if->nmranetIF;
 }
 
+#endif

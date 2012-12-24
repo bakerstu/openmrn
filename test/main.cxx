@@ -51,20 +51,21 @@ const char *nmranet_software_rev = "0.1";
  */
 int main(int argc, char *argv[])
 {
-    nmranet_init(0x02010d000000);
+    NMRAnetIF *nmranet_if;
+    //nmranet_init(0x02010d000000);
 
     if (argc >= 2)
     {
-        nmranet_gc_if_init(0x02010d000000, argv[1]);
+        nmranet_if = nmranet_gc_if_init(0x02010d000000, argv[1]);
     }
     else
     {
-        nmranet_gc_if_init(0x02010d000000, "/dev/ttyUSB1");
+        nmranet_if = nmranet_gc_if_init(0x02010d000000, "/dev/ttyUSB1");
     }
     
-    node_t node = nmranet_node_create(0x02010d000001, "Virtual Node", NULL);
+    node_t node = nmranet_node_create(0x02010d000001, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
     nmranet_node_initialized(node);
-    nmranet_event_consumer(node, 0x0502010202650013);
+    nmranet_event_consumer(node, 0x0502010202650013, EVENT_STATE_INVALID);
 
     for (;;)
     {

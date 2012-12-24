@@ -48,6 +48,12 @@ extern "C" {
 #define EVENT_ROSTER_NODE       0x0101000000000302ULL /**< this node is a Roster Node */
 #define EVENT_TRAIN_PROXY       0x0101000000000303ULL /**< this node is a Train Proxy */
 
+#define EVENT_STATE_VALID    0 /**< valid state */
+#define EVENT_STATE_INVALID  1 /**< invalid state */
+#define EVENT_STATE_RESERVED 2 /**< reserved state */
+#define EVENT_STATE_UNKNOWN  3 /**< unknown state */
+
+
 /** Process an event packet.
  * @param mti Message Type Indicator
  * @param src source node ID, 0 if unavailable
@@ -55,13 +61,14 @@ extern "C" {
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int nmranet_event_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data);
+int nmranet_event_packet(uint16_t mti, node_handle_t src, node_id_t dst, const void *data);
 
 /** Register for the consumption of an event with a given node.
  * @param node to register event to
  * @param event event number to register
+ * @param state initial state of the event
  */
-void nmranet_event_consumer(node_t node, uint64_t event);
+void nmranet_event_consumer(node_t node, uint64_t event, int state);
 
 /** Grab an event from the event queue of the node.
  * @param node to grab event from

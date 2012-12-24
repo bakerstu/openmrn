@@ -69,13 +69,13 @@ enum mti_value
     MTI_CONSUMER_IDENTIFY_UNKNOWN = 0x04C7, /**< consumer broadcast, validity unknown */
     MTI_CONSUMER_IDENTIFY_VALID   = 0x04C4, /**< consumer broadcast, valid state */
     MTI_CONSUMER_IDENTIFY_INVALID = 0x04C5, /**< consumer broadcast, invalid state */
-    MTI_CONSUMER_IDENTIFY_RESERVE = 0x04C6, /**< reserved for future use */
+    MTI_CONSUMER_IDENTIFY_RESERVED = 0x04C6, /**< reserved for future use */
     MTI_PRODUCER_IDENTIFY         = 0x0914, /**< query about producers */
     MTI_PRODUCER_IDENTIFY_RANGE   = 0x0524, /**< query about a range of producers */
     MTI_PRODUCER_IDENTIFY_UNKNOWN = 0x0547, /**< producer broadcast, validity unknown */
     MTI_PRODUCER_IDENTIFY_VALID   = 0x0544, /**< producer broadcast, valid state */
     MTI_PRODUCER_IDENTIFY_INVALID = 0x0545, /**< producer broadcast, invalid state */
-    MTI_PRODUCER_IDENTIFY_RESERVE = 0x0546, /**< reserved for future use */
+    MTI_PRODUCER_IDENTIFY_RESERVED = 0x0546, /**< reserved for future use */
     MTI_EVENTS_IDENTIFY_ADDRESSED = 0x0968, /**< */
     MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< */
     MTI_LEARN_EVENT               = 0x0594, /**< */
@@ -272,13 +272,13 @@ typedef struct nmranet_if
 {
     const char *name; /**< name of interface */
     /** method for putting data onto interface */
-    int (*write)(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data);
-    struct nmranet_if *next; /**< next link in the list of interfaces */
+    int (*write)(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_handle_t dst, const void *data);
+    void *priv; /**< private data for upper layer use */
 } NMRAnetIF;
 
 /** This method can be called by any interface to indicate it has incoming data.
  */
-void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_id_t dst, const void *data);
+void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle_t src, node_id_t dst, const void *data);
 
 /** Initialize the network stack.
  * @param node_id Node ID used to identify the built in bridge, 0 for no bridge
@@ -293,13 +293,9 @@ void nmranet_if_init(NMRAnetIF* nmranet_if);
 /** Initialize a Grid Connect interface.
  * @param node_id node ID of interface
  * @param device description for this instance
+ * @return handle to the NMRAnet interface
  */
-void nmranet_gc_if_init(node_id_t node_id, const char *device);
-
-/** Send a verify node id number message.
- * @param node_id Node ID to place in message payload
- */
-void nmranet_if_verify_node_id_number(node_id_t node_id);
+NMRAnetIF *nmranet_gc_if_init(node_id_t node_id, const char *device);
 
 /** Send an ident info reply message.
  * @param node_id Node ID to respond as

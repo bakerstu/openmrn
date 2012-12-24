@@ -293,9 +293,10 @@ static ssize_t gc_read(int fd, void *data, size_t len)
 /** Initialize a Grid Connect interface.
  * @param node_id node ID of interface
  * @param device description for this instance
+ * @return handle to the NMRAnet interface
  */
-void nmranet_gc_if_init(node_id_t node_id, const char *device)
+NMRAnetIF *nmranet_gc_if_init(node_id_t node_id, const char *device)
 {
-    nmranet_can_if_init(node_id, device, gc_read, gc_write);
+    return nmranet_can_if_init(node_id, device, gc_read, gc_write);
 }
 

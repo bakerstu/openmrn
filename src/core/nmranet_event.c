@@ -40,6 +40,8 @@
 #include "core/nmranet_buf.h"
 #include "os/os.h"
 
+void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
+
 /** Mutual exclusion for socket library */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
@@ -84,8 +86,9 @@ struct event_tree eventHead = RB_INITIALIZER(&eventHead);
 /** Register for the consumption of an event with a given node.
  * @param node to register event to
  * @param event event number to register
+ * @param state initial state of the event
  */
-void nmranet_event_consumer(node_t node, uint64_t event)
+void nmranet_event_consumer(node_t node, uint64_t event, int state)
 {    
     struct event_node *event_node;
     struct event_node  event_lookup;
@@ -109,6 +112,7 @@ void nmranet_event_consumer(node_t node, uint64_t event)
         event_node->priv->next = NULL;
         RB_INSERT(event_tree, &eventHead, event_node);
     }
+    nmranet_node_consumer_add(node, event, state);
     os_mutex_unlock(&mutex);
 }
 
@@ -122,7 +126,8 @@ void nmranet_event_produce(node_t node, uint64_t event)
     *buffer = htobe64(event);
     nmranet_buffer_advance(buffer, sizeof(uint64_t));
 
-    nmranet_if_rx_data(nmranet_lo_if(), MTI_EVENT_REPORT, nmranet_node_id(node), 0, buffer);
+    node_handle_t dst = {0, 0};
+    nmranet_node_write(node, MTI_EVENT_REPORT, dst, buffer);
 }
 
 /** Process an event packet.
@@ -132,7 +137,7 @@ void nmranet_event_produce(node_t node, uint64_t event)
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int nmranet_event_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data)
+int nmranet_event_packet(uint16_t mti, node_handle_t src, node_id_t dst, const void *data)
 {
     struct event_node *event_node;
     struct event_node  event_lookup;
@@ -160,5 +165,4 @@ int nmranet_event_packet(uint16_t mti, node_id_t src, node_id_t dst, const void 
     
     return 1;
 }
-
 
