@@ -36,21 +36,53 @@
 #define _os_h_
 
 #include <stdlib.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <string.h>
+#include <limits.h>
+
+#if defined (__FreeRTOS__)
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+#include <timers.h>
+#else
+#include <pthread.h>
+#include <semaphore.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined (__FreeRTOS__)
+typedef xTaskHandle os_thread_t; /**< thread handle */
+typedef struct
+{
+    xSemaphoreHandle sem; /**< FreeRTOS mutex handle */
+    char init; /**< static initialization helper */
+    char recursive; /**< recursive mutex if set */
+} os_mutex_t; /**< mutex handle */
+typedef void *os_mq_t; /**< message queue handle */
+typedef xTimerHandle os_timer_t; /**< timer handle */
+typedef struct
+{
+    unsigned char state; /**< keep track if already executed */
+} os_thread_once_t; /**< one time initialization type */
+typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
+typedef struct thread_priv
+{
+    struct _reent reent; /**< newlib thread specific data (errno, etc...) */
+    void *(*entry)(void*); /**< thread entry point */
+    void *arg; /** argument to thread */
+} ThreadPriv; /**< thread private data */
+#else
 typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
 typedef void *os_timer_t; /**< timer handle */
 typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
 typedef sem_t os_sem_t; /**< semaphore handle */
+#endif
 
 #ifndef container_of
 /** Get a pointer to the parent structure of one of its members.
@@ -66,9 +98,30 @@ typedef sem_t os_sem_t; /**< semaphore handle */
 })
 #endif
 
+#if defined (__FreeRTOS__)
+/** @ref os_thread_once states.
+ */
+enum
+{
+    OS_THREAD_ONCE_NEVER = 0, ///< not yet executed
+    OS_THREAD_ONCE_INPROGRESS, ///< execution in progress
+    OS_THREAD_ONCE_DONE ///< execution complete
+};
+/** initial value for one time intitialization instance */
+#define OS_THREAD_ONCE_INIT { OS_THREAD_ONCE_NEVER }
+#else
 /** initial value for one time intitialization instance */
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
 
+#if defined (__FreeRTOS__)
+/** One time intialization routine
+ * @param once one time instance
+ * @param routine method to call once
+ * @return 0 upon success
+ */
+int os_thread_once(os_thread_once_t *once, void (*routine)(void));
+#else
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -78,6 +131,7 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 {
     return pthread_once(once, routine);
 }
+#endif
 
 #define OS_PRIO_MIN 1 /**< lowest thread priority supported by abstraction */
 #define OS_PRIO_DEFAULT 0 /**< default thread priority */
@@ -173,6 +227,12 @@ int os_thread_create(os_thread_t *thread, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg);
 
+#if defined (__FreeRTOS__)
+/** Static initializer for mutexes */
+#define OS_MUTEX_INITIALIZER {NULL, 0, 0}
+/** Static initializer for recursive mutexes */
+#define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 0, 1}
+#else
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 
@@ -182,6 +242,7 @@ int os_thread_create(os_thread_t *thread, int priority,
 #else
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#endif
 #endif
 
 /** Create a new timer.
@@ -216,7 +277,20 @@ void os_timer_stop(os_timer_t timer);
  */
 static inline int os_mutex_init(os_mutex_t *mutex)
 {
+#if defined (__FreeRTOS__)
+    taskENTER_CRITICAL();
+    if (mutex->init == 0)
+    {
+        mutex->init = 1;
+        mutex->recursive = 0;
+        mutex->sem = xSemaphoreCreateMutex();
+    }
+    taskEXIT_CRITICAL();
+
+    return 0;    
+#else
     return pthread_mutex_init(mutex, NULL);
+#endif
 }
 
 /** Initialize recursive mutex.
@@ -225,6 +299,18 @@ static inline int os_mutex_init(os_mutex_t *mutex)
  */
 static inline int os_recursive_mutex_init(os_mutex_t *mutex)
 {
+#if defined (__FreeRTOS__)
+    taskENTER_CRITICAL();
+    if (mutex->init == 0)
+    {
+        mutex->init = 1;
+        mutex->recursive = 1;
+        mutex->sem = xSemaphoreCreateRecursiveMutex();
+    }
+    taskEXIT_CRITICAL();
+
+    return 0;    
+#else
     pthread_mutexattr_t attr;
     int result;
 
@@ -241,6 +327,7 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
     }
 
     return pthread_mutex_init(mutex, &attr);
+#endif
 }
 
 /** Lock a mutex.
@@ -249,7 +336,34 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
  */
 static inline int os_mutex_lock(os_mutex_t *mutex)
 {
-   return pthread_mutex_lock(mutex);
+#if (__FreeRTOS__)
+    taskENTER_CRITICAL();
+    if (mutex->init == 0)
+    {
+        mutex->init = 1;
+        if (mutex->recursive)
+        {
+            mutex->sem = xSemaphoreCreateRecursiveMutex();
+        }
+        else
+        {
+            mutex->sem = xSemaphoreCreateMutex();
+        }
+    }
+    taskEXIT_CRITICAL();
+
+    if (mutex->recursive)
+    {
+        xSemaphoreTakeRecursive(mutex->sem, portMAX_DELAY);
+    }
+    else
+    {
+        xSemaphoreTake(mutex->sem, portMAX_DELAY);
+    }
+    return 0;
+#else
+    return pthread_mutex_lock(mutex);
+#endif
 }
 
 /** Unock a mutex.
@@ -258,7 +372,19 @@ static inline int os_mutex_lock(os_mutex_t *mutex)
  */
 static inline int os_mutex_unlock(os_mutex_t *mutex)
 {
-   return pthread_mutex_unlock(mutex);
+#if defined (__FreeRTOS__)
+    if (mutex->recursive)
+    {
+        xSemaphoreGiveRecursive(mutex->sem);
+    }
+    else
+    {
+        xSemaphoreGive(mutex->sem);
+    }
+    return 0;
+#else
+    return pthread_mutex_unlock(mutex);
+#endif
 }
 
 /** Initialize a semaphore.
@@ -268,7 +394,12 @@ static inline int os_mutex_unlock(os_mutex_t *mutex)
  */
 static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 {
+#if defined (__FreeRTOS__) && defined (GCC_ARMCM3)
+    *sem = xSemaphoreCreateCounting(value, LONG_MAX);
+    return 0;
+#else
     return sem_init(sem, 0, value);
+#endif
 }
 
 /** Post a semaphore.
@@ -277,7 +408,12 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
  */
 static inline int os_sem_post(os_sem_t *sem)
 {
+#if defined (__FreeRTOS__)
+    xSemaphoreGive(sem);
+    return 0;
+#else
     return sem_post(sem);
+#endif
 }
 
 /** Wait on a semaphore.
@@ -286,15 +422,20 @@ static inline int os_sem_post(os_sem_t *sem)
  */
 static inline int os_sem_wait(os_sem_t *sem)
 {
+#if defined (__FreeRTOS__)
+    xSemaphoreTake(sem, portMAX_DELAY);
+    return 0;
+#else
     return sem_wait(sem);
+#endif
 }
 
 /** Private data structure for a queue, do not use directly
  */
 typedef struct queue_priv
 {
-    sem_t semSend; /**< able to send semaphore */
-    sem_t semReceive; /**< able to receive semaphore */
+    os_sem_t semSend; /**< able to send semaphore */
+    os_sem_t semReceive; /**< able to receive semaphore */
     char *buffer; /**< queue data */
     size_t itemSize; /**< size of each item in the queue */
     size_t bytes; /**< number of bytes that make up the queue */
@@ -316,8 +457,8 @@ static inline os_mq_t os_mq_create(size_t length, size_t item_size)
         errno = ENOMEM;
         return NULL;
     }
-    sem_init(&q->semSend, 0, length);
-    sem_init(&q->semReceive, 0, 0);
+    os_sem_init(&q->semSend, length);
+    os_sem_init(&q->semReceive, 0);
     q->buffer = (char*)malloc(length * item_size);
     q->itemSize = item_size;
     q->bytes = length * item_size;
@@ -336,26 +477,26 @@ static inline void os_mq_send(os_mq_t queue, const void *data)
 {
     QueuePriv *q = (QueuePriv*)queue;
     
-    sem_wait(&q->semSend);
+    os_sem_wait(&q->semSend);
 
-    pthread_mutex_lock(&q->mutex);
+    os_mutex_lock(&q->mutex);
     memcpy(q->buffer + q->indexSend, data, q->itemSize);
     q->indexSend += q->itemSize;
     if (q->indexSend >= q->bytes)
     {
         q->indexSend = 0;
     }
-    pthread_mutex_unlock(&q->mutex);
-    sem_post(&q->semReceive);
+    os_mutex_unlock(&q->mutex);
+    os_sem_post(&q->semReceive);
 }
 
 /** Send a message to a queue with a timeout.
  * @param queue queue to send message to
  * @param data message to copy into queue
- * @param timeout time to wait for queue to be able to accept message
+ * @param timeout time in nanoseconds to wait for queue to be able to accept message
  * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
  */
-static inline int os_mq_timedsend(os_mq_t queue, const void *data, const struct timespec *timeout)
+static inline int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
     return OS_MQ_NONE;
 }
@@ -369,26 +510,26 @@ static inline void os_mq_receive(os_mq_t queue, void *data)
 {
     QueuePriv *q = (QueuePriv*)queue;
     
-    sem_wait(&q->semReceive);
+    os_sem_wait(&q->semReceive);
 
-    pthread_mutex_lock(&q->mutex);
+    os_mutex_lock(&q->mutex);
     memcpy(q->buffer + q->indexReceive, data, q->itemSize);
     q->indexReceive += q->itemSize;
     if (q->indexReceive >= q->bytes)
     {
         q->indexReceive = 0;
     }
-    pthread_mutex_unlock(&q->mutex);
-    sem_post(&q->semSend);
+    os_mutex_unlock(&q->mutex);
+    os_sem_post(&q->semSend);
 }
 
 /** Receive a message from a queue.
  * @param queue queue to receive message from
  * @param data location to copy message from the queue
- * @param timeout time to wait for queue to have a message available
+ * @param timeout time in nanoseconds to wait for queue to have a message available
  * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
  */
-static inline int os_mq_timedreceive(os_mq_t queue, void *data, const struct timespec *timeout)
+static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
     return OS_MQ_NONE;
 }
@@ -398,6 +539,10 @@ static inline int os_mq_timedreceive(os_mq_t queue, void *data, const struct tim
  */
 static inline long long os_get_time_monotonic(void)
 {
+#if defined (__FreeRTOS__)
+    portTickType tick = xTaskGetTickCount();
+    return ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+#else
     static long long last = 0;
     struct timespec ts;
 #if defined (__nuttx__)
@@ -420,6 +565,7 @@ static inline long long os_get_time_monotonic(void)
     }
 
     return last;
+#endif
 }
 
 #ifdef __cplusplus

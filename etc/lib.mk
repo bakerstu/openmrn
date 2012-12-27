@@ -1,15 +1,28 @@
 TARGET := $(shell basename `cd ../; pwd`)
 BASENAME = $(shell basename `pwd`)
-VPATH = $(LEVEL)src/$(BASENAME)
-INCLUDES = -I./ -I$(LEVEL)src/ -I $(LEVEL)include
+SRCDIR = $(LEVEL)src/$(BASENAME)
+VPATH = $(SRCDIR)
+
+INCLUDES += -I./ -I$(LEVEL)src/ -I $(LEVEL)include
+include $(LEVEL)etc/$(TARGET).mk
+
+exist := $(wildcard $(SRCDIR)/sources)
+ifneq ($(strip $(exist)),)
+include $(VPATH)/sources
+else
+exist := $(wildcard sources)
+ifneq ($(strip $(exist)),)
+include sources
+else
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
 CSRCS = $(notdir $(FULLPATHCSRCS))
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
+endif
+endif
+
 OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
-
-include $(LEVEL)etc/$(TARGET).mk
 
 CFLAGS += $(INCLUDES)
 

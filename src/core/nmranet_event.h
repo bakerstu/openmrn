@@ -70,6 +70,13 @@ int nmranet_event_packet(uint16_t mti, node_handle_t src, node_id_t dst, const v
  */
 void nmranet_event_consumer(node_t node, uint64_t event, int state);
 
+/** Register for the production of an event with from given node.
+ * @param node to register event from
+ * @param event event number to register
+ * @param state initial state of the event
+ */
+void nmranet_event_producer(node_t node, uint64_t event, int state);
+
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
  * @return 0 if the queue is empty, else return the event number
@@ -79,8 +86,9 @@ uint64_t nmranet_event_consume(node_t node);
 /** Produce an event from.
  * @param node node to produce event from
  * @param event event to produce
+ * @param state state of the event
  */
-void nmranet_event_produce(node_t node, uint64_t event);
+void nmranet_event_produce(node_t node, uint64_t event, int state);
 
 #ifdef __cplusplus
 }

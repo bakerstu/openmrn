@@ -35,22 +35,115 @@
 #include <time.h>
 #include <signal.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sched.h>
+#if defined (__FreeRTOS__)
+#else
 #include <sys/select.h>
+#endif
 #include "os/os.h"
 
 /** Timer structure */
 typedef struct timer
 {
+#if !defined (__FreeRTOS__)
     struct timer *next; /**< next timer in the list */
+#endif
     long long (*callback)(void*, void*); /**< timer's callback */
     void *data1; /**< timer's callback data */
     void *data2; /**< timer's callback data */
     long long when; /**< when in nanoseconds timer should expire */
     long long period; /**< period in nanoseconds for timer */
 } Timer;
+
+#if defined (__FreeRTOS__)
+/** Mutex for os_thread_once. */
+static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
+
+/** Entry point to a FreeRTOS thread.
+ * @param metadata for entering the thread
+ */
+static void os_thread_start(void *arg)
+{
+    ThreadPriv *priv = arg;
+    vTaskSetApplicationTaskTag(NULL, arg);
+    (*priv->entry)(priv->arg);
+}
+
+/** One time intialization routine
+ * @param once one time instance
+ * @param routine method to call once
+ * @return 0 upon success
+ */
+int os_thread_once(os_thread_once_t *once, void (*routine)(void))
+{
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+    {
+        /* The scheduler has started so we should use locking */
+        os_mutex_lock(&onceMutex);
+        if (once->state == OS_THREAD_ONCE_NEVER)
+        {
+            once->state = OS_THREAD_ONCE_INPROGRESS;
+            os_mutex_unlock(&onceMutex);
+            routine();
+            os_mutex_lock(&onceMutex);
+            once->state = OS_THREAD_ONCE_DONE;
+        }
+
+        while (once->state == OS_THREAD_ONCE_INPROGRESS)
+        {
+            /* avoid dead lock waiting for PTHREAD_ONCE_DONE state */
+            os_mutex_unlock(&onceMutex);
+            /** @todo should we sleep here? */
+            os_mutex_lock(&onceMutex);
+        }
+        os_mutex_unlock(&onceMutex);
+    }
+    else
+    {
+        /* this is for static constructures before the scheduler is started */
+        if (once->state == OS_THREAD_ONCE_NEVER)
+        {
+            once->state = OS_THREAD_ONCE_INPROGRESS;
+            routine();
+            once->state = OS_THREAD_ONCE_DONE;
+        }
+   }
+
+    return 0;
+}
+
+/** Callback function for handling of FreeRTOS timers.
+ * @param timer timer to handle
+ */
+static void timer_callback(xTimerHandle timer)
+{
+    portTickType ticks;
+    Timer *t = pvTimerGetTimerID(timer);
+    do
+    {
+        long long next_period = (*t->callback)(t->data1, t->data2);
+        switch (next_period)
+        {
+            case OS_TIMER_NONE:
+                /* no need to restart timer */
+                return;
+            default:
+                t->period = next_period;
+                /* fall through */
+            case OS_TIMER_RESTART:
+                t->when += t->period;
+                break;
+        }
+        long long now = os_get_time_monotonic();
+        long long delay = now - t->when;
+        ticks = (delay * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+    } while (ticks == 0);
+    xTimerChangePeriod(timer, ticks, portMAX_DELAY);
+}
+#else
 
 static Timer *active = NULL; /**< list of active timers */
 static int timerfds[2]; /**< pipe used for refreshing the timer list */
@@ -60,10 +153,6 @@ static os_thread_once_t timer_once = OS_THREAD_ONCE_INIT;
 
 /** Mutex for timers. */
 static os_mutex_t timerMutex = OS_MUTEX_INITIALIZER;
-
-/** Define the signal we will use for timers
- */
-#define WAKEUP_SIGNAL SIGRTMIN
 
 /** Insert a timer into the active timer list.
  * @param timer timer to put in the list
@@ -221,6 +310,7 @@ static void os_timer_init(void)
     fcntl(timerfds[0], F_SETFL, O_NONBLOCK);
     os_thread_create(&thread_handle, 0, 4096, timer_thread, NULL);
 }
+#endif
 
 /** Create a new timer.
  * @param callback callback associated with timer
@@ -234,17 +324,18 @@ os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, voi
     {
         abort();
     }
-
-    os_thread_once(&timer_once, os_timer_init);
-
     Timer *timer = malloc(sizeof(Timer));
 
     timer->callback = callback;
     timer->data1 = data1;
     timer->data2 = data2;
     timer->period = 0;
-
+#if defined (__FreeRTOS__)
+    return xTimerCreate(NULL, portMAX_DELAY, pdFALSE, timer, timer_callback);
+#else
+    os_thread_once(&timer_once, os_timer_init);
     return timer;
+#endif
 }
 
 /** Delete a timer.
@@ -257,11 +348,15 @@ void os_timer_delete(os_timer_t timer)
         abort();
     }
 
+#if defined (__FreeRTOS__)
+    Timer *t = pvTimerGetTimerID(timer);
+    xTimerDelete(timer, portMAX_DELAY);
+#else
     Timer *t = timer;
-
     os_mutex_lock(&timerMutex);
     remove_timer(t);
     os_mutex_unlock(&timerMutex);
+#endif
     free(t);
 }
 
@@ -271,14 +366,22 @@ void os_timer_delete(os_timer_t timer)
  */
 void os_timer_start(os_timer_t timer, long long period)
 {
-    struct timespec ts;
-    long long       timeout;
-    Timer          *t = timer;
-
     if (timer == NULL)
     {
         abort();
     }
+
+    Timer          *t = timer;
+#if defined (__FreeRTOS__)
+    long long now = os_get_time_monotonic();
+    t->when = now + period;
+    t->period = period;
+    portTickType ticks = (period * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+    xTimerChangePeriod(timer, ticks, portMAX_DELAY);
+    xTimerStart(timer, portMAX_DELAY);
+#else
+    struct timespec ts;
+    long long       timeout;
 
 #if defined (__nuttx__)
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -296,9 +399,10 @@ void os_timer_start(os_timer_t timer, long long period)
     /* insert the timer in the list */
     insert_timer(t);
     os_mutex_unlock(&timerMutex);
+#endif
 }
 
-/** Delete a timer.
+/** Stop a timer.
  * @param timer timer to stop
  */
 void os_timer_stop(os_timer_t timer)
@@ -307,14 +411,16 @@ void os_timer_stop(os_timer_t timer)
     {
         abort();
     }
-
+#if defined (__FreeRTOS__)
+    xTimerStop(timer, portMAX_DELAY);
+#else
     Timer *t = timer;
 
     os_mutex_lock(&timerMutex);
     remove_timer(t);
     os_mutex_unlock(&timerMutex);
+#endif
 }
-
 
 /** Create a thread.
  * @param thread handle to the created thread
@@ -328,6 +434,33 @@ int os_thread_create(os_thread_t *thread, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg)
 {
+#if defined (__FreeRTOS__)
+    static int count = 0;
+    char name[configMAX_TASK_NAME_LEN + 1];
+    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
+
+    snprintf(name, configMAX_TASK_NAME_LEN + 1, "thread.%03i", count++);
+    //priv->reent;
+    //_REENT_INIT_PTR(&priv->reent);
+    priv->entry = start_routine;
+    priv->arg = arg;
+    
+    if (priority == 0)
+    {
+        priority = configMAX_PRIORITIES / 2;
+    }
+    else
+    {
+        priority = configMAX_PRIORITIES - priority;
+    }
+    xTaskCreate(os_thread_start,
+                (const signed char *const)name,
+                stack_size/sizeof(portSTACK_TYPE),
+                priv,
+                priority,
+                (xTaskHandle*)thread);
+    return 0;
+#else
     pthread_attr_t attr;
 
     int result = pthread_attr_init(&attr);
@@ -365,6 +498,66 @@ int os_thread_create(os_thread_t *thread, int priority,
     result = pthread_create(thread, &attr, start_routine, arg);
 
     return result;
+#endif
 }
 
+#if defined (__FreeRTOS__)
+/* standard C library hooks for multi-threading */
+/** Mutex for locking malloc */
+static os_mutex_t mallocMutex = OS_RECURSIVE_MUTEX_INITIALIZER;
+
+/** Lock access to malloc.
+ */
+void __malloc_lock(void)
+{
+    os_mutex_lock(&mallocMutex);
+}
+
+/** Unlock access to malloc.
+ */
+void __malloc_unlock(void)
+{
+    os_mutex_unlock(&mallocMutex);
+}
+
+/** Implementation of standard sleep().
+ * @param seconds number of seconds to sleep
+ */
+unsigned sleep(unsigned seconds)
+{
+    vTaskDelay(seconds * configTICK_RATE_HZ);
+    return 0;
+}
+
+void abort(void)
+{
+    for (;;)
+    {
+    }
+}
+
+caddr_t _sbrk_r(struct _reent reent, int incr)
+{
+#if 1
+    abort();
+    return 0;
+#else
+    extern char _end; /* Defined by the linker */
+    static char *heap_end;
+    char *prev_heap_end;
+    if (heap_end == 0)
+    {
+        heap_end = &_end;
+    }
+    prev_heap_end = heap_end;
+    if (heap_end + incr > stack_ptr)
+    {
+        write (1, "Heap and stack collision\n", 25);
+        abort ();
+    }
+    heap_end += incr;
+    return (caddr_t) prev_heap_end;
+#endif
+}
+#endif
 

@@ -66,6 +66,8 @@ int main(int argc, char *argv[])
     node_t node = nmranet_node_create(0x02010d000001, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
     nmranet_node_initialized(node);
     nmranet_event_consumer(node, 0x0502010202650013, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650012, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650013, EVENT_STATE_VALID);
 
     for (;;)
     {
@@ -84,9 +86,11 @@ int main(int argc, char *argv[])
         while (event != 0);
 #endif
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650012);
+        nmranet_event_produce(node, 0x0502010202650012, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650012, EVENT_STATE_VALID);
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650013);
+        nmranet_event_produce(node, 0x0502010202650013, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650013, EVENT_STATE_VALID);
         
     }
 

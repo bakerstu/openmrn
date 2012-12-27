@@ -1,0 +1,6 @@
+VPATH := $(SRCDIR): \
+         $(SRCDIR)/common
+         
+CSRCS += fileio.c
+
+CXXSRCS +=

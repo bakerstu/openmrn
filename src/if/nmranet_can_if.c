@@ -67,9 +67,7 @@ typedef struct alias_metadata
 typedef struct nmranet_can_if
 {
     NMRAnetIF nmranetIF; /**< generic NMRAnet interface info */
-#if defined (__linux__) || defined (__nuttx__)
     int fd; /**< CAN hardware handle */
-#endif
     node_id_t id; /**< node id of interface */
     alias_cache_t aliasCache; /**< list of downstream aliases */
     alias_cache_t upstreamCache; /**< list of upstream aliases */

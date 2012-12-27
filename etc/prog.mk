@@ -1,7 +1,8 @@
 TARGET := $(shell basename `pwd`)
+LEVEL = $(BASEPATH)
 include $(BASEPATH)etc/$(TARGET).mk
 VPATH = ../../
-INCLUDES = -I$(BASEPATH)src/ -I $(BASEPATH)include
+INCLUDES += -I$(BASEPATH)src/ -I $(BASEPATH)include
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
 CSRCS = $(notdir $(FULLPATHCSRCS))
@@ -17,9 +18,9 @@ CXXFLAGS += $(INCLUDES)
 
 EXECUTABLE = $(shell basename `cd ../../; pwd`)
 
-all: $(EXECUTABLE)
+all: $(EXECUTABLE)$(EXTENTION)
 
-$(EXECUTABLE): $(OBJS) $(FULLPATHLIBS)
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(LD) -o $@ $(OBJS) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 
 -include $(OBJS:.o=.d)
@@ -36,7 +37,7 @@ $(EXECUTABLE): $(OBJS) $(FULLPATHLIBS)
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
 clean:
-	rm -rf *.o *.d *.a *.so $(EXECUTABLE)
+	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION)
 
 verclean: clean
 

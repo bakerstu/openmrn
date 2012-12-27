@@ -31,6 +31,7 @@
  * @date 29 October 2012
  */
 
+#include <endian.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -41,6 +42,8 @@
 #include "os/os.h"
 
 void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
+void nmranet_node_producer_add(node_t node, uint64_t event, int state);
+void nmranet_node_event_producer_state(node_t node, uint64_t event, int state);
 
 /** Mutual exclusion for socket library */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
@@ -116,18 +119,24 @@ void nmranet_event_consumer(node_t node, uint64_t event, int state)
     os_mutex_unlock(&mutex);
 }
 
+/** Register for the production of an event with from given node.
+ * @param node to register event from
+ * @param event event number to register
+ * @param state initial state of the event
+ */
+void nmranet_event_producer(node_t node, uint64_t event, int state)
+{    
+    nmranet_node_producer_add(node, event, state);
+}
+
 /** Produce an event from.
  * @param node node to produce event from
  * @param event event to produce
+ * @param state state of the event
  */
-void nmranet_event_produce(node_t node, uint64_t event)
+void nmranet_event_produce(node_t node, uint64_t event, int state)
 {
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-    *buffer = htobe64(event);
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-
-    node_handle_t dst = {0, 0};
-    nmranet_node_write(node, MTI_EVENT_REPORT, dst, buffer);
+    nmranet_node_event_producer_state(node, event, state);
 }
 
 /** Process an event packet.

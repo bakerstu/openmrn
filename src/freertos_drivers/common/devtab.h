@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,60 +24,56 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_if.c
- * This file defines a generic NMRAnet interface.
+ * \file devtab.h
+ * This file represents a newlib stub for device drivers.
  *
  * @author Stuart W. Baker
- * @date 13 August 2012
+ * @date 27 December 2012
  */
 
-#if 0
-#include <sys/tree.h>
-#include "if/nmranet_if.h"
-#include "core/nmranet_buf.h"
-#include "os/os.h"
+#ifndef _devtab_h_
+#define _devtab_h_
 
-/** Mutual exclusion for interfaces. */
-static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
+#include <sys/types.h>
 
-/** One time initialization for the NMRAnet interfaces.
+typedef struct file file_t;
+typedef struct node node_t;
+
+/** Device operations pointer structure.
  */
-static void if_init(void)
+typedef struct devops
 {
-}
+    int (*open)(file_t*, const char *, int, int);
+    int (*close)(file_t*, node_t*);
+    ssize_t (*read)(file_t*, void *, size_t);
+    ssize_t (*write)(file_t*, const void *, size_t);
+    int (*ioctl)(file_t*, node_t*, int, void *);
+} devops_t;
 
-/** Initialize the network stack.
- * @param node_id Node ID used to identify the built in bridge, 0 for no bridge
+/** Device tab structure.
  */
-void nmranet_init(node_id_t node_id)
+typedef struct
 {
-    bridgeId = node_id;
-}
+    const char *name; /**< device name */
+    devops_t fops; /**< device operations */
+} devtab_t;
 
-/** Initialize a NMRAnet interface.
- * @param nmranet_if instance of this interface
+/** Node information.
  */
-void nmranet_if_init(NMRAnetIF *nmranet_if)
+typedef struct node
 {
-    os_mutex_lock(&mutex);
-    os_thread_once(&if_once, if_init);
-    if (nmranet_if != NULL)
-    {
-        /* add our newly created interface to our list of interfaces */
-        NMRAnetIF * current = head;
-        while (current->next != NULL)
-        {
-            current = current->next;
-        }
-        current->next = nmranet_if;
-        nmranet_if->next = NULL;
-        /* identify everyone on this segment */
-        if (bridgeId)
-        {
-            (*nmranet_if->write)(nmranet_if, MTI_VERIFY_NODE_ID_GLOBAL, bridgeId, 0, NULL);
-        }
-    }
-    os_mutex_unlock(&mutex);
-}
-#endif
+    unsigned int references; /**< number of open references */
+    void *priv; /**< node private data */
+} node_t;
 
+/** File information.
+ */
+typedef struct file
+{
+    int inuse; /**< is this file in use */
+    node_t *node; /**< node this file information refers to */
+    off_t offset; /**< current offset within file */
+    devops_t *devops; /**< file operations */
+} file_t;
+
+#endif /* _devtab_h_ */

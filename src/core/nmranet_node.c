@@ -198,7 +198,7 @@ static void event_consumer_identify(node_t node, uint64_t event, int state)
 }
 
 /** Send a producer identify message from a given node.
- * @param node node to register event to
+ * @param node node event is registered to
  * @param event event number to register
  * @param state initial state of the event
  */
@@ -225,6 +225,42 @@ static void event_producer_identify(node_t node, uint64_t event, int state)
             nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_RESERVED, dst, buffer);
             break;
     }
+}
+
+/** Change the state of a producer event and send an event report if required.
+ * @param node node to register event to
+ * @param event event number to register
+ * @param state new state of the event
+ */
+void nmranet_node_event_producer_state(node_t node, uint64_t event, int state)
+{
+    struct id_node *n = (struct id_node*)node;
+
+    os_mutex_lock(&mutex);
+    /* change the state of this event */
+    for (EventList *l = n->priv->producerEvents; l != NULL; l = l->next)
+    {
+        for (unsigned int count = 0; count < l->count; count++)
+        {
+            if (l->events[count] == event)
+            {
+                l->state &= ~(0x3 << (l->count << 1));
+                l->state |= (state << (l->count << 1));
+                if (state == EVENT_STATE_VALID && n->priv->state == NODE_INITIALIZED)
+                {
+                    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
+                    *buffer = htobe64(event);
+                    nmranet_buffer_advance(buffer, sizeof(uint64_t));
+
+                    node_handle_t dst = {0, 0};
+                    nmranet_node_write(node, MTI_EVENT_REPORT, dst, buffer);
+                }
+                os_mutex_unlock(&mutex);
+                return;
+            }
+        }
+    }
+    os_mutex_unlock(&mutex);
 }
 
 /** Add the event to the conumser list within a given node.
@@ -267,6 +303,50 @@ void nmranet_node_consumer_add(node_t node, uint64_t event, int state)
     if (n->priv->state == NODE_INITIALIZED)
     {
         event_consumer_identify(node, event, state);
+    }
+    os_mutex_unlock(&mutex);
+}
+
+/** Add the event to the producer list within a given node.
+ * @param node node to register event to
+ * @param event event number to register
+ * @param state initial state of the event
+ */
+void nmranet_node_producer_add(node_t node, uint64_t event, int state)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    /* just to be safe, mask off upper bits */
+    state &= 0x3;
+    
+    os_mutex_lock(&mutex);
+    if (n->priv->producerEvents == NULL)
+    {
+        n->priv->producerEvents = malloc(sizeof(EventList));
+        n->priv->producerEvents->next = NULL;
+        n->priv->producerEvents->count = 0;
+    }
+    EventList *link = n->priv->producerEvents;
+    while (link->next != NULL)
+    {
+        link = link->next;
+    }
+    
+    if (link->count >= 8)
+    {
+        link->next = malloc(sizeof(EventList));
+        link = link->next;
+        link->next = NULL;
+        link->count = 0;
+    }
+    link->events[link->count] = event;
+    link->state &= ~(0x3 << (link->count << 1));
+    link->state |= (state << (link->count << 1));
+    link->count++;
+    
+    if (n->priv->state == NODE_INITIALIZED)
+    {
+        event_producer_identify(node, event, state);
     }
     os_mutex_unlock(&mutex);
 }
