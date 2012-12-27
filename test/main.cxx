@@ -43,13 +43,15 @@
 const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
+const size_t main_stack_size = 512;
+const int main_priority = 0;
 
 /** Entry point to program.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
  * @return 0, should never return
  */
-int main(int argc, char *argv[])
+extern "C" int nmranet_main(int argc, char *argv[])
 {
     NMRAnetIF *nmranet_if;
     //nmranet_init(0x02010d000000);

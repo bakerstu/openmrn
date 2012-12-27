@@ -561,3 +561,38 @@ caddr_t _sbrk_r(struct _reent reent, int incr)
 }
 #endif
 
+extern int nmranet_main(int argc, char *argv[]);
+
+#if defined (__FreeRTOS__)
+/** Stack size of the main thread */
+extern const size_t main_stack_size;
+
+/** priority of the main thread */
+extern const int main_priority;
+
+/** Entry point to the main thread.
+ * @param arg unused argument
+ * @return NULL;
+ */
+void *main_thread(void *arg)
+{
+    char *argv[2] = {"nmranet", NULL};
+    nmranet_main(1, argv);
+    return NULL;
+}
+#endif
+
+/** Entry point to program.
+ * @param argc number of command line arguments
+ * @param argv array of command line aguments
+ * @return 0, should never return
+ */
+int main(int argc, char *argv[])
+{
+#if defined (__FreeRTOS__)
+    os_thread_create(NULL, main_priority, main_stack_size, main_thread, NULL);
+    vTaskStartScheduler();
+#else
+    nmranet_main(argc, argv);
+#endif
+}
