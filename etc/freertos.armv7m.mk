@@ -23,7 +23,7 @@ CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
            -march=armv7-m -mthumb -mfloat-abi=soft \
            -fno-stack-protector -fno-exceptions -DGCC_ARMCM3
 
-LDFLAGS = -g -T target.ld
+LDFLAGS = -g -T target.ld -L/opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI/arm-none-eabi/lib/thumb2
 SYSLIBRARIES = -lfreertos -Wl,-whole-archive -lfreertos_drivers -Wl,-no-whole-archive
 
 EXTENTION = .elf

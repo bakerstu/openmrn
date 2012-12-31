@@ -1,4 +1,4 @@
-SUBDIRS = linux.x86 nuttx.armv7m freertos.armv7m
+SUBDIRS = linux.x86 nuttx.armv7m freertos.armv7m #freertos.atmega
 
 all:
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) all || exit 1;)

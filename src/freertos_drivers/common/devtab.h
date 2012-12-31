@@ -43,19 +43,26 @@ typedef struct node node_t;
  */
 typedef struct devops
 {
-    int (*open)(file_t*, const char *, int, int);
-    int (*close)(file_t*, node_t*);
-    ssize_t (*read)(file_t*, void *, size_t);
-    ssize_t (*write)(file_t*, const void *, size_t);
-    int (*ioctl)(file_t*, node_t*, int, void *);
+    /** Open method */
+    int (*open)(file_t *, const char *, int, int);
+    /** Close method */
+    int (*close)(file_t *, node_t*);
+    /** Read method */
+    ssize_t (*read)(file_t *, void *, size_t);
+    /** Write method */
+    ssize_t (*write)(file_t *, const void *, size_t);
+    /** Ioctl method */
+    int (*ioctl)(file_t *, node_t *, int, void *);
 } devops_t;
 
 /** Device tab structure.
  */
-typedef struct
+typedef struct devtab
 {
     const char *name; /**< device name */
-    devops_t fops; /**< device operations */
+    int (*init)(struct devtab *); /**< initialization method */
+    devops_t *devops; /**< device operations */
+    void *priv; /**< device private data */
 } devtab_t;
 
 /** Node information.
@@ -70,10 +77,58 @@ typedef struct node
  */
 typedef struct file
 {
-    int inuse; /**< is this file in use */
+    devtab_t *dev; /**< file operations */
     node_t *node; /**< node this file information refers to */
     off_t offset; /**< current offset within file */
-    devops_t *devops; /**< file operations */
+    int inuse; /**< is this file in use */
+    int flags; /**< open flags */
 } file_t;
+
+/** Linker generated device table */
+extern devtab_t DEVTAB[], DEVTAB_END;
+
+#define __string(_x) #_x
+#define __xstring(_x) __string(_x)
+
+/** Device operations instance
+ * @param _label unique label for instance
+ * @param _open open method
+ * @param _close close method
+ * @param _read read method
+ * @param _write write method
+ * @param _ioctl ioctl method
+ */
+#define DEVOPS(_label, _open, _close, _read, _write, _ioctl) \
+    devops_t _label =                                        \
+    {                                                        \
+        _open,                                               \
+        _close,                                              \
+        _read,                                               \
+        _write,                                              \
+        _ioctl                                               \
+    };
+
+/** Table entry.
+ * @param _name table name for the entry
+ */
+#define TABLE_ENTRY(_name) \
+    __attribute__((section((".device.table." __xstring(_name) ".data")))) \
+    __attribute__((used))
+
+/** Device Table entry instance.
+ * @param _label unique label for entry
+ * @param _name _name name of device
+ * @param _init device initialization method
+ * @param _devops device operations
+ * @param _priv private data for use by device
+ */
+#define DEVTAB_ENTRY(_label, _name, _init, _devops, _priv) \
+    devtab_t _label TABLE_ENTRY(devtab) =           \
+    {                                               \
+        _name,                                      \
+        _init,                                      \
+        _devops,                                    \
+        _priv                                       \
+    };
 
 #endif /* _devtab_h_ */

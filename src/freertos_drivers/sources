@@ -1,6 +1,7 @@
 VPATH := $(SRCDIR): \
          $(SRCDIR)/common
          
-CSRCS += fileio.c
+CSRCS += fileio.c \
+         can.c
 
 CXXSRCS +=

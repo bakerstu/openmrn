@@ -32,16 +32,17 @@
  * @date 13 August 2012
  */
 
-#include <time.h>
-#include <signal.h>
 #include <stdint.h>
-#include <stdio.h>
+#if !defined (GCC_MEGA_AVR)
 #include <unistd.h>
-#include <fcntl.h>
-#include <sched.h>
+#endif
 #if defined (__FreeRTOS__)
 #else
 #include <sys/select.h>
+#include <fcntl.h>
+#include <sched.h>
+#include <time.h>
+#include <signal.h>
 #endif
 #include "os/os.h"
 
@@ -435,13 +436,15 @@ int os_thread_create(os_thread_t *thread, int priority,
                      void *(*start_routine) (void *), void *arg)
 {
 #if defined (__FreeRTOS__)
-    static int count = 0;
-    char name[configMAX_TASK_NAME_LEN + 1];
+    static unsigned int count = 0;
+    char name[10];
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
 
-    snprintf(name, configMAX_TASK_NAME_LEN + 1, "thread.%03i", count++);
-    //priv->reent;
-    //_REENT_INIT_PTR(&priv->reent);
+    strcpy(name, "thread.");
+    name[9] = '\0';
+    name[8] = '0' + (count % 10);
+    name[7] = '0' + (count / 10);
+    priv->reent = malloc(sizeof(struct _reent));
     priv->entry = start_routine;
     priv->arg = arg;
     
@@ -454,7 +457,7 @@ int os_thread_create(os_thread_t *thread, int priority,
         priority = configMAX_PRIORITIES - priority;
     }
     xTaskCreate(os_thread_start,
-                (const signed char *const)name,
+                (const signed char *const)"thread",
                 stack_size/sizeof(portSTACK_TYPE),
                 priv,
                 priority,
@@ -561,8 +564,6 @@ caddr_t _sbrk_r(struct _reent reent, int incr)
 }
 #endif
 
-extern int nmranet_main(int argc, char *argv[]);
-
 #if defined (__FreeRTOS__)
 /** Stack size of the main thread */
 extern const size_t main_stack_size;
@@ -574,11 +575,11 @@ extern const int main_priority;
  * @param arg unused argument
  * @return NULL;
  */
-void *main_thread(void *arg)
+void main_thread(void *arg)
 {
     char *argv[2] = {"nmranet", NULL};
-    nmranet_main(1, argv);
-    return NULL;
+    vTaskSetApplicationTaskTag(NULL, arg);
+    os_main(1, argv);
 }
 #endif
 
@@ -590,9 +591,28 @@ void *main_thread(void *arg)
 int main(int argc, char *argv[])
 {
 #if defined (__FreeRTOS__)
-    os_thread_create(NULL, main_priority, main_stack_size, main_thread, NULL);
+    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
+    int priority;
+    priv->reent = _impure_ptr;
+    priv->entry = NULL;
+    priv->arg = NULL;
+    
+    if (main_priority == 0)
+    {
+        priority = configMAX_PRIORITIES / 2;
+    }
+    else
+    {
+        priority = configMAX_PRIORITIES - main_priority;
+    }
+    xTaskCreate(main_thread,
+                (const signed char *const)"thread.main",
+                main_stack_size/sizeof(portSTACK_TYPE),
+                priv,
+                priority,
+                (xTaskHandle*)NULL);
     vTaskStartScheduler();
 #else
-    nmranet_main(argc, argv);
+    os_main(argc, argv);
 #endif
 }

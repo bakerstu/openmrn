@@ -36,6 +36,12 @@
 
 #include <stdio.h>
 
+#if defined (__linux__)
+#define DEBUG printf
+#else
+#define DEBUG(_fmt...)
+#endif
+
 /** Mutual exclusion for queues. */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
@@ -105,7 +111,7 @@ void *nmranet_buffer_alloc(size_t size)
         buf->size = size;
         buf->free = size;
         totalSize += size + sizeof(Buffer);
-        printf("buffer total size: %zu\n", totalSize);
+        DEBUG("buffer total size: %zu\n", totalSize);
         return buf->data;
     }
 
@@ -119,7 +125,7 @@ void *nmranet_buffer_alloc(size_t size)
     {
         buf = malloc(size + sizeof(Buffer));
         totalSize += size + sizeof(Buffer);
-        printf("buffer total size: %zu\n", totalSize);
+        DEBUG("buffer total size: %zu\n", totalSize);
     }
     os_mutex_unlock(&mutex);
 

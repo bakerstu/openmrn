@@ -126,7 +126,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
  * each thread.  This is setup in os_thread_create. */
 #define traceTASK_SWITCHED_IN()                                     \
 {                                                                   \
-    _impure_ptr = (struct _reent*)xTaskGetApplicationTaskTag(NULL); \
+    _impure_ptr = *((struct _reent**)xTaskGetApplicationTaskTag(NULL)); \
 }
 
 

@@ -54,6 +54,13 @@
 extern "C" {
 #endif
 
+/** Entry point to program.
+ * @param argc number of arguments
+ * @param argv list of arguments
+ * @return 0 upon success.
+ */
+int os_main(int argc, char *argv[]);
+
 #if defined (__FreeRTOS__)
 typedef xTaskHandle os_thread_t; /**< thread handle */
 typedef struct
@@ -71,7 +78,11 @@ typedef struct
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
 typedef struct thread_priv
 {
-    struct _reent reent; /**< newlib thread specific data (errno, etc...) */
+#if defined (GCC_MEGA_AVR)
+    int threadErrno; /**< errno instance for this thread */
+#else
+    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
+#endif
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
@@ -394,8 +405,12 @@ static inline int os_mutex_unlock(os_mutex_t *mutex)
  */
 static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 {
-#if defined (__FreeRTOS__) && defined (GCC_ARMCM3)
+#if defined (__FreeRTOS__)
+#if defined (GCC_ARMCM3)
     *sem = xSemaphoreCreateCounting(value, LONG_MAX);
+#elif defined (GCC_MEGA_AVR)
+    *sem = xSemaphoreCreateCounting(value, CHAR_MAX);
+#endif
     return 0;
 #else
     return sem_init(sem, 0, value);

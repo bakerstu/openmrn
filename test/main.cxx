@@ -51,7 +51,7 @@ const int main_priority = 0;
  * @param argv array of command line aguments
  * @return 0, should never return
  */
-extern "C" int nmranet_main(int argc, char *argv[])
+int os_main(int argc, char *argv[])
 {
     NMRAnetIF *nmranet_if;
     //nmranet_init(0x02010d000000);
@@ -82,7 +82,9 @@ extern "C" int nmranet_main(int argc, char *argv[])
             event = nmranet_event_consume(node);
             if (event == 0x0502010202650013)
             {
+#if defined (__linux__)
                 printf("we got the right one\n");
+#endif
             }
         }
         while (event != 0);
