@@ -69,8 +69,8 @@ typedef struct devtab
  */
 typedef struct node
 {
-    unsigned int references; /**< number of open references */
     void *priv; /**< node private data */
+    unsigned int references; /**< number of open references */
 } node_t;
 
 /** File information.
@@ -80,8 +80,8 @@ typedef struct file
     devtab_t *dev; /**< file operations */
     node_t *node; /**< node this file information refers to */
     off_t offset; /**< current offset within file */
-    int inuse; /**< is this file in use */
     int flags; /**< open flags */
+    char inuse; /**< is this file in use */
 } file_t;
 
 /** Linker generated device table */

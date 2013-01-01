@@ -37,6 +37,7 @@
 #include <unistd.h>
 #endif
 #if defined (__FreeRTOS__)
+#include "devtab.h"
 #else
 #include <sys/select.h>
 #include <fcntl.h>
@@ -425,7 +426,7 @@ void os_timer_stop(os_timer_t timer)
 
 /** Create a thread.
  * @param thread handle to the created thread
- * @param priority priority of created thread
+ * @param priority priority of created thread, 0 means default
  * @param stack_size size in bytes of the created thread's stack
  * @param start_routine entry point of the thread
  * @param arg entry parameter to the thread
@@ -457,7 +458,7 @@ int os_thread_create(os_thread_t *thread, int priority,
         priority = configMAX_PRIORITIES - priority;
     }
     xTaskCreate(os_thread_start,
-                (const signed char *const)"thread",
+                (const signed char *const)name,
                 stack_size/sizeof(portSTACK_TYPE),
                 priv,
                 priority,
@@ -539,34 +540,28 @@ void abort(void)
     }
 }
 
+static char *heap_end = 0;
 caddr_t _sbrk_r(struct _reent reent, int incr)
 {
-#if 1
-    abort();
-    return 0;
-#else
-    extern char _end; /* Defined by the linker */
-    static char *heap_end;
+    extern char __cs3_heap_start;
+    extern char __cs3_heap_end; /* Defined by the linker */
     char *prev_heap_end;
     if (heap_end == 0)
     {
-        heap_end = &_end;
+        heap_end = &__cs3_heap_start;;
     }
     prev_heap_end = heap_end;
-    if (heap_end + incr > stack_ptr)
+    if (heap_end + incr > &__cs3_heap_end)
     {
-        write (1, "Heap and stack collision\n", 25);
-        abort ();
+        /* Heap and stack collistion */
+        return 0;
     }
     heap_end += incr;
     return (caddr_t) prev_heap_end;
-#endif
 }
-#endif
-
-#if defined (__FreeRTOS__)
 /** Stack size of the main thread */
 extern const size_t main_stack_size;
+
 
 /** priority of the main thread */
 extern const int main_priority;
@@ -605,6 +600,14 @@ int main(int argc, char *argv[])
     {
         priority = configMAX_PRIORITIES - main_priority;
     }
+    
+    /* initialize all the devices */
+    for (devtab_t *dev = &DEVTAB[0]; dev != &DEVTAB_END; dev++)
+    {
+        dev->init(dev);
+    }
+
+    /* start the main thread */
     xTaskCreate(main_thread,
                 (const signed char *const)"thread.main",
                 main_stack_size/sizeof(portSTACK_TYPE),

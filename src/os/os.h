@@ -228,7 +228,7 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 /** Create a thread.
  * @param thread handle to the created thread
- * @param priority priority of created thread
+ * @param priority priority of created thread, 0 means default
  * @param stack_size size in bytes of the created thread's stack
  * @param start_routine entry point of the thread
  * @param arg entry parameter to the thread

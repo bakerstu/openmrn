@@ -54,16 +54,17 @@ typedef struct can_priv
     node_t node;
     struct can_frame rxBuf[CAN_RX_BUFFER_SIZE];
     struct can_frame txBuf[CAN_TX_BUFFER_SIZE];
-    unsigned int rxCount;
-    unsigned int txCount;
-    unsigned int rxRdIndex;
-    unsigned int rxWrIndex;
-    unsigned int txRdIndex;
-    unsigned int txWrIndex;
+    unsigned char rxCount;
+    unsigned char txCount;
+    unsigned char rxRdIndex;
+    unsigned char rxWrIndex;
+    unsigned char txRdIndex;
+    unsigned char txWrIndex;
+    char rxOverrun;
 } CanPriv;
 
 /** private data for the can device */
-CanPriv can_private[1];
+static CanPriv can_private[1];
 
 /** device operations for can */
 static DEVOPS(can_ops, can_open, can_close, can_read, can_write, can_ioctl);
