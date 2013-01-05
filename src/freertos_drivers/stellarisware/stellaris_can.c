@@ -48,7 +48,7 @@
 static int stellaris_can_init(devtab_t *dev);
 static void stellaris_can_enable(devtab_t *dev);
 static void stellaris_can_disable(devtab_t *dev);
-static int stellaris_can_tx_msg(devtab_t *dev, uint32_t id, char eff, char rtr, uint8_t dlc, const uint8_t *data);
+static void stellaris_can_tx_msg(devtab_t *dev);
 
 /** Private data for this implementation of CAN
  */
@@ -138,51 +138,41 @@ static void stellaris_can_disable(devtab_t *dev)
     MAP_IntDisable(priv->interrupt);
 }
 
-/* Try and transmit a message.  Call with device locked.
+/* Try and transmit a message.
  * @param dev device to transmit message on
- * @param id CAN identifier
- * @param eff set if an extended frame format, else 0
- * @param rtr set if a remote frame, else 0
- * @param dlc data length code, number of data bytes
- * @param data pointer to an array of data
- * @return 1 if message put into transmit buffer, else 0
  */
-static int stellaris_can_tx_msg(devtab_t *dev, uint32_t id, char eff, char rtr, uint8_t dlc, const uint8_t *data)
+static void stellaris_can_tx_msg(devtab_t *dev)
 {
     StellarisCanPriv *priv = dev->priv;
-    int result;
     
-    MAP_IntDisable(priv->interrupt);
     if (priv->txPending == 0)
     {
-        tCANMsgObject can_message;
-        can_message.ulMsgID = id;
-        can_message.ulMsgIDMask = 0;
-        can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
-        if (eff)
+        struct can_frame can_frame;
+        if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) == OS_MQ_NONE)
         {
-            can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
+            /* load the next message to transmit */
+            tCANMsgObject can_message;
+            can_message.ulMsgID = can_frame.can_id;
+            can_message.ulMsgIDMask = 0;
+            can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
+            if (can_frame.can_eff)
+            {
+                can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
+            }
+            if (can_frame.can_rtr)
+            {
+                can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
+            }
+            can_message.ulMsgLen = can_frame.can_dlc;
+            can_message.pucMsgData = priv->data;
+            memcpy(priv->data, can_frame.data, can_frame.can_dlc);
+            
+            MAP_IntDisable(priv->interrupt);
+            MAP_CANMessageSet(priv->base, 2, &can_message, MSG_OBJ_TYPE_TX);
+            priv->txPending = 1;
+            MAP_IntEnable(priv->interrupt);
         }
-        if (rtr)
-        {
-            can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
-        }
-        can_message.ulMsgLen = dlc;
-        can_message.pucMsgData = priv->data;
-        memcpy(priv->data, data, dlc);
-        
-        MAP_CANMessageSet(priv->base, 2, &can_message, MSG_OBJ_TYPE_TX);
-        priv->txPending = 1;
-
-        result = 1;
     }
-    else
-    {
-        result = 0;
-    }
-    
-    MAP_IntEnable(priv->interrupt);
-    return result;
 }
 
 /** Common interrupt handler for all CAN devices.

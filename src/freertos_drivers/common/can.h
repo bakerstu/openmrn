@@ -46,8 +46,7 @@ typedef struct can_priv
 {
     void (*enable)(devtab_t *); /**< function to enable device */
     void (*disable)(devtab_t *); /**< function to disable device */
-    /** function to try and transmit a message */
-    int (*tx_msg)(devtab_t *, uint32_t, char, char, uint8_t, const uint8_t *);
+    void (*tx_msg)(devtab_t *); /**< function to try and transmit a message */
     os_mutex_t mutex; /**< mutual exclusion for the device */
     node_t node;
     os_mq_t txQ;

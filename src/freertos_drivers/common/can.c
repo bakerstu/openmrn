@@ -166,21 +166,6 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
     
     while (count >= sizeof(struct can_frame))
     {
-        if (os_mq_num_pending(priv->txQ) == 0)
-        {
-            /* first try placing message directly in the hardware */
-            int result = priv->tx_msg(file->dev,
-                                      can_frame->can_id,
-                                      can_frame->can_eff,
-                                      can_frame->can_rtr,
-                                      can_frame->can_dlc,
-                                      can_frame->data);
-            if (result > 0)
-            {
-                /* message placed in hardware successfully */
-                continue;
-            }
-        }
         if (file->flags & O_NONBLOCK)
         {
             if (os_mq_timedsend(priv->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
@@ -194,6 +179,7 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
             /* wait for room in the queue */
             os_mq_send(priv->txQ, can_frame);
         }
+        priv->tx_msg(file->dev);
 
         count -= sizeof(struct can_frame);
         result += sizeof(struct can_frame);
