@@ -1,7 +1,11 @@
 VPATH := $(SRCDIR): \
-         $(SRCDIR)/common
+         $(SRCDIR)/common \
+         $(SRCDIR)/stellarisware
          
 CSRCS += fileio.c \
-         can.c
+         can.c \
+         stellaris_can.c
 
 CXXSRCS +=
+
+INCLUDES += -I/opt/StellarisWare

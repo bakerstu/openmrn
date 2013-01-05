@@ -61,6 +61,8 @@
     }
 
 #elif defined (__nuttx__) || defined (__FreeRTOS__)
+#include <stdint.h>
+
     struct can_frame
     {
         uint32_t can_id;      /**< 11- or 29-bit ID (3-bits unsed) */

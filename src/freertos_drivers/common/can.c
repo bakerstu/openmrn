@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file can.c
- * This file implements the generic filio.
+ * This file implements a generic can device driver layer.
  *
  * @author Stuart W. Baker
  * @date 28 December 2012
@@ -33,50 +33,28 @@
 
 #include <stdint.h>
 #include "devtab.h"
+#include "can.h"
 #include "nmranet_can.h"
-#include "os/os.h"
 
 #define CAN_RX_BUFFER_SIZE 4
 #define CAN_TX_BUFFER_SIZE 4
 
 /* prototypes */
-static int can_init(devtab_t *dev);
+int can_init(devtab_t *dev);
 static int can_open(file_t* file, const char *path, int flags, int mode);
 static int can_close(file_t *file, node_t *node);
 static ssize_t can_read(file_t *file, void *buf, size_t count);
 static ssize_t can_write(file_t *file, const void *buf, size_t count);
 static int can_ioctl(file_t *file, node_t *node, int key, void *data);
 
-/** Private data for a can device */
-typedef struct can_priv
-{
-    os_mutex_t mutex; /**< mutual exclusion for the device */
-    node_t node;
-    struct can_frame rxBuf[CAN_RX_BUFFER_SIZE];
-    struct can_frame txBuf[CAN_TX_BUFFER_SIZE];
-    unsigned char rxCount;
-    unsigned char txCount;
-    unsigned char rxRdIndex;
-    unsigned char rxWrIndex;
-    unsigned char txRdIndex;
-    unsigned char txWrIndex;
-    char rxOverrun;
-} CanPriv;
-
-/** private data for the can device */
-static CanPriv can_private[1];
-
 /** device operations for can */
-static DEVOPS(can_ops, can_open, can_close, can_read, can_write, can_ioctl);
-
-/** device table entry for can device */
-DEVTAB_ENTRY(can0, "/dev/can0", can_init, &can_ops, &can_private[0]);
+DEVOPS(can_ops, can_open, can_close, can_read, can_write, can_ioctl);
 
 /** intitailize the device 
  * @parem dev device to initialize
  * @return 0 upon success
  */
-static int can_init(devtab_t *dev)
+int can_init(devtab_t *dev)
 {
     CanPriv *priv = dev->priv;
     
@@ -89,8 +67,74 @@ static int can_init(devtab_t *dev)
     priv->rxWrIndex = 0;
     priv->txRdIndex = 0;
     priv->txWrIndex = 0;
+    priv->rxOverrun = 0;
     
     return 0;
+}
+
+/** Pass a received message from lower layer to upper layer.  The device is
+ * assumed to be locked prior to calling this method.
+ * assumed to be dissabled during this time.
+ * @param dev device to receive message to
+ * @param id CAN identifier
+ * @param eff set if an extended frame format, else 0
+ * @param rtr set if a remote frame, else 0
+ * @param dlc data length code, number of data bytes
+ * @param data pointer to an array of data
+ */
+void can_rx_msg(devtab_t *dev, uint32_t id, char eff, char rtr, uint8_t dlc, uint8_t *data)
+{
+    CanPriv *priv = dev->priv;
+    
+    if (priv->rxCount < CAN_RX_BUFFER_SIZE)
+    {
+        priv->rxBuf[priv->rxWrIndex].can_id = id;
+        priv->rxBuf[priv->rxWrIndex].can_dlc = dlc;
+        priv->rxBuf[priv->rxWrIndex].can_rtr = rtr;
+        priv->rxBuf[priv->rxWrIndex].can_eff = eff;
+        priv->rxBuf[priv->rxWrIndex].can_err = 0;
+        memcpy(priv->rxBuf[priv->rxWrIndex].data, data, dlc);
+        
+        priv->rxCount++;
+        priv->rxWrIndex++;
+        if (priv->rxWrIndex >= CAN_TX_BUFFER_SIZE)
+        {
+            priv->rxWrIndex = 0;
+        }
+    }
+    else
+    {
+        /* no room left, indicate an overrun */
+        priv-> rxOverrun = 1;
+    }
+}
+
+/** Device is ready for the next transmission.  The device is
+ * assumed to be locked prior to calling this method.
+ * @param dev device ready
+ */
+void can_tx_ready(devtab_t *dev)
+{
+    CanPriv *priv = dev->priv;
+
+    if (priv->txCount)
+    {
+        int result = priv->tx_msg(dev,
+                                  priv->txBuf[priv->txRdIndex].can_id,
+                                  priv->txBuf[priv->txRdIndex].can_eff,
+                                  priv->txBuf[priv->txRdIndex].can_rtr,
+                                  priv->txBuf[priv->txRdIndex].can_dlc,
+                                  priv->txBuf[priv->txRdIndex].data);
+        if (result)
+        {
+            priv->txCount--;
+            priv->txRdIndex++;
+            if (priv->txRdIndex >= CAN_TX_BUFFER_SIZE)
+            {
+                priv->txRdIndex = 0;
+            }
+        }
+    }
 }
 
 /** Open a device.
@@ -107,7 +151,10 @@ static int can_open(file_t* file, const char *path, int flags, int mode)
     os_mutex_lock(&priv->mutex);
     file->node = &priv->node;
     file->offset = 0;
-    priv->node.references++;
+    if (priv->node.references++ == 0)
+    {
+        priv->enable(file->dev);
+    }
     os_mutex_unlock(&priv->mutex);
     
     return 0;
@@ -123,7 +170,10 @@ static int can_close(file_t *file, node_t *node)
     CanPriv *priv = file->dev->priv;
 
     os_mutex_lock(&priv->mutex);
-    node->references--;
+    if (--node->references == 0)
+    {
+        priv->disable(file->dev);
+    }
     os_mutex_unlock(&priv->mutex);
     
     return 0;
@@ -137,7 +187,36 @@ static int can_close(file_t *file, node_t *node)
  */
 static ssize_t can_read(file_t *file, void *buf, size_t count)
 {
-    return 0;
+    CanPriv *priv = file->dev->priv;
+    struct can_frame *can_frame = buf;
+    ssize_t result = 0;
+    
+    os_mutex_lock(&priv->mutex);
+    
+    while (count >= sizeof(struct can_frame))
+    {
+        priv->lock(file->dev);
+        if (priv->rxCount)
+        {
+            /* grab message */
+            memcpy(can_frame, &priv->txBuf[priv->rxRdIndex], sizeof(struct can_frame));
+        
+            priv->rxCount--;
+            priv->rxRdIndex++;
+            if (priv->rxRdIndex >= CAN_TX_BUFFER_SIZE)
+            {
+                priv->rxRdIndex = 0;
+            }
+        }
+        priv->unlock(file->dev);
+
+        count -= sizeof(struct can_frame);
+        result += sizeof(struct can_frame);
+        can_frame++;
+    }
+    
+    os_mutex_unlock(&priv->mutex);
+    return result;
 }
 
 /** Write to a file or device.
@@ -148,7 +227,56 @@ static ssize_t can_read(file_t *file, void *buf, size_t count)
  */
 static ssize_t can_write(file_t *file, const void *buf, size_t count)
 {
-    return 0;
+    CanPriv *priv = file->dev->priv;
+    const struct can_frame *can_frame = buf;
+    ssize_t result = 0;
+    
+    os_mutex_lock(&priv->mutex);
+    
+    while (count >= sizeof(struct can_frame))
+    {
+        priv->lock(file->dev);
+        if (priv->txCount >= CAN_TX_BUFFER_SIZE)
+        {
+            /* no room left in the buffer */
+            priv->unlock(file->dev);
+            break;
+        }
+        if (priv->txCount == 0)
+        {
+            /* first try placing message directly in the hardware */
+            int result = priv->tx_msg(file->dev,
+                                      can_frame->can_id,
+                                      can_frame->can_eff,
+                                      can_frame->can_rtr,
+                                      can_frame->can_dlc,
+                                      can_frame->data);
+            if (result > 0)
+            {
+                /* message placed in hardware successfully */
+                priv->unlock(file->dev);
+                continue;
+            }
+        }
+        
+        /* buffer message */
+        memcpy(&priv->txBuf[priv->txWrIndex], can_frame, sizeof(struct can_frame));
+        
+        priv->txCount++;
+        priv->txWrIndex++;
+        if (priv->txWrIndex >= CAN_TX_BUFFER_SIZE)
+        {
+            priv->txWrIndex = 0;
+        }
+        priv->unlock(file->dev);
+
+        count -= sizeof(struct can_frame);
+        result += sizeof(struct can_frame);
+        can_frame++;
+    }
+    
+    os_mutex_unlock(&priv->mutex);
+    return result;
 }
 
 /** Request and ioctl transaction
