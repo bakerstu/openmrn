@@ -48,19 +48,11 @@ typedef struct can_priv
     void (*disable)(devtab_t *); /**< function to disable device */
     /** function to try and transmit a message */
     int (*tx_msg)(devtab_t *, uint32_t, char, char, uint8_t, const uint8_t *);
-    void (*lock)(devtab_t *); /**< mutual exclusion lock for device */
-    void (*unlock)(devtab_t *); /**< mutual esclusion unlock for device */
     os_mutex_t mutex; /**< mutual exclusion for the device */
     node_t node;
-    struct can_frame rxBuf[CAN_RX_BUFFER_SIZE];
-    struct can_frame txBuf[CAN_TX_BUFFER_SIZE];
-    unsigned char rxCount;
-    unsigned char txCount;
-    unsigned char rxRdIndex;
-    unsigned char rxWrIndex;
-    unsigned char txRdIndex;
-    unsigned char txWrIndex;
-    char rxOverrun;
+    os_mq_t txQ;
+    os_mq_t rxQ;
+    unsigned int overrunCount;
 } CanPriv;
 
 extern devops_t can_ops;
@@ -73,22 +65,5 @@ extern devops_t can_ops;
  * @return 0 upon success
  */
 int can_init(devtab_t *dev);
-
-/** Pass a received message from lower layer to upper layer.  The device is
- * assumed to be locked prior to calling this method.
- * @param dev device to receive message to
- * @param id CAN identifier
- * @param eff set if an extended frame format, else 0
- * @param rtr set if a remote frame, else 0
- * @param dlc data length code, number of data bytes
- * @param data pointer to an array of data
- */
-void can_rx_msg(devtab_t *dev, uint32_t id, char eff, char rtr, uint8_t dlc, uint8_t *data);
-
-/** Device is ready for the next transmission.  The device is
- * assumed to be locked prior to calling this method.
- * @param dev device ready
- */
-void can_tx_ready(devtab_t *dev);
 
 #endif /* _can_h_ */

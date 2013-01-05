@@ -69,7 +69,7 @@ typedef struct
     char init; /**< static initialization helper */
     char recursive; /**< recursive mutex if set */
 } os_mutex_t; /**< mutex handle */
-typedef void *os_mq_t; /**< message queue handle */
+typedef xQueueHandle os_mq_t; /**< message queue handle */
 typedef xTimerHandle os_timer_t; /**< timer handle */
 typedef struct
 {
@@ -148,8 +148,10 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 #define OS_PRIO_DEFAULT 0 /**< default thread priority */
 #define OS_PRIO_MAX 32 /**< highest thread priority suported by abstraction */
 
-#define OS_MQ_NONE 0 /**< error code for no error for message queues */
+#define OS_MQ_NONE     0 /**< error code for no error for message queues */
 #define OS_MQ_TIMEDOUT 1 /**< error code for timedout for message queues */
+#define OS_MQ_EMPTY    2 /**< error code for the queue being empty */
+#define OS_MQ_FULL     3 /**< error code for queue being full */
 
 #define OS_TIMER_NONE 0LL /**< do not restart a timer */
 #define OS_TIMER_RESTART 1LL /**< restart a timer with the last period */
@@ -445,6 +447,7 @@ static inline int os_sem_wait(os_sem_t *sem)
 #endif
 }
 
+#if !defined (__FreeRTOS__)
 /** Private data structure for a queue, do not use directly
  */
 typedef struct queue_priv
@@ -458,6 +461,7 @@ typedef struct queue_priv
     unsigned int indexReceive; /**< current index for receive */
     os_mutex_t mutex; /**< mutex to protect queue operations */
 } QueuePriv;
+#endif
 
 /** Create a new message queue.
  * @param length length in number of messages of the queue
@@ -466,6 +470,9 @@ typedef struct queue_priv
  */
 static inline os_mq_t os_mq_create(size_t length, size_t item_size)
 {
+#if defined (__FreeRTOS__)
+    return xQueueCreate(length, item_size);
+#else
     QueuePriv *q = (QueuePriv*)malloc(sizeof(QueuePriv));
     if (!q)
     {
@@ -482,6 +489,7 @@ static inline os_mq_t os_mq_create(size_t length, size_t item_size)
     os_mutex_init(&q->mutex);
 
     return q;
+#endif
 }
 
 /** Blocking send of a message to a queue.
@@ -490,6 +498,9 @@ static inline os_mq_t os_mq_create(size_t length, size_t item_size)
  */
 static inline void os_mq_send(os_mq_t queue, const void *data)
 {
+#if defined (__FreeRTOS__)
+    xQueueSend(queue, data, portMAX_DELAY);
+#else
     QueuePriv *q = (QueuePriv*)queue;
     
     os_sem_wait(&q->semSend);
@@ -503,6 +514,7 @@ static inline void os_mq_send(os_mq_t queue, const void *data)
     }
     os_mutex_unlock(&q->mutex);
     os_sem_post(&q->semReceive);
+#endif
 }
 
 /** Send a message to a queue with a timeout.
@@ -513,16 +525,27 @@ static inline void os_mq_send(os_mq_t queue, const void *data)
  */
 static inline int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
+#if defined (__FreeRTOS__)
+    portTickType ticks = (timeout * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+
+    if (xQueueSend(queue, data, ticks) != pdTRUE)
+    {
+        return OS_MQ_TIMEDOUT;
+    }
+#endif
     return OS_MQ_NONE;
 }
 
 
-/** Receive a message from a queue.
+/** Blocking receive a message from a queue.
  * @param queue queue to receive message from
  * @param data location to copy message from the queue
  */
 static inline void os_mq_receive(os_mq_t queue, void *data)
 {
+#if defined (__FreeRTOS__)
+    xQueueReceive(queue, data, portMAX_DELAY);
+#else
     QueuePriv *q = (QueuePriv*)queue;
     
     os_sem_wait(&q->semReceive);
@@ -536,6 +559,7 @@ static inline void os_mq_receive(os_mq_t queue, void *data)
     }
     os_mutex_unlock(&q->mutex);
     os_sem_post(&q->semSend);
+#endif
 }
 
 /** Receive a message from a queue.
@@ -546,7 +570,73 @@ static inline void os_mq_receive(os_mq_t queue, void *data)
  */
 static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
+#if defined (__FreeRTOS__)
+    portTickType ticks = (timeout * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+
+    if (xQueueReceive(queue, data, ticks) != pdTRUE)
+    {
+        return OS_MQ_TIMEDOUT;
+    }    
+#endif
     return OS_MQ_NONE;
+}
+
+/** Send of a message to a queue from ISR context.
+ * @param queue queue to send message to
+ * @param data message to copy into queue
+ * @return OS_MQ_NONE on success, else OS_MQ_FULL
+ */
+static inline int os_mq_send_from_isr(os_mq_t queue, const void *data)
+{
+#if defined (__FreeRTOS__)
+    portBASE_TYPE woken;
+    if (xQueueSendFromISR(queue, data, &woken) != pdTRUE)
+    {
+        return OS_MQ_FULL;
+    }
+#endif
+    return OS_MQ_NONE;
+}
+
+/** Receive a message from a queue from ISR context.
+ * @param queue queue to receive message from
+ * @param data location to copy message from the queue
+ * @return OS_MQ_NONE on success, else OS_MQ_FULL
+ */
+static inline int os_mq_receive_from_isr(os_mq_t queue, void *data)
+{
+#if defined (__FreeRTOS__)
+    portBASE_TYPE woken;
+    if (xQueueReceiveFromISR(queue, data, &woken) != pdTRUE)
+    {
+        return OS_MQ_EMPTY;
+    }
+#endif
+    return OS_MQ_NONE;
+}
+
+/** Return the number of messages pending in the queue.
+ * @return number of messages in the queue
+ */
+static inline int os_mq_num_pending(os_mq_t queue)
+{
+#if defined (__FreeRTOS__)
+    return uxQueueMessagesWaiting(queue);
+#else
+    return 0;
+#endif
+}
+
+/** Return the number of messages pending in the queue from ISR context.
+ * @return number of messages in the queue
+ */
+static inline int os_mq_num_pending_from_isr(os_mq_t queue)
+{
+#if defined (__FreeRTOS__)
+    return uxQueueMessagesWaitingFromISR(queue);
+#else
+    return 0;
+#endif
 }
 
 /** Get the monotonic time since the system started.

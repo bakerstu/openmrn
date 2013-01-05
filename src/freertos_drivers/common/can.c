@@ -32,6 +32,7 @@
  */
 
 #include <stdint.h>
+#include <fcntl.h>
 #include "devtab.h"
 #include "can.h"
 #include "nmranet_can.h"
@@ -61,80 +62,11 @@ int can_init(devtab_t *dev)
     os_mutex_init(&priv->mutex);
     priv->node.references = 0;
     priv->node.priv = priv;
-    priv->rxCount = 0;
-    priv->txCount = 0;
-    priv->rxRdIndex = 0;
-    priv->rxWrIndex = 0;
-    priv->txRdIndex = 0;
-    priv->txWrIndex = 0;
-    priv->rxOverrun = 0;
+    priv->rxQ = os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame));
+    priv->txQ = os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame));
+    priv->overrunCount = 0;
     
     return 0;
-}
-
-/** Pass a received message from lower layer to upper layer.  The device is
- * assumed to be locked prior to calling this method.
- * assumed to be dissabled during this time.
- * @param dev device to receive message to
- * @param id CAN identifier
- * @param eff set if an extended frame format, else 0
- * @param rtr set if a remote frame, else 0
- * @param dlc data length code, number of data bytes
- * @param data pointer to an array of data
- */
-void can_rx_msg(devtab_t *dev, uint32_t id, char eff, char rtr, uint8_t dlc, uint8_t *data)
-{
-    CanPriv *priv = dev->priv;
-    
-    if (priv->rxCount < CAN_RX_BUFFER_SIZE)
-    {
-        priv->rxBuf[priv->rxWrIndex].can_id = id;
-        priv->rxBuf[priv->rxWrIndex].can_dlc = dlc;
-        priv->rxBuf[priv->rxWrIndex].can_rtr = rtr;
-        priv->rxBuf[priv->rxWrIndex].can_eff = eff;
-        priv->rxBuf[priv->rxWrIndex].can_err = 0;
-        memcpy(priv->rxBuf[priv->rxWrIndex].data, data, dlc);
-        
-        priv->rxCount++;
-        priv->rxWrIndex++;
-        if (priv->rxWrIndex >= CAN_TX_BUFFER_SIZE)
-        {
-            priv->rxWrIndex = 0;
-        }
-    }
-    else
-    {
-        /* no room left, indicate an overrun */
-        priv-> rxOverrun = 1;
-    }
-}
-
-/** Device is ready for the next transmission.  The device is
- * assumed to be locked prior to calling this method.
- * @param dev device ready
- */
-void can_tx_ready(devtab_t *dev)
-{
-    CanPriv *priv = dev->priv;
-
-    if (priv->txCount)
-    {
-        int result = priv->tx_msg(dev,
-                                  priv->txBuf[priv->txRdIndex].can_id,
-                                  priv->txBuf[priv->txRdIndex].can_eff,
-                                  priv->txBuf[priv->txRdIndex].can_rtr,
-                                  priv->txBuf[priv->txRdIndex].can_dlc,
-                                  priv->txBuf[priv->txRdIndex].data);
-        if (result)
-        {
-            priv->txCount--;
-            priv->txRdIndex++;
-            if (priv->txRdIndex >= CAN_TX_BUFFER_SIZE)
-            {
-                priv->txRdIndex = 0;
-            }
-        }
-    }
 }
 
 /** Open a device.
@@ -195,20 +127,19 @@ static ssize_t can_read(file_t *file, void *buf, size_t count)
     
     while (count >= sizeof(struct can_frame))
     {
-        priv->lock(file->dev);
-        if (priv->rxCount)
+        if (file->flags & O_NONBLOCK)
         {
-            /* grab message */
-            memcpy(can_frame, &priv->txBuf[priv->rxRdIndex], sizeof(struct can_frame));
-        
-            priv->rxCount--;
-            priv->rxRdIndex++;
-            if (priv->rxRdIndex >= CAN_TX_BUFFER_SIZE)
+            if (os_mq_timedreceive(priv->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
             {
-                priv->rxRdIndex = 0;
+                /* no more data to receive */
+                break;
             }
         }
-        priv->unlock(file->dev);
+        else
+        {
+            /* wait for data to come in */
+            os_mq_receive(priv->rxQ, can_frame);
+        }
 
         count -= sizeof(struct can_frame);
         result += sizeof(struct can_frame);
@@ -235,14 +166,7 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
     
     while (count >= sizeof(struct can_frame))
     {
-        priv->lock(file->dev);
-        if (priv->txCount >= CAN_TX_BUFFER_SIZE)
-        {
-            /* no room left in the buffer */
-            priv->unlock(file->dev);
-            break;
-        }
-        if (priv->txCount == 0)
+        if (os_mq_num_pending(priv->txQ) == 0)
         {
             /* first try placing message directly in the hardware */
             int result = priv->tx_msg(file->dev,
@@ -254,21 +178,22 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
             if (result > 0)
             {
                 /* message placed in hardware successfully */
-                priv->unlock(file->dev);
                 continue;
             }
         }
-        
-        /* buffer message */
-        memcpy(&priv->txBuf[priv->txWrIndex], can_frame, sizeof(struct can_frame));
-        
-        priv->txCount++;
-        priv->txWrIndex++;
-        if (priv->txWrIndex >= CAN_TX_BUFFER_SIZE)
+        if (file->flags & O_NONBLOCK)
         {
-            priv->txWrIndex = 0;
+            if (os_mq_timedsend(priv->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            {
+                /* no more room in the buffer */
+                break;
+            }
         }
-        priv->unlock(file->dev);
+        else
+        {
+            /* wait for room in the queue */
+            os_mq_send(priv->txQ, can_frame);
+        }
 
         count -= sizeof(struct can_frame);
         result += sizeof(struct can_frame);
