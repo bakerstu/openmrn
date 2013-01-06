@@ -1,3 +1,9 @@
+TOOLPATH = /usr/bin
+
+# Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
+include $(OPENMRNPATH)/etc/env.mk
+
+
 CC = gcc
 CXX = g++
 AR = ar

@@ -1,15 +1,23 @@
-PREFIX = arm-none-eabi-
+# Get the $(NUTTXPATH)
+include $(OPENMRNPATH)/etc/nuttx.mk
+
+# Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
+include $(OPENMRNPATH)/etc/env.mk
+
+# Get the $(TOOLPATH)
+ifneq ($(NUTTXPATH),)
+include $(OPENMRNPATH)/etc/armgcc.mk
+endif
+
+PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 CC = $(PREFIX)gcc
 CXX = $(PREFIX)g++
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 
-INCLUDES += -I/home/stu/nuttx-6.22/nuttx-export-6.22/include \
-            -I $(LEVEL)include/nuttx
-
-#CFLAGS = -c -g -O3 -Wall -Werror -MD -MP -std=gnu99 -D__nuttx__
-#CXXFLAGS = -c -g -O3 -Wall -Werror -MD -MP -D__nuttx__
+INCLUDES += -I$(NUTTXPATH)/include \
+            -I $(OPENMRNPATH)/include/nuttx
 
 #ARCHOPTIMIZATION =
 ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer

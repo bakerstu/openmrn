@@ -1,10 +1,10 @@
 TARGET := $(shell basename `cd ../; pwd`)
 BASENAME = $(shell basename `pwd`)
-SRCDIR = $(LEVEL)src/$(BASENAME)
+SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)
 VPATH = $(SRCDIR)
 
-INCLUDES += -I./ -I$(LEVEL)src/ -I $(LEVEL)include
-include $(LEVEL)etc/$(TARGET).mk
+INCLUDES += -I./ -I$(OPENMRNPATH)/src/ -I $(OPENMRNPATH)/include
+include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 exist := $(wildcard $(SRCDIR)/sources)
 ifneq ($(strip $(exist)),)
@@ -26,6 +26,14 @@ LIBNAME = lib$(BASENAME).a
 
 CFLAGS += $(INCLUDES)
 
+ifeq ($(TOOLPATH),)
+all docs clean veryclean:
+	@echo "******************************************************************"
+	@echo "*"
+	@echo "*   Unable to build for $(TARGET), no toolchain available"
+	@echo "*"
+	@echo "******************************************************************"
+else
 .PHONY: all
 all: $(LIBNAME)
 
@@ -53,3 +61,4 @@ clean:
 .PHONY: veryclean
 veryclean: clean
 
+endif

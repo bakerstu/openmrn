@@ -150,6 +150,8 @@ SECTIONS
     *(.shdata)
     *(.data .data.* .gnu.linkonce.d.*)
     . = ALIGN (8);
+    KEEP(*( SORT (.device.table.*))) ;
+    . = ALIGN (4);
     *(.ram)
     . = ALIGN (8);
     _edata = .;

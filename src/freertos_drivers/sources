@@ -8,4 +8,7 @@ CSRCS += fileio.c \
 
 CXXSRCS +=
 
-INCLUDES += -I/opt/StellarisWare
+# Find StellarisWare
+include $(OPENMRNPATH)/etc/stellarisware.mk
+
+INCLUDES += -I$(STELLARISWAREPATH)
