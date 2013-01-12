@@ -66,7 +66,6 @@ typedef xTaskHandle os_thread_t; /**< thread handle */
 typedef struct
 {
     xSemaphoreHandle sem; /**< FreeRTOS mutex handle */
-    char init; /**< static initialization helper */
     char recursive; /**< recursive mutex if set */
 } os_mutex_t; /**< mutex handle */
 typedef xQueueHandle os_mq_t; /**< message queue handle */
@@ -242,9 +241,9 @@ int os_thread_create(os_thread_t *thread, int priority,
 
 #if defined (__FreeRTOS__)
 /** Static initializer for mutexes */
-#define OS_MUTEX_INITIALIZER {NULL, 0, 0}
+#define OS_MUTEX_INITIALIZER {NULL, 0}
 /** Static initializer for recursive mutexes */
-#define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 0, 1}
+#define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 1}
 #else
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
@@ -291,14 +290,8 @@ void os_timer_stop(os_timer_t timer);
 static inline int os_mutex_init(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
-    taskENTER_CRITICAL();
-    if (mutex->init == 0)
-    {
-        mutex->init = 1;
-        mutex->recursive = 0;
-        mutex->sem = xSemaphoreCreateMutex();
-    }
-    taskEXIT_CRITICAL();
+    mutex->recursive = 0;
+    mutex->sem = xSemaphoreCreateMutex();
 
     return 0;    
 #else
@@ -313,14 +306,8 @@ static inline int os_mutex_init(os_mutex_t *mutex)
 static inline int os_recursive_mutex_init(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
-    taskENTER_CRITICAL();
-    if (mutex->init == 0)
-    {
-        mutex->init = 1;
-        mutex->recursive = 1;
-        mutex->sem = xSemaphoreCreateRecursiveMutex();
-    }
-    taskEXIT_CRITICAL();
+    mutex->recursive = 1;
+    mutex->sem = xSemaphoreCreateRecursiveMutex();
 
     return 0;    
 #else
@@ -350,10 +337,9 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
 static inline int os_mutex_lock(os_mutex_t *mutex)
 {
 #if (__FreeRTOS__)
-    taskENTER_CRITICAL();
-    if (mutex->init == 0)
+    vTaskSuspendAll();
+    if (mutex->sem == NULL)
     {
-        mutex->init = 1;
         if (mutex->recursive)
         {
             mutex->sem = xSemaphoreCreateRecursiveMutex();
@@ -363,7 +349,7 @@ static inline int os_mutex_lock(os_mutex_t *mutex)
             mutex->sem = xSemaphoreCreateMutex();
         }
     }
-    taskEXIT_CRITICAL();
+    xTaskResumeAll();
 
     if (mutex->recursive)
     {

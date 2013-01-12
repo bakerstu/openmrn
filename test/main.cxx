@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include "os/os.h"
 #include "os/OS.hxx"
 #include "if/nmranet_if.h"
@@ -43,8 +44,15 @@
 const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
-const size_t main_stack_size = 512;
+const size_t main_stack_size = 2048;
 const int main_priority = 0;
+const size_t ALIAS_POOL_SIZE = 2;
+const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t CAN_RX_BUFFER_SIZE = 1;
+const size_t CAN_TX_BUFFER_SIZE = 32;
+const size_t SERIAL_RX_BUFFER_SIZE = 16;
+const size_t SERIAL_TX_BUFFER_SIZE = 16;
 
 /** Entry point to program.
  * @param argc number of command line arguments
@@ -53,6 +61,8 @@ const int main_priority = 0;
  */
 int os_main(int argc, char *argv[])
 {
+    printf("hello world\n");
+
     NMRAnetIF *nmranet_if;
     //nmranet_init(0x02010d000000);
 
@@ -62,7 +72,12 @@ int os_main(int argc, char *argv[])
     }
     else
     {
+#if defined (__FreeRTOS__)
+
+        nmranet_if = nmranet_can_if_init(0x02010d000000, "/dev/can0", read, write);
+#else
         nmranet_if = nmranet_gc_if_init(0x02010d000000, "/dev/ttyUSB1");
+#endif
     }
     
     node_t node = nmranet_node_create(0x02010d000001, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);

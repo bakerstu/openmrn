@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,9 +77,9 @@ static StellarisCanPriv can_private[2] =
 };
 
 /** Device table entry for can device */
-CAN_DEVTAB_ENTRY(can0, "/dev/can0", stellaris_can_init, &can_private[0]);
+static CAN_DEVTAB_ENTRY(can0, "/dev/can0", stellaris_can_init, &can_private[0]);
 /** Device table entry for can device */
-CAN_DEVTAB_ENTRY(can1, "/dev/can1", stellaris_can_init, &can_private[1]);
+static CAN_DEVTAB_ENTRY(can1, "/dev/can1", stellaris_can_init, &can_private[1]);
 
 /** intitailize the device 
  * @parem dev device to initialize
@@ -118,7 +118,7 @@ static int stellaris_can_init(devtab_t *dev)
     return can_init(dev);
 }
 
-/** Enable use of the device interrupts.
+/** Enable use of the device.
  * @param dev device to enable
  */
 static void stellaris_can_enable(devtab_t *dev)
@@ -128,7 +128,7 @@ static void stellaris_can_enable(devtab_t *dev)
     MAP_CANEnable(priv->base);
 }
 
-/** Disable use of the device interrupts.
+/** Disable use of the device.
  * @param dev device to disable
  */
 static void stellaris_can_disable(devtab_t *dev)

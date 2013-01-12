@@ -37,9 +37,6 @@
 
 #include "if/nmranet_if.h"
 
-#define ALIAS_POOL_SIZE 8 /**< number of aliases */
-#define ALIAS_TRACK_SIZE 4 /**< number of aliases tracked */
-
 #define CONTROL_FRAME_SEQUENCE_MASK 0x7000000 /**< sequence mask for a control frame */
 #define RID_FRAME 0x0700 /**< Reserve ID Frame */
 #define AMD_FRAME 0x0701 /**< Alias Map Definition frame */

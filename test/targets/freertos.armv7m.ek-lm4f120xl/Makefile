@@ -15,4 +15,5 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_can
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_uart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_usb_cdc_device.o
 
+TARGET := freertos.armv7m
 include $(OPENMRNPATH)/etc/prog.mk

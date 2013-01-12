@@ -34,6 +34,7 @@
 #ifndef _nmranet_if_h_
 #define _nmranet_if_h_
 
+#include <sys/types.h>
 #include <stdint.h>
 #include "nmranet_types.h"
 
@@ -57,6 +58,34 @@ extern const size_t main_stack_size;
 /** priority of the main thread */
 extern const int main_priority;
 #endif
+
+/** Number of aliases to pool for instant use.
+ */
+extern const size_t ALIAS_POOL_SIZE;
+
+/** Number of alias to node id mappings to cache for downstream nodes.
+ */
+extern const size_t DOWNSTREAM_ALIAS_CACHE_SIZE;
+
+/** Number of alias to node id mappings to cache for upstream nodes.
+ */
+extern const size_t UPSTREAM_ALIAS_CACHE_SIZE;
+
+/** Number of receive CAN messages that are buffered in the CAN driver.
+ */
+extern const size_t CAN_RX_BUFFER_SIZE;
+
+/** Number of transmit CAN messages that are buffered in the CAN driver.
+ */
+extern const size_t CAN_TX_BUFFER_SIZE;
+
+/** Number of receive characters that are buffered in the serial driver.
+ */
+extern const size_t SERIAL_RX_BUFFER_SIZE;
+
+/** Number of transmit characters that are buffered in the serial driver.
+ */
+extern const size_t SERIAL_TX_BUFFER_SIZE;
 
 typedef void* nmranet_if_t; /**< interface handle */
 
@@ -297,6 +326,17 @@ void nmranet_init(node_id_t node_id);
  * @param nmranet_if instance of this interface
  */
 void nmranet_if_init(NMRAnetIF* nmranet_if);
+
+/** Initialize a can interface.
+ * @param node_id node ID of interface
+ * @param device description for this instance
+ * @param if_read read method for this interface
+ * @param if_write write method for this interface
+ * @return handle to the NMRAnet interface
+ */
+NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
+                               ssize_t (*if_read)(int, void*, size_t),
+                               ssize_t (*if_write)(int, const void*, size_t));
 
 /** Initialize a Grid Connect interface.
  * @param node_id node ID of interface

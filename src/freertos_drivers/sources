@@ -4,7 +4,10 @@ VPATH := $(SRCDIR): \
          
 CSRCS += fileio.c \
          can.c \
-         stellaris_can.c
+         serial.c \
+         stellaris_can.c \
+         stellaris_uart.c \
+         stellaris_usb_cdc_device.c
 
 CXXSRCS +=
 

@@ -1,12 +1,18 @@
+ifeq ($(TARGET),)
+# if the target is so far undefined
 TARGET := $(shell basename `pwd`)
+endif
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 VPATH = ../../
 INCLUDES += -I$(OPENMRNPATH)/src/ -I $(OPENMRNPATH)/include
+FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
-CSRCS = $(notdir $(FULLPATHCSRCS))
-CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
-OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
+ASMSRCS = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
+CSRCS = $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
+CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) #$(wildcard *.cxx)
+OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+#VPATH := ../../: ./
 LIBNAME = lib$(BASENAME).a
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a)
@@ -33,7 +39,12 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx
+.SUFFIXES: .o .c .cxx .S
+
+.PHONY: .S
+.S.o:
+	$(AS) $(ASFLAGS) $< -o $@
+	$(AS) -MM $(ASFLAGS) $< > $*.d
 
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@

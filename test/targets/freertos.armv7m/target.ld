@@ -22,7 +22,7 @@ GROUP(-lgcc -lc -lcs3 -lcs3micro)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 64K
+  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 128K
   ROM   (rx) : ORIGIN = 0x01000000, LENGTH = 256K
   SRAM (rwx) : ORIGIN = 0x20000000, LENGTH = 24K
 }
@@ -53,7 +53,7 @@ SECTIONS
     _ftext = .;
     *(.cs3.region-head.flash)
     ASSERT (. == __cs3_region_start_flash, ".cs3.region-head.flash not permitted");
-    __cs3_interrupt_vector = __cs3_interrupt_vector_micro;
+    __cs3_interrupt_vector = __cs3_interrupt_vector_micro ;
     *(.cs3.interrupt_vector)
     /* Make sure we pulled in an interrupt vector.  */
     ASSERT (. != __cs3_interrupt_vector_micro, "No interrupt vector");

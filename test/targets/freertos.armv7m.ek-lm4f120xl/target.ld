@@ -18,22 +18,24 @@
 OUTPUT_FORMAT ("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 ENTRY(__cs3_reset)
 SEARCH_DIR(.)
-GROUP(-lgcc -lc -lcs3 -lcs3unhosted -lcs3arm)
+GROUP(-lgcc -lc -lcs3 -lcs3micro)
 
 MEMORY
 {
-  ram (rwx) : ORIGIN = 0x0, LENGTH = 128M
+  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 128K
+  ROM   (rx) : ORIGIN = 0x01000000, LENGTH = 256K
+  SRAM (rwx) : ORIGIN = 0x20000000, LENGTH = 24K
 }
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's
  * overrides are picked up
  */
-EXTERN(__cs3_reset __cs3_reset_generic)
+EXTERN(__cs3_reset __cs3_reset_generic_m)
 EXTERN(__cs3_start_asm __cs3_start_asm_sim)
 /* Bring in the interrupt routines & vector */
 INCLUDE arm-names.inc
-EXTERN(__cs3_interrupt_vector_arm)
+EXTERN(__cs3_interrupt_vector_micro)
 EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end)
 
 /* Provide fall-back values */
@@ -47,16 +49,16 @@ SECTIONS
   .text :
   {
     CREATE_OBJECT_SYMBOLS
-    __cs3_region_start_ram = .;
+    __cs3_region_start_flash = .;
     _ftext = .;
-    *(.cs3.region-head.ram)
-    ASSERT (. == __cs3_region_start_ram, ".cs3.region-head.ram not permitted");
-    __cs3_interrupt_vector = __cs3_interrupt_vector_arm;
+    *(.cs3.region-head.flash)
+    ASSERT (. == __cs3_region_start_flash, ".cs3.region-head.flash not permitted");
+    __cs3_interrupt_vector = __cs3_interrupt_vector_micro ;
     *(.cs3.interrupt_vector)
     /* Make sure we pulled in an interrupt vector.  */
-    ASSERT (. != __cs3_interrupt_vector_arm, "No interrupt vector");
+    ASSERT (. != __cs3_interrupt_vector_micro, "No interrupt vector");
 
-    PROVIDE(__cs3_reset = __cs3_reset_generic);
+    PROVIDE(__cs3_reset = __cs3_reset_generic_m);
     *(.cs3.reset)
     __cs3_start_asm_sim = DEFINED(__cs3_start_asm) ? __cs3_start_asm : __cs3_start_asm_sim;
 
@@ -68,22 +70,22 @@ SECTIONS
 
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     *(.gcc_except_table)
-  } >ram
+  } > FLASH
   .eh_frame_hdr : ALIGN (4)
   {
     KEEP (*(.eh_frame_hdr))
     *(.eh_frame_entry .eh_frame_entry.*)
-  } >ram
+  } > FLASH
   .eh_frame : ALIGN (4)
   {
     KEEP (*(.eh_frame)) *(.eh_frame.*)
-  } >ram
+  } > FLASH
   /* .ARM.exidx is sorted, so has to go in its own output section.  */
   PROVIDE_HIDDEN (__exidx_start = .);
   .ARM.exidx :
   {
     *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-  } >ram
+  } > FLASH
   PROVIDE_HIDDEN (__exidx_end = .);
   .rodata : ALIGN (4)
   {
@@ -134,7 +136,7 @@ SECTIONS
     __cs3_regions_end = .;
     . = ALIGN (8);
     _etext = .;
-  } >ram
+  } > FLASH
 
   ASSERT (!(__cs3_region_init_ram & 7), "__cs3_region_init_ram not aligned")
   ASSERT (!(__cs3_region_start_ram & 7), "__cs3_region_start_ram not aligned")
@@ -142,15 +144,18 @@ SECTIONS
   ASSERT (!(__cs3_region_zero_size_ram & 7), "__cs3_region_zero_size_ram not aligned")
   .data : ALIGN (8)
   {
+    __cs3_region_start_ram = .;
     KEEP(*(.jcr))
     *(.got.plt) *(.got)
     *(.shdata)
     *(.data .data.* .gnu.linkonce.d.*)
     . = ALIGN (8);
+    KEEP(*( SORT (.device.table.*))) ;
+    . = ALIGN (4);
     *(.ram)
     . = ALIGN (8);
     _edata = .;
-  } >ram
+  } > SRAM AT > FLASH
   .bss : ALIGN (8)
   {
     *(.shbss)
@@ -161,12 +166,11 @@ SECTIONS
     . = ALIGN (8);
     _end = .;
     __end = .;
-  } >ram
-  __cs3_region_init_ram = __cs3_region_start_ram;
+  } > SRAM
+  __cs3_region_init_ram = LOADADDR(.data);
   __cs3_region_init_size_ram = _edata - __cs3_region_start_ram;
   __cs3_region_zero_size_ram = _end - _edata;
-  /* Default to 1M of heap */
-  __cs3_region_size_ram = ALIGN (1024) - __cs3_region_start_ram + 1M;
+  __cs3_region_size_ram = LENGTH(SRAM);
 
   .stab 0 (NOLOAD) : { *(.stab) }
   .stabstr 0 (NOLOAD) : { *(.stabstr) }

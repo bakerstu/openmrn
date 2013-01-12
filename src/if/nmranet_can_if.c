@@ -71,7 +71,7 @@ typedef struct nmranet_can_if
     node_id_t id; /**< node id of interface */
     alias_cache_t aliasCache; /**< list of downstream aliases */
     alias_cache_t upstreamCache; /**< list of upstream aliases */
-    AliasMetadata pool[ALIAS_POOL_SIZE]; /**< preallocated alias pool */
+    AliasMetadata *pool; /**< preallocated alias pool */
 #if 0
     int poolWrIndex; /**< current index within the pool for getting an alias */
     int poolRdIndex; /**< current index within the pool for inserting an alias */
@@ -718,13 +718,14 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
         abort();
     }
     can_if->id = node_id;
+    can_if->pool = malloc(sizeof(AliasMetadata)*ALIAS_POOL_SIZE);
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)
     {
         can_if->pool[i].status = ALIAS_FREE;
         can_if->pool[i].timer = os_timer_create(claim_alias_timeout, can_if, &can_if->pool[i]);
     }
-    can_if->aliasCache = nmranet_alias_cache_create(node_id, 16);
-    can_if->upstreamCache = nmranet_alias_cache_create(node_id, 16);
+    can_if->aliasCache = nmranet_alias_cache_create(node_id, DOWNSTREAM_ALIAS_CACHE_SIZE);
+    can_if->upstreamCache = nmranet_alias_cache_create(node_id, UPSTREAM_ALIAS_CACHE_SIZE);
     os_mutex_init(&can_if->aliasMutex);
 
     /* prime the alias pool */
@@ -737,7 +738,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     }
 
     /* start the thread that will process received packets */
-    os_thread_create(&thread_handle, 0, 2048, read_thread, &can_if->nmranetIF);
+    os_thread_create(&thread_handle, 0, 1024, read_thread, &can_if->nmranetIF);
 
     return &can_if->nmranetIF;
 }

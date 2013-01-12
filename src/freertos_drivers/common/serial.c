@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,44 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can.c
- * This file implements a generic can device driver layer.
+ * \file serial.c
+ * This file implements a generic serial device driver layer.
  *
  * @author Stuart W. Baker
- * @date 28 December 2012
+ * @date 3 January 2013
  */
 
 #include <stdint.h>
 #include <fcntl.h>
 #include "devtab.h"
-#include "can.h"
-#include "nmranet_can.h"
+#include "serial.h"
 
 /* prototypes */
-int can_init(devtab_t *dev);
-static int can_open(file_t* file, const char *path, int flags, int mode);
-static int can_close(file_t *file, node_t *node);
-static ssize_t can_read(file_t *file, void *buf, size_t count);
-static ssize_t can_write(file_t *file, const void *buf, size_t count);
-static int can_ioctl(file_t *file, node_t *node, int key, void *data);
+int serial_init(devtab_t *dev);
+static int serial_open(file_t* file, const char *path, int flags, int mode);
+static int serial_close(file_t *file, node_t *node);
+static ssize_t serial_read(file_t *file, void *buf, size_t count);
+static ssize_t serial_write(file_t *file, const void *buf, size_t count);
+static int serial_ioctl(file_t *file, node_t *node, int key, void *data);
 
 /** device operations for can */
-DEVOPS(can_ops, can_open, can_close, can_read, can_write, can_ioctl);
+DEVOPS(serial_ops, serial_open, serial_close, serial_read, serial_write, serial_ioctl);
 
 /** intitailize the device 
  * @parem dev device to initialize
  * @return 0 upon success
  */
-int can_init(devtab_t *dev)
+int serial_init(devtab_t *dev)
 {
-    CanPriv *priv = dev->priv;
+    SerialPriv *priv = dev->priv;
     
     os_mutex_init(&priv->mutex);
+    os_mutex_init(&priv->wrMutex);
+    os_mutex_init(&priv->rdMutex);
     priv->node.references = 0;
     priv->node.priv = priv;
-    priv->rxQ = os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame));
-    priv->txQ = os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame));
+    priv->rxQ = os_mq_create(SERIAL_RX_BUFFER_SIZE, sizeof(unsigned char));
+    priv->txQ = os_mq_create(SERIAL_TX_BUFFER_SIZE, sizeof(unsigned char));
     priv->overrunCount = 0;
     
     return 0;
@@ -73,9 +74,9 @@ int can_init(devtab_t *dev)
  * @param mode open mode
  * @return 0 upon success, negative errno upon failure
  */
-static int can_open(file_t* file, const char *path, int flags, int mode)
+static int serial_open(file_t* file, const char *path, int flags, int mode)
 {
-    CanPriv *priv = file->dev->priv;
+    SerialPriv *priv = file->dev->priv;
 
     os_mutex_lock(&priv->mutex);
     file->node = &priv->node;
@@ -94,14 +95,27 @@ static int can_open(file_t* file, const char *path, int flags, int mode)
  * @param node node reference for this device
  * @return 0 upon success, negative errno upon failure
  */
-static int can_close(file_t *file, node_t *node)
+static int serial_close(file_t *file, node_t *node)
 {
-    CanPriv *priv = file->dev->priv;
+    SerialPriv *priv = file->dev->priv;
 
     os_mutex_lock(&priv->mutex);
     if (--node->references == 0)
     {
+        /* no more open references */
         priv->disable(file->dev);
+        /* flush the queues */
+        int result;
+        do
+        {
+            unsigned char data;
+            result = os_mq_timedreceive(priv->txQ, &data, 0);
+        } while (result == OS_MQ_NONE);
+        do
+        {
+            unsigned char data;
+            result = os_mq_timedreceive(priv->rxQ, &data, 0);
+        } while (result == OS_MQ_NONE);
     }
     os_mutex_unlock(&priv->mutex);
     
@@ -114,21 +128,18 @@ static int can_close(file_t *file, node_t *node)
  * @param count number of bytes to read
  * @return number of bytes read upon success, -1 upon failure with errno containing the cause
  */
-static ssize_t can_read(file_t *file, void *buf, size_t count)
+static ssize_t serial_read(file_t *file, void *buf, size_t count)
 {
-    CanPriv *priv = file->dev->priv;
-    struct can_frame *can_frame = buf;
+    SerialPriv *priv = file->dev->priv;
+    unsigned char *data = buf;
     ssize_t result = 0;
     
-    os_mutex_lock(&priv->mutex);
-    int flags = file->flags;
-    os_mutex_unlock(&priv->mutex);
-    
-    while (count >= sizeof(struct can_frame))
+    os_mutex_lock(&priv->rdMutex);
+    while (count)
     {
-        if (flags & O_NONBLOCK)
+        if (file->flags & O_NONBLOCK)
         {
-            if (os_mq_timedreceive(priv->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            if (os_mq_timedreceive(priv->rxQ, data, 0) == OS_MQ_TIMEDOUT)
             {
                 /* no more data to receive */
                 break;
@@ -137,13 +148,14 @@ static ssize_t can_read(file_t *file, void *buf, size_t count)
         else
         {
             /* wait for data to come in */
-            os_mq_receive(priv->rxQ, can_frame);
+            os_mq_receive(priv->rxQ, data);
         }
 
-        count -= sizeof(struct can_frame);
-        result += sizeof(struct can_frame);
-        can_frame++;
+        count--;
+        result++;
+        data++;
     }
+    os_mutex_unlock(&priv->rdMutex);
     
     return result;
 }
@@ -154,21 +166,18 @@ static ssize_t can_read(file_t *file, void *buf, size_t count)
  * @param count number of bytes to write
  * @return number of bytes written upon success, -1 upon failure with errno containing the cause
  */
-static ssize_t can_write(file_t *file, const void *buf, size_t count)
+static ssize_t serial_write(file_t *file, const void *buf, size_t count)
 {
-    CanPriv *priv = file->dev->priv;
-    const struct can_frame *can_frame = buf;
+    SerialPriv *priv = file->dev->priv;
+    const unsigned char *data = buf;
     ssize_t result = 0;
     
-    os_mutex_lock(&priv->mutex);
-    int flags = file->flags;
-    os_mutex_unlock(&priv->mutex);
-    
-    while (count >= sizeof(struct can_frame))
+    os_mutex_lock(&priv->wrMutex);
+    while (count)
     {
-        if (flags & O_NONBLOCK)
+        if (file->flags & O_NONBLOCK)
         {
-            if (os_mq_timedsend(priv->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            if (os_mq_timedsend(priv->txQ, data, 0) == OS_MQ_TIMEDOUT)
             {
                 /* no more room in the buffer */
                 break;
@@ -177,14 +186,15 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
         else
         {
             /* wait for room in the queue */
-            os_mq_send(priv->txQ, can_frame);
+            os_mq_send(priv->txQ, data);
         }
-        priv->tx_msg(file->dev);
+        priv->tx_char(file->dev);
 
-        count -= sizeof(struct can_frame);
-        result += sizeof(struct can_frame);
-        can_frame++;
+        count--;
+        result++;
+        data++;
     }
+    os_mutex_unlock(&priv->wrMutex);
     
     return result;
 }
@@ -195,7 +205,7 @@ static ssize_t can_write(file_t *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param ... key data
  */
-static int can_ioctl(file_t *file, node_t *node, int key, void *data)
+static int serial_ioctl(file_t *file, node_t *node, int key, void *data)
 {
     return 0;
 }

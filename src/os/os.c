@@ -33,14 +33,19 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
+#include <fcntl.h>
 #if !defined (GCC_MEGA_AVR)
 #include <unistd.h>
 #endif
 #if defined (__FreeRTOS__)
+#include "/opt/StellarisWare/inc/hw_types.h"
+#include "/opt/StellarisWare/driverlib/sysctl.h"
 #include "devtab.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #else
 #include <sys/select.h>
-#include <fcntl.h>
 #include <sched.h>
 #include <time.h>
 #include <signal.h>
@@ -61,6 +66,20 @@ typedef struct timer
 } Timer;
 
 #if defined (__FreeRTOS__)
+/** Task list entriy */
+typedef struct task_list
+{
+    xTaskHandle task; /**< list entry data */
+    char * name; /**< name of task */
+    size_t unused; /**< number of bytes left unused in the stack */
+    struct task_list *next; /**< next link in the list */
+} TaskList;
+
+/** List of all the tasks in the system */
+static TaskList taskList;
+
+struct _reent timerReent = _REENT_INIT(timerReent);
+
 /** Mutex for os_thread_once. */
 static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
 
@@ -71,6 +90,7 @@ static void os_thread_start(void *arg)
 {
     ThreadPriv *priv = arg;
     vTaskSetApplicationTaskTag(NULL, arg);
+    _impure_ptr = priv->reent;
     (*priv->entry)(priv->arg);
 }
 
@@ -122,6 +142,9 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 static void timer_callback(xTimerHandle timer)
 {
+    /* we must handle our struct _reent here at its first oportunity */
+    _impure_ptr = &timerReent;
+
     portTickType ticks;
     Timer *t = pvTimerGetTimerID(timer);
     do
@@ -448,6 +471,7 @@ int os_thread_create(os_thread_t *thread, int priority,
     priv->reent = malloc(sizeof(struct _reent));
     priv->entry = start_routine;
     priv->arg = arg;
+    _REENT_INIT_PTR(priv->reent);
     
     if (priority == 0)
     {
@@ -457,12 +481,42 @@ int os_thread_create(os_thread_t *thread, int priority,
     {
         priority = configMAX_PRIORITIES - priority;
     }
-    xTaskCreate(os_thread_start,
-                (const signed char *const)name,
-                stack_size/sizeof(portSTACK_TYPE),
-                priv,
-                priority,
-                (xTaskHandle*)thread);
+
+    TaskList *current = &taskList;
+    vTaskSuspendAll();
+    while (current->next != NULL)
+    {
+        current = current->next;
+    }
+    
+    TaskList *task_new = malloc(sizeof(TaskList));
+    task_new->task = NULL;
+    task_new->next = NULL;
+    task_new->unused = stack_size;
+    current->next = task_new;
+    xTaskResumeAll();
+
+    if (thread)
+    {
+        xTaskCreate(os_thread_start,
+                    (const signed char *const)name,
+                    stack_size/sizeof(portSTACK_TYPE),
+                    priv,
+                    priority,
+                    (xTaskHandle*)thread);
+        task_new->task = *thread;
+    }
+    else
+    {
+        xTaskHandle task_handle;
+        xTaskCreate(os_thread_start,
+                    (const signed char *const)name,
+                    stack_size/sizeof(portSTACK_TYPE),
+                    priv,
+                    priority,
+                    (xTaskHandle*)&task_handle);
+        task_new->task = task_handle;
+    }
     return 0;
 #else
     pthread_attr_t attr;
@@ -507,21 +561,25 @@ int os_thread_create(os_thread_t *thread, int priority,
 
 #if defined (__FreeRTOS__)
 /* standard C library hooks for multi-threading */
-/** Mutex for locking malloc */
-static os_mutex_t mallocMutex = OS_RECURSIVE_MUTEX_INITIALIZER;
 
 /** Lock access to malloc.
  */
 void __malloc_lock(void)
 {
-    os_mutex_lock(&mallocMutex);
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        vTaskSuspendAll();
+    }
 }
 
 /** Unlock access to malloc.
  */
 void __malloc_unlock(void)
 {
-    os_mutex_unlock(&mallocMutex);
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        xTaskResumeAll();
+    }
 }
 
 /** Implementation of standard sleep().
@@ -541,14 +599,14 @@ void abort(void)
 }
 
 static char *heap_end = 0;
-caddr_t _sbrk_r(struct _reent reent, int incr)
+caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
     extern char __cs3_heap_start;
     extern char __cs3_heap_end; /* Defined by the linker */
     char *prev_heap_end;
     if (heap_end == 0)
     {
-        heap_end = &__cs3_heap_start;;
+        heap_end = &__cs3_heap_start;
     }
     prev_heap_end = heap_end;
     if (heap_end + incr > &__cs3_heap_end)
@@ -559,6 +617,33 @@ caddr_t _sbrk_r(struct _reent reent, int incr)
     heap_end += incr;
     return (caddr_t) prev_heap_end;
 }
+
+/** This method is called if a stack overflows its boundries.
+ * @param task task handle for violating task
+ * @param name name of violating task
+ */
+void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
+{
+    abort();
+}
+
+/** Here we will monitor the other tasks.
+ */
+void vApplicationIdleHook( void )
+{
+    vTaskSuspendAll();
+    xTaskResumeAll();
+    
+    for (TaskList *tl = &taskList; tl != NULL; tl = tl->next)
+    {
+        if (tl->task)
+        {
+            tl->name = (char*)pcTaskGetTaskName(tl->task);
+            tl->unused = uxTaskGetStackHighWaterMark(tl->task) * sizeof(portSTACK_TYPE);
+        }
+    }
+}
+
 /** Stack size of the main thread */
 extern const size_t main_stack_size;
 
@@ -572,8 +657,20 @@ extern const int main_priority;
  */
 void main_thread(void *arg)
 {
+    ThreadPriv *priv = arg;
     char *argv[2] = {"nmranet", NULL};
     vTaskSetApplicationTaskTag(NULL, arg);
+    _impure_ptr = priv->reent;
+
+    /* setup the monitoring entries for the timer and idle tasks */
+    taskList.next = malloc(sizeof(TaskList)*2);
+    taskList.next->task = xTimerGetTimerDaemonTaskHandle();
+    taskList.next->unused = uxTaskGetStackHighWaterMark(taskList.next->task);
+    taskList.next->next = taskList.next + 1;
+    taskList.next->next->task = xTaskGetIdleTaskHandle();
+    taskList.next->next->unused = uxTaskGetStackHighWaterMark(taskList.next->next->task);
+    taskList.next->next->next = NULL;
+
     os_main(1, argv);
 }
 #endif
@@ -587,11 +684,15 @@ int main(int argc, char *argv[])
 {
 #if defined (__FreeRTOS__)
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
+    xTaskHandle task_handle;
     int priority;
     priv->reent = _impure_ptr;
     priv->entry = NULL;
     priv->arg = NULL;
     
+	/* Setup the PLL. */
+	SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+
     if (main_priority == 0)
     {
         priority = configMAX_PRIORITIES / 2;
@@ -607,13 +708,21 @@ int main(int argc, char *argv[])
         dev->init(dev);
     }
 
+    open("/dev/ser0", O_RDWR);   /* stdin */
+    open("/dev/ser0", O_RDWR);   /* stdout */
+    open("/dev/ser0", O_WRONLY); /* stderr */
+
     /* start the main thread */
     xTaskCreate(main_thread,
-                (const signed char *const)"thread.main",
+                (signed char *)"thread.main",
                 main_stack_size/sizeof(portSTACK_TYPE),
                 priv,
                 priority,
-                (xTaskHandle*)NULL);
+                &task_handle);
+    
+    taskList.task = task_handle;
+    taskList.unused = main_stack_size;    
+
     vTaskStartScheduler();
 #else
     os_main(argc, argv);

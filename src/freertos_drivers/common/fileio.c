@@ -34,13 +34,31 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "devtab.h"
 #include "os/os.h"
 
 #define NUM_DEVTAB_ENTRIES 4
 #define NUM_OPEN_FILES     8
 
+/* prototypes */
+static int null_init(devtab_t *dev);
+static int null_open(file_t* file, const char *path, int flags, int mode);
+static int null_close(file_t *file, node_t *node);
+static ssize_t null_read(file_t *file, void *buf, size_t count);
+static ssize_t null_write(file_t *file, const void *buf, size_t count);
+static int null_ioctl(file_t *file, node_t *node, int key, void *data);
+
+/** device operations for can. */
+static DEVOPS(null_ops, null_open, null_close, null_read, null_write, null_ioctl);
+
+/** Null device entry. */
+static DEVTAB_ENTRY(nullDevice, "/dev/null", null_init, &null_ops, NULL);
+
+/** File descriptor array. */
 static file_t files[NUM_OPEN_FILES];
+
+/** Mutual exclusion */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Allocate a free file descriptor.
@@ -246,6 +264,78 @@ int ioctl(int fd, int key, ...)
     }
     return 0;
 }
+
+/** intitailize the device 
+ * @parem dev device to initialize
+ * @return 0 upon success
+ */
+static int null_init(devtab_t *dev)
+{
+    return 0;
+}
+
+/** Open a device.
+ * @param file new file reference to this device
+ * @param path file or device name
+ * @param flags open flags
+ * @param mode open mode
+ * @return 0 upon success, negative errno upon failure
+ */
+static int null_open(file_t* file, const char *path, int flags, int mode)
+{    
+    return 0;
+}
+
+/** Close a device.
+ * @param file file reference for this device
+ * @param node node reference for this device
+ * @return 0 upon success, negative errno upon failure
+ */
+static int null_close(file_t *file, node_t *node)
+{    
+    return 0;
+}
+
+/** Read from a file or device.
+ * @param file file reference for this device
+ * @param buf location to place read data
+ * @param count number of bytes to read
+ * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ */
+static ssize_t null_read(file_t *file, void *buf, size_t count)
+{
+    if ((file->flags & O_NONBLOCK) == 0)
+    {
+        for ( ; /* forever */ ; )
+        {
+        }
+    }
+
+    return 0;
+}
+
+/** Write to a file or device.
+ * @param file file reference for this device
+ * @param buf location to find write data
+ * @param count number of bytes to write
+ * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ */
+static ssize_t null_write(file_t *file, const void *buf, size_t count)
+{    
+    return count;
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param node node reference for this device
+ * @param key ioctl key
+ * @param ... key data
+ */
+static int null_ioctl(file_t *file, node_t *node, int key, void *data)
+{
+    return 0;
+}
+
 
 /* setup the device table for use in the linker */
 __asm__(".section \".device.table." __xstring(devtab) ".begin\",\"aw\"\n"

@@ -24,50 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can.h
- * This file implements a generic can device driver layer.
+ * \file reset.S
+ * This file represents the reset vector.
  *
  * @author Stuart W. Baker
- * @date 28 December 2012
+ * @date 6 January 2013
  */
 
-#ifndef _can_h_
-#define _can_h_
+.text
+.thumb
 
-#include "devtab.h"
-#include "os/os.h"
-#include "nmranet_can.h"
-
-/** Number of receive CAN messages that are buffered in the CAN driver.
- */
-extern const size_t CAN_RX_BUFFER_SIZE;
-
-/** Number of transmit CAN messages that are buffered in the CAN driver.
- */
-extern const size_t CAN_TX_BUFFER_SIZE;
-
-/** Private data for a can device */
-typedef struct can_priv
-{
-    void (*enable)(devtab_t *); /**< function to enable device */
-    void (*disable)(devtab_t *); /**< function to disable device */
-    void (*tx_msg)(devtab_t *); /**< function to try and transmit a message */
-    os_mutex_t mutex; /**< mutual exclusion for the device */
-    node_t node;
-    os_mq_t txQ;
-    os_mq_t rxQ;
-    unsigned int overrunCount;
-} CanPriv;
-
-extern devops_t can_ops;
-/** device table entry for can device */
-#define CAN_DEVTAB_ENTRY(_label, _name, _init, _priv) \
-    DEVTAB_ENTRY(_label, _name, _init, &can_ops, _priv)
-
-/** intitailize the device 
- * @parem dev device to initialize
- * @return 0 upon success
- */
-int can_init(devtab_t *dev);
-
-#endif /* _can_h_ */
+.global __cs3_reset
+ 
+.thumb_func
+__cs3_reset:
+    # add peripherals and memory initialization here
+    LDR r0, =__cs3_start_asm
+    BX r0
+ 
+.thumb_func
+__cs3_start_asm:
+    # add assembly initializations here
+    LDR r0, =__cs3_start_c
+    BX r0
+ 
+.end
