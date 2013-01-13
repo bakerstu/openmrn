@@ -39,8 +39,6 @@
 #include <unistd.h>
 #endif
 #if defined (__FreeRTOS__)
-#include "/opt/StellarisWare/inc/hw_types.h"
-#include "/opt/StellarisWare/driverlib/sysctl.h"
 #include "devtab.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -82,6 +80,14 @@ struct _reent timerReent = _REENT_INIT(timerReent);
 
 /** Mutex for os_thread_once. */
 static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
+
+/** Default hardware initializer.  This function is defined weak so that
+ * a given board can stub in an intiailization specific to it.
+ */
+void hw_init(void) __attribute__ ((weak));
+void hw_init(void)
+{
+}
 
 /** Entry point to a FreeRTOS thread.
  * @param metadata for entering the thread
@@ -690,8 +696,8 @@ int main(int argc, char *argv[])
     priv->entry = NULL;
     priv->arg = NULL;
     
-	/* Setup the PLL. */
-	SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+    /* initialize the processor hardware */
+    hw_init();
 
     if (main_priority == 0)
     {

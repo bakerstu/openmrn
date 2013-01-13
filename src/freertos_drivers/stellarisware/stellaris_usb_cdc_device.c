@@ -33,20 +33,19 @@
 
 #define gcc
 
-#include <stdlib.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
 #include "usblib/usb-ids.h"
 #include "usblib/device/usbdevice.h"
 #include "usblib/device/usbdcdc.h"
+
 #include "serial.h"
 
 /* prototypes */
@@ -184,8 +183,6 @@ static int stellaris_cdc_init(devtab_t *dev)
     
     int result = serial_init(dev);
     
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
     USBStackModeSet(0, USB_MODE_DEVICE, 0);
     USBDCDCInit(0, &priv->usbdcdcDevice);
     

@@ -41,11 +41,6 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 
-/** @todo remove these includes */
-#define PART_LM4F120H5QR
-#include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-
 #include "serial.h"
 
 /* prototypes */
@@ -147,11 +142,6 @@ static int stellaris_uart_init(devtab_t *dev)
             return -1;
         case UART0_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-            /** @todo remove this pin setup, it belongs somewhere else */
-            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-            GPIOPinConfigure(GPIO_PA0_U0RX);
-            GPIOPinConfigure(GPIO_PA1_U0TX);
-            MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
             break;
         case UART1_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);

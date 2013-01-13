@@ -13,5 +13,3 @@ CXXSRCS +=
 
 # Find StellarisWare
 include $(OPENMRNPATH)/etc/stellarisware.mk
-
-INCLUDES += -I$(STELLARISWAREPATH)

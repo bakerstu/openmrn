@@ -31,7 +31,6 @@
  * @date 3 January 2013
  */
 
-#include <stdlib.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
@@ -96,6 +95,9 @@ static int stellaris_can_init(devtab_t *dev)
         case CAN0_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
             break;
+        case CAN1_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN1);
+            break;
     }
     
     MAP_CANInit(priv->base);
@@ -134,8 +136,8 @@ static void stellaris_can_enable(devtab_t *dev)
 static void stellaris_can_disable(devtab_t *dev)
 {
     StellarisCanPriv *priv = dev->priv;
-    MAP_CANDisable(priv->base);
     MAP_IntDisable(priv->interrupt);
+    MAP_CANDisable(priv->base);
 }
 
 /* Try and transmit a message.

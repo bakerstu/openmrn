@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2012, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,42 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file reset.S
- * This file represents the reset vector.
+ * \file main.c
+ * This file represents the interrupt vector table for TI Stellaris MCUs.
  *
  * @author Stuart W. Baker
- * @date 6 January 2013
+ * @date 5 January 2013
  */
 
-.text
-.thumb
+#define PART_LM4F120H5QR
 
-.global __cs3_reset
- 
-.thumb_func
-__cs3_reset:
-    # add peripherals and memory initialization here
-    LDR r0, =__cs3_start_asm
-    BX r0
- 
-.thumb_func
-__cs3_start_asm:
-    # add assembly initializations here
-    LDR r0, =__cs3_start_c
-    BX r0
- 
-.end
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+
+/** Initialize the processor hardware.
+ */
+void hw_init(void)
+{
+	/* Setup the system clock. */
+	MAP_SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+
+    /* UART0 pin initialization */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    GPIOPinConfigure(GPIO_PA0_U0RX);
+    GPIOPinConfigure(GPIO_PA1_U0TX);
+    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    /* USB0 pin initialization */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+
+    /* CAN pin initialization */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
+    MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
+}
+

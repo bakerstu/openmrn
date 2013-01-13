@@ -5,3 +5,4 @@ sh -c "if [ \"X`printenv STELLARISWAREPATH`\" != \"X\" ]; then printenv STELLARI
      else echo STELLARISWAREPATH not found; fi" \
 )
 
+INCLUDES += -I$(STELLARISWAREPATH)
