@@ -110,6 +110,7 @@ static SERIAL_DEVTAB_ENTRY(uart0, "/dev/ser0", stellaris_uart_init, &uart_priv[0
 /** Device table entry for serial device */
 static SERIAL_DEVTAB_ENTRY(uart1, "/dev/ser1", stellaris_uart_init, &uart_priv[1]);
 
+#if 0
 /** Device table entry for serial device */
 static SERIAL_DEVTAB_ENTRY(uart2, "/dev/ser2", stellaris_uart_init, &uart_priv[2]);
 
@@ -127,6 +128,7 @@ static SERIAL_DEVTAB_ENTRY(uart6, "/dev/ser6", stellaris_uart_init, &uart_priv[6
 
 /** Device table entry for serial device */
 static SERIAL_DEVTAB_ENTRY(uart7, "/dev/ser7", stellaris_uart_init, &uart_priv[7]);
+#endif
 
 /** intitailize the device 
  * @parem dev device to initialize
@@ -278,6 +280,7 @@ void uart1_interrupt_handler(void)
 {
     uart_interrupt_handler(&uart1);
 }
+#if 0
 
 /** UART2 interrupt handler.
  */
@@ -292,7 +295,6 @@ void uart3_interrupt_handler(void)
 {
     uart_interrupt_handler(&uart3);
 }
-
 /** UART4 interrupt handler.
  */
 void uart4_interrupt_handler(void)
@@ -320,4 +322,4 @@ void uart7_interrupt_handler(void)
 {
     uart_interrupt_handler(&uart7);
 }
-
+#endif

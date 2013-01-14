@@ -49,8 +49,8 @@ void hw_init(void)
 
     /* UART0 pin initialization */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    GPIOPinConfigure(GPIO_PA0_U0RX);
-    GPIOPinConfigure(GPIO_PA1_U0TX);
+    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
+    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
     MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     /* USB0 pin initialization */
@@ -61,5 +61,6 @@ void hw_init(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
+    MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 }
 

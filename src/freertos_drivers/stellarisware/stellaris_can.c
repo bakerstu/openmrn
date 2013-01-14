@@ -203,8 +203,8 @@ static void can_interrupt_handler(devtab_t *dev)
         
         struct can_frame can_frame;
         can_frame.can_id = can_message.ulMsgID;
-        can_frame.can_rtr = can_message.ulFlags & MSG_OBJ_REMOTE_FRAME;
-        can_frame.can_eff = can_message.ulFlags & MSG_OBJ_EXTENDED_ID;
+        can_frame.can_rtr = (can_message.ulFlags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
+        can_frame.can_eff = (can_message.ulFlags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
         can_frame.can_err = 0;
         can_frame.can_dlc = can_message.ulMsgLen;
         memcpy(can_frame.data, data, can_message.ulMsgLen);

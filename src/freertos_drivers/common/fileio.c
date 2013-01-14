@@ -115,7 +115,7 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
                 errno = -result;
                 return -1;
             }
-            return 0;
+            return fd;
         }
     }
     

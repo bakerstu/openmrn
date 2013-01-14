@@ -1,4 +1,5 @@
-SUBDIRS = linux.x86 freertos.armv7m freertos.armv7m.ek-lm4f120xl
+SUBDIRS = linux.x86 freertos.armv7m freertos.armv7m.ek-lm4f120xl \
+          freertos.armv7m.dk-lm3s9d96
 
 all:
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) all || exit 1;)

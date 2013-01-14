@@ -10,9 +10,8 @@ FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
 ASMSRCS = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
 CSRCS = $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
-CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) #$(wildcard *.cxx)
+CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
 OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
-#VPATH := ../../: ./
 LIBNAME = lib$(BASENAME).a
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a)
