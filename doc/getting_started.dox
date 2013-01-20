@@ -31,7 +31,7 @@
  *
  * @subsection targets Targets
  * The build system for OpenMRN allows the source code to be easily targeted to
- * many different architectures including, but not limited to, linxu.x86 and
+ * many different architectures including, but not limited to, linux.x86 and
  * freertos.armv7m.  Supporting new targets is as simple as adding a target
  * specific makefile to the etc/ directory and duplicating a build tree in the
  * targets/ directory.  If a given target's tool chain is not installed, the
@@ -43,7 +43,7 @@
  * Most Linux distributions will contain everything needed to build the example
  * for the linux.x86 target in their base install.  The minimum requirements
  * are gcc, g++, binutils, and GNU Make.  To build the example, simply navigate
- * to the root of the OpenMRN and run make.
+ * to the root of the OpenMRN tree and run make.
  *
  * Running of the example requires a USB-to-CAN converter that uses the Grid
  * Connect protocol.  TCH (http://www.tchtechnology.com/index.html) is a
@@ -98,10 +98,11 @@
  * There are two supported targets for the example application.  One of the
  * examples can run on the DK-LM3S9D96 development board while the other runs
  * on the EK-LM4F120XL development board, otherwise known as the Stellaris
- * LaunchPad.  Building the both targets is as simple as running make in the
+ * LaunchPad.  Building for both targets is as simple as running make in the
  * top level OpenMRN directory.  After the build completes, the resulting
  * executables can be found at test/targets/freertos.armv7m.dk-lm3s9d96/test.elf
- * and test/targets/freertos.armv7m.ek-lm4f120xl/test.elf.  See the @ref openocd
+ * and test/targets/freertos.armv7m.ek-lm4f120xl/test.elf.  See the @ref
+ * openocdlinux
  * section for more details on downloading and stepping through the code.
  *
  *

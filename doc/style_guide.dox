@@ -11,6 +11,7 @@
  *   - @ref constants
  *   - @ref functions
  *   - @ref globals
+ *   - @ref locals
  *   - @ref macros
  *   - @ref structures
  *   - @ref cxxclasses
@@ -91,6 +92,15 @@
  * {
  *     int exampleMemberVariable;
  * };
+ * @endcode
+ *
+ * @subsection locals Local Variables and Function Parameters
+ * Local variables and function parameters use style 2.  For example:
+ * @code
+ * void example_function(int function_parameter)
+ * {
+ *     int local_variable;
+ * }
  * @endcode
  *
  * @subsection macros Macros
@@ -187,7 +197,18 @@
  *
  * @section counters Loop Counters
  * It is a best practice to use the variable names i, j, and j for arbitrary
- * loop counters 
+ * loop counters.  For example:
+ * @code
+ * for (int i = 0; i < 10; i++)
+ * {
+ *     for (int j = 0; j < 10; j++)
+ *     {
+ *         for (int k = 0; k < 10; k++)
+ *         {
+ *         }
+ *     }
+ * }
+ * @endcode
  *
  *
  *
