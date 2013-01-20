@@ -62,6 +62,12 @@ extern "C" {
 int os_main(int argc, char *argv[]);
 
 #if defined (__FreeRTOS__)
+/** Stack size of the main thread */
+extern const size_t main_stack_size;
+
+/** priority of the main thread */
+extern const int main_priority;
+
 typedef xTaskHandle os_thread_t; /**< thread handle */
 typedef struct
 {

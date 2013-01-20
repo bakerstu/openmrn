@@ -51,14 +51,6 @@ extern const char *nmranet_hardware_rev;
 /** Software revision of the product. */
 extern const char *nmranet_software_rev;
 
-#if defined (__FreeRTOS__)
-/** Stack size of the main thread */
-extern const size_t main_stack_size;
-
-/** priority of the main thread */
-extern const int main_priority;
-#endif
-
 /** Number of aliases to pool for instant use.
  */
 extern const size_t ALIAS_POOL_SIZE;

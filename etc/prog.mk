@@ -8,10 +8,12 @@ INCLUDES += -I$(OPENMRNPATH)/src/ -I $(OPENMRNPATH)/include
 FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
+FULLPATHCPPSRCS = $(wildcard $(VPATH)/*.cpp)
 ASMSRCS = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
 CSRCS = $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
-OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+CPPSRCS = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
 LIBNAME = lib$(BASENAME).a
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a)
@@ -38,12 +40,15 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .S
+.SUFFIXES: .o .c .cxx .cpp .S
 
-.PHONY: .S
 .S.o:
 	$(AS) $(ASFLAGS) $< -o $@
 	$(AS) -MM $(ASFLAGS) $< > $*.d
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) $< -o $@
+	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@

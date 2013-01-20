@@ -78,7 +78,7 @@ static StellarisCanPriv can_private[2] =
 /** Device table entry for can device */
 static CAN_DEVTAB_ENTRY(can0, "/dev/can0", stellaris_can_init, &can_private[0]);
 /** Device table entry for can device */
-static CAN_DEVTAB_ENTRY(can1, "/dev/can1", stellaris_can_init, &can_private[1]);
+//static CAN_DEVTAB_ENTRY(can1, "/dev/can1", stellaris_can_init, &can_private[1]);
 
 /** intitailize the device 
  * @parem dev device to initialize
@@ -255,10 +255,13 @@ void can0_interrupt_handler(void)
     can_interrupt_handler(&can0);
 }
 
+#if 0
 /** This is the interrupt handler for the can0 device.
  */
 void can1_interrupt_handler(void)
 {
     can_interrupt_handler(&can1);
 }
+#endif
+
 

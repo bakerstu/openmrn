@@ -16,12 +16,14 @@ include sources
 else
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
+FULLPATHCPPSRCS = $(wildcard $(VPATH)/*.cpp)
 CSRCS = $(notdir $(FULLPATHCSRCS))
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
+CPPSRCS = $(notdir $(FULLPATHCPPSRCS))
 endif
 endif
 
-OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
 
 CFLAGS += $(INCLUDES)
@@ -40,7 +42,11 @@ all: $(LIBNAME)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx
+.SUFFIXES: .o .c .cxx .cpp
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) $< -o $@
+	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@

@@ -1,0 +1,240 @@
+/**
+ * @page style_guide Coding Guidelines
+ * @section tableofcontents Table of Contents
+ * - @ref introduction
+ * - @ref whitespace
+ *   - @ref lineendings
+ *   - @ref tabs
+ *   - @ref keywords
+ * - @ref naming
+ *   - @ref styles
+ *   - @ref constants
+ *   - @ref functions
+ *   - @ref globals
+ *   - @ref macros
+ *   - @ref structures
+ *   - @ref cxxclasses
+ *   - @ref handles
+ * - @ref counters
+ * - @ref switch
+ * - @ref braces
+ * - @ref exceptions
+ *
+ * @section introduction Introduction
+ * OpenMRN source code adheres to strict coding standards.  This style guide
+ * applies to all C and C++ source code and all text files where applicable.
+ *
+ *
+ *
+ * @section whitespace White Space
+ * Observance of consistent whitespace rules is important for all text files to
+ * be readable in the largest possible number of editors and diff tools.
+ *
+ * @subsection lineendings Line Endings
+ * All files must use Unix style 'LF' line endings.  Any other line ending is
+ * strictly prohibited including Windows 'CR+LF'.
+ *
+ * @subsection tabs Tabs
+ * Tabs are prohibited in all files.  The standard delimiter is 4 spaces.  Most
+ * text editors can be configured to automatically insert spaces in place of
+ * tabs.  This is the recommended setup for editing OpenMRN files.  For GNU
+ * Makefiles there is an exception.  Tabs may be used within GNU Makefiles
+ * only where the syntax requires it.
+ *
+ * @subsection keywords Language keywords
+ * A space must always precede text that follows a language keyword.  For
+ * Example:
+ * @code
+ * for (int i = 10; i > 0; i++)
+ * {
+ *     if (i = k)
+ *     {
+ *         break;
+ *     }
+ * }
+ * @endcode
+ *
+ * Notice the space that follows the keywords for and if.
+ *
+ *
+ *
+ * @section naming Naming Conventions
+ * @subsection styles Styles
+ * -# UPPER_CASE, all characters upper case, each logical word separated by '_'
+ * -# lower_case, all characters lower case, each logical word separated by '_'
+ * -# PascalCase, first character upper case, each logical word capitalized
+ * -# camelCase, first character lower case, each logical word capitalized
+ *
+ * @subsection constants Constants
+ * Constants, used in any context, supersede the style of the context and
+ * always use style 1.  This includes members of structures, classes, and
+ * enumerations.  For example:
+ * @code
+ * const int EXAMPLE_CONSTANT = 1000;
+ * @endcode
+ *
+ * @subsection functions Functions
+ * Functions use style 2.  For example:
+ * @code
+ * void example_function(void)
+ * @endcode
+ *
+ * Exceptions include C++ constructors and destructors.  These will use
+ * style 3.
+ *
+ * @subsection globals Global and Member Variables
+ * Global and Member variables use style 4.  For example:
+ * @code
+ * int exampleGlobalVariable;
+ *
+ * struct example_struct
+ * {
+ *     int exampleMemberVariable;
+ * };
+ * @endcode
+ *
+ * @subsection macros Macros
+ * Macros use style 1.  For example:
+ * @code
+ * #define EXAMPLE_MACRO
+ * #define EXAMPLE_FUNCTION_MACRO(_var1, _var2)
+ * @endcode
+ *
+ * @subsection structures Structures and Enumerations
+ * Structures make use of both styles 2, and 3.  For example:
+ * @code
+ * typedef struct example_struct
+ * {
+ *     int memberVariable;
+ * } ExampleStruct;
+ *
+ * typedef struct
+ * {
+ *     int memberVariable;
+ * } ExampleStruct;
+ *
+ * struct example_struct
+ * {
+ *     int memberVariable;
+ * };
+ *
+ * typedef enum example_enum
+ * {
+ *     ENUM_VALUE = 5;
+ * } ExampleStruct;
+ *
+ * typedef enum
+ * {
+ *     ENUM_VALUE = 5;
+ * } ExampleEnum;
+ *
+ * enum example_enum
+ * {
+ *     ENUM_VALUE = 5;
+ * };
+ * @endcode
+ *
+ * The structure tag uses style 2 and the structure identifier uses style 3.
+ *
+ * @subsection cxxclasses C++ Structures, Classes and Enumerations
+ * In C++, classes and structures use style 3.  For example:
+ * @code
+ * class ExampleClass
+ * {
+ *     int memberVariable;
+ * };
+ *
+ * struct ExampleStruct
+ * {
+ *     int memberVariable;
+ * };
+ *
+ * enum EnumExample
+ * {
+ *     ENUM_VALUE = 5;
+ * };
+ * @endcode
+ *
+ *
+ *
+ * @subsection handles Handles
+ * Within C code, it is common to define a handle.  A handle is typically a
+ * typedef to a void * pointer that a library passes to an application to keep
+ * track of an object.  Because the object is typecast to a void * pointer,
+ * the application does not have easy access to data that a library wants to
+ * keep private.  Handles use style 2 suffixed by an "_t".  For example:
+ * @code
+ * typedef struct semaphore
+ * {
+ *     int count;
+ *     int owner;
+ * } Semaphore;
+ *
+ * typedef void *sem_t;
+ *
+ * sem_t sem_create(void)
+ * {
+ *     Semaphore *sem = malloc(sizeof(Semaphore));
+ *
+ *     sem->count = 0;
+ *     sem->owner = 0;
+ *
+ *     return (sem_t)sem;
+ * }
+ * @endcode
+ *
+ *
+ *
+ * @section counters Loop Counters
+ * It is a best practice to use the variable names i, j, and j for arbitrary
+ * loop counters 
+ *
+ *
+ *
+ * @section switch Switch Statements
+ * Within switch statements, case values that do not have their own break
+ * statement shall provide a "fall through" comment.  All switch statements
+ * must define a default case.  For example:
+ * @code
+ * switch (variable)
+ * {
+ *     default:
+ *         break;
+ *     case 1:
+ *         /* fall through */
+ *     case 2:
+ *         i = j + variable;
+ *         break;
+ * }
+ * @endcode
+ *
+ *
+ *
+ * @section braces Braces
+ * OpenMRN source always uses hanging braces.  Additionally, single line
+ * if statements must use braces.  For example:
+ * @code
+ * if (i > 0)
+ * {
+ *     j = i;
+ * }
+ * @endcode
+ *
+ * Notice that the brace is always on its own line.  The following two examples
+ * are both unacceptable:
+ * @code
+ * if (i > 0)
+ *     j = i;
+ *
+ * if (i > 0) {
+ *     j = i;
+ * }
+ * @endcode
+ *
+ *
+ *
+ * @section exceptions Exceptions
+ * Third party source code does not follow these coding guidelines.  Instead,
+ * follow the guidelines already established by the third party.  Examples of
+ * third party source code include the XML and JSON parsers.
+ */

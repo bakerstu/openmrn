@@ -1,5 +1,5 @@
 # Build the platform libraries.
-LIBRARIES = os if core lib freertos freertos_drivers
+LIBRARIES = os if core lib freertos freertos_drivers tinyxml2 cJSON
 
 all:
 	$(foreach lib, $(LIBRARIES), $(MAKE) -C $(lib) all || exit 1;)
