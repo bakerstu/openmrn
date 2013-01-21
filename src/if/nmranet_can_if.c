@@ -31,7 +31,6 @@
  * @date 13 August 2012
  */
 
-#include <endian.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -41,6 +40,7 @@
 #include "core/nmranet_buf.h"
 #include "core/nmranet_alias.h"
 #include "nmranet_can.h"
+#include "endian.h"
 
 /** Status values for an alias.
  */

@@ -60,7 +60,7 @@
         (_frame).can_id += (_value);         \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__)
+#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__)
 #include <stdint.h>
 
     struct can_frame
