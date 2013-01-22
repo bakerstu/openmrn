@@ -22,9 +22,9 @@ GROUP(-lgcc -lc -lcs3 -lcs3micro)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 128K
+  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
   ROM   (rx) : ORIGIN = 0x01000000, LENGTH = 256K
-  SRAM (rwx) : ORIGIN = 0x20000000, LENGTH = 24K
+  SRAM (rwx) : ORIGIN = 0x20000000, LENGTH = 32K
 }
 
 /* These force the linker to search for particular symbols from
