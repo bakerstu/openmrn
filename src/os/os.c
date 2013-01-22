@@ -49,11 +49,6 @@
 #include <signal.h>
 #endif
 
-#if defined (__MACH__)
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
 #include "os/os.h"
 
 /** Timer structure */
@@ -264,7 +259,6 @@ static void remove_timer(Timer *timer)
 static void *timer_thread(void* arg)
 {
     struct timeval tv;
-    struct timespec ts;
 
     for ( ; /* forever */ ; )
     {
@@ -280,20 +274,7 @@ static void *timer_thread(void* arg)
             bytes_read = read(timerfds[0], buf, 16);
         } while (bytes_read > 0);
 
-#if defined (__nuttx__)
-        clock_gettime(CLOCK_REALTIME, &ts);
-#elif defined (__MACH__)
-        clock_serv_t cclock;
-        mach_timespec_t mts;
-        host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-        clock_get_time(cclock, &mts);
-        mach_port_deallocate(mach_task_self(), cclock);
-        ts.tv_sec = mts.tv_sec;
-        ts.tv_nsec = mts.tv_nsec;
-#else
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-#endif
-        long long now = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+        long long now = os_get_time_monotonic();
         
         os_mutex_lock(&timerMutex);
         if (active)
@@ -425,23 +406,7 @@ void os_timer_start(os_timer_t timer, long long period)
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
     xTimerStart(timer, portMAX_DELAY);
 #else
-    struct timespec ts;
-    long long       timeout;
-
-#if defined (__nuttx__)
-    clock_gettime(CLOCK_REALTIME, &ts);
-#elif defined (__MACH__)
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts.tv_sec = mts.tv_sec;
-    ts.tv_nsec = mts.tv_nsec;
-#else
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-#endif
-    timeout = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec + period;
+    long long timeout = os_get_time_monotonic() + period;
 
     os_mutex_lock(&timerMutex);
     /* Remove timer from the active list */

@@ -34,16 +34,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <endian.h>
 #include <sys/tree.h>
 #include "core/nmranet_event.h"
 #include "core/nmranet_node.h"
 #include "core/nmranet_buf.h"
 #include "os/os.h"
-#if defined(__MACH__)
-#include "mach/endian.h"
-#else
-#include "endian.h"
-#endif
 
 void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
 void nmranet_node_producer_add(node_t node, uint64_t event, int state);

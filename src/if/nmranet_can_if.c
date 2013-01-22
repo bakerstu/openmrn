@@ -34,17 +34,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <endian.h>
 #include <sys/tree.h>
 #include "if/nmranet_can_if.h"
 #include "os/os.h"
 #include "core/nmranet_buf.h"
 #include "core/nmranet_alias.h"
 #include "nmranet_can.h"
-#if defined(__MACH__)
-#include "mach/endian.h"
-#else
-#include "endian.h"
-#endif
 
 /** Status values for an alias.
  */

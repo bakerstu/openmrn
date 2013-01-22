@@ -97,7 +97,7 @@ int os_main(int argc, char *argv[])
             event = nmranet_event_consume(node);
             if (event == 0x0502010202650013LL)
             {
-#if defined (__linux__)
+#if !defined (__FreeRTOS__)
                 printf("we got the right one\n");
 #endif
             }

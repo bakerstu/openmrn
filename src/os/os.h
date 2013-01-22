@@ -51,8 +51,7 @@
 #endif
 
 #if defined (__MACH__)
-#include <mach/clock.h>
-#include <mach/mach.h>
+#include <mach/mach_time.h>
 #endif
 
 #ifdef __cplusplus
@@ -643,27 +642,32 @@ static inline int os_mq_num_pending_from_isr(os_mq_t queue)
  */
 static inline long long os_get_time_monotonic(void)
 {
+    static long long last = 0;
+    long long time;
 #if defined (__FreeRTOS__)
     portTickType tick = xTaskGetTickCount();
-    return ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+    time = ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+#elif defined (__MACH__)
+    /* get the timebase info */
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+    
+    /* get the timestamp */
+    time = (long long)mach_absolute_time();
+    
+    /* convert to nanoseconds */
+    time *= info.numer;
+    time /= info.denom;
 #else
-    static long long last = 0;
     struct timespec ts;
 #if defined (__nuttx__)
     clock_gettime(CLOCK_REALTIME, &ts);
-#elif defined (__MACH__)
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts.tv_sec = mts.tv_sec;
-    ts.tv_nsec = mts.tv_nsec;
 #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
-    long long time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+    time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
     
+#endif
     /* This logic ensures that every successive call is one value larger
      * than the last.  Each call returns a unique value.
      */
@@ -677,7 +681,6 @@ static inline long long os_get_time_monotonic(void)
     }
 
     return last;
-#endif
 }
 
 #ifdef __cplusplus
