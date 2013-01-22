@@ -39,7 +39,11 @@
 #include "core/nmranet_event.h"
 #include "if/nmranet_if.h"
 #include "os/os.h"
+#if defined(__MACH__)
+#include "mach/endian.h"
+#else
 #include "endian.h"
+#endif
 
 static void verify_node_id_number(node_t node);
 

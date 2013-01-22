@@ -40,7 +40,11 @@
 #include "core/nmranet_buf.h"
 #include "core/nmranet_alias.h"
 #include "nmranet_can.h"
+#if defined(__MACH__)
+#include "mach/endian.h"
+#else
 #include "endian.h"
+#endif
 
 /** Status values for an alias.
  */

@@ -68,7 +68,7 @@ int os_main(int argc, char *argv[])
 
     if (argc >= 2)
     {
-        nmranet_if = nmranet_gc_if_init(0x02010d000000, argv[1]);
+        nmranet_if = nmranet_gc_if_init(0x02010d000000LL, argv[1]);
     }
     else
     {
@@ -76,15 +76,15 @@ int os_main(int argc, char *argv[])
 
         nmranet_if = nmranet_can_if_init(0x02010d000000, "/dev/can0", read, write);
 #else
-        nmranet_if = nmranet_gc_if_init(0x02010d000000, "/dev/ttyUSB1");
+        nmranet_if = nmranet_gc_if_init(0x02010d000000LL, "/dev/ttyUSB1");
 #endif
     }
     
-    node_t node = nmranet_node_create(0x02010d000001, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
+    node_t node = nmranet_node_create(0x02010d000001LL, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
     nmranet_node_initialized(node);
-    nmranet_event_consumer(node, 0x0502010202650013, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650012, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650013, EVENT_STATE_VALID);
+    nmranet_event_consumer(node, 0x0502010202650013LL, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650012LL, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650013LL, EVENT_STATE_VALID);
 
     for (;;)
     {
@@ -95,7 +95,7 @@ int os_main(int argc, char *argv[])
         do
         {
             event = nmranet_event_consume(node);
-            if (event == 0x0502010202650013)
+            if (event == 0x0502010202650013LL)
             {
 #if defined (__linux__)
                 printf("we got the right one\n");
@@ -105,11 +105,11 @@ int os_main(int argc, char *argv[])
         while (event != 0);
 #endif
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650012, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650012, EVENT_STATE_VALID);
+        nmranet_event_produce(node, 0x0502010202650012LL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650012LL, EVENT_STATE_VALID);
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650013, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650013, EVENT_STATE_VALID);
+        nmranet_event_produce(node, 0x0502010202650013LL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650013LL, EVENT_STATE_VALID);
         
     }
 
