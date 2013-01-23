@@ -31,10 +31,10 @@
  * @date 13 August 2012
  */
 
-#include <endian.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <endian.h>
 #include <sys/tree.h>
 #include "if/nmranet_can_if.h"
 #include "os/os.h"

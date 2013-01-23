@@ -32,6 +32,7 @@
  */
 
 #include <stdlib.h>
+#include <endian.h>
 #include <sys/tree.h>
 #include "core/nmranet_node.h"
 #include "core/nmranet_buf.h"
@@ -39,7 +40,6 @@
 #include "core/nmranet_event.h"
 #include "if/nmranet_if.h"
 #include "os/os.h"
-#include "endian.h"
 
 static void verify_node_id_number(node_t node);
 
