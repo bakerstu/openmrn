@@ -519,7 +519,7 @@ int os_thread_create(os_thread_t *thread, int priority,
     {
         return result;
     }
-#if !defined(__linux__) /* Linux allocates stack as needed */
+#if !defined(__linux__) && !defined(__MACH__) /* Linux allocates stack as needed */
     struct sched_param sched_param;
     result = pthread_attr_setstacksize(&attr, stack_size);
     if (result != 0)

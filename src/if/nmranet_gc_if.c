@@ -104,7 +104,7 @@ static ssize_t gc_write(int fd, const void *data, size_t len)
     }
     
     /* allocate a buffer for the Grid connect format */
-    unsigned char buf[52];
+    unsigned char buf[56];
     buf[0] = buf[1] = '!';
 
     /* while there are packets to transmit */
