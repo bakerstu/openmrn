@@ -31,10 +31,10 @@
  * @date 29 October 2012
  */
 
-#include <endian.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <endian.h>
 #include <sys/tree.h>
 #include "core/nmranet_event.h"
 #include "core/nmranet_node.h"

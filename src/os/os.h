@@ -50,6 +50,10 @@
 #include <semaphore.h>
 #endif
 
+#if defined (__MACH__)
+#include <mach/mach_time.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -257,6 +261,8 @@ int os_thread_create(os_thread_t *thread, int priority,
 #if defined (__nuttx__)
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER {0, SEM_INITIALIZER(1), PTHREAD_MUTEX_RECURSIVE, 0}
+#elif defined (__MACH__)
+#define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 #else
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
@@ -636,19 +642,32 @@ static inline int os_mq_num_pending_from_isr(os_mq_t queue)
  */
 static inline long long os_get_time_monotonic(void)
 {
+    static long long last = 0;
+    long long time;
 #if defined (__FreeRTOS__)
     portTickType tick = xTaskGetTickCount();
-    return ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+    time = ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+#elif defined (__MACH__)
+    /* get the timebase info */
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+    
+    /* get the timestamp */
+    time = (long long)mach_absolute_time();
+    
+    /* convert to nanoseconds */
+    time *= info.numer;
+    time /= info.denom;
 #else
-    static long long last = 0;
     struct timespec ts;
 #if defined (__nuttx__)
     clock_gettime(CLOCK_REALTIME, &ts);
 #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
-    long long time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+    time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
     
+#endif
     /* This logic ensures that every successive call is one value larger
      * than the last.  Each call returns a unique value.
      */
@@ -662,7 +681,6 @@ static inline long long os_get_time_monotonic(void)
     }
 
     return last;
-#endif
 }
 
 #ifdef __cplusplus

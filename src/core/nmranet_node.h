@@ -42,27 +42,27 @@ extern "C" {
 #endif
 
 /** Well known events Node ID */
-#define NODE_ID_WELL_KNOWN_EVENTS 0x010100000000
+#define NODE_ID_WELL_KNOWN_EVENTS 0x010100000000LL
 /** CBUS events base */
-#define NODE_ID_CBUS_EVENTS_BASE  0x010101000000
+#define NODE_ID_CBUS_EVENTS_BASE  0x010101000000LL
 /** CBUS events mask */
-#define NODE_ID_CBUS_EVENTS_MASK  0xffffff000000
+#define NODE_ID_CBUS_EVENTS_MASK  0xffffff000000LL
 /** XpressNet translation base */
-#define NODE_ID_XPRESSNET_BASE    0x016300000000
+#define NODE_ID_XPRESSNET_BASE    0x016300000000LL
 /** XpressNet translation mask */
-#define NODE_ID_XPRESSNET_MASK    0xffff00000000
+#define NODE_ID_XPRESSNET_MASK    0xffff00000000LL
 /** NocoNet translation base */
-#define NODE_ID_LOCONET_BASE      0x018100000000
+#define NODE_ID_LOCONET_BASE      0x018100000000LL
 /** LocoNet translation mask */
-#define NODE_ID_LOCONET_MASK      0xffff00000000
+#define NODE_ID_LOCONET_MASK      0xffff00000000LL
 /** DCC translation base */
-#define NODE_ID_DCC_BASE          0x01ee00000000
+#define NODE_ID_DCC_BASE          0x01ee00000000LL
 /** DCC translation mask */
-#define NODE_ID_DCC_MASK          0xffff00000000
+#define NODE_ID_DCC_MASK          0xffff00000000LL
 /** Mask to get all messages */
-#define NODE_ID_ALL_MASK          0x000000000000
+#define NODE_ID_ALL_MASK          0x000000000000LL
 /** Mask for exact node ID */
-#define NODE_ID_EXACT_MASK        0xffffffffffff
+#define NODE_ID_EXACT_MASK        0xffffffffffffLL
 
 
 /** Create a new virtual node.
