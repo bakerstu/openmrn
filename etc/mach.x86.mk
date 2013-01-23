@@ -1,5 +1,5 @@
 TOOLPATH ?= $(shell \
-sh -c "if [ -d /usr/include/linux ]; then echo /usr/bin; \
+sh -c "if [ -d /usr/include/mach ]; then echo /usr/bin; \
       else echo; fi" \
 )
 
@@ -11,13 +11,15 @@ CXX = g++
 AR = ar
 LD = g++
 
+INCLUDES += -I$(OPENMRNPATH)/include/mach
+
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
          -D_GNU_SOURCE
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \
            -D_GNU_SOURCE
 
 LDFLAGS = -g -m32
-SYSLIBRARIES = -lrt -lpthread
+SYSLIBRARIES = -lpthread
 
 EXTENTION =
 
