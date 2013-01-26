@@ -4,7 +4,7 @@ TARGET := $(shell basename `pwd`)
 endif
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 VPATH = ../../
-INCLUDES += -I$(OPENMRNPATH)/src/ -I $(OPENMRNPATH)/include
+INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
@@ -59,7 +59,7 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
 clean:
-	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION)
+	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) lib
 
 verclean: clean
 

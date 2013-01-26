@@ -705,6 +705,11 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
                                ssize_t (*if_read)(int, void*, size_t),
                                ssize_t (*if_write)(int, const void*, size_t))
 {
+    int fd = open(device, O_RDWR);
+    if (fd < 0)
+    {
+        return NULL
+    }
     NMRAnetCanIF *can_if = malloc(sizeof(NMRAnetCanIF));
 
     os_thread_t thread_handle;
@@ -712,11 +717,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     can_if->nmranetIF.write = can_write;
     can_if->read = if_read;
     can_if->write = if_write;
-    can_if->fd = open(device, O_RDWR);
-    if (can_if->fd < 0)
-    {
-        abort();
-    }
+    can_if->fd = fd;
     can_if->id = node_id;
     can_if->pool = malloc(sizeof(AliasMetadata)*ALIAS_POOL_SIZE);
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)
