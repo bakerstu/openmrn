@@ -708,7 +708,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     int fd = open(device, O_RDWR);
     if (fd < 0)
     {
-        return NULL
+        return NULL;
     }
     NMRAnetCanIF *can_if = malloc(sizeof(NMRAnetCanIF));
 

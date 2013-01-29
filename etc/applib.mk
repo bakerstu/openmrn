@@ -42,8 +42,6 @@ else
 .PHONY: all
 all: $(LIBNAME)
 
-export: $(LIBNAME)
-
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:

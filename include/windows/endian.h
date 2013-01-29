@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file os.c
- * This file represents endian swapping for FreeRTOS.
+ * This file represents endian swapping for the Windows Operating System
  *
  * @author Stuart W. Baker
- * @date 13 August 2012
+ * @date 29 January 2013
  */
 
 #include <stdint.h>
+#include <sys/param.h>
 
 /** Byte swap a 16 bit value.
  * @param x value to swap
@@ -68,7 +69,7 @@ static inline uint64_t __bswap_64(uint64_t x)
             ((x & 0x00000000000000ffULL) << 56));
 }
 
-#ifdef CONFIG_ENDIAN_BIG
+#if LITTLEENDIAN
     #define htobe16(x) (x)
     #define htole16(x) __bswap_16 (x)
     #define be16toh(x) (x)

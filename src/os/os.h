@@ -54,6 +54,11 @@
 #include <mach/mach_time.h>
 #endif
 
+#if defined (__WIN32__)
+#include <sys/time.h>
+#include <unistd.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -658,6 +663,11 @@ static inline long long os_get_time_monotonic(void)
     /* convert to nanoseconds */
     time *= info.numer;
     time /= info.denom;
+#elif defined (__WIN32__)
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
+           ((long long)tv.tv_usec * 1000LL);
 #else
     struct timespec ts;
 #if defined (__nuttx__)
@@ -682,6 +692,17 @@ static inline long long os_get_time_monotonic(void)
 
     return last;
 }
+
+#if defined (__WIN32__)
+/** Implementation of standard sleep().
+ * @param seconds number of seconds to sleep
+ */
+unsigned sleep(unsigned seconds)
+{
+    usleep(seconds * 1000);
+    return 0;
+}
+#endif
 
 #ifdef __cplusplus
 }

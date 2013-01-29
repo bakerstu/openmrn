@@ -35,6 +35,8 @@ all docs clean veryclean:
 	@echo "*   Unable to build for $(TARGET), no toolchain available"
 	@echo "*"
 	@echo "******************************************************************"
+	echo $(TOOLPATH)
+	echo $(PREFIX)
 else
 .PHONY: all
 all: $(LIBNAME)

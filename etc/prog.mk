@@ -2,9 +2,11 @@ ifeq ($(TARGET),)
 # if the target is so far undefined
 TARGET := $(shell basename `pwd`)
 endif
+include ../../subdirs
 include $(OPENMRNPATH)/etc/$(TARGET).mk
+
 VPATH = ../../
-INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
+
 FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
@@ -14,13 +16,20 @@ CSRCS = $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
 CPPSRCS = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
-LIBNAME = lib$(BASENAME).a
+
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
-FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a)
-LIBS = -lif -los -lcore
-LDFLAGS += -L./ -L$(LIBDIR)
+FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
+LIBDIRS := $(SUBDIRS)
+LIBS = -Wl,--start-group \
+       $(foreach lib,$(LIBDIRS),-l$(lib)) \
+       -Wl,--end-group \
+       -lif -lcore -los 
+
+SUBDIRS += lib
+INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
+LDFLAGS += -Llib -L$(LIBDIR)
 
 EXECUTABLE = $(shell basename `cd ../../; pwd`)
 
@@ -32,7 +41,11 @@ all docs clean veryclean:
 	@echo "*"
 	@echo "******************************************************************"
 else
-all: $(EXECUTABLE)$(EXTENTION)
+all: subdirs $(EXECUTABLE)$(EXTENTION)
+
+.PHONY: subdirs
+subdirs:
+	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) all || exit 1;)
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
@@ -59,8 +72,10 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
 clean:
-	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) lib
+	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)
+	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION)
 
 verclean: clean
+	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) veryclean || exit 1;)
 
 endif

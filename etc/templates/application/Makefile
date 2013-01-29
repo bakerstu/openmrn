@@ -5,7 +5,7 @@ all:
 
 .PHONY:
 docs:
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) doc || exit 1;)
+	make -C doc docs || exit 1;
 
 clean::
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)

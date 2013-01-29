@@ -43,8 +43,13 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #else
+#if defined(__WIN32__)
+#include <winsock2.h>
+#include <ws2tcpip.h> /* socklen_t */
+#else
 #include <sys/select.h>
 #include <sched.h>
+#endif
 #include <time.h>
 #include <signal.h>
 #endif
@@ -176,6 +181,95 @@ static void timer_callback(xTimerHandle timer)
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
 }
 #else
+
+#if defined (__WIN32__)
+/** Windows does not support pipes, so we made our own with a pseudo socketpair.
+ * @param fildes fildes[0] is open for reading, filedes[1] is open for writing
+ * @return 0 upon success, else -1 with errno set to indicate error
+ */
+int pipe(int fildes[2])
+{
+    struct sockaddr_in addr;  
+    int listener, connector, acceptor;
+    socklen_t addrlen = sizeof(addr);
+
+    if ((listener = socket(AF_INET, SOCK_STREAM, 0)) <= 0)
+    {
+        errno = EMFILE;
+        return -1;
+    }
+    if ((connector = socket(AF_INET, SOCK_STREAM, 0)) <= 0)
+    {
+        closesocket(listener);
+        errno = EMFILE;
+        return -1;
+    }
+    
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = 0; 
+
+    int reuse = 0;
+    if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, 
+                   (char*)&reuse, (socklen_t)sizeof(reuse)) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return -1;
+    }
+
+    if (bind(listener, (const struct sockaddr*)&addr, sizeof(addr)) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return -1;
+    }
+    
+    if  (getsockname(listener, (struct sockaddr*)&addr, &addrlen) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return -1;
+    }
+
+    if (listen(listener, 1) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return -1;
+    }
+
+    if (connect(connector, (const struct sockaddr*)&addr, addrlen) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return -1;
+    }
+   
+    if ((acceptor = accept(listener, NULL, NULL)) < 0)
+    {
+        closesocket(listener);
+        closesocket(connector);
+        errno = EMFILE;
+        return  -1;
+    }
+
+    int flag = 1;
+    setsockopt(connector, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int));
+    setsockopt(acceptor, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int));
+
+    fildes[0] = connector;
+    fildes[1] = acceptor;
+    closesocket(listener);
+    return 0;
+}
+#endif
 
 static Timer *active = NULL; /**< list of active timers */
 static int timerfds[2]; /**< pipe used for refreshing the timer list */
@@ -333,7 +427,12 @@ static void os_timer_init(void)
     {
         abort();
     }
+#if defined (__WIN32__)
+    u_long arg = 1;
+    ioctlsocket(timerfds[0], FIONBIO, &arg);
+#else
     fcntl(timerfds[0], F_SETFL, O_NONBLOCK);
+#endif
     os_thread_create(&thread_handle, 0, 4096, timer_thread, NULL);
 }
 #endif
@@ -718,6 +817,11 @@ int main(int argc, char *argv[])
 
     vTaskStartScheduler();
 #else
+#if defined (__WIN32__)
+    /* enable Windows networking */
+    WSADATA wsa_data;
+    WSAStartup(WINSOCK_VERSION, &wsa_data);
+#endif
     os_main(argc, argv);
 #endif
 }

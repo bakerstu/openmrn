@@ -7,9 +7,5 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 
 ##TARGET##
 
-include ../../subdirs
-
-export: $(EXECUTABLE)$(EXTENTION)
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) export || exit 1;)
-
 include $(OPENMRNPATH)/etc/prog.mk
+
