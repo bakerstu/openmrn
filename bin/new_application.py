@@ -106,11 +106,14 @@ makefile_out.close()
 # create sub-directories under <basepath>/
 subdirs_file = open(options.path + '/subdirs', 'w')
 subdirs_file.write('SUBDIRS =')
-subdirs = options.subdirs.split(' ')
-for item in subdirs:
-    cmd = 'mkdir ' + options.path + '/' + item
-    os.system(cmd)
-    subdirs_file.write(' \\\n          ' + item)
+if options.subdirs == None:
+    subdirs_file.write(' \\\n')
+else:
+    subdirs = options.subdirs.split(' ')
+    for item in subdirs:
+        cmd = 'mkdir ' + options.path + '/' + item
+        os.system(cmd)
+        subdirs_file.write(' \\\n          ' + item)
 subdirs_file.write('\n\n')
 subdirs_file.close()
 
