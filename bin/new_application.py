@@ -121,10 +121,18 @@ for target in targets:
     cmd = 'mkdir ' + options.path + '/targets/' + target
     os.system(cmd)
 
-    # prepare to strip off the user extention of the target
-    subtarget = target.split('.')
+    # create <basepath>/targets/<target>/lib
+    cmd = 'mkdir ' + options.path + '/targets/' + target + '/lib'
+    os.system(cmd)
     
-    # create <basepath/targets/<target>/Makefile
+    # create <basepath>/targets/<target>/lib/Makefile
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + subtarget[1] + '/lib/Makefile ' + options.path + '/targets/' + target + '/lib/Makefile'
+    os.system(cmd)
+    
+    # prepare to strip off the user extention of the target
+    subtarget = target.split('.')    
+    
+    # create <basepath>/targets/<target>/Makefile
     subdir_makefile_in = open('../etc/templates/application/targets/' +
                               subtarget[0] + '.' + subtarget[1] +
                               '/Makefile', 'r')
@@ -132,11 +140,29 @@ for target in targets:
     subdir_makefile_in.close()
     subdir_makedata_out = subdir_makedata_in.split('##TARGET##')
     subdir_makefile_out = open(options.path + '/targets/' + target + 
-                                   '/' + '/Makefile', 'w')
+                               '/' + '/Makefile', 'w')
     subdir_makefile_out.write(subdir_makedata_out[0] + 'TARGET = ' +
-                                  subtarget[0] + '.' + subtarget[1] +
-                                  subdir_makedata_out[1])
+                              subtarget[0] + '.' + subtarget[1] +
+                              subdir_makedata_out[1])
     subdir_makefile_out.close()
+    
+    # copy target specific *.ld, *.c, *.cxx, *.cpp, and *.S files to
+    # <basepath>/targets/<target>/
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + \
+          subtarget[1] + '/*.ld '  + options.path + '/targets/' + target + '/'
+    os.system(cmd + ' &> /dev/null')
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + \
+          subtarget[1] + '/*.c '   + options.path + '/targets/' + target + '/'
+    os.system(cmd + ' &> /dev/null')
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + \
+          subtarget[1] + '/*.cxx ' + options.path + '/targets/' + target + '/'
+    os.system(cmd + ' &> /dev/null')
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + \
+          subtarget[1] + '/*.cpp ' + options.path + '/targets/' + target + '/'
+    os.system(cmd + ' &> /dev/null')
+    cmd = 'cp ../etc/templates/application/targets/' + subtarget[0] + '.' + \
+          subtarget[1] + '/*.S ' + options.path + '/targets/' + target + '/'
+    os.system(cmd + ' &> /dev/null')
     
     # create all the <basepath>/targets/<target>/<subdirs>/Makefile
     subdir_makefile_in = open('../etc/templates/application/targets/' +
