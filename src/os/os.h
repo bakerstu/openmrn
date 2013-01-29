@@ -697,7 +697,7 @@ static inline long long os_get_time_monotonic(void)
 /** Implementation of standard sleep().
  * @param seconds number of seconds to sleep
  */
-unsigned sleep(unsigned seconds)
+static inline unsigned sleep(unsigned seconds)
 {
     usleep(seconds * 1000);
     return 0;

@@ -1,14 +1,10 @@
 TOOLPATH ?= $(shell \
-sh -c "if [ -d /usr/x86_64-w64-mingw32 ]; then echo /usr/bin; \
-     elif [ -d /usr/i686-w64-mingw32 ]; then echo /usr/bin; \
-     elif [ -d /usr/i586-mingw32msvc ]; then echo /usr/bin; \
+sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo /usr/bin; \
       else echo; fi" \
 )
 
 PREFIX ?= $(shell \
-sh -c "if [ -d /usr/x86_64-w64-mingw32 ]; then echo x86_64-w64-mingw32-; \
-     elif [ -d /usr/i686-w64-mingw32 ]; then echo i686-w64-mingw32-; \
-     elif [ -d /usr/i586-mingw32msvc ]; then echo i586-mingw32msvc-; \
+sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo i686-w64-mingw32-; \
       else echo; fi" \
 )
 
@@ -28,8 +24,8 @@ CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \
            -D_GNU_SOURCE
 
-LDFLAGS = -g -m32
-SYSLIBRARIES = -lrt -lpthread
+LDFLAGS = -g -m32 -L/usr/mingw-pthreads/mingw32/bin
+SYSLIBRARIES = -lpthreadGC2-w32 -lwsock32
 
-EXTENTION =
+EXTENTION = .exe
 

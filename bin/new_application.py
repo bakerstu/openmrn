@@ -63,7 +63,7 @@ if options.targets == None:
 targets = options.targets.split(' ')
 for item in targets:
     subtarget = item.split('.')
-    if ((subtarget[0] == 'linux' or subtarget[0] == 'mach' or subtarget[0] == 'freertos') and
+    if ((subtarget[0] == 'linux' or subtarget[0] == 'mach' or subtarget[0] == 'freertos' or subtarget[0] == 'mingw') and
         (subtarget[1] == 'x86' or subtarget[1] == 'x86_64' or subtarget[1] == 'armv7m')):
         continue
     else:
