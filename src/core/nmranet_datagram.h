@@ -41,6 +41,9 @@
 extern "C" {
 #endif
 
+/** maximum size in bytes of a datagram */
+#define DATAGRAM_MAX_SIZE 72
+
 #define DATAGRAM_LOG_REQUEST   0x01 /**< request a placement into the log */
 #define DATAGRAM_LOG_REPLY     0x02 /**< reply to a @ref DATAGRAM_LOG_REQUEST */
 #define DATAGRAM_CONFIGURATION 0x20 /**< configuration message */
@@ -48,53 +51,48 @@ extern "C" {
 #define DATAGRAM_DISPLAY       0x28 /**< place on display */
 #define DATAGRAM_TRAIN_CONTROL 0x30 /**< operation of mobile nodes */
 
-/** Datagram information. */
-typedef struct datagram
-{
-    node_id_t from; /**< node id this datagram is from */
-    const void *data; /**< datagram payload */
-} Datagram;
+#define DATAGRAM_PROTOCOL_SIZE_2 0xE0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
+#define DATAGRAM_PROTOCOL_SIZE_6 0xF0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
+#define DATAGRAM_PROTOCOL_SIZE_MASK 0xF0 /**< mask used when determining protocol size */
 
-/** Process a datagram packet.
- * @param mti Message Type Indicator
- * @param src source node ID, 0 if unavailable
- * @param dst destination node ID, 0 if unavailable
- * @param data NMRAnet packet data
- * @return 0 upon success
+/** Determine if the protocol ID is represented by one, two, or six bytes.
+ * @param _protocol protocol ID to interrogate
+ * @return number of bytes representing the protocol
  */
-int nmranet_datagram_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data);
-
-/** Register for the consumption of a datagram type with a given node.
- * @param node to register datagram to
- * @param datagram datagram identifier to register
- */
-void nmranet_datagram_consumer(node_t node, uint64_t datagram);
+#define DATAGRAM_PROTOCOL_SIZE(_protocol)                                                   \
+(                                                                                           \
+    (((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK) == DATAGRAM_PROTOCOL_SIZE_6) ?             \
+    6 : ((((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK) == DATAGRAM_PROTOCOL_SIZE_2) ? 2 : 1) \
+)
 
 /** Grab a datagram from the datagram queue of the node.
  * @param node to grab datagram from
  * @return NULL if queue is empty, else pointer to the datagram
  */
-Datagram *nmranet_datagram_consume(node_t node);
+datagram_t nmranet_datagram_consume(node_t node);
 
 /** Consumed datagrams must be released so that their memory can be freed.
  * The application may hold onto the datagram for an appropriate amount of time
  * to process it before releasing it.
  * @param datagram datagram to release
  */
-void nmranet_datagram_release(Datagram *datagram);
+void nmranet_datagram_release(datagram_t datagram);
 
-/** Process the datagram automatically.  @ref nmranet_datagram_release will be
- * called on the datagram prior to the return of this method.
- * @param node node handle the datagram was received from
- * @param datagram datagram to process, this pointer is stale upon return
+/** Determine the datagram protocol (could be 1, 2, or 6 bytes).
+ * @param datagram pointer to the beginning of the datagram
  */
-void nmranet_datagram_process(node_t node, Datagram *datagram);
+uint64_t nmranet_datagram_protocol(datagram_t datagram);
 
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from
- * @param datagram datagram to produce (in the form of an nmranet buffer)
+ * @param dst destination node id or alias
+ * @param protocol datagram protocol to use
+ * @param data datagram to produce
+ * @param size length of data in bytes
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, LLONG_MAX = blocking
+ * @return 0 upon success, else -1 on error with errno set
  */
-void nmranet_datagram_produce(node_t node, const void *datagram);
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout);
 
 #ifdef __cplusplus
 }

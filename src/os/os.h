@@ -63,12 +63,12 @@
 extern "C" {
 #endif
 
-/** Entry point to program.
+/** Entry point to application.
  * @param argc number of arguments
  * @param argv list of arguments
  * @return 0 upon success.
  */
-int os_main(int argc, char *argv[]);
+int appl_main(int argc, char *argv[]);
 
 #if defined (__FreeRTOS__)
 /** Stack size of the main thread */
@@ -244,13 +244,14 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 /** Create a thread.
  * @param thread handle to the created thread
+ * @param name name of thread, NULL for an auto generated name
  * @param priority priority of created thread, 0 means default
  * @param stack_size size in bytes of the created thread's stack
  * @param start_routine entry point of the thread
  * @param arg entry parameter to the thread
  * @return 0 upon success or error number upon failure
  */
-int os_thread_create(os_thread_t *thread, int priority,
+int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg);
 

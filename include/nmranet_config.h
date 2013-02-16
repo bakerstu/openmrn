@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,33 +24,46 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_types.h
- * Interesting NMRAnet types.
+ * \file nmranet_config.h
+ * This file defines configuration specific to NMRAnet.
  *
  * @author Stuart W. Baker
- * @date 19 September 2012
+ * @date 9 February 2013
  */
 
-#ifndef _nmranet_types_h_
-#define _nmranet_types_h_
+#ifndef _nmranet_config_h_
+#define _nmranet_config_h_
 
-#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define NUM_ALIAS_IF 2
+/** Manufacture of the product. */
+extern const char *nmranet_manufacturer;
 
-typedef uint64_t node_id_t; /**< 48-bit node id type */
-typedef uint16_t node_alias_t; /**< 12-bit node alias */
-typedef void *node_t; /**< handle to an NMRAnet node */
-typedef void *alias_cache_t; /**< alias cache handle type */
-typedef void *datagram_t; /**< handle to a datagram */
+/** Hardware revision of the product. */
+extern const char *nmranet_hardware_rev;
 
-/** Handle as a 48-bit node id, 12-bit node alias, or both.
+/** Software revision of the product. */
+extern const char *nmranet_software_rev;
+
+/** Number of aliases to pool for instant use.
  */
-typedef struct
-{
-    node_id_t id; /**< 48-bit node id */
-    node_alias_t alias; /**< 12-bit node alias */
-} node_handle_t;
+extern const size_t ALIAS_POOL_SIZE;
 
-#endif /* _nmranet_types_h_ */
+/** Number of alias to node id mappings to cache for downstream nodes.
+ */
+extern const size_t DOWNSTREAM_ALIAS_CACHE_SIZE;
 
+/** Number of alias to node id mappings to cache for upstream nodes.
+ */
+extern const size_t UPSTREAM_ALIAS_CACHE_SIZE;
+
+/** Maximum number of datagram buffers that the stack can use.  A value of 0
+ * means there is no limit */
+extern const size_t DATAGRAM_POOL_SIZE;
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _nmranet_config_h_ */

@@ -43,15 +43,16 @@ class OSThread
 {
 public:
     /** Create a thread.
+     * @param name name of thread, NULL for an auto generated name
      * @param priority priority of created thread
      * @param stack_size size in bytes of the created thread's stack
      * @param start_routine entry point of the thread
      * @param arg entry parameter to the thread
      */
-    OSThread(int priority, size_t stack_size,
+    OSThread(const char *name, int priority, size_t stack_size,
              void *(*start_routine)(void*), void *arg)
     {
-        os_thread_create(&handle, priority, stack_size, start_routine, arg);
+        os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
     }
 private:
     /** Private thread handle. */

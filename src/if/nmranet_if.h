@@ -42,27 +42,6 @@
 extern "C" {
 #endif
 
-/** Manufacture of the product. */
-extern const char *nmranet_manufacturer;
-
-/** Hardware revision of the product. */
-extern const char *nmranet_hardware_rev;
-
-/** Software revision of the product. */
-extern const char *nmranet_software_rev;
-
-/** Number of aliases to pool for instant use.
- */
-extern const size_t ALIAS_POOL_SIZE;
-
-/** Number of alias to node id mappings to cache for downstream nodes.
- */
-extern const size_t DOWNSTREAM_ALIAS_CACHE_SIZE;
-
-/** Number of alias to node id mappings to cache for upstream nodes.
- */
-extern const size_t UPSTREAM_ALIAS_CACHE_SIZE;
-
 /** Number of receive CAN messages that are buffered in the CAN driver.
  */
 extern const size_t CAN_RX_BUFFER_SIZE;
@@ -105,14 +84,17 @@ enum mti_value
     MTI_PRODUCER_IDENTIFY_VALID   = 0x0544, /**< producer broadcast, valid state */
     MTI_PRODUCER_IDENTIFY_INVALID = 0x0545, /**< producer broadcast, invalid state */
     MTI_PRODUCER_IDENTIFY_RESERVED = 0x0546, /**< reserved for future use */
-    MTI_EVENTS_IDENTIFY_ADDRESSED = 0x0968, /**< */
-    MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< */
+    MTI_EVENTS_IDENTIFY_ADDRESSED = 0x0968, /**< request identify all of a node's events */
+    MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< request identify all of every node's events */
     MTI_LEARN_EVENT               = 0x0594, /**< */
     MTI_EVENT_REPORT              = 0x05B4, /**< */
     MTI_XPRESSNET                 = 0x09C0, /**< */
     MTI_IDENT_INFO_REQUEST        = 0x0DE8, /**< request node identity */
     MTI_IDENT_INFO_REPLY          = 0x0A08, /**< node identity reply */
     MTI_DATAGRAM                  = 0x1C48, /**< datagram */
+    MTI_DATAGRAM_OK               = 0x0A28, /**< datagram received okay */
+    MTI_DATAGRAM_REJECTED         = 0x0A48, /**< datagram rejected by receiver */
+    MTI_STREAM_DATA               = 0x1F88, /**< stream data */
     
 };
 

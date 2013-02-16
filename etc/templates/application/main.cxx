@@ -40,6 +40,7 @@
 #include "if/nmranet_if.h"
 #include "core/nmranet_node.h"
 #include "core/nmranet_event.h"
+#include "nmranet_config.h"
 
 const char *nmranet_manufacturer = "<manufacturer>";
 const char *nmranet_hardware_rev = "N/A";
@@ -49,22 +50,22 @@ const int main_priority = 0;
 const size_t ALIAS_POOL_SIZE = 2;
 const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
 const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t DATAGRAM_POOL_SIZE = 10;
 const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 32;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
 
-/** Entry point to program.
+/** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
  * @return 0, should never return
  */
-int os_main(int argc, char *argv[])
+int appl_main(int argc, char *argv[])
 {
     printf("hello world\n");
 
     NMRAnetIF *nmranet_if;
-    //nmranet_init(0x02010d000000);
 
     if (argc >= 2)
     {

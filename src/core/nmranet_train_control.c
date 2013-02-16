@@ -31,6 +31,7 @@
  * @date 11 November 2012
  */
 
+#if 0
 #include <stdlib.h>
 #include <stdint.h>
 #include "core/nmranet_datagram.h"
@@ -143,4 +144,5 @@ void nmranet_train_control_callbacks(TCEstopCallback tcEstopCallback,
     callbacks.tcVelocityInquireCallback = tcVelocityInquireCallback;
     callbacks.tcVelocityReportCallback = tcVelocityReportCallback;
 }
+#endif
 

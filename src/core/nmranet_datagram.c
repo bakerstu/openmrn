@@ -31,186 +31,67 @@
  * @date 4 November 2012
  */
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/tree.h>
-#include "core/nmranet_datagram.h"
-#include "core/nmranet_node.h"
+#include <endian.h>
+#include "core/nmranet_datagram_private.h"
+#include "core/nmranet_node_private.h"
 #include "core/nmranet_buf.h"
 #include "core/nmranet_train_control.h"
 #include "os/os.h"
+#include "nmranet_config.h"
 
-#if 0
+/** Timeout for datagram acknowledgement. */
+#define DATAGRAM_TIMEOUT 3000000000LL
+
 /** Mutual exclusion for socket library */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
-/** Red Black tree node for sorting by datagram type.
- */
-struct datagram_node
-{
-    /** entry metadata */
-    RB_ENTRY(datagram_node) entry;
-    union
-    {
-        uint64_t datagram;
-        int64_t key;
-    };
-};
+/** pool of unused datagrams */
+static nmranet_queue_t pool = NULL;
 
-/** Mathematically compare two datagram types.
- * @param a first event to compare
- * @param b second event to compare
- * @return (a - b)
+/** Number of datagrams currently in flight */
+static size_t datagramCount = 0;
+
+/** One time initialization for the datagram pool.
  */
-static int64_t datagram_compare(struct datagram_node *a, struct datagram_node *b)
+static os_thread_once_t datagramOnce;
+
+/** Initialize the datagram pool.
+ */
+static void datagram_init(void)
 {
-    return a->key - b->key;
+    pool = nmranet_queue_create();
 }
 
-/** The datagram tree type */
-RB_HEAD(datagram_tree, datagram_node);
-/** The datagram  tree methods */
-RB_GENERATE_STATIC(datagram_tree, datagram_node, entry, datagram_compare);
-/** The node handle tree type */
-
-/** Red Black tree node for sorting by node handle.
+/** Allocate a datagram from the pool.
+ * @return datagram allocated, or NULL if there are no more datagrams available.
  */
-struct node_node
+Datagram *nmranet_datagram_alloc(void)
 {
-    /** entry metadata */
-    RB_ENTRY(node_node) entry;
-    union
-    {
-        node_t node;
-        intptr_t key;
-    };
-    struct datagram_tree datagramHead; /**< tree of registered datagrams */
-};
-    
-/** Mathematically compare two node handles.
- * @param a first event to compare
- * @param b second event to compare
- * @return (a - b)
- */
-static intptr_t node_compare(struct node_node *a, struct node_node *b)
-{
-    return a->key - b->key;
-}
-
-RB_HEAD(node_tree, node_node);
-/** The node handle tree methods */
-RB_GENERATE_STATIC(node_tree, node_node, entry, node_compare);
-/** The node handle tree head. */
-struct node_tree nodeHead = RB_INITIALIZER(&nodeHead);
-
-/** Register for the consumption of a datagram type with a given node.
- * @param node node handle to register datagram to
- * @param datagram datagram identifier to register
- */
-void nmranet_datagram_consumer(node_t node, uint64_t datagram)
-{
-    struct node_node     *node_node;
-    struct node_node      node_lookup;
-    struct datagram_node *datagram_node;
-    struct datagram_node  datagram_lookup;
-    
-    /* initialize search criteria */
-    node_lookup.node = node;
-    datagram_lookup.datagram = datagram;
-
     os_mutex_lock(&mutex);
-    /* look for an existing node handle entry */
-    node_node = RB_FIND(node_tree, &nodeHead, &node_lookup);
-    if (node_node == NULL)
+    if (datagramCount >= DATAGRAM_POOL_SIZE && DATAGRAM_POOL_SIZE != 0)
     {
-        /* a node handle entry does not exist, create one */
-        node_node = malloc(sizeof(struct node_node));
-        node_node->node = node;
-        RB_INIT(&node_node->datagramHead);
-        RB_INSERT(node_tree, &nodeHead, node_node);
-    }
-
-    /* look for an existing datagram entry */
-    datagram_node = RB_FIND(datagram_tree, &node_node->datagramHead, &datagram_lookup);
-    if (datagram_node == NULL)
-    {
-        /* a datagram entry does not exist, create one */
-        datagram_node = malloc(sizeof(struct datagram_node));
-        datagram_node->datagram = datagram;
-        RB_INSERT(datagram_tree, &node_node->datagramHead, datagram_node);
-    }
-    os_mutex_unlock(&mutex);
-}
-
-/** Determine the datagram protocol (could be 1, 2, or 6 bytes).
- * @param datagram pointer to the beginning of the datagram
- */
-static uint64_t nmranet_datagram_protocol(const void *datagram)
-{
-    const unsigned char *bytes = datagram;
-
-    switch (bytes[0] & 0xF0)
-    {
-        default:
-            return bytes[0];
-        case 0xE0:
-            return ((uint64_t)bytes[1] << 8) + ((uint64_t)bytes[2] << 0);
-        case 0xF0:
-            return ((uint64_t)bytes[5] <<  8) + ((uint64_t)bytes[6] <<  0) +
-                   ((uint64_t)bytes[3] << 24) + ((uint64_t)bytes[4] << 16) +
-                   ((uint64_t)bytes[1] << 40) + ((uint64_t)bytes[2] << 32);
-    }
-}
-
-/** Produce a Datagram from a given node.
- * @param node node to produce datagram from
- * @param datagram datagram to produce (in the form of an nmranet buffer)
- */
-void nmranet_datagram_produce(node_t node, const void *datagram)
-{
-    nmranet_if_rx_data(nmranet_lo_if(), MTI_DATAGRAM, nmranet_node_id(node), 0, datagram);
-}
-
-/** Process a datagram packet.
- * @param mti Message Type Indicator
- * @param src source node ID, 0 if unavailable
- * @param dst destination node ID, 0 if unavailable
- * @param data NMRAnet packet data
- * @return 0 upon success
- */
-int nmranet_datagram_packet(uint16_t mti, node_id_t src, node_id_t dst, const void *data)
-{
-    node_t node = nmranet_node(dst);
-    
-    struct node_node     *node_node;
-    struct node_node      node_lookup;
-    struct datagram_node *datagram_node;
-    struct datagram_node  datagram_lookup;
-    
-    /* initialize search criteria */
-    node_lookup.node = node;
-    datagram_lookup.datagram = nmranet_datagram_protocol(data);
-
-    os_mutex_lock(&mutex);
-    /* look for an existing node handle entry */
-    node_node = RB_FIND(node_tree, &nodeHead, &node_lookup);
-    if (node_node)
-    {
-        datagram_node = RB_FIND(datagram_tree, &node_node->datagramHead, &datagram_lookup);
-        if (datagram_node)
-        {
-            /* we are setup to consume this datagram */
-            Datagram * datagram = nmranet_buffer_alloc(sizeof(Datagram));
-            datagram->from = src;
-            datagram->data = data;
-            nmranet_buffer_advance(datagram, sizeof(Datagram));
-            nmranet_node_post_datagram(node, datagram);
-        }
+        /* we have met our quota for outstanding datagrams in flight */
         os_mutex_unlock(&mutex);
-        return 0;
+        return NULL;
     }
+
+    datagramCount++;
     os_mutex_unlock(&mutex);
-    
-    return 1;
+
+    os_thread_once(&datagramOnce, datagram_init);
+
+    Datagram *datagram = nmranet_queue_next(pool);
+
+    if (datagram == NULL)
+    {
+        datagram = nmranet_buffer_alloc(sizeof(Datagram));
+    }
+
+    return datagram;
 }
 
 /** Consumed datagrams must be released so that their memory can be freed.
@@ -219,12 +100,141 @@ int nmranet_datagram_packet(uint16_t mti, node_id_t src, node_id_t dst, const vo
  * the datagram is no longer available for use by the application.
  * @param datagram datagram to release, this pointer is stale upon return
  */
-void nmranet_datagram_release(Datagram *datagram)
+void nmranet_datagram_release(datagram_t datagram)
 {
-    nmranet_buffer_free(datagram->data);
-    nmranet_buffer_free(datagram);
+    nmranet_queue_insert(pool, datagram);
+    os_mutex_lock(&mutex);
+    datagramCount--;
+    os_mutex_unlock(&mutex);
 }
 
+/** Determine the datagram protocol (could be 1, 2, or 6 bytes).
+ * @param datagram pointer to the beginning of the datagram
+ */
+uint64_t nmranet_datagram_protocol(datagram_t datagram)
+{
+    Datagram *d = datagram;
+    const unsigned char *bytes = datagram;
+
+    /** @todo we need to double check the byte order here for correct endianness */
+    switch (bytes[0] & 0xF0)
+    {
+        default:
+            return d->data[0];
+        case DATAGRAM_PROTOCOL_SIZE_2:
+            return ((uint64_t)d->data[0] << 0) + ((uint64_t)d->data[1] << 16) +
+                   ((uint64_t)d->data[2] << 8);
+        case DATAGRAM_PROTOCOL_SIZE_6:
+            return ((uint64_t)d->data[0] <<  0) + ((uint64_t)d->data[1] << 48) +
+                   ((uint64_t)d->data[2] << 40) + ((uint64_t)d->data[3] << 32) +
+                   ((uint64_t)d->data[4] << 24) + ((uint64_t)d->data[5] << 16) +
+                   ((uint64_t)d->data[6] << 8);
+    }
+}
+
+/** Datagram timeout handler.
+ * @param data1 struct node_private pointer for node
+ * @param data2 NULL
+ * @return timer restart value
+ */
+long long datagram_timeout(void *data1, void* data2)
+{
+    struct id_node *n = data1;
+    NodePriv *priv = n->priv;
+    
+    /** @todo currently we timeout quietly, should be do something more? */
+    priv->txDatagram = NULL;
+    
+    return OS_TIMER_NONE;
+}
+
+/** Produce a Datagram from a given node.
+ * @param node node to produce datagram from
+ * @param dst destination node id or alias
+ * @param protocol datagram protocol to use
+ * @param data datagram to produce
+ * @param size length of data in bytes
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, LLONG_MAX = blocking
+ * @return 0 upon success, else -1 on error with errno set
+ */
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout)
+{
+    struct id_node *n = node;
+    NodePriv *priv = n->priv;
+
+    if (size > (DATAGRAM_MAX_SIZE - DATAGRAM_PROTOCOL_SIZE(protocol)) ||
+        (dst.id == 0 && dst.alias == 0) || timeout < 0)
+    {
+        /* invalid parameter */
+        errno = EINVAL;
+        return -1;
+    }
+
+    /* timestamp the entry to this function */
+    long long start = os_get_time_monotonic();
+    
+    Datagram *datagram = nmranet_datagram_alloc();
+
+    while (datagram == NULL)
+    {
+        if ((start + timeout) <= os_get_time_monotonic())
+        {
+            errno = ENOMEM;
+            return -1;
+        }
+        usleep(MSEC_TO_USEC(200));
+        datagram = nmranet_datagram_alloc();
+    }
+    
+    datagram->from.id = nmranet_node_id(node);
+    datagram->size = size + DATAGRAM_PROTOCOL_SIZE(protocol);
+
+    /* copy over the protocol and data payload */
+    switch (DATAGRAM_PROTOCOL_SIZE(protocol))
+    {
+        default:
+            /* fall through */
+        case 1:
+            datagram->data[0] = protocol;
+            memcpy(&datagram->data[1], data, size);
+            break;
+        case 2:
+            datagram->data[0] = ((protocol >> 0) & 0xFF);
+            datagram->data[1] = ((protocol >> 8) & 0xFF);
+            memcpy(&datagram->data[2], data, size);
+            break;
+        case 6:
+            datagram->data[0] = ((protocol >>  0) & 0xFF);
+            datagram->data[1] = ((protocol >>  8) & 0xFF);
+            datagram->data[2] = ((protocol >> 16) & 0xFF);
+            datagram->data[3] = ((protocol >> 24) & 0xFF);
+            datagram->data[4] = ((protocol >> 32) & 0xFF);
+            datagram->data[5] = ((protocol >> 40) & 0xFF);
+            memcpy(&datagram->data[6], data, size);
+            break;
+    }
+
+    os_mutex_lock(&nodeMutex);
+    while (priv->txDatagram)
+    {
+        if ((start + timeout) <= os_get_time_monotonic())
+        {
+            errno = EBUSY;
+            return -1;
+        }
+        os_mutex_unlock(&nodeMutex);
+        usleep(MSEC_TO_USEC(200));
+        os_mutex_lock(&nodeMutex);
+    }
+    priv->txDatagram = datagram;
+    os_mutex_unlock(&nodeMutex);
+
+    nmranet_node_write(node, MTI_DATAGRAM, dst, datagram);
+    os_timer_start(priv->datagramTimer, DATAGRAM_TIMEOUT);
+    return 0;
+}
+
+#if 0
 /** Process the datagram automatically.  @ref nmranet_datagram_release will be
  * called on the datagram prior to the return of this method.
  * @param node node handle the datagram was received from
@@ -245,3 +255,71 @@ void nmranet_datagram_process(node_t node, Datagram *datagram)
 }
 
 #endif
+
+/** Post the reception of a datagram with to given node.
+ * @param node to post event to
+ * @param mti Message Type Indeicator
+ * @param src source Node ID
+ * @param data datagram to post
+ */
+void rx_datagram(node_t node, uint16_t mti, node_handle_t src, const uint8_t *data)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    switch (mti)
+    {
+        case MTI_DATAGRAM_REJECTED:
+        {
+            uint16_t error = data[0] + (data[1] << 8);
+            error = htobe16(error);
+            if (IS_DATAGRAM_RESEND_OK(error))
+            {
+                /* we can try again */
+                nmranet_node_write(node, MTI_DATAGRAM, src, n->priv->txDatagram);
+                os_timer_start(n->priv->datagramTimer, DATAGRAM_TIMEOUT);
+            }
+            else
+            {
+                printf("datagram rejected\n");
+                os_timer_stop(n->priv->datagramTimer);
+                n->priv->txDatagram = NULL;
+            }
+            nmranet_buffer_free(data);
+            break;
+        }
+        case MTI_DATAGRAM_OK:
+            /* success! */
+            os_timer_stop(n->priv->datagramTimer);
+            break;
+        case MTI_DATAGRAM:
+            os_mutex_lock(&nodeMutex);
+
+            nmranet_queue_insert(n->priv->eventQueue, data);
+
+            if (n->priv->wait != NULL)
+            {
+                /* wakeup whoever is waiting */
+                os_sem_post(n->priv->wait);
+            }
+            os_mutex_unlock(&nodeMutex);
+            
+            nmranet_node_write(node, MTI_DATAGRAM_OK, src, NULL);
+            break;
+    }
+}
+
+/** Grab a datagram from the datagram queue of the node.
+ * @param node to grab datagram from
+ * @return NULL if queue is empty, else pointer to the datagram
+ */
+datagram_t nmranet_datagram_consume(node_t node)
+{
+    struct id_node *n = (struct id_node*)node;
+
+    os_mutex_lock(&nodeMutex);
+    Datagram *datagram = nmranet_queue_next(n->priv->eventQueue);
+    os_mutex_unlock(&nodeMutex);
+    
+    return datagram;
+}
+

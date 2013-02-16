@@ -97,12 +97,6 @@ void nmranet_node_wait(node_t node);
  */
 void nmranet_node_post_event(node_t node, uint64_t event);
 
-/** Post the reception of a datagram with to given node.
- * @param node to post event to
- * @param datagram datagram to post
- */
-void nmranet_node_post_datagram(node_t node, const void *datagram);
-
 /** Obtain the Node ID of a node handle
  * @param node node to get a the Node ID from
  * @return 48-bit NMRAnet Node ID

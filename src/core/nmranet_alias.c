@@ -35,6 +35,7 @@
 #include <limits.h>
 #include "os/os.h"
 #include "nmranet_types.h"
+#include "nmranet_config.h"
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */
 

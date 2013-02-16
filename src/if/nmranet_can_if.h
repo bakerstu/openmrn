@@ -40,7 +40,7 @@
 #define CONTROL_FRAME_SEQUENCE_MASK 0x7000000 /**< sequence mask for a control frame */
 #define RID_FRAME 0x0700 /**< Reserve ID Frame */
 #define AMD_FRAME 0x0701 /**< Alias Map Definition frame */
-#define AMI_FRAME 0x0702 /**< Alias Mapping Inquery */
+#define AME_FRAME 0x0702 /**< Alias Mapping Inquery */
 #define AMR_FRAME 0x0703 /**< Alias Map Reset */
 
 #define CAN_ID_SOURCE_MASK         0x00000fff /**< mask for source field of CAN ID */
@@ -249,8 +249,8 @@
  * @param _field field data
  * @param _sequence sequence data
  */
-#define CAN_CONTROL_FRAME_INIT(_frame, _source, _field, _sequence) \
-{                                                                 \
+#define CAN_CONTROL_FRAME_INIT(_frame, _source, _field, _sequence)        \
+{                                                                         \
     (_frame).can_id = ((_source)   << CAN_CONTROL_FRAME_SOURCE_SHIFT  ) + \
                       ((_field)    << CAN_CONTROL_FRAME_FIELD_SHIFT   ) + \
                       ((_sequence) << CAN_CONTROL_FRAME_SEQUENCE_SHIFT) + \

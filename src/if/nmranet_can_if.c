@@ -40,7 +40,14 @@
 #include "os/os.h"
 #include "core/nmranet_buf.h"
 #include "core/nmranet_alias.h"
+#include "core/nmranet_datagram_private.h"
 #include "nmranet_can.h"
+#include "nmranet_config.h"
+
+/** This is how long we should buffer a write pending a Node ID to alias mapping
+ * request.
+ */
+#define WRITE_BUFFER_TIMEOUT 3000000000LL
 
 /** Status values for an alias.
  */
@@ -63,30 +70,125 @@ typedef struct alias_metadata
     //void *datagramBuffer; /**< buffer for holding datagrams */
 } AliasMetadata;
 
+typedef struct write_buffer
+{
+    uint16_t mti; /**< MTI value, 0 if buffer not in use */
+    node_id_t src; /**< source node ID */
+    node_handle_t dst; /**< destination node ID and/or alias */
+    const void *data; /**< message data */
+    os_timer_t timer; /**< timeout on error */
+} WriteBuffer;
+
+struct datagram_node
+{
+    /** entry metadata */
+    RB_ENTRY(datagram_node) entry;
+    union
+    {
+        uint32_t alias;
+        int32_t key;
+    };
+    Datagram *datagram; /**< datagram to track */
+};
+
+/** Mathematically compare two Node ID's.
+ * @param a first node to compare
+ * @param b second node to compare
+ * @return (a - b)
+ */
+static int32_t datagram_compare(struct datagram_node *a, struct datagram_node *b)
+{
+    return a->key - b->key;
+}
+
+/** The datagram tree type. */
+RB_HEAD(datagram_tree, datagram_node);
+/** The datagram tree methods. */
+RB_GENERATE_STATIC(datagram_tree, datagram_node, entry, datagram_compare);
+
 /** Information about the interface. */
 typedef struct nmranet_can_if
 {
     NMRAnetIF nmranetIF; /**< generic NMRAnet interface info */
-    int fd; /**< CAN hardware handle */
+    WriteBuffer writeBuffer; /**< this buffer is used to wait on an Node ID to alias mapping */
+    struct datagram_tree datagramHead; /**< tree for keeping track of receive datagrams */
     node_id_t id; /**< node id of interface */
     alias_cache_t aliasCache; /**< list of downstream aliases */
     alias_cache_t upstreamCache; /**< list of upstream aliases */
-    AliasMetadata *pool; /**< preallocated alias pool */
-#if 0
-    int poolWrIndex; /**< current index within the pool for getting an alias */
-    int poolRdIndex; /**< current index within the pool for inserting an alias */
-    int poolCount; /**< current number of aliases in the pool */
-#endif
     os_mutex_t aliasMutex; /**< Mutex for managing aliases to Node IDs. */
+    AliasMetadata *pool; /**< preallocated alias pool */
     ssize_t (*read)(int, void*, size_t); /**< read method for device */
     ssize_t (*write)(int, const void*, size_t); /**< write method for device */
+    int fd; /**< CAN hardware handle */
 } NMRAnetCanIF;
 
 /* prototypes */
 static void claim_alias(NMRAnetCanIF *can_if, node_id_t node_id, node_alias_t alias);
 static long long claim_alias_timeout(void *data1, void *data2);
 
-/** This it the timeout for claiming an alias.  At this point, the alias will
+/* Release the write buffer from being in use.
+ * @param can_if interface to act on
+ */
+static void write_buffer_release(NMRAnetCanIF *can_if)
+{
+    os_timer_stop(can_if->writeBuffer.timer);
+    can_if->writeBuffer.mti = 0;
+}
+
+/* Determine if the write buffer is currently in use.
+ * @param can_if interface to act on
+ * @return true if in use, else false;
+ */
+static int write_buffer_in_use(NMRAnetCanIF *can_if) 
+{
+    return (can_if->writeBuffer.mti != 0);
+}
+
+/* Interrogate the write buffer for its destination Node ID.
+ * @param can_if interface to act on
+ * @return destination Node ID
+ */
+static node_id_t write_buffer_dst_id(NMRAnetCanIF *can_if)
+{
+    return can_if->writeBuffer.dst.id;
+}
+
+/** This is the timeout for giving up on an outstanding Node ID to alias
+ * mapping request.
+ * @param data1 a @ref NMRAnetCanIF typecast to a void*
+ * @param data2 a unused
+ * @return OS_TIMER_NONE
+ */
+long long write_buffer_timeout(void *data1, void *data2)
+{
+    NMRAnetCanIF *can_if = data1;
+
+    /** @todo currently we fail silently, should we throw an error? */
+    os_mutex_lock(&can_if->aliasMutex);
+    can_if->writeBuffer.mti = 0;
+    os_mutex_unlock(&can_if->aliasMutex);
+    return OS_TIMER_NONE;
+}
+
+/** Buffer a rite message on the CAN bus waiting for its alias mapping.
+ * @param nmranet_if interface to write message to
+ * @param mti Message Type Indicator
+ * @param src source node ID, 0 if unavailable
+ * @param dst destination node ID, 0 if unavailable
+ * @param data NMRAnet packet data
+ * @return 0 upon success
+ */
+static void write_buffer_setup(NMRAnetCanIF *can_if, uint16_t mti, node_id_t src, node_handle_t dst, const void *data)
+{
+    can_if->writeBuffer.mti = mti;
+    can_if->writeBuffer.src = src;
+    can_if->writeBuffer.dst = dst;
+    can_if->writeBuffer.data = data;
+    
+    os_timer_start(can_if->writeBuffer.timer, WRITE_BUFFER_TIMEOUT);
+}
+
+/** This is the timeout for claiming an alias.  At this point, the alias will
  * either be claimed as a downstream node, or we can start using it.
  * @param data1 a @ref NMRAnetCanIF typecast to a void*
  * @param data2 a @ref alias_node typecast to a void*
@@ -181,18 +283,6 @@ static void claim_alias(NMRAnetCanIF *can_if, node_id_t node_id, node_alias_t al
 
 /** Setup the relationship between an alias and a downstream node.
  * @param can_if interface received on
- * @param alias node alias
- * @param node_id Node ID
- */
-static void downstream_alias_setup(NMRAnetCanIF *can_if, node_alias_t alias, node_id_t node_id)
-{
-    os_mutex_lock(&can_if->aliasMutex);
-    nmranet_alias_add(can_if->aliasCache, node_id, alias);
-    os_mutex_unlock(&can_if->aliasMutex);
-}
-
-/** Setup the relationship between an alias and a downstream node.
- * @param can_if interface received on
  * @param node_id Node ID
  * @return assigned alias
  */
@@ -258,6 +348,8 @@ static uint16_t nmranet_mti(uint32_t can_id)
     switch (GET_CAN_ID_CAN_FRAME_TYPE(can_id))
     {
         default:
+            return 0;
+        case TYPE_GLOBAL_ADDRESSED:
             return GET_CAN_ID_MTI(can_id);
         case TYPE_DATAGRAM_ONE_FRAME:
             /* fall through */
@@ -267,6 +359,8 @@ static uint16_t nmranet_mti(uint32_t can_id)
             /* fall through */
         case TYPE_DATAGRAM_FINAL_FRAME:
             return MTI_DATAGRAM;
+        case TYPE_STREAM_DATA:
+            return MTI_STREAM_DATA;
     }
 }
 
@@ -313,63 +407,144 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
         
         if (dst.alias)
         {
-            switch (mti)
+            const uint8_t *buffer = data;
+            size_t len;
+            if (GET_MTI_DATAGRAM(mti))
             {
-                default:
+                const Datagram *datagram = data;
+                /* datagrams and streams are special because the CAN ID
+                 * also contains the destination alias.  These may also span
+                 * multiple CAN frames.
+                 */
+                if (mti == MTI_STREAM_DATA)
                 {
-                    struct can_frame frame;
-                    size_t len = nmranet_buffer_size(data) - nmranet_buffer_available(data);
-                    if (len > 8)
+                    len = nmranet_buffer_size(data) - nmranet_buffer_available(data);
+                }
+                else
+                {
+                    len = datagram->size;
+                    buffer = datagram->data;
+                }
+                
+                for (int i = 0; len > 0; i++)
+                {
+                    int type;
+                    if (mti == MTI_STREAM_DATA)
                     {
-                        abort();
+                        type = TYPE_STREAM_DATA;
                     }
-                    frame.can_id = can_identifier(mti, alias);
+                    else if (i == 0 && len <= 8)
+                    {
+                        type = TYPE_DATAGRAM_ONE_FRAME;
+                    }
+                    else if (i == 0)
+                    {
+                        type = TYPE_DATAGRAM_FIRST_FRAME;
+                    }
+                    else if (len <= 8)
+                    {
+                        type = TYPE_DATAGRAM_FINAL_FRAME;
+                    }
+                    else
+                    {
+                        type = TYPE_DATAGRAM_MIDDLE_FRAME;
+                    }
+                    struct can_frame frame;
+                    SET_CAN_ID_FIELDS(frame.can_id, alias, dst.alias, type, 1, 1);
                     SET_CAN_FRAME_EFF(frame);
                     CLR_CAN_FRAME_RTR(frame);
                     CLR_CAN_FRAME_ERR(frame);
-                    memcpy(frame.data, data, len);
-                    frame.can_dlc = len;
+                    size_t seg_size = len < 8 ? len : 8;
+                    memcpy(frame.data, buffer, seg_size);
+                    frame.can_dlc = seg_size;
                     int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
                     if (result < 0)
                     {
                         abort();
                     }
-                    break;
-                }
-                case MTI_IDENT_INFO_REPLY:
-                {
-                    const char *buffer = data;
-                    size_t len = nmranet_buffer_size(data) - nmranet_buffer_available(data);
-                    while (len > 0)
-                    {
-                        struct can_frame frame;
-                        frame.can_id = can_identifier(mti, alias);
-                        SET_CAN_FRAME_EFF(frame);
-                        CLR_CAN_FRAME_RTR(frame);
-                        CLR_CAN_FRAME_ERR(frame);
-                        frame.data[0] = dst.alias >> 8;
-                        frame.data[1] = dst.alias & 0xff;
-                        size_t seg_size = len < 6 ? len : 6;
-                        memcpy(&frame.data[2], buffer, seg_size);
-                        frame.can_dlc = 2 + seg_size;
-                        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
-                        if (result < 0)
-                        {
-                            abort();
-                        }
 
-                        len -= seg_size;
-                        buffer += seg_size;
-                        
-                    }
-                    nmranet_buffer_free(data);
-                    break;
+                    len -= seg_size;
+                    buffer += seg_size;
                 }
+            }
+            else
+            {
+                if (data)
+                {
+                    len = nmranet_buffer_size(data) - nmranet_buffer_available(data);
+                }
+                else
+                {
+                    len = 0;
+                }
+                /* typically, only the simple node ident info reply will require
+                 * the sending of more than one CAN frame.
+                 */
+                do
+                {
+                    struct can_frame frame;
+                    frame.can_id = can_identifier(mti, alias);
+                    SET_CAN_FRAME_EFF(frame);
+                    CLR_CAN_FRAME_RTR(frame);
+                    CLR_CAN_FRAME_ERR(frame);
+                    frame.data[0] = dst.alias >> 8;
+                    frame.data[1] = dst.alias & 0xff;
+                    size_t seg_size = len < 6 ? len : 6;
+                    memcpy(&frame.data[2], buffer, seg_size);
+                    frame.can_dlc = 2 + seg_size;
+                    int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                    if (result < 0)
+                    {
+                        abort();
+                    }
+
+                    len -= seg_size;
+                    buffer += seg_size;
+                    
+                } while (len > 0);
+            }
+            /* release the buffer if we can */
+            if (data)
+            {
+                nmranet_buffer_free(data);
             }
         }
         else
         {
-            /* There is nobody here by that node ID */
+            if (mti & MTI_ADDRESS_MASK)
+            {
+                /* this is an addressed message, so we need to buffer while
+                 * we determine what alias this node ID belongs to.
+                 */
+                os_mutex_lock(&can_if->aliasMutex);
+                while (write_buffer_in_use(can_if))
+                {
+                    os_mutex_unlock(&can_if->aliasMutex);
+                    usleep(300);
+                    os_mutex_lock(&can_if->aliasMutex);
+                }
+                write_buffer_setup(can_if, mti, src, dst, data);
+                os_mutex_unlock(&can_if->aliasMutex);
+
+                /* Alias Map Enquiry */
+                struct can_frame frame;
+                CAN_CONTROL_FRAME_INIT(frame, alias, AME_FRAME, 0);
+                SET_CAN_FRAME_EFF(frame);
+                CLR_CAN_FRAME_RTR(frame);
+                CLR_CAN_FRAME_ERR(frame);
+                frame.can_dlc = 6;
+                frame.data[0] = (dst.id >> 40) & 0xff;
+                frame.data[1] = (dst.id >> 32) & 0xff;
+                frame.data[2] = (dst.id >> 24) & 0xff;
+                frame.data[3] = (dst.id >> 16) & 0xff;
+                frame.data[4] = (dst.id >>  8) & 0xff;
+                frame.data[5] = (dst.id >>  0) & 0xff;
+                int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                if (result != (sizeof(struct can_frame)))
+                {
+                    abort();
+                }
+            }
         }
     }
     else if (alias)
@@ -412,6 +587,11 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
 
     if (GET_MTI_ADDRESS(nmranet_mti(can_id)))
     {
+        if (dlc < 2)
+        {
+            /* soft error, we throw this one away */
+            return;
+        }
         /* addressed message */
         uint16_t address = (data[0] << 0) +
                            (data[1] << 8);
@@ -419,7 +599,20 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
         node_id_t dst = nmranet_alias_lookup_id(can_if->upstreamCache, GET_ADDRESSED_FIELD_DESTINATION(address));
         if (dst != 0)
         {
-            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst, NULL);
+            void *buffer;
+            if (dlc > 2)
+            {
+                /* collect the data */
+                buffer = nmranet_buffer_alloc(sizeof(dlc - 2));
+                memcpy(buffer, data, (dlc - 2));
+                nmranet_buffer_advance(buffer, (dlc - 2));
+            }
+            else
+            {
+                buffer = NULL;
+            }
+                
+            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst, buffer);
         }
     }
     else
@@ -427,23 +620,85 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
         /* global message */
         if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
         {
-            /* lets update our alias table */
-            /** @todo rather than update our table, we need to do something else */
-#if 0
-            src = data[5];
-            src |= (node_id_t)data[4] << 8;
-            src |= (node_id_t)data[3] << 16;
-            src |= (node_id_t)data[2] << 24;
-            src |= (node_id_t)data[1] << 32;
-            src |= (node_id_t)data[0] << 40;
+            node_id_t node_id;
+            node_id = data[5];
+            node_id |= (node_id_t)data[4] << 8;
+            node_id |= (node_id_t)data[3] << 16;
+            node_id |= (node_id_t)data[2] << 24;
+            node_id |= (node_id_t)data[1] << 32;
+            node_id |= (node_id_t)data[0] << 40;
             
-            downstream_alias_setup(can_if, GET_CAN_ID_SOURCE(can_id), src);
-#endif
+            if (src.id && src.id != node_id)
+            {
+                /* Looks like we have an existing mapping conflict.  Lets
+                 * remove existing mapping.
+                 */
+                nmranet_alias_remove(can_if->aliasCache, src.alias);
+            }
+            /* Normally, with a buffered write, we are looking for a CCR AMD
+             * frame.  However, this message has what we need, so if we get it
+             * first, let's go ahead and use it.
+             */
+            os_mutex_lock(&can_if->aliasMutex);
+            if (write_buffer_in_use(can_if))
+            {
+                if (node_id == write_buffer_dst_id(can_if))
+                {
+                    can_if->writeBuffer.dst.alias = src.alias;
+                    can_if->nmranetIF.write(&can_if->nmranetIF,
+                                            can_if->writeBuffer.mti,
+                                            can_if->writeBuffer.src,
+                                            can_if->writeBuffer.dst,
+                                            can_if->writeBuffer.data);
+                    if (src.id && src.id != node_id)
+                    {
+                        /* We obviously use this alias, so let's cache it
+                         * for later use.
+                         */
+                        nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
+                        write_buffer_release(can_if);
+                    }
+                }
+            }
+            else if (src.id && src.id != node_id)
+            {
+                /* we already had this mapping, we need to replace it */
+                nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
+            }
+            os_mutex_unlock(&can_if->aliasMutex);
+            /* update the source Node ID */
+            src.id = node_id;
         }
         void *buffer = nmranet_buffer_alloc(dlc);
         memcpy(buffer, data, dlc);
         nmranet_buffer_advance(buffer, dlc);
         nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, 0, buffer);
+    }
+}
+
+/** Send a datagram error from the receiver to the sender.
+ * @param can_if interface message is from
+ * @param src source alias to send message from
+ * @param dst destination alias to send message to
+ * @param error_code error value to send
+ */
+static void datagram_rejected(NMRAnetCanIF *can_if, node_alias_t src, node_alias_t dst, uint16_t error_code)
+{
+    /* no buffer available, let the sender know */
+    struct can_frame frame;
+    frame.can_id = can_identifier(MTI_DATAGRAM_REJECTED, src);
+    SET_CAN_FRAME_EFF(frame);
+    CLR_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    frame.data[0] = dst >> 8;
+    frame.data[1] = dst & 0xff;
+    frame.data[2] = error_code >> 8;
+    frame.data[3] = error_code & 0xff;
+    frame.can_dlc = 4;
+    int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+    if (result < 0)
+    {
+        abort();
     }
 }
 
@@ -455,8 +710,22 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
  */
 static void type_datagram(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t dlc, uint8_t *data)
 {
-#if 0
-    void *buffer;
+    /* There is no need to use a mutex to access the datagram tree.  This is
+     * because this function can only be called from a single thread, the
+     * receive thread.  If this changes in the future, a mutex must be added
+     * to protect this tree.
+     */
+    node_handle_t src;
+    src.alias = GET_CAN_ID_SOURCE(can_id);
+    src.id = nmranet_alias_lookup_id(can_if->aliasCache, src.alias);
+    uint16_t dst_alias = GET_CAN_ID_DST(can_id);
+    node_id_t dst_id = nmranet_alias_lookup_id(can_if->upstreamCache, dst_alias);
+
+    if (dst_id == 0)
+    {
+        /* nobody here by that ID, not for us */
+        return;
+    }
 
     switch(GET_CAN_ID_CAN_FRAME_TYPE(can_id))
     {
@@ -464,81 +733,116 @@ static void type_datagram(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t dlc, ui
             break;
         case TYPE_DATAGRAM_ONE_FRAME:
         {
-            buffer = nmranet_buffer_alloc(dlc);
-            memcpy(buffer, data, dlc);
-            nmranet_buffer_advance(buffer, dlc);
-            node_handle_t src;
-            node_handle_t dst;
-            src.alias = GET_CAN_ID_SOURCE(can_id);
-            dst.alias = GET_CAN_ID_SOURCE(can_id);
-            src.id = nmranet_alias_lookup_id(can_if->aliasCache, src.alias);
-            dst.id = nmranet_alias_lookup_id(can_if->aliasCache, dst.alias);
-            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst, buffer);
+            Datagram *datagram = nmranet_datagram_alloc();
+            if (datagram == NULL)
+            {
+                /* no buffer available, let the sender know */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_BUFFER_UNAVAILABLE);
+                break;
+            }
+            memcpy(datagram->data, data, dlc);
+            datagram->from.id = src.id;
+            datagram->from.alias = src.alias;
+            datagram->size = dlc;
+            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst_id, datagram);
             break;
         }
         case TYPE_DATAGRAM_FIRST_FRAME:
         {
-            struct alias_node  lookup_node;
-            struct alias_node *alias_node;
+            Datagram *datagram = nmranet_datagram_alloc();
+            if (datagram == NULL)
+            {
+                /* no buffer available, let the sender know */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_BUFFER_UNAVAILABLE);
+                break;
+            }
+
+            struct datagram_node  lookup_node;
+            struct datagram_node *datagram_node;
             
-            lookup_node.alias = GET_CAN_ID_SOURCE(can_id);
+            lookup_node.alias = ((uint32_t)dst_alias << 12) + src.alias;
             
-            os_mutex_lock(&can_if->aliasMutex);
-            alias_node = RB_FIND(alias_tree, &can_if->aliasHead, &lookup_node);
-            /** @todo handle case where we are already receiving a datagram */
-            alias_node->data->datagramBuffer = nmranet_buffer_alloc(72);
-            memcpy(alias_node->data->datagramBuffer, data, dlc);
-            nmranet_buffer_advance(alias_node->data->datagramBuffer, dlc);
-            os_mutex_unlock(&can_if->aliasMutex);
+            datagram_node = RB_FIND(datagram_tree, &can_if->datagramHead, &lookup_node);
+            if (datagram_node)
+            {
+                /* we are already receiving a datagram, this is an error */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_OUT_OF_ORDER);
+                RB_REMOVE(datagram_tree, &can_if->datagramHead, datagram_node);
+                free(datagram_node);
+                nmranet_datagram_release(datagram);
+                break;
+            }
+            datagram_node = malloc(sizeof(struct datagram_node));
+            datagram_node->alias = lookup_node.alias;
+            datagram_node->datagram = datagram;
+            RB_INSERT(datagram_tree, &can_if->datagramHead, datagram_node);
+
+            memcpy(datagram->data, data, dlc);
+            datagram->from.id = src.id;
+            datagram->from.alias = src.alias;
+            datagram->size = dlc;
             break;
         }
         case TYPE_DATAGRAM_MIDDLE_FRAME:
         {
-            struct alias_node  lookup_node;
-            struct alias_node *alias_node;
+            struct datagram_node  lookup_node;
+            struct datagram_node *datagram_node;
             
-            lookup_node.alias = GET_CAN_ID_SOURCE(can_id);
+            lookup_node.alias = ((uint32_t)dst_alias << 12) + src.alias;
             
-            os_mutex_lock(&can_if->aliasMutex);
-            alias_node = RB_FIND(alias_tree, &can_if->aliasHead, &lookup_node);
-            if (nmranet_buffer_available(alias_node->data->datagramBuffer) < 16)
+            datagram_node = RB_FIND(datagram_tree, &can_if->datagramHead, &lookup_node);
+            if (datagram_node == NULL)
             {
-                /** @todo Not enough room in buffer, handle this error */
+                /* we have no record of this datagram, this is an error */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_OUT_OF_ORDER);
                 break;
             }
-            buffer = nmranet_buffer_position(alias_node->data->datagramBuffer);
-            memcpy(buffer, data, dlc);
-            nmranet_buffer_advance(alias_node->data->datagramBuffer, dlc);
-            os_mutex_unlock(&can_if->aliasMutex);
+            Datagram *datagram = datagram_node->datagram;
+            if ((datagram->size + dlc) > DATAGRAM_MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_OUT_OF_ORDER);
+                RB_REMOVE(datagram_tree, &can_if->datagramHead, datagram_node);
+                free(datagram_node);
+                nmranet_datagram_release(datagram);
+                break;
+            }
+            memcpy(datagram->data + datagram->size, data, dlc);
+            datagram->size += dlc;
             break;
         }
         case TYPE_DATAGRAM_FINAL_FRAME:
         {
-            struct alias_node  lookup_node;
-            struct alias_node *alias_node;
+            struct datagram_node  lookup_node;
+            struct datagram_node *datagram_node;
             
-            lookup_node.alias = GET_CAN_ID_SOURCE(can_id);
+            lookup_node.alias = ((uint32_t)dst_alias << 12) + src.alias;
             
-            os_mutex_lock(&can_if->aliasMutex);
-            alias_node = RB_FIND(alias_tree, &can_if->aliasHead, &lookup_node);
-            if (nmranet_buffer_available(alias_node->data->datagramBuffer) < 8)
+            datagram_node = RB_FIND(datagram_tree, &can_if->datagramHead, &lookup_node);
+            if (datagram_node == NULL)
             {
-                /** @todo Not enough room in buffer, handle this error */
+                /* we have no record of this datagram, this is an error */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_OUT_OF_ORDER);
                 break;
             }
-            buffer = nmranet_buffer_position(alias_node->data->datagramBuffer);
-            memcpy(buffer, data, dlc);
-            nmranet_buffer_advance(alias_node->data->datagramBuffer, dlc);
-            buffer = alias_node->data->datagramBuffer;
-            alias_node->data->datagramBuffer = NULL;
-            os_mutex_unlock(&can_if->aliasMutex);
-            node_id_t src = lookup_id(can_if, GET_CAN_ID_SOURCE(can_id));
-            node_id_t dst = lookup_id(can_if, GET_CAN_ID_DST(can_id));
-            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst, buffer);
+            Datagram *datagram = datagram_node->datagram;
+            if ((datagram->size + dlc) > DATAGRAM_MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                datagram_rejected(can_if, dst_alias, src.alias, DATAGRAM_OUT_OF_ORDER);
+                RB_REMOVE(datagram_tree, &can_if->datagramHead, datagram_node);
+                free(datagram_node);
+                nmranet_datagram_release(datagram);
+                break;
+            }
+            memcpy(datagram->data + datagram->size, data, dlc);
+            datagram->size += dlc;
+            RB_REMOVE(datagram_tree, &can_if->datagramHead, datagram_node);
+            free(datagram_node);
+            nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, dst_id, datagram);
             break;
         }
     }
-#endif
 }
 
 /** Decode Check ID CAN control frame.
@@ -571,7 +875,23 @@ static void ccr_amd_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
     node_id |= (node_id_t)data[1] << 32;
     node_id |= (node_id_t)data[0] << 40;
     
-    downstream_alias_setup(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr), node_id);
+    os_mutex_lock(&can_if->aliasMutex);
+    if (write_buffer_in_use(can_if))
+    {
+        if (node_id == write_buffer_dst_id(can_if))
+        {
+            can_if->writeBuffer.dst.alias = GET_CAN_CONTROL_FRAME_SOURCE(ccr);
+            can_if->nmranetIF.write(&can_if->nmranetIF,
+                                    can_if->writeBuffer.mti,
+                                    can_if->writeBuffer.src,
+                                    can_if->writeBuffer.dst,
+                                    can_if->writeBuffer.data);
+            /* we obviously use this alias, so let's cache it for later use */
+            nmranet_alias_add(can_if->aliasCache, node_id, can_if->writeBuffer.dst.alias);
+            write_buffer_release(can_if);
+        }
+    }
+    os_mutex_unlock(&can_if->aliasMutex);
 }
 
 /** Thread for reading the data from the interface.
@@ -659,7 +979,7 @@ static void *read_thread(void *data)
                         case AMD_FRAME:
                             ccr_amd_frame(can_if, frame.can_id, frame.data);
                             break;
-                        case AMI_FRAME:
+                        case AME_FRAME:
                         case AMR_FRAME:
                             break;
                     } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
@@ -720,6 +1040,10 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     can_if->fd = fd;
     can_if->id = node_id;
     can_if->pool = malloc(sizeof(AliasMetadata)*ALIAS_POOL_SIZE);
+    can_if->writeBuffer.mti = 0;
+    can_if->writeBuffer.timer = os_timer_create(write_buffer_timeout, can_if, NULL);
+    RB_INIT(&can_if->datagramHead);
+
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)
     {
         can_if->pool[i].status = ALIAS_FREE;
@@ -739,7 +1063,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     }
 
     /* start the thread that will process received packets */
-    os_thread_create(&thread_handle, 0, 1024, read_thread, &can_if->nmranetIF);
+    os_thread_create(&thread_handle, device, 0, 1024, read_thread, &can_if->nmranetIF);
 
     return &can_if->nmranetIF;
 }

@@ -433,7 +433,7 @@ static void os_timer_init(void)
 #else
     fcntl(timerfds[0], F_SETFL, O_NONBLOCK);
 #endif
-    os_thread_create(&thread_handle, 0, 4096, timer_thread, NULL);
+    os_thread_create(&thread_handle, "thread.timer", 0, 4096, timer_thread, NULL);
 }
 #endif
 
@@ -541,25 +541,32 @@ void os_timer_stop(os_timer_t timer)
 
 /** Create a thread.
  * @param thread handle to the created thread
+ * @param name name of thread, NULL for an auto generated name
  * @param priority priority of created thread, 0 means default
  * @param stack_size size in bytes of the created thread's stack
  * @param start_routine entry point of the thread
  * @param arg entry parameter to the thread
  * @return 0 upon success or error number upon failure
  */
-int os_thread_create(os_thread_t *thread, int priority,
+int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg)
 {
 #if defined (__FreeRTOS__)
     static unsigned int count = 0;
-    char name[10];
+    char auto_name[10];
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
 
-    strcpy(name, "thread.");
-    name[9] = '\0';
-    name[8] = '0' + (count % 10);
-    name[7] = '0' + (count / 10);
+    if (name == NULL)
+    {
+        strcpy(auto_name, "thread.");
+        auto_name[9] = '\0';
+        auto_name[8] = '0' + (count % 10);
+        auto_name[7] = '0' + (count / 10);
+        count++;
+        name = auto_name;
+    }
+    
     priv->reent = malloc(sizeof(struct _reent));
     priv->entry = start_routine;
     priv->arg = arg;
@@ -683,6 +690,15 @@ unsigned sleep(unsigned seconds)
     return 0;
 }
 
+/** Implementation of standard usleep().
+ * @param usec number of microseconds to sleep
+ */
+int usleep(useconds_t usec)
+{
+    vTaskDelay((usec * configTICK_RATE_HZ) / (1000 * 1000));
+    return 0;
+}
+
 void abort(void)
 {
     for (;;)
@@ -763,7 +779,7 @@ void main_thread(void *arg)
     taskList.next->next->unused = uxTaskGetStackHighWaterMark(taskList.next->next->task);
     taskList.next->next->next = NULL;
 
-    os_main(1, argv);
+    appl_main(1, argv);
 }
 #endif
 
@@ -822,6 +838,6 @@ int main(int argc, char *argv[])
     WSADATA wsa_data;
     WSAStartup(WINSOCK_VERSION, &wsa_data);
 #endif
-    os_main(argc, argv);
+    appl_main(argc, argv);
 #endif
 }

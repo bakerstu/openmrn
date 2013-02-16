@@ -107,6 +107,10 @@ void *nmranet_buffer_alloc(size_t size)
     {
         /* big buffers are just malloc'd freely */
         buf = malloc(size + sizeof(Buffer));
+        if (buf == NULL)
+        {
+            return NULL;
+        }
         buf->next = NULL;
         buf->size = size;
         buf->free = size;
@@ -124,6 +128,10 @@ void *nmranet_buffer_alloc(size_t size)
     else
     {
         buf = malloc(size + sizeof(Buffer));
+        if (buf == NULL)
+        {
+            return NULL;
+        }
         totalSize += size + sizeof(Buffer);
         DEBUG("buffer total size: %zu\n", totalSize);
     }
