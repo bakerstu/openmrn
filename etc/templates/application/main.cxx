@@ -35,14 +35,17 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <inttypes.h>
+
 #include "os/os.h"
 #include "os/OS.hxx"
 #include "if/nmranet_if.h"
 #include "core/nmranet_node.h"
 #include "core/nmranet_event.h"
+#include "core/nmranet_datagram.h"
 #include "nmranet_config.h"
 
-const char *nmranet_manufacturer = "<manufacturer>";
+const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
 const size_t main_stack_size = 2048;
@@ -69,44 +72,62 @@ int appl_main(int argc, char *argv[])
 
     if (argc >= 2)
     {
-        nmranet_if = nmranet_gc_if_init(0x02010d000000LL, argv[1]);
+        nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
     }
     else
     {
 #if defined (__FreeRTOS__)
-        nmranet_if = nmranet_can_if_init(0x02010d000000, "/dev/can0", read, write);
+
+        nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
 #else
-        nmranet_if = nmranet_gc_if_init(0x02010d000000LL, "/dev/ttyUSB1");
+        nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, "/dev/ttyUSB1");
 #endif
     }
     
-    node_t node = nmranet_node_create(0x02010d000001LL, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
+    node_t node = nmranet_node_create(0x02010d000001ULL, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
+    nmranet_node_user_description(node, "Test Node");
     nmranet_node_initialized(node);
-    nmranet_event_consumer(node, 0x0502010202650013LL, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650012LL, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650013LL, EVENT_STATE_VALID);
-
+    nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+    nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+#if 1
+    uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    //node_handle_t dst = {0, 0x014};
+    node_handle_t dst = {0x050201020265ULL, 0};
+    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 0);
+    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 3000000000LL);
+#endif
     for (;;)
     {
-        uint64_t event;
-        do
-        {
-            event = nmranet_event_consume(node);
-            if (event == 0x0502010202650013LL)
-            {
-                printf("we got the right one\n");
-            }
-        }
-        while (event != 0);
+    
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650012LL, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650012LL, EVENT_STATE_VALID);
+        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
         sleep(2);
-        nmranet_event_produce(node, 0x0502010202650013LL, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650013LL, EVENT_STATE_VALID);
+        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
         
+        int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
+
+        if (result)
+        {
+            for (size_t i = nmranet_event_pending(node); i > 0; i--)
+            {
+                uint64_t event = nmranet_event_consume(node);
+#if !defined (__FreeRTOS__)
+                printf("we got event: 0x%016" PRIx64 "\n", event);
+#else
+                event = event ? 1 : 0; /* supress compiler warning, usused variable */
+#endif
+            }
+            for (size_t i = nmranet_datagram_pending(node); i > 0; i--)
+            {
+                datagram_t datagram = nmranet_datagram_consume(node);
+                nmranet_datagram_release(datagram);
+            }            
+        }
     }
 
     return 0;
 }
-

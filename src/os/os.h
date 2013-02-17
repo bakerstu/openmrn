@@ -169,6 +169,11 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 #define OS_TIMER_NONE 0LL /**< do not restart a timer */
 #define OS_TIMER_RESTART 1LL /**< restart a timer with the last period */
+#if defined LLONG_MAX
+#define OS_WAIT_FOREVER LLONG_MAX /**< maximum timeout period */
+#else
+#define OS_WAIT_FOREVER __LONG_LONG_MAX__ /**< maximum timeout period */
+#endif
 
 /** Convert a nanosecond value to a microsecond value.
  * @param _nsec nanosecond value to convert
@@ -448,6 +453,35 @@ static inline int os_sem_wait(os_sem_t *sem)
     return 0;
 #else
     return sem_wait(sem);
+#endif
+}
+
+/** Wait on a semaphore with a timeout.
+ * @param sem address of semaphore to decrement
+ * @param timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+ * @return 0 upon success, else -1 with errno set to indicate error
+ */
+static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
+{
+    if (timeout == OS_WAIT_FOREVER)
+    {
+        return os_sem_wait(sem);
+    }
+#if defined (__FreeRTOS__)
+    if (xSemaphoreTake(sem, portTICK_RATE_MS * (timeout / 1000000LL)) == pdTRUE)
+    {
+        return 0;
+    }
+    else
+    {
+        errno = ETIMEDOUT;
+        return -1;
+    }
+#else
+    struct timespec ts;
+    ts.tv_sec = timeout / 1000000000LL;
+    ts.tv_nsec = timeout % 1000000000LL;
+    return sem_timedwait(sem, &ts);
 #endif
 }
 

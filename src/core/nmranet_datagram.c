@@ -137,7 +137,7 @@ uint64_t nmranet_datagram_protocol(datagram_t datagram)
  * @param data2 NULL
  * @return timer restart value
  */
-long long datagram_timeout(void *data1, void* data2)
+long long nmranet_datagram_timeout(void *data1, void* data2)
 {
     struct id_node *n = data1;
     NodePriv *priv = n->priv;
@@ -154,7 +154,7 @@ long long datagram_timeout(void *data1, void* data2)
  * @param protocol datagram protocol to use
  * @param data datagram to produce
  * @param size length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, LLONG_MAX = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
 int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout)
@@ -257,12 +257,12 @@ void nmranet_datagram_process(node_t node, Datagram *datagram)
 #endif
 
 /** Post the reception of a datagram with to given node.
- * @param node to post event to
- * @param mti Message Type Indeicator
+ * @param node to post datagram to
+ * @param mti Message Type Indicator
  * @param src source Node ID
  * @param data datagram to post
  */
-void rx_datagram(node_t node, uint16_t mti, node_handle_t src, const uint8_t *data)
+void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const uint8_t *data)
 {
     struct id_node *n = (struct id_node*)node;
     
@@ -294,7 +294,7 @@ void rx_datagram(node_t node, uint16_t mti, node_handle_t src, const uint8_t *da
         case MTI_DATAGRAM:
             os_mutex_lock(&nodeMutex);
 
-            nmranet_queue_insert(n->priv->eventQueue, data);
+            nmranet_queue_insert(n->priv->datagramQueue, data);
 
             if (n->priv->wait != NULL)
             {
@@ -317,9 +317,24 @@ datagram_t nmranet_datagram_consume(node_t node)
     struct id_node *n = (struct id_node*)node;
 
     os_mutex_lock(&nodeMutex);
-    Datagram *datagram = nmranet_queue_next(n->priv->eventQueue);
+    Datagram *datagram = nmranet_queue_next(n->priv->datagramQueue);
     os_mutex_unlock(&nodeMutex);
     
     return datagram;
+}
+
+/** Number of datagrams pending in the datagram queue of the node.
+ * @param node node to query
+ * @return number of datagrams pending
+ */
+size_t nmranet_datagram_pending(node_t node)
+{
+    struct id_node *n = (struct id_node*)node;
+
+    os_mutex_lock(&nodeMutex);
+    size_t pending = nmranet_queue_pending(n->priv->datagramQueue);
+    os_mutex_unlock(&nodeMutex);
+
+    return pending; 
 }
 

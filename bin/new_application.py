@@ -108,6 +108,7 @@ subdirs_file = open(options.path + '/subdirs', 'w')
 subdirs_file.write('SUBDIRS =')
 if options.subdirs == None:
     subdirs_file.write(' \\\n')
+    subdirs = ''
 else:
     subdirs = options.subdirs.split(' ')
     for item in subdirs:

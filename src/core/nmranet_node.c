@@ -114,8 +114,10 @@ node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF 
         id_node->priv->producerEvents = NULL;
         id_node->priv->wait = NULL;
         id_node->priv->model = model;
+        id_node->priv->userName = NULL;
+        id_node->priv->userDescription = NULL;
         id_node->priv->txDatagram = NULL;
-        id_node->priv->datagramTimer = os_timer_create(datagram_timeout, id_node, NULL);
+        id_node->priv->datagramTimer = os_timer_create(nmranet_datagram_timeout, id_node, NULL);
         
         RB_INSERT(id_tree, &idHead, id_node);
     }
@@ -123,188 +125,40 @@ node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF 
     return id_node;
 }
 
-/** Send a consumer identify message from a given node.
- * @param node node to register event to
- * @param event event number to register
- * @param state initial state of the event
+/** Set the user name of the node for simple ident protocol.
+ * @param node node to set attribute on
+ * @param user_name string to use for user name
  */
-static void event_consumer_identify(node_t node, uint64_t event, int state)
+void nmranet_node_user_name(node_t node, const char *user_name)
 {
-    node_handle_t dst = {0, 0};
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-    *buffer = htobe64(event);
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-    switch (state)
-    {
-        default:
-            /* fall through */
-        case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_UNKNOWN, dst, buffer);
-            break;
-        case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_VALID, dst, buffer);
-            break;
-        case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_INVALID, dst, buffer);
-            break;
-        case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_RESERVED, dst, buffer);
-            break;
-    }
+    struct id_node *id_node = node;
+    id_node->priv->userName = user_name;
 }
 
-/** Send a producer identify message from a given node.
- * @param node node event is registered to
- * @param event event number to register
- * @param state initial state of the event
+/** Set the user description of the node for simple ident protocol.
+ * @param node node to set attribute on
+ * @param user_description string to use for user description
  */
-static void event_producer_identify(node_t node, uint64_t event, int state)
+void nmranet_node_user_description(node_t node, const char *user_description)
 {
-    node_handle_t dst = {0, 0};
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-    *buffer = htobe64(event);
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-    switch (state)
-    {
-        default:
-            /* fall through */
-        case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_UNKNOWN, dst, buffer);
-            break;
-        case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_VALID, dst, buffer);
-            break;
-        case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_INVALID, dst, buffer);
-            break;
-        case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_RESERVED, dst, buffer);
-            break;
-    }
+    struct id_node *id_node = node;
+    id_node->priv->userName = user_description;
 }
 
-/** Change the state of a producer event and send an event report if required.
- * @param node node to register event to
- * @param event event number to register
- * @param state new state of the event
+/** Get a handle to the next node in the list of nodes.
+ * @param node previous node in the list, NULL to start from beginning
+ * @return handle to next node in the list, NULL if at end of list
  */
-void nmranet_node_event_producer_state(node_t node, uint64_t event, int state)
+node_t nmranet_node_next(node_t node)
 {
-    struct id_node *n = (struct id_node*)node;
+    struct id_node *id_node = node;
 
-    os_mutex_lock(&nodeMutex);
-    /* change the state of this event */
-    for (EventList *l = n->priv->producerEvents; l != NULL; l = l->next)
+    if (node == NULL)
     {
-        for (unsigned int count = 0; count < l->count; count++)
-        {
-            if (l->events[count] == event)
-            {
-                l->state &= ~(0x3 << (l->count << 1));
-                l->state |= (state << (l->count << 1));
-                if (state == EVENT_STATE_VALID && n->priv->state == NODE_INITIALIZED)
-                {
-                    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-                    *buffer = htobe64(event);
-                    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-
-                    node_handle_t dst = {0, 0};
-                    nmranet_node_write(node, MTI_EVENT_REPORT, dst, buffer);
-                }
-                os_mutex_unlock(&nodeMutex);
-                return;
-            }
-        }
-    }
-    os_mutex_unlock(&nodeMutex);
-}
-
-/** Add the event to the conumser list within a given node.
- * @param node node to register event to
- * @param event event number to register
- * @param state initial state of the event
- */
-void nmranet_node_consumer_add(node_t node, uint64_t event, int state)
-{
-    struct id_node *n = (struct id_node*)node;
-    
-    /* just to be safe, mask off upper bits */
-    state &= 0x3;
-    
-    os_mutex_lock(&nodeMutex);
-    if (n->priv->consumerEvents == NULL)
-    {
-        n->priv->consumerEvents = malloc(sizeof(EventList));
-        n->priv->consumerEvents->next = NULL;
-        n->priv->consumerEvents->count = 0;
-    }
-    EventList *link = n->priv->consumerEvents;
-    while (link->next != NULL)
-    {
-        link = link->next;
+        return RB_MIN(id_tree, &idHead);
     }
     
-    if (link->count >= 8)
-    {
-        link->next = malloc(sizeof(EventList));
-        link = link->next;
-        link->next = NULL;
-        link->count = 0;
-    }
-    link->events[link->count] = event;
-    link->state &= ~(0x3 << (link->count << 1));
-    link->state |= (state << (link->count << 1));
-    link->count++;
-    
-    if (n->priv->state == NODE_INITIALIZED)
-    {
-        event_consumer_identify(node, event, state);
-    }
-    os_mutex_unlock(&nodeMutex);
-}
-
-/** Add the event to the producer list within a given node.
- * @param node node to register event to
- * @param event event number to register
- * @param state initial state of the event
- */
-void nmranet_node_producer_add(node_t node, uint64_t event, int state)
-{
-    struct id_node *n = (struct id_node*)node;
-    
-    /* just to be safe, mask off upper bits */
-    state &= 0x3;
-    
-    os_mutex_lock(&nodeMutex);
-    if (n->priv->producerEvents == NULL)
-    {
-        n->priv->producerEvents = malloc(sizeof(EventList));
-        n->priv->producerEvents->next = NULL;
-        n->priv->producerEvents->count = 0;
-    }
-    EventList *link = n->priv->producerEvents;
-    while (link->next != NULL)
-    {
-        link = link->next;
-    }
-    
-    if (link->count >= 8)
-    {
-        link->next = malloc(sizeof(EventList));
-        link = link->next;
-        link->next = NULL;
-        link->count = 0;
-    }
-    link->events[link->count] = event;
-    link->state &= ~(0x3 << (link->count << 1));
-    link->state |= (state << (link->count << 1));
-    link->count++;
-    
-    if (n->priv->state == NODE_INITIALIZED)
-    {
-        event_producer_identify(node, event, state);
-    }
-    os_mutex_unlock(&nodeMutex);
+    return RB_NEXT(id_tree, &idHead, id_node);
 }
 
 /** Lookup the node handle for a given node ID.
@@ -322,40 +176,6 @@ node_t nmranet_node(node_id_t node_id)
     id_node = RB_FIND(id_tree, &idHead, &id_lookup);
     os_mutex_unlock(&nodeMutex);
     return id_node;
-}
-
-/** Identify all consumer events.
- * @param node node instance to act on
- */
-static void identify_consumers(node_t node)
-{
-    struct id_node *n = (struct id_node*)node;
-
-    /* identify all of the events this node consumes */
-    for (EventList *l = n->priv->consumerEvents; l != NULL; l = l->next)
-    {
-        for (unsigned int count = 0; count < l->count; count++)
-        {
-            event_consumer_identify(node, l->events[count], (l->state >> l->count) & 0x3);
-        }
-    }
-}
-
-/** Identify all producer events.
- * @param node node instance to act on
- */
-static void identify_producers(node_t node)
-{
-    struct id_node *n = (struct id_node*)node;
-
-    /* identify all of the events this node produces */
-    for (EventList *l = n->priv->producerEvents; l != NULL; l = l->next)
-    {
-        for (unsigned int count = 0; count < l->count; count++)
-        {
-            event_producer_identify(node, l->events[count], (l->state >> l->count) & 0x3);
-        }
-    }
 }
 
 /** Move node into the initialized state.
@@ -376,8 +196,8 @@ void nmranet_node_initialized(node_t node)
         n->priv->state = NODE_INITIALIZED;
         verify_node_id_number(node);
         /* identify all of the events this node produces and consumes */
-        identify_consumers(node);
-        identify_producers(node);
+        nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
+        nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
     }
     os_mutex_unlock(&nodeMutex);
 }
@@ -406,13 +226,18 @@ void *nmranet_node_private(node_t node)
 
 /** Wait for data to come in from the network.
  * @param node node to wait on
+ * @param timeout timeout in nanoseconds, 0 to return right way, OS_WAIT_FOREVER
+          to wait forever.
+   @return number of messages pending, else 0 on timeout
  */
-void nmranet_node_wait(node_t node)
+int nmranet_node_wait(node_t node, long long timeout)
 {
     struct id_node *n = (struct id_node*)node;
     os_sem_t        sem;
+    int             pending;
 
     os_mutex_lock(&nodeMutex);
+    
     if (nmranet_queue_empty(n->priv->eventQueue) &&
         nmranet_queue_empty(n->priv->datagramQueue))
     {
@@ -422,12 +247,21 @@ void nmranet_node_wait(node_t node)
         os_mutex_unlock(&nodeMutex);
 
         /* wait for something interesting to happen */
-        os_sem_wait(&sem);
+        os_sem_timedwait(&sem, timeout);
         
         os_mutex_lock(&nodeMutex);
         n->priv->wait = NULL;
     }
+
+    /* check for number of pending messages */
+    pending = nmranet_queue_pending(n->priv->eventQueue) +
+              nmranet_queue_pending(n->priv->datagramQueue);
+    
+    /** @todo don't forget to add streams once supported */
+
     os_mutex_unlock(&nodeMutex);
+
+    return pending;
 }
 
 /** Send a verify node id number message.
@@ -454,36 +288,64 @@ static void verify_node_id_number(node_t node)
 /** Send an ident info reply message.
  * @param node Node to send message from
  * @param dst destination Node ID to respond to
- * @param description index 0 name of manufacturer
- *                    index 1 name of model
- *                    index 2 hardware revision
- *                    index 3 software revision
  */
-static void ident_info_reply(node_t node, node_handle_t dst, const char *description[4])
+static void ident_info_reply(node_t node, node_handle_t dst)
 {
-    size_t  size = 4;
+    struct id_node *n = (struct id_node*)node;
+    size_t  size = 8;
     char   *buffer;
     char   *pos;
 
-    for (int i = 0; i < 4; i++)
-    {
-        size += strlen(description[i]) + 1;
+    /* macro for condensing the size calculation code */
+    #define ADD_STRING_SIZE(_str, _max)          \
+    {                                            \
+        if ((_str))                              \
+        {                                        \
+            size_t len = strlen((_str));         \
+            size += len > (_max) ? (_max) : len; \
+        }                                        \
     }
+
+    /* macro for condensing the string insertion  code */
+    #define INSERT_STRING(_str, _max)                      \
+    {                                                      \
+        if ((_str))                                        \
+        {                                                  \
+            size_t len = strlen((_str));                   \
+            len = len > (_max) ? (_max) : len;             \
+            memcpy(pos, (_str), len);                      \
+            pos[len] = '\0';                               \
+            pos = nmranet_buffer_advance(buffer, len + 1); \
+        }                                                  \
+        else                                               \
+        {                                                  \
+            pos[0] = '\0';                                 \
+            pos = nmranet_buffer_advance(buffer, 1);       \
+        }                                                  \
+    }
+    
+    ADD_STRING_SIZE(nmranet_manufacturer, 40);
+    ADD_STRING_SIZE(n->priv->model, 40);
+    ADD_STRING_SIZE(nmranet_hardware_rev, 20);
+    ADD_STRING_SIZE(nmranet_software_rev, 20);
+    ADD_STRING_SIZE(n->priv->userName, 62);
+    ADD_STRING_SIZE(n->priv->userDescription, 63);
 
     buffer = nmranet_buffer_alloc(size);
     
-    buffer[0] = 0x01;
+    buffer[0] = SIMPLE_NODE_IDENT_VERSION_A;
     pos = nmranet_buffer_advance(buffer, 1);
-    for (int i = 0; i < 4; i++)
-    {
-        size_t len = strlen(description[i]) + 1;
-        memcpy(pos, description[i], len);
-        pos = nmranet_buffer_advance(buffer, len);
-    }
-    pos[0] = 0x01;
-    pos[1] = 0x00;
-    pos[2] = 0x00;
-    pos = nmranet_buffer_advance(buffer, 3);
+    
+    INSERT_STRING(nmranet_manufacturer, 40);
+    INSERT_STRING(n->priv->model, 40);
+    INSERT_STRING(nmranet_hardware_rev, 20);
+    INSERT_STRING(nmranet_software_rev, 20);
+
+    pos[0] = SIMPLE_NODE_IDENT_VERSION_B;
+    pos = nmranet_buffer_advance(buffer, 1);
+
+    INSERT_STRING(n->priv->userName, 62);
+    INSERT_STRING(n->priv->userDescription, 63);
     
     nmranet_node_write(node, MTI_IDENT_INFO_REPLY, dst, buffer);
 }
@@ -519,11 +381,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         break;
                     case MTI_IDENT_INFO_REQUEST:
                     {
-                        const char *description[4] = {nmranet_manufacturer,
-                                                      id_node->priv->model,
-                                                      nmranet_hardware_rev,
-                                                      nmranet_software_rev};
-                        ident_info_reply(id_node, src, description);
+                        ident_info_reply(id_node, src);
                         break;
                     }
                     case MTI_DATAGRAM_REJECTED:
@@ -531,13 +389,15 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                     case MTI_DATAGRAM_OK:
                         /* fall through */
                     case MTI_DATAGRAM:
-                        rx_datagram(id_node, mti, src, data);
+                        nmranet_datagram_packet(id_node, mti, src, data);
                         break;
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
-                        identify_consumers(id_node);
-                        identify_producers(id_node);
+                        nmranet_event_packet_addressed(mti, id_node, data);
+                        if (data)
+                        {
+                            nmranet_buffer_free(data);
+                        }
                         break;
-                    
                 }
             }
         }
@@ -547,8 +407,34 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
         /* global message, handle subscribe based protocols first */
         switch (mti)
         {
+            case MTI_CONSUMER_IDENTIFY:
+                /* fall through */
+            case MTI_CONSUMER_IDENTIFY_RANGE:
+                /* fall through */
+            case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+                /* fall through */
+            case MTI_CONSUMER_IDENTIFY_VALID:
+                /* fall through */
+            case MTI_CONSUMER_IDENTIFY_INVALID:
+                /* fall through */
+            case MTI_CONSUMER_IDENTIFY_RESERVED:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY_RANGE:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY_VALID:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY_INVALID:
+                /* fall through */
+            case MTI_PRODUCER_IDENTIFY_RESERVED:
+                /* fall through */
+            case MTI_EVENTS_IDENTIFY_GLOBAL:
+                    /* fall through */
             case MTI_EVENT_REPORT:
-                nmranet_event_packet(mti, src, 0, data);
+                nmranet_event_packet_global(mti, data);
                 break;
             default:
                 /* global message, deliver all, non-subscribe */
@@ -565,14 +451,10 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                                 /* we own this id, it is initialized, respond */
                                 verify_node_id_number(id_node);
                                 break;
-                            case MTI_EVENTS_IDENTIFY_GLOBAL:
-                                /* identify all producers and consumers */
-                                identify_consumers(id_node);
-                                identify_producers(id_node);
-                                break;
                         }
                     }
-            }
+                }
+                break;
         }
         if (data)
         {
@@ -621,56 +503,6 @@ int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void 
             (*nmranet_if->write)(nmranet_if, mti, n->id, dst, data);
         }
     }
-    return 0;
-}
-
-/** Post the reception of an event with to given node.
- * @param node to post event to
- * @param event event number to post
- */
-void nmranet_node_post_event(node_t node, uint64_t event)
-{
-    struct id_node *n = (struct id_node*)node;
-    
-    os_mutex_lock(&nodeMutex);
-
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
-    if (buffer == NULL)
-    {
-        /** @todo increment statistics counter here */
-        return;
-    }
-    *buffer = event;
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
-    nmranet_queue_insert(n->priv->eventQueue, buffer);
-
-    if (n->priv->wait != NULL)
-    {
-        /* wakeup whoever is waiting */
-        os_sem_post(n->priv->wait);
-    }
-    os_mutex_unlock(&nodeMutex);
-}
-
-/** Grab an event from the event queue of the node.
- * @param node to grab event from
- * @return 0 if the queue is empty, else return the event number
- */
-uint64_t nmranet_event_consume(node_t node)
-{
-    struct id_node *n = (struct id_node*)node;
-
-    os_mutex_lock(&nodeMutex);
-    uint64_t *event = nmranet_queue_next(n->priv->eventQueue);
-    if (event != NULL)
-    {
-        os_mutex_unlock(&nodeMutex);
-        uint64_t result = *event;
-        nmranet_buffer_free(event);
-        return result;
-    }
-    os_mutex_unlock(&nodeMutex);
-    
     return 0;
 }
 

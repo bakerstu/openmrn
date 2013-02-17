@@ -105,5 +105,11 @@ void *nmranet_queue_next(nmranet_queue_t queue);
  */
 int nmranet_queue_empty(nmranet_queue_t queue);
 
+/** Get the number of pending items in the queue.
+ * @param queue queue to test
+ * @return number of pending items in the queue
+ */
+size_t nmranet_queue_pending(nmranet_queue_t queue);
+
 #endif /* _nmranet_buf_h_ */
 

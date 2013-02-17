@@ -35,7 +35,8 @@ CFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -std=gnu99 -D__FreeRTOS
 CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
            -fno-builtin \
            -march=armv7-m -mthumb -mfloat-abi=soft \
-           -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -DGCC_ARMCM3 $(CXXFLAGSENV)
+           -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -DGCC_ARMCM3 \
+           -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)

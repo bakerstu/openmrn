@@ -86,11 +86,6 @@ node_t nmranet_node(node_id_t node_id);
  */
 void nmranet_node_initialized(node_t node);
 
-/** Wait for data to come in from the network.
- * @param node node to wait on
- */
-void nmranet_node_wait(node_t node);
-
 /** Post the reception of an event with to given node.
  * @param node to post event to
  * @param event event number to post
@@ -118,6 +113,25 @@ void *nmranet_node_private(node_t node);
  */
 int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void *data);
 
+/** Wait for data to come in from the network.
+ * @param node node to wait on
+ * @param timeout timeout in nanoseconds, 0 to return right way, OS_WAIT_FOREVER
+          to wait forever.
+   @return number of messages pending, else 0 on timeout
+ */
+int nmranet_node_wait(node_t node, long long timeout);
+
+/** Set the user name of the node for simple ident protocol.
+ * @param node node to set attribute on
+ * @param user_name string to use for user name
+ */
+void nmranet_node_user_name(node_t node, const char *user_name);
+
+/** Set the user description of the node for simple ident protocol.
+ * @param node node to set attribute on
+ * @param user_description string to use for user description
+ */
+void nmranet_node_user_description(node_t node, const char *user_description);
 
 #ifdef __cplusplus
 }

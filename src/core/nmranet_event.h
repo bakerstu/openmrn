@@ -53,15 +53,11 @@ extern "C" {
 #define EVENT_STATE_RESERVED 2 /**< reserved state */
 #define EVENT_STATE_UNKNOWN  3 /**< unknown state */
 
+/** look at all events */
+#define EVENT_ALL_MASK 0ULL
 
-/** Process an event packet.
- * @param mti Message Type Indicator
- * @param src source node ID, 0 if unavailable
- * @param dst destination node ID, 0 if unavailable
- * @param data NMRAnet packet data
- * @return 0 upon success
- */
-int nmranet_event_packet(uint16_t mti, node_handle_t src, node_id_t dst, const void *data);
+/** look for an exact match */
+#define EVENT_EXACT_MASK 0xFFFFFFFFFFFFFFFFULL
 
 /** Register for the consumption of an event with a given node.
  * @param node to register event to
@@ -89,6 +85,12 @@ uint64_t nmranet_event_consume(node_t node);
  * @param state state of the event
  */
 void nmranet_event_produce(node_t node, uint64_t event, int state);
+
+/** Number of events pending in the event queue of the node
+ * @param node node to query
+ * @return number of events pending.
+ */
+size_t nmranet_event_pending(node_t node);
 
 #ifdef __cplusplus
 }

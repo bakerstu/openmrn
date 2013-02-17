@@ -94,6 +94,13 @@ uint64_t nmranet_datagram_protocol(datagram_t datagram);
  */
 int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout);
 
+/** Number of datagrams pending in the datagram queue of the node.
+ * @param node node to query
+ * @return number of datagrams pending
+ */
+size_t nmranet_datagram_pending(node_t node);
+
+
 #ifdef __cplusplus
 }
 #endif

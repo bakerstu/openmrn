@@ -61,6 +61,7 @@ typedef struct queue
 {
     Buffer *head; /**< head buffer in queue */
     Buffer *tail; /**< tail buffer in queue */
+    size_t count; /**< number of buffers in the queue */
 } Queue;
 
 static size_t totalSize = 0;
@@ -247,6 +248,7 @@ nmranet_queue_t nmranet_queue_create(void)
 
     q->head = NULL;
     q->tail = NULL;
+    q->count = 0;
 
     return q;
 }
@@ -271,6 +273,7 @@ void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer)
         q->tail = buf;
     }
     buf->next = NULL;
+    q->count++;
     os_mutex_unlock(&mutex);
 }
 
@@ -291,9 +294,25 @@ void *nmranet_queue_next(nmranet_queue_t queue)
     }
     buf = q->head;
     q->head = buf->next;
+    q->count--;
     os_mutex_unlock(&mutex);
 
     return buf->data;
+}
+
+/** Get the number of pending items in the queue.
+ * @param queue queue to test
+ * @return number of pending items in the queue
+ */
+size_t nmranet_queue_pending(nmranet_queue_t queue)
+{
+    Queue *q = (Queue*)queue;
+    
+    os_mutex_lock(&mutex);
+    size_t result = q->count;
+    os_mutex_unlock(&mutex);
+
+    return result;
 }
 
 /** Test if the queue is empty.

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  * This file defines the handling of NMRAnet datagrams.
  *
  * @author Stuart W. Baker
- * @date 4 November 2012
+ * @date 16 February 2013
  */
 
 #ifndef _nmranet_datagram_private_h_

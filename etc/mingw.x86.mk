@@ -22,7 +22,7 @@ INCLUDES += -I/usr/mingw-pthreads/mingw32/i686-w64-mingw32/include \
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
          -D_GNU_SOURCE
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \
-           -D_GNU_SOURCE
+           -D_GNU_SOURCE -D__STDC_FORMAT_MACROS
 
 LDFLAGS = -g -m32 -L/usr/mingw-pthreads/mingw32/bin
 SYSLIBRARIES = -lpthreadGC2-w32 -lwsock32

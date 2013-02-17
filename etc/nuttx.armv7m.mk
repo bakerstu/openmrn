@@ -29,7 +29,7 @@ CFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -MD -MP -std=gnu99 -D__nuttx__ \
 CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -MD -MP -D__nuttx__ \
            -fno-builtin -fpic -msingle-pic-base -mpic-register=r10 \
            -march=armv7-m -mthumb -mfloat-abi=soft -Wstrict-prototypes \
-           -fno-stack-protector -fno-exceptions
+           -fno-stack-protector -fno-exceptions -D__STDC_FORMAT_MACROS
 
 LDFLAGS = -g
 SYSLIBRARIES = 
