@@ -16,6 +16,9 @@ CXX = $(TOOLPATH)/$(PREFIX)g++
 AR  = $(TOOLPATH)/$(PREFIX)ar
 LD  = $(TOOLPATH)/$(PREFIX)g++
 
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
+
 INCLUDES += -I/usr/mingw-pthreads/mingw32/i686-w64-mingw32/include \
             -I$(OPENMRNPATH)/include/windows
 

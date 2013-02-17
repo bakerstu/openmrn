@@ -17,6 +17,9 @@ CXX = $(PREFIX)g++
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
+
 INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/GCC/ARM_CM3 \
             -I$(OPENMRNPATH)/include/freertos \

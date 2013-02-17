@@ -11,6 +11,9 @@ CXX = g++
 AR = ar
 LD = g++
 
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
+
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
          -D_GNU_SOURCE
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \

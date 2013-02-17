@@ -16,6 +16,9 @@ CXX = $(PREFIX)g++
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
+
 INCLUDES += -I$(NUTTXPATH)/include \
             -I $(OPENMRNPATH)/include/nuttx
 

@@ -20,9 +20,9 @@ OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
 LIBDIRS := $(SUBDIRS)
-LIBS = -Wl,--start-group \
+LIBS = $(STARTGROUP) \
        $(foreach lib,$(LIBDIRS),-l$(lib)) \
-       -Wl,--end-group \
+       $(ENDGROUP) \
        -lif -lcore -los 
 
 SUBDIRS += lib

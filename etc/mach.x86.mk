@@ -11,6 +11,9 @@ CXX = g++
 AR = ar
 LD = g++
 
+STARTGROUP :=
+ENDGROUP :=
+
 INCLUDES += -I$(OPENMRNPATH)/include/mach
 
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
