@@ -1,0 +1,134 @@
+/**
+ * @page user_api User API
+ * @section tableofcontents Table of Contents
+ * - @ref configuration
+ *   - @ref freertos_configuration
+ *     - @ref freertos_stellaris_configuration
+ * - @ref interface_setup
+ * - @ref node_setup
+ *   - @ref event_api
+ *   - @ref datagram_api
+ *   - @ref stream_api
+ *
+ * @section configuration Configuration
+ * There are several configuration options that an application can use to
+ * tailor the stack to its needs.  Most of these configurations affect
+ * performance and memory usage.  All the generic configuration options are
+ * documented in @ref nmranet_config.h.
+ *
+ * @subsection freertos_configuration FreeRTOS Configuration
+ * In addition to the configuration options that are common to any target
+ * operating system, FreeRTOS has the following configuration options:
+ *
+ * - @ref main_stack_size
+ * - @ref main_priority
+ *
+ * @subsubsection freertos_stellaris_configuration FreeRTOS Stellaris Configuration
+ * If the application uses TI Stellaris Cortex-M devices, the following
+ * configuration options may also be required:
+ *
+ * - @ref CAN_RX_BUFFER_SIZE
+ * - @ref CAN_TX_BUFFER_SIZE
+ * - @ref SERIAL_RX_BUFFER_SIZE
+ * - @ref SERIAL_TX_BUFFER_SIZE
+ *
+ *
+ *
+ * @section interface_setup Network Interface
+ * In order to send messages on a physical network interface, such as CAN, we
+ * must instantiate at least one network interface.
+ *
+ * There are multiple types of interfaces that can be instantiated.  For
+ * example, if a device uses the TI Stellaris CAN driver (or similiar) to
+ * access its CAN hardware, it will use @ref nmranet_can_if_init to instantiate
+ * its network interface.  If a device uses one of the popular USB-to-CAN
+ * converters, these use Grid Connect protocol.  In this case it will use @ref
+ * nmranet_gc_if_init to intantiate its network interface.
+ *
+ * Some interfaces are required to have a Node ID of their own.  If this is the
+ * case, it is only used for the seed to a random number generator in the
+ * interface.  It is acceptable to share this Node ID with another Node ID in
+ * the same device since it is never visible on any external bus.
+ *
+ * Examples:
+ *
+ * @code
+ * /* instantiate Grid Connect interface */
+ * NMRANetIF *nmranet_gc_if = _gc_if_init(0x02010d000000ULL, "/dev/ttyUSB0");
+ *
+ * /* instantiate raw CAN interface */
+ * NMRANetIF *nmranet_can_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
+ * @endcode
+ *
+ * OpenMRN's networking layer is object oriented, so in theory, there is no
+ * limit to the number of interfaces that can be instantiated.  In the @ref
+ * node_setup section, we will see that each node must bind itself to a single
+ * network interface.  This is the network interface the node will communicate
+ * on.  Eventually, OpenMRN will exploit this feature in order to setup routing
+ * of messages between nodes on different network segments.
+ *
+ *
+ *
+ * @section node_setup Node Creation
+ * In OpenMRN, all nodes are virtual.  What this means is that there is no
+ * limit to the number of nodes that can be represented on a single device.
+ * OpenMRN logically extends the NMRAnet bus into the software domain.  OpenMRN
+ * routes messages as need both within a single device and external to the bus
+ * as needed automatically, depending where the destination node resides.  The
+ * application can take this fact for granted, however, the source code that
+ * implements this is in nmranet_node.c with the bulk of the work being done in
+ * both @ref nmranet_node_write and @ref nmranet_if_rx_data.
+ *
+ * Each node must have a globally unique NMRAnet Node ID.  Please see the
+ * NMRAnet standards at http://www.nmranet.org for details on obtaining unique
+ * Node ID's.
+ *
+ * @ref nmranet_node_create is used to instantiate a new node.  It returns a
+ * handle to the newly created node.  Key parameters to this method include
+ * the node's unique Node ID, the network interface the node is bound to,
+ * the string name of the node (may be NULL), and a private data pointer for
+ * storing user metadata about the node (may be NULL).
+ *
+ * Additional Simple Node Ident information can optionally be associated with
+ * the node using @ref nrmanet_node_user_name and @ref 
+ * nmranet_node_user_description.
+ *
+ * Before a node can talk, it must be send initialized message.  @ref
+ * nmranet_node_initialized is the API to transition the node to the
+ * initialized state and send the appropriate message on the bus.
+ *
+ * For Example:
+ *
+ * @code
+ * node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
+ * nmranet_node_user_description(node, "Test Node");
+ * nmranet_node_initialized(node);
+ * @endcode
+ *
+ * Because OpenMRN is bundled within a Multi-threaded environment, it becomes
+ * convenient for each node to be serviced by its own thread.  Imagine for a
+ * moment a single physical throttle, with two virtual throttles within
+ * it.  One logical architecture would be to use four threads.
+ *
+ * -# throttle A node
+ * -# throttle B node
+ * -# user input node
+ * -# display output node
+ *
+ * In this example, the display and user input are their own separate nodes.
+ * Each node can use addressed messages to communicate with one another without
+ * any of that traffic going to the physical bus.
+ *
+ * A node can use the @ref nmranet_node_wait method in order to put its thread
+ * to sleep pending on an incoming message.
+ *
+ * The complete set of public node API's can be found in @ref nmranet_node.h
+ *
+ * @subsection event_api Event API
+ *
+ * @subsection datagram_api Datagram API
+ *
+ * @subsection stream_api Stream API
+ * Streams are not implemented at this time.  Check back soon...
+ *
+ */
