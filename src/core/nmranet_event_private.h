@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_datagram.h
+ * \file nmranet_event_private.h
  * This file defines the handling of NMRAnet event private attributes.
  *
  * @author Stuart W. Baker

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet_node.h
+ * \file nmranet_node_private.h
  * This file defines NMRAnet node private data.
  *
  * @author Stuart W. Baker
@@ -91,7 +91,6 @@ struct id_node
         node_id_t id;
         int64_t key;
     };
-    node_id_t mask; /**< node id mask */
     NodePriv *priv; /**< Private data for the node ID */
 };
 

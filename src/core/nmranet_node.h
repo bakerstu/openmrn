@@ -67,13 +67,12 @@ extern "C" {
 
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
- * @param node_id_mask mask used for routing messages to this node
  * @param nmranet_if interface to bind the node to
  * @param model node decription
- * @param priv private data to store with the the node for later retrieveal
+ * @param priv private data to store with the the node for later retrieval
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF *nmranet_if, const char* model, void *priv);
+node_t nmranet_node_create(node_id_t node_id, NMRAnetIF *nmranet_if, const char* model, void *priv);
 
 /** Lookup the node handle for a given node ID.
  * @param node_id 48-bit unique Node ID
@@ -81,16 +80,10 @@ node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF 
  */
 node_t nmranet_node(node_id_t node_id);
 
-/** Move node into the intitialized state.
+/** Move node into the initialized state.
  * @param node node instance to act on
  */
 void nmranet_node_initialized(node_t node);
-
-/** Post the reception of an event with to given node.
- * @param node to post event to
- * @param event event number to post
- */
-void nmranet_node_post_event(node_t node, uint64_t event);
 
 /** Obtain the Node ID of a node handle
  * @param node node to get a the Node ID from
@@ -104,7 +97,9 @@ node_id_t nmranet_node_id(node_t node);
  */
 void *nmranet_node_private(node_t node);
 
-/** Write a message from a node.
+/** Write a message from a node.  Though this is a public facing API, it is
+ * highly recommended that this API not be used directly.  It is only present
+ * for very special circumstances.
  * @param node node to write message from
  * @param mti Message Type Indicator
  * @param dst destination node ID, 0 if unavailable

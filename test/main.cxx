@@ -84,7 +84,7 @@ int appl_main(int argc, char *argv[])
 #endif
     }
     
-    node_t node = nmranet_node_create(0x02010d000001ULL, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
+    node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
     nmranet_node_user_description(node, "Test Node");
     nmranet_node_initialized(node);
 

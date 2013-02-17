@@ -49,18 +49,6 @@ static void verify_node_id_number(node_t node);
  */
 static int64_t id_compare(struct id_node *a, struct id_node *b)
 {
-    if (a->mask != 0 && b->mask != 0)
-    {
-        return (a->key & a->mask) - (b->key & b->mask);
-    }
-    else if (a->mask != 0)
-    {
-        return (a->key & a->mask) - (b->key & a->mask);
-    }
-    else if (b->mask != 0)
-    {
-        return (a->key & b->mask) - (b->key & b->mask);
-    }
     return a->key - b->key;
 }
 
@@ -77,13 +65,12 @@ os_mutex_t nodeMutex = OS_RECURSIVE_MUTEX_INITIALIZER;
 
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
- * @param node_id_mask mask used for routing messages to this node
  * @param nmranet_if interface to bind the node to
  * @param model node decription
  * @param priv private data to store with the the node for later retrieveal
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF *nmranet_if, const char* model, void *priv)
+node_t nmranet_node_create(node_id_t node_id, NMRAnetIF *nmranet_if, const char* model, void *priv)
 {
     struct id_node  id_lookup;
     struct id_node *id_node;
@@ -95,7 +82,6 @@ node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF 
     }
 
     id_lookup.id = node_id;
-    id_lookup.mask = 0;
 
     os_mutex_lock(&nodeMutex);
     id_node = RB_FIND(id_tree, &idHead, &id_lookup);
@@ -103,7 +89,6 @@ node_t nmranet_node_create(node_id_t node_id, node_id_t node_id_mask, NMRAnetIF 
     {
         id_node = malloc(sizeof(struct id_node));
         id_node->id = node_id;
-        id_node->mask = node_id_mask;
         id_node->priv = malloc(sizeof(NodePriv));
         id_node->priv->nmranetIF = nmranet_if;
         id_node->priv->priv = priv;
@@ -369,7 +354,6 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
         struct id_node  id_lookup;
         struct id_node *id_node;
         id_lookup.id = dst;
-        id_lookup.mask = 0;
         id_node = RB_FIND(id_tree, &idHead, &id_lookup);
         if (id_node)
         {
@@ -495,7 +479,6 @@ int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void 
         struct id_node  id_lookup;
         struct id_node *id_node;
         id_lookup.id = dst.id;
-        id_lookup.mask = 0;
         os_mutex_lock(&nodeMutex);
         id_node = RB_FIND(id_tree, &idHead, &id_lookup);
         os_mutex_unlock(&nodeMutex);

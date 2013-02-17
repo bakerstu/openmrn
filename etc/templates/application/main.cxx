@@ -61,7 +61,7 @@ const size_t SERIAL_TX_BUFFER_SIZE = 16;
 
 /** Entry point to application.
  * @param argc number of command line arguments
- * @param argv array of command line aguments
+ * @param argv array of command line arguments
  * @return 0, should never return
  */
 int appl_main(int argc, char *argv[])
@@ -84,9 +84,10 @@ int appl_main(int argc, char *argv[])
 #endif
     }
     
-    node_t node = nmranet_node_create(0x02010d000001ULL, NODE_ID_EXACT_MASK, nmranet_if, "Virtual Node", NULL);
+    node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
     nmranet_node_user_description(node, "Test Node");
     nmranet_node_initialized(node);
+
     nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
     nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
@@ -118,7 +119,7 @@ int appl_main(int argc, char *argv[])
 #if !defined (__FreeRTOS__)
                 printf("we got event: 0x%016" PRIx64 "\n", event);
 #else
-                event = event ? 1 : 0; /* supress compiler warning, usused variable */
+                event = event ? 1 : 0; /* suppress compiler warning, unused variable */
 #endif
             }
             for (size_t i = nmranet_datagram_pending(node); i > 0; i--)

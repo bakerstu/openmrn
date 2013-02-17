@@ -4,12 +4,14 @@
  * @section tableofcontents Table of Contents
  * - @ref intro_section
  * - @ref main_getting_started
+ * - @ref main_user_api
  * - @ref copyright
  *   - @ref OpenMRN_license
  *   - @ref FreeRTOS_license
  *   - @ref newlib_license
  *   - @ref cJSON_license
  *   - @ref tinyxml2_license
+ *   - @ref sys_tree_license
  * - @ref layering
  * - @ref threading
  *   - @ref main_thread
@@ -32,6 +34,10 @@
  * See the @ref getting_started for instructions on setting up the tools and
  * running the example applications.
  *
+ * @section main_user_api User API
+ * See the @ref user_api page for direction on how an application can use the
+ * stack.
+ *
  * @section copyright Copyright Licenses
  * A description of open source licenses can be found on the Open Source
  * Initiative web site (http://opensource.org/licenses/index.html).
@@ -39,7 +45,7 @@
  * @subsection OpenMRN_license OpenMRN License
  * All of the OpenMRN source uses the BSD 2-clause license:
  *
- * Copyright (c) <year>, <owner>
+ * Copyright (c) \<year>, \<owner>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +74,7 @@
  * OpenMRN provides support for FreeRTOS.  Other than @ref FreeRTOSConfig.h,
  * no FreeRTOS source code is directly bundled with OpenMRN.  The build system
  * knows how to find a separately distributed FreeRTOS distribution for building
- * FreeRTOS libraries.  Free RTOS uses a modified modified GPL license, the
+ * FreeRTOS libraries.  Free RTOS uses a modified GPL license, the
  * full text of which is provided at http://www.freertos.org/license.txt.  It
  * is possible to use FreeRTOS in a commercial product without having to
  * release the source of bundled application code. The
@@ -84,7 +90,7 @@
  * application code.  The maintainers and copyright holders of OpenMRN are not
  * liable for misuse of the Newlib license.
  *
- * @subsection cJSON_license cJSON license
+ * @subsection cJSON_license cJSON License
  * OpenMRN provides a distribution of the cJSON JSON parser.  The maintainers
  * and copyright holders of OpenMRN are not liable for misuse of the cJSON
  * license:
@@ -133,6 +139,36 @@
  * -# This notice may not be removed or altered from any source 
  * distribution.
  *
+ * @subsection sys_tree_license sys/tree.h License
+ * OpenMRN provides a version of sys/tree.h from the FreeBSD/OpenBSD/NetBSD
+ * family of operating systems.  The maintainers and copyright holders of
+ * OpenMRN are not liable for misuse of the sys/tree.h license.  sys/tree.h
+ * uses the BSD 2-clause license:
+ *
+ * Copyright 2002 Niels Provos <provos@citi.umich.edu>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * -# Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * -# Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ *
  * @section layering Layering Model
  * The OpenMRN software is broken down into distinct layers of.  The lowest
  * layer is acutely aware of the physical medium and the individual frames of
@@ -143,22 +179,15 @@
  * graph layer_model
  * {
  *     a [shape=box label = "User API"];
- *     n [shape=box label = "Node"];
- *     e [shape=box label = "Event"];
- *     d [shape=box label = "Datagram"];
- *     s [shape=box label = "Stream"];
+ *     n [shape=record,label="{{<e> Event | <d> Datagram | <s> Stream} | <n> Node}"];
  *     i [shape=box label = "Network"];
  *     g [shape=box label = "CAN Network"];
- *     h [shape=box label = "Ethernet Network"];
+ *     h [shape=box label = "IP Network\n(Ethernet, WiFi, 6LoWPAN, ...)"];
  *     
- *     a -- n;
- *     a -- e;
- *     a -- d;
- *     a -- s;
- *     n -- i;
- *     e -- i;
- *     d -- i;
- *     s -- i;
+ *     a -- n:e;
+ *     a -- n:d;
+ *     a -- n:s;
+ *     n:n -- i;
  *     i -- g [style=dotted];
  *     i -- h [style=dotted];
  * }

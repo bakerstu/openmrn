@@ -25,7 +25,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file nmranet_config.h
- * This file defines configuration specific to NMRAnet.
+ * This file defines configuration options specific to NMRAnet.  These options
+ * are typcially applied in the same file as @ref appl_main (main.c/main.cxx).
+ * For example:
+ *
+ * @code
+ * #include "nmranet_config.h"
+ *
+ * const char *nmranet_manufacturer = "Stuart W. Baker";
+ * const char *nmranet_hardware_rev = "N/A";
+ * const char *nmranet_software_rev = "0.1";
+ * const size_t ALIAS_POOL_SIZE = 2;
+ * const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
+ * const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+ * @endcode
  *
  * @author Stuart W. Baker
  * @date 9 February 2013
