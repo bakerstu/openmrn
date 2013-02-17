@@ -455,8 +455,10 @@ void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
         case MTI_PRODUCER_IDENTIFY_INVALID:  /* fall through */
         case MTI_PRODUCER_IDENTIFY_RESERVED:
             break;
-        case MTI_EVENTS_IDENTIFY_GLOBAL:     /* fall through */
-        case MTI_EVENTS_IDENTIFY_ADDRESSED:
+        case MTI_EVENTS_IDENTIFY_ADDRESSED:  /* fall through */
+            /* only addressed messages free their data */
+            nmranet_buffer_free(data);
+        case MTI_EVENTS_IDENTIFY_GLOBAL:
             nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
             nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
             break;
@@ -488,7 +490,6 @@ void nmranet_event_packet_global(uint16_t mti, const void *data)
             event = be64toh(event);
             event_lookup.event = event;
 
-            os_mutex_lock(&mutex);
             event_node = RB_FIND(event_tree, &eventHead, &event_lookup);
             if (event_node)
             {
@@ -499,7 +500,6 @@ void nmranet_event_packet_global(uint16_t mti, const void *data)
                     event_post(current->node, event);
                 }
             }
-            os_mutex_unlock(&mutex);
             break;
         }
         case MTI_CONSUMER_IDENTIFY:

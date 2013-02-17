@@ -110,14 +110,14 @@ void nmranet_datagram_release(datagram_t datagram)
 
 /** Determine the datagram protocol (could be 1, 2, or 6 bytes).
  * @param datagram pointer to the beginning of the datagram
+ * @return protocol type
  */
 uint64_t nmranet_datagram_protocol(datagram_t datagram)
 {
     Datagram *d = datagram;
-    const unsigned char *bytes = datagram;
 
     /** @todo we need to double check the byte order here for correct endianness */
-    switch (bytes[0] & 0xF0)
+    switch (d->data[0] & 0xF0)
     {
         default:
             return d->data[0];
@@ -132,6 +132,25 @@ uint64_t nmranet_datagram_protocol(datagram_t datagram)
     }
 }
 
+/** Determine the datagram payload
+ * @param datagram pointer to the beginning of the datagram
+ * @return pointer to payload an a uint8_t array, assume byte alignment
+ */
+uint8_t *nmranet_datagram_payload(datagram_t datagram)
+{
+    Datagram *d = datagram;
+
+    switch (d->data[0] & 0xF0)
+    {
+        default:
+            return d->data + 1;
+        case DATAGRAM_PROTOCOL_SIZE_2:
+            return d->data + 3;
+        case DATAGRAM_PROTOCOL_SIZE_6:
+            return d->data + 7;
+    }
+}
+
 /** Datagram timeout handler.
  * @param data1 struct node_private pointer for node
  * @param data2 NULL
@@ -142,7 +161,7 @@ long long nmranet_datagram_timeout(void *data1, void* data2)
     struct id_node *n = data1;
     NodePriv *priv = n->priv;
     
-    /** @todo currently we timeout quietly, should be do something more? */
+    /** @todo currently we timeout quietly, should we do something more? */
     priv->txDatagram = NULL;
     
     return OS_TIMER_NONE;
@@ -256,7 +275,7 @@ void nmranet_datagram_process(node_t node, Datagram *datagram)
 
 #endif
 
-/** Post the reception of a datagram with to given node.
+/** Post the reception of a datagram to given node.
  * @param node to post datagram to
  * @param mti Message Type Indicator
  * @param src source Node ID
@@ -292,8 +311,6 @@ void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const
             os_timer_stop(n->priv->datagramTimer);
             break;
         case MTI_DATAGRAM:
-            os_mutex_lock(&nodeMutex);
-
             nmranet_queue_insert(n->priv->datagramQueue, data);
 
             if (n->priv->wait != NULL)
@@ -301,7 +318,6 @@ void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const
                 /* wakeup whoever is waiting */
                 os_sem_post(n->priv->wait);
             }
-            os_mutex_unlock(&nodeMutex);
             
             nmranet_node_write(node, MTI_DATAGRAM_OK, src, NULL);
             break;

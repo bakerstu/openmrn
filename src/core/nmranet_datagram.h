@@ -80,8 +80,15 @@ void nmranet_datagram_release(datagram_t datagram);
 
 /** Determine the datagram protocol (could be 1, 2, or 6 bytes).
  * @param datagram pointer to the beginning of the datagram
+ * @return protocol type
  */
 uint64_t nmranet_datagram_protocol(datagram_t datagram);
+
+/** Determine the datagram payload
+ * @param datagram pointer to the beginning of the datagram
+ * @return pointer to payload an a uint8_t array, assume byte alignment
+ */
+uint8_t *nmranet_datagram_payload(datagram_t datagram);
 
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from

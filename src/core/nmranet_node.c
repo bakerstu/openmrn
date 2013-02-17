@@ -363,6 +363,9 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
     os_mutex_lock(&nodeMutex);
     if (dst != 0)
     {
+        /* !!! Because the message is addressed, the downstream protocol is
+         * !!! responsible for freeing any data buffers.
+         */
         struct id_node  id_lookup;
         struct id_node *id_node;
         id_lookup.id = dst;
@@ -376,6 +379,11 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                 /* the node is initialized */
                 switch (mti)
                 {
+                    default:
+                        if (data)
+                        {
+                            nmranet_buffer_free(data);
+                        }
                     case MTI_VERIFY_NODE_ID_ADDRESSED:
                         verify_node_id_number(id_node);
                         break;
@@ -393,10 +401,6 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         break;
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
                         nmranet_event_packet_addressed(mti, id_node, data);
-                        if (data)
-                        {
-                            nmranet_buffer_free(data);
-                        }
                         break;
                 }
             }
@@ -447,6 +451,8 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         /* the node is initialized */
                         switch (mti)
                         {
+                            default:
+                                break;
                             case MTI_VERIFY_NODE_ID_GLOBAL:
                                 /* we own this id, it is initialized, respond */
                                 verify_node_id_number(id_node);
@@ -456,6 +462,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                 }
                 break;
         }
+        /* global messages don't take possession of and free their data */
         if (data)
         {
             nmranet_buffer_free(data);

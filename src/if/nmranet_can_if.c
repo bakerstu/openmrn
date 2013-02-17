@@ -54,9 +54,8 @@
 typedef enum alias_status
 {
     ALIAS_UNDER_TEST, /**< this is an alias we are trying to claim */
-    ALIAS_DISCOVERY, /**< alias is in the process of being discovered */
-    ALIAS_CONFLICT, /**< a conflict has been detected, still working out ID mapping */
-    ALIAS_RESERVED, /**< The alias has been reserved for use */
+    ALIAS_RESERVED, /**< the alias has been reserved for use */
+    ALIAS_CONFLICT, /**< we discovered someone else already is using this alias */
     ALIAS_FREE /**< the alias is free for another request */
 } AliasStatus;
 
@@ -205,7 +204,13 @@ static long long claim_alias_timeout(void *data1, void *data2)
         /* try again with a new alias */
         /** @todo should we do this in a background thread? */
         alias_meta->status = ALIAS_FREE;
-        claim_alias(can_if, 0, nmranet_alias_generate(can_if->aliasCache));
+        node_alias_t new_alias;
+        do
+        {
+            new_alias = nmranet_alias_generate(can_if->upstreamCache);
+        }
+        while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
+        claim_alias(can_if, 0, new_alias);
     }
     else
     {
@@ -320,11 +325,13 @@ static node_alias_t upstream_alias_setup(NMRAnetCanIF *can_if, node_id_t node_id
                 
                 /** @todo should we do this in a background thread? */
                 can_if->pool[i].status = ALIAS_FREE;
-                /* One might expect that we generate an alias from the upstream
-                 * cache, however, since both the upstream and downstream cache
-                 * uses the same seed, they would produce overlapping aliases.
-                 */
-                claim_alias(can_if, 0, nmranet_alias_generate(can_if->aliasCache));
+                node_alias_t new_alias;
+                do
+                {
+                    new_alias = nmranet_alias_generate(can_if->upstreamCache);
+                }
+                while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
+                claim_alias(can_if, 0, new_alias);
                 nmranet_alias_add(can_if->upstreamCache, node_id, alias);
 
                 os_mutex_unlock(&can_if->aliasMutex);
@@ -845,11 +852,104 @@ static void type_datagram(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t dlc, ui
     }
 }
 
+/** Test to see if the alias is in conflict with an alias we are using.
+ * @param can_if interface to look for conflict on
+ * @param alias alias to look for conflict with
+ * @param release we should release the alias if we have it reserved
+ * @return 0 if no conflict found, else 1
+ */
+static int alias_conflict(NMRAnetCanIF *can_if, node_alias_t alias, int release)
+{
+    int conflict = 0;
+    
+    os_mutex_lock(&can_if->aliasMutex);
+    node_id_t id = nmranet_alias_lookup_id(can_if->upstreamCache, alias);
+    if (id)
+    {
+        /* we have this alias reserved, prevent a collision */
+        if (release)
+        {
+            struct can_frame frame;
+            /* tell everyone we to un-map our alias */
+            CAN_CONTROL_FRAME_INIT(frame, alias, AMR_FRAME, 0);
+            SET_CAN_FRAME_EFF(frame);
+            CLR_CAN_FRAME_RTR(frame);
+            CLR_CAN_FRAME_ERR(frame);
+            frame.can_dlc = 6;
+            frame.data[0] = (id >> 40) & 0xff;
+            frame.data[1] = (id >> 32) & 0xff;
+            frame.data[2] = (id >> 24) & 0xff;
+            frame.data[3] = (id >> 16) & 0xff;
+            frame.data[4] = (id >>  8) & 0xff;
+            frame.data[5] = (id >>  0) & 0xff;
+            int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+            if (result != sizeof(struct can_frame))
+            {
+                abort();
+            }
+            nmranet_alias_remove(can_if->upstreamCache, alias);
+        }
+        conflict = 1;
+    }
+    else
+    {
+        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)
+        {
+            switch (can_if->pool[i].status)
+            {
+                case ALIAS_FREE:
+                    /* fall through */
+                case ALIAS_CONFLICT:
+                    /* keep looking */
+                    continue;
+                case ALIAS_UNDER_TEST:
+                    can_if->pool[i].status = ALIAS_CONFLICT;
+                    break;
+                case ALIAS_RESERVED:
+                    if (release)
+                    {
+                        can_if->pool[i].status = ALIAS_CONFLICT;
+                        node_alias_t new_alias;
+                        do
+                        {
+                            new_alias = nmranet_alias_generate(can_if->upstreamCache);
+                        }
+                        while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
+                        claim_alias(can_if, 0, new_alias);
+                    }
+                    conflict = 1;
+                    break;
+            }
+            break;
+        }
+    }
+    os_mutex_unlock(&can_if->aliasMutex);
+    
+    return conflict;
+}
+
 /** Decode Check ID CAN control frame.
+ * @param can_if interface CID received on
  * @param ccr CAN control frame
  */
-static void ccr_cid_frame(uint32_t ccr)
+static void ccr_cid_frame(NMRAnetCanIF *can_if, uint32_t ccr)
 {
+    uint16_t alias = GET_CAN_CONTROL_FRAME_SOURCE(ccr);
+    
+    if (alias_conflict(can_if, alias, 0))
+    {
+        /* remind everyone we own this alias with a Reserve ID frame */
+        struct can_frame frame;
+        CAN_CONTROL_FRAME_INIT(frame, alias, RID_FRAME, 0);
+        SET_CAN_FRAME_EFF(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_ERR(frame);
+        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        if (result != (sizeof(struct can_frame)))
+        {
+            abort();
+        }
+    }
 }
 
 /** Decode Reserve ID CAN control frame.
@@ -857,6 +957,51 @@ static void ccr_cid_frame(uint32_t ccr)
  */
 static void ccr_rid_frame(uint32_t ccr)
 {
+    /* If we got this far we have nothing to do.  If there was a conflict,
+     * it should have been caught by now.
+     */
+}
+
+/** Decode Alias Map Enquiry CAN control frame.
+ * @param can_if interface AME received on
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+static void ccr_ame_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
+{
+    node_id_t node_id;
+
+    node_id = data[5];
+    node_id |= (node_id_t)data[4] << 8;
+    node_id |= (node_id_t)data[3] << 16;
+    node_id |= (node_id_t)data[2] << 24;
+    node_id |= (node_id_t)data[1] << 32;
+    node_id |= (node_id_t)data[0] << 40;
+    
+    os_mutex_lock(&can_if->aliasMutex);
+    node_alias_t alias = nmranet_alias_lookup(can_if->upstreamCache, node_id);
+    if (alias)
+    {
+        /* Tell the segment who maps to this alias */
+        struct can_frame frame;
+        CAN_CONTROL_FRAME_INIT(frame, alias, AMD_FRAME, 0);
+        SET_CAN_FRAME_EFF(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_ERR(frame);
+        frame.can_dlc = 6;
+        frame.data[0] = (node_id >> 40) & 0xff;
+        frame.data[1] = (node_id >> 32) & 0xff;
+        frame.data[2] = (node_id >> 24) & 0xff;
+        frame.data[3] = (node_id >> 16) & 0xff;
+        frame.data[4] = (node_id >>  8) & 0xff;
+        frame.data[5] = (node_id >>  0) & 0xff;
+        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        if (result != sizeof(struct can_frame))
+        {
+            abort();
+        }
+    }
+    os_mutex_unlock(&can_if->aliasMutex);
 }
 
 /** Decode Alias Map Definition CAN control frame.
@@ -894,6 +1039,18 @@ static void ccr_amd_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
     os_mutex_unlock(&can_if->aliasMutex);
 }
 
+/** Decode Alias Map Reset CAN control frame.
+ * @param can_if interface AMR received on
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+static void ccr_amr_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
+{
+    os_mutex_lock(&can_if->aliasMutex);
+    nmranet_alias_remove(can_if->aliasCache, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
+    os_mutex_unlock(&can_if->aliasMutex);
+}
+
 /** Thread for reading the data from the interface.
  * @param data pointer to an NMRAnetCanIF for this interface
  * @return NULL, should never return
@@ -920,37 +1077,6 @@ static void *read_thread(void *data)
             abort();
         }
         
-        os_mutex_lock(&can_if->aliasMutex);
-        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)
-        {
-            /** @todo need to look at upstream aliases, is this the right place? */
-            if (can_if->pool[i].alias == GET_CAN_ID_SOURCE(frame.can_id))
-            {
-                switch (can_if->pool[i].alias)
-                {
-                    default:
-                        /* fall through */
-                    case ALIAS_FREE:
-                        /* fall through */
-                    case ALIAS_DISCOVERY:
-                        /* fall through */
-                    case ALIAS_CONFLICT:
-                        /* totally normal, let's move on */
-                        break;
-                    case ALIAS_RESERVED:
-                        /** @todo should we do this in a background thread? */
-                        can_if->pool[i].status = ALIAS_FREE;
-                        claim_alias(can_if, 0, nmranet_alias_generate(can_if->aliasCache));
-                        break;
-                    case ALIAS_UNDER_TEST:
-                        /* we are trying to claim this alias, oops, mark as taken */
-                        can_if->pool[i].status = ALIAS_CONFLICT;
-                        break;
-                } /* switch (can_if->pool[i].alias) */
-            } /* if (can_if->pool[i].alias == GET_CAN_ID_SOURCE(frame.can_id)) */
-        } /* for (unsigned int i = 0; i < MAX_POOL_SIZE; i++) */
-        os_mutex_unlock(&can_if->aliasMutex);
-
         if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0)
         {
             switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id))
@@ -965,7 +1091,7 @@ static void *read_thread(void *data)
                 case 0x6:
                     /* fall through */
                 case 0x7:
-                    ccr_cid_frame(frame.can_id);
+                    ccr_cid_frame(can_if, frame.can_id);
                     /* we are done decoding, let's grab the next frame */
                     continue;
                 case 0x0:
@@ -973,6 +1099,7 @@ static void *read_thread(void *data)
                     {
                         default:
                             /* unknown field, let's grab the next frame */
+                            continue;
                         case RID_FRAME:
                             ccr_rid_frame(frame.can_id);
                             break;
@@ -980,14 +1107,23 @@ static void *read_thread(void *data)
                             ccr_amd_frame(can_if, frame.can_id, frame.data);
                             break;
                         case AME_FRAME:
+                            ccr_ame_frame(can_if, frame.can_id, frame.data);
+                            break;
                         case AMR_FRAME:
+                            ccr_amr_frame(can_if, frame.can_id, frame.data);
                             break;
                     } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
+                    alias_conflict(can_if, GET_CAN_CONTROL_FRAME_SOURCE(frame.can_id), 1);
                     break;
             } /* switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id)) */
         } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
         else
         {
+            if (alias_conflict(can_if, GET_CAN_ID_SOURCE(frame.can_id), 1))
+            {
+                /* there was a conflict in the alias mappings */
+                continue;
+            }
             /** find the proper packet decoder */
             switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id))
             {
@@ -1053,14 +1189,14 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     can_if->upstreamCache = nmranet_alias_cache_create(node_id, UPSTREAM_ALIAS_CACHE_SIZE);
     os_mutex_init(&can_if->aliasMutex);
 
+    os_mutex_lock(&can_if->aliasMutex);
     /* prime the alias pool */
     for (int i = 0; i < ALIAS_POOL_SIZE; i++)
     {
-        os_mutex_lock(&can_if->aliasMutex);
         /* initiate a claim on a new unique alias */
-        claim_alias(can_if, 0, nmranet_alias_generate(can_if->aliasCache));
-        os_mutex_unlock(&can_if->aliasMutex);
+        claim_alias(can_if, 0, nmranet_alias_generate(can_if->upstreamCache));
     }
+    os_mutex_unlock(&can_if->aliasMutex);
 
     /* start the thread that will process received packets */
     os_thread_create(&thread_handle, device, 0, 1024, read_thread, &can_if->nmranetIF);
