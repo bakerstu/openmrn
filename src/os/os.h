@@ -35,6 +35,7 @@
 #ifndef _os_h_
 #define _os_h_
 
+#include <sys/time.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -92,11 +93,7 @@ typedef struct
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
 typedef struct thread_priv
 {
-#if defined (GCC_MEGA_AVR)
-    int threadErrno; /**< errno instance for this thread */
-#else
     struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-#endif
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
@@ -106,7 +103,13 @@ typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
 typedef void *os_timer_t; /**< timer handle */
 typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
-typedef sem_t os_sem_t; /**< semaphore handle */
+/** Some Operating Systems do not support timeouts with semaphroes */
+typedef struct
+{
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    int counter;
+} os_sem_t;
 #endif
 
 #ifndef container_of
@@ -419,12 +422,15 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 #if defined (__FreeRTOS__)
 #if defined (GCC_ARMCM3)
     *sem = xSemaphoreCreateCounting(value, LONG_MAX);
-#elif defined (GCC_MEGA_AVR)
-    *sem = xSemaphoreCreateCounting(value, CHAR_MAX);
+#else
+    #error
 #endif
     return 0;
 #else
-    return sem_init(sem, 0, value);
+    pthread_cond_init(&sem->cond, NULL);
+    pthread_mutex_init(&sem->mutex, NULL);
+    sem->counter = value;
+    return 0;
 #endif
 }
 
@@ -438,7 +444,11 @@ static inline int os_sem_post(os_sem_t *sem)
     xSemaphoreGive(sem);
     return 0;
 #else
-    return sem_post(sem);
+    pthread_mutex_lock(&sem->mutex);
+    sem->counter++;
+    pthread_cond_signal(&sem->cond);
+    pthread_mutex_unlock(&sem->mutex);
+    return 0;
 #endif
 }
 
@@ -452,7 +462,14 @@ static inline int os_sem_wait(os_sem_t *sem)
     xSemaphoreTake(sem, portMAX_DELAY);
     return 0;
 #else
-    return sem_wait(sem);
+    pthread_mutex_lock(&sem->mutex);
+    while (sem->counter == 0)
+    {
+        pthread_cond_wait(&sem->cond, &sem->mutex);
+    }
+    sem->counter--;
+    pthread_mutex_unlock(&sem->mutex);
+    return 0;
 #endif
 }
 
@@ -478,10 +495,25 @@ static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
         return -1;
     }
 #else
+    struct timeval tv;
     struct timespec ts;
+    gettimeofday(&tv, NULL);
+    timeout += ((long long)tv.tv_sec * 1000000000LL) + ((long long) tv.tv_usec * 1000LL);
     ts.tv_sec = timeout / 1000000000LL;
     ts.tv_nsec = timeout % 1000000000LL;
-    return sem_timedwait(sem, &ts);
+    pthread_mutex_lock(&sem->mutex);
+    while (sem->counter == 0)
+    {
+        if (pthread_cond_timedwait(&sem->cond, &sem->mutex, &ts) == ETIMEDOUT)
+        {
+            pthread_mutex_unlock(&sem->mutex);
+            errno = ETIMEDOUT;
+            return -1;
+        }
+    }
+    sem->counter--;
+    pthread_mutex_unlock(&sem->mutex);
+    return 0;
 #endif
 }
 
