@@ -57,7 +57,7 @@ static size_t datagramCount = 0;
 
 /** One time initialization for the datagram pool.
  */
-static os_thread_once_t datagramOnce;
+static os_thread_once_t datagramOnce = OS_THREAD_ONCE_INIT;
 
 /** Initialize the datagram pool.
  */
