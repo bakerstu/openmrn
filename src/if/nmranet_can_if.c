@@ -209,7 +209,7 @@ static long long claim_alias_timeout(void *data1, void *data2)
         {
             new_alias = nmranet_alias_generate(can_if->upstreamCache);
         }
-        while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
+        while (nmranet_alias_lookup(can_if->aliasCache, new_alias) != 0);
         claim_alias(can_if, 0, new_alias);
     }
     else
@@ -330,7 +330,7 @@ static node_alias_t upstream_alias_setup(NMRAnetCanIF *can_if, node_id_t node_id
                 {
                     new_alias = nmranet_alias_generate(can_if->upstreamCache);
                 }
-                while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
+                while (nmranet_alias_lookup(can_if->aliasCache, new_alias) != 0);
                 claim_alias(can_if, 0, new_alias);
                 nmranet_alias_add(can_if->upstreamCache, node_id, alias);
 
@@ -903,21 +903,28 @@ static int alias_conflict(NMRAnetCanIF *can_if, node_alias_t alias, int release)
                     /* keep looking */
                     continue;
                 case ALIAS_UNDER_TEST:
-                    can_if->pool[i].status = ALIAS_CONFLICT;
-                    break;
-                case ALIAS_RESERVED:
-                    if (release)
+                    if (can_if->pool[i].alias == alias)
                     {
                         can_if->pool[i].status = ALIAS_CONFLICT;
-                        node_alias_t new_alias;
-                        do
-                        {
-                            new_alias = nmranet_alias_generate(can_if->upstreamCache);
-                        }
-                        while (nmranet_alias_lookup(can_if->aliasCache, new_alias != 0));
-                        claim_alias(can_if, 0, new_alias);
+                        conflict = 1;
                     }
-                    conflict = 1;
+                    break;
+                case ALIAS_RESERVED:
+                    if (can_if->pool[i].alias == alias)
+                    {
+                        if (release)
+                        {
+                            can_if->pool[i].status = ALIAS_CONFLICT;
+                            node_alias_t new_alias;
+                            do
+                            {
+                                new_alias = nmranet_alias_generate(can_if->upstreamCache);
+                            }
+                            while (nmranet_alias_lookup(can_if->aliasCache, new_alias) != 0);
+                            claim_alias(can_if, 0, new_alias);
+                        }
+                        conflict = 1;
+                    }
                     break;
             }
             break;
