@@ -91,7 +91,7 @@ struct event_tree eventHead = RB_INITIALIZER(&eventHead);
  * @param event event number to register
  * @param state initial state of the event
  */
-static void event_consumer_identify(node_t node, uint64_t event, int state)
+static void event_consumer_identify(node_t node, uint64_t event, unsigned int state)
 {
     node_handle_t dst = {0, 0};
     uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
@@ -121,7 +121,7 @@ static void event_consumer_identify(node_t node, uint64_t event, int state)
  * @param event event number to register
  * @param state initial state of the event
  */
-static void event_producer_identify(node_t node, uint64_t event, int state)
+static void event_producer_identify(node_t node, uint64_t event, unsigned int state)
 {
     node_handle_t dst = {0, 0};
     uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
@@ -151,7 +151,7 @@ static void event_producer_identify(node_t node, uint64_t event, int state)
  * @param event event number to register
  * @param state initial state of the event
  */
-static void event_consumer_add(node_t node, uint64_t event, int state)
+static void event_consumer_add(node_t node, uint64_t event, unsigned int state)
 {
     struct id_node *n = (struct id_node*)node;
     
@@ -164,6 +164,7 @@ static void event_consumer_add(node_t node, uint64_t event, int state)
         n->priv->consumerEvents = malloc(sizeof(EventList));
         n->priv->consumerEvents->next = NULL;
         n->priv->consumerEvents->count = 0;
+        n->priv->consumerEvents->state = 0;
     }
     EventList *link = n->priv->consumerEvents;
     while (link->next != NULL)
@@ -177,6 +178,7 @@ static void event_consumer_add(node_t node, uint64_t event, int state)
         link = link->next;
         link->next = NULL;
         link->count = 0;
+        link->state = 0;
     }
     link->events[link->count] = event;
     link->state &= ~(0x3 << (link->count << 1));
@@ -195,7 +197,7 @@ static void event_consumer_add(node_t node, uint64_t event, int state)
  * @param event event number to register
  * @param state initial state of the event
  */
-static void event_producer_add(node_t node, uint64_t event, int state)
+static void event_producer_add(node_t node, uint64_t event, unsigned int state)
 {
     struct id_node *n = (struct id_node*)node;
     
@@ -208,6 +210,7 @@ static void event_producer_add(node_t node, uint64_t event, int state)
         n->priv->producerEvents = malloc(sizeof(EventList));
         n->priv->producerEvents->next = NULL;
         n->priv->producerEvents->count = 0;
+        n->priv->producerEvents->state = 0;
     }
     EventList *link = n->priv->producerEvents;
     while (link->next != NULL)
@@ -221,6 +224,7 @@ static void event_producer_add(node_t node, uint64_t event, int state)
         link = link->next;
         link->next = NULL;
         link->count = 0;
+        link->state = 0;
     }
     link->events[link->count] = event;
     link->state &= ~(0x3 << (link->count << 1));
@@ -239,7 +243,7 @@ static void event_producer_add(node_t node, uint64_t event, int state)
  * @param event event number to register
  * @param state initial state of the event
  */
-void nmranet_event_consumer(node_t node, uint64_t event, int state)
+void nmranet_event_consumer(node_t node, uint64_t event, unsigned int state)
 {    
     struct event_node *event_node;
     struct event_node  event_lookup;
@@ -272,7 +276,7 @@ void nmranet_event_consumer(node_t node, uint64_t event, int state)
  * @param event event number to register
  * @param state initial state of the event
  */
-void nmranet_event_producer(node_t node, uint64_t event, int state)
+void nmranet_event_producer(node_t node, uint64_t event, unsigned int state)
 {    
     event_producer_add(node, event, state);
 }
@@ -282,7 +286,7 @@ void nmranet_event_producer(node_t node, uint64_t event, int state)
  * @param event event to produce
  * @param state state of the event
  */
-void nmranet_event_produce(node_t node, uint64_t event, int state)
+void nmranet_event_produce(node_t node, uint64_t event, unsigned int state)
 {
     struct id_node *n = (struct id_node*)node;
 
@@ -358,7 +362,7 @@ void nmranet_identify_consumers(node_t node, uint64_t event, uint64_t mask)
             /* apply mask */
             if ((l->events[count] & mask) == (event & mask))
             {
-                event_consumer_identify(node, l->events[count], (l->state >> l->count) & 0x3);
+                event_consumer_identify(node, l->events[count], (l->state >> (l->count << 1)) & 0x3);
             }
         }
     }
@@ -381,7 +385,7 @@ void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask)
             /* apply mask */
             if ((l->events[count] & mask) == (event & mask))
             {
-                event_producer_identify(node, l->events[count], (l->state >> l->count) & 0x3);
+                event_producer_identify(node, l->events[count], (l->state >> (l->count << 1)) & 0x3);
             }
         }
     }
@@ -425,9 +429,12 @@ void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
         return;
     }
 
-    uint64_t event;
-    memcpy(&event, data, sizeof(uint64_t));
-    event = be64toh(event);
+    uint64_t event = 0;
+    if (data)
+    {
+        memcpy(&event, data, sizeof(uint64_t));
+        event = be64toh(event);
+    }
 
     switch (mti)
     {
@@ -445,7 +452,7 @@ void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
         case MTI_CONSUMER_IDENTIFY_RESERVED:
             break;
         case MTI_PRODUCER_IDENTIFY:
-            nmranet_identify_consumers(node, event, EVENT_EXACT_MASK);
+            nmranet_identify_producers(node, event, EVENT_EXACT_MASK);
             break;
         case MTI_PRODUCER_IDENTIFY_RANGE:
             nmranet_identify_producers(node, event, identify_range_mask(event));
@@ -456,8 +463,6 @@ void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
         case MTI_PRODUCER_IDENTIFY_RESERVED:
             break;
         case MTI_EVENTS_IDENTIFY_ADDRESSED:  /* fall through */
-            /* only addressed messages free their data */
-            nmranet_buffer_free(data);
         case MTI_EVENTS_IDENTIFY_GLOBAL:
             nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
             nmranet_identify_producers(node, 0, EVENT_ALL_MASK);

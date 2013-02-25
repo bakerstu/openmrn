@@ -36,6 +36,7 @@
 #define _nmranet_alias_h_
 
 #include "nmranet_types.h"
+#include "if/nmranet_if.h"
 
 /** Create a cache of aliases.
  * @param seed 48-bit seed (often a Node ID) used to generate random aliases
@@ -64,7 +65,7 @@ void nmranet_alias_remove(alias_cache_t cache, node_alias_t alias);
  */
 node_alias_t nmranet_alias_lookup(alias_cache_t cache, node_id_t id);
 
-/** Lookup a node's alias based on its Node ID.
+/** Lookup a node's ID based on its alias.
  * @param cache alias cache to look for a Node ID in
  * @param alias alias to look for
  * @return Node ID that matches the alias, else 0 if not found
@@ -76,5 +77,12 @@ node_id_t nmranet_alias_lookup_id(alias_cache_t cache, node_alias_t alias);
  * @return pseudo-random 12-bit alias, an alias of zero is invalid
  */
 node_alias_t nmranet_alias_generate(alias_cache_t cache);
+
+/** Call the given callback function once for each alias tracked.
+ * @param cache alias cache to look for a Node ID in
+ * @param callback method to call
+ * @param context context pointer to pass to callback
+ */
+void nmranet_alias_for_each(alias_cache_t cache, void (*callback)(void*, node_id_t, node_alias_t), void *context);
 
 #endif /* _nmranet_alias_h_ */

@@ -43,11 +43,11 @@
  */
 typedef struct alias_cache
 {
-    size_t size;
     node_id_t seed;
     node_id_t *id;
     node_alias_t *alias;
     long long *timestamp;
+    size_t size;
 } AliasCache;
 
 /** Create a cache of aliases.
@@ -162,7 +162,7 @@ node_alias_t nmranet_alias_lookup(alias_cache_t cache, node_id_t id)
     return 0;
 }
 
-/** Lookup a node's alias based on its Node ID.
+/** Lookup a node's ID based on its alias.
  * @param cache alias cache to look for a Node ID in
  * @param alias alias to look for
  * @return Node ID that matches the alias, else 0 if not found
@@ -188,6 +188,30 @@ node_id_t nmranet_alias_lookup_id(alias_cache_t cache, node_alias_t alias)
     
     /* no match found */
     return 0;
+}
+
+/** Call the given callback function once for each alias tracked.
+ * @param cache alias cache to look for a Node ID in
+ * @param callback method to call
+ * @param context context pointer to pass to callback
+ */
+void nmranet_alias_for_each(alias_cache_t cache, void (*callback)(void*, node_id_t, node_alias_t), void *context)
+{
+    AliasCache  *alias_cache = cache;
+    
+    if (callback == NULL)
+    {
+        /* invalid parameter */
+        return;
+    }
+
+    for (unsigned int i = 0; i < alias_cache->size; i++)
+    {
+        if (alias_cache->alias[i] != 0)
+        {
+            (*callback)(context, alias_cache->id[i], alias_cache->alias[i]);
+        }
+    }
 }
 
 /** Generate a 12-bit pseudo-random alias for a givin alias cache.

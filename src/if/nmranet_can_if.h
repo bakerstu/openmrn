@@ -167,7 +167,7 @@
  * @param _mti MTI field value
  * @param _can_type CAN frame type field value
  * @param _type frame type field value
- * @param _priority pryority field value
+ * @param _priority priority field value
  */
 #define SET_CAN_ID_FIELDS(_can_id, _source, _mti, _can_type, _type, _priority) \
 {                                                                              \

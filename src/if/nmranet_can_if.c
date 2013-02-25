@@ -63,9 +63,9 @@ typedef enum alias_status
  */
 typedef struct alias_metadata
 {
-    node_alias_t alias; /**< alias */
     os_timer_t timer; /**< timer used for establishing the connection */
     AliasStatus status; /**< status of node */
+    node_alias_t alias; /**< alias */
     //void *datagramBuffer; /**< buffer for holding datagrams */
 } AliasMetadata;
 
@@ -610,7 +610,7 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
             if (dlc > 2)
             {
                 /* collect the data */
-                buffer = nmranet_buffer_alloc(sizeof(dlc - 2));
+                buffer = nmranet_buffer_alloc(dlc - 2);
                 memcpy(buffer, data, (dlc - 2));
                 nmranet_buffer_advance(buffer, (dlc - 2));
             }
@@ -676,9 +676,18 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
             /* update the source Node ID */
             src.id = node_id;
         }
-        void *buffer = nmranet_buffer_alloc(dlc);
-        memcpy(buffer, data, dlc);
-        nmranet_buffer_advance(buffer, dlc);
+        void *buffer;
+        if (dlc)
+        {
+            /* collect the data */
+            buffer = nmranet_buffer_alloc(dlc);
+            memcpy(buffer, data, dlc);
+            nmranet_buffer_advance(buffer, dlc);
+        }
+        else
+        {
+            buffer = NULL;
+        }
         nmranet_if_rx_data(&can_if->nmranetIF, nmranet_mti(can_id), src, 0, buffer);
     }
 }
@@ -969,25 +978,11 @@ static void ccr_rid_frame(uint32_t ccr)
      */
 }
 
-/** Decode Alias Map Enquiry CAN control frame.
- * @param can_if interface AME received on
- * @param ccr CAN control frame
- * @param data frame data representing the full 48-bit Node ID
- */
-static void ccr_ame_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
+static void send_amd_frame(void *data, node_id_t id, node_alias_t alias)
 {
-    node_id_t node_id;
+    NMRAnetCanIF *can_if = (NMRAnetCanIF*)data;
 
-    node_id = data[5];
-    node_id |= (node_id_t)data[4] << 8;
-    node_id |= (node_id_t)data[3] << 16;
-    node_id |= (node_id_t)data[2] << 24;
-    node_id |= (node_id_t)data[1] << 32;
-    node_id |= (node_id_t)data[0] << 40;
-    
-    os_mutex_lock(&can_if->aliasMutex);
-    node_alias_t alias = nmranet_alias_lookup(can_if->upstreamCache, node_id);
-    if (alias)
+    if (alias && id)
     {
         /* Tell the segment who maps to this alias */
         struct can_frame frame;
@@ -996,17 +991,49 @@ static void ccr_ame_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_ERR(frame);
         frame.can_dlc = 6;
-        frame.data[0] = (node_id >> 40) & 0xff;
-        frame.data[1] = (node_id >> 32) & 0xff;
-        frame.data[2] = (node_id >> 24) & 0xff;
-        frame.data[3] = (node_id >> 16) & 0xff;
-        frame.data[4] = (node_id >>  8) & 0xff;
-        frame.data[5] = (node_id >>  0) & 0xff;
+        frame.data[0] = (id >> 40) & 0xff;
+        frame.data[1] = (id >> 32) & 0xff;
+        frame.data[2] = (id >> 24) & 0xff;
+        frame.data[3] = (id >> 16) & 0xff;
+        frame.data[4] = (id >>  8) & 0xff;
+        frame.data[5] = (id >>  0) & 0xff;
         int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
         if (result != sizeof(struct can_frame))
         {
             abort();
         }
+    }
+}
+
+/** Decode Alias Map Enquiry CAN control frame.
+ * @param can_if interface AME received on
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+static void ccr_ame_frame(NMRAnetCanIF *can_if, uint32_t ccr, uint8_t data[])
+{
+    if (data)
+    {
+        node_id_t node_id;
+
+        node_id = data[5];
+        node_id |= (node_id_t)data[4] << 8;
+        node_id |= (node_id_t)data[3] << 16;
+        node_id |= (node_id_t)data[2] << 24;
+        node_id |= (node_id_t)data[1] << 32;
+        node_id |= (node_id_t)data[0] << 40;
+        
+        os_mutex_lock(&can_if->aliasMutex);
+        node_alias_t alias = nmranet_alias_lookup(can_if->upstreamCache, node_id);
+        if (alias)
+        {
+            send_amd_frame(can_if, node_id, alias);
+        }
+    }
+    else
+    {
+        os_mutex_lock(&can_if->aliasMutex);
+        nmranet_alias_for_each(can_if->upstreamCache, send_amd_frame, can_if);
     }
     os_mutex_unlock(&can_if->aliasMutex);
 }
@@ -1069,6 +1096,10 @@ static void *read_thread(void *data)
     for ( ; /* forever */ ; )
     {
         struct can_frame frame;
+        CLR_CAN_FRAME_ERR(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_EFF(frame);
+
         int result = (*can_if->read)(can_if->fd, &frame, sizeof(struct can_frame));
         if (result < 0)
         {
@@ -1114,7 +1145,7 @@ static void *read_thread(void *data)
                             ccr_amd_frame(can_if, frame.can_id, frame.data);
                             break;
                         case AME_FRAME:
-                            ccr_ame_frame(can_if, frame.can_id, frame.data);
+                            ccr_ame_frame(can_if, frame.can_id, (frame.can_dlc == 0) ? NULL : frame.data);
                             break;
                         case AMR_FRAME:
                             ccr_amr_frame(can_if, frame.can_id, frame.data);

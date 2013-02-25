@@ -64,14 +64,14 @@ extern "C" {
  * @param event event number to register
  * @param state initial state of the event
  */
-void nmranet_event_consumer(node_t node, uint64_t event, int state);
+void nmranet_event_consumer(node_t node, uint64_t event, unsigned int state);
 
 /** Register for the production of an event with from given node.
  * @param node to register event from
  * @param event event number to register
  * @param state initial state of the event
  */
-void nmranet_event_producer(node_t node, uint64_t event, int state);
+void nmranet_event_producer(node_t node, uint64_t event, unsigned int state);
 
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
@@ -84,7 +84,7 @@ uint64_t nmranet_event_consume(node_t node);
  * @param event event to produce
  * @param state state of the event
  */
-void nmranet_event_produce(node_t node, uint64_t event, int state);
+void nmranet_event_produce(node_t node, uint64_t event, unsigned int state);
 
 /** Number of events pending in the event queue of the node
  * @param node node to query

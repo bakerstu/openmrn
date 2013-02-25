@@ -274,6 +274,31 @@ static void verify_node_id_number(node_t node)
  * @param node Node to send message from
  * @param dst destination Node ID to respond to
  */
+static void protocol_support_reply(node_t node, node_handle_t dst)
+{
+    uint64_t protocols = PROTOCOL_PROTOCOL_IDENTIFICATION |
+                         PROTOCOL_DATAGRAM |
+                         PROTOCOL_EVENT_EXCHANGE |
+                         PROTOCOL_SIMPLE_NODE_INFORMATION;
+
+    uint8_t *buffer = nmranet_buffer_alloc(6);
+    
+    buffer[0] = (protocols >> 40) & 0xff;
+    buffer[1] = (protocols >> 32) & 0xff;
+    buffer[2] = (protocols >> 24) & 0xff;
+    buffer[3] = (protocols >> 16) & 0xff;
+    buffer[4] = (protocols >>  8) & 0xff;
+    buffer[5] = (protocols >>  0) & 0xff;
+    
+    nmranet_buffer_advance(buffer, 6);
+
+    nmranet_node_write(node, MTI_PROTOCOL_SUPPORT_REPLY, dst, buffer);
+}
+
+/** Send an ident info reply message.
+ * @param node Node to send message from
+ * @param dst destination Node ID to respond to
+ */
 static void ident_info_reply(node_t node, node_handle_t dst)
 {
     struct id_node *n = (struct id_node*)node;
@@ -345,6 +370,8 @@ static void ident_info_reply(node_t node, node_handle_t dst)
  */
 void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle_t src, node_id_t dst, const void *data)
 {
+    const uint8_t *bytes = data;
+
     os_mutex_lock(&nodeMutex);
     if (dst != 0)
     {
@@ -368,14 +395,16 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         {
                             nmranet_buffer_free(data);
                         }
+                        break;
+                    case MTI_PROTOCOL_SUPPORT_INQUIRY:
+                        protocol_support_reply(id_node, src);
+                        break;
                     case MTI_VERIFY_NODE_ID_ADDRESSED:
                         verify_node_id_number(id_node);
                         break;
                     case MTI_IDENT_INFO_REQUEST:
-                    {
                         ident_info_reply(id_node, src);
                         break;
-                    }
                     case MTI_DATAGRAM_REJECTED:
                         /* fall through */
                     case MTI_DATAGRAM_OK:
@@ -384,9 +413,23 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         nmranet_datagram_packet(id_node, mti, src, data);
                         break;
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
+                        if (data != NULL)
+                        {
+                            /* something went wrong or another node is
+                             * behaving badly.
+                             */
+                            abort();
+                        }
                         nmranet_event_packet_addressed(mti, id_node, data);
                         break;
                 }
+            }
+        }
+        else
+        {
+            if (data)
+            {
+                nmranet_buffer_free(data);
             }
         }
     }
@@ -438,6 +481,20 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                             default:
                                 break;
                             case MTI_VERIFY_NODE_ID_GLOBAL:
+                                if (data != NULL)
+                                {
+                                    node_id_t id = ((node_id_t)bytes[5] <<  0) +
+                                                   ((node_id_t)bytes[4] <<  8) +
+                                                   ((node_id_t)bytes[3] << 16) +
+                                                   ((node_id_t)bytes[2] << 24) +
+                                                   ((node_id_t)bytes[1] << 32) +
+                                                   ((node_id_t)bytes[0] << 40);
+                                    if (id != id_node->id)
+                                    {
+                                        /* not a match, keep looking */
+                                        continue;
+                                    }
+                                }
                                 /* we own this id, it is initialized, respond */
                                 verify_node_id_number(id_node);
                                 break;
