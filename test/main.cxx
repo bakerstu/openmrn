@@ -110,14 +110,15 @@ int appl_main(int argc, char *argv[])
 #endif
     for (;;)
     {
-    
-        sleep(2);
-        //nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-        //nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
-        sleep(2);
-        //nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-        //nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-        
+        if (argc < 3)
+        {    
+            sleep(2);
+            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
+            sleep(2);
+            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+        }
         int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
 
         if (result)
