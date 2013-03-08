@@ -7,9 +7,13 @@
 *.elf
 *.so
 *.o
+*.obj
 *.d
+*.pp
 *.so
 *.a
 *.swp
 *~
 *.tag
+*.ods#
+

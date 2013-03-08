@@ -31,6 +31,7 @@
 
 import sys
 import os
+import time
 from optparse import OptionParser
 
 parser = OptionParser()
@@ -48,6 +49,9 @@ parser.add_option("-p", "--path", dest="path", default=None,
 parser.add_option("-s", "--subdirs", dest="subdirs", default=None,
                   help="quoted list of source subdirectories",
                   metavar="SUBDIRS")
+parser.add_option("-e", "--eclipse", dest="eclipse", action="store_true",
+                  default=False,
+                  help="setup an Eclipse project for import")
 
 (options, args) = parser.parse_args()
 
@@ -93,6 +97,32 @@ os.system(cmd)
 
 cmd = 'cp ../etc/templates/application/main.cxx ' + options.path + '/'
 os.system(cmd)
+
+# create Eclipse project
+if options.eclipse == True:
+    # copy over .settings/
+    cmd = 'cp -rf ../etc/templates/application/.settings ' + options.path + '/'
+    # copy over .project
+    os.system(cmd)
+    project_in = open('../etc/templates/application/.project', 'r')
+    data_in = project_in.read()
+    project_in.close()
+    data_out = data_in.split('##NAME##')
+    project_out = open(options.path + '/.project', 'w')
+    project_out.write(data_out[0] + os.path.basename(options.path) + data_out[1])
+    project_out.close()
+    #copy over .cproject
+    os.system(cmd)
+    project_in = open('../etc/templates/application/.cproject', 'r')
+    data_in = project_in.read()
+    project_in.close()
+    data_out = data_in.split('##NAME##')
+    project_out = open(options.path + '/.cproject', 'w')
+    project_out.write(data_out[0] + os.path.basename(options.path) +
+                      '.null.' + str(int(time.time())) +
+                      data_out[1] + os.path.basename(options.path) +
+                      data_out[2])
+    project_out.close()
 
 # create <basepath>/targets/Makefile
 makefile_in = open('../etc/templates/application/targets/Makefile', 'r')

@@ -84,14 +84,23 @@ int appl_main(int argc, char *argv[])
 #endif
     }
     
+    if (nmranet_if == NULL)
+    {
+        printf("Unable to open NMRAnet Interface.\n");
+        return 0;
+    }
+    
     node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
     nmranet_node_user_description(node, "Test Node");
-    nmranet_node_initialized(node);
 
+    nmranet_event_consumer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
     nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
     nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+    nmranet_event_producer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+
+    nmranet_node_initialized(node);
 #if 1
     uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
     //node_handle_t dst = {0, 0x014};
@@ -101,14 +110,15 @@ int appl_main(int argc, char *argv[])
 #endif
     for (;;)
     {
-    
-        sleep(2);
-        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
-        sleep(2);
-        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-        
+        if (argc < 3)
+        {    
+            sleep(2);
+            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
+            sleep(2);
+            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+        }
         int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
 
         if (result)
