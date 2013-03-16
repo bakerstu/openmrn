@@ -114,9 +114,10 @@ void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const
 
 /** Process an event packet.
  * @param mti Message Type Indicator
+ * @param src source Node ID
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_global(uint16_t mti, const void *data);
+void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *data);
 
 /** Process an event packet.
  * @param mti Message Type Indicator

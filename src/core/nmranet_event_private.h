@@ -40,6 +40,15 @@
 extern "C" {
 #endif
 
+/** Event structure as stored in the event Queue
+ */
+typedef struct
+{
+    uint64_t data;     /**< event payload */
+    node_handle_t src; /**< event source node */
+} Event;
+
+
 #ifdef __cplusplus
 }
 #endif

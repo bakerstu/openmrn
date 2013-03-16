@@ -284,6 +284,8 @@ typedef struct nmranet_if
     const char *name; /**< name of interface */
     /** method for putting data onto interface */
     int (*write)(struct nmranet_if *nmranet_if, uint16_t mti, node_id_t src, node_handle_t dst, const void *data);
+    /** Reentrant method to lookup a 48-bit Node ID from a given alias */
+    node_id_t (*lookup_id)(struct nmranet_if *, node_id_t, node_alias_t);
     void *priv; /**< private data for upper layer use */
 } NMRAnetIF;
 

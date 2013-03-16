@@ -106,6 +106,13 @@ void nmranet_node_initialized(node_t node);
  */
 node_id_t nmranet_node_id(node_t node);
 
+/** Get the 48-bit Node ID from a handle.
+ * @param node node to get a the Node ID for
+ * @param h handle to grab node_id from
+ * @return 48-bit NMRAnet Node ID, 0 if not found.
+ */
+node_id_t nmranet_node_id_from_handle(node_t node, node_handle_t h);
+
 /** Lookup the private data pointer for a given handle.
  * @param node node to get a the Node ID from
  * @return if it exists, handle to the node id, else NULL

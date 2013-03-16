@@ -103,7 +103,6 @@ node_t nmranet_node_create(node_id_t node_id, NMRAnetIF *nmranet_if, const char*
         id_node->priv->userDescription = NULL;
         id_node->priv->txDatagram = NULL;
         id_node->priv->datagramTimer = os_timer_create(nmranet_datagram_timeout, id_node, NULL);
-        
         RB_INSERT(id_tree, &idHead, id_node);
     }
     os_mutex_unlock(&nodeMutex);
@@ -196,6 +195,29 @@ node_id_t nmranet_node_id(node_t node)
     struct id_node *n = (struct id_node*)node;
     
     return n->id;
+}
+
+/** Get the 48-bit Node ID from a handle.
+ * @param node node to get a the Node ID for
+ * @param h handle to grab node_id from
+ * @return 48-bit NMRAnet Node ID, 0 if not found.
+ */
+node_id_t nmranet_node_id_from_handle(node_t node, node_handle_t h)
+{
+    struct id_node *n = (struct id_node*)node;
+
+    if (h.id)
+    {
+        return h.id;
+    }
+    else if (h.alias)
+    {
+        if (n->priv->nmranetIF->lookup_id)
+        {
+            return n->priv->nmranetIF->lookup_id(n->priv->nmranetIF, n->id, h.alias);
+        }
+    }
+    return 0;
 }
 
 /** Lookup the private data pointer for a given handle.
@@ -465,7 +487,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
             case MTI_EVENTS_IDENTIFY_GLOBAL:
                     /* fall through */
             case MTI_EVENT_REPORT:
-                nmranet_event_packet_global(mti, data);
+                nmranet_event_packet_global(mti, src, data);
                 break;
             default:
                 /* global message, deliver all, non-subscribe */

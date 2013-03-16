@@ -125,9 +125,16 @@ int appl_main(int argc, char *argv[])
         {
             for (size_t i = nmranet_event_pending(node); i > 0; i--)
             {
-                uint64_t event = nmranet_event_consume(node);
+                node_handle_t node_handle;
+                uint64_t event = nmranet_event_consume(node, &node_handle);
 #if !defined (__FreeRTOS__)
-                printf("we got event: 0x%016" PRIx64 "\n", event);
+                node_id_t id = nmranet_node_id_from_handle(node, node_handle);
+                printf("we got event 0x%016" PRIx64 " from "
+                       "%02" PRIx64 ".%02" PRIx64 ".%02" PRIx64 "."
+                       "%02" PRIx64 ".%02" PRIx64 ".%02" PRIx64 "\n",
+                       event,
+                       (id >> 40) & 0xff, (id >> 32) & 0xff, (id >> 24) & 0xff,
+                       (id >> 16) & 0xff, (id >>  8) & 0xff, (id >>  0) & 0xff);
 #else
                 event = event ? 1 : 0; /* suppress compiler warning, unused variable */
 #endif

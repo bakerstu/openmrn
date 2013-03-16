@@ -75,9 +75,11 @@ void nmranet_event_producer(node_t node, uint64_t event, unsigned int state);
 
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
+ * @param src pointer to grab the source ID of the event.  May be NULL, in
+ *            which case it is ignored.
  * @return 0 if the queue is empty, else return the event number
  */
-uint64_t nmranet_event_consume(node_t node);
+uint64_t nmranet_event_consume(node_t node, node_handle_t *src);
 
 /** Produce an event from.
  * @param node node to produce event from

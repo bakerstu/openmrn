@@ -44,10 +44,16 @@
 #include "nmranet_can.h"
 #include "nmranet_config.h"
 
+static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_handle_t dst, const void *data);
+
 /** This is how long we should buffer a write pending a Node ID to alias mapping
  * request.
  */
 #define WRITE_BUFFER_TIMEOUT 3000000000LL
+
+/** This is how long we should wait for a Node ID lookup from an alias.
+ */
+#define LOOKUP_ID_TIMEOUT 3000000000LL
 
 /** Status values for an alias.
  */
@@ -66,9 +72,10 @@ typedef struct alias_metadata
     os_timer_t timer; /**< timer used for establishing the connection */
     AliasStatus status; /**< status of node */
     node_alias_t alias; /**< alias */
-    //void *datagramBuffer; /**< buffer for holding datagrams */
 } AliasMetadata;
 
+/** Structure for buffering an addressed write until we can lookup its alias.
+ */
 typedef struct write_buffer
 {
     uint16_t mti; /**< MTI value, 0 if buffer not in use */
@@ -77,6 +84,17 @@ typedef struct write_buffer
     const void *data; /**< message data */
     os_timer_t timer; /**< timeout on error */
 } WriteBuffer;
+
+/** Structure for looking up a node's ID based on its alias.
+ */
+typedef struct lookup_id
+{
+    os_mutex_t mutex; /**< mutual exclusion for looking up a Node ID */
+    os_sem_t sem; /**< semaphore to pop when we have our answer */
+    os_timer_t timer; /**< timeout on error */   
+    node_id_t id; /**< id that was last looked up by alias */
+    node_alias_t alias; /**< alias that is actively being looked up */
+} LookupID;
 
 struct datagram_node
 {
@@ -110,6 +128,7 @@ typedef struct nmranet_can_if
 {
     NMRAnetIF nmranetIF; /**< generic NMRAnet interface info */
     WriteBuffer writeBuffer; /**< this buffer is used to wait on an Node ID to alias mapping */
+    LookupID lookup_id; /**< this is used to lookup a 48-bit node ID based on a given alias */
     struct datagram_tree datagramHead; /**< tree for keeping track of receive datagrams */
     node_id_t id; /**< node id of interface */
     alias_cache_t aliasCache; /**< list of downstream aliases */
@@ -185,6 +204,71 @@ static void write_buffer_setup(NMRAnetCanIF *can_if, uint16_t mti, node_id_t src
     can_if->writeBuffer.data = data;
     
     os_timer_start(can_if->writeBuffer.timer, WRITE_BUFFER_TIMEOUT);
+}
+
+/** This is the timeout for giving up on a Node ID lookup from an alias.
+ * mapping request.
+ * @param data1 a @ref NMRAnetCanIF typecast to a void*
+ * @param data2 a unused
+ * @return OS_TIMER_NONE
+ */
+long long lookup_id_timeout(void *data1, void *data2)
+{
+    NMRAnetCanIF *can_if = data1;
+
+    /** @todo currently we fail silently, should we throw an error? */
+    os_mutex_lock(&can_if->aliasMutex);
+    if (can_if->lookup_id.alias != 0)
+    {
+        can_if->lookup_id.id = 0;
+        can_if->lookup_id.alias = 0;
+        os_sem_post(&can_if->lookup_id.sem);
+    }
+    os_mutex_unlock(&can_if->aliasMutex);
+    return OS_TIMER_NONE;
+}
+
+/** Lookup a 48-bit Node ID from a given alias.
+ * @param nmranet_if interface to perform the lookup on
+ * @param alias alias to lookup
+ * @return 48-bit Node ID that maps to the alias
+ */
+static node_id_t lookup_id(NMRAnetIF *nmranet_if, node_id_t src, node_alias_t alias)
+{
+    NMRAnetCanIF *can_if = (NMRAnetCanIF*)nmranet_if;
+    node_id_t id;
+
+    os_mutex_lock(&can_if->lookup_id.mutex);
+    os_mutex_lock(&can_if->aliasMutex);
+    id = nmranet_alias_lookup_id(can_if->aliasCache, alias);
+    if (id == 0)
+    {
+        id = nmranet_alias_lookup_id(can_if->upstreamCache, alias);
+        if (id == 0)
+        {
+            can_if->lookup_id.id = 0;
+            can_if->lookup_id.alias = alias;
+            os_mutex_unlock(&can_if->aliasMutex);
+
+            node_handle_t dst = {0, alias};
+            can_write(nmranet_if, MTI_VERIFY_NODE_ID_ADDRESSED, src, dst, NULL);
+            os_timer_start(can_if->lookup_id.timer, LOOKUP_ID_TIMEOUT);
+            os_sem_wait(&can_if->lookup_id.sem);
+
+            id = can_if->lookup_id.id;
+        }
+        else
+        {
+            os_mutex_unlock(&can_if->aliasMutex);
+        }
+    }
+    else
+    {
+        os_mutex_unlock(&can_if->aliasMutex);
+    }
+    os_mutex_unlock(&can_if->lookup_id.mutex);
+
+    return id;
 }
 
 /** This is the timeout for claiming an alias.  At this point, the alias will
@@ -627,6 +711,7 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
         /* global message */
         if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
         {
+            int mapped = 0;
             node_id_t node_id;
             node_id = data[5];
             node_id |= (node_id_t)data[4] << 8;
@@ -635,20 +720,28 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
             node_id |= (node_id_t)data[1] << 32;
             node_id |= (node_id_t)data[0] << 40;
             
-            if (src.id && src.id != node_id)
+            os_mutex_lock(&can_if->aliasMutex);
+            if (src.id)
             {
-                /* Looks like we have an existing mapping conflict.  Lets
-                 * remove existing mapping.
-                 */
-                nmranet_alias_remove(can_if->aliasCache, src.alias);
+                if (src.id != node_id)
+                {
+                    /* Looks like we have an existing mapping conflict.
+                     * Lets remove existing mapping.
+                     */
+                    nmranet_alias_remove(can_if->aliasCache, src.alias);
+                }
+                else
+                {
+                    mapped = 1;
+                }
             }
             /* Normally, with a buffered write, we are looking for a CCR AMD
              * frame.  However, this message has what we need, so if we get it
              * first, let's go ahead and use it.
              */
-            os_mutex_lock(&can_if->aliasMutex);
             if (write_buffer_in_use(can_if))
             {
+                /* we have buffered a write for this node */
                 if (node_id == write_buffer_dst_id(can_if))
                 {
                     can_if->writeBuffer.dst.alias = src.alias;
@@ -657,13 +750,14 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
                                             can_if->writeBuffer.src,
                                             can_if->writeBuffer.dst,
                                             can_if->writeBuffer.data);
-                    if (src.id && src.id != node_id)
+                    if (mapped == 0)
                     {
                         /* We obviously use this alias, so let's cache it
                          * for later use.
                          */
                         nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
                         write_buffer_release(can_if);
+                        mapped = 1;
                     }
                 }
             }
@@ -671,6 +765,25 @@ static void type_global_addressed(NMRAnetCanIF *can_if, uint32_t can_id, uint8_t
             {
                 /* we already had this mapping, we need to replace it */
                 nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
+            }
+            if (can_if->lookup_id.alias == src.alias)
+            {
+                /* we are performing a Node ID lookup based on an alias 
+                 * and we found a match
+                 */
+                can_if->lookup_id.id = node_id;
+                can_if->lookup_id.alias = 0;
+                os_timer_stop(&can_if->lookup_id.timer);
+                os_sem_post(&can_if->lookup_id.sem);
+                if (mapped == 0)
+                {
+                    /* We obviously use this alias, so let's cache it
+                     * for later use.
+                     */
+                    nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
+                    write_buffer_release(can_if);
+                    mapped = 1;
+                }
             }
             os_mutex_unlock(&can_if->aliasMutex);
             /* update the source Node ID */
@@ -1209,6 +1322,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     os_thread_t thread_handle;
     
     can_if->nmranetIF.write = can_write;
+    can_if->nmranetIF.lookup_id = lookup_id;
     can_if->read = if_read;
     can_if->write = if_write;
     can_if->fd = fd;
@@ -1216,6 +1330,11 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     can_if->pool = malloc(sizeof(AliasMetadata)*ALIAS_POOL_SIZE);
     can_if->writeBuffer.mti = 0;
     can_if->writeBuffer.timer = os_timer_create(write_buffer_timeout, can_if, NULL);
+    can_if->lookup_id.id = 0;
+    can_if->lookup_id.alias = 0;
+    can_if->lookup_id.timer = os_timer_create(lookup_id_timeout, can_if, NULL);
+    os_mutex_init(&can_if->lookup_id.mutex);
+    os_sem_init(&can_if->lookup_id.sem, 0);
     RB_INIT(&can_if->datagramHead);
 
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; i++)

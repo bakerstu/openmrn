@@ -36,7 +36,7 @@
 #include <string.h>
 #include <endian.h>
 #include <sys/tree.h>
-#include "core/nmranet_event.h"
+#include "core/nmranet_event_private.h"
 #include "core/nmranet_node_private.h"
 #include "core/nmranet_buf.h"
 #include "os/os.h"
@@ -319,22 +319,24 @@ void nmranet_event_produce(node_t node, uint64_t event, unsigned int state)
 
 /** Post the reception of an event to given node.
  * @param node to post event to
+ * @param src source node of the event
  * @param event event number to post
  */
-static void event_post(node_t node, uint64_t event)
+static void event_post(node_t node, node_handle_t src, uint64_t event)
 {
     struct id_node *n = (struct id_node*)node;
     
     os_mutex_lock(&nodeMutex);
 
-    uint64_t *buffer = nmranet_buffer_alloc(sizeof(uint64_t));
+    Event *buffer = nmranet_buffer_alloc(sizeof(Event));
     if (buffer == NULL)
     {
         /** @todo increment statistics counter here */
         return;
     }
-    *buffer = event;
-    nmranet_buffer_advance(buffer, sizeof(uint64_t));
+    buffer->data = event;
+    buffer->src = src;
+    nmranet_buffer_advance(buffer, sizeof(Event));
     nmranet_queue_insert(n->priv->eventQueue, buffer);
 
     if (n->priv->wait != NULL)
@@ -472,9 +474,10 @@ void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
 
 /** Process an event packet.
  * @param mti Message Type Indicator
+ * @param src source Node ID
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_global(uint16_t mti, const void *data)
+void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *data)
 {
     switch (mti)
     {
@@ -502,7 +505,7 @@ void nmranet_event_packet_global(uint16_t mti, const void *data)
                      current != NULL;
                      current = current->next)
                 {
-                    event_post(current->node, event);
+                    event_post(current->node, src, event);
                 }
             }
             break;
@@ -545,56 +548,26 @@ void nmranet_event_packet_global(uint16_t mti, const void *data)
     }
 }
 
-/** Process an event packet.
- * @param mti Message Type Indicator
- * @param src source node ID, 0 if unavailable
- * @param dst destination node ID, 0 if unavailable
- * @param data NMRAnet packet data
- * @return 0 upon success
- */
-int nmranet_event_packet(uint16_t mti, node_handle_t src, node_id_t dst, const void *data)
-{
-    struct event_node *event_node;
-    struct event_node  event_lookup;
-    
-    uint64_t event;
-    memcpy(&event, data, sizeof(uint64_t));
-    
-    event = be64toh(event);
-    event_lookup.event = event;
-
-    os_mutex_lock(&mutex);
-    event_node = RB_FIND(event_tree, &eventHead, &event_lookup);
-    if (event_node)
-    {
-        for (EventPriv *current = event_node->priv;
-             current != NULL;
-             current = current->next)
-        {
-            event_post(current->node, event);
-        }
-        os_mutex_unlock(&mutex);
-        return 0;
-    }
-    os_mutex_unlock(&mutex);
-    
-    return 1;
-}
-
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
+ * @param src pointer to grab the source ID of the event.  May be NULL, in
+ *            which case it is ignored.
  * @return 0 if the queue is empty, else return the event number
  */
-uint64_t nmranet_event_consume(node_t node)
+uint64_t nmranet_event_consume(node_t node, node_handle_t *src)
 {
     struct id_node *n = (struct id_node*)node;
 
     os_mutex_lock(&nodeMutex);
-    uint64_t *event = nmranet_queue_next(n->priv->eventQueue);
+    Event *event = nmranet_queue_next(n->priv->eventQueue);
     if (event != NULL)
     {
         os_mutex_unlock(&nodeMutex);
-        uint64_t result = *event;
+        uint64_t result = event->data;
+        if (src)
+        {
+            *src = event->src;
+        }
         nmranet_buffer_free(event);
         return result;
     }
