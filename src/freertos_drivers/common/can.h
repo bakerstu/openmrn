@@ -38,6 +38,10 @@
 #include "os/os.h"
 #include "nmranet_can.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Number of receive CAN messages that are buffered in the CAN driver.
  */
 extern const size_t CAN_RX_BUFFER_SIZE;
@@ -64,10 +68,14 @@ extern devops_t can_ops;
 #define CAN_DEVTAB_ENTRY(_label, _name, _init, _priv) \
     DEVTAB_ENTRY(_label, _name, _init, &can_ops, _priv)
 
-/** intitailize the device 
- * @parem dev device to initialize
+/** initialize the device
+ * @param dev device to initialize
  * @return 0 upon success
  */
 int can_init(devtab_t *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _can_h_ */
