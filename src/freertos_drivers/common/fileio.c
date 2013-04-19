@@ -102,12 +102,14 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
         errno = EMFILE;
         return -1;
     }
+    // Sets the dev to a safe default in case we don't find the file later.
+    files[fd].dev = &nullDevice;
+    files[fd].flags = flags;
     for (devtab_t *dev = &DEVTAB[0]; dev != &DEVTAB_END; dev++)
     {
         if (!strcmp(dev->name, path))
         {
             files[fd].dev = dev;
-            files[fd].flags = flags;
             int result = dev->devops->open(&files[fd], path, flags, mode);
             if (result < 0)
             {
@@ -118,7 +120,7 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
             return fd;
         }
     }
-    
+    // NOTE(balazs.racz): we leak the fd here.
     errno = ENODEV;
     return -1;
 }
@@ -350,4 +352,3 @@ __asm__(".section \".device.table." __xstring(devtab) ".finish\",\"aw\"\n"
         ".p2align " __xstring(3) "\n"
         __xstring(DEVTAB_END) ":\n"
         ".previous\n");
-
