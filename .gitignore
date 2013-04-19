@@ -16,4 +16,7 @@
 *~
 *.tag
 *.ods#
-
+# generated code by doxgen
+doc/html/*
+doc/latex/*
+doc/warnings
