@@ -1436,7 +1436,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     os_mutex_unlock(&can_if->aliasMutex);
 
     /* start the thread that will process received packets */
-    os_thread_create(&thread_handle, device, 0, 2048, read_thread, &can_if->nmranetIF);
+    os_thread_create(&thread_handle, device, 0, 1024, read_thread, &can_if->nmranetIF);
 
     return &can_if->nmranetIF;
 }

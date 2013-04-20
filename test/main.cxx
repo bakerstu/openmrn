@@ -48,7 +48,7 @@
 const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
-const size_t main_stack_size = 4096;
+const size_t main_stack_size = 2560;
 const int main_priority = 0;
 const size_t ALIAS_POOL_SIZE = 2;
 const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;

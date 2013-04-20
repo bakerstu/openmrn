@@ -82,7 +82,7 @@ static void datagram_init(void)
     pending = nmranet_queue_create();
     os_sem_init(&sem, 0);
 
-    os_thread_create( &thread_handle, "dgram", 0, 2048, datagram_thread, NULL);
+    os_thread_create( &thread_handle, "dgram", 0, 512, datagram_thread, NULL);
 }
 
 /** Allocate a datagram from the pool.
