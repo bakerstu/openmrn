@@ -336,8 +336,6 @@ int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, 
         return -1;
     }
 
-    os_thread_once(&datagramOnce, datagram_init);
-    return 0;
     /* timestamp the entry to this function */
     Datagram *datagram = nmranet_datagram_buffer_get(protocol, size, timeout);
     
