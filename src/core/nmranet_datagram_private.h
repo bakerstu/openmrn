@@ -113,6 +113,7 @@ extern "C" {
 /** Datagram information. */
 typedef struct datagram
 {
+    node_t to; /**< the node that the datagram is to, only used in automatic processing */
     node_handle_t from; /**< node id or alias this datagram is from */
     size_t size; /**< size of datagram in bytes */
     uint8_t data[DATAGRAM_MAX_SIZE]; /**< datagram payload */

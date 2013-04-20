@@ -378,11 +378,9 @@ static void *timer_thread(void* arg)
                 /* remove timer from head of list */
                 Timer *t = active;
                 active = t->next;
-                os_mutex_unlock(&timerMutex);
 
                 long long next_period = (*t->callback)(t->data1, t->data2);
 
-                os_mutex_lock(&timerMutex);
                 switch (next_period)
                 {
                     case OS_TIMER_NONE:
@@ -393,6 +391,9 @@ static void *timer_thread(void* arg)
                     case OS_TIMER_RESTART:
                         t->when += t->period;
                         insert_timer(t);
+                        break;
+                    case OS_TIMER_DELETE:
+                        os_timer_delete(t);
                         break;
                 }
                 os_mutex_unlock(&timerMutex);

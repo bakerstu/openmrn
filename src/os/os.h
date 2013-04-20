@@ -103,7 +103,7 @@ typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
 typedef void *os_timer_t; /**< timer handle */
 typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
-/** Some Operating Systems do not support timeouts with semaphroes */
+/** Some Operating Systems do not support timeouts with semaphores */
 typedef struct
 {
     pthread_cond_t cond;
@@ -172,6 +172,7 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 #define OS_TIMER_NONE 0LL /**< do not restart a timer */
 #define OS_TIMER_RESTART 1LL /**< restart a timer with the last period */
+#define OS_TIMER_DELETE -1LL /**< delete the timer */
 #if defined LLONG_MAX
 #define OS_WAIT_FOREVER LLONG_MAX /**< maximum timeout period */
 #else
@@ -421,7 +422,7 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 {
 #if defined (__FreeRTOS__)
 #if defined (GCC_ARMCM3)
-    *sem = xSemaphoreCreateCounting(value, LONG_MAX);
+    *sem = xSemaphoreCreateCounting(LONG_MAX, value);
 #else
     #error
 #endif
@@ -441,7 +442,7 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 static inline int os_sem_post(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
-    xSemaphoreGive(sem);
+    xSemaphoreGive(*sem);
     return 0;
 #else
     pthread_mutex_lock(&sem->mutex);
@@ -459,7 +460,7 @@ static inline int os_sem_post(os_sem_t *sem)
 static inline int os_sem_wait(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
-    xSemaphoreTake(sem, portMAX_DELAY);
+    xSemaphoreTake(*sem, portMAX_DELAY);
     return 0;
 #else
     pthread_mutex_lock(&sem->mutex);
@@ -485,7 +486,7 @@ static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
         return os_sem_wait(sem);
     }
 #if defined (__FreeRTOS__)
-    if (xSemaphoreTake(sem, portTICK_RATE_MS * (timeout / 1000000LL)) == pdTRUE)
+    if (xSemaphoreTake(*sem, portTICK_RATE_MS * (timeout / 1000000LL)) == pdTRUE)
     {
         return 0;
     }

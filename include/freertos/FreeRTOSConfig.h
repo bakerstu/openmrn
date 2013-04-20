@@ -119,7 +119,7 @@ to exclude the API function. */
 #define INCLUDE_uxTaskPriorityGet       0
 #define INCLUDE_vTaskDelete             0
 #define INCLUDE_vTaskCleanUpResources   0
-#define INCLUDE_vTaskSuspend            0
+#define INCLUDE_vTaskSuspend            1
 #define INCLUDE_vTaskDelayUntil         1
 #define INCLUDE_vTaskDelay              1
 #define INCLUDE_xTaskGetIdleTaskHandle   1

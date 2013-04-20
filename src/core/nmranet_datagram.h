@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 #include "nmranet_types.h"
+#include "nmranet_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,13 +91,38 @@ uint64_t nmranet_datagram_protocol(datagram_t datagram);
  */
 uint8_t *nmranet_datagram_payload(datagram_t datagram);
 
+/** Allocate and prepare a datagram buffer.
+ * @param protocol datagram protocol to use
+ * @param size max length of data in bytes
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @return datagram handle upon success, else NULL on error with errno set
+ */
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout);
+
+/** Allocate and prepare a datagram buffer.
+ * @param protocol datagram protocol to use
+ * @param data datagram to fill into datagram
+ * @param offset offset within datagram payload to start filling
+ * @param size length of data in bytes to fill
+ */
+void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const void *data, size_t offset, size_t size);
+
+/** Produce a Datagram from a given node.
+ * @param node node to produce datagram from
+ * @param dst destination node id or alias
+ * @param datagram datagram to produce
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @return 0 upon success, else -1 on error with errno set
+ */
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout);
+
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from
  * @param dst destination node id or alias
  * @param protocol datagram protocol to use
  * @param data datagram to produce
  * @param size length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, LLONG_MAX = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
 int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout);
