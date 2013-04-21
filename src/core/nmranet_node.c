@@ -258,6 +258,7 @@ int nmranet_node_wait(node_t node, long long timeout)
         
         os_mutex_lock(&nodeMutex);
         n->priv->wait = NULL;
+        os_sem_destroy(&sem);
     }
 
     /* check for number of pending messages */

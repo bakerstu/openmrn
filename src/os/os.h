@@ -435,6 +435,26 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 #endif
 }
 
+/** Destroy a semaphore.
+ * @param sem address of semaphore to destroy
+ * @return 0 upon success
+ */
+static inline int os_sem_destroy(os_sem_t *sem)
+{
+#if defined (__FreeRTOS__)
+#if defined (GCC_ARMCM3)
+    vSemaphoreDelete(*sem);
+#else
+    #error
+#endif
+    return 0;
+#else
+    pthread_cond_destroy(&sem->cond);
+    pthread_mutex_destroy(&sem->mutex);
+    return 0;
+#endif
+}
+
 /** Post a semaphore.
  * @param sem address of semaphore to increment
  * @return 0 upon success
