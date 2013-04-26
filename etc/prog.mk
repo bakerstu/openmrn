@@ -75,7 +75,7 @@ clean:
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)
 	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION)
 
-verclean: clean
+veryclean: clean
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) veryclean || exit 1;)
 
 endif
