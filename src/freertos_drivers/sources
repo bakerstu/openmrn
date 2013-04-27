@@ -1,15 +1,22 @@
 VPATH := $(SRCDIR): \
          $(SRCDIR)/common \
-         $(SRCDIR)/stellarisware
          
 CSRCS += fileio.c \
          can.c \
-         serial.c \
-         stellaris_can.c \
-         stellaris_uart.c \
-         stellaris_usb_cdc_device.c
+         serial.c
 
 CXXSRCS +=
 
 # Find StellarisWare
 include $(OPENMRNPATH)/etc/stellarisware.mk
+
+ifneq ($(STELLARISWAREPATH),STELLARISWAREPATH not found)
+CSRCS += stellaris_can.c \
+         stellaris_uart.c \
+         stellaris_usb_cdc_device.c
+
+VPATH += $(SRCDIR)/stellarisware
+
+endif
+
+
