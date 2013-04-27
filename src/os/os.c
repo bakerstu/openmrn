@@ -540,6 +540,34 @@ void os_timer_stop(os_timer_t timer)
 #endif
 }
 
+#if defined (__FreeRTOS__)
+#if defined (TARGET_LPC2368)
+extern const char __ETHRAM_segment_start__;
+static const char* sstack_start = &__ETHRAM_segment_start__;
+extern const char __stacks_min__;
+
+/** Custom malloc function for stack spaces.
+ *  \param length the length of block to allocate
+ *  \returns a pointer to the newly allocated block.
+ *
+ *  There is currently no way to free blocks allocated with this function, so
+ *  only suitable for stacks of threads that are running throughout the entire
+ *  life of the application.
+ */
+const void* stack_malloc(unsigned long length) {
+  const char* old_stack_start = sstack_start;
+  const char* new_stack_start = sstack_start + length;
+  if (new_stack_start > &__stacks_min__) {
+    diewith(BLINK_DIE_OUTOFMEMSTACK);
+  }
+  sstack_start = new_stack_start;
+  return old_stack_start;
+}
+#else
+#define stack_malloc malloc
+#endif
+#endif  // FreeRTOS
+
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -598,25 +626,32 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 
     if (thread)
     {
-        xTaskCreate(os_thread_start,
-                    (const signed char *const)name,
-                    stack_size/sizeof(portSTACK_TYPE),
-                    priv,
-                    priority,
-                    (xTaskHandle*)thread);
+        xTaskGenericCreate(os_thread_start,
+                           (const signed char *const)name,
+                           stack_size/sizeof(portSTACK_TYPE),
+                           priv,
+                           priority,
+                           (xTaskHandle*)thread,
+                           (long unsigned int*)stack_malloc(stack_size),
+                           NULL);
         task_new->task = *thread;
+        task_new->name = (char*)pcTaskGetTaskName(*thread);
     }
     else
     {
         xTaskHandle task_handle;
-        xTaskCreate(os_thread_start,
-                    (const signed char *const)name,
-                    stack_size/sizeof(portSTACK_TYPE),
-                    priv,
-                    priority,
-                    (xTaskHandle*)&task_handle);
+        xTaskGenericCreate(os_thread_start,
+                           (const signed char *const)name,
+                           stack_size/sizeof(portSTACK_TYPE),
+                           priv,
+                           priority,
+                           (xTaskHandle*)&task_handle,
+                           (long unsigned int*) stack_malloc(stack_size),
+                           NULL);
         task_new->task = task_handle;
+        task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
+
     return 0;
 #else
     pthread_attr_t attr;
@@ -822,15 +857,18 @@ int main(int argc, char *argv[])
     open("/dev/ser0", O_WRONLY); /* stderr */
 
     /* start the main thread */
-    xTaskCreate(main_thread,
-                (signed char *)"thread.main",
-                main_stack_size/sizeof(portSTACK_TYPE),
-                priv,
-                priority,
-                &task_handle);
-    
+    xTaskGenericCreate(main_thread,
+                       (signed char *)"thread.main",
+                       main_stack_size/sizeof(portSTACK_TYPE),
+                       priv,
+                       priority,
+                       &task_handle,
+                       (long unsigned int*)stack_malloc(main_stack_size),
+                       NULL
+                       );
     taskList.task = task_handle;
-    taskList.unused = main_stack_size;    
+    taskList.unused = main_stack_size;
+    taskList.name = "thread.main";
 
     vTaskStartScheduler();
 #else
