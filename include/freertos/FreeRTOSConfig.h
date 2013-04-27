@@ -139,7 +139,7 @@ typedef struct task_switched_in
 #define traceTASK_SWITCHED_IN()                                           \
 {                                                                         \
     TaskSwitchedIn *task_switched_in;                                      \
-    task_switched_in = (TaskSwitchedIn*)xTaskGetApplicationTaskTag(NULL); \
+    task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
     _impure_ptr = task_switched_in->reent;                                \
 }
 
