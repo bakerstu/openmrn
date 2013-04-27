@@ -27,6 +27,7 @@ OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
 
 CFLAGS += $(INCLUDES)
+CXXFLAGS += $(INCLUDES)
 
 ifeq ($(TOOLPATH),)
 all docs clean veryclean:
