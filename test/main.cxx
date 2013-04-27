@@ -59,6 +59,35 @@ const size_t CAN_TX_BUFFER_SIZE = 32;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
 
+
+#ifdef TARGET_LPC2368
+extern "C" {
+void resetblink(uint32_t pattern);
+void diewith(uint32_t pattern);
+}
+#else
+#define resetblink( x )
+#endif
+
+node_t node;
+
+void* out_blinker_thread(void*)
+{
+    resetblink(0);
+    while (1)
+	{
+	    usleep(200000);
+	    resetblink(1);
+	    nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+	    nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
+	    usleep(200000);
+	    resetblink(0);
+	    nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+	    nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+	}
+    return NULL;
+}
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -66,18 +95,23 @@ const size_t SERIAL_TX_BUFFER_SIZE = 16;
  */
 int appl_main(int argc, char *argv[])
 {
+#ifndef TARGET_LPC2368
     printf("hello world\n");
+#endif
 
-    NMRAnetIF *nmranet_if;
+    NMRAnetIF *nmranet_if = NULL;
 
     if (argc >= 2)
     {
+#ifndef TARGET_LPC2368
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
+#endif
     }
     else
     {
-#if defined (__FreeRTOS__)
-
+#if defined (TARGET_LPC2368)
+        nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can1", read, write);
+#elif defined (__FreeRTOS__)
         nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
 #else
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, "/dev/ttyUSB1");
@@ -86,21 +120,31 @@ int appl_main(int argc, char *argv[])
     
     if (nmranet_if == NULL)
     {
+#if defined (TARGET_LPC2368)
+	diewith(0x8002CCCA);  // 3-3-1
+#else
         printf("Unable to open NMRAnet Interface.\n");
+#endif
         return 0;
     }
     
-    node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
+    node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
     nmranet_node_user_description(node, "Test Node");
 
     nmranet_event_consumer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
     nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
     nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+    nmranet_event_consumer(node, 0x05020102a8650013ULL, EVENT_STATE_INVALID);
+    nmranet_event_consumer(node, 0x05020102a8650012ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
     nmranet_event_producer(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
 
     nmranet_node_initialized(node);
+    os_thread_t blinker_thread_handle;
+    os_thread_create(&blinker_thread_handle, "out_blinker", 0, 4096,
+                     out_blinker_thread, NULL);
+
 #if 1
     uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
     //node_handle_t dst = {0, 0x014};
@@ -110,17 +154,7 @@ int appl_main(int argc, char *argv[])
 #endif
     for (;;)
     {
-        if (argc < 3)
-        {    
-            sleep(2);
-            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
-            sleep(2);
-            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-        }
-        int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
-
+        int result = nmranet_node_wait(node, MSEC_TO_NSEC(1000));
         if (result)
         {
             for (size_t i = nmranet_event_pending(node); i > 0; i--)
@@ -136,14 +170,17 @@ int appl_main(int argc, char *argv[])
                        (id >> 40) & 0xff, (id >> 32) & 0xff, (id >> 24) & 0xff,
                        (id >> 16) & 0xff, (id >>  8) & 0xff, (id >>  0) & 0xff);
 #else
-                event = event ? 1 : 0; /* suppress compiler warning, unused variable */
+		if ((event & 0xff000000) == 0xa8000000ULL)
+		{
+		    resetblink(event & 1);
+		}
 #endif
             }
             for (size_t i = nmranet_datagram_pending(node); i > 0; i--)
             {
                 datagram_t datagram = nmranet_datagram_consume(node);
                 nmranet_datagram_release(datagram);
-            }            
+            }
         }
     }
 

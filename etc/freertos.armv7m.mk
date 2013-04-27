@@ -25,7 +25,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-ARCHOPTIMIZATION =
+ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c -g -MD -MP \

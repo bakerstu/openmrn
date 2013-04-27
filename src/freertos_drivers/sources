@@ -20,3 +20,10 @@ VPATH += $(SRCDIR)/stellarisware
 endif
 
 
+ifdef HAVE_MBED
+
+CPPSRCS += mbed_can.cpp
+
+VPATH += $(SRCDIR)/nxp
+
+endif

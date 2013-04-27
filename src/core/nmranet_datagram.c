@@ -585,7 +585,9 @@ void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const
             }
             else
             {
+#ifndef __FreeRTOS__
                 printf("datagram rejected\n");
+#endif
                 os_timer_stop(n->priv->datagramTimer);
                 if (n->priv->txDatagram)
                 {
@@ -651,4 +653,3 @@ size_t nmranet_datagram_pending(node_t node)
 
     return pending; 
 }
-

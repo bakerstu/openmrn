@@ -737,6 +737,9 @@ int usleep(useconds_t usec)
 
 void abort(void)
 {
+#ifdef TARGET_LPC2368
+    blinker_pattern = BLINK_DIE_ABORT;
+#endif
     for (;;)
     {
     }
@@ -756,6 +759,7 @@ caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     if (heap_end + incr > &__cs3_heap_end)
     {
         /* Heap and stack collistion */
+        diewith(BLINK_DIE_OUTOFMEM);
         return 0;
     }
     heap_end += incr;
@@ -768,7 +772,7 @@ caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
  */
 void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
 {
-    abort();
+    diewith(BLINK_DIE_STACKOVERFLOW);
 }
 
 /** Here we will monitor the other tasks.

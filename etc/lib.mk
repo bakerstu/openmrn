@@ -23,9 +23,13 @@ CPPSRCS = $(notdir $(FULLPATHCPPSRCS))
 endif
 endif
 
-OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ARM_CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
 
+ARM_CSRCS ?=
+ARM_OBJS = $(ARM_CSRCS:.c=.o)
+
+ARM_CFLAGS += $(INCLUDES)
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
@@ -54,6 +58,10 @@ all: $(LIBNAME)
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+
+$(ARM_OBJS): %.o : %.c
+	$(CC) $(ARM_CFLAGS) $< -o $@
+	$(CC) -MM $(ARM_CFLAGS) $< > $*.d
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

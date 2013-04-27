@@ -81,13 +81,62 @@
  * See http://www.freertos.org/a00110.html.
  *----------------------------------------------------------*/
 
+#ifdef GCC_ARMCM3
+
+#define configCPU_CLOCK_HZ             ( ( unsigned long ) 20000000 )
+#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 50 )
+#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+
+#define diewith( x ) abort()
+
+#elif defined(TARGET_LPC2368)
+
+#include "lpc23xx.h"
+
+// Assertion facility
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
+#ifdef __cplusplus
+}
+#endif
+#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
+#define BLINK_DIE_OUTOFMEM 0x80002CCA // 3-2-1
+#define BLINK_DIE_ASSERT 0x8000ACCA  // 3-2-2
+#define BLINK_DIE_STACKOVERFLOW 0x8002ACCA  // 3-2-3
+#define BLINK_DIE_OUTOFMEMSTACK 0x800AACCA  // 3-2-4
+#define BLINK_DIE_STACKCOLLIDE 0x802AACCA  // 3-2-5
+
+#define BLINK_DIE_ABORT 0x8000CCCA
+
+/* Value to use on old rev '-' devices. */
+//#define configPINSEL2_VALUE   0x50151105
+
+/* Value to use on rev 'A' and newer devices. */
+#define configPINSEL2_VALUE     0x50150105
+
+#ifndef configPINSEL2_VALUE
+        #error Please uncomment one of the two configPINSEL2_VALUE definitions above, depending on the revision of the LPC2000 device being used.
+#endif
+
+#define configCPU_CLOCK_HZ          ( ( unsigned long ) 48000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
+#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
+#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 18 * 1024 ) )
+
+#else
+
+#error please provide the FreeRTOSConfig.h for your target
+
+#endif // Switch target
+
+
+#define configTICK_RATE_HZ             ( ( portTickType ) 1000 )
 #define configUSE_PREEMPTION           1
 #define configUSE_IDLE_HOOK            1
 #define configUSE_TICK_HOOK            0
-#define configCPU_CLOCK_HZ             ( ( unsigned long ) 20000000 )
-#define configTICK_RATE_HZ             ( ( portTickType ) 1000 )
-#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 50 )
-#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+
 #define configMAX_TASK_NAME_LEN        ( 16 )
 #define configUSE_TRACE_FACILITY       0
 #define configUSE_16_BIT_TICKS         0
@@ -142,5 +191,6 @@ typedef struct task_switched_in
     task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
     _impure_ptr = task_switched_in->reent;                                \
 }
+
 
 #endif /* FREERTOS_CONFIG_H */

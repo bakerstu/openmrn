@@ -73,7 +73,7 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 
 clean:
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)
-	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION)
+	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 veryclean: clean
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) veryclean || exit 1;)
