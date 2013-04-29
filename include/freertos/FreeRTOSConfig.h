@@ -125,6 +125,41 @@ extern unsigned long blinker_pattern;
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 18 * 1024 ) )
 
+
+#elif defined(TARGET_LPC11Cxx)
+
+// Assertion facility
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
+#ifdef __cplusplus
+}
+#endif
+#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
+#define BLINK_DIE_OUTOFMEM 0x80002CCA // 3-2-1
+#define BLINK_DIE_ASSERT 0x8000ACCA  // 3-2-2
+#define BLINK_DIE_STACKOVERFLOW 0x8002ACCA  // 3-2-3
+#define BLINK_DIE_OUTOFMEMSTACK 0x800AACCA  // 3-2-4
+#define BLINK_DIE_STACKCOLLIDE 0x802AACCA  // 3-2-5
+
+#define BLINK_DIE_ABORT 0x8000CCCA
+
+/* Value to use on old rev '-' devices. */
+//#define configPINSEL2_VALUE   0x50151105
+
+/* Value to use on rev 'A' and newer devices. */
+#define configPINSEL2_VALUE     0x50150105
+
+#ifndef configPINSEL2_VALUE
+        #error Please uncomment one of the two configPINSEL2_VALUE definitions above, depending on the revision of the LPC2000 device being used.
+#endif
+
+#define configCPU_CLOCK_HZ          ( ( unsigned long ) 48000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
+#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
+#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 3000 ) )
+
 #else
 
 #error please provide the FreeRTOSConfig.h for your target

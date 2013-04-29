@@ -1,5 +1,5 @@
 VPATH := $(FREERTOSPATH)/Source: \
-         $(FREERTOSPATH)/Source/portable/GCC/ARM_CM3: \
+         $(FREERTOSPATH)/Source/portable/GCC/ARM_CM0: \
          $(FREERTOSPATH)/Source/portable/MemMang/
          
 CSRCS += croutine.c \

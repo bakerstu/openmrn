@@ -95,7 +95,7 @@ void* out_blinker_thread(void*)
  */
 int appl_main(int argc, char *argv[])
 {
-#ifndef TARGET_LPC2368
+#ifndef __FreeRTOS__
     printf("hello world\n");
 #endif
 
@@ -103,7 +103,7 @@ int appl_main(int argc, char *argv[])
 
     if (argc >= 2)
     {
-#ifndef TARGET_LPC2368
+#if !defined(TARGET_LPC2368) && !defined(TARGET_LPC11Cxx)
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
 #endif
     }
@@ -120,7 +120,7 @@ int appl_main(int argc, char *argv[])
     
     if (nmranet_if == NULL)
     {
-#if defined (TARGET_LPC2368)
+#if defined (TARGET_LPC2368) || defined(TARGET_LPC11Cxx)
 	diewith(0x8002CCCA);  // 3-3-1
 #else
         printf("Unable to open NMRAnet Interface.\n");
