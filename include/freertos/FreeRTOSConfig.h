@@ -131,7 +131,7 @@ extern unsigned long blinker_pattern;
 
 #elif defined(TARGET_LPC11Cxx)
 
-#define configTIMER_TASK_STACK_DEPTH   256
+#define configTIMER_TASK_STACK_DEPTH   64
 
 // Assertion facility
 #ifdef __cplusplus

@@ -48,14 +48,14 @@
 const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
-const size_t main_stack_size = 2560;
+const size_t main_stack_size = 2000 + 0*2560;
 const int main_priority = 0;
 const size_t ALIAS_POOL_SIZE = 2;
 const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
 const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
-const size_t DATAGRAM_POOL_SIZE = 10;
+const size_t DATAGRAM_POOL_SIZE = 2;
 const size_t CAN_RX_BUFFER_SIZE = 1;
-const size_t CAN_TX_BUFFER_SIZE = 32;
+const size_t CAN_TX_BUFFER_SIZE = 8;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
 
