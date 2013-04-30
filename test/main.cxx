@@ -142,7 +142,7 @@ int appl_main(int argc, char *argv[])
 
     nmranet_node_initialized(node);
     os_thread_t blinker_thread_handle;
-    os_thread_create(&blinker_thread_handle, "out_blinker", 0, 4096,
+    os_thread_create(&blinker_thread_handle, "out_blinker", 0, 512,
                      out_blinker_thread, NULL);
 
 #if 1
