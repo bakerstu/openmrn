@@ -30,7 +30,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 ARCHOPTIMIZATION = 
-ARCHOPTIMIZATION = -Os
+ARCHOPTIMIZATION = -Os -D_REENT_SMALL
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c  -x assembler-with-cpp -D__NEWLIB__ -DDEBUG -D__CODE_RED -g -MD -MP \
