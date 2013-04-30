@@ -148,6 +148,7 @@ SECTIONS
 
     /* .data section -- used for initialized data */
     .data : {
+	FILL(0xff)
         __data_start__ = . ;
         KEEP( *( .jcr ) )
         *( .got.plt ) *( .got )

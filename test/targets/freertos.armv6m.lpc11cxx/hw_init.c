@@ -27,6 +27,19 @@
 // CODE RED TECHNOLOGIES LTD. 
 //
 //*****************************************************************************
+
+#include "LPC11xx.h"
+#include "core_cm0.h"
+#include "FreeRTOSConfig.h"
+
+
+#define BLINK_DIE_UNEXPIRQ 0x800020CA    /* 3-1-1 */
+#define BLINK_DIE_HARDFAULT 0x8000A0CA    /* 3-1-2 */
+#define BLINK_DIE_NMI 0x8002A0CA    /* 3-1-3 */
+#define BLINK_DIE_SVC 0x800AA0CA    /* 3-1-4 */
+#define BLINK_DIE_PENDSV 0x802AA0CA    /* 3-1-5 */
+#define BLINK_DIE_TICK 0x80AAA0CA    /* 3-1-6 */
+
 #if defined (__cplusplus)
 #ifdef __REDLIB__
 #error Redlib does not support C++
@@ -82,7 +95,7 @@ WEAK void IntDefaultHandler(void);
 void CAN_IRQHandler (void) ALIAS(IntDefaultHandler);
 void SSP1_IRQHandler (void) ALIAS(IntDefaultHandler);
 void I2C_IRQHandler (void) ALIAS(IntDefaultHandler);
-void TIMER16_0_IRQHandler (void) ALIAS(IntDefaultHandler);
+void TIMER16_0_IRQHandler (void);
 void TIMER16_1_IRQHandler (void) ALIAS(IntDefaultHandler);
 void TIMER32_0_IRQHandler (void) ALIAS(IntDefaultHandler);
 void TIMER32_1_IRQHandler (void) ALIAS(IntDefaultHandler);
@@ -329,37 +342,28 @@ ResetISR(void) {
 __attribute__ ((section(".after_vectors")))
 void NMI_Handler(void)
 {
-    while(1)
-    {
-    }
+    diewith(BLINK_DIE_NMI);
 }
 __attribute__ ((section(".after_vectors")))
 void HardFault_Handler(void)
 {
-    while(1)
-    {
-    }
+    diewith(BLINK_DIE_HARDFAULT);
+    //setblink(BLINK_DIE_HARDFAULT);
 }
 __attribute__ ((section(".after_vectors")))
 void SVC_Handler(void)
 {
-    while(1)
-    {
-    }
+    diewith(BLINK_DIE_SVC);
 }
 __attribute__ ((section(".after_vectors")))
 void PendSV_Handler(void)
 {
-    while(1)
-    {
-    }
+    diewith(BLINK_DIE_PENDSV);
 }
 __attribute__ ((section(".after_vectors")))
 void SysTick_Handler(void)
 {
-    while(1)
-    {
-    }
+    diewith(BLINK_DIE_TICK);
 }
 
 //*****************************************************************************
@@ -371,13 +375,68 @@ void SysTick_Handler(void)
 __attribute__ ((section(".after_vectors")))
 void IntDefaultHandler(void)
 {
-    while(1)
+    diewith(BLINK_DIE_UNEXPIRQ);
+}
+
+uint32_t blinker_pattern = 0;
+static uint32_t rest_pattern = 0;
+
+
+void TIMER16_0_IRQHandler(void)
+{
+    LPC_GPIO0->MASKED_ACCESS[1<<7] = (rest_pattern & 1) ? (1<<7) : 0;
+    rest_pattern >>= 1;
+    if (!rest_pattern) rest_pattern = blinker_pattern;
+
+    LPC_TMR16B0->IR = 1;  // Resets interrupt.
+    NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
+}
+
+
+void setblink(uint32_t pattern)
+{
+    LPC_SYSCON->SYSAHBCLKCTRL |= (1<<7);
+    blinker_pattern = pattern;
+    rest_pattern = 0;
+    LPC_TMR16B0->TCR = 2;  // stop & reset timer
+    LPC_TMR16B0->CTCR = 0; // timer mode
+    // prescale to 1 ms per tick
+    LPC_TMR16B0->PR = configCPU_CLOCK_HZ / 1000;  // 48000 - fits the 16bit
+    LPC_TMR16B0->MR0 = 125;
+    LPC_TMR16B0->MCR = 3;  // reset and interrupt on match 0
+
+    NVIC_EnableIRQ(TIMER_16_0_IRQn);
+
+    LPC_TMR16B0->TCR = 1;  // Timer go.
+}
+
+void resetblink(uint32_t pattern)
+{
+    blinker_pattern = pattern;
+    rest_pattern = pattern;
+    // Makes a timer event trigger immediately.
+    LPC_TMR16B0->TC = LPC_TMR16B0->MR0 - 2;
+}
+
+void diewith(uint32_t pattern)
+{
+    SysTick->CTRL = 0; // Turns off systick to avoid task switching.
+    setblink(pattern);
+    __enable_irq();
+    for (;;)
     {
     }
 }
 
-extern void abort(void);
+void hw_init(void)
+{
+    /* Enable AHB clock to the GPIO domain. */
+    LPC_SYSCON->SYSAHBCLKCTRL |= (1<<6);
 
-void diewith(uint32_t pattern) {
-  abort();
+    // Turns on debug LED.
+    LPC_GPIO0->DIR |= (1<<7);
+    LPC_GPIO0->MASKED_ACCESS[1<<7] = (1<<7);
+    __enable_irq();
+
+    setblink(0x8000000A);
 }

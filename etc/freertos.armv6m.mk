@@ -29,6 +29,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
+ARCHOPTIMIZATION = 
 ARCHOPTIMIZATION = -Os
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
@@ -41,6 +42,7 @@ CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2
 else
 CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.7.3
 CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.7.3
+CHECKSUM=/usr/local/lpcxpresso_5.1.*/lpcxpresso/bin/checksum
 endif
 
 
@@ -55,7 +57,7 @@ SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
 	-g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
 	-ffunction-sections -fdata-sections -fno-stack-protector \
 	-mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
-	-MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" \
+	-MMD -MP -MF"$(@:%.o=%.d)" \
 	$(CFLAGSENV)
 
 #-MT"$(@:%.o=%.d)" 
@@ -68,10 +70,11 @@ CFLAGS = $(CORECFLAGS)
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
 	-fno-rtti -fno-exceptions -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
-LDFLAGS = -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
+LDFLAGS = --specs=nano.specs -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
 	-Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
-	-Xlinker -Map="$(@:%.elf=%.map)"\
-          $(LDFLAGSEXTRA) $(LDFLAGSENV)
+	-Xlinker -Map="$(@:%.elf=%.map)"  \
+          $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+
 
 SYSLIBRARIES = \
 	-lfreertos \

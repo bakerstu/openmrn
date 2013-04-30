@@ -86,6 +86,7 @@
 #define configCPU_CLOCK_HZ             ( ( unsigned long ) 20000000 )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 50 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+#define configTIMER_TASK_STACK_DEPTH   256
 
 #define diewith( x ) abort()
 
@@ -125,8 +126,12 @@ extern unsigned long blinker_pattern;
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 18 * 1024 ) )
 
+#define configTIMER_TASK_STACK_DEPTH   256
+
 
 #elif defined(TARGET_LPC11Cxx)
+
+#define configTIMER_TASK_STACK_DEPTH   256
 
 // Assertion facility
 #ifdef __cplusplus
@@ -144,7 +149,7 @@ extern unsigned long blinker_pattern;
 #define BLINK_DIE_OUTOFMEMSTACK 0x800AACCA  // 3-2-4
 #define BLINK_DIE_STACKCOLLIDE 0x802AACCA  // 3-2-5
 
-#define BLINK_DIE_ABORT 0x8000CCCA
+#define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
 
 /* Value to use on old rev '-' devices. */
 //#define configPINSEL2_VALUE   0x50151105
@@ -159,6 +164,12 @@ extern unsigned long blinker_pattern;
 #define configCPU_CLOCK_HZ          ( ( unsigned long ) 48000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 3000 ) )
+
+/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
+standard names - or at least those used in the unmodified vector table. */
+#define vPortSVCHandler SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
 
 #else
 
@@ -188,7 +199,6 @@ extern unsigned long blinker_pattern;
 #define configUSE_APPLICATION_TASK_TAG 1
 
 #define configUSE_TIMERS               1
-#define configTIMER_TASK_STACK_DEPTH   256
 #define configTIMER_QUEUE_LENGTH       16
 #define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES/2)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1

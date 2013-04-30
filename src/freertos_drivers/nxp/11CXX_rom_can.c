@@ -36,36 +36,49 @@
 #ifdef TARGET_LPC11Cxx
 
 #include "11CXX_rom_driver_CAN.h"
+#include "can.h"
+
+
+typedef	struct _ROM {
+   const unsigned p_usbd;
+   const unsigned p_clib;
+   const CAND *pCAND;
+} ROM;
 
 /** Pointer to the ROM call structures. */
 ROM **rom = (ROM **)0x1fff1ff8;
+
+static const int RX_MSG_OBJ_NUM = 1;
+static const int TX_MSG_OBJ_NUM = 2;
 
 /** Private data for this implementation of CAN */
 typedef struct lpc11crom_can_priv
 {
     CanPriv canPriv; /**< common private data */
     char txPending; /**< transmission currently pending */
-    char can_data[8];
-    void interrupt();
 } LPC11CRomCanPriv;
 
 /** private data for the can device */
 static LPC11CRomCanPriv can_private[1] =
 {
     {
-	CanPriv(),
-        0
+        .txPending = 0
     }
 };
 
 static int lpc11crom_can_init(devtab_t *dev);
-static void ignore_dev_function(devtab_t *dev) {}
+static void ignore_dev_function(devtab_t *dev);
 static void lpc11crom_can_tx_msg(devtab_t *dev);
 
 /** Overrides the system's weak interrupt handler and calls the builtin ROM interrupt handler. */
 void CAN_IRQHandler (void){
   (*rom)->pCAND->isr();
 }
+
+
+void CAN_rx(uint8_t msg_obj_num);
+void CAN_tx(uint8_t msg_obj_num);
+void CAN_error(uint32_t error_info);
 
 /** Function pointer table to pass to the ROM drivers with callbacks. */
 CAN_CALLBACKS callbacks = {
@@ -81,18 +94,16 @@ CAN_CALLBACKS callbacks = {
 
 
 /*  125 kbaud */
- uint32_t ClkInitTable125[2] = {
-  0x00000000UL, // CANCLKDIV
-  0x00001C57UL  // CAN_BTR
+uint32_t ClkInitTable125[2] = {
+    0x00000000UL, // CANCLKDIV
+    0x00001C57UL  // CAN_BTR
 };
 
 // 250 kbaud
 uint32_t ClkInitTable250[2] = {
-     0x00000000UL, // CANCLKDIV
-  0x00001C4BUL  // CAN_BTR
+    0x00000000UL, // CANCLKDIV
+    0x00001C4BUL  // CAN_BTR
 };
-
-
 
 /** initialize the device 
  * @param dev device to initialize
@@ -110,7 +121,7 @@ static int lpc11crom_can_init(devtab_t *dev)
 
     /* Configures msgobj 1 to receive all extended frames. */
     CAN_MSG_OBJ msg_obj;
-    msg_obj.msgobj = 1;
+    msg_obj.msgobj = RX_MSG_OBJ_NUM;
     msg_obj.mode_id = 0x000 | CAN_MSGOBJ_EXT;
     msg_obj.mask = 0x000;
     msg_obj.dlc = 0x000;
@@ -129,16 +140,16 @@ static int lpc11crom_can_init(devtab_t *dev)
 static void ignore_dev_function(devtab_t *dev) {}
 
 
-static void send_frame(const struct can_frame &can_frame)
+static void send_frame(struct can_frame *can_frame)
 {
     CAN_MSG_OBJ msg_obj;
-    msg_obj.msgobj  = 2;
-    msg_obj.mode_id = can_frame.can_id |
-        (can_frame.can_rtr ? CAN_MSGOBJ_RTR : 0) |
-        (can_frame.can_eff ? CAN_MSGOBJ_EXT : 0);
+    msg_obj.msgobj  = TX_MSG_OBJ_NUM;
+    msg_obj.mode_id = can_frame->can_id |
+        (can_frame->can_rtr ? CAN_MSGOBJ_RTR : 0) |
+        (can_frame->can_eff ? CAN_MSGOBJ_EXT : 0);
     msg_obj.mask    = 0x0;
-    msg_obj.dlc     = can_frame.can_dlc;
-    memcpy(msg_obj.data, can_frame.data, can_frame.dlc);
+    msg_obj.dlc     = can_frame->can_dlc;
+    memcpy(msg_obj.data, can_frame->data, can_frame->can_dlc);
     (*rom)->pCAND->can_transmit(&msg_obj);
 }
 
@@ -152,20 +163,19 @@ static void lpc11crom_can_tx_msg(devtab_t *dev)
     if (priv->txPending) return;
 
     struct can_frame can_frame;
-    // TODO(balazs.racz): think about how we could do with a shorter critical
-    // section. The problem is that an ISR might decide to send off the next
-    // frame ahead of us.
     taskENTER_CRITICAL();
     if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
     {
-	return;
+        return;
     }
     priv->txPending = 1;
+    send_frame(&can_frame);
     taskEXIT_CRITICAL();
-    send_frame(can_frame);
 }
 
-
+/** CAN receive callback. Called by the ROM can driver in an ISR context.
+    @param msg_obj_num the number of CAN buffer that has the new frame.
+*/
 void CAN_rx(uint8_t msg_obj_num)
 {
     CAN_MSG_OBJ msg_obj;
@@ -176,170 +186,48 @@ void CAN_rx(uint8_t msg_obj_num)
     (*rom)->pCAND->can_receive(&msg_obj);
 
     struct can_frame can_frame;
-    can_frame.can_id = msg_obj.;
-    can_frame.can_rtr = msg.type == CANRemote ? 1 : 0;
-    can_frame.can_eff = msg.format == CANStandard ? 0 : 1;
+    can_frame.can_id = msg_obj.mode_id & ((1<<30) - 1);
+    can_frame.can_rtr = (msg_obj.mode_id & CAN_MSGOBJ_RTR) ? 1 : 0;
+    can_frame.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 0 : 1;
     can_frame.can_err = 0;
-    can_frame.can_dlc = msg.len;
-    memcpy(can_frame.data, msg.data, msg.len);
-    if (os_mq_send_from_isr(canPriv.rxQ, &can_frame) == OS_MQ_FULL)
+    can_frame.can_dlc = msg_obj.dlc;
+    memcpy(can_frame.data, msg_obj.data, msg_obj.dlc);
+    if (os_mq_send_from_isr(can_private[0].canPriv.rxQ, &can_frame)
+	== OS_MQ_FULL)
     {
-        canPriv.overrunCount++;
+        can_private[0].canPriv.overrunCount++;
     }
-  
-    if (msg_obj_num == 1)
-    {
-        /* Simply transmit CAN frame (echo) with with ID +0x100 via buffer 2 */
-        msg_obj.msgobj = 2;
-        msg_obj.mode_id += 0x100;
-        (*rom)->pCAND->can_transmit(&msg_obj);
-    }
-
-  return;
 }
 
-/*  CAN transmit callback */
-/*  Function is executed by the Callback handler after
-    a CAN message has been transmitted */
+/** CAN transmit callback. Called by the ROM can driver in an ISR context.
+    @param msg_obj_num the number of CAN buffer that finished transmission.
+*/
 void CAN_tx(uint8_t msg_obj_num){
-  return;
-}
-
-/*  CAN error callback */
-/*  Function is executed by the Callback handler after
-    an error has occured on the CAN bus */
-void CAN_error(uint32_t error_info){
-  LPC_GPIO0->DATA ^= (1<<7);
-  return;
-}
-
-
-
-#else
-
-#error You need to define TARGET_LPC11Cxx if you want to compiple its rom driver.
-
-#endif
-
-#ifdef TARGET_LPC2368
-/** mbed CAN implementation object */
-CAN can2(P0_4, P0_5);
-#endif
-
-
-/** initialize the device 
- * @param dev device to initialize
- * @return 0 upon success
- */
-static int mbed_can_init(devtab_t *dev)
-{
-    MbedCanPriv *priv = (MbedCanPriv*)dev->priv;
-    //priv->can->frequency(125000);
-    priv->can->frequency(250000);
-    priv->can->attach(priv, &MbedCanPriv::interrupt);
-    
-    priv->canPriv.enable = ignore_dev_function;
-    priv->canPriv.disable = ignore_dev_function;
-    priv->canPriv.tx_msg = mbed_can_tx_msg;
-    return can_init(dev);
-}
-
-/** Empty device function. Does nothing.
- * @param dev device
- */
-static void ignore_dev_function(devtab_t *dev) {}
-
-/** Try and transmit a message. Does nothing if there is no message to transmit
- *  or no write buffers to transmit via.
- * @param dev device to transmit message on
- */
-static void mbed_can_tx_msg(devtab_t *dev)
-{
-    MbedCanPriv *priv = (MbedCanPriv*)dev->priv;
-    if (priv->txPending) return;
-#ifdef TARGET_LPC2368
-    if (!(*priv->SR & 0x4)) return;
-#endif
-
+    // If we don't know the msg object number, let's not do anything.
+    if (msg_obj_num != TX_MSG_OBJ_NUM) return;
     struct can_frame can_frame;
-    // TODO(balazs.racz): think about how we could do with a shorter critical
-    // section. The problem is that an ISR might decide to send off the next
-    // frame ahead of us.
-    taskENTER_CRITICAL();
-    if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
+    if (os_mq_receive_from_isr(can_private[0].canPriv.txQ, &can_frame)
+	!= OS_MQ_NONE)
     {
+	can_private[0].txPending = 0;
 	return;
     }
-    CANMessage msg(can_frame.can_id,
-		   (const char*) can_frame.data,
-		   can_frame.can_dlc,
-		   can_frame.can_rtr ? CANRemote : CANData,
-		   can_frame.can_eff ? CANExtended : CANStandard);
-    if (!priv->can->write(msg))
-    {
-	// NOTE(balazs.racz): This means that the CAN layer didn't find an
-	// available TX buffer to send the CAN message. However, since
-	// txPending == 0 at this point, that can only happen if someone else
-	// was also writing frames to this CAN device. We won't handle that
-	// case now.
-	priv->canPriv.overrunCount++;
-    }
-    priv->txPending = 1;
-    taskEXIT_CRITICAL();
+    send_frame(&can_frame);
 }
 
-/** Handler for CAN device. Called from the mbed irq handler. */
-void MbedCanPriv::interrupt() {
-    CANMessage msg;
-    if (can->read(msg))
-    {
-        struct can_frame can_frame;
-        can_frame.can_id = msg.id;
-        can_frame.can_rtr = msg.type == CANRemote ? 1 : 0;
-        can_frame.can_eff = msg.format == CANStandard ? 0 : 1;
-        can_frame.can_err = 0;
-        can_frame.can_dlc = msg.len;
-        memcpy(can_frame.data, msg.data, msg.len);
-        if (os_mq_send_from_isr(canPriv.rxQ, &can_frame) == OS_MQ_FULL)
-        {
-            canPriv.overrunCount++;
-        }
-    }
-#ifdef TARGET_LPC2368
-    if (*SR & 0x4)
-    {
-	// Transmit buffer 1 empty => transmit finished.
-        struct can_frame can_frame;
-        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame) == OS_MQ_NONE)
-	{
-	    CANMessage msg(can_frame.can_id,
-			   (const char*) can_frame.data,
-			   can_frame.can_dlc,
-			   can_frame.can_rtr ? CANRemote : CANData,
-			   can_frame.can_eff ? CANExtended : CANStandard);
-	    if (can->write(msg))
-	    {
-		txPending = 1;
-	    }
-	    else
-	    {
-		// NOTE(balazs.racz): This is an inconsistency -- if *SR&0x4
-		// then TX1 buffer is empty, so if write fails, then... a task
-		// switch occured while serving an interrupt handler?
-		canPriv.overrunCount++;
-		txPending = 0;
-	    } 
-	}
-	else
-	{
-	    txPending = 0;
-	}
-    }
-#else
-#error you need to define how to figure out whether the transmit buffer is empty.
-#endif
-    // TODO(balazs.racz): need to see what needs to be done for acking the interrupt, depending on what the interrupt fnction attributes say.
-} 
+/*   CAN error callback. Called by the ROM can driver in an ISR context.
+     @param error_info defines what kind of error occured on the bus.
+*/
+void CAN_error(uint32_t error_info)
+{
+    return;
+}
 
 /** Device table entry for can device */
-static CAN_DEVTAB_ENTRY(can1, "/dev/can1", mbed_can_init, &can_private[1]);
+static CAN_DEVTAB_ENTRY(can0, "/dev/can0", lpc11crom_can_init, &can_private[0]);
+
+#else
+#error You need to define TARGET_LPC11Cxx if you want to compiple its rom driver.
+#endif
+
+

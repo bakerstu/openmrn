@@ -358,6 +358,10 @@ int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, 
     return 0;
 }
 
+#ifdef TARGET_LPC11Cxx
+const uint8_t cdi[] = { 0 };
+
+#else
 
 const uint8_t cdi[] =
 {
@@ -380,6 +384,7 @@ const uint8_t cdi[] =
    60, 118, 97, 108, 117, 101, 62, 82, 101, 115, 101, 116, 32, 106, 117, 115, 116, 32, 69, 118, 101, 110, 116, 73, 68, 115, 32, 116, 111, 32, 100, 101, 102, 97, 117, 108, 116, 115, 60, 47, 118, 97, 108, 117, 101, 62, 60, 47, 114, 101, 108, 97, 116, 105, 111, 110, 62, 10, 32, 32, 32, 32, 32, 32, 32, 32, 60, 47, 109, 97, 112, 62, 10, 32, 32, 32, 32, 60, 47, 105, 110, 116, 62, 10, 60, 47, 115, 101, 103, 109, 101, 110, 116, 62, 10, 10, 60, 47, 99, 100, 105, 62, 10,    // | <value>Reset just EventIDs to defaults</value></relation>        </map>    </int></segment></cdi>|
    0
 };
+#endif
 
 /** Process the process a memory configuration datagram.
  * @param node node the datagram is to

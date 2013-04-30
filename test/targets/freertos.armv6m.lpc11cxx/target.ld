@@ -4,8 +4,8 @@ SEARCH_DIR(.)
 
 GROUP(
  libgcc.a
- libc.a
- libstdc++.a
+ libc_s.a
+ libstdc++_s.a
  libm.a
  crti.o
  crtn.o
@@ -56,7 +56,8 @@ SECTIONS
         *(.after_vectors*)
         
         *(.text*)
-        *(.rodata .rodata.*)
+	*(.rodata)
+        *(SORT(.rodata.*))
         . = ALIGN(4);
         
         /* C++ constructors etc */
@@ -122,7 +123,10 @@ SECTIONS
         _end_uninit_RESERVED = .;
     } > RamLoc8
 
-    .data : ALIGN(4)
+    /* It seems that in order for LPCXpresso to properly flash the data
+    section, an alignment of 256 bytes is necessary. Otherwise the separate
+    flashing of the data section will corrupt the end of the text section. */
+    .data : ALIGN(256)
     {
         FILL(0xff)
         _data = .;

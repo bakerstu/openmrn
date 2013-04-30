@@ -563,6 +563,10 @@ const void* stack_malloc(unsigned long length) {
   sstack_start = new_stack_start;
   return old_stack_start;
 }
+#elif defined(TARGET_LPC11Cxx)
+__attribute__((noinline)) const void* stack_malloc(unsigned long length) {
+    return malloc(length);
+}
 #else
 #define stack_malloc malloc
 #endif
@@ -831,6 +835,9 @@ void main_thread(void *arg)
 int main(int argc, char *argv[])
 {
 #if defined (__FreeRTOS__)
+    /* initialize the processor hardware */
+    hw_init();
+
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     xTaskHandle task_handle;
     int priority;
@@ -838,9 +845,6 @@ int main(int argc, char *argv[])
     priv->entry = NULL;
     priv->arg = NULL;
     
-    /* initialize the processor hardware */
-    hw_init();
-
     if (main_priority == 0)
     {
         priority = configMAX_PRIORITIES / 2;
