@@ -259,6 +259,9 @@ extern unsigned int _ebss;
 #endif
 
 
+extern uint32_t __start_ram;
+extern uint32_t __end_ram;
+
 //*****************************************************************************
 // Reset entry point for your code.
 // Sets up a simple runtime environment and initializes the C/C++
@@ -267,6 +270,10 @@ extern unsigned int _ebss;
 __attribute__ ((section(".after_vectors"))) __attribute__((naked))
 void
 ResetISR(void) {
+    // Fills the memory with a debug pattern.
+    for (uint32_t* d = &__start_ram; d < &__end_ram; ++d) {
+	*d = 0xdbdbdbdb;
+    }
 
 #ifndef USE_OLD_STYLE_DATA_BSS_INIT
     //

@@ -28,6 +28,9 @@ MEMORY
   Stack_Size = 512;
   __cs3_heap_end = __top_RamLoc8 - Stack_Size;
 
+  __start_ram = ORIGIN(RamLoc8);
+  __end_ram = __top_RamLoc8;
+
 SECTIONS
 {
 
