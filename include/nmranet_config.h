@@ -75,6 +75,10 @@ extern const size_t UPSTREAM_ALIAS_CACHE_SIZE;
 /** Maximum number of datagram buffers that the stack can use.  A value of 0
  * means there is no limit */
 extern const size_t DATAGRAM_POOL_SIZE;
+
+extern const size_t CAN_IF_READ_THREAD_STACK_SIZE;
+extern const size_t DATAGRAM_THREAD_STACK_SIZE;
+
 #ifdef __cplusplus
 }
 #endif

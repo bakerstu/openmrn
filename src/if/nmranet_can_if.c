@@ -59,6 +59,7 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
  */
 #define DATAGRAM_TIMEOUT 3000000000LL
 
+
 /** Status values for an alias.
  */
 typedef enum alias_status
@@ -1436,7 +1437,7 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     os_mutex_unlock(&can_if->aliasMutex);
 
     /* start the thread that will process received packets */
-    os_thread_create(&thread_handle, device, 0, 1024, read_thread, &can_if->nmranetIF);
+    os_thread_create(&thread_handle, device, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread, &can_if->nmranetIF);
 
     return &can_if->nmranetIF;
 }
