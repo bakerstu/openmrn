@@ -131,7 +131,7 @@ extern unsigned long blinker_pattern;
 
 #elif defined(TARGET_LPC11Cxx)
 
-#define configTIMER_TASK_STACK_DEPTH   64
+#define configTIMER_TASK_STACK_DEPTH   80
 
 // Assertion facility
 #ifdef __cplusplus
@@ -151,18 +151,9 @@ extern unsigned long blinker_pattern;
 
 #define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
 
-/* Value to use on old rev '-' devices. */
-//#define configPINSEL2_VALUE   0x50151105
-
-/* Value to use on rev 'A' and newer devices. */
-#define configPINSEL2_VALUE     0x50150105
-
-#ifndef configPINSEL2_VALUE
-        #error Please uncomment one of the two configPINSEL2_VALUE definitions above, depending on the revision of the LPC2000 device being used.
-#endif
-
 #define configCPU_CLOCK_HZ          ( ( unsigned long ) 48000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
-#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
+/* Idle task stack uses this size */
+#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 33 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 3000 ) )
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
