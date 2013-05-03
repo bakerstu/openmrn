@@ -76,7 +76,10 @@ extern const size_t UPSTREAM_ALIAS_CACHE_SIZE;
  * means there is no limit */
 extern const size_t DATAGRAM_POOL_SIZE;
 
+/** Defines the size of stack for the CAN IF read thread. */
 extern const size_t CAN_IF_READ_THREAD_STACK_SIZE;
+
+/** Defines the size of stack for the datagram processing thread. */ 
 extern const size_t DATAGRAM_THREAD_STACK_SIZE;
 
 #ifdef __cplusplus

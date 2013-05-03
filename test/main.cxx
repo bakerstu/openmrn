@@ -48,8 +48,10 @@
 const char *nmranet_manufacturer = "Stuart W. Baker";
 const char *nmranet_hardware_rev = "N/A";
 const char *nmranet_software_rev = "0.1";
-const size_t main_stack_size = 900 + 0*2560;
-const int main_priority = 0;
+
+#ifdef TARGET_LPC11Cxx
+// Memory constrained situation -- set the parameters to tight values.
+const size_t main_stack_size = 900;
 const size_t ALIAS_POOL_SIZE = 1;
 const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 1;
 const size_t UPSTREAM_ALIAS_CACHE_SIZE = 1;
@@ -58,11 +60,24 @@ const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 8;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
-
-extern "C" {
 const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 512;
-}
+#else
+
+const size_t main_stack_size = 2560;
+const size_t ALIAS_POOL_SIZE = 2;
+const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t DATAGRAM_POOL_SIZE = 10;
+const size_t CAN_RX_BUFFER_SIZE = 1;
+const size_t CAN_TX_BUFFER_SIZE = 32;
+const size_t SERIAL_RX_BUFFER_SIZE = 16;
+const size_t SERIAL_TX_BUFFER_SIZE = 16;
+const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
+const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
+#endif
+
+const int main_priority = 0;
 
 
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx)
@@ -150,7 +165,7 @@ int appl_main(int argc, char *argv[])
     os_thread_create(&blinker_thread_handle, "out_blinker", 0, 800,
                      out_blinker_thread, NULL);
 
-#if 0
+#ifndef TARGET_LPC11Cxx
     uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
     //node_handle_t dst = {0, 0x014};
     node_handle_t dst = {0x050201020265ULL, 0};

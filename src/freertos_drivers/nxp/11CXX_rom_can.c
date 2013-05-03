@@ -66,19 +66,18 @@ static LPC11CRomCanPriv can_private[1] =
     }
 };
 
-static int lpc11crom_can_init(devtab_t *dev);
-static void ignore_dev_function(devtab_t *dev);
-static void lpc11crom_can_tx_msg(devtab_t *dev);
-
 /** Overrides the system's weak interrupt handler and calls the builtin ROM interrupt handler. */
 void CAN_IRQHandler (void){
   (*rom)->pCAND->isr();
 }
 
+static int lpc11crom_can_init(devtab_t *dev);
+static void ignore_dev_function(devtab_t *dev);
+static void lpc11crom_can_tx_msg(devtab_t *dev);
 
-void CAN_rx(uint8_t msg_obj_num);
-void CAN_tx(uint8_t msg_obj_num);
-void CAN_error(uint32_t error_info);
+static void CAN_rx(uint8_t msg_obj_num);
+static void CAN_tx(uint8_t msg_obj_num);
+static void CAN_error(uint32_t error_info);
 
 /** Function pointer table to pass to the ROM drivers with callbacks. */
 CAN_CALLBACKS callbacks = {
@@ -93,13 +92,13 @@ CAN_CALLBACKS callbacks = {
 };
 
 
-/*  125 kbaud */
+/**  Clock initialization constants for 125 kbaud */
 uint32_t ClkInitTable125[2] = {
     0x00000000UL, // CANCLKDIV
     0x00001C57UL  // CAN_BTR
 };
 
-// 250 kbaud
+/**  Clock initialization constants for 250 kbaud */
 uint32_t ClkInitTable250[2] = {
     0x00000000UL, // CANCLKDIV
     0x00001C4BUL  // CAN_BTR
@@ -138,7 +137,6 @@ static int lpc11crom_can_init(devtab_t *dev)
  * @param dev device
  */
 static void ignore_dev_function(devtab_t *dev) {}
-
 
 static void send_frame(struct can_frame *can_frame)
 {
@@ -215,8 +213,8 @@ void CAN_tx(uint8_t msg_obj_num){
     send_frame(&can_frame);
 }
 
-/*   CAN error callback. Called by the ROM can driver in an ISR context.
-     @param error_info defines what kind of error occured on the bus.
+/** CAN error callback. Called by the ROM can driver in an ISR context.
+    @param error_info defines what kind of error occured on the bus.
 */
 void CAN_error(uint32_t error_info)
 {
