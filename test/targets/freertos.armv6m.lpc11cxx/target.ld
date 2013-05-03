@@ -25,8 +25,9 @@ MEMORY
   __top_MFlash32 = ORIGIN(MFlash32) + LENGTH(MFlash32);
   __top_RamLoc8 = ORIGIN(RamLoc8) + LENGTH(RamLoc8);
 
-  Stack_Size = 512;
-  __cs3_heap_end = __top_RamLoc8 - Stack_Size;
+  /* The cortex-m0 FreeRTOS is not using the original stack once the scheduler
+  has started, so we have no reason to reserve the top of RAM. */
+  __cs3_heap_end = __top_RamLoc8;
 
   __start_ram = ORIGIN(RamLoc8);
   __end_ram = __top_RamLoc8;
