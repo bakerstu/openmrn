@@ -22,7 +22,7 @@ endif
 
 ifdef HAVE_MBED
 
-CPPSRCS += mbed_can.cpp
+CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
 
 VPATH += $(SRCDIR)/nxp
 
