@@ -692,6 +692,19 @@ static inline int os_mq_send_from_isr(os_mq_t queue, const void *data)
     return OS_MQ_NONE;
 }
 
+/** Check if a queue is full from ISR context.
+ * @param queue is the queue to check
+ * @return non-zero if the queue is full.
+ */
+static inline int os_mq_is_full_from_isr(os_mq_t queue)
+{
+#if defined (__FreeRTOS__)
+    return xQueueIsQueueFullFromISR(queue);
+#endif
+    return 1;
+}
+
+
 /** Receive a message from a queue from ISR context.
  * @param queue queue to receive message from
  * @param data location to copy message from the queue
