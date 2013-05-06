@@ -73,20 +73,14 @@ SECTIONS
     
         __privileged_code_end__ = .;
 
+        . = ALIGN( 4 ) ;
         *( .text .text.* .gnu.linkonce.t.* )
         *( .plt )
-        *( .gnu.warning )
-        *( .glue_7t ) *( .glue_7 ) *( .vfp11_veneer )
-        
-        *( .rodata .rodata.* .gnu.linkonce.r.* )
-        
-        *(.ARM.extab* .gnu.linkonce.armextab.*)
-        *(.gcc_except_table)
-        *(.eh_frame_hdr)
-        *(.eh_frame)
         
         . = ALIGN( 4 ) ;
         KEEP( *( .init ) )
+        . = ALIGN( 4 ) ;
+        KEEP( *( .fini ) )
         . = ALIGN( 4 ) ;
         __preinit_array_start = . ;
         KEEP( *( .preinit_array ) )
@@ -104,8 +98,6 @@ SECTIONS
         KEEP( *crtend.o( .ctors ) )
         
         . = ALIGN( 4 ) ;
-        KEEP( *( .fini ) )
-        . = ALIGN( 4 ) ;
         __fini_array_start = . ;
         KEEP( *( .fini_array ) )
         KEEP( *( SORT( .fini_array.* ) ) )
@@ -115,7 +107,18 @@ SECTIONS
         KEEP( *( EXCLUDE_FILE( *crtend.o ) .dtors ) )
         KEEP( *( SORT( .dtors.* ) ) )
         KEEP( *crtend.o( .dtors ) )
-    
+
+        *( .gnu.warning )
+        *( .glue_7t ) *( .glue_7 ) *( .vfp11_veneer )
+
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+        *(.gcc_except_table)
+        *(.eh_frame_hdr)
+        *(.eh_frame)
+        
+        *( .rodata )
+        *(SORT(.rodata.*))
+	*(SORT(.gnu.linkonce.r.*))
     } >Flash
     
     __exidx_start = . ;
