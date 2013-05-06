@@ -37,6 +37,10 @@
 #include "devtab.h"
 #include "os/os.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Number of receive characters that are buffered in the serial driver.
  */
 extern const size_t SERIAL_RX_BUFFER_SIZE;
@@ -70,5 +74,9 @@ extern devops_t serial_ops;
  * @return 0 upon success
  */
 int serial_init(devtab_t *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _serial_h_ */

@@ -47,11 +47,11 @@
 class MbedSerialPriv
 {
 public:
-    MbedSerialPriv() : txPending(false), bytesLost(0) {}
+    MbedSerialPriv() : serial(NULL), txPending(false), bytesLost(0) {}
     SerialPriv serialPriv; /**< common private data */
+    USBSerial* serial; /*< mbed USB implementation object */
     bool txPending; /**< transmission currently pending */
     int bytesLost; /**< counts the number of bytes droipped due to error or buffer overruns. */
-    USBSerial serial; /*< mbed USB implementation object */
     unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
     void RxCallback();
     void TxCallback();
@@ -73,13 +73,15 @@ static void mbed_usbserial_tx_msg(devtab_t *dev);
 static int mbed_usbserial_init(devtab_t *dev)
 {
     MbedSerialPriv *priv = (MbedSerialPriv*)dev->priv;
-    
+    int r = serial_init(dev);
+    if (!r) return r;
+    priv->serial = new USBSerial();
     priv->serialPriv.enable = ignore_dev_function;
     priv->serialPriv.disable = ignore_dev_function;
     priv->serialPriv.tx_char = mbed_usbserial_tx_msg;
-    priv->serial.attach(priv, &MbedSerialPriv::RxCallback);
-    priv->serial.txattach(priv, &MbedSerialPriv::TxCallback);
-    return serial_init(dev);
+    //priv->serial->attach(priv, &MbedSerialPriv::RxCallback);
+    //priv->serial->txattach(priv, &MbedSerialPriv::TxCallback);
+    return r;
 }
 
 /** Empty device function. Does nothing.
@@ -116,7 +118,7 @@ void MbedSerialPriv::TxHelper(int count)
 	txPending = false;
 	return;
     }
-    if (!serial.writeBlockAsync(txData, count)) {
+    if (!serial->writeBlockAsync(txData, count)) {
 	// An error occured, data was lost.
 	txPending = false;
 	bytesLost += count;
@@ -143,8 +145,8 @@ void MbedSerialPriv::TxCallback()
 void MbedSerialPriv::RxCallback()
 {
     while (!os_mq_is_full_from_isr(serialPriv.rxQ) &&
-	   serial.available()) {
-	unsigned char c = serial.getc();
+	   serial->available()) {
+	unsigned char c = serial->getc();
 	if (os_mq_send_from_isr(serialPriv.rxQ, &c) != OS_MQ_NONE)
 	{
 	    ++bytesLost;
