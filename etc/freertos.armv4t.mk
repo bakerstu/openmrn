@@ -75,6 +75,8 @@ CXXFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
 	$(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" -T target.ld -mthumb -Xlinker --gc-sections -mcpu=arm7tdmi -Xlinker -Map="$(@:%.elf=%.map)"\
+	-fmessage-length=0 -fno-builtin \
+	-ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 SYSLIBRARIES = -lfreertos \
