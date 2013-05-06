@@ -42,6 +42,22 @@
 #define TX_DATA_SIZE 64
 #define RX_DATA_SIZE 64
 
+#include <stdlib.h>
+
+void * operator new(size_t size);
+void * operator new[](size_t size);
+void operator delete(void * ptr);
+void operator delete[](void * ptr);
+
+__extension__ typedef int __guard __attribute__((mode (__DI__)));
+
+extern "C" int __cxa_guard_acquire(__guard *);
+extern "C" void __cxa_guard_release (__guard *);
+extern "C" void __cxa_guard_abort (__guard *); 
+
+extern "C" void __cxa_pure_virtual(void);
+
+
 /** Private data for this implementation of Serial port
  */
 class MbedSerialPriv
@@ -66,6 +82,33 @@ static int mbed_usbserial_init(devtab_t *dev);
 static void ignore_dev_function(devtab_t *dev);
 static void mbed_usbserial_tx_msg(devtab_t *dev);
 
+void * operator new(size_t size)
+{
+  return malloc(size);
+}
+
+void * operator new[](size_t size)
+{
+  return malloc(size);
+}
+
+void operator delete(void * ptr)
+{
+  free(ptr);
+}
+
+void operator delete[](void * ptr)
+{
+  free(ptr);
+}
+
+int __cxa_guard_acquire(__guard *g) {return !*(char *)(g);};
+void __cxa_guard_release (__guard *g) {*(char *)g = 1;};
+void __cxa_guard_abort (__guard *) {}; 
+
+void __cxa_pure_virtual(void) {};
+
+
 /** initialize the device 
  * @param dev device to initialize
  * @return 0 upon success
@@ -74,7 +117,7 @@ static int mbed_usbserial_init(devtab_t *dev)
 {
     MbedSerialPriv *priv = (MbedSerialPriv*)dev->priv;
     int r = serial_init(dev);
-    if (!r) return r;
+    if (r) return r;
     priv->serial = new USBSerial();
     priv->serialPriv.enable = ignore_dev_function;
     priv->serialPriv.disable = ignore_dev_function;
