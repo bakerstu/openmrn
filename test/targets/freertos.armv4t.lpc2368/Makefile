@@ -22,7 +22,8 @@ all docs clean veryclean:
 
 else
 
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o \
+	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
 
 include $(OPENMRNPATH)/etc/prog.mk
 
@@ -35,5 +36,12 @@ all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	$(CHECKSUM) -p LPC2362 -d $@
+
+$(EXECUTABLE)$(EXTENTION): depmake
+
+.PHONY: depmake
+
+depmake:
+	make -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 endif
