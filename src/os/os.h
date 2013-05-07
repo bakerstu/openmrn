@@ -476,6 +476,15 @@ static inline int os_sem_post(os_sem_t *sem)
 #endif
 }
 
+#if defined (__FreeRTOS__)
+static inline int os_sem_post_from_isr(os_sem_t *sem)
+{
+    portBASE_TYPE woken;
+    xSemaphoreGiveFromISR(&sem, &woken);
+    return 0;
+}
+#endif
+
 /** Wait on a semaphore.
  * @param sem address of semaphore to decrement
  * @return 0 upon success
