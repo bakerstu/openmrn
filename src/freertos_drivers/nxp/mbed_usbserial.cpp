@@ -35,6 +35,7 @@
 #include "mbed.h"
 #include "USBSerial.h"
 #include "serial.h"
+#include "os/os.h"
 
 #ifdef TARGET_LPC2368
 #endif
@@ -58,21 +59,137 @@ extern "C" void __cxa_guard_abort (__guard *);
 extern "C" void __cxa_pure_virtual(void);
 
 
+/** This class is an empty wrapper around MBed's USB CDC class. The difference
+    between this and mbed::USBSerial is that this class does not have any
+    buffering and no interaction with stdio, whereas mbed::USBSerial has the
+    following buffering:
+    * it has a 128-byte receive buffer.
+    * it has an fd
+    * it has a FILE* with a default-sized send/receive buffer
+    * it requires mbed's custom glue code in the open(2) method, without which
+      it crashes.
+ */
+class MbedRawUSBSerial : public USBCDC
+{
+public:
+    MbedRawUSBSerial(SerialPriv* serialPriv, uint16_t vendor_id = 0x1f00, uint16_t product_id = 0x2012, uint16_t product_release = 0x0001): USBCDC(vendor_id, product_id, product_release), serialPriv(serialPriv), txPending(false)
+    {
+	os_sem_init(&rxSem, 0);
+	os_thread_t thread;
+	os_thread_create(&thread, "usbserial.rx", 2, 1024, &_RxThread, this);
+    }
+
+    ~MbedRawUSBSerial()
+    {
+	os_sem_destroy(&rxSem);
+    }
+
+    void Transmit()
+    {
+	if (txPending) return;
+	txPending = true;
+	// At this point we know there is no outstading send, thus there can't
+	// be an incoming TX interrupt either. Thus we don't need a critical
+	// section.
+	int count;
+	for (count = 0; count < TX_DATA_SIZE; count++)
+	{
+	    if (os_mq_timedreceive(serialPriv->txQ, txData+count, 0) != OS_MQ_NONE)
+	    {
+		/* no more data left to transmit */
+		break;
+	    }
+	}
+	TxHelper(count);
+    }
+
+protected:
+    virtual bool EP2_OUT_callback()
+    {
+	// we read the packet received to our assembly buffer
+	readEP(rxData, &rxSize);
+	// and wake up the RX thread.
+	os_sem_post_from_isr(&rxSem);
+	return true;
+    }
+
+    virtual bool EP2_IN_callback()
+    {
+	int count;
+	for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
+	{
+	    if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count]) != OS_MQ_NONE)
+	    {
+		/* no more data left to transmit */
+		break;
+	    }
+	}
+	TxHelper(count);
+	return true;
+    }
+
+private:
+    static const int MAX_TX_PACKET_LENGTH = 64;
+    static const int MAX_RX_PACKET_LENGTH = 64;
+    
+    /** Transmits count bytes from the txData buffer. Sets txPending and
+	bytesLost as needed. */
+    void TxHelper(int count)
+    {
+	if (!count)
+	{
+	    txPending = false;
+	    return;
+	}
+	if ((!configured()) ||
+	    (!terminal_connected))
+	{
+	    // An error occured, data was lost.
+	    txPending = false;
+	    serialPriv->overrunCount += count;
+	    return;
+	}
+	sendNB(txData, count);
+	txPending = true;
+    }
+
+    void RxThread()
+    {
+	while(1)
+	{
+	    os_sem_wait(&rxSem);
+	    for (uint32_t i = 0; i < rxSize; i++)
+	    {
+		os_mq_send(serialPriv->rxQ, rxData+i);
+	    }
+	    // We reactivate the endpoint to receive next characters
+	    readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
+	}
+    }
+
+    static void* _RxThread(void* arg)
+    {
+	((MbedRawUSBSerial*)arg)->RxThread();
+	return NULL;
+    }
+
+    uint8_t txData[MAX_TX_PACKET_LENGTH]; /**< packet assemby buffer to host */
+    uint32_t rxSize; /**< number of valis characters in rxData */
+    uint8_t rxData[MAX_RX_PACKET_LENGTH]; /**< packet assembly buffer from host */
+    SerialPriv* serialPriv;
+    bool txPending; /**< transmission currently pending */
+    os_sem_t rxSem;
+};
+
+
 /** Private data for this implementation of Serial port
  */
 class MbedSerialPriv
 {
 public:
-    MbedSerialPriv() : serial(NULL), txPending(false), bytesLost(0) {}
+    MbedSerialPriv() : serial(NULL) {}
     SerialPriv serialPriv; /**< common private data */
-    USBSerial* serial; /*< mbed USB implementation object */
-    bool txPending; /**< transmission currently pending */
-    int bytesLost; /**< counts the number of bytes droipped due to error or buffer overruns. */
-    unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
-    void RxCallback();
-    void TxCallback();
-    /** Transmits count bytes from the txData buffer. Sets txPending and bytesLost as needed. */
-    void TxHelper(int count);
+    MbedRawUSBSerial* serial; /*< USB implementation object */
 };
 
 /** private data for the can device */
@@ -118,7 +235,7 @@ static int mbed_usbserial_init(devtab_t *dev)
     MbedSerialPriv *priv = (MbedSerialPriv*)dev->priv;
     int r = serial_init(dev);
     if (r) return r;
-    priv->serial = new USBSerial();
+    priv->serial = new MbedRawUSBSerial(&priv->serialPriv);
     priv->serialPriv.enable = ignore_dev_function;
     priv->serialPriv.disable = ignore_dev_function;
     priv->serialPriv.tx_char = mbed_usbserial_tx_msg;
@@ -139,64 +256,7 @@ static void ignore_dev_function(devtab_t *dev) {}
 static void mbed_usbserial_tx_msg(devtab_t *dev)
 {
     MbedSerialPriv *priv = (MbedSerialPriv*)dev->priv;
-    if (priv->txPending) return;
-    priv->txPending = true;
-    // At this point we know there is no outstading send, thus there can't be
-    // an incoming TX interrupt either. Thus we don't need a critical section.
-    int count;
-    for (count = 0; count < TX_DATA_SIZE; count++)
-    {
-	if (os_mq_timedreceive(priv->serialPriv.txQ, &priv->txData[count], 0) != OS_MQ_NONE)
-        {
-	    /* no more data left to transmit */
-	    break;
-	}
-    }
-    priv->TxHelper(count);
-}
-
-void MbedSerialPriv::TxHelper(int count)
-{
-    if (!count) {
-	txPending = false;
-	return;
-    }
-    if (!serial->writeBlockAsync(txData, count)) {
-	// An error occured, data was lost.
-	txPending = false;
-	bytesLost += count;
-	return;
-    }
-}
-
-/** Called by the USB driver in an ISR context when a pending transfer finished. */
-void MbedSerialPriv::TxCallback()
-{
-    int count;
-    for (count = 0; count < TX_DATA_SIZE; count++)
-    {
-	if (os_mq_receive_from_isr(serialPriv.txQ, &txData[count]) != OS_MQ_NONE)
-        {
-	    /* no more data left to transmit */
-	    break;
-	}
-    }
-    TxHelper(count);
-}
-
-/** Called by the USB driver in an ISR context when there is data received to read. */
-void MbedSerialPriv::RxCallback()
-{
-    while (!os_mq_is_full_from_isr(serialPriv.rxQ) &&
-	   serial->available()) {
-	unsigned char c = serial->getc();
-	if (os_mq_send_from_isr(serialPriv.rxQ, &c) != OS_MQ_NONE)
-	{
-	    ++bytesLost;
-	    /* no more room left? we just made sure the queue is not full */
-	    return;
-	}
-    }
+    priv->serial->Transmit();
 }
 
 /** Device table entry for serial device */
