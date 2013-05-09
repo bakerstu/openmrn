@@ -7,6 +7,8 @@ SRCDIR = ../../../$(BASENAME)
 VPATH = $(SRCDIR)
 
 INCLUDES += -I./ -I../ -I../include
+INCLUDES += -I$(OPENMRNPATH)/include
+INCLUDES += -I$(OPENMRNPATH)/src
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 exist := $(wildcard $(SRCDIR)/sources)
@@ -30,6 +32,7 @@ OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
 
 CFLAGS += $(INCLUDES)
+CXXFLAGS += $(INCLUDES)
 
 ifeq ($(TOOLPATH),)
 all docs clean veryclean:
