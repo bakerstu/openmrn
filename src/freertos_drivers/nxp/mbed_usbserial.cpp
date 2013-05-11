@@ -86,11 +86,14 @@ public:
 
     void Transmit()
     {
-	if (txPending) return;
+	// Without this critical section there were cases when we deadlocked
+	// with txPending == true but no interrupt coming in to clear it.
+	taskENTER_CRITICAL();
+	if (txPending) {
+	    taskEXIT_CRITICAL();
+	    return;
+	}
 	txPending = true;
-	// At this point we know there is no outstading send, thus there can't
-	// be an incoming TX interrupt either. Thus we don't need a critical
-	// section.
 	int count;
 	for (count = 0; count < TX_DATA_SIZE; count++)
 	{
@@ -101,6 +104,7 @@ public:
 	    }
 	}
 	TxHelper(count);
+	taskEXIT_CRITICAL();
     }
 
 protected:
@@ -116,6 +120,7 @@ protected:
     virtual bool EP2_IN_callback()
     {
 	int count;
+	configASSERT(txPending);
 	for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
 	{
 	    if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count]) != OS_MQ_NONE)
@@ -149,8 +154,8 @@ private:
 	    serialPriv->overrunCount += count;
 	    return;
 	}
-	sendNB(txData, count);
 	txPending = true;
+	sendNB(txData, count);
     }
 
     void RxThread()
