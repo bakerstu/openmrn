@@ -480,7 +480,7 @@ static inline int os_sem_post(os_sem_t *sem)
 static inline int os_sem_post_from_isr(os_sem_t *sem)
 {
     portBASE_TYPE woken;
-    xSemaphoreGiveFromISR(&sem, &woken);
+    xSemaphoreGiveFromISR(*sem, &woken);
     return 0;
 }
 #endif
