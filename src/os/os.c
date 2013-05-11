@@ -175,7 +175,8 @@ static void timer_callback(xTimerHandle timer)
                 break;
         }
         long long now = os_get_time_monotonic();
-        long long delay = now - t->when;
+        long long delay = t->when - now;
+	if (delay < 0) delay = 0;
         ticks = (delay * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
     } while (ticks == 0);
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
@@ -497,15 +498,15 @@ void os_timer_start(os_timer_t timer, long long period)
         abort();
     }
 
-    Timer          *t = timer;
 #if defined (__FreeRTOS__)
+    Timer          *t = pvTimerGetTimerID(timer);
     long long now = os_get_time_monotonic();
     t->when = now + period;
     t->period = period;
     portTickType ticks = (period * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
-    xTimerStart(timer, portMAX_DELAY);
 #else
+    Timer          *t = timer;
     long long timeout = os_get_time_monotonic() + period;
 
     os_mutex_lock(&timerMutex);
