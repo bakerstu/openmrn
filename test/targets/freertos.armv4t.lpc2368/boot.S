@@ -89,6 +89,8 @@
 start:
 _start:
 _mainCRTStartup:
+	msr   CPSR_c, #MODE_UND|I_BIT|F_BIT /* Prevents all interrupts. */
+	ldr   sp, =__und_stack_top__
 	
 	//Fill entire stack segment with debug bits
         LDR   r0,=0xdadadada            // debug pattern
