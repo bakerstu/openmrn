@@ -67,8 +67,8 @@ if options.targets == None:
 targets = options.targets.split(' ')
 for item in targets:
     subtarget = item.split('.')
-    if ((subtarget[0] == 'linux' or subtarget[0] == 'mach' or subtarget[0] == 'freertos' or subtarget[0] == 'mingw') and
-        (subtarget[1] == 'x86' or subtarget[1] == 'x86_64' or subtarget[1] == 'armv7m')):
+    if ((subtarget[0] == 'linux' or subtarget[0] == 'mach' or subtarget[0] == 'freertos' or subtarget[0] == 'mingw' or subtarget[0] == 'nuttx') and
+        (subtarget[1] == 'x86' or subtarget[1] == 'x86_64' or subtarget[1] == 'armv7m' or subtarget[1] == 'armv6m' or subtarget[1] == 'armv4t')):
         continue
     else:
         parser.error('Unknown target: ' + item)
@@ -214,7 +214,3 @@ for target in targets:
                                   subtarget[0] + '.' + subtarget[1] +
                                   subdir_makedata_out[1])
         subdir_makefile_out.close()
-
-
-
-
