@@ -38,7 +38,8 @@
 
 #ifdef TARGET_LPC2368
 /** mbed CAN implementation object */
-CAN can2(P0_4, P0_5);
+CAN cand1(P0_0, P0_1);
+CAN cand2(P0_4, P0_5);
 #endif
 
 /** Private data for this implementation of CAN
@@ -60,7 +61,7 @@ static MbedCanPriv can_private[2] =
 {
     {
 	CanPriv(),
-	NULL,
+	&cand1,
 #ifdef TARGET_LPC2368
 	&LPC_CAN1->SR,
 #endif
@@ -68,7 +69,7 @@ static MbedCanPriv can_private[2] =
     },
     {
 	CanPriv(),
-	&can2,
+	&cand2,
 #ifdef TARGET_LPC2368
 	&LPC_CAN2->SR,
 #endif
@@ -195,4 +196,5 @@ void MbedCanPriv::interrupt() {
 } 
 
 /** Device table entry for can device */
+static CAN_DEVTAB_ENTRY(can0, "/dev/can0", mbed_can_init, &can_private[0]);
 static CAN_DEVTAB_ENTRY(can1, "/dev/can1", mbed_can_init, &can_private[1]);
