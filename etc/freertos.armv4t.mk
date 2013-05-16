@@ -69,7 +69,7 @@ CFLAGS = $(CORECFLAGS) -mthumb
 CXXFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
 	-D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
 	-ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
-	-mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" \
+	-mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" -std=c++0x \
 	-Werror -D__FreeRTOS__ -mthumb -mthumb-interwork -mfloat-abi=soft \
 	-fno-stack-protector -D__STDC_FORMAT_MACROS -DTHUMB_INTERWORK \
 	$(CXXFLAGSENV)
