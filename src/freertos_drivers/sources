@@ -5,7 +5,7 @@ CSRCS += fileio.c \
          can.c \
          serial.c
 
-CXXSRCS +=
+CXXSRCS += pipe.cxx
 
 # Find StellarisWare
 include $(OPENMRNPATH)/etc/stellarisware.mk
