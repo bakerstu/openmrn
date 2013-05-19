@@ -90,6 +90,9 @@ public:
 
     virtual ~PhysicalDevicePipeMember()
     {
+	// There is no current possibility to stop the thread we created. Let's
+	// crash.
+	abort();
     }
 
     virtual void write(const void* buf, size_t count)
@@ -133,6 +136,16 @@ private:
     //! Protects writes to the device.
     OSMutex lock_;
 };
+
+void Pipe::AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
+				   int stack_size)
+{
+    int fd = ::open(path, O_RDWR);
+    configASSERT(fd >= 0);
+    // The new member is effectively leaked here. The problem is that we cannot
+    // destruct physical pipe members because they have a thread.
+    RegisterMember(new PhysicalDevicePipeMember(this, fd, thread_name, stack_size));
+}
 
 static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
 {
@@ -197,7 +210,7 @@ ssize_t VirtualPipeMember::Ops::pipe_read(file_t* file, void *buf, size_t count)
     ssize_t result = 0;
     while (count >= t->parent_->unit())
     {
-	os_mq_receive(&t->read_queue_, bbuf);
+	os_mq_receive(t->read_queue_, bbuf);
 	count -= t->parent_->unit();
 	bbuf += t->parent_->unit();
 	result += t->parent_->unit();

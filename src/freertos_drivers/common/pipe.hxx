@@ -68,6 +68,18 @@ public:
     //! to the member. Not thread-safe with writes.
     void UnregisterMember(PipeMember* member);
 
+    /** Adds a physical device to the members of this pipe.
+	
+	@param path is the path to the physical device, e.g. /dev/can0
+
+	@param thread_name will be the name of the RX thread from the physical
+	device
+
+	@param stack_size will be the size of the RX thread stack.
+     */
+    void AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
+				 int stack_size);
+
     size_t unit()
     {
 	return unit_;
