@@ -39,9 +39,14 @@
 #include <vector>
 using std::vector;
 
-#include "devtab.h"
+//#include "devtab.h"
 #include "os/os.h"
+#include "os/OS.hxx"
 
+struct devops;
+typedef struct devops devops_t;
+struct devtab;
+typedef struct devtab devtab_t;
 
 class PipeMember;
 
@@ -53,11 +58,15 @@ public:
 
     //! Writes some data to all receivers of the pipe, except the one denoted
     //! by "skip_member".
-    void WriteToAll(PipeMember* skip_member, const void* buf, size_t count);
+    ssize_t WriteToAll(PipeMember* skip_member, const void* buf, size_t count);
 
     //! Adds a new member for the pipe. After this call all data will be
     //! transmitted ot the new member as well. Not thread-safe with writes.
     void RegisterMember(PipeMember* member);
+
+    //! Removes a member. After this call no more new data will be transmitted
+    //! to the member. Not thread-safe with writes.
+    void UnregisterMember(PipeMember* member);
 
     size_t unit()
     {
@@ -92,7 +101,9 @@ public:
     die.
 
        Blocks until the write is complete (that is, all data is enqueued in a
-    buffer which will drain as the output device's speed allows).
+    buffer which will drain as the output device's speed
+    allows). Implementations may want to use a lock inside to avoid writes from
+    multiple sources being interleaved.
     */
     virtual void write(const void* buf, size_t count) = 0;
 };
@@ -105,30 +116,69 @@ public:
     {
     }
 
-    VirtualPipeMember(Pipe* parent)
+    VirtualPipeMember(Pipe* parent, int queue_length)
 	: parent_(parent),
-	  transmit_queue_(NULL)
+	  lock_(false),
+	  read_queue_(NULL),
+	  queue_length_(queue_length),
+	  usage_count_(0)
     {
 	// NOTE: at this point it is not certain that the parent object has
 	// been constructed. Do not call anything there.
     }
 
-    static int pipe_open(file_t* file, const char *path, int flags, int mode);
-    static int pipe_close(file_t* file, node_t* node);
-    static ssize_t pipe_read(file_t* file, void *buf, size_t count);
-    static ssize_t pipe_write(file_t* file, const void *buf, size_t count);
+    //! Handles data that comes from the parent Pipe.
+    virtual void write(const void* buf, size_t count);
 
+    //! Class containing static methods for pipe fd operations.
+    class Ops;
+    friend class Ops;
 private:
     void Initialize();
 
     Pipe* parent_;
-    os_mq_t transmit_queue_;
-    int queue_length_;
+    OSMutex lock_;  //< Mutex for metadata in this class.
+    OSMutex read_lock_;  //< Mutex for pipe_read() commands.
+    OSMutex write_lock_;  //< Mutex for incoming write() (from the parent).
+    os_mq_t read_queue_;  //< TX queue (from parent_ till fd read())
+    int queue_length_;  //< length of TX queue (parent->unit() bytes each)
+    int usage_count_;  //< Number of open file descriptors.
 };
 
-extern devops_t pipe_ops;
+extern devops_t vdev_ops;
+int vdev_init(devtab_t *dev);
 
+/** Defines a pipe to forward data between real and virtual devices.
 
+    example usage:
+    DEFINE_PIPE(can_pipe, sizeof(struct can-frame));
+
+    @param name must be a valic C identifier. This is the name under which to
+    refer to this pipe.
+
+    @param unit in bytes is the size of the base structure. All writes to the
+    pipe must be a multiple of this unit.
+ */
+#define DEFINE_PIPE(name, unit) Pipe name(unit)
+
+/** Adds a virtual device entry to a particular pipe.
+
+    example usage:
+    VIRTUAL_DEVTAB_ENTRY(vcan0, can_pipe, "/dev/vcan0", 16);
+
+   @param name is a C identifier. You will not need this in the program.
+
+    @param pipe is the identifier of the pipe to which to attach this device.
+
+    @param path is a quoted string, the path of the virtual device
+
+    @param qlen is the length of the receive buffer for this virtual device,
+    measured in 'pipe unit' bytes.
+*/
+#define VIRTUAL_DEVTAB_ENTRY(name, pipe, path, qlen) \
+    extern Pipe pipe; \
+    VirtualPipeMember name(&pipe, qlen); \
+    DEVTAB_ENTRY(name ## devtab, path, vdev_init, &vdev_ops, &name)
 
 #endif //_pipe_hxx_
 

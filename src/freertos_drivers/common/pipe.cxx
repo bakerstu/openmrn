@@ -33,10 +33,17 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#include <algorithm>
+using std::remove;
 
 #include "pipe.hxx"
 
 #include "os/os.h"
+#include "os/OS.hxx"
+
+#include "devtab.h"
 
 Pipe::Pipe(size_t unit)
     : unit_(unit)
@@ -52,7 +59,13 @@ void Pipe::RegisterMember(PipeMember* member)
     members_.push_back(member);
 }
 
-void Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
+void Pipe::UnregisterMember(PipeMember* member)
+{
+    members_.erase(remove(members_.begin(), members_.end(), member),
+		   members_.end());
+}
+
+ssize_t Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
 {
     configASSERT(count % unit_ == 0);
     for (PipeMember* member : members_)
@@ -60,6 +73,7 @@ void Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
 	if (member == skip_member) continue;
 	member->write(buf, count);
     }
+    return count;
 }
 
 
@@ -67,9 +81,11 @@ class PhysicalDevicePipeMember : public PipeMember
 {
 public:
     PhysicalDevicePipeMember(Pipe* parent, int fd, const char* rx_name, size_t stack_size)
-	: fd_(fd)
+	: fd_(fd),
+	  parent_(parent)
     {
 	os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
+	parent_->RegisterMember(this);
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -113,6 +129,9 @@ private:
 
     //! Pipe to forward information to.
     Pipe* parent_;
+
+    //! Protects writes to the device.
+    OSMutex lock_;
 };
 
 static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
@@ -123,35 +142,97 @@ static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
 
 void VirtualPipeMember::Initialize()
 {
-    if (transmit_queue_) return;  // already initialized
-    transmit_queue_ = os_mq_create(queue_length_, parent_->unit());
+    OSMutexLock l(&lock_);
+    if (read_queue_) return;  // already initialized
+    read_queue_ = os_mq_create(queue_length_, parent_->unit());
 }
 
-int VirtualPipeMember::pipe_open(file_t* file, const char *path, int flags, int mode)
+class VirtualPipeMember::Ops {
+public:
+    static int pipe_open(file_t* file, const char *path, int flags, int mode);
+    static int pipe_close(file_t* file, node_t* node);
+    static ssize_t pipe_read(file_t* file, void *buf, size_t count);
+    static ssize_t pipe_write(file_t* file, const void *buf, size_t count);
+};
+
+int VirtualPipeMember::Ops::pipe_open(file_t* file, const char *path, int flags, int mode)
+{
+    if (flags & O_NONBLOCK)
+    {
+	// Pipes do not currently support nonblocking mode. This restriction
+	// comes from the interface of PipeMember -- it does not support
+	// nonblocking writes. A possible option to implement it would be to
+	// start a separate RX thread in case of nonblocking IO requested, add
+	// an RX queue and pass on the responsibility of the blocking
+	// Pipe::WriteToAll call to the specialized thread.
+	return -EINVAL;
+    }
+    VirtualPipeMember* t = static_cast<VirtualPipeMember*>(file->dev->priv);
+    t->Initialize(); // Will lock inside.
+    OSMutexLock l(&t->lock_);
+    if (t->usage_count_++ == 0)
+    {
+	t->parent_->RegisterMember(t);
+    }
+    return 0;
+}
+
+int VirtualPipeMember::Ops::pipe_close(file_t* file, node_t* node)
 {
     VirtualPipeMember* t = static_cast<VirtualPipeMember*>(file->dev->priv);
-    t->Initialize();
-    t->parent_->RegisterMember(t);
+    OSMutexLock l(&t->lock_);
+    configASSERT(t->usage_count_ > 0);
+    if (--t->usage_count_ <= 0)
+    {
+	t->parent_->UnregisterMember(t);
+    }
     return 0;
 }
 
-int VirtualPipeMember::pipe_close(file_t* file, node_t* node)
+ssize_t VirtualPipeMember::Ops::pipe_read(file_t* file, void *buf, size_t count)
 {
-    return 0;
+    VirtualPipeMember* t = static_cast<VirtualPipeMember*>(file->dev->priv);
+    OSMutexLock l(&t->read_lock_);
+    uint8_t* bbuf = static_cast<uint8_t*>(buf);
+    ssize_t result = 0;
+    while (count >= t->parent_->unit())
+    {
+	os_mq_receive(&t->read_queue_, bbuf);
+	count -= t->parent_->unit();
+	bbuf += t->parent_->unit();
+	result += t->parent_->unit();
+    }
+    return result;
 }
-ssize_t VirtualPipeMember::pipe_read(file_t* file, void *buf, size_t count)
+
+ssize_t VirtualPipeMember::Ops::pipe_write(file_t* file, const void *buf, size_t count)
 {
-    return 0;
+    VirtualPipeMember* t = static_cast<VirtualPipeMember*>(file->dev->priv);
+    return t->parent_->WriteToAll(t, buf, count);
 }
-ssize_t VirtualPipeMember::pipe_write(file_t* file, const void *buf, size_t count)
+
+void VirtualPipeMember::write(const void *buf, size_t count)
 {
+    OSMutexLock l(&write_lock_);
+    const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
+    while (count >= parent_->unit())
+    {
+	os_mq_send(&read_queue_, bbuf);
+	count -= parent_->unit();
+	bbuf += parent_->unit();
+    }
+}
+
+int vdev_init(devtab_t *dev)
+{
+    // Nothing to init here, because the constructor takes care of
+    // initialization.
     return 0;
 }
 
-
-DEVOPS(pipe_ops,
-       VirtualPipeMember::pipe_open,
-       VirtualPipeMember::pipe_close,
-       VirtualPipeMember::pipe_read,
-       VirtualPipeMember::pipe_write,
+DEVOPS(vdev_ops,
+       VirtualPipeMember::Ops::pipe_open,
+       VirtualPipeMember::Ops::pipe_close,
+       VirtualPipeMember::Ops::pipe_read,
+       VirtualPipeMember::Ops::pipe_write,
        ignore_ioctl);
