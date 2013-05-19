@@ -85,7 +85,6 @@ public:
 	  parent_(parent)
     {
 	os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
-	parent_->RegisterMember(this);
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -230,7 +229,7 @@ void VirtualPipeMember::write(const void *buf, size_t count)
     const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
     while (count >= parent_->unit())
     {
-	os_mq_send(&read_queue_, bbuf);
+	os_mq_send(read_queue_, bbuf);
 	count -= parent_->unit();
 	bbuf += parent_->unit();
     }
