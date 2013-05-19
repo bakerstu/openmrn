@@ -104,6 +104,7 @@ private:
  */
 class OSMutex
 {
+public:
     /** Initialize a mutex.
      * @param recursive false creates a normal mutex, true creates a recursive mutex
      */
@@ -134,8 +135,79 @@ class OSMutex
     }
 
 private:
+    friend class OSMutexLock;
     /** Private mutex handle. */
     os_mutex_t handle;
 };
+
+/**
+   Class to allow convenient locking and unlocking of mutexes in a C context.
+   The mutex will be automatically unlocked when the context is left, even if
+   there are multiple return, break or continue statements.
+
+   Usage:
+
+   void foo()
+   {
+     // ...non-critical-section code here...
+     {
+       OSMutexLock locker(&mutex_);
+       // ...critical section here...
+       if (error) return;
+       // ...more critical code here...
+     }
+     // ...at this point the mutex is unlocked...
+     // ...more non-critical-section code here...
+   }
+   
+ */
+class OSMutexLock
+{
+public:
+    OSMutexLock(OSMutex* mutex)
+	: mutex_(&mutex->handle)
+    {
+	os_mutex_lock(mutex_);
+    }
+
+    OSMutexLock(os_mutex_t* mutex)
+	: mutex_(mutex)
+    {
+	os_mutex_lock(mutex_);
+    }
+
+    ~OSMutexLock()
+    {
+	os_mutex_unlock(mutex_);
+    }
+private:
+    os_mutex_t* mutex_;
+};
+
+/** This catches programming errors where you declare a mutex locker object
+    without a name like this:
+
+    void foo()
+    {
+      OSMutexLock(&mutex_);
+      // ...critical section here...
+    }
+
+    The above is valid C++, which creates a temporary OSMutexLock object, locks
+    it, then immediately destructs the object, unlocking the mutex in the same
+    line it was created. Thus the critical sections goes unprotected
+    unintentionally.
+
+    The correct code is
+
+    void foo()
+    {
+      OSMutexLock locker(&mutex_);
+      // ...critical section here...
+    }
+
+ */
+#define OSMutexLock(l) int error_omitted_mutex_lock_variable[-1]
+
 
 #endif /* _os_hxx_ */
