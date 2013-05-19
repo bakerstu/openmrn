@@ -1299,10 +1299,15 @@ static void *read_thread(void *data)
             abort();
         }
         
+        /* OpenLCB doesn't care about standard frames. */
+        if (!IS_CAN_FRAME_EFF(frame))
+        {
+            continue;
+        }
+
         /* address any abnormalities */
         if (IS_CAN_FRAME_ERR(frame) ||
-            IS_CAN_FRAME_RTR(frame) ||
-            !IS_CAN_FRAME_EFF(frame))
+            IS_CAN_FRAME_RTR(frame))
         {
             /** @todo need to handle these conditions properly */
             abort();
