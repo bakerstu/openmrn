@@ -6,7 +6,7 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
 ifneq ($(FREERTOSPATH),)
-include $(OPENMRNPATH)/etc/armgcc.mk
+include $(OPENMRNPATH)/etc/armgcc-s.mk
 endif
 
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
@@ -68,12 +68,16 @@ CORECFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
 CFLAGS = $(CORECFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-	-fno-rtti -fno-exceptions -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
+	-fno-rtti -fno-exceptions -std=c++0x \
+	-D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
-LDFLAGS = --specs=nano.specs -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
+LDFLAGS = -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
 	-Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
 	-Xlinker -Map="$(@:%.elf=%.map)"  \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+
+#use this only if armgcc == arm gcc 4.7
+#LDFLAGS += --specs=nano.specs
 
 
 SYSLIBRARIES = \

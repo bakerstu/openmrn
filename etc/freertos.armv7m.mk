@@ -36,7 +36,7 @@ CFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -std=gnu99 -D__FreeRTOS
          -march=armv7-m -mthumb -mfloat-abi=soft -Wstrict-prototypes \
          -fno-stack-protector -mfix-cortex-m3-ldrd -DGCC_ARMCM3 $(CFLAGSENV)
 CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
-           -fno-builtin \
+           -fno-builtin -std=c++0x  -D_ISOC99_SOURCE  \
            -march=armv7-m -mthumb -mfloat-abi=soft \
            -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -DGCC_ARMCM3 \
            -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
