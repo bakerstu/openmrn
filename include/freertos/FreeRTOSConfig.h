@@ -104,13 +104,6 @@ extern unsigned long blinker_pattern;
 }
 #endif
 #define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
-#define BLINK_DIE_OUTOFMEM 0x80002CCA // 3-2-1
-#define BLINK_DIE_ASSERT 0x8000ACCA  // 3-2-2
-#define BLINK_DIE_STACKOVERFLOW 0x8002ACCA  // 3-2-3
-#define BLINK_DIE_OUTOFMEMSTACK 0x800AACCA  // 3-2-4
-#define BLINK_DIE_STACKCOLLIDE 0x802AACCA  // 3-2-5
-
-#define BLINK_DIE_ABORT 0x8000CCCA
 
 /* Value to use on old rev '-' devices. */
 //#define configPINSEL2_VALUE   0x50151105
@@ -143,13 +136,6 @@ extern unsigned long blinker_pattern;
 }
 #endif
 #define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
-#define BLINK_DIE_OUTOFMEM 0x80002CCA // 3-2-1
-#define BLINK_DIE_ASSERT 0x8000ACCA  // 3-2-2
-#define BLINK_DIE_STACKOVERFLOW 0x8002ACCA  // 3-2-3
-#define BLINK_DIE_OUTOFMEMSTACK 0x800AACCA  // 3-2-4
-#define BLINK_DIE_STACKCOLLIDE 0x802AACCA  // 3-2-5
-
-#define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
 
 #define configCPU_CLOCK_HZ          ( ( unsigned long ) 48000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
 /* Idle task stack uses this size */
@@ -227,6 +213,19 @@ typedef struct task_switched_in
     task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
     _impure_ptr = task_switched_in->reent;                                \
 }
+
+#ifndef diewith
+
+#define BLINK_DIE_OUTOFMEM 0x80008CCA // 3-2-1
+#define BLINK_DIE_ASSERT 0x80028CCA  // 3-2-2
+#define BLINK_DIE_STACKOVERFLOW 0x800A8CCA  // 3-2-3
+#define BLINK_DIE_OUTOFMEMSTACK 0x802A8CCA  // 3-2-4
+#define BLINK_DIE_STACKCOLLIDE 0x80AA8CCA  // 3-2-5
+
+#define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
+#define BLINK_DIE_WATCHDOG 0x8002CCCA
+
+#endif
 
 
 #endif /* FREERTOS_CONFIG_H */
