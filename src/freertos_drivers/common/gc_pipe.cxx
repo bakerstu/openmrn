@@ -61,8 +61,8 @@ private:
 	BinaryToGCMember(Pipe* destination,
 			 PipeMember* skip_member,
 			 int double_bytes)
-	    : destination_(destination_),
-	      skip_member_(skip_member_),
+	    : destination_(destination),
+	      skip_member_(skip_member),
 	      double_bytes_(double_bytes)
 	{
 	}
@@ -84,6 +84,8 @@ private:
 		if (len) {
 		    destination_->WriteToAll(skip_member_, dbuf, len);
 		}
+                count -= sizeof(*frame);
+                frame++;
 	    }
 	}
 
@@ -103,8 +105,8 @@ private:
 	GCToBinaryMember(Pipe* destination,
 			 PipeMember* skip_member)
 	    : offset_(-1),
-	      destination_(destination_),
-	      skip_member_(skip_member_)
+	      destination_(destination),
+	      skip_member_(skip_member)
 	{
 	}
 
