@@ -34,6 +34,8 @@
 #ifndef _nmranet_event_h_
 #define _nmranet_event_h_
 
+#include <unistd.h>
+
 #include "nmranet_types.h"
 
 #ifdef __cplusplus
