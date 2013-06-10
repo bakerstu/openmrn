@@ -34,9 +34,16 @@
 
 #include "mbed.h"
 #include "can.h"
-#include "lpc23xx.h"
-
 #ifdef TARGET_LPC2368
+#include "lpc23xx.h"
+#endif
+
+#ifdef TARGET_LPC1768
+#include "LPC17xx.h"
+#endif
+
+
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 /** mbed CAN implementation object */
 CAN cand1(P0_0, P0_1);
 CAN cand2(P0_4, P0_5);
@@ -48,7 +55,7 @@ typedef struct mbed_can_priv
 {
     CanPriv canPriv; /**< common private data */
     CAN *can;
-#ifdef TARGET_LPC2368
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     volatile uint32_t *SR;
 #endif
     char txPending; /**< transmission currently pending */
@@ -62,7 +69,7 @@ static MbedCanPriv can_private[2] =
     {
 	CanPriv(),
 	&cand1,
-#ifdef TARGET_LPC2368
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 	&LPC_CAN1->SR,
 #endif
 	0
@@ -70,7 +77,7 @@ static MbedCanPriv can_private[2] =
     {
 	CanPriv(),
 	&cand2,
-#ifdef TARGET_LPC2368
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 	&LPC_CAN2->SR,
 #endif
 	0
@@ -111,8 +118,8 @@ static void mbed_can_tx_msg(devtab_t *dev)
 {
     MbedCanPriv *priv = (MbedCanPriv*)dev->priv;
     if (priv->txPending) return;
-#ifdef TARGET_LPC2368
-    if (!(*priv->SR & 0x4)) return;
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
+    if (!(*priv->SR & 0x4)) return; // TX buffer is holding a packet
 #endif
 
     struct can_frame can_frame;
@@ -159,7 +166,7 @@ void MbedCanPriv::interrupt() {
             canPriv.overrunCount++;
         }
     }
-#ifdef TARGET_LPC2368
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     if (*SR & 0x4)
     {
 	// Transmit buffer 1 empty => transmit finished.

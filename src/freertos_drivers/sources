@@ -1,6 +1,6 @@
 VPATH := $(SRCDIR): \
          $(SRCDIR)/common \
-         
+
 CSRCS += fileio.c \
          can.c \
          serial.c
@@ -21,15 +21,14 @@ VPATH += $(SRCDIR)/stellarisware
 
 endif
 
-
 ifdef HAVE_MBED
-
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
 
 VPATH += $(SRCDIR)/nxp
-
 endif
 
+# NOTE(balazs.racz): This is ugly, because we add a driver of a specific MCU
+# depending on the general CPU architecture.
 ifeq ($(TARGET),freertos.armv6m)
 CSRCS += 11CXX_rom_can.c # malloc.c
 VPATH += $(SRCDIR)/nxp

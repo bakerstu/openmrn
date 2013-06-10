@@ -49,8 +49,8 @@ CHECKSUM=/usr/local/lpcxpresso_5.1.*/lpcxpresso/bin/checksum
 endif
 
 
-
-INCLUDES += -I"/home/bracz/lpc-workspace/libmbed_2387" -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/mbed/cpp" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/mbed/vendor/NXP/capi" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/mbed/vendor/NXP/capi/LPC2368" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/mbed/vendor/NXP/cmsis/LPC2368" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/USBDevice/USBDevice" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/USBDevice/USBSerial" -I"/home/bracz/lpc-workspace/libmbed_2387/mbed/mbed/capi" 
+# -I"/home/bracz/lpc-workspace/libmbed_2387"
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC2368" -I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC2368" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi" 
 
 
 #-MT"$(@:%.o=%.d)" 

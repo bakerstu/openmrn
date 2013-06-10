@@ -1,0 +1,70 @@
+# Get the $(FREERTOSPATH)
+include $(OPENMRNPATH)/etc/freertos.mk
+
+# Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
+include $(OPENMRNPATH)/etc/env.mk
+
+# Get the $(TOOLPATH)
+ifeq ($(TOOLPATH),)
+include $(OPENMRNPATH)/etc/armgcc.mk
+endif
+
+# Get $(MBEDPATH)
+include $(OPENMRNPATH)/etc/mbed.mk
+
+PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
+
+AS = $(PREFIX)gcc
+CC = $(PREFIX)gcc
+CXX = $(PREFIX)g++
+AR = $(PREFIX)ar
+LD = $(PREFIX)g++
+SIZE = $(PREFIX)size
+OBJCOPY = $(PREFIX)objcopy
+OBJDUMP = $(PREFIX)objdump
+CHECKSUM= $(TOOLPATH)/../bin/checksum
+
+ifeq ($(TOOLPATH),/usr/local/lpcxpresso_5.1.2_2065/lpcxpresso/tools)
+CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.6.2
+CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2
+else
+CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.7.3
+CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.7.3
+CHECKSUM=/usr/local/lpcxpresso_5.1.*/lpcxpresso/bin/checksum
+endif
+
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
+
+INCLUDES += -I$(FREERTOSPATH)/Source/include \
+            -I$(FREERTOSPATH)/Source/portable/GCC/ARM_CM3 \
+            -I$(OPENMRNPATH)/include/freertos \
+            -I$(OPENMRNPATH)/src/freertos_drivers/common
+
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC1768" -I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC1768" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi" 
+
+
+ARCHOPTIMIZATION = -D__NEWLIB__
+#ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
+
+ASFLAGS = -c -g -MD -MP \
+           -march=armv7-m -mthumb -mfloat-abi=soft
+
+CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
+             -fno-builtin -fno-stack-protector -DTARGET_LPC1768 -DGCC_ARMCM3 \
+	     -march=armv7-m -mthumb -mfloat-abi=soft -mfix-cortex-m3-ldrd \
+	     -DINTERRUPT_ATTRIBUTE=   -D_POSIX_C_SOURCE=200112
+
+CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
+CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
+           -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
+
+LDFLAGS = -g -nostdlib -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" \
+          $(LDFLAGSEXTRA) $(LDFLAGSENV)
+
+SYSLIBRARIES = -lfreertos \
+               -lfreertos_drivers  \
+               $(SYSLIBRARIESEXTRA)
+
+EXTENTION = .elf
+
