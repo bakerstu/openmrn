@@ -134,6 +134,22 @@ Reset_Handler:
  *      __data_start__/__data_end__: RAM address range that data should be
  *      copied to. Both must be aligned to 4 bytes boundary.  */
 
+	/* turn on debug LED */
+	mov r1, #(1<<18) | (1<<20) | (1<<21) | (1<<23)
+	ldr r2, =0x2009c020 // FIO1DIR
+	str r1, [r2]
+	mov r1, #(1<<18)
+	ldr r2, =0x2009c038 // FIO1SET
+	//str r1, [r2]
+
+
+        // Enables usage fault, bus fault, and mem fault handler. This will
+	// prevent the hard fault handler triggering for all these errors.
+        ldr r0, =0xE000ED24
+        mov r1, #0x70000
+	str r1, [r0]
+
+        
     ldr    r1, =__etext
     ldr    r2, =__data_start__
     ldr    r3, =__data_end__
@@ -145,6 +161,11 @@ Reset_Handler:
     strlt   r0, [r2], #4
     blt    .flash_to_ram_loop
 
+	mov r1, #(1<<20)
+	ldr r2, =0x2009c038 // FIO1SET
+	str r1, [r2]
+
+        
 	//Clear .bss (zero'ed space)
         MOV   r0,#0                     // get a zero
         LDR   r1,=__bss_start__         // -> bss start
@@ -155,14 +176,33 @@ Reset_Handler:
         BLO   2b                        // loop until done
 
 3:      
+
+	mov r1, #(1<<21)
+	ldr r2, =0x2009c038 // FIO1SET
+	str r1, [r2]
+        
         
     ldr    r0, =SystemInit
     blx    r0
 
-        LDR R0, =__libc_init_array
-        MOV     lr,pc
-        BX R0
 
+
+        mov r1, #(1<<23)
+	ldr r2, =0x2009c038 // FIO1SET
+	str r1, [r2]
+
+1:
+//        b 1b
+        
+        LDR R0, =__libc_init_array
+        blx r0
+        
+	mov r1, #(1<<18)
+	ldr r2, =0x2009c038 // FIO1SET
+	str r1, [r2]
+
+
+        
         LDR R0, =main
 
 //    ldr    r0, =_start
@@ -184,10 +224,10 @@ Reset_Handler:
     .endm
     
     def_default_handler    NMI_Handler
-    def_default_handler    HardFault_Handler
+//    def_default_handler    HardFault_Handler
     def_default_handler    MemManage_Handler
     def_default_handler    BusFault_Handler
-    def_default_handler    UsageFault_Handler
+//    def_default_handler    UsageFault_Handler
     def_default_handler    SVC_Handler
     def_default_handler    DebugMon_Handler
     def_default_handler    PendSV_Handler
@@ -233,5 +273,23 @@ Reset_Handler:
     .weak    DEF_IRQHandler
     .set    DEF_IRQHandler, Default_Handler
 
+  .thumb_func
+HardFault_Handler:
+        push    {r0, r1}
+        ldr     r0, =0xE000ED2C
+        ldr     r1, [r0]
+        ldr     r0, =0xE000E300
+        ldr     r2, [r0]
+1:
+        b 1b
+
+  .thumb_func
+UsageFault_Handler:
+        ldr     r0, =0xE000ED28
+        ldr     r1, [r0]
+1:
+        b 1b
+
+        
     .end
 

@@ -85,6 +85,12 @@ extern "C" {
 void resetblink(uint32_t pattern);
 void diewith(uint32_t pattern);
 }
+#elif defined(TARGET_LPC1768)
+#include "mbed.h"
+DigitalOut led(LED1);
+void resetblink(int d) {
+  led = d & 1;
+}
 #else
 #define resetblink( x )
 #endif
@@ -118,7 +124,8 @@ int appl_main(int argc, char *argv[])
 #ifndef __FreeRTOS__
     printf("hello world\n");
 #endif
-
+    resetblink(1);
+    while(1);
     NMRAnetIF *nmranet_if = NULL;
 
     if (argc >= 2)

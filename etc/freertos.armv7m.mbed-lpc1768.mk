@@ -6,7 +6,7 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
 ifeq ($(TOOLPATH),)
-include $(OPENMRNPATH)/etc/armgcc.mk
+include $(OPENMRNPATH)/etc/armgcc-s.mk
 endif
 
 # Get $(MBEDPATH)
@@ -59,7 +59,7 @@ CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
            -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
-LDFLAGS = -g -nostdlib -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" \
+LDFLAGS = -g -nostdlib -nostartfiles -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 SYSLIBRARIES = -lfreertos \

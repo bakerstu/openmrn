@@ -90,6 +90,12 @@
 
 #define diewith( x ) abort()
 
+/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
+standard names - or at least those used in the unmodified vector table. */
+#define vPortSVCHandler SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
+
 #elif defined(TARGET_LPC2368)
 
 #include "lpc23xx.h"
@@ -102,7 +108,7 @@ extern void diewith(unsigned long);
 extern unsigned long blinker_pattern;
 #ifdef __cplusplus
 }
-#endif
+#endif  // cplusplus
 #define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
 
 /* Value to use on old rev '-' devices. */
