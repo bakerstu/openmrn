@@ -37,6 +37,11 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
+#include "mbed.h"
+#endif
+
+
 #include "os/os.h"
 #include "os/OS.hxx"
 #include "if/nmranet_if.h"
@@ -80,16 +85,10 @@ const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 const int main_priority = 0;
 
 
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768)
 extern "C" {
 void resetblink(uint32_t pattern);
 void diewith(uint32_t pattern);
-}
-#elif defined(TARGET_LPC1768)
-#include "mbed.h"
-DigitalOut led(LED1);
-void resetblink(int d) {
-  led = d & 1;
 }
 #else
 #define resetblink( x )
@@ -125,12 +124,11 @@ int appl_main(int argc, char *argv[])
     printf("hello world\n");
 #endif
     resetblink(1);
-    //while(1);
     NMRAnetIF *nmranet_if = NULL;
 
     if (argc >= 2)
     {
-#if !defined(TARGET_LPC2368) && !defined(TARGET_LPC11Cxx)
+#if !defined(TARGET_LPC2368) && !defined(TARGET_LPC11Cxx) && !defined(TARGET_LPC1768)
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
 #endif
     }
@@ -147,8 +145,8 @@ int appl_main(int argc, char *argv[])
     
     if (nmranet_if == NULL)
     {
-#if defined (TARGET_LPC2368) || defined(TARGET_LPC11Cxx)
-	diewith(0x8002CCCA);  // 3-3-1
+#if defined (TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined (TARGET_LPC1768)
+	diewith(BLINK_DIE_STARTUP);  // 3-3-2
 #else
         printf("Unable to open NMRAnet Interface.\n");
 #endif

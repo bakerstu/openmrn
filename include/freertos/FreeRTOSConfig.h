@@ -127,6 +127,30 @@ extern unsigned long blinker_pattern;
 
 #define configTIMER_TASK_STACK_DEPTH   256
 
+#elif defined(TARGET_LPC1768)
+
+// Assertion facility
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
+
+#define configCPU_CLOCK_HZ          ( ( unsigned long ) 96000000 )      /* =12Mhz xtal multiplied by 5 using the PLL. */
+#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
+#define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 18 * 1024 ) )
+
+#define configTIMER_TASK_STACK_DEPTH   256
+
+/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
+standard names - or at least those used in the unmodified vector table. */
+#define vPortSVCHandler SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
 
 #elif defined(TARGET_LPC11Cxx)
 
@@ -229,7 +253,8 @@ typedef struct task_switched_in
 #define BLINK_DIE_STACKCOLLIDE 0x80AA8CCA  // 3-2-5
 
 #define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
-#define BLINK_DIE_WATCHDOG 0x8002CCCA
+#define BLINK_DIE_WATCHDOG 0x8002CCCA // 3-3-1
+#define BLINK_DIE_STARTUP 0x800ACCCA // 3-3-2
 
 #endif
 

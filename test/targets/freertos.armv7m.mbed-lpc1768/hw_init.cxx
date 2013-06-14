@@ -1,5 +1,8 @@
 #include "mbed.h"
 
+#include "FreeRTOSConfig.h"
+
+
 DigitalOut d1(LED1);
 DigitalOut d2(LED2);
 DigitalOut d3(LED3);
@@ -46,6 +49,88 @@ void lowlevel_hw_init(void) {
   // the host even during boot time.
   stdio_serial = init_stdio_serial();
   send_stdio_serial_message("Foo.\n");
+}
+
+uint32_t blinker_pattern;
+uint32_t current_pattern;
+#define BLINK_GPIO LPC_GPIO1
+#define BLINK_BIT (1<<23)
+
+void enable_fiq_only(void) {
+  __set_BASEPRI(1);
+  __enable_irq();
+}
+
+void diewith(unsigned long);
+
+/** Initializes the timer responsible for the blinking hardware and sets
+ *   initial pattern.
+ *
+ *  \param pattern is a blinking pattern, each bit will be shifted to the
+ *  output LED every 125 ms.
+ */
+void setblink(uint32_t pattern)
+{
+    blinker_pattern = pattern;
+    current_pattern = 0;
+    BLINK_GPIO->FIODIR |= BLINK_BIT;
+    BLINK_GPIO->FIOCLR = BLINK_BIT;
+
+    // clock = raw clock
+    LPC_SC->PCLKSEL0 = (LPC_SC->PCLKSEL0 & (~(0x3<<4))) | (0x01 << 4);
+    LPC_TIM1->TCR = 2;  // stop & reset timer
+    LPC_TIM1->CTCR = 0; // timer mode
+    // prescale to 1 ms per tick
+    LPC_TIM1->PR = configCPU_CLOCK_HZ / 1000;
+    LPC_TIM1->MR0 = 125;
+    LPC_TIM1->MCR = 3;  // reset and interrupt on match 0
+
+    NVIC_SetPriority(TIMER1_IRQn, 0);
+    NVIC_EnableIRQ(TIMER1_IRQn);
+
+    LPC_TIM1->TCR = 1;  // Timer go.
+}
+
+/** Updates the blinking pattern.
+ *
+ *  \param pattern is a blinking pattern, each bit will be shifted to the
+ *  output LED every 125 ms.
+ */
+void resetblink(uint32_t pattern)
+{
+    blinker_pattern = pattern;
+    // Makes a timer event trigger immediately.
+    LPC_TIM1->TC = LPC_TIM1->MR0 - 2;
+}
+
+/** Aborts the program execution and sets a particular blinking pattern.
+ *
+ *  \param pattern is a blinking pattern, each bit will be shifted to the
+ *  output LED every 125 ms.
+ *
+ *  Never returns.
+ */
+void diewith(unsigned long pattern)
+{
+    enable_fiq_only();
+    setblink(pattern);
+    for (;;)
+    {
+    }
+}
+
+void TIMER1_IRQHandler(void) {
+  if (!current_pattern) {
+    current_pattern = blinker_pattern;
+  }
+  if (current_pattern & 1) {
+    BLINK_GPIO->FIOSET = BLINK_BIT;
+  } else {
+    BLINK_GPIO->FIOCLR = BLINK_BIT;
+  }
+  current_pattern >>= 1;
+  // Clears IRQ.
+  LPC_TIM1->IR = 1;
 }
 
 }

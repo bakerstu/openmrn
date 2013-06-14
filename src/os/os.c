@@ -742,7 +742,7 @@ int usleep(useconds_t usec)
 
 void abort(void)
 {
-#ifdef TARGET_LPC2368
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768)
     blinker_pattern = BLINK_DIE_ABORT;
 #endif
     for (;;)

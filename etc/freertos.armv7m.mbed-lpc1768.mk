@@ -51,7 +51,7 @@ ASFLAGS = -c -g -MD -MP \
            -march=armv7-m -mthumb -mfloat-abi=soft
 
 CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
-             -fno-builtin -fno-stack-protector -DTARGET_LPC1768 -DGCC_ARMCM3 \
+             -fno-builtin -fno-stack-protector -DTARGET_LPC1768 \
 	     -march=armv7-m -mthumb -mfloat-abi=soft -mfix-cortex-m3-ldrd \
 	     -DINTERRUPT_ATTRIBUTE=   -D_POSIX_C_SOURCE=200112
 
