@@ -125,7 +125,7 @@ int appl_main(int argc, char *argv[])
     printf("hello world\n");
 #endif
     resetblink(1);
-    while(1);
+    //while(1);
     NMRAnetIF *nmranet_if = NULL;
 
     if (argc >= 2)

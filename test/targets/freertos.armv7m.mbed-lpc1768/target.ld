@@ -74,7 +74,7 @@ SECTIONS
         *(SORT(.dtors.*))
         *(.dtors)
 
-        *(.rodata*)
+        *(SORT(.rodata*))
 
         KEEP(*(.eh_frame*))
     } > FLASH
@@ -129,6 +129,10 @@ SECTIONS
         __data_end__ = .;
 
     } > RAM
+
+    __data_init_start__ = LOADADDR( .data ) ;
+    ASSERT(__data_init_start__ == __etext, "Initialized data source inconsistent")
+        
 
     .bss :
     {

@@ -127,21 +127,31 @@ __isr_vector:
     .globl    Reset_Handler
     .type    Reset_Handler, %function
 Reset_Handler:
-/*     Loop to copy data from read only memory to RAM. The ranges
- *      of copy from/to are specified by following symbols evaluated in 
- *      linker script.
- *      _etext: End of code section, i.e., begin of data sections to copy from.
- *      __data_start__/__data_end__: RAM address range that data should be
- *      copied to. Both must be aligned to 4 bytes boundary.  */
+	.equ	LED0, (1<<18)
+	.equ	LED1, (1<<20)
+	.equ	LED2, (1<<21)
+	.equ	LED3, (1<<23)
+
+	.macro	setramword bit, offset
+	ldr	r0, =\offset
+	mov	r1, #\bit
+	str	r1, [r0]
+	.endm
+
+	.macro setled led
+	setramword	\led, 0x2009c038  // FIO1SET
+	.endm
+
+	.macro clearled led
+	setramword	\led, 0x2009c03c  // FIO1CLR
+	.endm
 
 	/* turn on debug LED */
-	mov r1, #(1<<18) | (1<<20) | (1<<21) | (1<<23)
+	mov r1, #LED0|LED1|LED2|LED3
 	ldr r2, =0x2009c020 // FIO1DIR
 	str r1, [r2]
-	mov r1, #(1<<18)
-	ldr r2, =0x2009c038 // FIO1SET
-	//str r1, [r2]
 
+	setled	LED0
 
         // Enables usage fault, bus fault, and mem fault handler. This will
 	// prevent the hard fault handler triggering for all these errors.
@@ -149,7 +159,16 @@ Reset_Handler:
         mov r1, #0x70000
 	str r1, [r0]
 
-        
+	
+/*     Loop to copy data from read only memory to RAM. The ranges
+ *      of copy from/to are specified by following symbols evaluated in 
+ *      linker script.
+ *      _etext: End of code section, i.e., begin of data sections to copy from.
+ *      __data_start__/__data_end__: RAM address range that data should be
+ *      copied to. Both must be aligned to 4 bytes boundary.  */
+
+
+      
     ldr    r1, =__etext
     ldr    r2, =__data_start__
     ldr    r3, =__data_end__
@@ -161,9 +180,8 @@ Reset_Handler:
     strlt   r0, [r2], #4
     blt    .flash_to_ram_loop
 
-	mov r1, #(1<<20)
-	ldr r2, =0x2009c038 // FIO1SET
-	str r1, [r2]
+	clearled LED0
+	setled LED1
 
         
 	//Clear .bss (zero'ed space)
@@ -177,31 +195,37 @@ Reset_Handler:
 
 3:      
 
-	mov r1, #(1<<21)
-	ldr r2, =0x2009c038 // FIO1SET
-	str r1, [r2]
-        
+	clearled LED1
+	setled LED2
+
         
     ldr    r0, =SystemInit
     blx    r0
 
+	clearled LED2
+	setled	LED3
 
+        LDR R0, =lowlevel_hw_init
+        blx r0
 
-        mov r1, #(1<<23)
-	ldr r2, =0x2009c038 // FIO1SET
-	str r1, [r2]
+	clearled LED3
+	setled	LED0
+	setled	LED1
 
+	ldr	r0, =boot_msg
+	blx	send_stdio_serial_message	
+	
+	clearled LED1
+	setled LED2
+	
 1:
 //        b 1b
         
         LDR R0, =__libc_init_array
         blx r0
         
-	mov r1, #(1<<18)
-	ldr r2, =0x2009c038 // FIO1SET
-	str r1, [r2]
-
-
+	clearled LED2
+	setled LED3
         
         LDR R0, =main
 
@@ -273,9 +297,16 @@ Reset_Handler:
     .weak    DEF_IRQHandler
     .set    DEF_IRQHandler, Default_Handler
 
+
+.text
+	
   .thumb_func
 HardFault_Handler:
-        push    {r0, r1}
+	.global	error_hardfault
+        push    {r0-r3,lr}
+	ldr	r0, =hardfault_error
+	blx	send_stdio_serial_message	
+	
         ldr     r0, =0xE000ED2C
         ldr     r1, [r0]
         ldr     r0, =0xE000E300
@@ -283,13 +314,39 @@ HardFault_Handler:
 1:
         b 1b
 
+        pop    {r0-r3,pc}
+
+
   .thumb_func
 UsageFault_Handler:
+        push    {r0-r3,lr}
+	ldr	r0, =usagefault_error
+	blx	send_stdio_serial_message	
+
         ldr     r0, =0xE000ED28
         ldr     r1, [r0]
 1:
         b 1b
 
-        
-    .end
+        pop    {r0-r3,pc}
+
+//.section	rodata
+//error_hardfault:
+//	.ascii "Hard fault exception.\n"
+	
+
+        .section        .rodata
+        .align  2
+hardfault_error:
+        .ascii  "Hard fault exception.\012\000"
+
+usagefault_error:
+        .ascii  "Usage fault exception.\012\000"
+
+boot_msg:
+        .ascii  "Hello, mbed user!\012\000"
+
+
+	
+	.end
 
