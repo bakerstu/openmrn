@@ -39,12 +39,16 @@ void send_stdio_serial_message(const char* data) {
   }
 }
 
+void setblink(uint32_t pattern);
+
 /** This function is called during boot.
     - after initializing BSS and DATA segments in memory
     - after the clock and PLL is setup but
     - BEFORE the static objects are initialized.
  */
 void lowlevel_hw_init(void) {
+  // Initializes the blinker routine.
+  setblink(0);
   // Initializes the UART0 link that will allow us to send error messages to
   // the host even during boot time.
   stdio_serial = init_stdio_serial();
