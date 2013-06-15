@@ -16,6 +16,8 @@ extern "C" {
 
 extern serial_t stdio_uart;
 
+void send_stdio_serial_message(const char* data);
+
 void hw_init(void)
 {
   // This is needed for proper bootup of the FreeRTOS scheduler.
@@ -25,16 +27,10 @@ void hw_init(void)
   d2 = 1;
   d3 = 1;
   d4 = 0;
-
-  init_stdio_serial();
-  serial_putc(&stdio_uart, 'X');
-  serial_putc(&stdio_uart, '\n');
-  //st.printf("heeeeelo\n");
-
 }
 
 void send_stdio_serial_message(const char* data) {
-  while (!*data) {
+  while (*data) {
     serial_putc(stdio_serial, *data++);
   }
 }
@@ -52,7 +48,6 @@ void lowlevel_hw_init(void) {
   // Initializes the UART0 link that will allow us to send error messages to
   // the host even during boot time.
   stdio_serial = init_stdio_serial();
-  send_stdio_serial_message("Foo.\n");
 }
 
 uint32_t blinker_pattern;
@@ -118,6 +113,7 @@ void diewith(unsigned long pattern)
 {
     enable_fiq_only();
     setblink(pattern);
+    send_stdio_serial_message("Diewith called.\n");
     for (;;)
     {
     }
