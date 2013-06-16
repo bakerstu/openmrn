@@ -88,7 +88,7 @@ static int mbed_can_init(devtab_t *dev);
 static void ignore_dev_function(devtab_t *dev);
 static void mbed_can_tx_msg(devtab_t *dev);
 
-/** initialize the device 
+/** initialize the device
  * @param dev device to initialize
  * @return 0 upon success
  */
@@ -98,7 +98,7 @@ static int mbed_can_init(devtab_t *dev)
     //priv->can->frequency(125000);
     priv->can->frequency(250000);
     priv->can->attach(priv, &MbedCanPriv::interrupt);
-    
+
     priv->canPriv.enable = ignore_dev_function;
     priv->canPriv.disable = ignore_dev_function;
     priv->canPriv.tx_msg = mbed_can_tx_msg;
@@ -123,9 +123,9 @@ static void mbed_can_tx_msg(devtab_t *dev)
 #endif
 
     struct can_frame can_frame;
-    // TODO(balazs.racz): think about how we could do with a shorter critical
-    // section. The problem is that an ISR might decide to send off the next
-    // frame ahead of us.
+    /** @todo (balazs.racz): think about how we could do with a shorter
+     critical section. The problem is that an ISR might decide to send off the
+     next frame ahead of us. */
     taskENTER_CRITICAL();
     if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
     {
@@ -189,7 +189,7 @@ void MbedCanPriv::interrupt() {
 		// switch occured while serving an interrupt handler?
 		canPriv.overrunCount++;
 		txPending = 0;
-	    } 
+	    }
 	}
 	else
 	{
@@ -199,8 +199,9 @@ void MbedCanPriv::interrupt() {
 #else
 #error you need to define how to figure out whether the transmit buffer is empty.
 #endif
-    // TODO(balazs.racz): need to see what needs to be done for acking the interrupt, depending on what the interrupt fnction attributes say.
-} 
+    /** @todo (balazs.racz): need to see what needs to be done for acking the
+        interrupt, depending on what the interrupt fnction attributes say. */
+}
 
 /** Device table entry for can device */
 static CAN_DEVTAB_ENTRY(can0, "/dev/can0", mbed_can_init, &can_private[0]);
