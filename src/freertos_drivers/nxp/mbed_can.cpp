@@ -67,20 +67,20 @@ typedef struct mbed_can_priv
 static MbedCanPriv can_private[2] =
 {
     {
-	CanPriv(),
-	&cand1,
+        CanPriv(),
+        &cand1,
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-	&LPC_CAN1->SR,
+        &LPC_CAN1->SR,
 #endif
-	0
+        0
     },
     {
-	CanPriv(),
-	&cand2,
+        CanPriv(),
+        &cand2,
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-	&LPC_CAN2->SR,
+        &LPC_CAN2->SR,
 #endif
-	0
+        0
     }
 };
 
@@ -129,21 +129,21 @@ static void mbed_can_tx_msg(devtab_t *dev)
     taskENTER_CRITICAL();
     if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
     {
-	return;
+        return;
     }
     CANMessage msg(can_frame.can_id,
-		   (const char*) can_frame.data,
-		   can_frame.can_dlc,
-		   can_frame.can_rtr ? CANRemote : CANData,
-		   can_frame.can_eff ? CANExtended : CANStandard);
+                   (const char*) can_frame.data,
+                   can_frame.can_dlc,
+                   can_frame.can_rtr ? CANRemote : CANData,
+                   can_frame.can_eff ? CANExtended : CANStandard);
     if (!priv->can->write(msg))
     {
-	// NOTE(balazs.racz): This means that the CAN layer didn't find an
-	// available TX buffer to send the CAN message. However, since
-	// txPending == 0 at this point, that can only happen if someone else
-	// was also writing frames to this CAN device. We won't handle that
-	// case now.
-	priv->canPriv.overrunCount++;
+        // NOTE(balazs.racz): This means that the CAN layer didn't find an
+        // available TX buffer to send the CAN message. However, since
+        // txPending == 0 at this point, that can only happen if someone else
+        // was also writing frames to this CAN device. We won't handle that
+        // case now.
+        priv->canPriv.overrunCount++;
     }
     priv->txPending = 1;
     taskEXIT_CRITICAL();
@@ -169,32 +169,32 @@ void MbedCanPriv::interrupt() {
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     if (*SR & 0x4)
     {
-	// Transmit buffer 1 empty => transmit finished.
+        // Transmit buffer 1 empty => transmit finished.
         struct can_frame can_frame;
         if (os_mq_receive_from_isr(canPriv.txQ, &can_frame) == OS_MQ_NONE)
-	{
-	    CANMessage msg(can_frame.can_id,
-			   (const char*) can_frame.data,
-			   can_frame.can_dlc,
-			   can_frame.can_rtr ? CANRemote : CANData,
-			   can_frame.can_eff ? CANExtended : CANStandard);
-	    if (can->write(msg))
-	    {
-		txPending = 1;
-	    }
-	    else
-	    {
-		// NOTE(balazs.racz): This is an inconsistency -- if *SR&0x4
-		// then TX1 buffer is empty, so if write fails, then... a task
-		// switch occured while serving an interrupt handler?
-		canPriv.overrunCount++;
-		txPending = 0;
-	    }
-	}
-	else
-	{
-	    txPending = 0;
-	}
+        {
+            CANMessage msg(can_frame.can_id,
+                           (const char*) can_frame.data,
+                           can_frame.can_dlc,
+                           can_frame.can_rtr ? CANRemote : CANData,
+                           can_frame.can_eff ? CANExtended : CANStandard);
+            if (can->write(msg))
+            {
+                txPending = 1;
+            }
+            else
+            {
+                // NOTE(balazs.racz): This is an inconsistency -- if *SR&0x4
+                // then TX1 buffer is empty, so if write fails, then... a task
+                // switch occured while serving an interrupt handler?
+                canPriv.overrunCount++;
+                txPending = 0;
+            }
+        }
+        else
+        {
+            txPending = 0;
+        }
     }
 #else
 #error you need to define how to figure out whether the transmit buffer is empty.

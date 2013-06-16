@@ -13,7 +13,7 @@ DEPS += HAVE_MBED
 SYSLIBRARIESEXTRA = -lmbed
 
 OBJEXTRA = $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/mbed_can.o \
-	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/mbed_usbserial.o
+           $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/mbed_usbserial.o
 
 include $(OPENMRNPATH)/etc/prog.mk
 

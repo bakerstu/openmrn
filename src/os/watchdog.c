@@ -12,15 +12,15 @@ static void* watchdog_thread(void* arg)
 {
     while (1)
     {
-	usleep(((useconds_t)1000) * watchdog_period_msec);
-	if (++watchdog_ticks > 1)
-	{
+        usleep(((useconds_t)1000) * watchdog_period_msec);
+        if (++watchdog_ticks > 1)
+        {
 #ifdef __FreeRTOS__
-	    diewith(BLINK_DIE_WATCHDOG);
+            diewith(BLINK_DIE_WATCHDOG);
 #else
-	    abort();
+            abort();
 #endif
-	}
+        }
     }
     return NULL;
 }
@@ -35,7 +35,7 @@ void start_watchdog(int period_msec)
     const int kStackSize = 2048;
 #endif
     os_thread_create(NULL, "watchdog", 0, kStackSize,
-		     &watchdog_thread, NULL);
+                     &watchdog_thread, NULL);
 }
 
 void reset_watchdog(void)
@@ -52,5 +52,5 @@ static long long watchdog_reset_timer(void* unused1, void* unused2)
 void add_watchdog_reset_timer(int period_msec)
 {
     os_timer_start(os_timer_create(&watchdog_reset_timer, NULL, NULL),
-		   MSEC_TO_NSEC(period_msec));
+                   MSEC_TO_NSEC(period_msec));
 }

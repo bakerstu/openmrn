@@ -50,7 +50,7 @@
 //
 //*****************************************************************************
 extern "C" {
-	extern void __libc_init_array(void);
+    extern void __libc_init_array(void);
 }
 #endif
 #endif
@@ -147,22 +147,22 @@ extern void _vStackTop(void);
 extern void (* const g_pfnVectors[])(void);
 __attribute__ ((section(".isr_vector")))
 void (* const g_pfnVectors[])(void) = {
-    &_vStackTop,		    				// The initial stack pointer
+    &_vStackTop,                            // The initial stack pointer
     ResetISR,                               // The reset handler
     NMI_Handler,                            // The NMI handler
     HardFault_Handler,                      // The hard fault handler
-    0,                      				// Reserved
-    0,                      				// Reserved
-    0,                      				// Reserved
     0,                                      // Reserved
     0,                                      // Reserved
     0,                                      // Reserved
     0,                                      // Reserved
-    SVC_Handler,                      	// SVCall handler
-    0,                      				// Reserved
     0,                                      // Reserved
-    PendSV_Handler,                      	// The PendSV handler
-    SysTick_Handler,                      	// The SysTick handler
+    0,                                      // Reserved
+    0,                                      // Reserved
+    SVC_Handler,                            // SVCall handler
+    0,                                      // Reserved
+    0,                                      // Reserved
+    PendSV_Handler,                         // The PendSV handler
+    SysTick_Handler,                        // The SysTick handler
 
     // Wakeup sources for the I/O pins:
     //   PIO0 (0:11)
@@ -180,24 +180,24 @@ void (* const g_pfnVectors[])(void) = {
     WAKEUP_IRQHandler,                      // PIO0_10 Wakeup
     WAKEUP_IRQHandler,                      // PIO0_11 Wakeup
     WAKEUP_IRQHandler,                      // PIO1_0  Wakeup
-    
-    CAN_IRQHandler,							// C_CAN Interrupt
-    SSP1_IRQHandler, 						// SPI/SSP1 Interrupt
-    I2C_IRQHandler,                      	// I2C0
+
+    CAN_IRQHandler,                         // C_CAN Interrupt
+    SSP1_IRQHandler,                        // SPI/SSP1 Interrupt
+    I2C_IRQHandler,                         // I2C0
     TIMER16_0_IRQHandler,                   // CT16B0 (16-bit Timer 0)
     TIMER16_1_IRQHandler,                   // CT16B1 (16-bit Timer 1)
     TIMER32_0_IRQHandler,                   // CT32B0 (32-bit Timer 0)
     TIMER32_1_IRQHandler,                   // CT32B1 (32-bit Timer 1)
-    SSP0_IRQHandler,                      	// SPI/SSP0 Interrupt
-    UART_IRQHandler,                      	// UART0
+    SSP0_IRQHandler,                        // SPI/SSP0 Interrupt
+    UART_IRQHandler,                        // UART0
 
-    0, 				                     	// Reserved
-    0,                      				// Reserved
+    0,                                      // Reserved
+    0,                                      // Reserved
 
-    ADC_IRQHandler,                      	// ADC   (A/D Converter)
-    WDT_IRQHandler,                      	// WDT   (Watchdog Timer)
-    BOD_IRQHandler,                      	// BOD   (Brownout Detect)
-    0,                      				// Reserved
+    ADC_IRQHandler,                         // ADC   (A/D Converter)
+    WDT_IRQHandler,                         // WDT   (Watchdog Timer)
+    BOD_IRQHandler,                         // BOD   (Brownout Detect)
+    0,                                      // Reserved
     PIOINT3_IRQHandler,                     // PIO INT3
     PIOINT2_IRQHandler,                     // PIO INT2
     PIOINT1_IRQHandler,                     // PIO INT1
@@ -212,19 +212,19 @@ void (* const g_pfnVectors[])(void) = {
 //*****************************************************************************
 __attribute__ ((section(".after_vectors")))
 void data_init(unsigned int romstart, unsigned int start, unsigned int len) {
-	unsigned int *pulDest = (unsigned int*) start;
-	unsigned int *pulSrc = (unsigned int*) romstart;
-	unsigned int loop;
-	for (loop = 0; loop < len; loop = loop + 4)
-		*pulDest++ = *pulSrc++;
+    unsigned int *pulDest = (unsigned int*) start;
+    unsigned int *pulSrc = (unsigned int*) romstart;
+    unsigned int loop;
+    for (loop = 0; loop < len; loop = loop + 4)
+        *pulDest++ = *pulSrc++;
 }
 
 __attribute__ ((section(".after_vectors")))
 void bss_init(unsigned int start, unsigned int len) {
-	unsigned int *pulDest = (unsigned int*) start;
-	unsigned int loop;
-	for (loop = 0; loop < len; loop = loop + 4)
-		*pulDest++ = 0;
+    unsigned int *pulDest = (unsigned int*) start;
+    unsigned int loop;
+    for (loop = 0; loop < len; loop = loop + 4)
+        *pulDest++ = 0;
 }
 
 #ifndef USE_OLD_STYLE_DATA_BSS_INIT
@@ -271,75 +271,76 @@ __attribute__ ((section(".after_vectors"))) __attribute__((naked))
 void
 ResetISR(void) {
     // Fills the memory with a debug pattern.
-    for (uint32_t* d = &__start_ram; d < &__end_ram; ++d) {
-	*d = 0xdbdbdbdb;
+    for (uint32_t* d = &__start_ram; d < &__end_ram; ++d)
+    {
+        *d = 0xdbdbdbdb;
     }
 
 #ifndef USE_OLD_STYLE_DATA_BSS_INIT
     //
     // Copy the data sections from flash to SRAM.
     //
-	unsigned int LoadAddr, ExeAddr, SectionLen;
-	unsigned int *SectionTableAddr;
+    unsigned int LoadAddr, ExeAddr, SectionLen;
+    unsigned int *SectionTableAddr;
 
-	// Load base address of Global Section Table
-	SectionTableAddr = &__data_section_table;
+    // Load base address of Global Section Table
+    SectionTableAddr = &__data_section_table;
 
     // Copy the data sections from flash to SRAM.
-	while (SectionTableAddr < &__data_section_table_end) {
-		LoadAddr = *SectionTableAddr++;
-		ExeAddr = *SectionTableAddr++;
-		SectionLen = *SectionTableAddr++;
-		data_init(LoadAddr, ExeAddr, SectionLen);
-	}
-	// At this point, SectionTableAddr = &__bss_section_table;
-	// Zero fill the bss segment
-	while (SectionTableAddr < &__bss_section_table_end) {
-		ExeAddr = *SectionTableAddr++;
-		SectionLen = *SectionTableAddr++;
-		bss_init(ExeAddr, SectionLen);
-	}
+    while (SectionTableAddr < &__data_section_table_end) {
+        LoadAddr = *SectionTableAddr++;
+        ExeAddr = *SectionTableAddr++;
+        SectionLen = *SectionTableAddr++;
+        data_init(LoadAddr, ExeAddr, SectionLen);
+    }
+    // At this point, SectionTableAddr = &__bss_section_table;
+    // Zero fill the bss segment
+    while (SectionTableAddr < &__bss_section_table_end) {
+        ExeAddr = *SectionTableAddr++;
+        SectionLen = *SectionTableAddr++;
+        bss_init(ExeAddr, SectionLen);
+    }
 #else
-	// Use Old Style Data and BSS section initialization.
-	// This will only initialize a single RAM bank.
-	unsigned int * LoadAddr, *ExeAddr, *EndAddr, SectionLen;
+    // Use Old Style Data and BSS section initialization.
+    // This will only initialize a single RAM bank.
+    unsigned int * LoadAddr, *ExeAddr, *EndAddr, SectionLen;
 
     // Copy the data segment from flash to SRAM.
-	LoadAddr = &_etext;
-	ExeAddr = &_data;
-	EndAddr = &_edata;
-	SectionLen = (void*)EndAddr - (void*)ExeAddr;
-	data_init((unsigned int)LoadAddr, (unsigned int)ExeAddr, SectionLen);
-	// Zero fill the bss segment
-	ExeAddr = &_bss;
-	EndAddr = &_ebss;
-	SectionLen = (void*)EndAddr - (void*)ExeAddr;
-	bss_init ((unsigned int)ExeAddr, SectionLen);
+    LoadAddr = &_etext;
+    ExeAddr = &_data;
+    EndAddr = &_edata;
+    SectionLen = (void*)EndAddr - (void*)ExeAddr;
+    data_init((unsigned int)LoadAddr, (unsigned int)ExeAddr, SectionLen);
+    // Zero fill the bss segment
+    ExeAddr = &_bss;
+    EndAddr = &_ebss;
+    SectionLen = (void*)EndAddr - (void*)ExeAddr;
+    bss_init ((unsigned int)ExeAddr, SectionLen);
 #endif
 
 #ifdef __USE_CMSIS
-	SystemInit();
+    SystemInit();
 #endif
 
 #if defined (__cplusplus)
-	//
-	// Call C++ library initialisation
-	//
-	__libc_init_array();
+    //
+    // Call C++ library initialisation
+    //
+    __libc_init_array();
 #endif
 
 #if defined (__REDLIB__)
-	// Call the Redlib library, which in turn calls main()
-	__main() ;
+    // Call the Redlib library, which in turn calls main()
+    __main() ;
 #else
-	main();
+    main();
 #endif
-	//
-	// main() shouldn't return, but if it does, we'll just enter an infinite loop
-	//
-	while (1) {
-		;
-	}
+    //
+    // main() shouldn't return, but if it does, we'll just enter an infinite loop
+    //
+    while (1) {
+        ;
+    }
 }
 
 //*****************************************************************************

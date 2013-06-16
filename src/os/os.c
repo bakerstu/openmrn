@@ -176,7 +176,7 @@ static void timer_callback(xTimerHandle timer)
         }
         long long now = os_get_time_monotonic();
         long long delay = t->when - now;
-	if (delay < 0) delay = 0;
+        if (delay < 0) delay = 0;
         ticks = (delay * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
     } while (ticks == 0);
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);

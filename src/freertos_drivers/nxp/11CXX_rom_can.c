@@ -191,7 +191,7 @@ void CAN_rx(uint8_t msg_obj_num)
     can_frame.can_dlc = msg_obj.dlc;
     memcpy(can_frame.data, msg_obj.data, msg_obj.dlc);
     if (os_mq_send_from_isr(can_private[0].canPriv.rxQ, &can_frame)
-	== OS_MQ_FULL)
+        == OS_MQ_FULL)
     {
         can_private[0].canPriv.overrunCount++;
     }
@@ -205,10 +205,10 @@ void CAN_tx(uint8_t msg_obj_num){
     if (msg_obj_num != TX_MSG_OBJ_NUM) return;
     struct can_frame can_frame;
     if (os_mq_receive_from_isr(can_private[0].canPriv.txQ, &can_frame)
-	!= OS_MQ_NONE)
+        != OS_MQ_NONE)
     {
-	can_private[0].txPending = 0;
-	return;
+        can_private[0].txPending = 0;
+        return;
     }
     send_frame(&can_frame);
 }
@@ -227,5 +227,3 @@ static CAN_DEVTAB_ENTRY(can0, "/dev/can0", lpc11crom_can_init, &can_private[0]);
 #else
 #error You need to define TARGET_LPC11Cxx if you want to compiple its rom driver.
 #endif
-
-

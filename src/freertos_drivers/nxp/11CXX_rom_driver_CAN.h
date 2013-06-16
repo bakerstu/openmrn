@@ -111,7 +111,7 @@ typedef struct _CAN_CANOPENCFG {
 #define CAN_SDOSEG_OPEN           1  // channel is opened
 #define CAN_SDOSEG_CLOSE          2  // channel is closed
 
-typedef	struct _CAN_CALLBACKS {
+typedef struct _CAN_CALLBACKS {
   void (*CAN_rx)(uint8_t msg_obj_num);
   void (*CAN_tx)(uint8_t msg_obj_num);
   void (*CAN_error)(uint32_t error_info);
@@ -132,7 +132,7 @@ extern void config_canopen(CAN_CANOPENCFG * canopen_cfg);
 extern void canopen_handler(void);
 extern void config_calb(CAN_CALLBACKS * callback_cfg);
 
-typedef	struct _CAND {
+typedef struct _CAND {
   void (*init_can)(uint32_t * can_cfg, uint8_t isr_ena);
   void (*isr)(void);
   void (*config_rxmsgobj)(CAN_MSG_OBJ * msg_obj);
@@ -144,5 +144,5 @@ typedef	struct _CAND {
 }CAND;
 
 void CANInit(void);
-				   
+
 #endif /* __ROM_DRIVER_CAN_H__ */

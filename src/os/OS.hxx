@@ -165,20 +165,20 @@ class OSMutexLock
 {
 public:
     OSMutexLock(OSMutex* mutex)
-	: mutex_(&mutex->handle)
+        : mutex_(&mutex->handle)
     {
-	os_mutex_lock(mutex_);
+        os_mutex_lock(mutex_);
     }
 
     OSMutexLock(os_mutex_t* mutex)
-	: mutex_(mutex)
+        : mutex_(mutex)
     {
-	os_mutex_lock(mutex_);
+        os_mutex_lock(mutex_);
     }
 
     ~OSMutexLock()
     {
-	os_mutex_unlock(mutex_);
+        os_mutex_unlock(mutex_);
     }
 private:
     os_mutex_t* mutex_;

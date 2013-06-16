@@ -53,11 +53,12 @@ INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(
 
 #-MT"$(@:%.o=%.d)" 
 CORECFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
-	-D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
-	-ffunction-sections -fdata-sections -mthumb-interwork \
-	-mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" \
-	-Werror -std=gnu99 -D__FreeRTOS__ -mfloat-abi=soft \
-	-Wstrict-prototypes -fno-stack-protector -DTHUMB_INTERWORK $(CFLAGSENV)
+            -D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
+            -ffunction-sections -fdata-sections -mthumb-interwork \
+            -mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" \
+            -Werror -std=gnu99 -D__FreeRTOS__ -mfloat-abi=soft \
+            -Wstrict-prototypes -fno-stack-protector -DTHUMB_INTERWORK \
+            $(CFLAGSENV)
 
 ARM_CFLAGS = $(CORECFLAGS)
 
@@ -65,16 +66,17 @@ CFLAGS = $(CORECFLAGS) -mthumb
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
-	-D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
-	-ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
-	-mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" -std=c++0x \
-	-Werror -D__FreeRTOS__ -mthumb -mthumb-interwork -mfloat-abi=soft \
-	-fno-stack-protector -D__STDC_FORMAT_MACROS -DTHUMB_INTERWORK \
-	$(CXXFLAGSENV)
+           -D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
+           -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
+           -mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" -std=c++0x \
+           -Werror -D__FreeRTOS__ -mthumb -mthumb-interwork -mfloat-abi=soft \
+           -fno-stack-protector -D__STDC_FORMAT_MACROS -DTHUMB_INTERWORK \
+           $(CXXFLAGSENV)
 
-LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" -T target.ld -mthumb -Xlinker --gc-sections -mcpu=arm7tdmi -Xlinker -Map="$(@:%.elf=%.map)"\
-	-fmessage-length=0 -fno-builtin \
-	-ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
+LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
+          -T target.ld -mthumb -Xlinker --gc-sections -mcpu=arm7tdmi \
+          -Xlinker -Map="$(@:%.elf=%.map)" -fmessage-length=0 -fno-builtin \
+          -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 SYSLIBRARIES = -lfreertos \

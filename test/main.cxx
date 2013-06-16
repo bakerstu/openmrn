@@ -100,16 +100,16 @@ void* out_blinker_thread(void*)
 {
     resetblink(0);
     while (1)
-	{
-	    usleep(200000);
-	    resetblink(1);
-	    nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-	    nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
-	    usleep(200000);
-	    resetblink(0);
-	    nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-	    nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-	}
+    {
+        usleep(200000);
+        resetblink(1);
+        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
+        usleep(200000);
+        resetblink(0);
+        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+        nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+    }
     return NULL;
 }
 
@@ -146,7 +146,7 @@ int appl_main(int argc, char *argv[])
     if (nmranet_if == NULL)
     {
 #if defined (TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined (TARGET_LPC1768)
-	diewith(BLINK_DIE_STARTUP);  // 3-3-2
+        diewith(BLINK_DIE_STARTUP);  // 3-3-2
 #else
         printf("Unable to open NMRAnet Interface.\n");
 #endif
@@ -195,10 +195,10 @@ int appl_main(int argc, char *argv[])
                        (id >> 40) & 0xff, (id >> 32) & 0xff, (id >> 24) & 0xff,
                        (id >> 16) & 0xff, (id >>  8) & 0xff, (id >>  0) & 0xff);
 #else
-		if ((event & 0xff000000) == 0xa8000000ULL)
-		{
-		    resetblink(event & 1);
-		}
+                if ((event & 0xff000000) == 0xa8000000ULL)
+                {
+                    resetblink(event & 1);
+                }
 #endif
             }
             for (size_t i = nmranet_datagram_pending(node); i > 0; i--)

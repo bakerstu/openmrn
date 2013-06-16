@@ -147,20 +147,20 @@ public:
     void UnregisterMember(PipeMember* member);
 
     /** Adds a physical device to the members of this pipe.
-	
-	@param path is the path to the physical device, e.g. /dev/can0
+        
+        @param path is the path to the physical device, e.g. /dev/can0
 
-	@param thread_name will be the name of the RX thread from the physical
-	device
+        @param thread_name will be the name of the RX thread from the physical
+        device
 
-	@param stack_size will be the size of the RX thread stack.
+        @param stack_size will be the size of the RX thread stack.
      */
     void AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
-				 int stack_size);
+                                 int stack_size);
 
     size_t unit()
     {
-	return unit_;
+        return unit_;
     }
 private:
     //! The size (in bytes) of each read and write command. Only reads and
@@ -207,14 +207,14 @@ public:
     }
 
     VirtualPipeMember(Pipe* parent, int queue_length)
-	: parent_(parent),
-	  lock_(false),
-	  read_queue_(NULL),
-	  queue_length_(queue_length),
-	  usage_count_(0)
+        : parent_(parent),
+          lock_(false),
+          read_queue_(NULL),
+          queue_length_(queue_length),
+          usage_count_(0)
     {
-	// NOTE: at this point it is not certain that the parent object has
-	// been constructed. Do not call anything there.
+        // NOTE: at this point it is not certain that the parent object has
+        // been constructed. Do not call anything there.
     }
 
     //! Handles data that comes from the parent Pipe.
@@ -275,4 +275,3 @@ int vdev_init(devtab_t *dev);
     DEVTAB_ENTRY(name ## devtab, path, vdev_init, &vdev_ops, &name)
 
 #endif //_pipe_hxx_
-

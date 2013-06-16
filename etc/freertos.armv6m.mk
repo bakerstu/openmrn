@@ -51,27 +51,27 @@ INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(
 
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
-	-D__USE_CMSIS=CMSISv2p00_LPC11xx -D__CODE_RED -D__FreeRTOS__  \
-	-g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
-	-ffunction-sections -fdata-sections -fno-stack-protector \
-	-mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
-	-MMD -MP -MF"$(@:%.o=%.d)" \
-	$(CFLAGSENV)
+        -D__USE_CMSIS=CMSISv2p00_LPC11xx -D__CODE_RED -D__FreeRTOS__  \
+        -g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
+        -ffunction-sections -fdata-sections -fno-stack-protector \
+        -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
+        -MMD -MP -MF"$(@:%.o=%.d)" \
+        $(CFLAGSENV)
 
 #-MT"$(@:%.o=%.d)" 
 
 CORECFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-	-std=gnu99 -Wstrict-prototypes
+        -std=gnu99 -Wstrict-prototypes
 
 CFLAGS = $(CORECFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-	-fno-rtti -fno-exceptions -std=c++0x \
-	-D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
+        -fno-rtti -fno-exceptions -std=c++0x \
+        -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
-	-Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
-	-Xlinker -Map="$(@:%.elf=%.map)"  \
+        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
+        -Xlinker -Map="$(@:%.elf=%.map)"  \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
 
 #use this only if armgcc == arm gcc 4.7
@@ -79,10 +79,10 @@ LDFLAGS = -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
 
 
 SYSLIBRARIES = \
-	-lfreertos \
-	-lfreertos_drivers  \
-	-lCMSISv2p00_LPC11xx \
-	$(SYSLIBRARIESEXTRA)
+        -lfreertos \
+        -lfreertos_drivers  \
+        -lCMSISv2p00_LPC11xx \
+        $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 

@@ -62,15 +62,15 @@ static int ascii_to_nibble(const char c)
 {
     if ('0' <= c && '9' >= c)
     {
-	return c - '0';
+        return c - '0';
     }
     else if ('A' <= c && 'F' >= c)
     {
-	return c - 'A' + 10;
+        return c - 'A' + 10;
     }
     else if ('a' <= c && 'f' >= c)
     {
-	return c - 'a' + 10;
+        return c - 'a' + 10;
     }
     return -1;
 }
@@ -91,68 +91,68 @@ int gc_format_parse(const char* buf, struct can_frame* can_frame)
     CLR_CAN_FRAME_ERR(*can_frame);
     if (*buf == 'X')
     {
-	SET_CAN_FRAME_EFF(*can_frame);
+        SET_CAN_FRAME_EFF(*can_frame);
     }
     else if (*buf == 'S') 
     {
-	CLR_CAN_FRAME_EFF(*can_frame);
+        CLR_CAN_FRAME_EFF(*can_frame);
     } else
     {
-	// Unknown packet type.
-	SET_CAN_FRAME_ERR(*can_frame);
-	return -1;
+        // Unknown packet type.
+        SET_CAN_FRAME_ERR(*can_frame);
+        return -1;
     }
     buf++;
     uint32_t id = 0;
     while (1)
     {
-	int nibble = ascii_to_nibble(*buf);
-	if (nibble >= 0)
-	{
-	    id <<= 4;
-	    id |= nibble;
-	    ++buf;
-	}
-	else if (*buf == 'N')
-	{
-	    // end of ID, frame is coming.
-	    CLR_CAN_FRAME_RTR(*can_frame);
-	    ++buf;
-	    break;
-	}
-	else if (*buf == 'R')
-	{
-	    // end of ID, remote frame is coming.
-	    SET_CAN_FRAME_RTR(*can_frame);
-	    ++buf;
-	    break;
-	}
-	else
-	{
-	    // This character should not happen here.
-	    SET_CAN_FRAME_ERR(*can_frame);
-	    return -1;
-	}
+        int nibble = ascii_to_nibble(*buf);
+        if (nibble >= 0)
+        {
+            id <<= 4;
+            id |= nibble;
+            ++buf;
+        }
+        else if (*buf == 'N')
+        {
+            // end of ID, frame is coming.
+            CLR_CAN_FRAME_RTR(*can_frame);
+            ++buf;
+            break;
+        }
+        else if (*buf == 'R')
+        {
+            // end of ID, remote frame is coming.
+            SET_CAN_FRAME_RTR(*can_frame);
+            ++buf;
+            break;
+        }
+        else
+        {
+            // This character should not happen here.
+            SET_CAN_FRAME_ERR(*can_frame);
+            return -1;
+        }
     } // while parsing ID
     if (IS_CAN_FRAME_EFF(*can_frame))
     {
-	SET_CAN_FRAME_ID_EFF(*can_frame, id);
+        SET_CAN_FRAME_ID_EFF(*can_frame, id);
     }
     else
     { 
-	SET_CAN_FRAME_ID(*can_frame, id);
+        SET_CAN_FRAME_ID(*can_frame, id);
     }
     int index = 0;
     while (*buf)
     {
-	int nh = ascii_to_nibble(*buf++);
-	int nl = ascii_to_nibble(*buf++);
-	if (nh < 0 || nl < 0)
-	{
-	    SET_CAN_FRAME_ERR(*can_frame);
-	    return -1;
-	}
-	can_frame->data[index++] = (nh << 4) | nl;
+        int nh = ascii_to_nibble(*buf++);
+        int nl = ascii_to_nibble(*buf++);
+        if (nh < 0 || nl < 0)
+        {
+            SET_CAN_FRAME_ERR(*can_frame);
+            return -1;
+        }
+        can_frame->data[index++] = (nh << 4) | nl;
     } // while parsing data
     can_frame->can_dlc = index;
     CLR_CAN_FRAME_ERR(*can_frame);
@@ -192,48 +192,48 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
 {
     if (IS_CAN_FRAME_ERR(*can_frame))
     {
-	return buf;
+        return buf;
     }
     void (*output)(char*& dst, char value);
     if (double_format)
     {
-	output = output_double;
-	output(buf, '!');
+        output = output_double;
+        output(buf, '!');
     }
     else
     {
-	output = output_single;
-	output(buf, ':');
+        output = output_single;
+        output(buf, ':');
     }
     uint32_t id = GET_CAN_FRAME_ID(*can_frame);
     int offset;
     if (IS_CAN_FRAME_EFF(*can_frame))
     {
-	output(buf, 'X');
-	offset = 28;
+        output(buf, 'X');
+        offset = 28;
     }
     else
     {
-	output(buf, 'S');
-	offset = 8;
+        output(buf, 'S');
+        offset = 8;
     }
     for (;offset >= 0; offset -= 4)
     {
-	output(buf, nibble_to_ascii((id >> offset) & 0xf));
+        output(buf, nibble_to_ascii((id >> offset) & 0xf));
     }
     /* handle remote or normal */
     if (IS_CAN_FRAME_RTR(*can_frame))
     {
-	output(buf, 'R');
+        output(buf, 'R');
     }
     else
     {
-	output(buf, 'N');
+        output(buf, 'N');
     }
     for (offset = 0; offset < can_frame->can_dlc; ++offset)
     {
-	output(buf, nibble_to_ascii(can_frame->data[offset] >> 4));
-	output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
+        output(buf, nibble_to_ascii(can_frame->data[offset] >> 4));
+        output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
     }
     output(buf, ';');
     return buf;

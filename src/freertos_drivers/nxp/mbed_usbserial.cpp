@@ -74,63 +74,63 @@ class MbedRawUSBSerial : public USBCDC
 public:
     MbedRawUSBSerial(SerialPriv* serialPriv, uint16_t vendor_id = 0x1f00, uint16_t product_id = 0x2012, uint16_t product_release = 0x0001): USBCDC(vendor_id, product_id, product_release), serialPriv(serialPriv), txPending(false)
     {
-	os_sem_init(&rxSem, 0);
-	os_thread_t thread;
-	os_thread_create(&thread, "usbserial.rx", 2, 1024, &_RxThread, this);
+        os_sem_init(&rxSem, 0);
+        os_thread_t thread;
+        os_thread_create(&thread, "usbserial.rx", 2, 1024, &_RxThread, this);
     }
 
     ~MbedRawUSBSerial()
     {
-	os_sem_destroy(&rxSem);
+        os_sem_destroy(&rxSem);
     }
 
     void Transmit()
     {
-	// Without this critical section there were cases when we deadlocked
-	// with txPending == true but no interrupt coming in to clear it.
-	taskENTER_CRITICAL();
-	if (txPending) {
-	    taskEXIT_CRITICAL();
-	    return;
-	}
-	txPending = true;
-	int count;
-	for (count = 0; count < TX_DATA_SIZE; count++)
-	{
-	    if (os_mq_timedreceive(serialPriv->txQ, txData+count, 0) != OS_MQ_NONE)
-	    {
-		/* no more data left to transmit */
-		break;
-	    }
-	}
-	TxHelper(count);
-	taskEXIT_CRITICAL();
+        // Without this critical section there were cases when we deadlocked
+        // with txPending == true but no interrupt coming in to clear it.
+        taskENTER_CRITICAL();
+        if (txPending) {
+            taskEXIT_CRITICAL();
+            return;
+        }
+        txPending = true;
+        int count;
+        for (count = 0; count < TX_DATA_SIZE; count++)
+        {
+            if (os_mq_timedreceive(serialPriv->txQ, txData+count, 0) != OS_MQ_NONE)
+            {
+                /* no more data left to transmit */
+                break;
+            }
+        }
+        TxHelper(count);
+        taskEXIT_CRITICAL();
     }
 
 protected:
     virtual bool EP2_OUT_callback()
     {
-	// we read the packet received to our assembly buffer
-	readEP(rxData, &rxSize);
-	// and wake up the RX thread.
-	os_sem_post_from_isr(&rxSem);
-	return true;
+        // we read the packet received to our assembly buffer
+        readEP(rxData, &rxSize);
+        // and wake up the RX thread.
+        os_sem_post_from_isr(&rxSem);
+        return true;
     }
 
     virtual bool EP2_IN_callback()
     {
-	int count;
-	configASSERT(txPending);
-	for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
-	{
-	    if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count]) != OS_MQ_NONE)
-	    {
-		/* no more data left to transmit */
-		break;
-	    }
-	}
-	TxHelper(count);
-	return true;
+        int count;
+        configASSERT(txPending);
+        for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
+        {
+            if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count]) != OS_MQ_NONE)
+            {
+                /* no more data left to transmit */
+                break;
+            }
+        }
+        TxHelper(count);
+        return true;
     }
 
 private:
@@ -138,44 +138,44 @@ private:
     static const int MAX_RX_PACKET_LENGTH = 64;
     
     /** Transmits count bytes from the txData buffer. Sets txPending and
-	bytesLost as needed. */
+        bytesLost as needed. */
     void TxHelper(int count)
     {
-	if (!count)
-	{
-	    txPending = false;
-	    return;
-	}
-	if ((!configured()) ||
-	    (!terminal_connected))
-	{
-	    // An error occured, data was lost.
-	    txPending = false;
-	    serialPriv->overrunCount += count;
-	    return;
-	}
-	txPending = true;
-	sendNB(txData, count);
+        if (!count)
+        {
+            txPending = false;
+            return;
+        }
+        if ((!configured()) ||
+            (!terminal_connected))
+        {
+            // An error occured, data was lost.
+            txPending = false;
+            serialPriv->overrunCount += count;
+            return;
+        }
+        txPending = true;
+        sendNB(txData, count);
     }
 
     void RxThread()
     {
-	while(1)
-	{
-	    os_sem_wait(&rxSem);
-	    for (uint32_t i = 0; i < rxSize; i++)
-	    {
-		os_mq_send(serialPriv->rxQ, rxData+i);
-	    }
-	    // We reactivate the endpoint to receive next characters
-	    readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
-	}
+        while(1)
+        {
+            os_sem_wait(&rxSem);
+            for (uint32_t i = 0; i < rxSize; i++)
+            {
+                os_mq_send(serialPriv->rxQ, rxData+i);
+            }
+            // We reactivate the endpoint to receive next characters
+            readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
+        }
     }
 
     static void* _RxThread(void* arg)
     {
-	((MbedRawUSBSerial*)arg)->RxThread();
-	return NULL;
+        ((MbedRawUSBSerial*)arg)->RxThread();
+        return NULL;
     }
 
     uint8_t txData[MAX_TX_PACKET_LENGTH]; /**< packet assemby buffer to host */

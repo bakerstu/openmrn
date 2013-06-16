@@ -62,7 +62,7 @@ void Pipe::RegisterMember(PipeMember* member)
 void Pipe::UnregisterMember(PipeMember* member)
 {
     members_.erase(remove(members_.begin(), members_.end(), member),
-		   members_.end());
+                   members_.end());
 }
 
 ssize_t Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
@@ -70,8 +70,8 @@ ssize_t Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
     configASSERT(count % unit_ == 0);
     for (PipeMember* member : members_)
     {
-	if (member == skip_member) continue;
-	member->write(buf, count);
+        if (member == skip_member) continue;
+        member->write(buf, count);
     }
     return count;
 }
@@ -81,49 +81,49 @@ class PhysicalDevicePipeMember : public PipeMember
 {
 public:
     PhysicalDevicePipeMember(Pipe* parent, int fd, const char* rx_name, size_t stack_size)
-	: fd_(fd),
-	  parent_(parent)
+        : fd_(fd),
+          parent_(parent)
     {
-	os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
+        os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
     }
 
     virtual ~PhysicalDevicePipeMember()
     {
-	// There is no current possibility to stop the thread we created. Let's
-	// crash.
-	abort();
+        // There is no current possibility to stop the thread we created. Let's
+        // crash.
+        abort();
     }
 
     virtual void write(const void* buf, size_t count)
     {
-	const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
-	ssize_t ret = 0;
-	while (count > 0) {
-	    ret = ::write(fd_, bbuf, count);
-	    configASSERT(ret > 0);
-	    count -= ret;
-	    bbuf += ret;
-	}
+        const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
+        ssize_t ret = 0;
+        while (count > 0) {
+            ret = ::write(fd_, bbuf, count);
+            configASSERT(ret > 0);
+            count -= ret;
+            bbuf += ret;
+        }
     }
     
 private:
     static void* DeviceToPipeReaderThread(void* arg) {
-	PhysicalDevicePipeMember* t = static_cast<PhysicalDevicePipeMember*>(arg);
-	uint8_t buf[t->parent_->unit()];
-	while(1)
-	{
-	    uint8_t* bbuf = buf;
-	    int count = t->parent_->unit();
-	    while (count > 0)
-	    {
-		ssize_t ret = ::read(t->fd_, bbuf, count);
-		configASSERT(ret > 0);
-		count -= ret;
-		bbuf += ret;
-	    }
-	    t->parent_->WriteToAll(t, buf, t->parent_->unit());
-	}
-	return NULL;
+        PhysicalDevicePipeMember* t = static_cast<PhysicalDevicePipeMember*>(arg);
+        uint8_t buf[t->parent_->unit()];
+        while(1)
+        {
+            uint8_t* bbuf = buf;
+            int count = t->parent_->unit();
+            while (count > 0)
+            {
+                ssize_t ret = ::read(t->fd_, bbuf, count);
+                configASSERT(ret > 0);
+                count -= ret;
+                bbuf += ret;
+            }
+            t->parent_->WriteToAll(t, buf, t->parent_->unit());
+        }
+        return NULL;
     }
     
     //! File descriptor of the physical device.
@@ -137,7 +137,7 @@ private:
 };
 
 void Pipe::AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
-				   int stack_size)
+                                   int stack_size)
 {
     int fd = ::open(path, O_RDWR);
     configASSERT(fd >= 0);
@@ -171,20 +171,20 @@ int VirtualPipeMember::Ops::pipe_open(file_t* file, const char *path, int flags,
 {
     if (flags & O_NONBLOCK)
     {
-	// Pipes do not currently support nonblocking mode. This restriction
-	// comes from the interface of PipeMember -- it does not support
-	// nonblocking writes. A possible option to implement it would be to
-	// start a separate RX thread in case of nonblocking IO requested, add
-	// an RX queue and pass on the responsibility of the blocking
-	// Pipe::WriteToAll call to the specialized thread.
-	return -EINVAL;
+        // Pipes do not currently support nonblocking mode. This restriction
+        // comes from the interface of PipeMember -- it does not support
+        // nonblocking writes. A possible option to implement it would be to
+        // start a separate RX thread in case of nonblocking IO requested, add
+        // an RX queue and pass on the responsibility of the blocking
+        // Pipe::WriteToAll call to the specialized thread.
+        return -EINVAL;
     }
     VirtualPipeMember* t = static_cast<VirtualPipeMember*>(file->dev->priv);
     t->Initialize(); // Will lock inside.
     OSMutexLock l(&t->lock_);
     if (t->usage_count_++ == 0)
     {
-	t->parent_->RegisterMember(t);
+        t->parent_->RegisterMember(t);
     }
     return 0;
 }
@@ -196,7 +196,7 @@ int VirtualPipeMember::Ops::pipe_close(file_t* file, node_t* node)
     configASSERT(t->usage_count_ > 0);
     if (--t->usage_count_ <= 0)
     {
-	t->parent_->UnregisterMember(t);
+        t->parent_->UnregisterMember(t);
     }
     return 0;
 }
@@ -209,10 +209,10 @@ ssize_t VirtualPipeMember::Ops::pipe_read(file_t* file, void *buf, size_t count)
     ssize_t result = 0;
     while (count >= t->parent_->unit())
     {
-	os_mq_receive(t->read_queue_, bbuf);
-	count -= t->parent_->unit();
-	bbuf += t->parent_->unit();
-	result += t->parent_->unit();
+        os_mq_receive(t->read_queue_, bbuf);
+        count -= t->parent_->unit();
+        bbuf += t->parent_->unit();
+        result += t->parent_->unit();
     }
     return result;
 }
@@ -229,9 +229,9 @@ void VirtualPipeMember::write(const void *buf, size_t count)
     const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
     while (count >= parent_->unit())
     {
-	os_mq_send(read_queue_, bbuf);
-	count -= parent_->unit();
-	bbuf += parent_->unit();
+        os_mq_send(read_queue_, bbuf);
+        count -= parent_->unit();
+        bbuf += parent_->unit();
     }
 }
 

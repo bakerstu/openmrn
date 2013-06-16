@@ -12,7 +12,6 @@ SRCS = $(wildcard ../src/os/*.h) $(wildcard ../src/os/*.cxx) \
        $(wildcard ../src/freertos_drivers/stellarisware/*.c) \
        $(wildcard ../src/freertos_drivers/stellarisware/*.hxx) \
        $(wildcard ../src/freertos_drivers/stellarisware/*.cxx)
-       
 
 all:
 
@@ -26,5 +25,5 @@ clean::
 	rm -rf latex html warnings openmrn.html
 
 veryclean:: clean
-	
+
 

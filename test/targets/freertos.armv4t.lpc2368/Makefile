@@ -11,7 +11,7 @@ TARGET := freertos.armv4t
 DEPS += HAVE_MBED
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o \
-	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
+           $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
 
 include $(OPENMRNPATH)/etc/prog.mk
 
