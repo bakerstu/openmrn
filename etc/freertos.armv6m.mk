@@ -19,7 +19,6 @@ LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
-CHECKSUM= $(TOOLPATH)/../bin/checksum
 
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
@@ -42,7 +41,6 @@ CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2
 else
 CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.7.3
 CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.7.3
-CHECKSUM=/usr/local/lpcxpresso_5.1.*/lpcxpresso/bin/checksum
 endif
 
 
