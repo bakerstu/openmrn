@@ -6,3 +6,8 @@ sh -c "if [ \"X`printenv TOOLPATH`\" != \"X\" ]; then printenv TOOLPATH; \
      else echo TOOLPATH not found; fi" \
 )
 
+ifneq ($(TOOLPATH),TOOLPATH not found)
+HAVE_ARMGCC = 1
+else
+TOOLPATH=
+endif

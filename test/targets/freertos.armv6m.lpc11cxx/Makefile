@@ -12,6 +12,8 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/11CXX_rom_can
 
 include $(OPENMRNPATH)/etc/prog.mk
 
+ifeq ($(MISSING_DEPS),)
+
 all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 $(EXECUTABLE)$(EXTENTION): target.ld
@@ -24,4 +26,4 @@ $(EXECUTABLE)$(EXTENTION): target.ld
 	$(OBJCOPY) -O binary $< $@
 	$(CHECKSUM) -p LPC11C24 -d $@
 
-
+endif #MISSING_DEPS

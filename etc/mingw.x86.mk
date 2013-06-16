@@ -1,7 +1,9 @@
-TOOLPATH ?= $(shell \
+ifndef TOOLPATH
+TOOLPATH := $(shell \
 sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo /usr/bin; \
       else echo; fi" \
 )
+endif
 
 PREFIX ?= $(shell \
 sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo i686-w64-mingw32-; \

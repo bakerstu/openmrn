@@ -8,24 +8,14 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 
 TARGET := freertos.armv4t
 
-# Find Mbed
-include $(OPENMRNPATH)/etc/mbed.mk
-
-ifndef HAVE_MBED
-
-all docs clean veryclean:
-	@echo "******************************************************************"
-	@echo "*"
-	@echo "*   Unable to build for $(TARGET), mbed unavailable"
-	@echo "*"
-	@echo "******************************************************************"
-
-else
+DEPS += HAVE_MBED
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o \
 	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+ifeq ($(MISSING_DEPS),)
 
 all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
@@ -44,4 +34,4 @@ $(EXECUTABLE)$(EXTENTION): depmake
 depmake:
 	+$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
 
-endif
+endif  #MISSING_DEPS

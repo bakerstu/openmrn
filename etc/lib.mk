@@ -33,15 +33,18 @@ ARM_CFLAGS += $(INCLUDES)
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
-ifeq ($(TOOLPATH),)
+DEPS += TOOLPATH
+MISSING_DEPS:=$(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar)))
+
+ifneq ($(MISSING_DEPS),)
+
 all docs clean veryclean:
 	@echo "******************************************************************"
 	@echo "*"
-	@echo "*   Unable to build for $(TARGET), no toolchain available"
+	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
-	echo $(TOOLPATH)
-	echo $(PREFIX)
+
 else
 .PHONY: all
 all: $(LIBNAME)
