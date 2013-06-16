@@ -34,7 +34,7 @@ LDFLAGS += -Llib -L$(LIBDIR)
 EXECUTABLE = $(shell basename `cd ../../; pwd`)
 
 DEPS += TOOLPATH
-MISSING_DEPS:=$(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar)))
+MISSING_DEPS:=$(strip $(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar))))
 
 ifneq ($(MISSING_DEPS),)
 all docs clean veryclean:

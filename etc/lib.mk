@@ -34,7 +34,7 @@ CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
 DEPS += TOOLPATH
-MISSING_DEPS:=$(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar)))
+MISSING_DEPS:=$(strip $(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar))))
 
 ifneq ($(MISSING_DEPS),)
 
