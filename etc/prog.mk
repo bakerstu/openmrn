@@ -41,11 +41,14 @@ all docs clean veryclean:
 	@echo "*"
 	@echo "******************************************************************"
 else
-all: subdirs $(EXECUTABLE)$(EXTENTION)
 
-.PHONY: subdirs
-subdirs:
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) all || exit 1;)
+include $(OPENMRNPATH)/etc/recurse.mk
+
+all: $(EXECUTABLE)$(EXTENTION)
+
+# Makes sure the subdirectory builds are done before linking the binary.
+# The targets and variable BUILDDIRS are defined in recurse.mk.
+$(FULLPATHLIBS): $(BUILDDIRS)
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
@@ -71,11 +74,11 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(CC) $(CFLAGS) $< -o $@
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
-clean:
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)
+clean: clean-local
+
+clean-local:
 	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
 
-veryclean: clean
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) veryclean || exit 1;)
+veryclean: clean-local
 
 endif

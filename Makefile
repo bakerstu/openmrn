@@ -1,15 +1,14 @@
+# Ensures all recursive directories get OPENMRNPATH appropriately.
+OPENMRNPATH:=$(realpath .)
+export OPENMRNPATH
+
 SUBDIRS = targets test doc
 
-all:
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) all || exit 1;)
+include $(OPENMRNPATH)/etc/recurse.mk
 
-.PHONY:
+# Makes sure all the targets are compiled before building the test application.
+build-test: build-targets
+
+.PHONY: docs
 docs:
 	$(MAKE) -C doc docs || exit 1;
-
-clean::
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean || exit 1;)
-
-veryclean:: clean
-	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) veryclean || exit 1;)
-

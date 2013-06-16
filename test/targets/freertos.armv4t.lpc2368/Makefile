@@ -42,6 +42,6 @@ $(EXECUTABLE)$(EXTENTION): depmake
 .PHONY: depmake
 
 depmake:
-	make -C $(OPENMRNPATH)/targets/$(TARGET) all
+	+$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 endif
