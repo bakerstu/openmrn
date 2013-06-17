@@ -74,3 +74,14 @@ ARMGCCPATH:=$(TRYPATH)
 endif
 endif #ARMGCCPATH
 
+############### CMSIS-LPC11xx ###################
+ifndef CMSIS_LPC11_PATH
+SEARCHPATH := \
+  $(HOME)/lpc-workspace/CMSISv2p00_LPC11xx \
+
+TRYPATH:=$(call findfirst,inc/LPC11xx.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+CMSIS_LPC11_PATH:=$(TRYPATH)
+endif
+endif #CMSIS_LPC11_PATH
+

@@ -43,11 +43,9 @@ CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.7.3
 CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.7.3
 endif
 
+DEPS += CMSIS_LPC11_PATH
 
-
-CMSISPATH=/home/bracz/lpc-workspace/CMSISv2p00_LPC11xx
-
-INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSISPATH)/inc
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc
 
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
@@ -69,7 +67,7 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -fno-rtti -fno-exceptions -std=c++0x \
         -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
-LDFLAGS = -g -nostdlib -L"$(CMSISPATH)/Debug" -T target.ld \
+LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
         -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
         -Xlinker -Map="$(@:%.elf=%.map)"  \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
