@@ -311,7 +311,7 @@ static unsigned long rx_callback(void *data, unsigned long event, unsigned long 
             if (msg_data)
             {
                 unsigned char *data = msg_data;
-                unsigned long count;
+                unsigned long count = 0;
                 if (priv->enabled)
                 {
                     for (count = 0; count < msg_param; count++, data++)
@@ -341,7 +341,7 @@ static unsigned long rx_callback(void *data, unsigned long event, unsigned long 
                 if (priv->enabled)
                 {
                     /* transfer data up */
-                    for (unsigned long i; i < count; i++)
+                    for (unsigned long i = 0; i < count; i++)
                     {
                         os_mq_send_from_isr(priv->serialPriv.rxQ, &priv->rxData[i]);
                     }
