@@ -26,5 +26,5 @@ clean::
 	rm -rf latex html warnings openmrn.html
 
 veryclean:: clean
-	
 
+tests:

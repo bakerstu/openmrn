@@ -8,3 +8,4 @@ clean::
 
 veryclean:: clean
 
+tests:

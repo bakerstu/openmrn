@@ -11,7 +11,7 @@ include $(OPENMRNPATH)/etc/stellarisware.mk
 
 ifeq ($(STELLARISWAREPATH),STELLARISWAREPATH not found)
 
-all docs clean veryclean:
+all docs clean veryclean tests:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), stellarisware unavailable"

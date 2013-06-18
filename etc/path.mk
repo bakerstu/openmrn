@@ -10,6 +10,23 @@
 # $(1): file or dir to look for, $(2); list of paths
 findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard $(dir)))))
 
+# Finds missing dependencies from a list.
+#
+# Accepts as $(1) a list of variable NAMEs. Returns a string containing the
+# name of those variables that have no or empty value. Returns an empty string
+# if all dependencies are met.
+#
+# Usage:
+# DEPS += TOOLPATH FREERTOSPATH
+# MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
+# ifneq (,$(MISSING_DEPS))
+# all:
+# 	@echo missing dependencies: $(MISSING_DEPS)
+# else
+# all: build-deps
+# endif
+find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
+
 ################# mbed library ##################
 
 ifndef MBEDPATH
@@ -85,3 +102,26 @@ CMSIS_LPC11_PATH:=$(TRYPATH)
 endif
 endif #CMSIS_LPC11_PATH
 
+############### GTEST ###################
+ifndef GTESTPATH
+SEARCHPATH := \
+  /opt/gtest/gtest-1.6.0 \
+  /usr \
+
+TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTPATH:=$(TRYPATH)
+endif
+endif #GTESTPATH
+
+ifndef GTESTSRCPATH
+SEARCHPATH := \
+  $(GTESTPATH) \
+  /usr/src/gtest \
+  /opt/gtest/gtest-1.6.0 \
+
+TRYPATH:=$(call findfirst,src/gtest-all.cc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTSRCPATH:=$(TRYPATH)
+endif
+endif #GTESTSRCPATH
