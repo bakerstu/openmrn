@@ -889,6 +889,6 @@ int main(int argc, char *argv[])
     WSADATA wsa_data;
     WSAStartup(WINSOCK_VERSION, &wsa_data);
 #endif
-    appl_main(argc, argv);
+    return appl_main(argc, argv);
 #endif
 }
