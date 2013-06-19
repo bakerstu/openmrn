@@ -66,7 +66,7 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 
 -include $(OBJS:.o=.d)
--include $(TEST_OBJS:.o=.d)
+-include $(TESTOBJS:.o=.d)
 
 .SUFFIXES:
 .SUFFIXES: .o .c .cxx .cpp .S
@@ -94,12 +94,19 @@ clean-local:
 
 veryclean: clean-local
 
-ifdef HOST_TARGET
+MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH)
 
+ifneq ($(MISSING_DEPS),)
+tests:
+	@echo "***Not building tests at target $(TARGET), because missing: $(MISSING_DEPS) ***"
+
+else
 VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTPATH)/src/gtest/src:../../tests
 INCLUDES += -I$(GTESTPATH)/include
 
 TEST_OUTPUTS=$(TESTOBJS:.o=.output)
+
+TEST_EXTRA_OBJS += gtest-all.o
 
 .cc.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -112,13 +119,15 @@ gtest-all.o gtest_main.o : %.o : $(GTESTSRCPATH)/src/%.cc
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test
 
-%_test : %_test.o gtest-all.o gtest_main.o
-	$(LD) -o $*_test$(EXTENTION) $+ $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES) -lstdc++
+%_test : %_test.o $(TEST_EXTRA_OBJS)
+	$(LD) -o $*_test$(EXTENTION) $+ $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
+
+$(info test deps: $(FULLPATHLIBS) )
 
 %_test : $(FULLPATHLIBS)
 
 %_test.o : %_test.cc
-	$(CXX) $(CXXFLAGS) $< -o $*_test.o
+	$(CXX) $(CXXFLAGS:-Werror=) -fpermissive  $< -o $*_test.o
 	$(CXX) -MM $(CXXFLAGS) $< > $*_test.d
 
 #$(TEST_OUTPUTS) : %_test.output : %_test.cc gtest-all.o gtest_main.o
@@ -127,10 +136,7 @@ $(TEST_OUTPUTS) : %_test.output : %_test
 #	$(LD) -o $*_test$(EXTENTION) $+ $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES) -lstdc++
 #	./$*_test
 
-tests : $(TEST_OUTPUTS)
-
-else
-tests:
+tests : all $(TEST_OUTPUTS)
 
 endif  # if we are able to run tests
 
