@@ -38,7 +38,6 @@
 #include "devtab.h"
 #include "os/os.h"
 
-#define NUM_DEVTAB_ENTRIES 4
 #define NUM_OPEN_FILES     8
 
 /* prototypes */
@@ -120,7 +119,8 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
             return fd;
         }
     }
-    // NOTE(balazs.racz): we leak the fd here.
+    // No device found.
+    fd_free(fd);
     errno = ENODEV;
     return -1;
 }
