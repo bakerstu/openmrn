@@ -116,6 +116,8 @@ gtest-all.o gtest_main.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
 	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
 
+.PHONY: $(TEST_OUTPUTS)
+
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test
 
@@ -124,7 +126,7 @@ $(TEST_OUTPUTS) : %_test.output : %_test
 
 $(info test deps: $(FULLPATHLIBS) )
 
-%_test : $(FULLPATHLIBS)
+$(TESTOBJS:.o=) : $(FULLPATHLIBS)
 
 %_test.o : %_test.cc
 	$(CXX) $(CXXFLAGS:-Werror=) -fpermissive  $< -o $*_test.o
