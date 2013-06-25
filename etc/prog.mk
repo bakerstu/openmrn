@@ -94,39 +94,42 @@ clean-local:
 
 veryclean: clean-local
 
-MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH)
+MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH GMOCKPATH GMOCKSRCPATH)
 
 ifneq ($(MISSING_DEPS),)
 tests:
 	@echo "***Not building tests at target $(TARGET), because missing: $(MISSING_DEPS) ***"
 
 else
-VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTPATH)/src/gtest/src:../../tests
-INCLUDES += -I$(GTESTPATH)/include
+VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):../../tests
+INCLUDES += -I$(GTESTPATH)/include -I$(GTESTPATH) -I$(GMOCKPATH)/include -I$(GMOCKPATH)
 
 TEST_OUTPUTS=$(TESTOBJS:.o=.output)
 
-TEST_EXTRA_OBJS += gtest-all.o
+TEST_EXTRA_OBJS += gtest-all.o gmock-all.o
 
 .cc.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
-gtest-all.o gtest_main.o : %.o : $(GTESTSRCPATH)/src/%.cc
+gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
 	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
+
+gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
+	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
+	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
+
 
 .PHONY: $(TEST_OUTPUTS)
 
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test
 
-%_test : %_test.o $(TEST_EXTRA_OBJS)
-	$(LD) -o $*_test$(EXTENTION) $+ $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
+$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
+	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
 
 $(info test deps: $(FULLPATHLIBS) )
-
-$(TESTOBJS:.o=) : $(FULLPATHLIBS)
 
 %_test.o : %_test.cc
 	$(CXX) $(CXXFLAGS:-Werror=) -fpermissive  $< -o $*_test.o

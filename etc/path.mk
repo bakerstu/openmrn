@@ -102,9 +102,37 @@ CMSIS_LPC11_PATH:=$(TRYPATH)
 endif
 endif #CMSIS_LPC11_PATH
 
+
+############### GMOCK ###################
+ifndef GMOCKPATH
+SEARCHPATH := \
+  /opt/gmock/gmock-1.6.0 \
+  /usr \
+
+TRYPATH:=$(call findfirst,include/gmock/gmock.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GMOCKPATH:=$(TRYPATH)
+endif
+endif #GMOCKPATH
+
+ifndef GMOCKSRCPATH
+SEARCHPATH := \
+  $(GMOCKPATH) \
+  /usr/src/gmock \
+  /opt/gmock/gmock-1.6.0 \
+
+TRYPATH:=$(call findfirst,src/gmock-all.cc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GMOCKSRCPATH:=$(TRYPATH)
+endif
+endif #GMOCKSRCPATH
+
+
 ############### GTEST ###################
 ifndef GTESTPATH
 SEARCHPATH := \
+  $(GMOCKPATH)/gtest \
+  /opt/gmock/gmock-1.6.0/gtest \
   /opt/gtest/gtest-1.6.0 \
   /usr \
 
@@ -117,6 +145,7 @@ endif #GTESTPATH
 ifndef GTESTSRCPATH
 SEARCHPATH := \
   $(GTESTPATH) \
+  /opt/gmock/gmock-1.6.0/gtest \
   /usr/src/gtest \
   /opt/gtest/gtest-1.6.0 \
 
