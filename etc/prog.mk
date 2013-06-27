@@ -94,9 +94,9 @@ clean-local:
 
 veryclean: clean-local
 
-MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH GMOCKPATH GMOCKSRCPATH)
+TEST_MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH GMOCKPATH GMOCKSRCPATH)
 
-ifneq ($(MISSING_DEPS),)
+ifneq ($(TEST_MISSING_DEPS),)
 tests:
 	@echo "***Not building tests at target $(TARGET), because missing: $(MISSING_DEPS) ***"
 
