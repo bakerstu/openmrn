@@ -175,6 +175,22 @@ public:
                                  const char* thread_name,
                                  int stack_size);
 
+#ifdef __linux__
+    /** Adds a virtual device to the pipe. The virtual device is represented
+     * with a pair of pipes of standard file descriptors.
+     *
+     * @param thread_name is the reading thread from the virtual device.
+     *
+     * @param stack_size is the reading thread stack size.
+     *
+     * @param fd[2] is an output argument, fd[0] can be read to get data from
+     * the pipe, fd[1] can be written to to send data to the pipe.
+     */
+    void AddVirtualDeviceToPipe(const char* thread_name,
+                                int stack_size,
+                                int fd[2]);
+#endif
+
     size_t unit()
     {
         return unit_;

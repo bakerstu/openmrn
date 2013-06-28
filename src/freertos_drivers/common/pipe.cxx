@@ -89,7 +89,7 @@ public:
           fd_write_(fd_write),
           parent_(parent)
     {
-        os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
+        os_thread_create(&read_thread_, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -139,6 +139,9 @@ private:
     //! Pipe to forward information to.
     Pipe* parent_;
 
+    //! Thread handle for reader thread.
+    os_thread_t read_thread_;
+
     //! Protects writes to the device.
     OSMutex lock_;
 };
@@ -159,6 +162,21 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
     RegisterMember(new PhysicalDevicePipeMember(this, fd_read, fd_write,
                                                 thread_name, stack_size));
 }
+
+#ifdef __linux__
+void Pipe::AddVirtualDeviceToPipe(const char* thread_name,
+                                  int stack_size,
+                                  int fd[2]) {
+  int fromfd[2];
+  int tofd[2];
+  assert(!pipe(fromfd));
+  assert(!pipe(tofd));
+
+  AddPhysicalDeviceToPipe(fromfd[0], tofd[1], thread_name, stack_size);
+  fd[0] = tofd[0];
+  fd[1] = fromfd[1];
+}
+#endif
 
 #ifdef __FreeRTOS__
 
