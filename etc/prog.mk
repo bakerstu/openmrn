@@ -126,8 +126,13 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test
 
-$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
+$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) depmake
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
+
+.PHONY: depmake
+
+depmake:
+	make -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 $(info test deps: $(FULLPATHLIBS) )
 
