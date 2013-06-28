@@ -255,6 +255,7 @@ void nmranet_event_consumer(node_t node, uint64_t event, unsigned int state)
     if (event_node)
     {
         EventPriv *priv = malloc(sizeof(EventPriv));
+        priv->node = node;
         priv->next = event_node->priv;
         event_node->priv = priv;
     }
