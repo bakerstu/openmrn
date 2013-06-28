@@ -98,7 +98,7 @@ TEST_MISSING_DEPS:=$(call find_missing_deps,HOST_TARGET GTESTPATH GTESTSRCPATH G
 
 ifneq ($(TEST_MISSING_DEPS),)
 tests:
-	@echo "***Not building tests at target $(TARGET), because missing: $(MISSING_DEPS) ***"
+	@echo "***Not building tests at target $(TARGET), because missing: $(TEST_MISSING_DEPS) ***"
 
 else
 VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):../../tests
