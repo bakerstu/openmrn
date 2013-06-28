@@ -43,7 +43,10 @@ using std::remove;
 #include "os/os.h"
 #include "os/OS.hxx"
 
-#include "devtab.h"
+#ifndef configASSERT
+#include <assert.h>
+#define configASSERT assert
+#endif
 
 Pipe::Pipe(size_t unit)
     : unit_(unit)
@@ -157,11 +160,9 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
                                                 thread_name, stack_size));
 }
 
-static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
-{
-    return 0;
-}
+#ifdef __FreeRTOS__
 
+#include "devtab.h"
 
 void VirtualPipeMember::Initialize()
 {
@@ -246,6 +247,11 @@ void VirtualPipeMember::write(const void *buf, size_t count)
     }
 }
 
+static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
+{
+    return 0;
+}
+
 int vdev_init(devtab_t *dev)
 {
     // Nothing to init here, because the constructor takes care of
@@ -259,3 +265,4 @@ DEVOPS(vdev_ops,
        VirtualPipeMember::Ops::pipe_read,
        VirtualPipeMember::Ops::pipe_write,
        ignore_ioctl);
+#endif
