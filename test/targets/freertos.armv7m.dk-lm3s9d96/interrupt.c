@@ -42,9 +42,9 @@ extern void __cs3_isr_mpu_fault(void);
 extern void __cs3_isr_bus_fault(void);
 extern void __cs3_isr_usage_fault(void);
 
-extern void vPortSVCHandler(void);
-extern void xPortPendSVHandler(void);
-extern void xPortSysTickHandler(void);
+extern void SVC_Handler(void);
+extern void PendSV_Handler(void);
+extern void SysTick_Handler(void);
 
 static void hard_fault_handler(void);
 
@@ -165,11 +165,11 @@ void (* const __cs3_interrupt_vector_micro[])(void) =
     0,                               /**<   8 reserved */
     0,                               /**<   9 reserved */
     0,                               /**<  10 reserved */
-    vPortSVCHandler,                 /**<  11 SV call */
+    SVC_Handler,                 /**<  11 SV call */
     debug_interrupt_handler,         /**<  12 debug monitor */
     0,                               /**<  13 reserved */
-    xPortPendSVHandler,              /**<  14 pend SV */
-    xPortSysTickHandler,             /**<  15 system tick */
+    PendSV_Handler,              /**<  14 pend SV */
+    SysTick_Handler,             /**<  15 system tick */
     porta_interrupt_handler,         /**<  16 GPIO port A */
     portb_interrupt_handler,         /**<  17 GPIO port B */
     portc_interrupt_handler,         /**<  18 GPIO port C */
@@ -403,7 +403,6 @@ static void hard_fault_handler(void)
         "B      hard_fault_handler_c    \n"
     );
 }
-
 
 /** This is the default handler for exceptions not defined by the application.
  */
