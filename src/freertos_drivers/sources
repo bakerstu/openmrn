@@ -24,6 +24,8 @@ endif
 ifdef HAVE_MBED
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
 
+ARM_CSRCS += mbed_i2c.c
+
 VPATH += $(SRCDIR)/nxp
 endif
 
