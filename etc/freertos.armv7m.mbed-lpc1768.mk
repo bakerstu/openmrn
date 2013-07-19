@@ -53,7 +53,10 @@ CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
              -march=armv7-m -mthumb -mfloat-abi=soft -mfix-cortex-m3-ldrd \
              -DINTERRUPT_ATTRIBUTE=   -D_POSIX_C_SOURCE=200112
 
+
 CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
+# On a cortex-m3 we can compile IRQ handlers as thumb too.
+ARM_CFLAGS = $(CFLAGS)
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
            -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 

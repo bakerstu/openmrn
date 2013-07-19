@@ -62,13 +62,14 @@ CORECFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -std=gnu99 -Wstrict-prototypes
 
 CFLAGS = $(CORECFLAGS)
+ARM_CFLAGS = $(CFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -fno-rtti -fno-exceptions -std=c++0x \
         -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
-        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
+        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb --specs=nano.specs \
         -Xlinker -Map="$(@:%.elf=%.map)"  \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
 
