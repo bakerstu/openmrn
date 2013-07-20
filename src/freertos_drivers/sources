@@ -22,8 +22,9 @@ VPATH += $(SRCDIR)/stellarisware
 endif
 
 ifdef HAVE_MBED
+ifneq ($(TARGET),freertos.armv6m)
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
-
+endif
 ARM_CSRCS += mbed_i2c.c
 
 VPATH += $(SRCDIR)/nxp

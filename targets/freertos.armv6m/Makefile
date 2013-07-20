@@ -1,4 +1,4 @@
 # Build the platform libraries.
-SUBDIRS = os if core lib freertos freertos_drivers tinyxml2 cJSON
+SUBDIRS = mbed os if core lib freertos freertos_drivers tinyxml2 cJSON
 
 include $(OPENMRNPATH)/etc/recurse.mk

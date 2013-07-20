@@ -8,7 +8,13 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 
 TARGET := freertos.armv6m
 
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/11CXX_rom_can.o
+DEPS += HAVE_MBED
+
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/11CXX_rom_can.o \
+           $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/mbed_i2c.o \
+
+
+SYSLIBRARIESEXTRA = -lmbed
 
 include $(OPENMRNPATH)/etc/prog.mk
 

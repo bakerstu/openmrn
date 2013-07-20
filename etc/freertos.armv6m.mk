@@ -9,6 +9,10 @@ ifneq ($(FREERTOSPATH),)
 include $(OPENMRNPATH)/etc/armgcc-s.mk
 endif
 
+# Get $(MBEDPATH)
+include $(OPENMRNPATH)/etc/mbed.mk
+
+
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
@@ -45,7 +49,7 @@ endif
 
 DEPS += CMSIS_LPC11_PATH
 
-INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC11U24" -I"$(MBEDSRCPATH)/capi"  #-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC11U24"
 
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
