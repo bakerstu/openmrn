@@ -56,6 +56,15 @@
 
 #include "os/os.h"
 
+/** default stdin */
+extern const char *STDIN_DEVICE;
+
+/** default stdout */
+extern const char *STDOUT_DEVICE;
+
+/** default stderr */
+extern const char *STDERR_DEVICE;
+
 /** Timer structure */
 typedef struct timer
 {
@@ -864,9 +873,21 @@ int main(int argc, char *argv[])
         dev->init(dev);
     }
 
-    open("/dev/ser0", O_RDWR);   /* stdin */
-    open("/dev/ser0", O_RDWR);   /* stdout */
-    open("/dev/ser0", O_WRONLY); /* stderr */
+    /* stdin */
+    if (open(STDIN_DEVICE, O_RDWR) < 0)
+    {
+        open("/dev/null", O_RDWR);
+    }
+    /* stdout */
+    if (open(STDOUT_DEVICE, O_RDWR) < 0)
+    {
+        open("/dev/null", O_RDWR);
+    }
+    /* stderr */
+    if (open(STDERR_DEVICE, O_WRONLY) < 0)
+    {
+        open("/dev/null", O_WRONLY);
+    }
 
     /* start the main thread */
     xTaskGenericCreate(main_thread,

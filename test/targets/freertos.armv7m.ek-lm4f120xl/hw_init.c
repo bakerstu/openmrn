@@ -40,6 +40,15 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
 
+/** override stdin */
+const char *STDIN_DEVICE = "/dev/ser0";
+
+/** override stdout */
+const char *STDOUT_DEVICE = "/dev/ser0";
+
+/** override stderr */
+const char *STDERR_DEVICE = "/dev/ser0";
+
 /** Initialize the processor hardware.
  */
 void hw_init(void)

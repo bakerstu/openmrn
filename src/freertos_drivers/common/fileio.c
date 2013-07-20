@@ -48,6 +48,15 @@ static ssize_t null_read(file_t *file, void *buf, size_t count);
 static ssize_t null_write(file_t *file, const void *buf, size_t count);
 static int null_ioctl(file_t *file, node_t *node, int key, void *data);
 
+/** default stdin */
+const char *STDIN_DEVICE __attribute__ ((weak)) = "/dev/null";
+
+/** default stdout */
+const char *STDOUT_DEVICE __attribute__ ((weak)) = "/dev/null";
+
+/** default stderr */
+const char *STDERR_DEVICE __attribute__ ((weak)) = "/dev/null";
+
 /** device operations for can. */
 static DEVOPS(null_ops, null_open, null_close, null_read, null_write, null_ioctl);
 
@@ -132,6 +141,11 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
  */
 int _close_r(struct _reent *reent, int fd)
 {
+    if (fd >=0 && fd <= 2)
+    {
+        // stdin, stdout, and stderr never get closed
+        return 0;
+    }
     if (fd < 0 || fd >= NUM_OPEN_FILES)
     {
         errno = EBADF;
