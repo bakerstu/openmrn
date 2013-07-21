@@ -80,12 +80,8 @@ LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
 #use this only if armgcc == arm gcc 4.7
 #LDFLAGS += --specs=nano.specs
 
-
-SYSLIBRARIES = \
-        -lfreertos \
-        -lfreertos_drivers  \
-        -lCMSISv2p00_LPC11xx \
-        $(SYSLIBRARIESEXTRA)
+SYSLIB_SUBDIRS += mbed
+SYSLIBRARIES += -lmbed -lCMSISv2p00_LPC11xx $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 

@@ -1,5 +1,1 @@
-# Build the platform libraries.
-SUBDIRS = os if core lib
-
-include $(OPENMRNPATH)/etc/recurse.mk
-
+include $(OPENMRNPATH)/etc/core_target.mk

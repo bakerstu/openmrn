@@ -63,9 +63,8 @@ CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
 LDFLAGS = -g -nostdlib -nostartfiles -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" --specs=nano.specs \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
-SYSLIBRARIES = -lfreertos \
-               -lfreertos_drivers  \
-               $(SYSLIBRARIESEXTRA)
+SYSLIBRARIES += -lmbed $(SYSLIBRARIESEXTRA)
+SYSLIB_SUBDIRS += mbed
 
 EXTENTION = .elf
 
