@@ -124,7 +124,7 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 .PHONY: $(TEST_OUTPUTS)
 
 $(TEST_OUTPUTS) : %_test.output : %_test
-	./$*_test
+	./$*_test --gtest_death_test_style=threadsafe
 
 $(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) depmake
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
