@@ -122,7 +122,6 @@ struct VolatileStatePtr {
   int base_;
 };
 
-
 inline VolatileStateRef VolatileState::GetRef(int offset) {
   return VolatileStateRef(offset);
 }
@@ -130,7 +129,5 @@ inline VolatileStateRef VolatileState::GetRef(int offset) {
 inline VolatileStatePtr VolatileState::GetPtr(int offset) {
   return VolatileStatePtr(offset);
 }
-
-
 
 #endif //_CUE_VOLATILE_STATE_HXX_
