@@ -35,6 +35,10 @@
 #ifndef _UTILS_MACROS_H_
 #define _UTILS_MACROS_H_
 
+#ifdef __cplusplus
+using namespace std;
+#endif
+
 #ifdef __FreeRTOS__
 
 /**
