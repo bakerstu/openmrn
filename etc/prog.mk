@@ -49,13 +49,16 @@ DEPS += TOOLPATH
 MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
 ifneq ($(MISSING_DEPS),)
-all docs clean veryclean tests:
+all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
 else
+
+# This defines how to create nonexistant directories.
+MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
 include $(OPENMRNPATH)/etc/recurse.mk
 

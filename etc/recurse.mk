@@ -16,6 +16,7 @@ BUILDDIRS = $(SUBDIRS:%=build-%)
 CLEANDIRS = $(SUBDIRS:%=clean-%)
 VERYCLEANDIRS = $(SUBDIRS:%=veryclean-%)
 TESTDIRS = $(SUBDIRS:%=tests-%)
+MKSUBDIRSDIRS = $(SUBDIRS:%=mksubdirs-%)
 
 all: $(BUILDDIRS)
 $(SUBDIRS): $(BUILDDIRS)
@@ -33,6 +34,24 @@ $(VERYCLEANDIRS):
 tests: $(TESTDIRS)
 $(TESTDIRS): 
 	+$(MAKE) -C $(@:tests-%=%) tests
+
+mksubdirs: $(MKSUBDIRSDIRS)
+
+# Some strategies on how to create nonexistant directories.
+
+ifdef MKSUBDIR_OPENMRNINCLUDE
+HAVE_MKSUBDIR=1
+$(MKSUBDIRSDIRS):
+	if [ ! -d $(@:mksubdirs-%=%) ] ; then mkdir $(@:mksubdirs-%=%) ; echo 'include $$(OPENMRNPATH)/etc/$(MKSUBDIR_OPENMRNINCLUDE)' > $(@:mksubdirs-%=%)/Makefile ; fi
+	+$(MAKE) -C $(@:mksubdirs-%=%) mksubdirs
+endif
+
+# Fallback in case we didn't have a subdiretory create strategy.
+ifndef HAVE_MKSUBDIR
+$(MKSUBDIRSDIRS):
+	+$(MAKE) -C $(@:mksubdirs-%=%) mksubdirs
+endif
+
 
 
 .PHONY: subdirs $(SUBDIRS)

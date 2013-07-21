@@ -10,4 +10,7 @@ include $(OPENMRNPATH)/etc/$(TARGET).mk
 # there by the original build rules.
 SUBDIRS = $(CORELIBS) $(SYSLIB_SUBDIRS) lib
 
+# This defines how to create nonexistant directories.
+MKSUBDIR_OPENMRNINCLUDE=lib.mk
+
 include $(OPENMRNPATH)/etc/recurse.mk

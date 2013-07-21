@@ -40,7 +40,7 @@ MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
 ifneq ($(MISSING_DEPS),)
 
-all docs clean veryclean tests:
+all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
@@ -87,5 +87,7 @@ veryclean: clean
 .PHONY: tests
 tests : 
 
+.PHONY: mksubdirs
+mksubdirs : 
 
 endif
