@@ -25,8 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file volatile_state.hxx
- * Contains a utility class for keeping volatile state and ocmmunicating
+ * Contains a utility class for keeping volatile state and communicating
  * updates about it between components.
+ *
+ * In this context "volatile state" means that these state bytes can be changed
+ * by other threads doing I/O or other processing asynchronously.
  *
  * @author Balazs Racz
  * @date 19 July 2013
@@ -52,9 +55,8 @@ struct VolatileStatePtr;
 
 class VolatileState : public Singleton<VolatileState> {
 public:
-  VolatileState(size_t size) 
+  VolatileState(size_t size)
     : values_(size, 0) {}
-  
 
   VolatileStateRef GetRef(int offset);
 
@@ -65,18 +67,21 @@ public:
   }
 
   uint8_t Get(size_t offset) {
-    HASSERT(offset <= size());
+    HASSERT(offset < size());
+    // @todo (balazs.racz) locking
     return values_[offset];
   }
 
   void Set(size_t offset, uint8_t value) {
-    HASSERT(offset <= size());
+    HASSERT(offset < size());
+    // @todo (balazs.racz) locking
+    // @todo (balazs.racz) update notification
     values_[offset] = value;
   }
 
 private:
   friend class VolatileStateRef;
-  
+
   vector<uint8_t> values_;
 
   DISALLOW_COPY_AND_ASSIGN(VolatileState);
@@ -91,7 +96,7 @@ struct VolatileStateRef {
             VolatileState::instance()->values_.size());
   }
 
-  operator uint8_t() {
+  operator uint8_t() const {
     return VolatileState::instance()->Get(base_);
   }
 
