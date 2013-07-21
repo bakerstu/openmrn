@@ -39,6 +39,8 @@
 using namespace std;
 #endif
 
+#include <stdlib.h>   // for abort
+
 #ifdef __FreeRTOS__
 
 /**
