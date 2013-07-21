@@ -27,6 +27,18 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 # endif
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
+################ stellarisware ##################
+ifndef STELLARISWAREPATH
+SEARCHPATH := \
+  /opt/StellarisWare \
+  $(HOME)/StellarisWare
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STELLARISWAREPATH:=$(TRYPATH)
+endif
+endif #FREERTOSPATH
+
 ################# mbed library ##################
 
 ifndef MBEDPATH

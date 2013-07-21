@@ -10,9 +10,7 @@ CXXSRCS += pipe.cxx \
         gc_format.cxx
 
 # Find StellarisWare
-include $(OPENMRNPATH)/etc/stellarisware.mk
-
-ifneq ($(STELLARISWAREPATH),STELLARISWAREPATH not found)
+ifdef STELLARISWAREPATH
 CSRCS += stellaris_can.c \
          stellaris_uart.c \
          stellaris_usb_cdc_device.c
