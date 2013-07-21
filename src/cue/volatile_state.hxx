@@ -35,6 +35,9 @@
 #ifndef _CUE_VOLATILE_STATE_HXX_
 #define _CUE_VOLATILE_STATE_HXX_
 
+#include <stdint.h>
+#include <unistd.h>
+
 #include <vector>
 
 #include "utils/macros.h"
@@ -84,7 +87,8 @@ struct VolatileStateRef {
 
   explicit VolatileStateRef(int b) : base_(b) {
     HASSERT(base_ >= 0);
-    HASSERT(base_ < VolatileState::instance()->values_.size());
+    HASSERT(static_cast<size_t>(base_) <
+            VolatileState::instance()->values_.size());
   }
 
   operator uint8_t() {
