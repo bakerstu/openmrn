@@ -38,7 +38,11 @@
 #include "devtab.h"
 #include "os/os.h"
 
+#ifdef TARGET_LPC11Cxx
+#define NUM_OPEN_FILES     4
+#else
 #define NUM_OPEN_FILES     8
+#endif
 
 /* prototypes */
 static int null_init(devtab_t *dev);
