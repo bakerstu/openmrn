@@ -750,7 +750,8 @@ void abort(void)
     }
 }
 
-static char *heap_end = 0;
+extern char *heap_end;
+char *heap_end = 0;
 caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
     extern char __cs3_heap_start;
@@ -780,13 +781,22 @@ void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
     diewith(BLINK_DIE_STACKOVERFLOW);
 }
 
+/** This method will be called repeatedly from the idle task. If needed, it can
+ * be overridden in hw_init.c.
+ */
+void hw_idle_hook(void) __attribute__((weak));
+
+void hw_idle_hook(void)
+{
+}
+
 /** Here we will monitor the other tasks.
  */
 void vApplicationIdleHook( void )
 {
     vTaskSuspendAll();
     xTaskResumeAll();
-    
+    hw_idle_hook();
     for (TaskList *tl = &taskList; tl != NULL; tl = tl->next)
     {
         if (tl->task)
