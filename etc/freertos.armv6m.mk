@@ -57,7 +57,7 @@ SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
-        -MMD -MP -MF"$(@:%.o=%.d)" \
+        -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
         $(CFLAGSENV)
 
 #-MT"$(@:%.o=%.d)" 
@@ -81,7 +81,7 @@ LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
 #LDFLAGS += --specs=nano.specs
 
 SYSLIB_SUBDIRS += mbed
-SYSLIBRARIES += -lmbed -lCMSISv2p00_LPC11xx $(SYSLIBRARIESEXTRA)
+SYSLIBRARIES += -lCMSISv2p00_LPC11xx -lmbed  $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 
