@@ -42,7 +42,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC1768" -I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC1768" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi" 
 
 
-ARCHOPTIMIZATION = -D__NEWLIB__
+ARCHOPTIMIZATION = -Os -D__NEWLIB__ -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c -g -MD -MP \
@@ -58,7 +58,7 @@ CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 # On a cortex-m3 we can compile IRQ handlers as thumb too.
 ARM_CFLAGS = $(CFLAGS)
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
-           -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
+           -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -nostartfiles -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" --specs=nano.specs \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
