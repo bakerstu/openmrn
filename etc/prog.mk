@@ -101,7 +101,7 @@ depmake:
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
+	rm -rf *.o *.d *.a *.so *.output *.cout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 veryclean: clean-local
 
