@@ -542,6 +542,7 @@ void os_timer_stop(os_timer_t timer)
 }
 
 #if defined (__FreeRTOS__)
+#if defined (TARGET_LPC2368) || defined(TARGET_LPC1768)
 #if defined (TARGET_LPC2368)
 extern const char __ETHRAM_segment_start__;
 static const char* sstack_start = &__ETHRAM_segment_start__;
