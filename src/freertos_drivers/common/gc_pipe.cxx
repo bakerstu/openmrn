@@ -153,7 +153,11 @@ private:
                 offset_ = -1;
                 return;
             }
-            cbuf_[offset_++] = c;
+            if (offset_ >= 0) {
+              cbuf_[offset_++] = c;
+            } else {
+              // Drop byte to the floor -- we're not in the middle of a packet.
+            }
         }
 
     private:
