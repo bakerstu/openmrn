@@ -44,6 +44,7 @@ endif #FREERTOSPATH
 ifndef MBEDPATH
 SEARCHPATH := \
   $(HOME)/lpc-workspace/libmbed_2387/mbed \
+  $(HOME)/train/libmbed_2387/mbed \
   /opt/mbed/default/libraries \
 
 
