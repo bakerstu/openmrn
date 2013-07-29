@@ -82,8 +82,6 @@ typedef struct task_list
 /** List of all the tasks in the system */
 static TaskList taskList;
 
-struct _reent timerReent = _REENT_INIT(timerReent);
-
 /** Mutex for os_thread_once. */
 static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
 
@@ -94,6 +92,16 @@ void hw_init(void) __attribute__ ((weak));
 void hw_init(void)
 {
 }
+
+__attribute__ ((weak))
+struct _reent* allocate_reent(void)
+{
+    struct _reent* data = malloc(sizeof(struct _reent));
+    _REENT_INIT_PTR(data);
+    return data;
+}
+
+struct _reent* timerReent = NULL;
 
 /** Entry point to a FreeRTOS thread.
  * @param metadata for entering the thread
@@ -155,7 +163,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 static void timer_callback(xTimerHandle timer)
 {
     /* we must handle our struct _reent here at its first oportunity */
-    _impure_ptr = &timerReent;
+    _impure_ptr = timerReent;
 
     portTickType ticks;
     Timer *t = pvTimerGetTimerID(timer);
@@ -601,10 +609,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         name = auto_name;
     }
     
-    priv->reent = malloc(sizeof(struct _reent));
+    priv->reent = allocate_reent();
     priv->entry = start_routine;
     priv->arg = arg;
-    _REENT_INIT_PTR(priv->reent);
     
     if (priority == 0)
     {
@@ -851,6 +858,8 @@ int main(int argc, char *argv[])
 #if defined (__FreeRTOS__)
     /* initialize the processor hardware */
     hw_init();
+
+    timerReent = allocate_reent();
 
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     xTaskHandle task_handle;
