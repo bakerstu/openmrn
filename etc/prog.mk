@@ -7,15 +7,21 @@ include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 VPATH = ../../
 
-FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
-FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
-FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
-FULLPATHCPPSRCS = $(wildcard $(VPATH)/*.cpp)
+FULLPATHASMSRCS = $(wildcard $(VPATH)*.S)
+FULLPATHCSRCS   = $(wildcard $(VPATH)*.c)
+FULLPATHCXXSRCS = $(wildcard $(VPATH)*.cxx)
+FULLPATHCPPSRCS = $(wildcard $(VPATH)*.cpp)
+FULLPATHXMLSRCS = $(wildcard $(VPATH)*.xml)
+
 ASMSRCS = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
-CSRCS = $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
+CSRCS   = $(notdir $(FULLPATHCSRCS))   $(wildcard *.c)
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
 CPPSRCS = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
-OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+XMLSRCS = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
+
+# This little trick insures we don't endup with duplicates of $(XMLSRCS:.xml=.o)
+TEMP_OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+OBJS = $(patsubst $(XMLSRCS:.xml=.o),,$(TEMP_OBJS)) $(XMLSRCS:.xml=.o)
 
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
@@ -62,7 +68,12 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp .S
+.SUFFIXES: .o .c .cxx .cpp .S .xml
+
+.xml.o:
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.c
+	$(CC) $(CFLAGS) $*.c -o $@
+	$(CC) -MM $(CFLAGS) $*.c > $*.d
 
 .S.o:
 	$(AS) $(ASFLAGS) $< -o $@
@@ -84,6 +95,7 @@ clean: clean-local
 
 clean-local:
 	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
+	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
 
