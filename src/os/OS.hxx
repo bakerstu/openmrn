@@ -35,6 +35,7 @@
 #ifndef _os_hxx_
 #define _os_hxx_
 
+#include "utils/macros.h"
 #include "os/os.h"
 
 /** This class provides a threading API.
@@ -55,20 +56,10 @@ public:
         os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
     }
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSThread);
+
     /** Private thread handle. */
     os_thread_t handle;
-
-    /** Default destructor */
-    ~OSThread();
-
-    /** Default constructor */
-    OSThread();
-    
-    /** Default copy constructor. */
-    OSThread(const OSThread&);
-    
-    /** Default assignment operator. */
-    OSThread operator=(const OSThread&);
 };
 
 /** One time initialization */
@@ -87,23 +78,13 @@ public:
     }
 
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
+
     /** Private once handle. */
     os_thread_once_t handle;
     
     /** One time initialization routine */
     void (*routine)(void);
-
-    /** Default destructor */
-    ~OSThreadOnce();
-
-    /** Default constructor */
-    OSThreadOnce();
-    
-    /** Default copy constructor. */
-    OSThreadOnce(const OSThreadOnce&);
-    
-    /** Default assignment operator. */
-    OSThreadOnce operator=(const OSThreadOnce&);
 };
 
 /** This class provides a timer API.
@@ -144,17 +125,10 @@ public:
     }
 
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSTimer);
+
     /** Private timer handle. */
     os_timer_t handle;
-
-    /** Default constructor */
-    OSTimer();
-    
-    /** Default copy constructor. */
-    OSTimer(const OSTimer&);
-    
-    /** Default assignment operator. */
-    OSTimer operator=(const OSTimer&);
 };
 
 /** This class provides a counting semaphore API.
@@ -168,6 +142,11 @@ public:
     OSSem(unsigned int value = 0)
     {
         os_sem_init(&handle, value);
+    }
+
+    ~OSSem()
+    {
+        os_sem_destroy(&handle);
     }
 
     /** Post (increment) a semaphore.
@@ -194,14 +173,10 @@ public:
     }
 
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSSem);
+
     /** Private semaphore handle. */
     os_sem_t handle;
-    
-    /** Default copy constructor. */
-    OSSem(const OSSem&);
-    
-    /** Default assignment operator. */
-    OSSem operator=(const OSSem&);
 };
 
 /** This class provides a mutex API.
@@ -239,15 +214,11 @@ public:
     }
 
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSMutex);
+
     friend class OSMutexLock;
     /** Private mutex handle. */
     os_mutex_t handle;
-    
-    /** Default copy constructor. */
-    OSMutex(const OSMutex&);
-    
-    /** Default assignment operator. */
-    OSMutex operator=(const OSMutex&);
 };
 
 /**
@@ -291,6 +262,8 @@ public:
         os_mutex_unlock(mutex_);
     }
 private:
+    DISALLOW_COPY_AND_ASSIGN(OSMutexLock);
+
     os_mutex_t* mutex_;
 };
 
@@ -331,17 +304,10 @@ public:
     }
 
 private:
-    /** Default destructor */
-    ~OSTime();
+    DISALLOW_COPY_AND_ASSIGN(OSTime);
 
-    /** Default constructor */
+    /* Private default constructor prevents instantiating this class. */
     OSTime();
-    
-    /** Default copy constructor. */
-    OSTime(const OSTime&);
-    
-    /** Default assignment operator. */
-    OSTime operator=(const OSTime&);
 };
 
 #endif /* _os_hxx_ */
