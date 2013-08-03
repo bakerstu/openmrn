@@ -57,6 +57,53 @@ public:
 private:
     /** Private thread handle. */
     os_thread_t handle;
+
+    /** Default destructor */
+    ~OSThread();
+
+    /** Default constructor */
+    OSThread();
+    
+    /** Default copy constructor. */
+    OSThread(const OSThread&);
+    
+    /** Default assignment operator. */
+    OSThread operator=(const OSThread&);
+};
+
+/** One time initialization */
+class OSThreadOnce
+{
+public:
+    OSThreadOnce(void (*routine)(void))
+    {
+        os_thread_once_t tmp = OS_THREAD_ONCE_INIT;
+        handle = tmp;
+    }
+    
+    int once(void)
+    {
+        return os_thread_once(&handle, routine);
+    }
+
+private:
+    /** Private once handle. */
+    os_thread_once_t handle;
+    
+    /** One time initialization routine */
+    void (*routine)(void);
+
+    /** Default destructor */
+    ~OSThreadOnce();
+
+    /** Default constructor */
+    OSThreadOnce();
+    
+    /** Default copy constructor. */
+    OSThreadOnce(const OSThreadOnce&);
+    
+    /** Default assignment operator. */
+    OSThreadOnce operator=(const OSThreadOnce&);
 };
 
 /** This class provides a timer API.
@@ -95,9 +142,66 @@ public:
     {
         os_timer_stop(handle);
     }
+
 private:
     /** Private timer handle. */
     os_timer_t handle;
+
+    /** Default constructor */
+    OSTimer();
+    
+    /** Default copy constructor. */
+    OSTimer(const OSTimer&);
+    
+    /** Default assignment operator. */
+    OSTimer operator=(const OSTimer&);
+};
+
+/** This class provides a counting semaphore API.
+ */
+class OSSem
+{
+public:
+    /** Initialize a Semaphore.
+     * @param value initial count
+     */
+    OSSem(unsigned int value = 0)
+    {
+        os_sem_init(&handle, value);
+    }
+
+    /** Post (increment) a semaphore.
+     */
+    void post()
+    {
+        os_sem_post(&handle);
+    }
+
+    /** Wait on (decrement) a semaphore.
+     */
+    void wait()
+    {
+        os_sem_wait(&handle);
+    }
+
+    /** Wait on (decrement) a semaphore with timeout condition.
+     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+     * @return 0 upon success, else -1 with errno set to indicate error
+     */
+    int timedwait(long long timeout)
+    {
+        return os_sem_timedwait(&handle, timeout);
+    }
+
+private:
+    /** Private semaphore handle. */
+    os_sem_t handle;
+    
+    /** Default copy constructor. */
+    OSSem(const OSSem&);
+    
+    /** Default assignment operator. */
+    OSSem operator=(const OSSem&);
 };
 
 /** This class provides a mutex API.
@@ -138,28 +242,34 @@ private:
     friend class OSMutexLock;
     /** Private mutex handle. */
     os_mutex_t handle;
+    
+    /** Default copy constructor. */
+    OSMutex(const OSMutex&);
+    
+    /** Default assignment operator. */
+    OSMutex operator=(const OSMutex&);
 };
 
 /**
-   Class to allow convenient locking and unlocking of mutexes in a C context.
-   The mutex will be automatically unlocked when the context is left, even if
-   there are multiple return, break or continue statements.
-
-   Usage:
-
-   void foo()
-   {
-     // ...non-critical-section code here...
-     {
-       OSMutexLock locker(&mutex_);
-       // ...critical section here...
-       if (error) return;
-       // ...more critical code here...
-     }
-     // ...at this point the mutex is unlocked...
-     // ...more non-critical-section code here...
-   }
-   
+ * Class to allow convenient locking and unlocking of mutexes in a C context.
+ * The mutex will be automatically unlocked when the context is left, even if
+ * there are multiple return, break or continue statements.
+ *
+ * Usage:
+ *
+ * void foo()
+ * {
+ *   // ...non-critical-section code here...
+ *   {
+ *     OSMutexLock locker(&mutex_);
+ *     // ...critical section here...
+ *     if (error) return;
+ *     // ...more critical code here...
+ *   }
+ *   // ...at this point the mutex is unlocked...
+ *   // ...more non-critical-section code here...
+ * }
+ * 
  */
 class OSMutexLock
 {
@@ -185,29 +295,53 @@ private:
 };
 
 /** This catches programming errors where you declare a mutex locker object
-    without a name like this:
+ *  without a name like this:
+ *
+ *  void foo()
+ *  {
+ *    OSMutexLock(&mutex_);
+ *    // ...critical section here...
+ *  }
 
-    void foo()
-    {
-      OSMutexLock(&mutex_);
-      // ...critical section here...
-    }
-
-    The above is valid C++, which creates a temporary OSMutexLock object, locks
-    it, then immediately destructs the object, unlocking the mutex in the same
-    line it was created. Thus the critical sections goes unprotected
-    unintentionally.
-
-    The correct code is
-
-    void foo()
-    {
-      OSMutexLock locker(&mutex_);
-      // ...critical section here...
-    }
-
+ *  The above is valid C++, which creates a temporary OSMutexLock object, locks
+ *  it, then immediately destructs the object, unlocking the mutex in the same
+ *  line it was created. Thus the critical sections goes unprotected
+ *  unintentionally.
+ *
+ *  The correct code is
+ *
+ *  void foo()
+ *  {
+ *    OSMutexLock locker(&mutex_);
+ *    // ...critical section here...
+ *  }
+ *
  */
 #define OSMutexLock(l) int error_omitted_mutex_lock_variable[-1]
 
+class OSTime
+{
+public:
+    /** Get the monotonic time since the system started.
+     * @return time in nanoseconds since system start
+     */
+    static long long get_monotonic(void)
+    {
+        return os_get_time_monotonic();
+    }
+
+private:
+    /** Default destructor */
+    ~OSTime();
+
+    /** Default constructor */
+    OSTime();
+    
+    /** Default copy constructor. */
+    OSTime(const OSTime&);
+    
+    /** Default assignment operator. */
+    OSTime operator=(const OSTime&);
+};
 
 #endif /* _os_hxx_ */

@@ -40,6 +40,15 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
 
+/** override stdin */
+const char *STDIN_DEVICE = "/dev/ser0";
+
+/** override stdout */
+const char *STDOUT_DEVICE = "/dev/ser0";
+
+/** override stderr */
+const char *STDERR_DEVICE = "/dev/ser0";
+
 /** Initialize the processor hardware.
  */
 void hw_init(void)
@@ -58,8 +67,9 @@ void hw_init(void)
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
 
     /* CAN pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
-    MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
-    MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    MAP_GPIOPinConfigure(GPIO_PE4_CAN0RX);
+    MAP_GPIOPinConfigure(GPIO_PE5_CAN0TX);
+    MAP_GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 }
+

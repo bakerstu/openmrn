@@ -10,17 +10,23 @@ include $(OPENMRNPATH)/etc/path.mk
 
 VPATH = ../../
 
-FULLPATHASMSRCS := $(wildcard $(VPATH)/*.S)
-FULLPATHCSRCS := $(wildcard $(VPATH)/*.c)
-FULLPATHCXXSRCS := $(wildcard $(VPATH)/*.cxx)
-FULLPATHCPPSRCS := $(wildcard $(VPATH)/*.cpp)
-FULLPATHTESTSRCS := $(wildcard $(VPATH)/tests/*_test.cc)
-ASMSRCS := $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
-CSRCS := $(notdir $(FULLPATHCSRCS)) $(wildcard *.c)
-CXXSRCS := $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
-CPPSRCS := $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
-TESTSRCS := $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
-OBJS := $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+FULLPATHASMSRCS  = $(wildcard $(VPATH)*.S)
+FULLPATHCSRCS    = $(wildcard $(VPATH)*.c)
+FULLPATHCXXSRCS  = $(wildcard $(VPATH)*.cxx)
+FULLPATHCPPSRCS  = $(wildcard $(VPATH)*.cpp)
+FULLPATHXMLSRCS  = $(wildcard $(VPATH)*.xml)
+FULLPATHTESTSRCS = $(wildcard $(VPATH)/tests/*_test.cc)
+
+ASMSRCS  = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
+CSRCS    = $(notdir $(FULLPATHCSRCS))   $(wildcard *.c)
+CXXSRCS  = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
+CPPSRCS  = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
+XMLSRCS  = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
+TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
+
+# This little trick insures we don't endup with duplicates of $(XMLSRCS:.xml=.o)
+TEMP_OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
+OBJS := $(patsubst $(XMLSRCS:.xml=.o),,$(TEMP_OBJS)) $(XMLSRCS:.xml=.o)
 TESTOBJS := $(TESTSRCS:.cc=.o)
 
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
@@ -69,7 +75,12 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 -include $(TESTOBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp .S
+.SUFFIXES: .o .c .cxx .cpp .S .xml
+
+.xml.o:
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.c
+	$(CC) $(CFLAGS) $*.c -o $@
+	$(CC) -MM $(CFLAGS) $*.c > $*.d
 
 .S.o:
 	$(AS) $(ASFLAGS) $< -o $@
@@ -90,7 +101,7 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
+	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EX	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
 
