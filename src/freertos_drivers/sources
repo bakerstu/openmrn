@@ -5,14 +5,11 @@ CSRCS += fileio.c \
          can.c \
          serial.c
 
-CXXSRCS += pipe.cxx \
-        gc_pipe.cxx \
-        gc_format.cxx
+CXXSRCS += 
+
 
 # Find StellarisWare
-include $(OPENMRNPATH)/etc/stellarisware.mk
-
-ifneq ($(STELLARISWAREPATH),STELLARISWAREPATH not found)
+ifdef STELLARISWAREPATH
 CSRCS += stellaris_can.c \
          stellaris_uart.c \
          stellaris_usb_cdc_device.c
@@ -22,7 +19,10 @@ VPATH += $(SRCDIR)/stellarisware
 endif
 
 ifdef HAVE_MBED
+ifneq ($(TARGET),freertos.armv6m)
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
+endif
+ARM_CSRCS += mbed_i2c.c
 
 VPATH += $(SRCDIR)/nxp
 endif

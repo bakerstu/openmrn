@@ -28,3 +28,5 @@ clean::
 veryclean:: clean
 
 tests:
+
+mksubdirs:

@@ -80,7 +80,7 @@ static void CAN_tx(uint8_t msg_obj_num);
 static void CAN_error(uint32_t error_info);
 
 /** Function pointer table to pass to the ROM drivers with callbacks. */
-CAN_CALLBACKS callbacks = {
+static const CAN_CALLBACKS callbacks = {
    CAN_rx,
    CAN_tx,
    CAN_error,
@@ -93,13 +93,13 @@ CAN_CALLBACKS callbacks = {
 
 
 /**  Clock initialization constants for 125 kbaud */
-uint32_t ClkInitTable125[2] = {
+const uint32_t ClkInitTable125[2] = {
     0x00000000UL, // CANCLKDIV
     0x00001C57UL  // CAN_BTR
 };
 
 /**  Clock initialization constants for 250 kbaud */
-uint32_t ClkInitTable250[2] = {
+static const uint32_t ClkInitTable250[2] = {
     0x00000000UL, // CANCLKDIV
     0x00001C4BUL  // CAN_BTR
 };
@@ -111,9 +111,9 @@ uint32_t ClkInitTable250[2] = {
 static int lpc11crom_can_init(devtab_t *dev)
 {
     /* Initialize the CAN controller */
-    (*rom)->pCAND->init_can(&ClkInitTable250[0], 1);
+    (*rom)->pCAND->init_can((uint32_t*) &ClkInitTable250[0], 1);
     /* Configure the CAN callback functions */
-    (*rom)->pCAND->config_calb(&callbacks);
+    (*rom)->pCAND->config_calb((CAN_CALLBACKS*) &callbacks);
 
     /* Enable the CAN Interrupt */
     NVIC_EnableIRQ(CAN_IRQn);
@@ -186,7 +186,7 @@ void CAN_rx(uint8_t msg_obj_num)
     struct can_frame can_frame;
     can_frame.can_id = msg_obj.mode_id & ((1<<30) - 1);
     can_frame.can_rtr = (msg_obj.mode_id & CAN_MSGOBJ_RTR) ? 1 : 0;
-    can_frame.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 0 : 1;
+    can_frame.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 1 : 0;
     can_frame.can_err = 0;
     can_frame.can_dlc = msg_obj.dlc;
     memcpy(can_frame.data, msg_obj.data, msg_obj.dlc);

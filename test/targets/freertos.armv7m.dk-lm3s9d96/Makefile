@@ -9,17 +9,6 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 # Find StellarisWare
 include $(OPENMRNPATH)/etc/stellarisware.mk
 
-ifeq ($(STELLARISWAREPATH),STELLARISWAREPATH not found)
-
-all docs clean veryclean tests:
-	@echo "******************************************************************"
-	@echo "*"
-	@echo "*   Unable to build for $(TARGET), stellarisware unavailable"
-	@echo "*"
-	@echo "******************************************************************"
-
-else
-
 LDFLAGSEXTRA = -L$(STELLARISWAREPATH)/driverlib/gcc-cm3 \
                -L$(STELLARISWAREPATH)/usblib/gcc-cm3
 SYSLIBRARIESEXTRA = -lusb-cm3 -ldriver-cm3
@@ -30,4 +19,3 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_can
 TARGET := freertos.armv7m
 include $(OPENMRNPATH)/etc/prog.mk
 
-endif

@@ -9,6 +9,10 @@ ifneq ($(FREERTOSPATH),)
 include $(OPENMRNPATH)/etc/armgcc-s.mk
 endif
 
+# Get $(MBEDPATH)
+include $(OPENMRNPATH)/etc/mbed.mk
+
+
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
@@ -45,7 +49,7 @@ endif
 
 DEPS += CMSIS_LPC11_PATH
 
-INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC11U24" -I"$(MBEDSRCPATH)/capi"  #-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC11U24"
 
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
@@ -53,7 +57,7 @@ SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
-        -MMD -MP -MF"$(@:%.o=%.d)" \
+        -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
         $(CFLAGSENV)
 
 #-MT"$(@:%.o=%.d)" 
@@ -62,25 +66,22 @@ CORECFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -std=gnu99 -Wstrict-prototypes
 
 CFLAGS = $(CORECFLAGS)
+ARM_CFLAGS = $(CFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -fno-rtti -fno-exceptions -std=c++0x \
         -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
-        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb \
+        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb --specs=nano.specs \
         -Xlinker -Map="$(@:%.elf=%.map)"  \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
 
 #use this only if armgcc == arm gcc 4.7
 #LDFLAGS += --specs=nano.specs
 
-
-SYSLIBRARIES = \
-        -lfreertos \
-        -lfreertos_drivers  \
-        -lCMSISv2p00_LPC11xx \
-        $(SYSLIBRARIESEXTRA)
+SYSLIB_SUBDIRS += mbed
+SYSLIBRARIES += -lCMSISv2p00_LPC11xx -lmbed  $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 

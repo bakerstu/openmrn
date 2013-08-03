@@ -2,6 +2,9 @@ ifeq ($(TARGET),)
 # if the target is so far undefined
 TARGET := $(shell basename `pwd`)
 endif
+
+include $(OPENMRNPATH)/etc/config.mk
+
 include ../../subdirs
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
@@ -35,7 +38,7 @@ LIBDIRS := $(SUBDIRS)
 LIBS = $(STARTGROUP) \
        $(foreach lib,$(LIBDIRS),-l$(lib)) \
        $(ENDGROUP) \
-       -lif -lcore -los 
+       $(LINKCORELIBS)
 
 SUBDIRS += lib
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
@@ -52,13 +55,16 @@ DEPS += TOOLPATH
 MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
 ifneq ($(MISSING_DEPS),)
-all docs clean veryclean tests:
+all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
 else
+
+# This defines how to create nonexistant directories.
+MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
 include $(OPENMRNPATH)/etc/recurse.mk
 
@@ -68,8 +74,13 @@ all: $(EXECUTABLE)$(EXTENTION)
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 $(FULLPATHLIBS): $(BUILDDIRS)
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)  depmake
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+
+.PHONY: depmake
+
+depmake:
+	make -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)
@@ -101,7 +112,8 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EX	rm -rf $(XMLSRCS:.xml=.c)
+	rm -rf *.o *.d *.a *.so *.output *.cout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
+	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
 
@@ -131,19 +143,13 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
 	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
 
-
 .PHONY: $(TEST_OUTPUTS)
 
 $(TEST_OUTPUTS) : %_test.output : %_test
-	./$*_test
+	./$*_test --gtest_death_test_style=threadsafe
 
-$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) depmake
+$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
-
-.PHONY: depmake
-
-depmake:
-	make -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 $(info test deps: $(FULLPATHLIBS) )
 

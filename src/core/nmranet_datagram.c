@@ -43,6 +43,12 @@
 #include "os/os.h"
 #include "nmranet_config.h"
 
+#ifndef TARGET_LPC11Cxx
+#define NMRANET_SUPPORT_DATAGRAM
+#endif
+
+#ifdef NMRANET_SUPPORT_DATAGRAM
+
 void datagram_memory_config(node_t node, datagram_t datagram);
 void nmranet_memory_config_init(void);
 
@@ -508,3 +514,55 @@ size_t nmranet_datagram_pending(node_t node)
 
     return pending; 
 }
+
+#else  // no datagram support
+
+size_t nmranet_datagram_pending(node_t node) {
+  return 0;
+}
+
+datagram_t nmranet_datagram_consume(node_t node) {
+  return NULL;
+}
+
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout) {
+  abort();
+}
+
+Datagram *nmranet_datagram_alloc(void) {
+  return NULL;
+}
+
+void nmranet_datagram_release(datagram_t datagram) {
+  abort();
+}
+
+uint64_t nmranet_datagram_protocol(datagram_t datagram) {
+  abort();
+}
+
+uint8_t *nmranet_datagram_payload(datagram_t datagram) {
+  abort();
+}
+
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout) {
+  abort();
+}
+
+void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const void *data, size_t offset, size_t size) {
+  abort();
+}
+
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout) {
+  abort();
+}
+
+long long nmranet_datagram_timeout(void *data1, void* data2) {
+  abort();
+}
+
+void nmranet_datagram_packet(node_t node, uint16_t mti, node_handle_t src, const uint8_t *data) {
+  // Ignores datagram packets.
+}
+
+#endif

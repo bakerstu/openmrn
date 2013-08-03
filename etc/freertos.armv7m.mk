@@ -44,9 +44,7 @@ CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
 LDFLAGS = -g -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
-SYSLIBRARIES = -lfreertos \
-               -lfreertos_drivers  \
-               $(SYSLIBRARIESEXTRA)
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 
