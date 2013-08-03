@@ -5,9 +5,8 @@ CSRCS += fileio.c \
          can.c \
          serial.c
 
-CXXSRCS += pipe.cxx \
-        gc_pipe.cxx \
-        gc_format.cxx
+CXXSRCS += 
+
 
 # Find StellarisWare
 ifdef STELLARISWAREPATH
