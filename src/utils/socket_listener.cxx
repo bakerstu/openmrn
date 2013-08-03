@@ -103,7 +103,8 @@ void SocketListener::AcceptThreadBody() {
                setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
                           &val, sizeof(val)));
 
-    LOG(INFO, "Inoming connection from %s.\n", inet_ntoa(addr.sin_addr));
+    LOG(INFO, "Inoming connection from %s, fd %d.\n", inet_ntoa(addr.sin_addr),
+        connfd);
     callback_(connfd);
   }
 }

@@ -31,6 +31,7 @@
  * @date 18 May 2013
  */
 
+#include "utils/logging.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -42,6 +43,7 @@ using std::remove;
 
 #include "os/os.h"
 #include "os/OS.hxx"
+
 
 #ifndef configASSERT
 #include <assert.h>
@@ -105,6 +107,9 @@ public:
         ssize_t ret = 0;
         while (count > 0) {
             ret = ::write(fd_write_, bbuf, count);
+            if (!ret) {
+              LOG(ERROR, "EOF writing fd %d.", fd_write_);
+            }
             configASSERT(ret > 0);
             count -= ret;
             bbuf += ret;
@@ -122,6 +127,17 @@ private:
             while (count > 0)
             {
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
+                if (!ret)
+                {
+                    LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
+                    t->parent_->UnregisterMember(t);
+                    ::close(t->fd_read_);
+                    if (t->fd_write_ != t->fd_read_)
+                    {
+                        ::close(t->fd_write_);
+                    }
+                    return NULL;
+                }
                 configASSERT(ret > 0);
                 count -= ret;
                 bbuf += ret;
