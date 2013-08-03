@@ -292,7 +292,7 @@ _fiq:   .word __fiq                     /* FIQ						*/
 	.global __svcirq_crash
 __svcirq_crash:
 	push {lr}
-	bl	enable_fiq
+	bl	enable_fiq_only
 	ldr	r0, =BLINK_DIE_SVCIRQ
 	ldr	lr, =blinker_pattern
 	str	r0, [lr]
@@ -303,7 +303,7 @@ __svcirq_crash:
 
 __undf:
 	push {r0, lr}
-	bl	enable_fiq
+	bl	enable_fiq_only
 	ldr	r0, =BLINK_DIE_UNDF
 	ldr	lr, =blinker_pattern
 	str	r0, [lr]
@@ -311,7 +311,7 @@ __undf:
 	b     .                         /* undefined				*/
 __pabt:
 	push {r0, lr}
-	bl	enable_fiq
+	bl	enable_fiq_only
 	ldr	r0, =BLINK_DIE_PABT
 	ldr	lr, =blinker_pattern
 	str	r0, [lr]
@@ -319,7 +319,7 @@ __pabt:
 	b     .                         /* program abort			*/
 __dabt:
 	push {r0, lr}
-	bl	enable_fiq
+	bl	enable_fiq_only
 	ldr	r0, =BLINK_DIE_DABT
 	ldr	lr, =blinker_pattern
 	str	r0, [lr]
@@ -366,12 +366,38 @@ enable_fiq:
 
 	.global	enable_fiq_only
 enable_fiq_only:
-	push	{r0}
+	push	{r0, r1, lr}
+	.global	SIEdisconnect
+	ldr	r0, =SIEdisconnect
+        mov     LR, PC
+	bx	r0
+	/*// Turns off the USB port.
+	ldr	r1, #0xE01FC0C4
+	ldr	r0, [r1]
+	bic     r0, r0, #(1<<31)
+	str	r0, [r1]*/
+	
 	mrs  r0, CPSR
 	bic  r0, r0, #0x40
 	orr  r0, r0, #0x80
 	msr  CPSR, r0
-	pop	{r0}
+	pop	{r0, r1, lr}
+	bx	lr
+
+
+	push	{r0, r1}
+
+	// Turns off the USB port.
+	ldr	r1, =0xE01FC0C4
+	ldr	r0, [r1]
+	bic     r0, r0, #(1<<31)
+	str	r0, [r1]
+
+	mrs  r0, CPSR
+	bic  r0, r0, #0x40
+	orr  r0, r0, #0x80
+	msr  CPSR, r0
+	pop	{r0, r1}
 	bx	lr
 
 
