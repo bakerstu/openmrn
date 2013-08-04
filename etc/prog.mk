@@ -27,9 +27,8 @@ CPPSRCS  = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
 XMLSRCS  = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
 TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
 
-# This little trick insures we don't endup with duplicates of $(XMLSRCS:.xml=.o)
-TEMP_OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
-OBJS := $(patsubst $(XMLSRCS:.xml=.o),,$(TEMP_OBJS)) $(XMLSRCS:.xml=.o)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
+       $(XMLSRCS:.xml=.o)
 TESTOBJS := $(TESTSRCS:.cc=.o)
 
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
@@ -86,12 +85,12 @@ depmake:
 -include $(TESTOBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp .S .xml
+.SUFFIXES: .o .c .cxx .cpp .S .xml .cout
 
 .xml.o:
-	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.c
-	$(CC) $(CFLAGS) $*.c -o $@
-	$(CC) -MM $(CFLAGS) $*.c > $*.d
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cout
+	$(CC) $(CFLAGS) -x c $*.cout -o $@
+	$(CC) -MM $(CFLAGS) $*.cout > $*.d
 
 .S.o:
 	$(AS) $(ASFLAGS) $< -o $@
