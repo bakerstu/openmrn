@@ -149,6 +149,26 @@ TEST_F(GcPipeTest, SendGcPacketWithGarbage) {
   EXPECT_EQ(0xf2U, saved_can_data_[0].data[2]);
 }
 
+TEST_F(GcPipeTest, PartialPacket) {
+  AddChannel();
+  string s = "garbage\n:X195B";
+  string s2 = "4672NF";
+  string s3 = "0F1F2;\n";
+  MockPipeMember mock;
+  can_side_.RegisterMember(&mock);
+  EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
+  gc_side_.WriteToAll(NULL, s.data(), s.size());
+  gc_side_.WriteToAll(NULL, s2.data(), s2.size());
+  gc_side_.WriteToAll(NULL, s3.data(), s3.size());
+  ASSERT_EQ(1U, saved_can_data_.size());
+  EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
+  ASSERT_EQ(3, saved_can_data_[0].can_dlc);
+  EXPECT_EQ(0xf0U, saved_can_data_[0].data[0]);
+  EXPECT_EQ(0xf1U, saved_can_data_[0].data[1]);
+  EXPECT_EQ(0xf2U, saved_can_data_[0].data[2]);
+}
+
+
 
 
 int appl_main(int argc, char* argv[]) {

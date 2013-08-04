@@ -134,6 +134,9 @@ private:
             }
             if (c == ';')
             {
+              if (offset_ < 0) {
+                return;
+              }
                 // Frame ends here.
                 cbuf_[offset_] = 0;
                 struct can_frame frame;
