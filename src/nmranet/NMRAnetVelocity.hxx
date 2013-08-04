@@ -31,8 +31,11 @@
  * @date 2 August 2013
  */
 
-#include <math.h>
-#include <stdint.h>
+#ifndef _NMRAnetVelocity_hxx_
+#define _NMRAnetVelocity_hxx_
+
+#include <cmath>
+#include <cstdint>
 
 extern "C" {
 /* These come from the ieeehalfprecision.c */
@@ -152,27 +155,7 @@ public:
      *  bits 6..0:  0 = stopped, 1 = estop, 2 - 127 = speed steps 1 - 126
      *  @return DCC encoded speed steps
      */
-    uint8_t get_dcc_128()
-    {
-        uint8_t result;
-        float tmp = (speed() * MPH_FACTOR) + 0.5;
-        
-        if (tmp == 0)
-        {
-            result = 0;
-        }
-        else if (tmp > 126)
-        {
-            result = 127;
-        }
-        else
-        {
-            result = (uint8_t)(tmp + 1);
-        }
-        
-        result |= get_sign(velocity) == -1 ? 0x00 : 0x80;
-        return result;
-    }
+    uint8_t get_dcc_128();
 
     /** Set the speed from DCC 128 speed step format.
      *  The mapping from meters/sec is strait forward.  First convert to
@@ -182,23 +165,7 @@ public:
      *  @param value bit 7:  direction
      *               bits 6..0:  0 = stopped, 1 = estop, 2 - 127 = speed steps 1 - 126
      */
-    void set_dcc_128(uint8_t value)
-    {
-        if ((value & 0x7F) <= 1)
-        {
-            velocity = 0;
-        }
-        else
-        {
-            velocity = (value & 0x07F) - 1;
-            velocity /= MPH_FACTOR;
-        }
-        
-        if ((value & 0x80) == 0)
-        {
-            velocity = -velocity;
-        }
-    }
+    void set_dcc_128(uint8_t value);
     
     /** Get the speed in DCC 28 speed step format.
      *  This is a decimation of the 128 speed step mode.
@@ -209,31 +176,7 @@ public:
      *  bits 3..0:  speed step significatn bits 4..1
      *  @return DCC encoded speed steps
      */
-    uint8_t get_dcc_28()
-    {
-        uint8_t result;
-        float tmp = ((speed() * MPH_FACTOR * 28) / 128) + 0.5;
-        
-        if (tmp == 0)
-        {
-            result = 0;
-        }
-        else if (tmp > 28)
-        {
-            result = 31;
-        }
-        else
-        {
-            result = (uint8_t)(tmp + 3);
-        }
-        
-        result |= result & 0x01 ? 0xA0 : 0x80;
-        
-        result >>= 1;
-
-        result |= get_sign(velocity) == -1 ? 0x00 : 0x20;
-        return result;
-    }
+    uint8_t get_dcc_28();
     
     /** Set the speed from DCC 28 speed step format.
      *  This is a decimation of the 128 speed step mode.
@@ -243,28 +186,7 @@ public:
      *               bits 4:  speed step least significant bit
      *               bits 3..0:  speed step significatn bits 4..1
      */
-    void set_dcc_28(uint8_t value)
-    {
-        value <<= 1;
-        
-        value |= value & 0x20 ? 0x01 : 0x00;
-        
-        if ((value & 0x1F) <= 3)
-        {
-            velocity = 0;
-        }
-        else
-        {
-            velocity = (value & 0x01F) - 3;
-            velocity *= 128;
-            velocity /= (28 * MPH_FACTOR);
-        }
-        
-        if ((value & 0x40) == 0)
-        {
-            velocity = -velocity;
-        }
-    }
+    void set_dcc_28(uint8_t value);
 
     /** Get the speed in DCC 14 speed step format.
      *  This is a decimation of the 128 speed step mode.
@@ -275,29 +197,7 @@ public:
      *  bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28 
      *  @return DCC encoded speed steps
      */
-    uint8_t get_dcc_14()
-    {
-        uint8_t result;
-        float tmp = ((speed() * MPH_FACTOR * 14) / 128) + 0.5;
-        
-        if (tmp == 0)
-        {
-            result = 0;
-        }
-        else if (tmp > 14)
-        {
-            result = 15;
-        }
-        else
-        {
-            result = (uint8_t)(tmp + 1);
-        }
-        
-        result |= 0x40;
-
-        result |= get_sign(velocity) == -1 ? 0x00 : 0x20;
-        return result;
-    }
+    uint8_t get_dcc_14();
     
     /** Set the speed from DCC 14 speed step format.
      *  This is a decimation of the 128 speed step mode.
@@ -307,24 +207,7 @@ public:
      *               bits 4:  reserved 0 for headlight
      *               bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28 
      */
-    void set_dcc_14(uint8_t value)
-    {
-        if ((value & 0x0F) <= 1)
-        {
-            velocity = 0;
-        }
-        else
-        {
-            velocity = (value & 0x0F) - 1;
-            velocity *= 128;
-            velocity /= (14 * MPH_FACTOR);
-        }
-        
-        if ((value & 0x20) == 0)
-        {
-            velocity = -velocity;
-        }
-    }
+    void set_dcc_14(uint8_t value);
     
     /** Get a wire version of the velocity.
      * @return IEEE half precision floating point representation of velocity
@@ -745,4 +628,6 @@ private:
 };
 
 
-};
+}; /* namespace NMRAnet */
+
+#endif /* _NMRAnetVelocity_hxx_ */
