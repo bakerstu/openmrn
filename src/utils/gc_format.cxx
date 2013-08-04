@@ -205,15 +205,17 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
         output = output_single;
         output(buf, ':');
     }
-    uint32_t id = GET_CAN_FRAME_ID(*can_frame);
+    uint32_t id;
     int offset;
     if (IS_CAN_FRAME_EFF(*can_frame))
     {
+        id = GET_CAN_FRAME_ID_EFF(*can_frame);
         output(buf, 'X');
         offset = 28;
     }
     else
     {
+        id = GET_CAN_FRAME_ID(*can_frame);
         output(buf, 'S');
         offset = 8;
     }
