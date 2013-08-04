@@ -31,9 +31,9 @@
  * @date 20 May 2013
  */
 
-#include "pipe.hxx"
-#include "gc_pipe.hxx"
-#include "gc_format.h"
+#include "utils/pipe.hxx"
+#include "utils/gc_pipe.hxx"
+#include "utils/gc_format.h"
 #include "nmranet_can.h"
 
 
@@ -153,7 +153,11 @@ private:
                 offset_ = -1;
                 return;
             }
-            cbuf_[offset_++] = c;
+            if (offset_ >= 0) {
+              cbuf_[offset_++] = c;
+            } else {
+              // Drop byte to the floor -- we're not in the middle of a packet.
+            }
         }
 
     private:

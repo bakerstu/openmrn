@@ -1,5 +1,2 @@
-# Build the platform libraries.
-SUBDIRS = os if core lib nmranet
-
-include $(OPENMRNPATH)/etc/recurse.mk
+include $(OPENMRNPATH)/etc/core_target.mk
 

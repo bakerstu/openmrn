@@ -1,13 +1,13 @@
 # Get the $(NUTTXPATH)
 include $(OPENMRNPATH)/etc/nuttx.mk
 
+DEPS += NUTTXPATH
+
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
-ifneq ($(NUTTXPATH),)
 include $(OPENMRNPATH)/etc/armgcc.mk
-endif
 
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
@@ -20,7 +20,7 @@ STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
 INCLUDES += -I$(NUTTXPATH)/include \
-            -I $(OPENMRNPATH)/include/nuttx
+            -I$(OPENMRNPATH)/include/nuttx
 
 #ARCHOPTIMIZATION =
 ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer

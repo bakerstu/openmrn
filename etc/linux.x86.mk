@@ -11,6 +11,8 @@ CXX = g++
 AR = ar
 LD = g++
 
+HOST_TARGET := 1
+
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 

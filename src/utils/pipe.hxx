@@ -147,7 +147,7 @@ public:
     void UnregisterMember(PipeMember* member);
 
     /** Adds a physical device to the members of this pipe.
-        
+
         @param path is the path to the physical device, e.g. /dev/can0
 
         @param thread_name will be the name of the RX thread from the physical
@@ -157,6 +157,39 @@ public:
      */
     void AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
                                  int stack_size);
+
+    /** Adds a physical device to the members of this pipe.
+
+        @param fd_read is the fd from which data will be read (and transmitted
+        to the pipe).
+
+        @param fd_write is the fd into which data from the pipe will be
+        written.
+
+        @param thread_name will be the name of the RX thread from the physical
+        device
+
+        @param stack_size will be the size of the RX thread stack.
+     */
+    void AddPhysicalDeviceToPipe(int fd_read, int fd_write,
+                                 const char* thread_name,
+                                 int stack_size);
+
+#ifdef __linux__
+    /** Adds a virtual device to the pipe. The virtual device is represented
+     * with a pair of pipes of standard file descriptors.
+     *
+     * @param thread_name is the reading thread from the virtual device.
+     *
+     * @param stack_size is the reading thread stack size.
+     *
+     * @param fd[2] is an output argument, fd[0] can be read to get data from
+     * the pipe, fd[1] can be written to to send data to the pipe.
+     */
+    void AddVirtualDeviceToPipe(const char* thread_name,
+                                int stack_size,
+                                int fd[2]);
+#endif
 
     size_t unit()
     {

@@ -31,6 +31,7 @@
  * @date 18 May 2013
  */
 
+#include "utils/logging.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -43,7 +44,11 @@ using std::remove;
 #include "os/os.h"
 #include "os/OS.hxx"
 
-#include "devtab.h"
+
+#ifndef configASSERT
+#include <assert.h>
+#define configASSERT assert
+#endif
 
 Pipe::Pipe(size_t unit)
     : unit_(unit)
@@ -80,11 +85,13 @@ ssize_t Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
 class PhysicalDevicePipeMember : public PipeMember
 {
 public:
-    PhysicalDevicePipeMember(Pipe* parent, int fd, const char* rx_name, size_t stack_size)
-        : fd_(fd),
+  PhysicalDevicePipeMember(Pipe* parent, int fd_read, int fd_write,
+                           const char* rx_name, size_t stack_size)
+        : fd_read_(fd_read),
+          fd_write_(fd_write),
           parent_(parent)
     {
-        os_thread_create(NULL, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
+        os_thread_create(&read_thread_, rx_name, 0, stack_size, &DeviceToPipeReaderThread, this);
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -99,7 +106,10 @@ public:
         const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
         ssize_t ret = 0;
         while (count > 0) {
-            ret = ::write(fd_, bbuf, count);
+            ret = ::write(fd_write_, bbuf, count);
+            if (!ret) {
+              LOG(ERROR, "EOF writing fd %d.", fd_write_);
+            }
             configASSERT(ret > 0);
             count -= ret;
             bbuf += ret;
@@ -116,7 +126,18 @@ private:
             int count = t->parent_->unit();
             while (count > 0)
             {
-                ssize_t ret = ::read(t->fd_, bbuf, count);
+                ssize_t ret = ::read(t->fd_read_, bbuf, count);
+                if (!ret)
+                {
+                    LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
+                    t->parent_->UnregisterMember(t);
+                    ::close(t->fd_read_);
+                    if (t->fd_write_ != t->fd_read_)
+                    {
+                        ::close(t->fd_write_);
+                    }
+                    return NULL;
+                }
                 configASSERT(ret > 0);
                 count -= ret;
                 bbuf += ret;
@@ -125,12 +146,17 @@ private:
         }
         return NULL;
     }
-    
-    //! File descriptor of the physical device.
-    int fd_;
+
+    //! File descriptor from the physical device.
+    int fd_read_;
+    //! File descriptor to the physical device.
+    int fd_write_;
 
     //! Pipe to forward information to.
     Pipe* parent_;
+
+    //! Thread handle for reader thread.
+    os_thread_t read_thread_;
 
     //! Protects writes to the device.
     OSMutex lock_;
@@ -141,16 +167,36 @@ void Pipe::AddPhysicalDeviceToPipe(const char* path, const char* thread_name,
 {
     int fd = ::open(path, O_RDWR);
     configASSERT(fd >= 0);
+    AddPhysicalDeviceToPipe(fd, fd, thread_name, stack_size);
+}
+
+void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
+                                   const char* thread_name,
+                                   int stack_size) {
     // The new member is effectively leaked here. The problem is that we cannot
     // destruct physical pipe members because they have a thread.
-    RegisterMember(new PhysicalDevicePipeMember(this, fd, thread_name, stack_size));
+    RegisterMember(new PhysicalDevicePipeMember(this, fd_read, fd_write,
+                                                thread_name, stack_size));
 }
 
-static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
-{
-    return 0;
-}
+#ifdef __linux__
+void Pipe::AddVirtualDeviceToPipe(const char* thread_name,
+                                  int stack_size,
+                                  int fd[2]) {
+  int fromfd[2];
+  int tofd[2];
+  assert(!pipe(fromfd));
+  assert(!pipe(tofd));
 
+  AddPhysicalDeviceToPipe(fromfd[0], tofd[1], thread_name, stack_size);
+  fd[0] = tofd[0];
+  fd[1] = fromfd[1];
+}
+#endif
+
+#ifdef __FreeRTOS__
+
+#include "devtab.h"
 
 void VirtualPipeMember::Initialize()
 {
@@ -235,6 +281,11 @@ void VirtualPipeMember::write(const void *buf, size_t count)
     }
 }
 
+static int ignore_ioctl(file_t *file, node_t *node, int key, void *data)
+{
+    return 0;
+}
+
 int vdev_init(devtab_t *dev)
 {
     // Nothing to init here, because the constructor takes care of
@@ -248,3 +299,4 @@ DEVOPS(vdev_ops,
        VirtualPipeMember::Ops::pipe_read,
        VirtualPipeMember::Ops::pipe_write,
        ignore_ioctl);
+#endif

@@ -1,3 +1,5 @@
+include $(OPENMRNPATH)/etc/path.mk
+
 TARGET := $(shell basename `cd ../; pwd`)
 BASENAME = $(shell basename `pwd`)
 SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)
@@ -34,11 +36,11 @@ CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
 DEPS += TOOLPATH
-MISSING_DEPS:=$(strip $(foreach depvar,$(DEPS),$(if $(value $(depvar)),,$(depvar))))
+MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
 ifneq ($(MISSING_DEPS),)
 
-all docs clean veryclean:
+all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
@@ -80,5 +82,12 @@ clean:
 
 .PHONY: veryclean
 veryclean: clean
+
+
+.PHONY: tests
+tests : 
+
+.PHONY: mksubdirs
+mksubdirs : 
 
 endif

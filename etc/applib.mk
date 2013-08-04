@@ -34,11 +34,14 @@ LIBNAME = lib$(BASENAME).a
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
-ifeq ($(TOOLPATH),)
-all docs clean veryclean:
+DEPS += TOOLPATH
+MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
+
+ifneq ($(MISSING_DEPS),)
+all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
-	@echo "*   Unable to build for $(TARGET), no toolchain available"
+	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
 else
@@ -73,5 +76,12 @@ clean:
 
 .PHONY: veryclean
 veryclean: clean
+
+.PHONY: tests
+tests:
+
+.PHONY: mksubdirs
+mksubdirs:
+
 
 endif

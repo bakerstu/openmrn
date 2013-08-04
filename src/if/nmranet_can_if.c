@@ -144,7 +144,8 @@ typedef struct nmranet_can_if
     AliasMetadata *pool; /**< preallocated alias pool */
     ssize_t (*read)(int, void*, size_t); /**< read method for device */
     ssize_t (*write)(int, const void*, size_t); /**< write method for device */
-    int fd; /**< CAN hardware handle */
+    int read_fd; /**< CAN hardware handle */
+    int write_fd; /**< CAN hardware handle */
 } NMRAnetCanIF;
 
 /* prototypes */
@@ -312,7 +313,7 @@ static long long claim_alias_timeout(void *data1, void *data2)
         SET_CAN_FRAME_EFF(frame);
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_ERR(frame);
-        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
         if (result != (sizeof(struct can_frame)))
         {
             abort();
@@ -364,7 +365,7 @@ static void claim_alias(NMRAnetCanIF *can_if, node_id_t node_id, node_alias_t al
             CLR_CAN_FRAME_ERR(frame[1]);
             CLR_CAN_FRAME_ERR(frame[2]);
             CLR_CAN_FRAME_ERR(frame[3]);
-            int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame) * 4);
+            int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame) * 4);
             if (result != (sizeof(struct can_frame) * 4))
             {
                 abort();
@@ -408,7 +409,7 @@ static node_alias_t upstream_alias_setup(NMRAnetCanIF *can_if, node_id_t node_id
                 frame.data[3] = (node_id >> 16) & 0xff;
                 frame.data[4] = (node_id >>  8) & 0xff;
                 frame.data[5] = (node_id >>  0) & 0xff;
-                int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
                 if (result != sizeof(struct can_frame))
                 {
                     abort();
@@ -555,7 +556,7 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
                     size_t seg_size = len < 8 ? len : 8;
                     memcpy(frame.data, buffer, seg_size);
                     frame.can_dlc = seg_size;
-                    int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                    int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
                     if (result < 0)
                     {
                         abort();
@@ -590,7 +591,7 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
                     size_t seg_size = len < 6 ? len : 6;
                     memcpy(&frame.data[2], buffer, seg_size);
                     frame.can_dlc = 2 + seg_size;
-                    int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                    int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
                     if (result < 0)
                     {
                         abort();
@@ -640,7 +641,7 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
                 frame.data[3] = (dst.id >> 16) & 0xff;
                 frame.data[4] = (dst.id >>  8) & 0xff;
                 frame.data[5] = (dst.id >>  0) & 0xff;
-                int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+                int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
                 if (result != (sizeof(struct can_frame)))
                 {
                     abort();
@@ -665,7 +666,7 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
         {
             frame.can_dlc = 0;
         }
-        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
         if (result < 0)
         {
             abort();
@@ -834,7 +835,7 @@ static void datagram_rejected(NMRAnetCanIF *can_if, node_alias_t src, node_alias
     frame.data[2] = error_code >> 8;
     frame.data[3] = error_code & 0xff;
     frame.can_dlc = 4;
-    int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+    int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
     if (result < 0)
     {
         abort();
@@ -1052,7 +1053,7 @@ static int alias_conflict(NMRAnetCanIF *can_if, node_alias_t alias, int release)
             frame.data[3] = (id >> 16) & 0xff;
             frame.data[4] = (id >>  8) & 0xff;
             frame.data[5] = (id >>  0) & 0xff;
-            int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+            int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
             if (result != sizeof(struct can_frame))
             {
                 abort();
@@ -1121,7 +1122,7 @@ static void ccr_cid_frame(NMRAnetCanIF *can_if, uint32_t ccr)
         SET_CAN_FRAME_EFF(frame);
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_ERR(frame);
-        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
         if (result != (sizeof(struct can_frame)))
         {
             abort();
@@ -1158,7 +1159,7 @@ static void send_amd_frame(void *data, node_id_t id, node_alias_t alias)
         frame.data[3] = (id >> 16) & 0xff;
         frame.data[4] = (id >>  8) & 0xff;
         frame.data[5] = (id >>  0) & 0xff;
-        int result = (*can_if->write)(can_if->fd, &frame, sizeof(struct can_frame));
+        int result = (*can_if->write)(can_if->write_fd, &frame, sizeof(struct can_frame));
         if (result != sizeof(struct can_frame))
         {
             abort();
@@ -1293,7 +1294,7 @@ static void *read_thread(void *data)
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_EFF(frame);
 
-        int result = (*can_if->read)(can_if->fd, &frame, sizeof(struct can_frame));
+        int result = (*can_if->read)(can_if->read_fd, &frame, sizeof(struct can_frame));
         if (result < 0)
         {
             abort();
@@ -1386,31 +1387,31 @@ static void *read_thread(void *data)
     return NULL;
 }
 
+
 /** Initialize a can interface.
  * @param node_id node ID of interface
- * @param device description for this instance
+ * @param read_fd file descriptor to read from
+ * @param write_fd file descriptor to write to
+ * @param thread_name description for this instance
  * @param if_read read method for this interface
  * @param if_write write method for this interface
  * @return handle to the NMRAnet interface
  */
-NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
-                               ssize_t (*if_read)(int, void*, size_t),
-                               ssize_t (*if_write)(int, const void*, size_t))
+NMRAnetIF *nmranet_can_if_fd_init(node_id_t node_id, int read_fd, int write_fd,
+                                  const char* thread_name,
+                                  ssize_t (*if_read)(int, void*, size_t),
+                                  ssize_t (*if_write)(int, const void*, size_t))
 {
-    int fd = open(device, O_RDWR);
-    if (fd < 0)
-    {
-        return NULL;
-    }
     NMRAnetCanIF *can_if = malloc(sizeof(NMRAnetCanIF));
 
     os_thread_t thread_handle;
-    
+
     can_if->nmranetIF.write = can_write;
     can_if->nmranetIF.lookup_id = lookup_id;
     can_if->read = if_read;
     can_if->write = if_write;
-    can_if->fd = fd;
+    can_if->read_fd = read_fd;
+    can_if->write_fd = write_fd;
     can_if->id = node_id;
     can_if->pool = malloc(sizeof(AliasMetadata)*ALIAS_POOL_SIZE);
     can_if->writeBuffer.mti = 0;
@@ -1442,8 +1443,27 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
     os_mutex_unlock(&can_if->aliasMutex);
 
     /* start the thread that will process received packets */
-    os_thread_create(&thread_handle, device, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread, &can_if->nmranetIF);
+    os_thread_create(&thread_handle, thread_name, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread, &can_if->nmranetIF);
 
     return &can_if->nmranetIF;
 }
 
+
+/** Initialize a can interface.
+ * @param node_id node ID of interface
+ * @param device description for this instance
+ * @param if_read read method for this interface
+ * @param if_write write method for this interface
+ * @return handle to the NMRAnet interface
+ */
+NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
+                               ssize_t (*if_read)(int, void*, size_t),
+                               ssize_t (*if_write)(int, const void*, size_t))
+{
+    int fd = open(device, O_RDWR);
+    if (fd < 0)
+    {
+        return NULL;
+    }
+    return nmranet_can_if_fd_init(node_id, fd, fd, device, if_read, if_write);
+}

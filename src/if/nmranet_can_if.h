@@ -341,6 +341,10 @@ enum can_frame_type
     TYPE_STREAM_DATA           = 7, /**< Stream data */
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Initialize a can interface.
  * @param node_id node ID of interface
  * @param device description for this instance
@@ -352,5 +356,23 @@ NMRAnetIF *nmranet_can_if_init(node_id_t node_id, const char *device,
                                ssize_t (*if_read)(int, void*, size_t),
                                ssize_t (*if_write)(int, const void*, size_t));
 
-#endif /* _nmranet_can_if_h_ */
 
+/** Initialize a can interface.
+ * @param node_id node ID of interface
+ * @param read_fd file descriptor to read from
+ * @param write_fd file descriptor to write to
+ * @param thread_name description for this instance
+ * @param if_read read method for this interface
+ * @param if_write write method for this interface
+ * @return handle to the NMRAnet interface
+ */
+NMRAnetIF *nmranet_can_if_fd_init(node_id_t node_id, int read_fd, int write_fd,
+                                  const char* thread_name,
+                                  ssize_t (*if_read)(int, void*, size_t),
+                                  ssize_t (*if_write)(int, const void*, size_t));
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _nmranet_can_if_h_ */

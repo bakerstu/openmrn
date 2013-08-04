@@ -1,10 +1,1 @@
-# Build the platform libraries.
-LIBRARIES = os if core
-
-all:
-
-clean::
-	rm -rf *.a *.so *.dll
-
-veryclean:: clean
-
+include $(OPENMRNPATH)/etc/app_target_lib.mk

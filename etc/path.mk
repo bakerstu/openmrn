@@ -10,11 +10,41 @@
 # $(1): file or dir to look for, $(2); list of paths
 findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard $(dir)))))
 
+# Finds missing dependencies from a list.
+#
+# Accepts as $(1) a list of variable NAMEs. Returns a string containing the
+# name of those variables that have no or empty value. Returns an empty string
+# if all dependencies are met.
+#
+# Usage:
+# DEPS += TOOLPATH FREERTOSPATH
+# MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
+# ifneq (,$(MISSING_DEPS))
+# all:
+# 	@echo missing dependencies: $(MISSING_DEPS)
+# else
+# all: build-deps
+# endif
+find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
+
+################ stellarisware ##################
+ifndef STELLARISWAREPATH
+SEARCHPATH := \
+  /opt/StellarisWare \
+  $(HOME)/StellarisWare
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STELLARISWAREPATH:=$(TRYPATH)
+endif
+endif #FREERTOSPATH
+
 ################# mbed library ##################
 
 ifndef MBEDPATH
 SEARCHPATH := \
   $(HOME)/lpc-workspace/libmbed_2387/mbed \
+  $(HOME)/train/libmbed_2387/mbed \
   /opt/mbed/default/libraries \
 
 
@@ -85,3 +115,55 @@ CMSIS_LPC11_PATH:=$(TRYPATH)
 endif
 endif #CMSIS_LPC11_PATH
 
+
+############### GMOCK ###################
+ifndef GMOCKPATH
+SEARCHPATH := \
+  /opt/gmock/gmock-1.6.0 \
+  /usr \
+
+TRYPATH:=$(call findfirst,include/gmock/gmock.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GMOCKPATH:=$(TRYPATH)
+endif
+endif #GMOCKPATH
+
+ifndef GMOCKSRCPATH
+SEARCHPATH := \
+  $(GMOCKPATH) \
+  /usr/src/gmock \
+  /opt/gmock/gmock-1.6.0 \
+
+TRYPATH:=$(call findfirst,src/gmock-all.cc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GMOCKSRCPATH:=$(TRYPATH)
+endif
+endif #GMOCKSRCPATH
+
+
+############### GTEST ###################
+ifndef GTESTPATH
+SEARCHPATH := \
+  $(GMOCKPATH)/gtest \
+  /opt/gmock/gmock-1.6.0/gtest \
+  /opt/gtest/gtest-1.6.0 \
+  /usr \
+
+TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTPATH:=$(TRYPATH)
+endif
+endif #GTESTPATH
+
+ifndef GTESTSRCPATH
+SEARCHPATH := \
+  $(GTESTPATH) \
+  /opt/gmock/gmock-1.6.0/gtest \
+  /usr/src/gtest \
+  /opt/gtest/gtest-1.6.0 \
+
+TRYPATH:=$(call findfirst,src/gtest-all.cc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTSRCPATH:=$(TRYPATH)
+endif
+endif #GTESTSRCPATH

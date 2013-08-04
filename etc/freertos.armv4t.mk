@@ -1,3 +1,5 @@
+include $(OPENMRNPATH)/etc/config.mk
+
 # Get the $(FREERTOSPATH)
 include $(OPENMRNPATH)/etc/freertos.mk
 
@@ -79,10 +81,7 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
-SYSLIBRARIES = -lfreertos \
-               -lfreertos_drivers  \
-               -llibmbed_2387 \
-               $(SYSLIBRARIESEXTRA)
+SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)
 
 EXTENTION = .elf
 
