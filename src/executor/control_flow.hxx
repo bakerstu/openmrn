@@ -74,6 +74,8 @@ public:
     return state_ == &ControlFlow::Terminated;
   }
 
+  Executor* executor() { return executor_; }
+
 protected:
   // ==========  ACTION COMMANDS =============
 
@@ -98,6 +100,12 @@ protected:
     return WaitForNotification();
   }
 
+  //! Transitions to a new state, but waits for a notification first.
+  ControlFlowAction WaitAndCall(MemberFunction f) {
+    state_ = f;
+    return WaitForNotification();
+  }
+
   //! Yields to other callbacks in the current executor, and re-tries the
   //! current state again.
   ControlFlowAction Yield() {
@@ -111,21 +119,54 @@ protected:
 
   struct SleepData {
     SleepData()
-      : timer_handle(NULL) {};
+      : callback_count(0), timer_handle(NULL) {};
+    ~SleepData();
     int callback_count;
     os_timer_t timer_handle;
   };
 
-  //  ControlFlowAction Sleep(
-                          
+  ControlFlowAction Sleep(SleepData* data, long long delay_nsec,
+                          MemberFunction next_state);
+
+  //! Sets up a repeated timer call. The individual waits have to be
+  //! instantiated using the WaitForTimerWakeUpAndCall call. After this has
+  //! been called, the SleepData must not be used for a regular Sleep call.
+  void WakeUpRepeatedly(SleepData* data, long long period_nsec);
+
+  //! Suspends the current control flow until a repeated timer event has come
+  //! in. Precondition: WakeUpRepeatedly has been called previously.
+  ControlFlowAction WaitForTimerWakeUpAndCall(SleepData* data,
+                                              MemberFunction next_state);
+
+  //! Calls a child control flow, and when that flow is completed, transitions
+  //! to next_state. Will send a notification to the dst flow.
+  ControlFlowAction CallFlow(ControlFlow* dst, MemberFunction next_state);
 
 
 private:
+  //! Implementation state for an exited control flow.
   ControlFlowAction Terminated();
+  //! Implementation state that is waiting for a timer callback.
+  ControlFlowAction WaitForTimer();
+  //! Implementation state that is waiting for another flow to finish.
+  ControlFlowAction WaitForControlFlow();
 
+  union {
+    SleepData* sleep;
+    ControlFlow* called_flow;
 
-  Executor* executor_;
+  } sub_flow_;
+
+  //! The current state that needs to be tried.
   MemberFunction state_;
+
+  //! If a sub flow is running, this state will be transitioned to when the
+  //! subflow terminates. This is used by the sleep subflow.
+  MemberFunction next_state_;
+
+  //! Executor controlling this control flow. Also hosts the lock for the
+  //! control flow.
+  Executor* executor_;
 };
 
 
