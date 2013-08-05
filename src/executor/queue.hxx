@@ -32,6 +32,9 @@
  * @date 5 Aug 2013
  */
 
+#ifndef _EXECUTOR_QUEUE_HXX_
+#define _EXECUTOR_QUEUE_HXX_
+
 #include "utils/macros.h"
 
 class Queue;
@@ -68,6 +71,19 @@ public:
     tail_ = entry;
   }
 
+  bool IsMaybePending(QueueMember* entry) {
+    return ((entry->next_ != NULL) ||
+            (entry == tail_));
+  }
+
+  void PushIfNotMember(QueueMember* entry) {
+    HASSERT(entry);
+    HASSERT(tail_->next_ == NULL);
+    if (IsMaybePending(entry)) return;
+    tail_->next_ = entry;
+    tail_ = entry;
+  }
+
   QueueMember* Pop() {
     QueueMember* ret = next_;
     if (ret) {
@@ -83,3 +99,5 @@ private:
 
   QueueMember* tail_;
 };
+
+#endif // _EXECUTOR_QUEUE_HXX_

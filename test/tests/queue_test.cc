@@ -15,11 +15,14 @@ TEST(QueueTest, CreateDestroy) {
 TEST(QueueTest, SingleElement) {
   Queue q;
   QueueMember foo;
+  EXPECT_FALSE(q.IsMaybePending(&foo));
   EXPECT_TRUE(q.empty());
   q.Push(&foo);
   EXPECT_FALSE(q.empty());
+  EXPECT_TRUE(q.IsMaybePending(&foo));
   EXPECT_EQ(&foo, q.Pop());
   EXPECT_TRUE(q.empty());
+  EXPECT_FALSE(q.IsMaybePending(&foo));
 
   // another run
   q.Push(&foo);
@@ -34,12 +37,23 @@ TEST(QueueTest, MixedWorkload) {
   EXPECT_TRUE(q.empty());
   q.Push(&foo);
   q.Push(&bar);
+  EXPECT_TRUE(q.IsMaybePending(&foo));
+  EXPECT_TRUE(q.IsMaybePending(&bar));
+
   EXPECT_EQ(&foo, q.Pop());
+
   EXPECT_FALSE(q.empty());
+  EXPECT_FALSE(q.IsMaybePending(&foo));
+  EXPECT_TRUE(q.IsMaybePending(&bar));
 
   q.Push(&baz);
+
   EXPECT_FALSE(q.empty());
   EXPECT_EQ(&bar, q.Pop());
+
+  EXPECT_FALSE(q.IsMaybePending(&foo));
+  EXPECT_FALSE(q.IsMaybePending(&bar));
+
   EXPECT_FALSE(q.empty());
   q.Push(&foo);
   q.Push(&bar);
