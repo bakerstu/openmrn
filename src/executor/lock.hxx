@@ -24,70 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file executor.hxx
+ * \file lock.hxx
  *
- * Class to control execution of control flows, switching between them as their
- * inputs will be available.
+ * Defines a lock base class for protecting small critical sections. The
+ * implementation of the lock can be with recursive mutexes (on a large memory
+ * system) or with critical sections on a small system.
  *
  * @author Balazs Racz
  * @date 5 Aug 2013
  */
 
-#ifndef _EXECUTOR_EXECUTOR_HXX_
-#define _EXECUTOR_EXECUTOR_HXX_
 
-#include <stdint.h>
-#include <stdlib.h>
+#ifdef __FreeRTOS__
+
+#include "portmacro.h"
+
+class Lockable {
+public:
+  void lock() {
+    portENTER_CRITICAL();
+  }
+  void unlock() {
+    portEXIT_CRITICAL();
+  }
+};
+
+#else
 
 #include "os/OS.hxx"
-#include "executor/queue.hxx"
-#include "executor/lock.hxx"
 
-class ControlFlow;
-
-class Executable : public QueueMember {
+class Lockable : public OSMutex {
 public:
-  virtual void Run() = 0;
+  Lockable() : OSMutex(true) {}
 };
 
-class Executor : public Lockable {
+#endif
+
+//! See @OSMutexLock in os/OS.hxx
+class LockHolder {
 public:
-  Executor();
-  ~Executor();
-
-  void ThreadBody();
-
-  void Add(Executable* entry) {
-    {
-      LockHolder h(this);
-      pending_flows_.Push(entry);
-    }
-    notify_.post();
+  LockHolder(Lockable* parent)
+    : parent_(parent) {
+    parent_->lock();
   }
-
-  bool IsMaybePending(Executable* entry) {
-    return pending_flows_.IsMaybePending(entry);
+  ~LockHolder() {
+    parent_->unlock();
   }
-
 private:
-  OSSem notify_;
-  Queue pending_flows_;
+  Lockable* parent_;
 };
 
-//! An executor that automatically starts up a new thread to run its loop.
-class ThreadExecutor : public Executor {
-public:
-  ThreadExecutor(const char* thread_name,
-                 int priority,
-                 size_t stack_size);
-  ~ThreadExecutor() {}
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(ThreadExecutor);
-
-  OSThread thread_;
-};
-
-
-
-#endif // _EXECUTOR_EXECUTOR_HXX_
+//! See @OSMutexLock in os/OS.hxx
+#define LockHolder(l) int error_omitted_lock_holder_variable[-1]
