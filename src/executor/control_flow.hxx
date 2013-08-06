@@ -41,7 +41,7 @@ class ControlFlow : public Executable {
 public:
   // =============== Interface to the outside world ===============
   ControlFlow(Executor* executor)
-    : state_(&ControlFlow::NotStarted), executor_(executor_) {}
+    : state_(&ControlFlow::NotStarted), executor_(executor) {}
   
   //! Callback from the executor. This method will be run every time the
   //! control flow is scheduled on the executor.
