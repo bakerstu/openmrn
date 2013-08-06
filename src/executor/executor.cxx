@@ -33,6 +33,7 @@
  * @date 5 Aug 2013
  */
 
+#include "utils/logging.h"
 #include "executor/executor.hxx"
 
 static void* start_executor_thread(void* arg) {
@@ -50,7 +51,14 @@ Executor::~Executor() {}
 void Executor::ThreadBody() {
   while(1) {
     notify_.wait();
-    //
+    Executable* next;
+    {
+      LockHolder h(this);
+      next = static_cast<Executable*>(pending_flows_.Pop());
+    }
+    if (next) {
+      next->Run();
+    }
   }
 }
 
