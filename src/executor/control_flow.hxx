@@ -38,8 +38,42 @@
 #include "executor/executor.hxx"
 
 class ControlFlow : public Executable {
+public:
+  // =============== Interface to the outside world ===============
+  ControlFlow(Executor* executor)
+    : state_(&ControlFlow::NotStarted), executor_(executor_) {}
+  
+  //! Callback from the executor. This method will be run every time the
+  //! control flow is scheduled on the executor.
+  virtual void Run() {
+    HASSERT(state_);
+    do {
+      ControlFlowAction action = (this->*state_)();
+      // We got a WaitForNotification.
+      if (!action.next_state_) return;
+      state_ = action.next_state_;
+    } while (1);
+  }
+
+  //! Wakes up this control flow and puts it onto the executor's scheduling
+  //! queue.
+  void Notify() {
+    LockHolder h(executor_);
+    if (!executor_->IsMaybePending(this)) {
+      executor_->Add(this);
+    }
+  }
+
+  //! Returns true if this control flow has reached the terminated state.
+  bool IsDone() {
+    return state_ == &ControlFlow::Terminated;
+  }
+
+  Executor* executor() { return executor_; }
+
+  // ============ Interface to children (actual flows) ==============
 protected:
-  class ControlFlowAction;
+  struct ControlFlowAction;
 
 public:
   //! The prototype of the member functions of all control flow stages.
@@ -51,32 +85,15 @@ protected:
     MemberFunction next_state_;
   };
 
-public:
-  virtual void Run() {
-    HASSERT(state_);
-    do {
-      ControlFlowAction action = (this->*state_)();
-      // We got a WaitForNotification.
-      if (!action.next_state_) return;
-      state_ = action.next_state_;
-    } while (1);
-  }
-
-  //! Used by external/asynchronous tasks to wake up this control flow.
-  void Notify() {
-    LockHolder h(executor_);
-    if (!executor_->IsMaybePending(this)) {
-      executor_->Add(this);
-    }
-  }
-
-  bool IsDone() {
-    return state_ == &ControlFlow::Terminated;
-  }
-
-  Executor* executor() { return executor_; }
-
 protected:
+  //! This function should be used to start the flow. The caller is responsible
+  //! to ensure that the flow is not running at this moment. The flow will be
+  //! scheduled onto its own executor, so it is safe to call this from a
+  //! different thread.
+  void StartFlowAt(MemberFunction f) {
+    YieldAndCall(f);
+  }
+
   // ==========  ACTION COMMANDS =============
 
   //! Suspends the execution of the current control flow until an external
@@ -144,12 +161,20 @@ protected:
 
 
 private:
+  //! Implementation state for a not-yet-started control flow.
+  ControlFlowAction NotStarted();
   //! Implementation state for an exited control flow.
   ControlFlowAction Terminated();
   //! Implementation state that is waiting for a timer callback.
   ControlFlowAction WaitForTimer();
   //! Implementation state that is waiting for another flow to finish.
   ControlFlowAction WaitForControlFlow();
+
+  //! Helper function for timer implementation.
+  void NotifyControlFlowTimer(SleepData* entry);
+  static long long control_flow_single_timer(void* arg_flow, void* arg_entry);
+  static long long control_flow_repeated_timer(void* arg_flow, void* arg_entry);
+
 
   union {
     SleepData* sleep;

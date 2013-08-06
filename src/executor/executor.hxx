@@ -69,6 +69,10 @@ public:
     return pending_flows_.IsMaybePending(entry);
   }
 
+  bool empty() {
+    return pending_flows_.empty();
+  }
+
 private:
   OSSem notify_;
   Queue pending_flows_;

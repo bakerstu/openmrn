@@ -33,7 +33,7 @@
  * @date 5 Aug 2013
  */
 
-#include "utils/executor.hxx"
+#include "executor/executor.hxx"
 
 static void* start_executor_thread(void* arg) {
   static_cast<Executor*>(arg)->ThreadBody();

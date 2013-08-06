@@ -35,12 +35,13 @@
 
 #include "executor/control_flow.hxx"
 
-typedef ControlFlow::ControlFlowAction ControlFlowAction;
-
-ControlFlowAction ControlFlow::Terminated() {
+ControlFlow::ControlFlowAction ControlFlow::NotStarted() {
   return WaitForNotification();
 }
 
+ControlFlow::ControlFlowAction ControlFlow::Terminated() {
+  return WaitForNotification();
+}
 
 ControlFlow::SleepData::~SleepData() {
   if (timer_handle != NULL) {
@@ -49,34 +50,33 @@ ControlFlow::SleepData::~SleepData() {
   }
 }
 
-static void NotifyControlFlowTimer(ControlFlow* flow,
-                                   ControlFlow::SleepData* entry) {
-  LockHolder h(flow->executor());
+void ControlFlow::NotifyControlFlowTimer(SleepData* entry) {
+  LockHolder h(executor());
   entry->callback_count++;
   // here we use that executor's mutex is reentrant.
-  flow->Notify();
+  Notify();
 }
                                    
 
-static long long control_flow_single_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_single_timer(void* arg_flow, void* arg_entry) {
   ControlFlow::SleepData* entry =
     static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
-  NotifyControlFlowTimer(flow, entry);
+  flow->NotifyControlFlowTimer(entry);
   return OS_TIMER_NONE;  // no restart.
 }
 
-static long long control_flow_repeated_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_entry) {
   ControlFlow::SleepData* entry =
     static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
-  NotifyControlFlowTimer(flow, entry);
+  flow->NotifyControlFlowTimer(entry);
   return OS_TIMER_RESTART;
 }
 
-ControlFlowAction ControlFlow::Sleep(ControlFlow::SleepData* data,
-                                     long long delay_nsec,
-                                     MemberFunction next_state) {
+ControlFlow::ControlFlowAction ControlFlow::Sleep(SleepData* data,
+                                                  long long delay_nsec,
+                                                  MemberFunction next_state) {
   HASSERT(data->callback_count == 0);
   if (data->timer_handle == NULL) {
     data->timer_handle =
@@ -93,10 +93,10 @@ void ControlFlow::WakeUpRepeatedly(SleepData* data, long long period_nsec) {
   }
   data->timer_handle =
     os_timer_create(&control_flow_repeated_timer, this, data);
-  os_timer_start(data->timer_handle, delay_nsec);
+  os_timer_start(data->timer_handle, period_nsec);
 }
 
-ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
+ControlFlow::ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
     SleepData* data,
     MemberFunction next_state) {
   next_state_ = next_state;
@@ -106,7 +106,7 @@ ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
   return CallImmediately(&ControlFlow::WaitForTimer);
 }
 
-ControlFlowAction ControlFlow::WaitForTimer() {
+ControlFlow::ControlFlowAction ControlFlow::WaitForTimer() {
   {
     LockHolder h(executor_);
     if (sub_flow_.sleep->callback_count == 0) return WaitForNotification();
