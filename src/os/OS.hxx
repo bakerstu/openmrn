@@ -220,6 +220,12 @@ public:
         os_mutex_unlock(&handle);
     }
 
+    /** Destructor */
+    ~OSMutex()
+    {
+        os_mutex_destroy(&handle);
+    }
+
 private:
     DISALLOW_COPY_AND_ASSIGN(OSMutex);
 
