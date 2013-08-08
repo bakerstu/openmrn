@@ -122,7 +122,7 @@ private:
      * with no new memory allocation.
      * @param pool BufferPool instance from which this buffer will come
      * @param size size of user data in bytes
-     * @return newly allocated buffer, HASSERT() on failure
+     * @return newly reinitialized buffer, HASSERT() on failure
      */
     static Buffer *init(Buffer *buffer, size_t size)
     {
