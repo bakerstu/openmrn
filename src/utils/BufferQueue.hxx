@@ -332,7 +332,7 @@ public:
     {
         OSSem::wait();
         Buffer *result = BufferQueue::next();
-        HASSERT(result == NULL);
+        HASSERT(result != NULL);
         return result;
     }
     
@@ -347,7 +347,7 @@ public:
         }
         
         Buffer *result = BufferQueue::next();
-        HASSERT(result == NULL);
+        HASSERT(result != NULL);
         return result;
     }
     
