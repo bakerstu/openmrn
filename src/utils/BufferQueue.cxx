@@ -75,14 +75,7 @@ Buffer *BufferPool::buffer_alloc(size_t size)
     else
     {
         /* big buffers are just malloc'd freely */
-        buffer = (Buffer*)malloc(size + sizeof(Buffer));
-
-        HASSERT(buffer != NULL);
-
-        buffer->bufferPool = this;
-        buffer->next = NULL;
-        buffer->_size = size;
-        buffer->left = size;
+        buffer = Buffer::alloc(this, size);
         mutex.lock();
         totalSize += size + sizeof(Buffer);
         mutex.unlock();
@@ -95,22 +88,16 @@ Buffer *BufferPool::buffer_alloc(size_t size)
     {
         buffer = pool[index];
         pool[index] = buffer->next;
+        (void)Buffer::init(buffer, size);
     }
     else
     {
-        buffer = (Buffer*)malloc(size + sizeof(Buffer));
-
-        HASSERT(buffer != NULL);
+        buffer = Buffer::alloc(this, size);
 
         totalSize += size + sizeof(Buffer);
         DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
     }
     mutex.unlock();
-
-    buffer->bufferPool = this;
-    buffer->next = NULL;
-    buffer->_size = size;
-    buffer->left = size;
     
     return buffer;
 }

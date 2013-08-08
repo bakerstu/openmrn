@@ -100,6 +100,39 @@ public:
     Buffer *expand(size_t size);
 
 private:
+    /** Like a constructor, but in this case, we allocate extra space for the
+     * user data.
+     * @param pool BufferPool instance from which this buffer will come
+     * @param size size of user data in bytes
+     * @return newly allocated buffer, HASSERT() on failure
+     */
+    static Buffer *alloc(BufferPool *pool, size_t size)
+    {
+        HASSERT(pool != NULL);
+        Buffer *buffer = (Buffer*)malloc(size + sizeof(Buffer));
+        HASSERT(buffer != NULL);
+        buffer->next = NULL;
+        buffer->bufferPool = pool;
+        buffer->_size = size;
+        buffer->left = size;
+        return buffer;
+    }
+
+    /** Like a constructor, but in this case, we re-purpose an existing buffer
+     * with no new memory allocation.
+     * @param pool BufferPool instance from which this buffer will come
+     * @param size size of user data in bytes
+     * @return newly allocated buffer, HASSERT() on failure
+     */
+    static Buffer *init(Buffer *buffer, size_t size)
+    {
+        HASSERT(buffer->bufferPool != NULL);
+        HASSERT(buffer->_size != size);
+        buffer->next = NULL;
+        buffer->left = size;
+        return buffer;
+    }
+
     /** Macro to position to beginning of structure from data member position*/
     #define BUFFER(_buffer) (Buffer*)((char *)(_buffer) - sizeof(Buffer));
 
