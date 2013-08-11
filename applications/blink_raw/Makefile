@@ -1,3 +1,3 @@
-SUBDIRS = hub blink_raw
+SUBDIRS = targets
 
 include $(OPENMRNPATH)/etc/recurse.mk
