@@ -62,16 +62,23 @@ private:
     os_thread_t handle;
 };
 
-/** One time initialization */
+/** This class provides support for one time initialization.
+ */
 class OSThreadOnce
 {
 public:
+    /** One time intialization constructor.
+     * @param routine method to call once
+     */
     OSThreadOnce(void (*routine)(void))
     {
         os_thread_once_t tmp = OS_THREAD_ONCE_INIT;
         handle = tmp;
     }
     
+    /** call one time intialization routine
+     * @return 0 upon success
+     */
     int once(void)
     {
         return os_thread_once(&handle, routine);
@@ -211,6 +218,12 @@ public:
     void unlock()
     {
         os_mutex_unlock(&handle);
+    }
+
+    /** Destructor */
+    ~OSMutex()
+    {
+        os_mutex_destroy(&handle);
     }
 
 private:

@@ -357,6 +357,21 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
 #endif
 }
 
+/** Destroy a mutex.
+ * @param mutex address of mutex handle to destroy
+ * @return 0 upon succes or error number upon failure
+ */
+static inline int os_mutex_destroy(os_mutex_t *mutex)
+{
+#if defined (__FreeRTOS__)
+    vSemaphoreDelete(mutex->sem);
+
+    return 0;    
+#else
+    return pthread_mutex_destroy(mutex);
+#endif
+}
+
 /** Lock a mutex.
  * @param mutex address of mutex handle to lock
  * @return 0 upon succes or error number upon failure

@@ -10,6 +10,8 @@ CXXSRCS +=
 
 # Find StellarisWare
 ifdef STELLARISWAREPATH
+include $(OPENMRNPATH)/etc/stellarisware.mk
+
 CSRCS += stellaris_can.c \
          stellaris_uart.c \
          stellaris_usb_cdc_device.c
