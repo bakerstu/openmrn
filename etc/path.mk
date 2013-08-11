@@ -167,3 +167,26 @@ ifneq ($(TRYPATH),)
 GTESTSRCPATH:=$(TRYPATH)
 endif
 endif #GTESTSRCPATH
+
+################### MIPS-ELF-GCC #####################
+ifndef MIPSGCCPATH
+SEARCHPATH := \
+  /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
+
+TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+MIPSGCCPATH:=$(TRYPATH)
+endif
+endif #MIPSGCCPATH
+
+################### PIC32MXLIB #####################
+ifndef PIC32MXLIBPATH
+SEARCHPATH := \
+  $(HOME)/train/git/pic32/includes \
+
+TRYPATH:=$(call findfirst,p32xxxx.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32MXLIBPATH:=$(TRYPATH)
+endif
+endif #PIC32MXLIBPATH
+

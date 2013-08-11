@@ -88,6 +88,11 @@
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
 #define configTIMER_TASK_STACK_DEPTH   256
 
+#define configKERNEL_INTERRUPT_PRIORITY         255
+/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
+See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
+
 #define diewith( x ) abort()
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
@@ -152,6 +157,11 @@ standard names - or at least those used in the unmodified vector table. */
 #define xPortPendSVHandler PendSV_Handler
 #define xPortSysTickHandler SysTick_Handler
 
+#define configKERNEL_INTERRUPT_PRIORITY         255
+/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
+See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
+
 #elif defined(TARGET_LPC11Cxx)
 
 #define configTIMER_TASK_STACK_DEPTH   80
@@ -177,6 +187,26 @@ standard names - or at least those used in the unmodified vector table. */
 #define vPortSVCHandler SVC_Handler
 #define xPortPendSVHandler PendSV_Handler
 #define xPortSysTickHandler SysTick_Handler
+
+#elif TARGET_PIC32MX
+
+#define configCPU_CLOCK_HZ             ( ( unsigned long ) 60000000 )
+#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 190 )
+#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 32000 ) )
+#define configTIMER_TASK_STACK_DEPTH   256
+#define configISR_STACK_SIZE					( 400 )
+#define configPERIPHERAL_CLOCK_HZ      ( ( unsigned long ) configCPU_CLOCK_HZ/2 )
+
+/* The priority at which the tick interrupt runs.  This should probably be
+kept at 1. */
+#define configKERNEL_INTERRUPT_PRIORITY			0x01
+
+/* The maximum interrupt priority from which FreeRTOS.org API functions can
+be called.  Only API functions that end in ...FromISR() can be used within
+interrupts. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY	0x03
+
+#define diewith( x ) abort()
 
 #else
 
@@ -225,10 +255,7 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelay              1
 #define INCLUDE_xTaskGetIdleTaskHandle   1
 
-#define configKERNEL_INTERRUPT_PRIORITY         255
-/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
-See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
+#ifndef __LANGUAGE_ASSEMBLY__
 
 typedef struct task_switched_in
 {
@@ -241,8 +268,10 @@ typedef struct task_switched_in
 {                                                                         \
     TaskSwitchedIn *task_switched_in;                                      \
     task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
-    _impure_ptr = task_switched_in->reent;                                \
+    if (task_switched_in) _impure_ptr = task_switched_in->reent;         \
 }
+
+#endif
 
 #ifndef diewith
 

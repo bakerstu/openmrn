@@ -1,0 +1,16 @@
+VPATH := $(FREERTOSPATH)/Source: \
+         $(FREERTOSPATH)/Source/portable/MPLAB/PIC32MX: \
+         $(FREERTOSPATH)/Source/portable/MemMang/
+         
+CSRCS += croutine.c \
+         list.c \
+         queue.c \
+         tasks.c \
+         timers.c \
+         port.c \
+         heap_3.c
+
+CXXSRCS +=
+
+
+ASMSRCS += port_asm.S
