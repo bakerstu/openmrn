@@ -174,7 +174,7 @@ public:
     BufferPool()
         : totalSize(0),
           mutex(),
-          pool({NULL, NULL, NULL, NULL})
+          pool {NULL, NULL, NULL, NULL}
     {
     }
 
