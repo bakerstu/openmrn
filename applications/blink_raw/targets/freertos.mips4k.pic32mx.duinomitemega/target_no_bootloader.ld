@@ -50,21 +50,21 @@ GROUP(-lcs3hal -lgcc -lc -lcs3 -lcs3unhosted)
 MEMORY
 {
   ram0 (!r!x) : ORIGIN = 0xA0000000, LENGTH = 16     /* tiny part of RAM reserved for startup code */
-  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = 64K-16 /* not read-only, not executable */
+  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = 32K-16 /* not read-only, not executable */
   /*
   ** Memory map here is based on executing in KSEG1 mode.
   ** PIC32MX flash is broken into user flash and boot flash.
   ** Boot flash contains the configuration words required for reset.
   ** The following are KSEG1 logical addresses (??? should change to KSEG0 to enable caches).
   */
-  PIC32MX_flash_userboot (rx) : ORIGIN = 0xBD000000, LENGTH = 0x1000
-  PIC32MX_flash_user (rx) : ORIGIN = 0xBD001000, LENGTH = 512K - 4K /*we skipped the first page to allow for the interrupt vector table. There is a lot of free space there, but linking needs to flow around existing absolute sections there. */
+  PIC32MX_flash_user (rx) : ORIGIN = 0xBD000000, LENGTH = 128K /* to BD020000-1, bootloader gets first 128k */
   /*
   ** When PIC32MX comes out of reset, it branches to the start of the boot flash
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
   ** use by (some) debugger tool while debugging (by convention, not by hardware).
   */
-  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x0 /* Don't allow stuff in the boot flash, there is a bootloader there */
+  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x2000 /* 12k - 4k debug page */
+  PIC32MX_flash_cfg  (r!x): ORIGIN = 0xBFC02FF0, LENGTH = 0x0010
 }
 
 /*
@@ -73,7 +73,7 @@ MEMORY
 ** 0xBFC03000-(0x10 config registers + 0x200+ (64 vectors * x20))= 0xBFC025F0
 */
 _vector_spacing = 0x00000001;
-_ebase_address  = 0xBD000000; /* must be on a 4kb page boundary; rounded down */
+_ebase_address  = 0xBFC02000; /* must be on a 4kb page boundary; rounded down */
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's
@@ -109,7 +109,18 @@ PROVIDE(__cs3_region_num = (__cs3_regions_end - __cs3_regions) / 20);
 SECTIONS
 {
   /*
-  ** First thing in  flash area must be 'reset' code, which must be
+  ** PIC32MX configuration registers
+  */
+  .PIC32MX_cfg_init :
+  {
+    *(PIC32MX_cfg_init)
+  } >PIC32MX_flash_cfg /*AT>PIC32MX_physical_flash_cfg*/
+  /* Assert exactly 4 words are placed in configuration area */
+  /* Note: terminating semicolon causes syntax error for ASSERT in following line ! */
+  ASSERT (SIZEOF(.PIC32MX_cfg_init) == 0x10, "PIC32MX configuration register set must be 4 words long")
+
+  /*
+  ** First thing in boot flash area must be 'reset' code, which must be
   ** short enough it doesn't land in bootstrap exception address (unless
   ** bootstrap exception is unused).
   */
@@ -119,7 +130,14 @@ SECTIONS
     __cs3_reset = __cs3_reset_PIC32MX;
     *(.cs3.reset)
 
-  } >PIC32MX_flash_userboot
+    /*
+    ** While the PIC32MX is in Bootstrap mode, all interrupts are disabled
+    ** and all general exceptions are redirected to address 0xBFC00380
+    */
+    . = __cs3_reset + 0x0380;
+    KEEP(*(.bev_handler)) /* optional boot exception handler */
+
+  } >PIC32MX_flash_boot
 
   /*
   ** "Normal" code in user flash
