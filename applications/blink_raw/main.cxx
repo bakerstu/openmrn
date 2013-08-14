@@ -70,8 +70,7 @@ int appl_main(int argc, char *argv[])
   while(1) {
     //sleep(1);
     mPORTBToggleBits(BIT_12 | BIT_15  );
-    for (int i = 0; i < 500000; i++) ;
-    
+    usleep(500000);
   }
   return 0;
 }
