@@ -35,3 +35,12 @@ ifeq ($(TARGET),freertos.armv6m)
 CSRCS += 11CXX_rom_can.c # malloc.c
 VPATH += $(SRCDIR)/nxp
 endif
+
+
+ifeq ($(TARGET),freertos.mips4k.pic32mx)
+
+CSRCS += pic32mx_can.c
+
+VPATH += $(SRCDIR)/pic32mx
+
+endif
