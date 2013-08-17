@@ -27,11 +27,13 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 # endif
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
-################ stellarisware ##################
+################ stellarisware / tivaware ##################
+## LB adapted to look for tivaware 20130817
+## STELLARISPATH is also used in freeRTOS so it's not changed
 ifndef STELLARISWAREPATH
 SEARCHPATH := \
-  /opt/StellarisWare \
-  $(HOME)/StellarisWare
+  /opt/TivaWare \
+  $(HOME)/TivaWare
 
 TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
