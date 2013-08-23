@@ -47,17 +47,17 @@
     #define IS_CAN_FRAME_RTR(_frame) ((_frame).can_id & CAN_RTR_FLAG)
     #define IS_CAN_FRAME_ERR(_frame) ((_frame).can_id & CAN_ERR_FLAG)
 
-    #define GET_CAN_FRAME_ID_EFF(_frame) ((_frame).can_id & CAN_SFF_MASK)
-    #define GET_CAN_FRAME_ID(_frame)     ((_frame).can_id & CAN_EFF_MASK)
+    #define GET_CAN_FRAME_ID_EFF(_frame) ((_frame).can_id & CAN_EFF_MASK)
+    #define GET_CAN_FRAME_ID(_frame)     ((_frame).can_id & CAN_SFF_MASK)
     #define SET_CAN_FRAME_ID_EFF(_frame, _value) \
     {                                            \
         (_frame).can_id &= ~CAN_EFF_MASK;        \
-        (_frame).can_id += (_value);             \
+        (_frame).can_id += ((_value) & CAN_EFF_MASK);   \
     }
     #define SET_CAN_FRAME_ID(_frame, _value) \
     {                                        \
         (_frame).can_id &= ~CAN_SFF_MASK;    \
-        (_frame).can_id += (_value);         \
+        (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
     }
 
 #elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__)
@@ -86,8 +86,8 @@
 
     #define GET_CAN_FRAME_ID_EFF(_frame)  (_frame).can_id
     #define GET_CAN_FRAME_ID(_frame)      (_frame).can_id
-    #define SET_CAN_FRAME_ID_EFF(_frame, _value)  (_frame).can_id = (_value)
-    #define SET_CAN_FRAME_ID(_frame, _value)     (_frame).can_id = (_value)
+    #define SET_CAN_FRAME_ID_EFF(_frame, _value)  (_frame).can_id = ((_value) & 0x1FFFFFFFU)
+    #define SET_CAN_FRAME_ID(_frame, _value)     (_frame).can_id = ((_value) & 0x7ffU)
 
 #else
 #error

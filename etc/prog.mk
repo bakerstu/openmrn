@@ -31,7 +31,7 @@ CPPSRCS  = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
 XMLSRCS  = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
 TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
 
-OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
+OBJS := $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
        $(XMLSRCS:.xml=.o)
 TESTOBJS := $(TESTSRCS:.cc=.o)
 

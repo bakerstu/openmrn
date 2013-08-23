@@ -19,13 +19,15 @@ else
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
 FULLPATHCPPSRCS = $(wildcard $(VPATH)/*.cpp)
+FULLPATHASMSRCS = $(wildcard $(VPATH)/*.S)
 CSRCS = $(notdir $(FULLPATHCSRCS))
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
 CPPSRCS = $(notdir $(FULLPATHCPPSRCS))
+ASMSRCS = $(notdir $(FULLPATHASMSRCS))
 endif
 endif
 
-OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ARM_CSRCS:.c=.o)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ARM_CSRCS:.c=.o) $(ASMSRCS:.S=.o)
 LIBNAME = lib$(BASENAME).a
 
 ARM_CSRCS ?=
@@ -54,15 +56,20 @@ all: $(LIBNAME)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp
+.SUFFIXES: .o .c .cxx .cpp .S
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
+
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+
+.S.o:
+	$(AS) $(ASFLAGS) $< -o $@
+	$(AS) -MM $(ASFLAGS) $< > $*.d
 
 $(ARM_OBJS): %.o : %.c
 	$(CC) $(ARM_CFLAGS) $< -o $@
