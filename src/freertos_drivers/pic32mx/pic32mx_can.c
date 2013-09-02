@@ -338,7 +338,7 @@ static void pic32mx_can_enable(Pic32mxCanPriv *priv) {
      * of QUEUE_LEN message buffers and receive the full message.
      */
 
-    CANConfigureChannelForTx(priv->hw, CAN_CHANNEL0, QUEUE_LEN, CAN_TX_RTR_DISABLED, CAN_LOW_MEDIUM_PRIORITY);
+    CANConfigureChannelForTx(priv->hw, CAN_CHANNEL0, 1, CAN_TX_RTR_DISABLED, CAN_LOW_MEDIUM_PRIORITY);
     CANConfigureChannelForRx(priv->hw, CAN_CHANNEL1, QUEUE_LEN, CAN_RX_FULL_RECEIVE);
     CANEnableModuleEvent (priv->hw, CAN_RX_EVENT, TRUE);
     CANEnableModuleEvent (priv->hw, CAN_TX_EVENT, TRUE);
@@ -383,7 +383,8 @@ DEVTAB_ENTRY(can1, "/dev/can1", pic32mx_can_init, &pic32mx_can_ops, &can_private
 
 
 static void IRQHandler(Pic32mxCanPriv* priv) {
-    if(CANGetPendingEventCode(priv->hw) == CAN_CHANNEL1_EVENT)
+    if((CANGetModuleEvent(priv->hw) & CAN_RX_EVENT) != 0)
+//    if(CANGetPendingEventCode(priv->hw) == CAN_CHANNEL1_EVENT)
     {
         /* This means that channel 1 caused the event.
          * The CAN_RX_CHANNEL_NOT_EMPTY event is persistent. You
@@ -403,7 +404,8 @@ static void IRQHandler(Pic32mxCanPriv* priv) {
         CANEnableChannelEvent(priv->hw, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY, FALSE);
         os_sem_post_from_isr(&priv->rx_sem);
     }
-    if(CANGetPendingEventCode(priv->hw) == CAN_CHANNEL0_EVENT)
+    if((CANGetModuleEvent(priv->hw) & CAN_TX_EVENT) != 0)
+//    if(CANGetPendingEventCode(priv->hw) == CAN_CHANNEL0_EVENT)
     {
         /* Same with the TX event. */
 	CANEnableChannelEvent(priv->hw, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL, FALSE);
