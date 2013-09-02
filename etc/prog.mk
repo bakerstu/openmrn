@@ -5,7 +5,11 @@ endif
 
 include $(OPENMRNPATH)/etc/config.mk
 
+exist := $(wildcard ../../subdirs)
+ifneq ($(strip $(exist)),)
 include ../../subdirs
+endif
+
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 include $(OPENMRNPATH)/etc/path.mk
