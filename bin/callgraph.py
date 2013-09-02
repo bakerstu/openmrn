@@ -26,9 +26,14 @@ _blacklist = set(['diewith', '__diewith_from_arm', 'memcpy', 'os_mutex_lock',
 _blacklist_pre = []
 _blacklist_cont = []
 
-FLAG_verbose = False
-FLAG_map_file = None
-FLAG_demangle = True
+class Flags:
+  pass
+
+FLAGS = Flags()
+
+FLAGS.verbose = False
+FLAGS.map_file = None
+FLAGS.demangle = True
 
 
 def Blacklist(s):
@@ -41,18 +46,38 @@ def Blacklist(s):
 
 
 all_symbols = dict()
+enmangle = dict()
 
-def GetSymbol(name):
+def GetSymbol(name, address = None):
   if name in all_symbols:
     return all_symbols[name]
   new_object = Symbol(name)
   all_symbols[name] = new_object
+  new_object.address = address
   return new_object
+
+class MapEntry(object):
+  """Represents a line read from the .map file"""
+
+  __slots__ = ('section',
+               'subsection',
+               'address',
+               'length',
+               'library',
+               'objfile',
+               'function',
+               )
+  def __str__(self):
+    return "MapEntry section %s subsection %s address 0x%8x length %s lib %s obj %s fun %s" % (
+      self.section,self.subsection,self.address,self.length,self.library,self.objfile,self.function) 
+
 
 class Symbol(object):
   """Represents one linker symbol in the linked executable"""
 
   __slots__ = ('name',  # linker name (mangled)
+               'address', #in the memory map
+               'objfile', #object file from linker
                'displayname',  # displayname (possibly unmangled)
                'codesize',  # Code space used in bytes
                'deps',  # other symbols it references
@@ -122,7 +147,11 @@ def ReadLstFile(f):
         else:
           current_symbol.codesize = offset - last_offset
         print >>sys.stderr, "last symbol ", current_symbol.name ," size: ", current_symbol.codesize
-      current_symbol = GetSymbol(name)
+      current_symbol = GetSymbol(name, offset)
+      if current_symbol.address is None:
+        current_symbol.address = offset
+      elif current_symbol.address != offset:
+        print >>sys.stderr, "multiple addresses: %08x %08x for %s" % (current_symbol.address, offset, current_symbol.name)
       if offset:
         address_lookup[offset + 1] = current_symbol
         #address_lookup[offset] = current_symbol  # creates false positives
@@ -154,9 +183,88 @@ def ReadLstFile(f):
     symbol.AddDep(dstname)
 
 
+def ReadMapFile(f):
+  print >>sys.stderr, "reading map file."
+  cpptext_re = re.compile('^ [.]text[.](.*)$')
+  obj_re = re.compile('^ ([.]text)?[ \t]+0x([0-9a-f]*)[ \t]+0x([0-9a-f]*)[ \t]+(?:([a-z/A-Z0-9_\.]*[.]a)[\(])?([a-zA-Z_-]*[.]o)[\)]?$')
+
+  section_re = re.compile('^ (?:[.](?P<section>[-a-zA-Z_]+)(?:[.](?P<subsection>[^ \t\n]+))?)?(?:[ \t]+0x(?P<address>[0-9a-fA-F]+)[ \t]+(?:0x(?P<length>[0-9a-fA-F]+) (?:(?P<library>.*[.]a)[\(])?(?P<object>.*[.]o)[\)]?|(?P<function>[^0].*)))?$');
+  count = 0;
+  entries = []
+  for line in f:
+    printed = False
+    """
+    m = cpptext_re.match(line)
+    if m:
+      if not printed:
+        print >>sys.stderr, line
+        printed = True
+      print >>sys.stderr, "matched cpp text section ", m.group(1)
+    m = obj_re.match(line)
+    if m:
+      if not printed:
+        print >>sys.stderr, line
+        printed = True
+      print >>sys.stderr, "matched obj/text ", m.groups() 
+"""
+    m = section_re.match(line)
+    if m:
+      count = count + 1
+      if False and FLAGS.verbose and not printed:
+        print >>sys.stderr, line
+        printed = True
+        print >>sys.stderr, "matched textsection ", m.groups() 
+      if m.group('section'):
+        section = m.group('section')
+        subsection = None
+      if m.group('subsection'):
+        subsection = m.group('subsection')
+      if m.group('object'):
+        objfile = m.group('object')
+        library = m.group('library')
+      if m.group('length') is not None and m.group('function') is not None:
+        print >>sys.stderr, line
+        print >>sys.stderr, "length %s and function %s " % (m.group('length'), m.group('function')), m.groups() 
+      if m.group('function') is not None:
+        entry = MapEntry()
+        entry.section = section
+        entry.subsection = subsection
+        entry.address = int(m.group('address'), 16)
+        entry.length = None
+        if m.group('length') is not None:
+          entry.length = int(m.group('length'), 16)
+        entry.objfile = objfile
+        entry.library = library
+        entry.function = m.group('function')
+        entries.append(entry)
+  print >>sys.stderr, "found %d lines, %d entries." % (count, len(entries))
+  return entries
 
 def escape(s):
-  return re.sub('[*(): ,]', '_', s)
+  return re.sub('[*()-: ,]', '_', s)
+
+
+def ProcessMapEntries(entries):
+  enmangle_found_count = 0;
+  for e in entries:
+    if e.address == 0:
+      continue;
+    if (0xbd000000 <= e.address and
+        e.address < 0xbe000000):
+      # Interesting function
+      if e.function in all_symbols:
+        symbol = all_symbols[e.function]
+      elif e.function in enmangle and enmangle[e.function] in all_symbols:
+        symbol = all_symbols[enmangle[e.function]]
+        enmangle_found_count = enmangle_found_count + 1
+        #print >>sys.stderr, "found enmanged symbol for %s: %s"%(e.function, symbol.name)
+      elif e.subsection in all_symbols and e.address == all_symbols[e.subsection].address:
+        #print >>sys.stderr, "subsection symbol found: ", e, all_symbols[e.subsection].address
+        symbol = all_symbols[e.subsection]
+      else:
+        print >>sys.stderr, "symbol not found: ", e
+        continue
+      symbol.objfile = escape(e.objfile)
 
 def TraverseSymbol(pending_set, visited_set, symbol, depth):
   """returns the depth of the minimum cycle that was found"""
@@ -192,9 +300,16 @@ def TraverseSymbol(pending_set, visited_set, symbol, depth):
 def CollectTotalSizes():
   # Start with a list of symbols with no inbound dependencies.
   mainfile = GetSymbol('binary')
-  for symbol in all_symbols.itervalues():
+  v = [v for v in all_symbols.itervalues()]
+  for symbol in v:
     if not len(symbol.indeps):
-      mainfile.AddDep(symbol.name)
+      if hasattr(symbol, 'objfile'):
+        objsymbol = GetSymbol(symbol.objfile)
+        objsymbol.AddDep(symbol.name)
+        mainfile.AddDep(objsymbol.name)
+      else:
+        print >>sys.stderr, "Unknown-objfile and unreferenced symbol ", symbol.name
+        mainfile.AddDep(symbol.name)
   pending_queue = [mainfile]
 
   done_set = set()
@@ -210,6 +325,8 @@ def DemangleAllNames():
     symbol = all_symbols[all_names[i]]
     demangled_name = demangled_names[i]
     symbol.displayname = demangled_name
+    enmangle[demangled_name] = all_names[i]
+    
 
 def PrintOutput():
   print "digraph g {"
@@ -277,11 +394,12 @@ def parseargs():
       usage()
       sys.exit()
     elif o in ("-m", "--map"):
-      FLAG_map_file = a
+      FLAGS.map_file = a
+      print >> sys.stderr, "will read map file ", FLAGS.map_file
     elif o in ("-C", "--demangle"):
-      FLAG_demangle = True
+      FLAGS.demangle = True
     elif o in ("--no-demangle"):
-      FLAG_demangle = False
+      FLAGS.demangle = False
     else:
       assert False, "unhandled option"
 
@@ -289,8 +407,12 @@ def parseargs():
 def main():
   parseargs()
   ReadLstFile(sys.stdin)
-  if FLAG_demangle:
+  if FLAGS.demangle:
     DemangleAllNames()
+  print >> sys.stderr, "will read map file ", FLAGS.map_file
+  if FLAGS.map_file:
+    entries = ReadMapFile(open(FLAGS.map_file, 'r'))
+    ProcessMapEntries(entries)
   CollectTotalSizes()
   PrintOutput()
 
