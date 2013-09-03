@@ -57,7 +57,7 @@ void _cinit(void) {
 #define CLR_LED2() mPORTBClearBits(BIT_15)
 
 
-void blocking_diewith_blinker(uint32_t pattern) {
+void diewith(uint32_t pattern) {
   uint32_t curr_pat = pattern;
   while(1) {
     if (curr_pat & 1) {
@@ -83,7 +83,7 @@ void _general_exception_context(void)
   asm volatile("mfc0 %0,$13" : "=r" (_excep_code)); 
   asm volatile("mfc0 %0,$14" : "=r" (_excep_addr)); 
   
-  blocking_diewith_blinker(0x8000A0CA); //3-1-2
+  diewith(0x8000A0CA); //3-1-2
 }
 
 
