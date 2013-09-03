@@ -35,6 +35,28 @@
 
 #include "executor/control_flow.hxx"
 
+void ControlFlow::Run() {
+  HASSERT(state_);
+  do {
+    ControlFlowAction action = (this->*state_)();
+    // We got a WaitForNotification.
+    if (!action.next_state_) return;
+    state_ = action.next_state_;
+  } while (1);
+}
+
+ControlFlow::ControlFlowAction ControlFlow::Exit() {
+  if (done_) {
+    state_ = &ControlFlow::Terminated;
+    done_->Notify();
+  } else {
+    delete this;
+  }
+  // If we return waitfornotification, the run method will not access *this
+  // anymore, which is perfect if we just deleted ourselves.
+  return WaitForNotification();
+}
+
 ControlFlow::ControlFlowAction ControlFlow::NotStarted() {
   return WaitForNotification();
 }
@@ -96,6 +118,13 @@ void ControlFlow::WakeUpRepeatedly(SleepData* data, long long period_nsec) {
   os_timer_start(data->timer_handle, period_nsec);
 }
 
+void ControlFlow::StopTimer(SleepData* data) {
+  HASSERT(data->timer_handle != NULL);
+  os_timer_delete(data->timer_handle);
+  data->timer_handle = NULL;
+}
+
+
 ControlFlow::ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
     SleepData* data,
     MemberFunction next_state) {
@@ -113,4 +142,14 @@ ControlFlow::ControlFlowAction ControlFlow::WaitForTimer() {
     --sub_flow_.sleep->callback_count;
   }
   return CallImmediately(next_state_);
+}
+
+//! Implementation state that is waiting for another flow to finish.
+ControlFlow::ControlFlowAction ControlFlow::WaitForControlFlow() {
+  LockHolder h(executor_);
+  if (sub_flow_.called_flow->IsDone()) {
+    return CallImmediately(next_state_);
+  } else {
+    return WaitForNotification();
+  }
 }

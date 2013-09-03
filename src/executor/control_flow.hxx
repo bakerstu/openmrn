@@ -37,27 +37,21 @@
 
 #include "executor/executor.hxx"
 
-class ControlFlow : public Executable {
+class ControlFlow : public Executable, public Notifiable {
 public:
   // =============== Interface to the outside world ===============
-  ControlFlow(Executor* executor)
-    : state_(&ControlFlow::NotStarted), executor_(executor) {}
+  ControlFlow(Executor* executor, Notifiable* done)
+    : state_(&ControlFlow::NotStarted), done_(done), executor_(executor) {}
+
+  virtual ~ControlFlow() {}
   
   //! Callback from the executor. This method will be run every time the
   //! control flow is scheduled on the executor.
-  virtual void Run() {
-    HASSERT(state_);
-    do {
-      ControlFlowAction action = (this->*state_)();
-      // We got a WaitForNotification.
-      if (!action.next_state_) return;
-      state_ = action.next_state_;
-    } while (1);
-  }
+  virtual void Run();
 
   //! Wakes up this control flow and puts it onto the executor's scheduling
   //! queue.
-  void Notify() {
+  virtual void Notify() {
     LockHolder h(executor_);
     if (!executor_->IsMaybePending(this)) {
       executor_->Add(this);
@@ -90,8 +84,8 @@ protected:
   //! to ensure that the flow is not running at this moment. The flow will be
   //! scheduled onto its own executor, so it is safe to call this from a
   //! different thread.
-  void StartFlowAt(MemberFunction f) {
-    YieldAndCall(f);
+  template<class T> void StartFlowAt(T f) {
+    YieldAndCall((MemberFunction) f);
   }
 
   // ==========  ACTION COMMANDS =============
@@ -105,14 +99,14 @@ protected:
 
   //! Transition to a new state, and calls the new state handler immediately
   //! following the current handler.
-  ControlFlowAction CallImmediately(MemberFunction f) {
-    return ControlFlowAction(f);
+  template<class T> ControlFlowAction CallImmediately(T f) {
+    return ControlFlowAction((MemberFunction)f);
   }
 
   //! Transitions to a new state, but allows all other pending callbacks of the
   //! executor to run before proceeding to the next state.
-  ControlFlowAction YieldAndCall(MemberFunction f) {
-    state_ = f;
+  template<class T> ControlFlowAction YieldAndCall(T f) {
+    state_ = (MemberFunction)f;
     Notify();
     return WaitForNotification();
   }
@@ -130,9 +124,7 @@ protected:
     return WaitForNotification();
   }
 
-  ControlFlowAction Exit() {
-    return CallImmediately(&ControlFlow::Terminated);
-  }
+  ControlFlowAction Exit();
 
   struct SleepData {
     SleepData()
@@ -150,6 +142,9 @@ protected:
   //! been called, the SleepData must not be used for a regular Sleep call.
   void WakeUpRepeatedly(SleepData* data, long long period_nsec);
 
+  //! Cancels a (possibly repeated) timer.
+  void StopTimer(SleepData* data);
+
   //! Suspends the current control flow until a repeated timer event has come
   //! in. Precondition: WakeUpRepeatedly has been called previously.
   ControlFlowAction WaitForTimerWakeUpAndCall(SleepData* data,
@@ -157,7 +152,11 @@ protected:
 
   //! Calls a child control flow, and when that flow is completed, transitions
   //! to next_state. Will send a notification to the dst flow.
-  ControlFlowAction CallFlow(ControlFlow* dst, MemberFunction next_state);
+  template <class T> ControlFlowAction CallFlow(ControlFlow* dst, T next_state) {
+    sub_flow_.called_flow = dst;
+    next_state_ = (MemberFunction)next_state;
+    return CallImmediately(&ControlFlow::WaitForControlFlow);
+  }
 
 
 private:
@@ -188,6 +187,12 @@ private:
   //! If a sub flow is running, this state will be transitioned to when the
   //! subflow terminates. This is used by the sleep subflow.
   MemberFunction next_state_;
+
+  //! Spcifies what to do when the control flow is done. If this is NULL, the
+  //! control flow will delete itself when done. If this is not NULL, it will
+  //! be called when the control flow is done. Typically this is the pointer to
+  //! the caller flow that has *this as a subflow.
+  Notifiable* done_;
 
   //! Executor controlling this control flow. Also hosts the lock for the
   //! control flow.

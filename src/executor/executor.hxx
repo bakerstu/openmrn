@@ -42,13 +42,16 @@
 #include "os/OS.hxx"
 #include "executor/queue.hxx"
 #include "executor/lock.hxx"
+#include "executor/notifiable.hxx"
 
 class ControlFlow;
 
+//! An object that can be scheduled on an executor to run.
 class Executable : public QueueMember {
 public:
   virtual void Run() = 0;
 };
+
 
 class Executor : public Lockable {
 public:
