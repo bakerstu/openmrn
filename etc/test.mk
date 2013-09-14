@@ -10,7 +10,7 @@ include $(OPENMRNPATH)/etc/path.mk
 VPATH = $(OPENMRNPATH)/src/$(BASENAME)/
 
 FULLPATHCSRCS        = $(wildcard $(VPATH)*.c)
-FULLPATHCXXSRCS      = $(wildcard)
+FULLPATHCXXSRCS      = $(wildcard $(VPATH)*.cxx)
 FULLPATHCXXTESTSRCS  = $(wildcard $(VPATH)*.cxxtest)
 
 CSRCS       = $(notdir $(FULLPATHCSRCS))       $(wildcard *.c)
@@ -45,7 +45,7 @@ $(TESTOUTPUTS): $(OBJS) $(TESTOBJS)
 
 .cxxtest.otest:
 	$(CXX) $(CXXFLAGS) -MF $*.dtest -x c++ $< -o $@
-	ln -s $@.gcno $*.gcno
+#	ln -s $@.gcno $*.gcno
 
 #.otest.test:
 #	$(LD) -o $@ $< $(GTESTPATH)/src/gtest-all.o \

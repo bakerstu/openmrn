@@ -127,7 +127,7 @@ private:
     static Buffer *init(Buffer *buffer, size_t size)
     {
         HASSERT(buffer->bufferPool != NULL);
-        HASSERT(buffer->_size != size);
+        HASSERT(buffer->_size == size);
         buffer->next = NULL;
         buffer->left = size;
         return buffer;
@@ -226,31 +226,8 @@ public:
         : head(NULL),
           tail(NULL),
           count(0),
-          mutex(),
-          bufferPool(mainBufferPool)
+          mutex()
     {
-    }
-    
-    /** Use provided buffer pool for buffer allocation.
-     * @param bufferPool buffer pool to use for this buffer queue
-     */
-    BufferQueue(BufferPool *bufferPool)
-        : head(NULL),
-          tail(NULL),
-          count(0),
-          mutex(),
-          bufferPool(bufferPool)
-    {
-        HASSERT(bufferPool != NULL);
-    }
-
-    /** Get a free buffer out of the pool.
-     * @param size minimum size in bytes the buffer must hold
-     * @return pointer to the newly allocated buffer
-     */
-    Buffer *buffer_alloc(size_t size)
-    {
-        return bufferPool->buffer_alloc(size);
     }
 
     /** Release a buffer back to the free buffer pool.
@@ -258,7 +235,7 @@ public:
      */
     void buffer_free(Buffer *buffer)
     {
-        bufferPool->buffer_free(buffer);
+        buffer->free();
     }
 
     /** Add a buffer to the back of the queue.
@@ -305,9 +282,6 @@ private:
     /** Mutual exclusion for Queue */
     OSMutex mutex;
 
-    /** memory pool */
-    BufferPool *bufferPool;
-    
     DISALLOW_COPY_AND_ASSIGN(BufferQueue);
 };
 
@@ -323,16 +297,6 @@ public:
         : BufferQueue(),
           sem(0)
     {
-    }
-    
-    /** Use provided buffer pool for buffer allocation.
-     * @param bufferPool buffer pool to use for this buffer queue
-     */
-    BufferQueueWait(BufferPool *bufferPool)
-        : BufferQueue(bufferPool),
-          sem(0)
-    {
-        HASSERT(bufferPool != NULL);
     }
 
     /** Add a buffer to the back of the queue.
@@ -370,6 +334,7 @@ public:
     }
     
     /** Wait for a buffer from the front of the queue.
+     * @param timeout time to wait in nanoseconds
      * @return buffer buffer retrieved from queue, NULL on timeout or error
      */
     Buffer *timedwait(long long timeout)
