@@ -190,10 +190,10 @@ standard names - or at least those used in the unmodified vector table. */
 
 #elif TARGET_PIC32MX
 
-#define configCPU_CLOCK_HZ             ( ( unsigned long ) 60000000 )
+#define configCPU_CLOCK_HZ             ( ( unsigned long ) 80000000 )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 190 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 32000 ) )
-#define configTIMER_TASK_STACK_DEPTH   256
+#define configTIMER_TASK_STACK_DEPTH   1500
 #define configISR_STACK_SIZE					( 400 )
 #define configPERIPHERAL_CLOCK_HZ      ( ( unsigned long ) configCPU_CLOCK_HZ/2 )
 
@@ -206,7 +206,18 @@ be called.  Only API functions that end in ...FromISR() can be used within
 interrupts. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY	0x03
 
-#define diewith( x ) abort()
+#ifndef __LANGUAGE_ASSEMBLY__
+// Assertion facility
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
+#endif // assembly
 
 #else
 
