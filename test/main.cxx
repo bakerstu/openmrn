@@ -85,7 +85,7 @@ const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 const int main_priority = 0;
 
 
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_LM4F120XL)
 extern "C" {
 void resetblink(uint32_t pattern);
 void diewith(uint32_t pattern);
