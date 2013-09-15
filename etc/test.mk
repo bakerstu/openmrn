@@ -23,8 +23,8 @@ TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)
 TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.test)
 
 INCLUDES     += -I$(GTESTPATH)/include -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-CFLAGS       += $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-CXXFLAGS     += $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
+CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
+CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
 SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage -O0
 
 .SUFFIXES:
@@ -34,7 +34,7 @@ all: $(TESTOUTPUTS)
 
 $(TESTOUTPUTS): $(OBJS) $(TESTOBJS)
 	$(LD) -o $@ $*.otest $(GTESTPATH)/src/gtest-all.o \
-	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) \
+	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
 	$(LDFLAGS) $(SYSLIBRARIES)
 
 .cxx.o:

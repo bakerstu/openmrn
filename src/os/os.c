@@ -54,6 +54,7 @@
 #include <signal.h>
 #endif
 
+#include "utils/macros.h"
 #include "os/os.h"
 
 /** default stdin */
@@ -64,6 +65,9 @@ extern const char *STDOUT_DEVICE;
 
 /** default stderr */
 extern const char *STDERR_DEVICE;
+
+/* forward prototype */
+static void os_timer_delete_locked(os_timer_t timer);
 
 /** Timer structure */
 typedef struct timer
@@ -111,17 +115,6 @@ struct _reent* allocate_reent(void)
 }
 
 struct _reent* timerReent = NULL;
-
-/** Entry point to a FreeRTOS thread.
- * @param metadata for entering the thread
- */
-static void os_thread_start(void *arg)
-{
-    ThreadPriv *priv = arg;
-    vTaskSetApplicationTaskTag(NULL, arg);
-    _impure_ptr = priv->reent;
-    (*priv->entry)(priv->arg);
-}
 
 /** One time intialization routine
  * @param once one time instance
@@ -411,7 +404,7 @@ static void *timer_thread(void* arg)
                         insert_timer(t);
                         break;
                     case OS_TIMER_DELETE:
-                        os_timer_delete(t);
+                        os_timer_delete_locked(t);
                         break;
                 }
                 os_mutex_unlock(&timerMutex);
@@ -487,10 +480,7 @@ os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, voi
  */
 void os_timer_delete(os_timer_t timer)
 {
-    if (timer == NULL)
-    {
-        abort();
-    }
+    HASSERT(timer != NULL);
 
 #if defined (__FreeRTOS__)
     Timer *t = pvTimerGetTimerID(timer);
@@ -500,6 +490,23 @@ void os_timer_delete(os_timer_t timer)
     os_mutex_lock(&timerMutex);
     remove_timer(t);
     os_mutex_unlock(&timerMutex);
+#endif
+    free(t);
+}
+
+/** Delete a timer with the mutex already locked.
+ * @param timer timer to delete
+ */
+static void os_timer_delete_locked(os_timer_t timer)
+{
+    HASSERT(timer != NULL);
+
+#if defined (__FreeRTOS__)
+    Timer *t = pvTimerGetTimerID(timer);
+    xTimerDelete(timer, portMAX_DELAY);
+#else
+    Timer *t = timer;
+    remove_timer(t);
 #endif
     free(t);
 }
@@ -590,6 +597,20 @@ __attribute__((noinline)) const void* stack_malloc(unsigned long length) {
 #endif
 #endif  // FreeRTOS
 
+/** Entry point to a thread.
+ * @param metadata for entering the thread
+ */
+#if defined (__FreeRTOS__)
+static void os_thread_start(void *arg)
+{
+    ThreadPriv *priv = arg;
+    vTaskSetApplicationTaskTag(NULL, arg);
+    _impure_ptr = priv->reent;
+    (*priv->entry)(priv->arg);
+    free(priv);
+}
+#endif
+
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -604,9 +625,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      void *(*start_routine) (void *), void *arg)
 {
 #if defined (__FreeRTOS__)
+    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     static unsigned int count = 0;
     char auto_name[10];
-    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
 
     if (name == NULL)
     {
@@ -618,9 +639,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         name = auto_name;
     }
     
-    priv->reent = allocate_reent();
     priv->entry = start_routine;
     priv->arg = arg;
+    priv->reent = allocate_reent();
     
     if (priority == 0)
     {
@@ -857,6 +878,7 @@ void main_thread(void *arg)
 }
 #endif
 
+#if !defined(GTEST)
 /** Entry point to program.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
@@ -932,3 +954,4 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+#endif
