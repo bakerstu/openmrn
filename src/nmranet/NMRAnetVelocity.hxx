@@ -147,7 +147,7 @@ public:
      */
     int direction()
     {
-        if (u & 0x80000000)
+        if (std::signbit(velocity))
         {
             return REVERSE;
         }
@@ -157,7 +157,7 @@ public:
     /** Set the direction to forward. */
     void forward()
     {
-        if (u & 0x80000000)
+        if (std::signbit(velocity))
         {
             velocity = -velocity;
         }
@@ -166,7 +166,7 @@ public:
     /** Set the direction to reverse. */
     void reverse()
     {
-        if ((u & 0x80000000) == 0)
+        if (!std::signbit(velocity))
         {
             velocity = -velocity;
         }
@@ -264,55 +264,55 @@ public:
     /** Overloaded addition operator. */
     Velocity operator + (const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity + v.velocity, u));
+        return Velocity(zero_adjust(velocity + v.velocity,velocity));
     }
 
     /** Overloaded addition operator. */
     Velocity operator + (const float& v)
     {
-        return Velocity(zero_adjust(velocity + v, velocity));
+        return Velocity(zero_adjust(velocity + v,velocity));
     }
 
     /** Overloaded subtraction operator. */
     Velocity operator - (const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity - v.velocity, u));
+        return Velocity(zero_adjust(velocity - v.velocity,velocity));
     }
 
     /** Overloaded subtraction operator. */
     Velocity operator - (const float& v)
     {
-        return Velocity(zero_adjust(velocity - v, u));
+        return Velocity(zero_adjust(velocity - v,velocity));
     }
 
     /** Overloaded multiplication operator. */
     Velocity operator * (const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity * v.velocity, u));
+        return Velocity(zero_adjust(velocity * v.velocity,velocity));
     }
 
     /** Overloaded multiplication operator. */
     Velocity operator * (const float& v)
     {
-        return Velocity(zero_adjust(velocity * v, u));
+        return Velocity(zero_adjust(velocity * v,velocity));
     }
 
     /** Overloaded division operator. */
     Velocity operator / (const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity / v.velocity, u));
+        return Velocity(zero_adjust(velocity / v.velocity,velocity));
     }
 
     /** Overloaded division operator. */
     Velocity operator / (const float& v)
     {
-        return Velocity(zero_adjust(velocity / v, u));
+        return Velocity(zero_adjust(velocity / v,velocity));
     }
 
     /** Overloaded pre-increement operator. */
     Velocity operator ++ ()
     {
-        return velocity = zero_adjust(velocity + 1, u);
+        return velocity = zero_adjust(velocity + 1,velocity);
         //return *this;
     }
 
@@ -320,14 +320,14 @@ public:
     Velocity operator ++ (int)
     {
         Velocity result(*this);
-        velocity = zero_adjust(velocity + 1, u);
+        velocity = zero_adjust(velocity + 1,velocity);
         return result;
     }
 
     /** Overloaded pre-decreement operator. */
     Velocity& operator -- ()
     {
-        velocity = zero_adjust(velocity - 1, u);
+        velocity = zero_adjust(velocity - 1,velocity);
         return *this;
     }
 
@@ -335,63 +335,63 @@ public:
     Velocity operator -- (int)
     {
         Velocity result(*this);
-        velocity = zero_adjust(velocity - 1, u);
+        velocity = zero_adjust(velocity - 1,velocity);
         return result;
     }
 
     /** Overloaded addition equals operator. */
     Velocity& operator += (const Velocity& v)
     {
-        velocity = zero_adjust(velocity + v.velocity, u);
+        velocity = zero_adjust(velocity + v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded addition equals operator. */
     Velocity& operator += (const float& v)
     {
-        velocity = zero_adjust(velocity + v, u);
+        velocity = zero_adjust(velocity + v,velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
     Velocity& operator -= (const Velocity& v)
     {
-        velocity = zero_adjust(velocity - v.velocity, u);
+        velocity = zero_adjust(velocity - v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
     Velocity& operator -= (const float& v)
     {
-        velocity = zero_adjust(velocity - v, u);
+        velocity = zero_adjust(velocity - v,velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
     Velocity& operator *= (const Velocity& v)
     {
-        velocity = zero_adjust(velocity * v.velocity, u);
+        velocity = zero_adjust(velocity * v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
     Velocity& operator *= (const float& v)
     {
-        velocity = zero_adjust(velocity * v, u);
+        velocity = zero_adjust(velocity * v,velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
     Velocity& operator /= (const Velocity& v)
     {
-        velocity = zero_adjust(velocity / v.velocity, u);
+        velocity = zero_adjust(velocity / v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
     Velocity& operator /= (const float& v)
     {
-        velocity = zero_adjust(velocity / v, u);
+        velocity = zero_adjust(velocity / v,velocity);
         return *this;
     }
 
@@ -435,28 +435,17 @@ public:
     
 private:
     /** Floating point representation of velocity. */
-    union
-    {
-        float velocity; /**< floating point representation of velocity */
-        uint32_t u;     /**< uint32_t representation of velocity */
-    };
-    
-    /** mapping of float to a uint32_t */
-    union Bits
-    {
-        float f;    /**< float representation */
-        uint32_t u; /**< uint32_t representation */
-    };
+    float velocity;
     
     /** Adjust for a math result of negative 0.
      * @param value value of math result
      * @param old original value before expression
      */
-    float zero_adjust(float value, uint32_t old)
+    float zero_adjust(float value, float old)
     {
-        if (old & 0x80000000 && value == 0)
+        if (value == 0)
         {
-            return -0;
+            return copysign(value, old);
         }
         return value;
     }

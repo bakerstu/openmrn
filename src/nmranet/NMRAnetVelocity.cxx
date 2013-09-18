@@ -63,7 +63,7 @@ uint8_t Velocity::get_dcc_128()
         result = (uint8_t)(tmp + 1);
     }
     
-    result |= (u & 0x80000000) ? 0x00 : 0x80;
+    result |= std::signbit(velocity) ? 0x00 : 0x80;
     return result;
 }
 
@@ -124,7 +124,7 @@ uint8_t Velocity::get_dcc_28()
     
     result >>= 1;
 
-    result |= (u & 0x80000000) ? 0x00 : 0x20;
+    result |= std::signbit(velocity) ? 0x00 : 0x20;
     return result;
 }
 
@@ -188,7 +188,7 @@ uint8_t Velocity::get_dcc_14()
     
     result |= 0x40;
 
-    result |= (u & 0x80000000) ? 0x00 : 0x20;
+    result |= std::signbit(velocity) ? 0x00 : 0x20;
     return result;
 }
 
