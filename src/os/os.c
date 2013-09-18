@@ -66,8 +66,10 @@ extern const char *STDOUT_DEVICE;
 /** default stderr */
 extern const char *STDERR_DEVICE;
 
+#if !defined (__FreeRTOS__)
 /* forward prototype */
 static void os_timer_delete_locked(os_timer_t timer);
+#endif
 
 /** Timer structure */
 typedef struct timer
@@ -319,10 +321,7 @@ static void insert_timer(Timer *timer)
         /* wakeup and refresh timer list */
         char data = 1;
         int result = write(timerfds[1], &data, 1);
-        if (result < 0)
-        {
-            abort();
-        }
+        HASSERT(result == 1);
     }
 }
 
@@ -435,10 +434,7 @@ static void os_timer_init(void)
     os_thread_t thread_handle;
 
     int result = pipe(timerfds);
-    if (result != 0)
-    {
-        abort();
-    }
+    HASSERT(result == 0);
 #if defined (__WIN32__)
     u_long arg = 1;
     ioctlsocket(timerfds[0], FIONBIO, &arg);
@@ -457,10 +453,7 @@ static void os_timer_init(void)
  */
 os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, void* data2)
 {
-    if (callback == NULL)
-    {
-        abort();
-    }
+    HASSERT(callback != NULL);
     Timer *timer = malloc(sizeof(Timer));
 
     timer->callback = callback;
@@ -494,6 +487,7 @@ void os_timer_delete(os_timer_t timer)
     free(t);
 }
 
+#if !defined (__FreeRTOS__)
 /** Delete a timer with the mutex already locked.
  * @param timer timer to delete
  */
@@ -501,15 +495,11 @@ static void os_timer_delete_locked(os_timer_t timer)
 {
     HASSERT(timer != NULL);
 
-#if defined (__FreeRTOS__)
-    Timer *t = pvTimerGetTimerID(timer);
-    xTimerDelete(timer, portMAX_DELAY);
-#else
     Timer *t = timer;
     remove_timer(t);
-#endif
     free(t);
 }
+#endif
 
 /** Start a timer.
  * @param timer timer to start
@@ -517,10 +507,7 @@ static void os_timer_delete_locked(os_timer_t timer)
  */
 void os_timer_start(os_timer_t timer, long long period)
 {
-    if (timer == NULL)
-    {
-        abort();
-    }
+    HASSERT(timer != NULL);
 
 #if defined (__FreeRTOS__)
     Timer          *t = pvTimerGetTimerID(timer);
@@ -550,10 +537,7 @@ void os_timer_start(os_timer_t timer, long long period)
  */
 void os_timer_stop(os_timer_t timer)
 {
-    if (timer == NULL)
-    {
-        abort();
-    }
+    HASSERT(timer != NULL);
 #if defined (__FreeRTOS__)
     xTimerStop(timer, portMAX_DELAY);
 #else
@@ -878,7 +862,10 @@ void main_thread(void *arg)
 }
 #endif
 
-#if !defined(GTEST)
+#if !defined (__MINGW32__)
+int main(int argc, char *argv[]) __attribute__ ((weak));
+#endif
+
 /** Entry point to program.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
@@ -954,4 +941,4 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
-#endif
+

@@ -33,9 +33,6 @@
 
 #include "NMRAnetVelocity.hxx"
 
-/** Conversion factor for MPH. */
-#define MPH_FACTOR 0.44704  
-
 namespace NMRAnet
 {
     
@@ -51,7 +48,7 @@ namespace NMRAnet
 uint8_t Velocity::get_dcc_128()
 {
     uint8_t result;
-    float tmp = (speed() * MPH_FACTOR) + 0.5;
+    uint32_t tmp = (speed() * MPH_FACTOR) + 0.5;
     
     if (tmp == 0)
     {
@@ -66,7 +63,7 @@ uint8_t Velocity::get_dcc_128()
         result = (uint8_t)(tmp + 1);
     }
     
-    result |= get_sign(velocity) == -1 ? 0x00 : 0x80;
+    result |= (u & 0x80000000) ? 0x00 : 0x80;
     return result;
 }
 
@@ -108,7 +105,7 @@ void Velocity::set_dcc_128(uint8_t value)
 uint8_t Velocity::get_dcc_28()
 {
     uint8_t result;
-    float tmp = ((speed() * MPH_FACTOR * 28) / 128) + 0.5;
+    uint32_t tmp = ((speed() * MPH_FACTOR * 28) / 128) + 0.5;
     
     if (tmp == 0)
     {
@@ -127,7 +124,7 @@ uint8_t Velocity::get_dcc_28()
     
     result >>= 1;
 
-    result |= get_sign(velocity) == -1 ? 0x00 : 0x20;
+    result |= (u & 0x80000000) ? 0x00 : 0x20;
     return result;
 }
 
@@ -174,7 +171,7 @@ void Velocity::set_dcc_28(uint8_t value)
 uint8_t Velocity::get_dcc_14()
 {
     uint8_t result;
-    float tmp = ((speed() * MPH_FACTOR * 14) / 128) + 0.5;
+    uint32_t tmp = ((speed() * MPH_FACTOR * 14) / 128) + 0.5;
     
     if (tmp == 0)
     {
@@ -191,7 +188,7 @@ uint8_t Velocity::get_dcc_14()
     
     result |= 0x40;
 
-    result |= get_sign(velocity) == -1 ? 0x00 : 0x20;
+    result |= (u & 0x80000000) ? 0x00 : 0x20;
     return result;
 }
 
@@ -201,7 +198,7 @@ uint8_t Velocity::get_dcc_14()
  *  @param value bit 7..6:  fixed at b'01'
  *               bit 5:  direction
  *               bits 4:  reserved 0 for headlight
- *               bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28 
+ *               bits 3..0:  0 = stopped, 2 - 15 = speed steps 1 - 14
  */
 void Velocity::set_dcc_14(uint8_t value)
 {

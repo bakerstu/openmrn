@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2013, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
