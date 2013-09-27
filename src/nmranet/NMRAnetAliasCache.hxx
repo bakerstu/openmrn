@@ -73,7 +73,7 @@ public:
           aliasTree(),
           idTree(),
           timeTree(),
-          aliasAllocator(),
+          //aliasAllocator(),
           //aliasNode(new RBTree <NodeAlias, Metadata*>::Node[entries]),
           //idNode(new RBTree <NodeID, Metadata*>::Node[entries]),
           //timeNode(new RBTree <long long, Metadata*>::Node[entries]),
@@ -91,11 +91,9 @@ public:
             timeNode[i].value = metadata;
         }
 
-        aliasAllocator.set_entries(entries);
-        
-        //Allocator <std::pair<NodeAlias, Metadata*>> aAllocator;
-        
-        aliasMap = new std::map <NodeAlias, Metadata*, nodekey_compare, Allocator <std::pair<NodeAlias, Metadata*>>>(aliasAllocator);
+        // The actual allocator type does not matter here, because internally
+        // it will be rebound to the proper type anyway.
+        aliasMap = new AliasMap(nodekey_compare(), Allocator<AliasMap::value_type>(entries));
     }
 
     /** Add an alias to an alias cache.
@@ -166,12 +164,18 @@ private:
             typedef Allocator<U> other;
         };
 
-        explicit Allocator()
+        Allocator()
             : init(false),
               entries(0)
         {
         }
-        
+
+        explicit Allocator(size_t e)
+            : init(false),
+              entries(e)
+        {
+        }
+
         explicit Allocator(Allocator const&)
             : init(false)
         {
@@ -181,7 +185,8 @@ private:
         {
         }
         
-        template <typename U> explicit Allocator(Allocator<U> const&)
+        template <typename U> Allocator(Allocator<U> const& o)
+            : init(false), entries(o.entries)
         {
         }
 
@@ -285,9 +290,9 @@ private:
     RBTree <NodeID, Metadata*>::Node *idNode;
     RBTree <long long, Metadata*>::Node *timeNode;
 
-    Allocator <std::pair<NodeAlias, Metadata*>> aliasAllocator;
+    typedef std::map <NodeAlias, Metadata*, nodekey_compare, Allocator<std::pair<const NodeAlias, Metadata*>>> AliasMap;
 
-    std::map <NodeAlias, Metadata*, nodekey_compare, Allocator<std::pair<NodeAlias, Metadata*>>> *aliasMap;
+    AliasMap *aliasMap;
 
     //std::map <NodeID, Metadata*, less<NodeID>, Allocator<std::pair<NodeID, Metadata*>>> idMap;
 
