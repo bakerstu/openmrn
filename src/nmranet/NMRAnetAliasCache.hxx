@@ -113,6 +113,9 @@ public:
      */
     NodeAlias generate();
 
+    /** Default destructor */
+    ~AliasCache();
+    
 private:
     enum
     {
@@ -150,9 +153,6 @@ private:
     /** Default Constructor */
     AliasCache();
 
-    /** Default destructor */
-    ~AliasCache();
-    
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 

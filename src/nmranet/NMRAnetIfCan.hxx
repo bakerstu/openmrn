@@ -34,8 +34,15 @@
 #ifndef _NMRAnetIfCan_hxx_
 #define _NMRAnetIfCan_hxx_
 
+#include <fcntl.h>
+#include <vector>
+
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet_config.h"
+#include "nmranet_can.h"
+
+#define WRITE_BUFFER_TIMEOUT 3000000000LL
 
 namespace NMRAnet
 {
@@ -46,10 +53,30 @@ class IfCan : public If
 {
 public:
     /** Constructor.
+     * @param node_id node ID of interface
+     * @param device description for this instance
+     * @param if_read read method for this interface
+     * @param if_write write method for this interface
      */
-    IfCan(NodeID node_id)
-        : If(node_id)
+    IfCan(NodeID node_id, const char *device,
+          ssize_t (*read)(int, void*, size_t),
+          ssize_t (*write)(int, const void*, size_t))
+        : If(node_id),
+          read(read),
+          write(write),
+          writeBuffer(this),
+          pool((Pool*)malloc(sizeof(Pool) * ALIAS_POOL_SIZE)),
+          fd(open(device, O_RDWR)),
+          downstreamCache((NodeID)0, (size_t)10),
+          upstreamCache(node_id, 10),
+          mutex()
     {
+        HASSERT(fd >= 0);
+        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
+        {
+            /* Placement new allows for runtime/link-time array size */
+            new (pool + i) Pool(this);
+        }
     }
 
 protected:
@@ -58,6 +85,43 @@ protected:
     ~IfCan();
 
 private:
+    /** Status value for an alias pool item.
+     */
+    enum AliasStatus
+    {
+        UNDER_TEST, /**< this is an alias we are trying to claim */
+        RESERVED,   /**< the alias has been reserved for use */
+        CONFLICT,   /**< we discovered someone else already is using this alias */
+        FREE        /**< the alias is free for another request */
+    };
+    
+    /** Metadata for members of the alias pool.
+     */
+    class Pool
+    {
+    public:
+        /** Constructor.
+         */
+        Pool(IfCan *if_can)
+            : timer(timeout, if_can, this),
+              status(FREE),
+              alias(0)
+        {
+        }
+        
+        /** This is the timeout for claiming an alias.  At this point, the alias will
+         * either be claimed as a downstream node, or we can start using it.
+         * @param data1 a @ref IfCan instance typecast to a void*
+         * @param data2 a @ref Pool instance typecast to a void*
+         * @return OS_TIMER_NONE
+         */
+        static long long timeout(void *data1, void *data2);
+        
+        OSTimer timer;      /**< timer used for establishing the connection */
+        AliasStatus status; /**< status of node */
+        NodeAlias alias;    /**< alias */
+    };
+
     /** CAN ID bit fields for most CAN frames. */
     enum ID
     {
@@ -75,7 +139,21 @@ private:
         CAN_FRAME_TYPE_SHIFT = 24, /**< shift for can frame type field of CAN ID */
         FRAME_TYPE_SHIFT     = 27, /**< shift for frame type field of CAN ID */
         PRIORITY_SHIFT       = 28, /**< shift for priority field of CAN ID */
-        PADDING_SHIFT        = 29  /**< shift for padding field of CAN ID */
+        PADDING_SHIFT        = 29, /**< shift for padding field of CAN ID */
+        
+        CONTROL_SRC_MASK      = 0x00000fff, /**< source alias mask */
+        CONTROL_FIELD_MASK    = 0x00fff000, /**< control field data mask */
+        CONTROL_SEQUENCE_MASK = 0x07000000, /**< frame sequence number mask */
+        CONTROL_TYPE_MASK     = 0x08000000, /**< value of '0' means control frame mask */
+        CONTROL_PRIORITY_MASK = 0x10000000, /**< priority mask */
+        CONTROL_PADDING_MASK  = 0xe0000000, /**< pad out to a full 32-bit word */
+
+        CONTROL_SRC_SHIFT      =  0, /**< source alias shift */
+        CONTROL_FIELD_SHIFT    = 12, /**< control field data shift */
+        CONTROL_SEQUENCE_SHIFT = 24, /**< frame sequence number shift */
+        CONTROL_TYPE_SHIFT     = 27, /**< value of '0' means control frame shift */
+        CONTROL_PRIORITY_SHIFT = 28, /**< priority shift */
+        CONTROL_PADDING_SHIFT  = 29  /**< pad out to a full 32-bit word */
     };
 
     typedef uint16_t CanMTI;
@@ -119,7 +197,7 @@ private:
      * @param can_id identifier to act upon
      * @return source field
      */
-    NodeAlias get_src(uint32_t can_id)
+    static NodeAlias get_src(uint32_t can_id)
     {
         return (can_id & SRC_MASK) >> SRC_SHIFT;
     }
@@ -128,7 +206,7 @@ private:
      * @param can_id identifier to act upon
      * @return MTI field value
      */
-    CanMTI get_mti(uint32_t can_id)
+    static CanMTI get_mti(uint32_t can_id)
     {
         return ((can_id & MTI_MASK) >> MTI_SHIFT);
     }
@@ -137,7 +215,7 @@ private:
      * @param can_id identifier to act upon
      * @return destination field value
      */
-    NodeAlias get_dst(uint32_t can_id)
+    static NodeAlias get_dst(uint32_t can_id)
     {
         return (can_id & DST_MASK) >> DST_SHIFT;
     }
@@ -146,7 +224,7 @@ private:
      * @param can_id identifier to act upon
      * @return CAN frame type field value
      */
-    CanFrameType get_can_frame_type(uint32_t can_id)
+    static CanFrameType get_can_frame_type(uint32_t can_id)
     {
         return (CanFrameType)((can_id & CAN_FRAME_TYPE_MASK) >> CAN_FRAME_TYPE_SHIFT);
     }
@@ -155,7 +233,7 @@ private:
      * @param can_id identifier to act upon
      * @return frame type field value
      */
-    FrameType get_frame_type(uint32_t can_id)
+    static FrameType get_frame_type(uint32_t can_id)
     {
         return (FrameType)((can_id & FRAME_TYPE_MASK) >> FRAME_TYPE_SHIFT);
     }
@@ -164,7 +242,7 @@ private:
      * @param can_id identifier to act upon
      * @return priority field value
      */
-    Priority get_priority(uint32_t can_id)
+    static Priority get_priority(uint32_t can_id)
     {
         return (Priority)((can_id & PRIORITY_MASK) >> PRIORITY_SHIFT);
     }
@@ -173,7 +251,7 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param mti MTI field value
      */
-    void set_mti(uint32_t &can_id, CanMTI mti)
+    static void set_mti(uint32_t &can_id, CanMTI mti)
     {
         can_id &= ~MTI_MASK;
         can_id |= mti << MTI_SHIFT;
@@ -183,7 +261,7 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param dst destination field value
      */
-    void set_dst(uint32_t &can_id, NodeAlias dst)
+    static void set_dst(uint32_t &can_id, NodeAlias dst)
     {
         can_id &= ~DST_MASK;
         can_id |= dst << DST_SHIFT;
@@ -193,7 +271,7 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param type CAN frame type field value
      */
-    void set_can_frame_type(uint32_t can_id, CanFrameType type)
+    static void set_can_frame_type(uint32_t &can_id, CanFrameType type)
     {
         can_id &= ~CAN_FRAME_TYPE_MASK;
         can_id |= type << CAN_FRAME_TYPE_SHIFT;
@@ -203,7 +281,7 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param type frame type field value
      */
-    void set_frame_type(uint32_t can_id, FrameType type)
+    static void set_frame_type(uint32_t &can_id, FrameType type)
     {
         can_id &= ~FRAME_TYPE_MASK;
         can_id |= type << FRAME_TYPE_SHIFT;
@@ -213,24 +291,57 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param priority pryority field value
      */
-    void SET_CAN_ID_PRIORITY(uint32_t can_id, Priority priority)
+    static void set_priority(uint32_t &can_id, Priority priority)
     {
         can_id &= ~PRIORITY_MASK;
         can_id |= priority << PRIORITY_SHIFT;
     }
 
+    /** Set all the CAN ID fields.
+     * @param can_id identifier to act upon
+     * @param source source field value
+     * @param mti MTI field value
+     * @param can_type CAN frame type field value
+     * @param type frame type field value
+     * @param priority priority field value
+     */
+    static void set_fields(uint32_t &can_id, NodeAlias src, MTI mti, CanFrameType can_type, FrameType type, Priority priority)
+    {
+        can_id = (src      << SRC_SHIFT           ) +
+                 (mti      << MTI_SHIFT           ) +
+                 (can_type << CAN_FRAME_TYPE_SHIFT) +
+                 (type     << FRAME_TYPE_SHIFT    ) +
+                 (priority << PRIORITY_SHIFT      );
+    }
+    
     /** Get the NMRAnet MTI from a can identifier.
      * @param can_id CAN identifider
      * @return NMRAnet MTI
      */
-    MTI nmranet_mti(uint32_t can_id);
+    static MTI nmranet_mti(uint32_t can_id);
 
     /** Get the CAN identifier from an NMRAnet mti and source alias.
      * @param mti NMRAnet MTI
      * @param src Source node alias
      * @return CAN identifier
      */
-    uint32_t can_identifier(MTI mti, NodeAlias src);
+    static uint32_t can_identifier(MTI mti, NodeAlias src);
+
+    /** Initialize a control frame CAN ID and set DLC to 0.
+     * @param _frame control frame to initialize
+     * @param _source source data
+     * @param _field field data
+     * @param _sequence sequence data
+     */
+    static void control_init(struct can_frame &frame, NodeAlias src, uint16_t field, int sequence)
+    {
+        frame.can_id = (src      << CONTROL_SRC_SHIFT     ) +
+                       (field    << CONTROL_FIELD_SHIFT   ) +
+                       (sequence << CONTROL_SEQUENCE_SHIFT) +
+                       ((0)      << CONTROL_TYPE_SHIFT    ) +
+                       ((1)      << CONTROL_PRIORITY_SHIFT);
+        frame.can_dlc = 0;
+    }
 
     /** Write a message onto the CAN bus.
      * @param mti Message Type Indicator
@@ -239,8 +350,123 @@ private:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    int write(uint16_t mti, NodeID src, NodeHandle dst, const void *data);
+    int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data);
 
+    /** Setup the relationship between an alias and a downstream node.  This method
+     * must always be called with the mutex locked.
+     * @param node_id Node ID
+     * @return assigned alias
+     */
+    NodeAlias upstream_alias_setup(NodeID node_id);
+    
+    /** Put out a claim on an alias.  The alias mutex should be locked during this
+     * call.
+     * @param node_id node id that is making the claim
+     * @param alias alias that node is claiming
+     * @param entry entry within the pool to use for claim.
+     */
+    void claim_alias(NodeID node_id, NodeAlias alias, Pool *entry);
+
+    ssize_t (*read)(int, void*, size_t); /**< read method for device */
+    ssize_t (*write)(int, const void*, size_t); /**< write method for device */
+
+    /** Structure for buffering an addressed write until we can lookup its alias.
+     */
+    class WriteBuffer
+    {
+    public:
+        /** Constructor.
+         * @param if_can parent instance of IfCan
+         */
+        WriteBuffer(IfCan *if_can)
+            : src(0),
+              dst({0,0}),
+              data(NULL),
+              mti(MTI_NONE),
+              timer(timeout, if_can, this)
+        {
+        }
+        
+        /** Buffer a rite message on the CAN bus waiting for its alias mapping.
+         * @param m Message Type Indicator
+         * @param s source node ID, 0 if unavailable
+         * @param d destination node ID, 0 if unavailable
+         * @param b NMRAnet packet data
+         * @return 0 upon success
+         */
+        void setup(MTI m, NodeID s, NodeHandle d, Buffer *b)
+        {
+            src = s;
+            dst = d;
+            data = b;
+            mti = m;
+            timer.start(WRITE_BUFFER_TIMEOUT);
+        }
+        
+        /** Release the buffer from use.
+         */
+        void release()
+        {
+            mti = MTI_NONE;
+        }
+        
+        /** Test if the buffer is in use.
+         * @return true if in use, else false
+         */
+        bool in_use()
+        {
+            return (mti != 0);
+        }
+
+        /** This is the timeout for giving up on an outstanding Node ID to alias
+         * mapping request.
+         * @param data1 a @ref IfCan* typecast to a void*
+         * @param data2 a @ref WriteBuffer* typecast to a void*
+         * @return OS_TIMER_NONE
+         */
+        static long long timeout(void *data1, void *data2)
+        {
+            IfCan       *if_can = (IfCan*)data1;
+            WriteBuffer *me     = (WriteBuffer*)data2;
+
+            /** @todo currently we fail silently, should we throw an error? */
+            if_can->mutex.lock();
+            me->release();
+            if_can->mutex.unlock();
+            return OS_TIMER_NONE;
+        }
+
+        NodeID src;     /**< source node ID */
+        NodeHandle dst; /**< destination node ID and/or alias */
+        Buffer *data;   /**< message data */
+        MTI mti;        /**< MTI value, 0 if buffer not in use */
+        OSTimer timer;  /**< timeout on error */
+
+        /** we need to be friends with IfCan in order to access its mutex */
+        friend class IfCan;
+    };
+    
+    /** single buffer to hold write data while we determine the proper alias */
+    WriteBuffer writeBuffer;
+
+    /** Array of Pool entries for pre-allocated aliases */
+    Pool *pool;
+
+    /** file descriptor used for reading and writing data to and from physical
+     * interface
+     */
+    int fd;
+
+    /** Cache of Node ID to Alias mappings for downstream nodes */
+    AliasCache downstreamCache;
+    
+    /** Cache of Node ID to alias mappings for upstream nodes */
+    AliasCache upstreamCache;
+    
+    /** Mutual exclusion for an instance of this class */
+    OSMutex mutex;
+
+    
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 
