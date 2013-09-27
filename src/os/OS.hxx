@@ -90,11 +90,11 @@ public:
         return os_thread_once(&handle, routine);
     }
 
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
-
     /** Default Destructor */
     ~OSThreadOnce();
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
 
     /** Private once handle. */
     os_thread_once_t handle;
