@@ -44,42 +44,38 @@ namespace NMRAnet
  */
 void AliasCache::add(NodeID id, NodeAlias alias)
 {
+#if 0
     HASSERT(id != 0);
     HASSERT(alias != 0);
     
-    size_t index;
     Metadata *insert;
 
     if (freeList)
     {
         /* found an empty slot */
         insert = freeList;
-        index = insert - &metadata[0];
-        freeList = insert->next;
-        
+        freeList = insert->next;        
     }
     else
     {
         /* kick out the oldest mapping */
-        RBTree<long long, Metadata*>::Node *node = timeTree.first();
-        insert = node->value;
-        index = node - &timeNode[0];
-        remove(node->value->alias);
+        //map<long long, Metadata*>::iterator oldest = timeMap.begin();
+        //insert = oldest->second;
+        //aliasMap.erase(insert->alias);
+        //idMap.erase(insert->id);
+        //timeMap.erase(oldest);
     }
     
     insert->id = id;
     insert->alias = alias;
     insert->timestamp = OSTime::get_monotonic();
     
-    aliasNode[index].key = alias;
-    idNode[index].key = id;
-    timeNode[index].key = insert->timestamp;
+    //aliasMap[alias] = insert;
+    //idMap[id] = insert;
+    //timeMap[insert->timestamp] = insert;
     
-    aliasTree.insert(&aliasNode[index]);
-    idTree.insert(&idNode[index]);
-    timeTree.insert(&timeNode[index]);
-
     return;
+#endif
 }
 
 /** Remove an alias from an alias cache.
