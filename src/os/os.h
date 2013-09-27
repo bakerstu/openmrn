@@ -264,6 +264,11 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg);
 
+/** Destroy a thread.
+ * @param thread handle to the created thread
+ */
+void os_thread_cancel(os_thread_t thread);
+
 #if defined (__FreeRTOS__)
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {NULL, 0}
@@ -357,6 +362,21 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
 #endif
 }
 
+/** Destroy a mutex.
+ * @param mutex address of mutex handle to destroy
+ * @return 0 upon succes or error number upon failure
+ */
+static inline int os_mutex_destroy(os_mutex_t *mutex)
+{
+#if defined (__FreeRTOS__)
+    vSemaphoreDelete(mutex->sem);
+
+    return 0;    
+#else
+    return pthread_mutex_destroy(mutex);
+#endif
+}
+
 /** Lock a mutex.
  * @param mutex address of mutex handle to lock
  * @return 0 upon succes or error number upon failure
@@ -421,7 +441,7 @@ static inline int os_mutex_unlock(os_mutex_t *mutex)
 static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 {
 #if defined (__FreeRTOS__)
-#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768)
+#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
     *sem = xSemaphoreCreateCounting(LONG_MAX, value);
     if (!*sem) {
       abort();
@@ -445,7 +465,7 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
 static inline int os_sem_destroy(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
-#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768)
+#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
     vSemaphoreDelete(*sem);
 #else
     #error Need to define your semaphore handling

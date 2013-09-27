@@ -10,6 +10,8 @@ CXXSRCS +=
 
 # Find StellarisWare
 ifdef STELLARISWAREPATH
+include $(OPENMRNPATH)/etc/stellarisware.mk
+
 CSRCS += stellaris_can.c \
          stellaris_uart.c \
          stellaris_usb_cdc_device.c
@@ -32,4 +34,13 @@ endif
 ifeq ($(TARGET),freertos.armv6m)
 CSRCS += 11CXX_rom_can.c # malloc.c
 VPATH += $(SRCDIR)/nxp
+endif
+
+
+ifeq ($(TARGET),freertos.mips4k.pic32mx)
+
+CSRCS += pic32mx_can.c
+
+VPATH += $(SRCDIR)/pic32mx
+
 endif

@@ -15,6 +15,7 @@
 *.swp
 *~
 *.tag
+*.cout
 *.ods#
 # generated code by doxgen
 doc/html/*
