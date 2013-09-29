@@ -37,6 +37,14 @@
 
 #include "executor/executor.hxx"
 
+
+// This template magic is used for simplifying the declaration of member
+// function pointers.
+template<typename T> struct identity { typedef T type;  };
+template<typename T> T removeref(const T& x);
+#define ST(FUNCTION) (MemberFunction)(&identity<decltype(removeref(*this))>::type::FUNCTION)
+
+
 class ControlFlow : public Executable, public Notifiable {
 public:
   // =============== Interface to the outside world ===============
@@ -84,8 +92,8 @@ protected:
   //! to ensure that the flow is not running at this moment. The flow will be
   //! scheduled onto its own executor, so it is safe to call this from a
   //! different thread.
-  template<class T> void StartFlowAt(T f) {
-    YieldAndCall((MemberFunction) f);
+  void StartFlowAt(MemberFunction f) {
+    YieldAndCall(f);
   }
 
   // ==========  ACTION COMMANDS =============
@@ -99,14 +107,14 @@ protected:
 
   //! Transition to a new state, and calls the new state handler immediately
   //! following the current handler.
-  template<class T> ControlFlowAction CallImmediately(T f) {
-    return ControlFlowAction((MemberFunction)f);
+  ControlFlowAction CallImmediately(MemberFunction f) {
+    return ControlFlowAction(f);
   }
 
   //! Transitions to a new state, but allows all other pending callbacks of the
   //! executor to run before proceeding to the next state.
-  template<class T> ControlFlowAction YieldAndCall(T f) {
-    state_ = (MemberFunction)f;
+  ControlFlowAction YieldAndCall(MemberFunction f) {
+    state_ = f;
     Notify();
     return WaitForNotification();
   }
@@ -150,11 +158,17 @@ protected:
   ControlFlowAction WaitForTimerWakeUpAndCall(SleepData* data,
                                               MemberFunction next_state);
 
+  struct FileIOData {
+    int fd;
+    char* buf;
+    size_t count;
+  };
+
   //! Calls a child control flow, and when that flow is completed, transitions
   //! to next_state. Will send a notification to the dst flow.
-  template <class T> ControlFlowAction CallFlow(ControlFlow* dst, T next_state) {
+  ControlFlowAction CallFlow(ControlFlow* dst, MemberFunction next_state) {
     sub_flow_.called_flow = dst;
-    next_state_ = (MemberFunction)next_state;
+    next_state_ = next_state;
     return CallImmediately(&ControlFlow::WaitForControlFlow);
   }
 
@@ -174,11 +188,10 @@ private:
   static long long control_flow_single_timer(void* arg_flow, void* arg_entry);
   static long long control_flow_repeated_timer(void* arg_flow, void* arg_entry);
 
-
   union {
     SleepData* sleep;
     ControlFlow* called_flow;
-
+    
   } sub_flow_;
 
   //! The current state that needs to be tried.

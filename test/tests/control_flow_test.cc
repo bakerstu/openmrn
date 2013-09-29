@@ -171,7 +171,7 @@ private:
   ControlFlowAction Start() {
     sleeper_flow_ = new SleeperFlow(this);
     sleeper_flow_->SleepOnce(r_);
-    return CallFlow(sleeper_flow_, &SubFlowCaller::ChildDone);
+    return CallFlow(sleeper_flow_, ST(ChildDone));
   }
 
   ControlFlowAction ChildDone() {
