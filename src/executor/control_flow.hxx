@@ -127,7 +127,7 @@ protected:
 
   //! Yields to other callbacks in the current executor, and re-tries the
   //! current state again.
-  ControlFlowAction Yield() {
+  ControlFlowAction yield() {
     Notify();
     return WaitForNotification();
   }

@@ -44,7 +44,7 @@ int halfp2singles(void *target, void *source, int numel);
 }
 
 /** Conversion factor for MPH. */
-#define MPH_FACTOR 0.44704  
+#define MPH_FACTOR 0.44704F
 
 namespace NMRAnet
 {
@@ -60,7 +60,10 @@ typedef uint16_t float16_t;
  *  NMRAnet velocity is represented as a floating point meters/sec.  The sign
  *  represents direction where negative is reverse and positive is forward.
  *  Sign is always preserved even when the result is 0.  For example,
- *  -7 + 7 = -0 and 7 - 7 = +0.
+ *  -7.0 + 7.0 = -0.0 and 7.0 - 7.0 = +0.0  Be careful thought, per the C
+ *  standards, a negative zero (-.0.0) velocity compared to constant 0.0 will
+ *  compare true.  Always use @ref direction() when trying to determine the
+ *  sign or direction of travel.
  */
 class Velocity
 {
@@ -69,14 +72,47 @@ public:
      */
     enum
     {
-        FORWARD = 0, /**< forward direction */
-        REVERSE,     /**< reverse direction */
+        FORWARD  = 0, /**< forward direction */
+        POSITIVE = 0, /**< forward direction */
+        REVERSE  = 1, /**< reverse direction */
+        NEGATIVE = 1, /**< reverse direction */
     };
+
+    /** Default constructor.
+     */
+    Velocity()
+        : velocity(0)
+    {
+    }
 
     /** Basic constructor.
      * @param value starting value for Velocity.
      */
-    Velocity(float value = 0.0)
+    Velocity(int value)
+        : velocity(value)
+    {
+    }
+
+    /** Basic constructor.
+     * @param value starting value for Velocity.
+     */
+    Velocity(unsigned int value)
+        : velocity(value)
+    {
+    }
+
+    /** Basic constructor.
+     * @param value starting value for Velocity.
+     */
+    Velocity(float value)
+        : velocity(value)
+    {
+    }
+
+    /** Basic constructor.
+     * @param value starting value for Velocity.
+     */
+    Velocity(double value)
         : velocity(value)
     {
     }
@@ -111,7 +147,7 @@ public:
      */
     int direction()
     {
-        if (velocity == -0 || velocity < 0)
+        if (std::signbit(velocity))
         {
             return REVERSE;
         }
@@ -121,7 +157,7 @@ public:
     /** Set the direction to forward. */
     void forward()
     {
-        if (velocity == -0 || velocity < 0)
+        if (std::signbit(velocity))
         {
             velocity = -velocity;
         }
@@ -130,7 +166,7 @@ public:
     /** Set the direction to reverse. */
     void reverse()
     {
-        if (velocity != -0 && velocity >= 0)
+        if (!std::signbit(velocity))
         {
             velocity = -velocity;
         }
@@ -141,9 +177,7 @@ public:
      */
     float mph()
     {
-        int sign = get_sign(velocity);
-
-        return zero_adjust(velocity * MPH_FACTOR, sign);
+        return zero_adjust(velocity * MPH_FACTOR, velocity);
     }
     
     /** Get the speed in DCC 128 speed step format.
@@ -226,404 +260,194 @@ public:
     {
         halfp2singles(&velocity, &value, 1);
     }
-    
+
     /** Overloaded addition operator. */
     Velocity operator + (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity + v.velocity, sign));
+        return Velocity(zero_adjust(velocity + v.velocity,velocity));
     }
 
     /** Overloaded addition operator. */
     Velocity operator + (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity + v, sign));
-    }
-
-    /** Overloaded addition operator. */
-    Velocity operator + (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity + v, sign));
-    }
-
-    /** Overloaded addition operator. */
-    Velocity operator + (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity + v, sign));
-    }
-
-    /** Overloaded subtraction operator. */
-    Velocity operator + (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity + v, sign));
+        return Velocity(zero_adjust(velocity + v,velocity));
     }
 
     /** Overloaded subtraction operator. */
     Velocity operator - (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity - v.velocity, sign));
+        return Velocity(zero_adjust(velocity - v.velocity,velocity));
     }
 
     /** Overloaded subtraction operator. */
     Velocity operator - (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity - v, sign));
-    }
-
-    /** Overloaded subtraction operator. */
-    Velocity operator - (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity - v, sign));
-    }
-
-    /** Overloaded subtraction operator. */
-    Velocity operator - (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity - v, sign));
-    }
-
-    /** Overloaded subtraction operator. */
-    Velocity operator - (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity - v, sign));
+        return Velocity(zero_adjust(velocity - v,velocity));
     }
 
     /** Overloaded multiplication operator. */
     Velocity operator * (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity * v.velocity, sign));
+        return Velocity(zero_adjust(velocity * v.velocity,velocity));
     }
 
     /** Overloaded multiplication operator. */
     Velocity operator * (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity * v, sign));
-    }
-
-    /** Overloaded multiplication operator. */
-    Velocity operator * (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity * v, sign));
-    }
-
-    /** Overloaded multiplication operator. */
-    Velocity operator * (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity * v, sign));
-    }
-
-    /** Overloaded multiplication operator. */
-    Velocity operator * (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity * v, sign));
+        return Velocity(zero_adjust(velocity * v,velocity));
     }
 
     /** Overloaded division operator. */
     Velocity operator / (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity / v.velocity, sign));
+        return Velocity(zero_adjust(velocity / v.velocity,velocity));
     }
 
     /** Overloaded division operator. */
     Velocity operator / (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity / v, sign));
-    }
-
-    /** Overloaded division operator. */
-    Velocity operator / (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity / v, sign));
-    }
-
-    /** Overloaded division operator. */
-    Velocity operator / (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity / v, sign));
-    }
-
-    /** Overloaded division operator. */
-    Velocity operator / (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        return Velocity(zero_adjust(velocity / v, sign));
+        return Velocity(zero_adjust(velocity / v,velocity));
     }
 
     /** Overloaded pre-increement operator. */
-    Velocity& operator ++ ()
+    Velocity operator ++ ()
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + 1, sign);
-        return *this;
+        return velocity = zero_adjust(velocity + 1,velocity);
+        //return *this;
     }
 
     /** Overloaded post-increment operator. */
     Velocity operator ++ (int)
     {
-        int sign = get_sign(velocity);
-
         Velocity result(*this);
-        velocity = zero_adjust(velocity + 1, sign);
+        velocity = zero_adjust(velocity + 1,velocity);
         return result;
     }
 
     /** Overloaded pre-decreement operator. */
     Velocity& operator -- ()
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - 1, sign);
+        velocity = zero_adjust(velocity - 1,velocity);
         return *this;
     }
 
     /** Overloaded post-decrement operator. */
     Velocity operator -- (int)
     {
-        int sign = get_sign(velocity);
-
         Velocity result(*this);
-        velocity = zero_adjust(velocity - 1, sign);
+        velocity = zero_adjust(velocity - 1,velocity);
         return result;
     }
 
     /** Overloaded addition equals operator. */
     Velocity& operator += (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + v.velocity, sign);
+        velocity = zero_adjust(velocity + v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded addition equals operator. */
     Velocity& operator += (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + v, sign);
-        return *this;
-    }
-
-    /** Overloaded addition equals operator. */
-    Velocity& operator += (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + v, sign);
-        return *this;
-    }
-
-    /** Overloaded addition equals operator. */
-    Velocity& operator += (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + v, sign);
-        return *this;
-    }
-
-    /** Overloaded subtraction equals operator. */
-    Velocity& operator += (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity + v, sign);
+        velocity = zero_adjust(velocity + v,velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
     Velocity& operator -= (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - v.velocity, sign);
+        velocity = zero_adjust(velocity - v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
     Velocity& operator -= (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - v, sign);
-        return *this;
-    }
-
-    /** Overloaded subtraction equals operator. */
-    Velocity& operator -= (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - v, sign);
-        return *this;
-    }
-
-    /** Overloaded subtraction equals operator. */
-    Velocity& operator -= (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - v, sign);
-        return *this;
-    }
-
-    /** Overloaded subtraction equals operator. */
-    Velocity& operator -= (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity - v, sign);
+        velocity = zero_adjust(velocity - v,velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
     Velocity& operator *= (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity * v.velocity, sign);
+        velocity = zero_adjust(velocity * v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
     Velocity& operator *= (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity * v, sign);
-        return *this;
-    }
-
-    /** Overloaded multiplication equals operator. */
-    Velocity& operator *= (const double& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity * v, sign);
-        return *this;
-    }
-
-    /** Overloaded multiplication equals operator. */
-    Velocity& operator *= (const int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity * v, sign);
-        return *this;
-    }
-
-    /** Overloaded multiplication equals operator. */
-    Velocity& operator *= (const unsigned int& v)
-    {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity * v, sign);
+        velocity = zero_adjust(velocity * v,velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
     Velocity& operator /= (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity / v.velocity, sign);
+        velocity = zero_adjust(velocity / v.velocity,velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
     Velocity& operator /= (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity / v, sign);
+        velocity = zero_adjust(velocity / v,velocity);
         return *this;
     }
 
-    /** Overloaded division equals operator. */
-    Velocity& operator /= (const double& v)
+    /** Overloaded equals operator. */
+    Velocity& operator = (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity / v, sign);
+        velocity = v.velocity;
         return *this;
     }
 
-    /** Overloaded division equals operator. */
-    Velocity& operator /= (const int& v)
+    /** Overloaded equals operator. */
+    Velocity& operator = (const float& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity / v, sign);
+        velocity = v;
         return *this;
     }
 
-    /** Overloaded division equals operator. */
-    Velocity& operator /= (const unsigned int& v)
+    /** Overloaded equals equals operator */
+    bool operator == (const Velocity& v)
     {
-        int sign = get_sign(velocity);
-
-        velocity = zero_adjust(velocity / v, sign);
-        return *this;
+        return (v.velocity == velocity);
     }
-
+    
+    /** Overloaded equals equals operator */
+    bool operator == (const float& v)
+    {
+        return (v == velocity);
+    }
+    
+    /** Overloaded not equals operator */
+    bool operator != (const Velocity& v)
+    {
+        return (v.velocity != velocity);
+    }
+    
+    /** Overloaded not equals operator */
+    bool operator != (const float& v)
+    {
+        return (v != velocity);
+    }
+    
 private:
     /** Floating point representation of velocity. */
     float velocity;
     
-    float zero_adjust(float value, int sign)
+    /** Adjust for a math result of negative 0.
+     * @param value value of math result
+     * @param old original value before expression
+     */
+    float zero_adjust(float value, float old)
     {
-        if (sign == -1 && value == 0)
+        if (value == 0)
         {
-            return -0;
+            return copysign(value, old);
         }
-    }
-    
-    int get_sign(float value)
-    {
-        if (value == -0 || value < 0)
-        {
-            return -1;
-        }
-        return 1;
+        return value;
     }
 };
 

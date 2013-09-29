@@ -55,7 +55,13 @@ public:
     {
         os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
     }
-private:
+
+    /** Default destructor. */
+    ~OSThread()
+    {
+    }
+
+private:    
     DISALLOW_COPY_AND_ASSIGN(OSThread);
 
     /** Private thread handle. */
@@ -71,9 +77,9 @@ public:
      * @param routine method to call once
      */
     OSThreadOnce(void (*routine)(void))
+        : handle(OS_THREAD_ONCE_INIT),
+          routine(routine)
     {
-        os_thread_once_t tmp = OS_THREAD_ONCE_INIT;
-        handle = tmp;
     }
     
     /** call one time intialization routine
@@ -83,6 +89,9 @@ public:
     {
         return os_thread_once(&handle, routine);
     }
+
+    /** Default Destructor */
+    ~OSThreadOnce();
 
 private:
     DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
@@ -95,6 +104,11 @@ private:
 };
 
 /** This class provides a timer API.
+ * The return value of the callback determines the behavior of how the timer is
+ * rearmed.  @ref OS_TIMER_NONE indicates that the timer is not restarted,
+ * OS_TIMER_RESTART restarts the timer with the period of the last timeout,
+ * OS_TIMER_DELETE deletes the timer, and all other values indicate the restart
+ * period in nanoseconds.
  */
 class OSTimer
 {
@@ -321,6 +335,9 @@ private:
 
     /* Private default constructor prevents instantiating this class. */
     OSTime();
+
+    /** Default destructor. */
+    ~OSTime();
 };
 
 #endif /* _os_hxx_ */

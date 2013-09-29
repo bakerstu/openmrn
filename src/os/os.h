@@ -264,6 +264,11 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg);
 
+/** Destroy a thread.
+ * @param thread handle to the created thread
+ */
+void os_thread_cancel(os_thread_t thread);
+
 #if defined (__FreeRTOS__)
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {NULL, 0}

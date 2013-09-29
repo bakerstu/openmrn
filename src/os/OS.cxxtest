@@ -1,0 +1,343 @@
+/** \copyright
+ * Copyright (c) 2013, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file BufferQueue.cxxtest
+ * This file contains a unit test for classes in BufferQueue.hxx and
+ * BufferQueue.cxx.
+ *
+ * @author Stuart W. Baker
+ * @date 14 September 2013
+ */
+
+#include "gtest/gtest.h"
+#include "os/OS.hxx"
+
+/* this is a parlor trick to get at what is otherwise private in OSThread */
+pthread_t threadHandle;
+
+void *test_thread(void *arg)
+{
+    int *value = (int*)arg;
+    threadHandle = pthread_self();
+    for (int i = 0; i < 3; i++)
+    {
+        (*value)++;
+        sleep(2);
+    }
+
+    return (void*)0xDEADBEEF;
+}
+
+TEST(OSThreadTest, constructor)
+{
+    int value = 0;
+    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    EXPECT_TRUE(thread != NULL);
+    sleep(1);
+    
+    EXPECT_EQ(value, 1);
+}
+
+TEST(OSThreadTest, destructor)
+{
+    int value = 0;
+    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    EXPECT_TRUE(thread != NULL);
+    sleep(1);
+    delete thread;
+    void *result;
+    pthread_join(threadHandle, &result); 
+    
+    EXPECT_TRUE(result == (void*)0xDEADBEEF);
+    EXPECT_EQ(value, 3);
+}
+
+int count = 0;
+
+void one_time(void)
+{
+    count++;
+}
+
+OSThreadOnce *once = new OSThreadOnce(one_time);
+
+TEST(OSThreadOnceTest, all)
+{
+    once->once();
+    EXPECT_EQ(count, 1);
+    once->once();
+    EXPECT_EQ(count, 1);
+    once->once();
+    EXPECT_EQ(count, 1);
+}
+
+void *args[2] = {NULL, NULL};
+
+long long timeout_none(void *arg1, void *arg2)
+{
+    args[0] = arg1;
+    args[1] = arg2;
+    
+    return OS_TIMER_NONE;
+}
+
+TEST(OSTimerTest, none)
+{
+    OSTimer *timer = new OSTimer(timeout_none, (void*)0xBEEF, (void*)0xDEAD);
+    
+    timer->start(1000000000);
+    sleep(2);
+
+    EXPECT_TRUE(args[0] == (void*)0xBEEF);
+    EXPECT_TRUE(args[1] == (void*)0xDEAD);
+
+    args[0] = NULL;
+    args[1] = NULL;
+    
+    timer->start(1000000000);
+    timer->stop();
+
+    EXPECT_TRUE(args[0] == NULL);
+    EXPECT_TRUE(args[1] == NULL);
+    delete timer;
+}
+
+int timer_count;
+long long timestamp;
+
+long long timeout_restart(void *arg1, void *arg2)
+{
+    timer_count++;
+
+    timestamp = OSTime::get_monotonic();
+
+    return OS_TIMER_RESTART;
+}
+
+TEST(OSTimerTest, restart)
+{
+    OSTimer *timer = new OSTimer(timeout_restart, NULL, NULL);
+    
+    long long start = OSTime::get_monotonic();
+    timer_count = 0;
+    timer->start(700000000);
+    sleep(2);
+    timer->stop();
+
+    EXPECT_TRUE((timestamp - start) > 1390000000);
+    EXPECT_TRUE((timestamp - start) < 1410000000);
+    EXPECT_EQ(timer_count, 2);
+}
+
+long long timeout_delete(void *arg1, void *arg2)
+{
+    timer_count++;
+
+    timestamp = OSTime::get_monotonic();
+    
+    return OS_TIMER_DELETE;
+}
+
+TEST(OSTimerTest, delete)
+{
+    OSTimer *timer = new OSTimer(timeout_delete, (void*)0xBEEF, (void*)0xDEAD);
+    
+    long long start = OSTime::get_monotonic();
+    timer_count = 0;
+    timer->start(700000000);
+    sleep(2);
+
+    EXPECT_TRUE((timestamp - start) > 690000000);
+    EXPECT_TRUE((timestamp - start) < 710000000);
+    EXPECT_EQ(timer_count, 1);
+}
+
+long long timeout_value(void *arg1, void *arg2)
+{
+    timer_count++;
+
+    timestamp = OSTime::get_monotonic();
+    
+    return 800000000LL;
+}
+
+TEST(OSTimerTest, value)
+{
+    OSTimer *timer = new OSTimer(timeout_value, NULL, NULL);
+    
+    long long start = OSTime::get_monotonic();
+    timer_count = 0;
+    timer->start(700000000);
+    sleep(2);
+    timer->stop();
+
+    EXPECT_TRUE((timestamp - start) > 1490000000);
+    EXPECT_TRUE((timestamp - start) < 1510000000);
+    EXPECT_EQ(timer_count, 2);
+}
+
+TEST(OSSemTest, zero)
+{
+    OSSem *sem = new OSSem();
+    
+    sem->post();
+    sem->wait();
+    
+    EXPECT_EQ(sem->timedwait(0), -1);
+    delete sem;
+}
+
+TEST(OSSemTest, one)
+{
+    OSSem *sem = new OSSem(1);
+    
+    sem->post();
+    sem->wait();
+    
+    EXPECT_EQ(sem->timedwait(0), 0);
+    
+    long long start = OSTime::get_monotonic();
+    EXPECT_EQ(sem->timedwait(1000000000), -1);
+    long long stop = OSTime::get_monotonic();
+
+    EXPECT_TRUE((stop - start) > 999000000);
+    EXPECT_TRUE((stop - start) < 1010000000);
+    delete sem;
+}
+
+int mutex_test;
+
+void *mutex_thread(void *arg)
+{
+    OSMutex *mutex = (OSMutex*)arg;
+    mutex->lock();
+    mutex_test = 1;
+    mutex->unlock();
+    
+    return NULL;
+}
+
+TEST(OSMutexTest, normal)
+{
+    OSMutex *mutex = new OSMutex();
+
+    mutex->lock();
+    mutex_test = 0;
+    OSThread *thread = new OSThread("test", 0, 1024, mutex_thread, mutex); 
+    sleep(1);
+    EXPECT_EQ(mutex_test, 0);
+    mutex->unlock();
+    sleep(1);
+    EXPECT_EQ(mutex_test, 1);   
+    
+    delete thread;
+    delete mutex;
+}
+
+TEST(OSMutexTest, recursive)
+{
+    OSMutex *mutex = new OSMutex(true);
+    
+    mutex->lock();
+    mutex_test = 0;
+    mutex->lock();
+    OSThread *thread = new OSThread("test", 0, 1024, mutex_thread, mutex); 
+    sleep(1);
+    mutex->unlock();
+    EXPECT_EQ(mutex_test, 0);
+    mutex->unlock();
+    sleep(1);
+    EXPECT_EQ(mutex_test, 1);   
+    
+    delete thread;
+    delete mutex;
+}
+
+TEST(OSMutexLockTest, cplusplus)
+{
+    OSMutex *mutex = new OSMutex();
+    OSThread *thread;
+
+    {
+        OSMutexLock locker(mutex);
+        mutex_test = 0;
+        thread = new OSThread("test", 0, 1024, mutex_thread, mutex); 
+        sleep(1);
+        EXPECT_EQ(mutex_test, 0);
+    }
+    sleep(1);
+    EXPECT_EQ(mutex_test, 1);   
+    
+    delete thread;
+    delete mutex;
+}
+
+void *mutex_thread_c(void *arg)
+{
+    os_mutex_t *mutex = (os_mutex_t*)arg;
+    os_mutex_lock(mutex);
+    mutex_test = 1;
+    os_mutex_unlock(mutex);
+    
+    return NULL;
+}
+
+TEST(OSMutexLockTest, c)
+{
+    os_mutex_t mutex;
+    os_mutex_init(&mutex);
+    OSThread *thread;
+
+    {
+        OSMutexLock locker(&mutex);
+        mutex_test = 0;
+        thread = new OSThread("test", 0, 1024, mutex_thread, &mutex); 
+        sleep(1);
+        EXPECT_EQ(mutex_test, 0);
+    }
+    sleep(1);
+    EXPECT_EQ(mutex_test, 1);   
+    
+    delete thread;
+    os_mutex_destroy(&mutex);
+}
+
+TEST(OSTimeTest, all)
+{
+    long long start = OSTime::get_monotonic();
+    sleep(1);
+    long long stop = OSTime::get_monotonic();
+
+    EXPECT_TRUE((stop - start) > 999000000);
+    EXPECT_TRUE((stop - start) < 1010000000);
+}
+
+int appl_main(int argc, char* argv[])
+{
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+

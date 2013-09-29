@@ -3,6 +3,8 @@ ifeq ($(BASENAME),)
 BASENAME := $(shell basename `pwd`)
 endif
 
+include $(OPENMRNPATH)/etc/config.mk
+
 include $(OPENMRNPATH)/etc/linux.x86.mk
 
 include $(OPENMRNPATH)/etc/path.mk
@@ -10,7 +12,7 @@ include $(OPENMRNPATH)/etc/path.mk
 VPATH = $(OPENMRNPATH)/src/$(BASENAME)/
 
 FULLPATHCSRCS        = $(wildcard $(VPATH)*.c)
-FULLPATHCXXSRCS      = $(wildcard)
+FULLPATHCXXSRCS      = $(wildcard $(VPATH)*.cxx)
 FULLPATHCXXTESTSRCS  = $(wildcard $(VPATH)*.cxxtest)
 
 CSRCS       = $(notdir $(FULLPATHCSRCS))       $(wildcard *.c)
@@ -22,10 +24,19 @@ TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)
 
 TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.test)
 
+LIBDIR = $(OPENMRNPATH)/targets/linux.x86/lib
+FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
+LIBDIRS := $(SUBDIRS)
+LIBS = $(STARTGROUP) \
+       $(foreach lib,$(LIBDIRS),-l$(lib)) \
+       $(ENDGROUP) \
+       $(LINKCORELIBS)
+
 INCLUDES     += -I$(GTESTPATH)/include -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-CFLAGS       += $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-CXXFLAGS     += $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
+CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
+CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
 SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage -O0
+LDFLAGS      += -L$(LIBDIR)
 
 .SUFFIXES:
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test
@@ -34,8 +45,8 @@ all: $(TESTOUTPUTS)
 
 $(TESTOUTPUTS): $(OBJS) $(TESTOBJS)
 	$(LD) -o $@ $*.otest $(GTESTPATH)/src/gtest-all.o \
-	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) \
-	$(LDFLAGS) $(SYSLIBRARIES)
+	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
+	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -45,7 +56,7 @@ $(TESTOUTPUTS): $(OBJS) $(TESTOBJS)
 
 .cxxtest.otest:
 	$(CXX) $(CXXFLAGS) -MF $*.dtest -x c++ $< -o $@
-	ln -s $@.gcno $*.gcno
+#	ln -s $@.gcno $*.gcno
 
 #.otest.test:
 #	$(LD) -o $@ $< $(GTESTPATH)/src/gtest-all.o \

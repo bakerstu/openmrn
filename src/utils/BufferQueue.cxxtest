@@ -1,6 +1,186 @@
-#include "gtest/gtest.h"
+/** \copyright
+ * Copyright (c) 2013, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file BufferQueue.cxxtest
+ * This file contains a unit test for classes in BufferQueue.hxx and
+ * BufferQueue.cxx.
+ *
+ * @author Stuart W. Baker
+ * @date 14 September 2013
+ */
 
-int appl_main(int argc, char* argv[]) {
+#include "gtest/gtest.h"
+#include "utils/BufferQueue.hxx"
+
+TEST(BufferTest, free_alloc_init_4)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(4);
+    EXPECT_TRUE(buffer != NULL);
+    buffer->free();
+    buffer = mainBufferPool->buffer_alloc(4);
+    EXPECT_TRUE(buffer != NULL);    
+}
+
+TEST(BufferTest, free_alloc_init_8)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(8);
+    EXPECT_TRUE(buffer != NULL);
+    buffer->free();
+    buffer = mainBufferPool->buffer_alloc(8);
+    EXPECT_TRUE(buffer != NULL);    
+}
+
+TEST(BufferTest, free_alloc_init_16)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(16);
+    EXPECT_TRUE(buffer != NULL);
+    buffer->free();
+    buffer = mainBufferPool->buffer_alloc(16);
+    EXPECT_TRUE(buffer != NULL);    
+}
+
+TEST(BufferTest, free_alloc_init_32)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(32);
+    EXPECT_TRUE(buffer != NULL);
+    buffer->free();
+    buffer = mainBufferPool->buffer_alloc(32);
+    EXPECT_TRUE(buffer != NULL);    
+}
+
+TEST(BufferTest, advance_size_available)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(100);
+    buffer->advance(10);
+    EXPECT_TRUE(buffer->size() == 100);
+    EXPECT_TRUE(buffer->available() == 90);
+    EXPECT_TRUE((char*)buffer->start() + 10 == buffer->position());
+}
+
+TEST(BufferTest, expand)
+{
+    Buffer *buffer = mainBufferPool->buffer_alloc(100);
+    buffer = buffer->expand(200);
+    EXPECT_TRUE(buffer->size() == 200);
+    EXPECT_TRUE(buffer->available() == 200);
+    EXPECT_TRUE(buffer->start() == buffer->position());
+}
+
+TEST(BufferQueueTest, all)
+{
+    Buffer *buffer1 = mainBufferPool->buffer_alloc(100);
+    Buffer *buffer2 = mainBufferPool->buffer_alloc(32);
+    EXPECT_TRUE(buffer1 != NULL);
+    EXPECT_TRUE(buffer2 != NULL);
+    BufferQueue *queue = new BufferQueue();
+    EXPECT_TRUE(queue != NULL);
+    EXPECT_EQ(queue->pending(), (size_t)0);
+    EXPECT_TRUE(queue->empty());
+    EXPECT_TRUE(queue->next() == NULL);
+
+    queue->insert(buffer1);
+    EXPECT_EQ(queue->pending(), (size_t)1);
+    EXPECT_FALSE(queue->empty());
+
+    queue->insert(buffer2);
+    EXPECT_EQ(queue->pending(), (size_t)2);
+    EXPECT_FALSE(queue->empty());
+
+    EXPECT_TRUE(queue->next() == buffer1);
+    EXPECT_EQ(queue->pending(), (size_t)1);
+    EXPECT_FALSE(queue->empty());
+
+    EXPECT_TRUE(queue->next() == buffer2);
+    EXPECT_EQ(queue->pending(), (size_t)0);
+    EXPECT_TRUE(queue->empty());
+
+    EXPECT_TRUE(queue->next() == NULL);
+    
+    queue->buffer_free(buffer1);
+    queue->buffer_free(buffer2);
+}
+
+TEST(BufferQueueWaitTest, all)
+{
+    long long start, stop;
+
+    Buffer *buffer1 = mainBufferPool->buffer_alloc(100);
+    Buffer *buffer2 = mainBufferPool->buffer_alloc(32);
+    Buffer *buffer3 = mainBufferPool->buffer_alloc(8);
+    EXPECT_TRUE(buffer1 != NULL);
+    EXPECT_TRUE(buffer2 != NULL);
+    EXPECT_TRUE(buffer3 != NULL);
+    BufferQueueWait *queue = new BufferQueueWait();
+    EXPECT_TRUE(queue != NULL);
+    EXPECT_EQ(queue->pending(), (size_t)0);
+    EXPECT_TRUE(queue->empty());
+    EXPECT_TRUE(queue->next() == NULL);
+
+    queue->insert(buffer1);
+    EXPECT_EQ(queue->pending(), (size_t)1);
+    EXPECT_FALSE(queue->empty());
+
+    queue->insert(buffer2);
+    EXPECT_EQ(queue->pending(), (size_t)2);
+    EXPECT_FALSE(queue->empty());
+
+    queue->insert(buffer3);
+    EXPECT_EQ(queue->pending(), (size_t)3);
+    EXPECT_FALSE(queue->empty());
+
+    EXPECT_TRUE(queue->next() == buffer1);
+    EXPECT_EQ(queue->pending(), (size_t)2);
+    EXPECT_FALSE(queue->empty());
+
+    EXPECT_TRUE(queue->wait() == buffer2);
+    EXPECT_EQ(queue->pending(), (size_t)1);
+    EXPECT_FALSE(queue->empty());
+
+    start = OSTime::get_monotonic();
+    EXPECT_TRUE(queue->timedwait(OS_WAIT_FOREVER) == buffer3);
+    EXPECT_EQ(queue->pending(), (size_t)0);
+    EXPECT_TRUE(queue->empty());
+    stop = OSTime::get_monotonic();
+    EXPECT_TRUE((stop - start) < (long long)1000000);
+
+    start = OSTime::get_monotonic();
+    EXPECT_TRUE(queue->next() == NULL);
+    EXPECT_TRUE(queue->timedwait(1000000000) == NULL);
+    stop = OSTime::get_monotonic();
+    EXPECT_TRUE((stop - start) > (long long)9999000000);
+    EXPECT_TRUE((stop - start) < (long long)1001000000);
+    
+    queue->buffer_free(buffer1);
+    queue->buffer_free(buffer2);
+    queue->buffer_free(buffer3);
+}
+
+int appl_main(int argc, char* argv[])
+{
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
