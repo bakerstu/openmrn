@@ -55,12 +55,8 @@ public:
      * @param bytes number of bytes to advance.
      * @return pointer to the new position (next available byte)
      */
-    void *advance(size_t bytes)
-    {
-        left -= bytes;    
-        return &data[_size - left];
-    }
-
+    void *advance(size_t bytes);
+    
     /** Get a pointer to the first position (byte) of the buffer.
      * @return pointer to the first position (byte)
      */
@@ -99,6 +95,11 @@ public:
      */
     Buffer *expand(size_t size);
 
+    /** Add another reference to the buffer.
+     * @return total number of references to this point
+     */
+    unsigned int reference();
+
 private:
     /** Like a constructor, but in this case, we allocate extra space for the
      * user data.
@@ -115,12 +116,13 @@ private:
         buffer->bufferPool = pool;
         buffer->_size = size;
         buffer->left = size;
+        buffer->count = 1;
         return buffer;
     }
 
     /** Like a constructor, but in this case, we re-purpose an existing buffer
      * with no new memory allocation.
-     * @param pool BufferPool instance from which this buffer will come
+     * @param buffer instance of buffer to reinitialize
      * @param size size of user data in bytes
      * @return newly reinitialized buffer, HASSERT() on failure
      */
@@ -130,6 +132,7 @@ private:
         HASSERT(buffer->_size == size);
         buffer->next = NULL;
         buffer->left = size;
+        buffer->count = 1;
         return buffer;
     }
 
@@ -147,6 +150,9 @@ private:
 
     /** amount for free space left in the buffer */
     size_t left;
+    
+    /** number of references in use */
+    unsigned int count;
     
     /** user data */
     char data[];
@@ -207,6 +213,9 @@ private:
 
     /** This class is a helper of BufferQueue */
     friend class BufferQueue;
+
+    /** This class is a helper of Buffer */
+    friend class Buffer;
 
     /* default destructor */
     ~BufferPool();
@@ -379,10 +388,33 @@ inline void buffer_free(Buffer *buffer)
 
 /** Free this buffer to the BufferPool from whence it came.
  */
-void Buffer::free()
+inline void Buffer::free()
 {
     HASSERT(bufferPool != NULL);
     bufferPool->buffer_free(this);
+}
+
+    /** Advance the position of the buffer.
+     * @param bytes number of bytes to advance.
+     * @return pointer to the new position (next available byte)
+     */
+inline void *Buffer::advance(size_t bytes)
+{
+    bufferPool->mutex.lock();
+    left -= bytes;    
+    bufferPool->mutex.unlock();
+    return &data[_size - left];
+}
+
+/** Add another reference to the buffer.
+ * @return total number of references to this point
+ */
+inline unsigned int Buffer::reference()
+{
+    bufferPool->mutex.lock();
+    ++count;
+    bufferPool->mutex.unlock();
+    return count;
 }
 
 #endif /* _BufferQueue_hxx_ */

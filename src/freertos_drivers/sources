@@ -7,6 +7,9 @@ CSRCS += fileio.c \
 
 CXXSRCS += 
 
+ifeq ($(TARGET),freertos.armv7m)
+CXXSRCS += c++_operators.cxx
+endif
 
 # Find StellarisWare
 ifdef STELLARISWAREPATH

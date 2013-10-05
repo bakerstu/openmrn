@@ -35,7 +35,7 @@
 #define _NMRAnetIfCan_hxx_
 
 #include <fcntl.h>
-#include <vector>
+#include <new>
 
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
@@ -55,34 +55,19 @@ public:
     /** Constructor.
      * @param node_id node ID of interface
      * @param device description for this instance
-     * @param if_read read method for this interface
-     * @param if_write write method for this interface
+     * @param read read method for this interface
+     * @param write write method for this interface
      */
     IfCan(NodeID node_id, const char *device,
           ssize_t (*read)(int, void*, size_t),
-          ssize_t (*write)(int, const void*, size_t))
-        : If(node_id),
-          read(read),
-          write(write),
-          writeBuffer(this),
-          pool((Pool*)malloc(sizeof(Pool) * ALIAS_POOL_SIZE)),
-          fd(open(device, O_RDWR)),
-          downstreamCache((NodeID)0, (size_t)10),
-          upstreamCache(node_id, 10),
-          mutex()
-    {
-        HASSERT(fd >= 0);
-        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
-        {
-            /* Placement new allows for runtime/link-time array size */
-            new (pool + i) Pool(this);
-        }
-    }
+          ssize_t (*write)(int, const void*, size_t));
 
 protected:
     /** Default destructor.
      */
-    ~IfCan();
+    ~IfCan()
+    {
+    }
 
 private:
     /** Status value for an alias pool item.
@@ -185,12 +170,38 @@ private:
         NORMAL_PRIORITY = 1  /**< normal priority CAN message */
     };
     
-    enum ControlFrameType
+    enum ControlField
     {
         RID_FRAME = 0x0700, /**< Reserve ID Frame */
         AMD_FRAME = 0x0701, /**< Alias Map Definition frame */
         AME_FRAME = 0x0702, /**< Alias Mapping Inquery */
         AMR_FRAME = 0x0703  /**< Alias Map Reset */
+    };
+    
+    /** Enumerations having to deal with addressed frame types. */
+    enum Addressed
+    {
+        /** destination alias mask */
+        DESTINATION_MASK  = 0x0fff,
+
+        /** 0b00 = only frame, 0b01 = first frame,
+         *  0b10 = last frame, 0b11 = middle frame (mask)
+         */
+        FRAME_MASK        = 0x3000, 
+
+        /** reserved for future use */
+        RESERVED_MASK     = 0xc000,
+
+        /** destination alias shift */
+        DESTINATION_SHIFT = 0, /**< destination alias shift */
+
+        /** 0b00 = only frame, 0b01 = first frame,
+         *  0b10 = last frame, 0b11 = middle frame (shift)
+         */
+        FRAME_SHIFT       = 12, 
+
+        /** reserved for future use */
+        RESERVED_SHIFT    = 14
     };
     
     /** Get the source field value of the CAN ID.
@@ -251,50 +262,50 @@ private:
      * @param can_id identifier to act upon, passed by reference
      * @param mti MTI field value
      */
-    static void set_mti(uint32_t &can_id, CanMTI mti)
+    static void set_mti(uint32_t *can_id, CanMTI mti)
     {
-        can_id &= ~MTI_MASK;
-        can_id |= mti << MTI_SHIFT;
+        *can_id &= ~MTI_MASK;
+        *can_id |= mti << MTI_SHIFT;
     }
 
     /** Set the destination field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param dst destination field value
      */
-    static void set_dst(uint32_t &can_id, NodeAlias dst)
+    static void set_dst(uint32_t *can_id, NodeAlias dst)
     {
-        can_id &= ~DST_MASK;
-        can_id |= dst << DST_SHIFT;
+        *can_id &= ~DST_MASK;
+        *can_id |= dst << DST_SHIFT;
     }
 
     /** Set the CAN frame type field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param type CAN frame type field value
      */
-    static void set_can_frame_type(uint32_t &can_id, CanFrameType type)
+    static void set_can_frame_type(uint32_t *can_id, CanFrameType type)
     {
-        can_id &= ~CAN_FRAME_TYPE_MASK;
-        can_id |= type << CAN_FRAME_TYPE_SHIFT;
+        *can_id &= ~CAN_FRAME_TYPE_MASK;
+        *can_id |= type << CAN_FRAME_TYPE_SHIFT;
     }
 
     /** Set the frame type field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param type frame type field value
      */
-    static void set_frame_type(uint32_t &can_id, FrameType type)
+    static void set_frame_type(uint32_t *can_id, FrameType type)
     {
-        can_id &= ~FRAME_TYPE_MASK;
-        can_id |= type << FRAME_TYPE_SHIFT;
+        *can_id &= ~FRAME_TYPE_MASK;
+        *can_id |= type << FRAME_TYPE_SHIFT;
     }
 
     /** Set the priority field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param priority pryority field value
      */
-    static void set_priority(uint32_t &can_id, Priority priority)
+    static void set_priority(uint32_t *can_id, Priority priority)
     {
-        can_id &= ~PRIORITY_MASK;
-        can_id |= priority << PRIORITY_SHIFT;
+        *can_id &= ~PRIORITY_MASK;
+        *can_id |= priority << PRIORITY_SHIFT;
     }
 
     /** Set all the CAN ID fields.
@@ -305,13 +316,13 @@ private:
      * @param type frame type field value
      * @param priority priority field value
      */
-    static void set_fields(uint32_t &can_id, NodeAlias src, MTI mti, CanFrameType can_type, FrameType type, Priority priority)
+    static void set_fields(uint32_t *can_id, NodeAlias src, MTI mti, CanFrameType can_type, FrameType type, Priority priority)
     {
-        can_id = (src      << SRC_SHIFT           ) +
-                 (mti      << MTI_SHIFT           ) +
-                 (can_type << CAN_FRAME_TYPE_SHIFT) +
-                 (type     << FRAME_TYPE_SHIFT    ) +
-                 (priority << PRIORITY_SHIFT      );
+        *can_id = (src      << SRC_SHIFT           ) +
+                  (mti      << MTI_SHIFT           ) +
+                  (can_type << CAN_FRAME_TYPE_SHIFT) +
+                  (type     << FRAME_TYPE_SHIFT    ) +
+                  (priority << PRIORITY_SHIFT      );
     }
     
     /** Get the NMRAnet MTI from a can identifier.
@@ -326,6 +337,33 @@ private:
      * @return CAN identifier
      */
     static uint32_t can_identifier(MTI mti, NodeAlias src);
+
+    /** Get the source field of the a can control frame.
+     * @param can_id CAN ID of the control frame
+     * @return value of the source field
+     */
+    static NodeAlias get_control_src(uint32_t can_id)
+    {
+        return (can_id & CONTROL_SRC_MASK) >> CONTROL_SRC_SHIFT;
+    }
+
+    /** Get the field field of the a can control frame.
+     * @param can_id CAN ID of the control frame
+     * @return value of the field field
+     */
+    static ControlField get_control_field(uint32_t can_id)
+    {
+        return (ControlField)((can_id & CONTROL_FIELD_MASK) >> CONTROL_FIELD_SHIFT);
+    }
+
+    /** Get the sequence field of the a can control frame.
+     * @param can_id CAN ID of the control frame
+     * @return value of the sequence field
+     */
+    static unsigned int get_control_sequence(uint32_t can_id)
+    {
+        return (can_id & CONTROL_SEQUENCE_MASK) >> CONTROL_SEQUENCE_SHIFT;
+    }
 
     /** Initialize a control frame CAN ID and set DLC to 0.
      * @param _frame control frame to initialize
@@ -343,6 +381,15 @@ private:
         frame.can_dlc = 0;
     }
 
+    /** Get the destination field of addressed data.
+     * @param _address addressed data
+     * @return destination field value
+     */
+    NodeAlias get_addressed_destination(uint16_t address)
+    {
+        return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
+    }
+
     /** Write a message onto the CAN bus.
      * @param mti Message Type Indicator
      * @param src source node ID, 0 if unavailable
@@ -350,7 +397,40 @@ private:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data);
+    int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
+    {
+        mutex.lock();
+        int result = if_write_locked(mti, src, dst, data);
+        mutex.unlock();
+        return result;
+    }
+
+    /** Write a message onto the CAN bus.  The interface mutex should already
+     * be locked.
+     * @param mti Message Type Indicator
+     * @param src source node ID, 0 if unavailable
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     * @return 0 upon success
+     */
+    int if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data);
+
+    /** Entry point of thread for reading the data from the interface.
+     * @param data pointer to an IfCan instance
+     * @return NULL, should never return
+     */
+    static void *read_thread_entry(void *data)
+    {
+        IfCan *if_can = (IfCan*)data;
+        
+        return if_can->read_thread(data);
+    }
+
+    /** Thread for reading the data from the interface in proper context.
+     * @param data pointer to an IfCan instance
+     * @return NULL, should never return
+     */
+    void *read_thread(void *data);
 
     /** Setup the relationship between an alias and a downstream node.  This method
      * must always be called with the mutex locked.
@@ -359,6 +439,20 @@ private:
      */
     NodeAlias upstream_alias_setup(NodeID node_id);
     
+    /** Decode global or addressed can frame.
+     * @param can_id can identifier
+     * @param dlc data length code
+     * @param data pointer to up to 8 bytes of data
+     */
+    void global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data);
+
+    /** Test to see if the alias is in conflict with an alias we are using.
+     * @param alias alias to look for conflict with
+     * @param release true if we should release the alias if we have it reserved
+     * @return false if no conflict found, else true
+     */
+    bool alias_conflict(NodeAlias alias, bool release);
+
     /** Put out a claim on an alias.  The alias mutex should be locked during this
      * call.
      * @param node_id node id that is making the claim
@@ -367,8 +461,66 @@ private:
      */
     void claim_alias(NodeID node_id, NodeAlias alias, Pool *entry);
 
+    /** Decode Check ID CAN control frame.
+     * @param ccr CAN control frame
+     */
+    void ccr_cid_frame(uint32_t ccr);
+
+    /** Decode Reserve ID CAN control frame.
+     * @param ccr CAN control frame
+     */
+    void ccr_rid_frame(uint32_t ccr)
+    {
+        /* someone just reserved this alias.  Kick it out of our cache if we
+         * reserved it in the past.  This should never happen, we should catch
+         * it before now.
+         */
+        alias_conflict(get_control_src(ccr), 1);
+    }
+
+    /** Decode Alias Map Definition CAN control frame.
+     * @param ccr CAN control frame
+     * @param data frame data representing the full 48-bit Node ID
+     */
+    void ccr_amd_frame(uint32_t ccr, uint8_t data[]);
+
+    /** Decode Alias Map Enquiry CAN control frame.
+     * @param ccr CAN control frame
+     * @param data frame data representing the full 48-bit Node ID
+     */
+    void ccr_ame_frame(uint32_t ccr, uint8_t data[]);
+
+    /** Send an AMD frame for a given Node ID and Alias pair.
+     * @param data context pointer
+     * @param id Node ID
+     * @param alias Node Alias
+     */
+    static void send_amd_frame(void *data, NodeID id, NodeAlias alias);
+
+    /** Decode Alias Map Reset CAN control frame.
+     * @param ccr CAN control frame
+     * @param data frame data representing the full 48-bit Node ID
+     */
+    void ccr_amr_frame(uint32_t ccr, uint8_t data[]);
+
     ssize_t (*read)(int, void*, size_t); /**< read method for device */
     ssize_t (*write)(int, const void*, size_t); /**< write method for device */
+
+    /** Can be used by the application to determine if the link is up or down.
+     * @return current link status
+     */
+    LinkStatus link_status()
+    {
+        return linkStatus;
+    }
+    
+    /** Transition to link up state.
+     */
+    void link_up();
+    
+    /** Transition to link down state.
+     */
+    void link_down();
 
     /** Structure for buffering an addressed write until we can lookup its alias.
      */
@@ -446,16 +598,16 @@ private:
         friend class IfCan;
     };
     
+    /** file descriptor used for reading and writing data to and from physical
+     * interface
+     */
+    int fd;
+
     /** single buffer to hold write data while we determine the proper alias */
     WriteBuffer writeBuffer;
 
     /** Array of Pool entries for pre-allocated aliases */
     Pool *pool;
-
-    /** file descriptor used for reading and writing data to and from physical
-     * interface
-     */
-    int fd;
 
     /** Cache of Node ID to Alias mappings for downstream nodes */
     AliasCache downstreamCache;
@@ -465,6 +617,9 @@ private:
     
     /** Mutual exclusion for an instance of this class */
     OSMutex mutex;
+    
+    /** current link status */
+    LinkStatus linkStatus;
 
     
     DISALLOW_COPY_AND_ASSIGN(IfCan);

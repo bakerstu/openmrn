@@ -31,6 +31,15 @@
  * @date 18 September 2013
  */
 
+#if defined (__linux__) || defined (__MACH__)
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#endif
+
+#include <endian.h>
 #include <unistd.h>
 
 #include "nmranet/NMRAnetIfCan.hxx"
@@ -39,6 +48,115 @@
 
 namespace NMRAnet
 {
+
+/** Constructor.
+ * @param node_id node ID of interface
+ * @param device description for this instance
+ * @param read read method for this interface
+ * @param write write method for this interface
+ */
+IfCan::IfCan(NodeID node_id, const char *device,
+             ssize_t (*read)(int, void*, size_t),
+             ssize_t (*write)(int, const void*, size_t))
+    : If(node_id),
+      read(read),
+      write(write),
+      fd(open(device, O_RDWR)),
+      writeBuffer(this),
+      pool((Pool*)malloc(sizeof(Pool) * ALIAS_POOL_SIZE)),
+      downstreamCache(0, DOWNSTREAM_ALIAS_CACHE_SIZE),
+      upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE),
+      mutex(),
+      linkStatus(DOWN)
+{
+    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
+    {
+        /* Placement new allows for runtime/link-time array size */
+        new (pool + i) Pool(this);
+    }
+
+    if (fd >= 0)
+    {
+        link_up();
+    }
+#if defined (__linux__) || defined (__MACH__)
+    else if (!strncmp(device, "/tcp/", 5))
+    {
+        /* we must be working with a socket here */
+        int port = strtol(device + 5, NULL, 0);
+        int yes = 1;
+        
+        HASSERT(!(port == 0 && errno == EINVAL));
+        
+        socklen_t addrlen;
+        struct sockaddr_in addr;
+        int listen_fd;
+        
+        listen_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+        
+        HASSERT(listen_fd >= 0);
+        
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_port = htons(port);
+        
+        printf("port: %d\n", port);
+        
+        int result = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+        
+        HASSERT(result == 0);
+        
+        result = bind(listen_fd, (struct sockaddr*)&addr, sizeof(addr));
+        
+        HASSERT(result == 0);
+        
+        addrlen = sizeof(addr);
+        
+        result = getsockname(listen_fd, (struct sockaddr*) &addr, &addrlen);
+ 
+        HASSERT(result == 0);
+        
+        result = listen(listen_fd, 1);
+        
+        HASSERT(result == 0);
+        
+        fd = accept(listen_fd, (struct sockaddr*)&addr, &addrlen);
+        
+        printf("fd: %d, errno: %s\n", fd, strerror(errno));
+        HASSERT(fd >= 0);
+        
+        /* turn off Nagel algorithm. */
+        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+        
+        link_up();
+    }
+#else
+    else
+    {
+        HASSERT(0);
+    }
+#endif
+
+    new OSThread(device, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread_entry, this);
+}
+
+/** Transition to link up state.
+ */
+void IfCan::link_up()
+{
+    mutex.lock();
+    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
+    {
+        claim_alias(0, upstreamCache.generate(), pool + i);
+    }
+    mutex.unlock(); 
+}
+
+/** Transition to link down state.
+ */
+void IfCan::link_down()
+{
+}
 
 /** Get the NMRAnet MTI from a can identifier.
  * @param can_id CAN identifider
@@ -97,10 +215,10 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
     }
     struct can_frame frame[4];
     
-    control_init(frame[0], alias, (node_id >> 36) & 0xfff, 7);
-    control_init(frame[0], alias, (node_id >> 24) & 0xfff, 6);
-    control_init(frame[0], alias, (node_id >> 12) & 0xfff, 5);
-    control_init(frame[0], alias, (node_id >>  0) & 0xfff, 4);
+    control_init(frame[0], alias, (node_id >>  0) & 0xfff, 7);
+    control_init(frame[1], alias, (node_id >> 12) & 0xfff, 6);
+    control_init(frame[2], alias, (node_id >> 24) & 0xfff, 5);
+    control_init(frame[3], alias, (node_id >> 36) & 0xfff, 4);
     SET_CAN_FRAME_EFF(frame[0]);
     SET_CAN_FRAME_EFF(frame[1]);
     SET_CAN_FRAME_EFF(frame[2]);
@@ -114,7 +232,7 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
     CLR_CAN_FRAME_ERR(frame[2]);
     CLR_CAN_FRAME_ERR(frame[3]);
 
-    int result = (*write)(fd, &frame, sizeof(struct can_frame) * 4);
+    int result = (*write)(fd, frame, sizeof(struct can_frame) * 4);
     HASSERT(result == (sizeof(struct can_frame) * 4));
 
     /* wait 200+ msec */
@@ -223,16 +341,16 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
     }
 }
 
-/** Write a message onto the CAN bus.
+/** Write a message onto the CAN bus.  The interface mutex should already
+ * be locked.
  * @param mti Message Type Indicator
  * @param src source node ID, 0 if unavailable
  * @param dst destination node ID, 0 if unavailable
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int IfCan::if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
+int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
 {
-    mutex.lock();
     NodeAlias alias = upstreamCache.lookup(src);
     if (alias == 0)
     {
@@ -297,7 +415,7 @@ int IfCan::if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                         type = DATAGRAM_MIDDLE_FRAME;
                     }
                     struct can_frame frame;
-                    set_fields(frame.can_id, alias, (MTI)dst.alias, type, NMRANET_MSG, NORMAL_PRIORITY);
+                    set_fields(&frame.can_id, alias, (MTI)dst.alias, type, NMRANET_MSG, NORMAL_PRIORITY);
                     SET_CAN_FRAME_EFF(frame);
                     CLR_CAN_FRAME_RTR(frame);
                     CLR_CAN_FRAME_ERR(frame);
@@ -402,6 +520,7 @@ int IfCan::if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
         {
             frame.can_dlc = data->size() - data->available();
             memcpy(frame.data, data->start(), frame.can_dlc);
+            data->free();
         }
         else
         {
@@ -409,10 +528,597 @@ int IfCan::if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
         }
         int result = (write)(fd, &frame, sizeof(struct can_frame));
         HASSERT(result == (sizeof(struct can_frame)));
+        
     }        
-    mutex.unlock();
 
     return 0;
+}
+
+/** Decode global or addressed can frame.
+ * @param can_id can identifier
+ * @param dlc data length code
+ * @param data pointer to up to 8 bytes of data
+ */
+void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
+{
+    NodeHandle src;
+    src.alias = get_src(can_id);
+    mutex.lock();
+    src.id = downstreamCache.lookup(src.alias);
+    mutex.unlock();
+
+    if (get_mti_address(nmranet_mti(can_id)))
+    {
+        if (dlc < 2)
+        {
+            /** @todo should we do something else here? */
+            /* soft error, we throw this one away */
+            return;
+        }
+        /* addressed message */
+        uint16_t address = (data[0] << 0) +
+                           (data[1] << 8);
+        address = be16toh(address);
+        NodeID dst = upstreamCache.lookup(get_addressed_destination(address));
+        if (dst != 0)
+        {
+            Buffer *buffer;
+            if (dlc > 2)
+            {
+                /* collect the data */
+                buffer = buffer_alloc(dlc - 2);
+                memcpy(buffer->start(), data, (dlc - 2));
+                buffer->advance((dlc - 2));
+            }
+            else
+            {
+                buffer = NULL;
+            }
+                
+            rx_data(nmranet_mti(can_id), src, dst, buffer);
+        }
+    }
+    else
+    {
+        /* global message */
+        if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
+        {
+            mutex.lock();
+            int mapped = 0;
+            node_id_t node_id;
+            node_id = data[5];
+            node_id |= (node_id_t)data[4] << 8;
+            node_id |= (node_id_t)data[3] << 16;
+            node_id |= (node_id_t)data[2] << 24;
+            node_id |= (node_id_t)data[1] << 32;
+            node_id |= (node_id_t)data[0] << 40;
+            
+            if (src.id)
+            {
+                if (src.id != node_id)
+                {
+                    /* Looks like we have an existing mapping conflict.
+                     * Lets remove existing mapping.
+                     */
+                    downstreamCache.remove(src.alias);
+                }
+                else
+                {
+                    mapped = 1;
+                }
+            }
+            /* Normally, with a buffered write, we are looking for a CCR AMD
+             * frame.  However, this message has what we need, so if we get it
+             * first, let's go ahead and use it.
+             */
+            if (writeBuffer.in_use())
+            {
+                /* we have buffered a write for this node */
+                if (node_id == writeBuffer.dst.id)
+                {
+                    writeBuffer.dst.alias = src.alias;
+                    if_write(writeBuffer.mti, writeBuffer.src,
+                             writeBuffer.dst, writeBuffer.data);
+                    if (mapped == 0)
+                    {
+                        /* We obviously use this alias, so let's cache it
+                         * for later use.
+                         */
+                        downstreamCache.add(node_id, src.alias);
+                        writeBuffer.release();
+                        mapped = 1;
+                    }
+                }
+            }
+            else if (src.id && src.id != node_id)
+            {
+                /* we already had this mapping, we need to replace it */
+                downstreamCache.add(node_id, src.alias);
+            }
+#if 0
+            if (can_if->lookup_id.alias == src.alias)
+            {
+                /* we are performing a Node ID lookup based on an alias 
+                 * and we found a match
+                 */
+                can_if->lookup_id.id = node_id;
+                can_if->lookup_id.alias = 0;
+                os_timer_stop(&can_if->lookup_id.timer);
+                os_sem_post(&can_if->lookup_id.sem);
+                if (mapped == 0)
+                {
+                    /* We obviously use this alias, so let's cache it
+                     * for later use.
+                     */
+                    nmranet_alias_add(can_if->aliasCache, node_id, src.alias);
+                    write_buffer_release(can_if);
+                    mapped = 1;
+                }
+            }
+#endif
+            mutex.unlock();
+            /* update the source Node ID */
+            src.id = node_id;
+        }
+        Buffer *buffer;
+        if (dlc)
+        {
+            /* collect the data */
+            buffer = buffer_alloc(dlc);
+            memcpy(buffer->start(), data, dlc);
+            buffer->advance(dlc);
+        }
+        else
+        {
+            buffer = NULL;
+        }
+        rx_data(nmranet_mti(can_id), src, 0, buffer);
+    }
+}
+
+/** Test to see if the alias is in conflict with an alias we are using.
+ * @param alias alias to look for conflict with
+ * @param release we should release the alias if we have it reserved
+ * @return 0 if no conflict found, else 1
+ */
+bool IfCan::alias_conflict(NodeAlias alias, bool release)
+{
+    bool conflict = false;
+    
+    mutex.lock();
+    NodeID id = upstreamCache.lookup(alias);
+    if (id)
+    {
+        /* we have this alias reserved, prevent a collision */
+        if (release)
+        {
+            struct can_frame frame;
+            /* tell everyone to un-map our alias */
+            control_init(frame, alias, AMR_FRAME, 0);
+            SET_CAN_FRAME_EFF(frame);
+            CLR_CAN_FRAME_RTR(frame);
+            CLR_CAN_FRAME_ERR(frame);
+            frame.can_dlc = 6;
+            frame.data[0] = (id >> 40) & 0xff;
+            frame.data[1] = (id >> 32) & 0xff;
+            frame.data[2] = (id >> 24) & 0xff;
+            frame.data[3] = (id >> 16) & 0xff;
+            frame.data[4] = (id >>  8) & 0xff;
+            frame.data[5] = (id >>  0) & 0xff;
+
+            int result = (*write)(fd, &frame, sizeof(struct can_frame));
+            HASSERT(result == sizeof(struct can_frame));
+
+            upstreamCache.remove(alias);
+        }
+        conflict = true;
+    }
+    else
+    {
+        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
+        {
+            switch (pool[i].status)
+            {
+                case FREE:
+                    /* fall through */
+                case CONFLICT:
+                    /* keep looking */
+                    continue;
+                case UNDER_TEST:
+                    if (pool[i].alias == alias)
+                    {
+                        pool[i].status = CONFLICT;
+                    }
+                    break;
+                case RESERVED:
+                    if (pool[i].alias == alias)
+                    {
+                        if (release)
+                        {
+                            pool[i].status = CONFLICT;
+                            NodeAlias new_alias;
+                            do
+                            {
+                                new_alias = upstreamCache.generate();
+                            }
+                            while (downstreamCache.lookup(new_alias) != 0);
+                            claim_alias(0, new_alias, pool + i);
+                        }
+                        else
+                        {
+                            conflict = true;
+                        }
+                    }
+                    break;
+            }
+            break;
+        }
+    }
+    mutex.unlock();
+    
+    /* This assertion would mean that a recoverable alias conflict occured
+     * because someone was behaving badly on the bus.
+     */
+    DASSERT(release == false || conflict == false);
+
+    return conflict;
+}
+
+/** Decode Check ID CAN control frame.
+ * @param ccr CAN control frame
+ */
+void IfCan::ccr_cid_frame(uint32_t ccr)
+{
+    NodeAlias alias = get_control_src(ccr);
+    
+    if (alias_conflict(alias, 0))
+    {
+        /* remind everyone we own, or are trying to own, this alias with a
+         * Reserve ID frame
+         */
+        struct can_frame frame;
+        control_init(frame, alias, RID_FRAME, 0);
+        SET_CAN_FRAME_EFF(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_ERR(frame);
+
+        int result = (*write)(fd, &frame, sizeof(struct can_frame));
+        HASSERT(result == (sizeof(struct can_frame)));
+    }
+}
+
+/** Decode Alias Map Definition CAN control frame.
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+void IfCan::ccr_amd_frame(uint32_t ccr, uint8_t data[])
+{
+    NodeAlias alias = get_control_src(ccr);
+
+    /* look for and resolve conflicts in Alias mappings */
+    alias_conflict(alias, 1);
+
+    NodeID node_id;
+
+    node_id = data[5];
+    node_id |= (node_id_t)data[4] << 8;
+    node_id |= (node_id_t)data[3] << 16;
+    node_id |= (node_id_t)data[2] << 24;
+    node_id |= (node_id_t)data[1] << 32;
+    node_id |= (node_id_t)data[0] << 40;
+    
+    mutex.lock();
+    if (writeBuffer.in_use())
+    {
+        if (node_id == writeBuffer.dst.id)
+        {
+            writeBuffer.dst.alias = alias;
+
+            if_write_locked(writeBuffer.mti, writeBuffer.src, writeBuffer.dst, writeBuffer.data);
+
+            /* we obviously use this alias, so let's cache it for later use */
+            downstreamCache.add(node_id, writeBuffer.dst.alias);
+            writeBuffer.release();
+        }
+    }
+    mutex.unlock();
+
+    /* remove any in progress datagrams from this alias */
+    //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
+}
+
+/** Send an AMD frame for a given Node ID and Alias pair.
+ * @param data context pointer
+ * @param id Node ID
+ * @param alias Node Alias
+ */
+void IfCan::send_amd_frame(void *data, NodeID id, NodeAlias alias)
+{
+    IfCan *if_can = (IfCan*)data;
+
+    HASSERT(alias && id);
+
+    /* Tell the segment who maps to this alias */
+    struct can_frame frame;
+    control_init(frame, alias, AMD_FRAME, 0);
+    SET_CAN_FRAME_EFF(frame);
+    CLR_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    frame.can_dlc = 6;
+    frame.data[0] = (id >> 40) & 0xff;
+    frame.data[1] = (id >> 32) & 0xff;
+    frame.data[2] = (id >> 24) & 0xff;
+    frame.data[3] = (id >> 16) & 0xff;
+    frame.data[4] = (id >>  8) & 0xff;
+    frame.data[5] = (id >>  0) & 0xff;
+
+    int result = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
+    HASSERT(result == sizeof(struct can_frame));
+}
+
+/** Decode Alias Map Enquiry CAN control frame.
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+void IfCan::ccr_ame_frame(uint32_t ccr, uint8_t data[])
+{
+    /* look for and resolve conflicts in Alias mappings */
+    alias_conflict(get_control_src(ccr), 1);
+
+    if (data)
+    {
+        NodeID node_id;
+
+        node_id = data[5];
+        node_id |= (node_id_t)data[4] << 8;
+        node_id |= (node_id_t)data[3] << 16;
+        node_id |= (node_id_t)data[2] << 24;
+        node_id |= (node_id_t)data[1] << 32;
+        node_id |= (node_id_t)data[0] << 40;
+        
+        mutex.lock();
+        NodeAlias alias = upstreamCache.lookup(node_id);
+        if (alias)
+        {
+            send_amd_frame(this, node_id, alias);
+        }
+    }
+    else
+    {
+        mutex.lock();
+        upstreamCache.for_each(send_amd_frame, this);
+    }
+    mutex.unlock();
+}
+
+/** Decode Alias Map Reset CAN control frame.
+ * @param ccr CAN control frame
+ * @param data frame data representing the full 48-bit Node ID
+ */
+void IfCan::ccr_amr_frame(uint32_t ccr, uint8_t data[])
+{
+    NodeAlias alias = get_control_src(ccr);
+    NodeID node_id;
+
+    node_id = data[5];
+    node_id |= (node_id_t)data[4] << 8;
+    node_id |= (node_id_t)data[3] << 16;
+    node_id |= (node_id_t)data[2] << 24;
+    node_id |= (node_id_t)data[1] << 32;
+    node_id |= (node_id_t)data[0] << 40;
+
+    /* look for and resolve conflicts in Alias mappings */
+    alias_conflict(alias, 1);
+
+    mutex.lock();
+    downstreamCache.remove(alias);
+    downstreamCache.remove(node_id);
+    mutex.unlock();
+
+    /* remove any in progress datagrams from this alias */
+    //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
+}
+
+/** Thread for reading the data from the interface.
+ * @param data pointer to an IfCan instance
+ * @return NULL, should never return
+ */
+void *IfCan::read_thread(void *data)
+{
+    for ( ; /* forever */ ; )
+    {
+        struct can_frame frame;
+        CLR_CAN_FRAME_ERR(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_EFF(frame);
+
+        int result = (*read)(fd, &frame, sizeof(struct can_frame));
+        HASSERT(result == sizeof(struct can_frame));
+
+        /* OpenLCB doesn't care about standard frames. */
+        if (!IS_CAN_FRAME_EFF(frame))
+        {
+            continue;
+        }
+
+        /* address any abnormalities */
+        if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame))
+        {
+            /** @todo (Stuart Baker) do we need to dump any aliases under test
+             * if we get an error frame?
+             */
+            continue;
+        }
+        
+        if (get_frame_type(frame.can_id) == CONTROL_MSG)
+        {
+            switch (get_control_sequence(frame.can_id))
+            {
+                default:
+                    /* this is another protocol, let's grab the next frame */
+                    continue;
+                case 0x4:
+                    /* fall through */
+                case 0x5:
+                    /* fall through */
+                case 0x6:
+                    /* fall through */
+                case 0x7:
+                    ccr_cid_frame(frame.can_id);
+                    /* we are done decoding, let's grab the next frame */
+                    continue;
+                case 0x0:
+                    switch (get_control_field(frame.can_id))
+                    {
+                        default:
+                            /* unknown field, let's grab the next frame */
+                            continue;
+                        case RID_FRAME:
+                            ccr_rid_frame(frame.can_id);
+                            break;
+                        case AMD_FRAME:
+                            ccr_amd_frame(frame.can_id, frame.data);
+                            break;
+                        case AME_FRAME:
+                            ccr_ame_frame(frame.can_id, (frame.can_dlc == 0) ? NULL : frame.data);
+                            break;
+                        case AMR_FRAME:
+                            ccr_amr_frame(frame.can_id, frame.data);
+                            break;
+                    } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
+                    break;
+            } /* switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id)) */
+        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
+        else
+        {
+            if (alias_conflict(get_control_src(frame.can_id), 1))
+            {
+                /* there was a conflict in the alias mappings */
+                continue;
+            }
+            /** find the proper packet decoder */
+            switch(get_can_frame_type(frame.can_id))
+            {
+                default:
+                    break;
+                case GLOBAL_ADDRESSED:
+                    global_addressed(frame.can_id, frame.can_dlc, frame.data);
+                    break;
+                case DATAGRAM_ONE_FRAME:
+                    /* fall through */
+                case DATAGRAM_FIRST_FRAME:
+                    /* fall through */
+                case DATAGRAM_MIDDLE_FRAME:
+                    /* fall through */
+                case DATAGRAM_FINAL_FRAME:
+                    //type_datagram(can_if, frame.can_id, frame.can_dlc, frame.data);
+                    break;
+                case STREAM_DATA:
+                    break;
+            } /* switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id) */
+        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
+    } /* for ( ; forever ; ) */
+#if 0
+    NMRAnetCanIF *can_if = (NMRAnetCanIF*)data;
+
+    for ( ; /* forever */ ; )
+    {
+        struct can_frame frame;
+        CLR_CAN_FRAME_ERR(frame);
+        CLR_CAN_FRAME_RTR(frame);
+        CLR_CAN_FRAME_EFF(frame);
+
+        int result = (*can_if->read)(can_if->read_fd, &frame, sizeof(struct can_frame));
+        if (result < 0)
+        {
+            abort();
+        }
+        
+        /* OpenLCB doesn't care about standard frames. */
+        if (!IS_CAN_FRAME_EFF(frame))
+        {
+            continue;
+        }
+
+        /* address any abnormalities */
+        if (IS_CAN_FRAME_ERR(frame) ||
+            IS_CAN_FRAME_RTR(frame))
+        {
+            /** @todo need to handle these conditions properly */
+            abort();
+        }
+        
+        if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0)
+        {
+            switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id))
+            {
+                default:
+                    /* this is another protocol, let's grab the next frame */
+                    continue;
+                case 0x4:
+                    /* fall through */
+                case 0x5:
+                    /* fall through */
+                case 0x6:
+                    /* fall through */
+                case 0x7:
+                    ccr_cid_frame(can_if, frame.can_id);
+                    /* we are done decoding, let's grab the next frame */
+                    continue;
+                case 0x0:
+                    switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id))
+                    {
+                        default:
+                            /* unknown field, let's grab the next frame */
+                            continue;
+                        case RID_FRAME:
+                            ccr_rid_frame(frame.can_id);
+                            break;
+                        case AMD_FRAME:
+                            ccr_amd_frame(can_if, frame.can_id, frame.data);
+                            break;
+                        case AME_FRAME:
+                            ccr_ame_frame(can_if, frame.can_id, (frame.can_dlc == 0) ? NULL : frame.data);
+                            break;
+                        case AMR_FRAME:
+                            ccr_amr_frame(can_if, frame.can_id, frame.data);
+                            break;
+                    } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
+                    alias_conflict(can_if, GET_CAN_CONTROL_FRAME_SOURCE(frame.can_id), 1);
+                    break;
+            } /* switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id)) */
+        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
+        else
+        {
+            if (alias_conflict(can_if, GET_CAN_ID_SOURCE(frame.can_id), 1))
+            {
+                /* there was a conflict in the alias mappings */
+                continue;
+            }
+            /** find the proper packet decoder */
+            switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id))
+            {
+                default:
+                    break;
+                case TYPE_GLOBAL_ADDRESSED:
+                    type_global_addressed(can_if, frame.can_id, frame.can_dlc, frame.data);
+                    break;
+                case TYPE_DATAGRAM_ONE_FRAME:
+                    /* fall through */
+                case TYPE_DATAGRAM_FIRST_FRAME:
+                    /* fall through */
+                case TYPE_DATAGRAM_MIDDLE_FRAME:
+                    /* fall through */
+                case TYPE_DATAGRAM_FINAL_FRAME:
+                    type_datagram(can_if, frame.can_id, frame.can_dlc, frame.data);
+                    break;
+                case TYPE_STREAM_DATA:
+                    break;
+            } /* switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id) */
+        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
+    } /* for ( ; forever ; ) */
+#endif    
+    return NULL;
 }
 
 }; /* namespace NMRAnet */

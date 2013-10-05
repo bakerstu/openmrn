@@ -121,6 +121,13 @@ public:
         MTI_RESERVED_SHIFT = 14  /**< reserved shift */
     };
 
+    /** Status of the pysical layer link */
+    enum LinkStatus
+    {
+        UP,  /**< link is up and ready for transmit */
+        DOWN /**< link is down and unable to transmit */
+    };
+    
     /** Write a message onto the interface.
      * @param mti Message Type Indicator
      * @param src source node ID, 0 if unavailable
@@ -128,13 +135,27 @@ public:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    virtual int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data);
+    virtual int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data) = 0;
+
+    /** Process receive data.
+     * @param mti Message Type Indicator
+     * @param src source node ID, 0 if unavailable
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     */
+    void rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data);
+    
+    /** Can be used by the application to determine if the link is up or down.
+     * @return current link status
+     */
+    virtual LinkStatus link_status() = 0;
 
 protected:
     /** Default Destructor.
      */
-    ~If();
-
+    virtual ~If()
+    {
+    }
 
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from
