@@ -38,7 +38,7 @@
 #include <inttypes.h>
 
 /* switch for C++ testing until it is ready for main stream, '0' = C++ */
-#if 1
+#if 0
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 #include "mbed.h"
 #endif
