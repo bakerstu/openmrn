@@ -142,7 +142,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
         {
             /* avoid dead lock waiting for PTHREAD_ONCE_DONE state */
             os_mutex_unlock(&onceMutex);
-            /** @todo should we sleep here? */
+            usleep(MSEC_TO_USEC(10));
             os_mutex_lock(&onceMutex);
         }
         os_mutex_unlock(&onceMutex);

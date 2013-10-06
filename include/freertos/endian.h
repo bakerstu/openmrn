@@ -31,6 +31,9 @@
  * @date 13 August 2012
  */
 
+#ifndef _endian_h_
+#define _endian_h_
+
 #include <stdint.h>
 
 /** Byte swap a 16 bit value.
@@ -100,3 +103,4 @@ static inline uint64_t __bswap_64(uint64_t x)
     #define le64toh(x) (x)
 #endif
 
+#endif /* _endian_h_ */

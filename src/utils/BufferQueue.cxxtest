@@ -170,8 +170,8 @@ TEST(BufferQueueWaitTest, all)
     EXPECT_TRUE(queue->next() == NULL);
     EXPECT_TRUE(queue->timedwait(1000000000) == NULL);
     stop = OSTime::get_monotonic();
-    EXPECT_TRUE((stop - start) > (long long)9999000000);
-    EXPECT_TRUE((stop - start) < (long long)1001000000);
+    EXPECT_TRUE((stop - start) > (long long)998000000);
+    EXPECT_TRUE((stop - start) < (long long)1002000000);
     
     queue->buffer_free(buffer1);
     queue->buffer_free(buffer2);

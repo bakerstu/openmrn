@@ -31,6 +31,9 @@
  * @date 29 January 2013
  */
 
+#ifndef _endian_h_
+#define _endian_h_
+
 #include <stdint.h>
 #include <sys/param.h>
 
@@ -101,3 +104,4 @@ static inline uint64_t __bswap_64(uint64_t x)
     #define le64toh(x) (x)
 #endif
 
+#endif /* _endian_h_ */

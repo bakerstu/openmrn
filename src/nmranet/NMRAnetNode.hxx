@@ -36,12 +36,15 @@
 #define _NMRAnetNode_hxx_
 
 #include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/NMRAnetDatagram.hxx"
 #include "utils/RBTree.hxx"
 
 namespace NMRAnet
 {
 
-class Node
+/** NMRAnet virtual node.
+ */
+class Node : public Datagram
 {
 public:
     /** Constructor.
@@ -50,7 +53,8 @@ public:
      * @param model node decription
      */
     Node(NodeID node_id, If *nmranet_if, const char *model)
-        : nodeID(node_id),
+        : Datagram(),
+          nodeID(node_id),
           model(model),
           userName(NULL),
           userDescription(NULL),
@@ -99,6 +103,14 @@ public:
     /** Move node into the initialized state.
      */
     void initialized();
+    
+    /** Get the 48-bit NMRAnet Node ID of a node.
+     * @return Node ID
+     */
+    NodeID id()
+    {
+        return nodeID;
+    }
     
 private:
     /** Send a verify node id number message.
@@ -176,6 +188,10 @@ private:
     
     /** allow If class to access Node members */
     friend class If;
+    
+    /** allow If class to access Node members */
+    friend class Datagram;
+    
 };
 
 };

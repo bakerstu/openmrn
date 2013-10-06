@@ -34,6 +34,7 @@
 #ifndef _BufferQueue_hxx_
 #define _BufferQueue_hxx_
 
+#include <cstdint>
 #include <cstdlib>
 
 #include <os/OS.hxx>
@@ -95,6 +96,22 @@ public:
      */
     Buffer *expand(size_t size);
 
+    /** Set the unique identifier for the buffer.
+     * @param identifier 32-bit unique identifier
+     */
+    void id(uint32_t identifier)
+    {
+        _id = identifier;
+    }
+
+    /** Get the unique identifier for the buffer.
+     * @return 32-bit unique identifier
+     */
+    uint32_t id()
+    {
+        return _id;
+    }
+
     /** Add another reference to the buffer.
      * @return total number of references to this point
      */
@@ -105,18 +122,23 @@ private:
      * user data.
      * @param pool BufferPool instance from which this buffer will come
      * @param size size of user data in bytes
-     * @return newly allocated buffer, HASSERT() on failure
+     * @param items number of items to allocate
+     * @return newly allocated buffer or addres of first item in an array of
+     *         allocated buffers, HASSERT() on failure
      */
-    static Buffer *alloc(BufferPool *pool, size_t size)
+    static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1)
     {
-        HASSERT(pool != NULL);
-        Buffer *buffer = (Buffer*)malloc(size + sizeof(Buffer));
+        HASSERT(pool != NULL && items != 0);
+        Buffer *buffer = (Buffer*)malloc((size + sizeof(Buffer)) * items);
         HASSERT(buffer != NULL);
-        buffer->next = NULL;
-        buffer->bufferPool = pool;
-        buffer->_size = size;
-        buffer->left = size;
-        buffer->count = 1;
+        for (size_t i = 0; i < items; ++i)
+        {
+            buffer[i].next = NULL;
+            buffer[i].bufferPool = pool;
+            buffer[i]._size = size;
+            buffer[i].left = size;
+            buffer[i].count = 1;
+        }
         return buffer;
     }
 
@@ -150,6 +172,9 @@ private:
 
     /** amount for free space left in the buffer */
     size_t left;
+
+    /** message ID for uniquely identifying this buffer in a queue */
+    uint32_t _id;
     
     /** number of references in use */
     unsigned int count;
@@ -180,8 +205,37 @@ public:
     BufferPool()
         : totalSize(0),
           mutex(),
-          pool {NULL, NULL, NULL, NULL}
+          pool {NULL, NULL, NULL, NULL},
+          itemSize(0),
+          items(0)
     {
+    }
+
+    /* Constructor for a fixed size pool.
+     * @param item_size size of each item in the pool
+     * @param items number of items in the pool
+     */
+    BufferPool(size_t item_size, size_t items)
+        : totalSize(0),
+          mutex(),
+          pool {NULL, NULL, NULL, NULL},
+          itemSize(item_size),
+          items(items)
+    {
+        /* pre-allocate a pool of buffers and initialize the empty list */
+        Buffer *buffers = Buffer::alloc(this, item_size, items);
+        
+        for (size_t i = 0; i < items; ++i)
+        {
+            buffers[i].next = pool[0];
+            pool[0] = &buffers[i];
+        }
+    }
+
+    /* default destructor */
+    ~BufferPool()
+    {
+        HASSERT(0);
     }
 
     /** Get a free buffer out of the pool.  A buffer may be
@@ -210,15 +264,18 @@ private:
 
     /** Free buffer pool */
     Buffer *pool[4];
+    
+    /** item Size for fixed pools */
+    size_t itemSize;
+    
+    /** number of items for fixed pools */
+    size_t items;
 
     /** This class is a helper of BufferQueue */
     friend class BufferQueue;
 
     /** This class is a helper of Buffer */
     friend class Buffer;
-
-    /* default destructor */
-    ~BufferPool();
 
     DISALLOW_COPY_AND_ASSIGN(BufferPool);
 };
@@ -236,6 +293,12 @@ public:
           tail(NULL),
           count(0),
           mutex()
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~BufferQueue()
     {
     }
 
@@ -274,9 +337,6 @@ public:
     }
     
 protected:
-    /** Default destructor.
-     */
-    ~BufferQueue();
 
 private:
     /** head buffer in queue */
@@ -305,6 +365,12 @@ public:
     BufferQueueWait()
         : BufferQueue(),
           sem(0)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~BufferQueueWait()
     {
     }
 
@@ -359,10 +425,6 @@ public:
     }
     
 private:
-    /** Default destructor.
-     */
-    ~BufferQueueWait();
-
     /** Semaphore that we will wait on */
     OSSem sem;
 

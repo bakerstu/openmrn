@@ -242,7 +242,6 @@ const size_t main_stack_size = 2560;
 const size_t ALIAS_POOL_SIZE = 2;
 const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
 const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
-const size_t DATAGRAM_POOL_SIZE = 10;
 const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 32;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
@@ -257,6 +256,8 @@ using namespace NMRAnet;
 const char *Node::manufacturer = "Stuart W. Baker";
 const char *Node::hardware_rev = "N/A";
 const char *Node::software_rev = "0.1";
+
+const size_t Datagram::POOL_SIZE = 10;
 
 /** Entry point to application.
  * @param argc number of command line arguments

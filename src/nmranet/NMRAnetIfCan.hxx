@@ -621,7 +621,6 @@ private:
     /** current link status */
     LinkStatus linkStatus;
 
-    
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 

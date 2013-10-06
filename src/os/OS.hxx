@@ -35,6 +35,8 @@
 #ifndef _os_hxx_
 #define _os_hxx_
 
+#include <endian.h>
+
 #include "utils/macros.h"
 #include "os/os.h"
 
@@ -91,7 +93,9 @@ public:
     }
 
     /** Default Destructor */
-    ~OSThreadOnce();
+    ~OSThreadOnce()
+    {
+    }
 
 private:
     DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);

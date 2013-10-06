@@ -45,12 +45,25 @@ BufferPool *mainBufferPool = new BufferPool();
 
 /** Get a free buffer out of the pool.
  * @param size minimum size in bytes the buffer must hold
- * @return pointer to the newly allocated buffer
+ * @return pointer to the newly allocated buffer, NULL if there is no free buffer
  */
 Buffer *BufferPool::buffer_alloc(size_t size)
 {
+    Buffer *buffer = NULL;
+
+    if (itemSize != 0)
+    {
+        HASSERT(size <= itemSize);
+        if (pool[0] != NULL)
+        {
+            buffer = pool[0];
+            pool[0] = buffer->next;
+            (void)Buffer::init(buffer, size);
+        }
+        return buffer;
+    }
+
     int index = 0;
-    Buffer *buffer;
 
     if (size <= 4)
     {
@@ -108,34 +121,39 @@ Buffer *BufferPool::buffer_alloc(size_t size)
 void BufferPool::buffer_free(Buffer *buffer)
 {
     HASSERT(this == buffer->bufferPool);
+
     int index = 0;
 
     mutex.lock();
     if (--(buffer->count) == 0)
     {
         /* this buffer is no longer in use by anyone */
-        switch (buffer->_size)
+        if (itemSize == 0)
         {
-            default:
-                /* big buffers are just freed */
-                totalSize -= buffer->_size;
-                totalSize -= sizeof(Buffer);
-                DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
-                free(buffer);
-                mutex.unlock();
-                return;
-            case 4:
-                index = 0;
-                break;
-            case 8:
-                index = 1;
-                break;
-            case 16:
-                index = 2;
-                break;
-            case 32:
-                index = 3;
-                break;
+            /* we don't have a fixed pool */
+            switch (buffer->_size)
+            {
+                default:
+                    /* big buffers are just freed */
+                    totalSize -= buffer->_size;
+                    totalSize -= sizeof(Buffer);
+                    DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+                    free(buffer);
+                    mutex.unlock();
+                    return;
+                case 4:
+                    index = 0;
+                    break;
+                case 8:
+                    index = 1;
+                    break;
+                case 16:
+                    index = 2;
+                    break;
+                case 32:
+                    index = 3;
+                    break;
+            }
         }
 
         buffer->next = pool[index];
