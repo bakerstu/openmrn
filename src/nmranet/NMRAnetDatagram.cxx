@@ -33,6 +33,7 @@
 
 #include <unistd.h>
 
+#include "nmranet/NMRAnetMessageID.hxx"
 #include "nmranet/NMRAnetDatagram.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
@@ -43,8 +44,34 @@ namespace NMRAnet
 #define DATAGRAM_TIMEOUT 3000000000LL
 
 BufferPool Datagram::pool(sizeof(Datagram::Message), Datagram::POOL_SIZE);
-BufferQueueWait Datagram::queue;
+BufferQueueWait Datagram::dq;
+BufferQueueWait Datagram::pending;
 OSThreadOnce Datagram::once(Datagram::one_time_init);
+
+/** Thread for handling platform datagrams.
+ * @param arg unused
+ * @return should never return
+ */
+void *Datagram::thread(void *arg)
+{
+    for ( ; /* forever */ ; )
+    {
+        Buffer *buffer = pending.wait();
+        
+        switch (protocol(buffer))
+        {
+            default:
+                /* unhandled protocol */
+                break;
+            case CONFIGURATION:
+                //datagram_memory_config(d->to, datagram);
+                break;
+        }
+        buffer->free();
+    }
+
+    return NULL;
+}
 
 /** One time initialization */
 void Datagram::one_time_init()
@@ -52,34 +79,10 @@ void Datagram::one_time_init()
     for (size_t i = 0; i < POOL_SIZE; ++i)
     {
         Buffer *buffer = pool.buffer_alloc(sizeof(Datagram::Message));
-        queue.insert(buffer);
+        dq.insert(buffer);
     }
-}
-
-/** Allocate a datagram from the pool.
- * @return datagram allocated, or NULL if there are no more datagrams available.
- */
-Datagram::Message *Datagram::alloc(void)
-{
-#if 0
-    if (datagramCount >= DATAGRAM_POOL_SIZE && DATAGRAM_POOL_SIZE != 0)
-    {
-        /* we have met our quota for outstanding datagrams in flight */
-        return NULL;
-    }
-
-    os_thread_once(&datagramOnce, datagram_init);
-
-    Datagram *datagram = nmranet_queue_next(pool);
-
-    if (datagram == NULL)
-    {
-        datagram = nmranet_buffer_alloc(sizeof(Datagram));
-    }
-
-    return datagram;
-#endif
-    return NULL;
+    
+    new OSThread("Datagram", 0, THREAD_STACK_SIZE, thread, NULL);
 }
 
 /** Allocate and prepare a datagram buffer.
@@ -92,7 +95,7 @@ Buffer *Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
 {
     HASSERT(size <= (MAX_SIZE - protocol_size(protocol)) && timeout >= 0);
 
-    Buffer *buffer = queue.timedwait(timeout);
+    Buffer *buffer = dq.timedwait(timeout);
     if (buffer == NULL)
     {
         /* we must have timed out */
@@ -102,7 +105,7 @@ Buffer *Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
     Message *message = (Message*)buffer->start();
         
     message->size = size + protocol_size(protocol);
-    message->from.id = ((Node*)this)->id();
+    message->from.id = id();
 
 
     /* copy over the protocol */
@@ -170,7 +173,7 @@ void Datagram::buffer_release(Buffer *buffer)
     HASSERT(buffer);
 
     /* put the buffer back in the free pool queue */
-    queue.insert(buffer);
+    dq.insert(buffer);
 }
 
 /** Timeout handler for datagram timeouts.
@@ -195,14 +198,17 @@ long long Datagram::timeout(void *data1, void *data2)
     return OS_TIMER_NONE;
 }
 
-/** Produce a Datagram from a given node.
+/** Produce a Datagram from a given node using a pre-allocated buffer.
  * @param dst destination node id or alias
  * @param datagram datagram to produce
  * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int Datagram::buffer_produce(NodeHandle dst, Buffer *buffer, long long timeout)
+int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
 {
+    /* make sure we are passed a buffer out of the datagram pool */
+    HASSERT(pool.valid(buffer));
+
     /* timestamp the entry to this function */
     long long start = os_get_time_monotonic();
 
@@ -254,7 +260,7 @@ int Datagram::produce(NodeHandle dst, uint64_t protocol, const void *data,
     
     buffer_fill(buffer, protocol, data, 0, size);
 
-    if (buffer_produce(dst, buffer, timeout) != 0)
+    if (produce(dst, buffer, timeout) != 0)
     {
         /* ERRNO already set appropriately */
         buffer_release(buffer);
@@ -262,6 +268,44 @@ int Datagram::produce(NodeHandle dst, uint64_t protocol, const void *data,
     }
 
     return 0;
+}
+
+/** Determine the datagram protocol (could be 1, 2, or 6 bytes).
+ * @param m @ref Message pointer to the beginning of the datagram
+ * @return protocol type
+ */
+uint64_t Datagram::protocol(Buffer *data)
+{
+    Message *m = (Message*)data->start();
+    switch (m->data[0] & 0xF0)
+    {
+        default:
+            return m->data[0];
+        case PROTOCOL_SIZE_2:
+            return ((uint64_t)m->data[1] << 8) + ((uint64_t)m->data[2] << 0);
+        case PROTOCOL_SIZE_6:
+            return ((uint64_t)m->data[1] << 40) + ((uint64_t)m->data[2] << 32) +
+                   ((uint64_t)m->data[3] << 24) + ((uint64_t)m->data[4] << 16) +
+                   ((uint64_t)m->data[5] <<  8) + ((uint64_t)m->data[6] <<  0);
+    }
+}
+
+/** Process the datagram automatically.
+ * @param data buffer to process
+ * @return 0 if we do not have an automated processing option, else return 1
+ */
+int Datagram::process(Buffer *data)
+{
+    switch (protocol(data))
+    {
+        default:
+            /* unhandled protocol */
+            return 0;
+        case CONFIGURATION:
+            pending.insert(data);
+            break;
+    }
+    return 1;
 }
 
 /** Post the reception of a datagram to given node.
@@ -278,8 +322,8 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
             break;
         case If::MTI_DATAGRAM_REJECTED:
         {
-            uint8_t *bytes = (uint8_t*)data->start();
-            uint16_t error = bytes[0] + (bytes[1] << 8);
+            Message *m = (Message*)data->start();
+            uint16_t error = m->data[0] + (m->data[1] << 8);
             error = htobe16(error);
             if (resend_ok(error))
             {
@@ -317,18 +361,12 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
             break;
         case If::MTI_DATAGRAM:
             write(If::MTI_DATAGRAM_OK, src, NULL);
-#if 0
-            if (datagram_process(node, (datagram_t*)data) == 0)
+            if (process(data) == 0)
             {
                 /* push this up for the application to process */
-                nmranet_queue_insert(n->priv->datagramQueue, data);
-                if (n->priv->wait != NULL)
-                {
-                    /* wakeup whoever is waiting */
-                    os_sem_post(n->priv->wait);
-                }
+                data->id(ID_DATAGRAM_DELIVER);
+                rx_queue()->insert(data);
             }
-#endif
             break;
     }
 }

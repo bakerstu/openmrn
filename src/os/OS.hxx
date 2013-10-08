@@ -63,7 +63,10 @@ public:
     {
     }
 
-private:    
+private:  
+    /** Default Constructor */
+    OSThread();
+      
     DISALLOW_COPY_AND_ASSIGN(OSThread);
 
     /** Private thread handle. */

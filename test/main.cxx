@@ -246,7 +246,6 @@ const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 32;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
-const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 
 const int main_priority = 0;
@@ -258,6 +257,7 @@ const char *Node::hardware_rev = "N/A";
 const char *Node::software_rev = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
+const size_t Datagram::THREAD_STACK_SIZE = 512;
 
 /** Entry point to application.
  * @param argc number of command line arguments

@@ -163,7 +163,8 @@ private:
 };
 
 /** Update the time stamp for a given entry.
- * @param  metadata metadata associated with the entry */
+ * @param  metadata metadata associated with the entry
+ */
 inline void AliasCache::touch(Metadata* metadata)
 {
     RBTree<long long, Metadata*>::Node *node = timeTree.remove(metadata->timestamp);

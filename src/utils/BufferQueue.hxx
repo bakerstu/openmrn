@@ -218,17 +218,14 @@ public:
     BufferPool(size_t item_size, size_t items)
         : totalSize(0),
           mutex(),
-          pool {NULL, NULL, NULL, NULL},
+          pool {Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
           itemSize(item_size),
           items(items)
     {
-        /* pre-allocate a pool of buffers and initialize the empty list */
-        Buffer *buffers = Buffer::alloc(this, item_size, items);
-        
         for (size_t i = 0; i < items; ++i)
         {
-            buffers[i].next = pool[0];
-            pool[0] = &buffers[i];
+            first[i].next = pool[1];
+            pool[1] = &first[i];
         }
     }
 
@@ -238,6 +235,24 @@ public:
         HASSERT(0);
     }
 
+    /** Used in static pools to tell if this buffer is a member of the pool.
+     * @param buffer buffer to test validity on
+     * @return true if the buffer is in the pool, or this is not a fixed pool,
+     *         else return false;
+     */
+    bool valid(Buffer *buffer)
+    {
+        if (itemSize != 0)
+        {
+            if (buffer >= first && buffer < (first + items))
+            {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+    
     /** Get a free buffer out of the pool.  A buffer may be
      * obtained without context (object reference) from the mainBufferPool
      * with the ::buffer_free method.
@@ -262,8 +277,16 @@ private:
     /** Mutual exclusion for buffer pool */
     OSMutex mutex;
 
-    /** Free buffer pool */
-    Buffer *pool[4];
+
+    /** this union save overlapping memory */
+    union
+    {
+        /** Free buffer pool */
+        Buffer *pool[4];
+        
+        /** First buffer in a pre-allocated array pool */
+        Buffer *first;
+    };
     
     /** item Size for fixed pools */
     size_t itemSize;

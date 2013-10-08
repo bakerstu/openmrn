@@ -54,10 +54,10 @@ Buffer *BufferPool::buffer_alloc(size_t size)
     if (itemSize != 0)
     {
         HASSERT(size <= itemSize);
-        if (pool[0] != NULL)
+        if (pool[1] != NULL)
         {
-            buffer = pool[0];
-            pool[0] = buffer->next;
+            buffer = pool[1];
+            pool[1] = buffer->next;
             (void)Buffer::init(buffer, size);
         }
         return buffer;
@@ -122,7 +122,7 @@ void BufferPool::buffer_free(Buffer *buffer)
 {
     HASSERT(this == buffer->bufferPool);
 
-    int index = 0;
+    int index = 1;
 
     mutex.lock();
     if (--(buffer->count) == 0)

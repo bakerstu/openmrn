@@ -43,6 +43,7 @@
 #include <unistd.h>
 
 #include "nmranet/NMRAnetIfCan.hxx"
+#include "nmranet/NMRAnetDatagram.hxx"
 
 #include "core/nmranet_datagram_private.h"
 
@@ -67,7 +68,8 @@ IfCan::IfCan(NodeID node_id, const char *device,
       downstreamCache(0, DOWNSTREAM_ALIAS_CACHE_SIZE),
       upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE),
       mutex(),
-      linkStatus(DOWN)
+      linkStatus(DOWN),
+      datagramPool(sizeof(Datagram::Message), Datagram::POOL_SIZE)
 {
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
     {

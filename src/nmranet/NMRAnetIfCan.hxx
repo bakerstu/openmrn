@@ -621,6 +621,15 @@ private:
     /** current link status */
     LinkStatus linkStatus;
 
+    /** Datagram pool */
+    BufferPool datagramPool;
+
+    /** Tree for tracking datagrams that are in flight */
+    RBTree <uint32_t, Buffer*> datagramTree;
+
+    /** Nodes that will be statically alicated for datagrams in flight */
+    RBTree <uint32_t, Buffer*>::Node *datagramNode;
+
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 

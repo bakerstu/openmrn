@@ -46,7 +46,7 @@ namespace NMRAnet
 class Datagram
 {
 public:
-    /** Constructor. */
+    /** Default Constructor. */
     Datagram()
         : txMessage(NULL),
           timer(timeout, this, NULL)
@@ -56,6 +56,9 @@ public:
 
     /** total number of datagrams to allocate to the datagram memory pool */
     static const size_t POOL_SIZE;
+
+    /** Thread stack size for handling platform level datagrams */
+    static const size_t THREAD_STACK_SIZE;
 
     /** All known datagram protocols */
     enum Protocol
@@ -68,22 +71,21 @@ public:
         TRAIN_CONTROL = 0x30, /**< operation of mobile nodes */
     };
 
-protected:
-    /** Write a datagram message from a node.
-     * @param mti Message Type Indicator
-     * @param dst destination node ID, 0 if unavailable
-     * @param data NMRAnet packet data
-     * @return 0 upon success
+    /** Allocate and prepare a datagram buffer.
+     * @param protocol datagram protocol to use
+     * @param size max length of data in bytes
+     * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+     * @return Message handle upon success, else NULL on error with errno set
      */
-    virtual int write(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+    Buffer *buffer_get(uint64_t protocol, size_t size, long long timeout);
 
-    /** Produce a Datagram from a given node.
+    /** Produce a Datagram from a given node using a pre-allocated buffer.
      * @param dst destination node id or alias
      * @param datagram datagram to produce
      * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
      * @return 0 upon success, else -1 on error with errno set
      */
-    int buffer_produce(NodeHandle dst, Buffer *buffer, long long timeout);
+    int produce(NodeHandle dst, Buffer *buffer, long long timeout);
 
     /** Produce a Datagram from a given node.
      * @param dst destination node id or alias
@@ -95,19 +97,55 @@ protected:
      */
     int produce(NodeHandle dst, uint64_t protocol, const void *data, size_t size, long long timeout);
 
+    /** Various public datagram constants. */
+    enum
+    {
+        MAX_SIZE = 72, /**< maximum size in bytes of a datagram */
+    };
+    
+    /** A datagram message structure. */
+    struct Message
+    {
+        NodeID to; /**< the node that the datagram is to, only used in automatic processing */
+        NodeHandle from; /**< node id or alias this datagram is from */
+        size_t size; /**< size of datagram in bytes */
+        uint8_t data[MAX_SIZE]; /**< datagram payload */
+    };
+
+protected:
+    /** Default destructor */
+    ~Datagram()
+    {
+    }
+
     /** Post the reception of a datagram to given node.
      * @param mti Message Type Indicator
      * @param src source Node ID
      * @param data datagram to post
      */
     void packet(If::MTI mti, NodeHandle src, Buffer *data);
-    
+
 private:
+    /** Write a datagram message from a node.
+     * @param mti Message Type Indicator
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     * @return 0 upon success
+     */
+    virtual int write(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+
+    /** The parent class needs to provide a method for getting NMRAnet ID.
+     */
+    virtual NodeID id() = 0;
+
+     /** Get handle to the receive queue for incoming NMRAnet messages.
+     * @return handle to queue
+     */
+    virtual BufferQueueWait *rx_queue() = 0;
+
     /** Various datagram constants. */
     enum
     {
-        MAX_SIZE = 72, /**< maximum size in bytes of a datagram */
-
         PROTOCOL_SIZE_2    = 0xE0, /**< possible return value for @ref protocol_size */
         PROTOCOL_SIZE_6    = 0xF0, /**< possible return value for @ref protocol_size */
         PROTOCOL_SIZE_MASK = 0xF0, /**< mask used when determining protocol size */
@@ -119,15 +157,6 @@ private:
         PERMANENT_ERROR    = 0x1000, /**< Permanent error occurred. */
         SRC_NOT_PERMITTED  = 0x1020, /**< Source not permitted error occurred. */
         NOT_ACCEPTED       = 0x1040, /**< Destination node does not accept datagrams of any kind. */
-    };
-
-    /** A datagram message structure. */
-    struct Message
-    {
-        NodeID to; /**< the node that the datagram is to, only used in automatic processing */
-        NodeHandle from; /**< node id or alias this datagram is from */
-        size_t size; /**< size of datagram in bytes */
-        uint8_t data[MAX_SIZE]; /**< datagram payload */
     };
 
     /** We can try to resend the datagram.
@@ -191,14 +220,12 @@ private:
                 ((protocol & PROTOCOL_SIZE_MASK) == PROTOCOL_SIZE_2) ? 2 : 1);
     }
 
-    /** Allocate and prepare a datagram buffer.
-     * @param protocol datagram protocol to use
-     * @param size max length of data in bytes
-     * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
-     * @return Message handle upon success, else NULL on error with errno set
+    /** Determine the datagram protocol (could be 1, 2, or 6 bytes).
+     * @param data buffer pointer to the beginning of the datagram
+     * @return protocol type
      */
-    Buffer *buffer_get(uint64_t protocol, size_t size, long long timeout);
-
+    static uint64_t protocol(Buffer *data);
+    
     /** Fill an already allocated datagram buffer.
      * @param buffer handle to buffer which is to hold datagram
      * @param protocol datagram protocol to use
@@ -213,6 +240,12 @@ private:
      */
     void buffer_release(Buffer *buffer);
     
+    /** Process the datagram automatically.
+     * @param data buffer to process
+     * @return 0 if we do not have an automated processing option, else return 1
+     */
+    int process(Buffer *data);
+
     /** Timeout handler for datagram timeouts.
      * @param data1 instance of @ref Datagram cast to a void*
      * @param data2 unused
@@ -222,6 +255,12 @@ private:
     
     /** One time initialization */
     static void one_time_init();
+    
+    /** Thread for handling platform datagrams.
+     * @param arg unused
+     * @return should never return
+     */
+    static void *thread(void *arg);
 
     /** Allocate a datagram from the pool.
      * @return datagram allocated, or NULL if there are no more datagrams available.
@@ -232,7 +271,10 @@ private:
     static BufferPool pool;
     
     /** A queue of unused buffers */
-    static BufferQueueWait queue;
+    static BufferQueueWait dq;
+    
+    /** A queue of datagrams that the platform will handle */
+    static BufferQueueWait pending;
     
     /** the currently in flight message for this instance */
     Buffer *txMessage;

@@ -59,7 +59,8 @@ public:
           userName(NULL),
           userDescription(NULL),
           state(UNINITIALIZED),
-          nmranetIf(nmranet_if)
+          nmranetIf(nmranet_if),
+          queue()
     {
         mutex.lock();
         HASSERT(idTree.find(nodeID) == NULL);
@@ -130,6 +131,14 @@ private:
      */
     int write(If::MTI mti, NodeHandle dst, Buffer *data);
 
+    /** Get handle to the receive queue for incoming NMRAnet messages.
+     * @return handle to queue
+     */
+    BufferQueueWait *rx_queue()
+    {
+        return &queue;
+    }
+    
     /** Operational states of the node */
     enum State
     {
@@ -158,6 +167,9 @@ private:
     /** Interface that node will be bound to */
     If *nmranetIf;
 
+    /** Receive Queue for incoming message */
+    BufferQueueWait queue;
+    
     /** manufacturer string */
     static const char *manufacturer;
     
@@ -189,7 +201,7 @@ private:
     /** allow If class to access Node members */
     friend class If;
     
-    /** allow If class to access Node members */
+    /** allow Datagram class to access Node members */
     friend class Datagram;
     
 };
