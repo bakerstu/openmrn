@@ -67,6 +67,18 @@
  * The OpenMRN build system will look for the compiler at /opt/CodeSourcery or
  * ~/CodeSourcery.  The compiler includes a copy of Newlib used by OpenMRN.
  *
+ * To enable the compiler the TOOLPATH environment variable must be set:
+ *
+ * @code
+ * $ TOOLPATH = ~/CodeSourcery
+ * $ export TOOLPATH
+ * 
+ * or
+ *
+ * $ TOOLPATH = /opt/CodeSourcery
+ * $ export TOOLPATH
+ * @endcode
+ *
  * The build system also looks for a version of the FreeRTOS tree.  Version
  * 7.3.0 has been used for testing, however any version 7 or later should work.
  * FreeRTOS can be downloaded from the FreeRTOS web site
@@ -82,6 +94,7 @@
  * $ cd /opt
  * $ sudo ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
  * @endcode
+ *
  *
  * If your target is a TI Stellaris ARM Cortex-M3 or Cortex-M4F,
  * OpenMRN includes drivers that use TI StellarisWare.  The build system will
