@@ -67,13 +67,15 @@ void *Datagram::thread(void *arg)
                 //datagram_memory_config(d->to, datagram);
                 break;
         }
+        /* release buffer back to the pool from whence it came */
         buffer->free();
     }
 
     return NULL;
 }
 
-/** One time initialization */
+/** One time initialization.
+ */
 void Datagram::one_time_init()
 {
     for (size_t i = 0; i < POOL_SIZE; ++i)
@@ -348,6 +350,8 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
                     txMessage = NULL;
                 }
             }
+            /* release buffer back to the pool from whence it came */
+            data->free();
             break;
         }
         case If::MTI_DATAGRAM_OK:
@@ -358,6 +362,8 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
                 buffer_release(txMessage);
                 txMessage = NULL;
             }
+            /* release buffer back to the pool from whence it came */
+            data->free();
             break;
         case If::MTI_DATAGRAM:
             write(If::MTI_DATAGRAM_OK, src, NULL);

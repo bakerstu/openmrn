@@ -54,12 +54,16 @@ Buffer *BufferPool::buffer_alloc(size_t size)
     if (itemSize != 0)
     {
         HASSERT(size <= itemSize);
+        mutex.lock();
         if (pool[1] != NULL)
         {
             buffer = pool[1];
             pool[1] = buffer->next;
             (void)Buffer::init(buffer, size);
+            totalSize++;
+            DEBUG_PRINTF("static buffer total size: %zu\n", totalSize);
         }
+        mutex.unlock();
         return buffer;
     }
 
@@ -154,6 +158,11 @@ void BufferPool::buffer_free(Buffer *buffer)
                     index = 3;
                     break;
             }
+        }
+        else
+        {
+            totalSize--;
+            DEBUG_PRINTF("static buffer total used: %zu\n", totalSize);
         }
 
         buffer->next = pool[index];

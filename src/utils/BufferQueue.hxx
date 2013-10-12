@@ -129,17 +129,20 @@ private:
     static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1)
     {
         HASSERT(pool != NULL && items != 0);
-        Buffer *buffer = (Buffer*)malloc((size + sizeof(Buffer)) * items);
+        size_t align_size = sizeof_buffer(size);
+        Buffer *buffer = (Buffer*)malloc(align_size * items);
         HASSERT(buffer != NULL);
+        Buffer *result = buffer;
         for (size_t i = 0; i < items; ++i)
         {
-            buffer[i].next = NULL;
-            buffer[i].bufferPool = pool;
-            buffer[i]._size = size;
-            buffer[i].left = size;
-            buffer[i].count = 1;
+            buffer->next = NULL;
+            buffer->bufferPool = pool;
+            buffer->_size = size;
+            buffer->left = size;
+            buffer->count = 1;
+            buffer = (Buffer*)((char*)buffer + align_size);
         }
-        return buffer;
+        return result;
     }
 
     /** Like a constructor, but in this case, we re-purpose an existing buffer
@@ -188,6 +191,14 @@ private:
     /** This class is a helper of BufferQueue */
     friend class BufferQueue;
 
+    /** The total size of an array element of a Buffer for given payload.
+     * @param size payload size
+     */
+    static size_t sizeof_buffer(size_t size)
+    {
+        return sizeof(Buffer) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
+    }
+    
     /** Default constructor */
     Buffer();
     
@@ -222,10 +233,12 @@ public:
           itemSize(item_size),
           items(items)
     {
+        Buffer *current = first;
         for (size_t i = 0; i < items; ++i)
         {
-            first[i].next = pool[1];
-            pool[1] = &first[i];
+            current->next = pool[1];
+            pool[1] = current;
+            current = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
         }
     }
 

@@ -50,6 +50,12 @@
 namespace NMRAnet
 {
 
+#define DATAGRAM_MESSAGE_SIZE (sizeof(Datagram::Message) + sizeof(OSTimer))
+
+/** This is how long we should wait before giving up on an incoming datagram.
+ */
+#define DATAGRAM_TIMEOUT 3000000000LL
+
 /** Constructor.
  * @param node_id node ID of interface
  * @param device description for this instance
@@ -69,8 +75,27 @@ IfCan::IfCan(NodeID node_id, const char *device,
       upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE),
       mutex(),
       linkStatus(DOWN),
-      datagramPool(sizeof(Datagram::Message), Datagram::POOL_SIZE)
+      datagramPool(DATAGRAM_MESSAGE_SIZE, Datagram::POOL_SIZE),
+      datagramTree(Datagram::POOL_SIZE)
+      
 {
+    {
+        /* setup the timers for the datagram pool buffers */
+        Buffer *buffer[Datagram::POOL_SIZE];
+        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
+        {
+            buffer[i] = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            Datagram::Message *m = (Datagram::Message*)buffer[i]->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+            /* Placement new allows for runtime/link-time array size */
+            new (t) OSTimer(datagram_timeout, this, buffer[i]);
+        }
+
+        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
+        {
+            buffer[i]->free();
+        }
+    }
     for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
     {
         /* Placement new allows for runtime/link-time array size */
@@ -372,13 +397,12 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
         }
         if (dst.alias)
         {
-            HASSERT(data != NULL);
-            Buffer *buffer = data;
             int index = 0;
             size_t len;
             /* check to see if we have a stream or datagram */
             if (get_mti_datagram(mti))
             {
+                HASSERT(data != NULL);
                 //const Datagram *datagram = data;
                 /* datagrams and streams are special because the CAN ID
                  * also contains the destination alias.  These may also span
@@ -422,7 +446,7 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     CLR_CAN_FRAME_RTR(frame);
                     CLR_CAN_FRAME_ERR(frame);
                     size_t seg_size = len < 8 ? len : 8;
-                    memcpy(frame.data, (char*)buffer->start() + i, seg_size);
+                    memcpy(frame.data, (char*)data->start() + i, seg_size);
                     frame.can_dlc = seg_size;
 
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
@@ -456,7 +480,7 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     frame.data[0] = dst.alias >> 8;
                     frame.data[1] = dst.alias & 0xff;
                     size_t seg_size = len < 6 ? len : 6;
-                    memcpy(&frame.data[2], (char*)buffer->start() + index, seg_size);
+                    memcpy(&frame.data[2], (char*)data->start() + index, seg_size);
                     frame.can_dlc = 2 + seg_size;
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
                     HASSERT(result == sizeof(struct can_frame));
@@ -547,7 +571,6 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
     src.alias = get_src(can_id);
     mutex.lock();
     src.id = downstreamCache.lookup(src.alias);
-    mutex.unlock();
 
     if (get_mti_address(nmranet_mti(can_id)))
     {
@@ -562,6 +585,7 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
                            (data[1] << 8);
         address = be16toh(address);
         NodeID dst = upstreamCache.lookup(get_addressed_destination(address));
+        mutex.unlock();
         if (dst != 0)
         {
             Buffer *buffer;
@@ -585,7 +609,6 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
         /* global message */
         if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
         {
-            mutex.lock();
             int mapped = 0;
             node_id_t node_id;
             node_id = data[5];
@@ -658,10 +681,10 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
                 }
             }
 #endif
-            mutex.unlock();
             /* update the source Node ID */
             src.id = node_id;
         }
+        mutex.unlock();
         Buffer *buffer;
         if (dlc)
         {
@@ -676,6 +699,214 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
         }
         rx_data(nmranet_mti(can_id), src, 0, buffer);
     }
+}
+
+/** Send a datagram error from the receiver to the sender.
+ * @param src source alias to send message from
+ * @param dst destination alias to send message to
+ * @param error_code error value to send
+ */
+void IfCan::datagram_rejected(NodeAlias src, NodeAlias dst, int error_code)
+{
+    /* no buffer available, let the sender know */
+    struct can_frame frame;
+    frame.can_id = can_identifier(If::MTI_DATAGRAM_REJECTED, src);
+    SET_CAN_FRAME_EFF(frame);
+    CLR_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    frame.data[0] = dst >> 8;
+    frame.data[1] = dst & 0xff;
+    frame.data[2] = (error_code >> 8) & 0xff;
+    frame.data[3] = (error_code >> 0) & 0xff;
+    frame.can_dlc = 4;
+
+    int result = write(fd, &frame, sizeof(struct can_frame));
+    HASSERT(result == sizeof(struct can_frame));
+}
+
+/** This is the timeout for giving up an incoming multi-frame datagram.
+ * mapping request.
+ * @param data1 a @ref IfCan typecast to a void*
+ * @param data2 a @ref Buffer reference typecast to void*
+ * @return OS_TIMER_NONE
+ */
+long long IfCan::datagram_timeout(void *data1, void *data2)
+{
+    IfCan *if_can = (IfCan*)data1;
+    Buffer *buffer = (Buffer*)data2;
+    Datagram::Message *m = (Datagram::Message*)buffer->start();
+    
+    if_can->mutex.lock();
+
+    /** @todo currently we fail silently, should we throw an error? */
+    /* we have to re-lookup the datagram buffer to prevent a race condition */
+    if (if_can->datagramTree.find((m->to << 12) + m->from.alias))
+    {
+        if_can->datagramTree.remove((m->to << 12) + m->from.alias);
+        buffer->free();
+    }
+
+    if_can->mutex.unlock();
+    
+    /* delete our selves since we are no longer relevant */
+    return OS_TIMER_DELETE;
+}
+
+/** Decode datagram can frame.
+ * @param can_id can identifier
+ * @param dlc data length code
+ * @param data pointer to up to 8 bytes of data
+ */
+void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
+{
+    /* There is no need to use a mutex to access the datagram tree.  This is
+     * because this function can only be called from a single thread, the
+     * receive thread.  If this changes in the future, a mutex must be added
+     * to protect this tree.
+     */
+    NodeHandle src;
+    uint16_t dst_alias = get_dst(can_id);
+
+    mutex.lock();
+    NodeID dst_id = upstreamCache.lookup(dst_alias);
+
+    if (dst_id == 0)
+    {
+        /* nobody here by that ID, not for us */
+        mutex.unlock();
+        return;
+    }
+
+    src.alias = get_src(can_id);
+    src.id = downstreamCache.lookup(src.alias);
+
+    switch(get_can_frame_type(can_id))
+    {
+        default:
+            break;
+        case DATAGRAM_ONE_FRAME:
+        {
+            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            if (buffer == NULL)
+            {
+                /* no buffer available, let the sender know */
+                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                break;
+            }
+            Datagram::Message *m = (Datagram::Message*)buffer->start();
+            memcpy(m->data, data, dlc);
+            m->from.id = src.id;
+            m->from.alias = src.alias;
+            m->size = dlc;
+            mutex.unlock();
+            rx_data(nmranet_mti(can_id), src, dst_id, buffer);
+            return;
+        }
+        case DATAGRAM_FIRST_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node)
+            {
+                /* we are already receiving a datagram, this is an error */
+                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            
+            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            if (buffer == NULL)
+            {
+                /* no buffer available, let the sender know */
+                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)buffer->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+
+            memcpy(m->data, data, dlc);
+            m->to = dst_id;
+            m->from.id = src.id;
+            m->from.alias = src.alias;
+            m->size = dlc;
+
+            HASSERT(datagramTree.insert((dst_id << 12) + src.alias, buffer) != NULL);
+            t->start(DATAGRAM_TIMEOUT);
+            break;
+        }
+        case DATAGRAM_MIDDLE_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node == NULL)
+            {
+                /* we have no record of this datagram, this is an error */
+                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)node->value->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+
+            if ((m->size + dlc) > Datagram::MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            memcpy(m->data + m->size, data, dlc);
+            m->size += dlc;
+            t->start(DATAGRAM_TIMEOUT);
+            break;
+        }
+        case DATAGRAM_FINAL_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node == NULL)
+            {
+                /* we have no record of this datagram, this is an error */
+                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)node->value->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+            t->stop();
+
+            if ((m->size + dlc) > Datagram::MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            memcpy(m->data + m->size, data, dlc);
+            m->size += dlc;
+            datagramTree.remove(node);
+            mutex.unlock();
+            rx_data(nmranet_mti(can_id), src, dst_id, node->value);
+            return;
+        }
+    }
+    mutex.unlock();
 }
 
 /** Test to see if the alias is in conflict with an alias we are using.
@@ -1013,7 +1244,7 @@ void *IfCan::read_thread(void *data)
                 case DATAGRAM_MIDDLE_FRAME:
                     /* fall through */
                 case DATAGRAM_FINAL_FRAME:
-                    //type_datagram(can_if, frame.can_id, frame.can_dlc, frame.data);
+                    datagram(frame.can_id, frame.can_dlc, frame.data);
                     break;
                 case STREAM_DATA:
                     break;

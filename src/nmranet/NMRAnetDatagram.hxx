@@ -101,6 +101,14 @@ public:
     enum
     {
         MAX_SIZE = 72, /**< maximum size in bytes of a datagram */
+
+        RESEND_OK          = 0x2000, /**< We can try to resend the datagram. */
+        TRANSPORT_ERROR    = 0x6000, /**< Transport error occurred. */
+        BUFFER_UNAVAILABLE = 0x2020, /**< Buffer unavailable error occurred. */
+        OUT_OF_ORDER       = 0x2040, /**< Out of order error occurred. */
+        PERMANENT_ERROR    = 0x1000, /**< Permanent error occurred. */
+        SRC_NOT_PERMITTED  = 0x1020, /**< Source not permitted error occurred. */
+        NOT_ACCEPTED       = 0x1040, /**< Destination node does not accept datagrams of any kind. */
     };
     
     /** A datagram message structure. */
@@ -149,14 +157,6 @@ private:
         PROTOCOL_SIZE_2    = 0xE0, /**< possible return value for @ref protocol_size */
         PROTOCOL_SIZE_6    = 0xF0, /**< possible return value for @ref protocol_size */
         PROTOCOL_SIZE_MASK = 0xF0, /**< mask used when determining protocol size */
-
-        RESEND_OK          = 0x2000, /**< We can try to resend the datagram. */
-        TRANSPORT_ERROR    = 0x6000, /**< Transport error occurred. */
-        BUFFER_UNAVAILABLE = 0x2020, /**< Buffer unavailable error occurred. */
-        OUT_OF_ORDER       = 0x2040, /**< Out of order error occurred. */
-        PERMANENT_ERROR    = 0x1000, /**< Permanent error occurred. */
-        SRC_NOT_PERMITTED  = 0x1020, /**< Source not permitted error occurred. */
-        NOT_ACCEPTED       = 0x1040, /**< Destination node does not accept datagrams of any kind. */
     };
 
     /** We can try to resend the datagram.
@@ -253,7 +253,8 @@ private:
      */
     static long long timeout(void *data1, void *data2);
     
-    /** One time initialization */
+    /** One time initialization.
+     */
     static void one_time_init();
     
     /** Thread for handling platform datagrams.

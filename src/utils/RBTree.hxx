@@ -52,10 +52,29 @@ extern "C"
 template <typename Key, typename Value> class RBTree
 {
 public:
-    /** Default Constructor */
+    /** Default Constructor
+     */
     RBTree()
+        : freeList(NULL)
     {
         RB_INIT(&head);
+    }
+
+    /** Default Constructor.
+     * @param nodes number of nodes to statically create and track
+     */
+    RBTree(size_t nodes)
+        : freeList(NULL)
+    {
+        RB_INIT(&head);
+        Node *first = new Node[nodes];
+        first->entry.rbe_left = (Node*)this;
+        
+        for (size_t i = 1; i < nodes; i++)
+        {
+            first[i].entry.rbe_left = freeList;
+            freeList = first + i;
+        }
     }
 
     /** The metadata for a tree node. */
@@ -83,8 +102,34 @@ public:
         }
     };
 
+    /** Insert a node into the tree from pre-allocated Node pool.
+     * @param key key to insert
+     * @param value value to insert
+     * @return reference to new node inserted, existing matching node, or NULL
+     *         if there are no more pre-allocated nodes left
+     */
+    Node *insert(Key key, Value value)
+    {
+        Node *node = find(key);
+        if (node)
+        {
+            node->value = value;
+        }
+        else
+        {
+            node = alloc();
+            if (node)
+            {
+                node->key = key;
+                node->value = value;
+                insert(node);
+            }
+        }
+        return node;
+    }
+
     /** Insert a node into the tree.
-     * @param Node to insert
+     * @param node to insert
      */
     void insert(Node *node)
     {
@@ -97,6 +142,7 @@ public:
     void remove(Node *node)
     {
         RB_REMOVE(tree, &head, node);
+        free(node);
     }
     
     /** Remove a node from the tree.
@@ -109,6 +155,7 @@ public:
         if (node)
         {
             remove(node);
+            free(node);
         }
         return node;
     }
@@ -176,6 +223,32 @@ public:
     }
     
 private:
+    /** Allocate a node from the free list.
+     * @return newly allocated node, else NULL if no free nodes left
+     */
+    Node *alloc()
+    {
+        if (freeList && freeList != (Node*)this)
+        {
+            Node *node = freeList;
+            freeList = freeList->entry.rbe_left;
+            return node;
+        }
+        return NULL;
+    }
+    
+    /** free a node to the free list if it exists.
+     * @param node node to free
+     */
+    void free(Node *node)
+    {
+        if (freeList || freeList == (Node*)this)
+        {
+            node->entry.rbe_left = freeList;
+            freeList = node;
+        }
+    }
+
     /** Compare two nodes.
      * @param a first of two nodes to compare
      * @param b second of two nodes to compare
@@ -185,7 +258,10 @@ private:
     {
         return a->key - b->key;
     }
-        
+
+    /** list of free nodes */
+    Node *freeList;
+
     /** The datagram tree type. */
     RB_HEAD(tree, Node);
 

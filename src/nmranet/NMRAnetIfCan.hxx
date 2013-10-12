@@ -446,6 +446,28 @@ private:
      */
     void global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data);
 
+    /** Send a datagram error from the receiver to the sender.
+     * @param src source alias to send message from
+     * @param dst destination alias to send message to
+     * @param error_code error value to send
+     */
+    void datagram_rejected(NodeAlias src, NodeAlias dst, int error_code);
+
+    /** This is the timeout for giving up an incoming multi-frame datagram.
+     * mapping request.
+     * @param data1 a @ref IfCan typecast to a void*
+     * @param data2 a @ref Buffer reference typecast to void*
+     * @return OS_TIMER_NONE
+     */
+    static long long datagram_timeout(void *data1, void *data2);
+
+    /** Decode datagram can frame.
+     * @param can_id can identifier
+     * @param dlc data length code
+     * @param data pointer to up to 8 bytes of data
+     */
+    void datagram(uint32_t can_id, uint8_t dlc, uint8_t *data);
+
     /** Test to see if the alias is in conflict with an alias we are using.
      * @param alias alias to look for conflict with
      * @param release true if we should release the alias if we have it reserved
@@ -625,10 +647,7 @@ private:
     BufferPool datagramPool;
 
     /** Tree for tracking datagrams that are in flight */
-    RBTree <uint32_t, Buffer*> datagramTree;
-
-    /** Nodes that will be statically alicated for datagrams in flight */
-    RBTree <uint32_t, Buffer*>::Node *datagramNode;
+    RBTree <uint64_t, Buffer*> datagramTree;
 
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
