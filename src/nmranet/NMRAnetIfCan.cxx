@@ -403,7 +403,8 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
             if (get_mti_datagram(mti))
             {
                 HASSERT(data != NULL);
-                //const Datagram *datagram = data;
+                uint8_t *payload;
+
                 /* datagrams and streams are special because the CAN ID
                  * also contains the destination alias.  These may also span
                  * multiple CAN frames.
@@ -411,11 +412,13 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                 if (mti == MTI_STREAM_DATA)
                 {
                     len = data->size() - data->available();
+                    payload = (uint8_t*)data->start();
                 }
                 else
                 {
-                    len = 0;//datagram->size;
-                    //buffer = datagram->data;
+                    Datagram::Message *m = (Datagram::Message*)data->start();
+                    len = m->size;
+                    payload = m->data;
                 }
                 for (int i = 0; len > 0; ++i)
                 {
@@ -446,7 +449,7 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     CLR_CAN_FRAME_RTR(frame);
                     CLR_CAN_FRAME_ERR(frame);
                     size_t seg_size = len < 8 ? len : 8;
-                    memcpy(frame.data, (char*)data->start() + i, seg_size);
+                    memcpy(frame.data, payload + index, seg_size);
                     frame.can_dlc = seg_size;
 
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
@@ -795,6 +798,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
             }
             Datagram::Message *m = (Datagram::Message*)buffer->start();
             memcpy(m->data, data, dlc);
+            m->to = dst_id;
             m->from.id = src.id;
             m->from.alias = src.alias;
             m->size = dlc;

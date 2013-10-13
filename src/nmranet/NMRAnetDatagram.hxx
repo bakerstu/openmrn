@@ -46,14 +46,6 @@ namespace NMRAnet
 class Datagram
 {
 public:
-    /** Default Constructor. */
-    Datagram()
-        : txMessage(NULL),
-          timer(timeout, this, NULL)
-    {
-        once.once();
-    }
-
     /** total number of datagrams to allocate to the datagram memory pool */
     static const size_t POOL_SIZE;
 
@@ -79,6 +71,15 @@ public:
      */
     Buffer *buffer_get(uint64_t protocol, size_t size, long long timeout);
 
+    /** Fill an already allocated datagram buffer.
+     * @param buffer handle to buffer which is to hold datagram
+     * @param protocol datagram protocol to use
+     * @param data datagram to fill into datagram
+     * @param offset offset within datagram payload to start filling
+     * @param size length of data in bytes to fill
+     */
+    void buffer_fill(Buffer *buffer, uint64_t protocol, const void *data, size_t offset, size_t size);
+    
     /** Produce a Datagram from a given node using a pre-allocated buffer.
      * @param dst destination node id or alias
      * @param datagram datagram to produce
@@ -96,6 +97,18 @@ public:
      * @return 0 upon success, else -1 on error with errno set
      */
     int produce(NodeHandle dst, uint64_t protocol, const void *data, size_t size, long long timeout);
+
+    /** Determine the datagram protocol (could be 1, 2, or 6 bytes).
+     * @param data buffer pointer to the beginning of the datagram
+     * @return protocol type
+     */
+    static uint64_t protocol(Buffer *data);
+    
+    /** Determine the datagram payload
+     * @param data buffer pointer to the beginning of the datagram
+     * @return pointer to payload as a uint8_t array, assume byte alignment
+     */
+    static uint8_t *payload(Buffer *data);
 
     /** Various public datagram constants. */
     enum
@@ -121,6 +134,14 @@ public:
     };
 
 protected:
+    /** Default Constructor. */
+    Datagram()
+        : txMessage(NULL),
+          timer(timeout, this, NULL)
+    {
+        once.once();
+    }
+
     /** Default destructor */
     ~Datagram()
     {
@@ -220,21 +241,6 @@ private:
                 ((protocol & PROTOCOL_SIZE_MASK) == PROTOCOL_SIZE_2) ? 2 : 1);
     }
 
-    /** Determine the datagram protocol (could be 1, 2, or 6 bytes).
-     * @param data buffer pointer to the beginning of the datagram
-     * @return protocol type
-     */
-    static uint64_t protocol(Buffer *data);
-    
-    /** Fill an already allocated datagram buffer.
-     * @param buffer handle to buffer which is to hold datagram
-     * @param protocol datagram protocol to use
-     * @param data datagram to fill into datagram
-     * @param offset offset within datagram payload to start filling
-     * @param size length of data in bytes to fill
-     */
-    void buffer_fill(Buffer *buffer, uint64_t protocol, const void *data, size_t offset, size_t size);
-    
     /** Release a buffer back to the datagram buffer pool.
      * @param buffer buffer to release
      */
@@ -285,6 +291,8 @@ private:
     
     /** one time initialization structure */
     static OSThreadOnce once;
+
+    DISALLOW_COPY_AND_ASSIGN(Datagram);
 };
 
 };

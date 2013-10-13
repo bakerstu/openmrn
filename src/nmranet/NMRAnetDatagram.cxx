@@ -58,13 +58,16 @@ void *Datagram::thread(void *arg)
     {
         Buffer *buffer = pending.wait();
         
+        Datagram::Message *m = (Datagram::Message*)buffer->start();
+        Node *node = Node::find(m->to);
+
         switch (protocol(buffer))
         {
             default:
                 /* unhandled protocol */
                 break;
             case CONFIGURATION:
-                //datagram_memory_config(d->to, datagram);
+                node->MemoryConfig::process(buffer);
                 break;
         }
         /* release buffer back to the pool from whence it came */
@@ -192,7 +195,7 @@ long long Datagram::timeout(void *data1, void *data2)
     Node::mutex.lock();
     if (datagram->txMessage)
     {
-        datagram->txMessage->free();
+        datagram->buffer_release(datagram->txMessage);
         datagram->txMessage = NULL;
     }
     Node::mutex.unlock();
@@ -219,6 +222,7 @@ int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
     {
         if ((start + timeout) <= os_get_time_monotonic() && timeout != OS_WAIT_FOREVER)
         {
+            Node::mutex.unlock();
             errno = EBUSY;
             return -1;
         }
@@ -231,10 +235,10 @@ int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
         Node::mutex.lock();
     }
     txMessage = buffer;
-    Node::mutex.unlock();
 
     write(If::MTI_DATAGRAM, dst, buffer);
     timer.start(DATAGRAM_TIMEOUT);
+    Node::mutex.unlock();
 
     return 0;
 }
@@ -289,6 +293,25 @@ uint64_t Datagram::protocol(Buffer *data)
             return ((uint64_t)m->data[1] << 40) + ((uint64_t)m->data[2] << 32) +
                    ((uint64_t)m->data[3] << 24) + ((uint64_t)m->data[4] << 16) +
                    ((uint64_t)m->data[5] <<  8) + ((uint64_t)m->data[6] <<  0);
+    }
+}
+
+/** Determine the datagram payload
+ * @param data buffer pointer to the beginning of the datagram
+ * @return pointer to payload as a uint8_t array, assume byte alignment
+ */
+uint8_t *Datagram::payload(Buffer *data)
+{
+    Message *m = (Message*)data->start();
+
+    switch (m->data[0] & 0xF0)
+    {
+        default:
+            return m->data + 1;
+        case PROTOCOL_SIZE_2:
+            return m->data + 3;
+        case PROTOCOL_SIZE_6:
+            return m->data + 7;
     }
 }
 
@@ -356,14 +379,14 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
         }
         case If::MTI_DATAGRAM_OK:
             /* success! */
+            HASSERT(data == NULL);
             timer.stop();
             if (txMessage)
             {
                 buffer_release(txMessage);
                 txMessage = NULL;
             }
-            /* release buffer back to the pool from whence it came */
-            data->free();
+            /* There is no buffer payload so don't free buffer buffer */
             break;
         case If::MTI_DATAGRAM:
             write(If::MTI_DATAGRAM_OK, src, NULL);

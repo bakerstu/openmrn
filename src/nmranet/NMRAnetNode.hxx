@@ -37,6 +37,7 @@
 
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetDatagram.hxx"
+#include "nmranet/NMRAnetMemoryConfig.hxx"
 #include "utils/RBTree.hxx"
 
 namespace NMRAnet
@@ -44,7 +45,7 @@ namespace NMRAnet
 
 /** NMRAnet virtual node.
  */
-class Node : public Datagram
+class Node : public Datagram, public MemoryConfig
 {
 public:
     /** Constructor.
@@ -52,8 +53,9 @@ public:
      * @param nmranet_if interface to bind the node to
      * @param model node decription
      */
-    Node(NodeID node_id, If *nmranet_if, const char *model)
+    Node(NodeID node_id, If *nmranet_if, const char *model, uint8_t *cdi = NULL)
         : Datagram(),
+          MemoryConfig(cdi),
           nodeID(node_id),
           model(model),
           userName(NULL),
@@ -204,6 +206,8 @@ private:
     /** allow Datagram class to access Node members */
     friend class Datagram;
     
+    /** allow MemoryConfig class to access Node members */
+    friend class MemoryConfig;
 };
 
 };

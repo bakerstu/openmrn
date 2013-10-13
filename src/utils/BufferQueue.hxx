@@ -240,6 +240,8 @@ public:
             pool[1] = current;
             current = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
         }
+        /* save the index just after last buffer in the bool */
+        pool[2] = current;
     }
 
     /* default destructor */
@@ -257,7 +259,7 @@ public:
     {
         if (itemSize != 0)
         {
-            if (buffer >= first && buffer < (first + items))
+            if (buffer >= first && buffer <= pool[2])
             {
                 return true;
             }

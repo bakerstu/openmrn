@@ -89,12 +89,12 @@ depmake:
 -include $(TESTOBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp .S .xml .cout
+.SUFFIXES: .o .c .cxx .cpp .S .xml .cout .cxxout
 
 .xml.o:
-	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cout
-	$(CC) $(CFLAGS) -x c $*.cout -o $@
-	$(CC) -MM $(CFLAGS) $*.cout > $*.d
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cxxout
+	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
+	$(CXX) -MM $(CXXFLAGS) $*.cxxout > $*.d
 
 .S.o:
 	$(AS) $(ASFLAGS) $< -o $@
@@ -115,7 +115,7 @@ depmake:
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst *.map
+	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst *.map
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
