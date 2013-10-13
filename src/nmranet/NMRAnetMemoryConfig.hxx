@@ -40,6 +40,8 @@
 namespace NMRAnet
 {
 
+class Node;
+
 class MemoryConfig
 {
 public:
@@ -134,6 +136,8 @@ protected:
      */
     MemoryConfig(uint8_t *cdi);
     
+    /** Default Destructor
+     */
     ~MemoryConfig()
     {
     }
@@ -145,14 +149,13 @@ protected:
 
 private:
     /** Helper function for replyoing to a memory config request.
-     * @param to node we are replying from
      * @param from node we are replying to
      * @param command configuration command
      * @param address address within address space the data coresponds to
      * @param data location in memory to copy address space data from
      * @param count number of bytes to send
      */
-    void reply(NodeID to, NodeHandle from,
+    void reply(NodeHandle from,
                const void *command, const void *address,
                const void *data, const uint8_t count);
     

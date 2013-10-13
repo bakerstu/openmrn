@@ -205,9 +205,6 @@ private:
     
     /** allow Datagram class to access Node members */
     friend class Datagram;
-    
-    /** allow MemoryConfig class to access Node members */
-    friend class MemoryConfig;
 };
 
 };

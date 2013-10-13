@@ -37,6 +37,8 @@
 namespace NMRAnet
 {
 
+class Node;
+
 /* default CDI if it is not overriden by the application */
 const uint8_t __attribute__ ((weak)) MemoryConfig::globalCdi[] = { 0 };
 
@@ -63,22 +65,19 @@ void *MemoryConfig::all_memory(uint32_t address, uint8_t *count)
 }
 
 /** Helper function for replyoing to a memory config request.
- * @param to node we are replying from
  * @param from node we are replying to
  * @param command configuration command
  * @param address address within address space the data coresponds to
  * @param data location in memory to copy address space data from
  * @param count number of bytes to send
  */
-void MemoryConfig::reply(NodeID to, NodeHandle from,
+void MemoryConfig::reply(NodeHandle from,
                          const void *command, const void *address,
                          const void *data, const uint8_t count)
 {
-    Node *node = Node::find(to);
-    DASSERT(node != NULL);
+    Node *node = static_cast<Node*>(this);
 
     Buffer *buffer = node->buffer_get(Datagram::CONFIGURATION, count + 5, OS_WAIT_FOREVER);
-
     node->buffer_fill(buffer, Datagram::CONFIGURATION, command, COMMAND, 1);
     node->buffer_fill(buffer, Datagram::CONFIGURATION, address, ADDRESS, sizeof(uint32_t));
     node->buffer_fill(buffer, Datagram::CONFIGURATION, data, DATA, count);
@@ -91,6 +90,7 @@ void MemoryConfig::reply(NodeID to, NodeHandle from,
 void MemoryConfig::process(Buffer *buffer)
 {
     Datagram::Message *m = (Datagram::Message*)buffer->start();
+    Node *node = static_cast<Node*>(this);
 
     uint8_t *data = Datagram::payload(buffer);
     uint8_t space;
@@ -145,26 +145,23 @@ void MemoryConfig::process(Buffer *buffer)
                             count : (cdiSize - address);
                 }
 
-                reply(m->to, m->from, &command, &data[ADDRESS], cdi + address, count);
+                reply(m->from, &command, &data[ADDRESS], cdi + address, count);
             }
             else if (space == SPACE_ALL_MEMORY)
             {
                 void *start = all_memory(address, &count);
                 command |= COMMAND_ALL_MEMORY;
-                reply(m->to, m->from, &command, &data[ADDRESS], start, count);
+                reply(m->from, &command, &data[ADDRESS], start, count);
             }
             else if (space == SPACE_CONFIG)
             {
                 command |= COMMAND_ALL_MEMORY;
-                reply(m->to, m->from, &command, &data[ADDRESS], (char*)0 + address, count);
+                reply(m->from, &command, &data[ADDRESS], (char*)0 + address, count);
             }
             break;
         }
         case COMMAND_OPTIONS:
         {
-            Node *node = Node::find(m->to);
-            DASSERT(node != NULL);
-
             uint16_t available = AVAIL_UR;
             uint8_t reply[6];
             reply[COMMAND] = COMMAND_OPTIONS_REPLY;
@@ -178,9 +175,6 @@ void MemoryConfig::process(Buffer *buffer)
         }
         case COMMAND_INFORMATION:
         {
-            Node *node = Node::find(m->to);
-            DASSERT(node != NULL);
-
             uint32_t address_highest = cdiSize - 1;
             uint8_t reply[7];
             reply[COMMAND] = COMMAND_INFORMATION_REPLY | COMMAND_PRESENT;
