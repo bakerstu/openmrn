@@ -80,7 +80,10 @@ void MemoryConfig::reply(NodeHandle from,
     Buffer *buffer = node->buffer_get(Datagram::CONFIGURATION, count + 5, OS_WAIT_FOREVER);
     node->buffer_fill(buffer, Datagram::CONFIGURATION, command, COMMAND, 1);
     node->buffer_fill(buffer, Datagram::CONFIGURATION, address, ADDRESS, sizeof(uint32_t));
-    node->buffer_fill(buffer, Datagram::CONFIGURATION, data, DATA, count);
+    if (count)
+    {
+        node->buffer_fill(buffer, Datagram::CONFIGURATION, data, DATA, count);
+    }
     node->produce(from, buffer, OS_WAIT_FOREVER);
 }
 
@@ -155,14 +158,69 @@ void MemoryConfig::process(Buffer *buffer)
             }
             else if (space == SPACE_CONFIG)
             {
-                command |= COMMAND_ALL_MEMORY;
+                command |= COMMAND_CONFIG;
                 reply(m->from, &command, &data[ADDRESS], (char*)0 + address, count);
+            }
+            break;
+        }
+        case COMMAND_WRITE:
+        {
+            uint8_t count = data[COUNT + space_offset] & COUNT_MASK;
+            HASSERT(count <= 64);
+            //uint8_t command = COMMAND_WRITE_REPLY;
+            if (space == SPACE_CDI)
+            {
+                /* CDI is read only */
+                HASSERT(1);
+            }
+            else if (space == SPACE_ALL_MEMORY)
+            {
+                void *start = all_memory(address, &count);
+                size_t size = m->size - (6 + space_offset);
+                memcpy(start, &data[DATA + space_offset], size);
+                //command |= COMMAND_ALL_MEMORY;
+                //reply(m->from, &command, &data[ADDRESS], NULL, 0);
+            }
+            else if (space == SPACE_CONFIG)
+            {
+                //command |= COMMAND_CONFIG;
+                //reply(m->from, &command, &data[ADDRESS], NULL, 0);
+            }
+            break;
+        }
+        case COMMAND_WRITE_UNDER_MASK:
+        {
+            uint8_t count = data[COUNT + space_offset] & COUNT_MASK;
+            HASSERT(count <= 64);
+            //uint8_t command = COMMAND_WRITE_REPLY;
+            if (space == SPACE_CDI)
+            {
+                /* CDI is read only */
+                HASSERT(1);
+            }
+            else if (space == SPACE_ALL_MEMORY)
+            {
+                uint8_t *start = (uint8_t*)all_memory(address, &count);
+                uint8_t *from = &data[DATA + space_offset];
+                size_t size = m->size - (6 + space_offset);
+                for (unsigned int i = 0, j = 0; i < size; ++i, j += 2)
+                {
+                    start[i] &= ~from[j];
+                    start[i] |= (from[j] & from[j+1]);
+                }
+                //command |= COMMAND_ALL_MEMORY;
+                //reply(m->from, &command, &data[ADDRESS], NULL, 0);
+            }
+            else if (space == SPACE_CONFIG)
+            {
+                //command |= COMMAND_CONFIG;
+                //reply(m->from, &command, &data[ADDRESS], NULL, 0);
             }
             break;
         }
         case COMMAND_OPTIONS:
         {
-            uint16_t available = AVAIL_UR;
+            uint16_t available = AVAIL_WUM | AVAIL_UR | AVAIL_UW;
             uint8_t reply[6];
             reply[COMMAND] = COMMAND_OPTIONS_REPLY;
             reply[AVAILABLE] = available >> 8;
@@ -175,15 +233,34 @@ void MemoryConfig::process(Buffer *buffer)
         }
         case COMMAND_INFORMATION:
         {
-            uint32_t address_highest = cdiSize - 1;
+            uint32_t address_highest;
             uint8_t reply[7];
-            reply[COMMAND] = COMMAND_INFORMATION_REPLY | COMMAND_PRESENT;
+            reply[COMMAND] = COMMAND_INFORMATION_REPLY;
+            reply[FLAGS] = 0;
+            if (data[ADDRESS_SPACE] == SPACE_CDI)
+            {
+                address_highest = cdiSize - 1;
+                reply[COMMAND] |= COMMAND_PRESENT;
+                reply[FLAGS] = FLAG_RO;
+            }
+            else if (data[ADDRESS_SPACE] == SPACE_ALL_MEMORY)
+            {
+                address_highest = UINTPTR_MAX;
+                reply[COMMAND] |= COMMAND_PRESENT;
+            }
+            else if (data[ADDRESS_SPACE] == SPACE_CONFIG)
+            {
+                address_highest = 0;
+            }
+            else
+            {
+                address_highest = 0;
+            }
             reply[ADDRESS_SPACE] = data[ADDRESS_SPACE];
             reply[ADDRESS_HIGHEST + 0] = (address_highest >> 24) & 0xFF;
             reply[ADDRESS_HIGHEST + 1] = (address_highest >> 16) & 0xFF;
             reply[ADDRESS_HIGHEST + 2] = (address_highest >>  8) & 0xFF;
             reply[ADDRESS_HIGHEST + 3] = (address_highest >>  0) & 0xFF;
-            reply[FLAGS] = FLAG_RO;
             node->produce(m->from, Datagram::CONFIGURATION, reply, 7, OS_WAIT_FOREVER);
             break;
         }

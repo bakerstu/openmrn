@@ -584,10 +584,10 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
             return;
         }
         /* addressed message */
-        uint16_t address = (data[0] << 0) +
-                           (data[1] << 8);
-        address = be16toh(address);
-        NodeID dst = upstreamCache.lookup(get_addressed_destination(address));
+        uint16_t addressed = (data[0] << 0) +
+                             (data[1] << 8);
+        addressed = be16toh(addressed);
+        NodeID dst = upstreamCache.lookup(get_addressed_destination(addressed));
         mutex.unlock();
         if (dst != 0)
         {

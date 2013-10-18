@@ -74,12 +74,28 @@ public:
         COMMAND_MASK              = 0xFC,
         COMMAND_FLAG_MASK         = 0x03, /**< mask for special memory space flags */
         COMMAND_PRESENT_MASK      = 0x01, /**< mask for address space present bit */
-        COMMAND_READ              = 0x40,
-        COMMAND_READ_REPLY        = 0x50,
+        COMMAND_WRITE             = 0x00, /**< command to write data to address space */
+        COMMAND_WRITE_UNDER_MASK  = 0x08, /**< command to write data under mask */
+        COMMAND_WRITE_REPLY       = 0x10, /**< reply to write data to address space */
+        COMMAND_WRITE_FAILED      = 0x18, /**< failed to write data to address space */
+        COMMAND_WRITE_STREAM      = 0x20, /**< command to write data using a stream */
+        COMMAND_READ              = 0x40, /**< command to read data from address space */
+        COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
+        COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
+        COMMAND_READ_STREAM       = 0x60, /**< command to read data using a stream */
         COMMAND_OPTIONS           = 0x80,
         COMMAND_OPTIONS_REPLY     = 0x82,
         COMMAND_INFORMATION       = 0x84,
         COMMAND_INFORMATION_REPLY = 0x86,
+        COMMAND_LOCK              = 0x88, /**< lock the configuration space */
+        COMMAND_LOCK_REPLY        = 0x8A, /**< unlock the configuration space */
+        COMMAND_UNIQUE_ID         = 0x8C, /**< ask for a node unique id */
+        COMMAND_UNIQUE_ID_REPLY   = 0x8D, /**< node unique id */
+        COMMAND_UPDATE_COMPLETE   = 0xA8, /**< indicate that a sequence of commands is complete */
+        COMMAND_RESET             = 0xA9, /**< reset node to its power on state */
+        COMMAND_FACTORY_RESET     = 0xAA, /**< reset node to factory defaults */
+        COMMAND_FREEZE            = 0xA1, /**< freeze operation of node */
+        COMMAND_UNFREEZE          = 0xA0, /**< unfreeze operation of node */
 
         COMMAND_PRESENT    = 0x01, /**< address space is present */
 
@@ -106,8 +122,8 @@ public:
         AVAIL_UR    = 0x4000, /**< unaligned reads supported */
         AVAIL_UW    = 0x2000, /**< unaligned writes supported */
         AVAIL_R0xFC = 0x0800, /**< read from adddress space 0xFC available */
-        AVAIL_R0xFB = 0x0800, /**< read from adddress space 0xFC available */
-        AVAIL_W0xFB = 0x0800, /**< write from adddress space 0xFC available */
+        AVAIL_R0xFB = 0x0400, /**< read from adddress space 0xFB available */
+        AVAIL_W0xFB = 0x0200, /**< write from adddress space 0xFB available */
     };
 
     /** Possible supported write lengths.

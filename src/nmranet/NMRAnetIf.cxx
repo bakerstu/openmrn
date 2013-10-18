@@ -71,7 +71,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                         }
                         break;
                     case MTI_PROTOCOL_SUPPORT_INQUIRY:
-                        //protocol_support_reply(id_node, src);
+                        node->protocol_support_reply(src);
                         break;
                     case MTI_VERIFY_NODE_ID_ADDRESSED:
                         node->verify_id_number();

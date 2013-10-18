@@ -128,10 +128,10 @@ void Node::ident_info_reply(NodeHandle dst)
         }                                          \
     }
     
-    ADD_STRING_SIZE(manufacturer, 40);
+    ADD_STRING_SIZE(MANUFACTURER, 40);
     ADD_STRING_SIZE(model, 40);
-    ADD_STRING_SIZE(hardware_rev, 20);
-    ADD_STRING_SIZE(software_rev, 20);
+    ADD_STRING_SIZE(HARDWARE_REV, 20);
+    ADD_STRING_SIZE(SOFTWARE_REV, 20);
     ADD_STRING_SIZE(userName, 62);
     ADD_STRING_SIZE(userDescription, 63);
 
@@ -140,10 +140,10 @@ void Node::ident_info_reply(NodeHandle dst)
     pos[0] = SIMPLE_NODE_IDENT_VERSION_A;
     pos = (char*)buffer->advance(1);
     
-    INSERT_STRING(manufacturer, 40);
+    INSERT_STRING(MANUFACTURER, 40);
     INSERT_STRING(model, 40);
-    INSERT_STRING(hardware_rev, 20);
-    INSERT_STRING(software_rev, 20);
+    INSERT_STRING(HARDWARE_REV, 20);
+    INSERT_STRING(SOFTWARE_REV, 20);
 
     pos[0] = SIMPLE_NODE_IDENT_VERSION_B;
     pos = (char*)buffer->advance(1);
@@ -152,6 +152,36 @@ void Node::ident_info_reply(NodeHandle dst)
     INSERT_STRING(userDescription, 63);
     
     write(If::MTI_IDENT_INFO_REPLY, dst, buffer);
+}
+
+/** Send an protocols supported reply message.
+ * @param dst destination Node ID to respond to
+ */
+void Node::protocol_support_reply(NodeHandle dst)
+{
+    /** @todo (Stuart Baker) this needs to be updated as additional protocols
+     * are supported
+     */
+    uint64_t protocols = PROTOCOL_IDENTIFICATION |
+                         DATAGRAM |
+                         EVENT_EXCHANGE |
+                         SIMPLE_NODE_INFORMATION |
+                         MEMORY_CONFIGURATION |
+                         CDI;
+
+    Buffer *buffer = buffer_alloc(6);
+    uint8_t *bytes = (uint8_t*)buffer->start();
+    
+    bytes[0] = (protocols >> 40) & 0xff;
+    bytes[1] = (protocols >> 32) & 0xff;
+    bytes[2] = (protocols >> 24) & 0xff;
+    bytes[3] = (protocols >> 16) & 0xff;
+    bytes[4] = (protocols >>  8) & 0xff;
+    bytes[5] = (protocols >>  0) & 0xff;
+    
+    buffer->advance(6);
+
+    write(If::MTI_PROTOCOL_SUPPORT_REPLY, dst, buffer);
 }
 
 /** Write a message from a node.  We should already have a mutex lock at this

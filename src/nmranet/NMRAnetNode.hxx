@@ -115,6 +115,26 @@ public:
         return nodeID;
     }
     
+    /** Bitmask for all potentially supported NMRAnet protocols.
+     */
+    enum Protocols
+    {
+        PROTOCOL_IDENTIFICATION = 0x800000000000,
+        DATAGRAM                = 0x400000000000,
+        STREAM                  = 0x200000000000,
+        MEMORY_CONFIGURATION    = 0x100000000000,
+        RESERVATION             = 0x080000000000,
+        EVENT_EXCHANGE          = 0x040000000000,
+        IDENTIFICATION          = 0x020000000000,
+        LEARN_CONFIGURATION     = 0x010000000000,
+        REMOTE_BUTTON           = 0x008000000000,
+        ABBREVIATED_DEFAULT_CDI = 0x004000000000,
+        DISPLAY                 = 0x002000000000,
+        SIMPLE_NODE_INFORMATION = 0x001000000000,
+        CDI                     = 0x000800000000,
+        RESERVED_MASK           = 0x0007FFFFFFFF
+    };
+    
 private:
     /** Send a verify node id number message.
      */
@@ -125,6 +145,11 @@ private:
      */
     void ident_info_reply(NodeHandle dst);
     
+    /** Send an protocols supported reply message.
+     * @param dst destination Node ID to respond to
+     */
+    void protocol_support_reply(NodeHandle dst);
+
     /** Write a message from a node.
      * @param mti Message Type Indicator
      * @param dst destination node ID, 0 if unavailable
@@ -173,13 +198,13 @@ private:
     BufferQueueWait queue;
     
     /** manufacturer string */
-    static const char *manufacturer;
+    static const char *MANUFACTURER;
     
     /** hardware rev string */
-    static const char *hardware_rev;
+    static const char *HARDWARE_REV;
     
     /** software rev string */
-    static const char *software_rev;
+    static const char *SOFTWARE_REV;
 
     /* Misc. constant expressions.
      */
