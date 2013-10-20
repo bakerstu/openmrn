@@ -265,6 +265,7 @@ void MemoryConfig::process(Buffer *buffer)
             break;
         }
     }
+    node->received_okay(buffer, Datagram::FLAGS_NONE);
 }
 
 };

@@ -150,7 +150,17 @@ private:
      */
     void protocol_support_reply(NodeHandle dst);
 
-    /** Write a message from a node.
+    /** Write a message from a node.  We should not have a mutex lock at
+     * this at this point.
+     * @param mti Message Type Indicator
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     * @return 0 upon success
+     */
+    int write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data);
+
+    /** Write a message from a node.  We should already have a mutex lock at this
+     * at this point.
      * @param mti Message Type Indicator
      * @param dst destination node ID, 0 if unavailable
      * @param data NMRAnet packet data

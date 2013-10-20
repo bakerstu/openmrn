@@ -109,12 +109,58 @@ public:
      * @return pointer to payload as a uint8_t array, assume byte alignment
      */
     static uint8_t *payload(Buffer *data);
+    
+    /** Acknowledge the successful receipt of a Datagram.
+     * @param buffer reference to the buffer containing the received datagram
+     * @param flags @ref Flags associated with the reply
+     * @param free buffer automatically freed upon return if true, else buffer preserved
+     */
+    void received_okay(Buffer *buffer, uint8_t flags, bool free = true);
+
+    /** Reject the unsuccessful receipt of a Datagram.
+     * @param buffer reference to the buffer containing the received datagram
+     * @param flags @ref Flags associated with the reply
+     * @param free buffer automatically freed upon return if true, else buffer preserved
+     */
+    void rejected(Buffer *buffer, uint16_t error, bool free = true);
 
     /** Various public datagram constants. */
     enum
     {
         MAX_SIZE = 72, /**< maximum size in bytes of a datagram */
-
+    };
+    
+    /** Possible flags for a successful receipt (received okay) of a Datagram.
+     */
+    enum Flag
+    {
+        FLAGS_NONE    = 0x00, /**< no flags set */
+        REPLY_PENDING = 0x80, /**< A reply is pending */
+        
+        TIMEOUT_NONE  = 0x00, /**< no timeout */
+        TIMEOUT_2     = 0x01, /**< 2 second timeout */
+        TIMEOUT_4     = 0x02, /**< 4 second timeout */
+        TIMEOUT_8     = 0x03, /**< 8 second timeout */
+        TIMEOUT_16    = 0x04, /**< 16 second timeout */
+        TIMEOUT_32    = 0x05, /**< 32 second timeout */
+        TIMEOUT_64    = 0x06, /**< 64 second timeout */
+        TIMEOUT_128   = 0x07, /**< 128 second timeout */
+        TIMEOUT_256   = 0x08, /**< 256 second timeout */
+        TIMEOUT_512   = 0x09, /**< 512 second timeout */
+        TIMEOUT_1024  = 0x0A, /**< 1024 second timeout */
+        TIMEOUT_2048  = 0x0B, /**< 2048 second timeout */
+        TIMEOUT_4096  = 0x0C, /**< 4096 second timeout */
+        TIMEOUT_8192  = 0x0D, /**< 8192 second timeout */
+        TIMEOUT_16384 = 0x0E, /**< 16384 second timeout */
+        TIMEOUT_32768 = 0x0F, /**< 32768 second timeout */
+        
+        TIMEOUT_MASK  = 0x0F, /**< Mask for reply timeout */
+    };
+    
+    /** Possible error codes for a rejected datagram.
+     */
+    enum Error
+    {
         RESEND_OK          = 0x2000, /**< We can try to resend the datagram. */
         TRANSPORT_ERROR    = 0x6000, /**< Transport error occurred. */
         BUFFER_UNAVAILABLE = 0x2020, /**< Buffer unavailable error occurred. */
@@ -130,6 +176,11 @@ public:
         NodeID to; /**< the node that the datagram is to, only used in automatic processing */
         NodeHandle from; /**< node id or alias this datagram is from */
         size_t size; /**< size of datagram in bytes */
+        union
+        {
+            uint8_t flags; /**< flags field for Received Okay response */
+            uint16_t error; /**< error field for Rejected response */
+        };
         uint8_t data[MAX_SIZE]; /**< datagram payload */
     };
 
@@ -155,7 +206,17 @@ protected:
     void packet(If::MTI mti, NodeHandle src, Buffer *data);
 
 private:
-    /** Write a datagram message from a node.
+    /** Write a message from a node.  We should not have a mutex lock at
+     * this at this point.
+     * @param mti Message Type Indicator
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     * @return 0 upon success
+     */
+    virtual int write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+
+    /** Write a message from a node.  We should already have a mutex lock at this
+     * at this point.
      * @param mti Message Type Indicator
      * @param dst destination node ID, 0 if unavailable
      * @param data NMRAnet packet data

@@ -65,13 +65,12 @@ void *Datagram::thread(void *arg)
         {
             default:
                 /* unhandled protocol */
+                node->rejected(buffer, NOT_ACCEPTED);
                 break;
             case CONFIGURATION:
                 node->MemoryConfig::process(buffer);
                 break;
         }
-        /* release buffer back to the pool from whence it came */
-        buffer->free();
     }
 
     return NULL;
@@ -315,6 +314,64 @@ uint8_t *Datagram::payload(Buffer *data)
     }
 }
 
+/** Acknowledge the successful receipt of a Datagram.
+ * @param buffer reference to the buffer containing the received datagram
+ * @param flags @ref Flags associated with the reply
+ * @param free buffer automatically freed upon return if true, else buffer preserved
+ */
+void Datagram::received_okay(Buffer *buffer, uint8_t flags, bool free)
+{
+    Message *m = (Message*)buffer->start();
+    NodeHandle dst = m->from;
+    Buffer *b = NULL;
+    
+    /* setup any flags */
+    if (flags)
+    {
+        /* we will try and reuse existing buffer if we can */
+        b = free ? buffer : buffer_alloc(sizeof(uint8_t));
+        b->zero();
+        uint8_t *data = (uint8_t*)b->start();
+        data[0] = flags;
+        b->advance(1);
+    }
+    
+    /* transmit message */
+    write_unlocked(If::MTI_DATAGRAM_OK, dst, b);
+    
+    /* free the buffer if we are done with it */
+    if (free && buffer != b)
+    {
+        buffer->free();
+    }
+}
+
+/** Reject the unsuccessful receipt of a Datagram.
+ * @param buffer reference to the buffer containing the received datagram
+ * @param flags @ref Flags associated with the reply
+ * @param free buffer automatically freed upon return if true, else buffer preserved
+ */
+void Datagram::rejected(Buffer *buffer, uint16_t error, bool free)
+{
+    HASSERT(error != 0);
+
+    Message *m = (Message*)buffer->start();
+    NodeHandle dst = m->from;
+    
+    /* setup any error */
+    /* we will try and reuse existing buffer if we can */
+    Buffer *b = free ? buffer : buffer_alloc(sizeof(uint16_t));
+    b->zero();
+    uint8_t *data = (uint8_t*)b->start();
+    error = htobe16(error);
+    data[0] = (error >> 0) & 0xFF;
+    data[1] = (error >> 8) & 0xFF;
+    b->advance(2);
+    
+    /* transmit message */
+    write_unlocked(If::MTI_DATAGRAM_REJECTED, dst, b);
+}
+
 /** Process the datagram automatically.
  * @param data buffer to process
  * @return 0 if we do not have an automated processing option, else return 1
@@ -325,7 +382,7 @@ int Datagram::process(Buffer *data)
     {
         default:
             /* unhandled protocol */
-            return 0;
+            //return 0;
         case CONFIGURATION:
             pending.insert(data);
             break;
@@ -348,8 +405,8 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
         case If::MTI_DATAGRAM_REJECTED:
         {
             Message *m = (Message*)data->start();
-            uint16_t error = m->data[0] + (m->data[1] << 8);
-            error = htobe16(error);
+            uint16_t error = m->data[1] + (m->data[0] << 8);
+
             if (resend_ok(error))
             {
                 /* we can try again */
@@ -386,10 +443,12 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
                 buffer_release(txMessage);
                 txMessage = NULL;
             }
-            /* There is no buffer payload so don't free buffer buffer */
+            if (data)
+            {
+                data->free();
+            }
             break;
         case If::MTI_DATAGRAM:
-            write(If::MTI_DATAGRAM_OK, src, NULL);
             if (process(data) == 0)
             {
                 /* push this up for the application to process */

@@ -58,6 +58,15 @@ public:
      */
     void *advance(size_t bytes);
     
+    /** reset the buffer position back to beginning.
+     * @return pointer to the new position (next available byte)
+     */
+    void *zero()
+    {
+        left = _size;
+        return data;
+    }    
+    
     /** Get a pointer to the first position (byte) of the buffer.
      * @return pointer to the first position (byte)
      */
@@ -494,12 +503,13 @@ inline void Buffer::free()
     bufferPool->buffer_free(this);
 }
 
-    /** Advance the position of the buffer.
-     * @param bytes number of bytes to advance.
-     * @return pointer to the new position (next available byte)
-     */
+/** Advance the position of the buffer.
+ * @param bytes number of bytes to advance.
+ * @return pointer to the new position (next available byte)
+ */
 inline void *Buffer::advance(size_t bytes)
 {
+    /** @todo (Stuart Baker) do we really need a mutex lock here? */
     bufferPool->mutex.lock();
     left -= bytes;    
     bufferPool->mutex.unlock();

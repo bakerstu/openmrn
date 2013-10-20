@@ -252,9 +252,9 @@ const int main_priority = 0;
 
 using namespace NMRAnet;
 
-const char *Node::manufacturer = "Stuart W. Baker";
-const char *Node::hardware_rev = "N/A";
-const char *Node::software_rev = "0.1";
+const char *Node::MANUFACTURER = "Stuart W. Baker";
+const char *Node::HARDWARE_REV = "N/A";
+const char *Node::SOFTWARE_REV = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;

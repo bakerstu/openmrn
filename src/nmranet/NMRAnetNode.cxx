@@ -96,10 +96,6 @@ void Node::verify_id_number()
  */
 void Node::ident_info_reply(NodeHandle dst)
 {
-    size_t  size = 8;
-    Buffer *buffer;
-    char   *pos;
-
     /* macro for condensing the size calculation code */
     #define ADD_STRING_SIZE(_str, _max)          \
     {                                            \
@@ -119,15 +115,23 @@ void Node::ident_info_reply(NodeHandle dst)
             len = len > (_max) ? (_max) : len;     \
             memcpy(pos, (_str), len);              \
             pos[len] = '\0';                       \
-            pos = (char*)buffer->advance(len + 1); \
+            pos += len + 1;                        \
         }                                          \
         else                                       \
         {                                          \
             pos[0] = '\0';                         \
-            pos = (char*)buffer->advance(1);       \
+            pos++;                                 \
         }                                          \
     }
     
+    /* we make this static so that it does not use up stack */
+    /** @todo (Stuart Baker) if this could ever be accessed from more than one
+     * thread, we will need a lock
+     */
+    static char ident[8+40+40+20+20+62+63];
+    char       *pos = ident;
+    size_t      size = 8;
+
     ADD_STRING_SIZE(MANUFACTURER, 40);
     ADD_STRING_SIZE(model, 40);
     ADD_STRING_SIZE(HARDWARE_REV, 20);
@@ -135,10 +139,8 @@ void Node::ident_info_reply(NodeHandle dst)
     ADD_STRING_SIZE(userName, 62);
     ADD_STRING_SIZE(userDescription, 63);
 
-    buffer = buffer_alloc(size);
-    pos = (char*)buffer->start();
     pos[0] = SIMPLE_NODE_IDENT_VERSION_A;
-    pos = (char*)buffer->advance(1);
+    pos++;
     
     INSERT_STRING(MANUFACTURER, 40);
     INSERT_STRING(model, 40);
@@ -146,12 +148,21 @@ void Node::ident_info_reply(NodeHandle dst)
     INSERT_STRING(SOFTWARE_REV, 20);
 
     pos[0] = SIMPLE_NODE_IDENT_VERSION_B;
-    pos = (char*)buffer->advance(1);
+    pos++;
 
     INSERT_STRING(userName, 62);
     INSERT_STRING(userDescription, 63);
-    
-    write(If::MTI_IDENT_INFO_REPLY, dst, buffer);
+
+    for (int index = 0; size; )
+    {
+        size_t segment_size = size > 6 ? 6 : size;
+        Buffer *buffer = buffer_alloc(6);
+        memcpy(buffer->start(), ident + index, segment_size);
+        buffer->advance(segment_size);
+        write(If::MTI_IDENT_INFO_REPLY, dst, buffer);
+        size -= segment_size;
+        index += segment_size;
+    }
 }
 
 /** Send an protocols supported reply message.
@@ -184,6 +195,50 @@ void Node::protocol_support_reply(NodeHandle dst)
     write(If::MTI_PROTOCOL_SUPPORT_REPLY, dst, buffer);
 }
 
+/** Write a message from a node.  We should not have a mutex lock at
+ * this at this point.
+ * @param mti Message Type Indicator
+ * @param dst destination node ID, 0 if unavailable
+ * @param data NMRAnet packet data
+ * @return 0 upon success
+ */
+int Node::write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data)
+{
+    /* It is important to note that we unlock the mutex before sending
+     * data to an interface.  This is required for local nodes such that
+     * we don't have mutex recursion.  This is required for remote nodes so
+     * that if the interface write would block, other nodes may continue to
+     * send messages using the interface.  NMRAnet does not guarantee message
+     * sequencing.
+     */
+
+    if (dst.id == 0 && dst.alias == 0)
+    {
+        /* broacast message */
+        data->reference();
+        nmranetIf->rx_data(mti, {nodeID, 0}, 0, data);
+        nmranetIf->if_write(mti, nodeID, dst, data);
+    }
+    else
+    {
+        mutex.lock();
+        RBTree <NodeID, Node*>::Node *node = idTree.find(dst.id);;
+        mutex.unlock();
+
+        if (node)
+        {
+            /* loop-back */
+            nmranetIf->rx_data(mti, {nodeID, 0}, dst.id, data);
+        }
+        else
+        {
+            nmranetIf->if_write(mti, nodeID, dst, data);
+        }
+    }
+
+    return 0;
+}
+
 /** Write a message from a node.  We should already have a mutex lock at this
  * at this point.
  * @param mti Message Type Indicator
@@ -212,8 +267,8 @@ int Node::write(If::MTI mti, NodeHandle dst, Buffer *data)
     else
     {
         RBTree <NodeID, Node*>::Node *node = idTree.find(dst.id);;
-
         mutex.unlock();
+        
         if (node)
         {
             /* loop-back */
