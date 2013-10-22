@@ -98,7 +98,11 @@ public:
         MTI_DATAGRAM                  = 0x1C48, /**< datagram */
         MTI_DATAGRAM_OK               = 0x0A28, /**< datagram received okay */
         MTI_DATAGRAM_REJECTED         = 0x0A48, /**< datagram rejected by receiver */
+        MTI_STREAM_INITIATE_REQUEST   = 0x0CC8, /**< Stream initiate request */
+        MTI_STREAM_INITIATE_REPLY     = 0x0868, /**< Stream initiate reply */
         MTI_STREAM_DATA               = 0x1F88, /**< stream data */
+        MTI_STREAM_PROCEED            = 0x0888, /**< stream flow control */
+        MTI_STREAM_COMPLETE           = 0x08A8, /**< stream terminate connection */
         
         MTI_MODIFIER_MASK = 0x0003, /**< modifier within Priority/Type mask */
         MTI_EVENT_MASK    = 0x0004, /**< event number present mask */

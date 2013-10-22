@@ -153,6 +153,10 @@ public:
     }
 
 private:
+    /** Default constructor.
+     */
+    OSTimer();
+
     DISALLOW_COPY_AND_ASSIGN(OSTimer);
 
     /** Private timer handle. */

@@ -84,6 +84,12 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                     case MTI_DATAGRAM:
                         node->Datagram::packet(mti, src, data);
                         break;
+                    case MTI_STREAM_INITIATE_REQUEST:
+                    case MTI_STREAM_INITIATE_REPLY:
+                    case MTI_STREAM_DATA:
+                    case MTI_STREAM_PROCEED:
+                    case MTI_STREAM_COMPLETE:
+                        node->Stream::packet(mti, src, data);
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
                         HASSERT(data == NULL);
                         //nmranet_event_packet_addressed(mti, id_node, data);

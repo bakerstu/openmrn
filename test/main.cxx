@@ -214,6 +214,7 @@ int appl_main(int argc, char *argv[])
 }
 #else
 #include "nmranet/NMRAnetNode.hxx"
+#include "nmranet/NMRAnetStream.hxx"
 #include "nmranet/NMRAnetIfCanGridConnect.hxx"
 #include "nmranet_config.h"
 
@@ -258,6 +259,8 @@ const char *Node::SOFTWARE_REV = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;
+const size_t Stream::CHANNELS_PER_NODE = 10;
+const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 /** Entry point to application.
  * @param argc number of command line arguments

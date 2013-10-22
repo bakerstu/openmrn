@@ -99,6 +99,14 @@ public:
         return left;    
     }
 
+    /** Get the number of unused bytes in the buffer.
+     * @return number of unused bytes
+     */
+    size_t used()
+    {
+        return _size - left;    
+    }
+
     /** Expand the buffer size.
      * @param size size buffer after expansion.
      * @return newly expanded buffer with old buffer data moved

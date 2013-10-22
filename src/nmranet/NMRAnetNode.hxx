@@ -37,6 +37,7 @@
 
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetDatagram.hxx"
+#include "nmranet/NMRAnetStream.hxx"
 #include "nmranet/NMRAnetMemoryConfig.hxx"
 #include "utils/RBTree.hxx"
 
@@ -45,7 +46,7 @@ namespace NMRAnet
 
 /** NMRAnet virtual node.
  */
-class Node : public Datagram, public MemoryConfig
+class Node : public Datagram, public Stream, public MemoryConfig
 {
 public:
     /** Constructor.
@@ -240,6 +241,9 @@ private:
     
     /** allow Datagram class to access Node members */
     friend class Datagram;
+
+    /** allow Stream class to access Node members */
+    friend class Stream;
 };
 
 };

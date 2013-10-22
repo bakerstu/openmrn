@@ -412,6 +412,9 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                 if (mti == MTI_STREAM_DATA)
                 {
                     len = data->size() - data->available();
+                    HASSERT(len > 2);
+                    /* chop off the source and destination IDs */
+                    len -= 2;
                     payload = (uint8_t*)data->start();
                 }
                 else
@@ -913,6 +916,37 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
     mutex.unlock();
 }
 
+/** Decode stream can frame.
+ * @param can_id can identifier
+ * @param dlc data length code
+ * @param data pointer to up to 8 bytes of data
+ */
+void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
+{
+    NodeHandle src;
+    uint16_t dst_alias = get_dst(can_id);
+
+    mutex.lock();
+    NodeID dst_id = upstreamCache.lookup(dst_alias);
+
+    if (dst_id == 0)
+    {
+        /* nobody here by that ID, not for us */
+        mutex.unlock();
+        return;
+    }
+
+    src.alias = get_src(can_id);
+    src.id = downstreamCache.lookup(src.alias);
+
+    Buffer *buffer = buffer_alloc(dlc + 2);
+    memcpy(buffer->start(), data, dlc);
+    memset((char*)buffer->start() + dlc, 0, 2);
+    buffer->advance(dlc + 2);
+
+    rx_data(nmranet_mti(can_id), src, dst_id, buffer);
+}
+
 /** Test to see if the alias is in conflict with an alias we are using.
  * @param alias alias to look for conflict with
  * @param release we should release the alias if we have it reserved
@@ -1251,110 +1285,11 @@ void *IfCan::read_thread(void *data)
                     datagram(frame.can_id, frame.can_dlc, frame.data);
                     break;
                 case STREAM_DATA:
+                    stream(frame.can_id, frame.can_dlc, frame.data);
                     break;
             } /* switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id) */
         } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
     } /* for ( ; forever ; ) */
-#if 0
-    NMRAnetCanIF *can_if = (NMRAnetCanIF*)data;
-
-    for ( ; /* forever */ ; )
-    {
-        struct can_frame frame;
-        CLR_CAN_FRAME_ERR(frame);
-        CLR_CAN_FRAME_RTR(frame);
-        CLR_CAN_FRAME_EFF(frame);
-
-        int result = (*can_if->read)(can_if->read_fd, &frame, sizeof(struct can_frame));
-        if (result < 0)
-        {
-            abort();
-        }
-        
-        /* OpenLCB doesn't care about standard frames. */
-        if (!IS_CAN_FRAME_EFF(frame))
-        {
-            continue;
-        }
-
-        /* address any abnormalities */
-        if (IS_CAN_FRAME_ERR(frame) ||
-            IS_CAN_FRAME_RTR(frame))
-        {
-            /** @todo need to handle these conditions properly */
-            abort();
-        }
-        
-        if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0)
-        {
-            switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id))
-            {
-                default:
-                    /* this is another protocol, let's grab the next frame */
-                    continue;
-                case 0x4:
-                    /* fall through */
-                case 0x5:
-                    /* fall through */
-                case 0x6:
-                    /* fall through */
-                case 0x7:
-                    ccr_cid_frame(can_if, frame.can_id);
-                    /* we are done decoding, let's grab the next frame */
-                    continue;
-                case 0x0:
-                    switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id))
-                    {
-                        default:
-                            /* unknown field, let's grab the next frame */
-                            continue;
-                        case RID_FRAME:
-                            ccr_rid_frame(frame.can_id);
-                            break;
-                        case AMD_FRAME:
-                            ccr_amd_frame(can_if, frame.can_id, frame.data);
-                            break;
-                        case AME_FRAME:
-                            ccr_ame_frame(can_if, frame.can_id, (frame.can_dlc == 0) ? NULL : frame.data);
-                            break;
-                        case AMR_FRAME:
-                            ccr_amr_frame(can_if, frame.can_id, frame.data);
-                            break;
-                    } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
-                    alias_conflict(can_if, GET_CAN_CONTROL_FRAME_SOURCE(frame.can_id), 1);
-                    break;
-            } /* switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id)) */
-        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
-        else
-        {
-            if (alias_conflict(can_if, GET_CAN_ID_SOURCE(frame.can_id), 1))
-            {
-                /* there was a conflict in the alias mappings */
-                continue;
-            }
-            /** find the proper packet decoder */
-            switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id))
-            {
-                default:
-                    break;
-                case TYPE_GLOBAL_ADDRESSED:
-                    type_global_addressed(can_if, frame.can_id, frame.can_dlc, frame.data);
-                    break;
-                case TYPE_DATAGRAM_ONE_FRAME:
-                    /* fall through */
-                case TYPE_DATAGRAM_FIRST_FRAME:
-                    /* fall through */
-                case TYPE_DATAGRAM_MIDDLE_FRAME:
-                    /* fall through */
-                case TYPE_DATAGRAM_FINAL_FRAME:
-                    type_datagram(can_if, frame.can_id, frame.can_dlc, frame.data);
-                    break;
-                case TYPE_STREAM_DATA:
-                    break;
-            } /* switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id) */
-        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
-    } /* for ( ; forever ; ) */
-#endif    
     return NULL;
 }
 

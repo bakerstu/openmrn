@@ -468,6 +468,13 @@ private:
      */
     void datagram(uint32_t can_id, uint8_t dlc, uint8_t *data);
 
+    /** Decode stream can frame.
+     * @param can_id can identifier
+     * @param dlc data length code
+     * @param data pointer to up to 8 bytes of data
+     */
+    void stream(uint32_t can_id, uint8_t dlc, uint8_t *data);
+
     /** Test to see if the alias is in conflict with an alias we are using.
      * @param alias alias to look for conflict with
      * @param release true if we should release the alias if we have it reserved
