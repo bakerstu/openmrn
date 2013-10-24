@@ -59,10 +59,32 @@ public:
      *                > 0, wait for success, or fail on timeout
      * @return NULL on fail, else stream handle on success or pending success
      */
-    StreamHandle Open(NodeHandle dst, long long timeout);
+    StreamHandle sopen(NodeHandle dst, long long timeout);
+
+    /** Close a stream.
+     * @param handle handle to stream to close
+     */
+    void sclose(StreamHandle handle);
+
+    /** Write data to a stream.
+     * @param handle handle to stream to write to
+     * @param buf buffer to copy data from
+     * @param size size in bytes to write to stream
+     * @return number of bytes written, else -1 on error with errno set to indicate error
+     */
+    ssize_t swrite(StreamHandle handle, const void *buf, size_t size);
+
+    /** Read data from a stream.
+     * @param handle handle to stream to read from
+     * @param buf buffer to copy data to
+     * @param size size in bytes to read from stream
+     * @return number of bytes read, else -1 on error with errno set to indicate error
+     */
+    ssize_t sread(StreamHandle handle, void *buf, size_t size);
 
 protected:
-    /** Default constructor. */
+    /** Default constructor.
+     */
     Stream()
         : outboundTree(),
           inboundTree(),
@@ -71,7 +93,8 @@ protected:
     {
     }
     
-    /** Default destructor. */
+    /** Default destructor.
+     */
     ~Stream()
     {
     }
@@ -111,12 +134,14 @@ private:
      */
     struct Metadata
     {
-        Buffer *ping;  /**< ping buffer */
-        Buffer *pong;  /**< pong buffer */
-        size_t  size;  /**< max buffer size */
-        State   state; /**< Stream state */
-        uint8_t srcID; /**< unique source ID */
-        uint8_t dstID; /**< unique destination ID */
+        RingBuffer<uint8_t> *data; /**< stream data */
+        NodeHandle  nodeHandle; /**< node we are communicating with */
+
+        size_t  size;   /**< max buffer size */
+        size_t  count;  /**< count received before proceed required */
+        State   state;  /**< Stream state */
+        uint8_t srcID;  /**< unique source ID */
+        uint8_t dstID;  /**< unique destination ID */
     };
 
     /** Write a message from a node.  We should already have a mutex lock at this
@@ -145,6 +170,24 @@ private:
      */
     void initiate_reply(NodeHandle src, Buffer *buffer);
 
+    /** Handle incoming stream data messages.
+     * @param src source Node ID
+     * @param data datagram to post
+     */
+    void handle_data(NodeHandle src, Buffer *buffer);
+
+    /** Handle incoming stream proceed messages.
+     * @param src source Node ID
+     * @param data datagram to post
+     */
+    void proceed(NodeHandle src, Buffer *buffer);
+
+    /** Handle incoming stream complete messages.
+     * @param src source Node ID
+     * @param data datagram to post
+     */
+    void complete(NodeHandle src, Buffer *buffer);
+    
     /** tree for keeping track of outbound streams */
     RBTree <uint8_t, Metadata*> outboundTree;
 

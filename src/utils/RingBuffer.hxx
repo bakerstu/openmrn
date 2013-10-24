@@ -37,6 +37,8 @@
 #include <new>
 #include "utils/macros.h"
 
+/** Implements a vanilla ring buffer.
+ */
 template <typename T> class RingBuffer
 {
 public:
@@ -122,6 +124,14 @@ public:
     size_t size()
     {
         return _size;
+    }
+    
+    /** space left in buffer of buffer in number items.
+     * @return space left in buffer in number of items
+     */
+    size_t space()
+    {
+        return _size - count;
     }
     
 private:
