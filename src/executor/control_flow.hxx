@@ -36,6 +36,7 @@
 #define _EXECUTOR_CONTROL_FLOW_HXX_
 
 #include "executor/executor.hxx"
+#include "executor/allocator.hxx"
 
 
 // This template magic is used for simplifying the declaration of member
@@ -45,7 +46,7 @@ template<typename T> T removeref(const T& x);
 #define ST(FUNCTION) (MemberFunction)(&identity<decltype(removeref(*this))>::type::FUNCTION)
 
 
-class ControlFlow : public Executable, public Notifiable {
+class ControlFlow : public AllocationResult, public Notifiable {
 public:
   // =============== Interface to the outside world ===============
   ControlFlow(Executor* executor, Notifiable* done)
@@ -64,6 +65,12 @@ public:
     if (!executor_->IsMaybePending(this)) {
       executor_->Add(this);
     }
+  }
+
+  // Callback from an allocator.
+  virtual void AllocationCallback(QueueMember* entry) {
+    sub_flow_.allocation_result = entry;
+    this->Notify();
   }
 
   //! Returns true if this control flow has reached the terminated state.
@@ -191,7 +198,7 @@ private:
   union {
     SleepData* sleep;
     ControlFlow* called_flow;
-    
+    QueueMember* allocation_result;
   } sub_flow_;
 
   //! The current state that needs to be tried.
