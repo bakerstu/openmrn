@@ -170,6 +170,11 @@ protected:
     return CallImmediately(next_state_);
   }
 
+  template<class T> void GetAllocationResult(T** value) {
+    HASSERT(sub_flow_.allocation_result);
+    *value = static_cast<T*>(sub_flow_.allocation_result);
+  }
+
   struct SleepData {
     SleepData()
       : callback_count(0), timer_handle(NULL) {};
