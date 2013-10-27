@@ -45,8 +45,6 @@ class SimpleEventProxy : public ProxyEventHandler {
   NMRAnetEventHandler* handler_;
 };
 
-
-
 TEST(EventProxy, TestHandleEvent) {
   StrictMock<MockEventHandler> inner_handler;
   SimpleEventProxy proxy(&inner_handler);
@@ -54,6 +52,12 @@ TEST(EventProxy, TestHandleEvent) {
   proxy.HandleEventReport(NULL, NULL);
 }
 
+TEST(EventProxy, ConsumerRange) {
+  StrictMock<MockEventHandler> inner_handler;
+  SimpleEventProxy proxy(&inner_handler);
+  EXPECT_CALL(inner_handler, HandleConsumerRangeIdentified(_, _)).Times(1);
+  proxy.HandleConsumerRangeIdentified(NULL, NULL);
+}
 
 TEST(DummyTest, Success) {
   int i = 34;
