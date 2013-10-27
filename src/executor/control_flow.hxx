@@ -78,6 +78,14 @@ public:
     return state_ == &ControlFlow::Terminated;
   }
 
+  bool IsNotStarted() {
+    return state_ == &ControlFlow::NotStarted;
+  }
+
+  void Restart(Notifiable* done) {
+    done_ = done;
+  }
+
   Executor* executor() { return executor_; }
 
   // ============ Interface to children (actual flows) ==============
@@ -140,6 +148,27 @@ protected:
   }
 
   ControlFlowAction Exit();
+
+  template <class T, class U>
+  ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
+    done_->Notify();
+    allocator->TypedRelease(entry);
+    state_ = &ControlFlow::Terminated;
+    return WaitForNotification();
+  }
+
+  ControlFlowAction Allocate(AllocatorBase* allocator, MemberFunction next) {
+    next_state_ = next;
+    sub_flow_.allocation_result = nullptr;
+    allocator->AllocateEntry(this);
+    // We call aggressively here in case the allocation succeeded inline.
+    return CallImmediately(ST(WaitForAllocation));
+  }
+
+  ControlFlowAction WaitForAllocation() {
+    if (!sub_flow_.allocation_result) return WaitForNotification();
+    return CallImmediately(next_state_);
+  }
 
   struct SleepData {
     SleepData()
