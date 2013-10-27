@@ -78,7 +78,7 @@ public:
     HASSERT(entry->next_ == NULL);
     HASSERT(entry != tail_);
     HASSERT(tail_->next_ == NULL);
-    entry_->next_ = next_;
+    entry->next_ = next_;
     next_ = entry;
   }
 

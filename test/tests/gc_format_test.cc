@@ -75,7 +75,7 @@ TEST(GCParseTest, ExtFrameWithData) {
   struct can_frame frame;
   ASSERT_EQ(0, gc_format_parse("X195B4576NF0F1F2F3F4F5F6F7", &frame));
   EXPECT_TRUE(IS_CAN_FRAME_EFF(frame));
-  EXPECT_EQ(0x195b4576, GET_CAN_FRAME_ID_EFF(frame));
+  EXPECT_EQ(0x195b4576UL, GET_CAN_FRAME_ID_EFF(frame));
   EXPECT_EQ(8, frame.can_dlc);
   for (int i = 0; i < 8; i++) {
     EXPECT_EQ(0xf0 | i, frame.data[i]);
@@ -86,7 +86,7 @@ TEST(GCParseTest, ExtFrameWithNoData) {
   struct can_frame frame;
   ASSERT_EQ(0, gc_format_parse("X195B4576N", &frame));
   EXPECT_TRUE(IS_CAN_FRAME_EFF(frame));
-  EXPECT_EQ(0x195b4576, GET_CAN_FRAME_ID_EFF(frame));
+  EXPECT_EQ(0x195b4576UL, GET_CAN_FRAME_ID_EFF(frame));
   EXPECT_EQ(0, frame.can_dlc);
 }
 
@@ -94,13 +94,9 @@ TEST(GCParseTest, SFrameWithNoData) {
   struct can_frame frame;
   ASSERT_EQ(0, gc_format_parse("S721N", &frame));
   EXPECT_FALSE(IS_CAN_FRAME_EFF(frame));
-  EXPECT_EQ(0x721, GET_CAN_FRAME_ID(frame));
+  EXPECT_EQ(0x721UL, GET_CAN_FRAME_ID(frame));
   EXPECT_EQ(0, frame.can_dlc);
 }
-
-
-
-
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);

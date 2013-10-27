@@ -39,10 +39,10 @@ void AllocatorBase::Release(QueueMember* entry) {
   {
     LockHolder l(this);
     if (has_free_entries_) {
-      waiting_list_->PushFront(entry);
+      waiting_list_.PushFront(entry);
       return;
     } else {
-      caller = down_cast<AllocationResult*>(waiting_list_.Pop());
+      caller = static_cast<AllocationResult*>(waiting_list_.Pop());
       if (waiting_list_.empty()) has_free_entries_ = true;
     }
   }
