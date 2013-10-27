@@ -34,6 +34,8 @@
  * @date 5 Aug 2013
  */
 
+#ifndef _UTILS_LOCK_HXX_
+#define _UTILS_LOCK_HXX_
 
 #ifdef __FreeRTOS__
 
@@ -76,3 +78,5 @@ private:
 
 //! See @OSMutexLock in os/OS.hxx
 #define LockHolder(l) int error_omitted_lock_holder_variable[-1]
+
+#endif // _UTILS_LOCK_HXX_
