@@ -124,7 +124,7 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
  * @param node node that the packet is addressed to
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data);
+void nmranet_event_packet_addressed(uint16_t mti, node_handle_t src, node_t node, const void *data);
 
 /** Identify all consumer events.
  * @param node node instance to act on
@@ -152,4 +152,3 @@ node_t nmranet_node_next(node_t node);
 #endif
 
 #endif /* _nmranet_node_private_h_ */
-

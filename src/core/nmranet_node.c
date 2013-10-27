@@ -443,7 +443,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                              */
                             abort();
                         }
-                        nmranet_event_packet_addressed(mti, id_node, data);
+                        nmranet_event_packet_addressed(mti, src, id_node, data);
                         break;
                 }
             }
@@ -575,4 +575,3 @@ int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void 
     }
     return 0;
 }
-
