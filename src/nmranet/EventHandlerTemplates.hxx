@@ -38,6 +38,9 @@
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
+typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
+                                                          Notifiable* done);
+
 // A proxy event handler has a single helper function that gets every event
 // handler call with an indication of which call it is. It is helpful to create
 // event containers that proxy calls to many event handler instances.
@@ -45,8 +48,6 @@ class ProxyEventHandler : public NMRAnetEventHandler {
  public:
   virtual ~ProxyEventHandler() {}
 
-  typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
-                                                            Notifiable* done);
 
   // This function will be called for any other incoming event handler
   // function.
