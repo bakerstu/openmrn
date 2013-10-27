@@ -8,6 +8,16 @@ Notifiable* EmptyNotifiable::DefaultInstance() {
   return &default_empty_notifiable;
 }
 
+static CrashNotifiable default_crash_notifiable;
+
+Notifiable* CrashNotifiable::DefaultInstance() {
+  return &default_crash_notifiable;
+}
+
+void CrashNotifiable::Notify() {
+  abort();
+}
+
 Notifiable* BarrierNotifiable::NewChild() {
   LockHolder h(this);
   count_++;

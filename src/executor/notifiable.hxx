@@ -33,6 +33,14 @@ class EmptyNotifiable : public Notifiable {
   static Notifiable* DefaultInstance();
 };
 
+// This notifiable will crash whenever called.
+class CrashNotifiable : public Notifiable {
+ public:
+  virtual void Notify();
+
+  static Notifiable* DefaultInstance();
+};
+
 // A BarrierNotifiable allows to create a number of child Notifiable and wait
 // for all of them to finish. When the last one is finished, the parent done
 // callback is called.
