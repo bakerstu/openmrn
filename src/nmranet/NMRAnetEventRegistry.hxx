@@ -49,10 +49,16 @@ enum EventState {
   RESERVED = 3
 };
 
+/*enum EventMask {
+  EVENT_EXACT_MASK = 1,
+  EVENT_ALL_MASK = 0xffffffffffffffffULL
+  };*/
+
 typedef struct {
   EventId event;
   EventId mask;
   node_handle_t src_node;
+  node_t dst_node;
   EventState state;
 } EventReport;
 
