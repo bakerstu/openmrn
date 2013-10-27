@@ -37,6 +37,7 @@
 #include <cstdint>
 
 #include "utils/macros.h"
+#include "utils/BufferQueue.hxx"
 
 namespace NMRAnet
 {
@@ -98,8 +99,35 @@ public:
         MTI_DATAGRAM_OK               = 0x0A28, /**< datagram received okay */
         MTI_DATAGRAM_REJECTED         = 0x0A48, /**< datagram rejected by receiver */
         MTI_STREAM_DATA               = 0x1F88, /**< stream data */
+        
+        MTI_MODIFIER_MASK = 0x0003, /**< modifier within Priority/Type mask */
+        MTI_EVENT_MASK    = 0x0004, /**< event number present mask */
+        MTI_ADDRESS_MASK  = 0x0008, /**< Address present mask */
+        MTI_SIMPLE_MASK   = 0x0010, /**< simple protocol mask */
+        MTI_TYPE_MASK     = 0x03e0, /**< type within priority mask */
+        MTI_PRIORITY_MASK = 0x0c00, /**< priority mask */
+        MTI_DATAGRAM_MASK = 0x1000, /**< stream or datagram mask */
+        MTI_SPECIAL_MASK  = 0x2000, /**< special mask */
+        MTI_RESERVED_MASK = 0xc000, /**< reserved mask */
+
+        MTI_MODIFIER_SHIFT =  0, /**< modifier within Priority/Type shift */
+        MTI_EVENT_SHIFT    =  2, /**< event number present shift */
+        MTI_ADDRESS_SHIFT  =  3, /**< Address present shift */
+        MTI_SIMPLE_SHIFT   =  4, /**< simple protocol shift */
+        MTI_TYPE_SHIFT     =  5, /**< type within priority shift */
+        MTI_PRIORITY_SHIFT = 10, /**< priority shift */
+        MTI_DATAGRAM_SHIFT = 12, /**< stream or datagram shift */
+        MTI_SPECIAL_SHIFT  = 13, /**< special shift */
+        MTI_RESERVED_SHIFT = 14  /**< reserved shift */
     };
 
+    /** Status of the pysical layer link */
+    enum LinkStatus
+    {
+        UP,  /**< link is up and ready for transmit */
+        DOWN /**< link is down and unable to transmit */
+    };
+    
     /** Write a message onto the interface.
      * @param mti Message Type Indicator
      * @param src source node ID, 0 if unavailable
@@ -107,15 +135,50 @@ public:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    virtual int write(uint16_t MTI, NodeID src, NodeHandle dst, const void *data);
+    virtual int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data) = 0;
+
+    /** Process receive data.
+     * @param mti Message Type Indicator
+     * @param src source node ID, 0 if unavailable
+     * @param dst destination node ID, 0 if unavailable
+     * @param data NMRAnet packet data
+     */
+    void rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data);
+    
+    /** Can be used by the application to determine if the link is up or down.
+     * @return current link status
+     */
+    virtual LinkStatus link_status() = 0;
 
 protected:
-    ~If();
+    /** Default Destructor.
+     */
+    virtual ~If()
+    {
+    }
 
-private:
+    /** Get the MTI address present value field.
+     * @param mti MTI to extract field value from
+     * @return true if MTI is an addressed message, else false
+     */
+    bool get_mti_address(MTI mti)
+    {
+        return (mti & MTI_ADDRESS_MASK);
+    }
+
+    /** Get the MTI datagram or stream value field.
+     * @param mti MTI to extract field value from
+     * @return true if MTI is a datagram or stream, else false
+     */
+    bool get_mti_datagram(MTI mti)
+    {
+        return (mti & MTI_DATAGRAM_MASK);
+    }
+
     /** 48-bit NMRAnet node id associated with this interface */
     NodeID nodeID;
 
+private:
     DISALLOW_COPY_AND_ASSIGN(If);
 };
 

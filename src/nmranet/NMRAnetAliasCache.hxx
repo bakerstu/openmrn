@@ -123,13 +123,22 @@ public:
      * @param callback method to call
      * @param context context pointer to pass to callback
      */
-    void for_each(void (*callback)(void*, NodeID, NodeID), void *context);
+    void for_each(void (*callback)(void*, NodeID, NodeAlias), void *context);
 
     /** Generate a 12-bit pseudo-random alias for a givin alias cache.
      * @return pseudo-random 12-bit alias, an alias of zero is invalid
      */
     NodeAlias generate();
 
+    /** Default destructor */
+    ~AliasCache()
+    {
+        delete[] metadata;
+        delete[] aliasNode;
+        delete[] idNode;
+        delete[] timeNode;
+    }
+    
 private:
     template <typename T> class Allocator
     {
@@ -308,9 +317,6 @@ private:
     /** Default Constructor */
     AliasCache();
 
-    /** Default destructor */
-    ~AliasCache();
-    
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 
@@ -323,6 +329,7 @@ inline void AliasCache::touch(Metadata* metadata)
     HASSERT(node != NULL);
     
     metadata->timestamp = OSTime::get_monotonic();
+    node->key = metadata->timestamp;
     
     timeTree.insert(node);
 }

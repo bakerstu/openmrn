@@ -110,37 +110,43 @@ void BufferPool::buffer_free(Buffer *buffer)
     HASSERT(this == buffer->bufferPool);
     int index = 0;
 
-    switch (buffer->_size)
+    mutex.lock();
+    if (--(buffer->count) == 0)
     {
-        default:
-            /* big buffers are just freed */
-            mutex.lock();
-            totalSize -= buffer->_size;
-            totalSize -= sizeof(Buffer);
-            mutex.unlock();
-            free(buffer);
-            return;
-        case 4:
-            index = 0;
-            break;
-        case 8:
-            index = 1;
-            break;
-        case 16:
-            index = 2;
-            break;
-        case 32:
-            index = 3;
-            break;
+        /* this buffer is no longer in use by anyone */
+        switch (buffer->_size)
+        {
+            default:
+                /* big buffers are just freed */
+                totalSize -= buffer->_size;
+                totalSize -= sizeof(Buffer);
+                DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+                free(buffer);
+                mutex.unlock();
+                return;
+            case 4:
+                index = 0;
+                break;
+            case 8:
+                index = 1;
+                break;
+            case 16:
+                index = 2;
+                break;
+            case 32:
+                index = 3;
+                break;
+        }
+
+        buffer->next = pool[index];
+        pool[index] = buffer;
     }
 
-    mutex.lock();
-    buffer->next = pool[index];
-    pool[index] = buffer;
     mutex.unlock();
 }
 
-/** Expand the buffer size.
+/** Expand the buffer size.  Exercise caution when using this API.  If anyone
+ * else is holding onto a reference of this, their reference will be corrupted.
  * @param size size buffer after expansion.
  * @return newly expanded buffer with old buffer data moved
  */

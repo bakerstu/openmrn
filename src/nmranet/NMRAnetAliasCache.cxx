@@ -141,7 +141,7 @@ NodeID AliasCache::lookup(NodeAlias alias)
  * @param callback method to call
  * @param context context pointer to pass to callback
  */
-void AliasCache::for_each(void (*callback)(void*, NodeID, NodeID), void *context)
+void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *context)
 {
     HASSERT(callback != NULL);
 
