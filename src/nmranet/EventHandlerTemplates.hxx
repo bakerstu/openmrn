@@ -71,4 +71,67 @@ class ProxyEventHandler : public NMRAnetEventHandler {
 #undef DEFPROXYFN
 };
 
+// SimpleEventHandler ignores all non-essential callbacks.
+class SimpleEventHandler : public NMRAnetEventHandler {
+ public:
+#define IGNOREFN(FN) \
+  virtual void FN(EventReport* event, Notifiable* done) { done->Notify(); }
+
+  IGNOREFN(HandleEventReport);
+  IGNOREFN(HandleConsumerIdentified);
+  IGNOREFN(HandleConsumerRangeIdentified);
+  IGNOREFN(HandleProducerIdentified);
+  IGNOREFN(HandleProducerRangeIdentified);
+  IGNOREFN(HandleIdentifyConsumer);
+  IGNOREFN(HandleIdentifyProducer);
+};
+
+class BitEventProducer : public SimpleEventHandler {
+ public:
+  BitEventProducer(uint64_t event_on, uint64_t event_off)
+      : event_on_(event_on), event_off_(event_off) {}
+
+  // This function needs to be overridden by implementations to return the
+  // actual state.
+  virtual bool GetCurrentState() = 0;
+
+  // Requests the event associated with the current value of the bit to be
+  // produced (unconditionally).
+  void Update();
+
+  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+
+  // Called on another node sending IdentifyProducer. Filled: src_node, event,
+  // mask=1. Not filled: state.
+  virtual void HandleIdentifyProducer(EventReport* event,
+                                      Notifiable* done);
+
+ private:
+  uint64_t event_on_;
+  uint64_t event_off_;
+};
+
+class BitEventConsumer : public SimpleEventHandler {
+ public:
+  BitEventConsumer(uint64_t event_on, uint64_t event_off)
+      : event_on_(event_on), event_off_(event_off) {}
+
+  // This function needs to be overridden by implementations to return the
+  // current state.
+  virtual bool GetCurrentState() = 0;
+
+  // This function needs to be overridden by implementations to set the current
+  // state.
+  virtual void SetCurrentState(bool value) = 0;
+
+  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+
+  virtual void HandleIdentifyConsumer(EventReport* event,
+                                      Notifiable* done);
+
+ private:
+  uint64_t event_on_;
+  uint64_t event_off_;
+};
+
 #endif  // _NMRAnet_EventHandlerTemplates_hxx_
