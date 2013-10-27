@@ -10,6 +10,8 @@ public:
 };
 
 // A Notifiable for synchronously waiting for a notification.
+// TODO(balazs.racz): We should make a syncnotifiable not need a semaphore
+// of itself, but rather use a thread-local semaphore.
 class SyncNotifiable : public Notifiable {
 public:
   SyncNotifiable() : sem_(0) {}

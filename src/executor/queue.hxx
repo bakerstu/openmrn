@@ -71,6 +71,17 @@ public:
     tail_ = entry;
   }
 
+  //! Adds an entry to the front of the queue. Not thread-safe (caller has to
+  //! lock).
+  void PushFront(QueueMember* entry) {
+    HASSERT(entry);
+    HASSERT(entry->next_ == NULL);
+    HASSERT(entry != tail_);
+    HASSERT(tail_->next_ == NULL);
+    entry_->next_ = next_;
+    next_ = entry;
+  }
+
   bool IsMaybePending(QueueMember* entry) {
     return ((entry->next_ != NULL) ||
             (entry == tail_));
