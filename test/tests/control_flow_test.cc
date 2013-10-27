@@ -90,7 +90,7 @@ public:
   void ReptSleepNTimes(int n) {
     count_ = n;
     WakeUpRepeatedly(&sleep_data_, MSEC_TO_NSEC(3));
-    StartFlowAt(&SleeperFlow::StartReptSleep);
+    StartFlowAt(ST(StartReptSleep));
   }
 
 private:
@@ -118,7 +118,7 @@ private:
   ControlFlowAction MReptSleepCount() {
     if (!--count_) {
       StopTimer(&sleep_data_);
-      return CallImmediately(&SleeperFlow::MSleepDone);
+      return CallImmediately(ST(MSleepDone));
     }
     return WaitForNotification();
   }
@@ -161,7 +161,7 @@ public:
 
   void RunFlowAndSubFlow(bool *r) {
     r_ = r;
-    StartFlowAt(&SubFlowCaller::Start);
+    StartFlowAt(ST(Start));
   }
 
 private:

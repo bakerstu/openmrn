@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -38,66 +38,37 @@
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
-
-// A proxy event handler has a single helper function that can iterate over the events contianed in this 
-class ProxyEventHandler : pulic NMRAnetEventHandler {
+// A proxy event handler has a single helper function that gets every event
+// handler call with an indication of which call it is. It is helpful to create
+// event containers that proxy calls to many event handler instances.
+class ProxyEventHandler : public NMRAnetEventHandler {
  public:
-  typedef (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event, Notifiable* done);
+  virtual ~ProxyEventHandler() {}
 
-  virtual void ProxyEventHandler(EventHandlerFunction fn, EventReport* event, Notifiable* done) = 0;
+  typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
+                                                            Notifiable* done);
 
-  // Called on incoming EventReport messages. Filled: src_node, event. Mask is
-  // always 1 (filled in). state is not filled in.
-  virtual void HandleEventReport(EventReport* event,
-                                 Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleEventReport, event, done);
+  // This function will be called for any other incoming event handler
+  // function.
+  virtual void HandlerFn(EventHandlerFunction fn,
+                         EventReport* event,
+                         Notifiable* done) = 0;
+
+#define DEFPROXYFN(FN)                                               \
+  virtual void FN(EventReport* event, Notifiable* done) {            \
+    HandlerFn(&NMRAnetEventHandler::HandleEventReport, event, done); \
   }
 
-  // Called on another node sending ConsumerIdentified for this event. Filled:
-  // event_id, mask=1, src_node, state.
-  virtual void HandleConsumerIdentified(EventReport* event,
-                                        Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleConsumerIdentified, event, done);
-  };
+  DEFPROXYFN(HandleEventReport);
+  DEFPROXYFN(HandleConsumerIdentified);
+  DEFPROXYFN(HandleConsumerRangeIdentified);
+  DEFPROXYFN(HandleProducerIdentified);
+  DEFPROXYFN(HandleProducerRangeIdentified);
+  DEFPROXYFN(HandleIdentifyGlobal);
+  DEFPROXYFN(HandleIdentifyConsumer);
+  DEFPROXYFN(HandleIdentifyProducer);
 
-  // Called on another node sending ConsumerRangeIdentified. Filled: event id, mask (!= 1), src_node. Not filled: state.
-  virtual void HandleConsumerRangeIdentified(EventReport* event,
-                                             Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleConsumerRangeIdentified, event, done);
-  }
-
-  // Called on another node sending ProducerIdentified for this event. Filled: event_id, mask=1, src_node, state.
-  virtual void HandleProducerIdentified(EventReport* event,
-                                        Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleProducerIdentified, event, done);
-  }
-
-  // Called on another node sending ProducerRangeIdentified for this event. Filled: event id, mask (!= 1), src_node. Not filled: state.
-  virtual void HandleProducerRangeIdentified(EventReport* event,
-                                             Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleProducerRangeIdentified, event, done);
-  }
-
-  // Called on the need of sending out identification messages. This happens on
-  // startup, or when a global or addressed IdentifyGlobal message
-  // arrives. Might have destination node id!
-  virtual void HandleIdentifyGlobal(Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleIdentifyGlobal, event, done);
-  }
-
-  // Called on another node sending IdentifyConsumer. Filled: src_node, event, mask=1. Not filled: state.
-  virtual void HandleIdentifyConsumer(EventReport* event,
-                                      Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleIdentifyConsumer, event, done);
-  }
-
-  // Called on another node sending IdentifyProducer. Filled: src_node, event, mask=1. Not filled: state.
-  virtual void HandleIdentifyProducer(EventReport* event,
-                                      Notifiable* done) {
-    ProxyEventHandler(&NMRAnetEventHandler::HandleIdentifyProducer, event, done);
-  }
+#undef DEFPROXYFN
 };
 
-
-
-#endif // _NMRAnet_EventHandlerTemplates_hxx_
+#endif  // _NMRAnet_EventHandlerTemplates_hxx_
