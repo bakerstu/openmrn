@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,6 +36,7 @@
 #define _EXECUTOR_ALLOCATOR_HXX_
 
 #include "executor/executor.hxx"
+#include "executor/notifiable.hxx"
 
 class AllocationResult : public Executable {
  public:
@@ -61,5 +62,49 @@ class AllocatorBase : public Lockable {
   bool has_free_entries_;
 };
 
-#endif // _EXECUTOR_ALLOCATOR_HXX_
+template <class T>
+class TypedAllocator : public AllocatorBase {
+ public:
+  void TypedRelease(T* entry) {
+    Release(entry);
+  }
+};
 
+// This class encapsulates a call to an allocator, which blocks the current
+// thread until a free entry shows up.
+class SyncAllocation : public AllocationResult {
+ public:
+  SyncAllocation(AllocatorBase* allocator)
+      : result_(nullptr) {
+    allocator->AllocateEntry(this);
+    notify_.WaitForNotification();
+  }
+
+  QueueMember* untyped_result() { return result_; }
+
+  virtual void AllocationCallback(QueueMember* entry) {
+    result_ = entry;
+    notify_.Notify();
+  }
+
+  virtual void Run() {
+    extern int unexpected_call_to_syncallocation_run();
+    HASSERT(false && unexpected_call_to_syncallocation_run());
+  }
+
+ protected:
+  QueueMember* result_;
+  SyncNotifiable notify_;
+};
+
+template<class T> class TypedSyncAllocation : public SyncAllocation {
+ public:
+  TypedSyncAllocation(TypedAllocator<T>* allocator)
+      : SyncAllocation(allocator) {}
+
+  T* result() {
+    return static_cast<T*>(untyped_result());
+  }
+};
+
+#endif  // _EXECUTOR_ALLOCATOR_HXX_
