@@ -15,7 +15,7 @@ Notifiable* CrashNotifiable::DefaultInstance() {
 }
 
 void CrashNotifiable::Notify() {
-  abort();
+  DIE("Called CrashNotifiable.");
 }
 
 Notifiable* BarrierNotifiable::NewChild() {

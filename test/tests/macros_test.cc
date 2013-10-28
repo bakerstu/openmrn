@@ -28,6 +28,12 @@ TEST(AssertTest, DAssertFailed) {
     }, "false");
 }
 
+TEST(CrashTest, Crashed) {
+    EXPECT_DEATH({
+        DIE("deeeeeaad");
+    }, "deeeeeaad");
+}
+
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
