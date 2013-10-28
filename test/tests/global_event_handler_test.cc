@@ -38,7 +38,7 @@ TEST_F(DecodeRangeTest, SimpleNegative) {
 }
 
 TEST_F(DecodeRangeTest, LongPositive) {
-  ExpectDecode(0xfffffffffffffffeULL, 0xfffffffffffffffeULL, 1);
+  ExpectDecode(0xfffffffffffffff0ULL, 0xfffffffffffffff0ULL, 0xf);
 }
 
 TEST_F(DecodeRangeTest, LongNegative) {

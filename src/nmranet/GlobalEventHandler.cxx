@@ -34,11 +34,12 @@ ControlFlow::ControlFlowAction GlobalEventFlow::WaitForEvent() {
 
 void DecodeRange(EventReport* r) {
   uint64_t e = r->event;
-  if (e&1) e = ~e;
-  e &= ~(e-1);
-  e -= 1;
-  r->mask = e;
-  r->event &= ~e;
+  if (e&1) {
+    r->mask = (e ^ (e+1)) >> 1;
+  } else {
+    r->mask = (e ^ (e-1)) >> 1;
+  }
+  r->event &= ~r->mask;
 }
 
 ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
