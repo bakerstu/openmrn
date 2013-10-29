@@ -216,6 +216,7 @@ int appl_main(int argc, char *argv[])
 #include "nmranet/NMRAnetNode.hxx"
 #include "nmranet/NMRAnetStream.hxx"
 #include "nmranet/NMRAnetIfCanGridConnect.hxx"
+#include "nmranet/NMRAnetMessageID.hxx"
 #include "nmranet_config.h"
 
 #ifdef __cplusplus
@@ -240,9 +241,9 @@ extern const size_t SERIAL_TX_BUFFER_SIZE;
 }
 
 const size_t main_stack_size = 2560;
-const size_t ALIAS_POOL_SIZE = 2;
-const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
-const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t ALIAS_POOL_SIZE = 4;
+const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 4;
+const size_t UPSTREAM_ALIAS_CACHE_SIZE = 4;
 const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 32;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
@@ -262,6 +263,64 @@ const size_t Datagram::THREAD_STACK_SIZE = 512;
 const size_t Stream::CHANNELS_PER_NODE = 10;
 const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
+class Node1 : public Node
+{
+public:
+    Node1(NodeID node_id, If *nmranet_if, const char *name)
+        : Node(node_id, nmranet_if, name)
+    {
+    }
+private:
+    /** Process a Buffered message at the application level.
+     * @param buffer message buffer to process
+     */
+    void process(Buffer *buffer)
+    {
+        switch (buffer->id())
+        {
+            case ID_STREAM_COMPLETED_CONNECTION:
+            {
+                IdStreamType *type = (IdStreamType*)buffer->start();
+                
+                uint8_t data[] = {0, 1, 2, 3, 4, 5, 6};
+
+                swrite(type->stream, data, 7);
+                break;
+            }
+        }
+    }
+    
+};
+
+class Node2 : public Node
+{
+public:
+    Node2(NodeID node_id, If *nmranet_if, const char *name)
+        : Node(node_id, nmranet_if, name)
+    {
+    }
+    
+private:
+    /** Process a Buffered message at the application level.
+     * @param buffer message buffer to process
+     */
+    void process(Buffer *buffer)
+    {
+        switch (buffer->id())
+        {
+            case ID_STREAM_DATA_POSTED:
+            {
+                IdStreamType *type = (IdStreamType*)buffer->start();
+                
+                uint8_t data[4];
+                sread(type->stream, data, 4);
+                break;
+            }
+        }
+    }
+    
+};
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -273,10 +332,17 @@ int appl_main(int argc, char *argv[])
                                                 "/tcp/10098",
                                                 false, false);
 
-    Node *node = new Node(0x02010d000001ULL, nmranet_if, "Virtual Node");
+    Node *node1 = new Node1(0x02010d000001ULL, nmranet_if, "Virtual Node1");
     
-    node->initialized();
+    Node *node2 = new Node2(0x02010d000002ULL, nmranet_if, "Virtual Node2");
+    
+    node1->initialized();
+    node2->initialized();
+    
 
+    node1->sopen({0x02010d000002ULL, 0}, 1000000000LL);
+    
+    
     while(1)
     {
         sleep(10);

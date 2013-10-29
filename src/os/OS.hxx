@@ -58,12 +58,41 @@ public:
         os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
     }
 
+   /** Create a thread.  This constructor can be used when OSThread is inherited.
+     * @param name name of thread, NULL for an auto generated name
+     * @param priority priority of created thread
+     * @param stack_size size in bytes of the created thread's stack
+     */
+    OSThread(const char *name, int priority, size_t stack_size)
+    {
+        os_thread_create(&handle, name, priority, stack_size, start, this);
+    }
+
     /** Default destructor. */
     ~OSThread()
     {
     }
 
-private:  
+protected:
+    /** User entry point for the created thread.
+     * @return exit status
+     */
+    virtual void *entry()
+    {
+        return NULL;
+    }
+    
+private:
+    /** Starting point for a new thread.
+     * @param arg pointer to an OSThread instance
+     * @return exit status
+     */
+    static void *start(void *arg)
+    {
+        OSThread *thread = (OSThread*)arg;
+        return thread->entry();
+    }
+
     /** Default Constructor */
     OSThread();
       

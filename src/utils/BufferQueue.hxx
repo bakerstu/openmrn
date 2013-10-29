@@ -403,6 +403,9 @@ private:
     /** number of buffers in queue */
     size_t count;
 
+    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
+     * (smaller) locking mechanism
+     */
     /** Mutual exclusion for Queue */
     OSMutex mutex;
 

@@ -41,6 +41,7 @@
 namespace NMRAnet
 {
 
+
 class Stream
 {
 public:
@@ -130,10 +131,25 @@ private:
         
     };
     
+    enum Protocol
+    {
+        DISCOVER_1     = 0x0600000000000000,
+        DISCOVER_2     = 0x0500000000000000,
+        DISCOVER_3     = 0x0400000000000000,
+        DISCOVER_4     = 0x0300000000000000,
+        DISCOVER_5     = 0x0200000000000000,
+        DISCOVER_6     = 0x0100000000000000,
+        DISCOVERED     = 0x0000000000000000,
+        DISCOVERED_DEC = 0x0100000000000000,
+        DISCOVER_MASK  = 0xFF00000000000000,
+        DISCOVER_SHIFT = 56,
+    };
+    
     /** Stream metadata, often cast to @ref StreamHandle.
      */
     struct Metadata
     {
+        uint64_t protocol; /**< stream protocol */
         RingBuffer<uint8_t> *data; /**< stream data */
         NodeHandle  nodeHandle; /**< node we are communicating with */
 
@@ -202,6 +218,12 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Stream);
 };
+
+struct IdStreamType
+{
+    Stream::StreamHandle stream;
+};
+
 
 };
 

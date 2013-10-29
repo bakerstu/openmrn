@@ -81,12 +81,12 @@ Stream::StreamHandle Stream::sopen(NodeHandle dst, long long timeout)
 
         buffer->advance(6);
         
-        write(If::MTI_STREAM_INITIATE_REQUEST, dst, buffer);
-        
         RBTree<uint8_t, Metadata*>::Node *node =
             new RBTree<uint8_t, Metadata*>::Node(metadata->srcID, metadata);
 
         outboundTree.insert(node);
+        
+        write(If::MTI_STREAM_INITIATE_REQUEST, dst, buffer);
         
         if (timeout)
         {
@@ -265,6 +265,7 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
         }
 
         Metadata* metadata = new Metadata;
+        metadata->protocol = DISCOVER_1;
         metadata->data = RingBuffer<uint8_t>::create(MAX_BUFFER_SIZE * 2);
         metadata->nodeHandle = src;
         metadata->size = buffer_size;
@@ -303,11 +304,11 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
 
         inboundTree.insert(node);
         
-        buffer = buffer_alloc(sizeof(StreamHandle));
-        StreamHandle* handle = (StreamHandle*)buffer->start();
-        handle[0] = (StreamHandle)metadata;
+        buffer = buffer_alloc(sizeof(IdStreamType));
+        IdStreamType* type = (IdStreamType*)buffer->start();
+        type->stream = (StreamHandle)node->value;
         buffer->id(ID_STREAM_NEW_CONNECTION);
-        buffer->advance(sizeof(StreamHandle));
+        buffer->advance(sizeof(IdStreamType));
         
         rx_queue()->insert(buffer);
     }
@@ -334,11 +335,11 @@ void Stream::initiate_reply(NodeHandle src, Buffer *buffer)
 
     node->value->dstID = data[5];
 
-    buffer = buffer_alloc(sizeof(StreamHandle));
-    StreamHandle* handle = (StreamHandle*)buffer->start();
-    handle[0] = (StreamHandle)node->value;
+    buffer = buffer_alloc(sizeof(IdStreamType));
+    IdStreamType* type = (IdStreamType*)buffer->start();
+    type->stream = (StreamHandle)node->value;
     buffer->id(ID_STREAM_COMPLETED_CONNECTION);
-    buffer->advance(sizeof(StreamHandle));
+    buffer->advance(sizeof(IdStreamType));
     
     if (node->value->state == WAITING_O)
     {
@@ -383,10 +384,19 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
     HASSERT(len > 2);
     HASSERT(node->value->data->space() >= (len - 2));
 
+    while ((node->value->protocol & DISCOVER_MASK) != DISCOVERED && len > 2)
+    {
+        int shift = (node->value->protocol >> DISCOVER_SHIFT) - 1;
+        node->value->protocol |= (*data) << (shift * 8);
+        data++;
+        len--;
+        node->value->protocol-= DISCOVERED_DEC;
+    }
+
     node->value->count += (len - 2);
     HASSERT(node->value->count <= node->value->size);
 
-    node->value->data->put((uint8_t*)buffer->start(), len - 2);
+    node->value->data->put(data, len - 2);
 
     /* release buffer, we are done with it */
     buffer->free();
@@ -394,14 +404,14 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
     /* this operation must come before proceed because proceed will release the
      * critical Node::mutex and cause a race condition.
      */
-    if (wakeup)
+    if (wakeup && (node->value->protocol & DISCOVER_MASK) == DISCOVERED)
     {
-        buffer = buffer_alloc(sizeof(StreamHandle));
-        StreamHandle* handle = (StreamHandle*)buffer->start();
-        handle[0] = (StreamHandle)node->value;
+        buffer = buffer_alloc(sizeof(IdStreamType));
+        IdStreamType* type = (IdStreamType*)buffer->start();
+        type->stream = (StreamHandle)node->value;
         buffer->id(ID_STREAM_DATA_POSTED);
-        buffer->advance(sizeof(StreamHandle));
-        
+        buffer->advance(sizeof(IdStreamType));
+
         rx_queue()->insert(buffer);
     }
 

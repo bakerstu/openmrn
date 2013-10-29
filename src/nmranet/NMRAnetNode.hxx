@@ -56,6 +56,7 @@ public:
      */
     Node(NodeID node_id, If *nmranet_if, const char *model, uint8_t *cdi = NULL)
         : Datagram(),
+          Stream(),
           MemoryConfig(cdi),
           nodeID(node_id),
           model(model),
@@ -71,6 +72,7 @@ public:
         idNode.value = this;
         idTree.insert(&idNode);
         mutex.unlock();
+        new OSThread(model, 0, 1024, thread_entry, this);
     }
 
     /** Destructor.
@@ -135,8 +137,34 @@ public:
         CDI                     = 0x000800000000,
         RESERVED_MASK           = 0x0007FFFFFFFF
     };
-    
+protected:
+    /** Process a Buffered message at the application level.
+     * @param buffer message buffer to process
+     */
+    virtual void process(Buffer *buffer) = 0;
+
 private:
+    /** Process a Buffered message at the platform level.
+     * @param buffer message buffer to process
+     */
+    static void* thread_entry(void *data)
+    {
+        Node *node = (Node*)data;
+        
+        for ( ; /* forever */ ; )
+        {
+            Buffer *buffer = node->queue.wait();
+
+            switch (buffer->id())
+            {
+                default:
+                    node->process(buffer);
+                    break;
+            }
+        }
+        return NULL;
+    }
+    
     /** Send a verify node id number message.
      */
     void verify_id_number();
@@ -183,7 +211,7 @@ private:
         UNINITIALIZED = 0, /**< uninitialized node state */
         INITIALIZED /**< initialized node state */
     };
-
+    
     /** Mutual exclusion for access to all nodes */
     static OSMutex mutex;
     
