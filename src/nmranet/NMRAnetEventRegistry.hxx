@@ -37,6 +37,7 @@
 #include <stdint.h>
 
 #include "executor/notifiable.hxx"
+#include "executor/allocator.hxx"
 #include "utils/macros.h"
 #include "nmranet_types.h"
 
@@ -61,6 +62,11 @@ typedef struct {
   node_t dst_node;
   EventState state;
 } EventReport;
+
+// This allocator-mutex is held for any call into any NMRAnetEventHandler. It
+// ensures that the event handler output flow is empty and is able to receive a
+// message.
+extern AllocatorMutex event_handler_mutex;
 
 class NMRAnetEventHandler {
 public:

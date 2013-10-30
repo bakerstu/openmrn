@@ -36,6 +36,7 @@
 
 NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 
+AllocatorMutex event_handler_mutex;
 
 NMRAnetEventRegistry::NMRAnetEventRegistry() {
   HASSERT(instance_ == nullptr);
