@@ -23,6 +23,12 @@ struct GlobalEventFlow::Impl {
   OSSem pending_sem_;
 };
 
+class EventIterator {
+ public:
+
+
+};
+
 GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
     : ControlFlow(executor, CrashNotifiable::DefaultInstance()), impl_(new Impl(max_event_slots)) {
   StartFlowAt(ST(WaitForEvent));
@@ -58,33 +64,57 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
       fn = &NMRAnetEventHandler::HandleEventReport;
       break;
     case MTI_CONSUMER_IDENTIFY:
+      fn = &NMRAnetEventHandler::HandleIdentifyConsumer;
+      break;
+    case MTI_CONSUMER_IDENTIFIED_RANGE:
+      DecodeRange(rep);
+      fn = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
+      break;
+    case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
+      rep->state = UNKNOWN;
       fn = &NMRAnetEventHandler::HandleConsumerIdentified;
       break;
-    case MTI_CONSUMER_IDENTIFY_RANGE:
-
-      //nmranet_identify_consumers(node, event, identify_range_mask(event));
+    case MTI_CONSUMER_IDENTIFIED_VALID:
+      rep->state = VALID;
+      fn = &NMRAnetEventHandler::HandleConsumerIdentified;
       break;
-    case MTI_CONSUMER_IDENTIFY_UNKNOWN: /* fall through */
-    case MTI_CONSUMER_IDENTIFY_VALID:   /* fall through */
-    case MTI_CONSUMER_IDENTIFY_INVALID: /* fall through */
-    case MTI_CONSUMER_IDENTIFY_RESERVED:
+    case MTI_CONSUMER_IDENTIFIED_INVALID:
+      rep->state = INVALID;
+      fn = &NMRAnetEventHandler::HandleConsumerIdentified;
+      break;
+    case MTI_CONSUMER_IDENTIFIED_RESERVED:
+      rep->state = RESERVED;
+      fn = &NMRAnetEventHandler::HandleConsumerIdentified;
       break;
     case MTI_PRODUCER_IDENTIFY:
-      //nmranet_identify_producers(node, event, EVENT_EXACT_MASK);
+      fn = &NMRAnetEventHandler::HandleIdentifyProducer;
       break;
-    case MTI_PRODUCER_IDENTIFY_RANGE:
-      //nmranet_identify_producers(node, event, identify_range_mask(event));
+    case MTI_PRODUCER_IDENTIFIED_RANGE:
+      DecodeRange(rep);
+      fn = &NMRAnetEventHandler::HandleProducerRangeIdentified;
       break;
-    case MTI_PRODUCER_IDENTIFY_UNKNOWN: /* fall through */
-    case MTI_PRODUCER_IDENTIFY_VALID:   /* fall through */
-    case MTI_PRODUCER_IDENTIFY_INVALID: /* fall through */
-    case MTI_PRODUCER_IDENTIFY_RESERVED:
+    case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
+      rep->state = UNKNOWN;
+      fn = &NMRAnetEventHandler::HandleProducerIdentified;
       break;
-    case MTI_EVENTS_IDENTIFY_ADDRESSED: /* fall through */
+    case MTI_PRODUCER_IDENTIFIED_VALID:
+      rep->state = VALID;
+      fn = &NMRAnetEventHandler::HandleProducerIdentified;
+      break;
+    case MTI_PRODUCER_IDENTIFIED_INVALID:
+      rep->state = INVALID;
+      fn = &NMRAnetEventHandler::HandleProducerIdentified;
+      break;
+    case MTI_PRODUCER_IDENTIFIED_RESERVED:
+      rep->state = RESERVED;
+      fn = &NMRAnetEventHandler::HandleProducerIdentified;
+      break;
+    case MTI_EVENTS_IDENTIFY_ADDRESSED:
     case MTI_EVENTS_IDENTIFY_GLOBAL:
-      //nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
-      //nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
+      fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
       break;
+    default:
+      DIE("Unexpected message arrived at the global event handler.");
   } //    case
   NMRAnetEventHandler* h = nullptr;
   (h->*fn)(rep, this);
@@ -135,24 +165,24 @@ extern "C" void nmranet_event_packet_addressed(uint16_t mti,
     case MTI_CONSUMER_IDENTIFY:
       //nmranet_identify_consumers(node, event, EVENT_EXACT_MASK);
       break;
-    case MTI_CONSUMER_IDENTIFY_RANGE:
+    case MTI_CONSUMER_IDENTIFIED_RANGE:
       //nmranet_identify_consumers(node, event, identify_range_mask(event));
       break;
-    case MTI_CONSUMER_IDENTIFY_UNKNOWN: /* fall through */
-    case MTI_CONSUMER_IDENTIFY_VALID:   /* fall through */
-    case MTI_CONSUMER_IDENTIFY_INVALID: /* fall through */
-    case MTI_CONSUMER_IDENTIFY_RESERVED:
+    case MTI_CONSUMER_IDENTIFIED_UNKNOWN: /* fall through */
+    case MTI_CONSUMER_IDENTIFIED_VALID:   /* fall through */
+    case MTI_CONSUMER_IDENTIFIED_INVALID: /* fall through */
+    case MTI_CONSUMER_IDENTIFIED_RESERVED:
       break;
     case MTI_PRODUCER_IDENTIFY:
       //nmranet_identify_producers(node, event, EVENT_EXACT_MASK);
       break;
-    case MTI_PRODUCER_IDENTIFY_RANGE:
+    case MTI_PRODUCER_IDENTIFIED_RANGE:
       //nmranet_identify_producers(node, event, identify_range_mask(event));
       break;
-    case MTI_PRODUCER_IDENTIFY_UNKNOWN: /* fall through */
-    case MTI_PRODUCER_IDENTIFY_VALID:   /* fall through */
-    case MTI_PRODUCER_IDENTIFY_INVALID: /* fall through */
-    case MTI_PRODUCER_IDENTIFY_RESERVED:
+    case MTI_PRODUCER_IDENTIFIED_UNKNOWN: /* fall through */
+    case MTI_PRODUCER_IDENTIFIED_VALID:   /* fall through */
+    case MTI_PRODUCER_IDENTIFIED_INVALID: /* fall through */
+    case MTI_PRODUCER_IDENTIFIED_RESERVED:
       break;
     case MTI_EVENTS_IDENTIFY_ADDRESSED: /* fall through */
     case MTI_EVENTS_IDENTIFY_GLOBAL:
@@ -209,27 +239,27 @@ void nmranet_event_packet_global(uint16_t mti,
     }
     case MTI_CONSUMER_IDENTIFY:
     /* fall through */
-    case MTI_CONSUMER_IDENTIFY_RANGE:
+    case MTI_CONSUMER_IDENTIFIED_RANGE:
     /* fall through */
-    case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+    case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
     /* fall through */
-    case MTI_CONSUMER_IDENTIFY_VALID:
+    case MTI_CONSUMER_IDENTIFIED_VALID:
     /* fall through */
-    case MTI_CONSUMER_IDENTIFY_INVALID:
+    case MTI_CONSUMER_IDENTIFIED_INVALID:
     /* fall through */
-    case MTI_CONSUMER_IDENTIFY_RESERVED:
+    case MTI_CONSUMER_IDENTIFIED_RESERVED:
     /* fall through */
     case MTI_PRODUCER_IDENTIFY:
     /* fall through */
-    case MTI_PRODUCER_IDENTIFY_RANGE:
+    case MTI_PRODUCER_IDENTIFIED_RANGE:
     /* fall through */
-    case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+    case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
     /* fall through */
-    case MTI_PRODUCER_IDENTIFY_VALID:
+    case MTI_PRODUCER_IDENTIFIED_VALID:
     /* fall through */
-    case MTI_PRODUCER_IDENTIFY_INVALID:
+    case MTI_PRODUCER_IDENTIFIED_INVALID:
     /* fall through */
-    case MTI_PRODUCER_IDENTIFY_RESERVED:
+    case MTI_PRODUCER_IDENTIFIED_RESERVED:
     /* fall through */
     case MTI_EVENTS_IDENTIFY_GLOBAL:
       //      os_mutex_lock(&nodeMutex);
