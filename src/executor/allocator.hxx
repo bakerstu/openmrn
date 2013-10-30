@@ -46,12 +46,22 @@ class AllocationResult : public Executable {
 
 class AllocatorBase : public Lockable {
  public:
+  AllocatorBase();
+
   // Returns an entry to the pool of free entries.
   void Release(QueueMember* entry);
 
   // Puts the caller into a waiting list for allocated objects. When the next
   // object to allocate is available, the allocation callback will be called.
   void AllocateEntry(AllocationResult* caller);
+
+  // Returns true if there is an entry waiting to be allocated. Note using this
+  // method is likely result in race conditions.
+  bool Peek();
+
+  // Synchronously tries to allocate an entry if there is any present, or else
+  // returns NULL.
+  QueueMember* AllocateOrNull();
 
  private:
   // List of users waiting for entries OR list of entries available to be
@@ -106,5 +116,32 @@ template<class T> class TypedSyncAllocation : public SyncAllocation {
     return static_cast<T*>(untyped_result());
   }
 };
+
+class AllocatorMutex : public AllocatorBase {
+ public:
+  AllocatorMutex() {
+    Unlock();
+  }
+
+  void CheckToken(QueueMember* token) {
+    HASSERT(token == &token_);
+  }
+
+  void AssertLocked() {
+    HASSERT(!Peek());
+  }
+
+  void AssertUnlocked() {
+    HASSERT(Peek());
+  }
+
+  void Unlock() {
+    Release(&token_);
+  }
+
+ private:
+  QueueMember token_;
+};
+
 
 #endif  // _EXECUTOR_ALLOCATOR_HXX_
