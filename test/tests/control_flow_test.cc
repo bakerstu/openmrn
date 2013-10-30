@@ -188,6 +188,13 @@ TEST_F(ControlFlowTest, FlowWithChildTest) {
   EXPECT_TRUE(r);
 }
 
+
+TEST(StaticControlFlowTest, SizeSmall) {
+  EXPECT_EQ(4, sizeof(QueueMember));
+  EXPECT_EQ(40, sizeof(ControlFlow));
+}
+
+
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
