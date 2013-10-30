@@ -35,15 +35,15 @@
 #ifndef _EXECUTOR_CONTROL_FLOW_HXX_
 #define _EXECUTOR_CONTROL_FLOW_HXX_
 
+#include <type_traits>
+
 #include "executor/executor.hxx"
 #include "executor/allocator.hxx"
 
 
 // This template magic is used for simplifying the declaration of member
 // function pointers.
-template<typename T> struct identity { typedef T type;  };
-template<typename T> T removeref(const T& x);
-#define ST(FUNCTION) (MemberFunction)(&identity<decltype(removeref(*this))>::type::FUNCTION)
+#define ST(FUNCTION) (MemberFunction)(&std::remove_reference<decltype(*this)>::type::FUNCTION)
 
 
 class ControlFlow : public AllocationResult, public Notifiable {
