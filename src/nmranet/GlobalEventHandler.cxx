@@ -51,7 +51,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
   rep->mask = EVENT_EXACT_MASK;
   FreeMessage(m);
 
-  EventHandlerFunction fn;
+  EventHandlerFunction fn = NULL;
   switch (m->mti) {
     case MTI_EVENT_REPORT:
       fn = &NMRAnetEventHandler::HandleEventReport;
@@ -85,8 +85,11 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
       //nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
       break;
   } //    case
-  NMRAnetEventHandler* h = nullptr;
-  (h->*fn)(rep, this);
+  if (fn)
+  {
+      NMRAnetEventHandler* h = nullptr;
+      (h->*fn)(rep, this);
+  }
   return YieldAndCall(ST(WaitForEvent));
 }
 
