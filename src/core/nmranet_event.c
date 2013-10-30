@@ -102,16 +102,16 @@ static void event_consumer_identify(node_t node, uint64_t event, unsigned int st
         default:
             /* fall through */
         case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_UNKNOWN, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_UNKNOWN, dst, buffer);
             break;
         case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_VALID, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_VALID, dst, buffer);
             break;
         case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_INVALID, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_INVALID, dst, buffer);
             break;
         case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_RESERVED, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_RESERVED, dst, buffer);
             break;
     }
 }
@@ -132,16 +132,16 @@ static void event_producer_identify(node_t node, uint64_t event, unsigned int st
         default:
             /* fall through */
         case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_UNKNOWN, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_UNKNOWN, dst, buffer);
             break;
         case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_VALID, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_VALID, dst, buffer);
             break;
         case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_INVALID, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_INVALID, dst, buffer);
             break;
         case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_RESERVED, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_RESERVED, dst, buffer);
             break;
     }
 }
@@ -398,7 +398,7 @@ void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask)
  * @param event event id w/mask
  * @return resulting decoded mask
  */
-static uint64_t identify_range_mask(uint64_t event)
+uint64_t identify_range_mask(uint64_t event)
 {
     uint64_t mask = 0x0000000000000001;
 
@@ -446,24 +446,26 @@ void nmranet_event_packet_addressed(uint16_t mti, node_handle_t src, node_t node
         case MTI_CONSUMER_IDENTIFY:
             nmranet_identify_consumers(node, event, EVENT_EXACT_MASK);
             break;
-        case MTI_CONSUMER_IDENTIFY_RANGE:
-            nmranet_identify_consumers(node, event, identify_range_mask(event));
+        case MTI_CONSUMER_IDENTIFIED_RANGE:
+            //NOTE(balazs.racz) I think the protocol means somethign else.
+            //nmranet_identify_consumers(node, event, identify_range_mask(event));
             break;
-        case MTI_CONSUMER_IDENTIFY_UNKNOWN:  /* fall through */
-        case MTI_CONSUMER_IDENTIFY_VALID:    /* fall through */
-        case MTI_CONSUMER_IDENTIFY_INVALID:  /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RESERVED:
+        case MTI_CONSUMER_IDENTIFIED_UNKNOWN:  /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_VALID:    /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_INVALID:  /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_RESERVED:
             break;
         case MTI_PRODUCER_IDENTIFY:
             nmranet_identify_producers(node, event, EVENT_EXACT_MASK);
             break;
-        case MTI_PRODUCER_IDENTIFY_RANGE:
-            nmranet_identify_producers(node, event, identify_range_mask(event));
+        case MTI_PRODUCER_IDENTIFIED_RANGE:
+            //NOTE(balazs.racz) I think the protocol means somethign else.
+            //nmranet_identify_producers(node, event, identify_range_mask(event));
             break;
-        case MTI_PRODUCER_IDENTIFY_UNKNOWN:  /* fall through */
-        case MTI_PRODUCER_IDENTIFY_VALID:    /* fall through */
-        case MTI_PRODUCER_IDENTIFY_INVALID:  /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RESERVED:
+        case MTI_PRODUCER_IDENTIFIED_UNKNOWN:  /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_VALID:    /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_INVALID:  /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_RESERVED:
             break;
         case MTI_EVENTS_IDENTIFY_ADDRESSED:  /* fall through */
         case MTI_EVENTS_IDENTIFY_GLOBAL:
@@ -513,27 +515,27 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
         }
         case MTI_CONSUMER_IDENTIFY:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RANGE:
+        case MTI_CONSUMER_IDENTIFIED_RANGE:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+        case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_VALID:
+        case MTI_CONSUMER_IDENTIFIED_VALID:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_INVALID:
+        case MTI_CONSUMER_IDENTIFIED_INVALID:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RESERVED:
+        case MTI_CONSUMER_IDENTIFIED_RESERVED:
             /* fall through */
         case MTI_PRODUCER_IDENTIFY:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RANGE:
+        case MTI_PRODUCER_IDENTIFIED_RANGE:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+        case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_VALID:
+        case MTI_PRODUCER_IDENTIFIED_VALID:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_INVALID:
+        case MTI_PRODUCER_IDENTIFIED_INVALID:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RESERVED:
+        case MTI_PRODUCER_IDENTIFIED_RESERVED:
             /* fall through */
         case MTI_EVENTS_IDENTIFY_GLOBAL:
             os_mutex_lock(&nodeMutex);

@@ -463,27 +463,27 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
         {
             case MTI_CONSUMER_IDENTIFY:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RANGE:
+            case MTI_CONSUMER_IDENTIFIED_RANGE:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+            case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_VALID:
+            case MTI_CONSUMER_IDENTIFIED_VALID:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_INVALID:
+            case MTI_CONSUMER_IDENTIFIED_INVALID:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RESERVED:
+            case MTI_CONSUMER_IDENTIFIED_RESERVED:
                 /* fall through */
             case MTI_PRODUCER_IDENTIFY:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RANGE:
+            case MTI_PRODUCER_IDENTIFIED_RANGE:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+            case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_VALID:
+            case MTI_PRODUCER_IDENTIFIED_VALID:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_INVALID:
+            case MTI_PRODUCER_IDENTIFIED_INVALID:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RESERVED:
+            case MTI_PRODUCER_IDENTIFIED_RESERVED:
                 /* fall through */
             case MTI_EVENTS_IDENTIFY_GLOBAL:
                     /* fall through */
