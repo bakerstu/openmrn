@@ -190,8 +190,8 @@ TEST_F(ControlFlowTest, FlowWithChildTest) {
 
 
 TEST(StaticControlFlowTest, SizeSmall) {
-  EXPECT_EQ(4, sizeof(QueueMember));
-  EXPECT_EQ(40, sizeof(ControlFlow));
+  EXPECT_EQ(4U, sizeof(QueueMember));
+  EXPECT_EQ(40U, sizeof(ControlFlow));
 }
 
 
