@@ -24,77 +24,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file executor.hxx
+ * \file allocator.cxx
  *
- * Class to control execution of control flows, switching between them as their
- * inputs will be available.
+ * Implementation for the allocator class.
  *
  * @author Balazs Racz
- * @date 5 Aug 2013
+ * @date 20 October 2013
  */
 
-#ifndef _EXECUTOR_EXECUTOR_HXX_
-#define _EXECUTOR_EXECUTOR_HXX_
+#include "executor/allocator.hxx"
 
-#include <stdint.h>
-#include <stdlib.h>
-
-#include "os/OS.hxx"
-#include "executor/queue.hxx"
-#include "executor/lock.hxx"
-#include "executor/notifiable.hxx"
-
-class ControlFlow;
-
-//! An object that can be scheduled on an executor to run.
-class Executable : public QueueMember {
-public:
-  virtual void Run() = 0;
-};
-
-
-class Executor : public Lockable {
-public:
-  Executor();
-  ~Executor();
-
-  void ThreadBody();
-
-  void Add(Executable* entry) {
-    {
-      LockHolder h(this);
-      pending_flows_.Push(entry);
+void AllocatorBase::Release(QueueMember* entry) {
+  AllocationResult* caller = nullptr;
+  {
+    LockHolder l(this);
+    if (has_free_entries_) {
+      waiting_list_.PushFront(entry);
+      return;
+    } else {
+      caller = static_cast<AllocationResult*>(waiting_list_.Pop());
+      if (waiting_list_.empty()) has_free_entries_ = true;
     }
-    notify_.post();
   }
+  HASSERT(caller != nullptr);
+  caller->AllocationCallback(entry);
+}
 
-  bool IsMaybePending(Executable* entry) {
-    return pending_flows_.IsMaybePending(entry);
+void AllocatorBase::AllocateEntry(AllocationResult* caller) {
+  QueueMember* entry = nullptr;
+  {
+    LockHolder l(this);
+    if ((!has_free_entries_) || waiting_list_.empty()) {
+      waiting_list_.Push(caller);
+      has_free_entries_ = false;
+      return;
+    }
+    // Now: has_free_entries_ == true and !empty.
+    entry = waiting_list_.Pop();
   }
-
-  bool empty() {
-    return pending_flows_.empty();
-  }
-
-private:
-  OSSem notify_;
-  Queue pending_flows_;
-};
-
-//! An executor that automatically starts up a new thread to run its loop.
-class ThreadExecutor : public Executor {
-public:
-  ThreadExecutor(const char* thread_name,
-                 int priority,
-                 size_t stack_size);
-  ~ThreadExecutor() {}
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(ThreadExecutor);
-
-  OSThread thread_;
-};
-
-
-
-#endif // _EXECUTOR_EXECUTOR_HXX_
+  caller->AllocationCallback(entry);
+}

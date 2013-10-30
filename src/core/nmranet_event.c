@@ -424,7 +424,7 @@ static uint64_t identify_range_mask(uint64_t event)
  * @param node node that the packet is addressed to
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_addressed(uint16_t mti, node_t node, const void *data)
+void nmranet_event_packet_addressed(uint16_t mti, node_handle_t src, node_t node, const void *data)
 {
     struct id_node *id_node = node;
     if (id_node->priv->state == NODE_UNINITIALIZED)
@@ -542,7 +542,7 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
                  node != NULL;
                  node = nmranet_node_next(node))
             {
-                nmranet_event_packet_addressed(mti, node, data);
+                nmranet_event_packet_addressed(mti, src, node, data);
             }
             os_mutex_unlock(&nodeMutex);
             break;
@@ -591,4 +591,3 @@ size_t nmranet_event_pending(node_t node)
 
     return pending; 
 }
-

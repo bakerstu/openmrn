@@ -96,7 +96,7 @@ Buffer *BufferPool::buffer_alloc(size_t size)
         mutex.lock();
         totalSize += size + sizeof(Buffer);
         mutex.unlock();
-        DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+        DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
         return buffer;
     }
 
@@ -112,7 +112,7 @@ Buffer *BufferPool::buffer_alloc(size_t size)
         buffer = Buffer::alloc(this, size);
 
         totalSize += size + sizeof(Buffer);
-        DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+        DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
     }
     mutex.unlock();
     
@@ -227,4 +227,3 @@ Buffer *BufferQueue::next()
 
     return buf;
 }
-

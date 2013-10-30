@@ -34,6 +34,8 @@
 #ifndef _NMRAnetAliasCache_hxx_
 #define _NMRAnetAliasCache_hxx_
 
+#include <map>
+
 #include "os/OS.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/macros.h"
@@ -41,6 +43,13 @@
 
 namespace NMRAnet
 {
+
+struct nodekey_compare {
+  bool operator() (const NodeAlias& a, const NodeAlias& b) const {
+     return a < b;
+  } 
+};
+
 
 /** Cache of alias to node id mappings.  The cache is limited to a fixed number
  * of entries at construction.  All the memory for the cache will be allocated
@@ -64,9 +73,13 @@ public:
           aliasTree(),
           idTree(),
           timeTree(),
-          aliasNode(new RBTree <NodeAlias, Metadata*>::Node[entries]),
-          idNode(new RBTree <NodeID, Metadata*>::Node[entries]),
-          timeNode(new RBTree <long long, Metadata*>::Node[entries]),
+          //aliasAllocator(),
+          //aliasNode(new RBTree <NodeAlias, Metadata*>::Node[entries]),
+          //idNode(new RBTree <NodeID, Metadata*>::Node[entries]),
+          //timeNode(new RBTree <long long, Metadata*>::Node[entries]),
+          //aliasMap(),
+          //idMap(),
+          //timeMap(),
           seed(seed)
     {
         for (size_t i = 0; i < entries; ++i)
@@ -77,6 +90,10 @@ public:
             idNode[i].value = metadata;
             timeNode[i].value = metadata;
         }
+
+        // The actual allocator type does not matter here, because internally
+        // it will be rebound to the proper type anyway.
+        aliasMap = new AliasMap(nodekey_compare(), Allocator<AliasMap::value_type>(entries));
     }
 
     /** Add an alias to an alias cache.
@@ -123,6 +140,139 @@ public:
     }
     
 private:
+    template <typename T> class Allocator
+    {
+    public:
+        union FreeList
+        {
+            T data;
+            FreeList *next;
+        };
+
+        FreeList *freeList;
+        
+        bool init;
+        
+        size_t entries;
+        
+        void set_entries(size_t value)
+        {
+            entries = value;
+        }
+        
+        typedef T value_type;
+        typedef value_type* pointer;
+        typedef const value_type* const_pointer;
+        typedef value_type& reference;
+        typedef const value_type& const_reference;
+        typedef std::size_t size_type;
+        typedef std::ptrdiff_t difference_type;
+        
+        template <typename U> struct rebind
+        {
+            typedef Allocator<U> other;
+        };
+
+        Allocator()
+            : init(false),
+              entries(0)
+        {
+        }
+
+        explicit Allocator(size_t e)
+            : init(false),
+              entries(e)
+        {
+        }
+
+        explicit Allocator(Allocator const&)
+            : init(false)
+        {
+        }
+        
+        ~Allocator()
+        {
+        }
+        
+        template <typename U> Allocator(Allocator<U> const& o)
+            : init(false), entries(o.entries)
+        {
+        }
+
+        //    address
+
+        T *address(T &r)
+        {
+            return &r;
+        }
+
+        const T *address(const T &r)
+        {
+            return &r;
+        }
+
+        //    memory allocation
+
+        T *allocate(size_t cnt, const void* = 0)
+        {
+            if (init == false)
+            {
+                HASSERT(entries != 0);
+                init = true;
+                FreeList *newList = (FreeList*)malloc(sizeof(FreeList) * max_size());
+                newList->next = NULL;
+                for (size_t i = 0; i < max_size(); ++i)
+                {
+                    freeList->next = &newList[i];
+                    freeList = &newList[i];
+                }
+            }
+            HASSERT(freeList != NULL);
+            HASSERT(cnt == 1);
+            
+            T *newT = &(freeList->data);
+            freeList = freeList->next;
+            return newT;
+        }
+        
+        void deallocate(T *p, size_t n)
+        {
+            HASSERT(n == 1);
+            FreeList *pFreeList = (FreeList*)p;
+            pFreeList->next = freeList;
+            freeList = pFreeList;
+        }
+
+        //    size
+        size_t max_size() const
+        {
+            return entries;
+        }
+
+        //    construction/destruction
+
+        void construct(T *p, const T& t)
+        {
+            new(p) T(t);
+        }
+        
+        void destroy(T *p)
+        {
+            p->~T();
+        }
+
+        bool operator==(Allocator const&)
+        {
+            return true;
+        }
+        
+        bool operator!=(Allocator const& a)
+        {
+            return !operator==(a);
+        }
+    private:
+    };
+
     enum
     {
         /** marks an unused mapping */
@@ -148,6 +298,14 @@ private:
     RBTree <NodeAlias, Metadata*>::Node *aliasNode;
     RBTree <NodeID, Metadata*>::Node *idNode;
     RBTree <long long, Metadata*>::Node *timeNode;
+
+    typedef std::map <NodeAlias, Metadata*, nodekey_compare, Allocator<std::pair<const NodeAlias, Metadata*>>> AliasMap;
+
+    AliasMap *aliasMap;
+
+    //std::map <NodeID, Metadata*, less<NodeID>, Allocator<std::pair<NodeID, Metadata*>>> idMap;
+
+    //std::map <long long, Metadata*, less<long long>, Allocator<std::pair<long long, Metadata*>>> timeMap;
 
     /** Seed for the generation of the next alias */
     NodeID seed;

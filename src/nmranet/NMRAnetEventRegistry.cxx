@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,53 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
- *
- * An application which acts as an openlcb hub with the GC protocol.
+ * \file NMRAnetEventRegistry.cxx
+ * Static declarations for handling NMRAnet events.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 19 October 2013
  */
 
-#include <stdio.h>
-#include <unistd.h>
+#include "nmranet/NMRAnetEventRegistry.hxx"
 
-#include "os/os.h"
-#include "utils/pipe.hxx"
-#include "utils/gc_pipe.hxx"
-#include "utils/socket_listener.hxx"
-#include "nmranet_can.h"
 
-//DEFINE_PIPE(gc_can_pipe, 1);
+NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 
-DEFINE_PIPE(can_pipe, sizeof(struct can_frame));
 
-struct ClientInfo {
-  int fd;
-  char thread_name[30];
-  Pipe* client_pipe;
-  GCAdapterBase* bridge;
-};
-
-void NewConnection(int fd) {
-  ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
-  sprintf(c->thread_name, "thread_fd_%d", fd);
-  c->fd = fd;
-  c->client_pipe = new Pipe(1);
-  c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
-  c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
+NMRAnetEventRegistry::NMRAnetEventRegistry() {
+  HASSERT(instance_ == nullptr);
+  instance_ = this;
 }
 
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
-{
-  SocketListener listener(8082, NewConnection);
-  while(1) {
-    sleep(1);
-  }
-  return 0;
+NMRAnetEventRegistry::~NMRAnetEventRegistry() {
+  HASSERT(instance_ == this);
+  instance_ = nullptr;
 }
