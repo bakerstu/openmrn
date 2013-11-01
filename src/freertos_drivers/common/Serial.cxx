@@ -105,7 +105,6 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
     unsigned char *data = (unsigned char*)buf;
     ssize_t result = 0;
     
-    serial->rdMutex.lock();
     while (count)
     {
         if (file->flags & O_NONBLOCK)
@@ -126,7 +125,6 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
         result++;
         data++;
     }
-    serial->rdMutex.unlock();
     
     return result;
 }
@@ -143,7 +141,6 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
     const unsigned char *data = (const unsigned char*)buf;
     ssize_t result = 0;
     
-    serial->wrMutex.lock();
     while (count)
     {
         if (file->flags & O_NONBLOCK)
@@ -159,13 +156,14 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
             /* wait for room in the queue */
             os_mq_send(serial->txQ, data);
         }
+        serial->mutex.lock();
         serial->tx_char();
+        serial->mutex.unlock();
 
         count--;
         result++;
         data++;
     }
-    serial->wrMutex.unlock();
     
     return result;
 }

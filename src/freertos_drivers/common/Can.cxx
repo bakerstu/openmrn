@@ -93,13 +93,9 @@ ssize_t Can::read(File *file, void *buf, size_t count)
     struct can_frame *can_frame = (struct can_frame*)buf;
     ssize_t result = 0;
     
-    can->mutex.lock();
-    int flags = file->flags;
-    can->mutex.unlock();
-    
     while (count >= sizeof(struct can_frame))
     {
-        if (flags & O_NONBLOCK)
+        if (file->flags & O_NONBLOCK)
         {
             if (os_mq_timedreceive(can->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
             {
@@ -132,14 +128,10 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
     Can *can = static_cast<Can*>(file->node);
     const struct can_frame *can_frame = (const struct can_frame*)buf;
     ssize_t result = 0;
-    
-    can->mutex.lock();
-    int flags = file->flags;
-    can->mutex.unlock();
-    
+        
     while (count >= sizeof(struct can_frame))
     {
-        if (flags & O_NONBLOCK)
+        if (file->flags & O_NONBLOCK)
         {
             if (os_mq_timedsend(can->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
             {
@@ -152,7 +144,9 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
             /* wait for room in the queue */
             os_mq_send(can->txQ, can_frame);
         }
+        can->mutex.lock();
         can->tx_msg();
+        can->mutex.unlock();
 
         count -= sizeof(struct can_frame);
         result += sizeof(struct can_frame);

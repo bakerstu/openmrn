@@ -58,8 +58,6 @@ protected:
           rxQ(os_mq_create(SERIAL_RX_BUFFER_SIZE, sizeof(unsigned char))),
           overrunCount(0),
           mutex(),
-          wrMutex(),
-          rdMutex(),
           devtab(name, &ops, this)
     {
     }    
@@ -123,8 +121,6 @@ private:
     static int ioctl(File *file, Node *node, int key, unsigned long data);
 
     OSMutex mutex; /**< mutual exclusion for the device */
-    OSMutex wrMutex; /**< mutual exclusion for reading the device */
-    OSMutex rdMutex; /**< mutual exclusion for writing the device */
     Devtab devtab; /**< device tabel entry for this instance */
     static Devops ops; /**< device operations for CAN */
     
