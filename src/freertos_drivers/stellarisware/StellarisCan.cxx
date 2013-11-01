@@ -144,8 +144,36 @@ void StellarisCan::interrupt_handler()
     {
         status = MAP_CANStatusGet(base, CAN_STS_CONTROL);
         /* some error occured */
+        if (status & CAN_STATUS_BUS_OFF)
+        {
+            /* bus off error condition */
+        }
+        if (status & CAN_STATUS_EWARN)
+        {
+            /* One of the error counters has exceded a value of 96 */
+        }
+        if (status & CAN_STATUS_EPASS)
+        {
+            /* In error passive state */
+        }
+        if (status & CAN_STATUS_LEC_STUFF)
+        {
+            /* bit stuffing error occured */
+        }
+        if (status & CAN_STATUS_LEC_FORM)
+        {
+            /* format error occured in the fixed format part of the message */
+        }
+        if (status & CAN_STATUS_LEC_ACK)
+        {
+            /* a transmit message was not acked */
+        }
+        if (status & CAN_STATUS_LEC_CRC)
+        {
+            /* CRC error detected in received message */
+        }
     }
-    if (status == 1)
+    else if (status == 1)
     {
         /* rx data received */
         tCANMsgObject can_message;
@@ -153,7 +181,7 @@ void StellarisCan::interrupt_handler()
         can_message.pucMsgData = data;
 
         /* Read a message from CAN and clear the interrupt source */
-        MAP_CANMessageGet(base, 1, &can_message, 1);
+        MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
         
         struct can_frame can_frame;
         can_frame.can_id = can_message.ulMsgID;
@@ -167,7 +195,7 @@ void StellarisCan::interrupt_handler()
             overrunCount++;
         }
     }
-    if (status == 2)
+    else if (status == 2)
     {
         /* tx complete */
         MAP_CANIntClear(base, 2);
