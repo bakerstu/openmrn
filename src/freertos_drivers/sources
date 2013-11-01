@@ -3,9 +3,11 @@ VPATH := $(SRCDIR): \
 
 CSRCS += fileio.c \
          can.c \
-         serial.c
+         serial.c \
 
-CXXSRCS += 
+CXXSRCS += Fileio.cxx \
+           Can.cxx \
+           Serial.cxx
 
 ifeq ($(TARGET),freertos.armv7m)
 CXXSRCS += c++_operators.cxx
@@ -18,6 +20,10 @@ include $(OPENMRNPATH)/etc/stellarisware.mk
 CSRCS += stellaris_can.c \
          stellaris_uart.c \
          stellaris_usb_cdc_device.c
+
+CXXSRCS += StellarisCan.cxx \
+           StellarisUart.cxx \
+           StellarisUsbCdcDevice.cxx
 
 VPATH += $(SRCDIR)/stellarisware
 

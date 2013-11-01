@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <cstring>
 #include <cerrno>
+#include <cstdarg>
 #include <fcntl.h>
 #include "reent.h"
 #include "Devtab.hxx"
@@ -63,7 +64,7 @@ private:
     static int close(File *file, Node*node);
     static ssize_t read(File *file, void *buf, size_t count);
     static ssize_t write(File *file, const void *buf, size_t count);
-    static int ioctl(File *file, Node*node, int key, void *data);
+    static int ioctl(File *file, Node*node, int key, unsigned long data);
     
     /** device operations table */
     static Devops ops;
@@ -202,7 +203,13 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
  */
 int ioctl(int fd, int key, ...)
 {
-    return files[fd].dev->ioctl(fd, key, 0);
+    va_list ap;
+    va_start(ap, key);
+
+    int result = files[fd].dev->ioctl(fd, key, va_arg(ap, unsigned long));
+    
+    va_end(ap);
+    return result;
 }
 
 /** Open a file or device.
@@ -339,7 +346,7 @@ ssize_t Devtab::write(struct _reent *reent, int fd, const void *buf, size_t coun
  * @param key ioctl key
  * @param data key data
  */
-int Devtab::ioctl(int fd, int key, void *data)
+int Devtab::ioctl(int fd, int key, unsigned long data)
 {
     if (fd < 0 || fd >= NUM_OPEN_FILES)
     {
@@ -417,7 +424,7 @@ ssize_t Null::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param ... key data
  */
-int Null::ioctl(File *file, Node*node, int key, void *data)
+int Null::ioctl(File *file, Node*node, int key, unsigned long data)
 {
     return 0;
 }

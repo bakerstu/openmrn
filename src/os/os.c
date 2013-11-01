@@ -895,12 +895,6 @@ int main(int argc, char *argv[])
         priority = configMAX_PRIORITIES - main_priority;
     }
     
-    /* initialize all the devices */
-    for (devtab_t *dev = &DEVTAB[0]; dev != &DEVTAB_END; dev++)
-    {
-        dev->init(dev);
-    }
-
     /* stdin */
     if (open(STDIN_DEVICE, O_RDWR) < 0)
     {

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.c
+ * \file HwInit.cxx
  * This file represents the interrupt vector table for TI Stellaris MCUs.
  *
  * @author Stuart W. Baker
@@ -33,7 +33,8 @@
 
 #define PART_LM4F120H5QR
 
-#include <stdint.h>
+#include <cstdint>
+#include <new>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -41,6 +42,8 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
+#include "os/OS.hxx"
+#include "StellarisDev.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -50,6 +53,15 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
+
+/** USB Device CDC serial driver instance */
+static StellarisCdc cdc0("/dev/serUSB0");
+
+/** UART 0 serial driver instance */
+static StellarisUart uart0("/dev/ser0", UART0_BASE);
+
+/** CAN 0 CAN driver instance */
+static StellarisCan can0("/dev/can0", CAN0_BASE);
 
 /** Blink LED */
 void resetblink(uint32_t pattern)

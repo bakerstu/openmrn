@@ -64,6 +64,7 @@
 extern "C" {
 #endif
 
+
 /** Entry point to application.
  * @param argc number of arguments
  * @param argv list of arguments
@@ -72,6 +73,9 @@ extern "C" {
 int appl_main(int argc, char *argv[]);
 
 #if defined (__FreeRTOS__)
+
+extern void hw_init(void);
+
 /** Stack size of the main thread */
 extern const size_t main_stack_size;
 

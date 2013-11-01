@@ -142,6 +142,16 @@ protected:
         queue.insert(buffer);
     }
 
+    /** Start the Executor processing.
+     */
+    void start()
+    {
+        /** wakeup the buffer Queue */
+        Buffer *buffer = buffer_alloc(0);
+        buffer->id(0);
+        queue.insert(buffer);
+    }
+
 private:
     /** Structure for timer messages.
      */
@@ -154,16 +164,6 @@ private:
      * @return Should never return
      */
     void *entry();
-
-    /** Start the Executor processing.
-     */
-    void start()
-    {
-        /** wakeup the buffer Queue */
-        Buffer *buffer = buffer_alloc(0);
-        buffer->id(0);
-        queue.insert(buffer);
-    }
 
     /** queue to wait for incoming messages on */
     BufferQueueWait queue;

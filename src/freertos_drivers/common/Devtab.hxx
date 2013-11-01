@@ -53,7 +53,7 @@ struct Devops
     /** Write method */
     ssize_t (*write)(File *, const void *, size_t);
     /** Ioctl method */
-    int (*ioctl)(File *, Node *, int, void *);
+    int (*ioctl)(File *, Node *, int, unsigned long);
 };
 
 /** Device tab structure.
@@ -119,7 +119,7 @@ public:
      * @param key ioctl key
      * @param data key data
      */
-    int ioctl(int fd, int key, void *data);
+    int ioctl(int fd, int key, unsigned long data);
     
     /** Get the private data pointer.
      * @return private data pointer

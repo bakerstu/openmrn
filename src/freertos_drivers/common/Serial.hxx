@@ -120,7 +120,7 @@ private:
     * @param key ioctl key
     * @param data key data
     */
-    static int ioctl(File *file, Node *node, int key, void *data);
+    static int ioctl(File *file, Node *node, int key, unsigned long data);
 
     OSMutex mutex; /**< mutual exclusion for the device */
     OSMutex wrMutex; /**< mutual exclusion for reading the device */

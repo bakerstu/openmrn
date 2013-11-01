@@ -168,7 +168,7 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param data key data
  */
-int Can::ioctl(File *file, Node *node, int key, void *data)
+int Can::ioctl(File *file, Node *node, int key, unsigned long data)
 {
     return 0;
 }
