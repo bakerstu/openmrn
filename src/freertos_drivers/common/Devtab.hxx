@@ -34,6 +34,7 @@
 #ifndef _Devtab_hxx_
 #define _Devtab_hxx_
 
+#include <stropts.h>
 #include <sys/types.h>
 #include "os/OS.hxx"
 
@@ -53,7 +54,7 @@ struct Devops
     /** Write method */
     ssize_t (*write)(File *, const void *, size_t);
     /** Ioctl method */
-    int (*ioctl)(File *, Node *, int, unsigned long);
+    int (*ioctl)(File *, Node *, unsigned long int, unsigned long);
 };
 
 /** Device tab structure.
@@ -119,7 +120,7 @@ public:
      * @param key ioctl key
      * @param data key data
      */
-    int ioctl(int fd, int key, unsigned long data);
+    int ioctl(int fd, unsigned long int key, unsigned long data);
     
     /** Get the private data pointer.
      * @return private data pointer

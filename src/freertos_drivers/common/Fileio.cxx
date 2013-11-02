@@ -64,7 +64,7 @@ private:
     static int close(File *file, Node*node);
     static ssize_t read(File *file, void *buf, size_t count);
     static ssize_t write(File *file, const void *buf, size_t count);
-    static int ioctl(File *file, Node*node, int key, unsigned long data);
+    static int ioctl(File *file, Node*node, unsigned long int key, unsigned long data);
     
     /** device operations table */
     static Devops ops;
@@ -201,7 +201,7 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
  * @param key ioctl key
  * @param ... key data
  */
-int ioctl(int fd, int key, ...)
+int ioctl(int fd, unsigned long int key, ...)
 {
     va_list ap;
     va_start(ap, key);
@@ -346,7 +346,7 @@ ssize_t Devtab::write(struct _reent *reent, int fd, const void *buf, size_t coun
  * @param key ioctl key
  * @param data key data
  */
-int Devtab::ioctl(int fd, int key, unsigned long data)
+int Devtab::ioctl(int fd, unsigned long int key, unsigned long data)
 {
     if (fd < 0 || fd >= NUM_OPEN_FILES)
     {
@@ -424,7 +424,7 @@ ssize_t Null::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param ... key data
  */
-int Null::ioctl(File *file, Node*node, int key, unsigned long data)
+int Null::ioctl(File *file, Node*node, unsigned long int key, unsigned long data)
 {
     return 0;
 }

@@ -174,7 +174,7 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param data key data
  */
-int Serial::ioctl(File *file, Node *node, int key, unsigned long data)
+int Serial::ioctl(File *file, Node *node, unsigned long int key, unsigned long data)
 {
     return 0;
 }
