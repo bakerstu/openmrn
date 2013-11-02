@@ -41,6 +41,46 @@ class CrashNotifiable : public Notifiable {
   static Notifiable* DefaultInstance();
 };
 
+/** A class for reliably detecting whether a Notification has happened yet or
+ * not.
+ *
+ * ProxyNotifiable can give a Notifiable callback, proxy to a parent Notifiable
+ * any calls that may come in, and tell through {@link HasBeenNotified} whether
+ * such a callback has happened yet or not.
+ *
+ */
+
+class ProxyNotifiable : private Notifiable {
+ public:
+  ProxyNotifiable() : parent_(nullptr) {}
+  //! Creates a new callback. When this callback is called, the parent
+  //! notifiable is called and HasBeenNotified() will return true after that
+  //! point. This function must not be called again until the returned callback
+  //! is invoked.
+  //
+  //! @returns a Notifiable to be used as a done callback for some asynchronous
+  //! processing.
+  Notifiable* NewCallback(Notifiable* parent) {
+    HASSERT(!parent_);
+    parent_ = parent;
+    return this;
+  }
+  //! @Returns true if the Notifiable returned by NewCallback has already been
+  //! called.
+  bool HasBeenNotified() { return !parent_; };
+
+ private:
+  //! Implementation of the private Notifiable interface.
+  virtual void Notify() {
+    Notifiable* p = parent_;
+    HASSERT(p);
+    parent_ = nullptr;
+    p->Notify();
+  }
+
+  Notifiable* parent_;
+};
+
 // A BarrierNotifiable allows to create a number of child Notifiable and wait
 // for all of them to finish. When the last one is finished, the parent done
 // callback is called.

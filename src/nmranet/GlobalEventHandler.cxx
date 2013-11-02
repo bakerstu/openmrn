@@ -17,67 +17,90 @@ struct GlobalEventFlow::Impl {
   // handler thread. Every "released" event is a new incoming event message.
   TypedAllocator<GlobalEventMessage> event_queue_;
 
+  // This is the queue of global identify events.
+  TypedAllocator<GlobalEventMessage> global_event_queue_;
+
+
   // Statically allocated structure for calling the event handlers from the
   // main event queue.
   EventReport main_event_report_;
 
   // Each allocated GlobalEventMessage holds one value in this semaphore.
   OSSem pending_sem_;
+
+  // The implementation of the iterators.
+  std::unique_ptr<NMRAnetEventHandler> handler_;
 };
 
 // Abstract class for representing iteration through a container for event
 // handlers.
-class EventIterator : public Notifiable {
+class EventIterator : public ProxyNotifiable {
  public:
-  EventIterator(Notifiable* parent)
-      : event_(nullptr), done_(nullptr), parent_(parent), was_notified_(true) {}
+  //! Creates an EventIterator.
+  //
+  //! @param parent is a Notifiable. Any notifications coming into the
+  //! Notifiables created by NewCallback will be forwarded to this callback.
+  EventIterator()
+      : event_(nullptr), done_(nullptr) {}
 
+  //! Steps the iteration.
+  //
+  //! @returns the next entry or NULL if the iteration is done.
+  //
+  //! May be called many times after the iteratin is ended and should
+  //! consistently return NULL.
   virtual NMRAnetEventHandler* NextEntry() = 0;
 
-  void InitIterator(EventReport* event, Notifiable* done) {
+  //! Sets up variables used during iteration.
+  //
+  //! @param event is the EventReport that will be used for this iteration.
+  //
+  //! @param done is the Notifiable that shall be called when the iteration is
+  //! completed.
+  void InitIterator(EventReport* event, ::Notifiable* done) {
     HASSERT(event_ == nullptr);
     HASSERT(done_ == nullptr);
     event_ = event;
     done_ = done;
   }
+
+  //! Resets iteration variables.
   void ClearIteration() {
     event_ = nullptr;
     done_ = nullptr;
   }
+
+  //! @returns the EventReport structure used for this iteration.
   EventReport* event() { return event_; }
-  Notifiable* done() { return done_; }
-  Notifiable* NewCallback() {
-    HASSERT(was_notified_);
-    was_notified_ = false;
-    return this;
-  }
-  virtual void Notify() {
-    was_notified_ = true;
-    parent_->Notify();
-  }
-  bool HasBeenNotified() { return was_notified_; }
+
+  //! @returns the callback to be called when the iteration is completed.
+  ::Notifiable* done() { return done_; }
 
  private:
   // Stores iteration arguments.
   EventReport* event_;
   // Stores the iteration completion callback.
-  Notifiable* done_;
+  ::Notifiable* done_;
   // Proxies incoming notifications to this parent.
-  Notifiable* parent_;
+  ::Notifiable* parent_;
   // When there is an incoming notification, this is set to true.
   bool was_notified_;
 };
 
+//! An implementation of the EventIterator abstract class that iterates through
+//! an STL container's range by the begin-end iterators.
 template <class IT>
 class StlIterator : public EventIterator {
  public:
-  StlIterator(Notifiable* parent) : EventIterator(parent) {}
+  StlIterator() {}
 
+  //! Initializes the iteration with begin-end iterator pair.
   void Set(IT begin, IT end) {
     it_ = begin;
     end_ = end;
   }
 
+  //! Returns the next iterated entry.
   virtual NMRAnetEventHandler* NextEntry() {
     if (it_ == end_)
       return NULL;
@@ -86,10 +109,34 @@ class StlIterator : public EventIterator {
   }
 
  private:
+  //! The current iterator.
   IT it_;
+  //! The end of the iteration.
   IT end_;
 };
 
+
+/**
+ *  This control flow performs two iterations over event handlers in
+ *  parallel. There isa high-priority iteration for regular incoming event
+ *  calls, and there is a low-priority iteration for global identify
+ *  calls. While there is any high-priority iteration, the low-priority
+ *  iteration is stopped.
+ * 
+ *  LOCKING: 
+ * 
+ *  At any point in time there can be only one EventHandler child called. This
+ *  is enforced by locking the event_handler_mutex when a child is
+ *  called. All our incoming calls are also with this lock held.
+ * 
+ *  The high-priority iteration progresses without ever releasing the lock.
+ *
+ *  The low-priority iteration releases the mutex after every entry, and then
+ *  immediately tries to reacquire it (thereby yielding to the back of the
+ *  mutex's queue). This means that between any two children being called on
+ *  the low-pri iteration and entire high-pri iteration will complete.
+ *
+ */
 class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
  public:
   DualIteratorFlow(Executor* executor,
@@ -101,8 +148,16 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     StartFlowAt(ST(StateInIteration));
   }
 
+  //! Implementations have to override this to re-set the standard_iterator
+  //! from the information in standard_iterator->event().
   virtual void InitStandardIterator() = 0;
 
+  //! Handler function for high-priority event calls. Starts a
+  //! StandardIterator.
+  //
+  //! This function is called (by the ProxyEventHandler) for any event handler
+  //! functions we didn't override explicitly, that is, everything except
+  //! Identify Global.
   virtual void HandlerFn(EventHandlerFunction fn,
                          EventReport* event,
                          Notifiable* done) {
@@ -113,6 +168,8 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     this->Notify();
   }
 
+  //! Implementations have to override this to re-set the global_iterator
+  //! based on the information in global_iterator->event().
   virtual void InitGlobalIterator() = 0;
 
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
@@ -146,7 +203,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       return YieldAndCall(ST(StateInIteration));
     }
     (handler->*proxy_fn_)(standard_iterator_->event(),
-                          standard_iterator_->NewCallback());
+                          standard_iterator_->NewCallback(this));
     return CallImmediately(ST(WaitForStandardReturn));
   }
 
@@ -169,7 +226,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       return YieldAndCall(ST(StateInIteration));
     }
     handler->HandleIdentifyGlobal(global_iterator_->event(),
-                                  global_iterator_->NewCallback());
+                                  global_iterator_->NewCallback(this));
     return CallImmediately(ST(WaitForGlobalReturn));
   }
 
@@ -193,9 +250,7 @@ class VectorEventHandlers : public DualIteratorFlow {
   VectorEventHandlers(Executor* executor)
       : DualIteratorFlow(executor,
                          &standard_iterator_impl_,
-                         &global_iterator_impl_),
-        standard_iterator_impl_(this),
-        global_iterator_impl_(this) {}
+                         &global_iterator_impl_) {}
 
   virtual void InitStandardIterator() {
     standard_iterator_impl_.Set(handlers_.begin(), handlers_.end());
@@ -215,6 +270,7 @@ class VectorEventHandlers : public DualIteratorFlow {
 GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
     : ControlFlow(executor, CrashNotifiable::DefaultInstance()),
       impl_(new Impl(max_event_slots)) {
+  impl_->handler_.reset(new VectorEventHandlers(executor));
   StartFlowAt(ST(WaitForEvent));
 }
 
@@ -300,8 +356,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
     default:
       DIE("Unexpected message arrived at the global event handler.");
   }  //    case
-  NMRAnetEventHandler* h = nullptr;
-  (h->*fn)(rep, this);
+  (impl_->handler_.get()->*fn)(rep, this);
   return YieldAndCall(ST(WaitForEvent));
 }
 
