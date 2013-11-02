@@ -1,4 +1,5 @@
 #include <vector>
+#include <endian.h>
 
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"

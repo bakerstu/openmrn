@@ -3,6 +3,10 @@
 #ifndef _NMRANET_GLOBAL_EVENT_HANDLER_
 #define _NMRANET_GLOBAL_EVENT_HANDLER_
 
+// This is a workaround for missing shared_ptr.h causing compilation errors. We
+// do not use shared_ptr.
+#define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
+
 #include <memory>
 
 #include "nmranet_types.h"
