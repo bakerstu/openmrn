@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-#include "os/os.h"
+#include "utils/test_main.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
@@ -189,9 +186,4 @@ TEST_F(EventHandlerTests, EventsOrderTest) {
   }
   event_handler_mutex.Unlock();
   WaitForCompleted();
-}
-
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }
