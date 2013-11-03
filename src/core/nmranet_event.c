@@ -36,6 +36,11 @@
 #include <string.h>
 #include <endian.h>
 #include <sys/tree.h>
+
+#include "nmranet_config.h"
+
+#ifndef CPP_EVENT_HANDLER
+
 #include "core/nmranet_event_private.h"
 #include "core/nmranet_node_private.h"
 #include "core/nmranet_buf.h"
@@ -593,3 +598,5 @@ size_t nmranet_event_pending(node_t node)
 
     return pending; 
 }
+
+#endif // CPP_EVENT_HANDLER

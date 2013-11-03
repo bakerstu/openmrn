@@ -426,6 +426,8 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m) {
   impl_->pending_sem_.post();
 }
 
+#ifdef CPP_EVENT_HANDLER
+
 /** Process an event packet.
  * @param mti Message Type Indicator
  * @param node node that the packet is addressed to
@@ -564,3 +566,6 @@ void nmranet_event_packet_global(uint16_t mti,
   }
   */
 }
+
+
+#endif // CPP_EVENT_HANDLER
