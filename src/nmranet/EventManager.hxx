@@ -4,6 +4,7 @@
 
 #define LOGLEVEL VERBOSE
 
+#include "executor/control_flow.hxx"
 #include "utils/logging.h"
 //#include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
@@ -79,21 +80,24 @@ class StlIterator : public EventIterator {
     end_ = end;
   }
 
-  //! Returns the next iterated entry.
-  virtual NMRAnetEventHandler* NextEntry() {
-    if (it_ == end_)
-      return NULL;
-    else
-      return *it_++;
-  }
-
- private:
+ protected:
   //! The current iterator.
   IT it_;
   //! The end of the iteration.
   IT end_;
 };
 
+template<class IT>
+class StraightStlIterator : public StlIterator<IT> {
+ public:
+  //! Returns the next iterated entry.
+  virtual NMRAnetEventHandler* NextEntry() {
+    if (this->it_ == this->end_)
+      return NULL;
+    else
+      return *(this->it_)++;
+  }
+};
 
 /**
  *  This control flow performs two iterations over event handlers in
@@ -265,6 +269,6 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
  private:
   typedef std::vector<NMRAnetEventHandler*> HandlersList;
   HandlersList handlers_;
-  StlIterator<HandlersList::iterator> standard_iterator_impl_;
-  StlIterator<HandlersList::iterator> global_iterator_impl_;
+  StraightStlIterator<HandlersList::iterator> standard_iterator_impl_;
+  StraightStlIterator<HandlersList::iterator> global_iterator_impl_;
 };
