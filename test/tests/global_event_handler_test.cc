@@ -1,8 +1,19 @@
 #include <stdio.h>
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "os/os.h"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
+
+using testing::StrictMock;
+using testing::WithArg;
+using testing::Invoke;
+using testing::InvokeWithoutArgs;
+using testing::Field;
+using testing::Eq;
+using testing::_;
+
+static ThreadExecutor global_executor("ex_thread", 0, 1024);
 
 extern void DecodeRange(EventReport* r);
 
@@ -44,6 +55,123 @@ TEST_F(DecodeRangeTest, LongPositive) {
 TEST_F(DecodeRangeTest, LongNegative) {
   ExpectDecode(0xffffffffffffff0fULL, 0xffffffffffffff00ULL, 0xf);
 }
+
+class MockEventHandler : public NMRAnetEventHandler {
+ public:
+#define DEFPROXYFN(FN)                                          \
+  MOCK_METHOD2(FN, void(EventReport* event, Notifiable* done))
+
+  DEFPROXYFN(HandleEventReport);
+  DEFPROXYFN(HandleConsumerIdentified);
+  DEFPROXYFN(HandleConsumerRangeIdentified);
+  DEFPROXYFN(HandleProducerIdentified);
+  DEFPROXYFN(HandleProducerRangeIdentified);
+  DEFPROXYFN(HandleIdentifyGlobal);
+  DEFPROXYFN(HandleIdentifyConsumer);
+  DEFPROXYFN(HandleIdentifyProducer);
+
+#undef DEFPROXYFN
+};
+
+static void InvokeNotification(Notifiable* done) {
+  done->Notify();
+}
+
+static const uint64_t kExitEventId = 0x0808080804040404ULL;
+static const int kEventReportMti = 0x5b4;
+static const int kProducerIdentifiedResvdMti = 0x546;
+
+class EventHandlerTests : public ::testing::Test {
+ protected:
+  EventHandlerTests() : flow_(&global_executor, 10) {
+    for (auto* h : { &h1_, &h2_, &h3_, &h4_ }) {
+      EXPECT_CALL(*h, HandleProducerIdentified(Field(&EventReport::event, kExitEventId), _))
+          .WillRepeatedly(DoAll(
+              WithArg<1>(Invoke(&InvokeNotification)),
+              InvokeWithoutArgs(this, &EventHandlerTests::InvokeExitNotification)));
+    }
+  }
+
+
+  void InvokeExitNotification() {
+    exit_notify_.Notify();
+  }
+
+  void WaitForCompleted() {
+    GlobalEventMessage* m = flow_.AllocateMessage();
+    m = flow_.AllocateMessage();
+    m->mti = kProducerIdentifiedResvdMti;
+    m->event = kExitEventId;
+    m->dst_node = 0;
+    m->src_node = {0, 0};
+    flow_.PostEvent(m);
+    exit_notify_.WaitForNotification();
+    while (!flow_.executor()->empty()) usleep(100);
+  }
+
+  StrictMock<MockEventHandler> h1_;
+  StrictMock<MockEventHandler> h2_;
+  StrictMock<MockEventHandler> h3_;
+  StrictMock<MockEventHandler> h4_;
+  GlobalEventFlow flow_;
+  SyncNotifiable exit_notify_;
+};
+
+
+TEST_F(EventHandlerTests, SimpleRunTest) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  EXPECT_CALL(h1_, HandleEventReport(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleEventReport(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  GlobalEventMessage* m = flow_.AllocateMessage();
+  m->mti = kEventReportMti;
+  m->event = 0x0102030405060708ULL;
+  m->dst_node = 0;
+  m->src_node = {0, 0};
+  flow_.PostEvent(m);
+  WaitForCompleted();
+}
+
+TEST_F(EventHandlerTests, SimpleRunTest2) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  EXPECT_CALL(h1_, HandleEventReport(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleEventReport(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  GlobalEventMessage* m = flow_.AllocateMessage();
+  m->mti = kEventReportMti;
+  m->event = 0x0102030405060708ULL;
+  m->dst_node = 0;
+  m->src_node = {0, 0};
+  flow_.PostEvent(m);
+  WaitForCompleted();
+}
+
+
+TEST_F(EventHandlerTests, Run100EventsTest) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  EXPECT_CALL(h1_, HandleEventReport(_, _))
+      .Times(100)
+      .WillRepeatedly(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleEventReport(_, _))
+      .Times(100)
+      .WillRepeatedly(WithArg<1>(Invoke(&InvokeNotification)));
+  for (int i = 0; i < 100; i++) {
+    GlobalEventMessage* m = flow_.AllocateMessage();
+    m->mti = kEventReportMti;
+    m->event = 0x0102030405060708ULL;
+    m->dst_node = 0;
+    m->src_node = {0, 0};
+    flow_.PostEvent(m);
+  }
+  WaitForCompleted();
+}
+
+
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);
