@@ -34,6 +34,8 @@
 #ifndef _nmranet_node_private_h_
 #define _nmranet_node_priavate_h_
 
+#include "sys/tree.h"
+
 #include "core/nmranet_node.h"
 #include "core/nmranet_buf.h"
 #include "core/nmranet_datagram_private.h"
