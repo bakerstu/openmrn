@@ -32,11 +32,16 @@
  */
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/WriteFlow.hxx"
 
 
 NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 
 AllocatorMutex event_handler_mutex;
+WriteHelper event_write_helper1(DefaultWriteFlowExecutor());
+WriteHelper event_write_helper2(DefaultWriteFlowExecutor());
+BarrierNotifiable event_barrier;
+
 
 NMRAnetEventRegistry::NMRAnetEventRegistry() {
   HASSERT(instance_ == nullptr);
