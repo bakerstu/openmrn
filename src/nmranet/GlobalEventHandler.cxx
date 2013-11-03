@@ -76,7 +76,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
   rep->src_node = impl_->message_->src_node;
   rep->dst_node = impl_->message_->dst_node;
   rep->event = impl_->message_->event;
-  rep->mask = EVENT_EXACT_MASK;
+  rep->mask = 1;
 
   EventHandlerFunction fn;
   switch (impl_->message_->mti) {
