@@ -34,6 +34,8 @@
 
 #include "nmranet/WriteFlow.hxx"
 
+#include "endian.h"
+
 Executor* DefaultWriteFlowExecutor() {
   static ThreadExecutor e("write_flow", 0, 1000);
   return &e;
