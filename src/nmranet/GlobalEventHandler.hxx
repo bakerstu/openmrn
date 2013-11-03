@@ -36,6 +36,7 @@ class GlobalEventFlow : public ControlFlow {
   // @param max_event_slots sets the maximum number of pending incoming event
   // messages in the global event queue.
   GlobalEventFlow(Executor* executor, int max_event_slots);
+  ~GlobalEventFlow();
 
   // This call will block until a slot can be acquired.
   GlobalEventMessage* AllocateMessage();
@@ -47,7 +48,10 @@ class GlobalEventFlow : public ControlFlow {
 
  protected:
   ControlFlowAction WaitForEvent();
+  ControlFlowAction HandleEventArrived();
   ControlFlowAction HandleEvent();
+  ControlFlowAction WaitForHandler();
+  ControlFlowAction HandlerFinished();
 
   void FreeMessage(GlobalEventMessage* m);
 

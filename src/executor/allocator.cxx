@@ -37,13 +37,28 @@
 AllocatorBase::AllocatorBase()
     : has_free_entries_(true) {}
 
-
 void AllocatorBase::Release(QueueMember* entry) {
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
     if (has_free_entries_) {
       waiting_list_.PushFront(entry);
+      return;
+    } else {
+      caller = static_cast<AllocationResult*>(waiting_list_.Pop());
+      if (waiting_list_.empty()) has_free_entries_ = true;
+    }
+  }
+  HASSERT(caller != nullptr);
+  caller->AllocationCallback(entry);
+}
+
+void AllocatorBase::ReleaseBack(QueueMember* entry) {
+  AllocationResult* caller = nullptr;
+  {
+    LockHolder l(this);
+    if (has_free_entries_) {
+      waiting_list_.Push(entry);
       return;
     } else {
       caller = static_cast<AllocationResult*>(waiting_list_.Pop());

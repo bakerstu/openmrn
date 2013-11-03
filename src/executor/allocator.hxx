@@ -50,10 +50,17 @@ class AllocatorBase : public Lockable {
 
   //! Returns an entry to the pool of free entries. no type checking is
   //! performed by this function.
-  // 
+  //
   //! @param entry is the entry to release. It should be compatible with the
   //! entries expected from this Allocator.
   void Release(QueueMember* entry);
+
+  //! Returns an entry to the end (back) of the pool of free entries. no type
+  //! checking is performed by this function.
+  //
+  //! @param entry is the entry to release. It should be compatible with the
+  //! entries expected from this Allocator.
+  void ReleaseBack(QueueMember* entry);
 
   //! Allocates an object, possibly by putting the caller into a waiting list
   //! for allocated objects.
@@ -70,7 +77,7 @@ class AllocatorBase : public Lockable {
   //! NOTE: using this method is likely result in race conditions.
   bool Peek();
 
-  //! Synchronously tries to allocate an entry. 
+  //! Synchronously tries to allocate an entry.
   //
   //! @returns the first allocatable entry, if there is any free. Otherwise
   //! returns NULL.
@@ -92,9 +99,12 @@ class TypedAllocator : public AllocatorBase {
   //! Returns an entry to the allocator.
   //
   //! @param entry is the object to return.
-  void TypedRelease(T* entry) {
-    Release(entry);
-  }
+  void TypedRelease(T* entry) { Release(entry); }
+
+  //! Returns an entry to the allocator at the back of the freelist..
+  //
+  //! @param entry is the object to return.
+  void TypedReleaseBack(T* entry) { ReleaseBack(entry); }
 };
 
 //! Helper class that encapsulates a call to an allocator, which blocks the
@@ -110,8 +120,7 @@ class SyncAllocation : private AllocationResult {
   //! thread until an entry is available.
   //
   //! @param allocator is the allocator to allocate an entry from.
-  SyncAllocation(AllocatorBase* allocator)
-      : result_(nullptr) {
+  SyncAllocation(AllocatorBase* allocator) : result_(nullptr) {
     allocator->AllocateEntry(this);
     notify_.WaitForNotification();
   }
@@ -144,7 +153,8 @@ class SyncAllocation : private AllocationResult {
 };
 
 //! Helper class for type-safe synchronous allocation from an Allocator.
-template<class T> class TypedSyncAllocation : public SyncAllocation {
+template <class T>
+class TypedSyncAllocation : public SyncAllocation {
  public:
   //! Allocates an entry from a (typed) allocator.
   //
@@ -153,9 +163,7 @@ template<class T> class TypedSyncAllocation : public SyncAllocation {
       : SyncAllocation(allocator) {}
 
   //! @returns the result of the allocation.
-  T* result() {
-    return static_cast<T*>(untyped_result());
-  }
+  T* result() { return static_cast<T*>(untyped_result()); }
 };
 
 //! Helper class that simulates a (non-reentrant) mutex using the Allocator
@@ -175,36 +183,25 @@ template<class T> class TypedSyncAllocation : public SyncAllocation {
 class AllocatorMutex : public AllocatorBase {
  public:
   //! Creates an allocator mutex.
-  AllocatorMutex() {
-    Unlock();
-  }
+  AllocatorMutex() { Unlock(); }
 
   //! Crashes if the the particular value is not the token associated with this
   //! mutex.
   //
   //! @param token is the value to check.
-  void CheckToken(QueueMember* token) {
-    HASSERT(token == &token_);
-  }
+  void CheckToken(QueueMember* token) { HASSERT(token == &token_); }
 
   //! Crashes if the mutex is not locked.
-  void AssertLocked() {
-    HASSERT(!Peek());
-  }
+  void AssertLocked() { HASSERT(!Peek()); }
 
   //! Crashes if the mutex is locked.
-  void AssertUnlocked() {
-    HASSERT(Peek());
-  }
+  void AssertUnlocked() { HASSERT(Peek()); }
 
   //! Unlocks the mutex. Crashes if the mutex is unlocked.
-  void Unlock() {
-    Release(&token_);
-  }
+  void Unlock() { Release(&token_); }
 
  private:
   QueueMember token_;
 };
-
 
 #endif  // _EXECUTOR_ALLOCATOR_HXX_

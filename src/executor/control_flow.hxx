@@ -37,6 +37,7 @@
 
 #include <type_traits>
 
+#include "utils/logging.h"
 #include "executor/executor.hxx"
 #include "executor/allocator.hxx"
 
@@ -61,6 +62,7 @@ public:
   //! Wakes up this control flow and puts it onto the executor's scheduling
   //! queue.
   virtual void Notify() {
+    LOG(VERBOSE, "ControlFlow::Notify %p", this);
     LockHolder h(executor_);
     if (!executor_->IsMaybePending(this)) {
       executor_->Add(this);
@@ -161,8 +163,9 @@ protected:
     next_state_ = next;
     sub_flow_.allocation_result = nullptr;
     allocator->AllocateEntry(this);
-    // We call aggressively here in case the allocation succeeded inline.
-    return CallImmediately(ST(WaitForAllocation));
+    // We can't call immediately, because that would create a spurious
+    // notification.
+    return WaitAndCall(ST(WaitForAllocation));
   }
 
   ControlFlowAction WaitForAllocation() {

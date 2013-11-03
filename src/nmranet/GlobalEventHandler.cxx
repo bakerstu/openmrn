@@ -1,6 +1,10 @@
+#include <algorithm>
 #include <vector>
 #include <endian.h>
 
+#define LOGLEVEL VERBOSE
+
+#include "utils/logging.h"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "if/nmranet_if.h"
@@ -20,6 +24,8 @@ struct GlobalEventFlow::Impl {
   // This is the queue of global identify events.
   TypedAllocator<GlobalEventMessage> global_event_queue_;
 
+  // Incoming event message, as it got off the event_queue.
+  GlobalEventMessage* message_;
 
   // Statically allocated structure for calling the event handlers from the
   // main event queue.
@@ -161,6 +167,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   virtual void HandlerFn(EventHandlerFunction fn,
                          EventReport* event,
                          Notifiable* done) {
+    LOG(VERBOSE, "Dual::Handler, event %016llx", event->event);
     event_handler_mutex.AssertLocked();
     proxy_fn_ = fn;
     standard_iterator_->InitIterator(event, done);
@@ -173,6 +180,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   virtual void InitGlobalIterator() = 0;
 
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
+    LOG(VERBOSE, "Dual::IdentifyGlobal");
     event_handler_mutex.AssertLocked();
     // We immediately release the global iterator mutex and will acquire it
     // inside when we try to call children.
@@ -185,10 +193,10 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
  protected:
   ControlFlowAction StateInIteration() {
     // We first try a standard iteration.
-    if (!standard_iterator_->done())
+    if (standard_iterator_->done())
       return CallImmediately(ST(TryStandardIteration));
     // Then a global iteration.
-    if (!global_iterator_->done())
+    if (global_iterator_->done())
       return CallImmediately(ST(GetGlobalIterationLock));
     // Give up and wait for incoming messages.
     return WaitForNotification();
@@ -198,8 +206,11 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     NMRAnetEventHandler* handler = standard_iterator_->NextEntry();
     if (!handler) {
       // Iteration done.
-      standard_iterator_->done()->Notify();
+      LOG(VERBOSE, "Standard iteration done");
+      Notifiable* d = standard_iterator_->done();
+      HASSERT(d);
       standard_iterator_->ClearIteration();
+      d->Notify();
       return YieldAndCall(ST(StateInIteration));
     }
     (handler->*proxy_fn_)(standard_iterator_->event(),
@@ -208,6 +219,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   }
 
   ControlFlowAction WaitForStandardReturn() {
+    LOG(VERBOSE, "Standard entry return");
     if (!standard_iterator_->HasBeenNotified())
       return WaitForNotification();
     return CallImmediately(ST(TryStandardIteration));
@@ -221,8 +233,11 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     NMRAnetEventHandler* handler = global_iterator_->NextEntry();
     if (!handler) {
       // Iteration done. We hand back the iterator lock.
-      global_iterator_->done()->Notify();
+      Notifiable* d = global_iterator_->done();
+      HASSERT(d);
       global_iterator_->ClearIteration();
+      d->Notify();
+      global_iterator_->done()->Notify();
       return YieldAndCall(ST(StateInIteration));
     }
     handler->HandleIdentifyGlobal(global_iterator_->event(),
@@ -240,12 +255,13 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   }
 
  private:
+  //! Holds which event handler function the standard iteration should call.
   EventHandlerFunction proxy_fn_;
   EventIterator* standard_iterator_;
   EventIterator* global_iterator_;
 };
 
-class VectorEventHandlers : public DualIteratorFlow {
+class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry {
  public:
   VectorEventHandlers(Executor* executor)
       : DualIteratorFlow(executor,
@@ -258,6 +274,19 @@ class VectorEventHandlers : public DualIteratorFlow {
 
   virtual void InitGlobalIterator() {
     global_iterator_impl_.Set(handlers_.begin(), handlers_.end());
+  }
+
+  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+    // @TODO(balazs.racz): need some kind of locking here.
+    handlers_.push_back(handler);
+  }
+  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+    // @TODO(balazs.racz): need some kind of locking here.
+    handlers_.erase(std::remove(handlers_.begin(), handlers_.end(), handler));
+  }
+  
+  virtual NMRAnetEventHandler* EventHandler() {
+    return this;
   }
 
  private:
@@ -274,8 +303,18 @@ GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
   StartFlowAt(ST(WaitForEvent));
 }
 
+GlobalEventFlow::~GlobalEventFlow() {}
+
+
 ControlFlow::ControlFlowAction GlobalEventFlow::WaitForEvent() {
-  return Allocate(&impl_->event_queue_, ST(HandleEvent));
+  LOG(VERBOSE, "GlobalFlow::WaitForEvent");
+  return Allocate(&impl_->event_queue_, ST(HandleEventArrived));
+}
+
+ControlFlow::ControlFlowAction GlobalEventFlow::HandleEventArrived() {
+  LOG(VERBOSE, "GlobalFlow::EventArrived");
+  GetAllocationResult(&impl_->message_); 
+  return Allocate(&event_handler_mutex, ST(HandleEvent));
 }
 
 void DecodeRange(EventReport* r) {
@@ -289,17 +328,15 @@ void DecodeRange(EventReport* r) {
 }
 
 ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
-  GlobalEventMessage* m;
-  GetAllocationResult(&m);
+  LOG(VERBOSE, "GlobalFlow::HandleEvent");
   EventReport* rep = &impl_->main_event_report_;
-  rep->src_node = m->src_node;
-  rep->dst_node = m->dst_node;
-  rep->event = m->event;
+  rep->src_node = impl_->message_->src_node;
+  rep->dst_node = impl_->message_->dst_node;
+  rep->event = impl_->message_->event;
   rep->mask = EVENT_EXACT_MASK;
-  FreeMessage(m);
 
   EventHandlerFunction fn;
-  switch (m->mti) {
+  switch (impl_->message_->mti) {
     case MTI_EVENT_REPORT:
       fn = &NMRAnetEventHandler::HandleEventReport;
       break;
@@ -356,8 +393,23 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
     default:
       DIE("Unexpected message arrived at the global event handler.");
   }  //    case
+  FreeMessage(impl_->message_);
+
   (impl_->handler_.get()->*fn)(rep, this);
-  return YieldAndCall(ST(WaitForEvent));
+  // We insert an intermediate state to consume any pending notifications.
+  return WaitAndCall(ST(HandlerFinished));
+}
+
+ControlFlow::ControlFlowAction GlobalEventFlow::WaitForHandler() {
+  return WaitAndCall(ST(HandlerFinished));
+}
+
+ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished() {
+  LOG(VERBOSE, "GlobalFlow::HandlerFinished");
+  // @TODO(balazs.racz): When there is a new event in the main event queue, we
+  // shouldn't release the mutex but go straight to the acquisition.
+  event_handler_mutex.Unlock();
+  return CallImmediately(ST(WaitForEvent));
 }
 
 GlobalEventMessage* GlobalEventFlow::AllocateMessage() {
@@ -366,7 +418,7 @@ GlobalEventMessage* GlobalEventFlow::AllocateMessage() {
 }
 
 void GlobalEventFlow::PostEvent(GlobalEventMessage* message) {
-  impl_->event_queue_.TypedRelease(message);
+  impl_->event_queue_.TypedReleaseBack(message);
 }
 
 void GlobalEventFlow::FreeMessage(GlobalEventMessage* m) {
@@ -398,7 +450,7 @@ extern "C" void nmranet_event_packet_addressed(uint16_t mti,
   }
   GlobalEventFlow::instance->PostEvent(m);
 
-  switch (mti) {
+  /*  switch (mti) {
     default:
       break;
     case MTI_CONSUMER_IDENTIFY:
@@ -407,9 +459,9 @@ extern "C" void nmranet_event_packet_addressed(uint16_t mti,
     case MTI_CONSUMER_IDENTIFIED_RANGE:
       // nmranet_identify_consumers(node, event, identify_range_mask(event));
       break;
-    case MTI_CONSUMER_IDENTIFIED_UNKNOWN: /* fall through */
-    case MTI_CONSUMER_IDENTIFIED_VALID:   /* fall through */
-    case MTI_CONSUMER_IDENTIFIED_INVALID: /* fall through */
+    case MTI_CONSUMER_IDENTIFIED_UNKNOWN: // fall through
+    case MTI_CONSUMER_IDENTIFIED_VALID:   // fall through
+    case MTI_CONSUMER_IDENTIFIED_INVALID: // fall through
     case MTI_CONSUMER_IDENTIFIED_RESERVED:
       break;
     case MTI_PRODUCER_IDENTIFY:
@@ -418,17 +470,17 @@ extern "C" void nmranet_event_packet_addressed(uint16_t mti,
     case MTI_PRODUCER_IDENTIFIED_RANGE:
       // nmranet_identify_producers(node, event, identify_range_mask(event));
       break;
-    case MTI_PRODUCER_IDENTIFIED_UNKNOWN: /* fall through */
-    case MTI_PRODUCER_IDENTIFIED_VALID:   /* fall through */
-    case MTI_PRODUCER_IDENTIFIED_INVALID: /* fall through */
+    case MTI_PRODUCER_IDENTIFIED_UNKNOWN: // fall through
+    case MTI_PRODUCER_IDENTIFIED_VALID:   // fall through
+    case MTI_PRODUCER_IDENTIFIED_INVALID: // fall through
     case MTI_PRODUCER_IDENTIFIED_RESERVED:
       break;
-    case MTI_EVENTS_IDENTIFY_ADDRESSED: /* fall through */
+    case MTI_EVENTS_IDENTIFY_ADDRESSED: // fall through
     case MTI_EVENTS_IDENTIFY_GLOBAL:
       // nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
       // nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
       break;
-  }
+      }*/
 }
 
 /** Process an event packet.
@@ -450,15 +502,15 @@ void nmranet_event_packet_global(uint16_t mti,
   }
   GlobalEventFlow::instance->PostEvent(m);
 
-  switch (mti) {
+  /*  switch (mti) {
     default:
       break;
     case MTI_EVENT_REPORT: {
-      /* to save processing time in instantiations that include a large
-       * number of nodes, consumers are sorted at the event level and
-       * not at the node level.
-       */
-      /*struct event_node* event_node;
+      // to save processing time in instantiations that include a large
+      // number of nodes, consumers are sorted at the event level and
+      // not at the node level.
+      
+      struct event_node* event_node;
             struct event_node event_lookup;
 
       uint64_t event;
@@ -473,41 +525,42 @@ void nmranet_event_packet_global(uint16_t mti,
              current = current->next) {
           event_post(current->node, src, event);
         }
-        }*/
+        }
       break;
     }
     case MTI_CONSUMER_IDENTIFY:
-    /* fall through */
+    // fall through
     case MTI_CONSUMER_IDENTIFIED_RANGE:
-    /* fall through */
+    // fall through
     case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
-    /* fall through */
+    // fall through
     case MTI_CONSUMER_IDENTIFIED_VALID:
-    /* fall through */
+    // fall through
     case MTI_CONSUMER_IDENTIFIED_INVALID:
-    /* fall through */
+    // fall through
     case MTI_CONSUMER_IDENTIFIED_RESERVED:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFY:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFIED_RANGE:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFIED_VALID:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFIED_INVALID:
-    /* fall through */
+    // fall through
     case MTI_PRODUCER_IDENTIFIED_RESERVED:
-    /* fall through */
+    // fall through
     case MTI_EVENTS_IDENTIFY_GLOBAL:
       //      os_mutex_lock(&nodeMutex);
-      /* global message, deliver all, non-subscribe */
-      /*      for (node_t node = nmranet_node_next(NULL); node != NULL;
+      // global message, deliver all, non-subscribe
+            for (node_t node = nmranet_node_next(NULL); node != NULL;
            node = nmranet_node_next(node)) {
         nmranet_event_packet_addressed(mti, node, data);
       }
-      os_mutex_unlock(&nodeMutex);*/
+      os_mutex_unlock(&nodeMutex);
       break;
   }
+  */
 }

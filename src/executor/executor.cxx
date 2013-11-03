@@ -42,7 +42,7 @@ static void* start_executor_thread(void* arg) {
 }
 
 Executor::Executor()
-  : notify_(0)
+    : notify_(0), waiting_(false)
 {
 }
             
@@ -50,7 +50,9 @@ Executor::~Executor() {}
 
 void Executor::ThreadBody() {
   while(1) {
+    waiting_ = true;
     notify_.wait();
+    waiting_ = false;
     Executable* next;
     {
       LockHolder h(this);
