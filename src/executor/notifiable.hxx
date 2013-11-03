@@ -86,7 +86,9 @@ class ProxyNotifiable : private Notifiable {
 // callback is called.
 class BarrierNotifiable : public Notifiable, private Lockable {
  public:
+  BarrierNotifiable() : count_(0), done_(nullptr) {}
   BarrierNotifiable(Notifiable* done) : count_(1), done_(done) {}
+  void Reset(Notifiable* done);
   ~BarrierNotifiable();
 
   // Call this for each child task.
