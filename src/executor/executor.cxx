@@ -42,7 +42,7 @@ static void* start_executor_thread(void* arg) {
 }
 
 Executor::Executor()
-    : notify_(0), waiting_(false)
+    : notify_(0), waiting_(true)
 {
 }
             
