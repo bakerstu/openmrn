@@ -8,12 +8,13 @@
 //
 // * Implementation of the C interface towards the application.
 
+#include "executor/control_flow.hxx"
+
 #include <algorithm>
 
 #include "os/OS.hxx"
 #include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "executor/control_flow.hxx"
 
 #define EXTERNC extern "C" {
 #define EXTERNCEND }

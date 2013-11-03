@@ -1,10 +1,10 @@
+#define LOGLEVEL VERBOSE
+#include "utils/logging.h"
+
 #include <algorithm>
 #include <vector>
 #include <endian.h>
 
-#define LOGLEVEL VERBOSE
-
-#include "utils/logging.h"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "if/nmranet_if.h"

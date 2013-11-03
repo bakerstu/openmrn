@@ -35,9 +35,10 @@
 #ifndef _EXECUTOR_CONTROL_FLOW_HXX_
 #define _EXECUTOR_CONTROL_FLOW_HXX_
 
+#include "utils/logging.h"
+
 #include <type_traits>
 
-#include "utils/logging.h"
 #include "executor/executor.hxx"
 #include "executor/allocator.hxx"
 
