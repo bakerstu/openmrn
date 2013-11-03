@@ -42,6 +42,7 @@ struct GlobalEventFlow::Impl {
 GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
     : ControlFlow(executor, CrashNotifiable::DefaultInstance()),
       impl_(new Impl(max_event_slots)) {
+  GlobalEventFlow::instance = this;
   impl_->handler_.reset(new VectorEventHandlers(executor));
   StartFlowAt(ST(WaitForEvent));
 }
