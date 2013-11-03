@@ -50,3 +50,11 @@ void WriteHelper::Run() {
   done_ = nullptr;
   d->Notify();
 }
+
+WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid) {
+  WriteHelper::buffer_type buffer = WriteHelper::BufferAlloc(sizeof(eventid));
+  uint64_t* b = static_cast<uint64_t*>(WriteHelper::BufferDeref(buffer));
+  *b = htobe64(eventid);
+  WriteHelper::BufferStep(buffer, sizeof(eventid));
+  return buffer;
+}

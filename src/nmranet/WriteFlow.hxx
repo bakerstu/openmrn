@@ -114,4 +114,6 @@ class WriteHelper : private Executable {
   Executor* executor_;
 };
 
+WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid);
+
 #endif  // _NMRANET_WRITE_FLOW_H_
