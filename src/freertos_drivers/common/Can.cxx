@@ -36,6 +36,7 @@
 #include "Devtab.hxx"
 #include "Can.hxx"
 #include "nmranet_can.h"
+#include "can_ioctl.h"
 
 Devops Can::ops = {Can::open, Can::close, Can::read, Can::write, Can::ioctl};
 
@@ -164,6 +165,28 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
  */
 int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data)
 {
+    Can *can = static_cast<Can*>(file->node);
+
+    /* sanity check to be sure we have a valid key for this devide */
+    HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
+    HASSERT(IOC_SIZE(key) == sizeof(CanActiveCallback));
+
+    const CanActiveCallback *can_active_callback = (CanActiveCallback*)data;
+
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case CAN_IOC_READ_ACTIVE:
+            can->read_callback = can_active_callback->callback;
+            can->readContext = can_active_callback->context;
+            break;
+        case CAN_IOC_WRITE_ACTIVE:
+            can->write_callback = can_active_callback->callback;
+            can->writeContext = can_active_callback->context;
+            break;
+    }
+
     return 0;
 }
 

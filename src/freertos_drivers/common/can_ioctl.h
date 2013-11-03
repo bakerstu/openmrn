@@ -50,10 +50,10 @@ typedef struct can_active_callback
 #define CAN_IOC_MAGIC ('c')
 
 /** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IO(CAN_IOC_MAGIC, 1)
+#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
 
 /** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IO(CAN_IOC_MAGIC, 2)
+#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
 
 #if defined (__cplusplus)
 }

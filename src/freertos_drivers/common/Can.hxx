@@ -58,6 +58,10 @@ protected:
           txQ(os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame))),
           rxQ(os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame))),
           overrunCount(0),
+          read_callback(NULL),
+          write_callback(NULL),
+          readContext(NULL),
+          writeContext(NULL),
           mutex(),
           devtab(name, &ops, this)
     {
@@ -79,6 +83,10 @@ protected:
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
+    void (*read_callback)(void*); /**< callback for read active notify */
+    void (*write_callback)(void*); /**< callback for write active notify */
+    void *readContext; /**< callback argument for read active notify */
+    void *writeContext; /**< callback argument for write active notify */
 
 private:    
     /** Open a device.

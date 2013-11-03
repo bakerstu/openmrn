@@ -176,6 +176,7 @@ void StellarisCan::interrupt_handler()
     else if (status == 1)
     {
         /* rx data received */
+        bool notify = false;
         tCANMsgObject can_message;
         uint8_t data[8];
         can_message.pucMsgData = data;
@@ -190,9 +191,18 @@ void StellarisCan::interrupt_handler()
         can_frame.can_err = 0;
         can_frame.can_dlc = can_message.ulMsgLen;
         memcpy(can_frame.data, data, can_message.ulMsgLen);
+        if (os_mq_num_pending_from_isr(rxQ) == 0)
+        {
+            notify = true;
+        }
         if (os_mq_send_from_isr(rxQ, &can_frame) == OS_MQ_FULL)
         {
             overrunCount++;
+        }
+        /* wakeup anyone waiting for read active */
+        if (notify && read_callback)
+        {
+            read_callback(readContext);
         }
     }
     else if (status == 2)
@@ -203,6 +213,11 @@ void StellarisCan::interrupt_handler()
         struct can_frame can_frame;
         if (os_mq_receive_from_isr(txQ, &can_frame) == OS_MQ_NONE)
         {
+            bool notify = false;
+            if (os_mq_num_pending_from_isr(txQ) == (CAN_TX_BUFFER_SIZE - 1))
+            {
+                notify = true;
+            }
             /* load the next message to transmit */
             tCANMsgObject can_message;
             can_message.ulMsgID = can_frame.can_id;
@@ -221,6 +236,11 @@ void StellarisCan::interrupt_handler()
             memcpy(data, can_frame.data, can_frame.can_dlc);
             
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
+            /* wakeup anyone waiting for read active */
+            if (notify && write_callback)
+            {
+                write_callback(writeContext);
+            }
         }
         else
         {
