@@ -32,6 +32,8 @@
  * @date 3 Nov 2013
  */
 
+#include "utils/logging.h"
+
 #include <map>
 #include <algorithm>
 
@@ -42,14 +44,14 @@
 #include "core/nmranet_node_private.h"
 #include "if/nmranet_if.h"
 #include "nmranet/EventManager.hxx"
+#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/NMRAnetEventRegistry.hxx"
 
 #ifdef CPP_EVENT_HANDLER
 
-EventCompatibilityLayer::EventCompatibilityLayer() {}
-
-EventCompatibilityLayer::~EventCompatibilityLayer() {}
-
 class CompatEventHandler;
+
+void EnsureCompatEventHandlerExists();
 
 typedef std::map<std::pair<uint64_t, node_t>, CompatEventHandler> HandlerMap;
 
@@ -110,12 +112,14 @@ class CompatEventHandler : public SimpleEventHandler {
 };
 
 void nmranet_event_consumer(node_t node, uint64_t event, unsigned int state) {
+  EnsureCompatEventHandlerExists();
   auto& v = g_map[make_pair(event, node)];
   v.has_consumer_ = 1;
   v.consumer_state_ = state & 3;
 }
 
 void nmranet_event_producer(node_t node, uint64_t event, unsigned int state) {
+  EnsureCompatEventHandlerExists();
   auto& v = g_map[make_pair(event, node)];
   v.has_producer_ = 1;
   v.producer_state_ = state & 3;
@@ -173,7 +177,13 @@ class CompatEventManager : public DualIteratorFlow {
   CompatEventManager(Executor* executor)
       : DualIteratorFlow(executor, &std_, &global_),
         std_(&current_standard_iterator),
-        global_(&current_global_iterator) {}
+        global_(&current_global_iterator) {
+    NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+  }
+
+  ~CompatEventManager() {
+    NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+  }
 
   virtual void InitStandardIterator() {
     std_.Set(g_map.lower_bound(make_pair(std_.event()->event, (node_t)0)),
@@ -187,5 +197,34 @@ class CompatEventManager : public DualIteratorFlow {
   CompatEventIterator std_;
   CompatEventIterator global_;
 };
+
+
+static EventCompatibilityLayer* g_compat_layer = nullptr;
+Lockable g_compat_layer_lock;
+Executor* g_event_thread = nullptr;
+CompatEventManager* g_compat_event_manager = nullptr;
+
+EventCompatibilityLayer::EventCompatibilityLayer() {
+  g_compat_layer = this;
+  if (!GlobalEventFlow::instance) {
+    g_event_thread = new ThreadExecutor("global_event", 0, 1000);
+    new GlobalEventFlow(g_event_thread, 10);
+  }
+  g_compat_event_manager = new CompatEventManager(g_event_thread);
+}
+
+EventCompatibilityLayer::~EventCompatibilityLayer() {
+  delete g_compat_event_manager;
+  g_compat_event_manager = nullptr;
+  g_compat_layer = nullptr;
+}
+
+void EnsureCompatEventHandlerExists() {
+  if (!g_compat_layer) {
+    LockHolder l(&g_compat_layer_lock);
+    if (g_compat_layer) return;
+    new EventCompatibilityLayer();
+  }
+}
 
 #endif
