@@ -324,36 +324,6 @@ void nmranet_event_produce(node_t node, uint64_t event, unsigned int state)
     os_mutex_unlock(&nodeMutex);
 }
 
-/** Post the reception of an event to given node.
- * @param node to post event to
- * @param src source node of the event
- * @param event event number to post
- */
-static void event_post(node_t node, node_handle_t src, uint64_t event)
-{
-    struct id_node *n = (struct id_node*)node;
-    
-    os_mutex_lock(&nodeMutex);
-
-    Event *buffer = nmranet_buffer_alloc(sizeof(Event));
-    if (buffer == NULL)
-    {
-        /** @todo increment statistics counter here */
-        return;
-    }
-    buffer->data = event;
-    buffer->src = src;
-    nmranet_buffer_advance(buffer, sizeof(Event));
-    nmranet_queue_insert(n->priv->eventQueue, buffer);
-
-    if (n->priv->wait != NULL)
-    {
-        /* wakeup whoever is waiting */
-        os_sem_post(n->priv->wait);
-    }
-    os_mutex_unlock(&nodeMutex);
-}
-
 /** Identify all consumer events.
  * @param node node instance to act on
  * @param consumer event(s) to identify
@@ -601,4 +571,29 @@ size_t nmranet_event_pending(node_t node)
     os_mutex_unlock(&nodeMutex);
 
     return pending; 
+}
+
+void event_post(node_t node, node_handle_t src, uint64_t event)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    os_mutex_lock(&nodeMutex);
+
+    Event *buffer = nmranet_buffer_alloc(sizeof(Event));
+    if (buffer == NULL)
+    {
+        /** @todo increment statistics counter here */
+        return;
+    }
+    buffer->data = event;
+    buffer->src = src;
+    nmranet_buffer_advance(buffer, sizeof(Event));
+    nmranet_queue_insert(n->priv->eventQueue, buffer);
+
+    if (n->priv->wait != NULL)
+    {
+        /* wakeup whoever is waiting */
+        os_sem_post(n->priv->wait);
+    }
+    os_mutex_unlock(&nodeMutex);
 }

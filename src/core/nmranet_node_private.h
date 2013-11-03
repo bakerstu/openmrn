@@ -32,7 +32,7 @@
  */
 
 #ifndef _nmranet_node_private_h_
-#define _nmranet_node_priavate_h_
+#define _nmranet_node_private_h_
 
 #include "sys/tree.h"
 
@@ -148,6 +148,13 @@ void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask);
  * @return handle to next node in the list, NULL if at end of list
  */
 node_t nmranet_node_next(node_t node);
+
+/** Post the reception of an event to given node.
+ * @param node to post event to
+ * @param src source node of the event
+ * @param event event number to post
+ */
+void event_post(node_t node, node_handle_t src, uint64_t event);
 
 #ifdef __cplusplus
 }
