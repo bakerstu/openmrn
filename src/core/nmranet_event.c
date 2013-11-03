@@ -39,19 +39,10 @@
 
 #include "nmranet_config.h"
 
-#ifndef CPP_EVENT_HANDLER
-
 #include "core/nmranet_event_private.h"
 #include "core/nmranet_node_private.h"
 #include "core/nmranet_buf.h"
 #include "os/os.h"
-
-//void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
-//void nmranet_node_producer_add(node_t node, uint64_t event, int state);
-void nmranet_node_event_producer_state(node_t node, uint64_t event, int state);
-
-/** Mutual exclusion for socket library */
-static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Event metadata. */
 typedef struct event
@@ -59,6 +50,16 @@ typedef struct event
     node_t node; /**< event id associated with this chain */
     struct event *next; /**< next entry in the chain */
 } EventPriv;
+
+
+#ifndef CPP_EVENT_HANDLER
+
+//void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
+//void nmranet_node_producer_add(node_t node, uint64_t event, int state);
+void nmranet_node_event_producer_state(node_t node, uint64_t event, int state);
+
+/** Mutual exclusion for socket library */
+static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Red Black tree node for sorting by event ID.
  */
@@ -555,6 +556,9 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
             break;
     }
 }
+#endif // CPP_EVENT_HANDLER
+
+
 
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
@@ -598,5 +602,3 @@ size_t nmranet_event_pending(node_t node)
 
     return pending; 
 }
-
-#endif // CPP_EVENT_HANDLER

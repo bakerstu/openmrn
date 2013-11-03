@@ -433,10 +433,12 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m) {
  * @param node node that the packet is addressed to
  * @param data NMRAnet packet data
  */
-extern "C" void nmranet_event_packet_addressed(uint16_t mti,
-                                               node_handle_t src,
-                                               node_t node,
-                                               const void* data) {
+extern "C" {
+
+void nmranet_event_packet_addressed(uint16_t mti,
+                                    node_handle_t src,
+                                    node_t node,
+                                    const void* data) {
   /*struct id_node* id_node = node;
   if (id_node->priv->state == NODE_UNINITIALIZED) {
     return;
@@ -445,6 +447,7 @@ extern "C" void nmranet_event_packet_addressed(uint16_t mti,
   GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
   m->mti = mti;
   m->dst_node = node;
+  m->src_node = src;
   m->event = 0;
   if (data) {
     memcpy(&m->event, data, sizeof(uint64_t));
@@ -567,5 +570,12 @@ void nmranet_event_packet_global(uint16_t mti,
   */
 }
 
+// This is a trick we play on the linker to pull in these symbols. Otherwise we
+// won't be able to link the binary, since there are back-references to these
+// symbols from lower-level libraries.
+void (*unused_f)(node_t, uint64_t, uint64_t)=&nmranet_identify_consumers;
+void (*unused_g)(node_t, uint64_t, uint64_t)=&nmranet_identify_producers;
+
+} // extern C
 
 #endif // CPP_EVENT_HANDLER
