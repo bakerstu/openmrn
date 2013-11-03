@@ -200,6 +200,9 @@ class AllocatorMutex : public AllocatorBase {
   //! Unlocks the mutex. Crashes if the mutex is unlocked.
   void Unlock() { Release(&token_); }
 
+  //! Synchronously locks the mutex. Might block the current thread.
+  void Lock() { SyncAllocation a(this); }
+
  private:
   QueueMember token_;
 };
