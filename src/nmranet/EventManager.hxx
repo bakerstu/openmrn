@@ -1,8 +1,13 @@
+#ifndef _NMRANET_EVENTMANAGER_HXX_
+#define _NMRANET_EVENTMANAGER_HXX_
+
 #include <algorithm>
 #include <vector>
 #include <endian.h>
 
+#ifndef LOGLEVEL
 #define LOGLEVEL VERBOSE
+#endif
 
 #include "executor/control_flow.hxx"
 #include "utils/logging.h"
@@ -214,7 +219,6 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       HASSERT(d);
       global_iterator_->ClearIteration();
       d->Notify();
-      global_iterator_->done()->Notify();
       return YieldAndCall(ST(StateInIteration));
     }
     handler->HandleIdentifyGlobal(global_iterator_->event(),
@@ -272,3 +276,5 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
   StraightStlIterator<HandlersList::iterator> standard_iterator_impl_;
   StraightStlIterator<HandlersList::iterator> global_iterator_impl_;
 };
+
+#endif  // _NMRANET_EVENTMANAGER_HXX_
