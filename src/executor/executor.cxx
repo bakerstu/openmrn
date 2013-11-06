@@ -57,7 +57,7 @@ void Executor::ThreadBody() {
       LockHolder h(this);
       current_ = static_cast<Executable*>(pending_flows_.Pop());
     }
-    if (next) {
+    if (current_) {
       current_->Run();
     }
     {
