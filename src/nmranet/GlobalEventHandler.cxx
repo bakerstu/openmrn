@@ -147,6 +147,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent() {
       DIE("Unexpected message arrived at the global event handler.");
   }  //    case
   FreeMessage(impl_->message_);
+  impl_->message_ = nullptr;
 
   (impl_->handler_.get()->*fn)(rep, this);
   // We insert an intermediate state to consume any pending notifications.
@@ -159,8 +160,12 @@ ControlFlow::ControlFlowAction GlobalEventFlow::WaitForHandler() {
 
 ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished() {
   LOG(VERBOSE, "GlobalFlow::HandlerFinished");
-  // @TODO(balazs.racz): When there is a new event in the main event queue, we
-  // shouldn't release the mutex but go straight to the acquisition.
+  impl_->message_ = impl_->event_queue_.TypedAllocateOrNull();
+  if (impl_->message_) {
+    return CallImmediately(ST(HandleEvent));
+  }
+  // No pending message in the queue: releases the mutex and allows global
+  // handlers to proceed.
   event_handler_mutex.Unlock();
   return CallImmediately(ST(WaitForEvent));
 }
@@ -267,7 +272,7 @@ void nmranet_event_packet_global(uint16_t mti,
       // to save processing time in instantiations that include a large
       // number of nodes, consumers are sorted at the event level and
       // not at the node level.
-      
+
       struct event_node* event_node;
             struct event_node event_lookup;
 
