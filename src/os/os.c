@@ -608,8 +608,6 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                      size_t stack_size,
                      void *(*start_routine) (void *), void *arg)
 {
-#if defined (__FreeRTOS__)
-    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     static unsigned int count = 0;
     char auto_name[10];
 
@@ -622,6 +620,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         count++;
         name = auto_name;
     }
+
+#if defined (__FreeRTOS__)
+    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     
     priv->entry = start_routine;
     priv->arg = arg;
@@ -715,6 +716,8 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     }
 #endif
     result = pthread_create(thread, &attr, start_routine, arg);
+
+    pthread_setname_np(*thread, name);
 
     return result;
 #endif
@@ -941,4 +944,3 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
-
