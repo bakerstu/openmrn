@@ -44,6 +44,9 @@ class GlobalEventFlow : public ControlFlow {
   // thread. Will not block.
   void PostEvent(GlobalEventMessage* message);
 
+  //! Returns true if there are outstanding events that are not yet handled.
+  bool EventProcessingPending();
+
   static GlobalEventFlow* instance;
 
  protected:

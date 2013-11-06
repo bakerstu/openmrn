@@ -47,8 +47,17 @@ GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
   StartFlowAt(ST(WaitForEvent));
 }
 
-GlobalEventFlow::~GlobalEventFlow() {}
+GlobalEventFlow::~GlobalEventFlow() {
+  GlobalEventFlow::instance = nullptr;
+}
 
+//! Returns true if there are outstanding events that are not yet handled.
+bool GlobalEventFlow::EventProcessingPending() {
+  if (!this) return false;
+  if (impl_->event_queue_.Peek()) return true;
+  if (next_state() != ST(HandleEventArrived)) return true;
+  return false;
+}
 
 ControlFlow::ControlFlowAction GlobalEventFlow::WaitForEvent() {
   LOG(VERBOSE, "GlobalFlow::WaitForEvent");
@@ -57,7 +66,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::WaitForEvent() {
 
 ControlFlow::ControlFlowAction GlobalEventFlow::HandleEventArrived() {
   LOG(VERBOSE, "GlobalFlow::EventArrived");
-  GetAllocationResult(&impl_->message_); 
+  GetAllocationResult(&impl_->message_);
   return Allocate(&event_handler_mutex, ST(HandleEvent));
 }
 

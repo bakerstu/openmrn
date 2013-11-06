@@ -217,6 +217,9 @@ protected:
     return CallImmediately(&ControlFlow::WaitForControlFlow);
   }
 
+  MemberFunction state() { return state_; }
+  MemberFunction next_state() { return next_state_; }
+
 
 private:
   //! Implementation state for a not-yet-started control flow.
