@@ -91,6 +91,8 @@ public:
 
   Executor* executor() { return executor_; }
 
+  bool IsPendingOrRunning() { return executor()->IsPendingOrRunning(this); }
+
   // ============ Interface to children (actual flows) ==============
 protected:
   struct ControlFlowAction;

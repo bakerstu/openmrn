@@ -54,8 +54,10 @@ GlobalEventFlow::~GlobalEventFlow() {
 //! Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventFlow::EventProcessingPending() {
   if (!this) return false;
-  if (impl_->event_queue_.Peek()) return true;
+  // TODO(balazs.racz): maybe the order of these checks should be different.
+  if (IsPendingOrRunning()) return true;
   if (next_state() != ST(HandleEventArrived)) return true;
+  if (impl_->event_queue_.Peek()) return true;
   return false;
 }
 
