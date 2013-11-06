@@ -74,6 +74,8 @@ static const uint64_t kExitEventId = 0x0808080804040404ULL;
 static const uint64_t kTestEventId = 0x0102030405060708ULL;
 static const int kEventReportMti = 0x5b4;
 static const int kProducerIdentifiedResvdMti = 0x546;
+static const int kGlobalIdentifyEvents = 0x970;
+static const int kAddressedIdentifyEvents = 0x968;
 
 class EventHandlerTests : public ::testing::Test {
  protected:
@@ -185,5 +187,49 @@ TEST_F(EventHandlerTests, EventsOrderTest) {
     flow_.PostEvent(m);
   }
   event_handler_mutex.Unlock();
+  WaitForCompleted();
+}
+
+TEST_F(EventHandlerTests, GlobalRunTest1) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  GlobalEventMessage* m = flow_.AllocateMessage();
+  m->mti = kGlobalIdentifyEvents;
+  m->event = 0;
+  m->dst_node = 0;
+  m->src_node = {0, 0};
+  flow_.PostEvent(m);
+  WaitForCompleted();
+}
+
+TEST_F(EventHandlerTests, GlobalAndLocal) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))
+      .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h1_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
+      WithArg<1>(Invoke(&InvokeNotification)));
+  EXPECT_CALL(h2_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
+      WithArg<1>(Invoke(&InvokeNotification)));
+  GlobalEventMessage* m = flow_.AllocateMessage();
+  m->mti = kGlobalIdentifyEvents;
+  m->event = 0;
+  m->dst_node = 0;
+  m->src_node = {0, 0};
+  flow_.PostEvent(m);
+  for (int i = 0; i < 100; i++) {
+    GlobalEventMessage* m = flow_.AllocateMessage();
+    m->mti = kEventReportMti;
+    m->event = 0x0102030405060708ULL;
+    m->dst_node = 0;
+    m->src_node = {0, 0};
+    flow_.PostEvent(m);
+  }
   WaitForCompleted();
 }
