@@ -1,4 +1,4 @@
-#define LOGLEVEL VERBOSE
+//#define LOGLEVEL VERBOSE
 #include "utils/logging.h"
 
 #include <algorithm>
