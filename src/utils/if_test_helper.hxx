@@ -144,11 +144,16 @@ class IfTest : public testing::Test {
   }
 
   virtual void TearDown() {
+    g_fake_read.WaitForDone();
     gc_pipe0.UnregisterMember(&can_bus_);
   }
 
   void ExpectPacket(const string& gc_packet) {
     EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));
+  }
+
+  void SendPacket(const string& gc_packet) {
+    gc_pipe0.WriteToAll(&can_bus_, gc_packet.data(), gc_packet.size());
   }
 
   node_t node_;
