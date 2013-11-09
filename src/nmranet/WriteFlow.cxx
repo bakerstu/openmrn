@@ -48,9 +48,10 @@ void WriteHelper::Run() {
   HASSERT(!nmranet_node_write(node_, mti_, dst_, buffer_));
 #endif  
   Notifiable* d = done_;
-  HASSERT(d);
-  done_ = nullptr;
-  d->Notify();
+  if (d) {
+    done_ = nullptr;
+    d->Notify();
+  }
 }
 
 WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid) {

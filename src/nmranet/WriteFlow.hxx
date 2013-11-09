@@ -89,7 +89,7 @@ class WriteHelper : private Executable {
    * @param dst is the destination node to send to (may be Global())
    * @param buffer is the message payload.
    * @param done will be notified when the packet has been enqueued to the
-   * physical layer.
+   * physical layer. If done == nullptr, the sending is invoked synchronously.
    */
   void WriteAsync(node_type node, mti_type mti, dst_type dst,
                   buffer_type buffer, Notifiable* done) {
@@ -98,8 +98,13 @@ class WriteHelper : private Executable {
     mti_ = mti;
     dst_ = dst;
     buffer_ = buffer;
-    done_ = done;
-    executor_->Add(this);
+    if (done) {
+      done_ = done;
+      executor_->Add(this);
+    } else {
+      done_ = nullptr;
+      Run();
+    }
   }
 
  private:
