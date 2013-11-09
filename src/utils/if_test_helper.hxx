@@ -17,10 +17,15 @@
 #include "utils/test_main.hxx"
 #include "os/OS.hxx"
 #include "core/nmranet_node.h"
+#include "core/nmranet_node_private.h"
+#include "nmranet/GlobalEventHandler.hxx"
+#include "executor/executor.hxx"
 
 using ::testing::_;
 using ::testing::Return;
 using ::testing::StrictMock;
+using ::testing::NiceMock;
+using ::testing::StrCaseEq;
 using ::testing::Mock;
 
 DEFINE_PIPE(gc_pipe0, 1);
@@ -109,7 +114,13 @@ static ssize_t mock_read(int, void* buf, size_t count) {
 
 class MockSend : public PipeMember {
  public:
-  MOCK_METHOD2(write, void(const void* buf, size_t count));
+  virtual void write(const void* buf, size_t count) {
+    string s(static_cast<const char*>(buf), count);
+    MWrite(s);
+  }
+
+  MOCK_METHOD1(MWrite, void(const string& s));
+  //MOCK_METHOD2(write, void(const void* buf, size_t count));
 };
 
 class IfTest : public testing::Test {
@@ -127,9 +138,21 @@ class IfTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() { node_ = static_node_; }
+  virtual void SetUp() {
+    node_ = static_node_;
+    gc_pipe0.RegisterMember(&can_bus_);
+  }
+
+  virtual void TearDown() {
+    gc_pipe0.UnregisterMember(&can_bus_);
+  }
+
+  void ExpectPacket(const string& gc_packet) {
+    EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));
+  }
 
   node_t node_;
+  NiceMock<MockSend> can_bus_;
 
  private:
   // A loopback interace that reads/writes to can_pipe0.
@@ -160,5 +183,10 @@ class IfTest : public testing::Test {
 NMRAnetIF* IfTest::nmranet_if_ = NULL;
 node_t IfTest::static_node_ = 0;
 
+// We use this to pull in an object from the nmranet library to link.
+void* ign_link1 = (void*)&nmranet_identify_consumers;
+
+ThreadExecutor g_executor("global_event", 0, 2000);
+GlobalEventFlow g_event_flow(&g_executor, 10);
 
 #endif  //_UTILS_IF_TEST_HELPER_HXX_
