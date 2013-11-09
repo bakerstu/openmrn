@@ -25,10 +25,8 @@ TEST_F(IfTest, WriteMessageASync) {
   n.WaitForNotification();
 }
 
-
 TEST_F(IfTest, ReadMessageAndReply) {
   // We send an alias mapping enquiry frame and expect the node ID back.
   ExpectPacket(":X1070112DN02010d000003;");
   SendPacket(  ":X10702000N;");
-
 }
