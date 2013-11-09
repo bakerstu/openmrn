@@ -40,7 +40,13 @@ BitRangeEventPC::BitRangeEventPC(WriteHelper::node_type node,
                                  uint64_t event_base,
                                  uint32_t* backing_store,
                                  unsigned size)
-    : event_base_(event_base), node_(node), data_(backing_store), size_(size) {}
+    : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+}
+
+BitRangeEventPC::~BitRangeEventPC() {
+  NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+}
 
 void BitRangeEventPC::GetBitAndMask(unsigned bit,
                                     uint32_t** data,
@@ -65,6 +71,7 @@ void BitRangeEventPC::Set(unsigned bit,
                           bool new_value,
                           WriteHelper* writer,
                           Notifiable* done) {
+  HASSERT(bit < size_);
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
@@ -127,12 +134,10 @@ void BitRangeEventPC::HandleIdentifyBase(int mti_valid,
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(d, &ofs, &mask);
-  int mti;
+  int mti = mti_valid;
   bool old_value = *ofs & mask;
-  if (old_value == new_value) {
-    mti = MTI_PRODUCER_IDENTIFIED_VALID;
-  } else {
-    mti = MTI_PRODUCER_IDENTIFIED_INVALID;
+  if (old_value != new_value) {
+    mti++; // mti INVALID
   }
 
   event_write_helper1.WriteAsync(
@@ -147,7 +152,6 @@ uint64_t EncodeRange(uint64_t begin, unsigned size) {
     begin &= ~shift;
     shift <<= 1;
   }
-  shift <<= 1;
   if (begin & shift) {
     // last real bit is 1 => range ends with zero.
     return begin;

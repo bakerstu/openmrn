@@ -138,14 +138,25 @@ class IfTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() {
+  IfTest() {
     node_ = static_node_;
     gc_pipe0.RegisterMember(&can_bus_);
   }
 
-  virtual void TearDown() {
-    g_fake_read.WaitForDone();
+  ~IfTest() {
+    WaitForReadThread();
     gc_pipe0.UnregisterMember(&can_bus_);
+  }
+
+  void WaitForEventThread() {
+    WaitForReadThread();
+#ifdef CPP_EVENT_HANDLER
+    while (GlobalEventFlow::instance->EventProcessingPending()) usleep(1000);
+#endif
+  }
+
+  void WaitForReadThread() {
+    g_fake_read.WaitForDone();
   }
 
   void ExpectPacket(const string& gc_packet) {
@@ -164,7 +175,7 @@ class IfTest : public testing::Test {
   static NMRAnetIF* nmranet_if_;
   // A node that talks to the loopback interface.
   static node_t static_node_;
-  
+
   void SetupStaticNode() {
     static node_t static_node = CreateNewNode();
     static_node_ = static_node;
@@ -188,10 +199,12 @@ class IfTest : public testing::Test {
 NMRAnetIF* IfTest::nmranet_if_ = NULL;
 node_t IfTest::static_node_ = 0;
 
+#ifdef CPP_EVENT_HANDLER
 // We use this to pull in an object from the nmranet library to link.
 void* ign_link1 = (void*)&nmranet_identify_consumers;
 
 ThreadExecutor g_executor("global_event", 0, 2000);
 GlobalEventFlow g_event_flow(&g_executor, 10);
+#endif
 
 #endif  //_UTILS_IF_TEST_HELPER_HXX_

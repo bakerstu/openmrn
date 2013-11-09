@@ -154,6 +154,7 @@ class BitRangeEventPC : public SimpleEventHandler {
                   uint64_t event_base,
                   uint32_t* backing_store,
                   unsigned size);
+  ~BitRangeEventPC();
 
   // Requests the event associated with the current value of the bit to be
   // produced (unconditionally).
