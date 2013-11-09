@@ -3,8 +3,8 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
- * 
+ * modification, are permitted provided that the following conditions are met:
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,31 +24,56 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetEventRegistry.cxx
- * Static declarations for handling NMRAnet events.
+ * \file test_main.hxx
+ *
+ * Include this file into your unittest to define the necessary symbols and
+ * main function.
  *
  * @author Balazs Racz
- * @date 19 October 2013
+ * @date 3 Nov 2013
  */
 
-#include "nmranet/NMRAnetEventRegistry.hxx"
-#include "nmranet/WriteFlow.hxx"
+#ifdef _UTILS_TEST_MAIN_HXX_
+#error Only ever include test_main into the main unittest file.
+#else
+#define _UTILS_TEST_MAIN_HXX_
 
+#include "nmranet_config.h"
 
-NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
+#include <stdio.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
-AllocatorMutex event_handler_mutex;
-WriteHelper event_write_helper1(DefaultWriteFlowExecutor());
-WriteHelper event_write_helper2(DefaultWriteFlowExecutor());
-BarrierNotifiable event_barrier;
+#include "os/os.h"
+#include "utils/pipe.hxx"
+#include "nmranet_can.h"
 
-
-NMRAnetEventRegistry::NMRAnetEventRegistry() {
-  HASSERT(instance_ == nullptr);
-  instance_ = this;
+int appl_main(int argc, char* argv[]) {
+  testing::InitGoogleMock(&argc, argv);
+  return RUN_ALL_TESTS();
 }
 
-NMRAnetEventRegistry::~NMRAnetEventRegistry() {
-  HASSERT(instance_ == this);
-  instance_ = nullptr;
+#endif // _UTILS_TEST_MAIN_HXX_
+
+
+DEFINE_PIPE(can_pipe0, sizeof(struct can_frame));
+
+extern "C" {
+
+const char *nmranet_manufacturer = "Stuart W. Baker";
+const char *nmranet_hardware_rev = "N/A";
+const char *nmranet_software_rev = "0.1";
+
+const size_t main_stack_size = 2560;
+const size_t ALIAS_POOL_SIZE = 2;
+const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t DATAGRAM_POOL_SIZE = 10;
+const size_t CAN_RX_BUFFER_SIZE = 1;
+const size_t CAN_TX_BUFFER_SIZE = 32;
+const size_t SERIAL_RX_BUFFER_SIZE = 16;
+const size_t SERIAL_TX_BUFFER_SIZE = 16;
+const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
+const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
+
 }

@@ -68,7 +68,7 @@ TEST(CrashDies, EveryTime) {
   EXPECT_DEATH({
       Notifiable* n = CrashNotifiable::DefaultInstance();
       n->Notify();
-    }, "foo");
+    }, "Called CrashNotifiable");
 }
 
 TEST(DummyTest, Success) {

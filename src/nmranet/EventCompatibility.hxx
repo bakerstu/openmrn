@@ -3,8 +3,8 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
- * 
+ * modification, are permitted provided that the following conditions are met:
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,31 +24,22 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetEventRegistry.cxx
- * Static declarations for handling NMRAnet events.
+ * \file EventCompatibility.hxx
+ *
+ * Compatibility layer for the C-style event handler interface.
  *
  * @author Balazs Racz
- * @date 19 October 2013
+ * @date 3 Nov 2013
  */
 
-#include "nmranet/NMRAnetEventRegistry.hxx"
-#include "nmranet/WriteFlow.hxx"
+#ifndef _NMRANET_EVENTCOMPATIBILITY_HXX_
+#define _NMRANET_EVENTCOMPATIBILITY_HXX_
 
+//! Create an instance of this class to enable the C-style event handler API.
+class EventCompatibilityLayer {
+ public:
+  EventCompatibilityLayer();
+  ~EventCompatibilityLayer();
+};
 
-NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
-
-AllocatorMutex event_handler_mutex;
-WriteHelper event_write_helper1(DefaultWriteFlowExecutor());
-WriteHelper event_write_helper2(DefaultWriteFlowExecutor());
-BarrierNotifiable event_barrier;
-
-
-NMRAnetEventRegistry::NMRAnetEventRegistry() {
-  HASSERT(instance_ == nullptr);
-  instance_ = this;
-}
-
-NMRAnetEventRegistry::~NMRAnetEventRegistry() {
-  HASSERT(instance_ == this);
-  instance_ = nullptr;
-}
+#endif // _NMRANET_EVENTCOMPATIBILITY_HXX_

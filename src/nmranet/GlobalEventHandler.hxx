@@ -3,6 +3,10 @@
 #ifndef _NMRANET_GLOBAL_EVENT_HANDLER_
 #define _NMRANET_GLOBAL_EVENT_HANDLER_
 
+// This is a workaround for missing shared_ptr.h causing compilation errors. We
+// do not use shared_ptr.
+#define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
+
 #include <memory>
 
 #include "nmranet_types.h"
@@ -32,6 +36,7 @@ class GlobalEventFlow : public ControlFlow {
   // @param max_event_slots sets the maximum number of pending incoming event
   // messages in the global event queue.
   GlobalEventFlow(Executor* executor, int max_event_slots);
+  ~GlobalEventFlow();
 
   // This call will block until a slot can be acquired.
   GlobalEventMessage* AllocateMessage();
@@ -39,11 +44,17 @@ class GlobalEventFlow : public ControlFlow {
   // thread. Will not block.
   void PostEvent(GlobalEventMessage* message);
 
+  //! Returns true if there are outstanding events that are not yet handled.
+  bool EventProcessingPending();
+
   static GlobalEventFlow* instance;
 
  protected:
   ControlFlowAction WaitForEvent();
+  ControlFlowAction HandleEventArrived();
   ControlFlowAction HandleEvent();
+  ControlFlowAction WaitForHandler();
+  ControlFlowAction HandlerFinished();
 
   void FreeMessage(GlobalEventMessage* m);
 

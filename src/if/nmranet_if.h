@@ -73,17 +73,17 @@ enum mti_value
     MTI_PROTOCOL_SUPPORT_INQUIRY  = 0x0828, /**< inquire on supported protocols */
     MTI_PROTOCOL_SUPPORT_REPLY    = 0x0668, /**< reply with supported protocols */
     MTI_CONSUMER_IDENTIFY         = 0x08F4, /**< query about consumers */
-    MTI_CONSUMER_IDENTIFY_RANGE   = 0x04A4, /**< query about a range of consumers */
-    MTI_CONSUMER_IDENTIFY_UNKNOWN = 0x04C7, /**< consumer broadcast, validity unknown */
-    MTI_CONSUMER_IDENTIFY_VALID   = 0x04C4, /**< consumer broadcast, valid state */
-    MTI_CONSUMER_IDENTIFY_INVALID = 0x04C5, /**< consumer broadcast, invalid state */
-    MTI_CONSUMER_IDENTIFY_RESERVED = 0x04C6, /**< reserved for future use */
+    MTI_CONSUMER_IDENTIFIED_RANGE   = 0x04A4, /**< query about a range of consumers */
+    MTI_CONSUMER_IDENTIFIED_UNKNOWN = 0x04C7, /**< consumer broadcast, validity unknown */
+    MTI_CONSUMER_IDENTIFIED_VALID   = 0x04C4, /**< consumer broadcast, valid state */
+    MTI_CONSUMER_IDENTIFIED_INVALID = 0x04C5, /**< consumer broadcast, invalid state */
+    MTI_CONSUMER_IDENTIFIED_RESERVED= 0x04C6, /**< reserved for future use */
     MTI_PRODUCER_IDENTIFY         = 0x0914, /**< query about producers */
-    MTI_PRODUCER_IDENTIFY_RANGE   = 0x0524, /**< query about a range of producers */
-    MTI_PRODUCER_IDENTIFY_UNKNOWN = 0x0547, /**< producer broadcast, validity unknown */
-    MTI_PRODUCER_IDENTIFY_VALID   = 0x0544, /**< producer broadcast, valid state */
-    MTI_PRODUCER_IDENTIFY_INVALID = 0x0545, /**< producer broadcast, invalid state */
-    MTI_PRODUCER_IDENTIFY_RESERVED = 0x0546, /**< reserved for future use */
+    MTI_PRODUCER_IDENTIFIED_RANGE   = 0x0524, /**< query about a range of producers */
+    MTI_PRODUCER_IDENTIFIED_UNKNOWN = 0x0547, /**< producer broadcast, validity unknown */
+    MTI_PRODUCER_IDENTIFIED_VALID   = 0x0544, /**< producer broadcast, valid state */
+    MTI_PRODUCER_IDENTIFIED_INVALID = 0x0545, /**< producer broadcast, invalid state */
+    MTI_PRODUCER_IDENTIFIED_RESERVED= 0x0546, /**< reserved for future use */
     MTI_EVENTS_IDENTIFY_ADDRESSED = 0x0968, /**< request identify all of a node's events */
     MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< request identify all of every node's events */
     MTI_LEARN_EVENT               = 0x0594, /**< */
@@ -341,4 +341,3 @@ NMRAnetIF *nmranet_lo_if(void);
 #endif
 
 #endif /* _nmranet_if_h_ */
-

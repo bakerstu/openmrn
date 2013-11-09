@@ -42,7 +42,7 @@ static void* start_executor_thread(void* arg) {
 }
 
 Executor::Executor()
-  : notify_(0)
+    : notify_(0), waiting_(true), current_(nullptr)
 {
 }
             
@@ -50,17 +50,30 @@ Executor::~Executor() {}
 
 void Executor::ThreadBody() {
   while(1) {
+    waiting_ = true;
     notify_.wait();
-    Executable* next;
+    waiting_ = false;
     {
       LockHolder h(this);
-      next = static_cast<Executable*>(pending_flows_.Pop());
+      current_ = static_cast<Executable*>(pending_flows_.Pop());
     }
-    if (next) {
-      next->Run();
+    if (current_) {
+      current_->Run();
+    }
+    {
+      LockHolder h(this);
+      current_ = nullptr;
     }
   }
 }
+
+bool Executor::IsPendingOrRunning(Executable* entry) {
+  LockHolder h(this);
+  if (current_ == entry) return true;
+  if (pending_flows_.IsMaybePending(entry)) return true;
+  return false;
+}
+
 
 ThreadExecutor::ThreadExecutor(const char* thread_name,
                                int priority,

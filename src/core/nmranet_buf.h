@@ -36,6 +36,10 @@
 
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** NMRAnet queue handle type.
  */
 typedef void *nmranet_queue_t;
@@ -110,6 +114,10 @@ int nmranet_queue_empty(nmranet_queue_t queue);
  * @return number of pending items in the queue
  */
 size_t nmranet_queue_pending(nmranet_queue_t queue);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _nmranet_buf_h_ */
 

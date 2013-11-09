@@ -395,7 +395,6 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
 {
     const uint8_t *bytes = data;
 
-    os_mutex_lock(&nodeMutex);
     if (dst != 0)
     {
         /* !!! Because the message is addressed, the downstream protocol is
@@ -403,57 +402,60 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
          */
         struct id_node  id_lookup;
         struct id_node *id_node;
+        int node_state = NODE_UNINITIALIZED;
         id_lookup.id = dst;
+        os_mutex_lock(&nodeMutex);
         id_node = RB_FIND(id_tree, &idHead, &id_lookup);
         if (id_node)
         {
-            /* we own this id */
-            if (id_node->priv->state != NODE_UNINITIALIZED)
-            {
-                /* the node is initialized */
-                switch (mti)
-                {
-                    default:
-                        if (data)
-                        {
-                            nmranet_buffer_free(data);
-                        }
-                        break;
-                    case MTI_PROTOCOL_SUPPORT_INQUIRY:
-                        protocol_support_reply(id_node, src);
-                        break;
-                    case MTI_VERIFY_NODE_ID_ADDRESSED:
-                        verify_node_id_number(id_node);
-                        break;
-                    case MTI_IDENT_INFO_REQUEST:
-                        ident_info_reply(id_node, src);
-                        break;
-                    case MTI_DATAGRAM_REJECTED:
-                        /* fall through */
-                    case MTI_DATAGRAM_OK:
-                        /* fall through */
-                    case MTI_DATAGRAM:
-                        nmranet_datagram_packet(id_node, mti, src, data);
-                        break;
-                    case MTI_EVENTS_IDENTIFY_ADDRESSED:
-                        if (data != NULL)
-                        {
-                            /* something went wrong or another node is
-                             * behaving badly.
-                             */
-                            abort();
-                        }
-                        nmranet_event_packet_addressed(mti, src, id_node, data);
-                        break;
-                }
-            }
+            node_state = id_node->priv->state;
         }
-        else
+        os_mutex_unlock(&nodeMutex);
+
+        if (!id_node || node_state == NODE_UNINITIALIZED)
         {
             if (data)
             {
                 nmranet_buffer_free(data);
             }
+            return;
+        }
+
+        /* the node is initialized */
+        switch (mti)
+        {
+            default:
+                if (data)
+                {
+                    nmranet_buffer_free(data);
+                }
+                break;
+            case MTI_PROTOCOL_SUPPORT_INQUIRY:
+                protocol_support_reply(id_node, src);
+                break;
+            case MTI_VERIFY_NODE_ID_ADDRESSED:
+                verify_node_id_number(id_node);
+                break;
+            case MTI_IDENT_INFO_REQUEST:
+                ident_info_reply(id_node, src);
+                break;
+            case MTI_DATAGRAM_REJECTED:
+                /* fall through */
+            case MTI_DATAGRAM_OK:
+                /* fall through */
+            case MTI_DATAGRAM:
+                nmranet_datagram_packet(id_node, mti, src, data);
+                break;
+            case MTI_EVENTS_IDENTIFY_ADDRESSED:
+                if (data != NULL)
+                {
+                    /* something went wrong or another node is
+                     * behaving badly.
+                     */
+                    abort();
+                }
+                nmranet_event_packet_addressed(mti, src, id_node, data);
+                break;
         }
     }
     else
@@ -463,27 +465,27 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
         {
             case MTI_CONSUMER_IDENTIFY:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RANGE:
+            case MTI_CONSUMER_IDENTIFIED_RANGE:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+            case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_VALID:
+            case MTI_CONSUMER_IDENTIFIED_VALID:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_INVALID:
+            case MTI_CONSUMER_IDENTIFIED_INVALID:
                 /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RESERVED:
+            case MTI_CONSUMER_IDENTIFIED_RESERVED:
                 /* fall through */
             case MTI_PRODUCER_IDENTIFY:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RANGE:
+            case MTI_PRODUCER_IDENTIFIED_RANGE:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+            case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_VALID:
+            case MTI_PRODUCER_IDENTIFIED_VALID:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_INVALID:
+            case MTI_PRODUCER_IDENTIFIED_INVALID:
                 /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RESERVED:
+            case MTI_PRODUCER_IDENTIFIED_RESERVED:
                 /* fall through */
             case MTI_EVENTS_IDENTIFY_GLOBAL:
                     /* fall through */
@@ -491,6 +493,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                 nmranet_event_packet_global(mti, src, data);
                 break;
             default:
+                os_mutex_lock(&nodeMutex);
                 /* global message, deliver all, non-subscribe */
                 for (struct id_node * id_node = RB_MIN(id_tree, &idHead);
                      id_node != NULL;
@@ -524,6 +527,7 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
                         }
                     }
                 }
+                os_mutex_unlock(&nodeMutex);
                 break;
         }
         /* global messages don't take possession of and free their data */
@@ -532,7 +536,6 @@ void nmranet_if_rx_data(struct nmranet_if *nmranet_if, uint16_t mti, node_handle
             nmranet_buffer_free(data);
         }
     }
-    os_mutex_unlock(&nodeMutex);
 }
 
 /** Write a message from a node.

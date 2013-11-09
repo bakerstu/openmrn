@@ -37,8 +37,10 @@
 #include <stdint.h>
 
 #include "executor/notifiable.hxx"
+#include "executor/allocator.hxx"
 #include "utils/macros.h"
 #include "nmranet_types.h"
+#include "nmranet/WriteFlow.hxx"
 
 typedef uint64_t EventId;
 
@@ -61,6 +63,17 @@ typedef struct {
   node_t dst_node;
   EventState state;
 } EventReport;
+
+// Static objects usable by all event handler implementations
+
+// This allocator-mutex is held for any call into any NMRAnetEventHandler. It
+// ensures that the event handler output flow is empty and is able to receive a
+// message.
+extern AllocatorMutex event_handler_mutex;
+
+extern WriteHelper event_write_helper1;
+extern WriteHelper event_write_helper2;
+extern BarrierNotifiable event_barrier;
 
 class NMRAnetEventHandler {
 public:

@@ -16,7 +16,7 @@ GROUP(
 MEMORY
 {
   /* Define each memory region */
-  MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x8000  /*32k */
+  MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x18000  /*32k */
   /*MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x10000 /* 64k TEMPORARY */
   RamLoc8 (rwx) : ORIGIN = 0x10000100, LENGTH = 0x1ee0 /* 7k */
 

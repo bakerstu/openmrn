@@ -53,6 +53,10 @@ using namespace std;
  */
 #define HASSERT(x) do { if (!(x)) abort(); } while(0)
 
+
+#define DIE(MSG) abort()
+
+
 #else
 
 #include <assert.h>
@@ -64,6 +68,7 @@ using namespace std;
 #define HASSERT(x) do { assert(x); } while(0)
 #endif
 
+#define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
 #endif
 

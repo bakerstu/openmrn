@@ -72,13 +72,17 @@ public:
     return pending_flows_.IsMaybePending(entry);
   }
 
+  bool IsPendingOrRunning(Executable* entry);
+
   bool empty() {
-    return pending_flows_.empty();
+    return waiting_ && pending_flows_.empty();
   }
 
 private:
   OSSem notify_;
   Queue pending_flows_;
+  bool waiting_;
+  Executable* current_;
 };
 
 //! An executor that automatically starts up a new thread to run its loop.

@@ -36,17 +36,13 @@
 #include <string.h>
 #include <endian.h>
 #include <sys/tree.h>
+
+#include "nmranet_config.h"
+
 #include "core/nmranet_event_private.h"
 #include "core/nmranet_node_private.h"
 #include "core/nmranet_buf.h"
 #include "os/os.h"
-
-//void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
-//void nmranet_node_producer_add(node_t node, uint64_t event, int state);
-void nmranet_node_event_producer_state(node_t node, uint64_t event, int state);
-
-/** Mutual exclusion for socket library */
-static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Event metadata. */
 typedef struct event
@@ -54,6 +50,16 @@ typedef struct event
     node_t node; /**< event id associated with this chain */
     struct event *next; /**< next entry in the chain */
 } EventPriv;
+
+
+#ifndef CPP_EVENT_HANDLER
+
+//void nmranet_node_consumer_add(node_t node, uint64_t event, int state);
+//void nmranet_node_producer_add(node_t node, uint64_t event, int state);
+void nmranet_node_event_producer_state(node_t node, uint64_t event, int state);
+
+/** Mutual exclusion for socket library */
+static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
 
 /** Red Black tree node for sorting by event ID.
  */
@@ -102,16 +108,16 @@ static void event_consumer_identify(node_t node, uint64_t event, unsigned int st
         default:
             /* fall through */
         case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_UNKNOWN, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_UNKNOWN, dst, buffer);
             break;
         case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_VALID, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_VALID, dst, buffer);
             break;
         case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_INVALID, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_INVALID, dst, buffer);
             break;
         case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_CONSUMER_IDENTIFY_RESERVED, dst, buffer);
+            nmranet_node_write(node, MTI_CONSUMER_IDENTIFIED_RESERVED, dst, buffer);
             break;
     }
 }
@@ -132,16 +138,16 @@ static void event_producer_identify(node_t node, uint64_t event, unsigned int st
         default:
             /* fall through */
         case EVENT_STATE_UNKNOWN:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_UNKNOWN, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_UNKNOWN, dst, buffer);
             break;
         case EVENT_STATE_VALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_VALID, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_VALID, dst, buffer);
             break;
         case EVENT_STATE_INVALID:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_INVALID, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_INVALID, dst, buffer);
             break;
         case EVENT_STATE_RESERVED:
-            nmranet_node_write(node, MTI_PRODUCER_IDENTIFY_RESERVED, dst, buffer);
+            nmranet_node_write(node, MTI_PRODUCER_IDENTIFIED_RESERVED, dst, buffer);
             break;
     }
 }
@@ -318,36 +324,6 @@ void nmranet_event_produce(node_t node, uint64_t event, unsigned int state)
     os_mutex_unlock(&nodeMutex);
 }
 
-/** Post the reception of an event to given node.
- * @param node to post event to
- * @param src source node of the event
- * @param event event number to post
- */
-static void event_post(node_t node, node_handle_t src, uint64_t event)
-{
-    struct id_node *n = (struct id_node*)node;
-    
-    os_mutex_lock(&nodeMutex);
-
-    Event *buffer = nmranet_buffer_alloc(sizeof(Event));
-    if (buffer == NULL)
-    {
-        /** @todo increment statistics counter here */
-        return;
-    }
-    buffer->data = event;
-    buffer->src = src;
-    nmranet_buffer_advance(buffer, sizeof(Event));
-    nmranet_queue_insert(n->priv->eventQueue, buffer);
-
-    if (n->priv->wait != NULL)
-    {
-        /* wakeup whoever is waiting */
-        os_sem_post(n->priv->wait);
-    }
-    os_mutex_unlock(&nodeMutex);
-}
-
 /** Identify all consumer events.
  * @param node node instance to act on
  * @param consumer event(s) to identify
@@ -398,7 +374,7 @@ void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask)
  * @param event event id w/mask
  * @return resulting decoded mask
  */
-static uint64_t identify_range_mask(uint64_t event)
+uint64_t identify_range_mask(uint64_t event)
 {
     uint64_t mask = 0x0000000000000001;
 
@@ -446,24 +422,26 @@ void nmranet_event_packet_addressed(uint16_t mti, node_handle_t src, node_t node
         case MTI_CONSUMER_IDENTIFY:
             nmranet_identify_consumers(node, event, EVENT_EXACT_MASK);
             break;
-        case MTI_CONSUMER_IDENTIFY_RANGE:
-            nmranet_identify_consumers(node, event, identify_range_mask(event));
+        case MTI_CONSUMER_IDENTIFIED_RANGE:
+            //NOTE(balazs.racz) I think the protocol means somethign else.
+            //nmranet_identify_consumers(node, event, identify_range_mask(event));
             break;
-        case MTI_CONSUMER_IDENTIFY_UNKNOWN:  /* fall through */
-        case MTI_CONSUMER_IDENTIFY_VALID:    /* fall through */
-        case MTI_CONSUMER_IDENTIFY_INVALID:  /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RESERVED:
+        case MTI_CONSUMER_IDENTIFIED_UNKNOWN:  /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_VALID:    /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_INVALID:  /* fall through */
+        case MTI_CONSUMER_IDENTIFIED_RESERVED:
             break;
         case MTI_PRODUCER_IDENTIFY:
             nmranet_identify_producers(node, event, EVENT_EXACT_MASK);
             break;
-        case MTI_PRODUCER_IDENTIFY_RANGE:
-            nmranet_identify_producers(node, event, identify_range_mask(event));
+        case MTI_PRODUCER_IDENTIFIED_RANGE:
+            //NOTE(balazs.racz) I think the protocol means somethign else.
+            //nmranet_identify_producers(node, event, identify_range_mask(event));
             break;
-        case MTI_PRODUCER_IDENTIFY_UNKNOWN:  /* fall through */
-        case MTI_PRODUCER_IDENTIFY_VALID:    /* fall through */
-        case MTI_PRODUCER_IDENTIFY_INVALID:  /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RESERVED:
+        case MTI_PRODUCER_IDENTIFIED_UNKNOWN:  /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_VALID:    /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_INVALID:  /* fall through */
+        case MTI_PRODUCER_IDENTIFIED_RESERVED:
             break;
         case MTI_EVENTS_IDENTIFY_ADDRESSED:  /* fall through */
         case MTI_EVENTS_IDENTIFY_GLOBAL:
@@ -513,27 +491,27 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
         }
         case MTI_CONSUMER_IDENTIFY:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RANGE:
+        case MTI_CONSUMER_IDENTIFIED_RANGE:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_UNKNOWN:
+        case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_VALID:
+        case MTI_CONSUMER_IDENTIFIED_VALID:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_INVALID:
+        case MTI_CONSUMER_IDENTIFIED_INVALID:
             /* fall through */
-        case MTI_CONSUMER_IDENTIFY_RESERVED:
+        case MTI_CONSUMER_IDENTIFIED_RESERVED:
             /* fall through */
         case MTI_PRODUCER_IDENTIFY:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RANGE:
+        case MTI_PRODUCER_IDENTIFIED_RANGE:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_UNKNOWN:
+        case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_VALID:
+        case MTI_PRODUCER_IDENTIFIED_VALID:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_INVALID:
+        case MTI_PRODUCER_IDENTIFIED_INVALID:
             /* fall through */
-        case MTI_PRODUCER_IDENTIFY_RESERVED:
+        case MTI_PRODUCER_IDENTIFIED_RESERVED:
             /* fall through */
         case MTI_EVENTS_IDENTIFY_GLOBAL:
             os_mutex_lock(&nodeMutex);
@@ -548,6 +526,9 @@ void nmranet_event_packet_global(uint16_t mti, node_handle_t src, const void *da
             break;
     }
 }
+#endif // CPP_EVENT_HANDLER
+
+
 
 /** Grab an event from the event queue of the node.
  * @param node to grab event from
@@ -590,4 +571,29 @@ size_t nmranet_event_pending(node_t node)
     os_mutex_unlock(&nodeMutex);
 
     return pending; 
+}
+
+void event_post(node_t node, node_handle_t src, uint64_t event)
+{
+    struct id_node *n = (struct id_node*)node;
+    
+    os_mutex_lock(&nodeMutex);
+
+    Event *buffer = nmranet_buffer_alloc(sizeof(Event));
+    if (buffer == NULL)
+    {
+        /** @todo increment statistics counter here */
+        return;
+    }
+    buffer->data = event;
+    buffer->src = src;
+    nmranet_buffer_advance(buffer, sizeof(Event));
+    nmranet_queue_insert(n->priv->eventQueue, buffer);
+
+    if (n->priv->wait != NULL)
+    {
+        /* wakeup whoever is waiting */
+        os_sem_post(n->priv->wait);
+    }
+    os_mutex_unlock(&nodeMutex);
 }

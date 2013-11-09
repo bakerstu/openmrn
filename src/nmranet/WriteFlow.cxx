@@ -3,8 +3,8 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
- * 
+ * modification, are permitted provided that the following conditions are met:
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,31 +24,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetEventRegistry.cxx
- * Static declarations for handling NMRAnet events.
+ * \file WriteFlow.cxx
+ *
+ * Class that allows enqueing an outgoing message.
  *
  * @author Balazs Racz
- * @date 19 October 2013
+ * @date 3 Nov 2013
  */
 
-#include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/WriteFlow.hxx"
 
+#include "endian.h"
 
-NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
-
-AllocatorMutex event_handler_mutex;
-WriteHelper event_write_helper1(DefaultWriteFlowExecutor());
-WriteHelper event_write_helper2(DefaultWriteFlowExecutor());
-BarrierNotifiable event_barrier;
-
-
-NMRAnetEventRegistry::NMRAnetEventRegistry() {
-  HASSERT(instance_ == nullptr);
-  instance_ = this;
+Executor* DefaultWriteFlowExecutor() {
+  static ThreadExecutor e("write_flow", 0, 1000);
+  return &e;
 }
 
-NMRAnetEventRegistry::~NMRAnetEventRegistry() {
-  HASSERT(instance_ == this);
-  instance_ = nullptr;
+void WriteHelper::Run() {
+#ifdef EVENT_NODE_CPP
+  node_->write(mti_, dst_, buffer_);
+#else
+  HASSERT(!nmranet_node_write(node_, mti_, dst_, buffer_));
+#endif  
+  Notifiable* d = done_;
+  HASSERT(d);
+  done_ = nullptr;
+  d->Notify();
+}
+
+WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid) {
+  WriteHelper::buffer_type buffer = WriteHelper::BufferAlloc(sizeof(eventid));
+  uint64_t* b = static_cast<uint64_t*>(WriteHelper::BufferDeref(buffer));
+  *b = htobe64(eventid);
+  WriteHelper::BufferStep(buffer, sizeof(eventid));
+  return buffer;
 }

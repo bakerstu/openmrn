@@ -36,6 +36,7 @@
 #include "executor/control_flow.hxx"
 
 void ControlFlow::Run() {
+  LOG(VERBOSE, "ControlFlow::Run %p", this);
   HASSERT(state_);
   do {
     ControlFlowAction action = (this->*state_)();

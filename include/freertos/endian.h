@@ -104,3 +104,4 @@ static inline uint64_t __bswap_64(uint64_t x)
 #endif
 
 #endif /* _endian_h_ */
+

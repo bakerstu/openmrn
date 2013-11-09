@@ -35,15 +35,17 @@
 #ifndef _EXECUTOR_CONTROL_FLOW_HXX_
 #define _EXECUTOR_CONTROL_FLOW_HXX_
 
+#include "utils/logging.h"
+
+#include <type_traits>
+
 #include "executor/executor.hxx"
 #include "executor/allocator.hxx"
 
 
 // This template magic is used for simplifying the declaration of member
 // function pointers.
-template<typename T> struct identity { typedef T type;  };
-template<typename T> T removeref(const T& x);
-#define ST(FUNCTION) (MemberFunction)(&identity<decltype(removeref(*this))>::type::FUNCTION)
+#define ST(FUNCTION) (MemberFunction)(&std::remove_reference<decltype(*this)>::type::FUNCTION)
 
 
 class ControlFlow : public AllocationResult, public Notifiable {
@@ -61,6 +63,7 @@ public:
   //! Wakes up this control flow and puts it onto the executor's scheduling
   //! queue.
   virtual void Notify() {
+    LOG(VERBOSE, "ControlFlow::Notify %p", this);
     LockHolder h(executor_);
     if (!executor_->IsMaybePending(this)) {
       executor_->Add(this);
@@ -87,6 +90,8 @@ public:
   }
 
   Executor* executor() { return executor_; }
+
+  bool IsPendingOrRunning() { return executor()->IsPendingOrRunning(this); }
 
   // ============ Interface to children (actual flows) ==============
 protected:
@@ -161,8 +166,9 @@ protected:
     next_state_ = next;
     sub_flow_.allocation_result = nullptr;
     allocator->AllocateEntry(this);
-    // We call aggressively here in case the allocation succeeded inline.
-    return CallImmediately(ST(WaitForAllocation));
+    // We can't call immediately, because that would create a spurious
+    // notification.
+    return WaitAndCall(ST(WaitForAllocation));
   }
 
   ControlFlowAction WaitForAllocation() {
@@ -212,6 +218,9 @@ protected:
     next_state_ = next_state;
     return CallImmediately(&ControlFlow::WaitForControlFlow);
   }
+
+  MemberFunction state() { return state_; }
+  MemberFunction next_state() { return next_state_; }
 
 
 private:
