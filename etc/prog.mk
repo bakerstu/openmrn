@@ -127,7 +127,7 @@ tests:
 	@echo "***Not building tests at target $(TARGET), because missing: $(TEST_MISSING_DEPS) ***"
 
 else
-VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):../../tests
+VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):$(abspath ../../tests)
 INCLUDES += -I$(GTESTPATH)/include -I$(GTESTPATH) -I$(GMOCKPATH)/include -I$(GMOCKPATH)
 
 TEST_OUTPUTS=$(TESTOBJS:.o=.output)
