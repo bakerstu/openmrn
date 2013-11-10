@@ -99,6 +99,11 @@ void BitRangeEventPC::Set(unsigned bit,
   if (ofs)
     old_value = (*ofs) & mask;
   if (old_value != new_value) {
+    if (new_value) {
+      *ofs |= mask;
+    } else {
+      *ofs &= ~mask;
+    }
     uint64_t event = event_base_ + bit * 2;
     if (!new_value)
       event++;
@@ -107,6 +112,12 @@ void BitRangeEventPC::Set(unsigned bit,
                        WriteHelper::Global(),
                        EventIdToBuffer(event),
                        done);
+    if (!done) {
+      // We wait for the sent-out event to come back. Otherwise there is a race
+      // condition where the automata processing could have gone further, but
+      // the "set" message will arrive.
+      while (GlobalEventFlow::instance->EventProcessingPending()) {}
+    }
   } else {
     if (done)
       done->Notify();
