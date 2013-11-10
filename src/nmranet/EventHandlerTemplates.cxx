@@ -32,7 +32,8 @@
  * @author Balazs Racz
  * @date 6 November 2013
  */
-#define LOGLEVEL VERBOSE
+
+//#define LOGLEVEL VERBOSE
 
 #include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
