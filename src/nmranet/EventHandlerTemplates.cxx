@@ -32,9 +32,22 @@
  * @author Balazs Racz
  * @date 6 November 2013
  */
+#define LOGLEVEL VERBOSE
 
+#include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
+#include "nmranet/GlobalEventHandler.hxx"
 #include "if/nmranet_if.h"  // for MTI values
+
+#if LOGLEVEL >= VERBOSE
+#define DESCRIBE_VAR
+#endif
+
+
+#ifdef DESCRIBE_VAR
+#include <string>
+extern const string& GetNameForOffset(int);
+#endif
 
 BitRangeEventPC::BitRangeEventPC(WriteHelper::node_type node,
                                  uint64_t event_base,
@@ -73,6 +86,11 @@ void BitRangeEventPC::Set(unsigned bit,
                           WriteHelper* writer,
                           Notifiable* done) {
   HASSERT(bit < size_);
+#ifdef DESCRIBE_VAR
+  fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit, GetNameForOffset(bit).c_str(), new_value);
+#else
+  LOG(VERBOSE, "BitRange: set bit %x to %d", bit, new_value);
+#endif
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
@@ -104,9 +122,16 @@ void BitRangeEventPC::HandleEventReport(EventReport* event, Notifiable* done) {
   d >>= 1;
   if (d >= size_)
     return;
+  int bit = d;
+#ifdef DESCRIBE_VAR
+  fprintf(stderr, "BitRange: IN  bit %x (%s) to %d\n", bit, GetNameForOffset(bit).c_str(), new_value);
+#else
+  LOG(VERBOSE, "BitRange: evt bit %x to %d", bit, new_value);
+#endif
+
   uint32_t* ofs;
   uint32_t mask;
-  GetBitAndMask(d, &ofs, &mask);
+  GetBitAndMask(bit, &ofs, &mask);
   if (new_value) {
     *ofs |= mask;
   } else {

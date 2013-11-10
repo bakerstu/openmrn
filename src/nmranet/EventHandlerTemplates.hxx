@@ -186,7 +186,7 @@ class BitRangeEventPC : public SimpleEventHandler {
   uint64_t event_base_;
   WriteHelper::node_type node_;
   uint32_t* data_;
-  unsigned size_;
+  unsigned size_;  //< number of bits stored.
 };
 
 #endif  // _NMRAnet_EventHandlerTemplates_hxx_
