@@ -59,6 +59,7 @@ void BitRangeEventPC::GetBitAndMask(unsigned bit,
 }
 
 bool BitRangeEventPC::Get(unsigned bit) const {
+  HASSERT(bit < size_);
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
@@ -76,6 +77,7 @@ void BitRangeEventPC::Set(unsigned bit,
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
   bool old_value = new_value;
+  HASSERT(ofs);
   if (ofs)
     old_value = (*ofs) & mask;
   if (old_value != new_value) {
