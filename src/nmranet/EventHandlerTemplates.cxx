@@ -35,6 +35,8 @@
 
 //#define LOGLEVEL VERBOSE
 
+#include <unistd.h>
+
 #include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
@@ -117,7 +119,9 @@ void BitRangeEventPC::Set(unsigned bit,
       // We wait for the sent-out event to come back. Otherwise there is a race
       // condition where the automata processing could have gone further, but
       // the "set" message will arrive.
-      while (GlobalEventFlow::instance->EventProcessingPending()) {}
+      while (GlobalEventFlow::instance->EventProcessingPending()) {
+        usleep(100);
+      }
     }
   } else {
     if (done)
