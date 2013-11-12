@@ -83,6 +83,32 @@ class CompatEventHandler : public SimpleEventHandler {
     done->Notify();
   }
 
+  void HandleIdentifyProducer(EventReport* event, Notifiable* done) {
+    if (has_producer_ && event->event == current_eventid(&current_standard_iterator)) {
+      event_write_helper1.WriteAsync(
+          current_node(&current_standard_iterator),
+          MTI_PRODUCER_IDENTIFIED_VALID + producer_state_,
+          WriteHelper::Global(),
+          EventIdToBuffer(current_eventid(&current_standard_iterator)),
+          done);
+    } else {
+      done->Notify();
+    }
+  }
+
+  void HandleIdentifyConsumer(EventReport* event, Notifiable* done) {
+    if (has_consumer_ && event->event == current_eventid(&current_standard_iterator)) {
+      event_write_helper1.WriteAsync(
+          current_node(&current_standard_iterator),
+          MTI_CONSUMER_IDENTIFIED_VALID + consumer_state_,
+          WriteHelper::Global(),
+          EventIdToBuffer(current_eventid(&current_standard_iterator)),
+          done);
+    } else {
+      done->Notify();
+    }
+  }
+
   void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
     event_barrier.Reset(done);
     if (has_producer_) {
