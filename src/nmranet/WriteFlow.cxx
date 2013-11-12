@@ -33,11 +33,11 @@
  */
 
 #include "nmranet/WriteFlow.hxx"
-
+#include "nmranet_config.h"
 #include "endian.h"
 
 Executor* DefaultWriteFlowExecutor() {
-  static ThreadExecutor e("write_flow", 0, 1000);
+  static ThreadExecutor e("write_flow", 0, WRITE_FLOW_THREAD_STACK_SIZE);
   return &e;
 }
 

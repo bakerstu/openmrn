@@ -84,8 +84,14 @@ extern const size_t DATAGRAM_POOL_SIZE;
 /** Defines the size of stack for the CAN IF read thread. */
 extern const size_t CAN_IF_READ_THREAD_STACK_SIZE;
 
-/** Defines the size of stack for the datagram processing thread. */ 
+/** Defines the size of stack for the datagram processing thread. */
 extern const size_t DATAGRAM_THREAD_STACK_SIZE;
+
+/** Defines the size of stack for the WriteFlow executor thread. */
+extern const size_t WRITE_FLOW_THREAD_STACK_SIZE;
+
+/** Defines the size of stack for the Compatibility Event Handler thread. */
+extern const size_t COMPAT_EVENT_THREAD_STACK_SIZE;
 
 #ifdef __cplusplus
 }

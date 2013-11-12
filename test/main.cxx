@@ -69,6 +69,8 @@ const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
 const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 512;
+const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 512;
+const size_t WRITE_FLOW_THREAD_STACK_SIZE = 512;
 #else
 
 const size_t main_stack_size = 2560;
@@ -82,6 +84,8 @@ const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
 const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
+const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 1024;
+const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
 #endif
 
 const int main_priority = 0;
@@ -283,4 +287,3 @@ int appl_main(int argc, char *argv[])
 #endif
     
     
-
