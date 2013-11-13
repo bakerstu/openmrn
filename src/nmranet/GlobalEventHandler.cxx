@@ -330,11 +330,13 @@ void nmranet_event_packet_global(uint16_t mti,
   */
 }
 
-// This is a trick we play on the linker to pull in these symbols. Otherwise we
-// won't be able to link the binary, since there are back-references to these
-// symbols from lower-level libraries.
-void (*unused_f)(node_t, uint64_t, uint64_t)=&nmranet_identify_consumers;
-void (*unused_g)(node_t, uint64_t, uint64_t)=&nmranet_identify_producers;
+void nmranet_identify_consumers(node_t node, uint64_t event, uint64_t mask) {
+  // Ignored: we'll do the global identify in IdentifyProducers.
+}
+
+void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask) {
+  nmranet_event_packet_global(MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
+}
 
 } // extern C
 
