@@ -167,6 +167,13 @@ class IfTest : public testing::Test {
     gc_pipe0.WriteToAll(&can_bus_, gc_packet.data(), gc_packet.size());
   }
 
+  void SendPacketAndExpectResponse(const string& pkt, const string& resp) {
+    ExpectPacket(resp);
+    SendPacket(pkt);
+    WaitForEventThread();
+    Mock::VerifyAndClear(&can_bus_);
+  }
+
   node_t node_;
   NiceMock<MockSend> can_bus_;
 

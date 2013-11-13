@@ -15,12 +15,6 @@ class BitRangeEventTest : public IfTest {
     memset(storage_, 0, sizeof(storage_));
   }
 
-  void SendPacketAndExpectResponse(const string& pkt, const string& resp) {
-    ExpectPacket(resp);
-    SendPacket(pkt);
-    WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
-  }
-
   int32_t storage_[100];
   BitRangeEventPC handler_;
 };

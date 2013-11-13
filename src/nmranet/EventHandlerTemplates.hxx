@@ -99,6 +99,32 @@ class BitEventInterface {
  private:
   uint64_t event_on_;
   uint64_t event_off_;
+
+  DISALLOW_COPY_AND_ASSIGN(BitEventInterface);
+};
+
+template<class T> class MemoryBit : public BitEventInterface {
+ public:
+  MemoryBit(WriteHelper::node_type node, uint64_t event_on, uint64_t event_off, T* ptr, T mask)
+      : BitEventInterface(event_on, event_off),
+        node_(node), ptr_(ptr), mask_(mask) {}
+
+  virtual WriteHelper::node_type node() { return node_; }
+  virtual bool GetCurrentState() { return (*ptr_) & mask_; }
+  virtual void SetState(bool new_value) {
+    if (new_value) {
+      *ptr_ |= mask_;
+    } else {
+      *ptr_ &= ~mask_;
+    }
+  }
+
+ private:
+  WriteHelper::node_type node_;
+  T* ptr_;
+  T mask_;
+
+  DISALLOW_COPY_AND_ASSIGN(MemoryBit);
 };
 
 class BitEventHandler : public SimpleEventHandler {
@@ -124,6 +150,9 @@ class BitEventHandler : public SimpleEventHandler {
   void HandlePCIdentify(int mti_valid, EventReport* event, Notifiable* done);
 
   BitEventInterface* bit_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BitEventHandler);
 };
 
 class BitEventProducer : public BitEventHandler {
@@ -133,8 +162,6 @@ class BitEventProducer : public BitEventHandler {
 
   // Requests the event associated with the current value of the bit to be
   // produced (unconditionally).
-  //
-  // @param node specifies the source node from which to produce the event.
   //
   // @param writer is the output flow to be used.
   //
@@ -149,7 +176,7 @@ class BitEventProducer : public BitEventHandler {
   virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
 
  private:
-  BitEventInterface* bit_;
+  DISALLOW_COPY_AND_ASSIGN(BitEventProducer);
 };
 
 class BitEventConsumer : public BitEventHandler {

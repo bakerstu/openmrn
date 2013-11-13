@@ -225,8 +225,11 @@ void BitEventHandler::SendProducerIdentified() {
   event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::Global(),
                                  EventIdToBuffer(bit_->event_on()),
                                  event_barrier.NewChild());
-  if (!value)
+  if (!value) {
     mti--; // VALID
+  } else {
+    mti++; // INVALID
+  }
   event_write_helper2.WriteAsync(bit_->node(), mti, WriteHelper::Global(),
                                  EventIdToBuffer(bit_->event_off()),
                                  event_barrier.NewChild());
@@ -240,8 +243,11 @@ void BitEventHandler::SendConsumerIdentified() {
   event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::Global(),
                                  EventIdToBuffer(bit_->event_on()),
                                  event_barrier.NewChild());
-  if (!value)
+  if (!value) {
     mti--; // VALID
+  } else {
+    mti++; // INVALID
+  }
   event_write_helper4.WriteAsync(bit_->node(), mti, WriteHelper::Global(),
                                  EventIdToBuffer(bit_->event_off()),
                                  event_barrier.NewChild());
