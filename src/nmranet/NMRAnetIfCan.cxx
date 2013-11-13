@@ -236,7 +236,7 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
     HASSERT(result == (sizeof(struct can_frame) * 4));
 
     /* wait 200+ msec */
-    entry->timer.start(MSEC_TO_NSEC(200));
+    entry->timer.start(MSEC_TO_PERIOD(200));
 }
 
 /** This is the timeout for claiming an alias.  At this point, the alias will
@@ -245,7 +245,7 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
  * @param data2 a @ref alias_node typecast to a void*
  * @return OS_TIMER_NONE
  */
-long long IfCan::Pool::timeout(void *data1, void *data2)
+os_period_t IfCan::Pool::timeout(void *data1, void *data2)
 {
     IfCan *if_can = (IfCan*)data1;
     Pool  *entry  = (Pool*)data2;

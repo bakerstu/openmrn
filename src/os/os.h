@@ -86,6 +86,11 @@ typedef struct
 } os_mutex_t; /**< mutex handle */
 typedef xQueueHandle os_mq_t; /**< message queue handle */
 typedef xTimerHandle os_timer_t; /**< timer handle */
+/** Represents a length of time to be passed to timer functions. */
+typedef struct
+{
+    portTickType value;
+} os_period_t;
 typedef struct
 {
     unsigned char state; /**< keep track if already executed */
@@ -102,6 +107,10 @@ typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
 typedef void *os_timer_t; /**< timer handle */
+typedef struct
+{
+    long long value;
+} os_period_t;
 typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
 /** Some Operating Systems do not support timeouts with semaphores */
 typedef struct
@@ -170,15 +179,63 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 #define OS_MQ_EMPTY    2 /**< error code for the queue being empty */
 #define OS_MQ_FULL     3 /**< error code for queue being full */
 
-#define OS_TIMER_NONE 0LL /**< do not restart a timer */
-#define OS_TIMER_RESTART 1LL /**< restart a timer with the last period */
-#define OS_TIMER_DELETE -1LL /**< delete the timer */
+#if defined (__FreeRTOS__)
+inline os_period_t TickToPeriod(portTickType t)
+{
+    os_period_t p;
+    p.value = t;
+    return p;
+}
+
+#define OS_TIMER_NONE_VALUE 0
+#define OS_WAIT_FOREVER_VALUE portMAX_DELAY
+#define OS_TIMER_RESTART_VALUE portMAX_DELAY - 1
+#define OS_TIMER_DELETE_VALUE portMAX_DELAY - 2
+
+
+#define OS_TIMER_NONE TickToPeriod(OS_TIMER_NONE_VALUE) /**< do not restart a timer */
+#define OS_TIMER_RESTART TickToPeriod(OS_TIMER_RESTART_VALUE) /**< restart a timer with the last period */
+#define OS_TIMER_DELETE TickToPeriod(OS_TIMER_DELETE_VALUE) /**< delete the timer */
+#define OS_WAIT_FOREVER TickToPeriod(OS_WAIT_FOREVER_VALUE) /**< maximum timeout period */
+
+#define MSEC_TO_PERIOD(x) TickToPeriod(x * configTICK_RATE_HZ / 1000)
+
+#define SEC_TO_PERIOD(x) TickToPeriod(x * configTICK_RATE_HZ)
+
+
+
+#else  /* Not freertos: use long long nanoseconds for time type. */
+static inline os_period_t NsecToPeriod(long long nsec)
+{
+    os_period_t p;
+    p.value = nsec;
+    return p;
+}
+
+#define OS_TIMER_NONE_VALUE 0LL
+
 #if defined LLONG_MAX
-#define OS_WAIT_FOREVER LLONG_MAX /**< maximum timeout period */
+#define OS_WAIT_FOREVER_VALUE LLONG_MAX /**< maximum timeout period */
 #else
-#define OS_WAIT_FOREVER __LONG_LONG_MAX__ /**< maximum timeout period */
+#define OS_WAIT_FOREVER_VALUE __LONG_LONG_MAX__ /**< maximum timeout period */
 #endif
 
+#define OS_TIMER_RESTART_VALUE 1LL
+#define OS_TIMER_DELETE_VALUE -1LL
+
+#define OS_TIMER_NONE NsecToPeriod(OS_TIMER_NONE_VALUE) /**< do not restart a timer */
+#define OS_TIMER_RESTART NsecToPeriod(OS_TIMER_RESTART_VALUE) /**< restart a timer with the last period */
+#define OS_TIMER_DELETE NsecToPeriod(OS_TIMER_DELETE_VALUE) /**< delete the timer */
+#define OS_WAIT_FOREVER NsecToPeriod(OS_WAIT_FOREVER_VALUE) /**< maximum timeout period */
+
+#define MSEC_TO_PERIOD(x) NsecToPeriod(((long long)x) * 1000000)
+
+#define SEC_TO_PERIOD(x) NsecToPeriod(((long long)x) * 1000000000LL)
+
+#endif
+
+
+#if 0
 /** Convert a nanosecond value to a microsecond value.
  * @param _nsec nanosecond value to convert
  * @return microsecond value
@@ -221,11 +278,6 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 #define MSEC_TO_NSEC(_msec) (((long long)_msec) * 1000000LL)
 
-/** Convert a millisecond value to a microsecond value.
- * @param _msec millisecond value to convert
- * @return microsecond value
- */
-#define MSEC_TO_USEC(_msec) (((long long)_msec) * 1000LL)
 
 /** Convert a millisecond value to a second value.
  * @param _msec millisecond value to convert
@@ -250,6 +302,14 @@ static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  * @return millisecond value
  */
 #define SEC_TO_MSEC(_sec) (((long long)_sec) * 1000LL)
+
+#endif
+
+/** Convert a millisecond value to a microsecond value.
+ * @param _msec millisecond value to convert
+ * @return microsecond value
+ */
+#define MSEC_TO_USEC(_msec) (((long long)_msec) * 1000LL)
 
 /** Create a thread.
  * @param thread handle to the created thread
@@ -295,7 +355,7 @@ void os_thread_cancel(os_thread_t thread);
  * @param data2 data to pass along with callback
  * @return timer handle on success, else NULL
  */
-os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, void* data2);
+os_timer_t os_timer_create(os_period_t (*callback)(void*, void*), void *data1, void* data2);
 
 /** Delete a timer.
  * @param timer timer to delete
@@ -307,7 +367,7 @@ void os_timer_delete(os_timer_t timer);
  * @param timer timer to start
  * @param period period in nanoseconds before expiration
  */
-void os_timer_start(os_timer_t timer, long long period);
+void os_timer_start(os_timer_t timer, os_period_t period);
 
 /** Delete a timer.  This method shall not be used on a timer within its own
  * callback function.
@@ -531,14 +591,14 @@ static inline int os_sem_wait(os_sem_t *sem)
  * @param timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
  * @return 0 upon success, else -1 with errno set to indicate error
  */
-static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
+static inline int os_sem_timedwait(os_sem_t *sem, os_period_t timeout)
 {
-    if (timeout == OS_WAIT_FOREVER)
+    if (timeout.value == OS_WAIT_FOREVER.value)
     {
         return os_sem_wait(sem);
     }
 #if defined (__FreeRTOS__)
-    if (xSemaphoreTake(*sem, portTICK_RATE_MS * (timeout / 1000000LL)) == pdTRUE)
+    if (xSemaphoreTake(*sem, timeout.value) == pdTRUE)
     {
         return 0;
     }
@@ -551,9 +611,9 @@ static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
     struct timeval tv;
     struct timespec ts;
     gettimeofday(&tv, NULL);
-    timeout += ((long long)tv.tv_sec * 1000000000LL) + ((long long) tv.tv_usec * 1000LL);
-    ts.tv_sec = timeout / 1000000000LL;
-    ts.tv_nsec = timeout % 1000000000LL;
+    timeout.value += ((long long)tv.tv_sec * 1000000000LL) + ((long long) tv.tv_usec * 1000LL);
+    ts.tv_sec = timeout.value / 1000000000LL;
+    ts.tv_nsec = timeout.value % 1000000000LL;
     pthread_mutex_lock(&sem->mutex);
     while (sem->counter == 0)
     {
@@ -778,14 +838,14 @@ static inline int os_mq_num_pending_from_isr(os_mq_t queue)
 /** Get the monotonic time since the system started.
  * @return time in nanoseconds since system start
  */
-static inline long long os_get_time_monotonic(void)
+static inline os_period_t os_get_time_monotonic(void)
 {
+#if defined (__FreeRTOS__)
+    return TickToPeriod(xTaskGetTickCount());
+#else
     static long long last = 0;
     long long time;
-#if defined (__FreeRTOS__)
-    portTickType tick = xTaskGetTickCount();
-    time = ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
-#elif defined (__MACH__)
+#if defined (__MACH__)
     /* get the timebase info */
     mach_timebase_info_data_t info;
     mach_timebase_info(&info);
@@ -823,7 +883,8 @@ static inline long long os_get_time_monotonic(void)
         last = time;
     }
 
-    return last;
+    return NsecToPeriod(last);
+#endif
 }
 
 #if defined (__WIN32__)

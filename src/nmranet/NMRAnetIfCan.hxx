@@ -42,7 +42,7 @@
 #include "nmranet_config.h"
 #include "nmranet_can.h"
 
-#define WRITE_BUFFER_TIMEOUT 3000000000LL
+#define WRITE_BUFFER_TIMEOUT SEC_TO_PERIOD(3)
 
 namespace NMRAnet
 {
@@ -100,7 +100,7 @@ private:
          * @param data2 a @ref Pool instance typecast to a void*
          * @return OS_TIMER_NONE
          */
-        static long long timeout(void *data1, void *data2);
+        static os_period_t timeout(void *data1, void *data2);
         
         OSTimer timer;      /**< timer used for establishing the connection */
         AliasStatus status; /**< status of node */
@@ -576,7 +576,7 @@ private:
          * @param data2 a @ref WriteBuffer* typecast to a void*
          * @return OS_TIMER_NONE
          */
-        static long long timeout(void *data1, void *data2)
+        static os_period_t timeout(void *data1, void *data2)
         {
             IfCan       *if_can = (IfCan*)data1;
             WriteBuffer *me     = (WriteBuffer*)data2;
@@ -628,4 +628,3 @@ private:
 }; /* namespace NMRAnet */
 
 #endif /* _NMRAnetIfCan_hxx_ */
-

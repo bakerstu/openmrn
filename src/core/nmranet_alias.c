@@ -46,7 +46,7 @@ typedef struct alias_cache
     node_id_t seed;
     node_id_t *id;
     node_alias_t *alias;
-    long long *timestamp;
+    os_period_t *timestamp;
     size_t size;
 } AliasCache;
 
@@ -65,7 +65,7 @@ alias_cache_t nmranet_alias_cache_create(node_id_t seed, size_t cache_size)
     alias_cache->alias = malloc(cache_size * sizeof(node_alias_t));
     memset(alias_cache->id, 0, cache_size * sizeof(node_id_t));
     memset(alias_cache->alias, 0, cache_size * sizeof(node_alias_t));
-    alias_cache->timestamp = malloc(cache_size * sizeof(long long));
+    alias_cache->timestamp = malloc(cache_size * sizeof(os_period_t));
     
     return alias_cache;
 }
@@ -78,7 +78,7 @@ alias_cache_t nmranet_alias_cache_create(node_id_t seed, size_t cache_size)
 void nmranet_alias_add(alias_cache_t cache, node_id_t id, node_alias_t alias)
 {
     AliasCache  *alias_cache = cache;
-    long long    time        = LLONG_MAX;
+    os_period_t    time        = OS_WAIT_FOREVER;
     unsigned int index       = 0;
 
     if (cache == NULL || id == 0 || alias == 0)
@@ -95,7 +95,7 @@ void nmranet_alias_add(alias_cache_t cache, node_id_t id, node_alias_t alias)
             index = i;
             break;
         }
-        else if (alias_cache->timestamp[i] < time)
+        else if (alias_cache->timestamp[i].value < time.value)
         {
             /* found a new oldest slost */
             time = alias_cache->timestamp[i];
@@ -243,4 +243,3 @@ node_alias_t nmranet_alias_generate(alias_cache_t cache)
     /* new random alias */
     return alias;
 }
-

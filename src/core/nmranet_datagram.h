@@ -35,6 +35,7 @@
 #define _nmranet_datagram_h_
 
 #include <stdint.h>
+#include "os/os.h"
 #include "nmranet_types.h"
 #include "nmranet_configuration.h"
 
@@ -94,10 +95,10 @@ uint8_t *nmranet_datagram_payload(datagram_t datagram);
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
  * @param size max length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time period to keep trying, OS_TIMER_NONE = do not wait, OS_WAIT_FOREVER = blocking
  * @return datagram handle upon success, else NULL on error with errno set
  */
-datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout);
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, os_period_t timeout);
 
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
@@ -111,10 +112,10 @@ void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const 
  * @param node node to produce datagram from
  * @param dst destination node id or alias
  * @param datagram datagram to produce
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time period to keep trying, OS_TIMER_NONE = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout);
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, os_period_t timeout);
 
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from
@@ -122,10 +123,10 @@ int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t d
  * @param protocol datagram protocol to use
  * @param data datagram to produce
  * @param size length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time period to keep trying, OS_TIMER_NONE = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout);
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, os_period_t timeout);
 
 /** Number of datagrams pending in the datagram queue of the node.
  * @param node node to query
@@ -139,4 +140,3 @@ size_t nmranet_datagram_pending(node_t node);
 #endif
 
 #endif /* _nmranet_datagram_h_ */
-

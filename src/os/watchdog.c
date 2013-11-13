@@ -43,7 +43,7 @@ void reset_watchdog(void)
     watchdog_ticks = 0;
 }
 
-static long long watchdog_reset_timer(void* unused1, void* unused2)
+static os_period_t watchdog_reset_timer(void* unused1, void* unused2)
 {
     reset_watchdog();
     return OS_TIMER_RESTART;
@@ -52,5 +52,5 @@ static long long watchdog_reset_timer(void* unused1, void* unused2)
 void add_watchdog_reset_timer(int period_msec)
 {
     os_timer_start(os_timer_create(&watchdog_reset_timer, NULL, NULL),
-                   MSEC_TO_NSEC(period_msec));
+                   MSEC_TO_PERIOD(period_msec));
 }

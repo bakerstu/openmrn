@@ -233,11 +233,11 @@ void *nmranet_node_private(node_t node)
 
 /** Wait for data to come in from the network.
  * @param node node to wait on
- * @param timeout timeout in nanoseconds, 0 to return right way, OS_WAIT_FOREVER
+ * @param timeout timeout period, OS_TIMER_NONE to return right way, OS_WAIT_FOREVER
           to wait forever.
    @return number of messages pending, else 0 on timeout
  */
-int nmranet_node_wait(node_t node, long long timeout)
+int nmranet_node_wait(node_t node, os_period_t timeout)
 {
     struct id_node *n = (struct id_node*)node;
     os_sem_t        sem;

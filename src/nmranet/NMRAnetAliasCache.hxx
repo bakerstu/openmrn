@@ -283,7 +283,7 @@ private:
     {
         NodeID id;
         NodeAlias alias;
-        long long timestamp;
+        os_period_t timestamp;
         Metadata *next;
     };
 
@@ -324,12 +324,12 @@ private:
  * @param  metadata metadata associated with the entry */
 inline void AliasCache::touch(Metadata* metadata)
 {
-    RBTree<long long, Metadata*>::Node *node = timeTree.remove(metadata->timestamp);
+    RBTree<long long, Metadata*>::Node *node = timeTree.remove(metadata->timestamp.value);
     
     HASSERT(node != NULL);
     
     metadata->timestamp = OSTime::get_monotonic();
-    node->key = metadata->timestamp;
+    node->key = metadata->timestamp.value;
     
     timeTree.insert(node);
 }

@@ -179,12 +179,12 @@ int appl_main(int argc, char *argv[])
     uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
     //node_handle_t dst = {0, 0x014};
     node_handle_t dst = {0x050201020265ULL, 0};
-    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 0);
-    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 3000000000LL);
+    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, OS_TIMER_NONE);
+    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, SEC_TO_PERIOD(3));
 #endif
     for (;;)
     {
-        int result = nmranet_node_wait(node, MSEC_TO_NSEC(1000));
+        int result = nmranet_node_wait(node, SEC_TO_PERIOD(1));
         if (result)
         {
             for (size_t i = nmranet_event_pending(node); i > 0; i--)

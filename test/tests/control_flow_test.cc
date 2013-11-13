@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
+
+#include "utils/test_main.hxx"
 #include "gtest/gtest.h"
 #include "os/os.h"
 
@@ -89,20 +91,20 @@ public:
 
   void ReptSleepNTimes(int n) {
     count_ = n;
-    WakeUpRepeatedly(&sleep_data_, MSEC_TO_NSEC(3));
+    WakeUpRepeatedly(&sleep_data_, MSEC_TO_PERIOD(3));
     StartFlowAt(ST(StartReptSleep));
   }
 
 private:
   bool* r_;
   ControlFlowAction MSleepOnce() {
-    return Sleep(&sleep_data_, MSEC_TO_NSEC(3),
+    return Sleep(&sleep_data_, MSEC_TO_PERIOD(3),
                  (MemberFunction)&SleeperFlow::MSleepDone);
   }
 
   ControlFlowAction MSleepCount() {
     if (count_--) {
-      return Sleep(&sleep_data_, MSEC_TO_NSEC(3),
+      return Sleep(&sleep_data_, MSEC_TO_PERIOD(3),
                    (MemberFunction)&SleeperFlow::MSleepCount);
     } else {
       return CallImmediately((MemberFunction)&SleeperFlow::MSleepDone);
@@ -192,10 +194,4 @@ TEST_F(ControlFlowTest, FlowWithChildTest) {
 TEST(StaticControlFlowTest, SizeSmall) {
   EXPECT_EQ(4U, sizeof(QueueMember));
   EXPECT_EQ(40U, sizeof(ControlFlow));
-}
-
-
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

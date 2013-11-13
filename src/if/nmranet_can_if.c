@@ -49,15 +49,15 @@ static int can_write(NMRAnetIF *nmranet_if, uint16_t mti, node_id_t src, node_ha
 /** This is how long we should buffer a write pending a Node ID to alias mapping
  * request.
  */
-#define WRITE_BUFFER_TIMEOUT 3000000000LL
+#define WRITE_BUFFER_TIMEOUT SEC_TO_PERIOD(3)
 
 /** This is how long we should wait for a Node ID lookup from an alias.
  */
-#define LOOKUP_ID_TIMEOUT 3000000000LL
+#define LOOKUP_ID_TIMEOUT SEC_TO_PERIOD(3)
 
 /** This is how long we should wait before giving up on an incoming datagram.
  */
-#define DATAGRAM_TIMEOUT 3000000000LL
+#define DATAGRAM_TIMEOUT SEC_TO_PERIOD(3)
 
 
 /** Status values for an alias.
@@ -150,7 +150,7 @@ typedef struct nmranet_can_if
 
 /* prototypes */
 static void claim_alias(NMRAnetCanIF *can_if, node_id_t node_id, node_alias_t alias);
-static long long claim_alias_timeout(void *data1, void *data2);
+static os_period_t claim_alias_timeout(void *data1, void *data2);
 
 /* Release the write buffer from being in use.
  * @param can_if interface to act on
@@ -185,7 +185,7 @@ static node_id_t write_buffer_dst_id(NMRAnetCanIF *can_if)
  * @param data2 a unused
  * @return OS_TIMER_NONE
  */
-long long write_buffer_timeout(void *data1, void *data2)
+os_period_t write_buffer_timeout(void *data1, void *data2)
 {
     NMRAnetCanIF *can_if = data1;
 
@@ -220,7 +220,7 @@ static void write_buffer_setup(NMRAnetCanIF *can_if, uint16_t mti, node_id_t src
  * @param data2 a unused
  * @return OS_TIMER_NONE
  */
-long long lookup_id_timeout(void *data1, void *data2)
+os_period_t lookup_id_timeout(void *data1, void *data2)
 {
     NMRAnetCanIF *can_if = data1;
 
@@ -285,7 +285,7 @@ static node_id_t lookup_id(NMRAnetIF *nmranet_if, node_id_t src, node_alias_t al
  * @param data2 a @ref alias_node typecast to a void*
  * @return OS_TIMER_NONE
  */
-static long long claim_alias_timeout(void *data1, void *data2)
+static os_period_t claim_alias_timeout(void *data1, void *data2)
 {
     NMRAnetCanIF  *can_if     = (NMRAnetCanIF*)data1;
     AliasMetadata *alias_meta = (AliasMetadata*)data2;
@@ -372,7 +372,7 @@ static void claim_alias(NMRAnetCanIF *can_if, node_id_t node_id, node_alias_t al
             }
 
             /* wait 200+ msec */
-            os_timer_start(can_if->pool[i].timer, MSEC_TO_NSEC(200));
+            os_timer_start(can_if->pool[i].timer, MSEC_TO_PERIOD(200));
             return;
         }
     }
@@ -848,7 +848,7 @@ static void datagram_rejected(NMRAnetCanIF *can_if, node_alias_t src, node_alias
  * @param data2 a @ref struct datagram node reference for datagram
  * @return OS_TIMER_NONE
  */
-long long datagram_timeout(void *data1, void *data2)
+os_period_t datagram_timeout(void *data1, void *data2)
 {
     NMRAnetCanIF *can_if = data1;
     uint32_t alias = (uint32_t)data1;
