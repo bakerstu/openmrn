@@ -87,14 +87,42 @@ class SimpleEventHandler : public NMRAnetEventHandler {
   IGNOREFN(HandleIdentifyProducer);
 };
 
-class BitEventProducer : public SimpleEventHandler {
+class BitEventInterface {
  public:
-  BitEventProducer(uint64_t event_on, uint64_t event_off)
+  BitEventInterface(uint64_t event_on, uint64_t event_off)
       : event_on_(event_on), event_off_(event_off) {}
-
-  // This function needs to be overridden by implementations to return the
-  // actual state.
   virtual bool GetCurrentState() = 0;
+  virtual void SetState(bool new_value) = 0;
+  uint64_t event_on() { return event_on_; }
+  uint64_t event_off() { return event_off; }
+  
+
+ private:
+  uint64_t event_on_;
+  uint64_t event_off_;
+};
+
+class BitEventHandler : public SimpleEventHandler {
+ public:
+  BitEventHandler(BitEventInterface* bit)
+      : bit_(bit) {}
+
+ protected:
+  void SendProducerIdentified(WriteHelper::node_type node);
+
+  void SendConsumerIdentified(WriteHelper::node_type node);
+
+  void SendEventReport(WriteHelper::node_type node,
+                       WriteHelper* writer,
+                       Notifiable* done);
+
+  BitEventInterface* bit_;
+};
+
+class BitEventProducer : public BitEventHandler {
+ public:
+  BitEventProducer(BitEventInterface* bit)
+      : BitEventHandler(bit) {}
 
   // Requests the event associated with the current value of the bit to be
   // produced (unconditionally).
@@ -107,39 +135,34 @@ class BitEventProducer : public SimpleEventHandler {
   // be invoked inline and potentially block the calling thread.
   void Update(WriteHelper::node_type node,
               WriteHelper* writer,
-              Notifiable* done);
+              Notifiable* done) {
+    SendEventReport(node, writer, done);
+  }
 
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
-
-  // Called on another node sending IdentifyProducer. Filled: src_node, event,
-  // mask=1. Not filled: state.
   virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
 
  private:
-  uint64_t event_on_;
-  uint64_t event_off_;
+  BitEventInterface* bit_;
 };
 
-class BitEventConsumer : public SimpleEventHandler {
+class BitEventConsumer : public BitEventHandler {
  public:
-  BitEventConsumer(uint64_t event_on, uint64_t event_off)
-      : event_on_(event_on), event_off_(event_off) {}
+  BitEventConsumer(BitEventInterface* bit)
+      : BitEventHandler(bit) {}
 
-  // This function needs to be overridden by implementations to return the
-  // current state.
-  virtual bool GetCurrentState() = 0;
-
-  // This function needs to be overridden by implementations to set the current
-  // state.
-  virtual void SetCurrentState(bool value) = 0;
-
+  virtual void HandleEventReport(EventReport* event, Notifiable* done);
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
-
   virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
+};
 
- private:
-  uint64_t event_on_;
-  uint64_t event_off_;
+class BitEventPC : public BitEventConsumer {
+ public:
+  BitEventPC(BitEventInterface* bit)
+      : BitEventConsumer(bit) {}
+  
+  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
 };
 
 class BitRangeEventPC : public SimpleEventHandler {
