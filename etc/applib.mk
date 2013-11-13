@@ -3,7 +3,7 @@ ifeq ($(TARGET),)
 TARGET := $(shell basename `cd ../; pwd`)
 endif
 BASENAME = $(shell basename `pwd`)
-SRCDIR = ../../../$(BASENAME)
+SRCDIR = $(abspath ../../../$(BASENAME))
 VPATH = $(SRCDIR)
 
 INCLUDES += -I./ -I../ -I../include

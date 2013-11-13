@@ -15,13 +15,13 @@ include $(OPENMRNPATH)/etc/$(TARGET).mk
 include $(OPENMRNPATH)/etc/path.mk
 
 
-VPATH = ../../
+VPATH = $(abspath ../../)
 
-FULLPATHASMSRCS  = $(wildcard $(VPATH)*.S)
-FULLPATHCSRCS    = $(wildcard $(VPATH)*.c)
-FULLPATHCXXSRCS  = $(wildcard $(VPATH)*.cxx)
-FULLPATHCPPSRCS  = $(wildcard $(VPATH)*.cpp)
-FULLPATHXMLSRCS  = $(wildcard $(VPATH)*.xml)
+FULLPATHASMSRCS  = $(wildcard $(VPATH)/*.S)
+FULLPATHCSRCS    = $(wildcard $(VPATH)/*.c)
+FULLPATHCXXSRCS  = $(wildcard $(VPATH)/*.cxx)
+FULLPATHCPPSRCS  = $(wildcard $(VPATH)/*.cpp)
+FULLPATHXMLSRCS  = $(wildcard $(VPATH)/*.xml)
 FULLPATHTESTSRCS = $(wildcard $(VPATH)/tests/*_test.cc)
 
 ASMSRCS  = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
