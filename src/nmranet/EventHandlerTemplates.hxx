@@ -94,9 +94,8 @@ class BitEventInterface {
   virtual bool GetCurrentState() = 0;
   virtual void SetState(bool new_value) = 0;
   uint64_t event_on() { return event_on_; }
-  uint64_t event_off() { return event_off; }
-  
-
+  uint64_t event_off() { return event_off_; }
+  virtual WriteHelper::node_type node() = 0;
  private:
   uint64_t event_on_;
   uint64_t event_off_;
@@ -104,17 +103,25 @@ class BitEventInterface {
 
 class BitEventHandler : public SimpleEventHandler {
  public:
-  BitEventHandler(BitEventInterface* bit)
-      : bit_(bit) {}
-
+  BitEventHandler(BitEventInterface* bit);
+  ~BitEventHandler();
  protected:
-  void SendProducerIdentified(WriteHelper::node_type node);
+  // Sends off two packets using write_event_handler{1,2} of ProducerIdentified
+  // for handling a global identify events message. Uses event_barrier.
+  void SendProducerIdentified();
 
-  void SendConsumerIdentified(WriteHelper::node_type node);
+  // Sends off two packets using write_event_handler{3,4} of ConsumerIdentified
+  // for handling a global identify events message. Uses event_barrier.
+  void SendConsumerIdentified();
 
-  void SendEventReport(WriteHelper::node_type node,
-                       WriteHelper* writer,
+  // Sends an event report packet (unconditionally).
+  void SendEventReport(WriteHelper* writer,
                        Notifiable* done);
+
+  // Checks if the event in the report is something we are interested in, and
+  // if so, sends off a {Producer|Consumer}Identify message. Uses
+  // write_event_handler1.
+  void HandlePCIdentify(int mti_valid, EventReport* event, Notifiable* done);
 
   BitEventInterface* bit_;
 };
@@ -133,10 +140,9 @@ class BitEventProducer : public BitEventHandler {
   //
   // @param done is the notification callback. If it is NULL, the writer will
   // be invoked inline and potentially block the calling thread.
-  void Update(WriteHelper::node_type node,
-              WriteHelper* writer,
+  void Update(WriteHelper* writer,
               Notifiable* done) {
-    SendEventReport(node, writer, done);
+    SendEventReport(writer, done);
   }
 
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
@@ -160,7 +166,7 @@ class BitEventPC : public BitEventConsumer {
  public:
   BitEventPC(BitEventInterface* bit)
       : BitEventConsumer(bit) {}
-  
+
   virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
 };
@@ -177,7 +183,7 @@ class BitRangeEventPC : public SimpleEventHandler {
                   uint64_t event_base,
                   uint32_t* backing_store,
                   unsigned size);
-  ~BitRangeEventPC();
+  virtual ~BitRangeEventPC();
 
   // Requests the event associated with the current value of the bit to be
   // produced (unconditionally).

@@ -40,6 +40,8 @@ NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 AllocatorMutex event_handler_mutex;
 WriteHelper event_write_helper1(DefaultWriteFlowExecutor());
 WriteHelper event_write_helper2(DefaultWriteFlowExecutor());
+WriteHelper event_write_helper3(DefaultWriteFlowExecutor());
+WriteHelper event_write_helper4(DefaultWriteFlowExecutor());
 BarrierNotifiable event_barrier;
 
 
