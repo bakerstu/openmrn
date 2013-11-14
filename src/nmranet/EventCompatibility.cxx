@@ -227,6 +227,8 @@ EventCompatibilityLayer::EventCompatibilityLayer() {
   if (!GlobalEventFlow::instance) {
     g_event_thread = new ThreadExecutor("global_event", 0, COMPAT_EVENT_THREAD_STACK_SIZE);
     new GlobalEventFlow(g_event_thread, 10);
+  } else {
+    g_event_thread = GlobalEventFlow::instance->executor();
   }
   g_compat_event_manager = new CompatEventManager(g_event_thread);
 }
