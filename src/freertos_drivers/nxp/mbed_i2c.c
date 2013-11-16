@@ -88,6 +88,7 @@ void i2c_init_irq(i2c_t *obj) {
 }
 
 int i2c_wait_SI(i2c_t *obj) {
+  static const long long kTimeoutNano = MSEC_TO_NSEC(500);
   int id = i2c_get_id(obj);
 #ifdef TARGET_LPC11Cxx
   while (!(obj->i2c->CONSET & (1 << 3))) {
@@ -95,7 +96,7 @@ int i2c_wait_SI(i2c_t *obj) {
   while (!(obj->i2c->I2CONSET & (1 << 3))) {
 #endif
     NVIC_EnableIRQ(i2c_irqn[id]);
-    if (os_sem_timedwait(i2c_sem + id, MSEC_TO_PERIOD(500)) < 0) {
+    if (os_sem_timedwait(i2c_sem + id, kTimeoutNano) < 0) {
       return -1;
     }
   }

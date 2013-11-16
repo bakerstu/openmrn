@@ -34,7 +34,6 @@
 #ifndef _nmranet_node_h_
 #define _nmranet_node_h_
 
-#include "os/os.h"
 #include "nmranet_types.h"
 #include "if/nmranet_if.h"
 
@@ -133,11 +132,11 @@ int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void 
 
 /** Wait for data to come in from the network.
  * @param node node to wait on
- * @param timeout timeout in nanoseconds, OS_TIMER_NONE to return right way,
-          OS_WAIT_FOREVER to wait forever.
- * @return number of messages pending, else 0 on timeout
+ * @param timeout timeout in nanoseconds, 0 to return right way, OS_WAIT_FOREVER
+          to wait forever.
+   @return number of messages pending, else 0 on timeout
  */
-int nmranet_node_wait(node_t node, os_period_t timeout);
+int nmranet_node_wait(node_t node, long long timeout);
 
 /** Set the user name of the node for simple ident protocol.
  * @param node node to set attribute on
@@ -156,3 +155,4 @@ void nmranet_node_user_description(node_t node, const char *user_description);
 #endif
 
 #endif /* _nmranet_node_h_ */
+

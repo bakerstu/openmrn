@@ -77,11 +77,11 @@ typedef struct timer
 #if !defined (__FreeRTOS__)
     struct timer *next; /**< next timer in the list */
 #endif
-    os_period_t (*callback)(void*, void*); /**< timer's callback */
+    long long (*callback)(void*, void*); /**< timer's callback */
     void *data1; /**< timer's callback data */
     void *data2; /**< timer's callback data */
-    os_period_t when; /**< when in nanoseconds timer should expire */
-    os_period_t period; /**< period in nanoseconds for timer */
+    long long when; /**< when in nanoseconds timer should expire */
+    long long period; /**< period in nanoseconds for timer */
 } Timer;
 
 #if defined (__FreeRTOS__)
@@ -173,23 +173,23 @@ static void timer_callback(xTimerHandle timer)
     Timer *t = pvTimerGetTimerID(timer);
     do
     {
-        os_period_t next_period = (*t->callback)(t->data1, t->data2);
-        switch (next_period.value)
+        long long next_period = (*t->callback)(t->data1, t->data2);
+        switch (next_period)
         {
-            case OS_TIMER_NONE_VALUE:
+            case OS_TIMER_NONE:
                 /* no need to restart timer */
                 return;
             default:
                 t->period = next_period;
                 /* fall through */
-            case OS_TIMER_RESTART_VALUE:
-                t->when.value += t->period.value;
+            case OS_TIMER_RESTART:
+                t->when += t->period;
                 break;
         }
-        os_period_t now = os_get_time_monotonic();
-        int delay = t->when.value - now.value;
+        long long now = os_get_time_monotonic();
+        long long delay = t->when - now;
         if (delay < 0) delay = 0;
-        ticks = delay;
+        ticks = (delay * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
     } while (ticks == 0);
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
 }
@@ -302,7 +302,7 @@ static void insert_timer(Timer *timer)
     Timer *last = NULL;
     while (tp)
     {
-        if (timer->when.value <= tp->when.value)
+        if (timer->when <= tp->when)
         {
             break;
         }
@@ -378,38 +378,38 @@ static void *timer_thread(void* arg)
             bytes_read = read(timerfds[0], buf, 16);
         } while (bytes_read > 0);
 
-        os_period_t now = os_get_time_monotonic();
+        long long now = os_get_time_monotonic();
         
         os_mutex_lock(&timerMutex);
         if (active)
         {
-            if (active->when.value <= now.value)
+            if (active->when <= now)
             {
                 /* remove timer from head of list */
                 Timer *t = active;
                 active = t->next;
 
-                os_period_t next_period = (*t->callback)(t->data1, t->data2);
+                long long next_period = (*t->callback)(t->data1, t->data2);
 
-                switch (next_period.value)
+                switch (next_period)
                 {
-                    case OS_TIMER_NONE_VALUE:
+                    case OS_TIMER_NONE:
                         break;
                     default:
                         t->period = next_period;
                         /* fall through */
-                    case OS_TIMER_RESTART_VALUE:
-                        t->when.value += t->period.value;
+                    case OS_TIMER_RESTART:
+                        t->when += t->period;
                         insert_timer(t);
                         break;
-                    case OS_TIMER_DELETE_VALUE:
+                    case OS_TIMER_DELETE:
                         os_timer_delete_locked(t);
                         break;
                 }
                 os_mutex_unlock(&timerMutex);
                 continue;
             }
-            long long wait = active->when.value - now.value;
+            long long wait = active->when - now;
             os_mutex_unlock(&timerMutex);
 
             tv.tv_sec = wait / 1000000000LL;
@@ -451,7 +451,7 @@ static void os_timer_init(void)
  * @param data2 data to pass along with callback
  * @return timer handle on success, else NULL
  */
-os_timer_t os_timer_create(os_period_t (*callback)(void*, void*), void *data1, void* data2)
+os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, void* data2)
 {
     HASSERT(callback != NULL);
     Timer *timer = malloc(sizeof(Timer));
@@ -459,7 +459,7 @@ os_timer_t os_timer_create(os_period_t (*callback)(void*, void*), void *data1, v
     timer->callback = callback;
     timer->data1 = data1;
     timer->data2 = data2;
-    timer->period.value = 0;
+    timer->period = 0;
 #if defined (__FreeRTOS__)
     return xTimerCreate(NULL, portMAX_DELAY, pdFALSE, timer, timer_callback);
 #else
@@ -505,26 +505,26 @@ static void os_timer_delete_locked(os_timer_t timer)
  * @param timer timer to start
  * @param period period in nanoseconds before expiration
  */
-void os_timer_start(os_timer_t timer, os_period_t period)
+void os_timer_start(os_timer_t timer, long long period)
 {
     HASSERT(timer != NULL);
 
 #if defined (__FreeRTOS__)
     Timer          *t = pvTimerGetTimerID(timer);
-    os_period_t now = os_get_time_monotonic();
-    t->when.value = now.value + period.value;
+    long long now = os_get_time_monotonic();
+    t->when = now + period;
     t->period = period;
-    portTickType ticks = period.value;
+    portTickType ticks = (period * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
 #else
     Timer          *t = timer;
-    long long timeout = os_get_time_monotonic().value + period.value;
+    long long timeout = os_get_time_monotonic() + period;
 
     os_mutex_lock(&timerMutex);
     /* Remove timer from the active list */
     remove_timer(t);
 
-    t->when.value = timeout;
+    t->when = timeout;
     t->period = period;
     /* insert the timer in the list */
     insert_timer(t);

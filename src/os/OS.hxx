@@ -118,7 +118,7 @@ public:
      * @param data1 data to pass along with callback
      * @param data2 data to pass along with callback
      */
-    OSTimer(os_period_t (*callback)(void*, void*), void *data1, void *data2)
+    OSTimer(long long (*callback)(void*, void*), void *data1, void *data2)
     {
         handle = os_timer_create(callback, data1, data2);
     }
@@ -133,7 +133,7 @@ public:
     /** Start a timer.
      * @param period period in nanoseconds before expiration
      */
-    void start(os_period_t period)
+    void start(long long period)
     {
         os_timer_start(handle, period);
     }
@@ -185,10 +185,10 @@ public:
     }
 
     /** Wait on (decrement) a semaphore with timeout condition.
-     * @param timeout timeout or OS_WAIT_FOREVER to wait forever
+     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
      */
-    int timedwait(os_period_t timeout)
+    int timedwait(long long timeout)
     {
         return os_sem_timedwait(&handle, timeout);
     }
@@ -325,7 +325,7 @@ public:
     /** Get the monotonic time since the system started.
      * @return time in nanoseconds since system start
      */
-    static os_period_t get_monotonic(void)
+    static long long get_monotonic(void)
     {
         return os_get_time_monotonic();
     }

@@ -343,10 +343,10 @@ public:
     }
     
     /** Wait for a buffer from the front of the queue.
-     * @param timeout time to wait
+     * @param timeout time to wait in nanoseconds
      * @return buffer buffer retrieved from queue, NULL on timeout or error
      */
-    Buffer *timedwait(os_period_t timeout)
+    Buffer *timedwait(long long timeout)
     {
         if (OSSem::timedwait(timeout) != 0)
         {

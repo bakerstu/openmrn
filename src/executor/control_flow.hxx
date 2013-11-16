@@ -189,13 +189,13 @@ protected:
     os_timer_t timer_handle;
   };
 
-  ControlFlowAction Sleep(SleepData* data, os_period_t delay,
+  ControlFlowAction Sleep(SleepData* data, long long delay_nsec,
                           MemberFunction next_state);
 
   //! Sets up a repeated timer call. The individual waits have to be
   //! instantiated using the WaitForTimerWakeUpAndCall call. After this has
   //! been called, the SleepData must not be used for a regular Sleep call.
-  void WakeUpRepeatedly(SleepData* data, os_period_t period);
+  void WakeUpRepeatedly(SleepData* data, long long period_nsec);
 
   //! Cancels a (possibly repeated) timer.
   void StopTimer(SleepData* data);
@@ -235,9 +235,8 @@ private:
 
   //! Helper function for timer implementation.
   void NotifyControlFlowTimer(SleepData* entry);
-  static os_period_t control_flow_single_timer(void* arg_flow, void* arg_entry);
-  static os_period_t control_flow_repeated_timer(void *arg_flow,
-                                                 void *arg_entry);
+  static long long control_flow_single_timer(void* arg_flow, void* arg_entry);
+  static long long control_flow_repeated_timer(void* arg_flow, void* arg_entry);
 
   union {
     SleepData* sleep;

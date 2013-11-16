@@ -89,7 +89,7 @@ void AliasCache::remove(NodeAlias alias)
     if (node)
     {
         idTree.remove(node->value->id);
-        timeTree.remove(node->value->timestamp.value);
+        timeTree.remove(node->value->timestamp);
         
         node->value->next = freeList;
         freeList = node->value;
@@ -174,3 +174,4 @@ NodeAlias AliasCache::generate()
 }
 
 };
+

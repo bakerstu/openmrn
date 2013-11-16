@@ -104,7 +104,7 @@ extern os_mutex_t nodeMutex;
  * @param data2 NULL
  * @return timer restart value
  */
-os_period_t nmranet_datagram_timeout(void *data1, void* data2);
+long long nmranet_datagram_timeout(void *data1, void* data2);
 
 /** Post the reception of a datagram with to given node.
  * @param node to post event to

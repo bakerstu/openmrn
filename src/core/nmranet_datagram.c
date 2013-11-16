@@ -54,7 +54,7 @@ void nmranet_memory_config_init(void);
 
 
 /** Timeout for datagram acknowledgement. */
-#define DATAGRAM_TIMEOUT SEC_TO_PERIOD(3)
+#define DATAGRAM_TIMEOUT 3000000000LL
 
 /** Mutual exclusion for socket library */
 static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
@@ -186,7 +186,7 @@ uint8_t *nmranet_datagram_payload(datagram_t datagram)
  * @param data2 NULL
  * @return timer restart value
  */
-os_period_t nmranet_datagram_timeout(void *data1, void* data2)
+long long nmranet_datagram_timeout(void *data1, void* data2)
 {
     struct id_node *n = data1;
     NodePriv *priv = n->priv;
@@ -206,12 +206,12 @@ os_period_t nmranet_datagram_timeout(void *data1, void* data2)
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
  * @param size max length of data in bytes
- * @param timeout time period to keep trying, OS_TIMER_NONE = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return datagram handle upon success, else NULL on error with errno set
  */
-datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, os_period_t timeout)
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout)
 {
-    if (size > (DATAGRAM_MAX_SIZE - DATAGRAM_PROTOCOL_SIZE(protocol)) || timeout.value < 0)
+    if (size > (DATAGRAM_MAX_SIZE - DATAGRAM_PROTOCOL_SIZE(protocol)) || timeout < 0)
     {
         /* invalid parameter */
         errno = EINVAL;
@@ -219,13 +219,13 @@ datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, os_period
     }
 
     /* timestamp the entry to this function */
-    os_period_t start = os_get_time_monotonic();
+    long long start = os_get_time_monotonic();
     
     Datagram *datagram = nmranet_datagram_alloc();
 
     while (datagram == NULL)
     {
-        if ((start.value + timeout.value) <= os_get_time_monotonic().value && timeout.value != OS_WAIT_FOREVER_VALUE)
+        if ((start + timeout) <= os_get_time_monotonic() && timeout != OS_WAIT_FOREVER)
         {
             errno = ENOMEM;
             return NULL;
@@ -301,18 +301,18 @@ void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const 
  * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, os_period_t timeout)
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout)
 {
     struct id_node *n = node;
     NodePriv *priv = n->priv;
 
     /* timestamp the entry to this function */
-    os_period_t start = os_get_time_monotonic();
+    long long start = os_get_time_monotonic();
 
     os_mutex_lock(&nodeMutex);
     while (priv->txDatagram)
     {
-        if ((start.value + timeout.value) <= os_get_time_monotonic().value && timeout.value != OS_WAIT_FOREVER_VALUE)
+        if ((start + timeout) <= os_get_time_monotonic() && timeout != OS_WAIT_FOREVER)
         {
             errno = EBUSY;
             return -1;
@@ -338,7 +338,7 @@ int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t d
  * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, os_period_t timeout)
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout)
 {
     if (dst.id == 0 && dst.alias == 0)
     {
@@ -525,7 +525,7 @@ datagram_t nmranet_datagram_consume(node_t node) {
   return NULL;
 }
 
-int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, os_period_t timeout) {
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout) {
   abort();
 }
 
@@ -545,7 +545,7 @@ uint8_t *nmranet_datagram_payload(datagram_t datagram) {
   abort();
 }
 
-datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, os_period_t timeout) {
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout) {
   abort();
 }
 
@@ -553,11 +553,11 @@ void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const 
   abort();
 }
 
-int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, os_period_t timeout) {
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout) {
   abort();
 }
 
-os_period_t nmranet_datagram_timeout(void *data1, void* data2) {
+long long nmranet_datagram_timeout(void *data1, void* data2) {
   abort();
 }
 

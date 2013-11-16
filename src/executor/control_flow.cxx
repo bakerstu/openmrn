@@ -81,7 +81,7 @@ void ControlFlow::NotifyControlFlowTimer(SleepData* entry) {
 }
                                    
 
-os_period_t ControlFlow::control_flow_single_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_single_timer(void* arg_flow, void* arg_entry) {
   ControlFlow::SleepData* entry =
     static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
@@ -89,7 +89,7 @@ os_period_t ControlFlow::control_flow_single_timer(void* arg_flow, void* arg_ent
   return OS_TIMER_NONE;  // no restart.
 }
 
-os_period_t ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_entry) {
   ControlFlow::SleepData* entry =
     static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
@@ -98,25 +98,25 @@ os_period_t ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_e
 }
 
 ControlFlow::ControlFlowAction ControlFlow::Sleep(SleepData* data,
-                                                  os_period_t delay,
+                                                  long long delay_nsec,
                                                   MemberFunction next_state) {
   HASSERT(data->callback_count == 0);
   if (data->timer_handle == NULL) {
     data->timer_handle =
       os_timer_create(&control_flow_single_timer, this, data);
   }
-  os_timer_start(data->timer_handle, delay);
+  os_timer_start(data->timer_handle, delay_nsec);
 
   return WaitForTimerWakeUpAndCall(data, next_state);
 }
 
-void ControlFlow::WakeUpRepeatedly(SleepData* data, os_period_t period) {
+void ControlFlow::WakeUpRepeatedly(SleepData* data, long long period_nsec) {
   if (data->timer_handle != NULL) {
     os_timer_delete(data->timer_handle);
   }
   data->timer_handle =
     os_timer_create(&control_flow_repeated_timer, this, data);
-  os_timer_start(data->timer_handle, period);
+  os_timer_start(data->timer_handle, period_nsec);
 }
 
 void ControlFlow::StopTimer(SleepData* data) {
