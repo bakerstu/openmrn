@@ -538,7 +538,7 @@ static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
         return os_sem_wait(sem);
     }
 #if defined (__FreeRTOS__)
-    if (xSemaphoreTake(*sem, portTICK_RATE_MS * (timeout / 1000000LL)) == pdTRUE)
+    if (xSemaphoreTake(*sem, timeout >> NSEC_TO_TICK_SHIFT) == pdTRUE)
     {
         return 0;
     }
@@ -649,7 +649,7 @@ static inline void os_mq_send(os_mq_t queue, const void *data)
 static inline int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
 #if defined (__FreeRTOS__)
-    portTickType ticks = (timeout * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
 
     if (xQueueSend(queue, data, ticks) != pdTRUE)
     {
@@ -694,7 +694,7 @@ static inline void os_mq_receive(os_mq_t queue, void *data)
 static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
 #if defined (__FreeRTOS__)
-    portTickType ticks = (timeout * configTICK_RATE_HZ) / (1000 * 1000 * 1000);
+    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
 
     if (xQueueReceive(queue, data, ticks) != pdTRUE)
     {
@@ -784,7 +784,7 @@ static inline long long os_get_time_monotonic(void)
     long long time;
 #if defined (__FreeRTOS__)
     portTickType tick = xTaskGetTickCount();
-    time = ((1000 * 1000 * 1000) / configTICK_RATE_HZ) * ((long long)tick);
+    time = ((long long)tick) << NSEC_TO_TICK_SHIFT;
 #elif defined (__MACH__)
     /* get the timebase info */
     mach_timebase_info_data_t info;
