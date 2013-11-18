@@ -71,8 +71,13 @@ typedef struct {
 // message.
 extern AllocatorMutex event_handler_mutex;
 
+// These allow event handlers to produce up to four messages per
+// invocation. They are locked by the event-handler_mutex and always available
+// at the entry to an event handler function.
 extern WriteHelper event_write_helper1;
 extern WriteHelper event_write_helper2;
+extern WriteHelper event_write_helper3;
+extern WriteHelper event_write_helper4;
 extern BarrierNotifiable event_barrier;
 
 class NMRAnetEventHandler {

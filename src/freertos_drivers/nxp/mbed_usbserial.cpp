@@ -36,6 +36,8 @@
 #include "USBSerial.h"
 #include "serial.h"
 #include "os/os.h"
+#include "utils/macros.h"
+#include "portmacro.h"
 
 #ifdef TARGET_LPC2368
 #endif
@@ -58,6 +60,7 @@ extern "C" void __cxa_guard_abort (__guard *);
 
 extern "C" void __cxa_pure_virtual(void);
 
+extern bool IsEpPending();
 
 /** This class is an empty wrapper around MBed's USB CDC class. The difference
     between this and mbed::USBSerial is that this class does not have any
@@ -110,11 +113,10 @@ public:
 protected:
     virtual bool EP2_OUT_callback()
     {
-        // we read the packet received to our assembly buffer
-        readEP(rxData, &rxSize);
+        HASSERT(IsEpPending());
         // and wake up the RX thread.
         os_sem_post_from_isr(&rxSem);
-        return true;
+        return false;
     }
 
     virtual bool EP2_IN_callback()
@@ -163,12 +165,20 @@ private:
         while(1)
         {
             os_sem_wait(&rxSem);
+            portENTER_CRITICAL();
+            // we read the packet received to our assembly buffer
+            bool result = readEP_NB(rxData, &rxSize);
+            portEXIT_CRITICAL();
+            if (!result) {
+              diewith(0x80000CCC);
+            }
             for (uint32_t i = 0; i < rxSize; i++)
             {
                 os_mq_send(serialPriv->rxQ, rxData+i);
             }
+            rxSize = 0;
             // We reactivate the endpoint to receive next characters
-            readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
+            //readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
         }
     }
 

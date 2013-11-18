@@ -83,6 +83,32 @@ class CompatEventHandler : public SimpleEventHandler {
     done->Notify();
   }
 
+  void HandleIdentifyProducer(EventReport* event, Notifiable* done) {
+    if (has_producer_ && event->event == current_eventid(&current_standard_iterator)) {
+      event_write_helper1.WriteAsync(
+          current_node(&current_standard_iterator),
+          MTI_PRODUCER_IDENTIFIED_VALID + producer_state_,
+          WriteHelper::Global(),
+          EventIdToBuffer(current_eventid(&current_standard_iterator)),
+          done);
+    } else {
+      done->Notify();
+    }
+  }
+
+  void HandleIdentifyConsumer(EventReport* event, Notifiable* done) {
+    if (has_consumer_ && event->event == current_eventid(&current_standard_iterator)) {
+      event_write_helper1.WriteAsync(
+          current_node(&current_standard_iterator),
+          MTI_CONSUMER_IDENTIFIED_VALID + consumer_state_,
+          WriteHelper::Global(),
+          EventIdToBuffer(current_eventid(&current_standard_iterator)),
+          done);
+    } else {
+      done->Notify();
+    }
+  }
+
   void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
     event_barrier.Reset(done);
     if (has_producer_) {
@@ -135,14 +161,6 @@ void nmranet_event_produce(node_t node, uint64_t event, unsigned int state) {
   if (v.producer_state_ != EVENT_STATE_VALID) return;
   HASSERT(!nmranet_node_write(node, MTI_EVENT_REPORT, WriteHelper::Global(),
                               EventIdToBuffer(event)));
-}
-
-void nmranet_identify_consumers(node_t node, uint64_t event, uint64_t mask) {
-  // Ignored: we'll do the global identify in IdentifyProducers.
-}
-
-void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask) {
-  nmranet_event_packet_global(MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
 // This is a trick we play on the linker to pull in these symbols. Otherwise we
@@ -207,8 +225,10 @@ CompatEventManager* g_compat_event_manager = nullptr;
 EventCompatibilityLayer::EventCompatibilityLayer() {
   g_compat_layer = this;
   if (!GlobalEventFlow::instance) {
-    g_event_thread = new ThreadExecutor("global_event", 0, 1000);
+    g_event_thread = new ThreadExecutor("global_event", 0, COMPAT_EVENT_THREAD_STACK_SIZE);
     new GlobalEventFlow(g_event_thread, 10);
+  } else {
+    g_event_thread = GlobalEventFlow::instance->executor();
   }
   g_compat_event_manager = new CompatEventManager(g_event_thread);
 }

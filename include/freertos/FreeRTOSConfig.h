@@ -226,7 +226,8 @@ extern unsigned long blinker_pattern;
 #endif // Switch target
 
 
-#define configTICK_RATE_HZ             ( ( portTickType ) 1000 )
+#define configTICK_RATE_HZ             ( ( portTickType ) 953 )
+#define NSEC_TO_TICK_SHIFT             20
 #define configUSE_PREEMPTION           1
 #define configUSE_IDLE_HOOK            1
 #define configUSE_TICK_HOOK            0

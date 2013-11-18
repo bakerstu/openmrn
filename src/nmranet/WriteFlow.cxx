@@ -33,11 +33,13 @@
  */
 
 #include "nmranet/WriteFlow.hxx"
-
+#include "nmranet_config.h"
 #include "endian.h"
 
+Executor* DefaultWriteFlowExecutor() __attribute__((__weak__));
+
 Executor* DefaultWriteFlowExecutor() {
-  static ThreadExecutor e("write_flow", 0, 1000);
+  static ThreadExecutor e("write_flow", 0, WRITE_FLOW_THREAD_STACK_SIZE);
   return &e;
 }
 
@@ -48,9 +50,10 @@ void WriteHelper::Run() {
   HASSERT(!nmranet_node_write(node_, mti_, dst_, buffer_));
 #endif  
   Notifiable* d = done_;
-  HASSERT(d);
-  done_ = nullptr;
-  d->Notify();
+  if (d) {
+    done_ = nullptr;
+    d->Notify();
+  }
 }
 
 WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid) {

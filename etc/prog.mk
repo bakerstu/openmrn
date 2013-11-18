@@ -15,13 +15,13 @@ include $(OPENMRNPATH)/etc/$(TARGET).mk
 include $(OPENMRNPATH)/etc/path.mk
 
 
-VPATH = ../../
+VPATH = $(abspath ../../)
 
-FULLPATHASMSRCS  = $(wildcard $(VPATH)*.S)
-FULLPATHCSRCS    = $(wildcard $(VPATH)*.c)
-FULLPATHCXXSRCS  = $(wildcard $(VPATH)*.cxx)
-FULLPATHCPPSRCS  = $(wildcard $(VPATH)*.cpp)
-FULLPATHXMLSRCS  = $(wildcard $(VPATH)*.xml)
+FULLPATHASMSRCS  = $(wildcard $(VPATH)/*.S)
+FULLPATHCSRCS    = $(wildcard $(VPATH)/*.c)
+FULLPATHCXXSRCS  = $(wildcard $(VPATH)/*.cxx)
+FULLPATHCPPSRCS  = $(wildcard $(VPATH)/*.cpp)
+FULLPATHXMLSRCS  = $(wildcard $(VPATH)/*.xml)
 FULLPATHTESTSRCS = $(wildcard $(VPATH)/tests/*_test.cc)
 
 ASMSRCS  = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
@@ -127,7 +127,7 @@ tests:
 	@echo "***Not building tests at target $(TARGET), because missing: $(TEST_MISSING_DEPS) ***"
 
 else
-VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):../../tests
+VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):$(abspath ../../tests)
 INCLUDES += -I$(GTESTPATH)/include -I$(GTESTPATH) -I$(GMOCKPATH)/include -I$(GMOCKPATH)
 
 TEST_OUTPUTS=$(TESTOBJS:.o=.output)
