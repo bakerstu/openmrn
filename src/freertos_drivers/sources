@@ -15,6 +15,7 @@ endif
 
 # Find StellarisWare
 ifdef STELLARISWAREPATH
+ifeq ($(TARGET),freertos.armv7m)
 include $(OPENMRNPATH)/etc/stellarisware.mk
 
 CSRCS += stellaris_can.c \
@@ -26,7 +27,7 @@ CXXSRCS += StellarisCan.cxx \
            StellarisUsbCdcDevice.cxx
 
 VPATH += $(SRCDIR)/stellarisware
-
+endif
 endif
 
 ifdef HAVE_MBED

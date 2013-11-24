@@ -228,6 +228,7 @@ static void stellaris_uart_tx_char(devtab_t *dev)
 void uart_interrupt_handler(devtab_t *dev)
 {
     StellarisUartPriv *priv = dev->priv;
+    int woken = false;
     
     /* get and clear the interrupt status */
     unsigned long status = MAP_UARTIntStatus(priv->base, true);    
@@ -241,7 +242,7 @@ void uart_interrupt_handler(devtab_t *dev)
         if (data >= 0)
         {
             unsigned char c = data;
-            if (os_mq_send_from_isr(priv->serialPriv.rxQ, &c) == OS_MQ_FULL)
+            if (os_mq_send_from_isr(priv->serialPriv.rxQ, &c, &woken) == OS_MQ_FULL)
             {
                 priv->serialPriv.overrunCount++;
             }
@@ -253,7 +254,7 @@ void uart_interrupt_handler(devtab_t *dev)
         if (MAP_UARTSpaceAvail(priv->base))
         {
             unsigned char data;
-            if (os_mq_receive_from_isr(priv->serialPriv.txQ, &data) == OS_MQ_NONE)
+            if (os_mq_receive_from_isr(priv->serialPriv.txQ, &data, &woken) == OS_MQ_NONE)
             {
                 MAP_UARTCharPutNonBlocking(priv->base, data);
             }

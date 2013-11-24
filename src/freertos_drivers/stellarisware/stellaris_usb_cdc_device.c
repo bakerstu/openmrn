@@ -301,6 +301,7 @@ static unsigned long rx_callback(void *data, unsigned long event, unsigned long 
 {
     devtab_t *dev = data;
     StellarisCdcPriv *priv = dev->priv;
+    int woken = false;
 
     switch (event)
     {
@@ -316,7 +317,7 @@ static unsigned long rx_callback(void *data, unsigned long event, unsigned long 
                 {
                     for (count = 0; count < msg_param; count++, data++)
                     {
-                        if (os_mq_send_from_isr(priv->serialPriv.rxQ, data) != OS_MQ_NONE)
+                        if (os_mq_send_from_isr(priv->serialPriv.rxQ, data, &woken) != OS_MQ_NONE)
                         {
                             /* no more room left */
                             break;
@@ -343,7 +344,7 @@ static unsigned long rx_callback(void *data, unsigned long event, unsigned long 
                     /* transfer data up */
                     for (unsigned long i = 0; i < count; i++)
                     {
-                        os_mq_send_from_isr(priv->serialPriv.rxQ, &priv->rxData[i]);
+                        os_mq_send_from_isr(priv->serialPriv.rxQ, &priv->rxData[i], &woken);
                     }
                 }
                 
@@ -361,6 +362,7 @@ static unsigned long tx_callback(void *data, unsigned long event, unsigned long 
 {
     devtab_t *dev = data;
     StellarisCdcPriv *priv = dev->priv;
+    int woken = false;
     
     switch (event)
     {
@@ -376,7 +378,7 @@ static unsigned long tx_callback(void *data, unsigned long event, unsigned long 
             
             for (count = 0; count < TX_DATA_SIZE && count < available; count++)
             {
-                if (os_mq_receive_from_isr(priv->serialPriv.txQ, &priv->txData[count]) != OS_MQ_NONE)
+                if (os_mq_receive_from_isr(priv->serialPriv.txQ, &priv->txData[count], &woken) != OS_MQ_NONE)
                 {
                     /* no more data left to transmit */
                     break;

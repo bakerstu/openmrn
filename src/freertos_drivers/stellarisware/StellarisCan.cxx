@@ -139,6 +139,7 @@ void StellarisCan::tx_msg()
 void StellarisCan::interrupt_handler()
 {
     uint32_t status = MAP_CANIntStatus(base, CAN_INT_STS_CAUSE);
+    int woken = false;
 
     if (status == CAN_INT_INTID_STATUS)
     {
@@ -195,7 +196,7 @@ void StellarisCan::interrupt_handler()
         {
             notify = true;
         }
-        if (os_mq_send_from_isr(rxQ, &can_frame) == OS_MQ_FULL)
+        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
         {
             overrunCount++;
         }
@@ -211,7 +212,7 @@ void StellarisCan::interrupt_handler()
         MAP_CANIntClear(base, 2);
 
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(txQ, &can_frame) == OS_MQ_NONE)
+        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE)
         {
             bool notify = false;
             if (os_mq_num_pending_from_isr(txQ) == (CAN_TX_BUFFER_SIZE - 1))
@@ -248,6 +249,7 @@ void StellarisCan::interrupt_handler()
             txPending = false;
         }
     }
+    os_isr_exit_yield_test(woken);
 }
 
 /** This is the interrupt handler for the can0 device.

@@ -89,6 +89,7 @@ private:
     unsigned char rxData[RX_DATA_SIZE]; /**< buffer for pending tx data */
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
+    int woken; /**< task woken metadata for ISR */
     
     /** Default constructor.
      */
@@ -165,7 +166,7 @@ private:
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
     uint8_t data[8]; /**< transmit data */
-    bool txPending; /**< transmission currently pending */    
+    bool txPending; /**< transmission currently pending */
 
     /** Default constructor.
      */

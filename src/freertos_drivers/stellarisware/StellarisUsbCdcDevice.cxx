@@ -135,7 +135,8 @@ static StellarisCdc *instances[1] = {NULL};
 StellarisCdc::StellarisCdc(const char *name)
     : Serial(name),
       connected(false),
-      enabled(false)
+      enabled(false),
+      woken(false)
 {
     usbdcdcDevice.usVID = USB_VID_STELLARIS;
     usbdcdcDevice.usPID = USB_PID_SERIAL;
@@ -153,6 +154,7 @@ StellarisCdc::StellarisCdc(const char *name)
     
     USBStackModeSet(0, USB_MODE_DEVICE, 0);
     USBDCDCInit(0, &usbdcdcDevice);
+    instances[0] = this;
 }
 
 /** Enable use of the device interrupts.
@@ -275,7 +277,7 @@ unsigned long StellarisCdc::rx_callback(void *data, unsigned long event, unsigne
                 {
                     for (count = 0; count < msg_param; count++, data++)
                     {
-                        if (os_mq_send_from_isr(serial->rxQ, data) != OS_MQ_NONE)
+                        if (os_mq_send_from_isr(serial->rxQ, data, &serial->woken) != OS_MQ_NONE)
                         {
                             /* no more room left */
                             break;
@@ -302,7 +304,7 @@ unsigned long StellarisCdc::rx_callback(void *data, unsigned long event, unsigne
                     /* transfer data up */
                     for (unsigned long i = 0; i < count; i++)
                     {
-                        os_mq_send_from_isr(serial->rxQ, &serial->rxData[i]);
+                        os_mq_send_from_isr(serial->rxQ, &serial->rxData[i], &serial->woken);
                     }
                 }
                 
@@ -334,7 +336,7 @@ unsigned long StellarisCdc::tx_callback(void *data, unsigned long event, unsigne
             
             for (count = 0; count < TX_DATA_SIZE && count < available; count++)
             {
-                if (os_mq_receive_from_isr(serial->txQ, &serial->txData[count]) != OS_MQ_NONE)
+                if (os_mq_receive_from_isr(serial->txQ, &serial->txData[count], &serial->woken) != OS_MQ_NONE)
                 {
                     /* no more data left to transmit */
                     break;
@@ -351,10 +353,20 @@ unsigned long StellarisCdc::tx_callback(void *data, unsigned long event, unsigne
     return 0;
 }
 
+/** Interrupt Handler in context.
+ */
+void StellarisCdc::interrupt_handler(void)
+{
+    woken = false;
+    USB0DeviceIntHandler();
+    os_isr_exit_yield_test(woken);
+}
+
 /** Handle interrupts for USB0.
  */
 void usb0_interrupt_handler(void)
 {
+    
     if (instances[0])
     {
         instances[0]->interrupt_handler();

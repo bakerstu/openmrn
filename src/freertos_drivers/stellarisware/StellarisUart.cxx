@@ -150,10 +150,10 @@ void StellarisUart::tx_char()
  */
 void StellarisUart::interrupt_handler()
 {
+    int woken = false;
     /* get and clear the interrupt status */
     unsigned long status = MAP_UARTIntStatus(base, true);    
     MAP_UARTIntClear(base, status);
-    
 
     /* receive charaters as long as we can */
     while (MAP_UARTCharsAvail(base))
@@ -162,7 +162,7 @@ void StellarisUart::interrupt_handler()
         if (data >= 0)
         {
             unsigned char c = data;
-            if (os_mq_send_from_isr(rxQ, &c) == OS_MQ_FULL)
+            if (os_mq_send_from_isr(rxQ, &c, &woken) == OS_MQ_FULL)
             {
                 overrunCount++;
             }
@@ -174,7 +174,7 @@ void StellarisUart::interrupt_handler()
         if (MAP_UARTSpaceAvail(base))
         {
             unsigned char data;
-            if (os_mq_receive_from_isr(txQ, &data) == OS_MQ_NONE)
+            if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE)
             {
                 MAP_UARTCharPutNonBlocking(base, data);
             }
@@ -186,6 +186,7 @@ void StellarisUart::interrupt_handler()
             }
         }
     }
+    os_isr_exit_yield_test(woken);
 }
 
 /** UART0 interrupt handler.

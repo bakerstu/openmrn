@@ -711,16 +711,18 @@ static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeou
 /** Send of a message to a queue from ISR context.
  * @param queue queue to send message to
  * @param data message to copy into queue
+ * @param woken is the task woken up
  * @return OS_MQ_NONE on success, else OS_MQ_FULL
  */
-static inline int os_mq_send_from_isr(os_mq_t queue, const void *data)
+static inline int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
 {
 #if defined (__FreeRTOS__)
-    portBASE_TYPE woken;
-    if (xQueueSendFromISR(queue, data, &woken) != pdTRUE)
+    portBASE_TYPE local_woken;
+    if (xQueueSendFromISR(queue, data, &local_woken) != pdTRUE)
     {
         return OS_MQ_FULL;
     }
+    *woken |= local_woken;
 #endif
     return OS_MQ_NONE;
 }
@@ -741,16 +743,18 @@ static inline int os_mq_is_full_from_isr(os_mq_t queue)
 /** Receive a message from a queue from ISR context.
  * @param queue queue to receive message from
  * @param data location to copy message from the queue
+ * @param woken is the task woken up
  * @return OS_MQ_NONE on success, else OS_MQ_FULL
  */
-static inline int os_mq_receive_from_isr(os_mq_t queue, void *data)
+static inline int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
 {
 #if defined (__FreeRTOS__)
-    portBASE_TYPE woken;
-    if (xQueueReceiveFromISR(queue, data, &woken) != pdTRUE)
+    portBASE_TYPE local_woken;
+    if (xQueueReceiveFromISR(queue, data, &local_woken) != pdTRUE)
     {
         return OS_MQ_EMPTY;
     }
+    *woken |= local_woken;
 #endif
     return OS_MQ_NONE;
 }
@@ -778,6 +782,29 @@ static inline int os_mq_num_pending_from_isr(os_mq_t queue)
     return 0;
 #endif
 }
+
+
+
+#if defined (__FreeRTOS__)
+/** Some of the older ports of FreeRTOS don't yet have this macro, so define it.
+ */
+#if !defined (portEND_SWITCHING_ISR)
+#define portEND_SWITCHING_ISR(_woken) \
+    if( _woken )                      \
+    {                                 \
+        portYIELD_FROM_ISR();         \
+    }
+#endif
+
+/** Test if we have woken up a higher priority task as the end of an interrupt.
+ * @param _woken test value
+ */
+#define os_isr_exit_yield_test(_woken) \
+do                                     \
+{                                      \
+    portEND_SWITCHING_ISR(_woken);     \
+} while(0);
+#endif
 
 /** Get the monotonic time since the system started.
  * @return time in nanoseconds since system start

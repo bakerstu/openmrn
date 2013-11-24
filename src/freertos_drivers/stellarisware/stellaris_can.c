@@ -183,6 +183,7 @@ static void stellaris_can_tx_msg(devtab_t *dev)
 static void can_interrupt_handler(devtab_t *dev)
 {
     StellarisCanPriv *priv = dev->priv;
+    int woken = false;
     
     uint32_t status = MAP_CANIntStatus(priv->base, CAN_INT_STS_CAUSE);
 
@@ -208,7 +209,7 @@ static void can_interrupt_handler(devtab_t *dev)
         can_frame.can_err = 0;
         can_frame.can_dlc = can_message.ulMsgLen;
         memcpy(can_frame.data, data, can_message.ulMsgLen);
-        if (os_mq_send_from_isr(priv->canPriv.rxQ, &can_frame) == OS_MQ_FULL)
+        if (os_mq_send_from_isr(priv->canPriv.rxQ, &can_frame, &woken) == OS_MQ_FULL)
         {
             priv->canPriv.overrunCount++;
         }
@@ -219,7 +220,7 @@ static void can_interrupt_handler(devtab_t *dev)
         MAP_CANIntClear(priv->base, 2);
 
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(priv->canPriv.txQ, &can_frame) == OS_MQ_NONE)
+        if (os_mq_receive_from_isr(priv->canPriv.txQ, &can_frame, &woken) == OS_MQ_NONE)
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
