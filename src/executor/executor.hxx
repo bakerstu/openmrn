@@ -58,8 +58,11 @@ public:
   Executor();
   ~Executor();
 
+  // Runs the main loop of the executor in the current thread. Never returns.
   void ThreadBody();
 
+  // Adds entry to the back of the executor queue. `entry' must not be enqueued
+  // here or in any other executor or queue.
   void Add(Executable* entry) {
     {
       LockHolder h(this);
@@ -68,20 +71,37 @@ public:
     notify_.post();
   }
 
+  /** Checks if `entry' is pending in the *current* executor. NOTE: This call
+   * may or may not detect if `entry' is pending in a different executor or
+   * enqueued on a different queue.
+   */
   bool IsMaybePending(Executable* entry) {
     return pending_flows_.IsMaybePending(entry);
   }
 
+  /** Returns true if the given entry is either pending in the queue of the
+   * current executor, or is currently running in the executor. This call is
+   * safe to be called from the any thread. NOTE: This call may or may not
+   * detect if `entry' is pending in a different executor or enqueued on a
+   * different queue.
+   */
   bool IsPendingOrRunning(Executable* entry);
 
+  //! Returns true if this executor has run out of work.
   bool empty() {
+    LockHolder h(this);
     return waiting_ && pending_flows_.empty();
   }
 
 private:
+  //! This semaphore is used for blocking the executor thread, and will be
+  //! posted for each Add to wake up.
   OSSem notify_;
+  //! Queue of work to do.
   Queue pending_flows_;
+  //! true if the executor is waiting in the semaphore for work to do.
   bool waiting_;
+  //! Work currently scheduled on the thread.
   Executable* current_;
 };
 

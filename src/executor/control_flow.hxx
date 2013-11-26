@@ -156,9 +156,9 @@ protected:
 
   template <class T, class U>
   ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
-    done_->Notify();
+    state_ = &ControlFlow::NotStarted;
+    if (done_) done_->Notify();
     allocator->TypedRelease(entry);
-    state_ = &ControlFlow::Terminated;
     return WaitForNotification();
   }
 
