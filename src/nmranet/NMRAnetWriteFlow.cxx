@@ -32,7 +32,7 @@
  * @date 3 Nov 2013
  */
 
-#include "nmranet/WriteFlow.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "endian.h"
 

@@ -32,7 +32,7 @@
  */
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "nmranet/WriteFlow.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 
 namespace NMRAnet
 {

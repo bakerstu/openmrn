@@ -40,7 +40,7 @@
 #include "executor/allocator.hxx"
 #include "utils/macros.h"
 #include "nmranet_types.h"
-#include "nmranet/WriteFlow.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 
 namespace NMRAnet
 {
