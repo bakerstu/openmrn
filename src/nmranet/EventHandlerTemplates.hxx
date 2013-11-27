@@ -39,6 +39,9 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/WriteFlow.hxx"
 
+namespace NMRAnet
+{
+
 typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
                                                           Notifiable* done);
 
@@ -95,7 +98,7 @@ class BitEventInterface {
   virtual void SetState(bool new_value) = 0;
   uint64_t event_on() { return event_on_; }
   uint64_t event_off() { return event_off_; }
-  virtual WriteHelper::node_type node() = 0;
+  virtual Node *node() = 0;
  private:
   uint64_t event_on_;
   uint64_t event_off_;
@@ -105,11 +108,11 @@ class BitEventInterface {
 
 template<class T> class MemoryBit : public BitEventInterface {
  public:
-  MemoryBit(WriteHelper::node_type node, uint64_t event_on, uint64_t event_off, T* ptr, T mask)
+  MemoryBit(Node *node, uint64_t event_on, uint64_t event_off, T* ptr, T mask)
       : BitEventInterface(event_on, event_off),
         node_(node), ptr_(ptr), mask_(mask) {}
 
-  virtual WriteHelper::node_type node() { return node_; }
+  virtual Node *node() { return node_; }
   virtual bool GetCurrentState() { return (*ptr_) & mask_; }
   virtual void SetState(bool new_value) {
     if (new_value) {
@@ -120,7 +123,7 @@ template<class T> class MemoryBit : public BitEventInterface {
   }
 
  private:
-  WriteHelper::node_type node_;
+  Node *node_;
   T* ptr_;
   T mask_;
 
@@ -147,7 +150,7 @@ class BitEventHandler : public SimpleEventHandler {
   // Checks if the event in the report is something we are interested in, and
   // if so, sends off a {Producer|Consumer}Identify message. Uses
   // write_event_handler1.
-  void HandlePCIdentify(int mti_valid, EventReport* event, Notifiable* done);
+  void HandlePCIdentify(If::MTI mti_valid, EventReport* event, Notifiable* done);
 
   BitEventInterface* bit_;
 
@@ -206,7 +209,7 @@ class BitRangeEventPC : public SimpleEventHandler {
   // event_base. event_base will turn bit 0 on, event_base + 1 will turn bit 0
   // off, event_base + 2 will turn bit 1 on, event_base + 3 will turn bit 1
   // off, etc.
-  BitRangeEventPC(WriteHelper::node_type node,
+  BitRangeEventPC(Node *node,
                   uint64_t event_base,
                   uint32_t* backing_store,
                   unsigned size);
@@ -236,13 +239,15 @@ class BitRangeEventPC : public SimpleEventHandler {
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
 
  private:
-  void HandleIdentifyBase(int mti_valid, EventReport* event, Notifiable* done);
+  void HandleIdentifyBase(If::MTI mti_valid, EventReport* event, Notifiable* done);
   void GetBitAndMask(unsigned bit, uint32_t** data, uint32_t* mask) const;
 
   uint64_t event_base_;
-  WriteHelper::node_type node_;
+  Node *node_;
   uint32_t* data_;
   unsigned size_;  //< number of bits stored.
 };
+
+}; /* namespace NMRAnet */
 
 #endif  // _NMRAnet_EventHandlerTemplates_hxx_

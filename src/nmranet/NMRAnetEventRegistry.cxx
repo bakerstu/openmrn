@@ -34,6 +34,8 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/WriteFlow.hxx"
 
+namespace NMRAnet
+{
 
 NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 
@@ -54,3 +56,6 @@ NMRAnetEventRegistry::~NMRAnetEventRegistry() {
   HASSERT(instance_ == this);
   instance_ = nullptr;
 }
+
+}; /* namespace NMRAnet */
+

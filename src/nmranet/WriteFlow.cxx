@@ -36,6 +36,9 @@
 #include "nmranet_config.h"
 #include "endian.h"
 
+namespace NMRAnet
+{
+
 Executor* DefaultWriteFlowExecutor() __attribute__((__weak__));
 
 Executor* DefaultWriteFlowExecutor() {
@@ -43,23 +46,27 @@ Executor* DefaultWriteFlowExecutor() {
   return &e;
 }
 
-void WriteHelper::Run() {
-#ifdef EVENT_NODE_CPP
-  node_->write(mti_, dst_, buffer_);
-#else
-  HASSERT(!nmranet_node_write(node_, mti_, dst_, buffer_));
-#endif  
-  Notifiable* d = done_;
-  if (d) {
-    done_ = nullptr;
-    d->Notify();
-  }
+/** Callback in the executor thread.
+ */
+void WriteHelper::Run()
+{
+    node_->write(mti_, dst_, buffer_);
+    Notifiable* d = done_;
+    if (d)
+    {
+        done_ = nullptr;
+        d->Notify();
+    }
 }
 
-WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid) {
-  WriteHelper::buffer_type buffer = WriteHelper::BufferAlloc(sizeof(eventid));
-  uint64_t* b = static_cast<uint64_t*>(WriteHelper::BufferDeref(buffer));
-  *b = htobe64(eventid);
-  WriteHelper::BufferStep(buffer, sizeof(eventid));
-  return buffer;
+Buffer *EventIdToBuffer(uint64_t eventid)
+{
+    Buffer *buffer = buffer_alloc(sizeof(eventid));
+    uint64_t* b = static_cast<uint64_t*>(buffer->start());
+    *b = htobe64(eventid);
+    buffer->advance(sizeof(eventid));
+    return buffer;
 }
+
+}; /* namespace NMRAnet */
+

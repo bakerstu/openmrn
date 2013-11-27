@@ -19,6 +19,8 @@
 #define EXTERNC extern "C" {
 #define EXTERNCEND }
 
+using namespace NMRAnet;
+
 // ============== Global event registry ===============
 
 class EventVectorRegistry : public ProxyEventHandler {

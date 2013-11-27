@@ -40,14 +40,14 @@
 #include "nmranet/EventCompatibility.hxx"
 
 #include "nmranet_config.h"
-#include "core/nmranet_event.h"
-#include "core/nmranet_node_private.h"
-#include "if/nmranet_if.h"
 #include "nmranet/EventManager.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
+#if 0
 #ifdef CPP_EVENT_HANDLER
+
+using namespace NMRAnet;
 
 class CompatEventHandler;
 
@@ -246,5 +246,6 @@ void EnsureCompatEventHandlerExists() {
     new EventCompatibilityLayer();
   }
 }
+#endif
 
 #endif

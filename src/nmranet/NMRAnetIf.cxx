@@ -111,19 +111,19 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
         /* global message, handle subscribe based protocols first */
         switch (mti)
         {
-            case MTI_CONSUMER_IDENTIFY:          /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RANGE:    /* fall through */
-            case MTI_CONSUMER_IDENTIFY_UNKNOWN:  /* fall through */
-            case MTI_CONSUMER_IDENTIFY_VALID:    /* fall through */
-            case MTI_CONSUMER_IDENTIFY_INVALID:  /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RESERVED: /* fall through */
-            case MTI_PRODUCER_IDENTIFY:          /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RANGE:    /* fall through */
-            case MTI_PRODUCER_IDENTIFY_UNKNOWN:  /* fall through */
-            case MTI_PRODUCER_IDENTIFY_VALID:    /* fall through */
-            case MTI_PRODUCER_IDENTIFY_INVALID:  /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RESERVED: /* fall through */
-            case MTI_EVENTS_IDENTIFY_GLOBAL:     /* fall through */
+            case MTI_CONSUMER_IDENTIFY:            /* fall through */
+            case MTI_CONSUMER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_UNKNOWN:  /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_VALID:    /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_INVALID:  /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_RESERVED: /* fall through */
+            case MTI_PRODUCER_IDENTIFY:            /* fall through */
+            case MTI_PRODUCER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_UNKNOWN:  /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_VALID:    /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_INVALID:  /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_RESERVED: /* fall through */
+            case MTI_EVENTS_IDENTIFY_GLOBAL:       /* fall through */
             case MTI_EVENT_REPORT:
                 //nmranet_event_packet_global(mti, src, data);
                 break;
@@ -172,7 +172,6 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
     }
     Node::mutex.unlock();
 }
-
 
 }; /* namespace NMRAnet */
 

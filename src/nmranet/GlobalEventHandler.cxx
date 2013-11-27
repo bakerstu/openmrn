@@ -12,6 +12,9 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventManager.hxx"
 
+namespace NMRAnet
+{
+
 /*static*/
 GlobalEventFlow* GlobalEventFlow::instance = nullptr;
 
@@ -329,6 +332,8 @@ void nmranet_event_packet_global(uint16_t mti,
   }
   */
 }
+
+}; /* namespace NMRAnet */
 
 void nmranet_identify_consumers(node_t node, uint64_t event, uint64_t mask) {
   // Ignored: we'll do the global identify in IdentifyProducers.

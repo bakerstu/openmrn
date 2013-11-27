@@ -310,10 +310,10 @@ public:
     }
 
     /** Overloaded pre-increement operator. */
-    Velocity operator ++ ()
+    Velocity& operator ++ ()
     {
-        return velocity = zero_adjust(velocity + 1,velocity);
-        //return *this;
+        velocity = zero_adjust(velocity + 1,velocity);
+        return *this;
     }
 
     /** Overloaded post-increment operator. */

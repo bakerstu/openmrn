@@ -42,6 +42,9 @@
 #include "nmranet_types.h"
 #include "nmranet/WriteFlow.hxx"
 
+namespace NMRAnet
+{
+
 typedef uint64_t EventId;
 
 enum EventState {
@@ -150,5 +153,7 @@ private:
 
   DISALLOW_COPY_AND_ASSIGN(NMRAnetEventRegistry);
 };
+
+}; /* namespace NMRAnet */
 
 #endif  // _NMRAnetEventRegistry_hxx_

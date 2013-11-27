@@ -32,93 +32,79 @@
  * @date 3 Nov 2013
  */
 
-#ifndef _NMRANET_WRITE_FLOW_H_
-#define _NMRANET_WRITE_FLOW_H_
+#ifndef _NMRAnetWriteFlow_hxx_
+#define _NMRAnetWriteFlow_hxx_
 
 #include "nmranet_config.h"
 #include "executor/executor.hxx"
 #include "executor/notifiable.hxx"
 
-#ifdef EVENT_NODE_CPP
 #include "utils/BufferQueue.hxx"
 #include "nmranet/NMRAnetNode.hxx"
-#else
-#include "core/nmranet_node_private.h"
-#include "core/nmranet_buf.h"
-#endif
+
+namespace NMRAnet
+{
 
 Executor* DefaultWriteFlowExecutor();
 
-class WriteHelper : private Executable {
- public:
-#ifdef EVENT_NODE_CPP
-  typedef If::MTI mti_type;
-  typedef Node* node_type;
-  typedef NodeHandle dst_type;
-
-  typedef Buffer* buffer_type;
-  static dst_type Global() {
-    return {0, 0};
-  }
-  static buffer_type BufferAlloc(size_t len) { return buffer_alloc(len); }
-  static void* BufferDeref(buffer_type b) { return b->start(); }
-  static void BufferStep(buffer_type b, size_t len) { b->advance(len); }
-#else
-  typedef uint16_t mti_type;
-  typedef node_t node_type;
-  typedef node_handle_t dst_type;
-  typedef void* buffer_type;
-  static buffer_type BufferAlloc(size_t len) {
-    return nmranet_buffer_alloc(len);
-  }
-  static void* BufferDeref(buffer_type b) { return b; }
-  static void BufferStep(buffer_type b, size_t len) {
-    nmranet_buffer_advance(b, len);
-  }
-  static dst_type Global() {
-    return {0, 0};
-  }
-#endif
-
-  WriteHelper(Executor* executor) : done_(nullptr), executor_(executor) {}
-
-  /** Originales an NMRAnet message from a particular node.
-   *
-   * @param node is the originating node.
-   * @param mti is the message to send
-   * @param dst is the destination node to send to (may be Global())
-   * @param buffer is the message payload.
-   * @param done will be notified when the packet has been enqueued to the
-   * physical layer. If done == nullptr, the sending is invoked synchronously.
-   */
-  void WriteAsync(node_type node, mti_type mti, dst_type dst,
-                  buffer_type buffer, Notifiable* done) {
-    HASSERT(!done_);
-    node_ = node;
-    mti_ = mti;
-    dst_ = dst;
-    buffer_ = buffer;
-    if (done) {
-      done_ = done;
-      executor_->Add(this);
-    } else {
-      done_ = nullptr;
-      Run();
+class WriteHelper : private Executable
+{
+public:
+    static NodeHandle global()
+    {
+        return {0, 0};
     }
-  }
 
- private:
-  //! Callback in the executor thread.
-  virtual void Run();
+    WriteHelper(Executor* executor)
+        : done_(nullptr),
+          executor_(executor)
+    {
+    }
 
-  node_type node_;
-  mti_type mti_;
-  dst_type dst_;
-  buffer_type buffer_;
-  Notifiable* done_;
-  Executor* executor_;
+    /** Originales an NMRAnet message from a particular node.
+     *
+     * @param node is the originating node.
+     * @param mti is the message to send
+     * @param dst is the destination node to send to (may be Global())
+     * @param buffer is the message payload.
+     * @param done will be notified when the packet has been enqueued to the
+     * physical layer. If done == nullptr, the sending is invoked synchronously.
+     */
+    void write_async(Node *node, If::MTI mti, NodeHandle dst,
+                     Buffer *buffer, Notifiable* done)
+    {
+        HASSERT(!done_);
+        node_ = node;
+        mti_ = mti;
+        dst_ = dst;
+        buffer_ = buffer;
+        if (done)
+        {
+            done_ = done;
+            executor_->Add(this);
+        }
+        else
+        {
+            done_ = nullptr;
+            Run();
+        }
+    }
+
+private:
+    /** Callback in the executor thread.
+     */
+    virtual void Run();
+
+    Node *node_;
+    If::MTI mti_;
+    NodeHandle dst_;
+    Buffer *buffer_;
+    Notifiable* done_;
+    Executor* executor_;
 };
 
-WriteHelper::buffer_type EventIdToBuffer(uint64_t eventid);
+Buffer *EventIdToBuffer(uint64_t eventid);
 
-#endif  // _NMRANET_WRITE_FLOW_H_
+}; /* namespace NMRAnet */
+
+#endif  /* _NMRAnetWriteFlow_hxx_ */

@@ -13,6 +13,9 @@
 #include "utils/macros.h"
 #include "executor/control_flow.hxx"
 
+namespace NMRAnet
+{
+
 class GlobalEventFlow;
 
 struct GlobalEventMessage : public QueueMember {
@@ -63,5 +66,7 @@ class GlobalEventFlow : public ControlFlow {
 
   std::unique_ptr<Impl> impl_;
 };
+
+}; /* namespace NMRAnet */
 
 #endif  // _NMRANET_GLOBAL_EVENT_HANDLER_

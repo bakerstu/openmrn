@@ -17,6 +17,9 @@
 #include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 
+namespace NMRAnet
+{
+
 // Abstract class for representing iteration through a container for event
 // handlers.
 class EventIterator : public ProxyNotifiable {
@@ -276,5 +279,7 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
   StraightStlIterator<HandlersList::iterator> standard_iterator_impl_;
   StraightStlIterator<HandlersList::iterator> global_iterator_impl_;
 };
+
+}; /* namespace NMRAnet */
 
 #endif  // _NMRANET_EVENTMANAGER_HXX_
