@@ -44,7 +44,6 @@ namespace NMRAnet
  */
 void AliasCache::add(NodeID id, NodeAlias alias)
 {
-#if 0
     HASSERT(id != 0);
     HASSERT(alias != 0);
     
@@ -58,24 +57,28 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     }
     else
     {
+        HASSERT(oldest != NULL);
         /* kick out the oldest mapping */
+        insert = oldest;
+        oldest = oldest->newer;
+
+        aliasMap.erase(insert->alias);
+
+        insert->timestamp = OSTime::get_monotonic();
+        insert->id = id;
+        insert->alias = alias;
         //map<long long, Metadata*>::iterator oldest = timeMap.begin();
         //insert = oldest->second;
         //aliasMap.erase(insert->alias);
         //idMap.erase(insert->id);
         //timeMap.erase(oldest);
     }
-    
-    insert->id = id;
-    insert->alias = alias;
-    insert->timestamp = OSTime::get_monotonic();
-    
-    //aliasMap[alias] = insert;
+        
+    aliasMap[alias] = insert;
     //idMap[id] = insert;
     //timeMap[insert->timestamp] = insert;
     
     return;
-#endif
 }
 
 /** Remove an alias from an alias cache.
