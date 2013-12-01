@@ -365,6 +365,14 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
         mutex.unlock();
         sleep(1);
         mutex.lock();
+        /* to prevent a race, make sure we didn't get a mapping slip in while
+         * we were sleeping and unlocked.
+         */
+        NodeAlias test = upstreamCache.lookup(node_id);
+        if (test)
+        {
+            return test;
+        }
     }
 }
 
@@ -616,7 +624,7 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
         if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
         {
             int mapped = 0;
-            node_id_t node_id;
+            NodeID node_id;
             node_id = data[5];
             node_id |= (node_id_t)data[4] << 8;
             node_id |= (node_id_t)data[3] << 16;
@@ -771,7 +779,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
      * to protect this tree.
      */
     NodeHandle src;
-    uint16_t dst_alias = get_dst(can_id);
+    NodeAlias dst_alias = get_dst(can_id);
 
     mutex.lock();
     NodeID dst_id = upstreamCache.lookup(dst_alias);
@@ -924,7 +932,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
 void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
 {
     NodeHandle src;
-    uint16_t dst_alias = get_dst(can_id);
+    NodeAlias dst_alias = get_dst(can_id);
 
     mutex.lock();
     NodeID dst_id = upstreamCache.lookup(dst_alias);

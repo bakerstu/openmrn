@@ -74,10 +74,8 @@ public:
         {
             metadata[i].prev = NULL;
             metadata[i].next = freeList;
-            freeList = metadata;
+            freeList = metadata + i;
         }
-
-        //aliasMap = new AliasMap(nodekey_compare(), Allocator<std::pair<const NodeAlias, Metadata>*>(entries));
     }
 
     /** Add an alias to an alias cache.
@@ -169,8 +167,14 @@ private:
 
         if (metadata != newest)
         {
-            metadata->newer->older = metadata->older;
-            metadata->older->newer = metadata->newer;
+            if (metadata->newer)
+            {
+                metadata->newer->older = metadata->older;
+            }
+            if (metadata->older)
+            {
+                metadata->older->newer = metadata->newer;
+            }
             metadata->newer = NULL;
             metadata->older = newest;
             newest = metadata;

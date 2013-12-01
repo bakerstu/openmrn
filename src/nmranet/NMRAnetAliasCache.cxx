@@ -53,6 +53,9 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     {
         /* we already have a mapping for this alias, so lets remove it */
         remove(alias);
+        /** @todo (Stuart Baker) we need to somehow notify the interface to
+         * unmap this alias on the bus as well.
+         */
     }
 
     if (freeList)
@@ -75,12 +78,15 @@ void AliasCache::add(NodeID id, NodeAlias alias)
 
         aliasMap.erase(insert->alias);
         idMap.erase(insert->id);
-
-        insert->timestamp = OSTime::get_monotonic();
-        insert->id = id;
-        insert->alias = alias;
+        /** @todo (Stuart Baker) we need to somehow notify the interface to
+         * unmap this alias on the bus as well.
+         */
     }
         
+    insert->timestamp = OSTime::get_monotonic();
+    insert->id = id;
+    insert->alias = alias;
+
     aliasMap[alias] = insert;
     idMap[id] = insert;
 
@@ -88,6 +94,9 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     insert->newer = NULL;
     if (newest == NULL)
     {
+        /* if newest == NULL, then oldest must also be NULL */
+        HASSERT(oldest == NULL);
+
         insert->older = NULL;
         oldest = insert;
     }
@@ -96,6 +105,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
         insert->older = newest;
         newest->newer = insert;
     }
+
     newest = insert;
     
     return;

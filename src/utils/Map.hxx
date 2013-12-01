@@ -548,6 +548,12 @@ public:
             return node != it.node;
         }
 
+        /** Overloaded equals operator. */
+        bool operator == (const Iterator& it)
+        {
+            return node == it.node;
+        }
+
         Node *node;
         Map *m;
 
@@ -558,24 +564,29 @@ public:
         }
     };
 
+    /** unique iterator instance to represent the end.
+     */
+    Iterator endIterator;
+    
+    typedef Iterator iterator;
+    
     /** Find the index associated with the key and create it does not exist.
      * @param key key to lookup
      * @return value of the key by reference
      */
     Value& operator[](const Key &key)
     {
-        Node *node = NULL; //find(key);
-        if (!node)
+        iterator it = find(key);
+        if (it == end())
         {
-            node = alloc();
-            if (node)
-            {
-                node->key = key;
-                node->value = 0;
-                RB_INSERT(tree, &head, node);
-            }
+            Node *node = alloc();
+            HASSERT(node);
+            node->key = key;
+            node->value = 0;
+            RB_INSERT(tree, &head, node);
+            it = iterator(this, node);
         }
-        return node->value;
+        return (*it).second;
     }
 
     /** Number of elements currently in the map.
@@ -593,12 +604,6 @@ public:
     {
         return entries;
     }
-    
-    /** unique iterator instance to represent the end.
-     */
-    Iterator endIterator;
-    
-    typedef Iterator iterator;
     
     /** Find an element matching the given key.
      * @param key key to search for
