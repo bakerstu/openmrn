@@ -40,16 +40,10 @@
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/macros.h"
 #include "utils/RBTree.hxx"
+#include "utils/Map.hxx"
 
 namespace NMRAnet
 {
-
-struct nodekey_compare {
-  bool operator() (const NodeAlias& a, const NodeAlias& b) const {
-     return a < b;
-  } 
-};
-
 
 /** Cache of alias to node id mappings.  The cache is limited to a fixed number
  * of entries at construction.  All the memory for the cache will be allocated
@@ -70,31 +64,18 @@ public:
     AliasCache(NodeID seed, size_t entries)
         : freeList(NULL),
           metadata(new Metadata[entries]),
-          aliasTree(),
-          idTree(),
-          timeTree(),
-          //aliasAllocator(),
-          //aliasNode(new RBTree <NodeAlias, Metadata*>::Node[entries]),
-          //idNode(new RBTree <NodeID, Metadata*>::Node[entries]),
-          //timeNode(new RBTree <long long, Metadata*>::Node[entries]),
-          aliasMap(nodekey_compare(), Allocator<std::pair<const NodeAlias, Metadata>*>(entries)),
+          aliasMap(entries),
+          idMap(entries),
           oldest(NULL),
           newest(NULL),
-          //idMap(),
-          //timeMap(),
           seed(seed)
     {
         for (size_t i = 0; i < entries; ++i)
         {
             metadata[i].prev = NULL;
             metadata[i].next = freeList;
-            freeList = metadata;
-            aliasNode[i].value = metadata;
-            idNode[i].value = metadata;
-            timeNode[i].value = metadata;
+            freeList = metadata + i;
         }
-
-        //aliasMap = new AliasMap(nodekey_compare(), Allocator<std::pair<const NodeAlias, Metadata>*>(entries));
     }
 
     /** Add an alias to an alias cache.
@@ -135,140 +116,9 @@ public:
     ~AliasCache()
     {
         delete[] metadata;
-        delete[] aliasNode;
-        delete[] idNode;
-        delete[] timeNode;
     }
     
 private:
-    template <typename T> class Allocator
-    {
-    public:
-        union FreeList
-        {
-            T data;
-            FreeList *next;
-        };
-
-        FreeList *freeList;
-        
-        bool init;
-        
-        size_t entries;
-        
-        typedef T value_type;
-        typedef value_type* pointer;
-        typedef const value_type* const_pointer;
-        typedef value_type& reference;
-        typedef const value_type& const_reference;
-        typedef std::size_t size_type;
-        typedef std::ptrdiff_t difference_type;
-        
-        template <typename U> struct rebind
-        {
-            typedef Allocator<U> other;
-        };
-#if 0
-        Allocator()
-            : init(false),
-              entries(0)
-        {
-        }
-#endif
-        explicit Allocator(size_t e)
-            : init(false),
-              entries(e)
-        {
-        }
-
-        explicit Allocator(Allocator const&)
-            : init(false)
-        {
-        }
-        
-        ~Allocator()
-        {
-        }
-        
-        template <typename U> Allocator(Allocator<U> const& o)
-            : init(false), entries(o.entries)
-        {
-        }
-
-        //    address
-
-        T *address(T &r)
-        {
-            return &r;
-        }
-
-        const T *address(const T &r)
-        {
-            return &r;
-        }
-
-        //    memory allocation
-
-        T *allocate(size_t cnt, const void* = 0)
-        {
-            if (init == false)
-            {
-                HASSERT(entries != 0);
-                init = true;
-                FreeList *newList = (FreeList*)malloc(sizeof(FreeList) * max_size());
-                newList->next = NULL;
-                for (size_t i = 0; i < max_size(); ++i)
-                {
-                    freeList->next = &newList[i];
-                    freeList = &newList[i];
-                }
-            }
-            HASSERT(freeList != NULL);
-            HASSERT(cnt == 1);
-            
-            T *newT = &(freeList->data);
-            freeList = freeList->next;
-            return newT;
-        }
-        
-        void deallocate(T *p, size_t n)
-        {
-            HASSERT(n == 1);
-            FreeList *pFreeList = (FreeList*)p;
-            pFreeList->next = freeList;
-            freeList = pFreeList;
-        }
-
-        //    size
-        size_t max_size() const
-        {
-            return entries;
-        }
-
-        //    construction/destruction
-
-        void construct(T *p, const T& t)
-        {
-            new(p) T(t);
-        }
-        
-        void destroy(T *p)
-        {
-            p->~T();
-        }
-
-        bool operator==(Allocator const&)
-        {
-            return true;
-        }
-        
-        bool operator!=(Allocator const& a)
-        {
-            return !operator==(a);
-        }
-    private:
-    };
-
     enum
     {
         /** marks an unused mapping */
@@ -296,31 +146,40 @@ private:
     Metadata *freeList;
     Metadata *metadata;
 
-    RBTree <NodeAlias, Metadata*> aliasTree;
-    RBTree <NodeID, Metadata*> idTree;
-    RBTree <long long, Metadata*> timeTree;
-
-    RBTree <NodeAlias, Metadata*>::Node *aliasNode;
-    RBTree <NodeID, Metadata*>::Node *idNode;
-    RBTree <long long, Metadata*>::Node *timeNode;
-
-    typedef std::map <NodeAlias, Metadata*, nodekey_compare, Allocator<std::pair<const NodeAlias, Metadata*>>> AliasMap;
+    typedef Map <NodeAlias, Metadata*> AliasMap;
+    typedef Map <NodeID, Metadata*> IdMap;
 
     AliasMap aliasMap;
+    IdMap idMap;
     
     Metadata *oldest;
     Metadata *newest;
-
-    //std::map <NodeID, Metadata*, less<NodeID>, Allocator<std::pair<NodeID, Metadata*>>> idMap;
-
-    //std::map <long long, Metadata*, less<long long>, Allocator<std::pair<long long, Metadata*>>> timeMap;
 
     /** Seed for the generation of the next alias */
     NodeID seed;
     
     /** Update the time stamp for a given entry.
-     * @param  metadata metadata associated with the entry */
-    inline void touch(Metadata* metadata);
+     * @param  metadata metadata associated with the entry
+     */
+    void touch(Metadata* metadata)
+    {
+        metadata->timestamp = OSTime::get_monotonic();
+
+        if (metadata != newest)
+        {
+            if (metadata->newer)
+            {
+                metadata->newer->older = metadata->older;
+            }
+            if (metadata->older)
+            {
+                metadata->older->newer = metadata->newer;
+            }
+            metadata->newer = NULL;
+            metadata->older = newest;
+            newest = metadata;
+        }
+    }
 
     /** Default Constructor */
     AliasCache();
@@ -328,21 +187,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 
-/** Update the time stamp for a given entry.
- * @param  metadata metadata associated with the entry
- */
-inline void AliasCache::touch(Metadata* metadata)
-{
-    RBTree<long long, Metadata*>::Node *node = timeTree.remove(metadata->timestamp);
-    
-    HASSERT(node != NULL);
-    
-    metadata->timestamp = OSTime::get_monotonic();
-    node->key = metadata->timestamp;
-    
-    timeTree.insert(node);
-}
-
-};
+}; /* namepace NMRAnet */
 
 #endif /* _NMRAnetAliasCache_hxx */
