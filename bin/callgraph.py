@@ -241,7 +241,7 @@ def ReadMapFile(f):
   return entries
 
 def escape(s):
-  return re.sub('[*()-: ,]', '_', s)
+  return re.sub('[\*\(\)\-\: ,]', '_', s)
 
 
 def ProcessMapEntries(entries):
