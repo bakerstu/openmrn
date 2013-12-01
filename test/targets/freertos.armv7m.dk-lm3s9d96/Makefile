@@ -19,3 +19,14 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_can
 TARGET := freertos.armv7m
 include $(OPENMRNPATH)/etc/prog.mk
 
+all: $(EXECUTABLE).bin $(EXECUTABLE).lst
+
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
+
+%.lst: %.elf
+	$(SIZE) $<
+	$(OBJDUMP) -d $< > $@
+
+cg.svg: $(EXECUTABLE).lst $(OPENMRNPATH)/bin/callgraph.py
+	$(OPENMRNPATH)/bin/callgraph.py --min_size 1000 --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
