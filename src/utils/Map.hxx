@@ -34,6 +34,8 @@
 #ifndef _Map_hxx_
 #define _Map_hxx_
 
+#include <cstdio>
+
 extern "C"
 {
 #include <sys/tree.hxx>
@@ -65,7 +67,8 @@ public:
         HASSERT(0);
     }
 #elif defined (__USE_LIBSTDCPP__)
-        mapping()
+        mappingAllocator(NULL),
+        mapping(new Mapping())
     {
     }
 #else
@@ -86,7 +89,8 @@ public:
     {
     }
 #elif defined (__USE_LIBSTDCPP__)
-        mappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries))
+        mappingAllocator(new MappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries))),
+        mapping(NULL)
     {
     }
 #else
@@ -309,14 +313,19 @@ public:
         };
 
         explicit Allocator(size_t e)
-            : init(false),
+            : freeList(NULL),
+              init(false),
               entries(e)
         {
+            printf("Allocator size: %zu\n", e);
         }
 
-        explicit Allocator(Allocator const&)
-            : init(false)
+        explicit Allocator(Allocator const& a)
+            : freeList(a.freeList),
+              init(a.init),
+              entries(a.entries)
         {
+            printf("Allocator copy size: %zu\n", entries);
         }
         
         ~Allocator()
@@ -324,8 +333,11 @@ public:
         }
         
         template <typename U> Allocator(Allocator<U> const& o)
-            : init(false), entries(o.entries)
+            : freeList(NULL),
+              init(o.init),
+              entries(o.entries)
         {
+            printf("Allocator template: %zu\n", entries);
         }
 
         //    address
@@ -344,16 +356,16 @@ public:
 
         T *allocate(size_t cnt, const void* = 0)
         {
+        #if 0
             if (init == false)
             {
                 HASSERT(entries != 0);
                 init = true;
                 FreeList *newList = (FreeList*)malloc(sizeof(FreeList) * max_size());
-                newList->next = NULL;
                 for (size_t i = 0; i < max_size(); ++i)
                 {
-                    freeList->next = &newList[i];
-                    freeList = &newList[i];
+                    newList[i].next = freeList;
+                    freeList = newList + i;
                 }
             }
             HASSERT(freeList != NULL);
@@ -362,14 +374,18 @@ public:
             T *newT = &(freeList->data);
             freeList = freeList->next;
             return newT;
+            #endif
+            return (T*)malloc(sizeof(FreeList));
         }
         
         void deallocate(T *p, size_t n)
         {
+        #if 0
             HASSERT(n == 1);
             FreeList *pFreeList = (FreeList*)p;
             pFreeList->next = freeList;
             freeList = pFreeList;
+        #endif
         }
 
         //    size
@@ -404,6 +420,7 @@ public:
             : init(false),
               entries(0)
         {
+            printf("Allocator default: 0\n");
         }
     };
 
@@ -416,7 +433,7 @@ public:
      */
     size_t erase(Key key)
     {
-        return mapping.erase(key);
+        return mapping ? mapping->erase(key) : mappingAllocator->erase(key);
     }
     
     /** Remove a node from the tree.
@@ -424,7 +441,7 @@ public:
      */
     void erase(typename std::map<Key, Value>::iterator it)
     {
-        mapping.erase(it);
+        mapping ? mapping->erase(it) : mappingAllocator->erase(it);
     }
     
     /** Find the index associated with the key and create it does not exist.
@@ -433,7 +450,7 @@ public:
      */
     Value& operator[](const Key &key)
     {
-        return mapping[key];
+        return mapping ? (*mapping)[key] : (*mappingAllocator)[key];
     }
 
     /** Number of elements currently in the map.
@@ -441,7 +458,7 @@ public:
      */
     size_t size()
     {
-        return mapping.size();
+        return mapping ? mapping->size() : mappingAllocator->size();
     }
 
     /** Maximum theoretical number of elements in themap.
@@ -449,7 +466,7 @@ public:
      */
     size_t max_size()
     {
-        return mapping.max_size();
+        return mapping ? mapping->max_size() : mappingAllocator->max_size();
     }
 
     /** Find an element matching the given key.
@@ -458,7 +475,7 @@ public:
      */
     typename std::map<Key, Value>::iterator find( const Key &key )
     {
-        return mapping.find(key);
+        return mapping ? mapping->find(key) : mappingAllocator->find(key);
     }
     
     /** Get an iterator index pointing one past the last element in mapping.
@@ -466,7 +483,7 @@ public:
      */
     typename std::map<Key, Value>::iterator end()
     {
-        return mapping.end();
+        return mapping ? mapping->end() : mappingAllocator->end();
     }
     
     /** Get an iterator index pointing one past the last element in mapping.
@@ -474,7 +491,7 @@ public:
      */
     typename std::map<Key, Value>::iterator begin()
     {
-        return mapping.begin();
+        return mapping ? mapping->begin() : mappingAllocator->begin();
     }
 
 #else
@@ -693,11 +710,8 @@ private:
     size_t used; /**< total number of entries in use for this instance */
 
 #elif defined (__USE_LIBSTDCPP__)
-    union
-    {
-        MappingAllocator mappingAllocator;
-        Mapping mapping;
-    };
+    MappingAllocator *mappingAllocator;
+    Mapping *mapping;
 
 #else
     /** Allocate a node from the free list.
