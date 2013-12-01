@@ -49,6 +49,12 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     
     Metadata *insert;
 
+    if (aliasMap.find(alias) != aliasMap.end())
+    {
+        /* we already have a mapping for this alias, so lets remove it */
+        remove(alias);
+    }
+
     if (freeList)
     {
         /* found an empty slot */
@@ -57,26 +63,40 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     }
     else
     {
-        HASSERT(oldest != NULL);
-        /* kick out the oldest mapping */
+        HASSERT(oldest != NULL && newest != NULL);
+
+        /* kick out the oldest mapping and re-link the oldest endpoint */
         insert = oldest;
+        if (oldest->newer)
+        {
+            oldest->newer->older = NULL;
+        }
         oldest = oldest->newer;
 
         aliasMap.erase(insert->alias);
+        idMap.erase(insert->id);
 
         insert->timestamp = OSTime::get_monotonic();
         insert->id = id;
         insert->alias = alias;
-        //map<long long, Metadata*>::iterator oldest = timeMap.begin();
-        //insert = oldest->second;
-        //aliasMap.erase(insert->alias);
-        //idMap.erase(insert->id);
-        //timeMap.erase(oldest);
     }
         
     aliasMap[alias] = insert;
-    //idMap[id] = insert;
-    //timeMap[insert->timestamp] = insert;
+    idMap[id] = insert;
+
+    /* update the time based list */
+    insert->newer = NULL;
+    if (newest == NULL)
+    {
+        insert->older = NULL;
+        oldest = insert;
+    }
+    else
+    {
+        insert->older = newest;
+        newest->newer = insert;
+    }
+    newest = insert;
     
     return;
 }
@@ -86,16 +106,33 @@ void AliasCache::add(NodeID id, NodeAlias alias)
  */
 void AliasCache::remove(NodeAlias alias)
 {
-    HASSERT(alias != 0);
+    auto it = aliasMap.find(alias);
 
-    RBTree<NodeAlias, Metadata*>::Node *node = aliasTree.remove(alias);
-    if (node)
+    if (it != aliasMap.end())
     {
-        idTree.remove(node->value->id);
-        timeTree.remove(node->value->timestamp);
+        Metadata *metadata = (*it).second;
+        aliasMap.erase(it);
+        idMap.erase(metadata->id);
         
-        node->value->next = freeList;
-        freeList = node->value;
+        if (metadata->newer)
+        {
+            metadata->newer->older = metadata->older;
+        }
+        if (metadata->older)
+        {
+            metadata->older->newer = metadata->newer;
+        }
+        if (metadata == newest)
+        {
+            newest = metadata->older;
+        }
+        if (metadata == oldest)
+        {
+            oldest = metadata->newer;
+        }
+    
+        metadata->next = freeList;
+        freeList = metadata;
     }
     
 }
@@ -108,14 +145,17 @@ NodeAlias AliasCache::lookup(NodeID id)
 {
     HASSERT(id != 0);
 
-    RBTree<NodeID, Metadata*>::Node *node = idTree.find(id);
-    if (node)
+    auto it = idMap.find(id);
+
+    if (it != idMap.end())
     {
-        /* found a match */
-        touch(node->value);
-        return node->value->alias;
+        Metadata *metadata = (*it).second;
+        
+        /* update timestamp */
+        touch(metadata);
+        return metadata->alias;
     }
-    
+
     /* no match found */
     return 0;
 }
@@ -128,12 +168,15 @@ NodeID AliasCache::lookup(NodeAlias alias)
 {
     HASSERT(alias != 0);
 
-    RBTree<NodeAlias, Metadata*>::Node *node = aliasTree.find(alias);
-    if (node)
+    auto it = aliasMap.find(alias);
+
+    if (it != aliasMap.end())
     {
-        /* found a match */
-        touch(node->value);
-        return node->value->id;
+        Metadata *metadata = (*it).second;
+        
+        /* update timestamp */
+        touch(metadata);
+        return metadata->id;
     }
     
     /* no match found */
@@ -148,11 +191,10 @@ void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *cont
 {
     HASSERT(callback != NULL);
 
-    for (RBTree<NodeAlias, Metadata*>::Node *node = aliasTree.first();
-         node !=NULL;
-         node = aliasTree.next(node))
+    for (auto it = aliasMap.begin(); it != aliasMap.end(); ++it)
     {
-        (*callback)(context, node->value->id, node->value->alias);
+        Metadata *metadata = (*it).second;
+        (*callback)(context, metadata->id, metadata->alias);
     }
 }
 
