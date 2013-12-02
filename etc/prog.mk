@@ -79,6 +79,15 @@ $(FULLPATHLIBS): $(BUILDDIRS)
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)  depmake
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+ifdef SIZE
+	$(SIZE) $@
+endif
+
+$(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
+	$(OBJDUMP) -d $< > $@
+
+cg.svg: $(EXECUTABLE).lst $(OPENMRNPATH)/bin/callgraph.py
+	$(OPENMRNPATH)/bin/callgraph.py --min_size 300 --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
 .PHONY: depmake
 

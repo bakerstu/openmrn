@@ -581,16 +581,9 @@ def main():
   if FLAGS.map_file:
     entries = ReadMapFile(open(FLAGS.map_file, 'r'))
     ProcessMapEntries(entries)
-  print >>sys.stderr, "Node cs3_start_asm: ", all_symbols['__cs3_start_asm'].DebugString()
   CollectTotalSizes()
-  print >>sys.stderr, "Node cs3_start_asm: ", all_symbols['__cs3_start_asm'].DebugString()
   ApplyFilters()
-  print >>sys.stderr, "Node cs3_start_asm: ", all_symbols['__cs3_start_asm'].DebugString()
   PrintOutput()
-  print >>sys.stderr, "Node d_print_comp: ", all_symbols['d_print_comp'].DebugString()
-  print >>sys.stderr, "Node cs3_start_asm: ", all_symbols['__cs3_start_asm'].DebugString()
-  print >>sys.stderr, "Node std:;terminate: ", all_symbols['_ZSt9terminatev'].DebugString()
-
 
 if __name__ == "__main__":
     main()
