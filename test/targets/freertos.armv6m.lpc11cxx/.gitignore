@@ -1,6 +1,1 @@
-*.elf
-*.bin
-*.lst
-*.map
-.cproject
-.project
+../../../boards/nxp-lpc11C24-lpcxpresso/.gitignore
