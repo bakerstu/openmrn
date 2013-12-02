@@ -144,6 +144,9 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                             case MTI_VERIFY_NODE_ID_GLOBAL:
                                 if (data != NULL)
                                 {
+                                    /** @todo (Stuart Baker) we can do this more
+                                     * efficiently with different loop logic.
+                                     */
                                     NodeID id = ((NodeID)bytes[5] <<  0) +
                                                 ((NodeID)bytes[4] <<  8) +
                                                 ((NodeID)bytes[3] << 16) +

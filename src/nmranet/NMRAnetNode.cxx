@@ -64,7 +64,20 @@ void Node::initialized()
     if (state != INITIALIZED)
     {
         state = INITIALIZED;
-        verify_id_number();
+        Buffer *buffer = buffer_alloc(6);
+        uint8_t *data = (uint8_t*)buffer->start();
+        
+        data[0] = (nodeID >> 40) & 0xff;
+        data[1] = (nodeID >> 32) & 0xff;
+        data[2] = (nodeID >> 24) & 0xff;
+        data[3] = (nodeID >> 16) & 0xff;
+        data[4] = (nodeID >>  8) & 0xff;
+        data[5] = (nodeID >>  0) & 0xff;
+        
+        buffer->advance(6);
+        
+        write(If::MTI_INITIALIZATION_COMPLETE, {0, 0}, buffer);
+
         /* identify all of the events this node produces and consumes */
         //nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
         //nmranet_identify_producers(node, 0, EVENT_ALL_MASK);

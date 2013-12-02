@@ -559,9 +559,9 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                 }
                 writeBuffer.setup(mti, src, dst, data);
 
-                /* Alias Map Enquiry */
+                /* Verify Node ID Number Global with */
                 struct can_frame frame;
-                control_init(frame, alias, AME_FRAME, 0);
+                frame.can_id = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
                 SET_CAN_FRAME_EFF(frame);
                 CLR_CAN_FRAME_RTR(frame);
                 CLR_CAN_FRAME_ERR(frame);
