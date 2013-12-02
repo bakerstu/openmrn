@@ -215,7 +215,7 @@ void StellarisCan::interrupt_handler()
         if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE)
         {
             bool notify = false;
-            if (os_mq_num_pending_from_isr(txQ) == (CAN_TX_BUFFER_SIZE - 1))
+            if ((unsigned)os_mq_num_pending_from_isr(txQ) == (CAN_TX_BUFFER_SIZE - 1))
             {
                 notify = true;
             }
