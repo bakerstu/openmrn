@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,101 +42,83 @@
 
 /** This class provides a threading API.
  */
-class OSThread
-{
-public:
-    /** Create a thread.
-     * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread
-     * @param stack_size size in bytes of the created thread's stack
-     * @param start_routine entry point of the thread
-     * @param arg entry parameter to the thread
-     */
-    OSThread(const char *name, int priority, size_t stack_size,
-             void *(*start_routine)(void*), void *arg)
-    {
-        os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
-    }
+class OSThread {
+ public:
+  /** Create a thread.
+   * @param name name of thread, NULL for an auto generated name
+   * @param priority priority of created thread
+   * @param stack_size size in bytes of the created thread's stack
+   * @param start_routine entry point of the thread
+   * @param arg entry parameter to the thread
+   */
+  OSThread(const char *name, int priority, size_t stack_size,
+           void *(*start_routine)(void *), void *arg) {
+    os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
+  }
 
-   /** Create a thread.  This constructor can be used when OSThread is inherited.
-     * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread
-     * @param stack_size size in bytes of the created thread's stack
-     */
-    OSThread(const char *name, int priority, size_t stack_size)
-    {
-        os_thread_create(&handle, name, priority, stack_size, start, this);
-    }
+  /** Create a thread.  This constructor can be used when OSThread is inherited.
+    * @param name name of thread, NULL for an auto generated name
+    * @param priority priority of created thread
+    * @param stack_size size in bytes of the created thread's stack
+    */
+  OSThread(const char *name, int priority, size_t stack_size) {
+    os_thread_create(&handle, name, priority, stack_size, start, this);
+  }
 
-    /** Default destructor. */
-    ~OSThread()
-    {
-    }
+  /** Default destructor. */
+  ~OSThread() {}
 
-protected:
-    /** User entry point for the created thread.
-     * @return exit status
-     */
-    virtual void *entry()
-    {
-        return NULL;
-    }
-    
-private:
-    /** Starting point for a new thread.
-     * @param arg pointer to an OSThread instance
-     * @return exit status
-     */
-    static void *start(void *arg)
-    {
-        OSThread *thread = (OSThread*)arg;
-        return thread->entry();
-    }
+ protected:
+  /** User entry point for the created thread.
+   * @return exit status
+   */
+  virtual void *entry() { return NULL; }
 
-    /** Default Constructor */
-    OSThread();
-      
-    DISALLOW_COPY_AND_ASSIGN(OSThread);
+ private:
+  /** Starting point for a new thread.
+   * @param arg pointer to an OSThread instance
+   * @return exit status
+   */
+  static void *start(void *arg) {
+    OSThread *thread = (OSThread *)arg;
+    return thread->entry();
+  }
 
-    /** Private thread handle. */
-    os_thread_t handle;
+  /** Default Constructor */
+  OSThread();
+
+  DISALLOW_COPY_AND_ASSIGN(OSThread);
+
+  /** Private thread handle. */
+  os_thread_t handle;
 };
 
 /** This class provides support for one time initialization.
  */
-class OSThreadOnce
-{
-public:
-    /** One time intialization constructor.
-     * @param routine method to call once
-     */
-    OSThreadOnce(void (*routine)(void))
-        : handle(OS_THREAD_ONCE_INIT),
-          routine(routine)
-    {
-    }
-    
-    /** call one time intialization routine
-     * @return 0 upon success
-     */
-    int once(void)
-    {
-        return os_thread_once(&handle, routine);
-    }
+class OSThreadOnce {
+ public:
+  /** One time intialization constructor.
+   * @param routine method to call once
+   */
+  OSThreadOnce(void (*routine)(void))
+      : handle(OS_THREAD_ONCE_INIT), routine(routine) {}
 
-    /** Default Destructor */
-    ~OSThreadOnce()
-    {
-    }
+  /** call one time intialization routine
+   * @return 0 upon success
+   */
+  int once(void) { return os_thread_once(&handle, routine); }
 
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
+  /** Default Destructor */
+  ~OSThreadOnce() {}
 
-    /** Private once handle. */
-    os_thread_once_t handle;
-    
-    /** One time initialization routine */
-    void (*routine)(void);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OSThreadOnce);
+
+  /** Private once handle. */
+  os_thread_once_t handle;
+
+  /** One time initialization routine */
+  void (*routine)(void);
 };
 
 /** This class provides a timer API.
@@ -146,146 +128,108 @@ private:
  * OS_TIMER_DELETE deletes the timer, and all other values indicate the restart
  * period in nanoseconds.
  */
-class OSTimer
-{
-public:
-    /** Create a new timer.
-     * @param callback callback associated with timer
-     * @param data1 data to pass along with callback
-     * @param data2 data to pass along with callback
-     */
-    OSTimer(long long (*callback)(void*, void*), void *data1, void *data2)
-    {
-        handle = os_timer_create(callback, data1, data2);
-    }
+class OSTimer {
+ public:
+  /** Create a new timer.
+   * @param callback callback associated with timer
+   * @param data1 data to pass along with callback
+   * @param data2 data to pass along with callback
+   */
+  OSTimer(long long (*callback)(void *, void *), void *data1, void *data2) {
+    handle = os_timer_create(callback, data1, data2);
+  }
 
-    /** Delete a timer.
-     */
-    ~OSTimer()
-    {
-        os_timer_delete(handle);
-    }
+  /** Delete a timer.
+   */
+  ~OSTimer() { os_timer_delete(handle); }
 
-    /** Start a timer.
-     * @param period period in nanoseconds before expiration
-     */
-    void start(long long period)
-    {
-        os_timer_start(handle, period);
-    }
+  /** Start a timer.
+   * @param period period in nanoseconds before expiration
+   */
+  void start(long long period) { os_timer_start(handle, period); }
 
-    /** Delete a timer.
-     */
-    void stop()
-    {
-        os_timer_stop(handle);
-    }
+  /** Delete a timer.
+   */
+  void stop() { os_timer_stop(handle); }
 
-private:
-    /** Default constructor.
-     */
-    OSTimer();
+ private:
+  /** Default constructor.
+   */
+  OSTimer();
 
-    DISALLOW_COPY_AND_ASSIGN(OSTimer);
+  DISALLOW_COPY_AND_ASSIGN(OSTimer);
 
-    /** Private timer handle. */
-    os_timer_t handle;
+  /** Private timer handle. */
+  os_timer_t handle;
 };
 
 /** This class provides a counting semaphore API.
  */
-class OSSem
-{
-public:
-    /** Initialize a Semaphore.
-     * @param value initial count
-     */
-    OSSem(unsigned int value = 0)
-    {
-        os_sem_init(&handle, value);
-    }
+class OSSem {
+ public:
+  /** Initialize a Semaphore.
+   * @param value initial count
+   */
+  OSSem(unsigned int value = 0) { os_sem_init(&handle, value); }
 
-    ~OSSem()
-    {
-        os_sem_destroy(&handle);
-    }
+  ~OSSem() { os_sem_destroy(&handle); }
 
-    /** Post (increment) a semaphore.
-     */
-    void post()
-    {
-        os_sem_post(&handle);
-    }
+  /** Post (increment) a semaphore.
+   */
+  void post() { os_sem_post(&handle); }
 
-    /** Wait on (decrement) a semaphore.
-     */
-    void wait()
-    {
-        os_sem_wait(&handle);
-    }
+  /** Wait on (decrement) a semaphore.
+   */
+  void wait() { os_sem_wait(&handle); }
 
-    /** Wait on (decrement) a semaphore with timeout condition.
-     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
-     * @return 0 upon success, else -1 with errno set to indicate error
-     */
-    int timedwait(long long timeout)
-    {
-        return os_sem_timedwait(&handle, timeout);
-    }
+  /** Wait on (decrement) a semaphore with timeout condition.
+   * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+   * @return 0 upon success, else -1 with errno set to indicate error
+   */
+  int timedwait(long long timeout) {
+    return os_sem_timedwait(&handle, timeout);
+  }
 
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSSem);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OSSem);
 
-    /** Private semaphore handle. */
-    os_sem_t handle;
+  /** Private semaphore handle. */
+  os_sem_t handle;
 };
 
 /** This class provides a mutex API.
  */
-class OSMutex
-{
-public:
-    /** Initialize a mutex.
-     * @param recursive false creates a normal mutex, true creates a recursive mutex
-     */
-    OSMutex(bool recursive = false)
-    {
-        if (recursive)
-        {
-            os_recursive_mutex_init(&handle);
-        }
-        else
-        {
-            os_mutex_init(&handle);
-        }
+class OSMutex {
+ public:
+  /** Initialize a mutex.
+   * @param recursive false creates a normal mutex, true creates a recursive
+   * mutex
+   */
+  OSMutex(bool recursive = false) {
+    if (recursive) {
+      os_recursive_mutex_init(&handle);
+    } else {
+      os_mutex_init(&handle);
     }
+  }
 
-    /** Lock a mutex.
-     */
-    void lock()
-    {
-        os_mutex_lock(&handle);
-    }
+  /** Lock a mutex.
+   */
+  void lock() { os_mutex_lock(&handle); }
 
-    /** Unlock a mutex.
-     */
-    void unlock()
-    {
-        os_mutex_unlock(&handle);
-    }
+  /** Unlock a mutex.
+   */
+  void unlock() { os_mutex_unlock(&handle); }
 
-    /** Destructor */
-    ~OSMutex()
-    {
-        os_mutex_destroy(&handle);
-    }
+  /** Destructor */
+  ~OSMutex() { os_mutex_destroy(&handle); }
 
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSMutex);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OSMutex);
 
-    friend class OSMutexLock;
-    /** Private mutex handle. */
-    os_mutex_t handle;
+  friend class OSMutexLock;
+  /** Private mutex handle. */
+  os_mutex_t handle;
 };
 
 /**
@@ -307,31 +251,22 @@ private:
  *   // ...at this point the mutex is unlocked...
  *   // ...more non-critical-section code here...
  * }
- * 
+ *
  */
-class OSMutexLock
-{
-public:
-    OSMutexLock(OSMutex* mutex)
-        : mutex_(&mutex->handle)
-    {
-        os_mutex_lock(mutex_);
-    }
+class OSMutexLock {
+ public:
+  OSMutexLock(OSMutex *mutex) : mutex_(&mutex->handle) {
+    os_mutex_lock(mutex_);
+  }
 
-    OSMutexLock(os_mutex_t* mutex)
-        : mutex_(mutex)
-    {
-        os_mutex_lock(mutex_);
-    }
+  OSMutexLock(os_mutex_t *mutex) : mutex_(mutex) { os_mutex_lock(mutex_); }
 
-    ~OSMutexLock()
-    {
-        os_mutex_unlock(mutex_);
-    }
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSMutexLock);
+  ~OSMutexLock() { os_mutex_unlock(mutex_); }
 
-    os_mutex_t* mutex_;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OSMutexLock);
+
+  os_mutex_t *mutex_;
 };
 
 /** This catches programming errors where you declare a mutex locker object
@@ -359,25 +294,21 @@ private:
  */
 #define OSMutexLock(l) int error_omitted_mutex_lock_variable[-1]
 
-class OSTime
-{
-public:
-    /** Get the monotonic time since the system started.
-     * @return time in nanoseconds since system start
-     */
-    static long long get_monotonic(void)
-    {
-        return os_get_time_monotonic();
-    }
+class OSTime {
+ public:
+  /** Get the monotonic time since the system started.
+   * @return time in nanoseconds since system start
+   */
+  static long long get_monotonic(void) { return os_get_time_monotonic(); }
 
-private:
-    DISALLOW_COPY_AND_ASSIGN(OSTime);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(OSTime);
 
-    /* Private default constructor prevents instantiating this class. */
-    OSTime();
+  /* Private default constructor prevents instantiating this class. */
+  OSTime();
 
-    /** Default destructor. */
-    ~OSTime();
+  /** Default destructor. */
+  ~OSTime();
 };
 
 #endif /* _os_hxx_ */

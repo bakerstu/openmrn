@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,41 +44,40 @@ extern "C" {
 /** Well known events Node ID */
 #define NODE_ID_WELL_KNOWN_EVENTS 0x010100000000LL
 /** CBUS events base */
-#define NODE_ID_CBUS_EVENTS_BASE  0x010101000000LL
+#define NODE_ID_CBUS_EVENTS_BASE 0x010101000000LL
 /** CBUS events mask */
-#define NODE_ID_CBUS_EVENTS_MASK  0xffffff000000LL
+#define NODE_ID_CBUS_EVENTS_MASK 0xffffff000000LL
 /** XpressNet translation base */
-#define NODE_ID_XPRESSNET_BASE    0x016300000000LL
+#define NODE_ID_XPRESSNET_BASE 0x016300000000LL
 /** XpressNet translation mask */
-#define NODE_ID_XPRESSNET_MASK    0xffff00000000LL
+#define NODE_ID_XPRESSNET_MASK 0xffff00000000LL
 /** NocoNet translation base */
-#define NODE_ID_LOCONET_BASE      0x018100000000LL
+#define NODE_ID_LOCONET_BASE 0x018100000000LL
 /** LocoNet translation mask */
-#define NODE_ID_LOCONET_MASK      0xffff00000000LL
+#define NODE_ID_LOCONET_MASK 0xffff00000000LL
 /** DCC translation base */
-#define NODE_ID_DCC_BASE          0x01ee00000000LL
+#define NODE_ID_DCC_BASE 0x01ee00000000LL
 /** DCC translation mask */
-#define NODE_ID_DCC_MASK          0xffff00000000LL
+#define NODE_ID_DCC_MASK 0xffff00000000LL
 /** Mask to get all messages */
-#define NODE_ID_ALL_MASK          0x000000000000LL
+#define NODE_ID_ALL_MASK 0x000000000000LL
 /** Mask for exact node ID */
-#define NODE_ID_EXACT_MASK        0xffffffffffffLL
+#define NODE_ID_EXACT_MASK 0xffffffffffffLL
 
 #define PROTOCOL_PROTOCOL_IDENTIFICATION 0x800000000000
-#define PROTOCOL_DATAGRAM                0x400000000000
-#define PROTOCOL_STREAM                  0x200000000000
-#define PROTOCOL_MEMORY_CONFIGURATION    0x100000000000
-#define PROTOCOL_RESERVATION             0x080000000000
-#define PROTOCOL_EVENT_EXCHANGE          0x040000000000
-#define PROTOCOL_IDENTIFICATION          0x020000000000
-#define PROTOCOL_LEARN_CONFIGURATION     0x010000000000
-#define PROTOCOL_REMOTE_BUTTON           0x008000000000
+#define PROTOCOL_DATAGRAM 0x400000000000
+#define PROTOCOL_STREAM 0x200000000000
+#define PROTOCOL_MEMORY_CONFIGURATION 0x100000000000
+#define PROTOCOL_RESERVATION 0x080000000000
+#define PROTOCOL_EVENT_EXCHANGE 0x040000000000
+#define PROTOCOL_IDENTIFICATION 0x020000000000
+#define PROTOCOL_LEARN_CONFIGURATION 0x010000000000
+#define PROTOCOL_REMOTE_BUTTON 0x008000000000
 #define PROTOCOL_ABBREVIATED_DEFAULT_CDI 0x004000000000
-#define PROTOCOL_DISPLAY                 0x002000000000
+#define PROTOCOL_DISPLAY 0x002000000000
 #define PROTOCOL_SIMPLE_NODE_INFORMATION 0x001000000000
-#define PROTOCOL_CDI                     0x000800000000
-#define PROTOCOL_RESERVED_MASK           0x0007FFFFFFFF
-
+#define PROTOCOL_CDI 0x000800000000
+#define PROTOCOL_RESERVED_MASK 0x0007FFFFFFFF
 
 /** Create a new virtual node.
  * @param node_id 48-bit unique Node ID
@@ -87,7 +86,8 @@ extern "C" {
  * @param priv private data to store with the the node for later retrieval
  * @return upon success, handle to the newly created node, else NULL
  */
-node_t nmranet_node_create(node_id_t node_id, NMRAnetIF *nmranet_if, const char* model, void *priv);
+node_t nmranet_node_create(node_id_t node_id, NMRAnetIF *nmranet_if,
+                           const char *model, void *priv);
 
 /** Lookup the node handle for a given node ID.
  * @param node_id 48-bit unique Node ID
@@ -128,7 +128,8 @@ void *nmranet_node_private(node_t node);
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst, const void *data);
+int nmranet_node_write(node_t node, uint16_t mti, node_handle_t dst,
+                       const void *data);
 
 /** Wait for data to come in from the network.
  * @param node node to wait on
@@ -155,4 +156,3 @@ void nmranet_node_user_description(node_t node, const char *user_description);
 #endif
 
 #endif /* _nmranet_node_h_ */
-

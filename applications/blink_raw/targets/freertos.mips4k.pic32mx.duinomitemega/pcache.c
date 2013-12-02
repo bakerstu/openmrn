@@ -50,15 +50,13 @@
  * Note:
  *
  ********************************************************************/
-void __attribute__ ((nomips16)) CheKseg0CacheOff(void)
-{
-	register unsigned long tmp;
+void __attribute__((nomips16)) CheKseg0CacheOff(void) {
+  register unsigned long tmp;
 
-	asm("mfc0 %0,$16,0" :  "=r"(tmp));
-	tmp = (tmp & ~7) | 2;
-	asm("mtc0 %0,$16,0" :: "r" (tmp));
+  asm("mfc0 %0,$16,0" : "=r"(tmp));
+  tmp = (tmp & ~7) | 2;
+  asm("mtc0 %0,$16,0" ::"r"(tmp));
 }
-
 
 /*********************************************************************
  * Function:        void cheKseg0CacheOn(void)
@@ -73,10 +71,9 @@ void __attribute__ ((nomips16)) CheKseg0CacheOff(void)
  * Note:
  *
  ********************************************************************/
-void __attribute__ ((nomips16)) CheKseg0CacheOn(void)
-{
-	register unsigned long tmp;
-	asm("mfc0 %0,$16,0" :  "=r"(tmp));
-	tmp = (tmp & ~7) | 3;
-	asm("mtc0 %0,$16,0" :: "r" (tmp));
+void __attribute__((nomips16)) CheKseg0CacheOn(void) {
+  register unsigned long tmp;
+  asm("mfc0 %0,$16,0" : "=r"(tmp));
+  tmp = (tmp & ~7) | 3;
+  asm("mtc0 %0,$16,0" ::"r"(tmp));
 }

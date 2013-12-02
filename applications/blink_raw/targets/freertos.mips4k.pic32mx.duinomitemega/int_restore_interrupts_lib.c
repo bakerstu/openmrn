@@ -48,10 +48,9 @@
  * Overview:        Interrupts are enabled by setting the IE bit
  *                  in the status register
  ********************************************************************/
-void __attribute__((nomips16))  INTRestoreInterrupts(unsigned int status)
-{
-    if(status & 0x00000001)
-        asm volatile("ei");
-    else
-        asm volatile("di");
+void __attribute__((nomips16)) INTRestoreInterrupts(unsigned int status) {
+  if (status & 0x00000001)
+    asm volatile("ei");
+  else
+    asm volatile("di");
 }

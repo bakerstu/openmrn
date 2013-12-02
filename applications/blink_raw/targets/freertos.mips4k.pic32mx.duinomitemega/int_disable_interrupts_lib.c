@@ -48,11 +48,10 @@
  * Overview:        Interrupts are disabled by clearing the IE bit
  *                  in the status register
  ********************************************************************/
-unsigned int __attribute__((nomips16)) INTDisableInterrupts(void)
-{
-    unsigned int status = 0;
+unsigned int __attribute__((nomips16)) INTDisableInterrupts(void) {
+  unsigned int status = 0;
 
-    asm volatile("di    %0" : "=r"(status));
+  asm volatile("di    %0" : "=r"(status));
 
-    return status;
+  return status;
 }

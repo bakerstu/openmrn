@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,24 +52,23 @@ void diewith(unsigned long);
  *  \param pattern is a blinking pattern, each bit will be shifted to the
  *  output LED every 125 ms.
  */
-void setblink(uint32_t pattern)
-{
-    blinker_pattern = pattern;
-    // clock = raw clock
-    PCLKSEL0 = (PCLKSEL0 & (~(0x3<<4))) | (0x01 << 4);
-    LPC_TIM1->TCR = 2;  // stop & reset timer
-    LPC_TIM1->CTCR = 0; // timer mode
-    // prescale to 1 ms per tick
-    LPC_TIM1->PR = configCPU_CLOCK_HZ / 1000;
-    LPC_TIM1->MR0 = 125;
-    LPC_TIM1->MCR = 3;  // reset and interrupt on match 0
+void setblink(uint32_t pattern) {
+  blinker_pattern = pattern;
+  // clock = raw clock
+  PCLKSEL0 = (PCLKSEL0 & (~(0x3 << 4))) | (0x01 << 4);
+  LPC_TIM1->TCR = 2;   // stop & reset timer
+  LPC_TIM1->CTCR = 0;  // timer mode
+  // prescale to 1 ms per tick
+  LPC_TIM1->PR = configCPU_CLOCK_HZ / 1000;
+  LPC_TIM1->MR0 = 125;
+  LPC_TIM1->MCR = 3;  // reset and interrupt on match 0
 
-    LPC_VIC->IntSelect |= (1<<5);   // FIQ
-    LPC_VIC->IntEnable = (1<<5);   // FIQ
+  LPC_VIC->IntSelect |= (1 << 5);  // FIQ
+  LPC_VIC->IntEnable = (1 << 5);   // FIQ
 
-    enable_fiq();
+  enable_fiq();
 
-    LPC_TIM1->TCR = 1;  // Timer go.
+  LPC_TIM1->TCR = 1;  // Timer go.
 }
 
 /** Updates the blinking pattern.
@@ -77,41 +76,36 @@ void setblink(uint32_t pattern)
  *  \param pattern is a blinking pattern, each bit will be shifted to the
  *  output LED every 125 ms.
  */
-void resetblink(uint32_t pattern)
-{
-    blinker_pattern = pattern;
-    // Makes a timer event trigger immediately.
-    LPC_TIM1->TC = LPC_TIM1->MR0 - 2;
+void resetblink(uint32_t pattern) {
+  blinker_pattern = pattern;
+  // Makes a timer event trigger immediately.
+  LPC_TIM1->TC = LPC_TIM1->MR0 - 2;
 }
 
 /** Aborts the program execution and sets a particular blinking pattern.
  *
  *  \param pattern is a blinking pattern, each bit will be shifted to the
  *  output LED every 125 ms.
- * 
+ *
  *  Never returns.
  */
-void diewith(unsigned long pattern)
-{
-    enable_fiq_only();
-    setblink(pattern);
-    for (;;)
-    {
-    }
+void diewith(unsigned long pattern) {
+  enable_fiq_only();
+  setblink(pattern);
+  for (;;) {
+  }
 }
 
 /** Initializes the processor hardware.
  */
-void hw_init(void)
-{
-    LPC_GPIO3->FIODIR=(1<<26);
-    LPC_GPIO3->FIOCLR=(1<<26);
-    setblink(0x8000000AUL);
-    // Waits for the start button to be pressed.
-    while(!startpin)
-    {
-    }
-    resetblink(1);
+void hw_init(void) {
+  LPC_GPIO3->FIODIR = (1 << 26);
+  LPC_GPIO3->FIOCLR = (1 << 26);
+  setblink(0x8000000AUL);
+  // Waits for the start button to be pressed.
+  while (!startpin) {
+  }
+  resetblink(1);
 }
 
 }  // extern C

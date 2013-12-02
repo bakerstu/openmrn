@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,13 +42,9 @@
 #include "portmacro.h"
 
 class Lockable {
-public:
-  void lock() {
-    portENTER_CRITICAL();
-  }
-  void unlock() {
-    portEXIT_CRITICAL();
-  }
+ public:
+  void lock() { portENTER_CRITICAL(); }
+  void unlock() { portEXIT_CRITICAL(); }
 };
 
 #else
@@ -56,7 +52,7 @@ public:
 #include "os/OS.hxx"
 
 class Lockable : public OSMutex {
-public:
+ public:
   Lockable() : OSMutex(true) {}
 };
 
@@ -64,19 +60,15 @@ public:
 
 //! See @OSMutexLock in os/OS.hxx
 class LockHolder {
-public:
-  LockHolder(Lockable* parent)
-    : parent_(parent) {
-    parent_->lock();
-  }
-  ~LockHolder() {
-    parent_->unlock();
-  }
-private:
+ public:
+  LockHolder(Lockable* parent) : parent_(parent) { parent_->lock(); }
+  ~LockHolder() { parent_->unlock(); }
+
+ private:
   Lockable* parent_;
 };
 
 //! See @OSMutexLock in os/OS.hxx
 #define LockHolder(l) int error_omitted_lock_holder_variable[-1]
 
-#endif // _UTILS_LOCK_HXX_
+#endif  // _UTILS_LOCK_HXX_

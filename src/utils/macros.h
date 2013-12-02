@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -39,7 +39,7 @@
 using namespace std;
 #endif
 
-#include <stdlib.h>   // for abort
+#include <stdlib.h>  // for abort
 
 #ifdef __FreeRTOS__
 
@@ -51,11 +51,12 @@ using namespace std;
    An example would be to check a pointer being not-NULL before dereferencing
    it. The resulting fault is typically much harder to debug than an assert.
  */
-#define HASSERT(x) do { if (!(x)) abort(); } while(0)
-
+#define HASSERT(x)     \
+  do {                 \
+    if (!(x)) abort(); \
+  } while (0)
 
 #define DIE(MSG) abort()
-
 
 #else
 
@@ -63,12 +64,27 @@ using namespace std;
 #include <stdio.h>
 
 #ifdef NDEBUG
-#define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
+#define HASSERT(x)                                                             \
+  do {                                                                         \
+    if (!(x)) {                                                                \
+      fprintf(stderr,                                                          \
+              "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", \
+              __LINE__);                                                       \
+      abort();                                                                 \
+    }                                                                          \
+  } while (0)
 #else
-#define HASSERT(x) do { assert(x); } while(0)
+#define HASSERT(x) \
+  do {             \
+    assert(x);     \
+  } while (0)
 #endif
 
-#define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
+#define DIE(MSG)                                                             \
+  do {                                                                       \
+    fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); \
+    abort();                                                                 \
+  } while (0)
 
 #endif
 
@@ -77,14 +93,13 @@ using namespace std;
 /** Debug assertion facility. Will terminate the program if the program was
    compiled without NDEBUG symbol.
  */
-#define DASSERT(x) 
+#define DASSERT(x)
 
 #else
 
 #define DASSERT(x) HASSERT(x)
 
 #endif
-
 
 /**
    Removes default copy-constructor and assignment added by C++.
@@ -94,7 +109,7 @@ using namespace std;
    form unintended passing of the objects by value.
  */
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);   \
+  TypeName(const TypeName&);               \
   void operator=(const TypeName&)
 
-#endif // _UTILS_MACROS_H_
+#endif  // _UTILS_MACROS_H_

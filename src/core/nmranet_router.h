@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,12 +42,11 @@ extern os_mq_t nmranet_rx_queue;
 
 /** The receive frame structure used allong with @ref nmranet_rx_queue.
  */
-typedef struct nmranet_rx
-{
-    uint16_t mti;       /**< message type indicator */
-    node_id_t src; /**< source id of message, 0 if not used. */
-    node_id_t dst; /**< destination id of message, 0 if not used */
-    char data[8];  /**< up to 8 bytes of data */
+typedef struct nmranet_rx {
+  uint16_t mti;  /**< message type indicator */
+  node_id_t src; /**< source id of message, 0 if not used. */
+  node_id_t dst; /**< destination id of message, 0 if not used */
+  char data[8];  /**< up to 8 bytes of data */
 } NMRAnetRX;
 
 #endif /*_nmranet_router_h_ */

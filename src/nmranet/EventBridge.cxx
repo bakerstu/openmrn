@@ -35,8 +35,7 @@ class EventVectorRegistry : public ProxyEventHandler {
   }
   virtual ~EventVectorRegistry() {}
 
-  virtual void HandlerFn(EventHandlerFunction fn,
-                         EventReport* event,
+  virtual void HandlerFn(EventHandlerFunction fn, EventReport* event,
                          Notifiable* done) {
     TypedSyncAllocation<AllocatedIteratedCall> a(&event_iterators_);
     a.result()->RunFlow(fn, event, done);
@@ -45,8 +44,8 @@ class EventVectorRegistry : public ProxyEventHandler {
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
     // If an identify global shows up, we reset the handling iterator to zero
     // and start it.
-    global_event_iterator_.RunFlow(
-        &NMRAnetEventHandler::HandleIdentifyGlobal, event, done);
+    global_event_iterator_.RunFlow(&NMRAnetEventHandler::HandleIdentifyGlobal,
+                                   event, done);
   }
 
   void RegisterHandler(NMRAnetEventHandler* handler) {
@@ -77,8 +76,7 @@ class EventVectorRegistry : public ProxyEventHandler {
     IteratedCall(EventVectorRegistry* parent)
         : ControlFlow(parent->executor_, NULL), parent_(parent) {}
 
-    void RunFlow(EventHandlerFunction fn,
-                 EventReport* event,
+    void RunFlow(EventHandlerFunction fn, EventReport* event,
                  Notifiable* done) {
       Restart(done);
       fn_ = fn;
@@ -86,8 +84,7 @@ class EventVectorRegistry : public ProxyEventHandler {
       {
         OSMutexLock l(&parent_->lock_);
         it_ = parent_->handlers_.begin();
-        if (IsDone() || IsNotStarted())
-          ++parent_->pending_iterators_;
+        if (IsDone() || IsNotStarted()) ++parent_->pending_iterators_;
       }
       StartFlowAt(ST(MainIteration));
     }
@@ -143,7 +140,6 @@ class EventVectorRegistry : public ProxyEventHandler {
 // ================= Callbacks from interface core ===============
 
 EXTERNC
-
 
 EXTERNCEND
 

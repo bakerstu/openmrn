@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -33,6 +33,5 @@
 
 #ifndef _nmranet_lo_if_h_
 #define _nmranet_lo_if_h_
-
 
 #endif /* _nmrenet_lo_if_h_ */

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,89 +46,88 @@ extern const size_t SERIAL_RX_BUFFER_SIZE;
 extern const size_t SERIAL_TX_BUFFER_SIZE;
 
 /** Private data for a can device */
-class Serial : public Node
-{
-protected:
-    /** Constructor
-     * @param name device name in file system
+class Serial : public Node {
+ protected:
+  /** Constructor
+   * @param name device name in file system
+   */
+  Serial(const char *name)
+      : Node(),
+        txQ(os_mq_create(SERIAL_TX_BUFFER_SIZE, sizeof(unsigned char))),
+        rxQ(os_mq_create(SERIAL_RX_BUFFER_SIZE, sizeof(unsigned char))),
+        overrunCount(0),
+        mutex(),
+        devtab(name, &ops, this) {}
+
+  /** Destructor.
+   */
+  ~Serial() {
+    /** @todo (Stuart Baker) for completeness we should destroy the
+     * txQ and rxQ here.
      */
-    Serial(const char *name)
-        : Node(),
-          txQ(os_mq_create(SERIAL_TX_BUFFER_SIZE, sizeof(unsigned char))),
-          rxQ(os_mq_create(SERIAL_RX_BUFFER_SIZE, sizeof(unsigned char))),
-          overrunCount(0),
-          mutex(),
-          devtab(name, &ops, this)
-    {
-    }    
+  }
 
-    /** Destructor.
-     */
-    ~Serial()
-    {
-        /** @todo (Stuart Baker) for completeness we should destroy the
-         * txQ and rxQ here.
-         */
-    }
-    
-    virtual void enable() = 0; /**< function to enable device */
-    virtual void disable() = 0; /**< function to disable device */
-    virtual void tx_char() = 0; /**< function to try and transmit a character */
+  virtual void enable() = 0;  /**< function to enable device */
+  virtual void disable() = 0; /**< function to disable device */
+  virtual void tx_char() = 0; /**< function to try and transmit a character */
 
-    os_mq_t txQ; /**< transmit queue */
-    os_mq_t rxQ; /**< receive queue */
-    unsigned int overrunCount; /**< overrun count */
+  os_mq_t txQ;               /**< transmit queue */
+  os_mq_t rxQ;               /**< receive queue */
+  unsigned int overrunCount; /**< overrun count */
 
-private:
-    /** Open a device.
-    * @param file new file reference to this device
-    * @param path file or device name
-    * @param flags open flags
-    * @param mode open mode
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int open(File* file, const char *path, int flags, int mode);
+ private:
+  /** Open a device.
+  * @param file new file reference to this device
+  * @param path file or device name
+  * @param flags open flags
+  * @param mode open mode
+  * @return 0 upon success, negative errno upon failure
+  */
+  static int open(File *file, const char *path, int flags, int mode);
 
-    /** Close a device.
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int close(File *file, Node *node);
+  /** Close a device.
+  * @param file file reference for this device
+  * @param node node reference for this device
+  * @return 0 upon success, negative errno upon failure
+  */
+  static int close(File *file, Node *node);
 
-    /** Read from a file or device.
-    * @param file file reference for this device
-    * @param buf location to place read data
-    * @param count number of bytes to read
-    * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-    */
-    static ssize_t read(File *file, void *buf, size_t count);
+  /** Read from a file or device.
+  * @param file file reference for this device
+  * @param buf location to place read data
+  * @param count number of bytes to read
+  * @return number of bytes read upon success, -1 upon failure with errno
+  * containing the cause
+  */
+  static ssize_t read(File *file, void *buf, size_t count);
 
-    /** Write to a file or device.
-    * @param file file reference for this device
-    * @param buf location to find write data
-    * @param count number of bytes to write
-    * @return number of bytes written upon success, -1 upon failure with errno containing the cause
-    */
-    static ssize_t write(File *file, const void *buf, size_t count);
+  /** Write to a file or device.
+  * @param file file reference for this device
+  * @param buf location to find write data
+  * @param count number of bytes to write
+  * @return number of bytes written upon success, -1 upon failure with errno
+  * containing the cause
+  */
+  static ssize_t write(File *file, const void *buf, size_t count);
 
-    /** Request an ioctl transaction
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @param key ioctl key
-    * @param data key data
-    */
-    static int ioctl(File *file, Node *node, unsigned long int key, unsigned long data);
+  /** Request an ioctl transaction
+  * @param file file reference for this device
+  * @param node node reference for this device
+  * @param key ioctl key
+  * @param data key data
+  */
+  static int ioctl(File *file, Node *node, unsigned long int key,
+                   unsigned long data);
 
-    OSMutex mutex; /**< mutual exclusion for the device */
-    Devtab devtab; /**< device tabel entry for this instance */
-    static Devops ops; /**< device operations for CAN */
-    
-    /** Default constructor.
-     */
-    Serial();
-    
-    DISALLOW_COPY_AND_ASSIGN(Serial);
+  OSMutex mutex;     /**< mutual exclusion for the device */
+  Devtab devtab;     /**< device tabel entry for this instance */
+  static Devops ops; /**< device operations for CAN */
+
+  /** Default constructor.
+   */
+  Serial();
+
+  DISALLOW_COPY_AND_ASSIGN(Serial);
 };
 
 #endif /* _Serial_hxx_ */

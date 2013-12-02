@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,16 +34,15 @@
 #ifndef _can_ioctl_h_
 #define _can_ioctl_h_
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
 /** ioctl() structure to setup the RX/TX active callback.
  */
-typedef struct can_active_callback
-{
-    void (*callback)(void*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
+typedef struct can_active_callback {
+  void (*callback)(void *); /**< application callback to call */
+  void *context;            /**< application callback argument to pass */
 } CanActiveCallback;
 
 /** Magic number for this driver's ioctl calls */
@@ -55,7 +54,7 @@ typedef struct can_active_callback
 /** write active ioctl */
 #define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 }
 #endif
 

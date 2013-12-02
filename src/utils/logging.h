@@ -16,8 +16,14 @@
 
 extern char logbuffer[256];
 
-#define LOG(level, message...) do { if (LOGLEVEL >= level) { int sret = snprintf(logbuffer, sizeof(logbuffer), message); if (sret > (int)sizeof(logbuffer)) sret = sizeof(logbuffer); log_output(logbuffer, sret); } } while(0)
-
+#define LOG(level, message...)                                     \
+  do {                                                             \
+    if (LOGLEVEL >= level) {                                       \
+      int sret = snprintf(logbuffer, sizeof(logbuffer), message);  \
+      if (sret > (int)sizeof(logbuffer)) sret = sizeof(logbuffer); \
+      log_output(logbuffer, sret);                                 \
+    }                                                              \
+  } while (0)
 
 #ifndef LOGLEVEL
 #define LOGLEVEL INFO
@@ -32,7 +38,9 @@ void PrintErrnoAndExit(const char* where);
 }
 #endif
 
+#define ERRNOCHECK(where, x...)            \
+  do {                                     \
+    if ((x) < 0) PrintErrnoAndExit(where); \
+  } while (0)
 
-#define ERRNOCHECK(where, x...) do { if ((x) < 0) PrintErrnoAndExit(where); } while(0)
-
-#endif // _LOGGING_H_
+#endif  // _LOGGING_H_

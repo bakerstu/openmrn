@@ -12,8 +12,7 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventManager.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 /*static*/
 GlobalEventFlow* GlobalEventFlow::instance = nullptr;
@@ -50,9 +49,7 @@ GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
   StartFlowAt(ST(WaitForEvent));
 }
 
-GlobalEventFlow::~GlobalEventFlow() {
-  GlobalEventFlow::instance = nullptr;
-}
+GlobalEventFlow::~GlobalEventFlow() { GlobalEventFlow::instance = nullptr; }
 
 //! Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventFlow::EventProcessingPending() {
@@ -198,10 +195,8 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m) {
  */
 extern "C" {
 
-void nmranet_event_packet_addressed(uint16_t mti,
-                                    node_handle_t src,
-                                    node_t node,
-                                    const void* data) {
+void nmranet_event_packet_addressed(uint16_t mti, node_handle_t src,
+                                    node_t node, const void* data) {
   /*struct id_node* id_node = node;
   if (id_node->priv->state == NODE_UNINITIALIZED) {
     return;
@@ -256,8 +251,7 @@ void nmranet_event_packet_addressed(uint16_t mti,
  * @param src source Node ID
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_global(uint16_t mti,
-                                 node_handle_t src,
+void nmranet_event_packet_global(uint16_t mti, node_handle_t src,
                                  const void* data) {
   GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
   m->mti = mti;
@@ -343,6 +337,6 @@ void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask) {
   nmranet_event_packet_global(MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
-} // extern C
+}  // extern C
 
-#endif // CPP_EVENT_HANDLER
+#endif  // CPP_EVENT_HANDLER

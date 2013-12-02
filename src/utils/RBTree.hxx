@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,8 +34,7 @@
 #ifndef _RBTree_hxx_
 #define _RBTree_hxx_
 
-extern "C"
-{
+extern "C" {
 #include <sys/tree.hxx>
 };
 
@@ -48,230 +47,182 @@ extern "C"
  * and freeing of small chunks of memory.  Note, there is no mutual exclusion
  * locking mechanism built into this class.  Mutual exclusion must be handled
  * by the user as needed.
- */ 
-template <typename Key, typename Value> class RBTree
-{
-public:
-    /** Default Constructor
-     */
-    RBTree()
-        : freeList(NULL)
-    {
-        RB_INIT(&head);
-    }
+ */
+template <typename Key, typename Value>
+class RBTree {
+ public:
+  /** Default Constructor
+   */
+  RBTree() : freeList(NULL) { RB_INIT(&head); }
 
-    /** Default Constructor.
-     * @param nodes number of nodes to statically create and track
-     */
-    RBTree(size_t nodes)
-        : freeList(NULL)
-    {
-        RB_INIT(&head);
-        Node *first = new Node[nodes];
-        first->entry.rbe_left = (Node*)this;
-        
-        for (size_t i = 1; i < nodes; i++)
-        {
-            first[i].entry.rbe_left = freeList;
-            freeList = first + i;
-        }
-    }
+  /** Default Constructor.
+   * @param nodes number of nodes to statically create and track
+   */
+  RBTree(size_t nodes) : freeList(NULL) {
+    RB_INIT(&head);
+    Node *first = new Node[nodes];
+    first->entry.rbe_left = (Node *)this;
 
-    /** The metadata for a tree node. */
-    class Node
-    {
-    public:
-        RB_ENTRY(Node) entry;
-        Key key; /**< key by which to sort the node */
-        Value value; /**< value of the node */
+    for (size_t i = 1; i < nodes; i++) {
+      first[i].entry.rbe_left = freeList;
+      freeList = first + i;
+    }
+  }
 
-        /** Default constructor.  Does not initialize key or value.
-         */
-        Node()
-        {
-        }
-        
-        /** Constructor.
-         * @param key initial value of key
-         * @param value initial value of value
-         */
-        Node(Key key, Value value)
-            : key(key),
-              value(value)
-        {
-        }
-    };
+  /** The metadata for a tree node. */
+  class Node {
+   public:
+    RB_ENTRY(Node) entry;
+    Key key;     /**< key by which to sort the node */
+    Value value; /**< value of the node */
 
-    /** Insert a node into the tree from pre-allocated Node pool.
-     * @param key key to insert
-     * @param value value to insert
-     * @return reference to new node inserted, existing matching node, or NULL
-     *         if there are no more pre-allocated nodes left
+    /** Default constructor.  Does not initialize key or value.
      */
-    Node *insert(Key key, Value value)
-    {
-        Node *node = find(key);
-        if (node)
-        {
-            node->value = value;
-        }
-        else
-        {
-            node = alloc();
-            if (node)
-            {
-                node->key = key;
-                node->value = value;
-                insert(node);
-            }
-        }
-        return node;
-    }
+    Node() {}
 
-    /** Insert a node into the tree.
-     * @param node to insert
+    /** Constructor.
+     * @param key initial value of key
+     * @param value initial value of value
      */
-    void insert(Node *node)
-    {
-        RB_INSERT(tree, &head, node);
-    }
+    Node(Key key, Value value) : key(key), value(value) {}
+  };
 
-    /** Remove a node from the tree.
-     * @param node node to remove
-     */    
-    void remove(Node *node)
-    {
-        RB_REMOVE(tree, &head, node);
-        free(node);
+  /** Insert a node into the tree from pre-allocated Node pool.
+   * @param key key to insert
+   * @param value value to insert
+   * @return reference to new node inserted, existing matching node, or NULL
+   *         if there are no more pre-allocated nodes left
+   */
+  Node *insert(Key key, Value value) {
+    Node *node = find(key);
+    if (node) {
+      node->value = value;
+    } else {
+      node = alloc();
+      if (node) {
+        node->key = key;
+        node->value = value;
+        insert(node);
+      }
     }
-    
-    /** Remove a node from the tree.
-     * @param key key for the node to remove
-     * @return pointer to node that was removed, NULL if not found
-     */
-    Node *remove(Key key)
-    {
-        Node *node = find(key);
-        if (node)
-        {
-            remove(node);
-            free(node);
-        }
-        return node;
-    }
-    
-    /** Find a node based on its lookup key.
-     * @param key key of node to lookup.
-     * @return pointer to node found, NULL if not found
-     */
-    Node *find(Key key)
-    {
-        Node lookup;
-        
-        lookup.key = key;
-        
-        return RB_FIND(tree, &head, &lookup);
-    };
-    
-    /** Get the first node in the tree.
-     * @return first node in the tree, NULL if tree is empty
-     */
-    Node *first()
-    {
-        return RB_MIN(tree, &head);
-    }
-    
-    /** Get the last node in the tree.
-     * @return last node in the tree, NULL if tree is empty
-     */
-    Node *last()
-    {
-        return RB_MAX(tree, &head);
-    }
+    return node;
+  }
 
-    /** Get the next node in the tree.
-     * @param node node to get the next node from
-     * @return next node in the tree, NULL if at the end of the tree
-     */    
-    Node *next(Node *node)
-    {
-        return RB_NEXT(tree, &head, node);
-    }
-    
-    /** Get the next node in the tree.
-     * @param key key of the node to get the next node from
-     * @return next node in the tree, NULL if at the end of the tree
-     */    
-    Node *next(Key key)
-    {
-        Node *node = find(key);
-        return node ? RB_NEXT(tree, &head, node) : node;
-    }
-    
-    /** Get the previous node in the tree.
-     * @param node node to get the previous node from
-     * @return previous node in the tree, NULL if at the beginning of the tree
-     */    
-    Node *previous(Node *node)
-    {
-        return RB_PREV(tree, &head, node);
-    }
-    
-    /** Default destructor */
-    ~RBTree()
-    {
-    }
-    
-private:
-    /** Allocate a node from the free list.
-     * @return newly allocated node, else NULL if no free nodes left
-     */
-    Node *alloc()
-    {
-        if (freeList && freeList != (Node*)this)
-        {
-            Node *node = freeList;
-            freeList = freeList->entry.rbe_left;
-            return node;
-        }
-        return NULL;
-    }
-    
-    /** free a node to the free list if it exists.
-     * @param node node to free
-     */
-    void free(Node *node)
-    {
-        if (freeList || freeList == (Node*)this)
-        {
-            node->entry.rbe_left = freeList;
-            freeList = node;
-        }
-    }
+  /** Insert a node into the tree.
+   * @param node to insert
+   */
+  void insert(Node *node) { RB_INSERT(tree, &head, node); }
 
-    /** Compare two nodes.
-     * @param a first of two nodes to compare
-     * @param b second of two nodes to compare
-     * @return difference between node keys (a->key - b->key)
-     */
-    Key compare(Node *a, Node *b)
-    {
-        return a->key - b->key;
+  /** Remove a node from the tree.
+   * @param node node to remove
+   */
+  void remove(Node *node) {
+    RB_REMOVE(tree, &head, node);
+    free(node);
+  }
+
+  /** Remove a node from the tree.
+   * @param key key for the node to remove
+   * @return pointer to node that was removed, NULL if not found
+   */
+  Node *remove(Key key) {
+    Node *node = find(key);
+    if (node) {
+      remove(node);
+      free(node);
     }
+    return node;
+  }
 
-    /** list of free nodes */
-    Node *freeList;
+  /** Find a node based on its lookup key.
+   * @param key key of node to lookup.
+   * @return pointer to node found, NULL if not found
+   */
+  Node *find(Key key) {
+    Node lookup;
 
-    /** The datagram tree type. */
-    RB_HEAD(tree, Node);
+    lookup.key = key;
 
-    /** The datagram tree methods. */
-    RB_GENERATE(tree, Node, entry, compare);
-    
-    /** tree instance */
-    struct tree head;
-    
-    DISALLOW_COPY_AND_ASSIGN(RBTree);
+    return RB_FIND(tree, &head, &lookup);
+  };
+
+  /** Get the first node in the tree.
+   * @return first node in the tree, NULL if tree is empty
+   */
+  Node *first() { return RB_MIN(tree, &head); }
+
+  /** Get the last node in the tree.
+   * @return last node in the tree, NULL if tree is empty
+   */
+  Node *last() { return RB_MAX(tree, &head); }
+
+  /** Get the next node in the tree.
+   * @param node node to get the next node from
+   * @return next node in the tree, NULL if at the end of the tree
+   */
+  Node *next(Node *node) { return RB_NEXT(tree, &head, node); }
+
+  /** Get the next node in the tree.
+   * @param key key of the node to get the next node from
+   * @return next node in the tree, NULL if at the end of the tree
+   */
+  Node *next(Key key) {
+    Node *node = find(key);
+    return node ? RB_NEXT(tree, &head, node) : node;
+  }
+
+  /** Get the previous node in the tree.
+   * @param node node to get the previous node from
+   * @return previous node in the tree, NULL if at the beginning of the tree
+   */
+  Node *previous(Node *node) { return RB_PREV(tree, &head, node); }
+
+  /** Default destructor */
+  ~RBTree() {}
+
+ private:
+  /** Allocate a node from the free list.
+   * @return newly allocated node, else NULL if no free nodes left
+   */
+  Node *alloc() {
+    if (freeList && freeList != (Node *)this) {
+      Node *node = freeList;
+      freeList = freeList->entry.rbe_left;
+      return node;
+    }
+    return NULL;
+  }
+
+  /** free a node to the free list if it exists.
+   * @param node node to free
+   */
+  void free(Node *node) {
+    if (freeList || freeList == (Node *)this) {
+      node->entry.rbe_left = freeList;
+      freeList = node;
+    }
+  }
+
+  /** Compare two nodes.
+   * @param a first of two nodes to compare
+   * @param b second of two nodes to compare
+   * @return difference between node keys (a->key - b->key)
+   */
+  Key compare(Node *a, Node *b) { return a->key - b->key; }
+
+  /** list of free nodes */
+  Node *freeList;
+
+  /** The datagram tree type. */
+  RB_HEAD(tree, Node);
+
+  /** The datagram tree methods. */
+  RB_GENERATE(tree, Node, entry, compare);
+
+  /** tree instance */
+  struct tree head;
+
+  DISALLOW_COPY_AND_ASSIGN(RBTree);
 };
 
 #endif /* _RBTree_hxx_ */

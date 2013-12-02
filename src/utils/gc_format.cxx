@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -41,16 +41,14 @@ extern "C" {
  * @param value to convert
  * @return converted value
  */
-static char nibble_to_ascii(int nibble)
-{
-    nibble &= 0xf;
+static char nibble_to_ascii(int nibble) {
+  nibble &= 0xf;
 
-    if (nibble < 10)
-    {
-        return ('0' + nibble);
-    }
-    
-    return ('A' + (nibble - 10));
+  if (nibble < 10) {
+    return ('0' + nibble);
+  }
+
+  return ('A' + (nibble - 10));
 }
 
 /** Tries to parse a hex character to a nibble. Understands both upper and
@@ -58,26 +56,19 @@ static char nibble_to_ascii(int nibble)
     @param c is the character to convert.
     @return a converted value, or -1 if an invalid character was encountered.
 */
-static int ascii_to_nibble(const char c)
-{
-    if ('0' <= c && '9' >= c)
-    {
-        return c - '0';
-    }
-    else if ('A' <= c && 'F' >= c)
-    {
-        return c - 'A' + 10;
-    }
-    else if ('a' <= c && 'f' >= c)
-    {
-        return c - 'a' + 10;
-    }
-    return -1;
+static int ascii_to_nibble(const char c) {
+  if ('0' <= c && '9' >= c) {
+    return c - '0';
+  } else if ('A' <= c && 'F' >= c) {
+    return c - 'A' + 10;
+  } else if ('a' <= c && 'f' >= c) {
+    return c - 'a' + 10;
+  }
+  return -1;
 }
 
-
 /** Parses a GridConnect packet.
-    
+
     @param s points to a character buffer that contains the packet. The leading
     ":" is already removed, the tailing ';' is replaced by a \0 char.
 
@@ -86,89 +77,66 @@ static int ascii_to_nibble(const char c)
     @returns 0 in case of success, -1 if there was a packet format error (in
     this case the frame is set to an error frame).
 */
-int gc_format_parse(const char* buf, struct can_frame* can_frame)
-{
-    CLR_CAN_FRAME_ERR(*can_frame);
-    if (*buf == 'X')
-    {
-        SET_CAN_FRAME_EFF(*can_frame);
+int gc_format_parse(const char* buf, struct can_frame* can_frame) {
+  CLR_CAN_FRAME_ERR(*can_frame);
+  if (*buf == 'X') {
+    SET_CAN_FRAME_EFF(*can_frame);
+  } else if (*buf == 'S') {
+    CLR_CAN_FRAME_EFF(*can_frame);
+  } else {
+    // Unknown packet type.
+    SET_CAN_FRAME_ERR(*can_frame);
+    return -1;
+  }
+  buf++;
+  uint32_t id = 0;
+  while (1) {
+    int nibble = ascii_to_nibble(*buf);
+    if (nibble >= 0) {
+      id <<= 4;
+      id |= nibble;
+      ++buf;
+    } else if (*buf == 'N') {
+      // end of ID, frame is coming.
+      CLR_CAN_FRAME_RTR(*can_frame);
+      ++buf;
+      break;
+    } else if (*buf == 'R') {
+      // end of ID, remote frame is coming.
+      SET_CAN_FRAME_RTR(*can_frame);
+      ++buf;
+      break;
+    } else {
+      // This character should not happen here.
+      SET_CAN_FRAME_ERR(*can_frame);
+      return -1;
     }
-    else if (*buf == 'S') 
-    {
-        CLR_CAN_FRAME_EFF(*can_frame);
-    } else
-    {
-        // Unknown packet type.
-        SET_CAN_FRAME_ERR(*can_frame);
-        return -1;
+  }  // while parsing ID
+  if (IS_CAN_FRAME_EFF(*can_frame)) {
+    SET_CAN_FRAME_ID_EFF(*can_frame, id);
+  } else {
+    SET_CAN_FRAME_ID(*can_frame, id);
+  }
+  int index = 0;
+  while (*buf) {
+    int nh = ascii_to_nibble(*buf++);
+    int nl = ascii_to_nibble(*buf++);
+    if (nh < 0 || nl < 0) {
+      SET_CAN_FRAME_ERR(*can_frame);
+      return -1;
     }
-    buf++;
-    uint32_t id = 0;
-    while (1)
-    {
-        int nibble = ascii_to_nibble(*buf);
-        if (nibble >= 0)
-        {
-            id <<= 4;
-            id |= nibble;
-            ++buf;
-        }
-        else if (*buf == 'N')
-        {
-            // end of ID, frame is coming.
-            CLR_CAN_FRAME_RTR(*can_frame);
-            ++buf;
-            break;
-        }
-        else if (*buf == 'R')
-        {
-            // end of ID, remote frame is coming.
-            SET_CAN_FRAME_RTR(*can_frame);
-            ++buf;
-            break;
-        }
-        else
-        {
-            // This character should not happen here.
-            SET_CAN_FRAME_ERR(*can_frame);
-            return -1;
-        }
-    } // while parsing ID
-    if (IS_CAN_FRAME_EFF(*can_frame))
-    {
-        SET_CAN_FRAME_ID_EFF(*can_frame, id);
-    }
-    else
-    { 
-        SET_CAN_FRAME_ID(*can_frame, id);
-    }
-    int index = 0;
-    while (*buf)
-    {
-        int nh = ascii_to_nibble(*buf++);
-        int nl = ascii_to_nibble(*buf++);
-        if (nh < 0 || nl < 0)
-        {
-            SET_CAN_FRAME_ERR(*can_frame);
-            return -1;
-        }
-        can_frame->data[index++] = (nh << 4) | nl;
-    } // while parsing data
-    can_frame->can_dlc = index;
-    CLR_CAN_FRAME_ERR(*can_frame);
-    return 0;
+    can_frame->data[index++] = (nh << 4) | nl;
+  }  // while parsing data
+  can_frame->can_dlc = index;
+  CLR_CAN_FRAME_ERR(*can_frame);
+  return 0;
 }
 
+static void output_single(char*& dst, char value) { *dst++ = value; }
 
-static void output_single(char*& dst, char value)
-{
-    *dst++ = value;
-}
-
-static void output_double(char*& dst, char value)
-{
-    *dst++ = value;
-    *dst++ = value;
+static void output_double(char*& dst, char value) {
+  *dst++ = value;
+  *dst++ = value;
 }
 
 /** Formats a can frame in the GridConnect protocol.
@@ -188,57 +156,44 @@ static void output_double(char*& dst, char value)
 
     @return the pointer to the buffer character after the formatted can frame.
 */
-char* gc_format_generate(const struct can_frame* can_frame, char* buf, int double_format)
-{
-    if (IS_CAN_FRAME_ERR(*can_frame))
-    {
-        return buf;
-    }
-    void (*output)(char*& dst, char value);
-    if (double_format)
-    {
-        output = output_double;
-        output(buf, '!');
-    }
-    else
-    {
-        output = output_single;
-        output(buf, ':');
-    }
-    uint32_t id;
-    int offset;
-    if (IS_CAN_FRAME_EFF(*can_frame))
-    {
-        id = GET_CAN_FRAME_ID_EFF(*can_frame);
-        output(buf, 'X');
-        offset = 28;
-    }
-    else
-    {
-        id = GET_CAN_FRAME_ID(*can_frame);
-        output(buf, 'S');
-        offset = 8;
-    }
-    for (;offset >= 0; offset -= 4)
-    {
-        output(buf, nibble_to_ascii((id >> offset) & 0xf));
-    }
-    /* handle remote or normal */
-    if (IS_CAN_FRAME_RTR(*can_frame))
-    {
-        output(buf, 'R');
-    }
-    else
-    {
-        output(buf, 'N');
-    }
-    for (offset = 0; offset < can_frame->can_dlc; ++offset)
-    {
-        output(buf, nibble_to_ascii(can_frame->data[offset] >> 4));
-        output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
-    }
-    output(buf, ';');
+char* gc_format_generate(const struct can_frame* can_frame, char* buf,
+                         int double_format) {
+  if (IS_CAN_FRAME_ERR(*can_frame)) {
     return buf;
+  }
+  void (*output)(char * &dst, char value);
+  if (double_format) {
+    output = output_double;
+    output(buf, '!');
+  } else {
+    output = output_single;
+    output(buf, ':');
+  }
+  uint32_t id;
+  int offset;
+  if (IS_CAN_FRAME_EFF(*can_frame)) {
+    id = GET_CAN_FRAME_ID_EFF(*can_frame);
+    output(buf, 'X');
+    offset = 28;
+  } else {
+    id = GET_CAN_FRAME_ID(*can_frame);
+    output(buf, 'S');
+    offset = 8;
+  }
+  for (; offset >= 0; offset -= 4) {
+    output(buf, nibble_to_ascii((id >> offset) & 0xf));
+  }
+  /* handle remote or normal */
+  if (IS_CAN_FRAME_RTR(*can_frame)) {
+    output(buf, 'R');
+  } else {
+    output(buf, 'N');
+  }
+  for (offset = 0; offset < can_frame->can_dlc; ++offset) {
+    output(buf, nibble_to_ascii(can_frame->data[offset] >> 4));
+    output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
+  }
+  output(buf, ';');
+  return buf;
 }
-
 }

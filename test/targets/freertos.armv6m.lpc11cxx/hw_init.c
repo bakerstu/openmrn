@@ -1,10 +1,10 @@
 //*****************************************************************************
-//   +--+       
-//   | ++----+   
-//   +-++    |  
-//     |     |  
-//   +-+--+  |   
-//   | +--+--+  
+//   +--+
+//   | ++----+
+//   +-++    |
+//     |     |
+//   +-+--+  |
+//   | +--+--+
 //   +----+    Copyright (c) 2009-12 Code Red Technologies Ltd.
 //
 // Microcontroller Startup code for use with Red Suite
@@ -12,19 +12,20 @@
 // Version : 120126
 //
 // Software License Agreement
-// 
-// The software is owned by Code Red Technologies and/or its suppliers, and is 
-// protected under applicable copyright laws.  All rights are reserved.  Any 
-// use in violation of the foregoing restrictions may subject the user to criminal 
-// sanctions under applicable laws, as well as to civil liability for the breach 
+//
+// The software is owned by Code Red Technologies and/or its suppliers, and is
+// protected under applicable copyright laws.  All rights are reserved.  Any
+// use in violation of the foregoing restrictions may subject the user to
+// criminal
+// sanctions under applicable laws, as well as to civil liability for the breach
 // of the terms and conditions of this license.
-// 
+//
 // THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES, WHETHER EXPRESS, IMPLIED
 // OR STATUTORY, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE.
 // USE OF THIS SOFTWARE FOR COMMERCIAL DEVELOPMENT AND/OR EDUCATION IS SUBJECT
 // TO A CURRENT END USER LICENSE AGREEMENT (COMMERCIAL OR EDUCATIONAL) WITH
-// CODE RED TECHNOLOGIES LTD. 
+// CODE RED TECHNOLOGIES LTD.
 //
 //*****************************************************************************
 
@@ -32,15 +33,14 @@
 #include "core_cm0.h"
 #include "FreeRTOSConfig.h"
 
-
-#define BLINK_DIE_UNEXPIRQ 0x800020CA    /* 3-1-1 */
-#define BLINK_DIE_HARDFAULT 0x8000A0CA    /* 3-1-2 */
-#define BLINK_DIE_NMI 0x8002A0CA    /* 3-1-3 */
-#define BLINK_DIE_SVC 0x800AA0CA    /* 3-1-4 */
+#define BLINK_DIE_UNEXPIRQ 0x800020CA  /* 3-1-1 */
+#define BLINK_DIE_HARDFAULT 0x8000A0CA /* 3-1-2 */
+#define BLINK_DIE_NMI 0x8002A0CA       /* 3-1-3 */
+#define BLINK_DIE_SVC 0x800AA0CA       /* 3-1-4 */
 #define BLINK_DIE_PENDSV 0x802AA0CA    /* 3-1-5 */
-#define BLINK_DIE_TICK 0x80AAA0CA    /* 3-1-6 */
+#define BLINK_DIE_TICK 0x80AAA0CA      /* 3-1-6 */
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 #ifdef __REDLIB__
 #error Redlib does not support C++
 #else
@@ -49,34 +49,32 @@
 // The entry point for the C++ library startup
 //
 //*****************************************************************************
-extern "C" {
-    extern void __libc_init_array(void);
-}
+extern "C" { extern void __libc_init_array(void); }
 #endif
 #endif
 
-#define WEAK __attribute__ ((weak))
-#define ALIAS(f) __attribute__ ((weak, alias (#f)))
+#define WEAK __attribute__((weak))
+#define ALIAS(f) __attribute__((weak, alias(#f)))
 
 // Code Red - if CMSIS is being used, then SystemInit() routine
 // will be called by startup code rather than in application's main()
-#if defined (__USE_CMSIS)
+#if defined(__USE_CMSIS)
 #include "system_LPC11xx.h"
 #endif
 
 //*****************************************************************************
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
 //*****************************************************************************
 //
 // Forward declaration of the default handlers. These are aliased.
-// When the application defines a handler (with the same name), this will 
+// When the application defines a handler (with the same name), this will
 // automatically take precedence over these weak definitions
 //
 //*****************************************************************************
-     void ResetISR(void);
+void ResetISR(void);
 WEAK void NMI_Handler(void);
 WEAK void HardFault_Handler(void);
 WEAK void SVC_Handler(void);
@@ -92,23 +90,23 @@ WEAK void IntDefaultHandler(void);
 //
 //*****************************************************************************
 
-void CAN_IRQHandler (void) ALIAS(IntDefaultHandler);
-void SSP1_IRQHandler (void) ALIAS(IntDefaultHandler);
-void I2C_IRQHandler (void) ALIAS(IntDefaultHandler);
-void TIMER16_0_IRQHandler (void);
-void TIMER16_1_IRQHandler (void) ALIAS(IntDefaultHandler);
-void TIMER32_0_IRQHandler (void) ALIAS(IntDefaultHandler);
-void TIMER32_1_IRQHandler (void) ALIAS(IntDefaultHandler);
-void SSP0_IRQHandler (void) ALIAS(IntDefaultHandler);
-void UART_IRQHandler (void) ALIAS(IntDefaultHandler);
-void ADC_IRQHandler (void) ALIAS(IntDefaultHandler);
-void WDT_IRQHandler (void) ALIAS(IntDefaultHandler);
-void BOD_IRQHandler (void) ALIAS(IntDefaultHandler);
-void PIOINT3_IRQHandler (void) ALIAS(IntDefaultHandler);
-void PIOINT2_IRQHandler (void) ALIAS(IntDefaultHandler);
-void PIOINT1_IRQHandler (void) ALIAS(IntDefaultHandler);
-void PIOINT0_IRQHandler (void) ALIAS(IntDefaultHandler);
-void WAKEUP_IRQHandler  (void) ALIAS(IntDefaultHandler);
+void CAN_IRQHandler(void) ALIAS(IntDefaultHandler);
+void SSP1_IRQHandler(void) ALIAS(IntDefaultHandler);
+void I2C_IRQHandler(void) ALIAS(IntDefaultHandler);
+void TIMER16_0_IRQHandler(void);
+void TIMER16_1_IRQHandler(void) ALIAS(IntDefaultHandler);
+void TIMER32_0_IRQHandler(void) ALIAS(IntDefaultHandler);
+void TIMER32_1_IRQHandler(void) ALIAS(IntDefaultHandler);
+void SSP0_IRQHandler(void) ALIAS(IntDefaultHandler);
+void UART_IRQHandler(void) ALIAS(IntDefaultHandler);
+void ADC_IRQHandler(void) ALIAS(IntDefaultHandler);
+void WDT_IRQHandler(void) ALIAS(IntDefaultHandler);
+void BOD_IRQHandler(void) ALIAS(IntDefaultHandler);
+void PIOINT3_IRQHandler(void) ALIAS(IntDefaultHandler);
+void PIOINT2_IRQHandler(void) ALIAS(IntDefaultHandler);
+void PIOINT1_IRQHandler(void) ALIAS(IntDefaultHandler);
+void PIOINT0_IRQHandler(void) ALIAS(IntDefaultHandler);
+void WAKEUP_IRQHandler(void) ALIAS(IntDefaultHandler);
 
 //*****************************************************************************
 //
@@ -123,7 +121,7 @@ void WAKEUP_IRQHandler  (void) ALIAS(IntDefaultHandler);
 // main() is the entry point for Newlib based applications
 //
 //*****************************************************************************
-#if defined (__REDLIB__)
+#if defined(__REDLIB__)
 extern void __main(void);
 #endif
 extern int main(void);
@@ -135,8 +133,8 @@ extern int main(void);
 extern void _vStackTop(void);
 
 //*****************************************************************************
-#if defined (__cplusplus)
-} // extern "C"
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 //*****************************************************************************
 //
@@ -144,64 +142,60 @@ extern void _vStackTop(void);
 // ensure that it ends up at physical address 0x0000.0000.
 //
 //*****************************************************************************
-extern void (* const g_pfnVectors[])(void);
-__attribute__ ((section(".isr_vector")))
-void (* const g_pfnVectors[])(void) = {
-    &_vStackTop,                            // The initial stack pointer
-    ResetISR,                               // The reset handler
-    NMI_Handler,                            // The NMI handler
-    HardFault_Handler,                      // The hard fault handler
-    0,                                      // Reserved
-    0,                                      // Reserved
-    0,                                      // Reserved
-    0,                                      // Reserved
-    0,                                      // Reserved
-    0,                                      // Reserved
-    0,                                      // Reserved
-    SVC_Handler,                            // SVCall handler
-    0,                                      // Reserved
-    0,                                      // Reserved
-    PendSV_Handler,                         // The PendSV handler
-    SysTick_Handler,                        // The SysTick handler
+extern void (*const g_pfnVectors[])(void);
+__attribute__((section(".isr_vector"))) void (*const g_pfnVectors[])(void) = {
+    &_vStackTop,        // The initial stack pointer
+    ResetISR,           // The reset handler
+    NMI_Handler,        // The NMI handler
+    HardFault_Handler,  // The hard fault handler
+    0,                  // Reserved
+    0,                  // Reserved
+    0,                  // Reserved
+    0,                  // Reserved
+    0,                  // Reserved
+    0,                  // Reserved
+    0,                  // Reserved
+    SVC_Handler,        // SVCall handler
+    0,                  // Reserved
+    0,                  // Reserved
+    PendSV_Handler,     // The PendSV handler
+    SysTick_Handler,    // The SysTick handler
 
     // Wakeup sources for the I/O pins:
     //   PIO0 (0:11)
     //   PIO1 (0)
-    WAKEUP_IRQHandler,                      // PIO0_0  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_1  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_2  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_3  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_4  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_5  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_6  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_7  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_8  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_9  Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_10 Wakeup
-    WAKEUP_IRQHandler,                      // PIO0_11 Wakeup
-    WAKEUP_IRQHandler,                      // PIO1_0  Wakeup
-
-    CAN_IRQHandler,                         // C_CAN Interrupt
-    SSP1_IRQHandler,                        // SPI/SSP1 Interrupt
-    I2C_IRQHandler,                         // I2C0
-    TIMER16_0_IRQHandler,                   // CT16B0 (16-bit Timer 0)
-    TIMER16_1_IRQHandler,                   // CT16B1 (16-bit Timer 1)
-    TIMER32_0_IRQHandler,                   // CT32B0 (32-bit Timer 0)
-    TIMER32_1_IRQHandler,                   // CT32B1 (32-bit Timer 1)
-    SSP0_IRQHandler,                        // SPI/SSP0 Interrupt
-    UART_IRQHandler,                        // UART0
-
-    0,                                      // Reserved
-    0,                                      // Reserved
-
-    ADC_IRQHandler,                         // ADC   (A/D Converter)
-    WDT_IRQHandler,                         // WDT   (Watchdog Timer)
-    BOD_IRQHandler,                         // BOD   (Brownout Detect)
-    0,                                      // Reserved
-    PIOINT3_IRQHandler,                     // PIO INT3
-    PIOINT2_IRQHandler,                     // PIO INT2
-    PIOINT1_IRQHandler,                     // PIO INT1
-    PIOINT0_IRQHandler,                     // PIO INT0
+    WAKEUP_IRQHandler,     // PIO0_0  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_1  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_2  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_3  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_4  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_5  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_6  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_7  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_8  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_9  Wakeup
+    WAKEUP_IRQHandler,     // PIO0_10 Wakeup
+    WAKEUP_IRQHandler,     // PIO0_11 Wakeup
+    WAKEUP_IRQHandler,     // PIO1_0  Wakeup
+    CAN_IRQHandler,        // C_CAN Interrupt
+    SSP1_IRQHandler,       // SPI/SSP1 Interrupt
+    I2C_IRQHandler,        // I2C0
+    TIMER16_0_IRQHandler,  // CT16B0 (16-bit Timer 0)
+    TIMER16_1_IRQHandler,  // CT16B1 (16-bit Timer 1)
+    TIMER32_0_IRQHandler,  // CT32B0 (32-bit Timer 0)
+    TIMER32_1_IRQHandler,  // CT32B1 (32-bit Timer 1)
+    SSP0_IRQHandler,       // SPI/SSP0 Interrupt
+    UART_IRQHandler,       // UART0
+    0,                     // Reserved
+    0,                     // Reserved
+    ADC_IRQHandler,        // ADC   (A/D Converter)
+    WDT_IRQHandler,        // WDT   (Watchdog Timer)
+    BOD_IRQHandler,        // BOD   (Brownout Detect)
+    0,                     // Reserved
+    PIOINT3_IRQHandler,    // PIO INT3
+    PIOINT2_IRQHandler,    // PIO INT2
+    PIOINT1_IRQHandler,    // PIO INT1
+    PIOINT0_IRQHandler,    // PIO INT0
 };
 
 //*****************************************************************************
@@ -210,21 +204,20 @@ void (* const g_pfnVectors[])(void) = {
 // ResetISR() function in order to cope with MCUs with multiple banks of
 // memory.
 //*****************************************************************************
-__attribute__ ((section(".after_vectors")))
-void data_init(unsigned int romstart, unsigned int start, unsigned int len) {
-    unsigned int *pulDest = (unsigned int*) start;
-    unsigned int *pulSrc = (unsigned int*) romstart;
-    unsigned int loop;
-    for (loop = 0; loop < len; loop = loop + 4)
-        *pulDest++ = *pulSrc++;
+__attribute__((section(".after_vectors"))) void data_init(unsigned int romstart,
+                                                          unsigned int start,
+                                                          unsigned int len) {
+  unsigned int *pulDest = (unsigned int *)start;
+  unsigned int *pulSrc = (unsigned int *)romstart;
+  unsigned int loop;
+  for (loop = 0; loop < len; loop = loop + 4) *pulDest++ = *pulSrc++;
 }
 
-__attribute__ ((section(".after_vectors")))
-void bss_init(unsigned int start, unsigned int len) {
-    unsigned int *pulDest = (unsigned int*) start;
-    unsigned int loop;
-    for (loop = 0; loop < len; loop = loop + 4)
-        *pulDest++ = 0;
+__attribute__((section(".after_vectors"))) void bss_init(unsigned int start,
+                                                         unsigned int len) {
+  unsigned int *pulDest = (unsigned int *)start;
+  unsigned int loop;
+  for (loop = 0; loop < len; loop = loop + 4) *pulDest++ = 0;
 }
 
 #ifndef USE_OLD_STYLE_DATA_BSS_INIT
@@ -258,7 +251,6 @@ extern unsigned int _bss;
 extern unsigned int _ebss;
 #endif
 
-
 extern uint32_t __start_ram;
 extern uint32_t __end_ram;
 
@@ -267,111 +259,99 @@ extern uint32_t __end_ram;
 // Sets up a simple runtime environment and initializes the C/C++
 // library.
 //*****************************************************************************
-__attribute__ ((section(".after_vectors"))) __attribute__((naked))
-void
-ResetISR(void) {
-    // Fills the memory with a debug pattern.
-    for (uint32_t* d = &__start_ram; d < &__end_ram; ++d)
-    {
-        *d = 0xdbdbdbdb;
-    }
+__attribute__((section(".after_vectors"))) __attribute__((naked)) void ResetISR(
+    void) {
+  // Fills the memory with a debug pattern.
+  for (uint32_t *d = &__start_ram; d < &__end_ram; ++d) {
+    *d = 0xdbdbdbdb;
+  }
 
 #ifndef USE_OLD_STYLE_DATA_BSS_INIT
-    //
-    // Copy the data sections from flash to SRAM.
-    //
-    unsigned int LoadAddr, ExeAddr, SectionLen;
-    unsigned int *SectionTableAddr;
+  //
+  // Copy the data sections from flash to SRAM.
+  //
+  unsigned int LoadAddr, ExeAddr, SectionLen;
+  unsigned int *SectionTableAddr;
 
-    // Load base address of Global Section Table
-    SectionTableAddr = &__data_section_table;
+  // Load base address of Global Section Table
+  SectionTableAddr = &__data_section_table;
 
-    // Copy the data sections from flash to SRAM.
-    while (SectionTableAddr < &__data_section_table_end) {
-        LoadAddr = *SectionTableAddr++;
-        ExeAddr = *SectionTableAddr++;
-        SectionLen = *SectionTableAddr++;
-        data_init(LoadAddr, ExeAddr, SectionLen);
-    }
-    // At this point, SectionTableAddr = &__bss_section_table;
-    // Zero fill the bss segment
-    while (SectionTableAddr < &__bss_section_table_end) {
-        ExeAddr = *SectionTableAddr++;
-        SectionLen = *SectionTableAddr++;
-        bss_init(ExeAddr, SectionLen);
-    }
+  // Copy the data sections from flash to SRAM.
+  while (SectionTableAddr < &__data_section_table_end) {
+    LoadAddr = *SectionTableAddr++;
+    ExeAddr = *SectionTableAddr++;
+    SectionLen = *SectionTableAddr++;
+    data_init(LoadAddr, ExeAddr, SectionLen);
+  }
+  // At this point, SectionTableAddr = &__bss_section_table;
+  // Zero fill the bss segment
+  while (SectionTableAddr < &__bss_section_table_end) {
+    ExeAddr = *SectionTableAddr++;
+    SectionLen = *SectionTableAddr++;
+    bss_init(ExeAddr, SectionLen);
+  }
 #else
-    // Use Old Style Data and BSS section initialization.
-    // This will only initialize a single RAM bank.
-    unsigned int * LoadAddr, *ExeAddr, *EndAddr, SectionLen;
+  // Use Old Style Data and BSS section initialization.
+  // This will only initialize a single RAM bank.
+  unsigned int *LoadAddr, *ExeAddr, *EndAddr, SectionLen;
 
-    // Copy the data segment from flash to SRAM.
-    LoadAddr = &_etext;
-    ExeAddr = &_data;
-    EndAddr = &_edata;
-    SectionLen = (void*)EndAddr - (void*)ExeAddr;
-    data_init((unsigned int)LoadAddr, (unsigned int)ExeAddr, SectionLen);
-    // Zero fill the bss segment
-    ExeAddr = &_bss;
-    EndAddr = &_ebss;
-    SectionLen = (void*)EndAddr - (void*)ExeAddr;
-    bss_init ((unsigned int)ExeAddr, SectionLen);
+  // Copy the data segment from flash to SRAM.
+  LoadAddr = &_etext;
+  ExeAddr = &_data;
+  EndAddr = &_edata;
+  SectionLen = (void *)EndAddr - (void *)ExeAddr;
+  data_init((unsigned int)LoadAddr, (unsigned int)ExeAddr, SectionLen);
+  // Zero fill the bss segment
+  ExeAddr = &_bss;
+  EndAddr = &_ebss;
+  SectionLen = (void *)EndAddr - (void *)ExeAddr;
+  bss_init((unsigned int)ExeAddr, SectionLen);
 #endif
 
 #ifdef __USE_CMSIS
-    SystemInit();
+  SystemInit();
 #endif
 
-#if defined (__cplusplus)
-    //
-    // Call C++ library initialisation
-    //
-    __libc_init_array();
+#if defined(__cplusplus)
+  //
+  // Call C++ library initialisation
+  //
+  __libc_init_array();
 #endif
 
-#if defined (__REDLIB__)
-    // Call the Redlib library, which in turn calls main()
-    __main() ;
+#if defined(__REDLIB__)
+  // Call the Redlib library, which in turn calls main()
+  __main();
 #else
-    main();
+  main();
 #endif
-    //
-    // main() shouldn't return, but if it does, we'll just enter an infinite loop
-    //
-    while (1) {
-        ;
-    }
+  //
+  // main() shouldn't return, but if it does, we'll just enter an infinite loop
+  //
+  while (1) {
+    ;
+  }
 }
 
 //*****************************************************************************
 // Default exception handlers. Override the ones here by defining your own
 // handler routines in your application code.
 //*****************************************************************************
-__attribute__ ((section(".after_vectors")))
-void NMI_Handler(void)
-{
-    diewith(BLINK_DIE_NMI);
+__attribute__((section(".after_vectors"))) void NMI_Handler(void) {
+  diewith(BLINK_DIE_NMI);
 }
-__attribute__ ((section(".after_vectors")))
-void HardFault_Handler(void)
-{
-    diewith(BLINK_DIE_HARDFAULT);
-    //setblink(BLINK_DIE_HARDFAULT);
+__attribute__((section(".after_vectors"))) void HardFault_Handler(void) {
+  diewith(BLINK_DIE_HARDFAULT);
+  // setblink(BLINK_DIE_HARDFAULT);
 }
-__attribute__ ((section(".after_vectors")))
-void SVC_Handler(void)
-{
-    diewith(BLINK_DIE_SVC);
+__attribute__((section(".after_vectors"))) void SVC_Handler(void) {
+  diewith(BLINK_DIE_SVC);
 }
-__attribute__ ((section(".after_vectors")))
-void PendSV_Handler(void)
-{
-    diewith(BLINK_DIE_PENDSV);
+__attribute__((section(".after_vectors"))) void PendSV_Handler(void) {
+  diewith(BLINK_DIE_PENDSV);
 }
-__attribute__ ((section(".after_vectors")))
-void SysTick_Handler(void)
-{
-    diewith(BLINK_DIE_TICK);
+__attribute__((section(".after_vectors"))) void SysTick_Handler(void) {
+  diewith(BLINK_DIE_TICK);
 }
 
 //*****************************************************************************
@@ -380,71 +360,61 @@ void SysTick_Handler(void)
 // handler is not present in the application code.
 //
 //*****************************************************************************
-__attribute__ ((section(".after_vectors")))
-void IntDefaultHandler(void)
-{
-    diewith(BLINK_DIE_UNEXPIRQ);
+__attribute__((section(".after_vectors"))) void IntDefaultHandler(void) {
+  diewith(BLINK_DIE_UNEXPIRQ);
 }
 
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
 
+void TIMER16_0_IRQHandler(void) {
+  LPC_GPIO0->MASKED_ACCESS[1 << 7] = (rest_pattern & 1) ? (1 << 7) : 0;
+  rest_pattern >>= 1;
+  if (!rest_pattern) rest_pattern = blinker_pattern;
 
-void TIMER16_0_IRQHandler(void)
-{
-    LPC_GPIO0->MASKED_ACCESS[1<<7] = (rest_pattern & 1) ? (1<<7) : 0;
-    rest_pattern >>= 1;
-    if (!rest_pattern) rest_pattern = blinker_pattern;
-
-    LPC_TMR16B0->IR = 1;  // Resets interrupt.
-    NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
+  LPC_TMR16B0->IR = 1;  // Resets interrupt.
+  NVIC_ClearPendingIRQ(TIMER_16_0_IRQn);
 }
 
+void setblink(uint32_t pattern) {
+  LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 7);
+  blinker_pattern = pattern;
+  rest_pattern = 0;
+  LPC_TMR16B0->TCR = 2;   // stop & reset timer
+  LPC_TMR16B0->CTCR = 0;  // timer mode
+  // prescale to 1 ms per tick
+  LPC_TMR16B0->PR = configCPU_CLOCK_HZ / 1000;  // 48000 - fits the 16bit
+  LPC_TMR16B0->MR0 = 125;
+  LPC_TMR16B0->MCR = 3;  // reset and interrupt on match 0
 
-void setblink(uint32_t pattern)
-{
-    LPC_SYSCON->SYSAHBCLKCTRL |= (1<<7);
-    blinker_pattern = pattern;
-    rest_pattern = 0;
-    LPC_TMR16B0->TCR = 2;  // stop & reset timer
-    LPC_TMR16B0->CTCR = 0; // timer mode
-    // prescale to 1 ms per tick
-    LPC_TMR16B0->PR = configCPU_CLOCK_HZ / 1000;  // 48000 - fits the 16bit
-    LPC_TMR16B0->MR0 = 125;
-    LPC_TMR16B0->MCR = 3;  // reset and interrupt on match 0
+  NVIC_EnableIRQ(TIMER_16_0_IRQn);
 
-    NVIC_EnableIRQ(TIMER_16_0_IRQn);
-
-    LPC_TMR16B0->TCR = 1;  // Timer go.
+  LPC_TMR16B0->TCR = 1;  // Timer go.
 }
 
-void resetblink(uint32_t pattern)
-{
-    blinker_pattern = pattern;
-    rest_pattern = pattern;
-    // Makes a timer event trigger immediately.
-    LPC_TMR16B0->TC = LPC_TMR16B0->MR0 - 2;
+void resetblink(uint32_t pattern) {
+  blinker_pattern = pattern;
+  rest_pattern = pattern;
+  // Makes a timer event trigger immediately.
+  LPC_TMR16B0->TC = LPC_TMR16B0->MR0 - 2;
 }
 
-void diewith(uint32_t pattern)
-{
-    SysTick->CTRL = 0; // Turns off systick to avoid task switching.
-    setblink(pattern);
-    __enable_irq();
-    for (;;)
-    {
-    }
+void diewith(uint32_t pattern) {
+  SysTick->CTRL = 0;  // Turns off systick to avoid task switching.
+  setblink(pattern);
+  __enable_irq();
+  for (;;) {
+  }
 }
 
-void hw_init(void)
-{
-    /* Enable AHB clock to the GPIO domain. */
-    LPC_SYSCON->SYSAHBCLKCTRL |= (1<<6);
+void hw_init(void) {
+  /* Enable AHB clock to the GPIO domain. */
+  LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 6);
 
-    // Turns on debug LED.
-    LPC_GPIO0->DIR |= (1<<7);
-    LPC_GPIO0->MASKED_ACCESS[1<<7] = (1<<7);
-    __enable_irq();
+  // Turns on debug LED.
+  LPC_GPIO0->DIR |= (1 << 7);
+  LPC_GPIO0->MASKED_ACCESS[1 << 7] = (1 << 7);
+  __enable_irq();
 
-    setblink(0x8000000A);
+  setblink(0x8000000A);
 }

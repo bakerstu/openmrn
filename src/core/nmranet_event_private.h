@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,16 +42,13 @@ extern "C" {
 
 /** Event structure as stored in the event Queue
  */
-typedef struct
-{
-    uint64_t data;     /**< event payload */
-    node_handle_t src; /**< event source node */
+typedef struct {
+  uint64_t data;     /**< event payload */
+  node_handle_t src; /**< event source node */
 } Event;
-
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* _nmranet_event_private_h_ */
-

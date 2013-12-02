@@ -42,4 +42,4 @@ class EventCompatibilityLayer {
   ~EventCompatibilityLayer();
 };
 
-#endif // _NMRANET_EVENTCOMPATIBILITY_HXX_
+#endif  // _NMRANET_EVENTCOMPATIBILITY_HXX_

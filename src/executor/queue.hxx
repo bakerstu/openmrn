@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -40,25 +40,21 @@
 class Queue;
 
 class QueueMember {
-public:
-  QueueMember()
-    : next_(NULL) {}
+ public:
+  QueueMember() : next_(NULL) {}
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(QueueMember);
   friend class Queue;
   QueueMember* next_;
 };
 
 class Queue : private QueueMember {
-public:
-  Queue()
-    : tail_(this) {}
+ public:
+  Queue() : tail_(this) {}
 
   //! Returns true if the queue has no elements.
-  bool empty() {
-    return next_ == NULL;
-  }
+  bool empty() { return next_ == NULL; }
 
   //! Adds an entry to the end of the queue. Not thread-safe (caller has to
   //! lock).
@@ -87,8 +83,7 @@ public:
   }
 
   bool IsMaybePending(QueueMember* entry) {
-    return ((entry->next_ != NULL) ||
-            (entry == tail_));
+    return ((entry->next_ != NULL) || (entry == tail_));
   }
 
   void PushIfNotMember(QueueMember* entry) {
@@ -109,10 +104,10 @@ public:
     return ret;
   }
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(Queue);
 
   QueueMember* tail_;
 };
 
-#endif // _EXECUTOR_QUEUE_HXX_
+#endif  // _EXECUTOR_QUEUE_HXX_

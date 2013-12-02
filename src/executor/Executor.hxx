@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -38,150 +38,135 @@
 
 #include "utils/BufferQueue.hxx"
 
-enum
-{
-    /** Start the Executor */
-    ID_EXECUTOR_START = 0,
-    
-    /** This is a timer */
-    ID_TIMER,
+enum {
+  /** Start the Executor */
+  ID_EXECUTOR_START = 0,
+
+  /** This is a timer */
+  ID_TIMER,
 };
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class Executor : public OSThread
-{
-public:
-    /** Callback type for timers */
-    typedef void (*TimerCallback)();
-    
-    /** connection handle to an executor */
-    typedef void *Connection;
+class Executor : public OSThread {
+ public:
+  /** Callback type for timers */
+  typedef void (*TimerCallback)();
 
-    /** Catch timer callback.
-     * @param data1 pointer to an Executor instance
-     * @param data2 pointer to an application callback
-     * @return Always returns OS_TIMER_NONE
-     */
-    static long long timer_callback(void *data1, void *data2);
+  /** connection handle to an executor */
+  typedef void *Connection;
 
-    /** Register a timer callback.  The callback will be called from within
-     * the same thread context as the Executor thread.
-     * @param callback method to call upon expiration
-     * @return pointer to created timer
-     */
-    OSTimer *timer_create(TimerCallback callback)
-    {
-        return new OSTimer(timer_callback, (void*)this, (void*)callback);
-    }
+  /** Catch timer callback.
+   * @param data1 pointer to an Executor instance
+   * @param data2 pointer to an application callback
+   * @return Always returns OS_TIMER_NONE
+   */
+  static long long timer_callback(void *data1, void *data2);
 
-    /** Send a message to this Executor's queue.
-     * @param c Connection to an executor
-     * @param buffer buffer instance to insert into the input queue
-     */
-    static void send(Connection *c, Buffer* buffer)
-    {
-        Executor *executor = (Executor*)c;
-        executor->send(buffer);
-    }
-    
-    /** Get a connection handle to the given Executor name.
-     * @param name name of Executor to connect to
-     * @param wait wait forever for a connection to come online
-     * @return connection handle upon success, NULL upon failure
-     */
-    static Connection connection(const char *name, bool wait = false);
-    
-    /** Get a connection handle to the Executor caller instance.
-     * @return connection handle
-     */
-    Connection connection()
-    {
-        return (Connection*)this;
-    }
-    
-protected:
-    /** Constructor.
-     * @param name name of executor
-     * @param priority thread priority
-     * @param stack_size thread stack size
-     */
-    Executor(const char *name, int priority, size_t stack_size);
+  /** Register a timer callback.  The callback will be called from within
+   * the same thread context as the Executor thread.
+   * @param callback method to call upon expiration
+   * @return pointer to created timer
+   */
+  OSTimer *timer_create(TimerCallback callback) {
+    return new OSTimer(timer_callback, (void *)this, (void *)callback);
+  }
 
-    /** Default destructor.
-     */
-    ~Executor()
-    {
-    }
+  /** Send a message to this Executor's queue.
+   * @param c Connection to an executor
+   * @param buffer buffer instance to insert into the input queue
+   */
+  static void send(Connection *c, Buffer *buffer) {
+    Executor *executor = (Executor *)c;
+    executor->send(buffer);
+  }
 
-    /** Initialization hook that occurs at start outside the Executor thread context.
-     */
-    virtual void initialize()
-    {
-    }
-    
-    /** Initialization hook that occurs under the Executor thread context.
-     */
-    virtual void thread_initialize()
-    {
-    }
-    
-    /** Process an incoming message.
-     * @param id message ID
-     * @param data message payload
-     * @param size message size
-     */
-    virtual void process(uint32_t id, void *data, size_t size) = 0;
+  /** Get a connection handle to the given Executor name.
+   * @param name name of Executor to connect to
+   * @param wait wait forever for a connection to come online
+   * @return connection handle upon success, NULL upon failure
+   */
+  static Connection connection(const char *name, bool wait = false);
 
-    /** Send a message to this Executor's queue.
-     * @param buffer buffer instance to insert into the input queue
-     */
-    void send(Buffer *buffer)
-    {
-        initialize();
-        queue.insert(buffer);
-    }
+  /** Get a connection handle to the Executor caller instance.
+   * @return connection handle
+   */
+  Connection connection() { return (Connection *)this; }
 
-    /** Start the Executor processing.
-     */
-    void start()
-    {
-        /** wakeup the buffer Queue */
-        Buffer *buffer = buffer_alloc(0);
-        buffer->id(0);
-        queue.insert(buffer);
-    }
+ protected:
+  /** Constructor.
+   * @param name name of executor
+   * @param priority thread priority
+   * @param stack_size thread stack size
+   */
+  Executor(const char *name, int priority, size_t stack_size);
 
-private:
-    /** Structure for timer messages.
-     */
-    struct IdTimer
-    {
-        TimerCallback callback; /**< callback for executing timer */
-    };
+  /** Default destructor.
+   */
+  ~Executor() {}
 
-    /** Thread entry point.
-     * @return Should never return
-     */
-    void *entry();
+  /** Initialization hook that occurs at start outside the Executor thread
+   * context.
+   */
+  virtual void initialize() {}
 
-    /** queue to wait for incoming messages on */
-    BufferQueueWait queue;
-    
-    /** name of this Executor */
-    const char *name;
-    
-    /** next executor in the lookup list */
-    Executor *next;
-    
-    /** executor list for lookup purposes */
-    static Executor *list;
-        
-    /** Default Constructor.
-     */
-    Executor();
+  /** Initialization hook that occurs under the Executor thread context.
+   */
+  virtual void thread_initialize() {}
 
-    DISALLOW_COPY_AND_ASSIGN(Executor);
+  /** Process an incoming message.
+   * @param id message ID
+   * @param data message payload
+   * @param size message size
+   */
+  virtual void process(uint32_t id, void *data, size_t size) = 0;
+
+  /** Send a message to this Executor's queue.
+   * @param buffer buffer instance to insert into the input queue
+   */
+  void send(Buffer *buffer) {
+    initialize();
+    queue.insert(buffer);
+  }
+
+  /** Start the Executor processing.
+   */
+  void start() {
+    /** wakeup the buffer Queue */
+    Buffer *buffer = buffer_alloc(0);
+    buffer->id(0);
+    queue.insert(buffer);
+  }
+
+ private:
+  /** Structure for timer messages.
+   */
+  struct IdTimer {
+    TimerCallback callback; /**< callback for executing timer */
+  };
+
+  /** Thread entry point.
+   * @return Should never return
+   */
+  void *entry();
+
+  /** queue to wait for incoming messages on */
+  BufferQueueWait queue;
+
+  /** name of this Executor */
+  const char *name;
+
+  /** next executor in the lookup list */
+  Executor *next;
+
+  /** executor list for lookup purposes */
+  static Executor *list;
+
+  /** Default Constructor.
+   */
+  Executor();
+
+  DISALLOW_COPY_AND_ASSIGN(Executor);
 };
 
 #endif /* _Executor_hxx_ */

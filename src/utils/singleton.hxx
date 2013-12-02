@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -53,7 +53,7 @@
    };
 
    DEFINE_SINGLETON_INSTANCE(Foo);
-   
+
    void appl_main() {
      Foo my_instance(constructor_args);
    }
@@ -62,27 +62,27 @@
 
    Foo::instance()->DoSomething();
  */
-template<class T> class Singleton {
-public:
+template <class T>
+class Singleton {
+ public:
   Singleton() {
     HASSERT(instance_ == nullptr);
     instance_ = static_cast<T*>(this);
   }
 
-  ~Singleton() {
-    instance_ = nullptr;
-  }
+  ~Singleton() { instance_ = nullptr; }
 
   static T* instance() {
     HASSERT(instance_ != nullptr);
     return instance_;
   }
 
-private:
+ private:
   static T* instance_;
 };
 
-#define DEFINE_SINGLETON_INSTANCE(T) template<> T* Singleton<T>::instance_ = nullptr
+#define DEFINE_SINGLETON_INSTANCE(T) \
+  template <>                        \
+  T* Singleton<T>::instance_ = nullptr
 
-#endif // _UTILS_SINGLETON_HXX_
-
+#endif  // _UTILS_SINGLETON_HXX_

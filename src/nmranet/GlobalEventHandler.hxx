@@ -13,8 +13,7 @@
 #include "utils/macros.h"
 #include "executor/control_flow.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 class GlobalEventFlow;
 

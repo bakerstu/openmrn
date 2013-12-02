@@ -42,69 +42,58 @@
 #include "utils/BufferQueue.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 Executor* DefaultWriteFlowExecutor();
 
-class WriteHelper : private Executable
-{
-public:
-    static NodeHandle global()
-    {
-        return {0, 0};
+class WriteHelper : private Executable {
+ public:
+  static NodeHandle global() {
+    return {0, 0};
+  }
+
+  WriteHelper(Executor* executor) : done_(nullptr), executor_(executor) {}
+
+  /** Originales an NMRAnet message from a particular node.
+   *
+   * @param node is the originating node.
+   * @param mti is the message to send
+   * @param dst is the destination node to send to (may be Global())
+   * @param buffer is the message payload.
+   * @param done will be notified when the packet has been enqueued to the
+   * physical layer. If done == nullptr, the sending is invoked synchronously.
+   */
+  void write_async(Node* node, If::MTI mti, NodeHandle dst, Buffer* buffer,
+                   Notifiable* done) {
+    HASSERT(!done_);
+    node_ = node;
+    mti_ = mti;
+    dst_ = dst;
+    buffer_ = buffer;
+    if (done) {
+      done_ = done;
+      executor_->Add(this);
+    } else {
+      done_ = nullptr;
+      Run();
     }
+  }
 
-    WriteHelper(Executor* executor)
-        : done_(nullptr),
-          executor_(executor)
-    {
-    }
+ private:
+  /** Callback in the executor thread.
+   */
+  virtual void Run();
 
-    /** Originales an NMRAnet message from a particular node.
-     *
-     * @param node is the originating node.
-     * @param mti is the message to send
-     * @param dst is the destination node to send to (may be Global())
-     * @param buffer is the message payload.
-     * @param done will be notified when the packet has been enqueued to the
-     * physical layer. If done == nullptr, the sending is invoked synchronously.
-     */
-    void write_async(Node *node, If::MTI mti, NodeHandle dst,
-                     Buffer *buffer, Notifiable* done)
-    {
-        HASSERT(!done_);
-        node_ = node;
-        mti_ = mti;
-        dst_ = dst;
-        buffer_ = buffer;
-        if (done)
-        {
-            done_ = done;
-            executor_->Add(this);
-        }
-        else
-        {
-            done_ = nullptr;
-            Run();
-        }
-    }
-
-private:
-    /** Callback in the executor thread.
-     */
-    virtual void Run();
-
-    Node *node_;
-    If::MTI mti_;
-    NodeHandle dst_;
-    Buffer *buffer_;
-    Notifiable* done_;
-    Executor* executor_;
+  Node* node_;
+  If::MTI mti_;
+  NodeHandle dst_;
+  Buffer* buffer_;
+  Notifiable* done_;
+  Executor* executor_;
 };
 
-Buffer *EventIdToBuffer(uint64_t eventid);
+Buffer* EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace NMRAnet */
 
-#endif  /* _NMRAnetWriteFlow_hxx_ */
+#endif /* _NMRAnetWriteFlow_hxx_ */
