@@ -30,6 +30,7 @@ find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depva
 ################ stellarisware ##################
 ifndef STELLARISWAREPATH
 SEARCHPATH := \
+  /opt/StellarisWare/default \
   /opt/StellarisWare \
   $(HOME)/StellarisWare
 
