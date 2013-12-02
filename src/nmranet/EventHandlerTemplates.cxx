@@ -37,10 +37,9 @@
 #include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
-#include "if/nmranet_if.h" // for MTI values
+#include "if/nmranet_if.h"  // for MTI values
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 #if LOGLEVEL >= VERBOSE
 #define DESCRIBE_VAR
@@ -51,9 +50,8 @@ namespace NMRAnet
 extern const string& GetNameForOffset(int);
 #endif
 
-BitRangeEventPC::BitRangeEventPC(Node *node,
-                                 uint64_t event_base, uint32_t* backing_store,
-                                 unsigned size)
+BitRangeEventPC::BitRangeEventPC(Node* node, uint64_t event_base,
+                                 uint32_t* backing_store, unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
   NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
 }
@@ -65,8 +63,7 @@ BitRangeEventPC::~BitRangeEventPC() {
 void BitRangeEventPC::GetBitAndMask(unsigned bit, uint32_t** data,
                                     uint32_t* mask) const {
   *data = nullptr;
-  if ((bit >= size_) || (bit < 0))
-    return;
+  if ((bit >= size_) || (bit < 0)) return;
   *data = data_ + (bit >> 5);
   *mask = 1 << (bit & 31);
 }
@@ -76,8 +73,7 @@ bool BitRangeEventPC::Get(unsigned bit) const {
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
-  if (!ofs)
-    return false;
+  if (!ofs) return false;
   return (*ofs) & mask;
 }
 
@@ -95,8 +91,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
   GetBitAndMask(bit, &ofs, &mask);
   bool old_value = new_value;
   HASSERT(ofs);
-  if (ofs)
-    old_value = (*ofs) & mask;
+  if (ofs) old_value = (*ofs) & mask;
   if (old_value != new_value) {
     if (new_value) {
       *ofs |= mask;
@@ -104,10 +99,9 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
       *ofs &= ~mask;
     }
     uint64_t event = event_base_ + bit * 2;
-    if (!new_value)
-      event++;
+    if (!new_value) event++;
     writer->write_async(node_, If::MTI_EVENT_REPORT, WriteHelper::global(),
-                       EventIdToBuffer(event), done);
+                        EventIdToBuffer(event), done);
     if (!done) {
       // We wait for the sent-out event to come back. Otherwise there is a race
       // condition where the automata processing could have gone further, but
@@ -117,20 +111,17 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
       }
     }
   } else {
-    if (done)
-      done->Notify();
+    if (done) done->Notify();
   }
 }
 
 void BitRangeEventPC::HandleEventReport(EventReport* event, Notifiable* done) {
   done->Notify();
-  if (event->event < event_base_)
-    return;
+  if (event->event < event_base_) return;
   uint64_t d = (event->event - event_base_);
   bool new_value = !(d & 1);
   d >>= 1;
-  if (d >= size_)
-    return;
+  if (d >= size_) return;
   int bit = d;
 #ifdef DESCRIBE_VAR
   fprintf(stderr, "BitRange: IN  bit %x (%s) to %d\n", bit,
@@ -160,20 +151,18 @@ void BitRangeEventPC::HandleIdentifyConsumer(EventReport* event,
 }
 void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
                                          Notifiable* done) {
-  if (event->event < event_base_)
-    return done->Notify();
+  if (event->event < event_base_) return done->Notify();
   uint64_t d = (event->event - event_base_);
   bool new_value = !(d & 1);
   d >>= 1;
-  if (d >= size_)
-    return done->Notify();
+  if (d >= size_) return done->Notify();
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(d, &ofs, &mask);
   If::MTI mti = mti_valid;
   bool old_value = *ofs & mask;
   if (old_value != new_value) {
-    mti++; // mti INVALID
+    mti++;  // mti INVALID
   }
 
   event_write_helper1.write_async(node_, mti, WriteHelper::global(),
@@ -211,8 +200,7 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
   event_barrier.MaybeDone();
 }
 
-BitEventHandler::BitEventHandler(BitEventInterface* bit)
-    : bit_(bit) {
+BitEventHandler::BitEventHandler(BitEventInterface* bit) : bit_(bit) {
   NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
 }
 
@@ -223,44 +211,42 @@ BitEventHandler::~BitEventHandler() {
 void BitEventHandler::SendProducerIdentified() {
   bool value = bit_->GetCurrentState();
   If::MTI mti = If::MTI_PRODUCER_IDENTIFIED_VALID;
-  if (!value)
-    mti++; // INVALID
+  if (!value) mti++;  // INVALID
   event_write_helper1.write_async(bit_->node(), mti, WriteHelper::global(),
-                                 EventIdToBuffer(bit_->event_on()),
-                                 event_barrier.NewChild());
+                                  EventIdToBuffer(bit_->event_on()),
+                                  event_barrier.NewChild());
   if (!value) {
-    mti--; // VALID
+    mti--;  // VALID
   } else {
-    mti++; // INVALID
+    mti++;  // INVALID
   }
   event_write_helper2.write_async(bit_->node(), mti, WriteHelper::global(),
-                                 EventIdToBuffer(bit_->event_off()),
-                                 event_barrier.NewChild());
+                                  EventIdToBuffer(bit_->event_off()),
+                                  event_barrier.NewChild());
 }
 
 void BitEventHandler::SendConsumerIdentified() {
   bool value = bit_->GetCurrentState();
   If::MTI mti = If::MTI_CONSUMER_IDENTIFIED_VALID;
-  if (!value)
-    mti++; // INVALID
+  if (!value) mti++;  // INVALID
   event_write_helper3.write_async(bit_->node(), mti, WriteHelper::global(),
-                                 EventIdToBuffer(bit_->event_on()),
-                                 event_barrier.NewChild());
+                                  EventIdToBuffer(bit_->event_on()),
+                                  event_barrier.NewChild());
   if (!value) {
-    mti--; // VALID
+    mti--;  // VALID
   } else {
-    mti++; // INVALID
+    mti++;  // INVALID
   }
   event_write_helper4.write_async(bit_->node(), mti, WriteHelper::global(),
-                                 EventIdToBuffer(bit_->event_off()),
-                                 event_barrier.NewChild());
+                                  EventIdToBuffer(bit_->event_off()),
+                                  event_barrier.NewChild());
 }
 
 void BitEventHandler::SendEventReport(WriteHelper* writer, Notifiable* done) {
   bool value = bit_->GetCurrentState();
   uint64_t event = value ? bit_->event_on() : bit_->event_off();
   writer->write_async(bit_->node(), If::MTI_EVENT_REPORT, WriteHelper::global(),
-                     EventIdToBuffer(event), done);
+                      EventIdToBuffer(event), done);
 }
 
 void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
@@ -275,10 +261,10 @@ void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
     return;
   }
   if (!active) {
-    ++mti; // mti_invalid.
+    ++mti;  // mti_invalid.
   }
   event_write_helper1.write_async(bit_->node(), mti, WriteHelper::global(),
-                                 EventIdToBuffer(event->event), done);
+                                  EventIdToBuffer(event->event), done);
 }
 
 void BitEventConsumer::HandleEventReport(EventReport* event, Notifiable* done) {
@@ -326,4 +312,3 @@ void BitEventPC::HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
 }
 
 }; /* namespace NMRAnet */
-

@@ -67,7 +67,9 @@ class ProxyNotifiable : private Notifiable {
   }
   //! @Returns true if the Notifiable returned by NewCallback has already been
   //! called.
-  bool HasBeenNotified() { return !parent_; };
+  bool HasBeenNotified() {
+    return !parent_;
+  };
 
  private:
   //! Implementation of the private Notifiable interface.

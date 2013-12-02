@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -31,7 +31,6 @@
  * @author Balazs Racz
  * @date 5 Aug 2013
  */
-
 
 #include "executor/control_flow.hxx"
 
@@ -79,19 +78,20 @@ void ControlFlow::NotifyControlFlowTimer(SleepData* entry) {
   // here we use that executor's mutex is reentrant.
   Notify();
 }
-                                   
 
-long long ControlFlow::control_flow_single_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_single_timer(void* arg_flow,
+                                                 void* arg_entry) {
   ControlFlow::SleepData* entry =
-    static_cast<ControlFlow::SleepData*>(arg_entry);
+      static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
   flow->NotifyControlFlowTimer(entry);
   return OS_TIMER_NONE;  // no restart.
 }
 
-long long ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_entry) {
+long long ControlFlow::control_flow_repeated_timer(void* arg_flow,
+                                                   void* arg_entry) {
   ControlFlow::SleepData* entry =
-    static_cast<ControlFlow::SleepData*>(arg_entry);
+      static_cast<ControlFlow::SleepData*>(arg_entry);
   ControlFlow* flow = static_cast<ControlFlow*>(arg_flow);
   flow->NotifyControlFlowTimer(entry);
   return OS_TIMER_RESTART;
@@ -103,7 +103,7 @@ ControlFlow::ControlFlowAction ControlFlow::Sleep(SleepData* data,
   HASSERT(data->callback_count == 0);
   if (data->timer_handle == NULL) {
     data->timer_handle =
-      os_timer_create(&control_flow_single_timer, this, data);
+        os_timer_create(&control_flow_single_timer, this, data);
   }
   os_timer_start(data->timer_handle, delay_nsec);
 
@@ -115,7 +115,7 @@ void ControlFlow::WakeUpRepeatedly(SleepData* data, long long period_nsec) {
     os_timer_delete(data->timer_handle);
   }
   data->timer_handle =
-    os_timer_create(&control_flow_repeated_timer, this, data);
+      os_timer_create(&control_flow_repeated_timer, this, data);
   os_timer_start(data->timer_handle, period_nsec);
 }
 
@@ -125,10 +125,8 @@ void ControlFlow::StopTimer(SleepData* data) {
   data->timer_handle = NULL;
 }
 
-
 ControlFlow::ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
-    SleepData* data,
-    MemberFunction next_state) {
+    SleepData* data, MemberFunction next_state) {
   next_state_ = next_state;
   sub_flow_.sleep = data;
   // We use CallImmediately here in case the timer has expired before (or

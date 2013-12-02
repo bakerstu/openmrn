@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -183,5 +183,3 @@ uint64_t node_id_value(node_id_t node_id)
     return id->id;
 }
 #endif
-
-

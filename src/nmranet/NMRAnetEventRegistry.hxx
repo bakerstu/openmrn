@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,8 +42,7 @@
 #include "nmranet_types.h"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 typedef uint64_t EventId;
 
@@ -84,34 +83,34 @@ extern WriteHelper event_write_helper4;
 extern BarrierNotifiable event_barrier;
 
 class NMRAnetEventHandler {
-public:
+ public:
   virtual ~NMRAnetEventHandler() {}
 
   // Called on incoming EventReport messages. Filled: src_node, event. Mask is
   // always 1 (filled in). state is not filled in.
-  virtual void HandleEventReport(EventReport* event,
-                                 Notifiable* done) = 0;
+  virtual void HandleEventReport(EventReport* event, Notifiable* done) = 0;
 
   // Called on another node sending ConsumerIdentified for this event. Filled:
   // event_id, mask=1, src_node, state.
-  virtual void HandleConsumerIdentified(EventReport* event,
-                                        Notifiable* done) {
+  virtual void HandleConsumerIdentified(EventReport* event, Notifiable* done) {
     done->Notify();
   };
 
-  // Called on another node sending ConsumerRangeIdentified. Filled: event id, mask (!= 1), src_node. Not filled: state.
+  // Called on another node sending ConsumerRangeIdentified. Filled: event id,
+  // mask (!= 1), src_node. Not filled: state.
   virtual void HandleConsumerRangeIdentified(EventReport* event,
                                              Notifiable* done) {
     done->Notify();
   }
 
-  // Called on another node sending ProducerIdentified for this event. Filled: event_id, mask=1, src_node, state.
-  virtual void HandleProducerIdentified(EventReport* event,
-                                        Notifiable* done) {
+  // Called on another node sending ProducerIdentified for this event. Filled:
+  // event_id, mask=1, src_node, state.
+  virtual void HandleProducerIdentified(EventReport* event, Notifiable* done) {
     done->Notify();
   }
 
-  // Called on another node sending ProducerRangeIdentified for this event. Filled: event id, mask (!= 1), src_node. Not filled: state.
+  // Called on another node sending ProducerRangeIdentified for this event.
+  // Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleProducerRangeIdentified(EventReport* event,
                                              Notifiable* done) {
     done->Notify();
@@ -122,33 +121,35 @@ public:
   // IdentifyGlobal message arrives. Might have destination node id!
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) = 0;
 
-  // Called on another node sending IdentifyConsumer. Filled: src_node, event, mask=1. Not filled: state.
-  virtual void HandleIdentifyConsumer(EventReport* event,
-                                      Notifiable* done) = 0;
+  // Called on another node sending IdentifyConsumer. Filled: src_node, event,
+  // mask=1. Not filled: state.
+  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done) = 0;
 
-  // Called on another node sending IdentifyProducer. Filled: src_node, event, mask=1. Not filled: state.
-  virtual void HandleIdentifyProducer(EventReport* event,
-                                      Notifiable* done) = 0;
+  // Called on another node sending IdentifyProducer. Filled: src_node, event,
+  // mask=1. Not filled: state.
+  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done) = 0;
 };
 
 class NMRAnetEventRegistry {
-public:
+ public:
   static NMRAnetEventRegistry* instance() {
     HASSERT(instance_);
     return instance_;
   }
 
   // mask = 0 means exact event only. Mask = 64 means this is a global handler.
-  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
-  
+  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event,
+                               unsigned mask) = 0;
+  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event,
+                                 unsigned mask) = 0;
+
   virtual NMRAnetEventHandler* EventHandler() = 0;
 
-protected:
+ protected:
   NMRAnetEventRegistry();
   ~NMRAnetEventRegistry();
 
-private:
+ private:
   static NMRAnetEventRegistry* instance_;
 
   DISALLOW_COPY_AND_ASSIGN(NMRAnetEventRegistry);

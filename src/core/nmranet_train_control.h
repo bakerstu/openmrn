@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -41,11 +41,10 @@ extern "C" {
 #endif
 
 /** Type of velocity inquiry or report. */
-enum tc_velocity_kind
-{
-    VELOCITY_KIND_COMMANDED = 0x00, /**< commanded velocity */
-    VELOCITY_KIND_INTENDED  = 0x01, /**< intended velocity */
-    VELOCITY_KIND_ACTUAL    = 0x03 /**< actual velocity */
+enum tc_velocity_kind {
+  VELOCITY_KIND_COMMANDED = 0x00, /**< commanded velocity */
+  VELOCITY_KIND_INTENDED = 0x01,  /**< intended velocity */
+  VELOCITY_KIND_ACTUAL = 0x03     /**< actual velocity */
 };
 
 /** Process the datagram automatically for train control.
@@ -61,11 +60,12 @@ typedef void (*TCEstopCallback)(node_t node, node_id_t from);
 typedef void (*TCVelocityCallback)(node_t node, node_id_t from, float velocity);
 
 /** Callback type for handling velocity inquire of a node */
-typedef void (*TCVelocityInquireCallback)(node_t node, node_id_t from, int kind);
+typedef void (*TCVelocityInquireCallback)(node_t node, node_id_t from,
+                                          int kind);
 
 /** Callback type for handling velocity report of a node */
-typedef void (*TCVelocityReportCallback)(node_t node, node_id_t from, int kind, float velocity);
-
+typedef void (*TCVelocityReportCallback)(node_t node, node_id_t from, int kind,
+                                         float velocity);
 
 #ifdef __cplusplus
 }

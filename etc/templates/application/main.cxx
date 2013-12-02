@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -64,81 +64,74 @@ const size_t SERIAL_TX_BUFFER_SIZE = 16;
  * @param argv array of command line arguments
  * @return 0, should never return
  */
-int appl_main(int argc, char *argv[])
-{
-    printf("hello world\n");
+int appl_main(int argc, char *argv[]) {
+  printf("hello world\n");
 
-    NMRAnetIF *nmranet_if;
+  NMRAnetIF *nmranet_if;
 
-    if (argc >= 2)
-    {
-        nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
-    }
-    else
-    {
-#if defined (__FreeRTOS__)
+  if (argc >= 2) {
+    nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
+  } else {
+#if defined(__FreeRTOS__)
 
-        nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
+    nmranet_if =
+        nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
 #else
-        nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, "/dev/ttyUSB1");
+    nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, "/dev/ttyUSB1");
 #endif
-    }
-    
-    if (nmranet_if == NULL)
-    {
-        printf("Unable to open NMRAnet Interface.\n");
-        return 0;
-    }
-    
-    node_t node = nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
-    nmranet_node_user_description(node, "Test Node");
+  }
 
-    nmranet_event_consumer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
-    nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-    nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-    nmranet_event_producer(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-
-    nmranet_node_initialized(node);
-#if 1
-    uint8_t data[16] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-    //node_handle_t dst = {0, 0x014};
-    node_handle_t dst = {0x050201020265ULL, 0};
-    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 0);
-    nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 3000000000LL);
-#endif
-    for (;;)
-    {
-        if (argc < 3)
-        {    
-            sleep(2);
-            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
-            nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
-            sleep(2);
-            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
-            nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
-        }
-        int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
-
-        if (result)
-        {
-            for (size_t i = nmranet_event_pending(node); i > 0; i--)
-            {
-                uint64_t event = nmranet_event_consume(node);
-#if !defined (__FreeRTOS__)
-                printf("we got event: 0x%016" PRIx64 "\n", event);
-#else
-                event = event ? 1 : 0; /* suppress compiler warning, unused variable */
-#endif
-            }
-            for (size_t i = nmranet_datagram_pending(node); i > 0; i--)
-            {
-                datagram_t datagram = nmranet_datagram_consume(node);
-                nmranet_datagram_release(datagram);
-            }            
-        }
-    }
-
+  if (nmranet_if == NULL) {
+    printf("Unable to open NMRAnet Interface.\n");
     return 0;
+  }
+
+  node_t node =
+      nmranet_node_create(0x02010d000001ULL, nmranet_if, "Virtual Node", NULL);
+  nmranet_node_user_description(node, "Test Node");
+
+  nmranet_event_consumer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
+  nmranet_event_consumer(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+  nmranet_event_consumer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+  nmranet_event_producer(node, 0x0502010202000000ULL, EVENT_STATE_INVALID);
+  nmranet_event_producer(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+  nmranet_event_producer(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+
+  nmranet_node_initialized(node);
+#if 1
+  uint8_t data[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  // node_handle_t dst = {0, 0x014};
+  node_handle_t dst = {0x050201020265ULL, 0};
+  nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16, 0);
+  nmranet_datagram_produce(node, dst, DATAGRAM_TRAIN_CONTROL, data, 16,
+                           3000000000LL);
+#endif
+  for (;;) {
+    if (argc < 3) {
+      sleep(2);
+      nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_INVALID);
+      nmranet_event_produce(node, 0x0502010202650012ULL, EVENT_STATE_VALID);
+      sleep(2);
+      nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_INVALID);
+      nmranet_event_produce(node, 0x0502010202650013ULL, EVENT_STATE_VALID);
+    }
+    int result = nmranet_node_wait(node, MSEC_TO_NSEC(300));
+
+    if (result) {
+      for (size_t i = nmranet_event_pending(node); i > 0; i--) {
+        uint64_t event = nmranet_event_consume(node);
+#if !defined(__FreeRTOS__)
+        printf("we got event: 0x%016" PRIx64 "\n", event);
+#else
+        event = event ? 1 : 0; /* suppress compiler warning, unused variable */
+#endif
+      }
+      for (size_t i = nmranet_datagram_pending(node); i > 0; i--) {
+        datagram_t datagram = nmranet_datagram_consume(node);
+        nmranet_datagram_release(datagram);
+      }
+    }
+  }
+
+  return 0;
 }

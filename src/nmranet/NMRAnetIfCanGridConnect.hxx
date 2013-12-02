@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -37,85 +37,64 @@
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "utils/GridConnect.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 /** Provide a Grid Connect encoded extension to the normal CAN messaging.
  */
-class IfCanGridConnect : public GridConnect, public IfCan
-{
-public:
-    /** Constructor.
-     * @param node_id node ID of interface
-     * @param device description for this instance
-     * @param read_double true if read encoding is two bytes per character, else false
-     * @param write_double true if read encoding is two bytes per character, else false
-     */
-    static IfCanGridConnect *instance(NodeID node_id, const char *device,
-                                      bool read_double = false,
-                                      bool write_double = true)
-    {
-        if (read_double)
-        {
-            if (write_double)
-            {
-                return new IfCanGridConnect(node_id, device,
-                                            GridConnect::read_double,
-                                            GridConnect::write_double);
-            }
-            else
-            {
-                return new IfCanGridConnect(node_id, device,
-                                            GridConnect::read_double,
-                                            GridConnect::write);
-            }
-        }
-        else
-        {
-            if (write_double)
-            {
-                return new IfCanGridConnect(node_id, device,
-                                            GridConnect::read,
-                                            GridConnect::write_double);
-            }
-            else
-            {
-                return new IfCanGridConnect(node_id, device,
-                                            GridConnect::read,
-                                            GridConnect::write);
-            }
-        }
+class IfCanGridConnect : public GridConnect, public IfCan {
+ public:
+  /** Constructor.
+   * @param node_id node ID of interface
+   * @param device description for this instance
+   * @param read_double true if read encoding is two bytes per character, else
+   * false
+   * @param write_double true if read encoding is two bytes per character, else
+   * false
+   */
+  static IfCanGridConnect *instance(NodeID node_id, const char *device,
+                                    bool read_double = false,
+                                    bool write_double = true) {
+    if (read_double) {
+      if (write_double) {
+        return new IfCanGridConnect(node_id, device, GridConnect::read_double,
+                                    GridConnect::write_double);
+      } else {
+        return new IfCanGridConnect(node_id, device, GridConnect::read_double,
+                                    GridConnect::write);
+      }
+    } else {
+      if (write_double) {
+        return new IfCanGridConnect(node_id, device, GridConnect::read,
+                                    GridConnect::write_double);
+      } else {
+        return new IfCanGridConnect(node_id, device, GridConnect::read,
+                                    GridConnect::write);
+      }
     }
+  }
 
-private:
-    /** Constructor.
-     * @param node_id node ID of interface
-     * @param device description for this instance
-     * @param read read method for this interface
-     * @param write write method for this interface
-     */
-    IfCanGridConnect(NodeID node_id, const char *device,
-                     ssize_t (*read)(int, void*, size_t),
-                     ssize_t (*write)(int, const void*, size_t))
-        : GridConnect(),
-          IfCan(node_id, device, read, write)
-    {
-    }
-    
-    /** Default Constructor.
-     */
-    IfCanGridConnect();
-    
-    /** Default Destructor.
-     */
-    ~IfCanGridConnect()
-    {
-    }
+ private:
+  /** Constructor.
+   * @param node_id node ID of interface
+   * @param device description for this instance
+   * @param read read method for this interface
+   * @param write write method for this interface
+   */
+  IfCanGridConnect(NodeID node_id, const char *device,
+                   ssize_t (*read)(int, void *, size_t),
+                   ssize_t (*write)(int, const void *, size_t))
+      : GridConnect(), IfCan(node_id, device, read, write) {}
 
-    DISALLOW_COPY_AND_ASSIGN(IfCanGridConnect);
+  /** Default Constructor.
+   */
+  IfCanGridConnect();
+
+  /** Default Destructor.
+   */
+  ~IfCanGridConnect() {}
+
+  DISALLOW_COPY_AND_ASSIGN(IfCanGridConnect);
 };
-
 };
 
 #endif /* _NMRAnetIfCanGcTCP_hxx_ */
-

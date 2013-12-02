@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -47,97 +47,96 @@ extern const size_t CAN_RX_BUFFER_SIZE;
 extern const size_t CAN_TX_BUFFER_SIZE;
 
 /** Private data for a can device */
-class Can : public Node
-{
-protected:
-    /** Constructor
-     * @param name device name in file system
+class Can : public Node {
+ protected:
+  /** Constructor
+   * @param name device name in file system
+   */
+  Can(const char *name)
+      : Node(),
+        txQ(os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame))),
+        rxQ(os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame))),
+        overrunCount(0),
+        read_callback(NULL),
+        write_callback(NULL),
+        readContext(NULL),
+        writeContext(NULL),
+        mutex(),
+        devtab(name, &ops, this) {}
+
+  /** Destructor.
+   */
+  ~Can() {
+    /** @todo (Stuart Baker) for completeness we should destroy the
+     * txQ and rxQ here.
      */
-    Can(const char *name)
-        : Node(),
-          txQ(os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame))),
-          rxQ(os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame))),
-          overrunCount(0),
-          read_callback(NULL),
-          write_callback(NULL),
-          readContext(NULL),
-          writeContext(NULL),
-          mutex(),
-          devtab(name, &ops, this)
-    {
-    }    
+  }
 
-    /** Destructor.
-     */
-    ~Can()
-    {
-        /** @todo (Stuart Baker) for completeness we should destroy the
-         * txQ and rxQ here.
-         */
-    }
+  virtual void enable() = 0;  /**< function to enable device */
+  virtual void disable() = 0; /**< function to disable device */
+  virtual void tx_msg() = 0;  /**< function to try and transmit a message */
 
-    virtual void enable() = 0; /**< function to enable device */
-    virtual void disable() = 0; /**< function to disable device */
-    virtual void tx_msg() = 0; /**< function to try and transmit a message */
+  os_mq_t txQ;                    /**< transmit queue */
+  os_mq_t rxQ;                    /**< receive queue */
+  unsigned int overrunCount;      /**< overrun count */
+  void (*read_callback)(void *);  /**< callback for read active notify */
+  void (*write_callback)(void *); /**< callback for write active notify */
+  void *readContext;  /**< callback argument for read active notify */
+  void *writeContext; /**< callback argument for write active notify */
 
-    os_mq_t txQ; /**< transmit queue */
-    os_mq_t rxQ; /**< receive queue */
-    unsigned int overrunCount; /**< overrun count */
-    void (*read_callback)(void*); /**< callback for read active notify */
-    void (*write_callback)(void*); /**< callback for write active notify */
-    void *readContext; /**< callback argument for read active notify */
-    void *writeContext; /**< callback argument for write active notify */
+ private:
+  /** Open a device.
+  * @param file new file reference to this device
+  * @param path file or device name
+  * @param flags open flags
+  * @param mode open mode
+  * @return 0 upon success, negative errno upon failure
+  */
+  static int open(File *file, const char *path, int flags, int mode);
 
-private:    
-    /** Open a device.
-    * @param file new file reference to this device
-    * @param path file or device name
-    * @param flags open flags
-    * @param mode open mode
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int open(File* file, const char *path, int flags, int mode);
+  /** Close a device.
+  * @param file file reference for this device
+  * @param node node reference for this device
+  * @return 0 upon success, negative errno upon failure
+  */
+  static int close(File *file, Node *node);
 
-    /** Close a device.
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int close(File *file, Node *node);
+  /** Read from a file or device.
+  * @param file file reference for this device
+  * @param buf location to place read data
+  * @param count number of bytes to read
+  * @return number of bytes read upon success, -1 upon failure with errno
+  * containing the cause
+  */
+  static ssize_t read(File *file, void *buf, size_t count);
 
-    /** Read from a file or device.
-    * @param file file reference for this device
-    * @param buf location to place read data
-    * @param count number of bytes to read
-    * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-    */
-    static ssize_t read(File *file, void *buf, size_t count);
+  /** Write to a file or device.
+  * @param file file reference for this device
+  * @param buf location to find write data
+  * @param count number of bytes to write
+  * @return number of bytes written upon success, -1 upon failure with errno
+  * containing the cause
+  */
+  static ssize_t write(File *file, const void *buf, size_t count);
 
-    /** Write to a file or device.
-    * @param file file reference for this device
-    * @param buf location to find write data
-    * @param count number of bytes to write
-    * @return number of bytes written upon success, -1 upon failure with errno containing the cause
-    */
-    static ssize_t write(File *file, const void *buf, size_t count);
+  /** Request an ioctl transaction
+  * @param file file reference for this device
+  * @param node node reference for this device
+  * @param key ioctl key
+  * @param data key data
+  */
+  static int ioctl(File *file, Node *node, unsigned long int key,
+                   unsigned long data);
 
-    /** Request an ioctl transaction
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @param key ioctl key
-    * @param data key data
-    */
-    static int ioctl(File *file, Node *node, unsigned long int key, unsigned long data);
+  OSMutex mutex;     /**< mutual exclusion for the device */
+  Devtab devtab;     /**< device tabel entry for this instance */
+  static Devops ops; /**< device operations for CAN */
 
-    OSMutex mutex; /**< mutual exclusion for the device */
-    Devtab devtab; /**< device tabel entry for this instance */
-    static Devops ops; /**< device operations for CAN */
-    
-    /** Default constructor.
-     */
-    Can();
+  /** Default constructor.
+   */
+  Can();
 
-    DISALLOW_COPY_AND_ASSIGN(Can);
+  DISALLOW_COPY_AND_ASSIGN(Can);
 };
 
 #endif /* _Can_hxx_ */

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,22 +34,19 @@
 #ifndef _NMRAnetMessageID_hxx_
 #define _NMRAnetMessageID_hxx_
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
-enum
-{
-    ID_START = 1000,
-    ID_EVENT_DELIVER,
-    ID_DATAGRAM_DELIVER,
-    ID_DATAGRAM_RECEIVED_OK,
-    ID_DATAGRAM_REJECTED,
-    ID_STREAM_NEW_CONNECTION,
-    ID_STREAM_COMPLETED_CONNECTION,
-    ID_STREAM_DATA_POSTED,
-    ID_STREAM_DELIVER
+enum {
+  ID_START = 1000,
+  ID_EVENT_DELIVER,
+  ID_DATAGRAM_DELIVER,
+  ID_DATAGRAM_RECEIVED_OK,
+  ID_DATAGRAM_REJECTED,
+  ID_STREAM_NEW_CONNECTION,
+  ID_STREAM_COMPLETED_CONNECTION,
+  ID_STREAM_DATA_POSTED,
+  ID_STREAM_DELIVER
 };
-
 };
 
 #endif /* _NMRAnetMessageID_hxx_ */

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -50,21 +50,15 @@ class VolatileState;
 struct VolatileStateRef;
 struct VolatileStatePtr;
 
-
-
-
 class VolatileState : public Singleton<VolatileState> {
-public:
-  VolatileState(size_t size)
-    : values_(size, 0) {}
+ public:
+  VolatileState(size_t size) : values_(size, 0) {}
 
   VolatileStateRef GetRef(int offset);
 
   VolatileStatePtr GetPtr(int offset);
 
-  size_t size() {
-    return values_.size();
-  }
+  size_t size() { return values_.size(); }
 
   uint8_t Get(size_t offset) {
     HASSERT(offset < size());
@@ -79,7 +73,7 @@ public:
     values_[offset] = value;
   }
 
-private:
+ private:
   friend class VolatileStateRef;
 
   vector<uint8_t> values_;
@@ -96,9 +90,7 @@ struct VolatileStateRef {
             VolatileState::instance()->values_.size());
   }
 
-  operator uint8_t() const {
-    return VolatileState::instance()->Get(base_);
-  }
+  operator uint8_t() const { return VolatileState::instance()->Get(base_); }
 
   VolatileStateRef& operator=(uint8_t value) {
     VolatileState::instance()->Set(base_, value);
@@ -111,9 +103,7 @@ struct VolatileStateRef {
 struct VolatileStatePtr {
   explicit VolatileStatePtr(int base) : base_(base) {}
 
-  VolatileStateRef operator*() {
-    return VolatileStateRef(base_);
-  }
+  VolatileStateRef operator*() { return VolatileStateRef(base_); }
 
   VolatileStateRef operator[](int offset) {
     return VolatileStateRef(base_ + offset);
@@ -130,4 +120,4 @@ inline VolatileStatePtr VolatileState::GetPtr(int offset) {
   return VolatileStatePtr(offset);
 }
 
-#endif //_CUE_VOLATILE_STATE_HXX_
+#endif  //_CUE_VOLATILE_STATE_HXX_

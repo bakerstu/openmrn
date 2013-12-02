@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,500 +42,423 @@
 class BufferPool;
 
 /** main buffer pool instance */
-extern BufferPool *mainBufferPool; 
+extern BufferPool *mainBufferPool;
 
 /** Buffer structure that contains both metadata and user data */
-class Buffer
-{
-public:
-    /** Free this buffer to the BufferPool from whence it came.
-     */
-    inline void free();
+class Buffer {
+ public:
+  /** Free this buffer to the BufferPool from whence it came.
+   */
+  inline void free();
 
-    /** Advance the position of the buffer.
-     * @param bytes number of bytes to advance.
-     * @return pointer to the new position (next available byte)
-     */
-    void *advance(size_t bytes);
-    
-    /** reset the buffer position back to beginning.
-     * @return pointer to the new position (next available byte)
-     */
-    void *zero()
-    {
-        left = _size;
-        return data;
-    }    
-    
-    /** Get a pointer to the first position (byte) of the buffer.
-     * @return pointer to the first position (byte)
-     */
-    void *start()
-    {
-        return data;
+  /** Advance the position of the buffer.
+   * @param bytes number of bytes to advance.
+   * @return pointer to the new position (next available byte)
+   */
+  void *advance(size_t bytes);
+
+  /** reset the buffer position back to beginning.
+   * @return pointer to the new position (next available byte)
+   */
+  void *zero() {
+    left = _size;
+    return data;
+  }
+
+  /** Get a pointer to the first position (byte) of the buffer.
+   * @return pointer to the first position (byte)
+   */
+  void *start() { return data; }
+
+  /** Get a pointer to the current position of the buffer.
+   * @return pointer to the current position (next available byte)
+   */
+  void *position() { return &data[_size - left]; }
+
+  /** Get the size of the buffer in bytes.
+   * @return size of the buffer in bytes
+   */
+  size_t size() { return _size; }
+
+  /** Get the number of unused bytes in the buffer.
+   * @return number of unused bytes
+   */
+  size_t available() { return left; }
+
+  /** Get the number of unused bytes in the buffer.
+   * @return number of unused bytes
+   */
+  size_t used() { return _size - left; }
+
+  /** Expand the buffer size.
+   * @param size size buffer after expansion.
+   * @return newly expanded buffer with old buffer data moved
+   */
+  Buffer *expand(size_t size);
+
+  /** Set the unique identifier for the buffer.
+   * @param identifier 32-bit unique identifier
+   */
+  void id(uint32_t identifier) { _id = identifier; }
+
+  /** Get the unique identifier for the buffer.
+   * @return 32-bit unique identifier
+   */
+  uint32_t id() { return _id; }
+
+  /** Add another reference to the buffer.
+   * @return total number of references to this point
+   */
+  unsigned int reference();
+
+ private:
+  /** Like a constructor, but in this case, we allocate extra space for the
+   * user data.
+   * @param pool BufferPool instance from which this buffer will come
+   * @param size size of user data in bytes
+   * @param items number of items to allocate
+   * @return newly allocated buffer or addres of first item in an array of
+   *         allocated buffers, HASSERT() on failure
+   */
+  static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1) {
+    HASSERT(pool != NULL && items != 0);
+    size_t align_size = sizeof_buffer(size);
+    Buffer *buffer = (Buffer *)malloc(align_size * items);
+    HASSERT(buffer != NULL);
+    Buffer *result = buffer;
+    for (size_t i = 0; i < items; ++i) {
+      buffer->next = NULL;
+      buffer->bufferPool = pool;
+      buffer->_size = size;
+      buffer->left = size;
+      buffer->count = 1;
+      buffer = (Buffer *)((char *)buffer + align_size);
     }
+    return result;
+  }
 
-    /** Get a pointer to the current position of the buffer.
-     * @return pointer to the current position (next available byte)
-     */
-    void *position()
-    {
-        return &data[_size - left];
-    }
+  /** Like a constructor, but in this case, we re-purpose an existing buffer
+   * with no new memory allocation.
+   * @param buffer instance of buffer to reinitialize
+   * @param size size of user data in bytes
+   * @return newly reinitialized buffer, HASSERT() on failure
+   */
+  static Buffer *init(Buffer *buffer, size_t size) {
+    HASSERT(buffer->bufferPool != NULL);
+    HASSERT(buffer->_size == size);
+    buffer->next = NULL;
+    buffer->left = size;
+    buffer->count = 1;
+    return buffer;
+  }
 
-    /** Get the size of the buffer in bytes.
-     * @return size of the buffer in bytes
-     */
-    size_t size()
-    {
-        return _size;
-    }
+/** Macro to position to beginning of structure from data member position*/
+#define BUFFER(_buffer) (Buffer *)((char *)(_buffer) - sizeof(Buffer));
 
-    /** Get the number of unused bytes in the buffer.
-     * @return number of unused bytes
-     */
-    size_t available()
-    {
-        return left;    
-    }
+  /* pointer to BufferPool instance that this buffer belongs to */
+  BufferPool *bufferPool;
 
-    /** Get the number of unused bytes in the buffer.
-     * @return number of unused bytes
-     */
-    size_t used()
-    {
-        return _size - left;    
-    }
+  /** next buffer in list */
+  Buffer *next;
 
-    /** Expand the buffer size.
-     * @param size size buffer after expansion.
-     * @return newly expanded buffer with old buffer data moved
-     */
-    Buffer *expand(size_t size);
+  /** size of data in bytes */
+  size_t _size;
 
-    /** Set the unique identifier for the buffer.
-     * @param identifier 32-bit unique identifier
-     */
-    void id(uint32_t identifier)
-    {
-        _id = identifier;
-    }
+  /** amount for free space left in the buffer */
+  size_t left;
 
-    /** Get the unique identifier for the buffer.
-     * @return 32-bit unique identifier
-     */
-    uint32_t id()
-    {
-        return _id;
-    }
+  /** message ID for uniquely identifying this buffer in a queue */
+  uint32_t _id;
 
-    /** Add another reference to the buffer.
-     * @return total number of references to this point
-     */
-    unsigned int reference();
+  /** number of references in use */
+  unsigned int count;
 
-private:
-    /** Like a constructor, but in this case, we allocate extra space for the
-     * user data.
-     * @param pool BufferPool instance from which this buffer will come
-     * @param size size of user data in bytes
-     * @param items number of items to allocate
-     * @return newly allocated buffer or addres of first item in an array of
-     *         allocated buffers, HASSERT() on failure
-     */
-    static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1)
-    {
-        HASSERT(pool != NULL && items != 0);
-        size_t align_size = sizeof_buffer(size);
-        Buffer *buffer = (Buffer*)malloc(align_size * items);
-        HASSERT(buffer != NULL);
-        Buffer *result = buffer;
-        for (size_t i = 0; i < items; ++i)
-        {
-            buffer->next = NULL;
-            buffer->bufferPool = pool;
-            buffer->_size = size;
-            buffer->left = size;
-            buffer->count = 1;
-            buffer = (Buffer*)((char*)buffer + align_size);
-        }
-        return result;
-    }
+  /** user data */
+  char data[];
 
-    /** Like a constructor, but in this case, we re-purpose an existing buffer
-     * with no new memory allocation.
-     * @param buffer instance of buffer to reinitialize
-     * @param size size of user data in bytes
-     * @return newly reinitialized buffer, HASSERT() on failure
-     */
-    static Buffer *init(Buffer *buffer, size_t size)
-    {
-        HASSERT(buffer->bufferPool != NULL);
-        HASSERT(buffer->_size == size);
-        buffer->next = NULL;
-        buffer->left = size;
-        buffer->count = 1;
-        return buffer;
-    }
+  /** This class is a helper of BufferPool, so we know where to free to */
+  friend class BufferPool;
 
-    /** Macro to position to beginning of structure from data member position*/
-    #define BUFFER(_buffer) (Buffer*)((char *)(_buffer) - sizeof(Buffer));
+  /** This class is a helper of BufferQueue */
+  friend class BufferQueue;
 
-    /* pointer to BufferPool instance that this buffer belongs to */
-    BufferPool *bufferPool;
+  /** The total size of an array element of a Buffer for given payload.
+   * @param size payload size
+   */
+  static size_t sizeof_buffer(size_t size) {
+    return sizeof(Buffer) +
+           (((size / sizeof(long)) + (size % sizeof(long) ? 1 : 0)) *
+            sizeof(long));
+  }
 
-    /** next buffer in list */
-    Buffer *next;
-    
-    /** size of data in bytes */
-    size_t _size;
+  /** Default constructor */
+  Buffer();
 
-    /** amount for free space left in the buffer */
-    size_t left;
+  /** Default destructor */
+  ~Buffer();
 
-    /** message ID for uniquely identifying this buffer in a queue */
-    uint32_t _id;
-    
-    /** number of references in use */
-    unsigned int count;
-    
-    /** user data */
-    char data[];
-
-    /** This class is a helper of BufferPool, so we know where to free to */
-    friend class BufferPool;
-    
-    /** This class is a helper of BufferQueue */
-    friend class BufferQueue;
-
-    /** The total size of an array element of a Buffer for given payload.
-     * @param size payload size
-     */
-    static size_t sizeof_buffer(size_t size)
-    {
-        return sizeof(Buffer) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
-    }
-    
-    /** Default constructor */
-    Buffer();
-    
-    /** Default destructor */
-    ~Buffer();
-
-    DISALLOW_COPY_AND_ASSIGN(Buffer);
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
 };
 
 /** Pool of previously allocated, but currently unused, buffers. */
-class BufferPool
-{
-public:
-    /* Default Constructor */
-    BufferPool()
-        : totalSize(0),
-          mutex(),
-          pool {NULL, NULL, NULL, NULL},
-          itemSize(0),
-          items(0)
-    {
-    }
+class BufferPool {
+ public:
+  /* Default Constructor */
+  BufferPool()
+      : totalSize(0),
+        mutex(),
+        pool{NULL, NULL, NULL, NULL},
+        itemSize(0),
+        items(0) {}
 
-    /* Constructor for a fixed size pool.
-     * @param item_size size of each item in the pool
-     * @param items number of items in the pool
-     */
-    BufferPool(size_t item_size, size_t items)
-        : totalSize(0),
-          mutex(),
-          pool {Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
-          itemSize(item_size),
-          items(items)
-    {
-        Buffer *current = first;
-        for (size_t i = 0; i < items; ++i)
-        {
-            current->next = pool[1];
-            pool[1] = current;
-            current = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
-        }
-        /* save the index just after last buffer in the bool */
-        pool[2] = current;
+  /* Constructor for a fixed size pool.
+   * @param item_size size of each item in the pool
+   * @param items number of items in the pool
+   */
+  BufferPool(size_t item_size, size_t items)
+      : totalSize(0),
+        mutex(),
+        pool{Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
+        itemSize(item_size),
+        items(items) {
+    Buffer *current = first;
+    for (size_t i = 0; i < items; ++i) {
+      current->next = pool[1];
+      pool[1] = current;
+      current = (Buffer *)((char *)current + Buffer::sizeof_buffer(item_size));
     }
+    /* save the index just after last buffer in the bool */
+    pool[2] = current;
+  }
 
-    /* default destructor */
-    ~BufferPool()
-    {
-        HASSERT(0);
-    }
+  /* default destructor */
+  ~BufferPool() { HASSERT(0); }
 
-    /** Used in static pools to tell if this buffer is a member of the pool.
-     * @param buffer buffer to test validity on
-     * @return true if the buffer is in the pool, or this is not a fixed pool,
-     *         else return false;
-     */
-    bool valid(Buffer *buffer)
-    {
-        if (itemSize != 0)
-        {
-            if (buffer >= first && buffer <= pool[2])
-            {
-                return true;
-            }
-            return false;
-        }
+  /** Used in static pools to tell if this buffer is a member of the pool.
+   * @param buffer buffer to test validity on
+   * @return true if the buffer is in the pool, or this is not a fixed pool,
+   *         else return false;
+   */
+  bool valid(Buffer *buffer) {
+    if (itemSize != 0) {
+      if (buffer >= first && buffer <= pool[2]) {
         return true;
+      }
+      return false;
     }
-    
-    /** Get a free buffer out of the pool.  A buffer may be
-     * obtained without context (object reference) from the mainBufferPool
-     * with the ::buffer_free method.
-     *
-     * @param size minimum size in bytes the buffer must hold
-     * @return pointer to the newly allocated buffer
-     */
-    Buffer *buffer_alloc(size_t size);
+    return true;
+  }
 
-    /** Release a buffer back to the free buffer pool.  A buffer may be
-     * released without context (object reference) to the mainBufferPool
-     * with the ::buffer_free method.
-     *
-     * @param buffer pointer to buffer to release
-     */
-    void buffer_free(Buffer *buffer);
-    
-private:
-    /** keep track of total allocated size of memory */
-    size_t totalSize;
-    
-    /** Mutual exclusion for buffer pool */
-    OSMutex mutex;
+  /** Get a free buffer out of the pool.  A buffer may be
+   * obtained without context (object reference) from the mainBufferPool
+   * with the ::buffer_free method.
+   *
+   * @param size minimum size in bytes the buffer must hold
+   * @return pointer to the newly allocated buffer
+   */
+  Buffer *buffer_alloc(size_t size);
 
+  /** Release a buffer back to the free buffer pool.  A buffer may be
+   * released without context (object reference) to the mainBufferPool
+   * with the ::buffer_free method.
+   *
+   * @param buffer pointer to buffer to release
+   */
+  void buffer_free(Buffer *buffer);
 
-    /** this union save overlapping memory */
-    union
-    {
-        /** Free buffer pool */
-        Buffer *pool[4];
-        
-        /** First buffer in a pre-allocated array pool */
-        Buffer *first;
-    };
-    
-    /** item Size for fixed pools */
-    size_t itemSize;
-    
-    /** number of items for fixed pools */
-    size_t items;
+ private:
+  /** keep track of total allocated size of memory */
+  size_t totalSize;
 
-    /** This class is a helper of BufferQueue */
-    friend class BufferQueue;
+  /** Mutual exclusion for buffer pool */
+  OSMutex mutex;
 
-    /** This class is a helper of Buffer */
-    friend class Buffer;
+  /** this union save overlapping memory */
+  union {
+    /** Free buffer pool */
+    Buffer *pool[4];
 
-    DISALLOW_COPY_AND_ASSIGN(BufferPool);
+    /** First buffer in a pre-allocated array pool */
+    Buffer *first;
+  };
+
+  /** item Size for fixed pools */
+  size_t itemSize;
+
+  /** number of items for fixed pools */
+  size_t items;
+
+  /** This class is a helper of BufferQueue */
+  friend class BufferQueue;
+
+  /** This class is a helper of Buffer */
+  friend class Buffer;
+
+  DISALLOW_COPY_AND_ASSIGN(BufferPool);
 };
 
 /** This class implements a linked list "queue" of buffers.  It may be
  * instantiated to use the mainBufferPool for its memory pool, or optionally
  * another BufferPool instance may be specified for its memory pool.
  */
-class BufferQueue
-{
-public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueue()
-        : head(NULL),
-          tail(NULL),
-          count(0),
-          mutex()
-    {
-    }
+class BufferQueue {
+ public:
+  /** Default Constructor, use mainBufferPool for buffer allocation. */
+  BufferQueue() : head(NULL), tail(NULL), count(0), mutex() {}
 
-    /** Default destructor.
-     */
-    ~BufferQueue()
-    {
-    }
+  /** Default destructor.
+   */
+  ~BufferQueue() {}
 
-    /** Release a buffer back to the free buffer pool.
-     * @param buffer pointer to buffer to release
-     */
-    void buffer_free(Buffer *buffer)
-    {
-        buffer->free();
-    }
+  /** Release a buffer back to the free buffer pool.
+   * @param buffer pointer to buffer to release
+   */
+  void buffer_free(Buffer *buffer) { buffer->free(); }
 
-    /** Add a buffer to the back of the queue.
-     * @param buffer buffer to add to queue
-     */
-    void insert(Buffer *buffer);
+  /** Add a buffer to the back of the queue.
+   * @param buffer buffer to add to queue
+   */
+  void insert(Buffer *buffer);
 
-    /** Get a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *next();
+  /** Get a buffer from the front of the queue.
+   * @return buffer buffer retrieved from queue
+   */
+  Buffer *next();
 
-    /** Get the number of pending items in the queue.
-     * @return number of pending items in the queue
-     */
-    size_t pending()
-    {
-        return count;
-    }
+  /** Get the number of pending items in the queue.
+   * @return number of pending items in the queue
+   */
+  size_t pending() { return count; }
 
-    /** Test if the queue is empty.
-     * @return true if empty, else false
-     */
-    bool empty()
-    {
-        return (head == NULL);
-    }
-    
-protected:
+  /** Test if the queue is empty.
+   * @return true if empty, else false
+   */
+  bool empty() { return (head == NULL); }
 
-private:
-    /** head buffer in queue */
-    Buffer *head;
-    
-    /** tail buffer in queue */
-    Buffer *tail;
-    
-    /** number of buffers in queue */
-    size_t count;
+ protected:
+ private:
+  /** head buffer in queue */
+  Buffer *head;
 
-    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
-     * (smaller) locking mechanism
-     */
-    /** Mutual exclusion for Queue */
-    OSMutex mutex;
+  /** tail buffer in queue */
+  Buffer *tail;
 
-    DISALLOW_COPY_AND_ASSIGN(BufferQueue);
+  /** number of buffers in queue */
+  size_t count;
+
+  /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
+   * (smaller) locking mechanism
+   */
+  /** Mutual exclusion for Queue */
+  OSMutex mutex;
+
+  DISALLOW_COPY_AND_ASSIGN(BufferQueue);
 };
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.  Yes multiple inheritance is bad.  It
  * is okay in this case, so get over it.
  */
-class BufferQueueWait : public BufferQueue, public OSSem
-{
-public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueueWait()
-        : BufferQueue(),
-          sem(0)
-    {
+class BufferQueueWait : public BufferQueue, public OSSem {
+ public:
+  /** Default Constructor, use mainBufferPool for buffer allocation. */
+  BufferQueueWait() : BufferQueue(), sem(0) {}
+
+  /** Default destructor.
+   */
+  ~BufferQueueWait() {}
+
+  /** Add a buffer to the back of the queue.
+   * @param buffer buffer to add to queue
+   */
+  void insert(Buffer *buffer) {
+    BufferQueue::insert(buffer);
+    post();
+  }
+
+  /** Get a buffer from the front of the queue.
+   * @return buffer buffer retrieved from queue
+   */
+  Buffer *next() {
+    Buffer *result = BufferQueue::next();
+    if (result != NULL) {
+      /* decrement semaphore */
+      OSSem::wait();
+    }
+    return result;
+  }
+
+  /** Wait for a buffer from the front of the queue.
+   * @return buffer buffer retrieved from queue
+   */
+  Buffer *wait() {
+    OSSem::wait();
+    Buffer *result = BufferQueue::next();
+    HASSERT(result != NULL);
+    return result;
+  }
+
+  /** Wait for a buffer from the front of the queue.
+   * @param timeout time to wait in nanoseconds
+   * @return buffer buffer retrieved from queue, NULL on timeout or error
+   */
+  Buffer *timedwait(long long timeout) {
+    if (OSSem::timedwait(timeout) != 0) {
+      return NULL;
     }
 
-    /** Default destructor.
-     */
-    ~BufferQueueWait()
-    {
-    }
+    Buffer *result = BufferQueue::next();
+    HASSERT(result != NULL);
+    return result;
+  }
 
-    /** Add a buffer to the back of the queue.
-     * @param buffer buffer to add to queue
-     */
-    void insert(Buffer *buffer)
-    {
-        BufferQueue::insert(buffer);
-        post();
-    }
+ private:
+  /** Semaphore that we will wait on */
+  OSSem sem;
 
-    /** Get a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *next()
-    {
-        Buffer *result = BufferQueue::next();
-        if (result != NULL)
-        {
-            /* decrement semaphore */
-            OSSem::wait();
-        }
-        return result;
-    }
-    
-    /** Wait for a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *wait()
-    {
-        OSSem::wait();
-        Buffer *result = BufferQueue::next();
-        HASSERT(result != NULL);
-        return result;
-    }
-    
-    /** Wait for a buffer from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @return buffer buffer retrieved from queue, NULL on timeout or error
-     */
-    Buffer *timedwait(long long timeout)
-    {
-        if (OSSem::timedwait(timeout) != 0)
-        {
-            return NULL;
-        }
-        
-        Buffer *result = BufferQueue::next();
-        HASSERT(result != NULL);
-        return result;
-    }
-    
-private:
-    /** Semaphore that we will wait on */
-    OSSem sem;
-
-    DISALLOW_COPY_AND_ASSIGN(BufferQueueWait);
+  DISALLOW_COPY_AND_ASSIGN(BufferQueueWait);
 };
 
 /** Get a free buffer out of the mainBufferPool pool.
  * @param size minimum size in bytes the buffer must hold
  * @return pointer to the newly allocated buffer
  */
-inline Buffer *buffer_alloc(size_t size)
-{
-    return mainBufferPool->buffer_alloc(size);
+inline Buffer *buffer_alloc(size_t size) {
+  return mainBufferPool->buffer_alloc(size);
 }
 
 /** Release a buffer back to the mainBufferPool free buffer pool.
  * @param buffer pointer to buffer to release
  */
-inline void buffer_free(Buffer *buffer)
-{
-    mainBufferPool->buffer_free(buffer);
-}
+inline void buffer_free(Buffer *buffer) { mainBufferPool->buffer_free(buffer); }
 
 /** Free this buffer to the BufferPool from whence it came.
  */
-inline void Buffer::free()
-{
-    HASSERT(bufferPool != NULL);
-    bufferPool->buffer_free(this);
+inline void Buffer::free() {
+  HASSERT(bufferPool != NULL);
+  bufferPool->buffer_free(this);
 }
 
 /** Advance the position of the buffer.
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
-inline void *Buffer::advance(size_t bytes)
-{
-    /** @todo (Stuart Baker) do we really need a mutex lock here? */
-    bufferPool->mutex.lock();
-    left -= bytes;    
-    bufferPool->mutex.unlock();
-    return &data[_size - left];
+inline void *Buffer::advance(size_t bytes) {
+  /** @todo (Stuart Baker) do we really need a mutex lock here? */
+  bufferPool->mutex.lock();
+  left -= bytes;
+  bufferPool->mutex.unlock();
+  return &data[_size - left];
 }
 
 /** Add another reference to the buffer.
  * @return total number of references to this point
  */
-inline unsigned int Buffer::reference()
-{
-    bufferPool->mutex.lock();
-    ++count;
-    bufferPool->mutex.unlock();
-    return count;
+inline unsigned int Buffer::reference() {
+  bufferPool->mutex.lock();
+  ++count;
+  bufferPool->mutex.unlock();
+  return count;
 }
 
 #endif /* _BufferQueue_hxx_ */

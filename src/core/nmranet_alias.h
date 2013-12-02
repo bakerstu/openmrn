@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -83,6 +83,8 @@ node_alias_t nmranet_alias_generate(alias_cache_t cache);
  * @param callback method to call
  * @param context context pointer to pass to callback
  */
-void nmranet_alias_for_each(alias_cache_t cache, void (*callback)(void*, node_id_t, node_alias_t), void *context);
+void nmranet_alias_for_each(alias_cache_t cache,
+                            void (*callback)(void *, node_id_t, node_alias_t),
+                            void *context);
 
 #endif /* _nmranet_alias_h_ */

@@ -36,8 +36,7 @@
 #include "nmranet_config.h"
 #include "endian.h"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 Executor* DefaultWriteFlowExecutor() __attribute__((__weak__));
 
@@ -48,25 +47,21 @@ Executor* DefaultWriteFlowExecutor() {
 
 /** Callback in the executor thread.
  */
-void WriteHelper::Run()
-{
-    node_->write(mti_, dst_, buffer_);
-    Notifiable* d = done_;
-    if (d)
-    {
-        done_ = nullptr;
-        d->Notify();
-    }
+void WriteHelper::Run() {
+  node_->write(mti_, dst_, buffer_);
+  Notifiable* d = done_;
+  if (d) {
+    done_ = nullptr;
+    d->Notify();
+  }
 }
 
-Buffer *EventIdToBuffer(uint64_t eventid)
-{
-    Buffer *buffer = buffer_alloc(sizeof(eventid));
-    uint64_t* b = static_cast<uint64_t*>(buffer->start());
-    *b = htobe64(eventid);
-    buffer->advance(sizeof(eventid));
-    return buffer;
+Buffer* EventIdToBuffer(uint64_t eventid) {
+  Buffer* buffer = buffer_alloc(sizeof(eventid));
+  uint64_t* b = static_cast<uint64_t*>(buffer->start());
+  *b = htobe64(eventid);
+  buffer->advance(sizeof(eventid));
+  return buffer;
 }
 
 }; /* namespace NMRAnet */
-

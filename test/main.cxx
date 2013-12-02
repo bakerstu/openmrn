@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -37,35 +37,25 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
-
 extern "C" {
 
-#ifdef __FreeRTOS__ //TARGET_LPC11Cxx
-  // This gets rid of about 50 kbytes of flash code that is unnecessarily
-  // linked into the binary.
-void __wrap___cxa_pure_virtual(void) {
-  abort();
-}
+#ifdef __FreeRTOS__  // TARGET_LPC11Cxx
+// This gets rid of about 50 kbytes of flash code that is unnecessarily
+// linked into the binary.
+void __wrap___cxa_pure_virtual(void) { abort(); }
 
-  // This removes 400 bytes of memory allocated at startup for the atexit
-  // structure.
-int __wrap___cxa_atexit(void) {
-  return 0;
-}
-
+// This removes 400 bytes of memory allocated at startup for the atexit
+// structure.
+int __wrap___cxa_atexit(void) { return 0; }
 
 #endif
-  
 }
-
-
 
 /* switch for C++ testing until it is ready for main stream, '0' = C++ */
 #if 0
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 #include "mbed.h"
 #endif
-
 
 #include "os/os.h"
 #include "os/OS.hxx"
@@ -113,17 +103,14 @@ const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
 
 const int main_priority = 0;
 
-
- 
-
-
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_LM4F120XL)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || \
+    defined(TARGET_LPC1768) || defined(TARGET_LM4F120XL)
 extern "C" {
 void resetblink(uint32_t pattern);
 void diewith(uint32_t pattern);
 }
 #else
-#define resetblink( x )
+#define resetblink(x)
 #endif
 
 node_t node;
@@ -160,15 +147,16 @@ int appl_main(int argc, char *argv[])
 
     if (argc >= 2)
     {
-#if !defined(TARGET_LPC2368) && !defined(TARGET_LPC11Cxx) && !defined(TARGET_LPC1768)
+#if !defined(TARGET_LPC2368) && !defined(TARGET_LPC11Cxx) && \
+    !defined(TARGET_LPC1768)
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, argv[1]);
 #endif
     }
     else
     {
-#if defined (TARGET_LPC2368)
+#if defined(TARGET_LPC2368)
         nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can1", read, write);
-#elif defined (__FreeRTOS__)
+#elif defined(__FreeRTOS__)
         nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/can0", read, write);
 #else
         nmranet_if = nmranet_gc_if_init(0x02010d000000ULL, "/dev/ttyUSB1");
@@ -177,7 +165,8 @@ int appl_main(int argc, char *argv[])
     
     if (nmranet_if == NULL)
     {
-#if defined (TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined (TARGET_LPC1768)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || \
+    defined(TARGET_LPC1768)
         diewith(BLINK_DIE_STARTUP);  // 3-3-2
 #else
         printf("Unable to open NMRAnet Interface.\n");
@@ -218,7 +207,7 @@ int appl_main(int argc, char *argv[])
             {
                 node_handle_t node_handle;
                 uint64_t event = nmranet_event_consume(node, &node_handle);
-#if !defined (__FreeRTOS__)
+#if !defined(__FreeRTOS__)
                 node_id_t id = nmranet_node_id_from_handle(node, node_handle);
                 printf("we got event 0x%016" PRIx64 " from "
                        "%02" PRIx64 ".%02" PRIx64 ".%02" PRIx64 "."
@@ -294,62 +283,49 @@ const size_t Datagram::THREAD_STACK_SIZE = 512;
 const size_t Stream::CHANNELS_PER_NODE = 10;
 const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
-class Node1 : public Node
-{
-public:
-    Node1(NodeID node_id, If *nmranet_if, const char *name)
-        : Node(node_id, nmranet_if, name)
-    {
-    }
-private:
-    /** Process a Buffered message at the application level.
-     * @param buffer message buffer to process
-     */
-    void process(Buffer *buffer)
-    {
-        switch (buffer->id())
-        {
-            case ID_STREAM_COMPLETED_CONNECTION:
-            {
-                IdStreamType *type = (IdStreamType*)buffer->start();
-                
-                uint8_t data[] = {0, 1, 2, 3, 4, 5, 6};
+class Node1 : public Node {
+ public:
+  Node1(NodeID node_id, If *nmranet_if, const char *name)
+      : Node(node_id, nmranet_if, name) {}
 
-                swrite(type->stream, data, 7);
-                break;
-            }
-        }
+ private:
+  /** Process a Buffered message at the application level.
+   * @param buffer message buffer to process
+   */
+  void process(Buffer *buffer) {
+    switch (buffer->id()) {
+      case ID_STREAM_COMPLETED_CONNECTION: {
+        IdStreamType *type = (IdStreamType *)buffer->start();
+
+        uint8_t data[] = {0, 1, 2, 3, 4, 5, 6};
+
+        swrite(type->stream, data, 7);
+        break;
+      }
     }
-    
+  }
 };
 
-class Node2 : public Node
-{
-public:
-    Node2(NodeID node_id, If *nmranet_if, const char *name)
-        : Node(node_id, nmranet_if, name)
-    {
+class Node2 : public Node {
+ public:
+  Node2(NodeID node_id, If *nmranet_if, const char *name)
+      : Node(node_id, nmranet_if, name) {}
+
+ private:
+  /** Process a Buffered message at the application level.
+   * @param buffer message buffer to process
+   */
+  void process(Buffer *buffer) {
+    switch (buffer->id()) {
+      case ID_STREAM_DATA_POSTED: {
+        IdStreamType *type = (IdStreamType *)buffer->start();
+
+        uint8_t data[4];
+        sread(type->stream, data, 4);
+        break;
+      }
     }
-    
-private:
-    /** Process a Buffered message at the application level.
-     * @param buffer message buffer to process
-     */
-    void process(Buffer *buffer)
-    {
-        switch (buffer->id())
-        {
-            case ID_STREAM_DATA_POSTED:
-            {
-                IdStreamType *type = (IdStreamType*)buffer->start();
-                
-                uint8_t data[4];
-                sread(type->stream, data, 4);
-                break;
-            }
-        }
-    }
-    
+  }
 };
 
 /** Entry point to application.
@@ -357,30 +333,23 @@ private:
  * @param argv array of command line arguments
  * @return 0, should never return
  */
-int appl_main(int argc, char *argv[])
-{
-    If *nmranet_if = IfCanGridConnect::instance(0x02010d000000ULL,
-                                                "/tcp/10098",
-                                                false, false);
+int appl_main(int argc, char *argv[]) {
+  If *nmranet_if =
+      IfCanGridConnect::instance(0x02010d000000ULL, "/tcp/10098", false, false);
 
-    Node *node1 = new Node1(0x02010d000001ULL, nmranet_if, "Virtual Node1");
-    
-    Node *node2 = new Node2(0x02010d000002ULL, nmranet_if, "Virtual Node2");
-    
-    node1->initialized();
-    node2->initialized();
-    
+  Node *node1 = new Node1(0x02010d000001ULL, nmranet_if, "Virtual Node1");
 
-    node1->sopen({0x02010d000002ULL, 0}, 1000000000LL);
-    
-    
-    while(1)
-    {
-        sleep(10);
-    }
+  Node *node2 = new Node2(0x02010d000002ULL, nmranet_if, "Virtual Node2");
 
-    return 0;
+  node1->initialized();
+  node2->initialized();
+
+  node1->sopen({0x02010d000002ULL, 0}, 1000000000LL);
+
+  while (1) {
+    sleep(10);
+  }
+
+  return 0;
 }
 #endif
-    
-    

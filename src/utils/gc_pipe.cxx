@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,152 +36,120 @@
 #include "utils/gc_format.h"
 #include "nmranet_can.h"
 
+class GCAdapter : public GCAdapterBase {
+ public:
+  GCAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
+      : parser_(can_side, &formatter_),
+        formatter_(gc_side, &parser_, double_bytes) {
+    gc_side->RegisterMember(&parser_);
+    can_side->RegisterMember(&formatter_);
+  }
 
-class GCAdapter : public GCAdapterBase
-{
-public:
-    GCAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
-        : parser_(can_side, &formatter_),
-          formatter_(gc_side, &parser_, double_bytes)
-    {
-        gc_side->RegisterMember(&parser_);
-        can_side->RegisterMember(&formatter_);
+  virtual ~GCAdapter() {
+    parser_.destination()->UnregisterMember(&formatter_);
+    formatter_.destination()->UnregisterMember(&parser_);
+  }
+
+ private:
+  class BinaryToGCMember : public PipeMember {
+   public:
+    BinaryToGCMember(Pipe* destination, PipeMember* skip_member,
+                     int double_bytes)
+        : destination_(destination),
+          skip_member_(skip_member),
+          double_bytes_(double_bytes) {}
+
+    Pipe* destination() { return destination_; }
+
+    virtual void write(const void* buf, size_t count) {
+      const struct can_frame* frame = static_cast<const struct can_frame*>(buf);
+      char dbuf[56];
+      while (count >= sizeof(*frame)) {
+        char* end = gc_format_generate(frame, dbuf, double_bytes_);
+        int len = (end - dbuf);
+        if (len) {
+          destination_->WriteToAll(skip_member_, dbuf, len);
+        }
+        count -= sizeof(*frame);
+        frame++;
+      }
     }
 
-    virtual ~GCAdapter()
-    {
-        parser_.destination()->UnregisterMember(&formatter_);
-        formatter_.destination()->UnregisterMember(&parser_);
-    }    
+   private:
+    //! Pipe to send data to.
+    Pipe* destination_;
+    //! The pipe member that should be sent as "source".
+    PipeMember* skip_member_;
+    //! Non-zero if doubling was requested.
+    int double_bytes_;
+  };
 
-private:
-    class BinaryToGCMember : public PipeMember
-    {
-    public:
-        BinaryToGCMember(Pipe* destination,
-                         PipeMember* skip_member,
-                         int double_bytes)
-            : destination_(destination),
-              skip_member_(skip_member),
-              double_bytes_(double_bytes)
-        {
+  class GCToBinaryMember : public PipeMember {
+   public:
+    GCToBinaryMember(Pipe* destination, PipeMember* skip_member)
+        : offset_(-1), destination_(destination), skip_member_(skip_member) {}
+
+    Pipe* destination() { return destination_; }
+
+    virtual void write(const void* buf, size_t count) {
+      const char* cbuf = static_cast<const char*>(buf);
+      for (size_t i = 0; i < count; ++i) {
+        consume_byte(cbuf[i]);
+      }
+    }
+
+    void consume_byte(char c) {
+      if (c == ':') {
+        // Frame is starting here.
+        offset_ = 0;
+        return;
+      }
+      if (c == ';') {
+        if (offset_ < 0) {
+          return;
         }
-
-        Pipe* destination()
-        {
-            return destination_;
+        // Frame ends here.
+        cbuf_[offset_] = 0;
+        struct can_frame frame;
+        int ret = gc_format_parse(cbuf_, &frame);
+        if (!ret) {
+          destination_->WriteToAll(skip_member_, &frame, sizeof(frame));
         }
+        offset_ = -1;
+        return;
+      }
+      if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1)) {
+        // We overran the buffer, so this can't be a valid frame.
+        // Reset and look for sync byte again.
+        offset_ = -1;
+        return;
+      }
+      if (offset_ >= 0) {
+        cbuf_[offset_++] = c;
+      } else {
+        // Drop byte to the floor -- we're not in the middle of a packet.
+      }
+    }
 
-        virtual void write(const void* buf, size_t count)
-        {
-            const struct can_frame* frame =
-                static_cast<const struct can_frame*>(buf);
-            char dbuf[56];
-            while (count >= sizeof(*frame))
-            {
-                char* end = gc_format_generate(frame, dbuf, double_bytes_);
-                int len = (end - dbuf);
-                if (len) {
-                    destination_->WriteToAll(skip_member_, dbuf, len);
-                }
-                count -= sizeof(*frame);
-                frame++;
-            }
-        }
+   private:
+    //! Collects data from a partial GC packet.
+    char cbuf_[32];
+    //! offset of next byte in cbuf to write.
+    int offset_;
+    //! Pipe to send data to.
+    Pipe* destination_;
+    //! The pipe member that should be sent as "source".
+    PipeMember* skip_member_;
+  };
 
-    private:
-        //! Pipe to send data to.
-        Pipe* destination_;
-        //! The pipe member that should be sent as "source".
-        PipeMember* skip_member_;
-        //! Non-zero if doubling was requested.
-        int double_bytes_;
-    };
-
-
-    class GCToBinaryMember : public PipeMember
-    {
-    public:
-        GCToBinaryMember(Pipe* destination,
-                         PipeMember* skip_member)
-            : offset_(-1),
-              destination_(destination),
-              skip_member_(skip_member)
-        {
-        }
-
-        Pipe* destination()
-        {
-            return destination_;
-        }
-
-        virtual void write(const void* buf, size_t count)
-        {
-            const char* cbuf = static_cast<const char*>(buf);
-            for (size_t i = 0; i < count; ++i)
-            {
-                consume_byte(cbuf[i]);
-            }
-        }
-
-        void consume_byte(char c)
-        {
-            if (c == ':')
-            {
-                // Frame is starting here.
-                offset_ = 0;
-                return;
-            }
-            if (c == ';')
-            {
-              if (offset_ < 0) {
-                return;
-              }
-                // Frame ends here.
-                cbuf_[offset_] = 0;
-                struct can_frame frame;
-                int ret = gc_format_parse(cbuf_, &frame);
-                if (!ret)
-                {
-                    destination_->WriteToAll(skip_member_,
-                                             &frame, sizeof(frame));
-                }
-                offset_ = -1;
-                return;
-            }
-            if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1))
-            {
-                // We overran the buffer, so this can't be a valid frame.
-                // Reset and look for sync byte again.
-                offset_ = -1;
-                return;
-            }
-            if (offset_ >= 0) {
-              cbuf_[offset_++] = c;
-            } else {
-              // Drop byte to the floor -- we're not in the middle of a packet.
-            }
-        }
-
-    private:
-        //! Collects data from a partial GC packet.
-        char cbuf_[32];
-        //! offset of next byte in cbuf to write.
-        int offset_;
-        //! Pipe to send data to.
-        Pipe* destination_;
-        //! The pipe member that should be sent as "source".
-        PipeMember* skip_member_;
-    };
-
-    //! PipeMember doing the parsing.
-    GCToBinaryMember parser_;
-    //! PipeMember doing the formatting.
-    BinaryToGCMember formatter_;
+  //! PipeMember doing the parsing.
+  GCToBinaryMember parser_;
+  //! PipeMember doing the formatting.
+  BinaryToGCMember formatter_;
 };
-  
 
-GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
-{
-    return new GCAdapter(gc_side, can_side, double_bytes);
+GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side,
+                                                       Pipe* can_side,
+                                                       bool double_bytes) {
+  return new GCAdapter(gc_side, can_side, double_bytes);
 }

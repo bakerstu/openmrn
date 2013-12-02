@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -41,15 +41,12 @@ static void* start_executor_thread(void* arg) {
   return NULL;
 }
 
-Executor::Executor()
-    : notify_(0), waiting_(true), current_(nullptr)
-{
-}
-            
+Executor::Executor() : notify_(0), waiting_(true), current_(nullptr) {}
+
 Executor::~Executor() {}
 
 void Executor::ThreadBody() {
-  while(1) {
+  while (1) {
     waiting_ = true;
     notify_.wait();
     waiting_ = false;
@@ -74,11 +71,7 @@ bool Executor::IsPendingOrRunning(Executable* entry) {
   return false;
 }
 
-
-ThreadExecutor::ThreadExecutor(const char* thread_name,
-                               int priority,
+ThreadExecutor::ThreadExecutor(const char* thread_name, int priority,
                                size_t stack_size)
-  : thread_(thread_name, priority, stack_size,
-            &start_executor_thread, this)
-{
+    : thread_(thread_name, priority, stack_size, &start_executor_thread, this) {
 }

@@ -46,7 +46,6 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
-
 static void* accept_thread_start(void* arg) {
   SocketListener* l = static_cast<SocketListener*>(arg);
   l->AcceptThreadBody();
@@ -72,12 +71,11 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("setsockopt_reuseaddr",
              setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
 
-  ERRNOCHECK("bind",
-             bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
+  ERRNOCHECK("bind", bind(listenfd, (struct sockaddr*)&addr, sizeof(addr)));
 
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
-             getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
+             getsockname(listenfd, (struct sockaddr*)&addr, &namelen));
 
   // This is the actual port that got opened. We could check it against the
   // requested port. listenport = ;
@@ -90,9 +88,7 @@ void SocketListener::AcceptThreadBody() {
 
   while (true) {
     namelen = sizeof(addr);
-    connfd = accept(listenfd,
-                    (struct sockaddr *)&addr,
-                    &namelen);
+    connfd = accept(listenfd, (struct sockaddr*)&addr, &namelen);
     if (connfd < 0) {
       if (errno == EINTR || errno == EAGAIN) continue;
       PrintErrnoAndExit("accept");
@@ -100,8 +96,7 @@ void SocketListener::AcceptThreadBody() {
     }
     int val = 1;
     ERRNOCHECK("setsockopt(nodelay)",
-               setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
-                          &val, sizeof(val)));
+               setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
 
     LOG(INFO, "Inoming connection from %s, fd %d.\n", inet_ntoa(addr.sin_addr),
         connfd);
@@ -109,7 +104,4 @@ void SocketListener::AcceptThreadBody() {
   }
 }
 
-
-
-
-#endif // __linux__
+#endif  // __linux__

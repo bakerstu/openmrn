@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,128 +52,122 @@
 
 /** Private data for this implementation of serial.
  */
-class StellarisCdc : public Serial
-{
-public:
-    /** Constructor.
-     * @param name name of this device instance in the file system
-     * @param base base address of this device
-     */
-    StellarisCdc(const char *name);
-    
-    /** Destructor.
-     */
-    ~StellarisCdc()
-    {
-    }
+class StellarisCdc : public Serial {
+ public:
+  /** Constructor.
+   * @param name name of this device instance in the file system
+   * @param base base address of this device
+   */
+  StellarisCdc(const char *name);
 
-    /** @todo (Stuart Baker) this should be made private */
-    /** handle an interrupt.
-     */
-    void interrupt_handler();
+  /** Destructor.
+   */
+  ~StellarisCdc() {}
 
-private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_char(); /**< function to try and transmit a character */
+  /** @todo (Stuart Baker) this should be made private */
+  /** handle an interrupt.
+   */
+  void interrupt_handler();
 
-    static unsigned long control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+ private:
+  void enable();  /**< function to enable device */
+  void disable(); /**< function to disable device */
+  void tx_char(); /**< function to try and transmit a character */
 
-    static unsigned long rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+  static unsigned long control_callback(void *data, unsigned long event,
+                                        unsigned long msg_param,
+                                        void *msg_data);
 
-    static unsigned long tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+  static unsigned long rx_callback(void *data, unsigned long event,
+                                   unsigned long msg_param, void *msg_data);
 
-    tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
-    tCDCSerInstance serialInstance; /**< CDC serial device private data */
-    unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
-    unsigned char rxData[RX_DATA_SIZE]; /**< buffer for pending tx data */
-    bool connected; /**< connection status */
-    bool enabled; /**< enabled status */
-    int woken; /**< task woken metadata for ISR */
-    
-    /** Default constructor.
-     */
-    StellarisCdc();
-    
-    DISALLOW_COPY_AND_ASSIGN(StellarisCdc);
+  static unsigned long tx_callback(void *data, unsigned long event,
+                                   unsigned long msg_param, void *msg_data);
+
+  tUSBDCDCDevice usbdcdcDevice;       /**< CDC serial device instance */
+  tCDCSerInstance serialInstance;     /**< CDC serial device private data */
+  unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
+  unsigned char rxData[RX_DATA_SIZE]; /**< buffer for pending tx data */
+  bool connected;                     /**< connection status */
+  bool enabled;                       /**< enabled status */
+  int woken;                          /**< task woken metadata for ISR */
+
+  /** Default constructor.
+   */
+  StellarisCdc();
+
+  DISALLOW_COPY_AND_ASSIGN(StellarisCdc);
 };
 
 /** Specialization of Serial driver for Stellaris UART.
  */
-class StellarisUart : public Serial
-{
-public:
-    /** Constructor.
-     * @param name name of this device instance in the file system
-     * @param base base address of this device
-     */
-    StellarisUart(const char *name, unsigned long base);
-    
-    /** Destructor.
-     */
-    ~StellarisUart()
-    {
-    }
+class StellarisUart : public Serial {
+ public:
+  /** Constructor.
+   * @param name name of this device instance in the file system
+   * @param base base address of this device
+   */
+  StellarisUart(const char *name, unsigned long base);
 
-    /** @todo (Stuart Baker) this should be made private */
-    /** handle an interrupt.
-     */
-    void interrupt_handler();
+  /** Destructor.
+   */
+  ~StellarisUart() {}
 
-private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_char(); /**< function to try and transmit a character */
+  /** @todo (Stuart Baker) this should be made private */
+  /** handle an interrupt.
+   */
+  void interrupt_handler();
 
-    unsigned long base; /**< base address of this device */
-    unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
+ private:
+  void enable();  /**< function to enable device */
+  void disable(); /**< function to disable device */
+  void tx_char(); /**< function to try and transmit a character */
 
-    /** Default constructor.
-     */
-    StellarisUart();
-    
-    DISALLOW_COPY_AND_ASSIGN(StellarisUart);
+  unsigned long base;      /**< base address of this device */
+  unsigned long interrupt; /**< interrupt of this device */
+  bool txPending;          /**< transmission currently pending */
+
+  /** Default constructor.
+   */
+  StellarisUart();
+
+  DISALLOW_COPY_AND_ASSIGN(StellarisUart);
 };
 
 /** Specialization of CAN driver for Stellaris CAN.
  */
-class StellarisCan : public Can
-{
-public:
-    /** Constructor.
-     * @param name name of this device instance in the file system
-     * @param base base address of this device
-     */
-    StellarisCan(const char *name, unsigned long base);
-    
-    /** Destructor.
-     */
-    ~StellarisCan()
-    {
-    }
+class StellarisCan : public Can {
+ public:
+  /** Constructor.
+   * @param name name of this device instance in the file system
+   * @param base base address of this device
+   */
+  StellarisCan(const char *name, unsigned long base);
 
-    /** @todo (Stuart Baker) this should be made private */
-    /** handle an interrupt.
-     */
-    void interrupt_handler();
+  /** Destructor.
+   */
+  ~StellarisCan() {}
 
-private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_msg(); /**< function to try and transmit a message */
+  /** @todo (Stuart Baker) this should be made private */
+  /** handle an interrupt.
+   */
+  void interrupt_handler();
 
-    unsigned long base; /**< base address of this device */
-    unsigned long interrupt; /**< interrupt of this device */
-    uint8_t data[8]; /**< transmit data */
-    bool txPending; /**< transmission currently pending */
+ private:
+  void enable();  /**< function to enable device */
+  void disable(); /**< function to disable device */
+  void tx_msg();  /**< function to try and transmit a message */
 
-    /** Default constructor.
-     */
-    StellarisCan();
-    
-    DISALLOW_COPY_AND_ASSIGN(StellarisCan);
+  unsigned long base;      /**< base address of this device */
+  unsigned long interrupt; /**< interrupt of this device */
+  uint8_t data[8];         /**< transmit data */
+  bool txPending;          /**< transmission currently pending */
+
+  /** Default constructor.
+   */
+  StellarisCan();
+
+  DISALLOW_COPY_AND_ASSIGN(StellarisCan);
 };
 
 #endif /* _StellarisDev_hxx_ */
-

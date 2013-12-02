@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,8 +42,7 @@
 #include "utils/RBTree.hxx"
 #include "utils/Map.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 /** Cache of alias to node id mappings.  The cache is limited to a fixed number
  * of entries at construction.  All the memory for the cache will be allocated
@@ -54,162 +53,150 @@ namespace NMRAnet
  * @todo the class uses RBTree, consider a version that is a linear search for
  * a small number of entries.
  */
-class AliasCache
-{
-public:
-    /** Constructor.
-     * @param seed starting seed for generation of aliases
-     * @param entries maximum number of entries in this cache
-     * @param remove_callback callback to call when we remove a mapping from
-              the cache however it will not be called in the remove() method
-     * @param context context pointer to pass to remove_callback
-     */
-    AliasCache(NodeID seed, size_t entries,
-               void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
-               void *context = NULL)
-        : freeList(NULL),
-          aliasMap(entries),
-          idMap(entries),
-          oldest(NULL),
-          newest(NULL),
-          seed(seed),
-          removeCallback(remove_callback),
-          context(context)
-    {
-        /* create our metadata pool and initialize the freeList */
-        Metadata *metadata = new Metadata[entries];
+class AliasCache {
+ public:
+  /** Constructor.
+   * @param seed starting seed for generation of aliases
+   * @param entries maximum number of entries in this cache
+   * @param remove_callback callback to call when we remove a mapping from
+            the cache however it will not be called in the remove() method
+   * @param context context pointer to pass to remove_callback
+   */
+  AliasCache(NodeID seed, size_t entries,
+             void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
+             void *context = NULL)
+      : freeList(NULL),
+        aliasMap(entries),
+        idMap(entries),
+        oldest(NULL),
+        newest(NULL),
+        seed(seed),
+        removeCallback(remove_callback),
+        context(context) {
+    /* create our metadata pool and initialize the freeList */
+    Metadata *metadata = new Metadata[entries];
 
-        for (size_t i = 0; i < entries; ++i)
-        {
-            metadata[i].prev = NULL;
-            metadata[i].next = freeList;
-            freeList = metadata + i;
-        }
+    for (size_t i = 0; i < entries; ++i) {
+      metadata[i].prev = NULL;
+      metadata[i].next = freeList;
+      freeList = metadata + i;
     }
+  }
 
-    /** Add an alias to an alias cache.
-     * @param id 48-bit NMRAnet Node ID to associate alias with
-     * @param alias 12-bit alias associated with Node ID
-     */
-    void add(NodeID id, NodeAlias alias);
-    
-    /** Remove an alias from an alias cache.
-     * @param alias 12-bit alias associated with Node ID
-     */
-    void remove(NodeAlias alias);
+  /** Add an alias to an alias cache.
+   * @param id 48-bit NMRAnet Node ID to associate alias with
+   * @param alias 12-bit alias associated with Node ID
+   */
+  void add(NodeID id, NodeAlias alias);
 
-    /** Lookup a node's alias based on its Node ID.
-     * @param id Node ID to look for
-     * @return alias that matches the Node ID, else 0 if not found
-     */
-    NodeAlias lookup(NodeID id);
+  /** Remove an alias from an alias cache.
+   * @param alias 12-bit alias associated with Node ID
+   */
+  void remove(NodeAlias alias);
 
-    /** Lookup a node's ID based on its alias.
-     * @param alias alias to look for
-     * @return Node ID that matches the alias, else 0 if not found
-     */
-    NodeID lookup(NodeAlias alias);
+  /** Lookup a node's alias based on its Node ID.
+   * @param id Node ID to look for
+   * @return alias that matches the Node ID, else 0 if not found
+   */
+  NodeAlias lookup(NodeID id);
 
-    /** Call the given callback function once for each alias tracked.
-     * @param callback method to call
-     * @param context context pointer to pass to callback
-     */
-    void for_each(void (*callback)(void*, NodeID, NodeAlias), void *context);
+  /** Lookup a node's ID based on its alias.
+   * @param alias alias to look for
+   * @return Node ID that matches the alias, else 0 if not found
+   */
+  NodeID lookup(NodeAlias alias);
 
-    /** Generate a 12-bit pseudo-random alias for a givin alias cache.
-     * @return pseudo-random 12-bit alias, an alias of zero is invalid
-     */
-    NodeAlias generate();
+  /** Call the given callback function once for each alias tracked.
+   * @param callback method to call
+   * @param context context pointer to pass to callback
+   */
+  void for_each(void (*callback)(void *, NodeID, NodeAlias), void *context);
 
-    /** Default destructor */
-    ~AliasCache()
-    {
-        /* we should never get here */
-        HASSERT(0);
-    }
-    
-private:
-    enum
-    {
-        /** marks an unused mapping */
-        UNUSED_MASK = 0x10000000
+  /** Generate a 12-bit pseudo-random alias for a givin alias cache.
+   * @return pseudo-random 12-bit alias, an alias of zero is invalid
+   */
+  NodeAlias generate();
+
+  /** Default destructor */
+  ~AliasCache() {
+    /* we should never get here */
+    HASSERT(0);
+  }
+
+ private:
+  enum {
+    /** marks an unused mapping */
+    UNUSED_MASK = 0x10000000
+  };
+
+  /** Interesting information about a given cache entry. */
+  struct Metadata {
+    NodeID id;           /**< 48-bit NMRAnet Node ID */
+    NodeAlias alias;     /**< NMRAnet alias */
+    long long timestamp; /**< time stamp of last usage */
+    union {
+      Metadata *prev;  /**< unused */
+      Metadata *newer; /**< pointer to the next newest entry */
     };
-
-    /** Interesting information about a given cache entry. */
-    struct Metadata
-    {
-        NodeID id; /**< 48-bit NMRAnet Node ID */
-        NodeAlias alias; /**< NMRAnet alias */
-        long long timestamp; /**< time stamp of last usage */
-        union
-        {
-            Metadata *prev; /**< unused */
-            Metadata *newer; /**< pointer to the next newest entry */
-        };
-        union
-        {
-            Metadata *next; /**< pointer to next freeList entry */
-            Metadata *older; /**< pointer to the next oldest entry */
-        };
+    union {
+      Metadata *next;  /**< pointer to next freeList entry */
+      Metadata *older; /**< pointer to the next oldest entry */
     };
+  };
 
-    /** list of unused mapping entries */
-    Metadata *freeList;
-    
-    /** Short hand for the alias Map type */
-    typedef Map <NodeAlias, Metadata*> AliasMap;
-    
-    /** Short hand for the ID Map type */
-    typedef Map <NodeID, Metadata*> IdMap;
+  /** list of unused mapping entries */
+  Metadata *freeList;
 
-    /** Map of alias to corresponding Metadata */
-    AliasMap aliasMap;
-    
-    /** Map of Node ID to corresponding Metadata */
-    IdMap idMap;
-    
-    /** oldest untouched entry */
-    Metadata *oldest;
-    
-    /** newest, most recently touched entry */
-    Metadata *newest;
+  /** Short hand for the alias Map type */
+  typedef Map<NodeAlias, Metadata *> AliasMap;
 
-    /** Seed for the generation of the next alias */
-    NodeID seed;
-    
-    /** callback function to be used when we remove an entry from the cache */
-    void (*removeCallback)(NodeID id, NodeAlias alias, void *);
-    
-    /** context pointer to pass in with remove_callback */
-    void *context;
+  /** Short hand for the ID Map type */
+  typedef Map<NodeID, Metadata *> IdMap;
 
-    /** Update the time stamp for a given entry.
-     * @param  metadata metadata associated with the entry
-     */
-    void touch(Metadata* metadata)
-    {
-        metadata->timestamp = OSTime::get_monotonic();
+  /** Map of alias to corresponding Metadata */
+  AliasMap aliasMap;
 
-        if (metadata != newest)
-        {
-            if (metadata->newer)
-            {
-                metadata->newer->older = metadata->older;
-            }
-            if (metadata->older)
-            {
-                metadata->older->newer = metadata->newer;
-            }
-            metadata->newer = NULL;
-            metadata->older = newest;
-            newest = metadata;
-        }
+  /** Map of Node ID to corresponding Metadata */
+  IdMap idMap;
+
+  /** oldest untouched entry */
+  Metadata *oldest;
+
+  /** newest, most recently touched entry */
+  Metadata *newest;
+
+  /** Seed for the generation of the next alias */
+  NodeID seed;
+
+  /** callback function to be used when we remove an entry from the cache */
+  void (*removeCallback)(NodeID id, NodeAlias alias, void *);
+
+  /** context pointer to pass in with remove_callback */
+  void *context;
+
+  /** Update the time stamp for a given entry.
+   * @param  metadata metadata associated with the entry
+   */
+  void touch(Metadata *metadata) {
+    metadata->timestamp = OSTime::get_monotonic();
+
+    if (metadata != newest) {
+      if (metadata->newer) {
+        metadata->newer->older = metadata->older;
+      }
+      if (metadata->older) {
+        metadata->older->newer = metadata->newer;
+      }
+      metadata->newer = NULL;
+      metadata->older = newest;
+      newest = metadata;
     }
+  }
 
-    /** Default Constructor */
-    AliasCache();
+  /** Default Constructor */
+  AliasCache();
 
-    DISALLOW_COPY_AND_ASSIGN(AliasCache);
+  DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 
 }; /* namepace NMRAnet */

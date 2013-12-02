@@ -17,8 +17,7 @@
 #include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace NMRAnet
-{
+namespace NMRAnet {
 
 // Abstract class for representing iteration through a container for event
 // handlers.
@@ -28,8 +27,7 @@ class EventIterator : public ProxyNotifiable {
   //
   //! @param parent is a Notifiable. Any notifications coming into the
   //! Notifiables created by NewCallback will be forwarded to this callback.
-  EventIterator()
-      : event_(nullptr), done_(nullptr) {}
+  EventIterator() : event_(nullptr), done_(nullptr) {}
 
   //! Steps the iteration.
   //
@@ -95,7 +93,7 @@ class StlIterator : public EventIterator {
   IT end_;
 };
 
-template<class IT>
+template <class IT>
 class StraightStlIterator : public StlIterator<IT> {
  public:
   //! Returns the next iterated entry.
@@ -113,13 +111,13 @@ class StraightStlIterator : public StlIterator<IT> {
  *  calls, and there is a low-priority iteration for global identify
  *  calls. While there is any high-priority iteration, the low-priority
  *  iteration is stopped.
- * 
- *  LOCKING: 
- * 
+ *
+ *  LOCKING:
+ *
  *  At any point in time there can be only one EventHandler child called. This
  *  is enforced by locking the event_handler_mutex when a child is
  *  called. All our incoming calls are also with this lock held.
- * 
+ *
  *  The high-priority iteration progresses without ever releasing the lock.
  *
  *  The low-priority iteration releases the mutex after every entry, and then
@@ -130,8 +128,7 @@ class StraightStlIterator : public StlIterator<IT> {
  */
 class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
  public:
-  DualIteratorFlow(Executor* executor,
-                   EventIterator* standard_iterator,
+  DualIteratorFlow(Executor* executor, EventIterator* standard_iterator,
                    EventIterator* global_iterator)
       : ControlFlow(executor, NULL),
         standard_iterator_(standard_iterator),
@@ -149,8 +146,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   //! This function is called (by the ProxyEventHandler) for any event handler
   //! functions we didn't override explicitly, that is, everything except
   //! Identify Global.
-  virtual void HandlerFn(EventHandlerFunction fn,
-                         EventReport* event,
+  virtual void HandlerFn(EventHandlerFunction fn, EventReport* event,
                          Notifiable* done) {
     LOG(VERBOSE, "Dual::Handler, event %016llx", event->event);
     event_handler_mutex.AssertLocked();
@@ -205,8 +201,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
 
   ControlFlowAction WaitForStandardReturn() {
     LOG(VERBOSE, "Standard entry return");
-    if (!standard_iterator_->HasBeenNotified())
-      return WaitForNotification();
+    if (!standard_iterator_->HasBeenNotified()) return WaitForNotification();
     return CallImmediately(ST(TryStandardIteration));
   }
 
@@ -230,8 +225,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   }
 
   ControlFlowAction WaitForGlobalReturn() {
-    if (!global_iterator_->HasBeenNotified())
-      return WaitForNotification();
+    if (!global_iterator_->HasBeenNotified()) return WaitForNotification();
     // Releases the iteration lock and yields to other control flows that might
     // want it.
     event_handler_mutex.Unlock();
@@ -245,11 +239,11 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   EventIterator* global_iterator_;
 };
 
-class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry {
+class VectorEventHandlers : public DualIteratorFlow,
+                            public NMRAnetEventRegistry {
  public:
   VectorEventHandlers(Executor* executor)
-      : DualIteratorFlow(executor,
-                         &standard_iterator_impl_,
+      : DualIteratorFlow(executor, &standard_iterator_impl_,
                          &global_iterator_impl_) {}
 
   virtual void InitStandardIterator() {
@@ -260,18 +254,18 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
     global_iterator_impl_.Set(handlers_.begin(), handlers_.end());
   }
 
-  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event,
+                               unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_back(handler);
   }
-  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event,
+                                 unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.erase(std::remove(handlers_.begin(), handlers_.end(), handler));
   }
-  
-  virtual NMRAnetEventHandler* EventHandler() {
-    return this;
-  }
+
+  virtual NMRAnetEventHandler* EventHandler() { return this; }
 
  private:
   typedef std::vector<NMRAnetEventHandler*> HandlersList;

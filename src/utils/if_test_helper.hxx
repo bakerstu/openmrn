@@ -33,14 +33,11 @@ GCAdapterBase* g_gc_adapter = nullptr;
 
 class FakeRead : public PipeMember {
  public:
-  FakeRead(Pipe* parent)
-      : is_done_(true), parent_(parent) {
+  FakeRead(Pipe* parent) : is_done_(true), parent_(parent) {
     parent->RegisterMember(this);
   }
 
-  ~FakeRead() {
-    parent_->UnregisterMember(this);
-  }
+  ~FakeRead() { parent_->UnregisterMember(this); }
 
   ssize_t read(void* buf, size_t count) {
     HASSERT(count == sizeof(struct can_frame));
@@ -62,7 +59,7 @@ class FakeRead : public PipeMember {
   }
 
   void WaitForDone() {
-    while(1) {
+    while (1) {
       {
         OSMutexLock l(&lock_);
         if (is_done_) return;
@@ -120,7 +117,7 @@ class MockSend : public PipeMember {
   }
 
   MOCK_METHOD1(MWrite, void(const string& s));
-  //MOCK_METHOD2(write, void(const void* buf, size_t count));
+  // MOCK_METHOD2(write, void(const void* buf, size_t count));
 };
 
 class IfTest : public testing::Test {
@@ -155,9 +152,7 @@ class IfTest : public testing::Test {
 #endif
   }
 
-  void WaitForReadThread() {
-    g_fake_read.WaitForDone();
-  }
+  void WaitForReadThread() { g_fake_read.WaitForDone(); }
 
   void ExpectPacket(const string& gc_packet) {
     EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));

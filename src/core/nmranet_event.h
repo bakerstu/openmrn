@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,18 +42,25 @@
 extern "C" {
 #endif
 
-#define EVENT_EMERGENCY_STOP    0x010100000000FFFFULL /**< stop of all operations */
-#define EVENT_NEW_LOG_ENTRY     0x010100000000FFF8ULL /**< node recorded a new log entry */
-#define EVENT_IDENT_BUTTON      0x010100000000FE00ULL /**< ident button combination pressed */
-#define EVENT_DUPLICATE_NODE_ID 0x0101000000000201ULL /**< duplicate Node ID detected */
-#define EVENT_DCC_CS_NODE       0x0101000000000301ULL /**< this node is a DCC command station */
-#define EVENT_ROSTER_NODE       0x0101000000000302ULL /**< this node is a Roster Node */
-#define EVENT_TRAIN_PROXY       0x0101000000000303ULL /**< this node is a Train Proxy */
+#define EVENT_EMERGENCY_STOP \
+  0x010100000000FFFFULL /**< stop of all operations */
+#define EVENT_NEW_LOG_ENTRY \
+  0x010100000000FFF8ULL /**< node recorded a new log entry */
+#define EVENT_IDENT_BUTTON \
+  0x010100000000FE00ULL /**< ident button combination pressed */
+#define EVENT_DUPLICATE_NODE_ID \
+  0x0101000000000201ULL /**< duplicate Node ID detected */
+#define EVENT_DCC_CS_NODE \
+  0x0101000000000301ULL /**< this node is a DCC command station */
+#define EVENT_ROSTER_NODE \
+  0x0101000000000302ULL /**< this node is a Roster Node */
+#define EVENT_TRAIN_PROXY \
+  0x0101000000000303ULL /**< this node is a Train Proxy */
 
-#define EVENT_STATE_VALID    0 /**< valid state */
-#define EVENT_STATE_INVALID  1 /**< invalid state */
+#define EVENT_STATE_VALID 0    /**< valid state */
+#define EVENT_STATE_INVALID 1  /**< invalid state */
 #define EVENT_STATE_RESERVED 2 /**< reserved state */
-#define EVENT_STATE_UNKNOWN  3 /**< unknown state */
+#define EVENT_STATE_UNKNOWN 3  /**< unknown state */
 
 /** look at all events */
 #define EVENT_ALL_MASK 0ULL

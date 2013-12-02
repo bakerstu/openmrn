@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,20 +42,19 @@
 #include "executor/executor.hxx"
 #include "executor/allocator.hxx"
 
-
 // This template magic is used for simplifying the declaration of member
 // function pointers.
-#define ST(FUNCTION) (MemberFunction)(&std::remove_reference<decltype(*this)>::type::FUNCTION)
-
+#define ST(FUNCTION) \
+  (MemberFunction)(&std::remove_reference<decltype(*this)>::type::FUNCTION)
 
 class ControlFlow : public AllocationResult, public Notifiable {
-public:
+ public:
   // =============== Interface to the outside world ===============
   ControlFlow(Executor* executor, Notifiable* done)
-    : state_(&ControlFlow::NotStarted), done_(done), executor_(executor) {}
+      : state_(&ControlFlow::NotStarted), done_(done), executor_(executor) {}
 
   virtual ~ControlFlow() {}
-  
+
   //! Callback from the executor. This method will be run every time the
   //! control flow is scheduled on the executor.
   virtual void Run();
@@ -77,53 +76,43 @@ public:
   }
 
   //! Returns true if this control flow has reached the terminated state.
-  bool IsDone() {
-    return state_ == &ControlFlow::Terminated;
-  }
+  bool IsDone() { return state_ == &ControlFlow::Terminated; }
 
-  bool IsNotStarted() {
-    return state_ == &ControlFlow::NotStarted;
-  }
+  bool IsNotStarted() { return state_ == &ControlFlow::NotStarted; }
 
-  void Restart(Notifiable* done) {
-    done_ = done;
-  }
+  void Restart(Notifiable* done) { done_ = done; }
 
   Executor* executor() { return executor_; }
 
   bool IsPendingOrRunning() { return executor()->IsPendingOrRunning(this); }
 
   // ============ Interface to children (actual flows) ==============
-protected:
+ protected:
   struct ControlFlowAction;
 
-public:
+ public:
   //! The prototype of the member functions of all control flow stages.
   typedef ControlFlowAction (ControlFlow::*MemberFunction)();
 
-protected:
+ protected:
   struct ControlFlowAction {
     ControlFlowAction(MemberFunction s) : next_state_(s) {}
     MemberFunction next_state_;
   };
 
-protected:
+ protected:
   //! This function should be used to start the flow. The caller is responsible
   //! to ensure that the flow is not running at this moment. The flow will be
   //! scheduled onto its own executor, so it is safe to call this from a
   //! different thread.
-  void StartFlowAt(MemberFunction f) {
-    YieldAndCall(f);
-  }
+  void StartFlowAt(MemberFunction f) { YieldAndCall(f); }
 
   // ==========  ACTION COMMANDS =============
 
   //! Suspends the execution of the current control flow until an external
   //! notification arrives. After the notification the current state will be
   //! re-tried.
-  ControlFlowAction WaitForNotification() {
-    return ControlFlowAction(nullptr);
-  }
+  ControlFlowAction WaitForNotification() { return ControlFlowAction(nullptr); }
 
   //! Transition to a new state, and calls the new state handler immediately
   //! following the current handler.
@@ -176,14 +165,14 @@ protected:
     return CallImmediately(next_state_);
   }
 
-  template<class T> void GetAllocationResult(T** value) {
+  template <class T>
+  void GetAllocationResult(T** value) {
     HASSERT(sub_flow_.allocation_result);
     *value = static_cast<T*>(sub_flow_.allocation_result);
   }
 
   struct SleepData {
-    SleepData()
-      : callback_count(0), timer_handle(NULL) {};
+    SleepData() : callback_count(0), timer_handle(NULL) {};
     ~SleepData();
     int callback_count;
     os_timer_t timer_handle;
@@ -222,8 +211,7 @@ protected:
   MemberFunction state() { return state_; }
   MemberFunction next_state() { return next_state_; }
 
-
-private:
+ private:
   //! Implementation state for a not-yet-started control flow.
   ControlFlowAction NotStarted();
   //! Implementation state for an exited control flow.
@@ -262,7 +250,4 @@ private:
   Executor* executor_;
 };
 
-
-
-
-#endif // _EXECUTOR_CONTROL_FLOW_HXX_
+#endif  // _EXECUTOR_CONTROL_FLOW_HXX_

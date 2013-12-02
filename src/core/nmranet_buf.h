@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -55,26 +55,26 @@ void *nmranet_buffer_alloc(size_t size);
 void nmranet_buffer_free(const void *buffer);
 
 /** Advance the position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
 void *nmranet_buffer_advance(void *buffer, size_t bytes);
 
 /** Get a pointer to the current position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return pointer to the current position (next available byte)
  */
 void *nmranet_buffer_position(const void *buffer);
 
 /** Get the size of the buffer in bytes.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return size of the buffer in bytes
  */
 size_t nmranet_buffer_size(const void *buffer);
 
 /** Get the number of unused bytes in the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return number of unused bytes
  */
 size_t nmranet_buffer_available(const void *buffer);
@@ -120,4 +120,3 @@ size_t nmranet_queue_pending(nmranet_queue_t queue);
 #endif
 
 #endif /* _nmranet_buf_h_ */
-

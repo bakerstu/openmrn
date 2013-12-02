@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -48,13 +48,12 @@ class ControlFlow;
 
 //! An object that can be scheduled on an executor to run.
 class Executable : public QueueMember {
-public:
+ public:
   virtual void Run() = 0;
 };
 
-
 class Executor : public Lockable {
-public:
+ public:
   Executor();
   ~Executor();
 
@@ -93,7 +92,7 @@ public:
     return waiting_ && pending_flows_.empty();
   }
 
-private:
+ private:
   //! This semaphore is used for blocking the executor thread, and will be
   //! posted for each Add to wake up.
   OSSem notify_;
@@ -107,18 +106,14 @@ private:
 
 //! An executor that automatically starts up a new thread to run its loop.
 class ThreadExecutor : public Executor {
-public:
-  ThreadExecutor(const char* thread_name,
-                 int priority,
-                 size_t stack_size);
+ public:
+  ThreadExecutor(const char* thread_name, int priority, size_t stack_size);
   ~ThreadExecutor() {}
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(ThreadExecutor);
 
   OSThread thread_;
 };
 
-
-
-#endif // _EXECUTOR_EXECUTOR_HXX_
+#endif  // _EXECUTOR_EXECUTOR_HXX_

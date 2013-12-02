@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -37,12 +37,12 @@
 #define htole16(x) OSSwapHostToLittleInt16(x)
 #define be16toh(x) OSSwapBigToHostInt16(x)
 #define le16toh(x) OSSwapLittleToHostInt16(x)
- 
+
 #define htobe32(x) OSSwapHostToBigInt32(x)
 #define htole32(x) OSSwapHostToLittleInt32(x)
 #define be32toh(x) OSSwapBigToHostInt32(x)
 #define le32toh(x) OSSwapLittleToHostInt32(x)
- 
+
 #define htobe64(x) OSSwapHostToBigInt64(x)
 #define htole64(x) OSSwapHostToLittleInt64(x)
 #define be64toh(x) OSSwapBigToHostInt64(x)
