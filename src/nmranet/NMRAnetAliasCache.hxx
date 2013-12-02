@@ -60,16 +60,25 @@ public:
     /** Constructor.
      * @param seed starting seed for generation of aliases
      * @param entries maximum number of entries in this cache
+     * @param remove_callback callback to call when we remove a mapping from
+              the cache however it will not be called in the remove() method
+     * @param context context pointer to pass to remove_callback
      */
-    AliasCache(NodeID seed, size_t entries)
+    AliasCache(NodeID seed, size_t entries,
+               void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
+               void *context = NULL)
         : freeList(NULL),
-          metadata(new Metadata[entries]),
           aliasMap(entries),
           idMap(entries),
           oldest(NULL),
           newest(NULL),
-          seed(seed)
+          seed(seed),
+          removeCallback(remove_callback),
+          context(context)
     {
+        /* create our metadata pool and initialize the freeList */
+        Metadata *metadata = new Metadata[entries];
+
         for (size_t i = 0; i < entries; ++i)
         {
             metadata[i].prev = NULL;
@@ -115,7 +124,8 @@ public:
     /** Default destructor */
     ~AliasCache()
     {
-        delete[] metadata;
+        /* we should never get here */
+        HASSERT(0);
     }
     
 private:
@@ -125,39 +135,54 @@ private:
         UNUSED_MASK = 0x10000000
     };
 
+    /** Interesting information about a given cache entry. */
     struct Metadata
     {
-        NodeID id;
-        NodeAlias alias;
-        long long timestamp;
+        NodeID id; /**< 48-bit NMRAnet Node ID */
+        NodeAlias alias; /**< NMRAnet alias */
+        long long timestamp; /**< time stamp of last usage */
         union
         {
-            Metadata *prev;
-            Metadata *newer;
+            Metadata *prev; /**< unused */
+            Metadata *newer; /**< pointer to the next newest entry */
         };
         union
         {
-            Metadata *next;
-            Metadata *older;
+            Metadata *next; /**< pointer to next freeList entry */
+            Metadata *older; /**< pointer to the next oldest entry */
         };
     };
 
     /** list of unused mapping entries */
     Metadata *freeList;
-    Metadata *metadata;
-
+    
+    /** Short hand for the alias Map type */
     typedef Map <NodeAlias, Metadata*> AliasMap;
+    
+    /** Short hand for the ID Map type */
     typedef Map <NodeID, Metadata*> IdMap;
 
+    /** Map of alias to corresponding Metadata */
     AliasMap aliasMap;
+    
+    /** Map of Node ID to corresponding Metadata */
     IdMap idMap;
     
+    /** oldest untouched entry */
     Metadata *oldest;
+    
+    /** newest, most recently touched entry */
     Metadata *newest;
 
     /** Seed for the generation of the next alias */
     NodeID seed;
     
+    /** callback function to be used when we remove an entry from the cache */
+    void (*removeCallback)(NodeID id, NodeAlias alias, void *);
+    
+    /** context pointer to pass in with remove_callback */
+    void *context;
+
     /** Update the time stamp for a given entry.
      * @param  metadata metadata associated with the entry
      */

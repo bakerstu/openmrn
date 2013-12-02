@@ -490,6 +490,13 @@ private:
      */
     void claim_alias(NodeID node_id, NodeAlias alias, Pool *entry);
 
+    /** Callback that is called when an upstream alias is kicked out of the cache.
+     * @param id 48-bit NMRAnet Node ID
+     * @param alias node alias
+     * @param context pointer to an interface instance
+     */
+    static void upstream_alias_removed(NodeID id, NodeAlias alias, void *context);
+    
     /** Decode Check ID CAN control frame.
      * @param ccr CAN control frame
      */

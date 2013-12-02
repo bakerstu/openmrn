@@ -72,7 +72,7 @@ IfCan::IfCan(NodeID node_id, const char *device,
       writeBuffer(this),
       pool((Pool*)malloc(sizeof(Pool) * ALIAS_POOL_SIZE)),
       downstreamCache(0, DOWNSTREAM_ALIAS_CACHE_SIZE),
-      upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE),
+      upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE, upstream_alias_removed, this),
       mutex(),
       linkStatus(DOWN),
       datagramPool(DATAGRAM_MESSAGE_SIZE, Datagram::POOL_SIZE),
@@ -266,6 +266,33 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
     entry->timer.start(MSEC_TO_NSEC(200));
 }
 
+/** Callback that is called when an upstream alias is kicked out of the cache.
+ * @param id 48-bit NMRAnet Node ID
+ * @param alias node alias
+ * @param context pointer to an interface instance
+ */
+void IfCan::upstream_alias_removed(NodeID id, NodeAlias alias, void *context)
+{
+    IfCan *if_can = (IfCan*)context;
+
+    struct can_frame frame;
+    /* tell everyone to un-map our alias */
+    control_init(frame, alias, AMR_FRAME, 0);
+    SET_CAN_FRAME_EFF(frame);
+    CLR_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    frame.can_dlc = 6;
+    frame.data[0] = (id >> 40) & 0xff;
+    frame.data[1] = (id >> 32) & 0xff;
+    frame.data[2] = (id >> 24) & 0xff;
+    frame.data[3] = (id >> 16) & 0xff;
+    frame.data[4] = (id >>  8) & 0xff;
+    frame.data[5] = (id >>  0) & 0xff;
+
+    int result = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
+    HASSERT(result == sizeof(struct can_frame));
+}
+
 /** This is the timeout for claiming an alias.  At this point, the alias will
  * either be claimed as a downstream node, or we can start using it.
  * @param data1 a @ref NMRAnetCanIF typecast to a void*
@@ -331,6 +358,9 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
                 NodeAlias alias = pool[i].alias;
                 struct can_frame frame;
 
+                /* add this mapping to the cache */
+                upstreamCache.add(node_id, alias);
+
                 /* Tell the segment who maps to this alias */
                 control_init(frame, alias, AMD_FRAME, 0);
                 SET_CAN_FRAME_EFF(frame);
@@ -356,7 +386,6 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
                 }
                 while (downstreamCache.lookup(new_alias) != 0);
                 claim_alias(0, new_alias, pool + i);
-                upstreamCache.add(node_id, alias);
 
                 return alias;
             }

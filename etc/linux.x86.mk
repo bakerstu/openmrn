@@ -19,7 +19,7 @@ ENDGROUP := -Wl,--end-group
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
          -D_GNU_SOURCE
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \
-           -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++0x -D__USE_LIBSTDCPP__
+           -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++0x -D__LINEAR_MAP__
 
 LDFLAGS = -g -m32
 SYSLIBRARIES = -lrt -lpthread

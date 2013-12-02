@@ -49,13 +49,18 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     
     Metadata *insert;
 
-    if (aliasMap.find(alias) != aliasMap.end())
+    auto it = aliasMap.find(alias);
+    if (it != aliasMap.end())
     {
         /* we already have a mapping for this alias, so lets remove it */
+        insert = (*it).second;
         remove(alias);
-        /** @todo (Stuart Baker) we need to somehow notify the interface to
-         * unmap this alias on the bus as well.
-         */
+        
+        if (removeCallback)
+        {
+            /* tell the interface layer that we removed this mapping */
+            (*removeCallback)(insert->id, insert->alias, context);
+        }
     }
 
     if (freeList)
@@ -74,13 +79,20 @@ void AliasCache::add(NodeID id, NodeAlias alias)
         {
             oldest->newer->older = NULL;
         }
+        if (insert == newest)
+        {
+            newest = NULL;
+        }
         oldest = oldest->newer;
 
         aliasMap.erase(insert->alias);
         idMap.erase(insert->id);
-        /** @todo (Stuart Baker) we need to somehow notify the interface to
-         * unmap this alias on the bus as well.
-         */
+
+        if (removeCallback)
+        {
+            /* tell the interface layer that we removed this mapping */
+            (*removeCallback)(insert->id, insert->alias, context);
+        }
     }
         
     insert->timestamp = OSTime::get_monotonic();

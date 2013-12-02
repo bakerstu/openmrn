@@ -318,6 +318,7 @@ public:
               entries(e)
         {
             printf("Allocator size: %zu\n", e);
+            printf("this: %p\n", this);
         }
 
         explicit Allocator(Allocator const& a)
@@ -326,6 +327,7 @@ public:
               entries(a.entries)
         {
             printf("Allocator copy size: %zu\n", entries);
+            printf("this: %p\n", this);
         }
         
         ~Allocator()
@@ -338,6 +340,7 @@ public:
               entries(o.entries)
         {
             printf("Allocator template: %zu\n", entries);
+            printf("this: %p\n", this);
         }
 
         //    address
@@ -356,7 +359,6 @@ public:
 
         T *allocate(size_t cnt, const void* = 0)
         {
-        #if 0
             if (init == false)
             {
                 HASSERT(entries != 0);
@@ -374,18 +376,14 @@ public:
             T *newT = &(freeList->data);
             freeList = freeList->next;
             return newT;
-            #endif
-            return (T*)malloc(sizeof(FreeList));
         }
         
         void deallocate(T *p, size_t n)
         {
-        #if 0
             HASSERT(n == 1);
             FreeList *pFreeList = (FreeList*)p;
             pFreeList->next = freeList;
             freeList = pFreeList;
-        #endif
         }
 
         //    size
