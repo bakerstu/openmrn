@@ -70,8 +70,8 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void write_async(Node *node, If::MTI mti, NodeHandle dst,
-                     Buffer *buffer, Notifiable* done)
+    void WriteAsync(Node *node, If::MTI mti, NodeHandle dst,
+                    Buffer *buffer, Notifiable* done)
     {
         HASSERT(!done_);
         node_ = node;
