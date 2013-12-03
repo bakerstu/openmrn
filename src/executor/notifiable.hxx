@@ -100,6 +100,10 @@ class BarrierNotifiable : public Notifiable, private Lockable {
   void MaybeDone() { Notify(); }
   virtual void Notify();
 
+  // Returns true if the barrier condition is true, i.e., the owner has clled
+  // MaybeDone and all children have called Done.
+  bool IsDone() { return !count_; }
+
  private:
   unsigned count_;
   Notifiable* done_;
