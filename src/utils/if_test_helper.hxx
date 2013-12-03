@@ -9,17 +9,17 @@
 
 #include <queue>
 
-#include "if/nmranet_can_if.h"
 #include "nmranet_config.h"
-#include "utils/pipe.hxx"
-#include "utils/gc_pipe.hxx"
 #include "utils/macros.h"
 #include "utils/test_main.hxx"
+#include "utils/gc_pipe.hxx"
+#include "utils/pipe.hxx"
+
 #include "os/OS.hxx"
-#include "core/nmranet_node.h"
-#include "core/nmranet_node_private.h"
 #include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/NMRAnetIfCan.hxx"
 #include "executor/executor.hxx"
+#include "nmranet/NMRAnetNode.hxx"
 
 using ::testing::_;
 using ::testing::Return;
@@ -30,6 +30,17 @@ using ::testing::Mock;
 
 DEFINE_PIPE(gc_pipe0, 1);
 GCAdapterBase* g_gc_adapter = nullptr;
+
+namespace NMRAnet {
+
+const char *Node::MANUFACTURER = "Stuart W. Baker";
+const char *Node::HARDWARE_REV = "N/A";
+const char *Node::SOFTWARE_REV = "0.1";
+
+const size_t Datagram::POOL_SIZE = 10;
+const size_t Datagram::THREAD_STACK_SIZE = 512;
+const size_t Stream::CHANNELS_PER_NODE = 10;
+const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 class FakeRead : public PipeMember {
  public:
@@ -123,6 +134,22 @@ class MockSend : public PipeMember {
   //MOCK_METHOD2(write, void(const void* buf, size_t count));
 };
 
+class TestNode : public Node {
+ public:
+    TestNode(NodeID node_id, If *nmranet_if, const char *name)
+        : Node(node_id, nmranet_if, name)
+    {
+    }
+private:
+    /** Process a Buffered message at the application level.
+     * @param buffer message buffer to process
+     */
+    void process(Buffer *buffer)
+    {
+    }  
+};
+
+
 class IfTest : public testing::Test {
  public:
   static void SetUpTestCase() {
@@ -131,8 +158,8 @@ class IfTest : public testing::Test {
     g_gc_adapter =
         GCAdapterBase::CreateGridConnectAdapter(&gc_pipe0, &can_pipe0, false);
 
-    nmranet_if_ = nmranet_can_if_fd_init(0x02010d000000ULL, fd[0], fd[1],
-                                         "can_mock_if", mock_read, mock_write);
+    nmranet_if_.reset(new IfCan(0x02010d000000ULL,
+                                "/dev/null", mock_read, mock_write));
 
     static_node_ = CreateNewNode();
   }
@@ -174,27 +201,28 @@ class IfTest : public testing::Test {
     Mock::VerifyAndClear(&can_bus_);
   }
 
-  node_t node_;
+  Node* node_;
   NiceMock<MockSend> can_bus_;
 
  private:
   // A loopback interace that reads/writes to can_pipe0.
-  static NMRAnetIF* nmranet_if_;
+  static unique_ptr<NMRAnet::If> nmranet_if_;
   // A node that talks to the loopback interface.
-  static node_t static_node_;
+  static Node* static_node_;
 
   void SetupStaticNode() {
-    static node_t static_node = CreateNewNode();
+    static Node* static_node = CreateNewNode();
     static_node_ = static_node;
     node_ = static_node;
   }
 
-  static node_t CreateNewNode() {
-    node_t node =
-        nmranet_node_create(0x02010d000003ULL, nmranet_if_, "Test Node2", NULL);
+  static Node* CreateNewNode() {
+    Node* node =
+        new TestNode(0x02010d000003ULL, nmranet_if_.get(), "Test Node1");
     fprintf(stderr, "node_=%p\n", node);
-    nmranet_node_user_description(node, "Test Node2");
-    nmranet_node_initialized(node);
+    //nmranet_node_user_description(node, "Test Node2");
+    //nmranet_node_initialized(node);
+    node->initialized();
     /*
     os_thread_t thread;
     os_thread_create(&thread, "event_process_thread", 0, 2048,
@@ -203,15 +231,17 @@ class IfTest : public testing::Test {
   }
 };
 
-NMRAnetIF* IfTest::nmranet_if_ = NULL;
-node_t IfTest::static_node_ = 0;
+unique_ptr<If> IfTest::nmranet_if_ = NULL;
+Node* IfTest::static_node_ = 0;
 
 #ifdef CPP_EVENT_HANDLER
 // We use this to pull in an object from the nmranet library to link.
-void* ign_link1 = (void*)&nmranet_identify_consumers;
+//void* ign_link1 = (void*)&nmranet_identify_consumers;
 
 ThreadExecutor g_executor("global_event", 0, 2000);
 GlobalEventFlow g_event_flow(&g_executor, 10);
 #endif
+
+} // namespace NMRAnet
 
 #endif  //_UTILS_IF_TEST_HELPER_HXX_
