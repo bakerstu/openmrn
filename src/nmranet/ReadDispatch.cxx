@@ -58,7 +58,7 @@ template <typename ID>
 void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler)
 {
     OSMutexLock h(&lock_);
-    idx = 0;
+    int idx = 0;
     while (idx < handlers_.size()
            && !(handlers_[idx].handler == handler && handlers_[idx].id == id
                 && handlers_[idx].mask == mask))

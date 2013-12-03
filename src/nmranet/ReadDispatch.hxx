@@ -39,6 +39,9 @@
 
 #include "executor/notifiable.hxx"
 #include "executor/allocator.hxx"
+#include "executor/control_flow.hxx"
+#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/NMRAnetNode.hxx"
 
 namespace NMRAnet
 {
@@ -86,7 +89,7 @@ struct MtiParams
 {
     If::MTI mti;          //< MTI of the incoming message.
     NodeHandle dst;       //< destination node, or {0,0} for global.
-    Node* dst;            //< destination node pointer, or NULL for global.
+    Node* dst_node;       //< destination node pointer, or NULL for global.
     const Buffer* buffer; //< message payload.
 };
 
@@ -232,4 +235,4 @@ private:
 
 } // namespace NMRAnet
 
-#endif _NMRAnetReadDispatch_hxx_
+#endif // _NMRAnetReadDispatch_hxx_
