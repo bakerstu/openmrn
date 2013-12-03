@@ -6,6 +6,8 @@
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
+namespace NMRAnet {
+
 class BitEventProducerTest : public IfTest {
  protected:
   BitEventProducerTest()
@@ -49,7 +51,7 @@ TEST_F(BitEventProducerTest, GlobalIdentify) {
   ExpectPacket(":X1954412DN05010101FFFF0000;");
   ExpectPacket(":X1954412DN05010101FFFF0003;");
   ExpectPacket(":X1954512DN05010101FFFF0002;");
-  SendPacket(":X19970000N;");
+  SendPacket(":X19970001N;");
   WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
 
   storage_ = 2;
@@ -57,18 +59,20 @@ TEST_F(BitEventProducerTest, GlobalIdentify) {
   ExpectPacket(":X1954412DN05010101FFFF0001;");
   ExpectPacket(":X1954412DN05010101FFFF0002;");
   ExpectPacket(":X1954512DN05010101FFFF0003;");
-  SendPacket(":X19970000N;");
+  SendPacket(":X19970001N;");
   WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
 }
 
 TEST_F(BitEventProducerTest, IdentifyProducer) {
   storage_ = 1;
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0000;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0000;",
                               ":X1954412DN05010101FFFF0000;");
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0001;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0001;",
                               ":X1954512DN05010101FFFF0001;");
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0002;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0002;",
                               ":X1954512DN05010101FFFF0002;");
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0003;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0003;",
                               ":X1954412DN05010101FFFF0003;");
 }
+
+}  // namespace NMRAnet

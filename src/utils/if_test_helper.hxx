@@ -167,6 +167,7 @@ class IfTest : public testing::Test {
  protected:
   IfTest() {
     node_ = static_node_;
+    WaitForEventThread();
     gc_pipe0.RegisterMember(&can_bus_);
   }
 

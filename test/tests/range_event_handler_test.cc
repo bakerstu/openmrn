@@ -7,6 +7,8 @@ using ::testing::InSequence;
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
+namespace NMRAnet {
+
 class BitRangeEventTest : public IfTest {
  protected:
   BitRangeEventTest()
@@ -26,11 +28,11 @@ TEST_F(BitRangeEventTest, Simple) {
 TEST_F(BitRangeEventTest, ReportOnOff) {
   EXPECT_EQ(0x00000000, storage_[0]);
   EXPECT_FALSE(handler_.Get(16));
-  SendPacket(":X195B4000N05010101FFFF0020;");
+  SendPacket(":X195B4001N05010101FFFF0020;");
   WaitForEventThread();
   EXPECT_EQ(0x00010000, storage_[0]);
   EXPECT_TRUE(handler_.Get(16));
-  SendPacket(":X195B4000N05010101FFFF0021;");
+  SendPacket(":X195B4001N05010101FFFF0021;");
   WaitForEventThread();
   EXPECT_EQ(0x00000000, storage_[0]);
   EXPECT_FALSE(handler_.Get(16));
@@ -38,56 +40,56 @@ TEST_F(BitRangeEventTest, ReportOnOff) {
 
 TEST_F(BitRangeEventTest, ReportMultiOnOff) {
   EXPECT_EQ(0, storage_[10]);
-  SendPacket(":X195B4000N05010101FFFF0280;");
-  SendPacket(":X195B4000N05010101FFFF0282;");
+  SendPacket(":X195B4001N05010101FFFF0280;");
+  SendPacket(":X195B4001N05010101FFFF0282;");
   WaitForEventThread();
   EXPECT_TRUE(handler_.Get(320));
   EXPECT_TRUE(handler_.Get(321));
   EXPECT_EQ(3, storage_[10]);
-  SendPacket(":X195B4000N05010101FFFF0281;");
+  SendPacket(":X195B4001N05010101FFFF0281;");
   WaitForEventThread();
   EXPECT_EQ(2, storage_[10]);
 }
 
 TEST_F(BitRangeEventTest, InquireProducerAndConsumer) {
   EXPECT_EQ(0, storage_[10]);
-  SendPacket(":X195B4000N05010101FFFF0280;");
-  SendPacket(":X195B4000N05010101FFFF0282;");
+  SendPacket(":X195B4001N05010101FFFF0280;");
+  SendPacket(":X195B4001N05010101FFFF0282;");
   WaitForEventThread();
 
   // identify producers event-on; identified valid.
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0282;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0282;",
                               ":X1954412DN05010101FFFF0282;");
 
   // identify producers event-off; identified invalid.
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0283;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0283;",
                               ":X1954512DN05010101FFFF0283;");
 
   // identify consumers event-on; identified valid.
-  SendPacketAndExpectResponse(":X198F4000N05010101FFFF0282;",
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0282;",
                               ":X194C412DN05010101FFFF0282;");
 
   // identify consumers event-off; identified invalid.
-  SendPacketAndExpectResponse(":X198F4000N05010101FFFF0283;",
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0283;",
                               ":X194C512DN05010101FFFF0283;");
 
   // set event off
   storage_[10] &= ~2;
 
     // identify producers event-off; identified valid.
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0283;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0283;",
                               ":X1954412DN05010101FFFF0283;");
 
   // identify producers event-on; identified invalid.
-  SendPacketAndExpectResponse(":X19914000N05010101FFFF0282;",
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0282;",
                               ":X1954512DN05010101FFFF0282;");
 
   // identify consumers event-on; identified invalid.
-  SendPacketAndExpectResponse(":X198F4000N05010101FFFF0282;",
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0282;",
                               ":X194C512DN05010101FFFF0282;");
 
   // identify consumers event-off; identified valid.
-  SendPacketAndExpectResponse(":X198F4000N05010101FFFF0283;",
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0283;",
                               ":X194C412DN05010101FFFF0283;");
 }
 
@@ -96,7 +98,7 @@ TEST_F(BitRangeEventTest, IdentifyGlobal) {
   // a range of 8192 or 0x2000: the mask will end with 0x1FFF.
   ExpectPacket(":X194A412DN05010101FFFF1FFF;");
   ExpectPacket(":X1952412DN05010101FFFF1FFF;");
-  SendPacket(":X19970000N;");
+  SendPacket(":X19970001N;");
   WaitForEventThread();
   //nmranet_identify_consumers();
 }
@@ -124,21 +126,21 @@ TEST_F(BitRangeEventTest, IgnoreUnrelated) {
   EXPECT_CALL(can_bus_, MWrite(_)).Times(0);
 
   EXPECT_EQ(0, storage_[10]);
-  SendPacket(":X195B4000N05010101FFFF176E;");
+  SendPacket(":X195B4001N05010101FFFF176E;");
   WaitForEventThread();
   EXPECT_EQ(1<<23, storage_[93]);
 
-  SendPacket(":X195B4000N05010101FFFF176F;");
+  SendPacket(":X195B4001N05010101FFFF176F;");
   WaitForEventThread();
   EXPECT_EQ(0, storage_[93]);
 
-  SendPacket(":X195B4000N05010101FFFF1770;");
+  SendPacket(":X195B4001N05010101FFFF1770;");
   WaitForEventThread();
   EXPECT_EQ(0, storage_[93]);
 
   // No responses.
-  SendPacket(":X19914000N05010101FFFF1770;");
-  SendPacket(":X19914000N05010101FFFEFFFF;");
+  SendPacket(":X19914001N05010101FFFF1770;");
+  SendPacket(":X19914001N05010101FFFEFFFF;");
   WaitForEventThread();
 }
 
@@ -149,3 +151,5 @@ TEST_F(BitRangeEventTest, DeathTooHighSet) {
       handler_.Set(3000, false, &event_write_helper1, nullptr);
     }, "bit < size");
 }
+
+}  // namespace NMRAnet

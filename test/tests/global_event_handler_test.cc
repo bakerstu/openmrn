@@ -74,10 +74,10 @@ static void InvokeNotification(Notifiable* done) { done->Notify(); }
 
 static const uint64_t kExitEventId = 0x0808080804040404ULL;
 static const uint64_t kTestEventId = 0x0102030405060708ULL;
-static const int kEventReportMti = 0x5b4;
-static const int kProducerIdentifiedResvdMti = 0x546;
-static const int kGlobalIdentifyEvents = 0x970;
-static const int kAddressedIdentifyEvents = 0x968;
+static const If::MTI kEventReportMti = If::MTI_EVENT_REPORT;
+static const If::MTI kProducerIdentifiedResvdMti = If::MTI_PRODUCER_IDENTIFIED_RESERVED;
+static const If::MTI kGlobalIdentifyEvents = If::MTI_EVENTS_IDENTIFY_GLOBAL;
+static const If::MTI kAddressedIdentifyEvents = If::MTI_EVENTS_IDENTIFY_ADDRESSED;
 
 class EventHandlerTests : public ::testing::Test {
  protected:
