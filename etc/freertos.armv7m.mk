@@ -46,7 +46,7 @@ CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
            -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
            -D__LINEAR_MAP__
 
-LDFLAGS = -g -nodefaultlibs -fdata-sections -ffunction-sections -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
+LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections
 
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit
