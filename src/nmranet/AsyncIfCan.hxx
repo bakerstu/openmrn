@@ -35,9 +35,12 @@
 #ifndef _NMRAnetAsyncIfCan_hxx_
 #define _NMRAnetAsyncIfCan_hxx_
 
+#include <memory>
+
 #include "nmranet/ReadDispatch.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/BufferQueue.hxx"
+#include "utils/async_pipe_member.hxx"
 #include "nmranet/AsyncIf.hxx"
 #include "nmranet_can.h"
 
@@ -65,12 +68,24 @@ class AsyncIfCan : public AsyncIf
    */
   AsyncIfCan(Executor* executor, Pipe* device);
 
+  ~AsyncIfCan();
+
   //! @returns the dispatcher of incoming CAN frames.
   FrameDispatchFlow* frame_dispatcher() { return &frame_dispatcher_; }
+
+  //! @returns the asynchronous read/write object.
+  AsyncPipeMember* pipe_member() { return &pipe_member_; }
 
  private:
   //! Flow responsible for routing incoming messages to handlers.
   FrameDispatchFlow frame_dispatcher_;
+
+  //! Handles asynchronous reading and writing from the device.
+  AsyncPipeMember pipe_member_;
+
+  //! The control flow to read from the hardware device. This is running in an
+  //! infinite loop.
+  std::unique_ptr<ControlFlow> can_read_flow_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
 };
