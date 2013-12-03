@@ -272,7 +272,10 @@ public:
     /* default destructor */
     ~BufferPool()
     {
-        HASSERT(0);
+      /** @todo(stbaker): what is the required condition for a buffer pool to
+       be deallocated?
+       HASSERT(0);
+      */
     }
 
     /** Used in static pools to tell if this buffer is a member of the pool.
