@@ -39,13 +39,13 @@
 #include "executor/notifiable.hxx"
 #include "executor/allocator.hxx"
 #include "utils/macros.h"
-#include "nmranet_types.h"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
 namespace NMRAnet
 {
 
 typedef uint64_t EventId;
+class Node;
 
 enum EventState {
   VALID = 0,
@@ -62,8 +62,8 @@ enum EventState {
 typedef struct {
   EventId event;
   EventId mask;
-  node_handle_t src_node;
-  node_t dst_node;
+  NodeHandle src_node;
+  Node* dst_node;
   EventState state;
 } EventReport;
 

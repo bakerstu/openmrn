@@ -269,6 +269,8 @@ extern const size_t SERIAL_RX_BUFFER_SIZE;
 /** Number of transmit characters that are buffered in the serial driver.
  */
 extern const size_t SERIAL_TX_BUFFER_SIZE;
+
+const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
 }
 
 const size_t main_stack_size = 2560;

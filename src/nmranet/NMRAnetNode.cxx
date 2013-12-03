@@ -37,6 +37,11 @@
 namespace NMRAnet
 {
 
+// Temporary link to the event handler code
+void nmranet_identify_consumers(Node* node, uint64_t event, uint64_t mask);
+void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask);
+
+
 OSMutex Node::mutex;
 RBTree <NodeID, Node*> Node::idTree;
 
@@ -79,8 +84,8 @@ void Node::initialized()
         write(If::MTI_INITIALIZATION_COMPLETE, {0, 0}, buffer);
 
         /* identify all of the events this node produces and consumes */
-        //nmranet_identify_consumers(node, 0, EVENT_ALL_MASK);
-        //nmranet_identify_producers(node, 0, EVENT_ALL_MASK);
+        nmranet_identify_consumers(this, 0, 0);
+        nmranet_identify_producers(this, 0, 0);
     }
     mutex.unlock();
 }

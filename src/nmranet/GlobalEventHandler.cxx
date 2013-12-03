@@ -196,11 +196,9 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m) {
  * @param node node that the packet is addressed to
  * @param data NMRAnet packet data
  */
-extern "C" {
-
-void nmranet_event_packet_addressed(uint16_t mti,
-                                    node_handle_t src,
-                                    node_t node,
+void nmranet_event_packet_addressed(If::MTI mti,
+                                    NodeHandle src,
+                                    Node* node,
                                     const void* data) {
   /*struct id_node* id_node = node;
   if (id_node->priv->state == NODE_UNINITIALIZED) {
@@ -256,8 +254,8 @@ void nmranet_event_packet_addressed(uint16_t mti,
  * @param src source Node ID
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_global(uint16_t mti,
-                                 node_handle_t src,
+void nmranet_event_packet_global(If::MTI mti,
+                                 NodeHandle src,
                                  const void* data) {
   GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
   m->mti = mti;
@@ -331,18 +329,16 @@ void nmranet_event_packet_global(uint16_t mti,
       break;
   }
   */
-}
+  }
 
-}; /* namespace NMRAnet */
-
-void nmranet_identify_consumers(node_t node, uint64_t event, uint64_t mask) {
+void nmranet_identify_consumers(Node* node, uint64_t event, uint64_t mask) {
   // Ignored: we'll do the global identify in IdentifyProducers.
 }
 
-void nmranet_identify_producers(node_t node, uint64_t event, uint64_t mask) {
-  nmranet_event_packet_global(MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
+void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask) {
+    nmranet_event_packet_global(If::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
-} // extern C
+} /* namespace NMRAnet */
 
 #endif // CPP_EVENT_HANDLER
