@@ -34,40 +34,40 @@
 
 #include "nmranet/ReadDispatch.hxx"
 
-namespace NMRAnet {
+namespace NMRAnet
+{
 
-template<typename ID>
-void DispatchFlow<ID>::RegisterHandler(ID id, ID mask, HandlerBase* handler) {
-  OSMutexLock h(&lock_);
-  int idx = pending_delete_index_;
-  while (idx < handlers_.size() &&
-         handlers_[idx].handler) {
-    ++idx;
-  }
-  if (idx >= handlers_.size()) {
-    idx = handlers_.size();
-    handlers_.resize(handlers_.size() + 1);
-  }
-  handlers_[idx].handler = handler;
-  handlers_[idx].id = id;
-  handlers_[idx].mask = mask;
+template <typename ID>
+void DispatchFlow<ID>::RegisterHandler(ID id, ID mask, HandlerBase* handler)
+{
+    OSMutexLock h(&lock_);
+    int idx = pending_delete_index_;
+    while (idx < handlers_.size() && handlers_[idx].handler) {
+        ++idx;
+    }
+    if (idx >= handlers_.size()) {
+        idx = handlers_.size();
+        handlers_.resize(handlers_.size() + 1);
+    }
+    handlers_[idx].handler = handler;
+    handlers_[idx].id = id;
+    handlers_[idx].mask = mask;
 }
 
-template<typename ID>
-void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler) {
-  OSMutexLock h(&lock_);
-  idx = 0;
-  while (idx < handlers_.size() &&
-         !(handlers_[idx].handler == handler  &&
-           handlers_[idx].id == id &&
-           handlers_[idx].mask == mask)) ++idx;
-  HASSERT(idx < handlers_.size());
-  handlers_[idx].handler = nullptr;
-  if (idx < pending_delete_index_) {
-    pending_delete_index_ = idx;
-  }
+template <typename ID>
+void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler)
+{
+    OSMutexLock h(&lock_);
+    idx = 0;
+    while (idx < handlers_.size()
+           && !(handlers_[idx].handler == handler && handlers_[idx].id == id
+                && handlers_[idx].mask == mask))
+        ++idx;
+    HASSERT(idx < handlers_.size());
+    handlers_[idx].handler = nullptr;
+    if (idx < pending_delete_index_) {
+        pending_delete_index_ = idx;
+    }
 }
 
-
-
-}  // namespace NMRAnet
+} // namespace NMRAnet

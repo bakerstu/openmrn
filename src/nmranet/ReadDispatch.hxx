@@ -35,7 +35,13 @@
 #ifndef _NMRAnetReadDispatch_hxx_
 #define _NMRAnetReadDispatch_hxx_
 
-namespace NMRAnet {
+#include <vector>
+
+#include "executor/notifiable.hxx"
+#include "executor/allocator.hxx"
+
+namespace NMRAnet
+{
 
 /**
    Abstract class for handling an incoming message of a specifc MTI in NMRAnet.
@@ -51,33 +57,37 @@ namespace NMRAnet {
    . or the handler call actually returns an Allocator, which the caller has to
    acquire a handler from and re-post the same call to that handler.
  */
-class HandlerBase {};
-
-template <class Param>
-class ParamHandler : public HandlerBase {
- public:
-  /**
-     Initiates handling of an incoming message.
-
-     @param message is the incoming message.
-     @param done notifiable, see below.
-
-     @returns NULL if the message handling has begun. In this case the done
-     notifiable will be invoked when the buffer can be released.
-
-     @returns an allocator if the handler for this message is unavailable. In
-     this case `done' will NOT be invoked, the caller has to acquire an
-     ParamHandler from that allocator, and re-send the handle request to it.
-   */
-  virtual TypedAllocator<ParamHandler<Param> >* HandleMessage(
-      Param* message, Notifiable* done) = 0;
+class HandlerBase
+{
 };
 
-struct MtiParams {
-  If::MTI mti;           //< MTI of the incoming message.
-  NodeHandle dst;        //< destination node, or {0,0} for global.
-  Node* dst;             //< destination node pointer, or NULL for global.
-  const Buffer* buffer;  //< message payload.
+template <class Param> class ParamHandler : public HandlerBase
+{
+public:
+    /**
+       Initiates handling of an incoming message.
+
+       @param message is the incoming message.
+       @param done notifiable, see below.
+
+       @returns NULL if the message handling has begun. In this case the done
+       notifiable will be invoked when the buffer can be released.
+
+       @returns an allocator if the handler for this message is unavailable. In
+       this case `done' will NOT be invoked, the caller has to acquire an
+       ParamHandler from that allocator, and re-send the handle request to it.
+     */
+    virtual TypedAllocator<ParamHandler<Param>>* HandleMessage(Param* message,
+                                                               Notifiable* done)
+        = 0;
+};
+
+struct MtiParams
+{
+    If::MTI mti;          //< MTI of the incoming message.
+    NodeHandle dst;       //< destination node, or {0,0} for global.
+    Node* dst;            //< destination node pointer, or NULL for global.
+    const Buffer* buffer; //< message payload.
 };
 
 typedef ParamHandler<MtiParams> MtiHandler;
@@ -95,121 +105,131 @@ typedef ParamHandler<MtiParams> MtiHandler;
    This flow is attached to a TypedAllocator owned by the If. The flow will
    return itself to the allocator automatically.
  */
-template <typename ID>
-class DispatchFlow : public ControlFlow, public Lockable {
- public:
-  /**
-     Handles an incoming message. Prior to this call the parameters needed for
-     the call should be injected into the flow using an implementation-specific
-     method.
+template <typename ID> class DispatchFlow : public ControlFlow, public Lockable
+{
+public:
+    /**
+       Handles an incoming message. Prior to this call the parameters needed for
+       the call should be injected into the flow using an
+       implementation-specific
+       method.
 
-     @param id is the identifier of the incoming message.
+       @param id is the identifier of the incoming message.
 
-     The flow *this will release itself to the allocator when the message
-     handling is done.
-   */
-  void IncomingMessage(ID id);
+       The flow *this will release itself to the allocator when the message
+       handling is done.
+     */
+    void IncomingMessage(ID id);
 
- protected:
-  /**
-     Adds a new handler to this dispatcher.
+protected:
+    /**
+       Adds a new handler to this dispatcher.
 
-     A handler will be called if incoming_mti & mask == mti & mask.
+       A handler will be called if incoming_mti & mask == mti & mask.
 
-     @param mti is the identifier of the message to listen to.
-     @param mask is the mask of the mti matcher.
-     @param handler is the MTI handler. It must stay alive so long as this If
-     is alive.
-   */
-  void RegisterHandler(ID id, ID mask, HandlerBase* handler);
+       @param mti is the identifier of the message to listen to.
+       @param mask is the mask of the mti matcher.
+       @param handler is the MTI handler. It must stay alive so long as this If
+       is alive.
+     */
+    void RegisterHandler(ID id, ID mask, HandlerBase* handler);
 
-  //! Removes a specific instance of a handler from this IF.
-  void UnregisterHandler(ID id, ID mask, HandlerBase* handler);
+    //! Removes a specific instance of a handler from this IF.
+    void UnregisterHandler(ID id, ID mask, HandlerBase* handler);
 
-  /**
-     Makes an implementation-specific call to the actual
-     handler. Implementations will need to take certain handler arguments from
-     member variables. The 'done' notifiable must be called in all cases.
-   */
-  virtual AllocatorBase* CallCurrentHandler(HandlerBase* handler,
-                                            Notifiable* done) = 0;
+    /**
+       Makes an implementation-specific call to the actual
+       handler. Implementations will need to take certain handler arguments from
+       member variables. The 'done' notifiable must be called in all cases.
+     */
+    virtual AllocatorBase* CallCurrentHandler(HandlerBase* handler,
+                                              Notifiable* done) = 0;
 
- private:
-  // State handler. Calls the current handler.
-  ControlFlowAction HandleCall();
-  // State handler. If calling the handler didn't work, this state will be
-  // called after the allocation.
-  ControlFlowAction HandleAllocateResult();
+private:
+    // State handler. Calls the current handler.
+    ControlFlowAction HandleCall();
+    // State handler. If calling the handler didn't work, this state will be
+    // called after the allocation.
+    ControlFlowAction HandleAllocateResult();
 
-  struct HandlerInfo {
-    HandlerInfo()
-        : handler(nullptr) {}
-    ID id;
-    ID mask;
-    // NULL if the handler has been removed.
-    HandlerBase* handler;
-  };
+    struct HandlerInfo
+    {
+        HandlerInfo() : handler(nullptr)
+        {
+        }
+        ID id;
+        ID mask;
+        // NULL if the handler has been removed.
+        HandlerBase* handler;
+    };
 
-  vector<HandlerInfo> handlers_;
+    vector<HandlerInfo> handlers_;
 
-  // Index of the current iteration.
-  int current_index_;
-  // Points to a deleted entry in the vector, or -1.
-  int pending_delete_index_;
+    // Index of the current iteration.
+    int current_index_;
+    // Points to a deleted entry in the vector, or -1.
+    int pending_delete_index_;
 
-  // These fields contain the message currently in progress.
-  ID id_;
+    // These fields contain the message currently in progress.
+    ID id_;
 
-  // This notifiable tracks all the pending handlers.
-  BarrierNotifiable children_;
+    // This notifiable tracks all the pending handlers.
+    BarrierNotifiable children_;
 
-  OSMutex lock_;
+    OSMutex lock_;
 };
 
 template <typename ID, class Params>
-class TypedDispatchFlow : public DispatchFlow<ID> {
- public:
-  typedef ParamHandler<Params> Handler;
+class TypedDispatchFlow : public DispatchFlow<ID>
+{
+public:
+    typedef ParamHandler<Params> Handler;
 
-  /**
-     Adds a new handler to this dispatcher.
+    /**
+       Adds a new handler to this dispatcher.
 
-     A handler will be called if incoming_id & mask == id & mask.
+       A handler will be called if incoming_id & mask == id & mask.
 
-     @param id is the identifier of the message to listen to.
-     @param mask is the mask of the ID matcher.
-     @param handler is the handler. It must stay alive so long as this Dispatcher
-     is alive.
-   */
-  void RegisterHandler(ID id, ID mask, Handler* handler) {
-    DispatchFlow<ID>::RegisterHandler(id, mask, handler);
-  }
-
-  //! Removes a specific instance of a handler.
-  void UnregisterHandler(ID id, ID mask, Handler* handler) {
-    DispatchFlow<ID>::UnregisterHandler(id, mask, handler);
-  }
-
-  //! @returns the parameters structure to fill in before calling IncomingMessage.
-  Params* mutable_params() {
-    return &params_;
-  }
-
- protected:
-  virtual AllocatorBase* CallCurrentHandler(HandlerBase* b_handler,
-                                            Notifiable* done) {
-    Handler* handler = static_cast<Handler>(b_handler);
-    TypedAllocator<Handler>* a = handler->HandleMessage(params_, done);
-    if (a) {
-      done->Notify();
+       @param id is the identifier of the message to listen to.
+       @param mask is the mask of the ID matcher.
+       @param handler is the handler. It must stay alive so long as this
+       Dispatcher
+       is alive.
+     */
+    void RegisterHandler(ID id, ID mask, Handler* handler)
+    {
+        DispatchFlow<ID>::RegisterHandler(id, mask, handler);
     }
-    return a;
-  }
 
- private:
-  Params params_;
+    //! Removes a specific instance of a handler.
+    void UnregisterHandler(ID id, ID mask, Handler* handler)
+    {
+        DispatchFlow<ID>::UnregisterHandler(id, mask, handler);
+    }
+
+    //! @returns the parameters structure to fill in before calling
+    // IncomingMessage.
+    Params* mutable_params()
+    {
+        return &params_;
+    }
+
+protected:
+    virtual AllocatorBase* CallCurrentHandler(HandlerBase* b_handler,
+                                              Notifiable* done)
+    {
+        Handler* handler = static_cast<Handler>(b_handler);
+        TypedAllocator<Handler>* a = handler->HandleMessage(params_, done);
+        if (a) {
+            done->Notify();
+        }
+        return a;
+    }
+
+private:
+    Params params_;
 };
 
-}  // namespace NMRAnet
+} // namespace NMRAnet
 
 #endif _NMRAnetReadDispatch_hxx_
