@@ -70,6 +70,14 @@ public:
     /** Get a pointer to the first position (byte) of the buffer.
      * @return pointer to the first position (byte)
      */
+    const void *start() const
+    {
+        return data;
+    }
+
+    /** Get a pointer to the first position (byte) of the buffer.
+     * @return pointer to the first position (byte)
+     */
     void *start()
     {
         return data;
@@ -86,7 +94,7 @@ public:
     /** Get the size of the buffer in bytes.
      * @return size of the buffer in bytes
      */
-    size_t size()
+    size_t size() const
     {
         return _size;
     }
@@ -94,15 +102,15 @@ public:
     /** Get the number of unused bytes in the buffer.
      * @return number of unused bytes
      */
-    size_t available()
+    size_t available() const
     {
         return left;    
     }
 
-    /** Get the number of unused bytes in the buffer.
-     * @return number of unused bytes
+    /** Get the number of used bytes in the buffer.
+     * @return number of used bytes
      */
-    size_t used()
+    size_t used() const
     {
         return _size - left;    
     }
