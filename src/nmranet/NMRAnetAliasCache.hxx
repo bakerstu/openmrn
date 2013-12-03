@@ -61,7 +61,7 @@ public:
      * @param seed starting seed for generation of aliases
      * @param entries maximum number of entries in this cache
      * @param remove_callback callback to call when we remove a mapping from
-              the cache however it will not be called in the remove() method
+     *        the cache however it will not be called in the remove() method
      * @param context context pointer to pass to remove_callback
      */
     AliasCache(NodeID seed, size_t entries,

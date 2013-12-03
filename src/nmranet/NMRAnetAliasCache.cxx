@@ -49,7 +49,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     
     Metadata *insert;
 
-    auto it = aliasMap.find(alias);
+    AliasMap::Iterator it = aliasMap.find(alias);
     if (it != aliasMap.end())
     {
         /* we already have a mapping for this alias, so lets remove it */
@@ -128,7 +128,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
  */
 void AliasCache::remove(NodeAlias alias)
 {
-    auto it = aliasMap.find(alias);
+    AliasMap::Iterator it = aliasMap.find(alias);
 
     if (it != aliasMap.end())
     {
@@ -167,7 +167,7 @@ NodeAlias AliasCache::lookup(NodeID id)
 {
     HASSERT(id != 0);
 
-    auto it = idMap.find(id);
+    IdMap::Iterator it = idMap.find(id);
 
     if (it != idMap.end())
     {
@@ -190,7 +190,7 @@ NodeID AliasCache::lookup(NodeAlias alias)
 {
     HASSERT(alias != 0);
 
-    auto it = aliasMap.find(alias);
+    AliasMap::Iterator it = aliasMap.find(alias);
 
     if (it != aliasMap.end())
     {
@@ -213,7 +213,7 @@ void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *cont
 {
     HASSERT(callback != NULL);
 
-    for (auto it = aliasMap.begin(); it != aliasMap.end(); ++it)
+    for (AliasMap::Iterator it = aliasMap.begin(); it != aliasMap.end(); ++it)
     {
         Metadata *metadata = (*it).second;
         (*callback)(context, metadata->id, metadata->alias);
