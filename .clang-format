@@ -9,7 +9,7 @@ AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakTemplateDeclarations: false
 AlwaysBreakBeforeMultilineStrings: false
-BreakBeforeBinaryOperators: true
+BreakBeforeBinaryOperators: false
 BreakConstructorInitializersBeforeComma: false
 BinPackParameters: true
 ColumnLimit:     80

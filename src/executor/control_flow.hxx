@@ -131,6 +131,11 @@ protected:
     return ControlFlowAction(f);
   }
 
+  //! Retries the current state immediately.
+  ControlFlowAction RetryCurrentState() {
+    return CallImmediately(state_);
+  }
+
   //! Transitions to a new state, but allows all other pending callbacks of the
   //! executor to run before proceeding to the next state.
   ControlFlowAction YieldAndCall(MemberFunction f) {
