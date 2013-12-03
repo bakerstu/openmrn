@@ -122,16 +122,29 @@ protected:
     virtual bool EP2_IN_callback()
     {
         int count;
+        int woken = 0;
         configASSERT(txPending);
         for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
         {
-            if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count]) != OS_MQ_NONE)
+          if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count], &woken) != OS_MQ_NONE)
             {
                 /* no more data left to transmit */
                 break;
             }
         }
         TxHelper(count);
+        if (woken)
+        {
+#ifdef TARGET_LPC1768
+          portYIELD();
+#elif defined(TARGET_LPC2368)
+          /** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
+           * portYIELD_FROM_ISR assumes that we have entered the ISR with context
+           * saving, which we didn't. */
+#else
+#error define how to yield on your CPU.
+#endif
+        }
         return true;
     }
 

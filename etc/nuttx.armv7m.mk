@@ -15,6 +15,9 @@ CC = $(PREFIX)gcc
 CXX = $(PREFIX)g++
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
+SIZE = $(PREFIX)size
+OBJCOPY = $(PREFIX)objcopy
+OBJDUMP = $(PREFIX)objdump
 
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group

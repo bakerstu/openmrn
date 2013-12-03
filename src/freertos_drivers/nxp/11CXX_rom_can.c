@@ -38,7 +38,6 @@
 #include "11CXX_rom_driver_CAN.h"
 #include "can.h"
 
-
 typedef	struct _ROM {
    const unsigned p_usbd;
    const unsigned p_clib;
@@ -190,10 +189,15 @@ void CAN_rx(uint8_t msg_obj_num)
     can_frame.can_err = 0;
     can_frame.can_dlc = msg_obj.dlc;
     memcpy(can_frame.data, msg_obj.data, msg_obj.dlc);
-    if (os_mq_send_from_isr(can_private[0].canPriv.rxQ, &can_frame)
+    int woken = 0;
+    if (os_mq_send_from_isr(can_private[0].canPriv.rxQ, &can_frame, &woken)
         == OS_MQ_FULL)
     {
         can_private[0].canPriv.overrunCount++;
+    }
+    if (woken)
+    {
+      portYIELD();
     }
 }
 
@@ -204,13 +208,19 @@ void CAN_tx(uint8_t msg_obj_num){
     // If we don't know the msg object number, let's not do anything.
     if (msg_obj_num != TX_MSG_OBJ_NUM) return;
     struct can_frame can_frame;
-    if (os_mq_receive_from_isr(can_private[0].canPriv.txQ, &can_frame)
+    int woken = 0;
+    if (os_mq_receive_from_isr(can_private[0].canPriv.txQ, &can_frame, &woken)
         != OS_MQ_NONE)
     {
         can_private[0].txPending = 0;
         return;
     }
     send_frame(&can_frame);
+
+    if (woken)
+    {
+      portYIELD();
+    }
 }
 
 /** CAN error callback. Called by the ROM can driver in an ISR context.

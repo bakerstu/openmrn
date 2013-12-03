@@ -151,6 +151,7 @@ static void mbed_can_tx_msg(devtab_t *dev)
 
 /** Handler for CAN device. Called from the mbed irq handler. */
 void MbedCanPriv::interrupt() {
+    int woken = 0;
     CANMessage msg;
     if (can->read(msg))
     {
@@ -161,7 +162,8 @@ void MbedCanPriv::interrupt() {
         can_frame.can_err = 0;
         can_frame.can_dlc = msg.len;
         memcpy(can_frame.data, msg.data, msg.len);
-        if (os_mq_send_from_isr(canPriv.rxQ, &can_frame) == OS_MQ_FULL)
+        int woken = 0;
+        if (os_mq_send_from_isr(canPriv.rxQ, &can_frame, &woken) == OS_MQ_FULL)
         {
             canPriv.overrunCount++;
         }
@@ -171,7 +173,7 @@ void MbedCanPriv::interrupt() {
     {
         // Transmit buffer 1 empty => transmit finished.
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame) == OS_MQ_NONE)
+        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame, &woken) == OS_MQ_NONE)
         {
             CANMessage msg(can_frame.can_id,
                            (const char*) can_frame.data,
@@ -201,6 +203,18 @@ void MbedCanPriv::interrupt() {
 #endif
     /** @todo (balazs.racz): need to see what needs to be done for acking the
         interrupt, depending on what the interrupt fnction attributes say. */
+    if (woken)
+    {
+#ifdef TARGET_LPC1768
+      portYIELD();
+#elif defined(TARGET_LPC2368)
+      /** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
+       * portYIELD_FROM_ISR assumes that we have entered the ISR with context
+       * saving, which we didn't. */
+#else
+#error define how to yield on your CPU.
+#endif
+    }
 }
 
 /** Device table entry for can device */
