@@ -124,8 +124,9 @@ public:
     /** Default destructor */
     ~AliasCache()
     {
-        /* we should never get here */
-        HASSERT(0);
+        /* stbaker: we should never get here */
+        /* balazs.racz: why not?? */
+        /* HASSERT(0); */
     }
     
 private:
