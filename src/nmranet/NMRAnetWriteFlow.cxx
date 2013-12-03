@@ -50,7 +50,7 @@ Executor* DefaultWriteFlowExecutor() {
  */
 void WriteHelper::Run()
 {
-    node_->write(mti_, dst_, buffer_);
+    node_->write_unlocked(mti_, dst_, buffer_);
     Notifiable* d = done_;
     if (d)
     {
