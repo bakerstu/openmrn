@@ -49,8 +49,7 @@ public:
     LinearMap()
         : entries(0),
           used(0),
-          list(NULL),
-          endIterator()
+          list(NULL)
     {
         /* dynamic allocation not supported */
         HASSERT(0);
@@ -62,8 +61,7 @@ public:
     LinearMap(size_t entries) 
         : entries(entries),
           used(0),
-          list(new Element[entries]()),
-          endIterator()
+          list(new Element[entries])
     {
     }
 
@@ -274,7 +272,7 @@ public:
                 return Iterator(this, i);
             }
         }
-        return endIterator;
+        return Iterator();
     }
     
     /** Get an Iterator index pointing one past the last element in mapping.
@@ -282,7 +280,7 @@ public:
      */
     Iterator end()
     {
-        return endIterator;
+        return Iterator();
     }
 
     /** Get an Iterator index pointing to the first element in the mapping.
@@ -291,7 +289,7 @@ public:
      */
     Iterator begin()
     {
-        return used ? Iterator(this, 0) : endIterator;
+        return used ? Iterator(this, 0) : Iterator();
     }
 
 private:
@@ -304,9 +302,6 @@ private:
     /** list of entries */
     Element *list;
     
-    /** Iterator that designates the end of the list */
-    Iterator endIterator;
-
     DISALLOW_COPY_AND_ASSIGN(LinearMap);
 };
 
