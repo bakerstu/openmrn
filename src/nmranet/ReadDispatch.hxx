@@ -238,8 +238,9 @@ public:
         DispatchFlow<ID>::UnregisterHandler(id, mask, handler);
     }
 
-    //! @returns the parameters structure to fill in before calling
-    // IncomingMessage.
+    /** @returns the parameters structure to fill in before calling
+        IncomingMessage. The caller must be in ownership of *this from an
+        allocator before using this pointer.  */
     Params* mutable_params()
     {
         return &params_;
