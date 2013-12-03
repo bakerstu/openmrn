@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,17 +52,15 @@ OSThreadOnce Datagram::once(Datagram::one_time_init);
  * @param arg unused
  * @return should never return
  */
-void *Datagram::thread(void *arg)
+void* Datagram::thread(void* arg)
 {
-    for ( ; /* forever */ ; )
-    {
-        Buffer *buffer = pending.wait();
-        
-        Datagram::Message *m = (Datagram::Message*)buffer->start();
-        Node *node = Node::find(m->to);
+    for (; /* forever */;) {
+        Buffer* buffer = pending.wait();
 
-        switch (protocol(buffer))
-        {
+        Datagram::Message* m = (Datagram::Message*)buffer->start();
+        Node* node = Node::find(m->to);
+
+        switch (protocol(buffer)) {
             default:
                 /* unhandled protocol */
                 node->rejected(buffer, NOT_ACCEPTED);
@@ -80,43 +78,40 @@ void *Datagram::thread(void *arg)
  */
 void Datagram::one_time_init()
 {
-    for (size_t i = 0; i < POOL_SIZE; ++i)
-    {
-        Buffer *buffer = pool.buffer_alloc(sizeof(Datagram::Message));
+    for (size_t i = 0; i < POOL_SIZE; ++i) {
+        Buffer* buffer = pool.buffer_alloc(sizeof(Datagram::Message));
         dq.insert(buffer);
     }
-    
+
     new OSThread("Datagram", 0, THREAD_STACK_SIZE, thread, NULL);
 }
 
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
  * @param size max length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return buffer handle upon success, else NULL on error with errno set
  */
-Buffer *Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
+Buffer* Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
 {
     HASSERT(size <= (MAX_SIZE - protocol_size(protocol)) && timeout >= 0);
 
-    Buffer *buffer = dq.timedwait(timeout);
-    if (buffer == NULL)
-    {
+    Buffer* buffer = dq.timedwait(timeout);
+    if (buffer == NULL) {
         /* we must have timed out */
         return NULL;
     }
 
-    Message *message = (Message*)buffer->start();
-        
+    Message* message = (Message*)buffer->start();
+
     message->size = size + protocol_size(protocol);
     message->from.id = id();
 
-
     /* copy over the protocol */
-    switch (protocol_size(protocol))
-    {
+    switch (protocol_size(protocol)) {
         default:
-            /* fall through */
+        /* fall through */
         case 1:
             message->data[0] = protocol;
             break;
@@ -125,8 +120,8 @@ Buffer *Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
             message->data[1] = ((protocol >> 8) & 0xFF);
             break;
         case 6:
-            message->data[0] = ((protocol >>  0) & 0xFF);
-            message->data[1] = ((protocol >>  8) & 0xFF);
+            message->data[0] = ((protocol >> 0) & 0xFF);
+            message->data[1] = ((protocol >> 8) & 0xFF);
             message->data[2] = ((protocol >> 16) & 0xFF);
             message->data[3] = ((protocol >> 24) & 0xFF);
             message->data[4] = ((protocol >> 32) & 0xFF);
@@ -144,16 +139,15 @@ Buffer *Datagram::buffer_get(uint64_t protocol, size_t size, long long timeout)
  * @param offset offset within datagram payload to start filling
  * @param size length of data in bytes to fill
  */
-void Datagram::buffer_fill(Buffer *buffer, uint64_t protocol, const void *data,
+void Datagram::buffer_fill(Buffer* buffer, uint64_t protocol, const void* data,
                            size_t offset, size_t size)
 {
-    Message *m = (Message*)buffer->start();
-    
+    Message* m = (Message*)buffer->start();
+
     /* copy over the data payload */
-    switch (protocol_size(protocol))
-    {
+    switch (protocol_size(protocol)) {
         default:
-            /* fall through */
+        /* fall through */
         case 1:
             offset += 1;
             break;
@@ -172,7 +166,7 @@ void Datagram::buffer_fill(Buffer *buffer, uint64_t protocol, const void *data,
 /** Release a buffer back to the datagram buffer pool.
  * @param buffer buffer to release
  */
-void Datagram::buffer_release(Buffer *buffer)
+void Datagram::buffer_release(Buffer* buffer)
 {
     HASSERT(buffer);
 
@@ -185,30 +179,30 @@ void Datagram::buffer_release(Buffer *buffer)
  * @param data2 unused
  * @return restart credentials for timer
  */
-long long Datagram::timeout(void *data1, void *data2)
+long long Datagram::timeout(void* data1, void* data2)
 {
-    Datagram *datagram = (Datagram*)data1;
+    Datagram* datagram = (Datagram*)data1;
 
     /** @todo (Stuart Baker) currently we timeout quietly, should we do
      * something more? */
     Node::mutex.lock();
-    if (datagram->txMessage)
-    {
+    if (datagram->txMessage) {
         datagram->buffer_release(datagram->txMessage);
         datagram->txMessage = NULL;
     }
     Node::mutex.unlock();
-    
+
     return OS_TIMER_NONE;
 }
 
 /** Produce a Datagram from a given node using a pre-allocated buffer.
  * @param dst destination node id or alias
  * @param datagram datagram to produce
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
+int Datagram::produce(NodeHandle dst, Buffer* buffer, long long timeout)
 {
     /* make sure we are passed a buffer out of the datagram pool */
     HASSERT(pool.valid(buffer));
@@ -217,10 +211,9 @@ int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
     long long start = os_get_time_monotonic();
 
     Node::mutex.lock();
-    while (txMessage)
-    {
-        if ((start + timeout) <= os_get_time_monotonic() && timeout != OS_WAIT_FOREVER)
-        {
+    while (txMessage) {
+        if ((start + timeout) <= os_get_time_monotonic()
+            && timeout != OS_WAIT_FOREVER) {
             Node::mutex.unlock();
             errno = EBUSY;
             return -1;
@@ -247,26 +240,25 @@ int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
  * @param protocol datagram protocol to use
  * @param data datagram to produce
  * @param size length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int Datagram::produce(NodeHandle dst, uint64_t protocol, const void *data,
+int Datagram::produce(NodeHandle dst, uint64_t protocol, const void* data,
                       size_t size, long long timeout)
 {
     HASSERT(!(dst.id == 0 && dst.alias == 0));
 
-    Buffer *buffer = buffer_get(protocol, size, timeout);
-    
-    if (buffer == NULL)
-    {
+    Buffer* buffer = buffer_get(protocol, size, timeout);
+
+    if (buffer == NULL) {
         /* could not allocate buffer, ERRNO already set appropriately */
         return -1;
     }
-    
+
     buffer_fill(buffer, protocol, data, 0, size);
 
-    if (produce(dst, buffer, timeout) != 0)
-    {
+    if (produce(dst, buffer, timeout) != 0) {
         /* ERRNO already set appropriately */
         buffer_release(buffer);
         return -1;
@@ -279,19 +271,18 @@ int Datagram::produce(NodeHandle dst, uint64_t protocol, const void *data,
  * @param m @ref Message pointer to the beginning of the datagram
  * @return protocol type
  */
-uint64_t Datagram::protocol(Buffer *data)
+uint64_t Datagram::protocol(Buffer* data)
 {
-    Message *m = (Message*)data->start();
-    switch (m->data[0] & 0xF0)
-    {
+    Message* m = (Message*)data->start();
+    switch (m->data[0] & 0xF0) {
         default:
             return m->data[0];
         case PROTOCOL_SIZE_2:
             return ((uint64_t)m->data[1] << 8) + ((uint64_t)m->data[2] << 0);
         case PROTOCOL_SIZE_6:
-            return ((uint64_t)m->data[1] << 40) + ((uint64_t)m->data[2] << 32) +
-                   ((uint64_t)m->data[3] << 24) + ((uint64_t)m->data[4] << 16) +
-                   ((uint64_t)m->data[5] <<  8) + ((uint64_t)m->data[6] <<  0);
+            return ((uint64_t)m->data[1] << 40) + ((uint64_t)m->data[2] << 32)
+                   + ((uint64_t)m->data[3] << 24) + ((uint64_t)m->data[4] << 16)
+                   + ((uint64_t)m->data[5] << 8) + ((uint64_t)m->data[6] << 0);
     }
 }
 
@@ -299,12 +290,11 @@ uint64_t Datagram::protocol(Buffer *data)
  * @param data buffer pointer to the beginning of the datagram
  * @return pointer to payload as a uint8_t array, assume byte alignment
  */
-uint8_t *Datagram::payload(Buffer *data)
+uint8_t* Datagram::payload(Buffer* data)
 {
-    Message *m = (Message*)data->start();
+    Message* m = (Message*)data->start();
 
-    switch (m->data[0] & 0xF0)
-    {
+    switch (m->data[0] & 0xF0) {
         default:
             return m->data + 1;
         case PROTOCOL_SIZE_2:
@@ -317,31 +307,30 @@ uint8_t *Datagram::payload(Buffer *data)
 /** Acknowledge the successful receipt of a Datagram.
  * @param buffer reference to the buffer containing the received datagram
  * @param flags @ref Flags associated with the reply
- * @param free buffer automatically freed upon return if true, else buffer preserved
+ * @param free buffer automatically freed upon return if true, else buffer
+ * preserved
  */
-void Datagram::received_okay(Buffer *buffer, uint8_t flags, bool free)
+void Datagram::received_okay(Buffer* buffer, uint8_t flags, bool free)
 {
-    Message *m = (Message*)buffer->start();
+    Message* m = (Message*)buffer->start();
     NodeHandle dst = m->from;
-    Buffer *b = NULL;
-    
+    Buffer* b = NULL;
+
     /* setup any flags */
-    if (flags)
-    {
+    if (flags) {
         /* we will try and reuse existing buffer if we can */
         b = free ? buffer : buffer_alloc(sizeof(uint8_t));
         b->zero();
-        uint8_t *data = (uint8_t*)b->start();
+        uint8_t* data = (uint8_t*)b->start();
         data[0] = flags;
         b->advance(1);
     }
-    
+
     /* transmit message */
     write_unlocked(If::MTI_DATAGRAM_OK, dst, b);
-    
+
     /* free the buffer if we are done with it */
-    if (free && buffer != b)
-    {
+    if (free && buffer != b) {
         buffer->free();
     }
 }
@@ -349,25 +338,26 @@ void Datagram::received_okay(Buffer *buffer, uint8_t flags, bool free)
 /** Reject the unsuccessful receipt of a Datagram.
  * @param buffer reference to the buffer containing the received datagram
  * @param flags @ref Flags associated with the reply
- * @param free buffer automatically freed upon return if true, else buffer preserved
+ * @param free buffer automatically freed upon return if true, else buffer
+ * preserved
  */
-void Datagram::rejected(Buffer *buffer, uint16_t error, bool free)
+void Datagram::rejected(Buffer* buffer, uint16_t error, bool free)
 {
     HASSERT(error != 0);
 
-    Message *m = (Message*)buffer->start();
+    Message* m = (Message*)buffer->start();
     NodeHandle dst = m->from;
-    
+
     /* setup any error */
     /* we will try and reuse existing buffer if we can */
-    Buffer *b = free ? buffer : buffer_alloc(sizeof(uint16_t));
+    Buffer* b = free ? buffer : buffer_alloc(sizeof(uint16_t));
     b->zero();
-    uint8_t *data = (uint8_t*)b->start();
+    uint8_t* data = (uint8_t*)b->start();
     error = htobe16(error);
     data[0] = (error >> 0) & 0xFF;
     data[1] = (error >> 8) & 0xFF;
     b->advance(2);
-    
+
     /* transmit message */
     write_unlocked(If::MTI_DATAGRAM_REJECTED, dst, b);
 }
@@ -376,13 +366,12 @@ void Datagram::rejected(Buffer *buffer, uint16_t error, bool free)
  * @param data buffer to process
  * @return 0 if we do not have an automated processing option, else return 1
  */
-int Datagram::process(Buffer *data)
+int Datagram::process(Buffer* data)
 {
-    switch (protocol(data))
-    {
+    switch (protocol(data)) {
         default:
-            /* unhandled protocol */
-            //return 0;
+        /* unhandled protocol */
+        // return 0;
         case CONFIGURATION:
             pending.insert(data);
             break;
@@ -395,37 +384,30 @@ int Datagram::process(Buffer *data)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
+void Datagram::packet(If::MTI mti, NodeHandle src, Buffer* data)
 {
-    switch (mti)
-    {
+    switch (mti) {
         default:
             HASSERT(0);
             break;
-        case If::MTI_DATAGRAM_REJECTED:
-        {
-            Message *m = (Message*)data->start();
+        case If::MTI_DATAGRAM_REJECTED: {
+            Message* m = (Message*)data->start();
             uint16_t error = m->data[1] + (m->data[0] << 8);
 
-            if (resend_ok(error))
-            {
+            if (resend_ok(error)) {
                 /* we can try again */
                 timer.stop();
 
-                if (txMessage)
-                {
+                if (txMessage) {
                     write(If::MTI_DATAGRAM, src, txMessage);
                     timer.start(DATAGRAM_TIMEOUT);
                 }
-            }
-            else
-            {
+            } else {
 #ifndef __FreeRTOS__
                 printf("datagram rejected\n");
 #endif
                 timer.stop();
-                if (txMessage)
-                {
+                if (txMessage) {
                     buffer_release(txMessage);
                     txMessage = NULL;
                 }
@@ -438,19 +420,16 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
             /* success! */
             HASSERT(data == NULL);
             timer.stop();
-            if (txMessage)
-            {
+            if (txMessage) {
                 buffer_release(txMessage);
                 txMessage = NULL;
             }
-            if (data)
-            {
+            if (data) {
                 data->free();
             }
             break;
         case If::MTI_DATAGRAM:
-            if (process(data) == 0)
-            {
+            if (process(data) == 0) {
                 /* push this up for the application to process */
                 data->id(ID_DATAGRAM_DELIVER);
                 rx_queue()->insert(data);
@@ -458,6 +437,4 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
             break;
     }
 }
-
 };
-

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,8 +44,9 @@
  */
 void hw_init(void)
 {
-	/* Setup the system clock. */
-	MAP_SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+    /* Setup the system clock. */
+    MAP_SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN
+                       | SYSCTL_XTAL_16MHZ);
 
     /* UART0 pin initialization */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -63,4 +64,3 @@ void hw_init(void)
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 }
-

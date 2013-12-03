@@ -41,9 +41,10 @@ namespace NMRAnet
 
 Executor* DefaultWriteFlowExecutor() __attribute__((__weak__));
 
-Executor* DefaultWriteFlowExecutor() {
-  static ThreadExecutor e("write_flow", 0, WRITE_FLOW_THREAD_STACK_SIZE);
-  return &e;
+Executor* DefaultWriteFlowExecutor()
+{
+    static ThreadExecutor e("write_flow", 0, WRITE_FLOW_THREAD_STACK_SIZE);
+    return &e;
 }
 
 /** Callback in the executor thread.
@@ -52,16 +53,15 @@ void WriteHelper::Run()
 {
     node_->write(mti_, dst_, buffer_);
     Notifiable* d = done_;
-    if (d)
-    {
+    if (d) {
         done_ = nullptr;
         d->Notify();
     }
 }
 
-Buffer *EventIdToBuffer(uint64_t eventid)
+Buffer* EventIdToBuffer(uint64_t eventid)
 {
-    Buffer *buffer = buffer_alloc(sizeof(eventid));
+    Buffer* buffer = buffer_alloc(sizeof(eventid));
     uint64_t* b = static_cast<uint64_t*>(buffer->start());
     *b = htobe64(eventid);
     buffer->advance(sizeof(eventid));
@@ -69,4 +69,3 @@ Buffer *EventIdToBuffer(uint64_t eventid)
 }
 
 }; /* namespace NMRAnet */
-

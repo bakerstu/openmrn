@@ -37,8 +37,10 @@
 
 #include "utils/logging.h"
 
-void PrintErrnoAndExit(const char* where) {
-  // NOTE(balazs.racz): If this code is ported to other operating systems, this
-  // should probably be replaced by logging.
-  LOG(FATAL, "%s: error (%d) %s\n", where, errno, strerror(errno));
+void PrintErrnoAndExit(const char* where)
+{
+    // NOTE(balazs.racz): If this code is ported to other operating systems,
+    // this
+    // should probably be replaced by logging.
+    LOG(FATAL, "%s: error (%d) %s\n", where, errno, strerror(errno));
 }

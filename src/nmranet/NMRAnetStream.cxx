@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -50,28 +50,25 @@ Stream::StreamHandle Stream::sopen(NodeHandle dst, long long timeout)
     StreamHandle handle = NULL;
 
     Node::mutex.lock();
-    if (count < CHANNELS_PER_NODE)
-    {
+    if (count < CHANNELS_PER_NODE) {
         Metadata* metadata = new Metadata;
         metadata->data = RingBuffer<uint8_t>::create(MAX_BUFFER_SIZE * 2);
         metadata->size = MAX_BUFFER_SIZE;
         metadata->count = 0;
         metadata->srcID = 0;
         metadata->nodeHandle = dst;
-        RBTree<uint8_t, Metadata*>::Node *last = outboundTree.last();
-        
-        if (last != NULL)
-        {
+        RBTree<uint8_t, Metadata*>::Node* last = outboundTree.last();
+
+        if (last != NULL) {
             metadata->srcID = last->key + 1;
-            while (outboundTree.find(metadata->srcID) != NULL)
-            {
+            while (outboundTree.find(metadata->srcID) != NULL) {
                 metadata->srcID++;
             }
         }
-        
-        Buffer *buffer = buffer_alloc(6);
-        uint8_t *data = (uint8_t*)buffer->start();
-        
+
+        Buffer* buffer = buffer_alloc(6);
+        uint8_t* data = (uint8_t*)buffer->start();
+
         data[0] = (MAX_BUFFER_SIZE >> 8) & 0xFF;
         data[1] = (MAX_BUFFER_SIZE >> 0) & 0xFF;
         data[2] = 0;
@@ -80,43 +77,38 @@ Stream::StreamHandle Stream::sopen(NodeHandle dst, long long timeout)
         data[5] = 0;
 
         buffer->advance(6);
-        
-        RBTree<uint8_t, Metadata*>::Node *node =
-            new RBTree<uint8_t, Metadata*>::Node(metadata->srcID, metadata);
+
+        RBTree<uint8_t, Metadata*>::Node* node = new RBTree
+            <uint8_t, Metadata*>::Node(metadata->srcID, metadata);
 
         outboundTree.insert(node);
-        
+
         write(If::MTI_STREAM_INITIATE_REQUEST, dst, buffer);
-        
-        if (timeout)
-        {
+
+        if (timeout) {
             metadata->state = WAITING_O;
 
             Node::mutex.unlock();
             int result = sem.timedwait(timeout);
             Node::mutex.lock();
 
-            if (result != 0 || metadata->state != CONNECTED_O)
-            {
+            if (result != 0 || metadata->state != CONNECTED_O) {
                 outboundTree.remove(node);
                 metadata->data->destroy();
                 delete node;
                 delete metadata;
-            }
-            else
-            {
+            } else {
                 count++;
                 handle = (StreamHandle)metadata;
             }
-            /** @todo (Stuart Baker) is there a race between connected and timeout */
-        }
-        else
-        {
+            /** @todo (Stuart Baker) is there a race between connected and
+             * timeout */
+        } else {
             metadata->state = PENDING_O;
             count++;
             handle = (StreamHandle)metadata;
         }
-    }    
+    }
     Node::mutex.unlock();
 
     return handle;
@@ -127,30 +119,28 @@ Stream::StreamHandle Stream::sopen(NodeHandle dst, long long timeout)
  */
 void Stream::sclose(StreamHandle handle)
 {
-    Metadata *metadata = (Metadata*)handle;
-    
+    Metadata* metadata = (Metadata*)handle;
+
     Node::mutex.lock();
-    if (metadata->data->items() == 0)
-    {
+    if (metadata->data->items() == 0) {
         /* no more data left to send.  Hooray! */
-        Buffer *buffer = buffer_alloc(4);
-        uint8_t *data = (uint8_t*)buffer->start();
+        Buffer* buffer = buffer_alloc(4);
+        uint8_t* data = (uint8_t*)buffer->start();
         data[0] = metadata->srcID;
         data[1] = metadata->dstID;
         data[2] = 0;
         data[3] = 0;
         buffer->advance(4);
-        
+
         write(If::MTI_STREAM_COMPLETE, metadata->nodeHandle, buffer);
-    
+
         /* no more data left in the buffer */
-        RBTree<uint8_t, Metadata*>::Node *node = outboundTree.remove(metadata->srcID);
+        RBTree<uint8_t, Metadata*>::Node* node
+            = outboundTree.remove(metadata->srcID);
         metadata->data->destroy();
         delete metadata;
         delete node;
-    }
-    else
-    {
+    } else {
         /* we have some data left to send, but mark us as closed */
         metadata->state = CLOSED_O;
     }
@@ -161,48 +151,42 @@ void Stream::sclose(StreamHandle handle)
  * @param handle handle to stream to write to
  * @param buf buffer to copy data from
  * @param size size in bytes to write to stream
- * @return number of bytes written, else -1 on error with errno set to indicate error
+ * @return number of bytes written, else -1 on error with errno set to indicate
+ * error
  */
-ssize_t Stream::swrite(StreamHandle handle, const void *buf, size_t size)
+ssize_t Stream::swrite(StreamHandle handle, const void* buf, size_t size)
 {
-    Metadata *metadata = (Metadata*)handle;
-    
+    Metadata* metadata = (Metadata*)handle;
+
     ssize_t result = 0;
-    
+
     Node::mutex.lock();
-    if (metadata->data->items() || metadata->count >= metadata->size)
-    {
+    if (metadata->data->items() || metadata->count >= metadata->size) {
         /* there is already some data in flight, so lets just add to the back
          * of the buffer.
          */
         result = metadata->data->put((uint8_t*)buf, size);
-    }
-    else
-    {
+    } else {
         size_t buffer_size;
-        if (size > (metadata->size - metadata->count))
-        {
+        if (size > (metadata->size - metadata->count)) {
             buffer_size = metadata->size - metadata->count;
-        }
-        else
-        {
+        } else {
             buffer_size = size;
         }
 
-        Buffer *buffer = buffer_alloc(buffer_size + 2);
-        uint8_t *data = (uint8_t*)buffer->start();
+        Buffer* buffer = buffer_alloc(buffer_size + 2);
+        uint8_t* data = (uint8_t*)buffer->start();
         memcpy(data, buf, buffer_size);
         data[buffer_size + 0] = metadata->srcID;
         data[buffer_size + 1] = metadata->dstID;
         buffer->advance(buffer_size + 2);
         write(If::MTI_STREAM_DATA, metadata->nodeHandle, buffer);
-        
+
         result = buffer_size;
         size -= buffer_size;
         metadata->count += buffer_size;
 
-        if (size)
-        {
+        if (size) {
             result += metadata->data->put((uint8_t*)buf + buffer_size, size);
         }
     }
@@ -215,31 +199,31 @@ ssize_t Stream::swrite(StreamHandle handle, const void *buf, size_t size)
  * @param handle handle to stream to read from
  * @param buf buffer to copy data to
  * @param size size in bytes to read from stream
- * @return number of bytes read, else -1 on error with errno set to indicate error
+ * @return number of bytes read, else -1 on error with errno set to indicate
+ * error
  */
-ssize_t Stream::sread(StreamHandle handle, void *buf, size_t size)
+ssize_t Stream::sread(StreamHandle handle, void* buf, size_t size)
 {
-    Metadata *metadata = (Metadata*)handle;
-    
+    Metadata* metadata = (Metadata*)handle;
+
     ssize_t result = 0;
-    
+
     Node::mutex.lock();
     size_t space = metadata->data->space();
     result = metadata->data->get((uint8_t*)buf, size);
 
-    if (space < metadata->size && metadata->data->space() >= metadata->size)
-    {
+    if (space < metadata->size && metadata->data->space() >= metadata->size) {
         /* proceed since we made room for the next data set */
-        Buffer *buffer = buffer_alloc(4);
-        uint8_t *data = (uint8_t*)buffer->start();
+        Buffer* buffer = buffer_alloc(4);
+        uint8_t* data = (uint8_t*)buffer->start();
         data[0] = metadata->srcID;
         data[1] = metadata->dstID;
         data[2] = 0;
         data[3] = 0;
         buffer->advance(4);
-        
+
         metadata->count = 0;
-        
+
         write(If::MTI_STREAM_PROCEED, metadata->nodeHandle, buffer);
     }
     Node::mutex.unlock();
@@ -251,16 +235,14 @@ ssize_t Stream::sread(StreamHandle handle, void *buf, size_t size)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::initiate_request(NodeHandle src, Buffer *buffer)
+void Stream::initiate_request(NodeHandle src, Buffer* buffer)
 {
-    if (count < CHANNELS_PER_NODE && buffer->used() >= 6)
-    {
-        uint8_t *data = (uint8_t*)buffer->start();
-        
+    if (count < CHANNELS_PER_NODE && buffer->used() >= 6) {
+        uint8_t* data = (uint8_t*)buffer->start();
+
         size_t buffer_size = (data[0] << 8) + data[1];
-        
-        if (MAX_BUFFER_SIZE < buffer_size)
-        {
+
+        if (MAX_BUFFER_SIZE < buffer_size) {
             buffer_size = MAX_BUFFER_SIZE;
         }
 
@@ -274,20 +256,18 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
         metadata->srcID = data[4];
         metadata->dstID = 0;
 
-        RBTree<uint8_t, Metadata*>::Node *last = inboundTree.last();
-        
-        if (last != NULL)
-        {
+        RBTree<uint8_t, Metadata*>::Node* last = inboundTree.last();
+
+        if (last != NULL) {
             metadata->dstID = last->key + 1;
-            while (inboundTree.find(metadata->dstID) != NULL)
-            {
+            while (inboundTree.find(metadata->dstID) != NULL) {
                 metadata->dstID++;
             }
         }
-        
+
         /* reuse buffer to reply since we are otherwise done with it */
         buffer->zero();
-        
+
         data[0] = (buffer_size >> 8) & 0xFF;
         data[1] = (buffer_size >> 0) & 0xFF;
         data[2] = ACCEPT;
@@ -296,20 +276,20 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
         data[5] = metadata->dstID;
 
         buffer->advance(6);
-        
+
         write(If::MTI_STREAM_INITIATE_REPLY, src, buffer);
-        
-        RBTree<uint8_t, Metadata*>::Node *node =
-            new RBTree<uint8_t, Metadata*>::Node(metadata->dstID, metadata);
+
+        RBTree<uint8_t, Metadata*>::Node* node = new RBTree
+            <uint8_t, Metadata*>::Node(metadata->dstID, metadata);
 
         inboundTree.insert(node);
-        
+
         buffer = buffer_alloc(sizeof(IdStreamType));
         IdStreamType* type = (IdStreamType*)buffer->start();
         type->stream = (StreamHandle)node->value;
         buffer->id(ID_STREAM_NEW_CONNECTION);
         buffer->advance(sizeof(IdStreamType));
-        
+
         rx_queue()->insert(buffer);
     }
 }
@@ -318,18 +298,17 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::initiate_reply(NodeHandle src, Buffer *buffer)
+void Stream::initiate_reply(NodeHandle src, Buffer* buffer)
 {
-    uint8_t *data = (uint8_t*)buffer->start();
-    
+    uint8_t* data = (uint8_t*)buffer->start();
+
     size_t buffer_size = (data[0] << 8) + data[1];
-    
-    RBTree<uint8_t, Metadata*>::Node *node = outboundTree.find(data[4]);
-    
+
+    RBTree<uint8_t, Metadata*>::Node* node = outboundTree.find(data[4]);
+
     HASSERT(node);
-    
-    if (node->value->size > buffer_size)
-    {
+
+    if (node->value->size > buffer_size) {
         node->value->size = buffer_size;
     }
 
@@ -340,14 +319,11 @@ void Stream::initiate_reply(NodeHandle src, Buffer *buffer)
     type->stream = (StreamHandle)node->value;
     buffer->id(ID_STREAM_COMPLETED_CONNECTION);
     buffer->advance(sizeof(IdStreamType));
-    
-    if (node->value->state == WAITING_O)
-    {
+
+    if (node->value->state == WAITING_O) {
         node->value->state = CONNECTED_O;
         sem.post();
-    }
-    else
-    {
+    } else {
         node->value->state = CONNECTED_O;
         rx_queue()->insert(buffer);
     }
@@ -357,25 +333,23 @@ void Stream::initiate_reply(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::handle_data(NodeHandle src, Buffer *buffer)
+void Stream::handle_data(NodeHandle src, Buffer* buffer)
 {
     bool wakeup;
-    uint8_t *data = (uint8_t*)buffer->start();
+    uint8_t* data = (uint8_t*)buffer->start();
 
-    RBTree<uint8_t, Metadata*>::Node *node = inboundTree.find(data[buffer->used() - 1]);
+    RBTree<uint8_t, Metadata*>::Node* node
+        = inboundTree.find(data[buffer->used() - 1]);
 
     /* we only wakeup if starting from zero, otherwise, the node already knows
      * there is data available, so no need to re-notify it.
      */
-    if (node->value->data->items() == 0)
-    {
+    if (node->value->data->items() == 0) {
         wakeup = true;
-    }
-    else
-    {
+    } else {
         wakeup = false;
     }
-    
+
     /* last two bytes represent source and destination ID */
     size_t len = buffer->size() - buffer->available();
 
@@ -384,13 +358,12 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
     HASSERT(len > 2);
     HASSERT(node->value->data->space() >= (len - 2));
 
-    while ((node->value->protocol & DISCOVER_MASK) != DISCOVERED && len > 2)
-    {
+    while ((node->value->protocol & DISCOVER_MASK) != DISCOVERED && len > 2) {
         int shift = (node->value->protocol >> DISCOVER_SHIFT) - 1;
         node->value->protocol |= (*data) << (shift * 8);
         data++;
         len--;
-        node->value->protocol-= DISCOVERED_DEC;
+        node->value->protocol -= DISCOVERED_DEC;
     }
 
     node->value->count += (len - 2);
@@ -404,8 +377,7 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
     /* this operation must come before proceed because proceed will release the
      * critical Node::mutex and cause a race condition.
      */
-    if (wakeup && (node->value->protocol & DISCOVER_MASK) == DISCOVERED)
-    {
+    if (wakeup && (node->value->protocol & DISCOVER_MASK) == DISCOVERED) {
         buffer = buffer_alloc(sizeof(IdStreamType));
         IdStreamType* type = (IdStreamType*)buffer->start();
         type->stream = (StreamHandle)node->value;
@@ -415,9 +387,8 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
         rx_queue()->insert(buffer);
     }
 
-    if (node->value->count == node->value->size &&
-        node->value->data->space() >= MAX_BUFFER_SIZE)
-    {
+    if (node->value->count == node->value->size && node->value->data->space()
+                                                   >= MAX_BUFFER_SIZE) {
         /* proceed since we already have room for the next data set */
         buffer = buffer_alloc(4);
         data = (uint8_t*)buffer->start();
@@ -426,9 +397,9 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
         data[2] = 0;
         data[3] = 0;
         buffer->advance(4);
-        
+
         node->value->count = 0;
-        
+
         write(If::MTI_STREAM_PROCEED, src, buffer);
     }
 }
@@ -437,28 +408,24 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::proceed(NodeHandle src, Buffer *buffer)
+void Stream::proceed(NodeHandle src, Buffer* buffer)
 {
-    uint8_t *data = (uint8_t*)buffer->start();
+    uint8_t* data = (uint8_t*)buffer->start();
 
-    RBTree<uint8_t, Metadata*>::Node *node = outboundTree.find(data[1]);
+    RBTree<uint8_t, Metadata*>::Node* node = outboundTree.find(data[1]);
 
     node->value->count = 0;
-    
+
     buffer->free();
 
-    if (node->value->data->items())
-    {
+    if (node->value->data->items()) {
         size_t segment_size;
-        if (node->value->data->items() < node->value->size)
-        {
+        if (node->value->data->items() < node->value->size) {
             segment_size = node->value->data->items();
-        }
-        else
-        {
+        } else {
             segment_size = node->value->size;
         }
-        
+
         buffer = buffer_alloc(segment_size + 2);
         data = (uint8_t*)buffer->start();
         node->value->data->get(data, segment_size);
@@ -475,22 +442,19 @@ void Stream::proceed(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::complete(NodeHandle src, Buffer *buffer)
+void Stream::complete(NodeHandle src, Buffer* buffer)
 {
-    uint8_t *data = (uint8_t*)buffer->start();
+    uint8_t* data = (uint8_t*)buffer->start();
 
-    RBTree<uint8_t, Metadata*>::Node *node = inboundTree.find(data[2]);
+    RBTree<uint8_t, Metadata*>::Node* node = inboundTree.find(data[2]);
 
-    if (node->value->data->items() == 0)
-    {
+    if (node->value->data->items() == 0) {
         /* no more data left in the buffer */
         outboundTree.remove(node);
         node->value->data->destroy();
         delete node->value;
         delete node;
-    }
-    else
-    {
+    } else {
         /* we have some data left, give the application a chance to get it */
         node->value->state = CLOSED_I;
     }
@@ -501,10 +465,9 @@ void Stream::complete(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::packet(If::MTI mti, NodeHandle src, Buffer *data)
+void Stream::packet(If::MTI mti, NodeHandle src, Buffer* data)
 {
-    switch (mti)
-    {
+    switch (mti) {
         default:
             HASSERT(0);
             break;
@@ -525,6 +488,4 @@ void Stream::packet(If::MTI mti, NodeHandle src, Buffer *data)
             break;
     }
 }
-
 };
-

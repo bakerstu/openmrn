@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,41 +46,34 @@ void AliasCache::add(NodeID id, NodeAlias alias)
 {
     HASSERT(id != 0);
     HASSERT(alias != 0);
-    
-    Metadata *insert;
+
+    Metadata* insert;
 
     AliasMap::Iterator it = aliasMap.find(alias);
-    if (it != aliasMap.end())
-    {
+    if (it != aliasMap.end()) {
         /* we already have a mapping for this alias, so lets remove it */
         insert = (*it).second;
         remove(alias);
-        
-        if (removeCallback)
-        {
+
+        if (removeCallback) {
             /* tell the interface layer that we removed this mapping */
             (*removeCallback)(insert->id, insert->alias, context);
         }
     }
 
-    if (freeList)
-    {
+    if (freeList) {
         /* found an empty slot */
         insert = freeList;
-        freeList = insert->next;        
-    }
-    else
-    {
+        freeList = insert->next;
+    } else {
         HASSERT(oldest != NULL && newest != NULL);
 
         /* kick out the oldest mapping and re-link the oldest endpoint */
         insert = oldest;
-        if (oldest->newer)
-        {
+        if (oldest->newer) {
             oldest->newer->older = NULL;
         }
-        if (insert == newest)
-        {
+        if (insert == newest) {
             newest = NULL;
         }
         oldest = oldest->newer;
@@ -88,13 +81,12 @@ void AliasCache::add(NodeID id, NodeAlias alias)
         aliasMap.erase(insert->alias);
         idMap.erase(insert->id);
 
-        if (removeCallback)
-        {
+        if (removeCallback) {
             /* tell the interface layer that we removed this mapping */
             (*removeCallback)(insert->id, insert->alias, context);
         }
     }
-        
+
     insert->timestamp = OSTime::get_monotonic();
     insert->id = id;
     insert->alias = alias;
@@ -104,22 +96,19 @@ void AliasCache::add(NodeID id, NodeAlias alias)
 
     /* update the time based list */
     insert->newer = NULL;
-    if (newest == NULL)
-    {
+    if (newest == NULL) {
         /* if newest == NULL, then oldest must also be NULL */
         HASSERT(oldest == NULL);
 
         insert->older = NULL;
         oldest = insert;
-    }
-    else
-    {
+    } else {
         insert->older = newest;
         newest->newer = insert;
     }
 
     newest = insert;
-    
+
     return;
 }
 
@@ -130,33 +119,27 @@ void AliasCache::remove(NodeAlias alias)
 {
     AliasMap::Iterator it = aliasMap.find(alias);
 
-    if (it != aliasMap.end())
-    {
-        Metadata *metadata = (*it).second;
+    if (it != aliasMap.end()) {
+        Metadata* metadata = (*it).second;
         aliasMap.erase(it);
         idMap.erase(metadata->id);
-        
-        if (metadata->newer)
-        {
+
+        if (metadata->newer) {
             metadata->newer->older = metadata->older;
         }
-        if (metadata->older)
-        {
+        if (metadata->older) {
             metadata->older->newer = metadata->newer;
         }
-        if (metadata == newest)
-        {
+        if (metadata == newest) {
             newest = metadata->older;
         }
-        if (metadata == oldest)
-        {
+        if (metadata == oldest) {
             oldest = metadata->newer;
         }
-    
+
         metadata->next = freeList;
         freeList = metadata;
     }
-    
 }
 
 /** Lookup a node's alias based on its Node ID.
@@ -169,10 +152,9 @@ NodeAlias AliasCache::lookup(NodeID id)
 
     IdMap::Iterator it = idMap.find(id);
 
-    if (it != idMap.end())
-    {
-        Metadata *metadata = (*it).second;
-        
+    if (it != idMap.end()) {
+        Metadata* metadata = (*it).second;
+
         /* update timestamp */
         touch(metadata);
         return metadata->alias;
@@ -192,15 +174,14 @@ NodeID AliasCache::lookup(NodeAlias alias)
 
     AliasMap::Iterator it = aliasMap.find(alias);
 
-    if (it != aliasMap.end())
-    {
-        Metadata *metadata = (*it).second;
-        
+    if (it != aliasMap.end()) {
+        Metadata* metadata = (*it).second;
+
         /* update timestamp */
         touch(metadata);
         return metadata->id;
     }
-    
+
     /* no match found */
     return 0;
 }
@@ -209,13 +190,13 @@ NodeID AliasCache::lookup(NodeAlias alias)
  * @param callback method to call
  * @param context context pointer to pass to callback
  */
-void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *context)
+void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias),
+                          void* context)
 {
     HASSERT(callback != NULL);
 
-    for (AliasMap::Iterator it = aliasMap.begin(); it != aliasMap.end(); ++it)
-    {
-        Metadata *metadata = (*it).second;
+    for (AliasMap::Iterator it = aliasMap.begin(); it != aliasMap.end(); ++it) {
+        Metadata* metadata = (*it).second;
         (*callback)(context, metadata->id, metadata->alias);
     }
 }
@@ -227,8 +208,7 @@ NodeAlias AliasCache::generate()
 {
     NodeAlias alias;
 
-    do
-    {
+    do {
         /* calculate the alias given the current seed */
         alias = (seed ^ (seed >> 12) ^ (seed >> 24) ^ (seed >> 36)) & 0xfff;
 
@@ -239,6 +219,4 @@ NodeAlias AliasCache::generate()
     /* new random alias */
     return alias;
 }
-
 };
-

@@ -3,18 +3,15 @@
 #include "os/watchdog.h"
 #include "os/os.h"
 
-
 static int watchdog_period_msec;
 static int watchdog_ticks = 0;
 
 //! Thread running a watchdog.
 static void* watchdog_thread(void* arg)
 {
-    while (1)
-    {
+    while (1) {
         usleep(((useconds_t)1000) * watchdog_period_msec);
-        if (++watchdog_ticks > 1)
-        {
+        if (++watchdog_ticks > 1) {
 #ifdef __FreeRTOS__
             diewith(BLINK_DIE_WATCHDOG);
 #else
@@ -34,8 +31,7 @@ void start_watchdog(int period_msec)
 #else
     const int kStackSize = 2048;
 #endif
-    os_thread_create(NULL, "watchdog", 0, kStackSize,
-                     &watchdog_thread, NULL);
+    os_thread_create(NULL, "watchdog", 0, kStackSize, &watchdog_thread, NULL);
 }
 
 void reset_watchdog(void)

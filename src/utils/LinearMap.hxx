@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,10 +46,7 @@ template <typename Key, typename Value> class LinearMap
 public:
     /** Default Constructor which with no mapping entry limit.
      */
-    LinearMap()
-        : entries(0),
-          used(0),
-          list(NULL)
+    LinearMap() : entries(0), used(0), list(NULL)
     {
         /* dynamic allocation not supported */
         HASSERT(0);
@@ -58,10 +55,8 @@ public:
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    LinearMap(size_t entries) 
-        : entries(entries),
-          used(0),
-          list(new Element[entries])
+    LinearMap(size_t entries)
+        : entries(entries), used(0), list(new Element[entries])
     {
     }
 
@@ -85,7 +80,7 @@ public:
     /** list entry. */
     struct Pair
     {
-        Key first; /**< mimic first element in an std::pair */
+        Key first;    /**< mimic first element in an std::pair */
         Value second; /**< mimic second element in an std::pair */
     };
 
@@ -98,14 +93,13 @@ private:
             Pair p; /**< pair of element */
             struct
             {
-                Key key; /**< key by which to sort the node */
+                Key key;     /**< key by which to sort the node */
                 Value value; /**< value of the node */
             };
         };
-    }; 
+    };
 
 public:
-
     /** This mimics an std::Iterator.
      */
     class Iterator
@@ -113,28 +107,22 @@ public:
     public:
         /** Default constructor.
          */
-        Iterator()
-            : index(-1),
-              m(NULL)
+        Iterator() : index(-1), m(NULL)
         {
         }
-        
+
         /** Copy constructor.
          */
-        Iterator(const Iterator &it)
-            : index(it.index),
-              m(it.m)
+        Iterator(const Iterator& it) : index(it.index), m(it.m)
         {
         }
-        
+
         /** Constructor.
          * @param context context passed in at instantiation
          * @param index index to initialize this iteration with
          */
-        Iterator(LinearMap* context, size_t index)
-            : index(index),
-              m(context)
-            
+        Iterator(LinearMap* context, size_t index) : index(index), m(context)
+
         {
         }
 
@@ -142,7 +130,7 @@ public:
         ~Iterator()
         {
         }
-        
+
         /** Overloaded reference operator.
          */
         Pair& operator*() const
@@ -151,23 +139,22 @@ public:
         }
 
         /** Overloaded pre-increement operator. */
-        Iterator& operator ++ ()
+        Iterator& operator++()
         {
-            if (index >= 0)
-            {
+            if (index >= 0) {
                 ++index;
             }
             return *this;
         }
 
         /** Overloaded not equals operator. */
-        bool operator != (const Iterator& it)
+        bool operator!=(const Iterator& it)
         {
             return index != it.index;
         }
 
         /** Overloaded equals operator. */
-        bool operator == (const Iterator& it)
+        bool operator==(const Iterator& it)
         {
             return index == it.index;
         }
@@ -175,27 +162,24 @@ public:
     private:
         /** index this iteration is currently indexed to */
         size_t index;
-        
+
         /** Context this iteration lives in */
-        LinearMap *m;
-        
+        LinearMap* m;
+
         /** Allow access to index member */
         friend class LinearMap;
     };
-    
+
     /** Remove a node from the tree.
      * @param key key for the element to remove
      * @return number of elements removed
      */
     size_t erase(Key key)
     {
-        for (size_t i = 0; i < used; ++i)
-        {
-            if (list[i].key == key)
-            {
+        for (size_t i = 0; i < used; ++i) {
+            if (list[i].key == key) {
                 /* scrunch up the list if we are able */
-                if (i != --used)
-                {
+                if (i != --used) {
                     list[i].key = list[used].key;
                     list[i].value = list[used].value;
                 }
@@ -204,7 +188,7 @@ public:
         }
         return 0;
     }
-    
+
     /** Remove a node from the tree.
      * @param it Iterator index for the element to remove
      */
@@ -214,32 +198,29 @@ public:
         HASSERT(i < (ssize_t)used && i > 0);
 
         /* scrunch up the list if we are able */
-        if (i != (ssize_t)--used)
-        {
+        if (i != (ssize_t)-- used) {
             list[i].key = list[used].key;
             list[i].value = list[used].value;
         }
     }
-    
+
     /** Find the index associated with the key and create it does not exist.
      * @param key key to lookup
      * @return value of the key by reference
      */
-    Value& operator[](const Key &key)
+    Value& operator[](const Key& key)
     {
-        for (size_t i = 0; i < used; ++i)
-        {
-            if (list[i].key == key)
-            {
+        for (size_t i = 0; i < used; ++i) {
+            if (list[i].key == key) {
                 return list[i].value;
             }
         }
-        
+
         HASSERT(used < entries);
-        
+
         list[used].key = key;
         list[used].value = 0;
-        
+
         return list[used++].value;
     }
 
@@ -263,18 +244,16 @@ public:
      * @param key key to search for
      * @return Iterator index pointing to key, else Iterator end() if not found
      */
-    Iterator find( const Key &key )
+    Iterator find(const Key& key)
     {
-        for (size_t i = 0; i < used; ++i)
-        {
-            if (list[i].key == key)
-            {
+        for (size_t i = 0; i < used; ++i) {
+            if (list[i].key == key) {
                 return Iterator(this, i);
             }
         }
         return Iterator();
     }
-    
+
     /** Get an Iterator index pointing one past the last element in mapping.
      * @return Iterator index pointing to one past the last element in mapping
      */
@@ -300,8 +279,8 @@ private:
     size_t used;
 
     /** list of entries */
-    Element *list;
-    
+    Element* list;
+
     DISALLOW_COPY_AND_ASSIGN(LinearMap);
 };
 

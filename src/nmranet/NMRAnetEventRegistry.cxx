@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,16 +46,16 @@ WriteHelper event_write_helper3(DefaultWriteFlowExecutor());
 WriteHelper event_write_helper4(DefaultWriteFlowExecutor());
 BarrierNotifiable event_barrier;
 
-
-NMRAnetEventRegistry::NMRAnetEventRegistry() {
-  HASSERT(instance_ == nullptr);
-  instance_ = this;
+NMRAnetEventRegistry::NMRAnetEventRegistry()
+{
+    HASSERT(instance_ == nullptr);
+    instance_ = this;
 }
 
-NMRAnetEventRegistry::~NMRAnetEventRegistry() {
-  HASSERT(instance_ == this);
-  instance_ = nullptr;
+NMRAnetEventRegistry::~NMRAnetEventRegistry()
+{
+    HASSERT(instance_ == this);
+    instance_ = nullptr;
 }
 
 }; /* namespace NMRAnet */
-

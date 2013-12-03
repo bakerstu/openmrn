@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,12 +52,12 @@ extern const size_t SERIAL_TX_BUFFER_SIZE;
 /** Private data for a can device */
 typedef struct serial_priv
 {
-    void (*enable)(devtab_t *); /**< function to enable device */
-    void (*disable)(devtab_t *); /**< function to disable device */
-    void (*tx_char)(devtab_t *); /**< function to try and transmit a message */
-    os_mutex_t mutex; /**< mutual exclusion for the device */
-    os_mutex_t wrMutex; /**< mutual exclusion for reading the device */
-    os_mutex_t rdMutex; /**< mutual exclusion for writing the device */
+    void (*enable)(devtab_t*);  /**< function to enable device */
+    void (*disable)(devtab_t*); /**< function to disable device */
+    void (*tx_char)(devtab_t*); /**< function to try and transmit a message */
+    os_mutex_t mutex;           /**< mutual exclusion for the device */
+    os_mutex_t wrMutex;         /**< mutual exclusion for reading the device */
+    os_mutex_t rdMutex;         /**< mutual exclusion for writing the device */
     node_t node;
     os_mq_t txQ;
     os_mq_t rxQ;
@@ -66,14 +66,14 @@ typedef struct serial_priv
 
 extern devops_t serial_ops;
 /** device table entry for can device */
-#define SERIAL_DEVTAB_ENTRY(_label, _name, _init, _priv) \
+#define SERIAL_DEVTAB_ENTRY(_label, _name, _init, _priv)                       \
     DEVTAB_ENTRY(_label, _name, _init, &serial_ops, _priv)
 
-/** intitailize the device 
+/** intitailize the device
  * @parem dev device to initialize
  * @return 0 upon success
  */
-int serial_init(devtab_t *dev);
+int serial_init(devtab_t* dev);
 
 #ifdef __cplusplus
 }

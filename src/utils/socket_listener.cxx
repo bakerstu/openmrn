@@ -46,70 +46,68 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
-
-static void* accept_thread_start(void* arg) {
-  SocketListener* l = static_cast<SocketListener*>(arg);
-  l->AcceptThreadBody();
-  return NULL;
+static void* accept_thread_start(void* arg)
+{
+    SocketListener* l = static_cast<SocketListener*>(arg);
+    l->AcceptThreadBody();
+    return NULL;
 }
 
 SocketListener::SocketListener(int port, connection_callback_t callback)
     : port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {}
-
-void SocketListener::AcceptThreadBody() {
-  socklen_t namelen;
-  struct sockaddr_in addr;
-  int listenfd;
-
-  ERRNOCHECK("socket", listenfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP));
-
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(port_);
-  int val = 1;
-  ERRNOCHECK("setsockopt_reuseaddr",
-             setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
-
-  ERRNOCHECK("bind",
-             bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
-
-  namelen = sizeof(addr);
-  ERRNOCHECK("getsockname",
-             getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
-
-  // This is the actual port that got opened. We could check it against the
-  // requested port. listenport = ;
-
-  ERRNOCHECK("listen", listen(listenfd, 1));
-
-  LOG(INFO, "Listening on port %d, fd %d\n", ntohs(addr.sin_port), listenfd);
-
-  int connfd;
-
-  while (true) {
-    namelen = sizeof(addr);
-    connfd = accept(listenfd,
-                    (struct sockaddr *)&addr,
-                    &namelen);
-    if (connfd < 0) {
-      if (errno == EINTR || errno == EAGAIN) continue;
-      PrintErrnoAndExit("accept");
-      return;
-    }
-    int val = 1;
-    ERRNOCHECK("setsockopt(nodelay)",
-               setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
-                          &val, sizeof(val)));
-
-    LOG(INFO, "Inoming connection from %s, fd %d.\n", inet_ntoa(addr.sin_addr),
-        connfd);
-    callback_(connfd);
-  }
+      accept_thread_("accept_thread", 0, 0, accept_thread_start, this)
+{
 }
 
+void SocketListener::AcceptThreadBody()
+{
+    socklen_t namelen;
+    struct sockaddr_in addr;
+    int listenfd;
 
+    ERRNOCHECK("socket", listenfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP));
 
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port_);
+    int val = 1;
+    ERRNOCHECK(
+        "setsockopt_reuseaddr",
+        setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
+
+    ERRNOCHECK("bind", bind(listenfd, (struct sockaddr*)&addr, sizeof(addr)));
+
+    namelen = sizeof(addr);
+    ERRNOCHECK("getsockname",
+               getsockname(listenfd, (struct sockaddr*)&addr, &namelen));
+
+    // This is the actual port that got opened. We could check it against the
+    // requested port. listenport = ;
+
+    ERRNOCHECK("listen", listen(listenfd, 1));
+
+    LOG(INFO, "Listening on port %d, fd %d\n", ntohs(addr.sin_port), listenfd);
+
+    int connfd;
+
+    while (true) {
+        namelen = sizeof(addr);
+        connfd = accept(listenfd, (struct sockaddr*)&addr, &namelen);
+        if (connfd < 0) {
+            if (errno == EINTR || errno == EAGAIN) continue;
+            PrintErrnoAndExit("accept");
+            return;
+        }
+        int val = 1;
+        ERRNOCHECK(
+            "setsockopt(nodelay)",
+            setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
+
+        LOG(INFO, "Inoming connection from %s, fd %d.\n",
+            inet_ntoa(addr.sin_addr), connfd);
+        callback_(connfd);
+    }
+}
 
 #endif // __linux__

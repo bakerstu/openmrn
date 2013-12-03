@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -53,10 +53,10 @@ extern const size_t CAN_TX_BUFFER_SIZE;
 /** Private data for a can device */
 typedef struct can_priv
 {
-    void (*enable)(devtab_t *); /**< function to enable device */
-    void (*disable)(devtab_t *); /**< function to disable device */
-    void (*tx_msg)(devtab_t *); /**< function to try and transmit a message */
-    os_mutex_t mutex; /**< mutual exclusion for the device */
+    void (*enable)(devtab_t*);  /**< function to enable device */
+    void (*disable)(devtab_t*); /**< function to disable device */
+    void (*tx_msg)(devtab_t*);  /**< function to try and transmit a message */
+    os_mutex_t mutex;           /**< mutual exclusion for the device */
     node_t node;
     os_mq_t txQ;
     os_mq_t rxQ;
@@ -65,14 +65,14 @@ typedef struct can_priv
 
 extern devops_t can_ops;
 /** device table entry for can device */
-#define CAN_DEVTAB_ENTRY(_label, _name, _init, _priv) \
+#define CAN_DEVTAB_ENTRY(_label, _name, _init, _priv)                          \
     DEVTAB_ENTRY(_label, _name, _init, &can_ops, _priv)
 
 /** initialize the device
  * @param dev device to initialize
  * @return 0 upon success
  */
-int can_init(devtab_t *dev);
+int can_init(devtab_t* dev);
 
 #ifdef __cplusplus
 }

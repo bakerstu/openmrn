@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,20 +44,16 @@
 #include "StellarisDev.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
-static StellarisCan *instances[2] = {NULL};
+static StellarisCan* instances[2] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
  */
-StellarisCan::StellarisCan(const char *name, unsigned long base)
-    : Can(name),
-      base(base),
-      interrupt(0),
-      txPending(false)
+StellarisCan::StellarisCan(const char* name, unsigned long base)
+    : Can(name), base(base), interrupt(0), txPending(false)
 {
-    switch (base)
-    {
+    switch (base) {
         default:
             HASSERT(0);
         case CAN0_BASE:
@@ -71,11 +67,11 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
             instances[1] = this;
             break;
     }
-    
+
     MAP_CANInit(base);
     MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), 125000);
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
-    
+
     tCANMsgObject can_message;
     can_message.ulMsgID = 0;
     can_message.ulMsgIDMask = 0;
@@ -104,28 +100,24 @@ void StellarisCan::disable()
  */
 void StellarisCan::tx_msg()
 {
-    if (txPending == false)
-    {
+    if (txPending == false) {
         struct can_frame can_frame;
-        if (os_mq_timedreceive(txQ, &can_frame, 0) == OS_MQ_NONE)
-        {
+        if (os_mq_timedreceive(txQ, &can_frame, 0) == OS_MQ_NONE) {
             /* load the next message to transmit */
             tCANMsgObject can_message;
             can_message.ulMsgID = can_frame.can_id;
             can_message.ulMsgIDMask = 0;
             can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
-            if (can_frame.can_eff)
-            {
+            if (can_frame.can_eff) {
                 can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
             }
-            if (can_frame.can_rtr)
-            {
+            if (can_frame.can_rtr) {
                 can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
             }
             can_message.ulMsgLen = can_frame.can_dlc;
             can_message.pucMsgData = data;
             memcpy(data, can_frame.data, can_frame.can_dlc);
-            
+
             MAP_IntDisable(interrupt);
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             txPending = true;
@@ -141,41 +133,31 @@ void StellarisCan::interrupt_handler()
     uint32_t status = MAP_CANIntStatus(base, CAN_INT_STS_CAUSE);
     int woken = false;
 
-    if (status == CAN_INT_INTID_STATUS)
-    {
+    if (status == CAN_INT_INTID_STATUS) {
         status = MAP_CANStatusGet(base, CAN_STS_CONTROL);
         /* some error occured */
-        if (status & CAN_STATUS_BUS_OFF)
-        {
+        if (status & CAN_STATUS_BUS_OFF) {
             /* bus off error condition */
         }
-        if (status & CAN_STATUS_EWARN)
-        {
+        if (status & CAN_STATUS_EWARN) {
             /* One of the error counters has exceded a value of 96 */
         }
-        if (status & CAN_STATUS_EPASS)
-        {
+        if (status & CAN_STATUS_EPASS) {
             /* In error passive state */
         }
-        if (status & CAN_STATUS_LEC_STUFF)
-        {
+        if (status & CAN_STATUS_LEC_STUFF) {
             /* bit stuffing error occured */
         }
-        if (status & CAN_STATUS_LEC_FORM)
-        {
+        if (status & CAN_STATUS_LEC_FORM) {
             /* format error occured in the fixed format part of the message */
         }
-        if (status & CAN_STATUS_LEC_ACK)
-        {
+        if (status & CAN_STATUS_LEC_ACK) {
             /* a transmit message was not acked */
         }
-        if (status & CAN_STATUS_LEC_CRC)
-        {
+        if (status & CAN_STATUS_LEC_CRC) {
             /* CRC error detected in received message */
         }
-    }
-    else if (status == 1)
-    {
+    } else if (status == 1) {
         /* rx data received */
         bool notify = false;
         tCANMsgObject can_message;
@@ -184,39 +166,34 @@ void StellarisCan::interrupt_handler()
 
         /* Read a message from CAN and clear the interrupt source */
         MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
-        
+
         struct can_frame can_frame;
         can_frame.can_id = can_message.ulMsgID;
-        can_frame.can_rtr = (can_message.ulFlags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
+        can_frame.can_rtr = (can_message.ulFlags & MSG_OBJ_REMOTE_FRAME) ? 1
+                                                                         : 0;
         can_frame.can_eff = (can_message.ulFlags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
         can_frame.can_err = 0;
         can_frame.can_dlc = can_message.ulMsgLen;
         memcpy(can_frame.data, data, can_message.ulMsgLen);
-        if (os_mq_num_pending_from_isr(rxQ) == 0)
-        {
+        if (os_mq_num_pending_from_isr(rxQ) == 0) {
             notify = true;
         }
-        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
-        {
+        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL) {
             overrunCount++;
         }
         /* wakeup anyone waiting for read active */
-        if (notify && read_callback)
-        {
+        if (notify && read_callback) {
             read_callback(readContext);
         }
-    }
-    else if (status == 2)
-    {
+    } else if (status == 2) {
         /* tx complete */
         MAP_CANIntClear(base, 2);
 
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE)
-        {
+        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE) {
             bool notify = false;
-            if ((unsigned)os_mq_num_pending_from_isr(txQ) == (CAN_TX_BUFFER_SIZE - 1))
-            {
+            if ((unsigned)os_mq_num_pending_from_isr(txQ)
+                == (CAN_TX_BUFFER_SIZE - 1)) {
                 notify = true;
             }
             /* load the next message to transmit */
@@ -224,27 +201,22 @@ void StellarisCan::interrupt_handler()
             can_message.ulMsgID = can_frame.can_id;
             can_message.ulMsgIDMask = 0;
             can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
-            if (can_frame.can_eff)
-            {
+            if (can_frame.can_eff) {
                 can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
             }
-            if (can_frame.can_rtr)
-            {
+            if (can_frame.can_rtr) {
                 can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
             }
             can_message.ulMsgLen = can_frame.can_dlc;
             can_message.pucMsgData = data;
             memcpy(data, can_frame.data, can_frame.can_dlc);
-            
+
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             /* wakeup anyone waiting for read active */
-            if (notify && write_callback)
-            {
+            if (notify && write_callback) {
                 write_callback(writeContext);
             }
-        }
-        else
-        {
+        } else {
             /* no more messages pending transmission */
             txPending = false;
         }
@@ -256,8 +228,7 @@ void StellarisCan::interrupt_handler()
  */
 void can0_interrupt_handler(void)
 {
-    if (instances[0])
-    {
+    if (instances[0]) {
         instances[0]->interrupt_handler();
     }
 }
@@ -270,5 +241,3 @@ void can1_interrupt_handler(void)
     can_interrupt_handler(&can1);
 }
 #endif
-
-

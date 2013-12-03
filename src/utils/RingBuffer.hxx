@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -45,13 +45,13 @@ public:
     /** Create a ring buffer instance.
      * @param size size in items for the ring buffer
      */
-    static inline RingBuffer *create(size_t size)
+    static inline RingBuffer* create(size_t size)
     {
-        RingBuffer *ring_buffer =
-            (RingBuffer*)malloc(sizeof(RingBuffer) + (size * sizeof(T)));
+        RingBuffer* ring_buffer
+            = (RingBuffer*)malloc(sizeof(RingBuffer) + (size * sizeof(T)));
         /* placement new allows for runtime ring buffer size */
         new (ring_buffer) RingBuffer(size);
-        
+
         return ring_buffer;
     }
 
@@ -67,49 +67,45 @@ public:
      * @param items total number of items to insert
      * @return total number of items inserted
      */
-    size_t put(const T *buf, size_t items)
+    size_t put(const T* buf, size_t items)
     {
         /** @todo (Stuart Baker) significant optimization opportunity */
         size_t inserted = items < (_size - count) ? items : (_size - count);
-        
-        for (size_t i = 0; i < inserted; ++i)
-        {
+
+        for (size_t i = 0; i < inserted; ++i) {
             data[writeIndex++] = buf[i];
-            
-            if (writeIndex == _size)
-            {
+
+            if (writeIndex == _size) {
                 writeIndex = 0;
             }
         }
-        
+
         count += inserted;
         return inserted;
     }
-    
+
     /** remove a number of items from the buffer.
      * @param data reference to the first item to insert
      * @param items total number of items to insert
      * @return total number of items inserted
      */
-    size_t get(T *buf, size_t items)
+    size_t get(T* buf, size_t items)
     {
         /** @todo (Stuart Baker) significant optimization opportunity */
         size_t removed = items < count ? items : count;
-        
-        for (size_t i = 0; i < removed; ++i)
-        {
+
+        for (size_t i = 0; i < removed; ++i) {
             buf[i] = data[readIndex++];
-            
-            if (readIndex == _size)
-            {
+
+            if (readIndex == _size) {
                 readIndex = 0;
             }
         }
-        
+
         count -= removed;
         return removed;
     }
-    
+
     /** Number of items in the buffer.
      * @return number of items in the buffer
      */
@@ -117,7 +113,7 @@ public:
     {
         return count;
     }
-    
+
     /** Size of buffer in number of items.
      * @return size of buffer in number of items
      */
@@ -125,7 +121,7 @@ public:
     {
         return _size;
     }
-    
+
     /** space left in buffer of buffer in number items.
      * @return space left in buffer in number of items
      */
@@ -133,41 +129,37 @@ public:
     {
         return _size - count;
     }
-    
+
 private:
     /** Constructor.
      * @param size size in bytes for the ring buffer
      */
-    RingBuffer(size_t size)
-        : _size(size),
-          count(0),
-          readIndex(0),
-          writeIndex(0)
+    RingBuffer(size_t size) : _size(size), count(0), readIndex(0), writeIndex(0)
     {
     }
 
     /** Default Constructor.
      */
     RingBuffer();
-    
+
     /** Default destructor.
      */
     ~RingBuffer();
 
     DISALLOW_COPY_AND_ASSIGN(RingBuffer);
-    
+
     /** size in items of ring buffer */
     size_t _size;
-    
+
     /** total number of items in ring buffer */
     size_t count;
-    
+
     /** read index */
     size_t readIndex;
-    
+
     /** write index */
     size_t writeIndex;
-    
+
     /** ring buffer data */
     T data[];
 };

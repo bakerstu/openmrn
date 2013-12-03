@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -57,13 +57,13 @@ extern "C" {
 #endif
 
 /** Manufacture of the product. */
-extern const char *nmranet_manufacturer;
+extern const char* nmranet_manufacturer;
 
 /** Hardware revision of the product. */
-extern const char *nmranet_hardware_rev;
+extern const char* nmranet_hardware_rev;
 
 /** Software revision of the product. */
-extern const char *nmranet_software_rev;
+extern const char* nmranet_software_rev;
 
 /** Number of aliases to pool for instant use.
  */

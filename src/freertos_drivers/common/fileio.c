@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -39,30 +39,31 @@
 #include "os/os.h"
 
 #ifdef TARGET_LPC11Cxx
-#define NUM_OPEN_FILES     4
+#define NUM_OPEN_FILES 4
 #else
-#define NUM_OPEN_FILES     8
+#define NUM_OPEN_FILES 8
 #endif
 
 /* prototypes */
-static int null_init(devtab_t *dev);
-static int null_open(file_t* file, const char *path, int flags, int mode);
-static int null_close(file_t *file, node_t *node);
-static ssize_t null_read(file_t *file, void *buf, size_t count);
-static ssize_t null_write(file_t *file, const void *buf, size_t count);
-static int null_ioctl(file_t *file, node_t *node, int key, void *data);
+static int null_init(devtab_t* dev);
+static int null_open(file_t* file, const char* path, int flags, int mode);
+static int null_close(file_t* file, node_t* node);
+static ssize_t null_read(file_t* file, void* buf, size_t count);
+static ssize_t null_write(file_t* file, const void* buf, size_t count);
+static int null_ioctl(file_t* file, node_t* node, int key, void* data);
 
 /** default stdin */
-const char *STDIN_DEVICE __attribute__ ((weak)) = "/dev/null";
+const char* STDIN_DEVICE __attribute__((weak)) = "/dev/null";
 
 /** default stdout */
-const char *STDOUT_DEVICE __attribute__ ((weak)) = "/dev/null";
+const char* STDOUT_DEVICE __attribute__((weak)) = "/dev/null";
 
 /** default stderr */
-const char *STDERR_DEVICE __attribute__ ((weak)) = "/dev/null";
+const char* STDERR_DEVICE __attribute__((weak)) = "/dev/null";
 
 /** device operations for can. */
-static DEVOPS(null_ops, null_open, null_close, null_read, null_write, null_ioctl);
+static DEVOPS(null_ops, null_open, null_close, null_read, null_write,
+              null_ioctl);
 
 /** Null device entry. */
 static DEVTAB_ENTRY(nullDevice, "/dev/null", null_init, &null_ops, NULL);
@@ -78,10 +79,8 @@ static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
  */
 int fd_alloc(void)
 {
-    for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
-    {
-        if (files[i].inuse == 0)
-        {
+    for (unsigned int i = 0; i < NUM_OPEN_FILES; i++) {
+        if (files[i].inuse == 0) {
             files[i].inuse = 1;
             return i;
         }
@@ -104,27 +103,23 @@ void fd_free(int fd)
  * @param mode open mode, ignored in this implementation
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
-int _open_r(struct _reent *reent, const char *path, int flags, int mode)
+int _open_r(struct _reent* reent, const char* path, int flags, int mode)
 {
     os_mutex_lock(&mutex);
     int fd = fd_alloc();
     os_mutex_unlock(&mutex);
-    if (fd < 0)
-    {
+    if (fd < 0) {
         errno = EMFILE;
         return -1;
     }
     // Sets the dev to a safe default in case we don't find the file later.
     files[fd].dev = &nullDevice;
     files[fd].flags = flags;
-    for (devtab_t *dev = &DEVTAB[0]; dev != &DEVTAB_END; dev++)
-    {
-        if (!strcmp(dev->name, path))
-        {
+    for (devtab_t* dev = &DEVTAB[0]; dev != &DEVTAB_END; dev++) {
+        if (!strcmp(dev->name, path)) {
             files[fd].dev = dev;
             int result = dev->devops->open(&files[fd], path, flags, mode);
-            if (result < 0)
-            {
+            if (result < 0) {
                 fd_free(fd);
                 errno = -result;
                 return -1;
@@ -143,26 +138,22 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
  * @param fd file descriptor to close
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
-int _close_r(struct _reent *reent, int fd)
+int _close_r(struct _reent* reent, int fd)
 {
-    if (fd >=0 && fd <= 2)
-    {
+    if (fd >= 0 && fd <= 2) {
         // stdin, stdout, and stderr never get closed
         return 0;
     }
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
-    {
+    if (fd < 0 || fd >= NUM_OPEN_FILES) {
         errno = EBADF;
         return -1;
     }
-    if (files[fd].inuse == 0)
-    {
+    if (files[fd].inuse == 0) {
         errno = EBADF;
         return -1;
     }
     int result = files[fd].dev->devops->close(&files[fd], files[fd].node);
-    if (result < 0)
-    {
+    if (result < 0) {
         errno = -result;
         return -1;
     }
@@ -175,23 +166,21 @@ int _close_r(struct _reent *reent, int fd)
  * @param fd file descriptor to read
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
-ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
+ssize_t _read_r(struct _reent* reent, int fd, void* buf, size_t count)
 {
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
-    {
+    if (fd < 0 || fd >= NUM_OPEN_FILES) {
         errno = EBADF;
         return -1;
     }
-    if (files[fd].inuse == 0)
-    {
+    if (files[fd].inuse == 0) {
         errno = EBADF;
         return -1;
     }
     int result = files[fd].dev->devops->read(&files[fd], buf, count);
-    if (result < 0)
-    {
+    if (result < 0) {
         errno = -result;
         return -1;
     }
@@ -203,23 +192,21 @@ ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
  * @param fd file descriptor to write
  * @param buf location to find write data
  * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes written upon success, -1 upon failure with errno
+ * containing the cause
  */
-ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
+ssize_t _write_r(struct _reent* reent, int fd, const void* buf, size_t count)
 {
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
-    {
+    if (fd < 0 || fd >= NUM_OPEN_FILES) {
         errno = EBADF;
         return -1;
     }
-    if (files[fd].inuse == 0)
-    {
+    if (files[fd].inuse == 0) {
         errno = EBADF;
         return -1;
     }
     int result = files[fd].dev->devops->write(&files[fd], buf, count);
-    if (result < 0)
-    {
+    if (result < 0) {
         errno = -result;
         return -1;
     }
@@ -232,7 +219,7 @@ ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
  * @param stat structure to fill status info into
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
-int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
+int _fstat_r(struct _reent* reent, int fd, struct stat* stat)
 {
     return 0;
 }
@@ -242,7 +229,7 @@ int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
  * @param fd file descriptor determine if it is a tty
  * @return 1 if a tty, else 0
  */
-int _isatty_r(struct _reent *reent, int fd)
+int _isatty_r(struct _reent* reent, int fd)
 {
     return 1;
 }
@@ -252,9 +239,10 @@ int _isatty_r(struct _reent *reent, int fd)
  * @param fd file descriptor to seek
  * @param offset offset within file
  * @param whence type of seek to complete
- * @return resulting offset from beginning of file, -1 upon failure with errno containing the cause
+ * @return resulting offset from beginning of file, -1 upon failure with errno
+ * containing the cause
  */
-_off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
+_off_t _lseek_r(struct _reent* reent, int fd, _off_t offset, int whence)
 {
     return 0;
 }
@@ -266,30 +254,28 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
  */
 int ioctl(int fd, int key, ...)
 {
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
-    {
+    if (fd < 0 || fd >= NUM_OPEN_FILES) {
         errno = EBADF;
         return -1;
     }
-    if (files[fd].inuse == 0)
-    {
+    if (files[fd].inuse == 0) {
         errno = EBADF;
         return -1;
     }
-    int result = files[fd].dev->devops->ioctl(&files[fd], files[fd].node, key, 0);
-    if (result < 0)
-    {
+    int result
+        = files[fd].dev->devops->ioctl(&files[fd], files[fd].node, key, 0);
+    if (result < 0) {
         errno = -result;
         return -1;
     }
     return 0;
 }
 
-/** intitailize the device 
+/** intitailize the device
  * @parem dev device to initialize
  * @return 0 upon success
  */
-static int null_init(devtab_t *dev)
+static int null_init(devtab_t* dev)
 {
     return 0;
 }
@@ -301,8 +287,8 @@ static int null_init(devtab_t *dev)
  * @param mode open mode
  * @return 0 upon success, negative errno upon failure
  */
-static int null_open(file_t* file, const char *path, int flags, int mode)
-{    
+static int null_open(file_t* file, const char* path, int flags, int mode)
+{
     return 0;
 }
 
@@ -311,8 +297,8 @@ static int null_open(file_t* file, const char *path, int flags, int mode)
  * @param node node reference for this device
  * @return 0 upon success, negative errno upon failure
  */
-static int null_close(file_t *file, node_t *node)
-{    
+static int null_close(file_t* file, node_t* node)
+{
     return 0;
 }
 
@@ -320,14 +306,13 @@ static int null_close(file_t *file, node_t *node)
  * @param file file reference for this device
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
-static ssize_t null_read(file_t *file, void *buf, size_t count)
+static ssize_t null_read(file_t* file, void* buf, size_t count)
 {
-    if ((file->flags & O_NONBLOCK) == 0)
-    {
-        for ( ; /* forever */ ; )
-        {
+    if ((file->flags & O_NONBLOCK) == 0) {
+        for (; /* forever */;) {
         }
     }
 
@@ -338,10 +323,11 @@ static ssize_t null_read(file_t *file, void *buf, size_t count)
  * @param file file reference for this device
  * @param buf location to find write data
  * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes written upon success, -1 upon failure with errno
+ * containing the cause
  */
-static ssize_t null_write(file_t *file, const void *buf, size_t count)
-{    
+static ssize_t null_write(file_t* file, const void* buf, size_t count)
+{
     return count;
 }
 
@@ -351,22 +337,27 @@ static ssize_t null_write(file_t *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param ... key data
  */
-static int null_ioctl(file_t *file, node_t *node, int key, void *data)
+static int null_ioctl(file_t* file, node_t* node, int key, void* data)
 {
     return 0;
 }
 
-
 /* setup the device table for use in the linker */
-__asm__(".section \".device.table." __xstring(devtab) ".begin\",\"aw\"\n"
-        ".globl   " __xstring(DEVTAB)"\n"
-        ".type    " __xstring(DEVTAB) ",object\n"
-        ".p2align " __xstring(3) "\n"
-        __xstring(DEVTAB) ":\n"
-        ".previous\n");
-__asm__(".section \".device.table." __xstring(devtab) ".finish\",\"aw\"\n"
-        ".globl   " __xstring(DEVTAB_END)"\n"
-        ".type    " __xstring(DEVTAB_END) ",object\n"
-        ".p2align " __xstring(3) "\n"
-        __xstring(DEVTAB_END) ":\n"
-        ".previous\n");
+__asm__(".section \".device.table." __xstring(
+    devtab) ".begin\",\"aw\"\n"
+            ".globl   " __xstring(
+                DEVTAB) "\n"
+                        ".type    " __xstring(
+                            DEVTAB) ",object\n"
+                                    ".p2align " __xstring(3) "\n" __xstring(
+                                        DEVTAB) ":\n"
+                                                ".previous\n");
+__asm__(".section \".device.table." __xstring(
+    devtab) ".finish\",\"aw\"\n"
+            ".globl   " __xstring(
+                DEVTAB_END) "\n"
+                            ".type    " __xstring(
+                                DEVTAB_END) ",object\n"
+                                            ".p2align " __xstring(3) "\n" __xstring(
+                                                DEVTAB_END) ":\n"
+                                                            ".previous\n");

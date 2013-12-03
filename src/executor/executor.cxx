@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,49 +36,50 @@
 #include "utils/logging.h"
 #include "executor/executor.hxx"
 
-static void* start_executor_thread(void* arg) {
-  static_cast<Executor*>(arg)->ThreadBody();
-  return NULL;
+static void* start_executor_thread(void* arg)
+{
+    static_cast<Executor*>(arg)->ThreadBody();
+    return NULL;
 }
 
-Executor::Executor()
-    : notify_(0), waiting_(true), current_(nullptr)
+Executor::Executor() : notify_(0), waiting_(true), current_(nullptr)
 {
 }
-            
-Executor::~Executor() {}
 
-void Executor::ThreadBody() {
-  while(1) {
-    waiting_ = true;
-    notify_.wait();
-    waiting_ = false;
-    {
-      LockHolder h(this);
-      current_ = static_cast<Executable*>(pending_flows_.Pop());
-    }
-    if (current_) {
-      current_->Run();
-    }
-    {
-      LockHolder h(this);
-      current_ = nullptr;
-    }
-  }
+Executor::~Executor()
+{
 }
 
-bool Executor::IsPendingOrRunning(Executable* entry) {
-  LockHolder h(this);
-  if (current_ == entry) return true;
-  if (pending_flows_.IsMaybePending(entry)) return true;
-  return false;
+void Executor::ThreadBody()
+{
+    while (1) {
+        waiting_ = true;
+        notify_.wait();
+        waiting_ = false;
+        {
+            LockHolder h(this);
+            current_ = static_cast<Executable*>(pending_flows_.Pop());
+        }
+        if (current_) {
+            current_->Run();
+        }
+        {
+            LockHolder h(this);
+            current_ = nullptr;
+        }
+    }
 }
 
+bool Executor::IsPendingOrRunning(Executable* entry)
+{
+    LockHolder h(this);
+    if (current_ == entry) return true;
+    if (pending_flows_.IsMaybePending(entry)) return true;
+    return false;
+}
 
-ThreadExecutor::ThreadExecutor(const char* thread_name,
-                               int priority,
+ThreadExecutor::ThreadExecutor(const char* thread_name, int priority,
                                size_t stack_size)
-  : thread_(thread_name, priority, stack_size,
-            &start_executor_thread, this)
+    : thread_(thread_name, priority, stack_size, &start_executor_thread, this)
 {
 }

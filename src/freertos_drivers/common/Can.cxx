@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -47,19 +47,18 @@ Devops Can::ops = {Can::open, Can::close, Can::read, Can::write, Can::ioctl};
  * @param mode open mode
  * @return 0 upon success, negative errno upon failure
  */
-int Can::open(File* file, const char *path, int flags, int mode)
+int Can::open(File* file, const char* path, int flags, int mode)
 {
-    Can *can = (Can*)file->dev->get_priv();
+    Can* can = (Can*)file->dev->get_priv();
 
     can->mutex.lock();
     file->node = can;
     file->offset = 0;
-    if (can->references++ == 0)
-    {
+    if (can->references++ == 0) {
         can->enable();
     }
     can->mutex.unlock();
-    
+
     return 0;
 }
 
@@ -68,17 +67,16 @@ int Can::open(File* file, const char *path, int flags, int mode)
  * @param node node reference for this device
  * @return 0 upon success, negative errno upon failure
  */
-int Can::close(File *file, Node *node)
+int Can::close(File* file, Node* node)
 {
-    Can *can = (Can*)file->dev->get_priv();
+    Can* can = (Can*)file->dev->get_priv();
 
     can->mutex.lock();
-    if (--can->references == 0)
-    {
+    if (--can->references == 0) {
         can->disable();
     }
     can->mutex.unlock();
-    
+
     return 0;
 }
 
@@ -86,26 +84,22 @@ int Can::close(File *file, Node *node)
  * @param file file reference for this device
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
-ssize_t Can::read(File *file, void *buf, size_t count)
+ssize_t Can::read(File* file, void* buf, size_t count)
 {
-    Can *can = static_cast<Can*>(file->node);
-    struct can_frame *can_frame = (struct can_frame*)buf;
+    Can* can = static_cast<Can*>(file->node);
+    struct can_frame* can_frame = (struct can_frame*)buf;
     ssize_t result = 0;
-    
-    while (count >= sizeof(struct can_frame))
-    {
-        if (file->flags & O_NONBLOCK)
-        {
-            if (os_mq_timedreceive(can->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
-            {
+
+    while (count >= sizeof(struct can_frame)) {
+        if (file->flags & O_NONBLOCK) {
+            if (os_mq_timedreceive(can->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT) {
                 /* no more data to receive */
                 break;
             }
-        }
-        else
-        {
+        } else {
             /* wait for data to come in */
             os_mq_receive(can->rxQ, can_frame);
         }
@@ -114,7 +108,7 @@ ssize_t Can::read(File *file, void *buf, size_t count)
         result += sizeof(struct can_frame);
         can_frame++;
     }
-    
+
     return result;
 }
 
@@ -122,26 +116,22 @@ ssize_t Can::read(File *file, void *buf, size_t count)
  * @param file file reference for this device
  * @param buf location to find write data
  * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes written upon success, -1 upon failure with errno
+ * containing the cause
  */
-ssize_t Can::write(File *file, const void *buf, size_t count)
+ssize_t Can::write(File* file, const void* buf, size_t count)
 {
-    Can *can = static_cast<Can*>(file->node);
-    const struct can_frame *can_frame = (const struct can_frame*)buf;
+    Can* can = static_cast<Can*>(file->node);
+    const struct can_frame* can_frame = (const struct can_frame*)buf;
     ssize_t result = 0;
-        
-    while (count >= sizeof(struct can_frame))
-    {
-        if (file->flags & O_NONBLOCK)
-        {
-            if (os_mq_timedsend(can->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
-            {
+
+    while (count >= sizeof(struct can_frame)) {
+        if (file->flags & O_NONBLOCK) {
+            if (os_mq_timedsend(can->txQ, can_frame, 0) == OS_MQ_TIMEDOUT) {
                 /* no more room in the buffer */
                 break;
             }
-        }
-        else
-        {
+        } else {
             /* wait for room in the queue */
             os_mq_send(can->txQ, can_frame);
         }
@@ -153,7 +143,7 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
         result += sizeof(struct can_frame);
         can_frame++;
     }
-    
+
     return result;
 }
 
@@ -163,18 +153,18 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param data key data
  */
-int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data)
+int Can::ioctl(File* file, Node* node, unsigned long int key,
+               unsigned long data)
 {
-    Can *can = static_cast<Can*>(file->node);
+    Can* can = static_cast<Can*>(file->node);
 
     /* sanity check to be sure we have a valid key for this devide */
     HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
     HASSERT(IOC_SIZE(key) == sizeof(CanActiveCallback));
 
-    const CanActiveCallback *can_active_callback = (CanActiveCallback*)data;
+    const CanActiveCallback* can_active_callback = (CanActiveCallback*)data;
 
-    switch (key)
-    {
+    switch (key) {
         default:
             return -EINVAL;
         case CAN_IOC_READ_ACTIVE:
@@ -189,4 +179,3 @@ int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data
 
     return 0;
 }
-

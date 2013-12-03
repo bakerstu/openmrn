@@ -4,41 +4,52 @@
 
 static EmptyNotifiable default_empty_notifiable;
 
-Notifiable* EmptyNotifiable::DefaultInstance() {
-  return &default_empty_notifiable;
+Notifiable* EmptyNotifiable::DefaultInstance()
+{
+    return &default_empty_notifiable;
 }
 
 static CrashNotifiable default_crash_notifiable;
 
-Notifiable* CrashNotifiable::DefaultInstance() {
-  return &default_crash_notifiable;
+Notifiable* CrashNotifiable::DefaultInstance()
+{
+    return &default_crash_notifiable;
 }
 
-void CrashNotifiable::Notify() { DIE("Called CrashNotifiable."); }
-
-Notifiable* BarrierNotifiable::NewChild() {
-  LockHolder h(this);
-  count_++;
-  return this;
+void CrashNotifiable::Notify()
+{
+    DIE("Called CrashNotifiable.");
 }
 
-void BarrierNotifiable::Notify() {
-  unsigned new_value;
-  {
+Notifiable* BarrierNotifiable::NewChild()
+{
     LockHolder h(this);
-    new_value = --count_;
-  }
-  if (!new_value) {
-    HASSERT(done_);
-    done_->Notify();
-  }
+    count_++;
+    return this;
 }
 
-BarrierNotifiable::~BarrierNotifiable() { HASSERT(!count_); }
+void BarrierNotifiable::Notify()
+{
+    unsigned new_value;
+    {
+        LockHolder h(this);
+        new_value = --count_;
+    }
+    if (!new_value) {
+        HASSERT(done_);
+        done_->Notify();
+    }
+}
 
-void BarrierNotifiable::Reset(Notifiable* done) {
-  LockHolder h(this);
-  HASSERT(!count_);
-  count_ = 1;
-  done_ = done;
+BarrierNotifiable::~BarrierNotifiable()
+{
+    HASSERT(!count_);
+}
+
+void BarrierNotifiable::Reset(Notifiable* done)
+{
+    LockHolder h(this);
+    HASSERT(!count_);
+    count_ = 1;
+    done_ = done;
 }

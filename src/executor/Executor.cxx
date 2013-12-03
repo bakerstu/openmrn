@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -37,29 +37,23 @@
 
 #include "executor/Executor.hxx"
 
-Executor *Executor::list = NULL;
+Executor* Executor::list = NULL;
 
 /** Constructor.
  * @param name name of executor
  * @param priority thread priority
  * @param stack_size thread stack size
  */
-Executor::Executor(const char *name, int priority, size_t stack_size)
-    : OSThread(name, priority, stack_size),
-      queue(),
-      name(name),
-      next(NULL)
+Executor::Executor(const char* name, int priority, size_t stack_size)
+    : OSThread(name, priority, stack_size), queue(), name(name), next(NULL)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
      */
-    if (list == NULL)
-    {
+    if (list == NULL) {
         list = this;
         next = NULL;
-    }
-    else
-    {
+    } else {
         next = list;
         list = this;
     }
@@ -70,28 +64,22 @@ Executor::Executor(const char *name, int priority, size_t stack_size)
  * @param wait wait forever for a connection to come online
  * @return connection handle upon success, NULL upon failure
  */
-Executor::Connection Executor::connection(const char *name, bool wait)
+Executor::Connection Executor::connection(const char* name, bool wait)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
      */
-    for ( ; /* forever */ ; )
-    {
-        Executor *current = list;
-        while (current)
-        {
-            if (!strcmp(name, current->name))
-            {
+    for (; /* forever */;) {
+        Executor* current = list;
+        while (current) {
+            if (!strcmp(name, current->name)) {
                 return current;
             }
             current = current->next;
         }
-        if (wait)
-        {
+        if (wait) {
             sleep(1);
-        }
-        else
-        {
+        } else {
             return NULL;
         }
     }
@@ -102,14 +90,14 @@ Executor::Connection Executor::connection(const char *name, bool wait)
  * @param data2 pointer to an application callback
  * @return Always returns OS_TIMER_NONE
  */
-long long Executor::timer_callback(void *data1, void *data2)
+long long Executor::timer_callback(void* data1, void* data2)
 {
-    Executor *executor = (Executor*)data1;
+    Executor* executor = (Executor*)data1;
     TimerCallback callback = (TimerCallback)data2;
 
-    Buffer *buffer = buffer_alloc(sizeof(IdTimer));
+    Buffer* buffer = buffer_alloc(sizeof(IdTimer));
     buffer->id(ID_TIMER);
-    IdTimer *message = (IdTimer*)buffer->start();
+    IdTimer* message = (IdTimer*)buffer->start();
     message->callback = callback;
     executor->queue.insert(buffer);
     return OS_TIMER_NONE;
@@ -118,16 +106,14 @@ long long Executor::timer_callback(void *data1, void *data2)
 /** Thread entry point.
  * @return Should never return
  */
-void *Executor::entry()
+void* Executor::entry()
 {
-    Buffer *buffer;
-    
+    Buffer* buffer;
+
     /* Wait for Executor to be started */
-    for ( ; /* forever */ ; )
-    {
+    for (; /* forever */;) {
         buffer = queue.wait();
-        if (buffer->id() == ID_EXECUTOR_START)
-        {
+        if (buffer->id() == ID_EXECUTOR_START) {
             break;
         }
         buffer->free();
@@ -136,21 +122,16 @@ void *Executor::entry()
     thread_initialize();
 
     /* Executor has been started, wait for messages to process */
-    for ( ; /* forever */ ; )
-    {
+    for (; /* forever */;) {
         buffer->free();
         buffer = queue.wait();
-        if (buffer->id() == ID_TIMER)
-        {
-            IdTimer *timer = (IdTimer*)buffer->start();
+        if (buffer->id() == ID_TIMER) {
+            IdTimer* timer = (IdTimer*)buffer->start();
             (timer->callback)();
-        }
-        else
-        {
+        } else {
             process(buffer->id(), buffer->start(), buffer->used());
         }
     }
 
     return NULL;
 }
-

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -47,78 +47,82 @@
 class ControlFlow;
 
 //! An object that can be scheduled on an executor to run.
-class Executable : public QueueMember {
+class Executable : public QueueMember
+{
 public:
-  virtual void Run() = 0;
+    virtual void Run() = 0;
 };
 
-
-class Executor : public Lockable {
+class Executor : public Lockable
+{
 public:
-  Executor();
-  ~Executor();
+    Executor();
+    ~Executor();
 
-  // Runs the main loop of the executor in the current thread. Never returns.
-  void ThreadBody();
+    // Runs the main loop of the executor in the current thread. Never returns.
+    void ThreadBody();
 
-  // Adds entry to the back of the executor queue. `entry' must not be enqueued
-  // here or in any other executor or queue.
-  void Add(Executable* entry) {
+    // Adds entry to the back of the executor queue. `entry' must not be
+    // enqueued
+    // here or in any other executor or queue.
+    void Add(Executable* entry)
     {
-      LockHolder h(this);
-      pending_flows_.Push(entry);
+        {
+            LockHolder h(this);
+            pending_flows_.Push(entry);
+        }
+        notify_.post();
     }
-    notify_.post();
-  }
 
-  /** Checks if `entry' is pending in the *current* executor. NOTE: This call
-   * may or may not detect if `entry' is pending in a different executor or
-   * enqueued on a different queue.
-   */
-  bool IsMaybePending(Executable* entry) {
-    return pending_flows_.IsMaybePending(entry);
-  }
+    /** Checks if `entry' is pending in the *current* executor. NOTE: This call
+     * may or may not detect if `entry' is pending in a different executor or
+     * enqueued on a different queue.
+     */
+    bool IsMaybePending(Executable* entry)
+    {
+        return pending_flows_.IsMaybePending(entry);
+    }
 
-  /** Returns true if the given entry is either pending in the queue of the
-   * current executor, or is currently running in the executor. This call is
-   * safe to be called from the any thread. NOTE: This call may or may not
-   * detect if `entry' is pending in a different executor or enqueued on a
-   * different queue.
-   */
-  bool IsPendingOrRunning(Executable* entry);
+    /** Returns true if the given entry is either pending in the queue of the
+     * current executor, or is currently running in the executor. This call is
+     * safe to be called from the any thread. NOTE: This call may or may not
+     * detect if `entry' is pending in a different executor or enqueued on a
+     * different queue.
+     */
+    bool IsPendingOrRunning(Executable* entry);
 
-  //! Returns true if this executor has run out of work.
-  bool empty() {
-    LockHolder h(this);
-    return waiting_ && pending_flows_.empty();
-  }
+    //! Returns true if this executor has run out of work.
+    bool empty()
+    {
+        LockHolder h(this);
+        return waiting_ && pending_flows_.empty();
+    }
 
 private:
-  //! This semaphore is used for blocking the executor thread, and will be
-  //! posted for each Add to wake up.
-  OSSem notify_;
-  //! Queue of work to do.
-  Queue pending_flows_;
-  //! true if the executor is waiting in the semaphore for work to do.
-  bool waiting_;
-  //! Work currently scheduled on the thread.
-  Executable* current_;
+    //! This semaphore is used for blocking the executor thread, and will be
+    //! posted for each Add to wake up.
+    OSSem notify_;
+    //! Queue of work to do.
+    Queue pending_flows_;
+    //! true if the executor is waiting in the semaphore for work to do.
+    bool waiting_;
+    //! Work currently scheduled on the thread.
+    Executable* current_;
 };
 
 //! An executor that automatically starts up a new thread to run its loop.
-class ThreadExecutor : public Executor {
+class ThreadExecutor : public Executor
+{
 public:
-  ThreadExecutor(const char* thread_name,
-                 int priority,
-                 size_t stack_size);
-  ~ThreadExecutor() {}
+    ThreadExecutor(const char* thread_name, int priority, size_t stack_size);
+    ~ThreadExecutor()
+    {
+    }
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(ThreadExecutor);
+    DISALLOW_COPY_AND_ASSIGN(ThreadExecutor);
 
-  OSThread thread_;
+    OSThread thread_;
 };
-
-
 
 #endif // _EXECUTOR_EXECUTOR_HXX_

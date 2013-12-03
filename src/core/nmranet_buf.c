@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,7 +36,7 @@
 
 #include <stdio.h>
 
-#if defined (__linux__)
+#if defined(__linux__)
 #define DEBUG_PRINTF printf
 #else
 #define DEBUG_PRINTF(_fmt...)
@@ -49,18 +49,18 @@ static os_mutex_t mutex = OS_MUTEX_INITIALIZER;
  */
 typedef struct buffer
 {
-    struct buffer *next; /**< next buffer in list */
-    size_t size; /**< size of data in bytes */
-    size_t free; /**< amount for free space left in the buffer */
-    char   data[]; /**< data */
+    struct buffer* next; /**< next buffer in list */
+    size_t size;         /**< size of data in bytes */
+    size_t free;         /**< amount for free space left in the buffer */
+    char data[];         /**< data */
 } Buffer;
 
 /** Que structure
  */
 typedef struct queue
 {
-    Buffer *head; /**< head buffer in queue */
-    Buffer *tail; /**< tail buffer in queue */
+    Buffer* head; /**< head buffer in queue */
+    Buffer* tail; /**< tail buffer in queue */
     size_t count; /**< number of buffers in the queue */
 } Queue;
 
@@ -68,48 +68,38 @@ static size_t totalSize = 0;
 
 /** Array of power of 2 buffer sizes
  */
-static Buffer *pool[4] = {NULL, NULL, NULL, NULL};
+static Buffer* pool[4] = {NULL, NULL, NULL, NULL};
 
 /** Obtain a pointer to the buffer including metadata from its data pointer.
  * @param _buffer pointer to the data element, (nmranet_buf_t) of a buffer
  */
-#define BUFFER(_buffer) (Buffer*)((char *)(_buffer) - sizeof(Buffer));
+#define BUFFER(_buffer) (Buffer*)((char*)(_buffer) - sizeof(Buffer));
 
 /** Get a free buffer out of the pool.
  * @param size minimum size in bytes the buffer must hold
  * @return pointer to the newly allocated buffer
  */
-void *nmranet_buffer_alloc(size_t size)
+void* nmranet_buffer_alloc(size_t size)
 {
     int index = 0;
-    Buffer *buf;
+    Buffer* buf;
 
-    if (size <= 4)
-    {
+    if (size <= 4) {
         index = 0;
         size = 4;
-    }
-    else if (size <= 8)
-    {
+    } else if (size <= 8) {
         index = 1;
         size = 8;
-    }
-    else if (size <= 16)
-    {
+    } else if (size <= 16) {
         index = 2;
         size = 16;
-    }
-    else if (size <= 32)
-    {
+    } else if (size <= 32) {
         index = 3;
         size = 32;
-    }
-    else
-    {
+    } else {
         /* big buffers are just malloc'd freely */
         buf = malloc(size + sizeof(Buffer));
-        if (buf == NULL)
-        {
+        if (buf == NULL) {
             return NULL;
         }
         buf->next = NULL;
@@ -121,16 +111,12 @@ void *nmranet_buffer_alloc(size_t size)
     }
 
     os_mutex_lock(&mutex);
-    if (pool[index] != NULL)
-    {
+    if (pool[index] != NULL) {
         buf = pool[index];
         pool[index] = buf->next;
-    }
-    else
-    {
+    } else {
         buf = malloc(size + sizeof(Buffer));
-        if (buf == NULL)
-        {
+        if (buf == NULL) {
             return NULL;
         }
         totalSize += size + sizeof(Buffer);
@@ -141,20 +127,19 @@ void *nmranet_buffer_alloc(size_t size)
     buf->next = NULL;
     buf->size = size;
     buf->free = size;
-    
+
     return buf->data;
 }
 
 /** Release a buffer back to the free buffer pool.
  * @param buffer pointer to buffer to release
  */
-void nmranet_buffer_free(const void *buffer)
+void nmranet_buffer_free(const void* buffer)
 {
-    Buffer *buf = BUFFER(buffer);
+    Buffer* buf = BUFFER(buffer);
     int index = 0;
 
-    switch (buf->size)
-    {
+    switch (buf->size) {
         default:
             /* big buffers are just freed */
             totalSize -= buf->size;
@@ -182,45 +167,45 @@ void nmranet_buffer_free(const void *buffer)
 }
 
 /** Advance the position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
-void *nmranet_buffer_advance(void *buffer, size_t bytes)
+void* nmranet_buffer_advance(void* buffer, size_t bytes)
 {
-    Buffer *buf = BUFFER(buffer);
-    buf->free -= bytes;    
+    Buffer* buf = BUFFER(buffer);
+    buf->free -= bytes;
     return &buf->data[buf->size - buf->free];
 }
 
 /** Get a pointer to the current position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return pointer to the current position (next available byte)
  */
-void *nmranet_buffer_position(const void *buffer)
+void* nmranet_buffer_position(const void* buffer)
 {
-    Buffer *buf = BUFFER(buffer);
+    Buffer* buf = BUFFER(buffer);
     return &buf->data[buf->size - buf->free];
 }
 
 /** Get the size of the buffer in bytes.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return size of the buffer in bytes
  */
-size_t nmranet_buffer_size(const void *buffer)
+size_t nmranet_buffer_size(const void* buffer)
 {
-    Buffer *buf = BUFFER(buffer);
+    Buffer* buf = BUFFER(buffer);
     return buf->size;
 }
 
 /** Get the number of unused bytes in the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return number of unused bytes
  */
-size_t nmranet_buffer_available(const void *buffer)
+size_t nmranet_buffer_available(const void* buffer)
 {
-    Buffer *buf = BUFFER(buffer);
-    return buf->free;    
+    Buffer* buf = BUFFER(buffer);
+    return buf->free;
 }
 
 /** Expand the buffer size.
@@ -228,11 +213,11 @@ size_t nmranet_buffer_available(const void *buffer)
  * @param size size buffer after expansion.
  * @return newly expanded buffer with old buffer data moved
  */
-void *nmranet_buffer_expand(void *buffer, size_t size)
+void* nmranet_buffer_expand(void* buffer, size_t size)
 {
-    Buffer *buf     = BUFFER(buffer);
-    Buffer *new_buf = BUFFER(nmranet_buffer_alloc(size));
-    
+    Buffer* buf = BUFFER(buffer);
+    Buffer* new_buf = BUFFER(nmranet_buffer_alloc(size));
+
     memcpy(new_buf->data, buf->data, buf->size - buf->free);
     new_buf->free = size + buf->free;
     nmranet_buffer_free(buf->data);
@@ -244,7 +229,7 @@ void *nmranet_buffer_expand(void *buffer, size_t size)
  */
 nmranet_queue_t nmranet_queue_create(void)
 {
-    Queue *q = malloc(sizeof(Queue));
+    Queue* q = malloc(sizeof(Queue));
 
     q->head = NULL;
     q->tail = NULL;
@@ -257,18 +242,15 @@ nmranet_queue_t nmranet_queue_create(void)
  * @param queue queue to add buffer to
  * @param buffer buffer to add to queue
  */
-void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer)
+void nmranet_queue_insert(nmranet_queue_t queue, const void* buffer)
 {
-    Queue *q = (Queue*)queue;
-    Buffer *buf = BUFFER(buffer);
+    Queue* q = (Queue*)queue;
+    Buffer* buf = BUFFER(buffer);
 
     os_mutex_lock(&mutex);
-    if (q->head == NULL)
-    {
+    if (q->head == NULL) {
         q->head = q->tail = buf;
-    }
-    else
-    {
+    } else {
         q->tail->next = buf;
         q->tail = buf;
     }
@@ -281,14 +263,13 @@ void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer)
  * @param queue queue get buffer from
  * @return buffer buffer retrieved from queue
  */
-void *nmranet_queue_next(nmranet_queue_t queue)
+void* nmranet_queue_next(nmranet_queue_t queue)
 {
-    Queue *q = (Queue*)queue;
-    Buffer *buf;
+    Queue* q = (Queue*)queue;
+    Buffer* buf;
 
     os_mutex_lock(&mutex);
-    if (q->head == NULL)
-    {
+    if (q->head == NULL) {
         os_mutex_unlock(&mutex);
         return NULL;
     }
@@ -306,8 +287,8 @@ void *nmranet_queue_next(nmranet_queue_t queue)
  */
 size_t nmranet_queue_pending(nmranet_queue_t queue)
 {
-    Queue *q = (Queue*)queue;
-    
+    Queue* q = (Queue*)queue;
+
     os_mutex_lock(&mutex);
     size_t result = q->count;
     os_mutex_unlock(&mutex);
@@ -321,8 +302,8 @@ size_t nmranet_queue_pending(nmranet_queue_t queue)
  */
 int nmranet_queue_empty(nmranet_queue_t queue)
 {
-    Queue *q = (Queue*)queue;
-    
+    Queue* q = (Queue*)queue;
+
     os_mutex_lock(&mutex);
     int result = (q->head == NULL);
     os_mutex_unlock(&mutex);

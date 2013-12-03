@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -41,7 +41,7 @@ extern "C" {
 struct can_frame;
 
 /** Parses a GridConnect packet.
-    
+
     @param s points to a character buffer that contains the packet. The leading
     ":" is already removed, the tailing ';' is replaced by a \0 char. All
     input characters should occur only once.
@@ -70,11 +70,11 @@ int gc_format_parse(const char* buf, struct can_frame* can_frame);
 
     @return the pointer to the buffer character after the formatted can frame.
 */
-char* gc_format_generate(const struct can_frame* can_frame, char* buf, int double_format);
+char* gc_format_generate(const struct can_frame* can_frame, char* buf,
+                         int double_format);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif // _gc_format_h_

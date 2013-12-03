@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -35,11 +35,11 @@
 #ifndef _Map_hxx_
 #define _Map_hxx_
 
-#if defined (__LINEAR_MAP__)
+#if defined(__LINEAR_MAP__)
 #include "utils/LinearMap.hxx"
 #define BASE_CLASS LinearMap
 
-#elif defined (__USE_LIBSTDCPP__)
+#elif defined(__USE_LIBSTDCPP__)
 #include "utils/StlMap.hxx"
 #define BASE_CLASS StlMap
 
@@ -60,24 +60,23 @@
  * undefine __USE_LIBSTDCPP__ and/or __LENEAR_MAP__ ahead of a
  * #include "utils/Map.hxx" to override any compiler flag settings.
  */
-template <typename Key, typename Value> class Map : public BASE_CLASS <Key, Value>
+template <typename Key, typename Value>
+class Map : public BASE_CLASS<Key, Value>
 {
 public:
     /** Default Constructor which with no mapping entry limit.
      */
-    Map()
-        : BASE_CLASS<Key, Value>()
+    Map() : BASE_CLASS<Key, Value>()
     {
     }
-    
+
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    Map(size_t entries)
-        : BASE_CLASS<Key, Value>(entries)
+    Map(size_t entries) : BASE_CLASS<Key, Value>(entries)
     {
     }
-    
+
     /** Destructor.
      */
     ~Map()

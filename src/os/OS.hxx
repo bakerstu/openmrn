@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,18 +52,20 @@ public:
      * @param start_routine entry point of the thread
      * @param arg entry parameter to the thread
      */
-    OSThread(const char *name, int priority, size_t stack_size,
-             void *(*start_routine)(void*), void *arg)
+    OSThread(const char* name, int priority, size_t stack_size,
+             void* (*start_routine)(void*), void* arg)
     {
-        os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
+        os_thread_create(&handle, name, priority, stack_size, start_routine,
+                         arg);
     }
 
-   /** Create a thread.  This constructor can be used when OSThread is inherited.
-     * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread
-     * @param stack_size size in bytes of the created thread's stack
-     */
-    OSThread(const char *name, int priority, size_t stack_size)
+    /** Create a thread.  This constructor can be used when OSThread is
+     * inherited.
+      * @param name name of thread, NULL for an auto generated name
+      * @param priority priority of created thread
+      * @param stack_size size in bytes of the created thread's stack
+      */
+    OSThread(const char* name, int priority, size_t stack_size)
     {
         os_thread_create(&handle, name, priority, stack_size, start, this);
     }
@@ -77,25 +79,25 @@ protected:
     /** User entry point for the created thread.
      * @return exit status
      */
-    virtual void *entry()
+    virtual void* entry()
     {
         return NULL;
     }
-    
+
 private:
     /** Starting point for a new thread.
      * @param arg pointer to an OSThread instance
      * @return exit status
      */
-    static void *start(void *arg)
+    static void* start(void* arg)
     {
-        OSThread *thread = (OSThread*)arg;
+        OSThread* thread = (OSThread*)arg;
         return thread->entry();
     }
 
     /** Default Constructor */
     OSThread();
-      
+
     DISALLOW_COPY_AND_ASSIGN(OSThread);
 
     /** Private thread handle. */
@@ -111,11 +113,10 @@ public:
      * @param routine method to call once
      */
     OSThreadOnce(void (*routine)(void))
-        : handle(OS_THREAD_ONCE_INIT),
-          routine(routine)
+        : handle(OS_THREAD_ONCE_INIT), routine(routine)
     {
     }
-    
+
     /** call one time intialization routine
      * @return 0 upon success
      */
@@ -134,7 +135,7 @@ private:
 
     /** Private once handle. */
     os_thread_once_t handle;
-    
+
     /** One time initialization routine */
     void (*routine)(void);
 };
@@ -154,7 +155,7 @@ public:
      * @param data1 data to pass along with callback
      * @param data2 data to pass along with callback
      */
-    OSTimer(long long (*callback)(void*, void*), void *data1, void *data2)
+    OSTimer(long long (*callback)(void*, void*), void* data1, void* data2)
     {
         handle = os_timer_create(callback, data1, data2);
     }
@@ -225,7 +226,8 @@ public:
     }
 
     /** Wait on (decrement) a semaphore with timeout condition.
-     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait
+     * forever
      * @return 0 upon success, else -1 with errno set to indicate error
      */
     int timedwait(long long timeout)
@@ -246,16 +248,14 @@ class OSMutex
 {
 public:
     /** Initialize a mutex.
-     * @param recursive false creates a normal mutex, true creates a recursive mutex
+     * @param recursive false creates a normal mutex, true creates a recursive
+     * mutex
      */
     OSMutex(bool recursive = false)
     {
-        if (recursive)
-        {
+        if (recursive) {
             os_recursive_mutex_init(&handle);
-        }
-        else
-        {
+        } else {
             os_mutex_init(&handle);
         }
     }
@@ -307,19 +307,17 @@ private:
  *   // ...at this point the mutex is unlocked...
  *   // ...more non-critical-section code here...
  * }
- * 
+ *
  */
 class OSMutexLock
 {
 public:
-    OSMutexLock(OSMutex* mutex)
-        : mutex_(&mutex->handle)
+    OSMutexLock(OSMutex* mutex) : mutex_(&mutex->handle)
     {
         os_mutex_lock(mutex_);
     }
 
-    OSMutexLock(os_mutex_t* mutex)
-        : mutex_(mutex)
+    OSMutexLock(os_mutex_t* mutex) : mutex_(mutex)
     {
         os_mutex_lock(mutex_);
     }
@@ -328,6 +326,7 @@ public:
     {
         os_mutex_unlock(mutex_);
     }
+
 private:
     DISALLOW_COPY_AND_ASSIGN(OSMutexLock);
 

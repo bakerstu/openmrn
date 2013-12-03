@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,71 +44,39 @@
 #include "serial.h"
 
 /* prototypes */
-static int stellaris_uart_init(devtab_t *dev);
-static void stellaris_uart_enable(devtab_t *dev);
-static void stellaris_uart_disable(devtab_t *dev);
-static void stellaris_uart_tx_char(devtab_t *dev);
+static int stellaris_uart_init(devtab_t* dev);
+static void stellaris_uart_enable(devtab_t* dev);
+static void stellaris_uart_disable(devtab_t* dev);
+static void stellaris_uart_tx_char(devtab_t* dev);
 
 /** Private data for this implementation of serial.
  */
 typedef struct stellaris_uart_priv
 {
-    SerialPriv serialPriv; /**< common private data */
-    unsigned long base; /**< base address of this device */
+    SerialPriv serialPriv;   /**< common private data */
+    unsigned long base;      /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    char txPending; /**< transmission currently pending */
+    char txPending;          /**< transmission currently pending */
 } StellarisUartPriv;
 
 /* private data for the serial device */
-static StellarisUartPriv uart_priv[8] =
-{
-    {
-        .base = UART0_BASE,
-        .interrupt = INT_UART0,
-        .txPending = 0
-    },
-    {
-        .base = UART1_BASE,
-        .interrupt = INT_UART1,
-        .txPending = 0
-    },
-    {
-        .base = UART2_BASE,
-        .interrupt = INT_UART2,
-        .txPending = 0
-    },
-    {
-        .base = UART3_BASE,
-        .interrupt = INT_UART3,
-        .txPending = 0
-    },
-    {
-        .base = UART4_BASE,
-        .interrupt = INT_UART4,
-        .txPending = 0
-    },
-    {
-        .base = UART5_BASE,
-        .interrupt = INT_UART5,
-        .txPending = 0
-    },
-    {
-        .base = UART6_BASE,
-        .interrupt = INT_UART6,
-        .txPending = 0
-    },
-    {
-        .base = UART7_BASE,
-        .interrupt = INT_UART7,
-        .txPending = 0
-    }
-};
+static StellarisUartPriv uart_priv[8]
+    = {{.base = UART0_BASE, .interrupt = INT_UART0, .txPending = 0},
+       {.base = UART1_BASE, .interrupt = INT_UART1, .txPending = 0},
+       {.base = UART2_BASE, .interrupt = INT_UART2, .txPending = 0},
+       {.base = UART3_BASE, .interrupt = INT_UART3, .txPending = 0},
+       {.base = UART4_BASE, .interrupt = INT_UART4, .txPending = 0},
+       {.base = UART5_BASE, .interrupt = INT_UART5, .txPending = 0},
+       {.base = UART6_BASE, .interrupt = INT_UART6, .txPending = 0},
+       {.base = UART7_BASE, .interrupt = INT_UART7, .txPending = 0}};
 
 /** Device table entry for serial device */
-static SERIAL_DEVTAB_ENTRY(uart0, "/dev/ser0", stellaris_uart_init, &uart_priv[0]);
+static SERIAL_DEVTAB_ENTRY(uart0, "/dev/ser0", stellaris_uart_init,
+                           &uart_priv[0]);
 
 /** Device table entry for serial device */
-static SERIAL_DEVTAB_ENTRY(uart1, "/dev/ser1", stellaris_uart_init, &uart_priv[1]);
+static SERIAL_DEVTAB_ENTRY(uart1, "/dev/ser1", stellaris_uart_init,
+                           &uart_priv[1]);
 
 #if 0
 /** Device table entry for serial device */
@@ -130,16 +98,15 @@ static SERIAL_DEVTAB_ENTRY(uart6, "/dev/ser6", stellaris_uart_init, &uart_priv[6
 static SERIAL_DEVTAB_ENTRY(uart7, "/dev/ser7", stellaris_uart_init, &uart_priv[7]);
 #endif
 
-/** intitailize the device 
+/** intitailize the device
  * @parem dev device to initialize
  * @return 0 upon success
  */
-static int stellaris_uart_init(devtab_t *dev)
+static int stellaris_uart_init(devtab_t* dev)
 {
-    StellarisUartPriv *priv = dev->priv;
-    
-    switch (priv->base)
-    {
+    StellarisUartPriv* priv = dev->priv;
+
+    switch (priv->base) {
         default:
             return -1;
         case UART0_BASE:
@@ -167,52 +134,52 @@ static int stellaris_uart_init(devtab_t *dev)
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART7);
             break;
     }
-    
+
     MAP_UARTConfigSetExpClk(priv->base, MAP_SysCtlClockGet(), 115200,
-                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
+                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE
+                            | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(priv->base);
     MAP_UARTTxIntModeSet(priv->base, UART_TXINT_MODE_EOT);
     MAP_IntEnable(priv->interrupt);
     MAP_UARTIntEnable(priv->base, UART_INT_RX | UART_INT_RT);
-    
+
     priv->serialPriv.enable = stellaris_uart_enable;
     priv->serialPriv.disable = stellaris_uart_disable;
     priv->serialPriv.tx_char = stellaris_uart_tx_char;
-    
+
     return serial_init(dev);
 }
 
 /** Enable use of the device.
  * @param dev device to enable
  */
-static void stellaris_uart_enable(devtab_t *dev)
+static void stellaris_uart_enable(devtab_t* dev)
 {
-    StellarisUartPriv *priv = dev->priv;
+    StellarisUartPriv* priv = dev->priv;
     MAP_UARTEnable(priv->base);
 }
 
 /** Disable use of the device.
  * @param dev device to disable
  */
-static void stellaris_uart_disable(devtab_t *dev)
+static void stellaris_uart_disable(devtab_t* dev)
 {
-    StellarisUartPriv *priv = dev->priv;
+    StellarisUartPriv* priv = dev->priv;
     MAP_UARTDisable(priv->base);
 }
 
 /* Try and transmit a message.
  * @param dev device to transmit message on
  */
-static void stellaris_uart_tx_char(devtab_t *dev)
+static void stellaris_uart_tx_char(devtab_t* dev)
 {
-    StellarisUartPriv *priv = dev->priv;
-    
-    if (priv->txPending == 0)
-    {
+    StellarisUartPriv* priv = dev->priv;
+
+    if (priv->txPending == 0) {
         unsigned char data;
-        if (MAP_UARTSpaceAvail(priv->base) &&
-            os_mq_timedreceive(priv->serialPriv.txQ, &data, 0) == OS_MQ_NONE)
-        {
+        if (MAP_UARTSpaceAvail(priv->base)
+            && os_mq_timedreceive(priv->serialPriv.txQ, &data, 0)
+               == OS_MQ_NONE) {
             MAP_IntDisable(priv->interrupt);
             priv->txPending = 1;
             MAP_UARTCharPutNonBlocking(priv->base, data);
@@ -225,41 +192,34 @@ static void stellaris_uart_tx_char(devtab_t *dev)
 /** Common interrupt handler for all UART devices.
  * @param dev device to handle and interrupt for
  */
-void uart_interrupt_handler(devtab_t *dev)
+void uart_interrupt_handler(devtab_t* dev)
 {
-    StellarisUartPriv *priv = dev->priv;
+    StellarisUartPriv* priv = dev->priv;
     int woken = false;
-    
+
     /* get and clear the interrupt status */
-    unsigned long status = MAP_UARTIntStatus(priv->base, true);    
+    unsigned long status = MAP_UARTIntStatus(priv->base, true);
     MAP_UARTIntClear(priv->base, status);
-    
 
     /* receive charaters as long as we can */
-    while (MAP_UARTCharsAvail(priv->base))
-    {
+    while (MAP_UARTCharsAvail(priv->base)) {
         long data = MAP_UARTCharGetNonBlocking(priv->base);
-        if (data >= 0)
-        {
+        if (data >= 0) {
             unsigned char c = data;
-            if (os_mq_send_from_isr(priv->serialPriv.rxQ, &c, &woken) == OS_MQ_FULL)
-            {
+            if (os_mq_send_from_isr(priv->serialPriv.rxQ, &c, &woken)
+                == OS_MQ_FULL) {
                 priv->serialPriv.overrunCount++;
             }
         }
     }
     /* tranmit a character if we have pending tx data */
-    if (priv->txPending)
-    {
-        if (MAP_UARTSpaceAvail(priv->base))
-        {
+    if (priv->txPending) {
+        if (MAP_UARTSpaceAvail(priv->base)) {
             unsigned char data;
-            if (os_mq_receive_from_isr(priv->serialPriv.txQ, &data, &woken) == OS_MQ_NONE)
-            {
+            if (os_mq_receive_from_isr(priv->serialPriv.txQ, &data, &woken)
+                == OS_MQ_NONE) {
                 MAP_UARTCharPutNonBlocking(priv->base, data);
-            }
-            else
-            {
+            } else {
                 /* no more data pending */
                 priv->txPending = 0;
                 MAP_UARTIntDisable(priv->base, UART_INT_TX);

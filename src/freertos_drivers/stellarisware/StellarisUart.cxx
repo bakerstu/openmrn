@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,21 +44,17 @@
 #include "StellarisDev.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
-static StellarisUart *instances[8] = {NULL};
+static StellarisUart* instances[8] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
  */
-StellarisUart::StellarisUart(const char *name, unsigned long base)
-    : Serial(name),
-      base(base),
-      interrupt(0),
-      txPending(false)
+StellarisUart::StellarisUart(const char* name, unsigned long base)
+    : Serial(name), base(base), interrupt(0), txPending(false)
 {
-    
-    switch (base)
-    {
+
+    switch (base) {
         default:
             HASSERT(0);
         case UART0_BASE:
@@ -102,9 +98,10 @@ StellarisUart::StellarisUart(const char *name, unsigned long base)
             instances[7] = this;
             break;
     }
-    
+
     MAP_UARTConfigSetExpClk(base, MAP_SysCtlClockGet(), 115200,
-                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
+                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE
+                            | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
     MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
     MAP_IntEnable(interrupt);
@@ -132,12 +129,10 @@ void StellarisUart::disable()
  */
 void StellarisUart::tx_char()
 {
-    if (txPending == false)
-    {
+    if (txPending == false) {
         unsigned char data;
-        if (MAP_UARTSpaceAvail(base) &&
-            os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
-        {
+        if (MAP_UARTSpaceAvail(base) && os_mq_timedreceive(txQ, &data, 0)
+                                        == OS_MQ_NONE) {
             MAP_IntDisable(interrupt);
             txPending = true;
             MAP_UARTCharPutNonBlocking(base, data);
@@ -152,34 +147,26 @@ void StellarisUart::interrupt_handler()
 {
     int woken = false;
     /* get and clear the interrupt status */
-    unsigned long status = MAP_UARTIntStatus(base, true);    
+    unsigned long status = MAP_UARTIntStatus(base, true);
     MAP_UARTIntClear(base, status);
 
     /* receive charaters as long as we can */
-    while (MAP_UARTCharsAvail(base))
-    {
+    while (MAP_UARTCharsAvail(base)) {
         long data = MAP_UARTCharGetNonBlocking(base);
-        if (data >= 0)
-        {
+        if (data >= 0) {
             unsigned char c = data;
-            if (os_mq_send_from_isr(rxQ, &c, &woken) == OS_MQ_FULL)
-            {
+            if (os_mq_send_from_isr(rxQ, &c, &woken) == OS_MQ_FULL) {
                 overrunCount++;
             }
         }
     }
     /* tranmit a character if we have pending tx data */
-    if (txPending)
-    {
-        if (MAP_UARTSpaceAvail(base))
-        {
+    if (txPending) {
+        if (MAP_UARTSpaceAvail(base)) {
             unsigned char data;
-            if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE)
-            {
+            if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE) {
                 MAP_UARTCharPutNonBlocking(base, data);
-            }
-            else
-            {
+            } else {
                 /* no more data pending */
                 txPending = false;
                 MAP_UARTIntDisable(base, UART_INT_TX);
@@ -193,8 +180,7 @@ void StellarisUart::interrupt_handler()
  */
 void uart0_interrupt_handler(void)
 {
-    if (instances[0])
-    {
+    if (instances[0]) {
         instances[0]->interrupt_handler();
     }
 }
@@ -203,8 +189,7 @@ void uart0_interrupt_handler(void)
  */
 void uart1_interrupt_handler(void)
 {
-    if (instances[1])
-    {
+    if (instances[1]) {
         instances[1]->interrupt_handler();
     }
 }
@@ -213,8 +198,7 @@ void uart1_interrupt_handler(void)
  */
 void uart2_interrupt_handler(void)
 {
-    if (instances[2])
-    {
+    if (instances[2]) {
         instances[2]->interrupt_handler();
     }
 }
@@ -223,8 +207,7 @@ void uart2_interrupt_handler(void)
  */
 void uart3_interrupt_handler(void)
 {
-    if (instances[3])
-    {
+    if (instances[3]) {
         instances[3]->interrupt_handler();
     }
 }
@@ -232,8 +215,7 @@ void uart3_interrupt_handler(void)
  */
 void uart4_interrupt_handler(void)
 {
-    if (instances[4])
-    {
+    if (instances[4]) {
         instances[4]->interrupt_handler();
     }
 }
@@ -242,8 +224,7 @@ void uart4_interrupt_handler(void)
  */
 void uart5_interrupt_handler(void)
 {
-    if (instances[5])
-    {
+    if (instances[5]) {
         instances[5]->interrupt_handler();
     }
 }
@@ -252,8 +233,7 @@ void uart5_interrupt_handler(void)
  */
 void uart6_interrupt_handler(void)
 {
-    if (instances[6])
-    {
+    if (instances[6]) {
         instances[6]->interrupt_handler();
     }
 }
@@ -262,9 +242,7 @@ void uart6_interrupt_handler(void)
  */
 void uart7_interrupt_handler(void)
 {
-    if (instances[7])
-    {
+    if (instances[7]) {
         instances[7]->interrupt_handler();
     }
 }
-

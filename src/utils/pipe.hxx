@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -55,7 +55,7 @@ class PipeMember;
 
    Data sent by any endpoint will be received by all other endpoints. A special
    case of this (for two endpoints) is a regular pipe.
-   
+
    Use-cases:
 
    1) A software interface can export a hardware device (with a device node
@@ -65,7 +65,7 @@ class PipeMember;
    debugging output and export that stream as a device that can be opened as fd
    1 and 2 (stdout and stderr). This won't need any device drivers to be
    written.
-   
+
 
    2) Creating multiple virtual CANbus adapters that send and receive traffic
    from the same physical bus, as if there were multiple physical adapters
@@ -94,7 +94,7 @@ class PipeMember;
    separate CANbus sniffer.
 
 
-   3) A CANbus 'hub'. 
+   3) A CANbus 'hub'.
 
    It is possible to add multiple physical devices to the same Pipe, which is a
    software-equivalent of connecting the wires together. All packets coming in
@@ -116,7 +116,7 @@ class PipeMember;
    VIRTUAL_DEVTAB_ENTRY(canp0v1, can_pipe0, "/dev/canp0v1", 16);
 
    in main.cxx
-   
+
    DECLARE_PIPE(can_pipe0);
 
    int appl_main(int argc, char *argv[]) {
@@ -124,13 +124,14 @@ class PipeMember;
      can_pipe0.AddPhysicalDeviceToPipe("/dev/can1", "can1_rx_thread", 512);
      int fd = open("/dev/canp0v0", O_RDWR);
      PacketLogger::init(fd);
-     nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/canp0v1", read, write);
+     nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/canp0v1", read,
+   write);
      ...regular code...
    }
  */
 class Pipe
 {
-public:    
+public:
     Pipe(size_t unit);
     ~Pipe();
 
@@ -172,8 +173,7 @@ public:
         @param stack_size will be the size of the RX thread stack.
      */
     void AddPhysicalDeviceToPipe(int fd_read, int fd_write,
-                                 const char* thread_name,
-                                 int stack_size);
+                                 const char* thread_name, int stack_size);
 
 #ifdef __linux__
     /** Adds a virtual device to the pipe. The virtual device is represented
@@ -186,8 +186,7 @@ public:
      * @param fd[2] is an output argument, fd[0] can be read to get data from
      * the pipe, fd[1] can be written to to send data to the pipe.
      */
-    void AddVirtualDeviceToPipe(const char* thread_name,
-                                int stack_size,
+    void AddVirtualDeviceToPipe(const char* thread_name, int stack_size,
                                 int fd[2]);
 #endif
 
@@ -200,11 +199,13 @@ public:
     {
         return members_.size();
     }
+
 private:
     //! The size (in bytes) of each read and write command. Only reads and
     //! writes in multiples of this unit are valid.
     size_t unit_;
-    //! The individual receivers of data coming through the pipe. Members are externally owned.
+    //! The individual receivers of data coming through the pipe. Members are
+    //externally owned.
     vector<PipeMember*> members_;
 };
 
@@ -261,20 +262,21 @@ public:
     //! Class containing static methods for pipe fd operations.
     class Ops;
     friend class Ops;
+
 private:
     void Initialize();
 
     Pipe* parent_;
-    OSMutex lock_;  //< Mutex for metadata in this class.
+    OSMutex lock_;       //< Mutex for metadata in this class.
     OSMutex read_lock_;  //< Mutex for pipe_read() commands.
-    OSMutex write_lock_;  //< Mutex for incoming write() (from the parent).
-    os_mq_t read_queue_;  //< TX queue (from parent_ till fd read())
-    int queue_length_;  //< length of TX queue (parent->unit() bytes each)
-    int usage_count_;  //< Number of open file descriptors.
+    OSMutex write_lock_; //< Mutex for incoming write() (from the parent).
+    os_mq_t read_queue_; //< TX queue (from parent_ till fd read())
+    int queue_length_;   //< length of TX queue (parent->unit() bytes each)
+    int usage_count_;    //< Number of open file descriptors.
 };
 
 extern devops_t vdev_ops;
-int vdev_init(devtab_t *dev);
+int vdev_init(devtab_t* dev);
 
 /** Defines a pipe to forward data between real and virtual devices.
 
@@ -289,9 +291,9 @@ int vdev_init(devtab_t *dev);
  */
 #define DEFINE_PIPE(name, unit) Pipe name(unit)
 
-//! Use this if you need to refer to a pipe that was defined in a different compilation unit.
+//! Use this if you need to refer to a pipe that was defined in a different
+//compilation unit.
 #define DECLARE_PIPE(name) extern Pipe name
-
 
 /** Adds a virtual device entry to a particular pipe.
 
@@ -307,9 +309,9 @@ int vdev_init(devtab_t *dev);
     @param qlen is the length of the receive buffer for this virtual device,
     measured in 'pipe unit' bytes.
 */
-#define VIRTUAL_DEVTAB_ENTRY(name, pipe, path, qlen) \
-    extern Pipe pipe; \
-    VirtualPipeMember name(&pipe, qlen); \
-    DEVTAB_ENTRY(name ## devtab, path, vdev_init, &vdev_ops, &name)
+#define VIRTUAL_DEVTAB_ENTRY(name, pipe, path, qlen)                           \
+    extern Pipe pipe;                                                          \
+    VirtualPipeMember name(&pipe, qlen);                                       \
+    DEVTAB_ENTRY(name##devtab, path, vdev_init, &vdev_ops, &name)
 
 #endif //_pipe_hxx_

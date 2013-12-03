@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,7 +34,7 @@
 #ifndef _stropts_h_
 #define _stropts_h_
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -60,7 +60,7 @@ int ioctl(int fd, unsigned long int key, ...);
  * @param _num ioctl index number
  * @param _size size of ioctl data in bytes
  */
-#define IOC(_dir, _type, _num, _size) \
+#define IOC(_dir, _type, _num, _size)                                          \
     (((_dir) << 30) | ((_type) << 8) | ((_num)) | ((_size) << 16))
 
 /** create an operation ioctl
@@ -88,7 +88,8 @@ int ioctl(int fd, unsigned long int key, ...);
  * @param _num ioctl index number
  * @param _size size of ioctl data in bytes
  */
-#define IOWR(_type, _num, _size) IOC(IOC_WRITE | IOC_READ, (_type), (_num), (_size))
+#define IOWR(_type, _num, _size)                                               \
+    IOC(IOC_WRITE | IOC_READ, (_type), (_num), (_size))
 
 /** Decode ioctl number direction.
  * @param _num encoded ioctl value
@@ -114,7 +115,7 @@ int ioctl(int fd, unsigned long int key, ...);
  */
 #define IOC_SIZE(_num) (((_num) >> 16) & 0x00003FFF)
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 }
 #endif
 

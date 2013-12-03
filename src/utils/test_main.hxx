@@ -48,18 +48,19 @@
 #include "utils/pipe.hxx"
 #include "nmranet_can.h"
 
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleMock(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 
 DEFINE_PIPE(can_pipe0, sizeof(struct can_frame));
 
 extern "C" {
 
-const char *nmranet_manufacturer = "Stuart W. Baker";
-const char *nmranet_hardware_rev = "N/A";
-const char *nmranet_software_rev = "0.1";
+const char* nmranet_manufacturer = "Stuart W. Baker";
+const char* nmranet_hardware_rev = "N/A";
+const char* nmranet_software_rev = "0.1";
 
 const size_t main_stack_size = 2560;
 const size_t ALIAS_POOL_SIZE = 2;
@@ -74,7 +75,6 @@ const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 1024;
 const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
-
 }
 
 #endif // _UTILS_TEST_MAIN_HXX_

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -65,8 +65,9 @@ public:
      * @param context context pointer to pass to remove_callback
      */
     AliasCache(NodeID seed, size_t entries,
-               void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
-               void *context = NULL)
+               void (*remove_callback)(NodeID id, NodeAlias alias, void*)
+               = NULL,
+               void* context = NULL)
         : freeList(NULL),
           aliasMap(entries),
           idMap(entries),
@@ -77,10 +78,9 @@ public:
           context(context)
     {
         /* create our metadata pool and initialize the freeList */
-        Metadata *metadata = new Metadata[entries];
+        Metadata* metadata = new Metadata[entries];
 
-        for (size_t i = 0; i < entries; ++i)
-        {
+        for (size_t i = 0; i < entries; ++i) {
             metadata[i].prev = NULL;
             metadata[i].next = freeList;
             freeList = metadata + i;
@@ -92,7 +92,7 @@ public:
      * @param alias 12-bit alias associated with Node ID
      */
     void add(NodeID id, NodeAlias alias);
-    
+
     /** Remove an alias from an alias cache.
      * @param alias 12-bit alias associated with Node ID
      */
@@ -114,7 +114,7 @@ public:
      * @param callback method to call
      * @param context context pointer to pass to callback
      */
-    void for_each(void (*callback)(void*, NodeID, NodeAlias), void *context);
+    void for_each(void (*callback)(void*, NodeID, NodeAlias), void* context);
 
     /** Generate a 12-bit pseudo-random alias for a givin alias cache.
      * @return pseudo-random 12-bit alias, an alias of zero is invalid
@@ -127,10 +127,9 @@ public:
         /* we should never get here */
         HASSERT(0);
     }
-    
+
 private:
-    enum
-    {
+    enum {
         /** marks an unused mapping */
         UNUSED_MASK = 0x10000000
     };
@@ -138,50 +137,50 @@ private:
     /** Interesting information about a given cache entry. */
     struct Metadata
     {
-        NodeID id; /**< 48-bit NMRAnet Node ID */
-        NodeAlias alias; /**< NMRAnet alias */
+        NodeID id;           /**< 48-bit NMRAnet Node ID */
+        NodeAlias alias;     /**< NMRAnet alias */
         long long timestamp; /**< time stamp of last usage */
         union
         {
-            Metadata *prev; /**< unused */
-            Metadata *newer; /**< pointer to the next newest entry */
+            Metadata* prev;  /**< unused */
+            Metadata* newer; /**< pointer to the next newest entry */
         };
         union
         {
-            Metadata *next; /**< pointer to next freeList entry */
-            Metadata *older; /**< pointer to the next oldest entry */
+            Metadata* next;  /**< pointer to next freeList entry */
+            Metadata* older; /**< pointer to the next oldest entry */
         };
     };
 
     /** list of unused mapping entries */
-    Metadata *freeList;
-    
+    Metadata* freeList;
+
     /** Short hand for the alias Map type */
-    typedef Map <NodeAlias, Metadata*> AliasMap;
-    
+    typedef Map<NodeAlias, Metadata*> AliasMap;
+
     /** Short hand for the ID Map type */
-    typedef Map <NodeID, Metadata*> IdMap;
+    typedef Map<NodeID, Metadata*> IdMap;
 
     /** Map of alias to corresponding Metadata */
     AliasMap aliasMap;
-    
+
     /** Map of Node ID to corresponding Metadata */
     IdMap idMap;
-    
+
     /** oldest untouched entry */
-    Metadata *oldest;
-    
+    Metadata* oldest;
+
     /** newest, most recently touched entry */
-    Metadata *newest;
+    Metadata* newest;
 
     /** Seed for the generation of the next alias */
     NodeID seed;
-    
+
     /** callback function to be used when we remove an entry from the cache */
-    void (*removeCallback)(NodeID id, NodeAlias alias, void *);
-    
+    void (*removeCallback)(NodeID id, NodeAlias alias, void*);
+
     /** context pointer to pass in with remove_callback */
-    void *context;
+    void* context;
 
     /** Update the time stamp for a given entry.
      * @param  metadata metadata associated with the entry
@@ -190,14 +189,11 @@ private:
     {
         metadata->timestamp = OSTime::get_monotonic();
 
-        if (metadata != newest)
-        {
-            if (metadata->newer)
-            {
+        if (metadata != newest) {
+            if (metadata->newer) {
                 metadata->newer->older = metadata->older;
             }
-            if (metadata->older)
-            {
+            if (metadata->older) {
                 metadata->older->newer = metadata->newer;
             }
             metadata->newer = NULL;

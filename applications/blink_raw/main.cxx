@@ -47,8 +47,7 @@ const int main_priority = 0;
 #include <p32xxxx.h>
 #include "peripheral/ports.h"
 
-//DEFINE_PIPE(gc_can_pipe, 1);
-
+// DEFINE_PIPE(gc_can_pipe, 1);
 
 /*void NewConnection(int fd) {
   char thread_name[30];
@@ -61,16 +60,16 @@ const int main_priority = 0;
  * @param argv array of command line arguments
  * @return 0, should never return
  */
-int appl_main(int argc, char *argv[])
+int appl_main(int argc, char* argv[])
 {
-  mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
-  mPORTBToggleBits(BIT_12  );
+    mPORTBSetPinsDigitalOut(BIT_12 | BIT_15);
+    mPORTBToggleBits(BIT_12);
 
-  //SocketListener listener(8082, NewConnection);
-  while(1) {
-    //sleep(1);
-    mPORTBToggleBits(BIT_12 | BIT_15  );
-    usleep(500000);
-  }
-  return 0;
+    // SocketListener listener(8082, NewConnection);
+    while (1) {
+        // sleep(1);
+        mPORTBToggleBits(BIT_12 | BIT_15);
+        usleep(500000);
+    }
+    return 0;
 }

@@ -41,24 +41,27 @@
 #include "utils/socket_listener.hxx"
 #include "nmranet_can.h"
 
-//DEFINE_PIPE(gc_can_pipe, 1);
+// DEFINE_PIPE(gc_can_pipe, 1);
 
 DEFINE_PIPE(can_pipe, sizeof(struct can_frame));
 
-struct ClientInfo {
-  int fd;
-  char thread_name[30];
-  Pipe* client_pipe;
-  GCAdapterBase* bridge;
+struct ClientInfo
+{
+    int fd;
+    char thread_name[30];
+    Pipe* client_pipe;
+    GCAdapterBase* bridge;
 };
 
-void NewConnection(int fd) {
-  ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
-  sprintf(c->thread_name, "thread_fd_%d", fd);
-  c->fd = fd;
-  c->client_pipe = new Pipe(1);
-  c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
-  c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
+void NewConnection(int fd)
+{
+    ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
+    sprintf(c->thread_name, "thread_fd_%d", fd);
+    c->fd = fd;
+    c->client_pipe = new Pipe(1);
+    c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
+    c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe,
+                                                        &can_pipe, false);
 }
 
 /** Entry point to application.
@@ -66,11 +69,11 @@ void NewConnection(int fd) {
  * @param argv array of command line arguments
  * @return 0, should never return
  */
-int appl_main(int argc, char *argv[])
+int appl_main(int argc, char* argv[])
 {
-  SocketListener listener(8082, NewConnection);
-  while(1) {
-    sleep(1);
-  }
-  return 0;
+    SocketListener listener(8082, NewConnection);
+    while (1) {
+        sleep(1);
+    }
+    return 0;
 }

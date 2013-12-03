@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -32,20 +32,20 @@
  * @date 29 April 2013
  */
 
-
 #ifdef TARGET_LPC11Cxx
 
 #include "11CXX_rom_driver_CAN.h"
 #include "can.h"
 
-typedef	struct _ROM {
-   const unsigned p_usbd;
-   const unsigned p_clib;
-   const CAND *pCAND;
+typedef struct _ROM
+{
+    const unsigned p_usbd;
+    const unsigned p_clib;
+    const CAND* pCAND;
 } ROM;
 
 /** Pointer to the ROM call structures. */
-ROM **rom = (ROM **)0x1fff1ff8;
+ROM** rom = (ROM**)0x1fff1ff8;
 
 static const int RX_MSG_OBJ_NUM = 1;
 static const int TX_MSG_OBJ_NUM = 2;
@@ -54,65 +54,51 @@ static const int TX_MSG_OBJ_NUM = 2;
 typedef struct lpc11crom_can_priv
 {
     CanPriv canPriv; /**< common private data */
-    char txPending; /**< transmission currently pending */
+    char txPending;  /**< transmission currently pending */
 } LPC11CRomCanPriv;
 
 /** private data for the can device */
-static LPC11CRomCanPriv can_private[1] =
-{
-    {
-        .txPending = 0
-    }
-};
+static LPC11CRomCanPriv can_private[1] = {{.txPending = 0}};
 
-/** Overrides the system's weak interrupt handler and calls the builtin ROM interrupt handler. */
-void CAN_IRQHandler (void){
-  (*rom)->pCAND->isr();
+/** Overrides the system's weak interrupt handler and calls the builtin ROM
+ * interrupt handler. */
+void CAN_IRQHandler(void)
+{
+    (*rom)->pCAND->isr();
 }
 
-static int lpc11crom_can_init(devtab_t *dev);
-static void ignore_dev_function(devtab_t *dev);
-static void lpc11crom_can_tx_msg(devtab_t *dev);
+static int lpc11crom_can_init(devtab_t* dev);
+static void ignore_dev_function(devtab_t* dev);
+static void lpc11crom_can_tx_msg(devtab_t* dev);
 
 static void CAN_rx(uint8_t msg_obj_num);
 static void CAN_tx(uint8_t msg_obj_num);
 static void CAN_error(uint32_t error_info);
 
 /** Function pointer table to pass to the ROM drivers with callbacks. */
-static const CAN_CALLBACKS callbacks = {
-   CAN_rx,
-   CAN_tx,
-   CAN_error,
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-   NULL,
-};
-
+static const CAN_CALLBACKS callbacks
+    = {CAN_rx, CAN_tx, CAN_error, NULL, NULL, NULL, NULL, NULL, };
 
 /**  Clock initialization constants for 125 kbaud */
-const uint32_t ClkInitTable125[2] = {
-    0x00000000UL, // CANCLKDIV
-    0x00001C57UL  // CAN_BTR
+const uint32_t ClkInitTable125[2] = {0x00000000UL, // CANCLKDIV
+                                     0x00001C57UL  // CAN_BTR
 };
 
 /**  Clock initialization constants for 250 kbaud */
-static const uint32_t ClkInitTable250[2] = {
-    0x00000000UL, // CANCLKDIV
-    0x00001C4BUL  // CAN_BTR
+static const uint32_t ClkInitTable250[2] = {0x00000000UL, // CANCLKDIV
+                                            0x00001C4BUL  // CAN_BTR
 };
 
-/** initialize the device 
+/** initialize the device
  * @param dev device to initialize
  * @return 0 upon success
  */
-static int lpc11crom_can_init(devtab_t *dev)
+static int lpc11crom_can_init(devtab_t* dev)
 {
     /* Initialize the CAN controller */
-    (*rom)->pCAND->init_can((uint32_t*) &ClkInitTable250[0], 1);
+    (*rom)->pCAND->init_can((uint32_t*)&ClkInitTable250[0], 1);
     /* Configure the CAN callback functions */
-    (*rom)->pCAND->config_calb((CAN_CALLBACKS*) &callbacks);
+    (*rom)->pCAND->config_calb((CAN_CALLBACKS*)&callbacks);
 
     /* Enable the CAN Interrupt */
     NVIC_EnableIRQ(CAN_IRQn);
@@ -125,7 +111,7 @@ static int lpc11crom_can_init(devtab_t *dev)
     msg_obj.dlc = 0x000;
     (*rom)->pCAND->config_rxmsgobj(&msg_obj);
 
-    LPC11CRomCanPriv *priv = (LPC11CRomCanPriv*)dev->priv;
+    LPC11CRomCanPriv* priv = (LPC11CRomCanPriv*)dev->priv;
     priv->canPriv.enable = ignore_dev_function;
     priv->canPriv.disable = ignore_dev_function;
     priv->canPriv.tx_msg = lpc11crom_can_tx_msg;
@@ -135,17 +121,19 @@ static int lpc11crom_can_init(devtab_t *dev)
 /** Empty device function. Does nothing.
  * @param dev device
  */
-static void ignore_dev_function(devtab_t *dev) {}
+static void ignore_dev_function(devtab_t* dev)
+{
+}
 
-static void send_frame(struct can_frame *can_frame)
+static void send_frame(struct can_frame* can_frame)
 {
     CAN_MSG_OBJ msg_obj;
-    msg_obj.msgobj  = TX_MSG_OBJ_NUM;
-    msg_obj.mode_id = can_frame->can_id |
-        (can_frame->can_rtr ? CAN_MSGOBJ_RTR : 0) |
-        (can_frame->can_eff ? CAN_MSGOBJ_EXT : 0);
-    msg_obj.mask    = 0x0;
-    msg_obj.dlc     = can_frame->can_dlc;
+    msg_obj.msgobj = TX_MSG_OBJ_NUM;
+    msg_obj.mode_id = can_frame->can_id
+                      | (can_frame->can_rtr ? CAN_MSGOBJ_RTR : 0)
+                      | (can_frame->can_eff ? CAN_MSGOBJ_EXT : 0);
+    msg_obj.mask = 0x0;
+    msg_obj.dlc = can_frame->can_dlc;
     memcpy(msg_obj.data, can_frame->data, can_frame->can_dlc);
     (*rom)->pCAND->can_transmit(&msg_obj);
 }
@@ -154,15 +142,14 @@ static void send_frame(struct can_frame *can_frame)
  *  or no write buffers to transmit via.
  * @param dev device to transmit message on
  */
-static void lpc11crom_can_tx_msg(devtab_t *dev)
+static void lpc11crom_can_tx_msg(devtab_t* dev)
 {
-    LPC11CRomCanPriv *priv = (LPC11CRomCanPriv*)dev->priv;
+    LPC11CRomCanPriv* priv = (LPC11CRomCanPriv*)dev->priv;
     if (priv->txPending) return;
 
     struct can_frame can_frame;
     taskENTER_CRITICAL();
-    if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
-    {
+    if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE) {
         return;
     }
     priv->txPending = 1;
@@ -183,7 +170,7 @@ void CAN_rx(uint8_t msg_obj_num)
     (*rom)->pCAND->can_receive(&msg_obj);
 
     struct can_frame can_frame;
-    can_frame.can_id = msg_obj.mode_id & ((1<<30) - 1);
+    can_frame.can_id = msg_obj.mode_id & ((1 << 30) - 1);
     can_frame.can_rtr = (msg_obj.mode_id & CAN_MSGOBJ_RTR) ? 1 : 0;
     can_frame.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 1 : 0;
     can_frame.can_err = 0;
@@ -191,35 +178,32 @@ void CAN_rx(uint8_t msg_obj_num)
     memcpy(can_frame.data, msg_obj.data, msg_obj.dlc);
     int woken = 0;
     if (os_mq_send_from_isr(can_private[0].canPriv.rxQ, &can_frame, &woken)
-        == OS_MQ_FULL)
-    {
+        == OS_MQ_FULL) {
         can_private[0].canPriv.overrunCount++;
     }
-    if (woken)
-    {
-      portYIELD();
+    if (woken) {
+        portYIELD();
     }
 }
 
 /** CAN transmit callback. Called by the ROM can driver in an ISR context.
     @param msg_obj_num the number of CAN buffer that finished transmission.
 */
-void CAN_tx(uint8_t msg_obj_num){
+void CAN_tx(uint8_t msg_obj_num)
+{
     // If we don't know the msg object number, let's not do anything.
     if (msg_obj_num != TX_MSG_OBJ_NUM) return;
     struct can_frame can_frame;
     int woken = 0;
     if (os_mq_receive_from_isr(can_private[0].canPriv.txQ, &can_frame, &woken)
-        != OS_MQ_NONE)
-    {
+        != OS_MQ_NONE) {
         can_private[0].txPending = 0;
         return;
     }
     send_frame(&can_frame);
 
-    if (woken)
-    {
-      portYIELD();
+    if (woken) {
+        portYIELD();
     }
 }
 

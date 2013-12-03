@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -39,80 +39,89 @@
 
 class Queue;
 
-class QueueMember {
+class QueueMember
+{
 public:
-  QueueMember()
-    : next_(NULL) {}
+    QueueMember() : next_(NULL)
+    {
+    }
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(QueueMember);
-  friend class Queue;
-  QueueMember* next_;
+    DISALLOW_COPY_AND_ASSIGN(QueueMember);
+    friend class Queue;
+    QueueMember* next_;
 };
 
-class Queue : private QueueMember {
+class Queue : private QueueMember
+{
 public:
-  Queue()
-    : tail_(this) {}
-
-  //! Returns true if the queue has no elements.
-  bool empty() {
-    return next_ == NULL;
-  }
-
-  //! Adds an entry to the end of the queue. Not thread-safe (caller has to
-  //! lock).
-  void Push(QueueMember* entry) {
-    HASSERT(entry);
-    HASSERT(entry->next_ == NULL);
-    HASSERT(entry != tail_);
-    HASSERT(tail_->next_ == NULL);
-    tail_->next_ = entry;
-    tail_ = entry;
-  }
-
-  //! Adds an entry to the front of the queue. Not thread-safe (caller has to
-  //! lock).
-  void PushFront(QueueMember* entry) {
-    if (empty()) {
-      Push(entry);
-    } else {
-      HASSERT(entry);
-      HASSERT(entry->next_ == NULL);
-      HASSERT(entry != tail_);
-      HASSERT(tail_->next_ == NULL);
-      entry->next_ = next_;
-      next_ = entry;
+    Queue() : tail_(this)
+    {
     }
-  }
 
-  bool IsMaybePending(QueueMember* entry) {
-    return ((entry->next_ != NULL) ||
-            (entry == tail_));
-  }
-
-  void PushIfNotMember(QueueMember* entry) {
-    HASSERT(entry);
-    HASSERT(tail_->next_ == NULL);
-    if (IsMaybePending(entry)) return;
-    tail_->next_ = entry;
-    tail_ = entry;
-  }
-
-  QueueMember* Pop() {
-    QueueMember* ret = next_;
-    if (ret) {
-      next_ = ret->next_;
-      if (!next_) tail_ = this;
-      ret->next_ = NULL;
+    //! Returns true if the queue has no elements.
+    bool empty()
+    {
+        return next_ == NULL;
     }
-    return ret;
-  }
+
+    //! Adds an entry to the end of the queue. Not thread-safe (caller has to
+    //! lock).
+    void Push(QueueMember* entry)
+    {
+        HASSERT(entry);
+        HASSERT(entry->next_ == NULL);
+        HASSERT(entry != tail_);
+        HASSERT(tail_->next_ == NULL);
+        tail_->next_ = entry;
+        tail_ = entry;
+    }
+
+    //! Adds an entry to the front of the queue. Not thread-safe (caller has to
+    //! lock).
+    void PushFront(QueueMember* entry)
+    {
+        if (empty()) {
+            Push(entry);
+        } else {
+            HASSERT(entry);
+            HASSERT(entry->next_ == NULL);
+            HASSERT(entry != tail_);
+            HASSERT(tail_->next_ == NULL);
+            entry->next_ = next_;
+            next_ = entry;
+        }
+    }
+
+    bool IsMaybePending(QueueMember* entry)
+    {
+        return ((entry->next_ != NULL) || (entry == tail_));
+    }
+
+    void PushIfNotMember(QueueMember* entry)
+    {
+        HASSERT(entry);
+        HASSERT(tail_->next_ == NULL);
+        if (IsMaybePending(entry)) return;
+        tail_->next_ = entry;
+        tail_ = entry;
+    }
+
+    QueueMember* Pop()
+    {
+        QueueMember* ret = next_;
+        if (ret) {
+            next_ = ret->next_;
+            if (!next_) tail_ = this;
+            ret->next_ = NULL;
+        }
+        return ret;
+    }
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(Queue);
+    DISALLOW_COPY_AND_ASSIGN(Queue);
 
-  QueueMember* tail_;
+    QueueMember* tail_;
 };
 
 #endif // _EXECUTOR_QUEUE_HXX_

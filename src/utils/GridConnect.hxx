@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -56,10 +56,11 @@ protected:
     /** Write a CAN packet to Grid Connect interface in single format.
      * @param fd file descriptor for device
      * @param data can data to write
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @return number of bytes written, or -1 with errno set
      */
-    static ssize_t write(int fd, const void *data, size_t len)
+    static ssize_t write(int fd, const void* data, size_t len)
     {
         return write_generic(fd, data, len, false);
     }
@@ -67,10 +68,11 @@ protected:
     /** Write a CAN packet to Grid Connect interface in double format.
      * @param fd file descriptor for device
      * @param data can data to write
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @return number of bytes written, or -1 with errno set
      */
-    static ssize_t write_double(int fd, const void *data, size_t len)
+    static ssize_t write_double(int fd, const void* data, size_t len)
     {
         return write_generic(fd, data, len, true);
     }
@@ -78,10 +80,11 @@ protected:
     /** Read a CAN packet to Grid Connect interface in single format.
      * @param fd file descriptor for device
      * @param data location to read can data into
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @return number of bytes read, or -1 with errno set
      */
-    static ssize_t read(int fd, void *data, size_t len)
+    static ssize_t read(int fd, void* data, size_t len)
     {
         return read_generic(fd, data, len, false);
     }
@@ -89,10 +92,11 @@ protected:
     /** Read a CAN packet to Grid Connect interface in double format.
      * @param fd file descriptor for device
      * @param data location to read can data into
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @return number of bytes read, or -1 with errno set
      */
-    static ssize_t read_double(int fd, void *data, size_t len)
+    static ssize_t read_double(int fd, void* data, size_t len)
     {
         return read_generic(fd, data, len, true);
     }
@@ -101,26 +105,29 @@ private:
     /** Write a CAN packet to Grid Connect interface in single or double format.
      * @param fd file descriptor for device
      * @param data can data to write
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @param doub true if this is a double write
      * @return number of bytes written, or -1 with errno set
      */
-    static ssize_t write_generic(int fd, const void *data, size_t len, bool doub);
+    static ssize_t write_generic(int fd, const void* data, size_t len,
+                                 bool doub);
 
     /** Read a CAN packet to Grid Connect interface in single or double format.
      * @param fd file descriptor for device
      * @param data location to read can data into
-     * @param len length of data, should be a multiple of sizeof(struct can_frame)
+     * @param len length of data, should be a multiple of sizeof(struct
+     * can_frame)
      * @param doub true if this is a double read
      * @return number of bytes read, or -1 with errno set
      */
-    static ssize_t read_generic(int fd, void *data, size_t len, bool doub);
+    static ssize_t read_generic(int fd, void* data, size_t len, bool doub);
 
     /**
      * @param buf array of at least 28 bytes to place encoded data into
      * @return number of bytes making up the final encoded packet
      */
-    static ssize_t encode(struct can_frame *frame, unsigned char buf[]);
+    static ssize_t encode(struct can_frame* frame, unsigned char buf[]);
 
     /** Build an ASCII character representation of a nibble value
      * @param value to convert
@@ -130,11 +137,10 @@ private:
     {
         nibble &= 0xf;
 
-        if (nibble < 10)
-        {
+        if (nibble < 10) {
             return ('0' + nibble);
         }
-        
+
         return ('A' + (nibble - 10));
     }
 
@@ -142,33 +148,25 @@ private:
      * pointer to two ASCII characters
      * @return byte value
      */
-    static int ascii_pair_to_byte(const char *pair)
+    static int ascii_pair_to_byte(const char* pair)
     {
         unsigned char* data = (unsigned char*)pair;
         int result;
-        
-        if (data[1] < 'A')
-        {
+
+        if (data[1] < 'A') {
             result = data[1] - '0';
-        }
-        else
-        {
+        } else {
             result = data[1] - 'A' + 10;
         }
-        
-        if (data[0] < 'A')
-        {
+
+        if (data[0] < 'A') {
             result += (data[0] - '0') << 4;
-        }
-        else
-        {
+        } else {
             result += (data[0] - 'A' + 10) << 4;
         }
-        
+
         return result;
     }
-
 };
 
 #endif /* _GridConnect_hxx_ */
-

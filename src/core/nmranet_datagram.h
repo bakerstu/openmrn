@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -45,26 +45,31 @@ extern "C" {
 /** maximum size in bytes of a datagram */
 #define DATAGRAM_MAX_SIZE 72
 
-#define DATAGRAM_LOG_REQUEST   0x01 /**< request a placement into the log */
-#define DATAGRAM_LOG_REPLY     0x02 /**< reply to a @ref DATAGRAM_LOG_REQUEST */
+#define DATAGRAM_LOG_REQUEST 0x01   /**< request a placement into the log */
+#define DATAGRAM_LOG_REPLY 0x02     /**< reply to a @ref DATAGRAM_LOG_REQUEST */
 #define DATAGRAM_CONFIGURATION 0x20 /**< configuration message */
 #define DATAGRAM_REMOTE_BUTTON 0x21 /**< remote button input */
-#define DATAGRAM_DISPLAY       0x28 /**< place on display */
+#define DATAGRAM_DISPLAY 0x28       /**< place on display */
 #define DATAGRAM_TRAIN_CONTROL 0x30 /**< operation of mobile nodes */
 
-#define DATAGRAM_PROTOCOL_SIZE_2 0xE0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
-#define DATAGRAM_PROTOCOL_SIZE_6 0xF0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
-#define DATAGRAM_PROTOCOL_SIZE_MASK 0xF0 /**< mask used when determining protocol size */
+#define DATAGRAM_PROTOCOL_SIZE_2                                               \
+    0xE0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
+#define DATAGRAM_PROTOCOL_SIZE_6                                               \
+    0xF0 /**< possible return value for @ref DATAGRAM_PROTOCOL_SIZE */
+#define DATAGRAM_PROTOCOL_SIZE_MASK                                            \
+    0xF0 /**< mask used when determining protocol size */
 
 /** Determine if the protocol ID is represented by one, two, or six bytes.
  * @param _protocol protocol ID to interrogate
  * @return number of bytes representing the protocol
  */
-#define DATAGRAM_PROTOCOL_SIZE(_protocol)                                                   \
-(                                                                                           \
-    (((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK) == DATAGRAM_PROTOCOL_SIZE_6) ?             \
-    6 : ((((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK) == DATAGRAM_PROTOCOL_SIZE_2) ? 2 : 1) \
-)
+#define DATAGRAM_PROTOCOL_SIZE(_protocol)                                      \
+    ((((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK) == DATAGRAM_PROTOCOL_SIZE_6) \
+         ? 6                                                                   \
+         : ((((_protocol) & DATAGRAM_PROTOCOL_SIZE_MASK)                       \
+             == DATAGRAM_PROTOCOL_SIZE_2)                                      \
+                ? 2                                                            \
+                : 1))
 
 /** Grab a datagram from the datagram queue of the node.
  * @param node to grab datagram from
@@ -89,15 +94,17 @@ uint64_t nmranet_datagram_protocol(datagram_t datagram);
  * @param datagram pointer to the beginning of the datagram
  * @return pointer to payload an a uint8_t array, assume byte alignment
  */
-uint8_t *nmranet_datagram_payload(datagram_t datagram);
+uint8_t* nmranet_datagram_payload(datagram_t datagram);
 
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
  * @param size max length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return datagram handle upon success, else NULL on error with errno set
  */
-datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long timeout);
+datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size,
+                                       long long timeout);
 
 /** Allocate and prepare a datagram buffer.
  * @param protocol datagram protocol to use
@@ -105,16 +112,19 @@ datagram_t nmranet_datagram_buffer_get(uint64_t protocol, size_t size, long long
  * @param offset offset within datagram payload to start filling
  * @param size length of data in bytes to fill
  */
-void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol, const void *data, size_t offset, size_t size);
+void nmranet_datagram_buffer_fill(datagram_t datagram, uint64_t protocol,
+                                  const void* data, size_t offset, size_t size);
 
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from
  * @param dst destination node id or alias
  * @param datagram datagram to produce
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t datagram, long long timeout);
+int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst,
+                                    datagram_t datagram, long long timeout);
 
 /** Produce a Datagram from a given node.
  * @param node node to produce datagram from
@@ -122,10 +132,12 @@ int nmranet_datagram_buffer_produce(node_t node, node_handle_t dst, datagram_t d
  * @param protocol datagram protocol to use
  * @param data datagram to produce
  * @param size length of data in bytes
- * @param timeout time in nanoseconds to keep trying, 0 = do not wait, OS_WAIT_FOREVER = blocking
+ * @param timeout time in nanoseconds to keep trying, 0 = do not wait,
+ * OS_WAIT_FOREVER = blocking
  * @return 0 upon success, else -1 on error with errno set
  */
-int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, const void *data, size_t size, long long timeout);
+int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol,
+                             const void* data, size_t size, long long timeout);
 
 /** Number of datagrams pending in the datagram queue of the node.
  * @param node node to query
@@ -133,10 +145,8 @@ int nmranet_datagram_produce(node_t node, node_handle_t dst, uint64_t protocol, 
  */
 size_t nmranet_datagram_pending(node_t node);
 
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* _nmranet_datagram_h_ */
-

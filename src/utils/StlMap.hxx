@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -50,17 +50,17 @@ template <typename Key, typename Value> class StlMap
 public:
     /** Default Constructor which with no mapping entry limit.
      */
-    StlMap()
-        : mappingAllocator(NULL),
-          mapping(new Mapping())
+    StlMap() : mappingAllocator(NULL), mapping(new Mapping())
     {
     }
 
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    StlMap(size_t entries) 
-        : mappingAllocator(new MappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries))),
+    StlMap(size_t entries)
+        : mappingAllocator(
+              new MappingAllocator(std::less<Key>(), Allocator
+                                   <std::pair<const Key, Value>>(entries))),
           mapping(NULL)
     {
     }
@@ -69,17 +69,16 @@ public:
      */
     ~StlMap()
     {
-        if (mappingAllocator)
-        {
+        if (mappingAllocator) {
             delete mappingAllocator;
         }
-        if (mapping)
-        {
+        if (mapping) {
             delete mapping;
         }
     }
 
-    /** This translation is done for consistency with @ref SysMap and @ref LinearMap */
+    /** This translation is done for consistency with @ref SysMap and @ref
+     * LinearMap */
     typedef pair<Key, Value> Pair;
 
     /** Short hand for the iterator type of a given instance */
@@ -93,7 +92,7 @@ public:
     {
         return mapping ? mapping->erase(key) : mappingAllocator->erase(key);
     }
-    
+
     /** Remove a node from the tree.
      * @param it iterator index for the element to remove
      */
@@ -101,12 +100,12 @@ public:
     {
         mapping ? mapping->erase(it) : mappingAllocator->erase(it);
     }
-    
+
     /** Find the index associated with the key and create it if does not exist.
      * @param key key to lookup
      * @return value of the key by reference
      */
-    Value& operator[](const Key &key)
+    Value& operator[](const Key& key)
     {
         return mapping ? (*mapping)[key] : (*mappingAllocator)[key];
     }
@@ -131,11 +130,11 @@ public:
      * @param key key to search for
      * @return iterator index pointing to key, else iterator end() if not found
      */
-    Iterator find( const Key &key )
+    Iterator find(const Key& key)
     {
         return mapping ? mapping->find(key) : mappingAllocator->find(key);
     }
-    
+
     /** Get an iterator index pointing one past the last element in mapping.
      * @return iterator index pointing to one past the last element in mapping
      */
@@ -143,7 +142,7 @@ public:
     {
         return mapping ? mapping->end() : mappingAllocator->end();
     }
-    
+
     /** Get an iterator index pointing one past the last element in mapping.
      * @return iterator index pointing to one past the last element in mapping
      */
@@ -165,15 +164,15 @@ private:
         union FreeList
         {
             T data;
-            FreeList *next;
+            FreeList* next;
         };
 
-        FreeList *freeList;
-        
+        FreeList* freeList;
+
         bool init;
-        
+
         size_t entries;
-        
+
         typedef T value_type;
         typedef value_type* pointer;
         typedef const value_type* const_pointer;
@@ -181,76 +180,69 @@ private:
         typedef const value_type& const_reference;
         typedef std::size_t size_type;
         typedef std::ptrdiff_t difference_type;
-        
+
         template <typename U> struct rebind
         {
             typedef Allocator<U> other;
         };
 
-        explicit Allocator(size_t e)
-            : freeList(NULL),
-              init(false),
-              entries(e)
+        explicit Allocator(size_t e) : freeList(NULL), init(false), entries(e)
         {
         }
 
         explicit Allocator(Allocator const& a)
-            : freeList(a.freeList),
-              init(a.init),
-              entries(a.entries)
+            : freeList(a.freeList), init(a.init), entries(a.entries)
         {
         }
-        
+
         ~Allocator()
         {
         }
-        
-        template <typename U> Allocator(Allocator<U> const& o)
-            : freeList(NULL),
-              init(o.init),
-              entries(o.entries)
+
+        template <typename U>
+        Allocator(Allocator<U> const& o)
+            : freeList(NULL), init(o.init), entries(o.entries)
         {
         }
 
         //    address
 
-        T *address(T &r)
+        T* address(T& r)
         {
             return &r;
         }
 
-        const T *address(const T &r)
+        const T* address(const T& r)
         {
             return &r;
         }
 
         //    memory allocation
 
-        T *allocate(size_t cnt, const void* = 0)
+        T* allocate(size_t cnt, const void* = 0)
         {
-            if (init == false)
-            {
+            if (init == false) {
                 HASSERT(entries != 0);
                 init = true;
-                FreeList *newList = (FreeList*)malloc(sizeof(FreeList) * max_size());
-                for (size_t i = 0; i < max_size(); ++i)
-                {
+                FreeList* newList
+                    = (FreeList*)malloc(sizeof(FreeList) * max_size());
+                for (size_t i = 0; i < max_size(); ++i) {
                     newList[i].next = freeList;
                     freeList = newList + i;
                 }
             }
             HASSERT(freeList != NULL);
             HASSERT(cnt == 1);
-            
-            T *newT = &(freeList->data);
+
+            T* newT = &(freeList->data);
             freeList = freeList->next;
             return newT;
         }
-        
-        void deallocate(T *p, size_t n)
+
+        void deallocate(T* p, size_t n)
         {
             HASSERT(n == 1);
-            FreeList *pFreeList = (FreeList*)p;
+            FreeList* pFreeList = (FreeList*)p;
             pFreeList->next = freeList;
             freeList = pFreeList;
         }
@@ -263,12 +255,12 @@ private:
 
         //    construction/destruction
 
-        void construct(T *p, const T& t)
+        void construct(T* p, const T& t)
         {
-            new(p) T(t);
+            new (p) T(t);
         }
-        
-        void destroy(T *p)
+
+        void destroy(T* p)
         {
             p->~T();
         }
@@ -277,30 +269,30 @@ private:
         {
             return true;
         }
-        
+
         bool operator!=(Allocator const& a)
         {
             return !operator==(a);
         }
+
     private:
-        Allocator()
-            : init(false),
-              entries(0)
+        Allocator() : init(false), entries(0)
         {
         }
     };
 
     /** short hand for the custom allocator std::map type */
-    typedef std::map<Key, Value, std::less<Key>, Allocator<std::pair<const Key, Value>>> MappingAllocator;
-    
+    typedef std::map<Key, Value, std::less<Key>,
+                     Allocator<std::pair<const Key, Value>>> MappingAllocator;
+
     /** short hand for the default allocator std::map type */
     typedef std::map<Key, Value> Mapping;
-    
+
     /** pointer to an std::map instance with a custom allocator */
-    MappingAllocator *mappingAllocator;
-    
+    MappingAllocator* mappingAllocator;
+
     /** pointer to an std::map instance with a default allocator */
-    Mapping *mapping;
+    Mapping* mapping;
 
     DISALLOW_COPY_AND_ASSIGN(StlMap);
 };

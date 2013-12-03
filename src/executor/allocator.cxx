@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,70 +34,76 @@
 
 #include "executor/allocator.hxx"
 
-AllocatorBase::AllocatorBase()
-    : has_free_entries_(true) {}
-
-void AllocatorBase::Release(QueueMember* entry) {
-  AllocationResult* caller = nullptr;
-  {
-    LockHolder l(this);
-    if (has_free_entries_) {
-      waiting_list_.PushFront(entry);
-      return;
-    } else {
-      caller = static_cast<AllocationResult*>(waiting_list_.Pop());
-      if (waiting_list_.empty()) has_free_entries_ = true;
-    }
-  }
-  HASSERT(caller != nullptr);
-  caller->AllocationCallback(entry);
+AllocatorBase::AllocatorBase() : has_free_entries_(true)
+{
 }
 
-void AllocatorBase::ReleaseBack(QueueMember* entry) {
-  AllocationResult* caller = nullptr;
-  {
-    LockHolder l(this);
-    if (has_free_entries_) {
-      waiting_list_.Push(entry);
-      return;
-    } else {
-      caller = static_cast<AllocationResult*>(waiting_list_.Pop());
-      if (waiting_list_.empty()) has_free_entries_ = true;
+void AllocatorBase::Release(QueueMember* entry)
+{
+    AllocationResult* caller = nullptr;
+    {
+        LockHolder l(this);
+        if (has_free_entries_) {
+            waiting_list_.PushFront(entry);
+            return;
+        } else {
+            caller = static_cast<AllocationResult*>(waiting_list_.Pop());
+            if (waiting_list_.empty()) has_free_entries_ = true;
+        }
     }
-  }
-  HASSERT(caller != nullptr);
-  caller->AllocationCallback(entry);
+    HASSERT(caller != nullptr);
+    caller->AllocationCallback(entry);
 }
 
-void AllocatorBase::AllocateEntry(AllocationResult* caller) {
-  QueueMember* entry = nullptr;
-  {
-    LockHolder l(this);
-    if ((!has_free_entries_) || waiting_list_.empty()) {
-      waiting_list_.Push(caller);
-      has_free_entries_ = false;
-      return;
+void AllocatorBase::ReleaseBack(QueueMember* entry)
+{
+    AllocationResult* caller = nullptr;
+    {
+        LockHolder l(this);
+        if (has_free_entries_) {
+            waiting_list_.Push(entry);
+            return;
+        } else {
+            caller = static_cast<AllocationResult*>(waiting_list_.Pop());
+            if (waiting_list_.empty()) has_free_entries_ = true;
+        }
     }
-    // Now: has_free_entries_ == true and !empty.
-    entry = waiting_list_.Pop();
-  }
-  caller->AllocationCallback(entry);
+    HASSERT(caller != nullptr);
+    caller->AllocationCallback(entry);
 }
 
-QueueMember* AllocatorBase::AllocateOrNull() {
-  QueueMember* entry = nullptr;
-  {
-    LockHolder l(this);
-    if ((!has_free_entries_) || waiting_list_.empty()) {
-      return nullptr;
+void AllocatorBase::AllocateEntry(AllocationResult* caller)
+{
+    QueueMember* entry = nullptr;
+    {
+        LockHolder l(this);
+        if ((!has_free_entries_) || waiting_list_.empty()) {
+            waiting_list_.Push(caller);
+            has_free_entries_ = false;
+            return;
+        }
+        // Now: has_free_entries_ == true and !empty.
+        entry = waiting_list_.Pop();
     }
-    // Now: has_free_entries_ == true and !empty.
-    entry = waiting_list_.Pop();
-  }
-  return entry;
+    caller->AllocationCallback(entry);
 }
 
-bool AllocatorBase::Peek() {
-  LockHolder l(this);
-  return has_free_entries_ && !waiting_list_.empty();
+QueueMember* AllocatorBase::AllocateOrNull()
+{
+    QueueMember* entry = nullptr;
+    {
+        LockHolder l(this);
+        if ((!has_free_entries_) || waiting_list_.empty()) {
+            return nullptr;
+        }
+        // Now: has_free_entries_ == true and !empty.
+        entry = waiting_list_.Pop();
+    }
+    return entry;
+}
+
+bool AllocatorBase::Peek()
+{
+    LockHolder l(this);
+    return has_free_entries_ && !waiting_list_.empty();
 }

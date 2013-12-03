@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,49 +42,49 @@ extern "C" {
 
 /** NMRAnet queue handle type.
  */
-typedef void *nmranet_queue_t;
+typedef void* nmranet_queue_t;
 
 /** Get a free buffer out of the pool.
  * @param size minimum size in bytes the buffer must hold
  * @return pointer to the newly allocated buffer
  */
-void *nmranet_buffer_alloc(size_t size);
+void* nmranet_buffer_alloc(size_t size);
 /** Release a buffer back to the free buffer pool.
  * @param buffer pointer to buffer to release
  */
-void nmranet_buffer_free(const void *buffer);
+void nmranet_buffer_free(const void* buffer);
 
 /** Advance the position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
-void *nmranet_buffer_advance(void *buffer, size_t bytes);
+void* nmranet_buffer_advance(void* buffer, size_t bytes);
 
 /** Get a pointer to the current position of the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return pointer to the current position (next available byte)
  */
-void *nmranet_buffer_position(const void *buffer);
+void* nmranet_buffer_position(const void* buffer);
 
 /** Get the size of the buffer in bytes.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return size of the buffer in bytes
  */
-size_t nmranet_buffer_size(const void *buffer);
+size_t nmranet_buffer_size(const void* buffer);
 
 /** Get the number of unused bytes in the buffer.
- * @param buffer pointer to buffer 
+ * @param buffer pointer to buffer
  * @return number of unused bytes
  */
-size_t nmranet_buffer_available(const void *buffer);
+size_t nmranet_buffer_available(const void* buffer);
 
 /** Expand the buffer size.
  * @param buffer pointer to buffer to expand
  * @param size size buffer after expansion.
  * @return newly expanded buffer with old buffer data moved
  */
-void *nmranet_buffer_expand(void *buffer, size_t size);
+void* nmranet_buffer_expand(void* buffer, size_t size);
 
 /** Create and empty buffer queue.
  * @return handle to the created queue
@@ -95,13 +95,13 @@ nmranet_queue_t nmranet_queue_create(void);
  * @param queue queue to add buffer to
  * @param buffer buffer to add to queue
  */
-void nmranet_queue_insert(nmranet_queue_t queue, const void *buffer);
+void nmranet_queue_insert(nmranet_queue_t queue, const void* buffer);
 
 /** Get a buffer from the front of the queue.
  * @param queue queue get buffer from
  * @return buffer buffer retreived from queue
  */
-void *nmranet_queue_next(nmranet_queue_t queue);
+void* nmranet_queue_next(nmranet_queue_t queue);
 
 /** Test if the queue is empty.
  * @param queue queue to test
@@ -120,4 +120,3 @@ size_t nmranet_queue_pending(nmranet_queue_t queue);
 #endif
 
 #endif /* _nmranet_buf_h_ */
-

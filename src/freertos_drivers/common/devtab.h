@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,32 +44,32 @@ typedef struct node node_t;
 typedef struct devops
 {
     /** Open method */
-    int (*open)(file_t *, const char *, int, int);
+    int (*open)(file_t*, const char*, int, int);
     /** Close method */
-    int (*close)(file_t *, node_t*);
+    int (*close)(file_t*, node_t*);
     /** Read method */
-    ssize_t (*read)(file_t *, void *, size_t);
+    ssize_t (*read)(file_t*, void*, size_t);
     /** Write method */
-    ssize_t (*write)(file_t *, const void *, size_t);
+    ssize_t (*write)(file_t*, const void*, size_t);
     /** Ioctl method */
-    int (*ioctl)(file_t *, node_t *, int, void *);
+    int (*ioctl)(file_t*, node_t*, int, void*);
 } devops_t;
 
 /** Device tab structure.
  */
 typedef struct devtab
 {
-    const char *name; /**< device name */
-    int (*init)(struct devtab *); /**< initialization method */
-    devops_t *devops; /**< device operations */
-    void *priv; /**< device private data */
+    const char* name;            /**< device name */
+    int (*init)(struct devtab*); /**< initialization method */
+    devops_t* devops;            /**< device operations */
+    void* priv;                  /**< device private data */
 } devtab_t;
 
 /** Node information.
  */
 typedef struct node
 {
-    void *priv; /**< node private data */
+    void* priv;              /**< node private data */
     unsigned int references; /**< number of open references */
 } node_t;
 
@@ -77,11 +77,11 @@ typedef struct node
  */
 typedef struct file
 {
-    devtab_t *dev; /**< file operations */
-    node_t *node; /**< node this file information refers to */
-    off_t offset; /**< current offset within file */
-    int flags; /**< open flags */
-    char inuse; /**< is this file in use */
+    devtab_t* dev; /**< file operations */
+    node_t* node;  /**< node this file information refers to */
+    off_t offset;  /**< current offset within file */
+    int flags;     /**< open flags */
+    char inuse;    /**< is this file in use */
 } file_t;
 
 /** Linker generated device table */
@@ -98,22 +98,15 @@ extern devtab_t DEVTAB[], DEVTAB_END;
  * @param _write write method
  * @param _ioctl ioctl method
  */
-#define DEVOPS(_label, _open, _close, _read, _write, _ioctl) \
-    devops_t _label =                                        \
-    {                                                        \
-        _open,                                               \
-        _close,                                              \
-        _read,                                               \
-        _write,                                              \
-        _ioctl                                               \
-    };
+#define DEVOPS(_label, _open, _close, _read, _write, _ioctl)                   \
+    devops_t _label = {_open, _close, _read, _write, _ioctl};
 
 /** Table entry.
  * @param _name table name for the entry
  */
-#define TABLE_ENTRY(_name) \
-    __attribute__((section((".device.table." __xstring(_name) ".data")))) \
-    __attribute__((used))
+#define TABLE_ENTRY(_name)                                                     \
+    __attribute__((section((".device.table." __xstring(_name) ".data"))))      \
+        __attribute__((used))
 
 /** Device Table entry instance.
  * @param _label unique label for entry
@@ -122,13 +115,7 @@ extern devtab_t DEVTAB[], DEVTAB_END;
  * @param _devops device operations
  * @param _priv private data for use by device
  */
-#define DEVTAB_ENTRY(_label, _name, _init, _devops, _priv) \
-    devtab_t _label TABLE_ENTRY(devtab) =           \
-    {                                               \
-        _name,                                      \
-        _init,                                      \
-        _devops,                                    \
-        _priv                                       \
-    };
+#define DEVTAB_ENTRY(_label, _name, _init, _devops, _priv)                     \
+    devtab_t _label TABLE_ENTRY(devtab) = {_name, _init, _devops, _priv};
 
 #endif /* _devtab_h_ */

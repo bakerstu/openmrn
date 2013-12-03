@@ -32,7 +32,6 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 */
- 
 
 #include <stdlib.h>
 #include <inttypes.h>
@@ -41,17 +40,16 @@
 
 #include "LPC11xx.h"
 
-
 #define __MALLOC_MARGIN__ 120
 
 extern char _pvHeapStart;
 extern char _vStackTop;
 #define __heap_start _pvHeapStart
 
-
-struct __freelist {
+struct __freelist
+{
     size_t sz;
-    struct __freelist *nx;
+    struct __freelist* nx;
 };
 
 /*
@@ -64,20 +62,18 @@ struct __freelist {
  * calls must not require more stack space, or they'll risk to collide
  * with the data segment.
  */
- 
 
 //#define STACK_POINTER() ((char *)AVR_STACK_POINTER_REG)
 #define STACK_POINTER() (&_vStackTop)
-//extern char __heap_start;
-char *__brkval = &__heap_start;    // first location not yet allocated
-struct __freelist *__flp;    // freelist pointer (head of freelist)
-char *__brkval_maximum = (char*)100;
+// extern char __heap_start;
+char* __brkval = &__heap_start; // first location not yet allocated
+struct __freelist* __flp;       // freelist pointer (head of freelist)
+char* __brkval_maximum = (char*)100;
 
-void *
-malloc(size_t len)
+void* malloc(size_t len)
 {
-    struct __freelist *fp1, *fp2, *sfp1, *sfp2;
-    char *cp;
+    struct __freelist* fp1, *fp2, *sfp1, *sfp2;
+    char* cp;
     size_t s, avail;
 
     // Align allocated memory to 4 bytes.
@@ -99,11 +95,8 @@ malloc(size_t len)
      * still fit the request -- we need it for step 2.
      *
      */
-    for (s = 0, fp1 = __flp, fp2 = 0;
-         fp1;
-         fp2 = fp1, fp1 = fp1->nx) {
-        if (fp1->sz < len)
-            continue;
+    for (s = 0, fp1 = __flp, fp2 = 0; fp1; fp2 = fp1, fp1 = fp1->nx) {
+        if (fp1->sz < len) continue;
         if (fp1->sz == len) {
             /*
              * Found it.  Disconnect the chunk from the
@@ -114,8 +107,7 @@ malloc(size_t len)
             else
                 __flp = fp1->nx;
             return &(fp1->nx);
-        }
-        else {
+        } else {
             if (s == 0 || fp1->sz < s) {
                 /* this is the smallest chunk found so far */
                 s = fp1->sz;
@@ -152,10 +144,10 @@ malloc(size_t len)
          * the size of the new chunk before returning it to
          * the caller.
          */
-        cp = (char *)sfp1;
+        cp = (char*)sfp1;
         s -= len;
         cp += s;
-        sfp2 = (struct __freelist *)cp;
+        sfp2 = (struct __freelist*)cp;
         sfp2->sz = len;
         sfp1->sz = s - sizeof(size_t);
         return &(sfp2->nx);
@@ -172,16 +164,16 @@ malloc(size_t len)
      */
     cp = STACK_POINTER() - __MALLOC_MARGIN__;
     if (cp <= __brkval)
-      /*
-       * Memory exhausted.
-       */
-      return 0;
+        /*
+         * Memory exhausted.
+         */
+        return 0;
     avail = cp - __brkval;
     /*
      * Both tests below are needed to catch the case len >= 0xfffe.
      */
     if (avail >= len && avail >= len + sizeof(size_t)) {
-        fp1 = (struct __freelist *)__brkval;
+        fp1 = (struct __freelist*)__brkval;
         __brkval += len + sizeof(size_t);
         __brkval_maximum = __brkval;
         fp1->sz = len;
@@ -193,20 +185,17 @@ malloc(size_t len)
     return 0;
 }
 
-
-void
-free(void *p)
+void free(void* p)
 {
-    struct __freelist *fp1, *fp2, *fpnew;
-    char *cp1, *cp2, *cpnew;
+    struct __freelist* fp1, *fp2, *fpnew;
+    char* cp1, *cp2, *cpnew;
 
     /* ISO C says free(NULL) must be a no-op */
-    if (p == 0)
-        return;
+    if (p == 0) return;
 
     cpnew = p;
     cpnew -= sizeof(size_t);
-    fpnew = (struct __freelist *)cpnew;
+    fpnew = (struct __freelist*)cpnew;
     fpnew->nx = 0;
 
     /*
@@ -215,7 +204,7 @@ free(void *p)
      * can reduce __brkval instead.
      */
     if (__flp == 0) {
-        if ((char *)p + fpnew->sz == __brkval)
+        if ((char*)p + fpnew->sz == __brkval)
             __brkval = cpnew;
         else
             __flp = fpnew;
@@ -227,14 +216,11 @@ free(void *p)
      * freelist.  Try to aggregate the chunk with adjacent chunks
      * if possible.
      */
-    for (fp1 = __flp, fp2 = 0;
-         fp1;
-         fp2 = fp1, fp1 = fp1->nx) {
-        if (fp1 < fpnew)
-            continue;
-        cp1 = (char *)fp1;
+    for (fp1 = __flp, fp2 = 0; fp1; fp2 = fp1, fp1 = fp1->nx) {
+        if (fp1 < fpnew) continue;
+        cp1 = (char*)fp1;
         fpnew->nx = fp1;
-        if ((char *)&(fpnew->nx) + fpnew->sz == cp1) {
+        if ((char*)&(fpnew->nx) + fpnew->sz == cp1) {
             /* upper chunk adjacent, assimilate it */
             fpnew->sz += fp1->sz + sizeof(size_t);
             fpnew->nx = fp1->nx;
@@ -253,7 +239,7 @@ free(void *p)
      * with the lower chunk if possible.
      */
     fp2->nx = fpnew;
-    cp2 = (char *)&(fp2->nx);
+    cp2 = (char*)&(fp2->nx);
     if (cp2 + fp2->sz == cpnew) {
         /* lower junk adjacent, merge */
         fp2->sz += fpnew->sz + sizeof(size_t);
@@ -262,14 +248,11 @@ free(void *p)
     /*
      * If there's a new topmost chunk, lower __brkval instead.
      */
-    for (fp1 = __flp, fp2 = 0;
-         fp1->nx != 0;
-         fp2 = fp1, fp1 = fp1->nx)
+    for (fp1 = __flp, fp2 = 0; fp1->nx != 0; fp2 = fp1, fp1 = fp1->nx)
         /* advance to entry just before end of list */;
-    cp2 = (char *)&(fp1->nx);
+    cp2 = (char*)&(fp1->nx);
     if (cp2 + fp1->sz == __brkval) {
-        if (fp2 == NULL)
-            /* Freelist is empty now. */
+        if (fp2 == NULL) /* Freelist is empty now. */
             __flp = NULL;
         else
             fp2->nx = NULL;
@@ -277,30 +260,25 @@ free(void *p)
     }
 }
 
-
-
-void *
-realloc(void *ptr, size_t len)
+void* realloc(void* ptr, size_t len)
 {
-    struct __freelist *fp1, *fp2, *fp3, *ofp3;
-    char *cp, *cp1;
-    void *memp;
+    struct __freelist* fp1, *fp2, *fp3, *ofp3;
+    char* cp, *cp1;
+    void* memp;
     size_t s, incr;
 
     // Align allocated memory to 4 bytes.
     len = (len + 3) & (~3);
 
     /* Trivial case, required by C standard. */
-    if (ptr == 0)
-        return malloc(len);
+    if (ptr == 0) return malloc(len);
 
-    cp1 = (char *)ptr;
+    cp1 = (char*)ptr;
     cp1 -= sizeof(size_t);
-    fp1 = (struct __freelist *)cp1;
+    fp1 = (struct __freelist*)cp1;
 
-    cp = (char *)ptr + len; /* new next pointer */
-    if (cp < cp1)
-        /* Pointer wrapped across top of RAM, fail. */
+    cp = (char*)ptr + len; /* new next pointer */
+    if (cp < cp1)          /* Pointer wrapped across top of RAM, fail. */
         return 0;
 
     /*
@@ -313,10 +291,10 @@ realloc(void *ptr, size_t len)
     if (len <= fp1->sz) {
         /* The first test catches a possible unsigned int
          * rollover condition. */
-        if (fp1->sz <= sizeof(struct __freelist) ||
-            len > fp1->sz - sizeof(struct __freelist))
+        if (fp1->sz <= sizeof(struct __freelist)
+            || len > fp1->sz - sizeof(struct __freelist))
             return ptr;
-        fp2 = (struct __freelist *)cp;
+        fp2 = (struct __freelist*)cp;
         fp2->sz = fp1->sz - len - sizeof(size_t);
         fp1->sz = len;
         free(&(fp2->nx));
@@ -328,17 +306,15 @@ realloc(void *ptr, size_t len)
      * is space in the free list on top of our current chunk.
      */
     incr = len - fp1->sz;
-    cp = (char *)ptr + fp1->sz;
-    fp2 = (struct __freelist *)cp;
-    for (s = 0, ofp3 = 0, fp3 = __flp;
-         fp3;
-         ofp3 = fp3, fp3 = fp3->nx) {
+    cp = (char*)ptr + fp1->sz;
+    fp2 = (struct __freelist*)cp;
+    for (s = 0, ofp3 = 0, fp3 = __flp; fp3; ofp3 = fp3, fp3 = fp3->nx) {
         if (fp3 == fp2 && fp3->sz + sizeof(size_t) >= incr) {
             /* found something that fits */
             if (fp3->sz + sizeof(size_t) - incr > sizeof(struct __freelist)) {
                 /* split off a new freelist entry */
-                cp = (char *)ptr + len;
-                fp2 = (struct __freelist *)cp;
+                cp = (char*)ptr + len;
+                fp2 = (struct __freelist*)cp;
                 fp2->nx = fp3->nx;
                 fp2->sz = fp3->sz - incr;
                 fp1->sz = len;
@@ -357,8 +333,7 @@ realloc(void *ptr, size_t len)
          * Find the largest chunk on the freelist while
          * walking it.
          */
-        if (fp3->sz > s)
-            s = fp3->sz;
+        if (fp3->sz > s) s = fp3->sz;
     }
     /*
      * If we are the topmost chunk in memory, and there was no
@@ -367,8 +342,8 @@ realloc(void *ptr, size_t len)
      * allocation area if possible, without need to copy the old
      * data.
      */
-    if (__brkval == (char *)ptr + fp1->sz && len > s) {
-        cp = (char *)ptr + len;
+    if (__brkval == (char*)ptr + fp1->sz && len > s) {
+        cp = (char*)ptr + len;
         cp1 = STACK_POINTER() - __MALLOC_MARGIN__;
         if (cp < cp1) {
             __brkval = cp;
@@ -384,8 +359,7 @@ realloc(void *ptr, size_t len)
      * Call malloc() for a new chunk, then copy over the data, and
      * release the old region.
      */
-    if ((memp = malloc(len)) == 0)
-        return 0;
+    if ((memp = malloc(len)) == 0) return 0;
     memcpy(memp, ptr, fp1->sz);
     free(ptr);
     return memp;

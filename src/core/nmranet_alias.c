@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,9 +44,9 @@
 typedef struct alias_cache
 {
     node_id_t seed;
-    node_id_t *id;
-    node_alias_t *alias;
-    long long *timestamp;
+    node_id_t* id;
+    node_alias_t* alias;
+    long long* timestamp;
     size_t size;
 } AliasCache;
 
@@ -57,8 +57,8 @@ typedef struct alias_cache
  */
 alias_cache_t nmranet_alias_cache_create(node_id_t seed, size_t cache_size)
 {
-    AliasCache *alias_cache = malloc(sizeof(AliasCache));
-    
+    AliasCache* alias_cache = malloc(sizeof(AliasCache));
+
     alias_cache->size = cache_size;
     alias_cache->seed = seed;
     alias_cache->id = malloc(cache_size * sizeof(node_id_t));
@@ -66,7 +66,7 @@ alias_cache_t nmranet_alias_cache_create(node_id_t seed, size_t cache_size)
     memset(alias_cache->id, 0, cache_size * sizeof(node_id_t));
     memset(alias_cache->alias, 0, cache_size * sizeof(node_alias_t));
     alias_cache->timestamp = malloc(cache_size * sizeof(long long));
-    
+
     return alias_cache;
 }
 
@@ -77,36 +77,31 @@ alias_cache_t nmranet_alias_cache_create(node_id_t seed, size_t cache_size)
  */
 void nmranet_alias_add(alias_cache_t cache, node_id_t id, node_alias_t alias)
 {
-    AliasCache  *alias_cache = cache;
-    long long    time        = LLONG_MAX;
-    unsigned int index       = 0;
+    AliasCache* alias_cache = cache;
+    long long time = LLONG_MAX;
+    unsigned int index = 0;
 
-    if (cache == NULL || id == 0 || alias == 0)
-    {
+    if (cache == NULL || id == 0 || alias == 0) {
         /* invalid parameter */
         return;
     }
 
-    for (unsigned int i = 0; i < alias_cache->size; i++)
-    {
-        if (alias_cache->alias[i] == 0)
-        {
+    for (unsigned int i = 0; i < alias_cache->size; i++) {
+        if (alias_cache->alias[i] == 0) {
             /* found an empty slot */
             index = i;
             break;
-        }
-        else if (alias_cache->timestamp[i] < time)
-        {
+        } else if (alias_cache->timestamp[i] < time) {
             /* found a new oldest slost */
             time = alias_cache->timestamp[i];
             index = i;
         }
     }
-    
+
     alias_cache->id[index] = id;
     alias_cache->alias[index] = alias;
     alias_cache->timestamp[index] = os_get_time_monotonic();
-    
+
     return;
 }
 
@@ -116,18 +111,15 @@ void nmranet_alias_add(alias_cache_t cache, node_id_t id, node_alias_t alias)
  */
 void nmranet_alias_remove(alias_cache_t cache, node_alias_t alias)
 {
-    AliasCache  *alias_cache = cache;
-    
-    if (cache == NULL || alias == 0)
-    {
+    AliasCache* alias_cache = cache;
+
+    if (cache == NULL || alias == 0) {
         /* invalid parameter */
         return;
     }
 
-    for (unsigned int i = 0; i < alias_cache->size; i++)
-    {
-        if (alias == alias_cache->alias[i])
-        {
+    for (unsigned int i = 0; i < alias_cache->size; i++) {
+        if (alias == alias_cache->alias[i]) {
             alias_cache->alias[i] = 0;
             return;
         }
@@ -141,23 +133,20 @@ void nmranet_alias_remove(alias_cache_t cache, node_alias_t alias)
  */
 node_alias_t nmranet_alias_lookup(alias_cache_t cache, node_id_t id)
 {
-    AliasCache  *alias_cache = cache;
-    
-    if (cache == NULL || id == 0)
-    {
+    AliasCache* alias_cache = cache;
+
+    if (cache == NULL || id == 0) {
         /* invalid parameter */
         return 0;
     }
 
-    for (unsigned int i = 0; i < alias_cache->size; i++)
-    {
-        if (alias_cache->id[i] == id)
-        {
+    for (unsigned int i = 0; i < alias_cache->size; i++) {
+        if (alias_cache->id[i] == id) {
             /* found a match */
             return alias_cache->alias[i];
         }
     }
-    
+
     /* no match found */
     return 0;
 }
@@ -169,23 +158,20 @@ node_alias_t nmranet_alias_lookup(alias_cache_t cache, node_id_t id)
  */
 node_id_t nmranet_alias_lookup_id(alias_cache_t cache, node_alias_t alias)
 {
-    AliasCache  *alias_cache = cache;
-    
-    if (cache == NULL || alias == 0)
-    {
+    AliasCache* alias_cache = cache;
+
+    if (cache == NULL || alias == 0) {
         /* invalid parameter */
         return 0;
     }
 
-    for (unsigned int i = 0; i < alias_cache->size; i++)
-    {
-        if (alias_cache->alias[i] == alias)
-        {
+    for (unsigned int i = 0; i < alias_cache->size; i++) {
+        if (alias_cache->alias[i] == alias) {
             /* found a match */
             return alias_cache->id[i];
         }
     }
-    
+
     /* no match found */
     return 0;
 }
@@ -195,20 +181,19 @@ node_id_t nmranet_alias_lookup_id(alias_cache_t cache, node_alias_t alias)
  * @param callback method to call
  * @param context context pointer to pass to callback
  */
-void nmranet_alias_for_each(alias_cache_t cache, void (*callback)(void*, node_id_t, node_alias_t), void *context)
+void nmranet_alias_for_each(alias_cache_t cache,
+                            void (*callback)(void*, node_id_t, node_alias_t),
+                            void* context)
 {
-    AliasCache  *alias_cache = cache;
-    
-    if (callback == NULL)
-    {
+    AliasCache* alias_cache = cache;
+
+    if (callback == NULL) {
         /* invalid parameter */
         return;
     }
 
-    for (unsigned int i = 0; i < alias_cache->size; i++)
-    {
-        if (alias_cache->alias[i] != 0)
-        {
+    for (unsigned int i = 0; i < alias_cache->size; i++) {
+        if (alias_cache->alias[i] != 0) {
             (*callback)(context, alias_cache->id[i], alias_cache->alias[i]);
         }
     }
@@ -220,19 +205,17 @@ void nmranet_alias_for_each(alias_cache_t cache, void (*callback)(void*, node_id
  */
 node_alias_t nmranet_alias_generate(alias_cache_t cache)
 {
-    AliasCache  *alias_cache = cache;
+    AliasCache* alias_cache = cache;
     node_alias_t alias;
 
-    #define SEED (alias_cache->seed)
+#define SEED (alias_cache->seed)
 
-    if (cache == NULL)
-    {
+    if (cache == NULL) {
         /* invalid parameter */
         return 0;
     }
 
-    do
-    {
+    do {
         /* calculate the alias given the current seed */
         alias = (SEED ^ (SEED >> 12) ^ (SEED >> 24) ^ (SEED >> 36)) & 0xfff;
 
@@ -243,4 +226,3 @@ node_alias_t nmranet_alias_generate(alias_cache_t cache)
     /* new random alias */
     return alias;
 }
-

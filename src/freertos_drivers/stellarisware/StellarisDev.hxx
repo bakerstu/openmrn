@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -59,8 +59,8 @@ public:
      * @param name name of this device instance in the file system
      * @param base base address of this device
      */
-    StellarisCdc(const char *name);
-    
+    StellarisCdc(const char* name);
+
     /** Destructor.
      */
     ~StellarisCdc()
@@ -73,28 +73,32 @@ public:
     void interrupt_handler();
 
 private:
-    void enable(); /**< function to enable device */
+    void enable();  /**< function to enable device */
     void disable(); /**< function to disable device */
     void tx_char(); /**< function to try and transmit a character */
 
-    static unsigned long control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    static unsigned long control_callback(void* data, unsigned long event,
+                                          unsigned long msg_param,
+                                          void* msg_data);
 
-    static unsigned long rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    static unsigned long rx_callback(void* data, unsigned long event,
+                                     unsigned long msg_param, void* msg_data);
 
-    static unsigned long tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    static unsigned long tx_callback(void* data, unsigned long event,
+                                     unsigned long msg_param, void* msg_data);
 
-    tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
-    tCDCSerInstance serialInstance; /**< CDC serial device private data */
+    tUSBDCDCDevice usbdcdcDevice;       /**< CDC serial device instance */
+    tCDCSerInstance serialInstance;     /**< CDC serial device private data */
     unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
     unsigned char rxData[RX_DATA_SIZE]; /**< buffer for pending tx data */
-    bool connected; /**< connection status */
-    bool enabled; /**< enabled status */
-    int woken; /**< task woken metadata for ISR */
-    
+    bool connected;                     /**< connection status */
+    bool enabled;                       /**< enabled status */
+    int woken;                          /**< task woken metadata for ISR */
+
     /** Default constructor.
      */
     StellarisCdc();
-    
+
     DISALLOW_COPY_AND_ASSIGN(StellarisCdc);
 };
 
@@ -107,8 +111,8 @@ public:
      * @param name name of this device instance in the file system
      * @param base base address of this device
      */
-    StellarisUart(const char *name, unsigned long base);
-    
+    StellarisUart(const char* name, unsigned long base);
+
     /** Destructor.
      */
     ~StellarisUart()
@@ -121,18 +125,18 @@ public:
     void interrupt_handler();
 
 private:
-    void enable(); /**< function to enable device */
+    void enable();  /**< function to enable device */
     void disable(); /**< function to disable device */
     void tx_char(); /**< function to try and transmit a character */
 
-    unsigned long base; /**< base address of this device */
+    unsigned long base;      /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
+    bool txPending;          /**< transmission currently pending */
 
     /** Default constructor.
      */
     StellarisUart();
-    
+
     DISALLOW_COPY_AND_ASSIGN(StellarisUart);
 };
 
@@ -145,8 +149,8 @@ public:
      * @param name name of this device instance in the file system
      * @param base base address of this device
      */
-    StellarisCan(const char *name, unsigned long base);
-    
+    StellarisCan(const char* name, unsigned long base);
+
     /** Destructor.
      */
     ~StellarisCan()
@@ -159,21 +163,20 @@ public:
     void interrupt_handler();
 
 private:
-    void enable(); /**< function to enable device */
+    void enable();  /**< function to enable device */
     void disable(); /**< function to disable device */
-    void tx_msg(); /**< function to try and transmit a message */
+    void tx_msg();  /**< function to try and transmit a message */
 
-    unsigned long base; /**< base address of this device */
+    unsigned long base;      /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    uint8_t data[8]; /**< transmit data */
-    bool txPending; /**< transmission currently pending */
+    uint8_t data[8];         /**< transmit data */
+    bool txPending;          /**< transmission currently pending */
 
     /** Default constructor.
      */
     StellarisCan();
-    
+
     DISALLOW_COPY_AND_ASSIGN(StellarisCan);
 };
 
 #endif /* _StellarisDev_hxx_ */
-

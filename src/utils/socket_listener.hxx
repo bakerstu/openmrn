@@ -33,27 +33,24 @@
  * @date 3 Aug 2013
  */
 
-
 #ifndef _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
 #define _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
 
 #include "os/OS.hxx"
 
-class SocketListener {
- public:
-  typedef void (*connection_callback_t)(int);
+class SocketListener
+{
+public:
+    typedef void (*connection_callback_t)(int);
 
-  SocketListener(int port, connection_callback_t callback);
+    SocketListener(int port, connection_callback_t callback);
 
+    void AcceptThreadBody();
 
-  void AcceptThreadBody();
-
- private:
-  int port_;
-  connection_callback_t callback_;
-  OSThread accept_thread_;
+private:
+    int port_;
+    connection_callback_t callback_;
+    OSThread accept_thread_;
 };
-
-
 
 #endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_

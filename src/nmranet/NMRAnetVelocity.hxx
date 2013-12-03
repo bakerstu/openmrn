@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -39,8 +39,8 @@
 
 extern "C" {
 /* These come from the ieeehalfprecision.c */
-int singles2halfp(void *target, void *source, int numel);
-int halfp2singles(void *target, void *source, int numel);
+int singles2halfp(void* target, void* source, int numel);
+int halfp2singles(void* target, void* source, int numel);
 }
 
 /** Conversion factor for MPH. */
@@ -70,69 +70,63 @@ class Velocity
 public:
     /** define an enumeration for direction
      */
-    enum
-    {
-        FORWARD  = 0, /**< forward direction */
+    enum {
+        FORWARD = 0,  /**< forward direction */
         POSITIVE = 0, /**< forward direction */
-        REVERSE  = 1, /**< reverse direction */
+        REVERSE = 1,  /**< reverse direction */
         NEGATIVE = 1, /**< reverse direction */
     };
 
     /** Default constructor.
      */
-    Velocity()
-        : velocity(0)
+    Velocity() : velocity(0)
     {
     }
 
     /** Basic constructor.
      * @param value starting value for Velocity.
      */
-    Velocity(int value)
-        : velocity(value)
+    Velocity(int value) : velocity(value)
     {
     }
 
     /** Basic constructor.
      * @param value starting value for Velocity.
      */
-    Velocity(unsigned int value)
-        : velocity(value)
+    Velocity(unsigned int value) : velocity(value)
     {
     }
 
     /** Basic constructor.
      * @param value starting value for Velocity.
      */
-    Velocity(float value)
-        : velocity(value)
+    Velocity(float value) : velocity(value)
     {
     }
 
     /** Basic constructor.
      * @param value starting value for Velocity.
      */
-    Velocity(double value)
-        : velocity(value)
+    Velocity(double value) : velocity(value)
     {
     }
 
     /** Constructor that takes the 16 bit wire format
      * @param value starting value for Velocity as IEEE half precision float.
      */
-    Velocity(float16_t value)
-        : velocity(halfp2singles(&velocity, &value, 1))
+    Velocity(float16_t value) : velocity(halfp2singles(&velocity, &value, 1))
     {
     }
 
     /** Copy constructor. */
-    Velocity(const Velocity& old_velocity)
-        : velocity(old_velocity.velocity)
+    Velocity(const Velocity& old_velocity) : velocity(old_velocity.velocity)
     {
     }
 
     /** Destructor does nothing. */
-    ~Velocity() {}
+    ~Velocity()
+    {
+    }
 
     /** Return the speed independent of direction.
      * @return speed absolute value of velocity
@@ -147,31 +141,28 @@ public:
      */
     int direction()
     {
-        if (std::signbit(velocity))
-        {
+        if (std::signbit(velocity)) {
             return REVERSE;
         }
         return FORWARD;
     }
-    
+
     /** Set the direction to forward. */
     void forward()
     {
-        if (std::signbit(velocity))
-        {
+        if (std::signbit(velocity)) {
             velocity = -velocity;
         }
     }
-    
+
     /** Set the direction to reverse. */
     void reverse()
     {
-        if (!std::signbit(velocity))
-        {
+        if (!std::signbit(velocity)) {
             velocity = -velocity;
         }
     }
-    
+
     /** Convert the native meters/sec representation into mile per hour.
      * @return velocity represented as miles per hour
      */
@@ -179,7 +170,7 @@ public:
     {
         return zero_adjust(velocity * MPH_FACTOR, velocity);
     }
-    
+
     /** Get the speed in DCC 128 speed step format.
      *  The mapping from meters/sec is strait forward.  First convert to
      *  miles/hour, then each speed step represents 1 mile/hour.  Saturate at
@@ -197,10 +188,11 @@ public:
      *  126 miles/hour.
      *
      *  @param value bit 7:  direction
-     *               bits 6..0:  0 = stopped, 1 = estop, 2 - 127 = speed steps 1 - 126
+     *               bits 6..0:  0 = stopped, 1 = estop, 2 - 127 = speed steps 1
+     *- 126
      */
     void set_dcc_128(uint8_t value);
-    
+
     /** Get the speed in DCC 28 speed step format.
      *  This is a decimation of the 128 speed step mode.
      *
@@ -211,7 +203,7 @@ public:
      *  @return DCC encoded speed steps
      */
     uint8_t get_dcc_28();
-    
+
     /** Set the speed from DCC 28 speed step format.
      *  This is a decimation of the 128 speed step mode.
      *
@@ -228,21 +220,21 @@ public:
      *  bit 7..6:  fixed at b'01'
      *  bit 5:  direction
      *  bits 4:  reserved 0 for headlight
-     *  bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28 
+     *  bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28
      *  @return DCC encoded speed steps
      */
     uint8_t get_dcc_14();
-    
+
     /** Set the speed from DCC 14 speed step format.
      *  This is a decimation of the 128 speed step mode.
      *
      *  @param value bit 7..6:  fixed at b'01'
      *               bit 5:  direction
      *               bits 4:  reserved 0 for headlight
-     *               bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28 
+     *               bits 3..0:  0 = stopped, 4 - 31 = speed steps 1 - 28
      */
     void set_dcc_14(uint8_t value);
-    
+
     /** Get a wire version of the velocity.
      * @return IEEE half precision floating point representation of velocity
      */
@@ -252,9 +244,10 @@ public:
         singles2halfp(&result, &velocity, 1);
         return result;
     }
-    
+
     /** Set the value based on the wire version of velocity.
-     * @param value IEEE half precision floating point representation of velocity
+     * @param value IEEE half precision floating point representation of
+     * velocity
      */
     void set_wire(float16_t value)
     {
@@ -262,195 +255,193 @@ public:
     }
 
     /** Overloaded addition operator. */
-    Velocity operator + (const Velocity& v)
+    Velocity operator+(const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity + v.velocity,velocity));
+        return Velocity(zero_adjust(velocity + v.velocity, velocity));
     }
 
     /** Overloaded addition operator. */
-    Velocity operator + (const float& v)
+    Velocity operator+(const float& v)
     {
-        return Velocity(zero_adjust(velocity + v,velocity));
+        return Velocity(zero_adjust(velocity + v, velocity));
     }
 
     /** Overloaded subtraction operator. */
-    Velocity operator - (const Velocity& v)
+    Velocity operator-(const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity - v.velocity,velocity));
+        return Velocity(zero_adjust(velocity - v.velocity, velocity));
     }
 
     /** Overloaded subtraction operator. */
-    Velocity operator - (const float& v)
+    Velocity operator-(const float& v)
     {
-        return Velocity(zero_adjust(velocity - v,velocity));
+        return Velocity(zero_adjust(velocity - v, velocity));
     }
 
     /** Overloaded multiplication operator. */
-    Velocity operator * (const Velocity& v)
+    Velocity operator*(const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity * v.velocity,velocity));
+        return Velocity(zero_adjust(velocity * v.velocity, velocity));
     }
 
     /** Overloaded multiplication operator. */
-    Velocity operator * (const float& v)
+    Velocity operator*(const float& v)
     {
-        return Velocity(zero_adjust(velocity * v,velocity));
+        return Velocity(zero_adjust(velocity * v, velocity));
     }
 
     /** Overloaded division operator. */
-    Velocity operator / (const Velocity& v)
+    Velocity operator/(const Velocity& v)
     {
-        return Velocity(zero_adjust(velocity / v.velocity,velocity));
+        return Velocity(zero_adjust(velocity / v.velocity, velocity));
     }
 
     /** Overloaded division operator. */
-    Velocity operator / (const float& v)
+    Velocity operator/(const float& v)
     {
-        return Velocity(zero_adjust(velocity / v,velocity));
+        return Velocity(zero_adjust(velocity / v, velocity));
     }
 
     /** Overloaded pre-increement operator. */
-    Velocity& operator ++ ()
+    Velocity& operator++()
     {
-        velocity = zero_adjust(velocity + 1,velocity);
+        velocity = zero_adjust(velocity + 1, velocity);
         return *this;
     }
 
     /** Overloaded post-increment operator. */
-    Velocity operator ++ (int)
+    Velocity operator++(int)
     {
         Velocity result(*this);
-        velocity = zero_adjust(velocity + 1,velocity);
+        velocity = zero_adjust(velocity + 1, velocity);
         return result;
     }
 
     /** Overloaded pre-decreement operator. */
-    Velocity& operator -- ()
+    Velocity& operator--()
     {
-        velocity = zero_adjust(velocity - 1,velocity);
+        velocity = zero_adjust(velocity - 1, velocity);
         return *this;
     }
 
     /** Overloaded post-decrement operator. */
-    Velocity operator -- (int)
+    Velocity operator--(int)
     {
         Velocity result(*this);
-        velocity = zero_adjust(velocity - 1,velocity);
+        velocity = zero_adjust(velocity - 1, velocity);
         return result;
     }
 
     /** Overloaded addition equals operator. */
-    Velocity& operator += (const Velocity& v)
+    Velocity& operator+=(const Velocity& v)
     {
-        velocity = zero_adjust(velocity + v.velocity,velocity);
+        velocity = zero_adjust(velocity + v.velocity, velocity);
         return *this;
     }
 
     /** Overloaded addition equals operator. */
-    Velocity& operator += (const float& v)
+    Velocity& operator+=(const float& v)
     {
-        velocity = zero_adjust(velocity + v,velocity);
+        velocity = zero_adjust(velocity + v, velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
-    Velocity& operator -= (const Velocity& v)
+    Velocity& operator-=(const Velocity& v)
     {
-        velocity = zero_adjust(velocity - v.velocity,velocity);
+        velocity = zero_adjust(velocity - v.velocity, velocity);
         return *this;
     }
 
     /** Overloaded subtraction equals operator. */
-    Velocity& operator -= (const float& v)
+    Velocity& operator-=(const float& v)
     {
-        velocity = zero_adjust(velocity - v,velocity);
+        velocity = zero_adjust(velocity - v, velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
-    Velocity& operator *= (const Velocity& v)
+    Velocity& operator*=(const Velocity& v)
     {
-        velocity = zero_adjust(velocity * v.velocity,velocity);
+        velocity = zero_adjust(velocity * v.velocity, velocity);
         return *this;
     }
 
     /** Overloaded multiplication equals operator. */
-    Velocity& operator *= (const float& v)
+    Velocity& operator*=(const float& v)
     {
-        velocity = zero_adjust(velocity * v,velocity);
+        velocity = zero_adjust(velocity * v, velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
-    Velocity& operator /= (const Velocity& v)
+    Velocity& operator/=(const Velocity& v)
     {
-        velocity = zero_adjust(velocity / v.velocity,velocity);
+        velocity = zero_adjust(velocity / v.velocity, velocity);
         return *this;
     }
 
     /** Overloaded division equals operator. */
-    Velocity& operator /= (const float& v)
+    Velocity& operator/=(const float& v)
     {
-        velocity = zero_adjust(velocity / v,velocity);
+        velocity = zero_adjust(velocity / v, velocity);
         return *this;
     }
 
     /** Overloaded equals operator. */
-    Velocity& operator = (const Velocity& v)
+    Velocity& operator=(const Velocity& v)
     {
         velocity = v.velocity;
         return *this;
     }
 
     /** Overloaded equals operator. */
-    Velocity& operator = (const float& v)
+    Velocity& operator=(const float& v)
     {
         velocity = v;
         return *this;
     }
 
     /** Overloaded equals equals operator */
-    bool operator == (const Velocity& v)
+    bool operator==(const Velocity& v)
     {
         return (v.velocity == velocity);
     }
-    
+
     /** Overloaded equals equals operator */
-    bool operator == (const float& v)
+    bool operator==(const float& v)
     {
         return (v == velocity);
     }
-    
+
     /** Overloaded not equals operator */
-    bool operator != (const Velocity& v)
+    bool operator!=(const Velocity& v)
     {
         return (v.velocity != velocity);
     }
-    
+
     /** Overloaded not equals operator */
-    bool operator != (const float& v)
+    bool operator!=(const float& v)
     {
         return (v != velocity);
     }
-    
+
 private:
     /** Floating point representation of velocity. */
     float velocity;
-    
+
     /** Adjust for a math result of negative 0.
      * @param value value of math result
      * @param old original value before expression
      */
     float zero_adjust(float value, float old)
     {
-        if (value == 0)
-        {
+        if (value == 0) {
             return copysign(value, old);
         }
         return value;
     }
 };
-
 
 }; /* namespace NMRAnet */
 

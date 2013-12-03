@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,7 +42,7 @@
 class BufferPool;
 
 /** main buffer pool instance */
-extern BufferPool *mainBufferPool; 
+extern BufferPool* mainBufferPool;
 
 /** Buffer structure that contains both metadata and user data */
 class Buffer
@@ -56,21 +56,21 @@ public:
      * @param bytes number of bytes to advance.
      * @return pointer to the new position (next available byte)
      */
-    void *advance(size_t bytes);
-    
+    void* advance(size_t bytes);
+
     /** reset the buffer position back to beginning.
      * @return pointer to the new position (next available byte)
      */
-    void *zero()
+    void* zero()
     {
         left = _size;
         return data;
-    }    
-    
+    }
+
     /** Get a pointer to the first position (byte) of the buffer.
      * @return pointer to the first position (byte)
      */
-    void *start()
+    void* start()
     {
         return data;
     }
@@ -78,7 +78,7 @@ public:
     /** Get a pointer to the current position of the buffer.
      * @return pointer to the current position (next available byte)
      */
-    void *position()
+    void* position()
     {
         return &data[_size - left];
     }
@@ -96,7 +96,7 @@ public:
      */
     size_t available()
     {
-        return left;    
+        return left;
     }
 
     /** Get the number of unused bytes in the buffer.
@@ -104,14 +104,14 @@ public:
      */
     size_t used()
     {
-        return _size - left;    
+        return _size - left;
     }
 
     /** Expand the buffer size.
      * @param size size buffer after expansion.
      * @return newly expanded buffer with old buffer data moved
      */
-    Buffer *expand(size_t size);
+    Buffer* expand(size_t size);
 
     /** Set the unique identifier for the buffer.
      * @param identifier 32-bit unique identifier
@@ -143,15 +143,14 @@ private:
      * @return newly allocated buffer or addres of first item in an array of
      *         allocated buffers, HASSERT() on failure
      */
-    static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1)
+    static Buffer* alloc(BufferPool* pool, size_t size, size_t items = 1)
     {
         HASSERT(pool != NULL && items != 0);
         size_t align_size = sizeof_buffer(size);
-        Buffer *buffer = (Buffer*)malloc(align_size * items);
+        Buffer* buffer = (Buffer*)malloc(align_size * items);
         HASSERT(buffer != NULL);
-        Buffer *result = buffer;
-        for (size_t i = 0; i < items; ++i)
-        {
+        Buffer* result = buffer;
+        for (size_t i = 0; i < items; ++i) {
             buffer->next = NULL;
             buffer->bufferPool = pool;
             buffer->_size = size;
@@ -168,7 +167,7 @@ private:
      * @param size size of user data in bytes
      * @return newly reinitialized buffer, HASSERT() on failure
      */
-    static Buffer *init(Buffer *buffer, size_t size)
+    static Buffer* init(Buffer* buffer, size_t size)
     {
         HASSERT(buffer->bufferPool != NULL);
         HASSERT(buffer->_size == size);
@@ -178,15 +177,15 @@ private:
         return buffer;
     }
 
-    /** Macro to position to beginning of structure from data member position*/
-    #define BUFFER(_buffer) (Buffer*)((char *)(_buffer) - sizeof(Buffer));
+/** Macro to position to beginning of structure from data member position*/
+#define BUFFER(_buffer) (Buffer*)((char*)(_buffer) - sizeof(Buffer));
 
     /* pointer to BufferPool instance that this buffer belongs to */
-    BufferPool *bufferPool;
+    BufferPool* bufferPool;
 
     /** next buffer in list */
-    Buffer *next;
-    
+    Buffer* next;
+
     /** size of data in bytes */
     size_t _size;
 
@@ -195,16 +194,16 @@ private:
 
     /** message ID for uniquely identifying this buffer in a queue */
     uint32_t _id;
-    
+
     /** number of references in use */
     unsigned int count;
-    
+
     /** user data */
     char data[];
 
     /** This class is a helper of BufferPool, so we know where to free to */
     friend class BufferPool;
-    
+
     /** This class is a helper of BufferQueue */
     friend class BufferQueue;
 
@@ -213,12 +212,14 @@ private:
      */
     static size_t sizeof_buffer(size_t size)
     {
-        return sizeof(Buffer) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
+        return sizeof(Buffer)
+               + (((size / sizeof(long)) + (size % sizeof(long) ? 1 : 0))
+                  * sizeof(long));
     }
-    
+
     /** Default constructor */
     Buffer();
-    
+
     /** Default destructor */
     ~Buffer();
 
@@ -233,7 +234,7 @@ public:
     BufferPool()
         : totalSize(0),
           mutex(),
-          pool {NULL, NULL, NULL, NULL},
+          pool{NULL, NULL, NULL, NULL},
           itemSize(0),
           items(0)
     {
@@ -246,16 +247,16 @@ public:
     BufferPool(size_t item_size, size_t items)
         : totalSize(0),
           mutex(),
-          pool {Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
+          pool{Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
           itemSize(item_size),
           items(items)
     {
-        Buffer *current = first;
-        for (size_t i = 0; i < items; ++i)
-        {
+        Buffer* current = first;
+        for (size_t i = 0; i < items; ++i) {
             current->next = pool[1];
             pool[1] = current;
-            current = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
+            current
+                = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
         }
         /* save the index just after last buffer in the bool */
         pool[2] = current;
@@ -272,19 +273,17 @@ public:
      * @return true if the buffer is in the pool, or this is not a fixed pool,
      *         else return false;
      */
-    bool valid(Buffer *buffer)
+    bool valid(Buffer* buffer)
     {
-        if (itemSize != 0)
-        {
-            if (buffer >= first && buffer <= pool[2])
-            {
+        if (itemSize != 0) {
+            if (buffer >= first && buffer <= pool[2]) {
                 return true;
             }
             return false;
         }
         return true;
     }
-    
+
     /** Get a free buffer out of the pool.  A buffer may be
      * obtained without context (object reference) from the mainBufferPool
      * with the ::buffer_free method.
@@ -292,7 +291,7 @@ public:
      * @param size minimum size in bytes the buffer must hold
      * @return pointer to the newly allocated buffer
      */
-    Buffer *buffer_alloc(size_t size);
+    Buffer* buffer_alloc(size_t size);
 
     /** Release a buffer back to the free buffer pool.  A buffer may be
      * released without context (object reference) to the mainBufferPool
@@ -300,29 +299,28 @@ public:
      *
      * @param buffer pointer to buffer to release
      */
-    void buffer_free(Buffer *buffer);
-    
+    void buffer_free(Buffer* buffer);
+
 private:
     /** keep track of total allocated size of memory */
     size_t totalSize;
-    
+
     /** Mutual exclusion for buffer pool */
     OSMutex mutex;
-
 
     /** this union save overlapping memory */
     union
     {
         /** Free buffer pool */
-        Buffer *pool[4];
-        
+        Buffer* pool[4];
+
         /** First buffer in a pre-allocated array pool */
-        Buffer *first;
+        Buffer* first;
     };
-    
+
     /** item Size for fixed pools */
     size_t itemSize;
-    
+
     /** number of items for fixed pools */
     size_t items;
 
@@ -343,11 +341,7 @@ class BufferQueue
 {
 public:
     /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueue()
-        : head(NULL),
-          tail(NULL),
-          count(0),
-          mutex()
+    BufferQueue() : head(NULL), tail(NULL), count(0), mutex()
     {
     }
 
@@ -360,7 +354,7 @@ public:
     /** Release a buffer back to the free buffer pool.
      * @param buffer pointer to buffer to release
      */
-    void buffer_free(Buffer *buffer)
+    void buffer_free(Buffer* buffer)
     {
         buffer->free();
     }
@@ -368,12 +362,12 @@ public:
     /** Add a buffer to the back of the queue.
      * @param buffer buffer to add to queue
      */
-    void insert(Buffer *buffer);
+    void insert(Buffer* buffer);
 
     /** Get a buffer from the front of the queue.
      * @return buffer buffer retrieved from queue
      */
-    Buffer *next();
+    Buffer* next();
 
     /** Get the number of pending items in the queue.
      * @return number of pending items in the queue
@@ -390,16 +384,15 @@ public:
     {
         return (head == NULL);
     }
-    
-protected:
 
+protected:
 private:
     /** head buffer in queue */
-    Buffer *head;
-    
+    Buffer* head;
+
     /** tail buffer in queue */
-    Buffer *tail;
-    
+    Buffer* tail;
+
     /** number of buffers in queue */
     size_t count;
 
@@ -420,9 +413,7 @@ class BufferQueueWait : public BufferQueue, public OSSem
 {
 public:
     /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueueWait()
-        : BufferQueue(),
-          sem(0)
+    BufferQueueWait() : BufferQueue(), sem(0)
     {
     }
 
@@ -435,7 +426,7 @@ public:
     /** Add a buffer to the back of the queue.
      * @param buffer buffer to add to queue
      */
-    void insert(Buffer *buffer)
+    void insert(Buffer* buffer)
     {
         BufferQueue::insert(buffer);
         post();
@@ -444,44 +435,42 @@ public:
     /** Get a buffer from the front of the queue.
      * @return buffer buffer retrieved from queue
      */
-    Buffer *next()
+    Buffer* next()
     {
-        Buffer *result = BufferQueue::next();
-        if (result != NULL)
-        {
+        Buffer* result = BufferQueue::next();
+        if (result != NULL) {
             /* decrement semaphore */
             OSSem::wait();
         }
         return result;
     }
-    
+
     /** Wait for a buffer from the front of the queue.
      * @return buffer buffer retrieved from queue
      */
-    Buffer *wait()
+    Buffer* wait()
     {
         OSSem::wait();
-        Buffer *result = BufferQueue::next();
+        Buffer* result = BufferQueue::next();
         HASSERT(result != NULL);
         return result;
     }
-    
+
     /** Wait for a buffer from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return buffer buffer retrieved from queue, NULL on timeout or error
      */
-    Buffer *timedwait(long long timeout)
+    Buffer* timedwait(long long timeout)
     {
-        if (OSSem::timedwait(timeout) != 0)
-        {
+        if (OSSem::timedwait(timeout) != 0) {
             return NULL;
         }
-        
-        Buffer *result = BufferQueue::next();
+
+        Buffer* result = BufferQueue::next();
         HASSERT(result != NULL);
         return result;
     }
-    
+
 private:
     /** Semaphore that we will wait on */
     OSSem sem;
@@ -493,7 +482,7 @@ private:
  * @param size minimum size in bytes the buffer must hold
  * @return pointer to the newly allocated buffer
  */
-inline Buffer *buffer_alloc(size_t size)
+inline Buffer* buffer_alloc(size_t size)
 {
     return mainBufferPool->buffer_alloc(size);
 }
@@ -501,7 +490,7 @@ inline Buffer *buffer_alloc(size_t size)
 /** Release a buffer back to the mainBufferPool free buffer pool.
  * @param buffer pointer to buffer to release
  */
-inline void buffer_free(Buffer *buffer)
+inline void buffer_free(Buffer* buffer)
 {
     mainBufferPool->buffer_free(buffer);
 }
@@ -518,11 +507,11 @@ inline void Buffer::free()
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
-inline void *Buffer::advance(size_t bytes)
+inline void* Buffer::advance(size_t bytes)
 {
     /** @todo (Stuart Baker) do we really need a mutex lock here? */
     bufferPool->mutex.lock();
-    left -= bytes;    
+    left -= bytes;
     bufferPool->mutex.unlock();
     return &data[_size - left];
 }

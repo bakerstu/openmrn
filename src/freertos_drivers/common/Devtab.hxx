@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,15 +46,15 @@ struct Node;
 struct Devops
 {
     /** Open method */
-    int (*open)(File *, const char *, int, int);
+    int (*open)(File*, const char*, int, int);
     /** Close method */
-    int (*close)(File *, Node *);
+    int (*close)(File*, Node*);
     /** Read method */
-    ssize_t (*read)(File *, void *, size_t);
+    ssize_t (*read)(File*, void*, size_t);
     /** Write method */
-    ssize_t (*write)(File *, const void *, size_t);
+    ssize_t (*write)(File*, const void*, size_t);
     /** Ioctl method */
-    int (*ioctl)(File *, Node *, unsigned long int, unsigned long);
+    int (*ioctl)(File*, Node*, unsigned long int, unsigned long);
 };
 
 /** Device tab structure.
@@ -67,10 +67,8 @@ public:
      * @param devops reference to device operations
      * @param priv private data pointer for device to recall for later use
      */
-    Devtab(const char *name, Devops *devops, void *priv)
-        : name(name),
-          devops(devops),
-          priv(priv)
+    Devtab(const char* name, Devops* devops, void* priv)
+        : name(name), devops(devops), priv(priv)
     {
         next = first;
         first = this;
@@ -80,7 +78,7 @@ public:
     ~Devtab()
     {
     }
-    
+
     /** Open a file or device.
      * @param reent thread save reentrant structure
      * @param path file or device name
@@ -88,32 +86,35 @@ public:
      * @param mode open mode, ignored in this implementation
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
-    static int open(struct _reent *reent, const char *path, int flags, int mode);
+    static int open(struct _reent* reent, const char* path, int flags,
+                    int mode);
 
     /** Close a file or device.
      * @param reent thread save reentrant structure
      * @param fd file descriptor to close
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
-    int close(struct _reent *reent, int fd);
+    int close(struct _reent* reent, int fd);
 
     /** Read from a file or device.
      * @param reent thread save reentrant structure
      * @param fd file descriptor to read
      * @param buf location to place read data
      * @param count number of bytes to read
-     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes read upon success, -1 upon failure with errno
+     * containing the cause
      */
-    ssize_t read(struct _reent *reent, int fd, void *buf, size_t count);
+    ssize_t read(struct _reent* reent, int fd, void* buf, size_t count);
 
     /** Write to a file or device.
      * @param reent thread save reentrant structure
      * @param fd file descriptor to write
      * @param buf location to find write data
      * @param count number of bytes to write
-     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes written upon success, -1 upon failure with errno
+     * containing the cause
      */
-    ssize_t write(struct _reent *reent, int fd, const void *buf, size_t count);
+    ssize_t write(struct _reent* reent, int fd, const void* buf, size_t count);
 
     /** Request and ioctl transaction
      * @param fd file descriptor
@@ -121,28 +122,28 @@ public:
      * @param data key data
      */
     int ioctl(int fd, unsigned long int key, unsigned long data);
-    
+
     /** Get the private data pointer.
      * @return private data pointer
      */
-    void *get_priv()
+    void* get_priv()
     {
         return priv;
     }
 
 private:
-    const char *name; /**< device name */
-    Devops *devops; /**< device operations */
-    void *priv; /**< device private data */
+    const char* name; /**< device name */
+    Devops* devops;   /**< device operations */
+    void* priv;       /**< device private data */
 
     /** first device in linked list */
-    static Devtab *first;
-    
+    static Devtab* first;
+
     /** mutual exclusion for fileio */
     static OSMutex mutex;
-    
+
     /** next device in linked list */
-    Devtab *next;
+    Devtab* next;
 
     /** Default constructor */
     Devtab();
@@ -157,8 +158,7 @@ class Node
 protected:
     /** Constructor.
      */
-    Node()
-        : references(0)
+    Node() : references(0)
     {
     }
 
@@ -169,7 +169,7 @@ protected:
 
     unsigned int references; /**< number of open references */
 
-private:    
+private:
     DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
@@ -177,11 +177,11 @@ private:
  */
 struct File
 {
-    Devtab *dev; /**< file operations */
-    Node *node; /**< node this file information refers to */
+    Devtab* dev;  /**< file operations */
+    Node* node;   /**< node this file information refers to */
     off_t offset; /**< current offset within file */
-    int flags; /**< open flags */
-    char inuse; /**< is this file in use */
+    int flags;    /**< open flags */
+    char inuse;   /**< is this file in use */
 };
 
 #endif /* _Devtab_hxx_ */

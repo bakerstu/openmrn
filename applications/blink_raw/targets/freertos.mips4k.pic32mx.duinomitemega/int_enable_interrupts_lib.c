@@ -48,7 +48,7 @@
  * Overview:        Interrupts are enabled by setting the IE bit
  *                  in the status register
  ********************************************************************/
-unsigned int __attribute__((nomips16))  INTEnableInterrupts(void)
+unsigned int __attribute__((nomips16)) INTEnableInterrupts(void)
 {
     unsigned int status = 0;
 

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,60 +34,62 @@
 #ifndef _nmranet_can_h_
 #define _nmranet_can_h_
 
-#if defined (__linux__)
-    #include <sys/socket.h>
-    #include <linux/can.h>
-    #define SET_CAN_FRAME_EFF(_frame) (_frame).can_id |= CAN_EFF_FLAG
-    #define SET_CAN_FRAME_RTR(_frame) (_frame).can_id |= CAN_RTR_FLAG
-    #define SET_CAN_FRAME_ERR(_frame) (_frame).can_id |= CAN_ERR_FLAG
-    #define CLR_CAN_FRAME_EFF(_frame) (_frame).can_id &= ~CAN_EFF_FLAG
-    #define CLR_CAN_FRAME_RTR(_frame) (_frame).can_id &= ~CAN_RTR_FLAG
-    #define CLR_CAN_FRAME_ERR(_frame) (_frame).can_id &= ~CAN_ERR_FLAG
-    #define IS_CAN_FRAME_EFF(_frame) ((_frame).can_id & CAN_EFF_FLAG)
-    #define IS_CAN_FRAME_RTR(_frame) ((_frame).can_id & CAN_RTR_FLAG)
-    #define IS_CAN_FRAME_ERR(_frame) ((_frame).can_id & CAN_ERR_FLAG)
+#if defined(__linux__)
+#include <sys/socket.h>
+#include <linux/can.h>
+#define SET_CAN_FRAME_EFF(_frame) (_frame).can_id |= CAN_EFF_FLAG
+#define SET_CAN_FRAME_RTR(_frame) (_frame).can_id |= CAN_RTR_FLAG
+#define SET_CAN_FRAME_ERR(_frame) (_frame).can_id |= CAN_ERR_FLAG
+#define CLR_CAN_FRAME_EFF(_frame) (_frame).can_id &= ~CAN_EFF_FLAG
+#define CLR_CAN_FRAME_RTR(_frame) (_frame).can_id &= ~CAN_RTR_FLAG
+#define CLR_CAN_FRAME_ERR(_frame) (_frame).can_id &= ~CAN_ERR_FLAG
+#define IS_CAN_FRAME_EFF(_frame) ((_frame).can_id& CAN_EFF_FLAG)
+#define IS_CAN_FRAME_RTR(_frame) ((_frame).can_id& CAN_RTR_FLAG)
+#define IS_CAN_FRAME_ERR(_frame) ((_frame).can_id& CAN_ERR_FLAG)
 
-    #define GET_CAN_FRAME_ID_EFF(_frame) ((_frame).can_id & CAN_EFF_MASK)
-    #define GET_CAN_FRAME_ID(_frame)     ((_frame).can_id & CAN_SFF_MASK)
-    #define SET_CAN_FRAME_ID_EFF(_frame, _value) \
-    {                                            \
-        (_frame).can_id &= ~CAN_EFF_MASK;        \
-        (_frame).can_id += ((_value) & CAN_EFF_MASK);   \
+#define GET_CAN_FRAME_ID_EFF(_frame) ((_frame).can_id& CAN_EFF_MASK)
+#define GET_CAN_FRAME_ID(_frame) ((_frame).can_id& CAN_SFF_MASK)
+#define SET_CAN_FRAME_ID_EFF(_frame, _value)                                   \
+    {                                                                          \
+        (_frame).can_id &= ~CAN_EFF_MASK;                                      \
+        (_frame).can_id += ((_value) & CAN_EFF_MASK);                          \
     }
-    #define SET_CAN_FRAME_ID(_frame, _value) \
-    {                                        \
-        (_frame).can_id &= ~CAN_SFF_MASK;    \
-        (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
+#define SET_CAN_FRAME_ID(_frame, _value)                                       \
+    {                                                                          \
+        (_frame).can_id &= ~CAN_SFF_MASK;                                      \
+        (_frame).can_id += ((_value) & CAN_SFF_MASK);                          \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__)
+#elif defined(__nuttx__) || defined(__FreeRTOS__) || defined(__MACH__)         \
+    || defined(__WIN32__)
 #include <stdint.h>
 
-    struct can_frame
-    {
-        uint32_t can_id;      /**< 11- or 29-bit ID (3-bits unsed) */
-        uint8_t  can_dlc : 4; /**< 4-bit DLC */
-        uint8_t  can_rtr : 1; /**< RTR indication */
-        uint8_t  can_eff : 1; /**< Extended ID indication */
-        uint8_t  can_err : 1; /**< @todo not supported by nuttx */
-        uint8_t  can_res : 1; /**< Unused */
-        uint8_t  data[8];     /** CAN message data (0-8 byte) */
-    };
+struct can_frame
+{
+    uint32_t can_id;     /**< 11- or 29-bit ID (3-bits unsed) */
+    uint8_t can_dlc : 4; /**< 4-bit DLC */
+    uint8_t can_rtr : 1; /**< RTR indication */
+    uint8_t can_eff : 1; /**< Extended ID indication */
+    uint8_t can_err : 1; /**< @todo not supported by nuttx */
+    uint8_t can_res : 1; /**< Unused */
+    uint8_t data[8];     /** CAN message data (0-8 byte) */
+};
 
-    #define SET_CAN_FRAME_EFF(_frame) (_frame).can_eff = 1
-    #define SET_CAN_FRAME_RTR(_frame) (_frame).can_rtr = 1
-    #define SET_CAN_FRAME_ERR(_frame) (_frame).can_err = 1
-    #define CLR_CAN_FRAME_EFF(_frame) (_frame).can_eff = 0
-    #define CLR_CAN_FRAME_RTR(_frame) (_frame).can_rtr = 0
-    #define CLR_CAN_FRAME_ERR(_frame) (_frame).can_err = 0
-    #define IS_CAN_FRAME_EFF(_frame) ((_frame).can_eff)
-    #define IS_CAN_FRAME_RTR(_frame) ((_frame).can_rtr)
-    #define IS_CAN_FRAME_ERR(_frame) ((0))
+#define SET_CAN_FRAME_EFF(_frame) (_frame).can_eff = 1
+#define SET_CAN_FRAME_RTR(_frame) (_frame).can_rtr = 1
+#define SET_CAN_FRAME_ERR(_frame) (_frame).can_err = 1
+#define CLR_CAN_FRAME_EFF(_frame) (_frame).can_eff = 0
+#define CLR_CAN_FRAME_RTR(_frame) (_frame).can_rtr = 0
+#define CLR_CAN_FRAME_ERR(_frame) (_frame).can_err = 0
+#define IS_CAN_FRAME_EFF(_frame) ((_frame).can_eff)
+#define IS_CAN_FRAME_RTR(_frame) ((_frame).can_rtr)
+#define IS_CAN_FRAME_ERR(_frame) ((0))
 
-    #define GET_CAN_FRAME_ID_EFF(_frame)  (_frame).can_id
-    #define GET_CAN_FRAME_ID(_frame)      (_frame).can_id
-    #define SET_CAN_FRAME_ID_EFF(_frame, _value)  (_frame).can_id = ((_value) & 0x1FFFFFFFU)
-    #define SET_CAN_FRAME_ID(_frame, _value)     (_frame).can_id = ((_value) & 0x7ffU)
+#define GET_CAN_FRAME_ID_EFF(_frame) (_frame).can_id
+#define GET_CAN_FRAME_ID(_frame) (_frame).can_id
+#define SET_CAN_FRAME_ID_EFF(_frame, _value)                                   \
+    (_frame).can_id = ((_value) & 0x1FFFFFFFU)
+#define SET_CAN_FRAME_ID(_frame, _value) (_frame).can_id = ((_value) & 0x7ffU)
 
 #else
 #error

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,7 +36,6 @@
 #include "utils/gc_format.h"
 #include "nmranet_can.h"
 
-
 class GCAdapter : public GCAdapterBase
 {
 public:
@@ -52,14 +51,13 @@ public:
     {
         parser_.destination()->UnregisterMember(&formatter_);
         formatter_.destination()->UnregisterMember(&parser_);
-    }    
+    }
 
 private:
     class BinaryToGCMember : public PipeMember
     {
     public:
-        BinaryToGCMember(Pipe* destination,
-                         PipeMember* skip_member,
+        BinaryToGCMember(Pipe* destination, PipeMember* skip_member,
                          int double_bytes)
             : destination_(destination),
               skip_member_(skip_member),
@@ -74,11 +72,10 @@ private:
 
         virtual void write(const void* buf, size_t count)
         {
-            const struct can_frame* frame =
-                static_cast<const struct can_frame*>(buf);
+            const struct can_frame* frame = static_cast
+                <const struct can_frame*>(buf);
             char dbuf[56];
-            while (count >= sizeof(*frame))
-            {
+            while (count >= sizeof(*frame)) {
                 char* end = gc_format_generate(frame, dbuf, double_bytes_);
                 int len = (end - dbuf);
                 if (len) {
@@ -98,15 +95,11 @@ private:
         int double_bytes_;
     };
 
-
     class GCToBinaryMember : public PipeMember
     {
     public:
-        GCToBinaryMember(Pipe* destination,
-                         PipeMember* skip_member)
-            : offset_(-1),
-              destination_(destination),
-              skip_member_(skip_member)
+        GCToBinaryMember(Pipe* destination, PipeMember* skip_member)
+            : offset_(-1), destination_(destination), skip_member_(skip_member)
         {
         }
 
@@ -118,48 +111,44 @@ private:
         virtual void write(const void* buf, size_t count)
         {
             const char* cbuf = static_cast<const char*>(buf);
-            for (size_t i = 0; i < count; ++i)
-            {
+            for (size_t i = 0; i < count; ++i) {
                 consume_byte(cbuf[i]);
             }
         }
 
         void consume_byte(char c)
         {
-            if (c == ':')
-            {
+            if (c == ':') {
                 // Frame is starting here.
                 offset_ = 0;
                 return;
             }
-            if (c == ';')
-            {
-              if (offset_ < 0) {
-                return;
-              }
+            if (c == ';') {
+                if (offset_ < 0) {
+                    return;
+                }
                 // Frame ends here.
                 cbuf_[offset_] = 0;
                 struct can_frame frame;
                 int ret = gc_format_parse(cbuf_, &frame);
-                if (!ret)
-                {
-                    destination_->WriteToAll(skip_member_,
-                                             &frame, sizeof(frame));
+                if (!ret) {
+                    destination_->WriteToAll(skip_member_, &frame,
+                                             sizeof(frame));
                 }
                 offset_ = -1;
                 return;
             }
-            if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1))
-            {
+            if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1)) {
                 // We overran the buffer, so this can't be a valid frame.
                 // Reset and look for sync byte again.
                 offset_ = -1;
                 return;
             }
             if (offset_ >= 0) {
-              cbuf_[offset_++] = c;
+                cbuf_[offset_++] = c;
             } else {
-              // Drop byte to the floor -- we're not in the middle of a packet.
+                // Drop byte to the floor -- we're not in the middle of a
+                // packet.
             }
         }
 
@@ -179,9 +168,10 @@ private:
     //! PipeMember doing the formatting.
     BinaryToGCMember formatter_;
 };
-  
 
-GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
+GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side,
+                                                       Pipe* can_side,
+                                                       bool double_bytes)
 {
     return new GCAdapter(gc_side, can_side, double_bytes);
 }

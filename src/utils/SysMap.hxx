@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -46,10 +46,7 @@ template <typename Key, typename Value> class SysMap
 public:
     /** Default Constructor which with no mapping entry limit.
      */
-    SysMap()
-        : entries(0),
-          used(0),
-          freeList(NULL)
+    SysMap() : entries(0), used(0), freeList(NULL)
 
     {
         RB_INIT(&head);
@@ -58,17 +55,13 @@ public:
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    SysMap(size_t entries) 
-        : entries(entries),
-          used(0),
-          freeList(NULL)
+    SysMap(size_t entries) : entries(entries), used(0), freeList(NULL)
     {
         RB_INIT(&head);
-        Node *first = new Node[entries];
+        Node* first = new Node[entries];
         first->entry.rbe_left = (Node*)this;
-        
-        for (size_t i = 1; i < entries; i++)
-        {
+
+        for (size_t i = 1; i < entries; i++) {
             first[i].entry.rbe_left = freeList;
             freeList = first + i;
         }
@@ -81,11 +74,11 @@ public:
         /* We should never get here */
         HASSERT(0);
     }
-    
+
     /** mimic std::pair */
     struct Pair
     {
-        Key first; /**< mimic first element in an std::pair */
+        Key first;    /**< mimic first element in an std::pair */
         Value second; /**< mimic second element in an std::pair */
     };
 
@@ -101,7 +94,7 @@ private:
             Pair p; /**< pair of element */
             struct
             {
-                Key key; /**< key by which to sort the node */
+                Key key;     /**< key by which to sort the node */
                 Value value; /**< value of the node */
             };
         };
@@ -111,14 +104,12 @@ private:
         Node()
         {
         }
-        
+
         /** Constructor.
          * @param key initial value of key
          * @param value initial value of value
          */
-        Node(Key key, Value value)
-            : key(key),
-              value(value)
+        Node(Key key, Value value) : key(key), value(value)
         {
         }
     };
@@ -131,28 +122,22 @@ public:
     public:
         /** Default constructor.
          */
-        Iterator()
-            : node(NULL),
-              m(NULL)
+        Iterator() : node(NULL), m(NULL)
         {
         }
-        
+
         /** Copy constructor.
          */
-        Iterator(const Iterator &it)
-            : node(it.node),
-              m(it.m)
+        Iterator(const Iterator& it) : node(it.node), m(it.m)
         {
         }
-        
+
         /** Constructor.
          * @param context context passed in at instantiation
          * @param node node to initialize this iteration with
          */
-        Iterator(SysMap* context, Node *node)
-            : node(node),
-              m(context)
-            
+        Iterator(SysMap* context, Node* node) : node(node), m(context)
+
         {
         }
 
@@ -160,7 +145,7 @@ public:
         ~Iterator()
         {
         }
-        
+
         /** Overloaded reference operator.
          */
         Pair& operator*() const
@@ -169,48 +154,46 @@ public:
         }
 
         /** Overloaded pre-increement operator. */
-        Iterator& operator ++ ()
+        Iterator& operator++()
         {
-            if (node)
-            {
+            if (node) {
                 node = RB_NEXT(m->tree, &(m->head), node);
             }
             return *this;
         }
 
         /** Overloaded not equals operator. */
-        bool operator != (const Iterator& it)
+        bool operator!=(const Iterator& it)
         {
             return node != it.node;
         }
 
         /** Overloaded equals operator. */
-        bool operator == (const Iterator& it)
+        bool operator==(const Iterator& it)
         {
             return node == it.node;
         }
 
     private:
         /** node this iteration is currently indexed to */
-        Node *node;
-        
+        Node* node;
+
         /** Context this iteration lives in */
-        SysMap *m;
+        SysMap* m;
 
         /** Allow access to node member */
         friend class SysMap;
     };
-    
+
     /** Find the index associated with the key and create it if does not exist.
      * @param key key to lookup
      * @return value of the key by reference
      */
-    Value& operator[](const Key &key)
+    Value& operator[](const Key& key)
     {
         Iterator it = find(key);
-        if (it == end())
-        {
-            Node *node = alloc();
+        if (it == end()) {
+            Node* node = alloc();
             HASSERT(node);
             node->key = key;
             node->value = 0;
@@ -235,20 +218,20 @@ public:
     {
         return entries;
     }
-    
+
     /** Find an element matching the given key.
      * @param key key to search for
      * @return iterator index pointing to key, else iterator end() if not found
      */
-    Iterator find( const Key &key )
+    Iterator find(const Key& key)
     {
         Node lookup;
         lookup.key = key;
-        Node *node = RB_FIND(tree, &head, &lookup);
-        
+        Node* node = RB_FIND(tree, &head, &lookup);
+
         return node ? Iterator(this, node) : Iterator();
     }
-    
+
     /** Get an iterator index pointing one past the last element in mapping.
      * @return iterator index pointing to one past the last element in mapping
      */
@@ -263,8 +246,8 @@ public:
      */
     Iterator begin()
     {
-        Node *node = RB_MIN(tree, &head);
-        
+        Node* node = RB_MIN(tree, &head);
+
         return node ? Iterator(this, node) : Iterator();
     }
 
@@ -276,25 +259,23 @@ public:
     {
         Node lookup;
         lookup.key = key;
-        Node *node = RB_FIND(tree, &head, &lookup);
+        Node* node = RB_FIND(tree, &head, &lookup);
 
-        if (node)
-        {
+        if (node) {
             RB_REMOVE(tree, &head, node);
             free(node);
             return 1;
         }
         return 0;
     }
-    
+
     /** Remove a node from the tree.
      * @param it iterator index for the element to remove
      */
     void erase(Iterator it)
     {
-        Node *node = it.node;
-        if (node)
-        {
+        Node* node = it.node;
+        if (node) {
             RB_REMOVE(tree, &head, node);
             free(node);
         }
@@ -304,25 +285,23 @@ private:
     /** Allocate a node from the free list.
      * @return newly allocated node, else NULL if no free nodes left
      */
-    Node *alloc()
+    Node* alloc()
     {
-        if (freeList && freeList != (Node*)this)
-        {
-            Node *node = freeList;
+        if (freeList && freeList != (Node*)this) {
+            Node* node = freeList;
             freeList = freeList->entry.rbe_left;
             ++used;
             return node;
         }
         return NULL;
     }
-    
+
     /** free a node to the free list if it exists.
      * @param node node to free
      */
-    void free(Node *node)
+    void free(Node* node)
     {
-        if (freeList || freeList == (Node*)this)
-        {
+        if (freeList || freeList == (Node*)this) {
             node->entry.rbe_left = freeList;
             freeList = node;
             --used;
@@ -334,7 +313,7 @@ private:
      * @param b second of two nodes to compare
      * @return difference between node keys (a->key - b->key)
      */
-    Key compare(Node *a, Node *b)
+    Key compare(Node* a, Node* b)
     {
         return a->key - b->key;
     }
@@ -346,14 +325,14 @@ private:
     size_t used;
 
     /** list of free nodes */
-    Node *freeList;
+    Node* freeList;
 
     /** The datagram tree type. */
     RB_HEAD(tree, Node);
 
     /** The datagram tree methods. */
     RB_GENERATE(tree, Node, entry, compare);
-    
+
     /** tree instance */
     struct tree head;
 

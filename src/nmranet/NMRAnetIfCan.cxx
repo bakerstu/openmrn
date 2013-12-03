@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -31,7 +31,7 @@
  * @date 18 September 2013
  */
 
-#if defined (__linux__) || defined (__MACH__)
+#if defined(__linux__) || defined(__MACH__)
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -62,7 +62,7 @@ namespace NMRAnet
  * @param read read method for this interface
  * @param write write method for this interface
  */
-IfCan::IfCan(NodeID node_id, const char *device,
+IfCan::IfCan(NodeID node_id, const char* device,
              ssize_t (*read)(int, void*, size_t),
              ssize_t (*write)(int, const void*, size_t))
     : If(node_id),
@@ -72,99 +72,96 @@ IfCan::IfCan(NodeID node_id, const char *device,
       writeBuffer(this),
       pool((Pool*)malloc(sizeof(Pool) * ALIAS_POOL_SIZE)),
       downstreamCache(0, DOWNSTREAM_ALIAS_CACHE_SIZE),
-      upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE, upstream_alias_removed, this),
+      upstreamCache(node_id, UPSTREAM_ALIAS_CACHE_SIZE, upstream_alias_removed,
+                    this),
       mutex(),
       linkStatus(DOWN),
       datagramPool(DATAGRAM_MESSAGE_SIZE, Datagram::POOL_SIZE),
       datagramTree(Datagram::POOL_SIZE)
-      
+
 {
     {
         /* setup the timers for the datagram pool buffers */
-        Buffer *buffer[Datagram::POOL_SIZE];
-        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
-        {
+        Buffer* buffer[Datagram::POOL_SIZE];
+        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i) {
             buffer[i] = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
-            Datagram::Message *m = (Datagram::Message*)buffer[i]->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message* m = (Datagram::Message*)buffer[i]->start();
+            OSTimer* t = (OSTimer*)(m + 1);
             /* Placement new allows for runtime/link-time array size */
             new (t) OSTimer(datagram_timeout, this, buffer[i]);
         }
 
-        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
-        {
+        for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i) {
             buffer[i]->free();
         }
     }
-    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
-    {
+    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i) {
         /* Placement new allows for runtime/link-time array size */
         new (pool + i) Pool(this);
     }
 
-    if (fd >= 0)
-    {
+    if (fd >= 0) {
         link_up();
     }
-#if defined (__linux__) || defined (__MACH__)
-    else if (!strncmp(device, "/tcp/", 5))
-    {
+#if defined(__linux__) || defined(__MACH__)
+    else if (!strncmp(device, "/tcp/", 5)) {
         /* we must be working with a socket here */
         int port = strtol(device + 5, NULL, 0);
         int yes = 1;
-        
+
         HASSERT(!(port == 0 && errno == EINVAL));
-        
+
         socklen_t addrlen;
         struct sockaddr_in addr;
         int listen_fd;
-        
+
         listen_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-        
+
         HASSERT(listen_fd >= 0);
-        
+
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port = htons(port);
-        
+
         printf("port: %d\n", port);
-        
-        int result = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-        
+
+        int result = setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                                sizeof(yes));
+
         HASSERT(result == 0);
-        
+
         result = bind(listen_fd, (struct sockaddr*)&addr, sizeof(addr));
-        
+
         HASSERT(result == 0);
-        
+
         addrlen = sizeof(addr);
-        
-        result = getsockname(listen_fd, (struct sockaddr*) &addr, &addrlen);
- 
+
+        result = getsockname(listen_fd, (struct sockaddr*)&addr, &addrlen);
+
         HASSERT(result == 0);
-        
+
         result = listen(listen_fd, 1);
-        
+
         HASSERT(result == 0);
-        
+
         fd = accept(listen_fd, (struct sockaddr*)&addr, &addrlen);
-        
+
         printf("fd: %d, errno: %s\n", fd, strerror(errno));
         HASSERT(fd >= 0);
-        
+
         /* turn off Nagel algorithm. */
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
-        
+
         link_up();
     }
 #else
-    else
-    {
+    else {
         HASSERT(0);
     }
 #endif
 
-    new OSThread(device, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread_entry, this);
+    new OSThread(device, 0, CAN_IF_READ_THREAD_STACK_SIZE, read_thread_entry,
+                 this);
 }
 
 /** Transition to link up state.
@@ -172,11 +169,10 @@ IfCan::IfCan(NodeID node_id, const char *device,
 void IfCan::link_up()
 {
     mutex.lock();
-    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
-    {
+    for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i) {
         claim_alias(0, upstreamCache.generate(), pool + i);
     }
-    mutex.unlock(); 
+    mutex.unlock();
 }
 
 /** Transition to link down state.
@@ -191,18 +187,17 @@ void IfCan::link_down()
  */
 If::MTI IfCan::nmranet_mti(uint32_t can_id)
 {
-    switch (get_can_frame_type(can_id))
-    {
+    switch (get_can_frame_type(can_id)) {
         default:
             return MTI_NONE;
         case GLOBAL_ADDRESSED:
             return (MTI)get_mti(can_id);
         case DATAGRAM_ONE_FRAME:
-            /* fall through */
+        /* fall through */
         case DATAGRAM_FIRST_FRAME:
-            /* fall through */
+        /* fall through */
         case DATAGRAM_MIDDLE_FRAME:
-            /* fall through */
+        /* fall through */
         case DATAGRAM_FINAL_FRAME:
             return MTI_DATAGRAM;
         case STREAM_DATA:
@@ -217,11 +212,9 @@ If::MTI IfCan::nmranet_mti(uint32_t can_id)
  */
 uint32_t IfCan::can_identifier(MTI mti, NodeAlias src)
 {
-    return ((src << SRC_SHIFT           ) & SRC_MASK) +
-           ((mti << MTI_SHIFT           ) & MTI_MASK) +
-           ((1   << CAN_FRAME_TYPE_SHIFT)           ) +
-           ((1   << FRAME_TYPE_SHIFT    )           ) +
-           ((1   << PRIORITY_SHIFT      )           );
+    return ((src << SRC_SHIFT) & SRC_MASK) + ((mti << MTI_SHIFT) & MTI_MASK)
+           + ((1 << CAN_FRAME_TYPE_SHIFT)) + ((1 << FRAME_TYPE_SHIFT))
+           + ((1 << PRIORITY_SHIFT));
 }
 
 /** Put out a claim on an alias.  This method must always be called with the
@@ -230,19 +223,18 @@ uint32_t IfCan::can_identifier(MTI mti, NodeAlias src)
  * @param alias alias that node is claiming
  * @param entry entry within the pool to use for claim.
  */
-void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
+void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool* entry)
 {
     HASSERT(entry->status == FREE);
     entry->alias = alias;
     entry->status = UNDER_TEST;
-    if (node_id == 0)
-    {
+    if (node_id == 0) {
         /* this is an anonymous request, use the interface Node ID */
         node_id = nodeID;
     }
     struct can_frame frame[4];
-    
-    control_init(frame[0], alias, (node_id >>  0) & 0xfff, 7);
+
+    control_init(frame[0], alias, (node_id >> 0) & 0xfff, 7);
     control_init(frame[1], alias, (node_id >> 12) & 0xfff, 6);
     control_init(frame[2], alias, (node_id >> 24) & 0xfff, 5);
     control_init(frame[3], alias, (node_id >> 36) & 0xfff, 4);
@@ -271,9 +263,9 @@ void IfCan::claim_alias(NodeID node_id, NodeAlias alias, Pool *entry)
  * @param alias node alias
  * @param context pointer to an interface instance
  */
-void IfCan::upstream_alias_removed(NodeID id, NodeAlias alias, void *context)
+void IfCan::upstream_alias_removed(NodeID id, NodeAlias alias, void* context)
 {
-    IfCan *if_can = (IfCan*)context;
+    IfCan* if_can = (IfCan*)context;
 
     struct can_frame frame;
     /* tell everyone to un-map our alias */
@@ -286,8 +278,8 @@ void IfCan::upstream_alias_removed(NodeID id, NodeAlias alias, void *context)
     frame.data[1] = (id >> 32) & 0xff;
     frame.data[2] = (id >> 24) & 0xff;
     frame.data[3] = (id >> 16) & 0xff;
-    frame.data[4] = (id >>  8) & 0xff;
-    frame.data[5] = (id >>  0) & 0xff;
+    frame.data[4] = (id >> 8) & 0xff;
+    frame.data[5] = (id >> 0) & 0xff;
 
     int result = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
     HASSERT(result == sizeof(struct can_frame));
@@ -299,32 +291,27 @@ void IfCan::upstream_alias_removed(NodeID id, NodeAlias alias, void *context)
  * @param data2 a @ref alias_node typecast to a void*
  * @return OS_TIMER_NONE
  */
-long long IfCan::Pool::timeout(void *data1, void *data2)
+long long IfCan::Pool::timeout(void* data1, void* data2)
 {
-    IfCan *if_can = (IfCan*)data1;
-    Pool  *entry  = (Pool*)data2;
+    IfCan* if_can = (IfCan*)data1;
+    Pool* entry = (Pool*)data2;
 
     if_can->mutex.lock();
-    if (entry->status != UNDER_TEST)
-    {
+    if (entry->status != UNDER_TEST) {
         /* try again with a new alias */
         /** @todo should we do this in a background thread? */
         entry->status = FREE;
         NodeAlias new_alias;
-        do
-        {
+        do {
             new_alias = if_can->upstreamCache.generate();
-        }
-        while (if_can->downstreamCache.lookup(new_alias) != 0);
-        
+        } while (if_can->downstreamCache.lookup(new_alias) != 0);
+
         /* note that this call will restart the timer.  Even though we don't
          * restart the timer on return from timeout, it will have already been
          * restarted, so we are good.
          */
         if_can->claim_alias(0, new_alias, entry);
-    }
-    else
-    {
+    } else {
         entry->status = RESERVED;
         /* Reserve the ID */
         struct can_frame frame;
@@ -333,7 +320,8 @@ long long IfCan::Pool::timeout(void *data1, void *data2)
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_ERR(frame);
 
-        int result = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
+        int result
+            = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
         HASSERT(result == (sizeof(struct can_frame)));
     }
     if_can->mutex.unlock();
@@ -349,12 +337,9 @@ long long IfCan::Pool::timeout(void *data1, void *data2)
  */
 NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
 {
-    for ( ; /* forever */ ; )
-    {
-        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
-        {
-            if (pool[i].status == RESERVED)
-            {
+    for (; /* forever */;) {
+        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i) {
+            if (pool[i].status == RESERVED) {
                 NodeAlias alias = pool[i].alias;
                 struct can_frame frame;
 
@@ -371,20 +356,18 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
                 frame.data[1] = (node_id >> 32) & 0xff;
                 frame.data[2] = (node_id >> 24) & 0xff;
                 frame.data[3] = (node_id >> 16) & 0xff;
-                frame.data[4] = (node_id >>  8) & 0xff;
-                frame.data[5] = (node_id >>  0) & 0xff;
+                frame.data[4] = (node_id >> 8) & 0xff;
+                frame.data[5] = (node_id >> 0) & 0xff;
 
                 int result = (*write)(fd, &frame, sizeof(struct can_frame));
-                HASSERT (result == sizeof(struct can_frame));
-                
+                HASSERT(result == sizeof(struct can_frame));
+
                 /** @todo should we do this in a background thread? */
                 pool[i].status = FREE;
                 NodeAlias new_alias;
-                do
-                {
+                do {
                     new_alias = upstreamCache.generate();
-                }
-                while (downstreamCache.lookup(new_alias) != 0);
+                } while (downstreamCache.lookup(new_alias) != 0);
                 claim_alias(0, new_alias, pool + i);
 
                 return alias;
@@ -398,8 +381,7 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
          * we were sleeping and unlocked.
          */
         NodeAlias test = upstreamCache.lookup(node_id);
-        if (test)
-        {
+        if (test) {
             return test;
         }
     }
@@ -413,78 +395,61 @@ NodeAlias IfCan::upstream_alias_setup(NodeID node_id)
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
+int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer* data)
 {
     NodeAlias alias = upstreamCache.lookup(src);
-    if (alias == 0)
-    {
+    if (alias == 0) {
         /* we have never seen this node before, let's claim an alias for it */
         alias = upstream_alias_setup(src);
     }
 
     HASSERT(alias != 0);
 
-    if (dst.alias != 0 || dst.id != 0)
-    {
+    if (dst.alias != 0 || dst.id != 0) {
         /* we have an addressed message */
-        if (dst.alias == 0)
-        {
+        if (dst.alias == 0) {
             /* look for a downstream match */
             dst.alias = downstreamCache.lookup(dst.id);
         }
-        if (dst.alias)
-        {
+        if (dst.alias) {
             int index = 0;
             size_t len;
             /* check to see if we have a stream or datagram */
-            if (get_mti_datagram(mti))
-            {
+            if (get_mti_datagram(mti)) {
                 HASSERT(data != NULL);
-                uint8_t *payload;
+                uint8_t* payload;
 
                 /* datagrams and streams are special because the CAN ID
                  * also contains the destination alias.  These may also span
                  * multiple CAN frames.
                  */
-                if (mti == MTI_STREAM_DATA)
-                {
+                if (mti == MTI_STREAM_DATA) {
                     len = data->size() - data->available();
                     HASSERT(len > 2);
                     /* chop off the source and destination IDs */
                     len -= 2;
                     payload = (uint8_t*)data->start();
-                }
-                else
-                {
-                    Datagram::Message *m = (Datagram::Message*)data->start();
+                } else {
+                    Datagram::Message* m = (Datagram::Message*)data->start();
                     len = m->size;
                     payload = m->data;
                 }
-                for (int i = 0; len > 0; ++i)
-                {
+                for (int i = 0; len > 0; ++i) {
                     CanFrameType type;
-                    if (mti == MTI_STREAM_DATA)
-                    {
+                    if (mti == MTI_STREAM_DATA) {
                         type = STREAM_DATA;
-                    }
-                    else if (i == 0 && len <= 8)
-                    {
+                    } else if (i == 0 && len <= 8) {
                         type = DATAGRAM_ONE_FRAME;
-                    }
-                    else if (i == 0)
-                    {
+                    } else if (i == 0) {
                         type = DATAGRAM_FIRST_FRAME;
-                    }
-                    else if (len <= 8)
-                    {
+                    } else if (len <= 8) {
                         type = DATAGRAM_FINAL_FRAME;
-                    }
-                    else
-                    {
+                    } else {
                         type = DATAGRAM_MIDDLE_FRAME;
                     }
                     struct can_frame frame;
-                    set_fields(&frame.can_id, alias, (MTI)dst.alias, type, NMRANET_MSG, NORMAL_PRIORITY);
+                    set_fields(&frame.can_id, alias, (MTI)dst.alias, type,
+                               NMRANET_MSG, NORMAL_PRIORITY);
                     SET_CAN_FRAME_EFF(frame);
                     CLR_CAN_FRAME_RTR(frame);
                     CLR_CAN_FRAME_ERR(frame);
@@ -493,28 +458,22 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     frame.can_dlc = seg_size;
 
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
-                    HASSERT (result == sizeof(struct can_frame));
-                    
-                    len-= seg_size;
+                    HASSERT(result == sizeof(struct can_frame));
+
+                    len -= seg_size;
                     index += seg_size;
                 }
-            }
-            else
-            {
-                if (data)
-                {
+            } else {
+                if (data) {
                     len = data->size() - data->available();
-                }
-                else
-                {
+                } else {
                     len = 0;
                 }
                 /* typically, only the simple node ident info reply will require
                  * the sending of more than one CAN frame, but who knows what
                  * the future might hold?
                  */
-                do
-                {
+                do {
                     struct can_frame frame;
                     frame.can_id = can_identifier(mti, alias);
                     SET_CAN_FRAME_EFF(frame);
@@ -523,36 +482,32 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     frame.data[0] = dst.alias >> 8;
                     frame.data[1] = dst.alias & 0xff;
                     size_t seg_size = len < 6 ? len : 6;
-                    memcpy(&frame.data[2], (char*)data->start() + index, seg_size);
+                    memcpy(&frame.data[2], (char*)data->start() + index,
+                           seg_size);
                     frame.can_dlc = 2 + seg_size;
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
                     HASSERT(result == sizeof(struct can_frame));
 
                     len -= seg_size;
                     index += seg_size;
-                    
+
                 } while (len > 0);
 
                 /* release the buffer if we can,
                  * we don't release datagrams and streams
                  */
-                if (data)
-                {
+                if (data) {
                     data->free();
                 }
             }
-        }
-        else
-        {
-            if (get_mti_address(mti))
-            {
+        } else {
+            if (get_mti_address(mti)) {
                 /* this is an addressed message, so we need to buffer while
                  * we determine what alias this node ID belongs to.  This
                  * should happen infrequently because we should have the most
                  * often addressed aliases cached.
                  */
-                while (writeBuffer.in_use())
-                {
+                while (writeBuffer.in_use()) {
                     mutex.unlock();
                     usleep(300);
                     mutex.lock();
@@ -561,7 +516,8 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
 
                 /* Verify Node ID Number Global */
                 struct can_frame frame;
-                frame.can_id = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
+                frame.can_id
+                    = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
                 SET_CAN_FRAME_EFF(frame);
                 CLR_CAN_FRAME_RTR(frame);
                 CLR_CAN_FRAME_ERR(frame);
@@ -570,35 +526,29 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                 frame.data[1] = (dst.id >> 32) & 0xff;
                 frame.data[2] = (dst.id >> 24) & 0xff;
                 frame.data[3] = (dst.id >> 16) & 0xff;
-                frame.data[4] = (dst.id >>  8) & 0xff;
-                frame.data[5] = (dst.id >>  0) & 0xff;
+                frame.data[4] = (dst.id >> 8) & 0xff;
+                frame.data[5] = (dst.id >> 0) & 0xff;
                 int result = (*write)(fd, &frame, sizeof(struct can_frame));
                 HASSERT(result == (sizeof(struct can_frame)));
             }
         }
-    }
-    else
-    {
+    } else {
         /* we have an unaddressed message */
         struct can_frame frame;
         frame.can_id = can_identifier(mti, alias);
         SET_CAN_FRAME_EFF(frame);
         CLR_CAN_FRAME_RTR(frame);
         CLR_CAN_FRAME_ERR(frame);
-        if (data != NULL)
-        {
+        if (data != NULL) {
             frame.can_dlc = data->size() - data->available();
             memcpy(frame.data, data->start(), frame.can_dlc);
             data->free();
-        }
-        else
-        {
+        } else {
             frame.can_dlc = 0;
         }
         int result = (write)(fd, &frame, sizeof(struct can_frame));
         HASSERT(result == (sizeof(struct can_frame)));
-        
-    }        
+    }
 
     return 0;
 }
@@ -608,50 +558,40 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
  * @param dlc data length code
  * @param data pointer to up to 8 bytes of data
  */
-void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
+void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t* data)
 {
     NodeHandle src;
     src.alias = get_src(can_id);
     mutex.lock();
     src.id = downstreamCache.lookup(src.alias);
 
-    if (get_mti_address(nmranet_mti(can_id)))
-    {
-        if (dlc < 2)
-        {
+    if (get_mti_address(nmranet_mti(can_id))) {
+        if (dlc < 2) {
             /** @todo should we do something else here? */
             /* soft error, we throw this one away */
             return;
         }
         /* addressed message */
-        uint16_t addressed = (data[0] << 0) +
-                             (data[1] << 8);
+        uint16_t addressed = (data[0] << 0) + (data[1] << 8);
         addressed = be16toh(addressed);
         NodeID dst = upstreamCache.lookup(get_addressed_destination(addressed));
         mutex.unlock();
-        if (dst != 0)
-        {
-            Buffer *buffer;
-            if (dlc > 2)
-            {
+        if (dst != 0) {
+            Buffer* buffer;
+            if (dlc > 2) {
                 /* collect the data */
                 buffer = buffer_alloc(dlc - 2);
                 memcpy(buffer->start(), data, (dlc - 2));
                 buffer->advance((dlc - 2));
-            }
-            else
-            {
+            } else {
                 buffer = NULL;
             }
-                
+
             rx_data(nmranet_mti(can_id), src, dst, buffer);
         }
-    }
-    else
-    {
+    } else {
         /* global message */
-        if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER)
-        {
+        if (nmranet_mti(can_id) == MTI_VERIFIED_NODE_ID_NUMBER) {
             int mapped = 0;
             NodeID node_id;
             node_id = data[5];
@@ -660,18 +600,14 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
             node_id |= (node_id_t)data[2] << 24;
             node_id |= (node_id_t)data[1] << 32;
             node_id |= (node_id_t)data[0] << 40;
-            
-            if (src.id)
-            {
-                if (src.id != node_id)
-                {
+
+            if (src.id) {
+                if (src.id != node_id) {
                     /* Looks like we have an existing mapping conflict.
                      * Lets remove existing mapping.
                      */
                     downstreamCache.remove(src.alias);
-                }
-                else
-                {
+                } else {
                     mapped = 1;
                 }
             }
@@ -679,16 +615,13 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
              * frame.  However, this message has what we need, so if we get it
              * first, let's go ahead and use it.
              */
-            if (writeBuffer.in_use())
-            {
+            if (writeBuffer.in_use()) {
                 /* we have buffered a write for this node */
-                if (node_id == writeBuffer.dst.id)
-                {
+                if (node_id == writeBuffer.dst.id) {
                     writeBuffer.dst.alias = src.alias;
-                    if_write(writeBuffer.mti, writeBuffer.src,
-                             writeBuffer.dst, writeBuffer.data);
-                    if (mapped == 0)
-                    {
+                    if_write(writeBuffer.mti, writeBuffer.src, writeBuffer.dst,
+                             writeBuffer.data);
+                    if (mapped == 0) {
                         /* We obviously use this alias, so let's cache it
                          * for later use.
                          */
@@ -697,9 +630,7 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
                         mapped = 1;
                     }
                 }
-            }
-            else if (src.id && src.id != node_id)
-            {
+            } else if (src.id && src.id != node_id) {
                 /* we already had this mapping, we need to replace it */
                 downstreamCache.add(node_id, src.alias);
             }
@@ -728,16 +659,13 @@ void IfCan::global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data)
             src.id = node_id;
         }
         mutex.unlock();
-        Buffer *buffer;
-        if (dlc)
-        {
+        Buffer* buffer;
+        if (dlc) {
             /* collect the data */
             buffer = buffer_alloc(dlc);
             memcpy(buffer->start(), data, dlc);
             buffer->advance(dlc);
-        }
-        else
-        {
+        } else {
             buffer = NULL;
         }
         rx_data(nmranet_mti(can_id), src, 0, buffer);
@@ -773,24 +701,23 @@ void IfCan::datagram_rejected(NodeAlias src, NodeAlias dst, int error_code)
  * @param data2 a @ref Buffer reference typecast to void*
  * @return OS_TIMER_NONE
  */
-long long IfCan::datagram_timeout(void *data1, void *data2)
+long long IfCan::datagram_timeout(void* data1, void* data2)
 {
-    IfCan *if_can = (IfCan*)data1;
-    Buffer *buffer = (Buffer*)data2;
-    Datagram::Message *m = (Datagram::Message*)buffer->start();
-    
+    IfCan* if_can = (IfCan*)data1;
+    Buffer* buffer = (Buffer*)data2;
+    Datagram::Message* m = (Datagram::Message*)buffer->start();
+
     if_can->mutex.lock();
 
     /** @todo currently we fail silently, should we throw an error? */
     /* we have to re-lookup the datagram buffer to prevent a race condition */
-    if (if_can->datagramTree.find((m->to << 12) + m->from.alias))
-    {
+    if (if_can->datagramTree.find((m->to << 12) + m->from.alias)) {
         if_can->datagramTree.remove((m->to << 12) + m->from.alias);
         buffer->free();
     }
 
     if_can->mutex.unlock();
-    
+
     /* delete our selves since we are no longer relevant */
     return OS_TIMER_DELETE;
 }
@@ -800,7 +727,7 @@ long long IfCan::datagram_timeout(void *data1, void *data2)
  * @param dlc data length code
  * @param data pointer to up to 8 bytes of data
  */
-void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
+void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t* data)
 {
     /* There is no need to use a mutex to access the datagram tree.  This is
      * because this function can only be called from a single thread, the
@@ -813,8 +740,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
     mutex.lock();
     NodeID dst_id = upstreamCache.lookup(dst_alias);
 
-    if (dst_id == 0)
-    {
+    if (dst_id == 0) {
         /* nobody here by that ID, not for us */
         mutex.unlock();
         return;
@@ -823,20 +749,18 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
     src.alias = get_src(can_id);
     src.id = downstreamCache.lookup(src.alias);
 
-    switch(get_can_frame_type(can_id))
-    {
+    switch (get_can_frame_type(can_id)) {
         default:
             break;
-        case DATAGRAM_ONE_FRAME:
-        {
-            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
-            if (buffer == NULL)
-            {
+        case DATAGRAM_ONE_FRAME: {
+            Buffer* buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            if (buffer == NULL) {
                 /* no buffer available, let the sender know */
-                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                datagram_rejected(dst_alias, src.alias,
+                                  Datagram::BUFFER_UNAVAILABLE);
                 break;
             }
-            Datagram::Message *m = (Datagram::Message*)buffer->start();
+            Datagram::Message* m = (Datagram::Message*)buffer->start();
             memcpy(m->data, data, dlc);
             m->to = dst_id;
             m->from.id = src.id;
@@ -846,33 +770,31 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
             rx_data(nmranet_mti(can_id), src, dst_id, buffer);
             return;
         }
-        case DATAGRAM_FIRST_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
+        case DATAGRAM_FIRST_FRAME: {
+            RBTree<uint64_t, Buffer*>::Node* node
+                = datagramTree.find((dst_id << 12) + src.alias);
 
-            if (node)
-            {
+            if (node) {
                 /* we are already receiving a datagram, this is an error */
                 datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
+                Datagram::Message* m = (Datagram::Message*)node->value->start();
+                OSTimer* t = (OSTimer*)(m + 1);
                 t->stop();
                 node->value->free();
                 break;
             }
-            
-            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
-            if (buffer == NULL)
-            {
+
+            Buffer* buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            if (buffer == NULL) {
                 /* no buffer available, let the sender know */
-                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                datagram_rejected(dst_alias, src.alias,
+                                  Datagram::BUFFER_UNAVAILABLE);
                 break;
             }
 
-            Datagram::Message *m = (Datagram::Message*)buffer->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message* m = (Datagram::Message*)buffer->start();
+            OSTimer* t = (OSTimer*)(m + 1);
 
             memcpy(m->data, data, dlc);
             m->to = dst_id;
@@ -880,32 +802,30 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
             m->from.alias = src.alias;
             m->size = dlc;
 
-            HASSERT(datagramTree.insert((dst_id << 12) + src.alias, buffer) != NULL);
+            HASSERT(datagramTree.insert((dst_id << 12) + src.alias, buffer)
+                    != NULL);
             t->start(DATAGRAM_TIMEOUT);
             break;
         }
-        case DATAGRAM_MIDDLE_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
+        case DATAGRAM_MIDDLE_FRAME: {
+            RBTree<uint64_t, Buffer*>::Node* node
+                = datagramTree.find((dst_id << 12) + src.alias);
 
-            if (node == NULL)
-            {
+            if (node == NULL) {
                 /* we have no record of this datagram, this is an error */
                 datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 break;
             }
 
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message* m = (Datagram::Message*)node->value->start();
+            OSTimer* t = (OSTimer*)(m + 1);
 
-            if ((m->size + dlc) > Datagram::MAX_SIZE)
-            {
+            if ((m->size + dlc) > Datagram::MAX_SIZE) {
                 /* we have too much data for a datagram, this is an error */
                 datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
+                Datagram::Message* m = (Datagram::Message*)node->value->start();
+                OSTimer* t = (OSTimer*)(m + 1);
                 t->stop();
                 node->value->free();
                 break;
@@ -915,29 +835,26 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
             t->start(DATAGRAM_TIMEOUT);
             break;
         }
-        case DATAGRAM_FINAL_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
+        case DATAGRAM_FINAL_FRAME: {
+            RBTree<uint64_t, Buffer*>::Node* node
+                = datagramTree.find((dst_id << 12) + src.alias);
 
-            if (node == NULL)
-            {
+            if (node == NULL) {
                 /* we have no record of this datagram, this is an error */
                 datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 break;
             }
 
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message* m = (Datagram::Message*)node->value->start();
+            OSTimer* t = (OSTimer*)(m + 1);
             t->stop();
 
-            if ((m->size + dlc) > Datagram::MAX_SIZE)
-            {
+            if ((m->size + dlc) > Datagram::MAX_SIZE) {
                 /* we have too much data for a datagram, this is an error */
                 datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
+                Datagram::Message* m = (Datagram::Message*)node->value->start();
+                OSTimer* t = (OSTimer*)(m + 1);
                 t->stop();
                 node->value->free();
                 break;
@@ -958,7 +875,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
  * @param dlc data length code
  * @param data pointer to up to 8 bytes of data
  */
-void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
+void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t* data)
 {
     NodeHandle src;
     NodeAlias dst_alias = get_dst(can_id);
@@ -966,8 +883,7 @@ void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
     mutex.lock();
     NodeID dst_id = upstreamCache.lookup(dst_alias);
 
-    if (dst_id == 0)
-    {
+    if (dst_id == 0) {
         /* nobody here by that ID, not for us */
         mutex.unlock();
         return;
@@ -976,7 +892,7 @@ void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
     src.alias = get_src(can_id);
     src.id = downstreamCache.lookup(src.alias);
 
-    Buffer *buffer = buffer_alloc(dlc + 2);
+    Buffer* buffer = buffer_alloc(dlc + 2);
     memcpy(buffer->start(), data, dlc);
     memset((char*)buffer->start() + dlc, 0, 2);
     buffer->advance(dlc + 2);
@@ -992,14 +908,12 @@ void IfCan::stream(uint32_t can_id, uint8_t dlc, uint8_t *data)
 bool IfCan::alias_conflict(NodeAlias alias, bool release)
 {
     bool conflict = false;
-    
+
     mutex.lock();
     NodeID id = upstreamCache.lookup(alias);
-    if (id)
-    {
+    if (id) {
         /* we have this alias reserved, prevent a collision */
-        if (release)
-        {
+        if (release) {
             struct can_frame frame;
             /* tell everyone to un-map our alias */
             control_init(frame, alias, AMR_FRAME, 0);
@@ -1011,8 +925,8 @@ bool IfCan::alias_conflict(NodeAlias alias, bool release)
             frame.data[1] = (id >> 32) & 0xff;
             frame.data[2] = (id >> 24) & 0xff;
             frame.data[3] = (id >> 16) & 0xff;
-            frame.data[4] = (id >>  8) & 0xff;
-            frame.data[5] = (id >>  0) & 0xff;
+            frame.data[4] = (id >> 8) & 0xff;
+            frame.data[5] = (id >> 0) & 0xff;
 
             int result = (*write)(fd, &frame, sizeof(struct can_frame));
             HASSERT(result == sizeof(struct can_frame));
@@ -1020,40 +934,29 @@ bool IfCan::alias_conflict(NodeAlias alias, bool release)
             upstreamCache.remove(alias);
         }
         conflict = true;
-    }
-    else
-    {
-        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i)
-        {
-            switch (pool[i].status)
-            {
+    } else {
+        for (unsigned int i = 0; i < ALIAS_POOL_SIZE; ++i) {
+            switch (pool[i].status) {
                 case FREE:
-                    /* fall through */
+                /* fall through */
                 case CONFLICT:
                     /* keep looking */
                     continue;
                 case UNDER_TEST:
-                    if (pool[i].alias == alias)
-                    {
+                    if (pool[i].alias == alias) {
                         pool[i].status = CONFLICT;
                     }
                     break;
                 case RESERVED:
-                    if (pool[i].alias == alias)
-                    {
-                        if (release)
-                        {
+                    if (pool[i].alias == alias) {
+                        if (release) {
                             pool[i].status = CONFLICT;
                             NodeAlias new_alias;
-                            do
-                            {
+                            do {
                                 new_alias = upstreamCache.generate();
-                            }
-                            while (downstreamCache.lookup(new_alias) != 0);
+                            } while (downstreamCache.lookup(new_alias) != 0);
                             claim_alias(0, new_alias, pool + i);
-                        }
-                        else
-                        {
+                        } else {
                             conflict = true;
                         }
                     }
@@ -1063,7 +966,7 @@ bool IfCan::alias_conflict(NodeAlias alias, bool release)
         }
     }
     mutex.unlock();
-    
+
     /* This assertion would mean that a recoverable alias conflict occured
      * because someone was behaving badly on the bus.
      */
@@ -1078,9 +981,8 @@ bool IfCan::alias_conflict(NodeAlias alias, bool release)
 void IfCan::ccr_cid_frame(uint32_t ccr)
 {
     NodeAlias alias = get_control_src(ccr);
-    
-    if (alias_conflict(alias, 0))
-    {
+
+    if (alias_conflict(alias, 0)) {
         /* remind everyone we own, or are trying to own, this alias with a
          * Reserve ID frame
          */
@@ -1114,15 +1016,14 @@ void IfCan::ccr_amd_frame(uint32_t ccr, uint8_t data[])
     node_id |= (node_id_t)data[2] << 24;
     node_id |= (node_id_t)data[1] << 32;
     node_id |= (node_id_t)data[0] << 40;
-    
+
     mutex.lock();
-    if (writeBuffer.in_use())
-    {
-        if (node_id == writeBuffer.dst.id)
-        {
+    if (writeBuffer.in_use()) {
+        if (node_id == writeBuffer.dst.id) {
             writeBuffer.dst.alias = alias;
 
-            if_write_locked(writeBuffer.mti, writeBuffer.src, writeBuffer.dst, writeBuffer.data);
+            if_write_locked(writeBuffer.mti, writeBuffer.src, writeBuffer.dst,
+                            writeBuffer.data);
 
             /* we obviously use this alias, so let's cache it for later use */
             downstreamCache.add(node_id, writeBuffer.dst.alias);
@@ -1132,7 +1033,7 @@ void IfCan::ccr_amd_frame(uint32_t ccr, uint8_t data[])
     mutex.unlock();
 
     /* remove any in progress datagrams from this alias */
-    //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
+    // remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
 }
 
 /** Send an AMD frame for a given Node ID and Alias pair.
@@ -1140,9 +1041,9 @@ void IfCan::ccr_amd_frame(uint32_t ccr, uint8_t data[])
  * @param id Node ID
  * @param alias Node Alias
  */
-void IfCan::send_amd_frame(void *data, NodeID id, NodeAlias alias)
+void IfCan::send_amd_frame(void* data, NodeID id, NodeAlias alias)
 {
-    IfCan *if_can = (IfCan*)data;
+    IfCan* if_can = (IfCan*)data;
 
     HASSERT(alias && id);
 
@@ -1157,8 +1058,8 @@ void IfCan::send_amd_frame(void *data, NodeID id, NodeAlias alias)
     frame.data[1] = (id >> 32) & 0xff;
     frame.data[2] = (id >> 24) & 0xff;
     frame.data[3] = (id >> 16) & 0xff;
-    frame.data[4] = (id >>  8) & 0xff;
-    frame.data[5] = (id >>  0) & 0xff;
+    frame.data[4] = (id >> 8) & 0xff;
+    frame.data[5] = (id >> 0) & 0xff;
 
     int result = (*if_can->write)(if_can->fd, &frame, sizeof(struct can_frame));
     HASSERT(result == sizeof(struct can_frame));
@@ -1173,8 +1074,7 @@ void IfCan::ccr_ame_frame(uint32_t ccr, uint8_t data[])
     /* look for and resolve conflicts in Alias mappings */
     alias_conflict(get_control_src(ccr), 1);
 
-    if (data)
-    {
+    if (data) {
         NodeID node_id;
 
         node_id = data[5];
@@ -1183,16 +1083,13 @@ void IfCan::ccr_ame_frame(uint32_t ccr, uint8_t data[])
         node_id |= (node_id_t)data[2] << 24;
         node_id |= (node_id_t)data[1] << 32;
         node_id |= (node_id_t)data[0] << 40;
-        
+
         mutex.lock();
         NodeAlias alias = upstreamCache.lookup(node_id);
-        if (alias)
-        {
+        if (alias) {
             send_amd_frame(this, node_id, alias);
         }
-    }
-    else
-    {
+    } else {
         mutex.lock();
         upstreamCache.for_each(send_amd_frame, this);
     }
@@ -1224,17 +1121,16 @@ void IfCan::ccr_amr_frame(uint32_t ccr, uint8_t data[])
     mutex.unlock();
 
     /* remove any in progress datagrams from this alias */
-    //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
+    // remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
 }
 
 /** Thread for reading the data from the interface.
  * @param data pointer to an IfCan instance
  * @return NULL, should never return
  */
-void *IfCan::read_thread(void *data)
+void* IfCan::read_thread(void* data)
 {
-    for ( ; /* forever */ ; )
-    {
+    for (; /* forever */;) {
         struct can_frame frame;
         CLR_CAN_FRAME_ERR(frame);
         CLR_CAN_FRAME_RTR(frame);
@@ -1244,40 +1140,35 @@ void *IfCan::read_thread(void *data)
         HASSERT(result == sizeof(struct can_frame));
 
         /* OpenLCB doesn't care about standard frames. */
-        if (!IS_CAN_FRAME_EFF(frame))
-        {
+        if (!IS_CAN_FRAME_EFF(frame)) {
             continue;
         }
 
         /* address any abnormalities */
-        if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame))
-        {
+        if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame)) {
             /** @todo (Stuart Baker) do we need to dump any aliases under test
              * if we get an error frame?
              */
             continue;
         }
-        
-        if (get_frame_type(frame.can_id) == CONTROL_MSG)
-        {
-            switch (get_control_sequence(frame.can_id))
-            {
+
+        if (get_frame_type(frame.can_id) == CONTROL_MSG) {
+            switch (get_control_sequence(frame.can_id)) {
                 default:
                     /* this is another protocol, let's grab the next frame */
                     continue;
                 case 0x4:
-                    /* fall through */
+                /* fall through */
                 case 0x5:
-                    /* fall through */
+                /* fall through */
                 case 0x6:
-                    /* fall through */
+                /* fall through */
                 case 0x7:
                     ccr_cid_frame(frame.can_id);
                     /* we are done decoding, let's grab the next frame */
                     continue;
                 case 0x0:
-                    switch (get_control_field(frame.can_id))
-                    {
+                    switch (get_control_field(frame.can_id)) {
                         default:
                             /* unknown field, let's grab the next frame */
                             continue;
@@ -1288,7 +1179,9 @@ void *IfCan::read_thread(void *data)
                             ccr_amd_frame(frame.can_id, frame.data);
                             break;
                         case AME_FRAME:
-                            ccr_ame_frame(frame.can_id, (frame.can_dlc == 0) ? NULL : frame.data);
+                            ccr_ame_frame(frame.can_id, (frame.can_dlc == 0)
+                                                            ? NULL
+                                                            : frame.data);
                             break;
                         case AMR_FRAME:
                             ccr_amr_frame(frame.can_id, frame.data);
@@ -1296,28 +1189,25 @@ void *IfCan::read_thread(void *data)
                     } /* switch (GET_CAN_CONTROL_FRAME_FIELD(frame.can_id)) */
                     break;
             } /* switch (GET_CAN_CONTROL_FRAME_SEQUENCE(frame.can_id)) */
-        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
-        else
-        {
-            if (alias_conflict(get_control_src(frame.can_id), 1))
-            {
+        }     /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0) */
+        else {
+            if (alias_conflict(get_control_src(frame.can_id), 1)) {
                 /* there was a conflict in the alias mappings */
                 continue;
             }
             /** find the proper packet decoder */
-            switch(get_can_frame_type(frame.can_id))
-            {
+            switch (get_can_frame_type(frame.can_id)) {
                 default:
                     break;
                 case GLOBAL_ADDRESSED:
                     global_addressed(frame.can_id, frame.can_dlc, frame.data);
                     break;
                 case DATAGRAM_ONE_FRAME:
-                    /* fall through */
+                /* fall through */
                 case DATAGRAM_FIRST_FRAME:
-                    /* fall through */
+                /* fall through */
                 case DATAGRAM_MIDDLE_FRAME:
-                    /* fall through */
+                /* fall through */
                 case DATAGRAM_FINAL_FRAME:
                     datagram(frame.can_id, frame.can_dlc, frame.data);
                     break;
@@ -1325,8 +1215,8 @@ void *IfCan::read_thread(void *data)
                     stream(frame.can_id, frame.can_dlc, frame.data);
                     break;
             } /* switch(GET_CAN_ID_CAN_FRAME_TYPE(frame.can_id) */
-        } /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
-    } /* for ( ; forever ; ) */
+        }     /* if (GET_CAN_ID_FRAME_TYPE(frame.can_id) == 0), else */
+    }         /* for ( ; forever ; ) */
     return NULL;
 }
 

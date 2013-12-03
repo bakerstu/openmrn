@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -50,84 +50,97 @@ class VolatileState;
 struct VolatileStateRef;
 struct VolatileStatePtr;
 
-
-
-
-class VolatileState : public Singleton<VolatileState> {
+class VolatileState : public Singleton<VolatileState>
+{
 public:
-  VolatileState(size_t size)
-    : values_(size, 0) {}
+    VolatileState(size_t size) : values_(size, 0)
+    {
+    }
 
-  VolatileStateRef GetRef(int offset);
+    VolatileStateRef GetRef(int offset);
 
-  VolatileStatePtr GetPtr(int offset);
+    VolatileStatePtr GetPtr(int offset);
 
-  size_t size() {
-    return values_.size();
-  }
+    size_t size()
+    {
+        return values_.size();
+    }
 
-  uint8_t Get(size_t offset) {
-    HASSERT(offset < size());
-    // @todo (balazs.racz) locking
-    return values_[offset];
-  }
+    uint8_t Get(size_t offset)
+    {
+        HASSERT(offset < size());
+        // @todo (balazs.racz) locking
+        return values_[offset];
+    }
 
-  void Set(size_t offset, uint8_t value) {
-    HASSERT(offset < size());
-    // @todo (balazs.racz) locking
-    // @todo (balazs.racz) update notification
-    values_[offset] = value;
-  }
+    void Set(size_t offset, uint8_t value)
+    {
+        HASSERT(offset < size());
+        // @todo (balazs.racz) locking
+        // @todo (balazs.racz) update notification
+        values_[offset] = value;
+    }
 
 private:
-  friend class VolatileStateRef;
+    friend class VolatileStateRef;
 
-  vector<uint8_t> values_;
+    vector<uint8_t> values_;
 
-  DISALLOW_COPY_AND_ASSIGN(VolatileState);
+    DISALLOW_COPY_AND_ASSIGN(VolatileState);
 };
 
-struct VolatileStateRef {
-  VolatileStateRef() = delete;
+struct VolatileStateRef
+{
+    VolatileStateRef() = delete;
 
-  explicit VolatileStateRef(int b) : base_(b) {
-    HASSERT(base_ >= 0);
-    HASSERT(static_cast<size_t>(base_) <
-            VolatileState::instance()->values_.size());
-  }
+    explicit VolatileStateRef(int b) : base_(b)
+    {
+        HASSERT(base_ >= 0);
+        HASSERT(static_cast<size_t>(base_)
+                < VolatileState::instance()->values_.size());
+    }
 
-  operator uint8_t() const {
-    return VolatileState::instance()->Get(base_);
-  }
+    operator uint8_t() const
+    {
+        return VolatileState::instance()->Get(base_);
+    }
 
-  VolatileStateRef& operator=(uint8_t value) {
-    VolatileState::instance()->Set(base_, value);
-    return *this;
-  }
+    VolatileStateRef& operator=(uint8_t value)
+    {
+        VolatileState::instance()->Set(base_, value);
+        return *this;
+    }
 
-  int base_;
+    int base_;
 };
 
-struct VolatileStatePtr {
-  explicit VolatileStatePtr(int base) : base_(base) {}
+struct VolatileStatePtr
+{
+    explicit VolatileStatePtr(int base) : base_(base)
+    {
+    }
 
-  VolatileStateRef operator*() {
-    return VolatileStateRef(base_);
-  }
+    VolatileStateRef operator*()
+    {
+        return VolatileStateRef(base_);
+    }
 
-  VolatileStateRef operator[](int offset) {
-    return VolatileStateRef(base_ + offset);
-  }
+    VolatileStateRef operator[](int offset)
+    {
+        return VolatileStateRef(base_ + offset);
+    }
 
-  int base_;
+    int base_;
 };
 
-inline VolatileStateRef VolatileState::GetRef(int offset) {
-  return VolatileStateRef(offset);
+inline VolatileStateRef VolatileState::GetRef(int offset)
+{
+    return VolatileStateRef(offset);
 }
 
-inline VolatileStatePtr VolatileState::GetPtr(int offset) {
-  return VolatileStatePtr(offset);
+inline VolatileStatePtr VolatileState::GetPtr(int offset)
+{
+    return VolatileStatePtr(offset);
 }
 
 #endif //_CUE_VOLATILE_STATE_HXX_

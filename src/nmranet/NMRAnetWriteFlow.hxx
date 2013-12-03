@@ -55,9 +55,7 @@ public:
         return {0, 0};
     }
 
-    WriteHelper(Executor* executor)
-        : done_(nullptr),
-          executor_(executor)
+    WriteHelper(Executor* executor) : done_(nullptr), executor_(executor)
     {
     }
 
@@ -70,21 +68,18 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void write_async(Node *node, If::MTI mti, NodeHandle dst,
-                     Buffer *buffer, Notifiable* done)
+    void write_async(Node* node, If::MTI mti, NodeHandle dst, Buffer* buffer,
+                     Notifiable* done)
     {
         HASSERT(!done_);
         node_ = node;
         mti_ = mti;
         dst_ = dst;
         buffer_ = buffer;
-        if (done)
-        {
+        if (done) {
             done_ = done;
             executor_->Add(this);
-        }
-        else
-        {
+        } else {
             done_ = nullptr;
             Run();
         }
@@ -95,16 +90,16 @@ private:
      */
     virtual void Run();
 
-    Node *node_;
+    Node* node_;
     If::MTI mti_;
     NodeHandle dst_;
-    Buffer *buffer_;
+    Buffer* buffer_;
     Notifiable* done_;
     Executor* executor_;
 };
 
-Buffer *EventIdToBuffer(uint64_t eventid);
+Buffer* EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace NMRAnet */
 
-#endif  /* _NMRAnetWriteFlow_hxx_ */
+#endif /* _NMRAnetWriteFlow_hxx_ */

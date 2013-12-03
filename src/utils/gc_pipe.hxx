@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -62,7 +62,8 @@ public:
        @return a pointer to the created object. It can be deleted, which will
        terminate the link and unregister the link members from both pipes.
     */
-    static GCAdapterBase* CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes);
+    static GCAdapterBase*
+    CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes);
 };
 
 #endif //_gc_pipe_hxx_
