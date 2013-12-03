@@ -79,7 +79,7 @@ public:
     ~SysMap()
     {
         /* We should never get here */
-        HASSERT(0);
+        /*  why?? HASSERT(0); */
     }
     
     /** mimic std::pair */
