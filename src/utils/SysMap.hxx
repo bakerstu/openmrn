@@ -49,7 +49,6 @@ public:
     SysMap()
         : entries(0),
           used(0),
-          endIterator(),
           freeList(NULL)
 
     {
@@ -62,7 +61,6 @@ public:
     SysMap(size_t entries) 
         : entries(entries),
           used(0),
-          endIterator(),
           freeList(NULL)
     {
         RB_INIT(&head);
@@ -248,7 +246,7 @@ public:
         lookup.key = key;
         Node *node = RB_FIND(tree, &head, &lookup);
         
-        return node ? Iterator(this, node) : endIterator;
+        return node ? Iterator(this, node) : Iterator();
     }
     
     /** Get an iterator index pointing one past the last element in mapping.
@@ -256,7 +254,7 @@ public:
      */
     Iterator end()
     {
-        return endIterator;
+        return Iterator();
     }
 
     /** Get an iterator index pointing to the first element in the mapping.
@@ -267,7 +265,7 @@ public:
     {
         Node *node = RB_MIN(tree, &head);
         
-        return node ? Iterator(this, node) : endIterator;
+        return node ? Iterator(this, node) : Iterator();
     }
 
     /** Remove a node from the tree.
@@ -346,9 +344,6 @@ private:
 
     /** total number of entries in use for this instance */
     size_t used;
-
-    /** iterator that designates the end of the list */
-    Iterator endIterator;
 
     /** list of free nodes */
     Node *freeList;
