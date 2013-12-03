@@ -39,17 +39,18 @@
 #include "nmranet/GlobalEventHandler.hxx"
 #include "if/nmranet_if.h" // for MTI values
 
-namespace NMRAnet
-{
-
-#if LOGLEVEL >= VERBOSE
-#define DESCRIBE_VAR
-#endif
+//#define DESCRIBE_VAR
 
 #ifdef DESCRIBE_VAR
 #include <string>
+namespace NMRAnet
+{
 extern const string& GetNameForOffset(int);
+}
 #endif
+
+namespace NMRAnet
+{
 
 BitRangeEventPC::BitRangeEventPC(Node *node,
                                  uint64_t event_base, uint32_t* backing_store,

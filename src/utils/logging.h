@@ -8,11 +8,11 @@
 
 #include <stdio.h>
 
-#define FATAL 0
-#define ERROR 1
-#define WARNING 2
-#define INFO 3
-#define VERBOSE 4
+static const int FATAL = 0;
+static const int ERROR = 1;
+static const int WARNING = 2;
+static const int INFO = 3;
+static const int VERBOSE = 4;
 
 extern char logbuffer[256];
 
