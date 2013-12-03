@@ -61,7 +61,7 @@ public:
     {
     }
 
-    /** Originales an NMRAnet message from a particular node.
+    /** Originates an NMRAnet message from a particular node.
      *
      * @param node is the originating node.
      * @param mti is the message to send
