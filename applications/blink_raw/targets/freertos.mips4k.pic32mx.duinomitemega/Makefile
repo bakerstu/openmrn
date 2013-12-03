@@ -30,9 +30,4 @@ all: $(EXECUTABLE).hex $(EXECUTABLE).lst
 
 $(EXECUTABLE)$(EXTENTION): depmake
 
-.PHONY: depmake
-
-depmake:
-	+$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
-
 endif  #MISSING_DEPS

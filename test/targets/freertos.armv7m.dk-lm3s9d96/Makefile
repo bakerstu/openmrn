@@ -27,6 +27,3 @@ all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 %.lst: %.elf
 	$(SIZE) $<
 	$(OBJDUMP) -d $< > $@
-
-cg.svg: $(EXECUTABLE).lst $(OPENMRNPATH)/bin/callgraph.py
-	$(OPENMRNPATH)/bin/callgraph.py --min_size 1000 --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
