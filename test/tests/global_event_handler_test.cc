@@ -13,6 +13,8 @@ using testing::_;
 
 static ThreadExecutor global_executor("ex_thread", 0, 1024);
 
+namespace NMRAnet {
+
 extern void DecodeRange(EventReport* r);
 
 class DecodeRangeTest : public testing::Test {
@@ -233,3 +235,5 @@ TEST_F(EventHandlerTests, GlobalAndLocal) {
   }
   WaitForCompleted();
 }
+
+}  // namespace NMRAnet

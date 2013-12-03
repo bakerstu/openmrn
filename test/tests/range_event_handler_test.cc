@@ -1,7 +1,6 @@
 #include "utils/if_test_helper.hxx"
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "if/nmranet_if.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 
 using ::testing::InSequence;

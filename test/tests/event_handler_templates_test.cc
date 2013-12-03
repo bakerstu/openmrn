@@ -10,6 +10,8 @@ using ::testing::_;
 using ::testing::Mock;
 using ::testing::StrictMock;
 
+namespace NMRAnet {
+
 class MockEventHandler : public NMRAnetEventHandler {
  public:
   MOCK_METHOD2(HandleEventReport, void(EventReport* event, Notifiable* done));
@@ -64,8 +66,9 @@ TEST(DummyTest, Success) {
   EXPECT_EQ(34, i);
 }
 
+}  // namespace NMRAnet
 
- int appl_main(int argc, char* argv[]) {
+int appl_main(int argc, char* argv[]) {
   testing::InitGoogleMock(&argc, argv);
   return RUN_ALL_TESTS();
 }

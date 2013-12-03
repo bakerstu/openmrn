@@ -1,8 +1,9 @@
 #include "utils/if_test_helper.hxx"
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "if/nmranet_if.h"
 #include "nmranet/EventHandlerTemplates.hxx"
+
+namespace NMRAnet {
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
@@ -86,3 +87,5 @@ TEST_F(BitEventPcTest, IdentifyPc) {
   SendPacketAndExpectResponse(":X198F4000N05010101FFFF0003;",
                               ":X194C412DN05010101FFFF0003;");
 }
+
+}  // namespace NMRAnet
