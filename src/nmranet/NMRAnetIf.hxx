@@ -63,6 +63,12 @@ public:
     {
     }
 
+    /** Virtual default destructor.
+     */
+    virtual ~If()
+    {
+    }  
+
     /** Known Message type indicators.
      */
     enum MTI
@@ -156,12 +162,6 @@ public:
     virtual LinkStatus link_status() = 0;
 
 protected:
-    /** Default Destructor.
-     */
-    virtual ~If()
-    {
-    }
-
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from
      * @return true if MTI is an addressed message, else false
