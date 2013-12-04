@@ -64,5 +64,21 @@ TEST_F(AsyncIfTest, WriteFrame)
     w.result()->Send(nullptr);
 }
 
+TEST_F(AsyncIfTest, WriteMultipleFrames)
+{
+    for (int i = 0; i < 10; ++i) {
+        ExpectPacket(":X195B432DNAA;");
+        TypedSyncAllocation<CanFrameWriteFlow> w(if_can_->write_allocator());
+        struct can_frame* f = w.result()->mutable_frame();
+        SET_CAN_FRAME_EFF(*f);
+        SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
+        f->can_dlc = 1;
+        f->data[0] = 0xaa;
+        w.result()->Send(nullptr);
+        TypedSyncAllocation<CanFrameWriteFlow> ww(if_can_->write_allocator());
+        SET_CAN_FRAME_RTR(*ww.result()->mutable_frame());
+        ww.result()->Cancel();
+    }
+}
 
 } // namespace NMRAnet
