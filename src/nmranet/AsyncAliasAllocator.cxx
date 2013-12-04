@@ -169,6 +169,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
     write_flow->Send(nullptr);
     // The alias is reserved, put it into the freelist.
     pending_alias_->state = AliasInfo::STATE_RESERVED;
+    if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
+                                                   ~0x1FFFF000U, this);
     reserved_alias_allocator_.ReleaseBack(pending_alias_);
     pending_alias_ = nullptr;
     // We go back to the infinite loop.

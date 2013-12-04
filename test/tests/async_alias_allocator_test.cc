@@ -42,7 +42,6 @@ TEST_F(AsyncAliasAllocatorTest, AllocateOne)
     ExpectPacket(":X1610D555N;");
     ExpectPacket(":X15000555N;");
     ExpectPacket(":X14003555N;");
-    // ExpectPacket(":X17020B84N;");
     alias_allocator_.empty_aliases()->Release(&info);
     Wait();
 
@@ -91,6 +90,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     ExpectPacket(":X14003AAAN;");
     ExpectPacket(":X10700AAAN;");
     alias_allocator_.empty_aliases()->Release(&info2);
+    SendPacket(":X10700555N;");  // Conflicts with the previous alias to be tested.
     {
         TypedSyncAllocation<AliasInfo> ialloc(
             alias_allocator_.reserved_aliases());
