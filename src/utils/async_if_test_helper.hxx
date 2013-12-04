@@ -27,6 +27,8 @@ static void InvokeNotification(Notifiable* done)
     done->Notify();
 }
 
+void (*g_invoke)(Notifiable*) = &InvokeNotification;
+
 DEFINE_PIPE(gc_pipe0, 1);
 GCAdapterBase* g_gc_adapter = nullptr;
 ThreadExecutor g_executor("async_exec", 0, 2000);
