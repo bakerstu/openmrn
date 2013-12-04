@@ -56,14 +56,19 @@ typedef ParamHandler<struct can_frame> IncomingFrameHandler;
 
     Usage:
     . allocate a flow instance through the write_allocator.
-    . fill in flow->mutable_frame()
+    . fill in flow->mutable_frame() [*]
     . call flow->Send()
+
+    [*] When a write flow arrives from an allocator, it is guaranteed that it
+    is a regular (non-err, non-remote) extended data frame.
 
     The flow will return itself to the allocator when done.
 */
 class CanFrameWriteFlow : public ControlFlow {
  public:
-  CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done) {}
+  CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done) {
+    ResetFrameEff();
+  }
 
   //! @returns the frame buffer to be filled.
   struct can_frame* mutable_frame() { return &frame_; }
@@ -75,6 +80,17 @@ class CanFrameWriteFlow : public ControlFlow {
    *  enqueued. In most cases it can be set to NULL.
    */
   virtual void Send(Notifiable* done) = 0;
+
+  /** Releases this frame buffer without sending of anything to the bus. Takes
+   *  ownership of *this and returns it to the allocator.
+   */
+  virtual void Cancel() = 0;
+
+  void ResetFrameEff() {
+    CLR_CAN_FRAME_ERR(frame_);
+    CLR_CAN_FRAME_RTR(frame_);
+    SET_CAN_FRAME_EFF(frame_);
+  }
 
  protected:
   struct can_frame frame_;

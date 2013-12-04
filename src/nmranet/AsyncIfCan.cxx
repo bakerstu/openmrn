@@ -103,20 +103,28 @@ public:
     CanWriteFlow(AsyncIfCan* parent, Executor* e)
         : CanFrameWriteFlow(e, nullptr), if_can_(parent)
     {
-        parent->write_allocator()->Release(this);
+        if_can_->write_allocator()->Release(this);
     }
 
-    void Send(Notifiable* done) {
+    virtual void Send(Notifiable* done)
+    {
         Restart(done);
         StartFlowAt(ST(HandleSend));
     }
 
+    virtual void Cancel()
+    {
+        ResetFrameEff();
+        if_can_->write_allocator()->Release(this);
+    }
+
 private:
-    ControlFlowAction HandleSend() {
+    ControlFlowAction HandleSend()
+    {
         // @TODO(balazs.racz): implement true asynchronous sending.
         if_can_->pipe_member()->parent()->WriteToAll(if_can_->pipe_member(),
-                                                     &frame_,
-                                                     sizeof(frame_));
+                                                     &frame_, sizeof(frame_));
+        ResetFrameEff();
         return ReleaseAndExit(if_can_->write_allocator(), this);
     }
 
@@ -129,8 +137,10 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
 {
     // Ensures that the underlying pipe will read and write whole frames.
     HASSERT(device->unit() == sizeof(struct can_frame));
-    owned_flows_.push_back(std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
-    owned_flows_.push_back(std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
+    owned_flows_.push_back(
+        std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
+    owned_flows_.push_back(
+        std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
 }
 
 AsyncIfCan::~AsyncIfCan()
