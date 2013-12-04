@@ -37,7 +37,6 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/NMRAnetIf.hxx"
-#include "gtest/gtest_prod.h"
 
 namespace NMRAnet
 {
@@ -108,9 +107,7 @@ private:
     ControlFlowAction HandleWaitDone();
     ControlFlowAction HandleSendRidFrame();
 
-    FRIEND_TEST(AsyncAliasAllocatorTest, AllocateOne);
-    FRIEND_TEST(AsyncAliasAllocatorTest, TestDelay);
-    FRIEND_TEST(AsyncAliasAllocatorTest, AllocateMultiple);
+    friend class AsyncAliasAllocatorTest;
 
     //! 48-bit nodeID that we will use for alias reservations.
     NodeID if_id_;

@@ -12,6 +12,10 @@ protected:
     {
     }
 
+    void SetSeed(unsigned seed) {
+        alias_allocator_.seed_ = seed;
+    }
+
     AsyncAliasAllocator alias_allocator_;
 };
 
@@ -21,7 +25,7 @@ TEST_F(AsyncAliasAllocatorTest, SetupTeardown)
 
 TEST_F(AsyncAliasAllocatorTest, AllocateOne)
 {
-    alias_allocator_.seed_ = 0x555;
+    SetSeed(0x555);
     AliasInfo info;
     ExpectPacket(":X17020555N;");
     ExpectPacket(":X1610D555N;");
@@ -39,13 +43,12 @@ TEST_F(AsyncAliasAllocatorTest, AllocateOne)
 
 TEST_F(AsyncAliasAllocatorTest, TestDelay)
 {
-    alias_allocator_.seed_ = 0x555;
+    SetSeed(0x555);
     AliasInfo info;
     ExpectPacket(":X17020555N;");
     ExpectPacket(":X1610D555N;");
     ExpectPacket(":X15000555N;");
     ExpectPacket(":X14003555N;");
-    // ExpectPacket(":X17020B84N;");
     alias_allocator_.empty_aliases()->Release(&info);
     Wait();
     usleep(150000);
@@ -55,7 +58,7 @@ TEST_F(AsyncAliasAllocatorTest, TestDelay)
 
 TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
 {
-    alias_allocator_.seed_ = 0x555;
+    SetSeed(0x555);
     AliasInfo info;
     AliasInfo info2;
     ExpectPacket(":X17020555N;");
@@ -70,7 +73,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
         EXPECT_EQ(0x555U, ialloc.result()->alias);
         EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
     }
-    alias_allocator_.seed_ = 0xAAA;
+    SetSeed(0xAAA);
     ExpectPacket(":X17020AAAN;");
     ExpectPacket(":X1610DAAAN;");
     ExpectPacket(":X15000AAAN;");
