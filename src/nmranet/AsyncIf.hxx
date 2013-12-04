@@ -42,36 +42,92 @@
 namespace NMRAnet
 {
 
-struct IncomingMessage {
-  //! OpenLCB MTI of the incoming message.
-  If::MTI mti;
-  //! Source node.
-  NodeHandle src;
-  //! Destination node.
-  NodeHandle dst;
-  //! If the destination node is local, this value is non-NULL.
-  Node* dst_node;
-  //! Data content in the message body. Owned by the dispatcher.
-  Buffer* payload;
+struct IncomingMessage
+{
+    //! OpenLCB MTI of the incoming message.
+    If::MTI mti;
+    //! Source node.
+    NodeHandle src;
+    //! Destination node.
+    NodeHandle dst;
+    //! If the destination node is local, this value is non-NULL.
+    Node* dst_node;
+    //! Data content in the message body. Owned by the dispatcher.
+    Buffer* payload;
 };
 
 typedef ParamHandler<IncomingMessage> IncomingMessageHandler;
 
+class WriteFlow : public ControlFlow
+{
+public:
+    WriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done)
+    {
+    }
+
+    /** Initiates sending an addressed message onto the NMRAnet bus.
+     *
+     * Must only be called if *this is an addressed flow.
+     *
+     * @param mti of the message to send
+     * @param src is the NodeID of the originating node
+     * @param dst is the destination node (cannot be 0,0)
+     * @param data is the message payload
+     * @param done will be notified when the message is enqueued for sending.
+     *  May be set to nullptr.
+     */
+    virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
+                                       Buffer* data, Notifiable* done) = 0;
+
+    /** Initiates sending an unaddressed (global) message onto the NMRAnet bus.
+     *
+     * Must only be called if *this is a global flow.
+     *
+     * @param mti of the message to send
+     * @param src is the NodeID of the originating node
+     * @param data is the message payload
+     * @param done will be notified when the message is enqueued for sending.
+     *  May be set to nullptr.
+     */
+    virtual void WriteGlobalMessage(MTI mti, NodeID src, Buffer* data,
+                                    Notifiable* done) = 0;
+};
+
 class AsyncIf
 {
- public:
-  typedef TypedDispatchFlow<uint32_t, IncomingMessage> MessageDispatchFlow;
+public:
+    typedef TypedDispatchFlow<uint32_t, IncomingMessage> MessageDispatchFlow;
 
-  AsyncIf(Executor* executor);
+    AsyncIf(Executor* executor);
 
-  //! @returns the dispatcher of incoming messages.
-  MessageDispatchFlow* dispatcher() { return &dispatcher_; }
+    /// @returns the dispatcher of incoming messages.
+    MessageDispatchFlow* dispatcher()
+    {
+        return &dispatcher_;
+    }
 
- private:
-  //! Flow responsible for routing incoming messages to handlers.
-  MessageDispatchFlow dispatcher_;
+    /// @returns an allocator for sending global messages to the bus.
+    TypedAllocator<WriteFlow>* global_write_allocator()
+    {
+        return &globalWriteAllocator;
+    }
 
-  DISALLOW_COPY_AND_ASSIGN(AsyncIf);
+    /// @returns an allocator for sending addressed messages to the bus.
+    TypedAllocator<WriteFlow>* addressed_write_allocator()
+    {
+        return &addressedWriteAllocator;
+    }
+
+private:
+    /// Flow responsible for routing incoming messages to handlers.
+    MessageDispatchFlow dispatcher_;
+
+    /// Allocator containing the global write flows.
+    TypedAllocator<WriteFlow> globalWriteAllocator;
+    /// Allocator containing the addressed write flows.
+    TypedAllocator<WriteFlow> addressedWriteAllocator;
+
+    DISALLOW_COPY_AND_ASSIGN(AsyncIf);
 };
 
 } // namespace NMRAnet
