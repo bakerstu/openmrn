@@ -102,10 +102,16 @@ private:
     HandleMessage(struct can_frame* message, Notifiable* done);
 
     ControlFlowAction HandleGetMoreWork();
+    ControlFlowAction HandleWorkArrived();
     ControlFlowAction HandleInitAliasCheck();
     ControlFlowAction HandleSendCidFrames();
     ControlFlowAction HandleWaitDone();
     ControlFlowAction HandleSendRidFrame();
+
+    ControlFlowAction HandleAliasConflict();
+
+    //! Generates the next alias to check in the seed_ variable.
+    void NextSeed();
 
     friend class AsyncAliasAllocatorTest;
 
@@ -129,6 +135,8 @@ private:
     AliasInfo* pending_alias_;
     //! Which CID frame are we trying to send out. Valid values: 7..4
     unsigned cid_frame_sequence_ : 3;
+    //! Set to 1 if an incoming frame signals an alias conflict.
+    unsigned conflict_detected_ : 1;
 
     //! Seed for generating random-looking alias numbers.
     unsigned seed_ : 12;

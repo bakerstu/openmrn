@@ -49,7 +49,8 @@ AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan* if_can)
       if_id_(if_id),
       if_can_(if_can),
       pending_alias_(nullptr),
-      cid_frame_sequence_(0)
+      cid_frame_sequence_(0),
+      conflict_detected_(0)
 {
     seed_ = if_id >> 30;
     seed_ ^= if_id >> 18;
@@ -64,37 +65,50 @@ AsyncAliasAllocator::~AsyncAliasAllocator()
 
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleGetMoreWork()
 {
-    return Allocate(&empty_alias_allocator_, ST(HandleInitAliasCheck));
+    return Allocate(&empty_alias_allocator_, ST(HandleWorkArrived));
+}
+
+ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleWorkArrived()
+{
+    GetAllocationResult(&pending_alias_);
+    return CallImmediately(ST(HandleInitAliasCheck));
 }
 
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
 {
-    GetAllocationResult(&pending_alias_);
     cid_frame_sequence_ = 7;
+    conflict_detected_ = 0;
     HASSERT(pending_alias_->state == AliasInfo::STATE_EMPTY);
     while (!pending_alias_->alias)
     {
         pending_alias_->alias = seed_;
-
-        uint16_t offset;
-        offset = if_id_ >> 36;
-        offset ^= if_id_ >> 24;
-        offset ^= if_id_ >> 12;
-        offset ^= if_id_;
-        offset <<= 1;
-        offset |= 1; // ensures offset is odd.
-        // This offset will be guaranteed different for any two node IDs that
-        // are within 1024 of each other. Therefore it is guaranteed that they
-        // will generate a different alias after a conflict. It is also
-        // guaranteed that we will generate ewvery single possible alias before
-        // generating a duplicate (the cycle length is always 2^12).
-
-        seed_ += offset;
-
+        NextSeed();
         // TODO(balazs.racz): check if the alias is already known about.
     }
-    // Grab an outgoing frame buffer.
+    // Registers ourselves as a handler for incoming CAN frames to detect
+    // conflicts.
+    if_can_->frame_dispatcher()->RegisterHandler(pending_alias_->alias,
+                                                 ~0x1FFFF000U, this);
+
+    // Grabs an outgoing frame buffer.
     return Allocate(if_can_->write_allocator(), ST(HandleSendCidFrames));
+}
+
+void AsyncAliasAllocator::NextSeed() {
+    uint16_t offset;
+    offset = if_id_ >> 36;
+    offset ^= if_id_ >> 24;
+    offset ^= if_id_ >> 12;
+    offset ^= if_id_;
+    offset <<= 1;
+    offset |= 1; // ensures offset is odd.
+    // This offset will be guaranteed different for any two node IDs that
+    // are within 2048 of each other. Therefore it is guaranteed that they
+    // will generate a different alias after a conflict. It is also
+    // guaranteed that we will generate every single possible alias before
+    // generating a duplicate (the cycle length is always 2^12).
+
+    seed_ += offset;
 }
 
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
@@ -103,6 +117,10 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
         pending_alias_->alias);
     CanFrameWriteFlow* write_flow;
     GetAllocationResult(&write_flow);
+    if (conflict_detected_) {
+        write_flow->Cancel();
+        return CallImmediately(ST(HandleAliasConflict));
+    }
     IfCan::control_init(*write_flow->mutable_frame(), pending_alias_->alias,
                         (if_id_ >> (12 * (cid_frame_sequence_ - 4))) & 0xfff,
                         cid_frame_sequence_);
@@ -119,8 +137,24 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
     }
 }
 
+ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
+{
+    // Marks that we are no longer interested in frames from this alias.
+    if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
+                                                   ~0x1FFFF000U, this);
+    
+    // Burns up the alias.
+    pending_alias_->alias = 0;
+    pending_alias_->state = AliasInfo::STATE_EMPTY;
+    // Restarts the lookup.
+    return CallImmediately(ST(HandleInitAliasCheck));
+}
+
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleWaitDone()
 {
+    if (conflict_detected_) {
+        return CallImmediately(ST(HandleAliasConflict));
+    }
     // grab a frame buffer for the RID frame.
     return Allocate(if_can_->write_allocator(), ST(HandleSendRidFrame));
 }
@@ -144,7 +178,11 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
 TypedAllocator<ParamHandler<struct can_frame>>*
 AsyncAliasAllocator::HandleMessage(struct can_frame* message, Notifiable* done)
 {
-    // @TODO(balazs.racz): kill the current alias allocation flow.
+    conflict_detected_ = 1;
+    // @TODO(balazs.racz): wake up the actual flow to not have to wait all the
+    // 200 ms of sleep. It's somewhat difficult to ensure there is no race
+    // condition there; there are no documented guarantees on the timer
+    // deletion call vs timer callbacks being delivered.
     done->Notify();
     return nullptr;
 }
