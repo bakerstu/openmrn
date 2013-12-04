@@ -30,11 +30,13 @@
  * should only be needed in hardware interface implementations.
  *
  * @author Balazs Racz
- * @date 3 Dec 2013
+ * @date 4 Dec 2013
  */
 
 #ifndef _NMRAnetAsyncIfImpl_hxx_
 #define _NMRAnetAsyncIfImpl_hxx_
+
+#include "nmranet/AsyncIf.hxx"
 
 namespace NMRAnet
 {
@@ -56,6 +58,9 @@ protected:
      * flow. */
     virtual ControlFlowAction send_to_hardware() = 0;
 
+    /// @returns the interface that this flow is assigned to.
+    virtual AsyncIf* async_if() = 0;
+
     /** Implementations shall call this function when they are done with
      * sending the packet.
      */
@@ -69,8 +74,8 @@ protected:
 
 private:
     /// Entry point for external callers.
-    virtual WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
-                                  Buffer* data, Notifiable* done)
+    virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
+                                       Buffer* data, Notifiable* done)
     {
         mti_ = mti;
         src_ = src;
@@ -80,17 +85,20 @@ private:
     }
 
     /// Entry point for external callers.
-    virtual WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
-                               Notifiable* done)
+    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
+                                    Notifiable* done)
     {
         mti_ = mti;
         src_ = src;
+        dst_.id = 0;
+        dst_.alias = 0;
         data_ = data;
         StartFlowAt(ST(send_to_local_nodes));
     }
 
     ControlFlowAction maybe_send_to_local_node();
     ControlFlowAction send_to_local_nodes();
+    ControlFlowAction unaddressed_with_local_dispatcher();
 };
 
 } // namespace NMRAnet

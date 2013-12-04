@@ -72,7 +72,7 @@ public:
      * @param mti of the message to send
      * @param src is the NodeID of the originating node
      * @param dst is the destination node (cannot be 0,0)
-     * @param data is the message payload
+     * @param data is the message payload (may be null)
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
@@ -85,11 +85,11 @@ public:
      *
      * @param mti of the message to send
      * @param src is the NodeID of the originating node
-     * @param data is the message payload
+     * @param data is the message payload (may be null)
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
-    virtual void WriteGlobalMessage(MTI mti, NodeID src, Buffer* data,
+    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
                                     Notifiable* done) = 0;
 };
 

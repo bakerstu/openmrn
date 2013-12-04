@@ -114,10 +114,9 @@ public:
     DispatchFlow(Executor* executor);
     virtual ~DispatchFlow();
     /**
-       Handles an incoming message. Prior to this call the parameters needed for
-       the call should be injected into the flow using an
-       implementation-specific
-       method.
+       Handles an incoming message. Prior to this call the parameters needed
+       for the call should be injected into the flow using an
+       implementation-specific method.
 
        @param id is the identifier of the incoming message.
 

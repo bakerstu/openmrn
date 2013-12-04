@@ -24,17 +24,62 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file AsyncIfImpl.hxx
+ * \file AsyncIfImpl.cxx
  *
  * Implementation details for the asynchronous NMRAnet interfaces. This file
  * should only be needed in hardware interface implementations.
  *
  * @author Balazs Racz
- * @date 3 Dec 2013
+ * @date 4 Dec 2013
  */
 
 #include "nmranet/AsyncIfImpl.hxx"
 
 namespace NMRAnet
 {
-}  // namespace NMRAnet
+
+void WriteFlowBase::cleanup()
+{
+    if (data_)
+    {
+        data_->free();
+    }
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::send_to_local_nodes()
+{
+    return Allocate(async_if()->dispatcher()->allocator(),
+                    ST(unaddressed_with_local_dispatcher));
+    ///@TODO(balazs.racz) actually send to local nodes.
+
+    return send_to_hardware();
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::unaddressed_with_local_dispatcher()
+{
+    AsyncIf::MessageDispatchFlow* dispatcher;
+    GetAllocationResult(&dispatcher);
+    dispatcher->mutable_params()->mti = mti_;
+    dispatcher->mutable_params()->src.id = src_;
+    dispatcher->mutable_params()->src.alias = 0;
+    dispatcher->mutable_params()->dst = dst_;
+    dispatcher->mutable_params()->dst_node = nullptr;
+
+    dispatcher->mutable_params()->payload = nullptr;
+    if (data_) {
+        Buffer* copy = buffer_alloc(data_->used());
+        memcpy(copy->start(), data_->start(), data_->used());
+        dispatcher->mutable_params()->payload = copy;
+    }
+    dispatcher->IncomingMessage(mti_);
+
+    return send_to_hardware();
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::maybe_send_to_local_node()
+{
+    ///@TODO(balazs.racz) lookup local node and send.
+    return send_to_hardware();
+}
+
+} // namespace NMRAnet
