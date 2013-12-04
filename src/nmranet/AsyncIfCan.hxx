@@ -51,6 +51,35 @@ namespace NMRAnet
 
 typedef ParamHandler<struct can_frame> IncomingFrameHandler;
 
+/** Interface class for the asynchronous frame write flow. This flow allows you
+    to write frames to the CAN bus.
+
+    Usage:
+    . allocate a flow instance through the write_allocator.
+    . fill in flow->mutable_frame()
+    . call flow->Send()
+
+    The flow will return itself to the allocator when done.
+*/
+class CanFrameWriteFlow : public ControlFlow {
+ public:
+  CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done) {}
+
+  //! @returns the frame buffer to be filled.
+  struct can_frame* mutable_frame() { return &frame_; }
+
+  /** Requests the frame buffer to be sent to the bus. Takes ownership of
+   *  *this and returns it to the allocator.
+   *
+   *  @param done will be notified, when the frame was successfully
+   *  enqueued. In most cases it can be set to NULL.
+   */
+  virtual void Send(Notifiable* done) = 0;
+
+ protected:
+  struct can_frame frame_;
+};
+
 class AsyncIfCan : public AsyncIf
 {
  public:
@@ -73,6 +102,9 @@ class AsyncIfCan : public AsyncIf
   //! @returns the dispatcher of incoming CAN frames.
   FrameDispatchFlow* frame_dispatcher() { return &frame_dispatcher_; }
 
+  //! @returns the allocator for the write flow.
+  TypedAllocator<CanFrameWriteFlow>* write_allocator() { return &write_allocator_; } 
+
   //! @returns the asynchronous read/write object.
   AsyncPipeMember* pipe_member() { return &pipe_member_; }
 
@@ -83,9 +115,17 @@ class AsyncIfCan : public AsyncIf
   //! Handles asynchronous reading and writing from the device.
   AsyncPipeMember pipe_member_;
 
-  //! The control flow to read from the hardware device. This is running in an
-  //! infinite loop.
-  std::unique_ptr<ControlFlow> can_read_flow_;
+  class CanReadFlow;
+  class CanWriteFlow;
+  
+  //! Various implementation control flows that this interface owns.
+  std::vector<std::unique_ptr<ControlFlow> > owned_flows_;
+
+  /** Allocator that holds (and mutex-controls) the frame write flow.
+
+      It is important that this allocator be destructed before the
+      owned_flows_. */
+  TypedAllocator<CanFrameWriteFlow> write_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
 };

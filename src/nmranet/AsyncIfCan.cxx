@@ -45,7 +45,7 @@ namespace NMRAnet
    Allocation semantics: none. Flow is allocated by the IfCan object, and never
    terminates.
  */
-class CanReadFlow : public ControlFlow
+class AsyncIfCan::CanReadFlow : public ControlFlow
 {
 public:
     CanReadFlow(AsyncIfCan* if_can, Executor* e)
@@ -54,14 +54,19 @@ public:
         StartFlowAt(ST(GetDispatcher));
     }
 
-    ~CanReadFlow() {}
-
-private:
-    ControlFlowAction GetDispatcher() {
-        return Allocate(if_can_->frame_dispatcher()->allocator(), ST(HandleDispatcher));
+    ~CanReadFlow()
+    {
     }
 
-    ControlFlowAction HandleDispatcher() {
+private:
+    ControlFlowAction GetDispatcher()
+    {
+        return Allocate(if_can_->frame_dispatcher()->allocator(),
+                        ST(HandleDispatcher));
+    }
+
+    ControlFlowAction HandleDispatcher()
+    {
         AsyncIfCan::FrameDispatchFlow* flow;
         GetAllocationResult(&flow);
         struct can_frame* frame = flow->mutable_params();
@@ -69,12 +74,14 @@ private:
         return WaitAndCall(ST(HandleFrameArrived));
     }
 
-    ControlFlowAction HandleFrameArrived() {
+    ControlFlowAction HandleFrameArrived()
+    {
         AsyncIfCan::FrameDispatchFlow* flow;
         GetAllocationResult(&flow);
         if (IS_CAN_FRAME_ERR(*flow->mutable_params()) ||
             IS_CAN_FRAME_RTR(*flow->mutable_params()) ||
-            !IS_CAN_FRAME_EFF(*flow->mutable_params())) {
+            !IS_CAN_FRAME_EFF(*flow->mutable_params()))
+        {
             // Ignore these frames, read another frame. We already have the
             // dispatcher object's ownership.
             return YieldAndCall(ST(HandleDispatcher));
@@ -86,16 +93,48 @@ private:
         return YieldAndCall(ST(GetDispatcher));
     }
 
+    //! Parent interface. Owned externlly.
+    AsyncIfCan* if_can_;
+};
+
+class AsyncIfCan::CanWriteFlow : public CanFrameWriteFlow
+{
+public:
+    CanWriteFlow(AsyncIfCan* parent, Executor* e)
+        : CanFrameWriteFlow(e, nullptr), if_can_(parent)
+    {
+        parent->write_allocator()->Release(this);
+    }
+
+    void Send(Notifiable* done) {
+        Restart(done);
+        StartFlowAt(ST(HandleSend));
+    }
+
+private:
+    ControlFlowAction HandleSend() {
+        // @TODO(balazs.racz): implement true asynchronous sending.
+        if_can_->pipe_member()->parent()->WriteToAll(if_can_->pipe_member(),
+                                                     &frame_,
+                                                     sizeof(frame_));
+        return ReleaseAndExit(if_can_->write_allocator(), this);
+    }
+
+    //! Parent interface. Owned externlly.
     AsyncIfCan* if_can_;
 };
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
     : AsyncIf(executor), frame_dispatcher_(executor), pipe_member_(device)
 {
-    can_read_flow_.reset(new CanReadFlow(this, executor));
+    // Ensures that the underlying pipe will read and write whole frames.
+    HASSERT(device->unit() == sizeof(struct can_frame));
+    owned_flows_.push_back(std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
+    owned_flows_.push_back(std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
 }
 
-AsyncIfCan::~AsyncIfCan() {}
-
+AsyncIfCan::~AsyncIfCan()
+{
+}
 
 } // namespace NMRAnet

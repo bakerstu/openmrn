@@ -52,5 +52,17 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
     if_can_->frame_dispatcher()->UnregisterHandler(0x195B4000, 0x1FFFF000, &h);
 }
 
+TEST_F(AsyncIfTest, WriteFrame)
+{
+    ExpectPacket(":X195B432DNAA;");
+    TypedSyncAllocation<CanFrameWriteFlow> w(if_can_->write_allocator());
+    struct can_frame* f = w.result()->mutable_frame();
+    SET_CAN_FRAME_EFF(*f);
+    SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
+    f->can_dlc = 1;
+    f->data[0] = 0xaa;
+    w.result()->Send(nullptr);
+}
+
 
 } // namespace NMRAnet

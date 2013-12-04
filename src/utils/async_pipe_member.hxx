@@ -60,6 +60,8 @@ public:
      */
     void ReceiveData(void* buf, size_t count, Notifiable* done);
 
+    Pipe* parent() { return parent_; }
+
 private:
     //! Callback from the pipe on data received from the pipe.
     virtual void write(const void* buf, size_t count);
