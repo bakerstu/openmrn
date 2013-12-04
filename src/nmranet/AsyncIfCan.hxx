@@ -70,7 +70,7 @@ class CanFrameWriteFlow : public ControlFlow {
     ResetFrameEff();
   }
 
-  //! @returns the frame buffer to be filled.
+  /// @returns the frame buffer to be filled.
   struct can_frame* mutable_frame() { return &frame_; }
 
   /** Requests the frame buffer to be sent to the bus. Takes ownership of
@@ -86,6 +86,8 @@ class CanFrameWriteFlow : public ControlFlow {
    */
   virtual void Cancel() = 0;
 
+  /** Resets the frame buffer to regular (non-err, non-remote) extended data
+   * frame */
   void ResetFrameEff() {
     CLR_CAN_FRAME_ERR(frame_);
     CLR_CAN_FRAME_RTR(frame_);
@@ -102,14 +104,14 @@ class AsyncIfCan : public AsyncIf
   typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
 
   /**
-     Creates a CAN interface.
-
-     @param executor will be used to process incoming (and outgoing) messages.
-
-     @param device is a Pipe. The interface will add a member to this pipe to
-     handle incoming and outgoing traffic. The caller should add the necessary
-     hardware device, GridConnect bridge or mock interface to this pipe (before
-     this call or else outgoing packets might be lost).
+   * Creates a CAN interface.
+   *
+   * @param executor will be used to process incoming (and outgoing) messages.
+   *
+   * @param device is a Pipe. The interface will add a member to this pipe to
+   * handle incoming and outgoing traffic. The caller should add the necessary
+   * hardware device, GridConnect bridge or mock interface to this pipe (before
+   * this call or else outgoing packets might be lost).
    */
   AsyncIfCan(Executor* executor, Pipe* device);
 
