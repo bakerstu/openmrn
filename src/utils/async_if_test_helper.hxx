@@ -4,8 +4,8 @@
 //
 // Only include this file in unittests.
 
-#ifndef _UTILS_ASNC_IF_TEST_HELPER_HXX_
-#define _UTILS_ASNC_IF_TEST_HELPER_HXX_
+#ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
+#define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet_config.h"
@@ -13,12 +13,19 @@
 #include "utils/pipe.hxx"
 #include "utils/test_main.hxx"
 
-using ::testing::_;
-using ::testing::Return;
-using ::testing::StrictMock;
-using ::testing::NiceMock;
-using ::testing::StrCaseEq;
+using ::testing::Invoke;
 using ::testing::Mock;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::StrCaseEq;
+using ::testing::StrictMock;
+using ::testing::WithArg;
+using ::testing::_;
+
+static void InvokeNotification(Notifiable* done)
+{
+    done->Notify();
+}
 
 DEFINE_PIPE(gc_pipe0, 1);
 GCAdapterBase* g_gc_adapter = nullptr;
@@ -69,6 +76,12 @@ protected:
         if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0));
     }
 
+    ~AsyncIfTest()
+    {
+        Wait();
+        gc_pipe0.UnregisterMember(&can_bus_);
+    }
+
     /** Adds an expectation that the code will send a packet to the CANbus.
 
         Example:
@@ -102,7 +115,8 @@ protected:
     {
         while (!g_executor.empty() ||
                !if_can_->frame_dispatcher()->IsNotStarted() ||
-               !if_can_->dispatcher()->IsNotStarted()) {
+               !if_can_->dispatcher()->IsNotStarted())
+        {
             usleep(100);
         }
     }
@@ -127,10 +141,6 @@ protected:
         Mock::VerifyAndClear(&can_bus_);
     }
 
-    ~AsyncIfTest()
-    {
-    }
-
     //! Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> can_bus_;
     //! The interface under test.
@@ -139,4 +149,4 @@ protected:
 
 } // namespace NMRAnet
 
-#endif // _UTILS_ASNC_IF_TEST_HELPER_HXX_
+#endif // _UTILS_ASYNC_IF_TEST_HELPER_HXX_
