@@ -167,6 +167,8 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     SetSeed(0x555);
     AsyncAliasAllocator other(TEST_NODE_ID + 13, if_can_.get());
     SetSeed(0x555, &other);
+    // Checks that the two alias allocators generate different values after a
+    // conflict.
     EXPECT_NE(NextSeed(), NextSeed(&other));
     EXPECT_NE(NextSeed(), NextSeed(&other));
     // Makes sure 'other' disappears from the executor before destructing it.
