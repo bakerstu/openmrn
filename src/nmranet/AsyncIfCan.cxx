@@ -140,9 +140,15 @@ private:
 class CanMessageWriteFlow : public WriteFlowBase
 {
 public:
-    CanMessageWriteFlow(AsyncIfCan* if_can, Executor* e, Notifiable* done)
-        : WriteFlowBase(e, done), if_can_(if_can)
+    CanMessageWriteFlow(AsyncIfCan* if_can)
+        : WriteFlowBase(if_can->frame_dispatcher()->executor(), nullptr),
+          if_can_(if_can)
     {
+    }
+
+    virtual AsyncIf* async_if()
+    {
+        return if_can_;
     }
 
 protected:
@@ -194,9 +200,8 @@ private:
 
         // Sets the CAN id.
         uint32_t can_id = 0;
-        IfCan::set_fields(&can_id, src_alias_, mti_,
-                                 IfCan::GLOBAL_ADDRESSED, IfCan::NMRANET_MSG,
-                                 IfCan::NORMAL_PRIORITY);
+        IfCan::set_fields(&can_id, src_alias_, mti_, IfCan::GLOBAL_ADDRESSED,
+                          IfCan::NMRANET_MSG, IfCan::NORMAL_PRIORITY);
         SET_CAN_FRAME_ID_EFF(*f, can_id);
 
         bool need_more_frames = false;
@@ -210,7 +215,7 @@ private:
                 if (data_offset_)
                 {
                     // This is not the first frame.
-                    f->data[1] |= 0x20;
+                    f->data[0] |= 0x20;
                 }
                 uint8_t* b = static_cast<uint8_t*>(data_->start());
                 unsigned len = data_->used() - data_offset_;
@@ -219,7 +224,7 @@ private:
                     len = 6;
                     // This is not the last frame.
                     need_more_frames = true;
-                    f->data[1] |= 0x10;
+                    f->data[0] |= 0x10;
                 }
                 memcpy(f->data + 2, b + data_offset_, len);
                 data_offset_ += len;
@@ -253,6 +258,41 @@ private:
     }
 };
 
+namespace
+{
+
+class AddressedCanMessageWriteFlow : public CanMessageWriteFlow
+{
+public:
+    AddressedCanMessageWriteFlow(AsyncIfCan* if_can)
+        : CanMessageWriteFlow(if_can)
+    {
+    }
+
+protected:
+    virtual TypedAllocator<WriteFlow>* allocator()
+    {
+        return if_can_->addressed_write_allocator();
+    }
+};
+
+class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
+{
+public:
+    GlobalCanMessageWriteFlow(AsyncIfCan* if_can) : CanMessageWriteFlow(if_can)
+    {
+        allocator()->ReleaseBack(this);
+    }
+
+protected:
+    virtual TypedAllocator<WriteFlow>* allocator()
+    {
+        return if_can_->global_write_allocator();
+    }
+};
+
+} // namespace
+
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
     : AsyncIf(executor), frame_dispatcher_(executor), pipe_member_(device)
 {
@@ -266,6 +306,20 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
 
 AsyncIfCan::~AsyncIfCan()
 {
+}
+
+void AsyncIfCan::AddWriteFlows(int num_addressed, int num_global)
+{
+    for (int i = 0; i < num_global; ++i)
+    {
+        owned_flows_.push_back(
+            std::unique_ptr<ControlFlow>(new GlobalCanMessageWriteFlow(this)));
+    }
+    for (int i = 0; i < num_addressed; ++i)
+    {
+        owned_flows_.push_back(std::unique_ptr<ControlFlow>(
+            new AddressedCanMessageWriteFlow(this)));
+    }
 }
 
 } // namespace NMRAnet

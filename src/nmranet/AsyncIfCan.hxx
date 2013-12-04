@@ -117,6 +117,13 @@ class AsyncIfCan : public AsyncIf
 
   ~AsyncIfCan();
 
+  /** Initializes the write flow allocators with a number of new instances.
+   *
+   *  @param num_addressed number of new addressed write flows to create.
+   *  @param num_global number of new global write flows to create.
+   */
+  void AddWriteFlows(int num_addressed, int num_global);
+
   //! @returns the dispatcher of incoming CAN frames.
   FrameDispatchFlow* frame_dispatcher() { return &frame_dispatcher_; }
 
