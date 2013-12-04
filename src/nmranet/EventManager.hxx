@@ -136,6 +136,10 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       : ControlFlow(executor, NULL),
         standard_iterator_(standard_iterator),
         global_iterator_(global_iterator) {
+  }
+
+  //! Implementations should call this after their construction is complete.
+  void Start() {
     StartFlowAt(ST(StateInIteration));
   }
 
@@ -250,7 +254,9 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
   VectorEventHandlers(Executor* executor)
       : DualIteratorFlow(executor,
                          &standard_iterator_impl_,
-                         &global_iterator_impl_) {}
+                         &global_iterator_impl_) {
+    Start();
+  }
 
   virtual void InitStandardIterator() {
     standard_iterator_impl_.Set(handlers_.begin(), handlers_.end());
