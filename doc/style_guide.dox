@@ -2,36 +2,61 @@
  * @page style_guide Coding Guidelines
  * @section tableofcontents Table of Contents
  * - @ref introduction
- * - @ref whitespace
+ * - @ref coding_style
+ *   - @ref pointer_reference Pointer & Reference Declarations
  *   - @ref lineendings
  *   - @ref tabs
  *   - @ref keywords
- * - @ref naming
- *   - @ref styles
- *   - @ref constants
- *   - @ref functions
- *   - @ref globals
- *   - @ref locals
- *   - @ref macros
- *   - @ref structures
- *   - @ref cxxclasses
- *   - @ref handles
- * - @ref counters
- * - @ref switch
- * - @ref braces
+ *   - @ref braces
+ *   - @ref naming
+ *     - @ref styles
+ *     - @ref filenames
+ *     - @ref constants
+ *     - @ref functions
+ *     - @ref globals
+ *     - @ref locals
+ *     - @ref macros
+ *     - @ref structures
+ *     - @ref cxxclasses
+ *     - @ref handles
+ *     - @ref counters
+ *   - @ref cxxexceptions
+ *   - @ref switch
+ *   - @ref if_else
+ * - @ref coding_standards
  * - @ref exceptions
  *
  * @section introduction Introduction
- * OpenMRN source code adheres to strict coding standards.  This style guide
- * applies to all C and C++ source code and all text files where applicable.
+ * OpenMRN source code adheres to strict coding guidelines.  These guidelines
+ * apply to all C and C++ source code and all text files where applicable.  The
+ * coding guidelines are broken down into two parts:  @ref coding_style and
+ * @ref coding_standards.
  *
  *
  *
- * @section whitespace White Space
- * Observance of consistent whitespace rules is important for all text files to
- * be readable in the largest possible number of editors and diff tools.
  *
- * @subsection lineendings Line Endings
+ *
+ * @section coding_style Coding Style
+ * Coding Style deals with aspects such as naming conventions,
+ * whitespace, and brace placement.  Observance of consistent whitespace rules
+ * is important for all text files to be readable in the largest possible number
+ * of editors and diff tools.
+ *
+ *
+ *
+ *
+ *
+ * @subsection pointer_reference Pointer & Reference Declarations
+ * 
+ * Pointer "*" and reference "&" designators shall have one space preceding
+ * them and no space following them.  For Example:
+ * @code
+ * int *example_variable;
+ *
+ * void example_function(int &example_variable);
+ * @endcode
+ *
+ * @subsubsection lineendings Line Endings
  * All files must use Unix style 'LF' line endings.  Any other line ending is
  * strictly prohibited including Windows 'CR+LF'.
  *
@@ -55,18 +80,123 @@
  * }
  * @endcode
  *
- * Notice the space that follows the keywords for and if.
+ * Notice the space that follows the keywords "for" and "if".
+ *
+ * @subsection braces Braces and Indentation
+ * The brace and indentation style most closely matches that commonly known as
+ * Allman.  Though there are many possible styles to choose from, Allman is
+ * often sited as most commonly used and one of the easiest for humans to read
+ * and parse.  The OpenMRN style does not intend to be an exact match for any
+ * given interpretation of the Allman style.
+ *
+ * Allman style places the brace "hanging" on its own line and in alignment
+ * with the preceding statement above it.  Statements within the brace are
+ * indented by four spaces.  Inline class member functions are also required
+ * to have braces on their own separate line, no shortcuts.
+ *
+ * The "pubic", "protected", and "private" keywords are not indended, rather
+ * they are in line with the opening brace of a class or structure.
+ *
+ * The contents of a namespace are not indented.
+ *
+ * Some examples:
+ * @code
+ * namespace ExampleNamepace
+ * {
+ *
+ * void example_function(int param)
+ * {
+ *     if (param == 0)
+ *     {
+ *         // do something
+ *     }
+ *     else
+ *     {
+ *         do
+ *         {
+ *             --globalVariable;
+ *         } while (param);
+ *     }
+ * }
+ *
+ * class Object
+ * {
+ * public:
+ *     Object()
+ *     {
+ *     }
+ *
+ *     bool return_true()
+ *     {
+ *         return true;
+ *     }
+ *
+ *     class Internal
+ *     {
+ *     public:
+ *         Internal()
+ *         {
+ *         }
+ *     };
+ * };
+ *
+ * }; /* ExampleNamespace */
+ * @endcode
  *
  *
  *
- * @section naming Naming Conventions
- * @subsection styles Styles
+ *
+ * @subsection naming Naming Conventions
+ * @subsubsection styles Styles
  * -# UPPER_CASE, all characters upper case, each logical word separated by '_'
  * -# lower_case, all characters lower case, each logical word separated by '_'
  * -# PascalCase, first character upper case, each logical word capitalized
  * -# camelCase, first character lower case, each logical word capitalized
  *
- * @subsection constants Constants
+ * @subsubsection filenames Filenames
+ * C language source and header files will use style 2.  Source files will have
+ * an extension of ".c" and header files will have an extension of ".h".  A C
+ * file shall be named after the major construct defined within it.
+ *
+ * C++ language source and header files will use style 3.  Source files will
+ * have an extension of ".cxx" and header files will have an extension of
+ * ".hxx".  A C++ file shall be named after the major class or object within
+ * it.  If a C++ namespace wraps the definitions within a C++ file, the
+ * namespace name shall be added to the filename as a prefix.
+ *
+ * Mixed language (C and C++) header files will use style 2 and have an
+ * extension of ".h".
+ *
+ * In general, a given source/header file should limit itself to one major
+ * construct.  This is not a hard and fast rule and somewhat up to the
+ * discretion of the implementor.
+ *
+ * Unix file permissions for C and C++ source files will have Unix file
+ * permissions of -rw-rw-r--, or u+rw, g+rw, o+r.
+ *
+ * Scripts, typically placed in the bin/ directory, will have appropriate
+ * extentions based on convention, for example ".py" for Python, ".perl" for
+ * Perl, etc...  Scripts will have executable Unix file permission bits set.
+ *
+ * Doxygen files, files that contain only doxygen comments, shall have the
+ * extension ".dox".
+ *
+ * If developing on a system that does not support Unix file permissions, such
+ * as Windows, care must be taken not to pollute the source tree with incorrect
+ * file permissions.  Tools such as Cygwin and MinGW can aid in preserving
+ * Unix file permissions within Windows.
+ *
+ * Some Examples:
+ * @code
+ * endian.h        // standard C header file that could also be used in C++
+ * hw_init.c       // standard C source file
+ * NMRAnetNode.hxx // C++ class Node implementation within the NMRAnet namespace
+ * NMRAnetNode.cxx // C++ class Node implementation within the NMRAnet namespace
+ * build_cdi.py    // Executable Python script with permissions -rwxrwxr-x
+ * info.dox        // Doxygen comment only file
+ * @endcode
+ * 
+ * @subsubsection constants Constants
  * Constants, used in any context, supersede the style of the context and
  * always use style 1.  This includes members of structures, classes, and
  * enumerations.  For example:
@@ -74,7 +204,7 @@
  * const int EXAMPLE_CONSTANT = 1000;
  * @endcode
  *
- * @subsection functions Functions
+ * @subsubsection functions Functions
  * Functions use style 2.  For example:
  * @code
  * void example_function(void)
@@ -83,7 +213,7 @@
  * Exceptions include C++ constructors and destructors.  These will use
  * style 3.
  *
- * @subsection globals Global and Member Variables
+ * @subsubsection globals Global and Member Variables
  * Global and Member variables use style 4.  For example:
  * @code
  * int exampleGlobalVariable;
@@ -92,9 +222,17 @@
  * {
  *     int exampleMemberVariable;
  * };
+ *
+ * class Object
+ * {
+ *     int exampleMemberVariable;
+ * }
  * @endcode
  *
- * @subsection locals Local Variables and Function Parameters
+ * It is important to note that member variables shall not have a leading or
+ * lagging underscore "_".
+ *
+ * @subsubsection locals Local Variables and Function Parameters
  * Local variables and function parameters use style 2.  For example:
  * @code
  * void example_function(int function_parameter)
@@ -103,14 +241,14 @@
  * }
  * @endcode
  *
- * @subsection macros Macros
+ * @subsubsection macros Macros
  * Macros use style 1.  For example:
  * @code
  * #define EXAMPLE_MACRO
  * #define EXAMPLE_FUNCTION_MACRO(_var1, _var2)
  * @endcode
  *
- * @subsection structures Structures and Enumerations
+ * @subsubsection structures Structures and Enumerations
  * Structures make use of both styles 2, and 3.  For example:
  * @code
  * typedef struct example_struct
@@ -131,7 +269,7 @@
  * typedef enum example_enum
  * {
  *     ENUM_VALUE = 5;
- * } ExampleStruct;
+ * } ExampleEnum;
  *
  * typedef enum
  * {
@@ -146,11 +284,24 @@
  *
  * The structure tag uses style 2 and the structure identifier uses style 3.
  *
- * @subsection cxxclasses C++ Structures, Classes and Enumerations
- * In C++, classes and structures use style 3.  For example:
+ * @subsubsection cxxclasses C++ Structures, Classes, Enumerations, and Namespaces
+ * In C++, classes, structures, enumerations, and namespaces use style 3.
+ *
+ * In general, public members should be declared first, followed by protected
+ * members, and finally private members.  It may occasionally be desirable
+ * to diverge from this convention, and as such, this is not a hard and fast
+ * rule.
+ *
+ * For example:
  * @code
  * class ExampleClass
  * {
+ * public:
+ *     ExampleClass();
+ *
+ * protected:
+ *
+ * private:
  *     int memberVariable;
  * };
  *
@@ -163,11 +314,16 @@
  * {
  *     ENUM_VALUE = 5;
  * };
+ *
+ * namespace NamespaceExample
+ * {
+ * };
+ *
  * @endcode
  *
  *
  *
- * @subsection handles Handles
+ * @subsubsection handles Handles
  * Within C code, it is common to define a handle.  A handle is typically a
  * typedef to a void * pointer that a library passes to an application to keep
  * track of an object.  Because the object is typecast to a void * pointer,
@@ -195,7 +351,7 @@
  *
  *
  *
- * @section counters Loop Counters
+ * @subsubsection counters Loop Counters
  * It is a best practice to use the variable names i, j, and j for arbitrary
  * loop counters.  For example:
  * @code
@@ -212,10 +368,18 @@
  *
  *
  *
- * @section switch Switch Statements
+ * @subsection cxxexceptions C++ Exceptions
+ * The throwing and catching of C++ exceptions is not supported within OpenMRN.
+ * Most of the default build settings disable exception handling in the
+ * compiler and linker.
+ *
+ *
+ *
+ * @subsection switch Switch Statements
  * Within switch statements, case values that do not have their own break
  * statement shall provide a "fall through" comment.  All switch statements
- * must define a default case.  For example:
+ * must define a default case.  The case body in indented from its opening and
+ * closing braces.  For example:
  * @code
  * switch (variable)
  * {
@@ -231,13 +395,17 @@
  *
  *
  *
- * @section braces Braces
+ * @subsection if_else If/Else Statements
  * OpenMRN source always uses hanging braces.  Additionally, single line
  * if statements must use braces.  For example:
  * @code
  * if (i > 0)
  * {
  *     j = i;
+ * }
+ * else
+ * {
+ *     k = i;
  * }
  * @endcode
  *
@@ -246,16 +414,36 @@
  * @code
  * if (i > 0)
  *     j = i;
+ * else
+ *     k = i;
  *
  * if (i > 0) {
  *     j = i;
+ * } else {
+ *     k = i;
  * }
  * @endcode
+ *
+ *
+ *
+ *
+ *
+ *
+ * @section coding_standards Coding Standards
+ * Coding Standards are the aspects that deal with impacts on the lanquage
+ * implementation such as what attributes of the C/C++ language are off limits
+ * or restricted in use.
+ *
+ *
+ *
  *
  *
  *
  * @section exceptions Exceptions
  * Third party source code does not follow these coding guidelines.  Instead,
  * follow the guidelines already established by the third party.  Examples of
- * third party source code include the XML and JSON parsers.
+ * third party source code include the XML and JSON parsers.  It is also
+ * acceptable to diverge from any of the these coding guidelines provided a
+ * verbose justification is provided with comments inline as to why the
+ * divergence is necessary.
  */
