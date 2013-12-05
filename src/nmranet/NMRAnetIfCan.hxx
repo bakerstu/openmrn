@@ -258,6 +258,16 @@ private:
         return (Priority)((can_id & PRIORITY_MASK) >> PRIORITY_SHIFT);
     }
 
+    /** Tests if the incoming frame is a CID frame.
+     * @param can_id identifier to act upon
+     * @return true for CID frame, false for any other frame.
+     */
+    static bool is_cid_frame(uint32_t can_id)
+    {
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x14) == 0x14;
+    }
+
+
     /** Set the MTI field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param mti MTI field value
@@ -637,6 +647,7 @@ private:
     
     friend class AsyncAliasAllocator;
     friend class CanMessageWriteFlow;
+    friend class AliasConflictHandler;
 
     /** file descriptor used for reading and writing data to and from physical
      * interface

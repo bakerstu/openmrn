@@ -38,6 +38,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "nmranet_can.h"
+#include "executor/allocator.hxx"
 
 namespace NMRAnet
 {
@@ -370,6 +371,8 @@ protected:
     }
 };
 
+} // namespace
+
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:
  *
@@ -380,28 +383,95 @@ protected:
  *
  * . if the conflict is with a reserved but unused alias, kicks it out of the
  * cache and triggers allocating a new one instead.*/
-/*class AliasConflictHandler : public AllocationResult<CanFrameWriteFlow>,
-                             public IncomingFrameHandler {
+class AliasConflictHandler : public AllocationResult,
+                             public IncomingFrameHandler
+{
 public:
-    AliasConflictHandler(AsyncIfCan* if_can)
-        : ifCan_(if_can) {}
+    AliasConflictHandler(AsyncIfCan* if_can) : ifCan_(if_can)
+    {
+        lock_.TypedRelease(this);
+        ifCan_->frame_dispatcher()->RegisterHandler(0, ~((1 << 30) - 1), this);
+    }
+
+    ~AliasConflictHandler()
+    {
+        ifCan_->frame_dispatcher()->UnregisterHandler(0, ~((1 << 30) - 1),
+                                                      this);
+    }
+
+    virtual AllocatorBase* get_allocator()
+    {
+        return &lock_;
+    }
 
     //! Handler callback for incoming messages.
-    TypedAllocator<IncomingFrameHandler>*
-    HandleMessage(struct can_frame* message, Notifiable* done);
-    
+    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    {
+        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
+        done->Notify(); // We don't need the frame anymore.
+        f = nullptr;
+        done = nullptr;
+        if (IfCan::get_priority(id) != IfCan::NORMAL_PRIORITY)
+        {
+            // Probably not an OpenLCB frame.
+            lock_.TypedRelease(this);
+            return;
+        }
+        NodeAlias alias = IfCan::get_src(id);
+        NodeID node = ifCan_->local_aliases()->lookup(alias);
+        if (!node)
+        {
+            // This is not a local alias of ours.
+            lock_.TypedRelease(this);
+            return;
+        }
+        if (IfCan::is_cid_frame(id))
+        {
+            // This is a CID frame. We own the alias, let them know.
+            alias_ = alias;
+            ifCan_->write_allocator()->AllocateEntry(this);
+            // We keep the lock.
+            return;
+        }
+        /* Removes the alias from the local alias cache.  If it was assigned to
+         * a node, the node will grab a new alias next time it tries to send
+         * something.  If it was reserved but not used, then whoever tries to
+         * use it will realize due to the RESERVED_ALIAS_NODE_ID guard missing
+         * from the cache.  We do not aggressively start looking for a new
+         * alias in place of the missing one. If we want to do that, we would
+         * have to find the entry in the list of
+         * ifCan_->alias_allocator()->reserved_alias_allocator() and put it
+         * into the empty_alias_allocator() instead to be picked up by the
+         * alias allocator flow.  */
+        ifCan_->local_aliases()->remove(alias);
+        lock_.TypedRelease(this);
+    }
+
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        frameWriteFlow_ = static_cast<CanFrameWriteFlow*>(entry);
+        ifCan_->frame_dispatcher()->executor()->Add(this);
+    }
+
+    virtual void Run()
+    {
+        // We are sending an RID frame.
+        struct can_frame* f = frameWriteFlow_->mutable_frame();
+        IfCan::control_init(*f, alias_, IfCan::RID_FRAME, 0);
+        frameWriteFlow_->Send(nullptr);
+        lock_.TypedRelease(this);
+    }
 
 private:
-    // Lock for ourselves.
+    //! Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
-
+    //! Parent interface.
     AsyncIfCan* ifCan_;
-
+    //! Alias being checked.
+    unsigned alias_ : 12;
+    //! The write flow we received from the allocator.
+    CanFrameWriteFlow* frameWriteFlow_;
 };
-*/
-
-
-} // namespace
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
                        int local_alias_cache_size, int remote_alias_cache_size)
@@ -427,7 +497,6 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
 {
     aliasAllocator_.reset(a);
 }
-
 
 void AsyncIfCan::AddWriteFlows(int num_addressed, int num_global)
 {

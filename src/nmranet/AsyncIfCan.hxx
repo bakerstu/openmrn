@@ -141,7 +141,7 @@ public:
         return &frame_dispatcher_;
     }
 
-    //! @returns the allocator for the write flow.
+    //! @returns the allocator for the *can frame* write flow.
     TypedAllocator<CanFrameWriteFlow>* write_allocator()
     {
         return &write_allocator_;
