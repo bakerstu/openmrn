@@ -64,95 +64,111 @@ typedef ParamHandler<struct can_frame> IncomingFrameHandler;
 
     The flow will return itself to the allocator when done.
 */
-class CanFrameWriteFlow : public ControlFlow {
- public:
-  CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done) {
-    ResetFrameEff();
-  }
+class CanFrameWriteFlow : public ControlFlow
+{
+public:
+    CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done)
+    {
+        ResetFrameEff();
+    }
 
-  /// @returns the frame buffer to be filled.
-  struct can_frame* mutable_frame() { return &frame_; }
+    /// @returns the frame buffer to be filled.
+    struct can_frame* mutable_frame()
+    {
+        return &frame_;
+    }
 
-  /** Requests the frame buffer to be sent to the bus. Takes ownership of
-   *  *this and returns it to the allocator.
-   *
-   *  @param done will be notified, when the frame was successfully
-   *  enqueued. In most cases it can be set to NULL.
-   */
-  virtual void Send(Notifiable* done) = 0;
+    /** Requests the frame buffer to be sent to the bus. Takes ownership of
+     *  *this and returns it to the allocator.
+     *
+     *  @param done will be notified, when the frame was successfully
+     *  enqueued. In most cases it can be set to NULL.
+     */
+    virtual void Send(Notifiable* done) = 0;
 
-  /** Releases this frame buffer without sending of anything to the bus. Takes
-   *  ownership of *this and returns it to the allocator.
-   */
-  virtual void Cancel() = 0;
+    /** Releases this frame buffer without sending of anything to the bus. Takes
+     *  ownership of *this and returns it to the allocator.
+     */
+    virtual void Cancel() = 0;
 
-  /** Resets the frame buffer to regular (non-err, non-remote) extended data
-   * frame */
-  void ResetFrameEff() {
-    CLR_CAN_FRAME_ERR(frame_);
-    CLR_CAN_FRAME_RTR(frame_);
-    SET_CAN_FRAME_EFF(frame_);
-  }
+    /** Resets the frame buffer to regular (non-err, non-remote) extended data
+     * frame */
+    void ResetFrameEff()
+    {
+        CLR_CAN_FRAME_ERR(frame_);
+        CLR_CAN_FRAME_RTR(frame_);
+        SET_CAN_FRAME_EFF(frame_);
+    }
 
- protected:
-  struct can_frame frame_;
+protected:
+    struct can_frame frame_;
 };
 
 class AsyncIfCan : public AsyncIf
 {
- public:
-  typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
+public:
+    typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
 
-  /**
-   * Creates a CAN interface.
-   *
-   * @param executor will be used to process incoming (and outgoing) messages.
-   *
-   * @param device is a Pipe. The interface will add a member to this pipe to
-   * handle incoming and outgoing traffic. The caller should add the necessary
-   * hardware device, GridConnect bridge or mock interface to this pipe (before
-   * this call or else outgoing packets might be lost).
-   */
-  AsyncIfCan(Executor* executor, Pipe* device);
+    /**
+     * Creates a CAN interface.
+     *
+     * @param executor will be used to process incoming (and outgoing) messages.
+     *
+     * @param device is a Pipe. The interface will add a member to this pipe to
+     * handle incoming and outgoing traffic. The caller should add the necessary
+     * hardware device, GridConnect bridge or mock interface to this pipe
+     *(before
+     * this call or else outgoing packets might be lost).
+     */
+    AsyncIfCan(Executor* executor, Pipe* device);
 
-  ~AsyncIfCan();
+    ~AsyncIfCan();
 
-  /** Initializes the write flow allocators with a number of new instances.
-   *
-   *  @param num_addressed number of new addressed write flows to create.
-   *  @param num_global number of new global write flows to create.
-   */
-  void AddWriteFlows(int num_addressed, int num_global);
+    /** Initializes the write flow allocators with a number of new instances.
+     *
+     *  @param num_addressed number of new addressed write flows to create.
+     *  @param num_global number of new global write flows to create.
+     */
+    void AddWriteFlows(int num_addressed, int num_global);
 
-  //! @returns the dispatcher of incoming CAN frames.
-  FrameDispatchFlow* frame_dispatcher() { return &frame_dispatcher_; }
+    //! @returns the dispatcher of incoming CAN frames.
+    FrameDispatchFlow* frame_dispatcher()
+    {
+        return &frame_dispatcher_;
+    }
 
-  //! @returns the allocator for the write flow.
-  TypedAllocator<CanFrameWriteFlow>* write_allocator() { return &write_allocator_; } 
+    //! @returns the allocator for the write flow.
+    TypedAllocator<CanFrameWriteFlow>* write_allocator()
+    {
+        return &write_allocator_;
+    }
 
-  //! @returns the asynchronous read/write object.
-  AsyncPipeMember* pipe_member() { return &pipe_member_; }
+    //! @returns the asynchronous read/write object.
+    AsyncPipeMember* pipe_member()
+    {
+        return &pipe_member_;
+    }
 
- private:
-  //! Flow responsible for routing incoming messages to handlers.
-  FrameDispatchFlow frame_dispatcher_;
+private:
+    //! Flow responsible for routing incoming messages to handlers.
+    FrameDispatchFlow frame_dispatcher_;
 
-  //! Handles asynchronous reading and writing from the device.
-  AsyncPipeMember pipe_member_;
+    //! Handles asynchronous reading and writing from the device.
+    AsyncPipeMember pipe_member_;
 
-  class CanReadFlow;
-  class CanWriteFlow;
-  
-  //! Various implementation control flows that this interface owns.
-  std::vector<std::unique_ptr<ControlFlow> > owned_flows_;
+    class CanReadFlow;
+    class CanWriteFlow;
 
-  /** Allocator that holds (and mutex-controls) the frame write flow.
+    //! Various implementation control flows that this interface owns.
+    std::vector<std::unique_ptr<ControlFlow>> owned_flows_;
 
-      It is important that this allocator be destructed before the
-      owned_flows_. */
-  TypedAllocator<CanFrameWriteFlow> write_allocator_;
+    /** Allocator that holds (and mutex-controls) the frame write flow.
 
-  DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
+        It is important that this allocator be destructed before the
+        owned_flows_. */
+    TypedAllocator<CanFrameWriteFlow> write_allocator_;
+
+    DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
 };
 
 } // namespace NMRAnet
