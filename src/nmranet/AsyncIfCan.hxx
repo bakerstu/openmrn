@@ -198,7 +198,7 @@ private:
     AliasCache remoteAliases_;
 
     //! Various implementation control flows that this interface owns.
-    std::vector<std::unique_ptr<ControlFlow>> owned_flows_;
+    std::vector<std::unique_ptr<Executable>> owned_flows_;
 
     /** Allocator that holds (and mutex-controls) the frame write flow.
      *

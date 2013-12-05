@@ -382,7 +382,11 @@ protected:
  * cache, forcing an alias reallocation for that node.
  *
  * . if the conflict is with a reserved but unused alias, kicks it out of the
- * cache and triggers allocating a new one instead.*/
+ * cache and triggers allocating a new one instead.
+ *
+ * NOTE: this handler could be a control flow, but since the flow is very
+ * simple, it is implemented on first principles. The resulting object will
+ * take much less RAM. */
 class AliasConflictHandler : public AllocationResult,
                              public IncomingFrameHandler
 {
@@ -487,6 +491,8 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
         std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
     owned_flows_.push_back(
         std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
+    owned_flows_.push_back(
+        std::unique_ptr<Executable>(new AliasConflictHandler(this)));
 }
 
 AsyncIfCan::~AsyncIfCan()
@@ -503,11 +509,11 @@ void AsyncIfCan::AddWriteFlows(int num_addressed, int num_global)
     for (int i = 0; i < num_global; ++i)
     {
         owned_flows_.push_back(
-            std::unique_ptr<ControlFlow>(new GlobalCanMessageWriteFlow(this)));
+            std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
     }
     for (int i = 0; i < num_addressed; ++i)
     {
-        owned_flows_.push_back(std::unique_ptr<ControlFlow>(
+        owned_flows_.push_back(std::unique_ptr<Executable>(
             new AddressedCanMessageWriteFlow(this)));
     }
 }

@@ -78,6 +78,7 @@ private:
                                        Buffer* data, Notifiable* done)
     {
         HASSERT(IsNotStarted());
+        Restart(done);
         mti_ = mti;
         src_ = src;
         dst_ = dst;
@@ -90,6 +91,7 @@ private:
                                     Notifiable* done)
     {
         HASSERT(IsNotStarted());
+        Restart(done);
         mti_ = mti;
         src_ = src;
         dst_.id = 0;

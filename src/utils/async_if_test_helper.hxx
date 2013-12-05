@@ -15,6 +15,7 @@
 #include "utils/test_main.hxx"
 
 using ::testing::AtLeast;
+using ::testing::AtMost;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::NiceMock;
@@ -103,18 +104,29 @@ protected:
         aliasSeed_ = 0x44C;
     }
 
-    void ExpectNextAliasAllocation()
+    void ExpectNextAliasAllocation(NodeAlias a = 0)
     {
-        if_can_->alias_allocator()->seed_ = aliasSeed_;
-        ExpectPacket(StringPrintf(":X17020%03XN;", aliasSeed_));
-        ExpectPacket(StringPrintf(":X1610D%03XN;", aliasSeed_));
-        ExpectPacket(StringPrintf(":X15000%03XN;", aliasSeed_));
-        ExpectPacket(StringPrintf(":X14003%03XN;", aliasSeed_));
+        if (!a) {
+            if_can_->alias_allocator()->seed_ = aliasSeed_;
+            a = aliasSeed_;
+            aliasSeed_++;
+        }
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X17020%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X1610D%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X15000%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X14003%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
 
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X10700%03XN;", aliasSeed_)))
-            .Times(AtLeast(0));
-
-        aliasSeed_++;
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X10700%03XN;", a)))
+            .Times(AtMost(1))
+            .RetiresOnSaturation();
     }
 
     /** Adds an expectation that the code will send a packet to the CANbus.

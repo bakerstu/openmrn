@@ -38,8 +38,8 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
     StrictMock<MockCanFrameHandler> h;
     if_can_->frame_dispatcher()->RegisterHandler(0x195B4000, 0x1FFFF000, &h);
     EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _)).WillOnce(
-        WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _))
+        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
 
     SendPacket(":X195B432DN05010103;");
     Wait();
@@ -49,10 +49,10 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
 
     Wait();
     EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _)).WillOnce(
-        WithArg<1>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _)).WillOnce(
-        WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _))
+        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _))
+        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     SendPacket(":X195B4777N05010103;");
     SendPacket(":X195F4333N05010103;");
     SendPacket(":X195B4222N05010103;");
@@ -218,13 +218,99 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
     ExpectNextAliasAllocation();
     ExpectPacket(":X1070133AN02010D000004;");
     ExpectPacket(":X195B433AN0102030405060708;");
+    SyncNotifiable n;
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                                         EventIdToBuffer(0x0102030405060708ULL),
-                                        nullptr);
-    Wait();
+                                        &n);
+    n.WaitForNotification();
     EXPECT_EQ(0x33AU, if_can_->local_aliases()->lookup(TEST_NODE_ID + 1));
     EXPECT_EQ(TEST_NODE_ID + 1,
               if_can_->local_aliases()->lookup(NodeAlias(0x33A)));
+}
+
+TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
+{
+    // This alias is in the cache since the setup routine.
+    EXPECT_EQ(TEST_NODE_ID, if_can_->local_aliases()->lookup(NodeAlias(0x22A)));
+    // If someone else uses it (not for CID frame)
+    SendPacket(":X1800022AN;");
+    Wait();
+    // Then it disappears from there.
+    EXPECT_EQ(0U, if_can_->local_aliases()->lookup(NodeAlias(0x22A)));
+}
+
+TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
+{
+    // This alias is in the cache since the setup routine.
+    EXPECT_EQ(TEST_NODE_ID, if_can_->local_aliases()->lookup(NodeAlias(0x22A)));
+    // If someone else sends a CID frame, then we respond with an RID frame
+    ExpectPacket(":X1070022AN;");
+    SendPacket(":X1700022AN;");
+    Wait();
+
+    ExpectPacket(":X1070022AN;");
+    SendPacket(":X1612322AN;");
+    Wait();
+
+    ExpectPacket(":X1070022AN;");
+    SendPacket(":X1545622AN;");
+    Wait();
+
+    ExpectPacket(":X1070022AN;");
+    SendPacket(":X1478922AN;");
+    Wait();
+
+    // And we still have it in the cache.
+    EXPECT_EQ(TEST_NODE_ID, if_can_->local_aliases()->lookup(NodeAlias(0x22A)));
+}
+
+TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
+{
+    if_can_->local_aliases()->remove(NodeAlias(0x22A)); // resets the cache.
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
+    CreateAllocatedAlias();
+    ExpectNextAliasAllocation();
+    ExpectPacket(":X1070133AN02010D000003;");
+    ExpectPacket(":X195B433AN0102030405060708;");
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+                                        EventIdToBuffer(0x0102030405060708ULL),
+                                        nullptr);
+    usleep(250000);
+    Wait();
+    // Here we have the next reserved alias.
+    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+              if_can_->local_aliases()->lookup(NodeAlias(0x44C)));
+    // A CID packet gets replied to.
+    ExpectPacket(":X1070044CN;");
+    SendPacket(":X1478944CN;");
+    Wait();
+    // We still have it in the cache.
+    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+              if_can_->local_aliases()->lookup(NodeAlias(0x44C)));
+    // We kick it out with a regular frame.
+    SendPacket(":X1800044CN;");
+    Wait();
+    EXPECT_EQ(0U, if_can_->local_aliases()->lookup(NodeAlias(0x44C)));
+    // At this point we have an invalid alias in the reserved_aliases()
+    // queue. We check here that a new node gets a new alias.
+    ExpectNextAliasAllocation();
+    // Unfortunately we have to guess the second next alias here because we
+    // can't inject it. We can only inject one alias at a time, but now two
+    // will be allocated in one go.
+    ExpectNextAliasAllocation(0x6AA);
+    ExpectPacket(":X1070144DN02010D000004;");
+    ExpectPacket(":X195B444DN0102030405060709;");
+    SyncNotifiable n;
+    TypedSyncAllocation<WriteFlow> ffalloc(if_can_->global_write_allocator());
+    ffalloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+                                         EventIdToBuffer(0x0102030405060709ULL),
+                                         &n);
+    n.WaitForNotification();
+    EXPECT_EQ(TEST_NODE_ID + 1,
+              if_can_->local_aliases()->lookup(NodeAlias(0x44D)));
+    usleep(250000);
+    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+              if_can_->local_aliases()->lookup(NodeAlias(0x6AA)));
 }
 
 } // namespace NMRAnet

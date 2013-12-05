@@ -13,6 +13,11 @@ protected:
     {
     }
 
+    ~AsyncAliasAllocatorTest()
+    {
+        Wait();
+    }
+
     void SetSeed(unsigned seed, AsyncAliasAllocator* alloc = nullptr)
     {
         if (!alloc) alloc = &alias_allocator_;
@@ -89,7 +94,8 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     ExpectPacket(":X14003AAAN;");
     ExpectPacket(":X10700AAAN;");
     alias_allocator_.empty_aliases()->Release(&info2);
-    SendPacket(":X10700555N;");  // Conflicts with the previous alias to be tested.
+    SendPacket(
+        ":X10700555N;"); // Conflicts with the previous alias to be tested.
     {
         TypedSyncAllocation<AliasInfo> ialloc(
             alias_allocator_.reserved_aliases());
@@ -122,8 +128,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
               if_can_->local_aliases()->lookup(NodeAlias(0xAA5)));
     // This one should be unknown.
-    EXPECT_EQ(0U,
-              if_can_->local_aliases()->lookup(NodeAlias(0x555)));
+    EXPECT_EQ(0U, if_can_->local_aliases()->lookup(NodeAlias(0x555)));
 }
 
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
