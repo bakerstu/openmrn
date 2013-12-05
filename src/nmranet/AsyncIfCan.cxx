@@ -35,6 +35,7 @@
 #include "nmranet/AsyncIfCan.hxx"
 
 #include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "nmranet_can.h"
 
@@ -176,6 +177,84 @@ private:
             HASSERT(data_->used() < 256);
         }
         // @TODO(balazs.racz): need to add alias lookups.
+        return CallImmediately(ST(find_local_alias));
+    }
+
+    ControlFlowAction find_local_alias()
+    {
+        // We are on the IF's executor, so we can access the alias caches.
+        src_alias_ = if_can_->local_aliases()->lookup(src_);
+        if (!src_alias_)
+        {
+            return CallImmediately(ST(allocate_new_alias));
+        }
+        return CallImmediately(ST(src_alias_lookup_done));
+    }
+
+    ControlFlowAction allocate_new_alias()
+    {
+        /** At this point we assume that there will always be at least one
+         * alias that is reserved but not yet used.
+         *
+         * @TODO(balazs.racz): implement proper local alias reclaim/reuse
+         * mechanism. */
+        HASSERT(if_can_->alias_allocator());
+        return Allocate(if_can_->alias_allocator()->reserved_aliases(),
+                        ST(take_new_alias));
+    }
+
+    ControlFlowAction take_new_alias()
+    {
+        /* In this function we do a number of queries to the local alias
+         * cache. It is important that these queries show a consistent state;
+         * we do not need to hold any mutex though because only the current
+         * executor is allowed to access that object. */
+        NodeAlias alias = 0;
+        {
+            AliasInfo* new_alias;
+            GetAllocationResult(&new_alias);
+            HASSERT(new_alias->alias);
+            alias = new_alias->alias;
+            // Releases the alias back for reallocating. This will trigger the
+            // alias allocator flow.
+            new_alias->Reset();
+            if_can_->alias_allocator()->empty_aliases()->ReleaseBack(new_alias);
+        }
+        LOG(INFO, "Allocating new alias %03X", alias);
+
+        // Checks that there was no conflict on this alias.
+        if (if_can_->local_aliases()->lookup(alias) !=
+            AliasCache::RESERVED_ALIAS_NODE_ID)
+        {
+            LOG(INFO, "Alias has seen conflict: %03X", alias);
+            // Problem. Let's take another alias.
+            return CallImmediately(ST(allocate_new_alias));
+        }
+
+        src_alias_ = alias;
+        /** @TODO(balazs.racz): We leak aliases here in case of eviction by the
+         * AliasCache object. */
+        if_can_->local_aliases()->add(src_, alias);
+        // Take a CAN frame to send off the AMD frame.
+        return Allocate(if_can_->write_allocator(), ST(send_amd_frame));
+    }
+
+    ControlFlowAction send_amd_frame()
+    {
+        CanFrameWriteFlow* write_flow;
+        GetAllocationResult(&write_flow);
+        struct can_frame* f = write_flow->mutable_frame();
+        IfCan::control_init(*f, src_alias_, IfCan::AMD_FRAME, 0);
+        f->can_dlc = 6;
+        uint64_t rd = htobe64(src_);
+        memcpy(f->data, reinterpret_cast<uint8_t*>(&rd) + 2, 6);
+        write_flow->Send(nullptr);
+        // Source alias is settled.
+        return CallImmediately(ST(src_alias_lookup_done));
+    }
+
+    ControlFlowAction src_alias_lookup_done()
+    {
         return CallImmediately(ST(get_can_frame_buffer));
     }
 
@@ -291,10 +370,46 @@ protected:
     }
 };
 
+/** This class listens for incoming CAN messages, and if it sees a local alias
+ * conflict, then takes the appropriate action:
+ *
+ * . if the conflict happened in alias check, it responds with an AMD frame.
+ *
+ * . if the conflict is with an allocated alias, kicks it out of the local
+ * cache, forcing an alias reallocation for that node.
+ *
+ * . if the conflict is with a reserved but unused alias, kicks it out of the
+ * cache and triggers allocating a new one instead.*/
+class AliasConflictHandler : public AllocationResult<CanFrameWriteFlow>,
+                             public IncomingFrameHandler {
+public:
+    AliasConflictHandler(AsyncIfCan* if_can)
+        : ifCan_(if_can) {}
+
+    //! Handler callback for incoming messages.
+    TypedAllocator<IncomingFrameHandler>*
+    HandleMessage(struct can_frame* message, Notifiable* done);
+    
+
+private:
+    // Lock for ourselves.
+    TypedAllocator<IncomingFrameHandler> lock_;
+
+    AsyncIfCan* ifCan_;
+
+};
+
+
+
 } // namespace
 
-AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
-    : AsyncIf(executor), frame_dispatcher_(executor), pipe_member_(device)
+AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
+                       int local_alias_cache_size, int remote_alias_cache_size)
+    : AsyncIf(executor),
+      frame_dispatcher_(executor),
+      pipe_member_(device),
+      localAliases_(0, local_alias_cache_size),
+      remoteAliases_(0, remote_alias_cache_size)
 {
     // Ensures that the underlying pipe will read and write whole frames.
     HASSERT(device->unit() == sizeof(struct can_frame));
@@ -307,6 +422,12 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device)
 AsyncIfCan::~AsyncIfCan()
 {
 }
+
+void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
+{
+    aliasAllocator_.reset(a);
+}
+
 
 void AsyncIfCan::AddWriteFlows(int num_addressed, int num_global)
 {

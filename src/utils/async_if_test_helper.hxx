@@ -8,11 +8,13 @@
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
 #include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
 #include "utils/pipe.hxx"
 #include "utils/test_main.hxx"
 
+using ::testing::AtLeast;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::NiceMock;
@@ -50,6 +52,8 @@ public:
 namespace NMRAnet
 {
 
+static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
+
 /** Test fixture base class with helper methods for exercising the asynchronous
  * interface code.
  *
@@ -75,13 +79,42 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10));
+        if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
     ~AsyncIfTest()
     {
         Wait();
         gc_pipe0.UnregisterMember(&can_bus_);
+    }
+
+    /** Creates an alias allocator flow, and injects an already allocated
+     *  alias. */
+    void CreateAllocatedAlias()
+    {
+        if_can_->set_alias_allocator(
+            new AsyncAliasAllocator(TEST_NODE_ID, if_can_.get()));
+        testAlias_.alias = 0x33A;
+        testAlias_.state = AliasInfo::STATE_RESERVED;
+        if_can_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
+                                      testAlias_.alias);
+        if_can_->alias_allocator()->reserved_aliases()->Release(&testAlias_);
+        aliasSeed_ = 0x44C;
+    }
+
+    void ExpectNextAliasAllocation()
+    {
+        if_can_->alias_allocator()->seed_ = aliasSeed_;
+        ExpectPacket(StringPrintf(":X17020%03XN;", aliasSeed_));
+        ExpectPacket(StringPrintf(":X1610D%03XN;", aliasSeed_));
+        ExpectPacket(StringPrintf(":X15000%03XN;", aliasSeed_));
+        ExpectPacket(StringPrintf(":X14003%03XN;", aliasSeed_));
+
+        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X10700%03XN;", aliasSeed_)))
+            .Times(AtLeast(0));
+
+        aliasSeed_++;
     }
 
     /** Adds an expectation that the code will send a packet to the CANbus.
@@ -147,6 +180,11 @@ protected:
     NiceMock<MockSend> can_bus_;
     //! The interface under test.
     std::unique_ptr<AsyncIfCan> if_can_;
+    /** Temporary object used to send aliases around in the alias allocator
+     *  flow. */
+    AliasInfo testAlias_;
+    //! The next alias we will make the allocator create.
+    NodeAlias aliasSeed_;
 };
 
 } // namespace NMRAnet

@@ -2,11 +2,10 @@
 
 #include "utils/async_if_test_helper.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/NMRAnetAliasCache.hxx"
 
 namespace NMRAnet
 {
-static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
-
 class AsyncAliasAllocatorTest : public AsyncIfTest
 {
 protected:
@@ -119,6 +118,12 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
     EXPECT_EQ(0xAA5U, ialloc.result()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
+    // This one should be marked as reserved.
+    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+              if_can_->local_aliases()->lookup(NodeAlias(0xAA5)));
+    // This one should be unknown.
+    EXPECT_EQ(0U,
+              if_can_->local_aliases()->lookup(NodeAlias(0x555)));
 }
 
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)

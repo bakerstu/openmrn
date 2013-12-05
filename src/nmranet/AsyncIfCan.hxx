@@ -37,17 +37,20 @@
 
 #include <memory>
 
-#include "nmranet/ReadDispatch.hxx"
+#include "nmranet/AsyncIf.hxx"
 #include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/ReadDispatch.hxx"
+#include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet_can.h"
 #include "utils/BufferQueue.hxx"
 #include "utils/async_pipe_member.hxx"
-#include "nmranet/AsyncIf.hxx"
-#include "nmranet_can.h"
 
 class Pipe;
 
 namespace NMRAnet
 {
+
+class AsyncAliasAllocator;
 
 typedef ParamHandler<struct can_frame> IncomingFrameHandler;
 
@@ -120,7 +123,8 @@ public:
      *(before
      * this call or else outgoing packets might be lost).
      */
-    AsyncIfCan(Executor* executor, Pipe* device);
+    AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
+               int remote_alias_cache_size);
 
     ~AsyncIfCan();
 
@@ -149,6 +153,27 @@ public:
         return &pipe_member_;
     }
 
+    //! @returns the alias cache for local nodes (vnodes and proxies)
+    AliasCache* local_aliases()
+    {
+        return &localAliases_;
+    }
+
+    //! @returns the alias cache for remote nodes on this IF
+    AliasCache* remote_aliases()
+    {
+        return &remoteAliases_;
+    }
+
+    //! @returns the alias cache for remote nodes on this IF
+    AsyncAliasAllocator* alias_allocator()
+    {
+        return aliasAllocator_.get();
+    }
+
+    //! Sets the alias allocator for this If. Takes ownership of pointer.
+    void set_alias_allocator(AsyncAliasAllocator* a);
+
 private:
     //! Flow responsible for routing incoming messages to handlers.
     FrameDispatchFlow frame_dispatcher_;
@@ -156,17 +181,34 @@ private:
     //! Handles asynchronous reading and writing from the device.
     AsyncPipeMember pipe_member_;
 
+    //! Implementation class for receiving frames from CAN.
     class CanReadFlow;
+    //! Implementation class for sending frames to CAN.
     class CanWriteFlow;
+
+    /** Aliases we know are owned by local (virtual or proxied) nodes.
+     *
+     *  This member must only be accessed from the If's executor.
+     */
+    AliasCache localAliases_;
+    /** Aliases we know are owned by remote nodes on this If.
+     *
+     *  This member must only be accessed from the If's executor.
+     */
+    AliasCache remoteAliases_;
 
     //! Various implementation control flows that this interface owns.
     std::vector<std::unique_ptr<ControlFlow>> owned_flows_;
 
     /** Allocator that holds (and mutex-controls) the frame write flow.
-
-        It is important that this allocator be destructed before the
-        owned_flows_. */
+     *
+     *  It is important that this allocator be destructed before the
+     *  owned_flows_.
+     */
     TypedAllocator<CanFrameWriteFlow> write_allocator_;
+
+    //! Owns the alias allocator module.
+    std::unique_ptr<AsyncAliasAllocator> aliasAllocator_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
 };

@@ -101,8 +101,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
 
-    ExpectPacket(":X195B4000N0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, 1,
+    ExpectPacket(":X195B422AN0102030405060708;");
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
 }
@@ -111,53 +111,54 @@ TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
 
-    ExpectPacket(":X195B4000N3132333435;");
+    ExpectPacket(":X195B422AN3132333435;");
     Buffer* b = buffer_alloc(5);
     const char data[] = "12345";
     memcpy(b->start(), data, 5);
     b->advance(5);
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, 1, b, nullptr);
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID, b,
+                                        nullptr);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
 {
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
 
-    ExpectPacket(":X19828000N00003132333435;");
+    ExpectPacket(":X1982822AN00003132333435;");
     Buffer* b = buffer_alloc(5);
     const char data[] = "12345";
     memcpy(b->start(), data, 5);
     b->advance(5);
-    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY, 1, b,
-                                        nullptr);
+    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
+                                        TEST_NODE_ID, b, nullptr);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
 {
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
 
-    ExpectPacket(":X19828000N1000303132333435;"); // first frame
-    ExpectPacket(":X19828000N3000363738393031;"); // middle frame
-    ExpectPacket(":X19828000N3000323334353637;"); // middle frame
-    ExpectPacket(":X19828000N20003839;");         // last frame
+    ExpectPacket(":X1982822AN1000303132333435;"); // first frame
+    ExpectPacket(":X1982822AN3000363738393031;"); // middle frame
+    ExpectPacket(":X1982822AN3000323334353637;"); // middle frame
+    ExpectPacket(":X1982822AN20003839;");         // last frame
     Buffer* b = buffer_alloc(20);
     const char data[] = "01234567890123456789";
     memcpy(b->start(), data, 20);
     b->advance(20);
-    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY, 1, b,
-                                        nullptr);
+    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
+                                        TEST_NODE_ID, b, nullptr);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
 {
-    EXPECT_CALL(can_bus_, MWrite(":X195B4000N0102030405060708;")).Times(100);
+    EXPECT_CALL(can_bus_, MWrite(":X195B422AN0102030405060708;")).Times(100);
     for (int i = 0; i < 100; ++i)
     {
         TypedSyncAllocation<WriteFlow> falloc(
             if_can_->global_write_allocator());
         falloc.result()->WriteGlobalMessage(
-            If::MTI_EVENT_REPORT, 1, EventIdToBuffer(0x0102030405060708ULL),
-            nullptr);
+            If::MTI_EVENT_REPORT, TEST_NODE_ID,
+            EventIdToBuffer(0x0102030405060708ULL), nullptr);
     }
 }
 
@@ -166,8 +167,9 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
 
     EXPECT_CALL(can_bus_, MWrite(_)).Times(0);
-    falloc.result()->WriteGlobalMessage(
-        If::MTI_DATAGRAM, 1, EventIdToBuffer(0x0102030405060708ULL), nullptr);
+    falloc.result()->WriteGlobalMessage(If::MTI_DATAGRAM, TEST_NODE_ID,
+                                        EventIdToBuffer(0x0102030405060708ULL),
+                                        nullptr);
 }
 
 class MockMessageHandler : public IncomingMessageHandler
@@ -199,11 +201,28 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     if_can_->dispatcher()->RegisterHandler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
-    ExpectPacket(":X195B4000N0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, 1,
+    ExpectPacket(":X195B422AN0102030405060708;");
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
     Wait();
+}
+
+TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
+{
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
+
+    CreateAllocatedAlias();
+    ExpectNextAliasAllocation();
+    ExpectPacket(":X1070133AN02010D000004;");
+    ExpectPacket(":X195B433AN0102030405060708;");
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+                                        EventIdToBuffer(0x0102030405060708ULL),
+                                        nullptr);
+    Wait();
+    EXPECT_EQ(0x33AU, if_can_->local_aliases()->lookup(TEST_NODE_ID + 1));
+    EXPECT_EQ(TEST_NODE_ID + 1,
+              if_can_->local_aliases()->lookup(NodeAlias(0x33A)));
 }
 
 } // namespace NMRAnet
