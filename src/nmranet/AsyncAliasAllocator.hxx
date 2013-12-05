@@ -104,8 +104,7 @@ public:
 
 private:
     //! Handler callback for incoming messages.
-    TypedAllocator<ParamHandler<struct can_frame>>*
-    HandleMessage(struct can_frame* message, Notifiable* done);
+    virtual void handle_message(struct can_frame* message, Notifiable* done);
 
     ControlFlowAction HandleGetMoreWork();
     ControlFlowAction HandleWorkArrived();

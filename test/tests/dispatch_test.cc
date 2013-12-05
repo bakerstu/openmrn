@@ -29,9 +29,9 @@ typedef ParamHandler<struct can_frame> CanFrameHandler;
 class MockCanFrameHandler : public CanFrameHandler
 {
 public:
-    MOCK_METHOD2(HandleMessage,
-                 TypedAllocator<ParamHandler<struct can_frame>>*(
-                     struct can_frame* message, Notifiable* done));
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(struct can_frame* message, Notifiable* done));
 };
 
 class DispatcherTest : public ::testing::Test
@@ -81,8 +81,9 @@ TEST_F(DispatcherTest, TestAddAndCall)
     StrictMock<MockCanFrameHandler> h1;
     f.RegisterHandler(1, 0xFFFFFFFFUL, &h1);
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(_, _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> alloc(f.allocator());
     alloc.result()->IncomingMessage(1);
@@ -95,8 +96,9 @@ TEST_F(DispatcherTest, TestCallWithMask)
     StrictMock<MockCanFrameHandler> h1;
     f.RegisterHandler(1, 0xFFUL, &h1);
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(_, _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> alloc(f.allocator());
     alloc.result()->IncomingMessage(257);
@@ -116,14 +118,17 @@ TEST_F(DispatcherTest, TestMultiplehandlers)
     StrictMock<MockCanFrameHandler> h3;
     f.RegisterHandler(2, 0xFFUL, &h3);
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).Times(2).WillRepeatedly(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(_, _)).Times(2).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
-    EXPECT_CALL(h2, HandleMessage(_, _)).Times(1).WillRepeatedly(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h2, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h2, handle_message(_, _)).Times(1).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
-    EXPECT_CALL(h3, HandleMessage(_, _)).Times(1).WillRepeatedly(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h3, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h3, handle_message(_, _)).Times(1).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> alloc(f.allocator());
     alloc.result()->IncomingMessage(257);
@@ -146,10 +151,11 @@ TEST_F(DispatcherTest, TestAsync)
 
     f.RegisterHandler(1, 0xFFUL, &halloc);
 
-    EXPECT_CALL(halloc, HandleMessage(_, _)).WillRepeatedly(Return(&alloc));
+    EXPECT_CALL(halloc, get_allocator()).WillRepeatedly(Return(&alloc));
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).Times(1).WillRepeatedly(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(_, _)).Times(1).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> salloc(f.allocator());
     salloc.result()->IncomingMessage(257);
@@ -158,8 +164,8 @@ TEST_F(DispatcherTest, TestAsync)
     salloc.result()->IncomingMessage(1);
     WaitForExecutor();
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).Times(1).WillRepeatedly(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, handle_message(_, _)).Times(1).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
     alloc.Release(&h1);  // will release message for second call.
     WaitForExecutor();
 }
@@ -171,8 +177,9 @@ TEST_F(DispatcherTest, TestParams)
 
     struct can_frame* frame = f.mutable_params();
     // Checks that the same pointer is sent to the argument.
-    EXPECT_CALL(h1, HandleMessage(frame, _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(frame, _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> alloc(f.allocator());
     alloc.result()->IncomingMessage(1);
@@ -185,8 +192,9 @@ TEST_F(DispatcherTest, TestUnregister)
     StrictMock<MockCanFrameHandler> h1;
     f.RegisterHandler(1, 0xFFUL, &h1);
 
-    EXPECT_CALL(h1, HandleMessage(_, _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h1, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h1, handle_message(_, _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     TypedSyncAllocation<CanDispatchFlow> alloc(f.allocator());
     alloc.result()->IncomingMessage(257);

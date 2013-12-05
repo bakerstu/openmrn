@@ -182,8 +182,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
     return CallImmediately(ST(HandleGetMoreWork));
 }
 
-TypedAllocator<ParamHandler<struct can_frame>>*
-AsyncAliasAllocator::HandleMessage(struct can_frame* message, Notifiable* done)
+void AsyncAliasAllocator::handle_message(struct can_frame* message,
+                                         Notifiable* done)
 {
     conflict_detected_ = 1;
     // @TODO(balazs.racz): wake up the actual flow to not have to wait all the
@@ -191,7 +191,6 @@ AsyncAliasAllocator::HandleMessage(struct can_frame* message, Notifiable* done)
     // condition there; there are no documented guarantees on the timer
     // deletion call vs timer callbacks being delivered.
     done->Notify();
-    return nullptr;
 }
 
 } // namespace NMRAnet

@@ -380,7 +380,7 @@ protected:
  *
  * . if the conflict is with a reserved but unused alias, kicks it out of the
  * cache and triggers allocating a new one instead.*/
-class AliasConflictHandler : public AllocationResult<CanFrameWriteFlow>,
+/*class AliasConflictHandler : public AllocationResult<CanFrameWriteFlow>,
                              public IncomingFrameHandler {
 public:
     AliasConflictHandler(AsyncIfCan* if_can)
@@ -398,7 +398,7 @@ private:
     AsyncIfCan* ifCan_;
 
 };
-
+*/
 
 
 } // namespace

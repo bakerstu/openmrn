@@ -12,9 +12,9 @@ namespace NMRAnet
 class MockCanFrameHandler : public IncomingFrameHandler
 {
 public:
-    MOCK_METHOD2(HandleMessage,
-                 TypedAllocator<ParamHandler<struct can_frame>>*(
-                     struct can_frame* message, Notifiable* done));
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(struct can_frame* message, Notifiable* done));
 };
 
 MATCHER_P(IsExtCanFrameWithId, id, "")
@@ -37,8 +37,9 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
 {
     StrictMock<MockCanFrameHandler> h;
     if_can_->frame_dispatcher()->RegisterHandler(0x195B4000, 0x1FFFF000, &h);
-    EXPECT_CALL(h, HandleMessage(IsExtCanFrameWithId(0x195B432D), _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
 
     SendPacket(":X195B432DN05010103;");
     Wait();
@@ -47,10 +48,11 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
     SendPacket(":X195F432DN05010103;");
 
     Wait();
-    EXPECT_CALL(h, HandleMessage(IsExtCanFrameWithId(0x195B4777), _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
-    EXPECT_CALL(h, HandleMessage(IsExtCanFrameWithId(0x195B4222), _)).WillOnce(
-        DoAll(WithArg<1>(Invoke(&InvokeNotification)), Return(nullptr)));
+    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _)).WillOnce(
+        WithArg<1>(Invoke(&InvokeNotification)));
     SendPacket(":X195B4777N05010103;");
     SendPacket(":X195F4333N05010103;");
     SendPacket(":X195B4222N05010103;");
@@ -175,9 +177,9 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
 class MockMessageHandler : public IncomingMessageHandler
 {
 public:
-    MOCK_METHOD2(HandleMessage,
-                 TypedAllocator<ParamHandler<IncomingMessage>>*(
-                     IncomingMessage* message, Notifiable* done));
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(IncomingMessage* message, Notifiable* done));
 };
 
 MATCHER_P(IsBufferValue, id, "")
@@ -190,14 +192,14 @@ MATCHER_P(IsBufferValue, id, "")
 TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
-        h, HandleMessage(
+        h, handle_message(
                Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
                              Field(&IncomingMessage::payload, NotNull()),
                              Field(&IncomingMessage::payload,
                                    IsBufferValue(0x0102030405060708ULL)))),
-               _)).WillOnce(DoAll(WithArg<1>(Invoke(&InvokeNotification)),
-                                  Return(nullptr)));
+               _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     if_can_->dispatcher()->RegisterHandler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
