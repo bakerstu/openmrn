@@ -10,6 +10,7 @@
  *   - @ref keywords
  *   - @ref braces
  *   - @ref line_size
+ *   - @ref include_order
  *   - @ref naming
  *     - @ref styles
  *     - @ref hungarian
@@ -246,7 +247,47 @@
  *
  *
  *
+ * @subsection include_order Include Order
+ * Typically (though not strictly required) every source file (*.c or *.cxx)
+ * will have a corresponding header file (*.h or *.hxx) with the same name.
+ * Within a give source file, its corresponding header will always be included
+ * first using quotes.  Next any system/library headers will follow using angle
+ * brackets in unspecified order.  All other includes will follow in
+ * lexicographical (alphabetical)
+ * order using quotes.  There will be a blank line between the corresponding
+ * header file and the start of the system/library headers and another blank
+ * line between the end of the system/library headers and the start of all the
+ * rest of the headers.  Comments may optionally follow and include declaration
+ * but should only be on their own line(s) above the include if in the rare case
+ * the comment would otherwise cause the line to exceed 80 characters.  The
+ * comment in this case is not to be a Doxygen comment.  Example:
+ * @code
+ * /* @file Example.cxx (this is an abbreviated file header for example only)
+ *  */
+ *
+ * #include "Example.hxx"
+ *
+ * #include <new>
+ * #include <cstdio>
+ * 
+ * #include "nmranet/NMRAnetNode.hxx" /* needed for access to class Node */
+ * /* This is a very long comment that would ordinarily exceed 80 characters
+ *  * of text so it is on its own line above the include to document the
+ *  * inclusion of nmranet/NMRAnetStream.hxx
+ *  */
+ * #include "nmranet/NMRAnetStream.hxx"
+ * #include "os/OS.hxx"
+ * #include "utils/Map.hxx"
+ * @endcode
+ *
+ * It is important to note that there is quite a bit of legacy code that was
+ * written prior to the @ref include_order style guideline.  This code is
+ * considered incorrect and will be updated over time to be in compliance.
+ *
+ *
+ *
  * @subsection naming Naming Conventions
+ * @anchor lower_case @anchor UPPER_CASE @anchor PascalCase @anchor camelCase
  * @subsubsection styles Styles
  * -# UPPER_CASE, all characters upper case, each logical word separated by '_'
  * -# lower_case, all characters lower case, each logical word separated by '_'
@@ -258,17 +299,17 @@
  * strictly forbidden and considered unnecessary clutter.
  *
  * @subsubsection filenames Filenames
- * C language source and header files will use style 2.  Source files will have
- * an extension of ".c" and header files will have an extension of ".h".  A C
- * file shall be named after the major construct defined within it.
+ * C language source and header files will use @ref lower_case.  Source files
+ * will have an extension of ".c" and header files will have an extension of
+ * ".h".  A C file shall be named after the major construct defined within it.
  *
- * C++ language source and header files will use style 3.  Source files will
- * have an extension of ".cxx" and header files will have an extension of
+ * C++ language source and header files will use @ref PascalCase.  Source files
+ * will have an extension of ".cxx" and header files will have an extension of
  * ".hxx".  A C++ file shall be named after the major class or object within
  * it.  If a C++ namespace wraps the definitions within a C++ file, the
  * namespace name shall be added to the filename as a prefix.
  *
- * Mixed language (C and C++) header files will use style 2 and have an
+ * Mixed language (C and C++) header files will use @ref lower_case and have an
  * extension of ".h".
  *
  * In general, a given source/header file should limit itself to one major
@@ -318,23 +359,23 @@
  *
  * @subsubsection constants Constants
  * Constants, used in any context, supersede the style of the context and
- * always use style 1.  This includes members of structures, classes, and
- * enumerations.  For example:
+ * always use @ref UPPER_CASE.  This includes members of structures, classes,
+ * and enumerations.  For example:
  * @code
  * const int EXAMPLE_CONSTANT = 1000;
  * @endcode
  *
  * @subsubsection functions Functions
- * Functions use style 2.  For example:
+ * Functions use @ref lower_case.  For example:
  * @code
  * void example_function(void)
  * @endcode
  *
  * Exceptions include C++ constructors and destructors.  These will use
- * style 3.
+ * @ref PascalCase.
  *
  * @subsubsection globals Global and Member Variables
- * Global and Member variables use style 4.  For example:
+ * Global and Member variables use @ref camelCase.  For example:
  * @code
  * int exampleGlobalVariable;
  *
@@ -349,11 +390,28 @@
  * }
  * @endcode
  *
- * It is important to note that member variables shall not have a leading or
- * lagging underscore "_".
+ * It is important to note that member variables shall not have a leading 
+ * underscore "_".  It is however acceptable for classes and structures to add
+ * a underscore "_" suffix to their member variables.  This is an optional
+ * extension of the naming conventions and may be used at the developer's
+ * discretion to avoid naming conflicts with local and parameter variabls,
+ * but please be consistent within a given class or structure.
+ * @code
+ * // This example is okay
+ * class Object
+ * {
+ *     int exampleMemberVariable_;
+ * };
+ *
+ * // This example is NOT okay
+ * class Object
+ * {
+ *     int _exampleMemberVariable;
+ * }
+ * @endcode
  *
  * @subsubsection locals Local Variables and Function Parameters
- * Local variables and function parameters use style 2.  For example:
+ * Local variables and function parameters use @ref lower_case.  For example:
  * @code
  * void example_function(int function_parameter)
  * {
@@ -362,14 +420,16 @@
  * @endcode
  *
  * @subsubsection macros Macros
- * Macros use style 1.  For example:
+ * Macros use @ref UPPER_CASE.  For example:
  * @code
  * #define EXAMPLE_MACRO
  * #define EXAMPLE_FUNCTION_MACRO(_var1, _var2)
  * @endcode
  *
  * @subsubsection structures Structures and Enumerations
- * Structures make use of both styles 2, and 3.  For example:
+ * Structures make use of both @ref lower_case, and @ref PascalCase.  Note that
+ * these examples are for C code.  C++ has its own style defined in @ref
+ * cxxclasses.  For example:
  * @code
  * typedef struct example_struct
  * {
@@ -402,10 +462,12 @@
  * };
  * @endcode
  *
- * The structure tag uses style 2 and the structure identifier uses style 3.
+ * The structure tag uses @ref lower_case and the structure identifier uses
+ * @ref PascalCase.
  *
  * @subsubsection cxxclasses C++ Structures, Classes, Enumerations, and Namespaces
- * In C++, classes, structures, enumerations, and namespaces use style 3.
+ * In C++, classes, structures, enumerations, and namespaces use @ref
+ * PascalCase.
  *
  * In general, public members should be declared first, followed by protected
  * members, and finally private members.  It may occasionally be desirable
@@ -448,7 +510,7 @@
  * typedef to a void * pointer that a library passes to an application to keep
  * track of an object.  Because the object is typecast to a void * pointer,
  * the application does not have easy access to data that a library wants to
- * keep private.  Handles use style 2 suffixed by an "_t".  For example:
+ * keep private.  Handles use @ref lower_case suffixed by an "_t".  For example:
  * @code
  * typedef struct semaphore
  * {
