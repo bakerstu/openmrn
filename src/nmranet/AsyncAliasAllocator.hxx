@@ -47,6 +47,12 @@ struct AliasInfo : public QueueMember
     AliasInfo() : alias(0), state(STATE_EMPTY)
     {
     }
+
+    void Reset() {
+        alias = 0;
+        state = STATE_EMPTY;
+    }
+
     /** The current alias. This is 0 if the alias needs to be generated. */
     unsigned alias : 12;
     unsigned state : 4;
@@ -114,6 +120,7 @@ private:
     void NextSeed();
 
     friend class AsyncAliasAllocatorTest;
+    friend class AsyncIfTest;
 
     //! 48-bit nodeID that we will use for alias reservations.
     NodeID if_id_;

@@ -38,6 +38,8 @@ namespace NMRAnet
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */
 
+const NodeID AliasCache::RESERVED_ALIAS_NODE_ID = 1;
+
 /** Add an alias to an alias cache.
  * @param id 48-bit NMRAnet Node ID to associate alias with
  * @param alias 12-bit alias associated with Node ID

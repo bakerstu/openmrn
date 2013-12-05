@@ -94,7 +94,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
     return Allocate(if_can_->write_allocator(), ST(HandleSendCidFrames));
 }
 
-void AsyncAliasAllocator::NextSeed() {
+void AsyncAliasAllocator::NextSeed()
+{
     uint16_t offset;
     offset = if_id_ >> 36;
     offset ^= if_id_ >> 24;
@@ -117,7 +118,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
         pending_alias_->alias);
     CanFrameWriteFlow* write_flow;
     GetAllocationResult(&write_flow);
-    if (conflict_detected_) {
+    if (conflict_detected_)
+    {
         write_flow->Cancel();
         return CallImmediately(ST(HandleAliasConflict));
     }
@@ -142,7 +144,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
     // Marks that we are no longer interested in frames from this alias.
     if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
                                                    ~0x1FFFF000U, this);
-    
+
     // Burns up the alias.
     pending_alias_->alias = 0;
     pending_alias_->state = AliasInfo::STATE_EMPTY;
@@ -152,7 +154,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
 
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleWaitDone()
 {
-    if (conflict_detected_) {
+    if (conflict_detected_)
+    {
         return CallImmediately(ST(HandleAliasConflict));
     }
     // grab a frame buffer for the RID frame.
@@ -171,6 +174,8 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
     pending_alias_->state = AliasInfo::STATE_RESERVED;
     if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
                                                    ~0x1FFFF000U, this);
+    if_can_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
+                                  pending_alias_->alias);
     reserved_alias_allocator_.ReleaseBack(pending_alias_);
     pending_alias_ = nullptr;
     // We go back to the infinite loop.

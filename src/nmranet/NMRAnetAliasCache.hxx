@@ -87,6 +87,9 @@ public:
         }
     }
 
+    /** This NodeID will be used for reserved but unused local aliases. */
+    static const NodeID RESERVED_ALIAS_NODE_ID;
+
     /** Add an alias to an alias cache.
      * @param id 48-bit NMRAnet Node ID to associate alias with
      * @param alias 12-bit alias associated with Node ID
@@ -206,9 +209,6 @@ private:
             newest = metadata;
         }
     }
-
-    /** Default Constructor */
-    AliasCache();
 
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
