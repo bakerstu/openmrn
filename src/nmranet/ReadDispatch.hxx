@@ -257,7 +257,6 @@ protected:
         return a;
     }
 
-private:
     Params params_;
 };
 

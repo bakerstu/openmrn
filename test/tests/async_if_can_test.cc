@@ -2,6 +2,10 @@
 
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
+using ::testing::Field;
+using ::testing::Pointee;
+using ::testing::NotNull;
+
 namespace NMRAnet
 {
 
@@ -146,15 +150,60 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
 
 TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
 {
+    EXPECT_CALL(can_bus_, MWrite(":X195B4000N0102030405060708;")).Times(100);
     for (int i = 0; i < 100; ++i)
     {
         TypedSyncAllocation<WriteFlow> falloc(
             if_can_->global_write_allocator());
-        ExpectPacket(":X195B4000N0102030405060708;");
         falloc.result()->WriteGlobalMessage(
             If::MTI_EVENT_REPORT, 1, EventIdToBuffer(0x0102030405060708ULL),
             nullptr);
     }
+}
+
+TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
+{
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
+
+    EXPECT_CALL(can_bus_, MWrite(_)).Times(0);
+    falloc.result()->WriteGlobalMessage(
+        If::MTI_DATAGRAM, 1, EventIdToBuffer(0x0102030405060708ULL), nullptr);
+}
+
+class MockMessageHandler : public IncomingMessageHandler
+{
+public:
+    MOCK_METHOD2(HandleMessage,
+                 TypedAllocator<ParamHandler<IncomingMessage>>*(
+                     IncomingMessage* message, Notifiable* done));
+};
+
+MATCHER_P(IsBufferValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (memcmp(&value, arg->start(), 8)) return false;
+    return true;
+}
+
+TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
+{
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h, HandleMessage(
+               Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
+                             Field(&IncomingMessage::payload, NotNull()),
+                             Field(&IncomingMessage::payload,
+                                   IsBufferValue(0x0102030405060708ULL)))),
+               _)).WillOnce(DoAll(WithArg<1>(Invoke(&InvokeNotification)),
+                                  Return(nullptr)));
+    if_can_->dispatcher()->RegisterHandler(0, 0, &h);
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->global_write_allocator());
+    ExpectPacket(":X195B4000N0102030405060708;");
+    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, 1,
+                                        EventIdToBuffer(0x0102030405060708ULL),
+                                        nullptr);
+    Wait();
 }
 
 } // namespace NMRAnet

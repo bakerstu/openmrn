@@ -96,7 +96,22 @@ public:
 class AsyncIf
 {
 public:
-    typedef TypedDispatchFlow<uint32_t, IncomingMessage> MessageDispatchFlow;
+    class MessageDispatchFlow
+        : public TypedDispatchFlow<uint32_t, IncomingMessage>
+    {
+    public:
+        MessageDispatchFlow(Executor* e) : TypedDispatchFlow(e)
+        {
+        }
+
+        virtual void OnFlowFinished()
+        {
+            if (params_.payload)
+            {
+                params_.payload->free();
+            }
+        }
+    };
 
     AsyncIf(Executor* executor);
 

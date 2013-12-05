@@ -62,7 +62,7 @@ ControlFlow::ControlFlowAction WriteFlowBase::unaddressed_with_local_dispatcher(
     dispatcher->mutable_params()->mti = mti_;
     dispatcher->mutable_params()->src.id = src_;
     dispatcher->mutable_params()->src.alias = 0;
-    dispatcher->mutable_params()->dst = dst_;
+    dispatcher->mutable_params()->dst = dst_;  // should be 0,0.
     dispatcher->mutable_params()->dst_node = nullptr;
 
     dispatcher->mutable_params()->payload = nullptr;

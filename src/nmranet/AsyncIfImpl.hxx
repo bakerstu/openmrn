@@ -77,6 +77,7 @@ private:
     virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
                                        Buffer* data, Notifiable* done)
     {
+        HASSERT(IsNotStarted());
         mti_ = mti;
         src_ = src;
         dst_ = dst;
@@ -88,6 +89,7 @@ private:
     virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
                                     Notifiable* done)
     {
+        HASSERT(IsNotStarted());
         mti_ = mti;
         src_ = src;
         dst_.id = 0;
