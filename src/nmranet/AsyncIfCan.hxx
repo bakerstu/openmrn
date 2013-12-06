@@ -50,6 +50,10 @@ class Pipe;
 namespace NMRAnet
 {
 
+/** Counts the number of alias conflicts that we see for aliases that we
+ * already reserved. */
+extern size_t g_alias_use_conflicts;
+
 class AsyncAliasAllocator;
 
 typedef ParamHandler<struct can_frame> IncomingFrameHandler;

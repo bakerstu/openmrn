@@ -44,6 +44,8 @@
 namespace NMRAnet
 {
 
+size_t g_alias_use_conflicts = 0;
+
 /**
    This is a control flow running in an infinite loop, reading from the device
    in an asynchronous way and sending packets to the dispatcher.
@@ -131,6 +133,12 @@ private:
         if_can_->pipe_member()->parent()->WriteToAll(if_can_->pipe_member(),
                                                      &frame_, sizeof(frame_));
         ResetFrameEff();
+        //! @TODO(balazs.racz): there was a crash due ot spurious notification. Why?
+        return YieldAndCall(ST(handle_release));
+    }
+
+    ControlFlowAction handle_release()
+    {
         return ReleaseAndExit(if_can_->write_allocator(), this);
     }
 
@@ -448,6 +456,7 @@ public:
          * ifCan_->alias_allocator()->reserved_alias_allocator() and put it
          * into the empty_alias_allocator() instead to be picked up by the
          * alias allocator flow.  */
+        g_alias_use_conflicts++;
         ifCan_->local_aliases()->remove(alias);
         lock_.TypedRelease(this);
     }
@@ -490,8 +499,11 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     HASSERT(device->unit() == sizeof(struct can_frame));
     owned_flows_.push_back(
         std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
-    owned_flows_.push_back(std::unique_ptr<ControlFlow>(
-        new CanWriteFlow(this, DefaultWriteFlowExecutor())));
+    for (int i = 0; i < 10; ++i)
+    {
+        owned_flows_.push_back(std::unique_ptr<ControlFlow>(
+            new CanWriteFlow(this, DefaultWriteFlowExecutor())));
+    }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
 }
