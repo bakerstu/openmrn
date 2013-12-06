@@ -140,8 +140,8 @@ void BitRangeEventPC::HandleEventReport(EventReport* event, Notifiable* done) {
   LOG(VERBOSE, "BitRange: evt bit %x to %d", bit, new_value);
 #endif
 
-  uint32_t* ofs;
-  uint32_t mask;
+  uint32_t* ofs = nullptr;
+  uint32_t mask = 0;
   GetBitAndMask(bit, &ofs, &mask);
   if (new_value) {
     *ofs |= mask;
@@ -168,8 +168,8 @@ void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
   d >>= 1;
   if (d >= size_)
     return done->Notify();
-  uint32_t* ofs;
-  uint32_t mask;
+  uint32_t* ofs = nullptr;
+  uint32_t mask = 0;
   GetBitAndMask(d, &ofs, &mask);
   If::MTI mti = mti_valid;
   bool old_value = *ofs & mask;
