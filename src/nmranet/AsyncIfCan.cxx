@@ -34,11 +34,12 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 
-#include "nmranet/AsyncIfImpl.hxx"
-#include "nmranet/AsyncAliasAllocator.hxx"
-#include "nmranet/NMRAnetIfCan.hxx"
-#include "nmranet_can.h"
 #include "executor/allocator.hxx"
+#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/NMRAnetIfCan.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet_can.h"
 
 namespace NMRAnet
 {
@@ -489,8 +490,8 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     HASSERT(device->unit() == sizeof(struct can_frame));
     owned_flows_.push_back(
         std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
-    owned_flows_.push_back(
-        std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
+    owned_flows_.push_back(std::unique_ptr<ControlFlow>(
+        new CanWriteFlow(this, DefaultWriteFlowExecutor())));
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
 }
