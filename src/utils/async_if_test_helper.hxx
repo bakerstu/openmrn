@@ -9,6 +9,7 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
 #include "utils/pipe.hxx"
@@ -106,7 +107,8 @@ protected:
 
     void ExpectNextAliasAllocation(NodeAlias a = 0)
     {
-        if (!a) {
+        if (!a)
+        {
             if_can_->alias_allocator()->seed_ = aliasSeed_;
             a = aliasSeed_;
             aliasSeed_++;
@@ -160,12 +162,30 @@ protected:
         processing has completed. */
     void Wait()
     {
-        while (!g_executor.empty() ||
-               !if_can_->frame_dispatcher()->IsNotStarted() ||
-               !if_can_->dispatcher()->IsNotStarted())
+        do
         {
-            usleep(100);
-        }
+            bool exit = true;
+            {
+                LockHolder h1(&g_executor);
+                LockHolder h2(DefaultWriteFlowExecutor());
+
+                if (!g_executor.empty() ||
+                    !DefaultWriteFlowExecutor()->empty() ||
+                    !if_can_->frame_dispatcher()->IsNotStarted() ||
+                    !if_can_->dispatcher()->IsNotStarted())
+                {
+                    exit = false;
+                }
+            }
+            if (exit)
+            {
+                return;
+            }
+            else
+            {
+                usleep(100);
+            }
+        } while (true);
     }
 
     /** Injects an incoming packet to the interface and expects that the node
