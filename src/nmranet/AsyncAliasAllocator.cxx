@@ -32,13 +32,15 @@
  * @date 4 Dec 2013
  */
 
-#define LOGLEVEL VERBOSE
+#define LOGLEVEL INFO
 
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
 
 namespace NMRAnet
 {
+
+size_t g_alias_test_conflicts = 0;
 
 AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan* if_can)
     : ControlFlow(if_can->frame_dispatcher()->executor(), // ensures we run in
@@ -91,7 +93,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
                                                  ~0x1FFFF000U, this);
 
     // Grabs an outgoing frame buffer.
-    return Allocate(if_can_->write_allocator(), ST(HandleSendCidFrames));
+    return CallImmediately(ST(handle_allocate_for_cid_frame));
 }
 
 void AsyncAliasAllocator::NextSeed()
@@ -126,8 +128,13 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
     IfCan::control_init(*write_flow->mutable_frame(), pending_alias_->alias,
                         (if_id_ >> (12 * (cid_frame_sequence_ - 4))) & 0xfff,
                         cid_frame_sequence_);
-    write_flow->Send(nullptr);
+    write_flow->Send(this);
     --cid_frame_sequence_;
+    return WaitAndCall(ST(handle_allocate_for_cid_frame));
+}
+
+ControlFlow::ControlFlowAction AsyncAliasAllocator::handle_allocate_for_cid_frame()
+{
     if (cid_frame_sequence_ >= 4)
     {
         return Allocate(if_can_->write_allocator(), ST(HandleSendCidFrames));
@@ -186,6 +193,7 @@ void AsyncAliasAllocator::handle_message(struct can_frame* message,
                                          Notifiable* done)
 {
     conflict_detected_ = 1;
+    g_alias_test_conflicts++;
     // @TODO(balazs.racz): wake up the actual flow to not have to wait all the
     // 200 ms of sleep. It's somewhat difficult to ensure there is no race
     // condition there; there are no documented guarantees on the timer

@@ -41,6 +41,10 @@
 namespace NMRAnet
 {
 
+/** Counts the number of aliases that were given up because a conflict has
+ * arisen during the allocation. */
+extern size_t g_alias_test_conflicts;
+
 /** Information we know locally about an NMRAnet CAN alias. */
 struct AliasInfo : public QueueMember
 {
@@ -48,7 +52,8 @@ struct AliasInfo : public QueueMember
     {
     }
 
-    void Reset() {
+    void Reset()
+    {
         alias = 0;
         state = STATE_EMPTY;
     }
@@ -57,7 +62,8 @@ struct AliasInfo : public QueueMember
     unsigned alias : 12;
     unsigned state : 4;
 
-    enum State {
+    enum State
+    {
         STATE_EMPTY = 0,
         STATE_CHECKING,
         STATE_RESERVED,
@@ -109,6 +115,7 @@ private:
     ControlFlowAction HandleGetMoreWork();
     ControlFlowAction HandleWorkArrived();
     ControlFlowAction HandleInitAliasCheck();
+    ControlFlowAction handle_allocate_for_cid_frame();
     ControlFlowAction HandleSendCidFrames();
     ControlFlowAction HandleWaitDone();
     ControlFlowAction HandleSendRidFrame();
