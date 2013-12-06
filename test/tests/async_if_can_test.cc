@@ -74,9 +74,9 @@ TEST_F(AsyncIfTest, WriteFrame)
 
 TEST_F(AsyncIfTest, WriteMultipleFrames)
 {
+    EXPECT_CALL(can_bus_, MWrite(":X195B432DNAA;")).Times(10);
     for (int i = 0; i < 10; ++i)
     {
-        ExpectPacket(":X195B432DNAA;");
         TypedSyncAllocation<CanFrameWriteFlow> w(if_can_->write_allocator());
         struct can_frame* f = w.result()->mutable_frame();
         SET_CAN_FRAME_EFF(*f);
