@@ -341,7 +341,7 @@ ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleCall()
             if (current_index_ >= handlers_.size())
             {
                 children_.MaybeDone();
-                return CallImmediately(ST(HandleWaitForChildren));
+                return WaitAndCall(ST(HandleWaitForChildren));
             }
             auto& h = handlers_[current_index_];
             ++current_index_;

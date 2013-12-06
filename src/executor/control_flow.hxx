@@ -161,6 +161,7 @@ protected:
 
   template <class T, class U>
   ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
+    HASSERT(!executor_->IsMaybePending(this));
     state_ = &ControlFlow::NotStarted;
     if (done_) done_->Notify();
     allocator->TypedRelease(entry);
