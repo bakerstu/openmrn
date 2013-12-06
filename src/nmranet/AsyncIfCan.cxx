@@ -501,10 +501,10 @@ public:
         CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
                      (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
                      (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
-                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT) |
-                     (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
+                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
         CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
-                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK
+                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
+                   (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
     };
 
     FrameToGlobalMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
@@ -517,6 +517,11 @@ public:
     {
         ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
                                                       this);
+    }
+
+    virtual AllocatorBase* get_allocator()
+    {
+        return &lock_;
     }
 
     //! Handler callback for incoming messages.
@@ -540,18 +545,24 @@ public:
 
     virtual void AllocationCallback(QueueMember* entry)
     {
-        auto* f =
-            ifCan_->dispatcher()->allocator()->cast_result(entry);
+        auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
         IncomingMessage* m = f->mutable_params();
-        m->mti = static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+        m->mti =
+            static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
         m->dst = {0, 0};
+        m->dst_node = nullptr;
         m->src.alias = id_ & IfCan::SRC_MASK;
         // This will be zero if the alias is not known.
         m->src.id = ifCan_->remote_aliases()->lookup(m->src.alias);
         f->IncomingMessage(m->mti);
         // Return ourselves to the pool.
         lock_.TypedRelease(this);
+    }
+
+    virtual void Run()
+    {
+        HASSERT(0);
     }
 
 private:
@@ -582,6 +593,8 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
+    owned_flows_.push_back(
+        std::unique_ptr<Executable>(new FrameToGlobalMessageParser(this)));
 }
 
 AsyncIfCan::~AsyncIfCan()

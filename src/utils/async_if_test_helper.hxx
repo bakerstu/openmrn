@@ -54,6 +54,15 @@ public:
 namespace NMRAnet
 {
 
+const char *Node::MANUFACTURER = "Stuart W. Baker";
+const char *Node::HARDWARE_REV = "N/A";
+const char *Node::SOFTWARE_REV = "0.1";
+
+const size_t Datagram::POOL_SIZE = 10;
+const size_t Datagram::THREAD_STACK_SIZE = 512;
+const size_t Stream::CHANNELS_PER_NODE = 10;
+const uint16_t Stream::MAX_BUFFER_SIZE = 512;
+
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
 /** Test fixture base class with helper methods for exercising the asynchronous

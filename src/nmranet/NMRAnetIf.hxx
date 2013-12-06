@@ -49,6 +49,11 @@ struct NodeHandle
 {
     NodeID id;
     NodeAlias alias;
+
+    bool operator==(const NodeHandle& o) const
+    {
+        return id == o.id && alias == o.alias;
+    }
 };
 
 /** The generic interface for NMRAnet network interfaces
