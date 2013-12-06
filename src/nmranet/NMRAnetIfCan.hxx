@@ -648,6 +648,7 @@ private:
     friend class AsyncAliasAllocator;
     friend class CanMessageWriteFlow;
     friend class AliasConflictHandler;
+    friend class FrameToGlobalMessageParser;
 
     /** file descriptor used for reading and writing data to and from physical
      * interface

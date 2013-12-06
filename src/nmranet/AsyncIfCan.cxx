@@ -133,7 +133,8 @@ private:
         if_can_->pipe_member()->parent()->WriteToAll(if_can_->pipe_member(),
                                                      &frame_, sizeof(frame_));
         ResetFrameEff();
-        //! @TODO(balazs.racz): there was a crash due ot spurious notification. Why?
+        //! @TODO(balazs.racz): there was a crash due ot spurious notification.
+        // Why?
         return YieldAndCall(ST(handle_release));
     }
 
@@ -463,7 +464,7 @@ public:
 
     virtual void AllocationCallback(QueueMember* entry)
     {
-        frameWriteFlow_ = static_cast<CanFrameWriteFlow*>(entry);
+        frameWriteFlow_ = ifCan_->write_allocator()->cast_result(entry);
         ifCan_->frame_dispatcher()->executor()->Add(this);
     }
 
@@ -485,6 +486,81 @@ private:
     unsigned alias_ : 12;
     //! The write flow we received from the allocator.
     CanFrameWriteFlow* frameWriteFlow_;
+};
+
+/** This class listens for incoming CAN frames of regular unaddressed global
+ * OpenLCB messages, then translates it in a generic way into a message,
+ * computing its MTI. The resulting message is then passed to the generic If
+ * for dispatching. */
+class FrameToGlobalMessageParser : public IncomingFrameHandler,
+                                   public AllocationResult
+{
+public:
+    enum
+    {
+        CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
+                     (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
+                     (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
+                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT) |
+                     (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
+        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
+                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK
+    };
+
+    FrameToGlobalMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
+    {
+        lock_.TypedRelease(this);
+        ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
+    }
+
+    ~FrameToGlobalMessageParser()
+    {
+        ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
+                                                      this);
+    }
+
+    //! Handler callback for incoming messages.
+    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    {
+        id_ = GET_CAN_FRAME_ID_EFF(*f);
+        if (f->can_dlc)
+        {
+            buf_ = buffer_alloc(f->can_dlc);
+            memcpy(buf_->start(), f->data, f->can_dlc);
+        }
+        else
+        {
+            buf_ = nullptr;
+        }
+        // We don't need the frame anymore.
+        done->Notify();
+        // Get the dispatch flow.
+        ifCan_->dispatcher()->allocator()->AllocateEntry(this);
+    }
+
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        auto* f =
+            ifCan_->dispatcher()->allocator()->cast_result(entry);
+        IncomingMessage* m = f->mutable_params();
+        m->mti = static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+        m->payload = buf_;
+        m->dst = {0, 0};
+        m->src.alias = id_ & IfCan::SRC_MASK;
+        // This will be zero if the alias is not known.
+        m->src.id = ifCan_->remote_aliases()->lookup(m->src.alias);
+        f->IncomingMessage(m->mti);
+        // Return ourselves to the pool.
+        lock_.TypedRelease(this);
+    }
+
+private:
+    uint32_t id_;
+    Buffer* buf_;
+    //! Lock for ourselves.
+    TypedAllocator<IncomingFrameHandler> lock_;
+    //! Parent interface.
+    AsyncIfCan* ifCan_;
 };
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,

@@ -116,6 +116,13 @@ class AsyncIfCan : public AsyncIf
 public:
     typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
 
+    /** Filter to OR onto a can ID to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_EXT_FRAME_FILTER = 0;
+    /** Mask to OR onto a can mask to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_EXT_FRAME_MASK = ~0x1FFFFFFFU;
+
     /**
      * Creates a CAN interface.
      *
