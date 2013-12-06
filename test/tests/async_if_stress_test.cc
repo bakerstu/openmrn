@@ -218,7 +218,7 @@ TEST_F(AsyncIfStressTest, hundrednodes)
     n_.WaitForNotification();
 }
 
-TEST_F(AsyncIfStressTest, thousandnodes)
+TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)
 {
     CreateNodes(1000);
     barrier_.MaybeDone();
