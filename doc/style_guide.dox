@@ -205,7 +205,7 @@
  *         do
  *         {
  *             --globalVariable;
- *         } while (param);
+ *         } while (--param);
  *     }
  * }
  *
@@ -230,7 +230,7 @@
  *     };
  * };
  *
- * }; /* ExampleNamespace */
+ * } /* ExampleNamespace */
  * @endcode
  *
  * @subsection line_size Line Size
@@ -242,7 +242,7 @@
  * common style guideline requirement is to a large extent a legacy of standard
  * 80 character wide terminals.  Modern editors are typically much more flexible
  * on viewing width.  Most modern editors can provide an 80 character water
- * mark and developers are encouraged to turn enable this in order to be more
+ * mark and developers are encouraged to enable this in order to be more
  * aware of their line sizes so that they can act appropriately.
  *
  *
@@ -346,11 +346,15 @@
  * inclusion of a header within a given source context.  The style used for the
  * tag adds a leading underscore "_", replaces any "." character with an
  * underscore "_" character, and adds a lagging underscore "_".  The case of
- * the tag shall match the case of the filename.  For a given filename of
+ * the tag shall match the case of the filename.  Additional #includes
+ * shall always fall within the body of the include guard.
+ * For a given filename of
  * "ExampleFilename.hxx", see the following example:
  * @code
  * #ifndef _ExampleFilename_hxx_
  * #define _Examplefilename_hxx_
+ *
+ * #include <new>
  *
  * /* Body of header file */
  *
@@ -553,7 +557,7 @@
  * @subsection switch Switch Statements
  * Within switch statements, case values that do not have their own break
  * statement shall provide a "fall through" comment.  All switch statements
- * must define a default case.  The case body in indented from its opening and
+ * must define a default case.  The case body is indented from its opening and
  * closing braces.  For example:
  * @code
  * switch (variable)

@@ -34,8 +34,6 @@
 #ifndef _NMRAnetAliasCache_hxx_
 #define _NMRAnetAliasCache_hxx_
 
-#include <map>
-
 #include "os/OS.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/macros.h"
@@ -67,7 +65,8 @@ public:
     AliasCache(NodeID seed, size_t entries,
                void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
                void *context = NULL)
-        : freeList(NULL),
+        : pool(new Metadata[entries]),
+          freeList(NULL),
           aliasMap(entries),
           idMap(entries),
           oldest(NULL),
@@ -76,14 +75,12 @@ public:
           removeCallback(remove_callback),
           context(context)
     {
-        /* create our metadata pool and initialize the freeList */
-        Metadata *metadata = new Metadata[entries];
-
+        /* initialize the freeList */
         for (size_t i = 0; i < entries; ++i)
         {
-            metadata[i].prev = NULL;
-            metadata[i].next = freeList;
-            freeList = metadata + i;
+            pool[i].prev = NULL;
+            pool[i].next = freeList;
+            freeList = pool + i;
         }
     }
 
@@ -124,9 +121,7 @@ public:
     /** Default destructor */
     ~AliasCache()
     {
-        /* stbaker: we should never get here */
-        /* balazs.racz: why not?? */
-        /* HASSERT(0); */
+        delete pool;
     }
     
 private:
@@ -154,6 +149,9 @@ private:
         };
     };
 
+    /** pointer to allocated Metadata pool */
+    Metadata *pool;
+    
     /** list of unused mapping entries */
     Metadata *freeList;
     
@@ -193,6 +191,10 @@ private:
 
         if (metadata != newest)
         {
+            if (metadata == oldest)
+            {
+                oldest = metadata->newer;
+            }
             if (metadata->newer)
             {
                 metadata->newer->older = metadata->older;
@@ -203,6 +205,7 @@ private:
             }
             metadata->newer = NULL;
             metadata->older = newest;
+            newest->newer = metadata;
             newest = metadata;
         }
     }
@@ -213,6 +216,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 
-}; /* namepace NMRAnet */
+} /* namepace NMRAnet */
 
 #endif /* _NMRAnetAliasCache_hxx */

@@ -1,0 +1,123 @@
+/** \copyright
+ * Copyright (c) 2013, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file NMRAnetVelocity.cxxtest
+ * This file contains a unit test for classes in NMRAnetAliasCache.hxx and
+ * NMRAnetAliasCache.cxx.
+ *
+ * @author Stuart W. Baker
+ * @date 5 December 2013
+ */
+
+#include "gtest/gtest.h"
+#include "nmranet/NMRAnetAliasCache.hxx"
+#include <cstdio>
+
+using namespace NMRAnet;
+
+static volatile int count = 0;
+/* We use this array to test the reorderd newest/oldest list */
+static NodeAlias aliases[] = {10, 11, 6, 84, 56, 72};
+static NodeID node_ids[] = {101, 102, 103, 104, 105, 106};
+
+static void alias_callback(void *context, NodeID node_id, NodeAlias alias)
+{
+    EXPECT_TRUE(aliases[count] == alias);
+    EXPECT_TRUE(node_ids[count] == node_id);
+    printf("alias: %u id: %llu\n", alias, node_id);
+    count++;
+}
+
+TEST(NMRAnetAliasCacheTest, constructor)
+{
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 2);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add(101, 10);
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+    EXPECT_EQ(count, 1);
+}
+
+TEST(NMRAnetAliasCacheTest, ordering)
+{
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 10);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)106, (NodeAlias)72);
+    aliasCache->add((NodeID)105, (NodeAlias)56);
+    aliasCache->add((NodeID)104, (NodeAlias)84);
+    aliasCache->add((NodeID)103, (NodeAlias)6);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+    EXPECT_EQ(count, 6);
+}
+
+TEST(NMRAnetAliasCacheTest, reordering)
+{
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 10);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)105, (NodeAlias)56);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)104, (NodeAlias)84);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)103, (NodeAlias)6);
+    aliasCache->add((NodeID)106, (NodeAlias)72);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)56) == 105);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 6);
+}
+
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
