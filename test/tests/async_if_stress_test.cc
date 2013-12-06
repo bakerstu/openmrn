@@ -14,21 +14,24 @@ namespace NMRAnet
 class TestNode
 {
 public:
-    TestNode(NodeID node_id, BarrierNotifiable* done)
-        : ifCan_(&g_executor, &can_pipe0, 10, 10)
+    TestNode(NodeID node_id)
+        : nodeId_(node_id), ifCan_(&g_executor, &can_pipe0, 10, 10)
+    {
+    }
+
+    void start(BarrierNotifiable* done)
     {
         ifCan_.AddWriteFlows(2, 2);
-        ifCan_.set_alias_allocator(
-            new AsyncAliasAllocator(node_id, &ifCan_));
+        ifCan_.set_alias_allocator(new AsyncAliasAllocator(nodeId_, &ifCan_));
         ifCan_.alias_allocator()->empty_aliases()->Release(&testAlias_);
         WriteFlow* f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
         HASSERT(f);
-        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, node_id,
-                              EventIdToBuffer(node_id), done->NewChild());
+        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_,
+                              EventIdToBuffer(nodeId_), done->NewChild());
         f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
         HASSERT(f);
-        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, node_id + 1,
-                              EventIdToBuffer(node_id + 1), done->NewChild());
+        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_ + 1,
+                              EventIdToBuffer(nodeId_ + 1), done->NewChild());
     }
 
     ~TestNode()
@@ -36,6 +39,7 @@ public:
     }
 
 private:
+    NodeID nodeId_;
     AsyncIfCan ifCan_;
     AliasInfo testAlias_;
 };
@@ -47,13 +51,23 @@ protected:
     {
     }
 
+    ~AsyncIfStressTest()
+    {
+        Wait();
+    }
+
     void CreateNodes(int count)
     {
+        int start = nodes_.size();
         for (int i = 0; i < count; ++i)
         {
-            nodes_.push_back(
-                std::unique_ptr<TestNode>(new TestNode(nextNodeID_, &barrier_)));
+            nodes_.push_back(std::unique_ptr<TestNode>(
+                new TestNode(nextNodeID_)));
             nextNodeID_ += 2;
+        }
+        for (int i = start; i < nodes_.size(); ++i)
+        {
+            nodes_[i]->start(&barrier_);
         }
     }
 
@@ -69,16 +83,23 @@ TEST_F(AsyncIfStressTest, nonode)
     n_.WaitForNotification();
 }
 
-TEST_F(AsyncIfStressTest, DISABLED_onenode)
+TEST_F(AsyncIfStressTest, onenode)
 {
     CreateNodes(1);
     barrier_.MaybeDone();
     n_.WaitForNotification();
 }
 
-TEST_F(AsyncIfStressTest, DISABLED_tennodes)
+TEST_F(AsyncIfStressTest, tennodes)
 {
     CreateNodes(10);
+    barrier_.MaybeDone();
+    n_.WaitForNotification();
+}
+
+TEST_F(AsyncIfStressTest, hundrednodes)
+{
+    CreateNodes(100);
     barrier_.MaybeDone();
     n_.WaitForNotification();
 }
