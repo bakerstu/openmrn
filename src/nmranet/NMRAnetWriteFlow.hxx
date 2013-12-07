@@ -73,6 +73,13 @@ public:
                     Buffer* buffer, Notifiable* done)
     {
         HASSERT(!done_);
+        if (!node ||
+            (!node->is_initialized() && mti != If::MTI_INITIALIZATION_COMPLETE))
+        {
+            // Drops packet to non-initialized node.
+            if (done) done->Notify();
+            return;
+        }
         node_ = node;
         mti_ = mti;
         dst_ = dst;
