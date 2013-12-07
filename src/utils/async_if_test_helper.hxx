@@ -7,8 +7,11 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
@@ -59,9 +62,9 @@ public:
 namespace NMRAnet
 {
 
-const char *Node::MANUFACTURER = "Stuart W. Baker";
-const char *Node::HARDWARE_REV = "N/A";
-const char *Node::SOFTWARE_REV = "0.1";
+const char* Node::MANUFACTURER = "Stuart W. Baker";
+const char* Node::HARDWARE_REV = "N/A";
+const char* Node::SOFTWARE_REV = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;
@@ -231,6 +234,39 @@ protected:
     AliasInfo testAlias_;
     //! The next alias we will make the allocator create.
     NodeAlias aliasSeed_;
+};
+
+class AsyncNodeTest : public AsyncIfTest
+{
+protected:
+    AsyncNodeTest()
+        : eventFlow_(&g_executor, 10),
+          ownedNode_(if_can_.get(), TEST_NODE_ID),
+          node_(&ownedNode_)
+    {
+        EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
+        if_can_->AddWriteFlows(2, 2);
+        Wait();
+        AddEventHandlerToIf(if_can_.get());
+    }
+
+    ~AsyncNodeTest()
+    {
+        WaitForEventThread();
+    }
+
+    void WaitForEventThread()
+    {
+        while (GlobalEventFlow::instance->EventProcessingPending())
+        {
+            usleep(100);
+        }
+        AsyncIfTest::Wait();
+    }
+
+    GlobalEventFlow eventFlow_;
+    DefaultAsyncNode ownedNode_;
+    AsyncNode* node_;
 };
 
 } // namespace NMRAnet

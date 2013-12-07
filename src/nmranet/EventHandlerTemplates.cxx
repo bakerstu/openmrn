@@ -52,7 +52,7 @@ extern const string& GetNameForOffset(int);
 namespace NMRAnet
 {
 
-BitRangeEventPC::BitRangeEventPC(Node *node,
+BitRangeEventPC::BitRangeEventPC(AsyncNode *node,
                                  uint64_t event_base, uint32_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {

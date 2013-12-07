@@ -89,7 +89,7 @@ public:
      * @param mti of the message to send
      * @param src is the NodeID of the originating node
      * @param dst is the destination node (cannot be 0,0)
-     * @param data is the message payload (may be null)
+     * @param data is the message payload (may be null), takes ownership
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
@@ -102,7 +102,7 @@ public:
      *
      * @param mti of the message to send
      * @param src is the NodeID of the originating node
-     * @param data is the message payload (may be null)
+     * @param data is the message payload (may be null), takes ownership
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */

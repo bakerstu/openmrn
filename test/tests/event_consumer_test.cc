@@ -1,4 +1,4 @@
-#include "utils/if_test_helper.hxx"
+#include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
@@ -7,7 +7,7 @@ namespace NMRAnet {
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
-class BitEventConsumerTest : public IfTest {
+class BitEventConsumerTest : public AsyncNodeTest {
  protected:
   BitEventConsumerTest()
       : storage_(0),
@@ -52,18 +52,18 @@ TEST_F(BitEventConsumerTest, SimpleOnOff) {
 
 TEST_F(BitEventConsumerTest, GlobalIdentify) {
   storage_ = 1;
-  ExpectPacket(":X194C512DN05010101FFFF0001;");
-  ExpectPacket(":X194C412DN05010101FFFF0000;");
-  ExpectPacket(":X194C412DN05010101FFFF0003;");
-  ExpectPacket(":X194C512DN05010101FFFF0002;");
+  ExpectPacket(":X194C522AN05010101FFFF0001;");
+  ExpectPacket(":X194C422AN05010101FFFF0000;");
+  ExpectPacket(":X194C422AN05010101FFFF0003;");
+  ExpectPacket(":X194C522AN05010101FFFF0002;");
   SendPacket(":X19970001N;");
   WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
 
   storage_ = 2;
-  ExpectPacket(":X194C512DN05010101FFFF0000;");
-  ExpectPacket(":X194C412DN05010101FFFF0001;");
-  ExpectPacket(":X194C412DN05010101FFFF0002;");
-  ExpectPacket(":X194C512DN05010101FFFF0003;");
+  ExpectPacket(":X194C522AN05010101FFFF0000;");
+  ExpectPacket(":X194C422AN05010101FFFF0001;");
+  ExpectPacket(":X194C422AN05010101FFFF0002;");
+  ExpectPacket(":X194C522AN05010101FFFF0003;");
   SendPacket(":X19970001N;");
   WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
 }
@@ -71,12 +71,12 @@ TEST_F(BitEventConsumerTest, GlobalIdentify) {
 TEST_F(BitEventConsumerTest, IdentifyConsumer) {
   storage_ = 1;
   SendPacketAndExpectResponse(":X198F4001N05010101FFFF0000;",
-                              ":X194C412DN05010101FFFF0000;");
+                              ":X194C422AN05010101FFFF0000;");
   SendPacketAndExpectResponse(":X198F4001N05010101FFFF0001;",
-                              ":X194C512DN05010101FFFF0001;");
+                              ":X194C522AN05010101FFFF0001;");
   SendPacketAndExpectResponse(":X198F4001N05010101FFFF0002;",
-                              ":X194C512DN05010101FFFF0002;");
+                              ":X194C522AN05010101FFFF0002;");
   SendPacketAndExpectResponse(":X198F4001N05010101FFFF0003;",
-                              ":X194C412DN05010101FFFF0003;");
+                              ":X194C422AN05010101FFFF0003;");
 }
 }  // namespace NMRAnet
