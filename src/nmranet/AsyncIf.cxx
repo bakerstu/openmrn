@@ -37,6 +37,15 @@
 namespace NMRAnet
 {
 
+Buffer* node_id_to_buffer(NodeID id) {
+    Buffer* ret = buffer_alloc(6);
+    id = htobe64(id);
+    uint8_t* src = reinterpret_cast<uint8_t*>(&id);
+    memcpy(ret->start(), src + 2, 6);
+    ret->advance(6);
+    return ret;
+}
+
 AsyncIf::AsyncIf(Executor* executor) : dispatcher_(executor)
 {
 }

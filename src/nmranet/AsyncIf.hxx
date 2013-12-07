@@ -46,6 +46,19 @@ namespace NMRAnet
 
 class AsyncNode;
 
+/** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
+ *
+ * @param id is the 48-bit ID to render.
+ * @returns a new buffer (from the main pool) with 6 bytes of used space, a
+ * big-endian representation of the node ID.
+ */
+extern Buffer* node_id_to_buffer(NodeID id);
+
+/** This class is used in the dispatching of incoming NMRAnet messages to the
+ * message handlers at the protocol-agnostic level (i.e. not CAN or
+ * TCP-specific). There will be one instance of this class that will be sent to
+ * all handlers that expressed interest in that MTI. When all those handlers
+ * are done, the instance will be freed. */
 struct IncomingMessage
 {
     //! OpenLCB MTI of the incoming message.
