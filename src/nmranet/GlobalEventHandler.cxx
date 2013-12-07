@@ -28,6 +28,9 @@ struct GlobalEventFlow::Impl {
   // This is the queue of global identify events.
   TypedAllocator<GlobalEventMessage> global_event_queue_;
 
+  // Freelist of event message objects.
+  TypedAllocator<GlobalEventMessage> free_events_;
+
   // Incoming event message, as it got off the event_queue.
   GlobalEventMessage* message_;
 
