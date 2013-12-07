@@ -20,8 +20,12 @@ GlobalEventFlow* GlobalEventFlow::instance = nullptr;
 
 struct GlobalEventFlow::Impl
 {
-    Impl(int max_event_slots) : pending_sem_(max_event_slots)
+    Impl(int max_event_slots)
     {
+        message_block_.reset(new GlobalEventMessage[max_event_slots]);
+        for (int i = 0; i < max_event_slots; ++i) {
+            free_events_.TypedRelease(&message_block_[i]);
+        }
     }
 
     // This is the queue of events that are coming from the read thread to the
@@ -41,11 +45,11 @@ struct GlobalEventFlow::Impl
     // main event queue.
     EventReport main_event_report_;
 
-    // Each allocated GlobalEventMessage holds one value in this semaphore.
-    OSSem pending_sem_;
-
     // The implementation of the iterators.
     std::unique_ptr<NMRAnetEventHandler> handler_;
+
+    // Holds the memory used by the event messages for destruction.
+    std::unique_ptr<GlobalEventMessage[]> message_block_;
 };
 
 GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
@@ -195,10 +199,15 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished()
     return CallImmediately(ST(WaitForEvent));
 }
 
+TypedAllocator<GlobalEventMessage>* GlobalEventFlow::message_allocator()
+{
+    return &impl_->free_events_;
+}
+
 GlobalEventMessage* GlobalEventFlow::AllocateMessage()
 {
-    impl_->pending_sem_.wait();
-    return new GlobalEventMessage();
+    TypedSyncAllocation<GlobalEventMessage> a(&impl_->free_events_);
+    return a.result();
 }
 
 void GlobalEventFlow::PostEvent(GlobalEventMessage* message)
@@ -208,8 +217,7 @@ void GlobalEventFlow::PostEvent(GlobalEventMessage* message)
 
 void GlobalEventFlow::FreeMessage(GlobalEventMessage* m)
 {
-    delete m;
-    impl_->pending_sem_.post();
+    impl_->free_events_.TypedRelease(m);
 }
 
 #ifdef CPP_EVENT_HANDLER

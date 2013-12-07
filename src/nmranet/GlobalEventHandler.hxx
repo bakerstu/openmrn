@@ -49,6 +49,8 @@ public:
 
     // This call will block until a slot can be acquired.
     GlobalEventMessage* AllocateMessage();
+    //! @returns the allocator for new incoming messages.
+    TypedAllocator<GlobalEventMessage>* message_allocator();
     // Sends a global event message to the handler flow. Can be called from any
     // thread. Will not block.
     void PostEvent(GlobalEventMessage* message);
