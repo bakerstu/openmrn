@@ -123,7 +123,9 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     return;
 }
 
-/** Remove an alias from an alias cache.
+/** Remove an alias from an alias cache.  This method does not call the
+ * remove_callback method passed in at construction since it is a
+ * deliberate call not requiring notification.
  * @param alias 12-bit alias associated with Node ID
  */
 void AliasCache::remove(NodeAlias alias)
@@ -205,7 +207,8 @@ NodeID AliasCache::lookup(NodeAlias alias)
     return 0;
 }
 
-/** Call the given callback function once for each alias tracked.
+/** Call the given callback function once for each alias tracked.  The order
+ * will be in last "touched" order.
  * @param callback method to call
  * @param context context pointer to pass to callback
  */
@@ -237,6 +240,33 @@ NodeAlias AliasCache::generate()
 
     /* new random alias */
     return alias;
+}
+
+/** Update the time stamp for a given entry.
+ * @param  metadata metadata associated with the entry
+ */
+void AliasCache::touch(Metadata* metadata)
+{
+    metadata->timestamp = OSTime::get_monotonic();
+
+    if (metadata != newest)
+    {
+        if (metadata == oldest)
+        {
+            oldest = metadata->newer;
+            oldest->older = NULL;
+        }
+        else
+        {
+            /* we have someone older */
+            metadata->older->newer = metadata->newer;
+        }
+        metadata->newer->older = metadata->older;
+        metadata->newer = NULL;
+        metadata->older = newest;
+        newest->newer = metadata;
+        newest = metadata;
+    }
 }
 
 };

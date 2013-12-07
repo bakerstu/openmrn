@@ -9,7 +9,8 @@
 #include <stdio.h>
 
 #define FATAL 0
-#define ERROR 1
+/// @todo (Stuart Baker) does not build against MinGW
+// #define ERROR 1
 #define WARNING 2
 #define INFO 3
 #define VERBOSE 4

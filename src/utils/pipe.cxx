@@ -108,7 +108,8 @@ public:
         while (count > 0) {
             ret = ::write(fd_write_, bbuf, count);
             if (!ret) {
-              LOG(ERROR, "EOF writing fd %d.", fd_write_);
+              /// @todo (Stuart Baker) does not build against MinGW
+              // LOG(ERROR, "EOF writing fd %d.", fd_write_);
             }
             configASSERT(ret > 0);
             count -= ret;
@@ -129,7 +130,8 @@ private:
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
                 if (!ret)
                 {
-                    LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
+                    /// @todo (Stuart Baker) does not build against MinGW
+                    // LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
                     t->parent_->UnregisterMember(t);
                     ::close(t->fd_read_);
                     if (t->fd_write_ != t->fd_read_)
