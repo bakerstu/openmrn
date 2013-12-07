@@ -185,6 +185,7 @@ public:
     //! Sets the alias allocator for this If. Takes ownership of pointer.
     void set_alias_allocator(AsyncAliasAllocator* a);
 
+    virtual void add_owned_flow(Executable* e);
 private:
     //! Flow responsible for routing incoming messages to handlers.
     FrameDispatchFlow frame_dispatcher_;

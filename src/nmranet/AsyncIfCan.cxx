@@ -601,6 +601,11 @@ AsyncIfCan::~AsyncIfCan()
 {
 }
 
+void AsyncIfCan::add_owned_flow(Executable* e) {
+    owned_flows_.push_back(
+        std::unique_ptr<Executable>(e)); 
+}
+
 void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
 {
     aliasAllocator_.reset(a);

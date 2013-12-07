@@ -114,6 +114,7 @@ public:
     };
 
     AsyncIf(Executor* executor);
+    virtual ~AsyncIf() {}
 
     /// @returns the dispatcher of incoming messages.
     MessageDispatchFlow* dispatcher()
@@ -132,6 +133,11 @@ public:
     {
         return &addressedWriteAllocator;
     }
+
+    /** Transfers ownership of a module to the interface. It will be brought
+     * down in the destructor after any incoming message could come through and
+     * before any supporting structures are deleted.  */
+    virtual void add_owned_flow(Executable* e) = 0;
 
 private:
     /// Flow responsible for routing incoming messages to handlers.
