@@ -2,12 +2,6 @@
 
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-using ::testing::Eq;
-using ::testing::Field;
-using ::testing::NotNull;
-using ::testing::IsNull;
-using ::testing::Pointee;
-
 namespace NMRAnet
 {
 

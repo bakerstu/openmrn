@@ -4,12 +4,6 @@
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"
 
-using ::testing::Eq;
-using ::testing::Field;
-using ::testing::NotNull;
-using ::testing::IsNull;
-using ::testing::Pointee;
-
 namespace NMRAnet
 {
 

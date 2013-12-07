@@ -7,10 +7,6 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "os/OS.hxx"
 
-using ::testing::Field;
-using ::testing::Pointee;
-using ::testing::NotNull;
-
 namespace NMRAnet
 {
 

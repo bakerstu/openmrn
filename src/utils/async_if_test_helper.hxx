@@ -17,9 +17,14 @@
 
 using ::testing::AtLeast;
 using ::testing::AtMost;
+using ::testing::Eq;
+using ::testing::Field;
 using ::testing::Invoke;
+using ::testing::IsNull;
 using ::testing::Mock;
 using ::testing::NiceMock;
+using ::testing::NotNull;
+using ::testing::Pointee;
 using ::testing::Return;
 using ::testing::StrCaseEq;
 using ::testing::StrictMock;
