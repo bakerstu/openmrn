@@ -231,7 +231,7 @@ private:
             new_alias->Reset();
             if_can_->alias_allocator()->empty_aliases()->ReleaseBack(new_alias);
         }
-        LOG(INFO, "Allocating new alias %03X", alias);
+        LOG(INFO, "Allocating new alias %03X for node %012llx", alias, src_);
 
         // Checks that there was no conflict on this alias.
         if (if_can_->local_aliases()->lookup(alias) !=
