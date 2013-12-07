@@ -30,10 +30,11 @@ TEST(ExecutorTest, RunSingle) {
   EXPECT_TRUE(global_executor.empty());
   MockRunnable r;
   EXPECT_CALL(r, Run()).Times(1);
-  global_executor.Add(&r);
-  // This is a race condition -- it is possible that the executor thread gets
-  // to this runnable before we validate the following expectation.
-  EXPECT_FALSE(global_executor.empty());
+  {
+      LockHolder l(&global_executor);
+      global_executor.Add(&r);
+      EXPECT_FALSE(global_executor.empty());
+  }
   RunToCompletion();
   EXPECT_TRUE(global_executor.empty());
 }
