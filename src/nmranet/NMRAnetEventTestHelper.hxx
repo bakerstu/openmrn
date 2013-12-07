@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,18 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file NMRAnetEventTestHelper.hxx
  *
- * Class for dispatching incoming messages to handlers.
+ * Helper utilities for testing event handlers.
+ *
+ * This file must only ever be included in unittests.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 7 December 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#ifndef _NMRAnetEventTestHelper_hxx_
+#define _NMRAnetEventTestHelper_hxx_
 
-namespace NMRAnet
-{
+#include "gmock/gmock.h"
+#include "nmranet/NMRAnetEventRegistry.hxx"
+
+namespace NMRAnet {
+
+class MockEventHandler : public NMRAnetEventHandler {
+ public:
+  MOCK_METHOD2(HandleEventReport, void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleConsumerIdentified,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleConsumerRangeIdentified,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleProducerIdentified,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleProducerRangeIdentified,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleIdentifyGlobal,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleIdentifyConsumer,
+               void(EventReport* event, Notifiable* done));
+  MOCK_METHOD2(HandleIdentifyProducer,
+               void(EventReport* event, Notifiable* done));
+};
+
+}  // namespace NMRAnet
+
+#endif // _NMRAnetEventHandlerTemplates_hxx_
 
 
-} // namespace NMRAnet

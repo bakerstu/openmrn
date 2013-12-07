@@ -41,12 +41,36 @@
 #include "nmranet_config.h"
 
 #include <stdio.h>
+#include <stdarg.h>
+#include <string>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 #include "os/os.h"
 #include "utils/pipe.hxx"
 #include "nmranet_can.h"
+
+/** Conveninence utility to do a printf directly into a C++ string. */
+string StringPrintf(const char* format, ...) {
+  static const int kBufSize = 1000;
+  char buffer[kBufSize];
+  va_list ap;
+
+  va_start(ap, format);
+  int n = vsnprintf(buffer, kBufSize, format, ap);
+  va_end(ap);
+  HASSERT(n >= 0);
+  if (n < kBufSize) {
+    return string(buffer, n);
+  }
+  string ret(n + 1, 0);
+  va_start(ap, format);
+  n = vsnprintf(&ret[0], ret.size(), format, ap);
+  va_end(ap);
+  HASSERT(n >= 0);
+  ret.resize(n);
+  return ret;
+}
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleMock(&argc, argv);

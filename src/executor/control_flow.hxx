@@ -131,6 +131,11 @@ protected:
     return ControlFlowAction(f);
   }
 
+  //! Retries the current state immediately.
+  ControlFlowAction RetryCurrentState() {
+    return CallImmediately(state_);
+  }
+
   //! Transitions to a new state, but allows all other pending callbacks of the
   //! executor to run before proceeding to the next state.
   ControlFlowAction YieldAndCall(MemberFunction f) {
@@ -156,6 +161,7 @@ protected:
 
   template <class T, class U>
   ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
+    HASSERT(!executor_->IsMaybePending(this));
     state_ = &ControlFlow::NotStarted;
     if (done_) done_->Notify();
     allocator->TypedRelease(entry);
@@ -179,6 +185,11 @@ protected:
   template<class T> void GetAllocationResult(T** value) {
     HASSERT(sub_flow_.allocation_result);
     *value = static_cast<T*>(sub_flow_.allocation_result);
+  }
+
+  template<class T> T* GetTypedAllocationResult(TypedAllocator<T>* allocator) {
+    HASSERT(sub_flow_.allocation_result);
+    return allocator->cast_result(sub_flow_.allocation_result);
   }
 
   struct SleepData {

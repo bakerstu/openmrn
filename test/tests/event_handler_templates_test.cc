@@ -5,31 +5,13 @@
 #include "os/os.h"
 
 #include "nmranet/EventHandlerTemplates.hxx"
+#include "nmranet/NMRAnetEventTestHelper.hxx"
 
 using ::testing::_;
 using ::testing::Mock;
 using ::testing::StrictMock;
 
 namespace NMRAnet {
-
-class MockEventHandler : public NMRAnetEventHandler {
- public:
-  MOCK_METHOD2(HandleEventReport, void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleConsumerIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleConsumerRangeIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleProducerIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleProducerRangeIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyGlobal,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyConsumer,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyProducer,
-               void(EventReport* event, Notifiable* done));
-};
 
 
 class SimpleEventProxy : public ProxyEventHandler {

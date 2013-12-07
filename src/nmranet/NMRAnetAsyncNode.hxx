@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,18 +24,44 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file NMRAnetAsyncNode.hxx
  *
- * Class for dispatching incoming messages to handlers.
+ * Node definition for asynchronous NMRAnet nodes.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 7 December 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#ifndef _NMRAnetAsyncNode_hxx_
+#define _NMRAnetAsyncNode_hxx_
+
+#include "nmranet/NMRAnetIf.hxx"  // for NodeID
 
 namespace NMRAnet
 {
 
+class AsyncIf;
+
+/** Base class for NMRAnet nodes conforming to the asynchronous interface.
+ *
+ * It is important for this interface to contain no data members, since certain
+ * implementations might need to be very lightweight (e.g. a command station
+ * might have hundreds of train nodes.)
+ */
+class AsyncNode
+{
+public:
+    virtual ~AsyncNode() {}
+    // @returns the 48-bit NMRAnet node id for this node.
+    virtual NodeID node_id() = 0;
+    // @returns the interface this virtual node is bound to.
+    virtual AsyncIf* interface() = 0;
+    /** @returns true if the node is in the initialized state.
+     *
+     * Nodes not in initialized state may not send traffic to the bus. */
+    virtual bool is_initialized() = 0;
+};
 
 } // namespace NMRAnet
+
+#endif // _NMRAnetAsyncNode_hxx_

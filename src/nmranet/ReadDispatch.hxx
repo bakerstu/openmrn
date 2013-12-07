@@ -60,29 +60,32 @@ namespace NMRAnet
    . or the handler call actually returns an Allocator, which the caller has to
    acquire a handler from and re-post the same call to that handler.
  */
-class HandlerBase
+class HandlerBase : public QueueMember
 {
+public:
+    /** Retrieves the allocator needed for a handler. The caller must retrieve
+     * an instance from the allocator, or if the returned allocator is NULL,
+     * then the caller may invoke this->handle_message immediately.
+     *
+     * @returns an allocator of type HandlerBase; or NULL.
+     */
+    virtual AllocatorBase* get_allocator()
+    {
+        return NULL;
+    }
 };
 
 template <class Param> class ParamHandler : public HandlerBase
 {
 public:
     /**
-       Initiates handling of an incoming message.
-
-       @param message is the incoming message.
-       @param done notifiable, see below.
-
-       @returns NULL if the message handling has begun. In this case the done
-       notifiable will be invoked when the buffer can be released.
-
-       @returns an allocator if the handler for this message is unavailable. In
-       this case `done' will NOT be invoked, the caller has to acquire an
-       ParamHandler from that allocator, and re-send the handle request to it.
+     * Initiates handling of an incoming message.
+     *
+     * @param message is the incoming message. Does not take ownership.
+     * @param done notifiable, will be notified when the message handling is
+     * completed and message can be deallocated. Required.
      */
-    virtual TypedAllocator<ParamHandler<Param>>* HandleMessage(Param* message,
-                                                               Notifiable* done)
-        = 0;
+    virtual void handle_message(Param* message, Notifiable* done) = 0;
 };
 
 struct MtiParams
@@ -111,11 +114,12 @@ typedef ParamHandler<MtiParams> MtiHandler;
 template <typename ID> class DispatchFlow : public ControlFlow, public Lockable
 {
 public:
+    DispatchFlow(Executor* executor);
+    virtual ~DispatchFlow();
     /**
-       Handles an incoming message. Prior to this call the parameters needed for
-       the call should be injected into the flow using an
-       implementation-specific
-       method.
+       Handles an incoming message. Prior to this call the parameters needed
+       for the call should be injected into the flow using an
+       implementation-specific method.
 
        @param id is the identifier of the incoming message.
 
@@ -123,6 +127,11 @@ public:
        handling is done.
      */
     void IncomingMessage(ID id);
+
+    TypedAllocator<DispatchFlow<ID>>* allocator()
+    {
+        return &allocator_;
+    }
 
 protected:
     /**
@@ -145,8 +154,14 @@ protected:
        handler. Implementations will need to take certain handler arguments from
        member variables. The 'done' notifiable must be called in all cases.
      */
-    virtual AllocatorBase* CallCurrentHandler(HandlerBase* handler,
-                                              Notifiable* done) = 0;
+    virtual void CallCurrentHandler(HandlerBase* handler, Notifiable* done) = 0;
+
+    /**
+       This function will be called when the flow and all children are
+       done. Useful for implementations to release memory and buffers
+       associated with the current parameters.
+     */
+    virtual void OnFlowFinished() {};
 
 private:
     // State handler. Calls the current handler.
@@ -154,6 +169,8 @@ private:
     // State handler. If calling the handler didn't work, this state will be
     // called after the allocation.
     ControlFlowAction HandleAllocateResult();
+    // State handler. Waits for the children to finish.
+    ControlFlowAction HandleWaitForChildren();
 
     struct HandlerInfo
     {
@@ -164,12 +181,18 @@ private:
         ID mask;
         // NULL if the handler has been removed.
         HandlerBase* handler;
+
+        bool Equals(ID id, ID mask, HandlerBase* handler)
+        {
+            return (this->id == id && this->mask == mask &&
+                    this->handler == handler);
+        }
     };
 
     vector<HandlerInfo> handlers_;
 
     // Index of the current iteration.
-    int current_index_;
+    size_t current_index_;
     // Points to a deleted entry in the vector, or -1.
     int pending_delete_index_;
 
@@ -180,6 +203,8 @@ private:
     BarrierNotifiable children_;
 
     OSMutex lock_;
+
+    TypedAllocator<DispatchFlow<ID>> allocator_;
 };
 
 template <typename ID, class Params>
@@ -187,6 +212,16 @@ class TypedDispatchFlow : public DispatchFlow<ID>
 {
 public:
     typedef ParamHandler<Params> Handler;
+
+    TypedDispatchFlow(Executor* e) : DispatchFlow<ID>(e)
+    {
+    }
+
+    TypedAllocator<TypedDispatchFlow<ID, Params>>* allocator()
+    {
+        return reinterpret_cast<TypedAllocator<TypedDispatchFlow<ID, Params>>*>(
+            DispatchFlow<ID>::allocator());
+    }
 
     /**
        Adds a new handler to this dispatcher.
@@ -210,28 +245,154 @@ public:
         DispatchFlow<ID>::UnregisterHandler(id, mask, handler);
     }
 
-    //! @returns the parameters structure to fill in before calling
-    // IncomingMessage.
+    /** @returns the parameters structure to fill in before calling
+        IncomingMessage. The caller must be in ownership of *this from an
+        allocator before using this pointer.  */
     Params* mutable_params()
     {
         return &params_;
     }
 
 protected:
-    virtual AllocatorBase* CallCurrentHandler(HandlerBase* b_handler,
-                                              Notifiable* done)
+    virtual void CallCurrentHandler(HandlerBase* b_handler, Notifiable* done)
     {
-        Handler* handler = static_cast<Handler>(b_handler);
-        TypedAllocator<Handler>* a = handler->HandleMessage(params_, done);
-        if (a) {
-            done->Notify();
-        }
-        return a;
+        Handler* handler = static_cast<Handler*>(b_handler);
+        handler->handle_message(&params_, done);
     }
 
-private:
     Params params_;
 };
+
+// ================== IMPLEMENTATION ==================
+
+template <typename ID>
+DispatchFlow<ID>::DispatchFlow(Executor* executor)
+    : ControlFlow(executor, nullptr), pending_delete_index_(-1)
+{
+    allocator_.Release(this);
+}
+
+template <typename ID> DispatchFlow<ID>::~DispatchFlow()
+{
+    HASSERT(IsNotStarted());
+}
+
+template <typename ID>
+void DispatchFlow<ID>::RegisterHandler(ID id, ID mask, HandlerBase* handler)
+{
+    OSMutexLock h(&lock_);
+    size_t idx = pending_delete_index_;
+    while (idx < handlers_.size() && handlers_[idx].handler)
+    {
+        ++idx;
+    }
+    if (idx >= handlers_.size())
+    {
+        idx = handlers_.size();
+        handlers_.resize(handlers_.size() + 1);
+    }
+    handlers_[idx].handler = handler;
+    handlers_[idx].id = id;
+    handlers_[idx].mask = mask;
+}
+
+template <typename ID>
+void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler)
+{
+    OSMutexLock h(&lock_);
+    // First we try the current index - 1.
+    size_t idx = current_index_;
+    if (idx > 0) idx--;
+    if (idx >= handlers_.size() || !handlers_[idx].Equals(id, mask, handler))
+    {
+        // We try all others too.
+        idx = 0;
+        while (idx < handlers_.size() &&
+               !handlers_[idx].Equals(id, mask, handler))
+            ++idx;
+    }
+    // Checks that we found the thing to unregister.
+    HASSERT(idx < handlers_.size());
+    handlers_[idx].handler = nullptr;
+    if (pending_delete_index_ < 0 || idx < (size_t)pending_delete_index_)
+    {
+        pending_delete_index_ = idx;
+    }
+}
+
+template <typename ID> void DispatchFlow<ID>::IncomingMessage(ID id)
+{
+    HASSERT(IsNotStarted());
+    HASSERT(children_.IsDone());
+    current_index_ = 0;
+    id_ = id;
+    children_.Reset(this);
+    StartFlowAt(ST(HandleCall));
+}
+
+template <typename ID>
+ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleCall()
+{
+    HandlerBase* handler;
+    {
+        OSMutexLock l(&lock_);
+        while (true)
+        {
+            if (current_index_ >= handlers_.size())
+            {
+                children_.MaybeDone();
+                return WaitAndCall(ST(HandleWaitForChildren));
+            }
+            auto& h = handlers_[current_index_];
+            ++current_index_;
+            if (!h.handler)
+            {
+                continue;
+            }
+            if ((id_ & h.mask) != (h.id & h.mask))
+            {
+                continue;
+            }
+            handler = h.handler;
+            break;
+        }
+    }
+    AllocatorBase* a = handler->get_allocator();
+    if (a)
+    {
+        return Allocate(a, ST(HandleAllocateResult));
+    }
+    else
+    {
+        CallCurrentHandler(handler, children_.NewChild());
+        // Call went OK, proceed to the next handler to call.
+        return RetryCurrentState();
+    }
+}
+
+template <typename ID>
+ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleAllocateResult()
+{
+    HandlerBase* h;
+    GetAllocationResult(&h);
+    CallCurrentHandler(h, children_.NewChild());
+    return CallImmediately(ST(HandleCall));
+}
+
+template <typename ID>
+ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleWaitForChildren()
+{
+    if (children_.IsDone())
+    {
+        OnFlowFinished();
+        // terminate flow.
+        return ReleaseAndExit(&allocator_, this);
+    }
+    else
+    {
+        return WaitForNotification();
+    }
+}
 
 } // namespace NMRAnet
 

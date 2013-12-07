@@ -49,6 +49,11 @@ struct NodeHandle
 {
     NodeID id;
     NodeAlias alias;
+
+    bool operator==(const NodeHandle& o) const
+    {
+        return id == o.id && alias == o.alias;
+    }
 };
 
 /** The generic interface for NMRAnet network interfaces
@@ -166,7 +171,7 @@ protected:
      * @param mti MTI to extract field value from
      * @return true if MTI is an addressed message, else false
      */
-    bool get_mti_address(MTI mti)
+    static bool get_mti_address(MTI mti)
     {
         return (mti & MTI_ADDRESS_MASK);
     }
@@ -175,7 +180,7 @@ protected:
      * @param mti MTI to extract field value from
      * @return true if MTI is a datagram or stream, else false
      */
-    bool get_mti_datagram(MTI mti)
+    static bool get_mti_datagram(MTI mti)
     {
         return (mti & MTI_DATAGRAM_MASK);
     }

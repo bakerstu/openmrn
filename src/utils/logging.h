@@ -8,16 +8,16 @@
 
 #include <stdio.h>
 
-#define FATAL 0
-/// @todo (Stuart Baker) does not build against MinGW
-// #define ERROR 1
-#define WARNING 2
-#define INFO 3
-#define VERBOSE 4
-
-extern char logbuffer[256];
+static const int FATAL = 0;
+/// @todo (Stuart Baker) this doesn't build under MinGW
+//static const int ERROR = 1;
+static const int WARNING = 2;
+static const int INFO = 3;
+static const int VERBOSE = 4;
 
 #define LOG(level, message...) do { if (LOGLEVEL >= level) { int sret = snprintf(logbuffer, sizeof(logbuffer), message); if (sret > (int)sizeof(logbuffer)) sret = sizeof(logbuffer); log_output(logbuffer, sret); } } while(0)
+
+extern char logbuffer[256];
 
 
 #ifndef LOGLEVEL

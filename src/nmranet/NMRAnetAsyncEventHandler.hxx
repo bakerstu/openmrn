@@ -24,18 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file NMRAnetAsyncEventHandler.hxx
  *
- * Class for dispatching incoming messages to handlers.
+ * Handler that proxies incoming event messages from Asynchronous IF to the
+ * event handler flows.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 7 Dec 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#ifndef _NMRAnetAsyncEventHandler_hxx_
+#define _NMRAnetAsyncEventHandler_hxx_
 
 namespace NMRAnet
 {
 
+class AsyncIf;
+
+/** Enables support for the event protocol on the given interface.
+ *
+ * Creates a handler object for the event protocol and adds it to the given
+ * interface. Transfers ownership of the new object to the itnerface itself.
+ */
+void AddEventHandlerToIf(AsyncIf* async_if);
+
 
 } // namespace NMRAnet
+
+#endif // _NMRAnetAsyncEventHandler_hxx_

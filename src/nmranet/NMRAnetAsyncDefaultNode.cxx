@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,18 +24,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file NMRAnetAsyncDefaultNode.cxx
  *
- * Class for dispatching incoming messages to handlers.
+ * Default AsyncNode implementation for a fat virtual node.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 7 December 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#include "utils/logging.h"
+#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 
 namespace NMRAnet
 {
 
+extern void StartInitializationFlow(DefaultAsyncNode* node);
+
+DefaultAsyncNode::DefaultAsyncNode(AsyncIf* interface, NodeID node_id)
+    : nodeId_(node_id), isInitialized_(0), interface_(interface)
+{
+    StartInitializationFlow(this);
+}
+
+DefaultAsyncNode::~DefaultAsyncNode()
+{
+}
 
 } // namespace NMRAnet

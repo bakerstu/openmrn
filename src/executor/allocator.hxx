@@ -106,7 +106,9 @@ class TypedAllocator : public AllocatorBase {
   //! @param entry is the object to return.
   void TypedReleaseBack(T* entry) { ReleaseBack(entry); }
 
-  T* TypedAllocateOrNull() { return static_cast<T*>(AllocateOrNull()); }
+  T* TypedAllocateOrNull() { return cast_result(AllocateOrNull()); }
+
+  static T* cast_result(QueueMember* entry) { return static_cast<T*>(entry); }
 };
 
 //! Helper class that encapsulates a call to an allocator, which blocks the

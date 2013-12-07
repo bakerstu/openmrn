@@ -258,6 +258,16 @@ private:
         return (Priority)((can_id & PRIORITY_MASK) >> PRIORITY_SHIFT);
     }
 
+    /** Tests if the incoming frame is a CID frame.
+     * @param can_id identifier to act upon
+     * @return true for CID frame, false for any other frame.
+     */
+    static bool is_cid_frame(uint32_t can_id)
+    {
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x14) == 0x14;
+    }
+
+
     /** Set the MTI field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param mti MTI field value
@@ -373,11 +383,12 @@ private:
      */
     static void control_init(struct can_frame &frame, NodeAlias src, uint16_t field, int sequence)
     {
-        frame.can_id = (src      << CONTROL_SRC_SHIFT     ) +
-                       (field    << CONTROL_FIELD_SHIFT   ) +
-                       (sequence << CONTROL_SEQUENCE_SHIFT) +
-                       ((0)      << CONTROL_TYPE_SHIFT    ) +
-                       ((1)      << CONTROL_PRIORITY_SHIFT);
+        SET_CAN_FRAME_ID_EFF(frame,
+                             (src      << CONTROL_SRC_SHIFT     ) |
+                             (field    << CONTROL_FIELD_SHIFT   ) |
+                             (sequence << CONTROL_SEQUENCE_SHIFT) |
+                             ((0)      << CONTROL_TYPE_SHIFT    ) |
+                             ((1)      << CONTROL_PRIORITY_SHIFT));
         frame.can_dlc = 0;
     }
 
@@ -634,6 +645,11 @@ private:
         friend class IfCan;
     };
     
+    friend class AsyncAliasAllocator;
+    friend class CanMessageWriteFlow;
+    friend class AliasConflictHandler;
+    friend class FrameToGlobalMessageParser;
+
     /** file descriptor used for reading and writing data to and from physical
      * interface
      */

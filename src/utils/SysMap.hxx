@@ -168,6 +168,13 @@ public:
             return node->p;
         }
 
+        /** Overloaded pointer operator.
+         */
+        Pair* operator->() const
+        {
+            return &node->p;
+        }
+
         /** Overloaded pre-increement operator. */
         Iterator& operator ++ ()
         {

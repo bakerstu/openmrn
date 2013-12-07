@@ -50,6 +50,7 @@ class ControlFlow;
 class Executable : public QueueMember {
 public:
   virtual void Run() = 0;
+  virtual ~Executable() {}
 };
 
 

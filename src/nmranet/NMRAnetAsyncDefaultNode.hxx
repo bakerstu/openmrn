@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,18 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file NMRAnetAsyncDefaultNode.hxx
  *
- * Class for dispatching incoming messages to handlers.
+ * Default AsyncNode implementation for a fat virtual node.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 7 December 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#ifndef _NMRAnetAsyncDefaultNode_hxx_
+#define _NMRAnetAsyncDefaultNode_hxx_
+
+#include "nmranet/NMRAnetAsyncNode.hxx"
 
 namespace NMRAnet
 {
 
+class DefaultAsyncNode : public AsyncNode
+{
+public:
+    DefaultAsyncNode(AsyncIf* interface, NodeID node_id);
+    virtual ~DefaultAsyncNode();
+
+    virtual NodeID node_id()
+    {
+        return nodeId_;
+    }
+    virtual AsyncIf* interface()
+    {
+        return interface_;
+    }
+    virtual bool is_initialized()
+    {
+        return isInitialized_;
+    }
+
+    // Sets the initialized status to true.
+    void set_initialized() {
+        isInitialized_ = 1;
+    }
+
+private:
+    /** 48-bit node identifier of this node. */
+    NodeID nodeId_ : 48;
+    /** 1 if the node has reached initialized state. */
+    unsigned isInitialized_ : 1;
+    /** Interface this node is bound to. */
+    AsyncIf* interface_;
+};
 
 } // namespace NMRAnet
+
+#endif // _NMRAnetAsyncDefaultNode_hxx_
