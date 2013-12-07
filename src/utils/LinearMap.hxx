@@ -150,6 +150,13 @@ public:
             return m->list[index].p;
         }
 
+        /** Overloaded pointer operator.
+         */
+        Pair* operator->() const
+        {
+            return &m->list[index].p;
+        }
+
         /** Overloaded pre-increement operator. */
         Iterator& operator ++ ()
         {
