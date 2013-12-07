@@ -187,6 +187,11 @@ protected:
     *value = static_cast<T*>(sub_flow_.allocation_result);
   }
 
+  template<class T> T* GetTypedAllocationResult(TypedAllocator<T>* allocator) {
+    HASSERT(sub_flow_.allocation_result);
+    return allocator->cast_result(sub_flow_.allocation_result);
+  }
+
   struct SleepData {
     SleepData()
       : callback_count(0), timer_handle(NULL) {};
