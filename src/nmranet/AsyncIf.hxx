@@ -35,12 +35,16 @@
 #ifndef _NMRAnetAsyncIf_hxx_
 #define _NMRAnetAsyncIf_hxx_
 
-#include "nmranet/ReadDispatch.hxx"
+#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/ReadDispatch.hxx"
 #include "utils/BufferQueue.hxx"
+#include "utils/Map.hxx"
 
 namespace NMRAnet
 {
+
+class AsyncNode;
 
 struct IncomingMessage
 {
@@ -114,7 +118,9 @@ public:
     };
 
     AsyncIf(Executor* executor);
-    virtual ~AsyncIf() {}
+    virtual ~AsyncIf()
+    {
+    }
 
     /// @returns the dispatcher of incoming messages.
     MessageDispatchFlow* dispatcher()
@@ -125,13 +131,13 @@ public:
     /// @returns an allocator for sending global messages to the bus.
     TypedAllocator<WriteFlow>* global_write_allocator()
     {
-        return &globalWriteAllocator;
+        return &globalWriteAllocator_;
     }
 
     /// @returns an allocator for sending addressed messages to the bus.
     TypedAllocator<WriteFlow>* addressed_write_allocator()
     {
-        return &addressedWriteAllocator;
+        return &addressedWriteAllocator_;
     }
 
     /** Transfers ownership of a module to the interface. It will be brought
@@ -139,14 +145,59 @@ public:
      * before any supporting structures are deleted.  */
     virtual void add_owned_flow(Executable* e) = 0;
 
+    /** Registers a new local node on this interface. This function must be
+     * called from the interface's executor.
+     *
+     * @param node is the node to register.
+     */
+    void add_local_node(AsyncNode* node)
+    {
+        NodeID id = node->node_id();
+        HASSERT(localNodes_.find(id) == localNodes_.end());
+        localNodes_[id] = node;
+    }
+
+    /** Removes a local node from this interface. This function must be called
+     * from the interface's executor.
+     *
+     * @param node is the node to delete.
+     */
+    void delete_local_node(AsyncNode* node)
+    {
+        auto it = localNodes_.find(node->node_id());
+        HASSERT(it != localNodes_.end());
+        localNodes_.erase(it);
+    }
+
+    /** Looks up a node ID in the local nodes' registry. This function must be
+     * called from the interface's executor.
+     *
+     * @param id is the 48-bit NMRAnet node ID to look up.
+     * @returns the node pointer or NULL if the node is not registered.
+     */
+    AsyncNode* lookup_local_node(NodeID id)
+    {
+        auto it = localNodes_.find(id);
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    }
+
 private:
     /// Flow responsible for routing incoming messages to handlers.
     MessageDispatchFlow dispatcher_;
 
     /// Allocator containing the global write flows.
-    TypedAllocator<WriteFlow> globalWriteAllocator;
+    TypedAllocator<WriteFlow> globalWriteAllocator_;
     /// Allocator containing the addressed write flows.
-    TypedAllocator<WriteFlow> addressedWriteAllocator;
+    TypedAllocator<WriteFlow> addressedWriteAllocator_;
+
+    typedef Map<NodeID, AsyncNode*> VNodeMap;
+
+    /// Local virtual nodes registered on this interface.
+    VNodeMap localNodes_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIf);
 };
