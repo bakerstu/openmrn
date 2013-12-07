@@ -22,10 +22,10 @@ class GlobalEventFlow;
 
 struct GlobalEventMessage : public QueueMember {
  public:
-  uint64_t event;         //< payload (event or range or zero)
-  NodeHandle src_node;    //< sender of the message
-  If::MTI mti;            //< what message showed up
-  Node* dst_node;         //< for addressed messages or else nullptr.
+  uint64_t event;         ///< payload (event or range or zero)
+  NodeHandle src_node;    ///< sender of the message
+  If::MTI mti;            ///< what message showed up
+  Node* dst_node;         ///< for addressed messages or else nullptr.
  private:
   DISALLOW_COPY_AND_ASSIGN(GlobalEventMessage);
   // We only allow allocation of this object by the GlobalEventFlow class.
