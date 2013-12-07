@@ -111,6 +111,7 @@ private:
         }
         else
         {
+            LOG(INFO, "event message without payload");
             e->event = 0;
         }
         done_->Notify();
@@ -136,6 +137,7 @@ private:
 
 void AddEventHandlerToIf(AsyncIf* async_if)
 {
+    HASSERT(GlobalEventFlow::instance);
     async_if->add_owned_flow(new EventMessageHandler(async_if));
 }
 
