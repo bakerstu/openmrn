@@ -42,8 +42,7 @@ ARCHOPTIMIZATION = -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32  -D__32MX795F512H__ \
-	-D__PIC32_FEATURE_SET__=795 -D__FreeRTOS__
-
+	-D__PIC32_FEATURE_SET__=795 -D__FreeRTOS__ -D__STDC_VERSION__=199901L
 ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-identifiers -msoft-float -DTARGET_PIC32MX -march=mips32r2 $(INCLUDES)
 
 #           -march=armv7-m -mthumb -mfloat-abi=soft

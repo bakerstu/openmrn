@@ -103,7 +103,7 @@ private:
             if (m_->payload->used() != 8)
             {
                 LOG(INFO, "Invalid input event message, payload length %d",
-                    m_->payload->used());
+                    (unsigned)m_->payload->used());
                 // We continue with whetever we got.
             }
             memcpy(&e->event, m_->payload->start(), sizeof(uint64_t));
