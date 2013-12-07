@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetAsyncDefaultNode.cxx
+ * \file NMRAnetAsyncDefaultNode.hxx
  *
  * Default AsyncNode implementation for a fat virtual node.
  *
@@ -32,22 +32,56 @@
  * @date 7 December 2013
  */
 
-#include "utils/logging.h"
+#include "executor/control_flow.hxx"
+#include "nmranet/AsyncIf.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 
 namespace NMRAnet
 {
 
-extern void StartInitializationFlow(DefaultAsyncNode* node);
-
-DefaultAsyncNode::DefaultAsyncNode(AsyncIf* interface, NodeID node_id)
-    : nodeId_(node_id), isInitialized_(0), interface_(interface)
+namespace
 {
-    StartInitializationFlow(this);
-}
-
-DefaultAsyncNode::~DefaultAsyncNode()
+class InitializeFlow : public ControlFlow
 {
+public:
+    InitializeFlow(DefaultAsyncNode* node)
+        : ControlFlow(node->interface()->dispatcher()->executor(), nullptr),
+          node_(node)
+    {
+        StartFlowAt(ST(handle_start));
+    }
+
+private:
+    ControlFlowAction handle_start()
+    {
+        return Allocate(node_->interface()->global_write_allocator(),
+                        ST(send_initialized));
+    }
+
+    ControlFlowAction send_initialized()
+    {
+        WriteFlow* flow = GetTypedAllocationResult(
+            node_->interface()->global_write_allocator());
+        NodeID id = node_->node_id();
+        flow->WriteGlobalMessage(If::MTI_INITIALIZATION_COMPLETE, id,
+                                 node_id_to_buffer(id), this);
+        return WaitAndCall(ST(initialization_complete));
+    }
+
+    ControlFlowAction initialization_complete()
+    {
+        node_->set_initialized();
+        return Exit(); // will delete *this.
+    }
+
+    DefaultAsyncNode* node_;
+};
+
+} // namespace
+
+void StartInitializationFlow(DefaultAsyncNode* node)
+{
+    new InitializeFlow(node);
 }
 
 } // namespace NMRAnet

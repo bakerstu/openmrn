@@ -59,6 +59,11 @@ public:
         return isInitialized_;
     }
 
+    // Sets the initialized status to true.
+    void set_initialized() {
+        isInitialized_ = 1;
+    }
+
 private:
     /** 48-bit node identifier of this node. */
     NodeID nodeId_ : 48;
