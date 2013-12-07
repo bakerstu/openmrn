@@ -45,6 +45,7 @@
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 
@@ -60,16 +61,20 @@ extern "C" {
 const size_t WRITE_FLOW_THREAD_STACK_SIZE = 2000;
 }
 
-NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 2, 10);
+NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 10, 10);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 10);
+
+static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
 
 class BlinkerFlow : public ControlFlow
 {
 public:
     BlinkerFlow(NMRAnet::AsyncNode* node)
         : ControlFlow(node->interface()->dispatcher()->executor(), nullptr),
-          state_(true)
+          state_(1),
+          bit_(node, EVENT_ID, EVENT_ID + 1, &state_, (uint8_t)1),
+          producer_(&bit_)
     {
         StartFlowAt(ST(blinker));
     }
@@ -77,13 +82,50 @@ public:
 private:
     ControlFlowAction blinker()
     {
-        LOG(INFO, "blink %d", state_);
+        LOG(INFO, "blink produce %d", state_);
         state_ = !state_;
+        producer_.Update(&helper_, this);
+        return WaitAndCall(ST(handle_sleep));
+    }
+
+    ControlFlowAction handle_sleep()
+    {
         return Sleep(&sleepData_, MSEC_TO_NSEC(1000), ST(blinker));
     }
 
-    bool state_;
+    uint8_t state_;
+    NMRAnet::MemoryBit<uint8_t> bit_;
+    NMRAnet::BitEventProducer producer_;
+    NMRAnet::WriteHelper helper_;
     SleepData sleepData_;
+};
+
+class LoggingBit : public NMRAnet::BitEventInterface
+{
+public:
+    LoggingBit(uint64_t event_on, uint64_t event_off, const char* name)
+        : BitEventInterface(event_on, event_off), name_(name), state_(false)
+    {
+    }
+
+    virtual bool GetCurrentState()
+    {
+        return state_;
+    }
+    virtual void SetState(bool new_value)
+    {
+        state_ = new_value;
+        LOG(INFO, "bit %s set to %d", name_, state_);
+    }
+
+    virtual NMRAnet::AsyncNode* node()
+    {
+        return &g_node;
+    }
+
+private:
+    const char* name_;
+    bool state_;
 };
 
 /** Entry point to application.
@@ -93,10 +135,13 @@ private:
  */
 int appl_main(int argc, char* argv[])
 {
+    LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     BlinkerFlow blinker(&g_node);
-    g_if_can.AddWriteFlows(1, 1);
+    g_if_can.AddWriteFlows(2, 2);
     g_if_can.set_alias_allocator(
         new NMRAnet::AsyncAliasAllocator(NODE_ID, &g_if_can));
+    NMRAnet::AliasInfo info;
+    g_if_can.alias_allocator()->empty_aliases()->Release(&info);
     NMRAnet::AddEventHandlerToIf(&g_if_can);
     g_executor.ThreadBody();
     return 0;
