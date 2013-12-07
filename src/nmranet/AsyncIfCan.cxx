@@ -532,6 +532,7 @@ public:
         {
             buf_ = buffer_alloc(f->can_dlc);
             memcpy(buf_->start(), f->data, f->can_dlc);
+            buf_->advance(f->can_dlc);
         }
         else
         {

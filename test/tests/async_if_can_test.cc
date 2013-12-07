@@ -187,6 +187,7 @@ public:
 MATCHER_P(IsBufferValue, id, "")
 {
     uint64_t value = htobe64(id);
+    if (arg->used() != 8) return false;
     if (memcmp(&value, arg->start(), 8)) return false;
     return true;
 }

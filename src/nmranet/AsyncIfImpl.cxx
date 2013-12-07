@@ -69,6 +69,7 @@ ControlFlow::ControlFlowAction WriteFlowBase::unaddressed_with_local_dispatcher(
     if (data_) {
         Buffer* copy = buffer_alloc(data_->used());
         memcpy(copy->start(), data_->start(), data_->used());
+        copy->advance(data_->used());
         dispatcher->mutable_params()->payload = copy;
     }
     dispatcher->IncomingMessage(mti_);
