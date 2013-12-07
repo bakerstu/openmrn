@@ -19,7 +19,8 @@
  *   - @ref timer_thread
  *   - @ref idle_thread
  *   - @ref additional_threads
- * - @ref coding_style
+ * - @ref hub_router_gateway
+ * - @ref coding_guidelines
  *
  * @section intro_section Introduction
  * OpenMRN is a networking stack specifically designed for use in model
@@ -229,7 +230,12 @@
  * An application may instantiate additional threads of its own using the
  * threading API defined in os.h and OS.hxx.
  *
- * @section coding_style Coding Style
+ * @section hub_router_gateway Hubs, Routers, and Gateways
+ * OpenMRN is designed to implement Hubs, Routers, and Gateways that can be
+ * used to logically connect separate physical communications interfaces.  More
+ * details can be found on the @ref hub_router_gateway_page page.
+ *
+ * @section coding_guidelines Coding Guidelines
  * OpenMRN source code adheres to very strict coding guidelines.  The
  * guidelines can be found in the @ref style_guide.
  */

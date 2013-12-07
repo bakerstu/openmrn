@@ -215,9 +215,8 @@ void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *cont
 {
     HASSERT(callback != NULL);
 
-    for (AliasMap::Iterator it = aliasMap.begin(); it != aliasMap.end(); ++it)
+    for (Metadata *metadata = newest; metadata != NULL; metadata = metadata->older)
     {
-        Metadata *metadata = (*it).second;
         (*callback)(context, metadata->id, metadata->alias);
     }
 }
