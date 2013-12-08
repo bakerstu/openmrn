@@ -44,6 +44,7 @@ using std::vector;
 #include "os/OS.hxx"
 #include "executor/allocator.hxx"
 #include "executor/notifiable.hxx"
+#include "nmranet/ReadDispatch.hxx"
 
 struct devops;
 typedef struct devops devops_t;
@@ -54,15 +55,15 @@ class PipeMember;
 class Notifiable;
 
 //! A packet of data to be written to the pipe device.
-struct PipeBuffer {
+struct PipeBuffer : public QueueMember {
     // The data to write.
     const void* data;
     // Number of bytes to write.
     size_t size;
     // Pipe member to skip during this write.
     PipeMember* skipMember;
-    /** This notifiable shall be reset by the caller before doing Send(). */
-    BarrierNotifiable barrier;
+    // Notifies the caller when the buffer is no longer needed.
+    Notifiable* done;
 };
 
 /** A generalized pipe that allows connecting an arbitrary number of
@@ -231,7 +232,7 @@ private:
 
    Various different pipe receivers will implement this interface.
  */
-class PipeMember
+class PipeMember : public NMRAnet::HandlerBase
 {
 public:
     virtual ~PipeMember()
@@ -253,7 +254,7 @@ public:
     */
     virtual void write(const void* buf, size_t count) = 0;
 
-    virtual void async_write(const void* buf, size_t count, Notifiable* done) = 0;
+    virtual void async_write(const void* buf, size_t count, Notifiable* done) {};
 };
 
 //! Private data structure for pipe file nodes (aka virtual device nodes).
