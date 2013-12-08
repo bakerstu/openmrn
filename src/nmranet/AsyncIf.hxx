@@ -121,12 +121,13 @@ public:
         {
         }
 
-        virtual void OnFlowFinished()
+        virtual bool OnFlowFinished()
         {
             if (params_.payload)
             {
                 params_.payload->free();
             }
+            return true;
         }
     };
 

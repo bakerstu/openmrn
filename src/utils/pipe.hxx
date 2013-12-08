@@ -42,6 +42,8 @@ using std::vector;
 //#include "devtab.h"
 #include "os/os.h"
 #include "os/OS.hxx"
+#include "executor/allocator.hxx"
+#include "executor/notifiable.hxx"
 
 struct devops;
 typedef struct devops devops_t;
@@ -49,6 +51,19 @@ struct devtab;
 typedef struct devtab devtab_t;
 
 class PipeMember;
+class Notifiable;
+
+//! A packet of data to be written to the pipe device.
+struct PipeBuffer {
+    // The data to write.
+    const void* data;
+    // Number of bytes to write.
+    size_t size;
+    // Pipe member to skip during this write.
+    PipeMember* skipMember;
+    /** This notifiable shall be reset by the caller before doing Send(). */
+    BarrierNotifiable barrier;
+};
 
 /** A generalized pipe that allows connecting an arbitrary number of
    endpoints.
@@ -133,6 +148,9 @@ class Pipe
 public:    
     Pipe(size_t unit);
     ~Pipe();
+
+    TypedAllocator<PipeBuffer>* allocator();
+    void SendBuffer(PipeBuffer* buf);
 
     //! Writes some data to all receivers of the pipe, except the one denoted
     //! by "skip_member".
@@ -234,6 +252,8 @@ public:
     multiple sources being interleaved.
     */
     virtual void write(const void* buf, size_t count) = 0;
+
+    virtual void async_write(const void* buf, size_t count, Notifiable* done) = 0;
 };
 
 //! Private data structure for pipe file nodes (aka virtual device nodes).

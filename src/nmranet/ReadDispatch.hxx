@@ -160,8 +160,12 @@ protected:
        This function will be called when the flow and all children are
        done. Useful for implementations to release memory and buffers
        associated with the current parameters.
+
+       @returns true if the flow instance should be returned to the
+       allocator. If returns false, must take care of changing the flow to a
+       different state.
      */
-    virtual void OnFlowFinished() {};
+    virtual bool OnFlowFinished() { return true; };
 
 private:
     // State handler. Calls the current handler.
@@ -384,9 +388,13 @@ ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleWaitForChildren()
 {
     if (children_.IsDone())
     {
-        OnFlowFinished();
-        // terminate flow.
-        return ReleaseAndExit(&allocator_, this);
+        if (OnFlowFinished()) {
+            // terminate flow.
+            return ReleaseAndExit(&allocator_, this);
+        } else {
+            // The termination was taken care of by OnFlowFinished. 
+            return WaitForNotification();
+        }
     }
     else
     {
