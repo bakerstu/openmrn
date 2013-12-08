@@ -59,6 +59,11 @@ static const NMRAnet::NodeID NODE_ID = 0x050101011441ULL;
 
 extern "C" {
 const size_t WRITE_FLOW_THREAD_STACK_SIZE = 2000;
+extern const size_t CAN_TX_BUFFER_SIZE;
+extern const size_t CAN_RX_BUFFER_SIZE;
+const size_t CAN_RX_BUFFER_SIZE = 1;
+const size_t CAN_TX_BUFFER_SIZE = 8;
+const size_t main_stack_size = 900;
 }
 
 NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 10, 10);
@@ -66,6 +71,28 @@ NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 10);
 
 static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
+const int main_priority = 0;
+
+extern "C" {
+
+#ifdef __FreeRTOS__ //TARGET_LPC11Cxx
+  // This gets rid of about 50 kbytes of flash code that is unnecessarily
+  // linked into the binary.
+void __wrap___cxa_pure_virtual(void) {
+  abort();
+}
+
+  // This removes 400 bytes of memory allocated at startup for the atexit
+  // structure.
+int __wrap___cxa_atexit(void) {
+  return 0;
+}
+
+#endif
+  
+}
+
+
 
 class BlinkerFlow : public ControlFlow
 {
@@ -82,7 +109,9 @@ public:
 private:
     ControlFlowAction blinker()
     {
+#ifdef __linux__
         LOG(INFO, "blink produce %d", state_);
+#endif
         state_ = !state_;
         producer_.Update(&helper_, this);
         return WaitAndCall(ST(handle_sleep));
@@ -115,7 +144,9 @@ public:
     virtual void SetState(bool new_value)
     {
         state_ = new_value;
+#ifdef __linux__
         LOG(INFO, "bit %s set to %d", name_, state_);
+#endif
     }
 
     virtual NMRAnet::AsyncNode* node()
