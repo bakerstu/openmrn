@@ -20,8 +20,12 @@ extern char logbuffer[256];
 
 
 #ifndef LOGLEVEL
+#ifdef __FreeRTOS__
+#define LOGLEVEL FATAL
+#else
 #define LOGLEVEL INFO
-#endif
+#endif  // not FreeRTOS
+#endif  // ifndef LOGLEVEL
 
 #ifdef __cplusplus
 extern "C" {
