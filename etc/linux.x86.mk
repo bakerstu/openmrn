@@ -22,7 +22,8 @@ CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -m32 -fno-stack-prot
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 
-CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS #-D__LINEAR_MAP__
+CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
+           -D__STDC_LIMIT_MACROS #-D__LINEAR_MAP__
 
 LDFLAGS = -g -m32 -pg
 SYSLIBRARIES = -lrt -lpthread
