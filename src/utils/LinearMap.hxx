@@ -69,18 +69,8 @@ public:
      */
     ~LinearMap()
     {
-        /* We should never get here */
-        HASSERT(0);
+        delete list;
     }
-
-#if 0
-    /** mimic std::pair */
-    struct Pair
-    {
-        Key first; /**< mimic first element in an std::pair */
-        Value second; /**< mimic second element in an std::pair */
-    };
-#endif
 
     /** list entry. */
     struct Pair
@@ -145,20 +135,20 @@ public:
         
         /** Overloaded reference operator.
          */
-        Pair& operator*() const
+        Pair &operator*() const
         {
             return m->list[index].p;
         }
 
         /** Overloaded pointer operator.
          */
-        Pair* operator->() const
+        Pair *operator->() const
         {
             return &m->list[index].p;
         }
 
         /** Overloaded pre-increement operator. */
-        Iterator& operator ++ ()
+        Iterator &operator ++ ()
         {
             if (index >= 0)
             {
@@ -232,7 +222,7 @@ public:
      * @param key key to lookup
      * @return value of the key by reference
      */
-    Value& operator[](const Key &key)
+    Value &operator[](const Key &key)
     {
         for (size_t i = 0; i < used; ++i)
         {
@@ -270,7 +260,7 @@ public:
      * @param key key to search for
      * @return Iterator index pointing to key, else Iterator end() if not found
      */
-    Iterator find( const Key &key )
+    Iterator find(const Key &key)
     {
         for (size_t i = 0; i < used; ++i)
         {

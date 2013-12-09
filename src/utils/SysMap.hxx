@@ -49,7 +49,8 @@ public:
     SysMap()
         : entries(0),
           used(0),
-          freeList(NULL)
+          freeList(NULL),
+          nodes(NULL)
 
     {
         RB_INIT(&head);
@@ -61,25 +62,24 @@ public:
     SysMap(size_t entries) 
         : entries(entries),
           used(0),
-          freeList(NULL)
+          freeList(NULL),
+          nodes(new Node[entries])
     {
         RB_INIT(&head);
-        Node *first = new Node[entries];
-        first->entry.rbe_left = (Node*)this;
+        nodes->entry.rbe_left = NULL;
         
-        for (size_t i = 1; i < entries; i++)
+        for (size_t i = 1; i < entries; ++i)
         {
-            first[i].entry.rbe_left = freeList;
-            freeList = first + i;
+            nodes[i].entry.rbe_left = nodes + (i - 1);
         }
+        freeList = nodes + (entries - 1);
     }
 
     /** Destructor.
      */
     ~SysMap()
     {
-        /* We should never get here */
-        /*  why?? HASSERT(0); */
+        delete nodes;
     }
     
     /** mimic std::pair */
@@ -94,8 +94,17 @@ private:
     class Node
     {
     public:
+#if 1
         RB_ENTRY(Node) entry;
-
+#else
+        struct
+        {
+            Node *rbe_left;
+            Node *rbe_right;
+            Node *rbe_parent;
+            int rbe_color;
+        } entry;
+#endif
         union
         {
             Pair p; /**< pair of element */
@@ -163,20 +172,20 @@ public:
         
         /** Overloaded reference operator.
          */
-        Pair& operator*() const
+        Pair &operator*() const
         {
             return node->p;
         }
 
         /** Overloaded pointer operator.
          */
-        Pair* operator->() const
+        Pair *operator->() const
         {
             return &node->p;
         }
 
         /** Overloaded pre-increement operator. */
-        Iterator& operator ++ ()
+        Iterator &operator ++ ()
         {
             if (node)
             {
@@ -212,7 +221,7 @@ public:
      * @param key key to lookup
      * @return value of the key by reference
      */
-    Value& operator[](const Key &key)
+    Value &operator[](const Key &key)
     {
         Iterator it = find(key);
         if (it == end())
@@ -220,7 +229,7 @@ public:
             Node *node = alloc();
             HASSERT(node);
             node->key = key;
-            node->value = 0;
+            node->value = (Value)0;
             HASSERT(RB_INSERT(tree, &head, node) == NULL);
             it = Iterator(this, node);
         }
@@ -247,7 +256,7 @@ public:
      * @param key key to search for
      * @return iterator index pointing to key, else iterator end() if not found
      */
-    Iterator find( const Key &key )
+    Iterator find(const Key &key)
     {
         Node lookup;
         lookup.key = key;
@@ -313,14 +322,26 @@ private:
      */
     Node *alloc()
     {
-        if (freeList && freeList != (Node*)this)
+        if (nodes)
         {
-            Node *node = freeList;
-            freeList = freeList->entry.rbe_left;
+            if (freeList != NULL)
+            {
+                Node *node = freeList;
+                freeList = freeList->entry.rbe_left;
+                memset(node, 0, sizeof(Node));
+                ++used;
+                return node;
+            }
+            return NULL;
+        }
+        else
+        {
+            Node *node = new Node;
+            memset(node, 0, sizeof(Node));
             ++used;
             return node;
         }
-        return NULL;
+
     }
     
     /** free a node to the free list if it exists.
@@ -328,22 +349,40 @@ private:
      */
     void free(Node *node)
     {
-        if (freeList || freeList == (Node*)this)
+        if (nodes)
         {
             node->entry.rbe_left = freeList;
             freeList = node;
             --used;
         }
+        else
+        {
+            --used;
+            delete node;
+        }
     }
 
-    /** Compare two nodes.
+    /** Compare two nodes.  They type is the largest signed type we know.  This
+     * is because sys/tree.h only works with signed results on a compare.
      * @param a first of two nodes to compare
      * @param b second of two nodes to compare
      * @return difference between node keys (a->key - b->key)
      */
-    Key compare(Node *a, Node *b)
+    int64_t compare(Node *a, Node *b)
     {
-        return a->key - b->key;
+        union comp
+        {
+            int64_t s;
+            Key     k;
+        };
+        
+        comp ca, cb;
+        ca.s = 0;
+        cb.s = 0;
+        ca.k = a->key;
+        cb.k = b->key;
+        
+        return ca.s - cb.s;
     }
 
     /** total number of entries for this instance */
@@ -354,6 +393,9 @@ private:
 
     /** list of free nodes */
     Node *freeList;
+    
+    /** location of pre-allocated Node memory */
+    Node *nodes;
 
     /** The datagram tree type. */
     RB_HEAD(tree, Node);
