@@ -65,6 +65,7 @@ public:
           freeList(NULL),
           nodes(new Node[entries])
     {
+        HASSERT(entries != 0);
         RB_INIT(&head);
         nodes->entry.rbe_left = NULL;
         
@@ -94,17 +95,7 @@ private:
     class Node
     {
     public:
-#if 1
         RB_ENTRY(Node) entry;
-#else
-        struct
-        {
-            Node *rbe_left;
-            Node *rbe_right;
-            Node *rbe_parent;
-            int rbe_color;
-        } entry;
-#endif
         union
         {
             Pair p; /**< pair of element */
@@ -118,16 +109,6 @@ private:
         /** Default constructor.  Does not initialize key or value.
          */
         Node()
-        {
-        }
-        
-        /** Constructor.
-         * @param key initial value of key
-         * @param value initial value of value
-         */
-        Node(Key key, Value value)
-            : key(key),
-              value(value)
         {
         }
     };
@@ -195,13 +176,13 @@ public:
         }
 
         /** Overloaded not equals operator. */
-        bool operator != (const Iterator& it)
+        bool operator != (const Iterator &it)
         {
             return node != it.node;
         }
 
         /** Overloaded equals operator. */
-        bool operator == (const Iterator& it)
+        bool operator == (const Iterator &it)
         {
             return node == it.node;
         }
@@ -249,7 +230,7 @@ public:
      */
     size_t max_size()
     {
-        return entries;
+        return entries ? entries : UINTPTR_MAX / sizeof(Pair);
     }
     
     /** Find an element matching the given key.
