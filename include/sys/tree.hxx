@@ -595,7 +595,7 @@ name##_RB_INSERT(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp;						\
 	struct type *parent = NULL;					\
-	int comp = 0;							\
+	int64_t comp = 0;							\
 	tmp = RB_ROOT(head);						\
 	while (tmp) {							\
 		parent = tmp;						\
