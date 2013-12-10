@@ -232,7 +232,7 @@ private:
 
    Various different pipe receivers will implement this interface.
  */
-class PipeMember : public NMRAnet::HandlerBase
+class PipeMember : public HandlerBase
 {
 public:
     virtual ~PipeMember()
