@@ -98,7 +98,7 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1));
         if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
