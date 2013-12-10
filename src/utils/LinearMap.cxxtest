@@ -34,7 +34,7 @@
 #include "gtest/gtest.h"
 #include "utils/LinearMap.hxx"
 
-TEST(MapTest, linearmap_constructor)
+TEST(LinearMapTest, linearmap_constructor)
 {
     LinearMap<uint16_t, uint16_t> map(4);
     
@@ -42,7 +42,7 @@ TEST(MapTest, linearmap_constructor)
     EXPECT_TRUE(map.max_size() == 4);
 }
 
-TEST(MapTest, linearmap_manip)
+TEST(LinearMapTest, linearmap_manip)
 {
     LinearMap<uint16_t, uint16_t> map(4);
     
@@ -98,14 +98,11 @@ TEST(MapTest, linearmap_manip)
 
     it = map.find(199);
     EXPECT_TRUE(it == map.end());
-    EXPECT_TRUE(map.erase(199) == 0);
-    EXPECT_TRUE(map.size() == 3);
-
-    map.erase(map.end());
-    EXPECT_TRUE(map.size() == 3);
 
     it = map.find(100);
+    EXPECT_TRUE(it != map.end());
     map.erase(it);
+    
     EXPECT_TRUE(map.size() == 2);
     it = map.find(100);
     EXPECT_TRUE(it == map.end());

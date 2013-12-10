@@ -152,7 +152,11 @@ public:
         {
             if (index >= 0)
             {
-                ++index;
+                if (++index >= (ssize_t)m->used)
+                {
+                    index = -1;
+                    m = NULL;
+                }
             }
             return *this;
         }
@@ -171,7 +175,7 @@ public:
 
     private:
         /** index this iteration is currently indexed to */
-        size_t index;
+        ssize_t index;
         
         /** Context this iteration lives in */
         LinearMap *m;
@@ -208,7 +212,8 @@ public:
     void erase(Iterator it)
     {
         ssize_t i = it.index;
-        HASSERT(i < (ssize_t)used && i > 0);
+        HASSERT(i < (ssize_t)used);
+        HASSERT(i >= 0);
 
         /* scrunch up the list if we are able */
         if (i != (ssize_t)--used)
