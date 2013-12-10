@@ -58,17 +58,17 @@ Executor g_executor;
 static const NMRAnet::NodeID NODE_ID = 0x050101011441ULL;
 
 extern "C" {
-const size_t WRITE_FLOW_THREAD_STACK_SIZE = 2000;
+const size_t WRITE_FLOW_THREAD_STACK_SIZE = 900;
 extern const size_t CAN_TX_BUFFER_SIZE;
 extern const size_t CAN_RX_BUFFER_SIZE;
 const size_t CAN_RX_BUFFER_SIZE = 1;
-const size_t CAN_TX_BUFFER_SIZE = 8;
+const size_t CAN_TX_BUFFER_SIZE = 2;
 const size_t main_stack_size = 900;
 }
 
-NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 10, 10);
+NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 3, 3, 2);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
-NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 10);
+NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 4);
 
 static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
 const int main_priority = 0;
@@ -92,7 +92,9 @@ int __wrap___cxa_atexit(void) {
   
 }
 
-
+Executor* DefaultWriteFlowExecutor() {
+    return &g_executor;
+}
 
 class BlinkerFlow : public ControlFlow
 {
@@ -109,10 +111,10 @@ public:
 private:
     ControlFlowAction blinker()
     {
+        state_ = !state_;
 #ifdef __linux__
         LOG(INFO, "blink produce %d", state_);
 #endif
-        state_ = !state_;
         producer_.Update(&helper_, this);
         return WaitAndCall(ST(handle_sleep));
     }
@@ -129,6 +131,8 @@ private:
     SleepData sleepData_;
 };
 
+extern "C" { void resetblink(uint32_t pattern); }
+
 class LoggingBit : public NMRAnet::BitEventInterface
 {
 public:
@@ -144,8 +148,11 @@ public:
     virtual void SetState(bool new_value)
     {
         state_ = new_value;
+        //HASSERT(0);
 #ifdef __linux__
         LOG(INFO, "bit %s set to %d", name_, state_);
+#else
+        resetblink(state_ ? 1 : 0);
 #endif
     }
 
@@ -167,8 +174,9 @@ private:
 int appl_main(int argc, char* argv[])
 {
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
+    NMRAnet::BitEventConsumer consumer(&logger);
     BlinkerFlow blinker(&g_node);
-    g_if_can.AddWriteFlows(2, 2);
+    g_if_can.AddWriteFlows(1, 1);
     g_if_can.set_alias_allocator(
         new NMRAnet::AsyncAliasAllocator(NODE_ID, &g_if_can));
     NMRAnet::AliasInfo info;
