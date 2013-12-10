@@ -28,6 +28,9 @@
 //
 //*****************************************************************************
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "LPC11xx.h"
 #include "core_cm0.h"
 #include "FreeRTOSConfig.h"
@@ -49,11 +52,14 @@
 // The entry point for the C++ library startup
 //
 //*****************************************************************************
-extern "C" {
+#endif
+#endif
+
+//extern "C" {
     extern void __libc_init_array(void);
-}
-#endif
-#endif
+//}
+void raw_hw_init(void);
+
 
 #define WEAK __attribute__ ((weak))
 #define ALIAS(f) __attribute__ ((weak, alias (#f)))
@@ -322,12 +328,13 @@ ResetISR(void) {
     SystemInit();
 #endif
 
-#if defined (__cplusplus)
+    raw_hw_init();
+    //#if defined (__cplusplus)
     //
     // Call C++ library initialisation
     //
     __libc_init_array();
-#endif
+    //#endif
 
 #if defined (__REDLIB__)
     // Call the Redlib library, which in turn calls main()
@@ -436,7 +443,29 @@ void diewith(uint32_t pattern)
     }
 }
 
-void hw_init(void)
+extern void modules_init(void);
+void modules_init(void) __attribute__((weak));
+void modules_init(void) {}
+extern uint32_t *heap_end;  // Used from sbrk_r implementation.
+
+void hw_idle_hook(void)
+{
+  // We check that the main stack has not yet reached the top of heap.
+  if (*heap_end != 0xdbdbdbdb) {
+    diewith(BLINK_DIE_STACKOVERFLOW);
+  }
+}
+
+void appl_hw_init(void) {
+  // Re-initializes the top of heap space with debug bytes.
+  for (uint32_t* d = heap_end; d < &__end_ram; ++d)
+  {
+    *d = 0xdbdbdbdb;
+  }
+}
+
+
+void raw_hw_init(void)
 {
     /* Enable AHB clock to the GPIO domain. */
     LPC_SYSCON->SYSAHBCLKCTRL |= (1<<6);
@@ -447,4 +476,23 @@ void hw_init(void)
     __enable_irq();
 
     setblink(0x8000000A);
+}
+
+void hw_init(void)
+{
+    modules_init();
+}
+
+
+extern char __impure_data_size;
+
+struct _reent* allocate_reent(void)
+{
+  int reent_size = (int) &__impure_data_size;
+  struct _reent *data = malloc(reent_size);
+  // This is not particularly safe, but a good approximation of how reent is
+  // initialized. Unfortunately newlib-nano does not have an appropriate reent
+  // header.
+  memset(data, 0, reent_size);
+  return data;
 }

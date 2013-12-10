@@ -18,6 +18,8 @@ MEMORY
   /* Define each memory region */
   MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x18000  /*32k */
   /*MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x10000 /* 64k TEMPORARY */
+  /* Top 32 bytes is used by the flash writing firmware. 0x50..0xb8 by the ROM CAN drivers. 0 to 0x50 is used by the */
+
   RamLoc8 (rwx) : ORIGIN = 0x10000100, LENGTH = 0x1ee0 /* 7k */
 
 }
@@ -135,6 +137,9 @@ SECTIONS
         FILL(0xff)
         _data = .;
         *(vtable)
+	__impure_data_start = .;
+	*(.data.impure_data)
+	__impure_data_end = .;
         *(.data*)
 
 	/* this magic is needed for the device tables of openMRN */
@@ -170,5 +175,9 @@ SECTIONS
     PROVIDE(_pvHeapStart = .);
     PROVIDE(__cs3_heap_start = .);
     /* This pointer will be written to the SP register at reset. */
-    PROVIDE(_vStackTop = __top_RamLoc8 - 32);
+    PROVIDE(_vStackTop = __top_RamLoc8);
+
+    PROVIDE(__impure_data_size = __impure_data_end - __impure_data_start);
+
 }
+
