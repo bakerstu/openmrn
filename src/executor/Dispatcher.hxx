@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
+ * \file Dispatcher.hxx
  *
  * Class for dispatching incoming messages to handlers.
  *
@@ -32,8 +32,8 @@
  * @date 2 Dec 2013
  */
 
-#ifndef _NMRAnetReadDispatch_hxx_
-#define _NMRAnetReadDispatch_hxx_
+#ifndef _executor_Dispatcher_hxx_
+#define _executor_Dispatcher_hxx_
 
 #include <vector>
 
@@ -42,9 +42,6 @@
 #include "executor/control_flow.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetNode.hxx"
-
-namespace NMRAnet
-{
 
 /**
    Abstract class for handling an incoming message of a specifc MTI in NMRAnet.
@@ -88,16 +85,6 @@ public:
     virtual void handle_message(Param* message, Notifiable* done) = 0;
 };
 
-struct MtiParams
-{
-    If::MTI mti;          //< MTI of the incoming message.
-    NodeHandle dst;       //< destination node, or {0,0} for global.
-    Node* dst_node;       //< destination node pointer, or NULL for global.
-    const Buffer* buffer; //< message payload.
-};
-
-typedef ParamHandler<MtiParams> MtiHandler;
-
 /**
    This class takes registered handlers for incoming messages. When a message
    shows up, all the handlers that match that message will be invoked. When all
@@ -111,7 +98,7 @@ typedef ParamHandler<MtiParams> MtiHandler;
    This flow is attached to a TypedAllocator owned by the If. The flow will
    return itself to the allocator automatically.
  */
-template <typename ID> class DispatchFlow : public ControlFlow, public Lockable
+template <typename ID> class DispatchFlow : public ControlFlow
 {
 public:
     DispatchFlow(Executor* executor);
@@ -402,6 +389,4 @@ ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleWaitForChildren()
     }
 }
 
-} // namespace NMRAnet
-
-#endif // _NMRAnetReadDispatch_hxx_
+#endif // _executor_Dispatcher_hxx_
