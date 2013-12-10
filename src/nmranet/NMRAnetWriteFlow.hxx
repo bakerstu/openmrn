@@ -132,9 +132,9 @@ private:
         HASSERT(0);
     }
 
-    AsyncNode* node_;
-    If::MTI mti_;
     NodeHandle dst_;
+    If::MTI mti_;
+    AsyncNode* node_;
     Buffer* buffer_;
     Notifiable* done_;
 };
