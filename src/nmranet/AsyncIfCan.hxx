@@ -129,13 +129,21 @@ public:
      * @param executor will be used to process incoming (and outgoing) messages.
      *
      * @param device is a Pipe. The interface will add a member to this pipe to
-     * handle incoming and outgoing traffic. The caller should add the necessary
-     * hardware device, GridConnect bridge or mock interface to this pipe
-     *(before
-     * this call or else outgoing packets might be lost).
+     * handle incoming and outgoing traffic. The caller should add the
+     * necessary hardware device, GridConnect bridge or mock interface to this
+     * pipe (before this call or else outgoing packets might be lost).
+     *
+     * @param local_alias_cache_size tells the number of aliases to keep track
+     * of for nocal virtual nodes and proxied nodes.
+     *
+     * @param remote_alias_cache_size tells the number of aliases to keep track
+     * of for remote nodes on the bus.
+     *
+     * @param hw_write_flow_count tells how many concurrent write flows (each
+     * with one CAN frame) should we have.
      */
     AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
-               int remote_alias_cache_size);
+               int remote_alias_cache_size, int hw_write_flow_count);
 
     ~AsyncIfCan();
 

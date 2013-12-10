@@ -576,7 +576,7 @@ private:
 };
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
-                       int local_alias_cache_size, int remote_alias_cache_size)
+                       int local_alias_cache_size, int remote_alias_cache_size, int hw_write_flow_count)
     : AsyncIf(executor),
       frame_dispatcher_(executor),
       pipe_member_(device),
@@ -587,7 +587,7 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     HASSERT(device->unit() == sizeof(struct can_frame));
     owned_flows_.push_back(
         std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < hw_write_flow_count; ++i)
     {
         owned_flows_.push_back(std::unique_ptr<ControlFlow>(
             new CanWriteFlow(this, DefaultWriteFlowExecutor())));
