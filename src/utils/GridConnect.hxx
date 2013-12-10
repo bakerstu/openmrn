@@ -39,6 +39,7 @@
 #include <cstdint>
 
 #include "nmranet_can.h"
+#include "utils/macros.h"
 
 /** This class provides a means to write CAN data to an a file descriptor in
  * Grid Connect format.
@@ -47,12 +48,17 @@ class GridConnect
 {
 protected:
     /** Constructor.
-     * @param
      */
     GridConnect()
     {
     }
 
+    /** Destructor.
+     */
+    ~GridConnect()
+    {
+    }
+    
     /** Write a CAN packet to Grid Connect interface in single format.
      * @param fd file descriptor for device
      * @param data can data to write
@@ -168,6 +174,7 @@ private:
         return result;
     }
 
+    DISALLOW_COPY_AND_ASSIGN(GridConnect);
 };
 
 #endif /* _GridConnect_hxx_ */
