@@ -70,7 +70,8 @@ public:
     ~LinearMap()
     {
         /* We should never get here */
-        HASSERT(0);
+        //HASSERT(0);
+        delete [] list;
     }
 
 #if 0
@@ -218,7 +219,7 @@ public:
     void erase(Iterator it)
     {
         ssize_t i = it.index;
-        HASSERT(i < (ssize_t)used && i > 0);
+        HASSERT(i < (ssize_t)used && i >= 0);
 
         /* scrunch up the list if we are able */
         if (i != (ssize_t)--used)
