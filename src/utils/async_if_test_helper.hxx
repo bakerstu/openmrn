@@ -41,7 +41,9 @@ static void InvokeNotification(Notifiable* done)
 
 void (*g_invoke)(Notifiable*) = &InvokeNotification;
 
-DEFINE_PIPE(gc_pipe0, &g_executor, 1);
+ThreadExecutor g_gc_pipe_executor("gc_pipe", 0, 2000);
+
+DEFINE_PIPE(gc_pipe0, &g_gc_pipe_executor, 1);
 GCAdapterBase* g_gc_adapter = nullptr;
 
 /** Helper class for setting expectation on the CANbus traffic in unit

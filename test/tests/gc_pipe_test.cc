@@ -30,10 +30,12 @@ class MockPipeMember : public PipeMember {
   MOCK_METHOD2(write, void(const void* buf, size_t count));
 };
 
+ThreadExecutor g_gc_executor("gc_executor", 0, 2000);
+
 class GcPipeTest : public testing::Test {
  public:
   GcPipeTest()
-      : gc_side_(&g_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
+      : gc_side_(&g_gc_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
 
   ~GcPipeTest() {
     WaitForMainExecutor();

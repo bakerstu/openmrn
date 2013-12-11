@@ -236,9 +236,9 @@ protected:
 
   //! Implementation state for a not-yet-started control flow.
   ControlFlowAction NotStarted();
-private:
   //! Implementation state for an exited control flow.
   ControlFlowAction Terminated();
+private:
   //! Implementation state that is waiting for a timer callback.
   ControlFlowAction WaitForTimer();
   //! Implementation state that is waiting for another flow to finish.

@@ -41,7 +41,8 @@ class PipeBuffer;
 class PipeMember;
 
 //! A packet of data to be written to the pipe device.
-struct PipeBuffer : public QueueMember {
+struct PipeBuffer : public QueueMember
+{
     // The data to write.
     const void* data;
     // Number of bytes to write.
@@ -79,7 +80,11 @@ public:
     */
     virtual void write(const void* buf, size_t count) = 0;
 
-    virtual void async_write(const void* buf, size_t count, Notifiable* done) {};
+    virtual void async_write(const void* buf, size_t count, Notifiable* done)
+    {
+        write(buf, count);
+        done->Notify();
+    };
 };
 
 /** Implementation of the core of an asynchronous pipe. Handles taking incoming
@@ -89,10 +94,17 @@ class PipeFlow : public DispatchFlow<uint32_t>
 public:
     PipeFlow(Executor* e) : DispatchFlow<uint32_t>(e)
     {
+        static const int PIPE_BUFFER_COUNT = 5;
+        allBuffers_.reset(new PipeBuffer[PIPE_BUFFER_COUNT]);
+        for (int i = 0; i < PIPE_BUFFER_COUNT; ++i)
+        {
+            empty_buffers()->TypedRelease(&allBuffers_[i]);
+        }
         StartFlowAt(ST(wait_for_buffer));
     }
 
-    ~PipeFlow() {
+    ~PipeFlow()
+    {
         StartFlowAt(ST(NotStarted));
         executor()->WaitUntilEmpty();
     }
@@ -108,13 +120,20 @@ public:
     }
 
     //! Adds a specific handler.
-    void RegisterMember(PipeMember* handler) {
+    void RegisterMember(PipeMember* handler)
+    {
         RegisterHandler(0, 0, handler);
     }
 
     //! Removes a specific instance of a handler from this IF.
-    void UnregisterMember(PipeMember* handler) {
+    void UnregisterMember(PipeMember* handler)
+    {
         UnregisterHandler(0, 0, handler);
+    }
+
+protected:
+    virtual void CheckNotStartedState()
+    {
     }
 
 private:
@@ -133,6 +152,8 @@ private:
     virtual bool OnFlowFinished()
     {
         currentBuffer_->done->Notify();
+        empty_buffers()->TypedRelease(currentBuffer_);
+        currentBuffer_ = nullptr;
         StartFlowAt(ST(wait_for_buffer));
         return false;
     }
@@ -149,6 +170,7 @@ private:
     }
 
     PipeBuffer* currentBuffer_;
+    std::unique_ptr<PipeBuffer[]> allBuffers_;
     TypedAllocator<PipeBuffer> fullBufferAllocator_;
     TypedAllocator<PipeBuffer> emptyBufferAllocator_;
 };

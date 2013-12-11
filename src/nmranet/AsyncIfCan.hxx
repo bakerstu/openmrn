@@ -166,10 +166,15 @@ public:
         return &write_allocator_;
     }
 
+    //! Implementation class for receiving frames from CAN.
+    class CanReadFlow;
+    //! Implementation class for sending frames to CAN.
+    class CanWriteFlow;
+
     //! @returns the asynchronous read/write object.
-    AsyncPipeMember* pipe_member()
+    CanReadFlow* pipe_member()
     {
-        return &pipe_member_;
+        return pipe_member_.get();
     }
 
     //! @returns the alias cache for local nodes (vnodes and proxies)
@@ -199,12 +204,7 @@ private:
     FrameDispatchFlow frame_dispatcher_;
 
     //! Handles asynchronous reading and writing from the device.
-    AsyncPipeMember pipe_member_;
-
-    //! Implementation class for receiving frames from CAN.
-    class CanReadFlow;
-    //! Implementation class for sending frames to CAN.
-    class CanWriteFlow;
+    std::unique_ptr<CanReadFlow> pipe_member_;
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.
      *

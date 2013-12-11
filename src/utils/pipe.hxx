@@ -147,7 +147,7 @@ public:
     //! Allocator for send buffers of the pipe.
     TypedAllocator<PipeBuffer>* allocator();
 
-    //! Enqueues a buffer for sending to the pipe.
+    //! Enqueues a buffer for sending to the pipe. Thread-safe.
     void SendBuffer(PipeBuffer* buf);
 
     //! Writes some data to all receivers of the pipe, except the one denoted

@@ -167,6 +167,10 @@ protected:
         return true;
     };
 
+    virtual void CheckNotStartedState() {
+        HASSERT(IsNotStarted());
+    }
+
 private:
     // State handler. Calls the current handler.
     ControlFlowAction HandleCall();
@@ -327,7 +331,7 @@ void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler)
 
 template <typename ID> void DispatchFlow<ID>::IncomingMessage(ID id)
 {
-    HASSERT(IsNotStarted());
+    CheckNotStartedState();
     HASSERT(children_.IsDone());
     current_index_ = 0;
     id_ = id;
