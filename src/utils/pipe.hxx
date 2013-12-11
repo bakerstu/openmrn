@@ -223,10 +223,10 @@ public:
         return unit_;
     }
 
-/*    size_t size()
+    size_t size()
     {
-        return members_.size();
-        }*/
+        return flow_->handler_count();
+    }
 private:
     //! The size (in bytes) of each read and write command. Only reads and
     //! writes in multiples of this unit are valid.

@@ -154,6 +154,10 @@ protected:
      */
     virtual bool OnFlowFinished() { return true; };
 
+    size_t handler_count() {
+        return handlers_.size();
+    }
+
 private:
     // State handler. Calls the current handler.
     ControlFlowAction HandleCall();

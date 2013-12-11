@@ -51,9 +51,9 @@
 
 // DEFINE_PIPE(gc_can_pipe, 1);
 
-DEFINE_PIPE(can_pipe, sizeof(struct can_frame));
-
 Executor g_executor;
+
+DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
 
 static const NMRAnet::NodeID NODE_ID = 0x050101011441ULL;
 

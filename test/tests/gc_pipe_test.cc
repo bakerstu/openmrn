@@ -7,7 +7,7 @@ using namespace std;
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include "os/os.h"
-
+#include "utils/test_main.hxx"
 #include "utils/gc_pipe.hxx"
 #include "utils/pipe.hxx"
 #include "nmranet_can.h"
@@ -33,7 +33,7 @@ class MockPipeMember : public PipeMember {
 class GcPipeTest : public testing::Test {
  public:
   GcPipeTest()
-      : gc_side_(1), can_side_(sizeof(struct can_frame)) {}
+      : gc_side_(&g_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
 
 
   void SaveGcPacket(const void* buf, size_t count) {
@@ -166,12 +166,4 @@ TEST_F(GcPipeTest, PartialPacket) {
   EXPECT_EQ(0xf0U, saved_can_data_[0].data[0]);
   EXPECT_EQ(0xf1U, saved_can_data_[0].data[1]);
   EXPECT_EQ(0xf2U, saved_can_data_[0].data[2]);
-}
-
-
-
-
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }
