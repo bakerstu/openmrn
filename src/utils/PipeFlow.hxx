@@ -92,6 +92,11 @@ public:
         StartFlowAt(ST(wait_for_buffer));
     }
 
+    ~PipeFlow() {
+        StartFlowAt(ST(NotStarted));
+        executor()->WaitUntilEmpty();
+    }
+
     TypedAllocator<PipeBuffer>* full_buffers()
     {
         return &fullBufferAllocator_;

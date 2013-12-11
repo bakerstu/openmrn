@@ -234,9 +234,9 @@ protected:
   MemberFunction next_state() { return next_state_; }
 
 
-private:
   //! Implementation state for a not-yet-started control flow.
   ControlFlowAction NotStarted();
+private:
   //! Implementation state for an exited control flow.
   ControlFlowAction Terminated();
   //! Implementation state that is waiting for a timer callback.

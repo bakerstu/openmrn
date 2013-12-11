@@ -80,6 +80,12 @@ int appl_main(int argc, char* argv[]) {
 ThreadExecutor g_executor("async_exec", 0, 2000);
 DEFINE_PIPE(can_pipe0, &g_executor, sizeof(struct can_frame));
 
+void WaitForMainExecutor() {
+  while (!g_executor.empty()) {
+    usleep(100);
+  }
+}
+
 extern "C" {
 
 const char *nmranet_manufacturer = "Stuart W. Baker";

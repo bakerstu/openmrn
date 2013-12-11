@@ -33,6 +33,8 @@
  * @date 5 Aug 2013
  */
 
+#include <unistd.h>
+
 #include "utils/logging.h"
 #include "executor/executor.hxx"
 
@@ -47,6 +49,11 @@ Executor::Executor()
 }
             
 Executor::~Executor() {}
+
+void Executor::WaitUntilEmpty() {
+    while (!empty()) usleep(100);
+}
+
 
 void Executor::ThreadBody() {
   while(1) {

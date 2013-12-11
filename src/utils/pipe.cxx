@@ -52,6 +52,10 @@ Pipe::Pipe(Executor* e, size_t unit) : unit_(unit), flow_(new PipeFlow(e))
 
 Pipe::~Pipe()
 {
+    while (!flow_->executor()->empty())
+    {
+        usleep(100);
+    }
 }
 
 void Pipe::RegisterMember(PipeMember* member)
@@ -210,7 +214,8 @@ void Pipe::AddVirtualDeviceToPipe(const char* thread_name, int stack_size,
 void VirtualPipeMember::Initialize()
 {
     OSMutexLock l(&lock_);
-    if (read_queue_) return; // already initialized
+    if (read_queue_)
+        return; // already initialized
     read_queue_ = os_mq_create(queue_length_, parent_->unit());
 }
 

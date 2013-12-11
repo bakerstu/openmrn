@@ -94,6 +94,8 @@ public:
     return waiting_ && pending_flows_.empty();
   }
 
+  void WaitUntilEmpty();
+
 private:
   //! This semaphore is used for blocking the executor thread, and will be
   //! posted for each Add to wake up.

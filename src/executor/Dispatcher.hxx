@@ -122,7 +122,12 @@ public:
 
     size_t handler_count()
     {
-        return handlers_.size();
+        size_t size = handlers_.size();
+        if (pending_delete_index_ < 0) return size;
+        for (int i = pending_delete_index_; i < (int)handlers_.size(); ++i) {
+            if (handlers_[i].handler == nullptr) --size;
+        }
+        return size;
     }
 
 protected:

@@ -35,6 +35,9 @@ class GcPipeTest : public testing::Test {
   GcPipeTest()
       : gc_side_(&g_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
 
+  ~GcPipeTest() {
+    WaitForMainExecutor();
+  }
 
   void SaveGcPacket(const void* buf, size_t count) {
     string s(static_cast<const char*>(buf), count);
