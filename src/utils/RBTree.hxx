@@ -171,7 +171,9 @@ public:
     }
     
     /** Default destructor */
-    ~RBTree();
+    ~RBTree()
+    {
+    }
     
 private:
     /** Compare two nodes.

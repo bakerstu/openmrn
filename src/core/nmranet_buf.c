@@ -116,7 +116,7 @@ void *nmranet_buffer_alloc(size_t size)
         buf->size = size;
         buf->free = size;
         totalSize += size + sizeof(Buffer);
-        DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+        DEBUG_PRINTF("c buffer total size: %zu\n", totalSize);
         return buf->data;
     }
 
@@ -134,7 +134,7 @@ void *nmranet_buffer_alloc(size_t size)
             return NULL;
         }
         totalSize += size + sizeof(Buffer);
-        DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+        DEBUG_PRINTF("c buffer total size: %zu\n", totalSize);
     }
     os_mutex_unlock(&mutex);
 

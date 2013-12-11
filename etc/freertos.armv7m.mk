@@ -27,6 +27,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
+ARCHOPTIMIZATION = -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c -g -MD -MP \
            -march=armv7-m -mthumb -mfloat-abi=soft
@@ -38,11 +39,11 @@ CFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -std=gnu99 -D__FreeRTOS
 CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
            -fno-builtin -std=c++0x  -D_ISOC99_SOURCE  \
            -march=armv7-m -mthumb -mfloat-abi=soft \
-           -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -DGCC_ARMCM3 \
+           -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -fno-rtti -DGCC_ARMCM3 \
            -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
-LDFLAGS = -g -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
-          $(LDFLAGSEXTRA) $(LDFLAGSENV)
+LDFLAGS = -g -nodefaultlibs -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
+          $(LDFLAGSEXTRA) $(LDFLAGSENV) -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections
 
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA)
 

@@ -37,6 +37,8 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+/* switch for C++ testing until it is ready for main stream, '0' = C++ */
+#if 1
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 #include "mbed.h"
 #endif
@@ -83,7 +85,6 @@ const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 #endif
 
 const int main_priority = 0;
-
 
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_LM4F120XL)
 extern "C" {
@@ -211,3 +212,75 @@ int appl_main(int argc, char *argv[])
 
     return 0;
 }
+#else
+#include "nmranet/NMRAnetNode.hxx"
+#include "nmranet/NMRAnetIfCanGridConnect.hxx"
+#include "nmranet_config.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/** Number of receive CAN messages that are buffered in the CAN driver.
+ */
+extern const size_t CAN_RX_BUFFER_SIZE;
+
+/** Number of transmit CAN messages that are buffered in the CAN driver.
+ */
+extern const size_t CAN_TX_BUFFER_SIZE;
+
+/** Number of receive characters that are buffered in the serial driver.
+ */
+extern const size_t SERIAL_RX_BUFFER_SIZE;
+
+/** Number of transmit characters that are buffered in the serial driver.
+ */
+extern const size_t SERIAL_TX_BUFFER_SIZE;
+}
+
+const size_t main_stack_size = 2560;
+const size_t ALIAS_POOL_SIZE = 2;
+const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
+const size_t DATAGRAM_POOL_SIZE = 10;
+const size_t CAN_RX_BUFFER_SIZE = 1;
+const size_t CAN_TX_BUFFER_SIZE = 32;
+const size_t SERIAL_RX_BUFFER_SIZE = 16;
+const size_t SERIAL_TX_BUFFER_SIZE = 16;
+const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
+const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
+
+const int main_priority = 0;
+
+using namespace NMRAnet;
+
+const char *Node::manufacturer = "Stuart W. Baker";
+const char *Node::hardware_rev = "N/A";
+const char *Node::software_rev = "0.1";
+
+/** Entry point to application.
+ * @param argc number of command line arguments
+ * @param argv array of command line arguments
+ * @return 0, should never return
+ */
+int appl_main(int argc, char *argv[])
+{
+    If *nmranet_if = IfCanGridConnect::instance(0x02010d000000ULL,
+                                                "/tcp/10098",
+                                                false, false);
+
+    Node *node = new Node(0x02010d000001ULL, nmranet_if, "Virtual Node");
+    
+    node->initialized();
+
+    while(1)
+    {
+        sleep(10);
+    }
+
+    return 0;
+}
+#endif
+    
+    
+
