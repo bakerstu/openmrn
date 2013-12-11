@@ -120,6 +120,10 @@ public:
         return &allocator_;
     }
 
+    size_t handler_count() {
+        return handlers_.size();
+    }
+
 protected:
     /**
        Adds a new handler to this dispatcher.
@@ -153,10 +157,6 @@ protected:
        different state.
      */
     virtual bool OnFlowFinished() { return true; };
-
-    size_t handler_count() {
-        return handlers_.size();
-    }
 
 private:
     // State handler. Calls the current handler.

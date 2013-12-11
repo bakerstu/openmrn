@@ -31,8 +31,56 @@
  * @date 8 Dec 2013
  */
 
+#ifndef _utils_PipeFlow_hxx_
+#define _utils_PipeFlow_hxx_
+
 #include "utils/pipe.hxx"
 #include "executor/Dispatcher.hxx"
+
+class PipeBuffer;
+class PipeMember;
+
+//! A packet of data to be written to the pipe device.
+struct PipeBuffer : public QueueMember {
+    // The data to write.
+    const void* data;
+    // Number of bytes to write.
+    size_t size;
+    // Pipe member to skip during this write.
+    PipeMember* skipMember;
+    // Notifies the caller when the buffer is no longer needed.
+    Notifiable* done;
+};
+
+/**
+   An interface class for channels where we forward data from a pipe.
+
+   Various different pipe receivers will implement this interface.
+ */
+class PipeMember : public HandlerBase
+{
+public:
+    virtual ~PipeMember()
+    {
+    }
+    /**
+       Writes bytes to the device.
+
+       @param buf is the source buffer from whch to write bytes.
+
+       @param count is the number of bytes to write. count is a multiple of the
+    parent pipe's unit, otherwise implementations are allowed to drop data or
+    die.
+
+       Blocks until the write is complete (that is, all data is enqueued in a
+    buffer which will drain as the output device's speed
+    allows). Implementations may want to use a lock inside to avoid writes from
+    multiple sources being interleaved.
+    */
+    virtual void write(const void* buf, size_t count) = 0;
+
+    virtual void async_write(const void* buf, size_t count, Notifiable* done) {};
+};
 
 /** Implementation of the core of an asynchronous pipe. Handles taking incoming
  * packets from the allocator queue, and passing them to pipe members. */
@@ -99,3 +147,5 @@ private:
     TypedAllocator<PipeBuffer> fullBufferAllocator_;
     TypedAllocator<PipeBuffer> emptyBufferAllocator_;
 };
+
+#endif // _utils_PipeFlow_hxx_
