@@ -120,7 +120,8 @@ public:
         return &allocator_;
     }
 
-    size_t handler_count() {
+    size_t handler_count()
+    {
         return handlers_.size();
     }
 
@@ -156,7 +157,10 @@ protected:
        allocator. If returns false, must take care of changing the flow to a
        different state.
      */
-    virtual bool OnFlowFinished() { return true; };
+    virtual bool OnFlowFinished()
+    {
+        return true;
+    };
 
 private:
     // State handler. Calls the current handler.
@@ -297,7 +301,8 @@ void DispatchFlow<ID>::UnregisterHandler(ID id, ID mask, HandlerBase* handler)
     OSMutexLock h(&lock_);
     // First we try the current index - 1.
     size_t idx = current_index_;
-    if (idx > 0) idx--;
+    if (idx > 0)
+        idx--;
     if (idx >= handlers_.size() || !handlers_[idx].Equals(id, mask, handler))
     {
         // We try all others too.
@@ -379,11 +384,14 @@ ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleWaitForChildren()
 {
     if (children_.IsDone())
     {
-        if (OnFlowFinished()) {
+        if (OnFlowFinished())
+        {
             // terminate flow.
             return ReleaseAndExit(&allocator_, this);
-        } else {
-            // The termination was taken care of by OnFlowFinished. 
+        }
+        else
+        {
+            // The termination was taken care of by OnFlowFinished.
             return WaitForNotification();
         }
     }
