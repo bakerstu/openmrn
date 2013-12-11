@@ -54,6 +54,17 @@ public:
         return &emptyBufferAllocator_;
     }
 
+    //! Adds a specific handler.
+    void RegisterMember(PipeMember* handler) {
+        RegisterHandler(0, 0, handler);
+    }
+
+    //! Removes a specific instance of a handler from this IF.
+    void UnregisterMember(PipeMember* handler) {
+        UnregisterHandler(0, 0, handler);
+    }
+
+private:
     ControlFlowAction wait_for_buffer()
     {
         return Allocate(&fullBufferAllocator_, ST(start_flow));
@@ -84,7 +95,6 @@ public:
         member->async_write(currentBuffer_->data, currentBuffer_->size, done);
     }
 
-private:
     PipeBuffer* currentBuffer_;
     TypedAllocator<PipeBuffer> fullBufferAllocator_;
     TypedAllocator<PipeBuffer> emptyBufferAllocator_;

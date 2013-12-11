@@ -36,6 +36,7 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <vector>
 using std::vector;
 
@@ -51,8 +52,10 @@ typedef struct devops devops_t;
 struct devtab;
 typedef struct devtab devtab_t;
 
-class PipeMember;
+class Executor;
 class Notifiable;
+class PipeFlow;
+class PipeMember;
 
 //! A packet of data to be written to the pipe device.
 struct PipeBuffer : public QueueMember {
@@ -147,10 +150,15 @@ struct PipeBuffer : public QueueMember {
 class Pipe
 {
 public:    
-    Pipe(size_t unit);
+    Pipe(Executor* e, size_t unit);
     ~Pipe();
 
+    // Asynchronous interface to the pipe.
+
+    //! Allocator for send buffers of the pipe.
     TypedAllocator<PipeBuffer>* allocator();
+
+    //! Enqueues a buffer for sending to the pipe.
     void SendBuffer(PipeBuffer* buf);
 
     //! Writes some data to all receivers of the pipe, except the one denoted
@@ -215,16 +223,15 @@ public:
         return unit_;
     }
 
-    size_t size()
+/*    size_t size()
     {
         return members_.size();
-    }
+        }*/
 private:
     //! The size (in bytes) of each read and write command. Only reads and
     //! writes in multiples of this unit are valid.
     size_t unit_;
-    //! The individual receivers of data coming through the pipe. Members are externally owned.
-    vector<PipeMember*> members_;
+    std::unique_ptr<PipeFlow> flow_;
 };
 
 /**
@@ -308,7 +315,7 @@ int vdev_init(devtab_t *dev);
     @param unit in bytes is the size of the base structure. All writes to the
     pipe must be a multiple of this unit.
  */
-#define DEFINE_PIPE(name, unit) Pipe name(unit)
+#define DEFINE_PIPE(name, executor, unit) Pipe name(executor, unit)
 
 //! Use this if you need to refer to a pipe that was defined in a different compilation unit.
 #define DECLARE_PIPE(name) extern Pipe name
