@@ -68,7 +68,7 @@ all: $(LIBNAME)
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
-	cp $(LIBNAME) ../lib/$(LIBNAME)
+	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
 
 .PHONY: clean
 clean:
