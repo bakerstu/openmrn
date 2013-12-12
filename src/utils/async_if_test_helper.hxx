@@ -186,11 +186,15 @@ protected:
             {
                 LockHolder h1(&g_executor);
                 LockHolder h2(DefaultWriteFlowExecutor());
+                LockHolder h3(&g_gc_pipe_executor);
 
                 if (!g_executor.empty() ||
+                    !g_gc_pipe_executor.empty() ||
                     !DefaultWriteFlowExecutor()->empty() ||
                     !if_can_->frame_dispatcher()->IsNotStarted() ||
-                    !if_can_->dispatcher()->IsNotStarted())
+                    !if_can_->dispatcher()->IsNotStarted() ||
+                    !can_pipe0.empty() ||
+                    !gc_pipe0.empty())
                 {
                     exit = false;
                 }

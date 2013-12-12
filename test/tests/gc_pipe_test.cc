@@ -38,7 +38,16 @@ class GcPipeTest : public testing::Test {
       : gc_side_(&g_gc_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
 
   ~GcPipeTest() {
-    WaitForMainExecutor();
+    Wait();
+  }
+
+  void Wait() {
+    while (!g_executor.empty() ||
+           !g_gc_executor.empty() ||
+           !gc_side_.empty() ||
+           !can_side_.empty()) {
+      usleep(100);
+    }
   }
 
   void SaveGcPacket(const void* buf, size_t count) {
@@ -131,6 +140,7 @@ TEST_F(GcPipeTest, SendGcPacket) {
   can_side_.RegisterMember(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
   gc_side_.WriteToAll(NULL, s.data(), s.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -146,6 +156,7 @@ TEST_F(GcPipeTest, SendGcPacketWithGarbage) {
   can_side_.RegisterMember(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
   gc_side_.WriteToAll(NULL, s.data(), s.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -165,6 +176,7 @@ TEST_F(GcPipeTest, PartialPacket) {
   gc_side_.WriteToAll(NULL, s.data(), s.size());
   gc_side_.WriteToAll(NULL, s2.data(), s2.size());
   gc_side_.WriteToAll(NULL, s3.data(), s3.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
