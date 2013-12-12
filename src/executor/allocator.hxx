@@ -35,6 +35,8 @@
 #ifndef _EXECUTOR_ALLOCATOR_HXX_
 #define _EXECUTOR_ALLOCATOR_HXX_
 
+#include <memory>
+
 #include "executor/executor.hxx"
 #include "executor/notifiable.hxx"
 
@@ -110,6 +112,22 @@ class TypedAllocator : public AllocatorBase {
 
   static T* cast_result(QueueMember* entry) { return static_cast<T*>(entry); }
 };
+
+template<class T>
+class InitializedAllocator : public TypedAllocator<T> {
+public:
+    //! Creates the allocator and fills it with @param count entries.
+    InitializedAllocator(size_t count)
+        : members_(new T[count]) {
+        for (size_t i = 0; i < count; ++i) {
+            TypedRelease(&members_[i]);
+        }
+    }
+
+private:
+    std::unique_ptr<T[]> members_;
+};
+
 
 //! Helper class that encapsulates a call to an allocator, which blocks the
 //! current thread until a free entry shows up.
