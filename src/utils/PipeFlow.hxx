@@ -87,6 +87,15 @@ public:
     };
 };
 
+/*
+static const int PIPE_BUFFER_COUNT = 5;
+allBuffers_.reset(new PipeBuffer[PIPE_BUFFER_COUNT]);
+for (int i = 0; i < PIPE_BUFFER_COUNT; ++i)
+{
+    empty_buffers()->TypedRelease(&allBuffers_[i]);
+}
+*/
+
 /** Implementation of the core of an asynchronous pipe. Handles taking incoming
  * packets from the allocator queue, and passing them to pipe members. */
 class PipeFlow : public DispatchFlow<uint32_t>
@@ -94,12 +103,6 @@ class PipeFlow : public DispatchFlow<uint32_t>
 public:
     PipeFlow(Executor* e) : DispatchFlow<uint32_t>(e)
     {
-        static const int PIPE_BUFFER_COUNT = 5;
-        allBuffers_.reset(new PipeBuffer[PIPE_BUFFER_COUNT]);
-        for (int i = 0; i < PIPE_BUFFER_COUNT; ++i)
-        {
-            empty_buffers()->TypedRelease(&allBuffers_[i]);
-        }
         StartFlowAt(ST(wait_for_buffer));
     }
 
@@ -112,11 +115,6 @@ public:
     TypedAllocator<PipeBuffer>* full_buffers()
     {
         return &fullBufferAllocator_;
-    }
-
-    TypedAllocator<PipeBuffer>* empty_buffers()
-    {
-        return &emptyBufferAllocator_;
     }
 
     //! Adds a specific handler.
@@ -152,7 +150,6 @@ private:
     virtual bool OnFlowFinished()
     {
         currentBuffer_->done->Notify();
-        empty_buffers()->TypedRelease(currentBuffer_);
         currentBuffer_ = nullptr;
         StartFlowAt(ST(wait_for_buffer));
         return false;
@@ -170,9 +167,7 @@ private:
     }
 
     PipeBuffer* currentBuffer_;
-    std::unique_ptr<PipeBuffer[]> allBuffers_;
     TypedAllocator<PipeBuffer> fullBufferAllocator_;
-    TypedAllocator<PipeBuffer> emptyBufferAllocator_;
 };
 
 #endif // _utils_PipeFlow_hxx_

@@ -149,8 +149,9 @@ public:
         return flow_->executor();
     }
 
-    //! Allocator for send buffers of the pipe.
-    TypedAllocator<PipeBuffer>* allocator();
+    bool empty() {
+        return !flow_->full_buffers()->Peek();
+    }
 
     //! Enqueues a buffer for sending to the pipe. Thread-safe.
     void SendBuffer(PipeBuffer* buf);

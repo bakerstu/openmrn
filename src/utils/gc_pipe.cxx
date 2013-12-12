@@ -72,7 +72,12 @@ private:
             return destination_;
         }
 
-        virtual void write_async(const void* buf, size_t count,
+
+        virtual void write(const void* buf, size_t count) {
+            HASSERT(0);
+        }
+
+        virtual void async_write(const void* buf, size_t count,
                                  Notifiable* done)
         {
             HASSERT(IsDone());
@@ -90,31 +95,24 @@ private:
             }
 
             char* end = gc_format_generate(buf_, dbuf_, double_bytes_);
-            len_ = (end - dbuf_);
+            dstBuf_.size = (end - dbuf_);
 
-            count_ -= sizeof(*buf_);
+            byte_count_ -= sizeof(*buf_);
             buf_++;
 
-            if (len)
+            if (dstBuf_.size)
             {
-                return Allocate(destination_->allocator(),
-                                ST(handle_pipe_allocated));
+                dstBuf_.data = dbuf_;
+                //! @TODO: merge these two fields.
+                dstBuf_.skipMember = skip_member_;
+                dstBuf_.done = notifiable_.NewCallback(this);
+                destination_->SendBuffer(&dstBuf_);
+                return WaitAndCall(ST(wait_for_sent));
             }
             else
             {
                 return RetryCurrentState();
             }
-        }
-
-        ControlFlowAction handle_pipe_allocated()
-        {
-            PipeBuffer* b = GetTypedAllocationResult(destination_->allocator());
-            b->data = &frame_;
-            b->size = sizeof(frame_);
-            b->skipMember = if_can_->pipe_member();
-            b->done = notifiable_.NewCallback(this);
-            destination_->SendBuffer(b);
-            return WaitAndCall(ST(wait_for_sent));
         }
 
         ControlFlowAction wait_for_sent()
@@ -126,12 +124,13 @@ private:
 
     private:
         ProxyNotifiable notifiable_;
+        // Incoming packet.
         const struct can_frame* buf_;
         size_t byte_count_;
-        //! Destination buffer.
+        // Buffer for sending to destination pipe.
+        PipeBuffer dstBuf_;
+        //! Destination buffer (characters).
         char dbuf_[56];
-        //! Number of valid bytes in dest buffer.
-        int len_;
         //! Pipe to send data to.
         Pipe* destination_;
         //! The pipe member that should be sent as "source".

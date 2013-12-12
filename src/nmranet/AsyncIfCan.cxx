@@ -161,14 +161,7 @@ public:
 private:
     ControlFlowAction HandleSend()
     {
-        return Allocate(if_can_->pipe_member()->parent()->allocator(),
-                        ST(handle_pipe_allocated));
-    }
-
-    ControlFlowAction handle_pipe_allocated()
-    {
-        PipeBuffer* b = GetTypedAllocationResult(
-            if_can_->pipe_member()->parent()->allocator());
+        PipeBuffer* b = &pipeBuffer_;
         b->data = &frame_;
         b->size = sizeof(frame_);
         b->skipMember = if_can_->pipe_member();
@@ -190,6 +183,7 @@ private:
         return ReleaseAndExit(if_can_->write_allocator(), this);
     }
 
+    PipeBuffer pipeBuffer_;
     ProxyNotifiable notifiable_;
     //! Parent interface. Owned externlly.
     AsyncIfCan* if_can_;

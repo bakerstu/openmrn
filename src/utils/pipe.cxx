@@ -68,11 +68,6 @@ void Pipe::UnregisterMember(PipeMember* member)
     flow_->UnregisterMember(member);
 }
 
-TypedAllocator<PipeBuffer>* Pipe::allocator()
-{
-    return flow_->empty_buffers();
-}
-
 void Pipe::SendBuffer(PipeBuffer* buf)
 {
     flow_->full_buffers()->ReleaseBack(buf);
@@ -81,13 +76,13 @@ void Pipe::SendBuffer(PipeBuffer* buf)
 ssize_t Pipe::WriteToAll(PipeMember* skip_member, const void* buf, size_t count)
 {
     HASSERT(count % unit_ == 0);
-    TypedSyncAllocation<PipeBuffer> member_alloc(allocator());
-    member_alloc.result()->data = buf;
-    member_alloc.result()->size = count;
-    member_alloc.result()->skipMember = skip_member;
+    PipeBuffer buffer;
+    buffer.data = buf;
+    buffer.size = count;
+    buffer.skipMember = skip_member;
     SyncNotifiable n;
-    member_alloc.result()->done = &n;
-    SendBuffer(member_alloc.result());
+    buffer.done = &n;
+    SendBuffer(&buffer);
     n.WaitForNotification();
     return count;
 }
