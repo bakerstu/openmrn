@@ -187,6 +187,18 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
                                                 thread_name, stack_size));
 }
 
+InitializedAllocator<CanPipeBuffer> g_can_alloc(10);
+
+void CanPipeBuffer::Reset() {
+    pipe_buffer.data = &frame;
+    pipe_buffer.size = sizeof(frame);
+    pipe_buffer.done = this;
+}
+void CanPipeBuffer::Notify() {
+    g_can_alloc.TypedRelease(this);
+}
+
+
 #ifdef __linux__
 void Pipe::AddVirtualDeviceToPipe(const char* thread_name, int stack_size,
                                   int fd[2])

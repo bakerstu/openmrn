@@ -47,6 +47,7 @@ using std::vector;
 #include "executor/notifiable.hxx"
 #include "nmranet/ReadDispatch.hxx"
 #include "utils/PipeFlow.hxx"
+#include "nmranet_can.h"
 
 struct devops;
 typedef struct devops devops_t;
@@ -268,6 +269,16 @@ private:
 
 extern devops_t vdev_ops;
 int vdev_init(devtab_t* dev);
+
+
+struct CanPipeBuffer : public QueueMember, private Notifiable {
+    PipeBuffer pipe_buffer;
+    struct can_frame frame;
+    void Reset();
+    virtual void Notify();
+};
+
+extern InitializedAllocator<CanPipeBuffer> g_can_alloc;
 
 /** Defines a pipe to forward data between real and virtual devices.
 

@@ -177,12 +177,16 @@ private:
                 }
                 // Frame ends here.
                 cbuf_[offset_] = 0;
-                struct can_frame frame;
-                int ret = gc_format_parse(cbuf_, &frame);
+                TypedSyncAllocation<CanPipeBuffer> pbuf(&g_can_alloc);
+                pbuf.result()->Reset();
+                int ret = gc_format_parse(cbuf_, &pbuf.result()->frame);
                 if (!ret)
                 {
-                    destination_->WriteToAll(skip_member_, &frame,
-                                             sizeof(frame));
+                    pbuf.result()->pipe_buffer.skipMember = skip_member_;
+                    destination_->SendBuffer(&pbuf.result()->pipe_buffer);
+                } else {
+                    // Releases the buffer.
+                    pbuf.result()->pipe_buffer.done->Notify();
                 }
                 offset_ = -1;
                 return;
