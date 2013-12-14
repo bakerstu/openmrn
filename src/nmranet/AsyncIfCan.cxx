@@ -629,7 +629,7 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
         owned_flows_.push_back(std::unique_ptr<ControlFlow>(
-            new CanWriteFlow(this, DefaultWriteFlowExecutor())));
+            new CanWriteFlow(this, executor)));
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
