@@ -217,6 +217,15 @@ public:
         os_sem_post(&handle);
     }
 
+
+#if defined (__FreeRTOS__)
+    void post_from_isr()
+    {
+        os_sem_post_from_isr(&handle);
+    }
+#endif
+
+
     /** Wait on (decrement) a semaphore.
      */
     void wait()

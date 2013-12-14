@@ -72,6 +72,16 @@ public:
     notify_.post();
   }
 
+#if defined (__FreeRTOS__)
+  void AddFromIsr(Executable* entry) {
+      if (IsMaybePending(entry)) {
+          return;
+      }
+      pending_flows_.Push(entry);
+      notify_.post_from_isr();
+  }
+#endif
+
   /** Checks if `entry' is pending in the *current* executor. NOTE: This call
    * may or may not detect if `entry' is pending in a different executor or
    * enqueued on a different queue.

@@ -48,6 +48,7 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "freertos_drivers/nxp/11cxx_async_can.hxx"
 
 // DEFINE_PIPE(gc_can_pipe, 1);
 
@@ -173,6 +174,9 @@ private:
  */
 int appl_main(int argc, char* argv[])
 {
+#ifdef TARGET_LPC11Cxx
+    lpc11cxx::CreateCanDriver(&can_pipe);
+#endif
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
     BlinkerFlow blinker(&g_node);

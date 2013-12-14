@@ -10,7 +10,7 @@ TARGET := freertos.armv6m
 
 DEPS += HAVE_MBED
 
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/11CXX_rom_can.o \
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/11cxx_async_can.o \
            $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/mbed_i2c.o \
 
 
