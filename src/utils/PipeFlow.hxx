@@ -84,7 +84,7 @@ public:
     {
         write(buf, count);
         done->Notify();
-    };
+    }
 };
 
 /*
@@ -103,6 +103,7 @@ class PipeFlow : public DispatchFlow<uint32_t>
 public:
     PipeFlow(Executor* e) : DispatchFlow<uint32_t>(e)
     {
+        negateMatch_ = true;
         StartFlowAt(ST(wait_for_buffer));
     }
 
@@ -120,13 +121,13 @@ public:
     //! Adds a specific handler.
     void RegisterMember(PipeMember* handler)
     {
-        RegisterHandler(0, 0, handler);
+        RegisterHandler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
     }
 
     //! Removes a specific instance of a handler from this IF.
     void UnregisterMember(PipeMember* handler)
     {
-        UnregisterHandler(0, 0, handler);
+        UnregisterHandler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
     }
 
 protected:
@@ -143,7 +144,7 @@ private:
     ControlFlowAction start_flow()
     {
         currentBuffer_ = GetTypedAllocationResult(&fullBufferAllocator_);
-        IncomingMessage(0);
+        IncomingMessage(reinterpret_cast<uint32_t>(currentBuffer_->skipMember));
         return WaitForNotification();
     }
 
@@ -158,11 +159,6 @@ private:
     virtual void CallCurrentHandler(HandlerBase* b_handler, Notifiable* done)
     {
         PipeMember* member = static_cast<PipeMember*>(b_handler);
-        if (member == currentBuffer_->skipMember)
-        {
-            done->Notify();
-            return;
-        }
         member->async_write(currentBuffer_->data, currentBuffer_->size, done);
     }
 
