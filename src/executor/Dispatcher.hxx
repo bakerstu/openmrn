@@ -56,6 +56,10 @@
 
    . or the handler call actually returns an Allocator, which the caller has to
    acquire a handler from and re-post the same call to that handler.
+
+
+   @TODO(balazs.racz): a handler base should probably not need to derive from
+   queuemember.
  */
 class HandlerBase : public QueueMember
 {
@@ -123,9 +127,12 @@ public:
     size_t handler_count()
     {
         size_t size = handlers_.size();
-        if (pending_delete_index_ < 0) return size;
-        for (int i = pending_delete_index_; i < (int)handlers_.size(); ++i) {
-            if (handlers_[i].handler == nullptr) --size;
+        if (pending_delete_index_ < 0)
+            return size;
+        for (int i = pending_delete_index_; i < (int)handlers_.size(); ++i)
+        {
+            if (handlers_[i].handler == nullptr)
+                --size;
         }
         return size;
     }
@@ -167,9 +174,14 @@ protected:
         return true;
     };
 
-    virtual void CheckNotStartedState() {
+    virtual void CheckNotStartedState()
+    {
         HASSERT(IsNotStarted());
     }
+
+protected:
+    // true if this flow should negate the match condition.
+    bool negateMatch_;
 
 private:
     // State handler. Calls the current handler.
@@ -275,7 +287,9 @@ protected:
 
 template <typename ID>
 DispatchFlow<ID>::DispatchFlow(Executor* executor)
-    : ControlFlow(executor, nullptr), pending_delete_index_(-1)
+    : ControlFlow(executor, nullptr),
+      negateMatch_(false),
+      pending_delete_index_(-1)
 {
     allocator_.Release(this);
 }
@@ -358,7 +372,11 @@ ControlFlow::ControlFlowAction DispatchFlow<ID>::HandleCall()
             {
                 continue;
             }
-            if ((id_ & h.mask) != (h.id & h.mask))
+            if (negateMatch_ && (id_ & h.mask) == (h.id & h.mask))
+            {
+                continue;
+            }
+            if ((!negateMatch_) && (id_ & h.mask) != (h.id & h.mask))
             {
                 continue;
             }
