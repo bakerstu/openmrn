@@ -226,7 +226,7 @@ private:
     //! The size (in bytes) of each read and write command. Only reads and
     //! writes in multiples of this unit are valid.
     size_t unit_;
-    std::unique_ptr<PipeFlow> flow_;
+    PipeFlow* flow_;
 };
 
 //! Private data structure for pipe file nodes (aka virtual device nodes).
@@ -274,6 +274,7 @@ int vdev_init(devtab_t* dev);
 struct CanPipeBuffer : public QueueMember, private Notifiable {
     PipeBuffer pipe_buffer;
     struct can_frame frame;
+    // Sets up data, size and done of pipe_buffer.
     void Reset();
     virtual void Notify();
 };

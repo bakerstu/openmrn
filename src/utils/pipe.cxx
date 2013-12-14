@@ -56,6 +56,7 @@ Pipe::~Pipe()
     {
         usleep(100);
     }
+    delete flow_;
 }
 
 void Pipe::RegisterMember(PipeMember* member)
