@@ -43,6 +43,7 @@ endif
 # depending on the general CPU architecture.
 ifeq ($(TARGET),freertos.armv6m)
 CSRCS += 11CXX_rom_can.c # malloc.c
+CXXSRCS += 11cxx_async_can.cxx
 VPATH += $(SRCDIR)/nxp
 endif
 

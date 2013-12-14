@@ -7,8 +7,11 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
@@ -38,9 +41,10 @@ static void InvokeNotification(Notifiable* done)
 
 void (*g_invoke)(Notifiable*) = &InvokeNotification;
 
-DEFINE_PIPE(gc_pipe0, 1);
+ThreadExecutor g_gc_pipe_executor("gc_pipe", 0, 2000);
+
+DEFINE_PIPE(gc_pipe0, &g_gc_pipe_executor, 1);
 GCAdapterBase* g_gc_adapter = nullptr;
-ThreadExecutor g_executor("async_exec", 0, 2000);
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
@@ -59,9 +63,9 @@ public:
 namespace NMRAnet
 {
 
-const char *Node::MANUFACTURER = "Stuart W. Baker";
-const char *Node::HARDWARE_REV = "N/A";
-const char *Node::SOFTWARE_REV = "0.1";
+const char* Node::MANUFACTURER = "Stuart W. Baker";
+const char* Node::HARDWARE_REV = "N/A";
+const char* Node::SOFTWARE_REV = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;
@@ -95,7 +99,7 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1));
         if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
@@ -182,11 +186,15 @@ protected:
             {
                 LockHolder h1(&g_executor);
                 LockHolder h2(DefaultWriteFlowExecutor());
+                LockHolder h3(&g_gc_pipe_executor);
 
                 if (!g_executor.empty() ||
+                    !g_gc_pipe_executor.empty() ||
                     !DefaultWriteFlowExecutor()->empty() ||
                     !if_can_->frame_dispatcher()->IsNotStarted() ||
-                    !if_can_->dispatcher()->IsNotStarted())
+                    !if_can_->dispatcher()->IsNotStarted() ||
+                    !can_pipe0.empty() ||
+                    !gc_pipe0.empty())
                 {
                     exit = false;
                 }
@@ -231,6 +239,39 @@ protected:
     AliasInfo testAlias_;
     //! The next alias we will make the allocator create.
     NodeAlias aliasSeed_;
+};
+
+class AsyncNodeTest : public AsyncIfTest
+{
+protected:
+    AsyncNodeTest()
+        : eventFlow_(&g_executor, 10),
+          ownedNode_(if_can_.get(), TEST_NODE_ID),
+          node_(&ownedNode_)
+    {
+        EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
+        if_can_->AddWriteFlows(2, 2);
+        Wait();
+        AddEventHandlerToIf(if_can_.get());
+    }
+
+    ~AsyncNodeTest()
+    {
+        WaitForEventThread();
+    }
+
+    void WaitForEventThread()
+    {
+        while (GlobalEventFlow::instance->EventProcessingPending())
+        {
+            usleep(100);
+        }
+        AsyncIfTest::Wait();
+    }
+
+    GlobalEventFlow eventFlow_;
+    DefaultAsyncNode ownedNode_;
+    AsyncNode* node_;
 };
 
 } // namespace NMRAnet

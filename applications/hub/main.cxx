@@ -40,10 +40,13 @@
 #include "utils/gc_pipe.hxx"
 #include "utils/socket_listener.hxx"
 #include "nmranet_can.h"
+#include "executor/executor.hxx"
 
 //DEFINE_PIPE(gc_can_pipe, 1);
 
-DEFINE_PIPE(can_pipe, sizeof(struct can_frame));
+ThreadExecutor g_executor("g_executor", 0, 1000);
+
+DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
 
 struct ClientInfo {
   int fd;
@@ -56,7 +59,7 @@ void NewConnection(int fd) {
   ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
   sprintf(c->thread_name, "thread_fd_%d", fd);
   c->fd = fd;
-  c->client_pipe = new Pipe(1);
+  c->client_pipe = new Pipe(&g_executor, 1);
   c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
   c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
 }

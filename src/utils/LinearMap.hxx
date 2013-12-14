@@ -69,7 +69,7 @@ public:
      */
     ~LinearMap()
     {
-        delete list;
+        delete [] list;
     }
 
     /** list entry. */
@@ -212,8 +212,7 @@ public:
     void erase(Iterator it)
     {
         ssize_t i = it.index;
-        HASSERT(i < (ssize_t)used);
-        HASSERT(i >= 0);
+        HASSERT(i < (ssize_t)used && i >= 0);
 
         /* scrunch up the list if we are able */
         if (i != (ssize_t)--used)

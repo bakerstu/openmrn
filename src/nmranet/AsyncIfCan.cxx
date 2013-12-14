@@ -53,56 +53,88 @@ size_t g_alias_use_conflicts = 0;
    Allocation semantics: none. Flow is allocated by the IfCan object, and never
    terminates.
  */
-class AsyncIfCan::CanReadFlow : public ControlFlow
+class AsyncIfCan::CanReadFlow : public ControlFlow, public PipeMember
 {
 public:
-    CanReadFlow(AsyncIfCan* if_can, Executor* e)
-        : ControlFlow(e, nullptr), if_can_(if_can)
+    CanReadFlow(Pipe* pipe, AsyncIfCan* if_can, Executor* e)
+        : ControlFlow(e, nullptr), if_can_(if_can), pipe_(pipe)
     {
-        StartFlowAt(ST(GetDispatcher));
+        StartFlowAt(ST(Terminated));
+        // Ensures that the underlying pipe will read and write whole frames.
+        HASSERT(pipe_->unit() == sizeof(struct can_frame));
+        pipe_->RegisterMember(this);
     }
 
     ~CanReadFlow()
     {
+        HASSERT(IsDone());
+        pipe_->UnregisterMember(this);
     }
+
+    Pipe* parent()
+    {
+        return pipe_;
+    }
+
+    // Callback from the pipe.
+    virtual void write(const void* buf, size_t count)
+    {
+        HASSERT(0);
+    }
+
+    // Callback from the pipe.
+    virtual void async_write(const void* buf, size_t count, Notifiable* done)
+    {
+        HASSERT(IsDone());
+        buf_ = static_cast<const struct can_frame*>(buf);
+        byte_count_ = count;
+        Restart(done);
+        StartFlowAt(ST(next_frame));
+    };
 
 private:
-    ControlFlowAction GetDispatcher()
+    ControlFlowAction next_frame()
     {
-        return Allocate(if_can_->frame_dispatcher()->allocator(),
-                        ST(HandleDispatcher));
-    }
-
-    ControlFlowAction HandleDispatcher()
-    {
-        AsyncIfCan::FrameDispatchFlow* flow;
-        GetAllocationResult(&flow);
-        struct can_frame* frame = flow->mutable_params();
-        if_can_->pipe_member()->ReceiveData(frame, sizeof(*frame), this);
-        return WaitAndCall(ST(HandleFrameArrived));
-    }
-
-    ControlFlowAction HandleFrameArrived()
-    {
-        AsyncIfCan::FrameDispatchFlow* flow;
-        GetAllocationResult(&flow);
-        if (IS_CAN_FRAME_ERR(*flow->mutable_params()) ||
-            IS_CAN_FRAME_RTR(*flow->mutable_params()) ||
-            !IS_CAN_FRAME_EFF(*flow->mutable_params()))
+        if (byte_count_ < sizeof(struct can_frame))
         {
-            // Ignore these frames, read another frame. We already have the
-            // dispatcher object's ownership.
-            return YieldAndCall(ST(HandleDispatcher));
+            return Exit();
         }
-        uint32_t can_id = GET_CAN_FRAME_ID_EFF(*flow->mutable_params());
-        flow->IncomingMessage(can_id);
-        // Now we abandon the flow, which will come back into the allocator
-        // when the message is handled properly.
-        return YieldAndCall(ST(GetDispatcher));
+
+        if (IS_CAN_FRAME_ERR(*buf_) || IS_CAN_FRAME_RTR(*buf_) ||
+            !IS_CAN_FRAME_EFF(*buf_))
+        {
+            // Ignore these frames, read another frame.
+            ++buf_;
+            byte_count_ -= sizeof(*buf_);
+            return RetryCurrentState();
+        }
+
+        return Allocate(if_can_->frame_dispatcher()->allocator(),
+                        ST(handle_dispatcher));
     }
 
+    ControlFlowAction handle_dispatcher()
+    {
+        // At this point we know that the frame is an extended frame and we
+        // have the dispatcher.
+        AsyncIfCan::FrameDispatchFlow* flow =
+            GetTypedAllocationResult(if_can_->frame_dispatcher()->allocator());
+        struct can_frame* frame = flow->mutable_params();
+        memcpy(frame, buf_, sizeof(*frame));
+        buf_++;
+        byte_count_ -= sizeof(*buf_);
+        uint32_t can_id = GET_CAN_FRAME_ID_EFF(*frame);
+        flow->IncomingMessage(can_id);
+        // Now we abandon the dispatcher flow, which will come back into the
+        // allocator when the message is handled properly.
+        return CallImmediately(ST(next_frame));
+    }
+
+    const struct can_frame* buf_;
+    size_t byte_count_;
     //! Parent interface. Owned externlly.
     AsyncIfCan* if_can_;
+    Pipe* pipe_;
 };
 
 class AsyncIfCan::CanWriteFlow : public CanFrameWriteFlow
@@ -129,13 +161,21 @@ public:
 private:
     ControlFlowAction HandleSend()
     {
-        // @TODO(balazs.racz): implement true asynchronous sending.
-        if_can_->pipe_member()->parent()->WriteToAll(if_can_->pipe_member(),
-                                                     &frame_, sizeof(frame_));
+        PipeBuffer* b = &pipeBuffer_;
+        b->data = &frame_;
+        b->size = sizeof(frame_);
+        b->skipMember = if_can_->pipe_member();
+        b->done = notifiable_.NewCallback(this);
+        if_can_->pipe_member()->parent()->SendBuffer(b);
+        return WaitAndCall(ST(wait_for_sent));
+    }
+
+    ControlFlowAction wait_for_sent()
+    {
+        if (!notifiable_.HasBeenNotified())
+            return WaitForNotification();
         ResetFrameEff();
-        //! @TODO(balazs.racz): there was a crash due ot spurious notification.
-        // Why?
-        return YieldAndCall(ST(handle_release));
+        return CallImmediately(ST(handle_release));
     }
 
     ControlFlowAction handle_release()
@@ -143,6 +183,8 @@ private:
         return ReleaseAndExit(if_can_->write_allocator(), this);
     }
 
+    PipeBuffer pipeBuffer_;
+    ProxyNotifiable notifiable_;
     //! Parent interface. Owned externlly.
     AsyncIfCan* if_can_;
 };
@@ -231,7 +273,7 @@ private:
             new_alias->Reset();
             if_can_->alias_allocator()->empty_aliases()->ReleaseBack(new_alias);
         }
-        LOG(INFO, "Allocating new alias %03X", alias);
+        LOG(INFO, "Allocating new alias %03X for node %012llx", alias, src_);
 
         // Checks that there was no conflict on this alias.
         if (if_can_->local_aliases()->lookup(alias) !=
@@ -576,21 +618,18 @@ private:
 };
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
-                       int local_alias_cache_size, int remote_alias_cache_size)
+                       int local_alias_cache_size, int remote_alias_cache_size,
+                       int hw_write_flow_count)
     : AsyncIf(executor),
       frame_dispatcher_(executor),
-      pipe_member_(device),
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {
-    // Ensures that the underlying pipe will read and write whole frames.
-    HASSERT(device->unit() == sizeof(struct can_frame));
-    owned_flows_.push_back(
-        std::unique_ptr<ControlFlow>(new CanReadFlow(this, executor)));
-    for (int i = 0; i < 10; ++i)
+    pipe_member_.reset(new CanReadFlow(device, this, executor));
+    for (int i = 0; i < hw_write_flow_count; ++i)
     {
         owned_flows_.push_back(std::unique_ptr<ControlFlow>(
-            new CanWriteFlow(this, DefaultWriteFlowExecutor())));
+            new CanWriteFlow(this, executor)));
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
@@ -602,9 +641,9 @@ AsyncIfCan::~AsyncIfCan()
 {
 }
 
-void AsyncIfCan::add_owned_flow(Executable* e) {
-    owned_flows_.push_back(
-        std::unique_ptr<Executable>(e)); 
+void AsyncIfCan::add_owned_flow(Executable* e)
+{
+    owned_flows_.push_back(std::unique_ptr<Executable>(e));
 }
 
 void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)

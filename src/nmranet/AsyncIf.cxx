@@ -46,7 +46,8 @@ Buffer* node_id_to_buffer(NodeID id) {
     return ret;
 }
 
-AsyncIf::AsyncIf(Executor* executor) : dispatcher_(executor)
+/// @TODO(balazs.racz): make the map size parametrizable.
+AsyncIf::AsyncIf(Executor* executor) : dispatcher_(executor), localNodes_(10)
 {
 }
 

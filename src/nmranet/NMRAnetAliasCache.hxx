@@ -126,7 +126,7 @@ public:
     /** Default destructor */
     ~AliasCache()
     {
-        delete pool;
+        delete [] pool;
     }
     
 private:
@@ -142,16 +142,16 @@ private:
         NodeID id; /**< 48-bit NMRAnet Node ID */
         NodeAlias alias; /**< NMRAnet alias */
         long long timestamp; /**< time stamp of last usage */
-        //union
-        //{
+        union
+        {
             Metadata *prev; /**< unused */
             Metadata *newer; /**< pointer to the next newest entry */
-        //};
-        //union
-        //{
+        };
+        union
+        {
             Metadata *next; /**< pointer to next freeList entry */
             Metadata *older; /**< pointer to the next oldest entry */
-        //};
+        };
     };
 
     /** pointer to allocated Metadata pool */

@@ -19,6 +19,8 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/stellaris_can
 TARGET := freertos.armv7m
 include $(OPENMRNPATH)/etc/prog.mk
 
+ifeq ($(MISSING_DEPS),)
+
 all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 %.bin: %.elf
@@ -27,3 +29,5 @@ all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 %.lst: %.elf
 	$(SIZE) $<
 	$(OBJDUMP) -d $< > $@
+
+endif

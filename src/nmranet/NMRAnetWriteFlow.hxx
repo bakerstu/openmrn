@@ -40,24 +40,25 @@
 #include "executor/notifiable.hxx"
 
 #include "utils/BufferQueue.hxx"
-#include "nmranet/NMRAnetNode.hxx"
+#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "nmranet/AsyncIf.hxx"
 
 namespace NMRAnet
 {
 
 Executor* DefaultWriteFlowExecutor();
 
-class WriteHelper : private Executable
+class WriteHelper : private AllocationResult
 {
 public:
+    typedef AsyncNode* node_type;
+
     static NodeHandle global()
     {
         return {0, 0};
     }
 
-    WriteHelper(Executor* executor)
-        : done_(nullptr),
-          executor_(executor)
+    WriteHelper() : done_(nullptr)
     {
     }
 
@@ -70,10 +71,17 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void WriteAsync(Node *node, If::MTI mti, NodeHandle dst,
-                    Buffer *buffer, Notifiable* done)
+    void WriteAsync(AsyncNode* node, If::MTI mti, NodeHandle dst,
+                    Buffer* buffer, Notifiable* done)
     {
         HASSERT(!done_);
+        if (!node ||
+            (!node->is_initialized() && mti != If::MTI_INITIALIZATION_COMPLETE))
+        {
+            // Drops packet to non-initialized node.
+            if (done) done->Notify();
+            return;
+        }
         node_ = node;
         mti_ = mti;
         dst_ = dst;
@@ -81,30 +89,60 @@ public:
         if (done)
         {
             done_ = done;
-            executor_->Add(this);
         }
         else
         {
-            done_ = nullptr;
-            Run();
+            // We don't support synchronous sending anymore.
+            HASSERT(0);
         }
+        TypedAllocator<WriteFlow>* a = nullptr;
+        if (dst == global())
+        {
+            a = node->interface()->global_write_allocator();
+        }
+        else
+        {
+            a = node->interface()->addressed_write_allocator();
+        }
+        a->AllocateEntry(this);
     }
 
 private:
-    /** Callback in the executor thread.
-     */
-    virtual void Run();
+    // Callback from the allocator.
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        WriteFlow* e =
+            node_->interface()->global_write_allocator()->cast_result(entry);
+        /* NOTE(balazs.racz): We could choose not to pass on the done_
+         * callback. That will allow the current write flow to be released
+         * earlier for reuse, but breaks the assumption that done means that
+         * the current packet is enqueued on the physical layer. */
+        if (dst_ == global())
+        {
+            e->WriteGlobalMessage(mti_, node_->node_id(), buffer_, done_);
+        }
+        else
+        {
+            e->WriteAddressedMessage(mti_, node_->node_id(), dst_, buffer_,
+                                     done_);
+        }
+        done_ = nullptr;
+    }
 
-    Node *node_;
-    If::MTI mti_;
+    virtual void Run()
+    {
+        HASSERT(0);
+    }
+
     NodeHandle dst_;
-    Buffer *buffer_;
+    If::MTI mti_;
+    AsyncNode* node_;
+    Buffer* buffer_;
     Notifiable* done_;
-    Executor* executor_;
 };
 
-Buffer *EventIdToBuffer(uint64_t eventid);
+Buffer* EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace NMRAnet */
 
-#endif  /* _NMRAnetWriteFlow_hxx_ */
+#endif /* _NMRAnetWriteFlow_hxx_ */

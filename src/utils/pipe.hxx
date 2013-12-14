@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -36,18 +36,27 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <vector>
 using std::vector;
 
 //#include "devtab.h"
 #include "os/os.h"
 #include "os/OS.hxx"
+#include "executor/allocator.hxx"
+#include "executor/notifiable.hxx"
+#include "nmranet/ReadDispatch.hxx"
+#include "utils/PipeFlow.hxx"
+#include "nmranet_can.h"
 
 struct devops;
 typedef struct devops devops_t;
 struct devtab;
 typedef struct devtab devtab_t;
 
+class Executor;
+class Notifiable;
+class PipeFlow;
 class PipeMember;
 
 /** A generalized pipe that allows connecting an arbitrary number of
@@ -55,7 +64,7 @@ class PipeMember;
 
    Data sent by any endpoint will be received by all other endpoints. A special
    case of this (for two endpoints) is a regular pipe.
-   
+
    Use-cases:
 
    1) A software interface can export a hardware device (with a device node
@@ -65,7 +74,7 @@ class PipeMember;
    debugging output and export that stream as a device that can be opened as fd
    1 and 2 (stdout and stderr). This won't need any device drivers to be
    written.
-   
+
 
    2) Creating multiple virtual CANbus adapters that send and receive traffic
    from the same physical bus, as if there were multiple physical adapters
@@ -94,7 +103,7 @@ class PipeMember;
    separate CANbus sniffer.
 
 
-   3) A CANbus 'hub'. 
+   3) A CANbus 'hub'.
 
    It is possible to add multiple physical devices to the same Pipe, which is a
    software-equivalent of connecting the wires together. All packets coming in
@@ -116,7 +125,7 @@ class PipeMember;
    VIRTUAL_DEVTAB_ENTRY(canp0v1, can_pipe0, "/dev/canp0v1", 16);
 
    in main.cxx
-   
+
    DECLARE_PIPE(can_pipe0);
 
    int appl_main(int argc, char *argv[]) {
@@ -124,15 +133,29 @@ class PipeMember;
      can_pipe0.AddPhysicalDeviceToPipe("/dev/can1", "can1_rx_thread", 512);
      int fd = open("/dev/canp0v0", O_RDWR);
      PacketLogger::init(fd);
-     nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/canp0v1", read, write);
+     nmranet_if = nmranet_can_if_init(0x02010d000000ULL, "/dev/canp0v1", read,
+   write);
      ...regular code...
    }
  */
 class Pipe
 {
-public:    
-    Pipe(size_t unit);
+public:
+    Pipe(Executor* e, size_t unit);
     ~Pipe();
+
+    // Asynchronous interface to the pipe.
+    Executor* executor()
+    {
+        return flow_->executor();
+    }
+
+    bool empty() {
+        return !flow_->full_buffers()->Peek();
+    }
+
+    //! Enqueues a buffer for sending to the pipe. Thread-safe.
+    void SendBuffer(PipeBuffer* buf);
 
     //! Writes some data to all receivers of the pipe, except the one denoted
     //! by "skip_member".
@@ -172,8 +195,7 @@ public:
         @param stack_size will be the size of the RX thread stack.
      */
     void AddPhysicalDeviceToPipe(int fd_read, int fd_write,
-                                 const char* thread_name,
-                                 int stack_size);
+                                 const char* thread_name, int stack_size);
 
 #ifdef __linux__
     /** Adds a virtual device to the pipe. The virtual device is represented
@@ -186,8 +208,7 @@ public:
      * @param fd[2] is an output argument, fd[0] can be read to get data from
      * the pipe, fd[1] can be written to to send data to the pipe.
      */
-    void AddVirtualDeviceToPipe(const char* thread_name,
-                                int stack_size,
+    void AddVirtualDeviceToPipe(const char* thread_name, int stack_size,
                                 int fd[2]);
 #endif
 
@@ -198,42 +219,14 @@ public:
 
     size_t size()
     {
-        return members_.size();
+        return flow_->handler_count();
     }
+
 private:
     //! The size (in bytes) of each read and write command. Only reads and
     //! writes in multiples of this unit are valid.
     size_t unit_;
-    //! The individual receivers of data coming through the pipe. Members are externally owned.
-    vector<PipeMember*> members_;
-};
-
-/**
-   An interface class for channels where we forward data from a pipe.
-
-   Various different pipe receivers will implement this interface.
- */
-class PipeMember
-{
-public:
-    virtual ~PipeMember()
-    {
-    }
-    /**
-       Writes bytes to the device.
-
-       @param buf is the source buffer from whch to write bytes.
-
-       @param count is the number of bytes to write. count is a multiple of the
-    parent pipe's unit, otherwise implementations are allowed to drop data or
-    die.
-
-       Blocks until the write is complete (that is, all data is enqueued in a
-    buffer which will drain as the output device's speed
-    allows). Implementations may want to use a lock inside to avoid writes from
-    multiple sources being interleaved.
-    */
-    virtual void write(const void* buf, size_t count) = 0;
+    PipeFlow* flow_;
 };
 
 //! Private data structure for pipe file nodes (aka virtual device nodes).
@@ -261,20 +254,32 @@ public:
     //! Class containing static methods for pipe fd operations.
     class Ops;
     friend class Ops;
+
 private:
     void Initialize();
 
     Pipe* parent_;
-    OSMutex lock_;  //< Mutex for metadata in this class.
+    OSMutex lock_;       //< Mutex for metadata in this class.
     OSMutex read_lock_;  //< Mutex for pipe_read() commands.
-    OSMutex write_lock_;  //< Mutex for incoming write() (from the parent).
-    os_mq_t read_queue_;  //< TX queue (from parent_ till fd read())
-    int queue_length_;  //< length of TX queue (parent->unit() bytes each)
-    int usage_count_;  //< Number of open file descriptors.
+    OSMutex write_lock_; //< Mutex for incoming write() (from the parent).
+    os_mq_t read_queue_; //< TX queue (from parent_ till fd read())
+    int queue_length_;   //< length of TX queue (parent->unit() bytes each)
+    int usage_count_;    //< Number of open file descriptors.
 };
 
 extern devops_t vdev_ops;
-int vdev_init(devtab_t *dev);
+int vdev_init(devtab_t* dev);
+
+
+struct CanPipeBuffer : public QueueMember, private Notifiable {
+    PipeBuffer pipe_buffer;
+    struct can_frame frame;
+    // Sets up data, size and done of pipe_buffer.
+    void Reset();
+    virtual void Notify();
+};
+
+extern InitializedAllocator<CanPipeBuffer> g_can_alloc;
 
 /** Defines a pipe to forward data between real and virtual devices.
 
@@ -287,11 +292,11 @@ int vdev_init(devtab_t *dev);
     @param unit in bytes is the size of the base structure. All writes to the
     pipe must be a multiple of this unit.
  */
-#define DEFINE_PIPE(name, unit) Pipe name(unit)
+#define DEFINE_PIPE(name, executor, unit) Pipe name(executor, unit)
 
-//! Use this if you need to refer to a pipe that was defined in a different compilation unit.
+//! Use this if you need to refer to a pipe that was defined in a different
+//compilation unit.
 #define DECLARE_PIPE(name) extern Pipe name
-
 
 /** Adds a virtual device entry to a particular pipe.
 
@@ -307,9 +312,9 @@ int vdev_init(devtab_t *dev);
     @param qlen is the length of the receive buffer for this virtual device,
     measured in 'pipe unit' bytes.
 */
-#define VIRTUAL_DEVTAB_ENTRY(name, pipe, path, qlen) \
-    extern Pipe pipe; \
-    VirtualPipeMember name(&pipe, qlen); \
-    DEVTAB_ENTRY(name ## devtab, path, vdev_init, &vdev_ops, &name)
+#define VIRTUAL_DEVTAB_ENTRY(name, pipe, path, qlen)                           \
+    extern Pipe pipe;                                                          \
+    VirtualPipeMember name(&pipe, qlen);                                       \
+    DEVTAB_ENTRY(name##devtab, path, vdev_init, &vdev_ops, &name)
 
 #endif //_pipe_hxx_

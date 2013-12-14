@@ -9,8 +9,7 @@
 #include <stdio.h>
 
 static const int FATAL = 0;
-/// @todo (Stuart Baker) this doesn't build under MinGW
-//static const int ERROR = 1;
+static const int ERROR = 1;
 static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
@@ -21,8 +20,12 @@ extern char logbuffer[256];
 
 
 #ifndef LOGLEVEL
+#ifdef __FreeRTOS__
+#define LOGLEVEL FATAL
+#else
 #define LOGLEVEL INFO
-#endif
+#endif  // not FreeRTOS
+#endif  // ifndef LOGLEVEL
 
 #ifdef __cplusplus
 extern "C" {

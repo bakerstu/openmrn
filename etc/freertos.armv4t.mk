@@ -72,7 +72,8 @@ CXXFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
            -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
            -mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" -std=c++0x \
            -Werror -D__FreeRTOS__ -mthumb -mthumb-interwork -mfloat-abi=soft \
-           -fno-stack-protector -D__STDC_FORMAT_MACROS -DTHUMB_INTERWORK \
+           -fno-stack-protector -D__STDC_FORMAT_MACROS \
+           -D__STDC_VERSION__=199901 -DTHUMB_INTERWORK \
            $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \

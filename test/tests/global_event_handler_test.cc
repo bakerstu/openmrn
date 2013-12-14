@@ -92,6 +92,8 @@ class EventHandlerTests : public ::testing::Test {
     }
   }
 
+  ~EventHandlerTests() { WaitForMainExecutor(); }
+
   void InvokeExitNotification() { exit_notify_.Notify(); }
 
   void WaitForCompleted() {

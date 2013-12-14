@@ -46,19 +46,6 @@ Executor* DefaultWriteFlowExecutor() {
   return &e;
 }
 
-/** Callback in the executor thread.
- */
-void WriteHelper::Run()
-{
-    node_->write_unlocked(mti_, dst_, buffer_);
-    Notifiable* d = done_;
-    if (d)
-    {
-        done_ = nullptr;
-        d->Notify();
-    }
-}
-
 Buffer *EventIdToBuffer(uint64_t eventid)
 {
     Buffer *buffer = buffer_alloc(sizeof(eventid));

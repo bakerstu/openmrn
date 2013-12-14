@@ -81,7 +81,7 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
-	cp $(LIBNAME) ../lib/$(LIBNAME)
+	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
 
 .PHONY: clean
 clean:

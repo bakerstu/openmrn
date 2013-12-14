@@ -7,7 +7,6 @@ namespace NMRAnet
 
 TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
 {
-    if_can_->AddWriteFlows(2, 2);
     //ExpectPacket(":X1070122AN02010d000003"); // AMD frame
     ExpectPacket(":X1910022AN02010d000003;"); // initialization complete
     //CreateAllocatedAlias();
@@ -16,6 +15,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     // Technically there is a race condition here. The initialization could
     // happen before we get to this expectation.
     EXPECT_FALSE(node.is_initialized());
+    if_can_->AddWriteFlows(2, 2);
     LOG(INFO, "after");
     Wait();
     EXPECT_TRUE(node.is_initialized());
@@ -35,6 +35,22 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
     ExpectNextAliasAllocation();
     DefaultAsyncNode node2(if_can_.get(), TEST_NODE_ID + 1);
     Wait();
+}
+
+TEST_F(AsyncIfTest, WriteHelperByMTI)
+{
+    if_can_->AddWriteFlows(2, 2);
+    ExpectPacket(":X1910022AN02010d000003;"); // initialization complete
+    DefaultAsyncNode node(if_can_.get(), TEST_NODE_ID);
+    Wait();  // for initialized
+
+    WriteHelper helper;
+    SyncNotifiable n;
+    ExpectPacket(":X195B422AN0102030405060708;");
+    helper.WriteAsync(&node, If::MTI_EVENT_REPORT,
+                      WriteHelper::global(),
+                      EventIdToBuffer(0x0102030405060708ULL), &n);
+    n.WaitForNotification();
 }
 
 } // namespace NMRAnet

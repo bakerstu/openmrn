@@ -58,7 +58,11 @@ SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
         -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
+	-D__LINEAR_MAP__ \
         $(CFLAGSENV)
+
+#	-D__USE_LIBSTDCPP__ \
+
 
 #-MT"$(@:%.o=%.d)" 
 
@@ -70,7 +74,7 @@ ARM_CFLAGS = $(CFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -fno-rtti -fno-exceptions -std=c++0x \
-        -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
+        -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901 $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
         -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb --specs=nano.specs \

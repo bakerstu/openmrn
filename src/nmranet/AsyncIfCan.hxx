@@ -129,13 +129,21 @@ public:
      * @param executor will be used to process incoming (and outgoing) messages.
      *
      * @param device is a Pipe. The interface will add a member to this pipe to
-     * handle incoming and outgoing traffic. The caller should add the necessary
-     * hardware device, GridConnect bridge or mock interface to this pipe
-     *(before
-     * this call or else outgoing packets might be lost).
+     * handle incoming and outgoing traffic. The caller should add the
+     * necessary hardware device, GridConnect bridge or mock interface to this
+     * pipe (before this call or else outgoing packets might be lost).
+     *
+     * @param local_alias_cache_size tells the number of aliases to keep track
+     * of for nocal virtual nodes and proxied nodes.
+     *
+     * @param remote_alias_cache_size tells the number of aliases to keep track
+     * of for remote nodes on the bus.
+     *
+     * @param hw_write_flow_count tells how many concurrent write flows (each
+     * with one CAN frame) should we have.
      */
     AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
-               int remote_alias_cache_size);
+               int remote_alias_cache_size, int hw_write_flow_count);
 
     ~AsyncIfCan();
 
@@ -158,10 +166,15 @@ public:
         return &write_allocator_;
     }
 
+    //! Implementation class for receiving frames from CAN.
+    class CanReadFlow;
+    //! Implementation class for sending frames to CAN.
+    class CanWriteFlow;
+
     //! @returns the asynchronous read/write object.
-    AsyncPipeMember* pipe_member()
+    CanReadFlow* pipe_member()
     {
-        return &pipe_member_;
+        return pipe_member_.get();
     }
 
     //! @returns the alias cache for local nodes (vnodes and proxies)
@@ -191,12 +204,7 @@ private:
     FrameDispatchFlow frame_dispatcher_;
 
     //! Handles asynchronous reading and writing from the device.
-    AsyncPipeMember pipe_member_;
-
-    //! Implementation class for receiving frames from CAN.
-    class CanReadFlow;
-    //! Implementation class for sending frames to CAN.
-    class CanWriteFlow;
+    std::unique_ptr<CanReadFlow> pipe_member_;
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.
      *

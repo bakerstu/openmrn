@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,18 +24,22 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ReadDispatch.hxx
- *
- * Class for dispatching incoming messages to handlers.
+ * \file 11cxx_async_can.hx
+ * This file implements an asynchronous CAN driver for the LPC11Cxx
+ * microcontrollers, using the builtin ROM drivers.
  *
  * @author Balazs Racz
- * @date 2 Dec 2013
+ * @date 14 Dec 2013
  */
 
-#include "nmranet/ReadDispatch.hxx"
+#ifdef TARGET_LPC11Cxx
 
-namespace NMRAnet
+namespace lpc11cxx
 {
 
+// Creates a CAN driver for the LPC11CXX, and adds it to the specified pipe.
+void CreateCanDriver(Pipe* parent);
 
-} // namespace NMRAnet
+} // namespace lpc11cxx
+
+#endif

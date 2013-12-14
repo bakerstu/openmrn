@@ -7,8 +7,6 @@
 #include "nmranet_can.h"
 #include "nmranet/ReadDispatch.hxx"
 
-ThreadExecutor g_executor("global_exec", 0, 2000);
-
 static void InvokeNotification(Notifiable* done)
 {
     done->Notify();

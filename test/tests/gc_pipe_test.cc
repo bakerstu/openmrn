@@ -7,7 +7,7 @@ using namespace std;
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include "os/os.h"
-
+#include "utils/test_main.hxx"
 #include "utils/gc_pipe.hxx"
 #include "utils/pipe.hxx"
 #include "nmranet_can.h"
@@ -30,11 +30,25 @@ class MockPipeMember : public PipeMember {
   MOCK_METHOD2(write, void(const void* buf, size_t count));
 };
 
+ThreadExecutor g_gc_executor("gc_executor", 0, 2000);
+
 class GcPipeTest : public testing::Test {
  public:
   GcPipeTest()
-      : gc_side_(1), can_side_(sizeof(struct can_frame)) {}
+      : gc_side_(&g_gc_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
 
+  ~GcPipeTest() {
+    Wait();
+  }
+
+  void Wait() {
+    while (!g_executor.empty() ||
+           !g_gc_executor.empty() ||
+           !gc_side_.empty() ||
+           !can_side_.empty()) {
+      usleep(100);
+    }
+  }
 
   void SaveGcPacket(const void* buf, size_t count) {
     string s(static_cast<const char*>(buf), count);
@@ -126,6 +140,7 @@ TEST_F(GcPipeTest, SendGcPacket) {
   can_side_.RegisterMember(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
   gc_side_.WriteToAll(NULL, s.data(), s.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -141,6 +156,7 @@ TEST_F(GcPipeTest, SendGcPacketWithGarbage) {
   can_side_.RegisterMember(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
   gc_side_.WriteToAll(NULL, s.data(), s.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -160,18 +176,11 @@ TEST_F(GcPipeTest, PartialPacket) {
   gc_side_.WriteToAll(NULL, s.data(), s.size());
   gc_side_.WriteToAll(NULL, s2.data(), s2.size());
   gc_side_.WriteToAll(NULL, s3.data(), s3.size());
+  Wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
   EXPECT_EQ(0xf0U, saved_can_data_[0].data[0]);
   EXPECT_EQ(0xf1U, saved_can_data_[0].data[1]);
   EXPECT_EQ(0xf2U, saved_can_data_[0].data[2]);
-}
-
-
-
-
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }
