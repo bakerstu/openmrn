@@ -114,7 +114,7 @@ depmake:
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
+	$(CXX) $(CXXFLAGS) $(realpath $<) -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .c.o:

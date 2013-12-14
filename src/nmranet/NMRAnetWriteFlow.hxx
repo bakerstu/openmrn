@@ -51,6 +51,8 @@ Executor* DefaultWriteFlowExecutor();
 class WriteHelper : private AllocationResult
 {
 public:
+    typedef AsyncNode* node_type;
+
     static NodeHandle global()
     {
         return {0, 0};
