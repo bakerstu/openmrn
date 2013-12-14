@@ -188,7 +188,8 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
                                                 thread_name, stack_size));
 }
 
-InitializedAllocator<CanPipeBuffer> g_can_alloc(10);
+//! @TODO(balazs.racz) make this configurable.
+InitializedAllocator<CanPipeBuffer> g_can_alloc(3);
 
 void CanPipeBuffer::Reset() {
     pipe_buffer.data = &frame;
