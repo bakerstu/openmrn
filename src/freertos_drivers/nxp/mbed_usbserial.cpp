@@ -34,7 +34,7 @@
 
 #include "mbed.h"
 #include "USBSerial.h"
-#include "serial.h"
+#include "Serial.hxx"
 #include "os/os.h"
 #include "utils/macros.h"
 #include "portmacro.h"
@@ -60,8 +60,6 @@ extern "C" void __cxa_guard_abort(__guard*);
 
 extern "C" void __cxa_pure_virtual(void);
 
-extern bool IsEpPending();
-
 /** This class is an empty wrapper around MBed's USB CDC class. The difference
     between this and mbed::USBSerial is that this class does not have any
     buffering and no interaction with stdio, whereas mbed::USBSerial has the
@@ -72,49 +70,25 @@ extern bool IsEpPending();
     * it requires mbed's custom glue code in the open(2) method, without which
       it crashes.
  */
-class MbedRawUSBSerial : public USBCDC
+class MbedRawUSBSerial : public USBCDC, public Serial
 {
 public:
-    MbedRawUSBSerial(SerialPriv* serialPriv, uint16_t vendor_id = 0x1f00,
+    MbedRawUSBSerial(const char* name, uint16_t vendor_id = 0x1f00,
                      uint16_t product_id = 0x2012,
                      uint16_t product_release = 0x0001)
         : USBCDC(vendor_id, product_id, product_release),
+          Serial(name),
           serialPriv(serialPriv),
           txPending(false)
     {
         os_sem_init(&rxSem, 0);
         os_thread_t thread;
-        os_thread_create(&thread, "usbserial.rx", 2, 1024, &_RxThread, this);
+        os_thread_create(&thread, "usbserial.rx", 1, 1024, &_RxThread, this);
     }
 
     ~MbedRawUSBSerial()
     {
         os_sem_destroy(&rxSem);
-    }
-
-    void Transmit()
-    {
-        // Without this critical section there were cases when we deadlocked
-        // with txPending == true but no interrupt coming in to clear it.
-        taskENTER_CRITICAL();
-        if (txPending)
-        {
-            taskEXIT_CRITICAL();
-            return;
-        }
-        txPending = true;
-        int count;
-        for (count = 0; count < TX_DATA_SIZE; count++)
-        {
-            if (os_mq_timedreceive(serialPriv->txQ, txData + count, 0) !=
-                OS_MQ_NONE)
-            {
-                /* no more data left to transmit */
-                break;
-            }
-        }
-        TxHelper(count);
-        taskEXIT_CRITICAL();
     }
 
 protected:
@@ -157,6 +131,39 @@ protected:
     }
 
 private:
+    void enable()
+    {
+    } /**< function to enable device */
+    void disable()
+    {
+    } /**< function to disable device */
+
+    /** function to try and transmit a character */
+    void tx_char()
+    {
+        // Without this critical section there were cases when we deadlocked
+        // with txPending == true but no interrupt coming in to clear it.
+        taskENTER_CRITICAL();
+        if (txPending)
+        {
+            taskEXIT_CRITICAL();
+            return;
+        }
+        txPending = true;
+        int count;
+        for (count = 0; count < TX_DATA_SIZE; count++)
+        {
+            if (os_mq_timedreceive(serialPriv->txQ, txData + count, 0) !=
+                OS_MQ_NONE)
+            {
+                /* no more data left to transmit */
+                break;
+            }
+        }
+        TxHelper(count);
+        taskEXIT_CRITICAL();
+    }
+
     static const int MAX_TX_PACKET_LENGTH = 64;
     static const int MAX_RX_PACKET_LENGTH = 64;
 
@@ -210,11 +217,10 @@ private:
     }
 
     uint8_t txData[MAX_TX_PACKET_LENGTH]; /**< packet assemby buffer to host */
-    uint32_t rxSize; /**< number of valis characters in rxData */
+    uint32_t rxSize; /**< number of valid characters in rxData */
     uint8_t rxData
         [MAX_RX_PACKET_LENGTH]; /**< packet assembly buffer from host */
-    SerialPriv* serialPriv;
-    bool txPending; /**< transmission currently pending */
+    bool txPending;             /**< transmission currently pending */
     os_sem_t rxSem;
 };
 
