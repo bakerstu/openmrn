@@ -120,7 +120,7 @@ public:
     InitializedAllocator(size_t count)
         : members_(new T[count]) {
         for (size_t i = 0; i < count; ++i) {
-            TypedRelease(&members_[i]);
+            this->TypedRelease(&members_[i]);
         }
     }
 
