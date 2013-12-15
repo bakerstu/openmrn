@@ -76,7 +76,7 @@ private:
         {
             const struct can_frame* frame =
                 static_cast<const struct can_frame*>(buf);
-            char dbuf[56];
+            char dbuf[58];
             while (count >= sizeof(*frame))
             {
                 char* end = gc_format_generate(frame, dbuf, double_bytes_);
