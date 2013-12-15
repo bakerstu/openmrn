@@ -154,7 +154,7 @@ public:
     {
         HASSERT(!(freeTxBuffers_ & (1 << buf_num)));
         freeTxBuffers_ |= (1 << buf_num);
-        if (frameToWrite_)
+        if (frameToWrite_ && !g_executor.IsRunning(this))
         {
             g_executor.AddFromIsr(this);
         }

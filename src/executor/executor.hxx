@@ -98,6 +98,13 @@ public:
    */
   bool IsPendingOrRunning(Executable* entry);
 
+  /** Returns true if the given entry is on the executor right now.
+   */
+  bool IsRunning(Executable* entry) {
+      return current_ == entry;
+  }
+
+
   //! Returns true if this executor has run out of work.
   bool empty() {
     LockHolder h(this);
