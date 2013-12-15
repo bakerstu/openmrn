@@ -474,7 +474,8 @@ public:
             return;
         }
         NodeAlias alias = IfCan::get_src(id);
-        NodeID node = ifCan_->local_aliases()->lookup(alias);
+        // If the caller comes with alias 000, we ignore that.
+        NodeID node = alias ? ifCan_->local_aliases()->lookup(alias) : 0;
         if (!node)
         {
             // This is not a local alias of ours.
