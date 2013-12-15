@@ -44,6 +44,7 @@
 //DEFINE_PIPE(gc_can_pipe, 1);
 
 DEFINE_PIPE(can_pipe, sizeof(struct can_frame));
+DEFINE_PIPE(display_pipe, 1);
 
 struct ClientInfo {
   int fd;
@@ -68,6 +69,8 @@ void NewConnection(int fd) {
  */
 int appl_main(int argc, char *argv[])
 {
+  GCAdapterBase::CreateGridConnectAdapter(&display_pipe, &can_pipe, false);
+  display_pipe.AddPhysicalDeviceToPipe(1, 1, "display_thread", 0);
   SocketListener listener(8082, NewConnection);
   while(1) {
     sleep(1);
