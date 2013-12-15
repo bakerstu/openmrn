@@ -598,7 +598,8 @@ public:
         m->dst_node = nullptr;
         m->src.alias = id_ & IfCan::SRC_MASK;
         // This will be zero if the alias is not known.
-        m->src.id = ifCan_->remote_aliases()->lookup(m->src.alias);
+        m->src.id =
+            m->src.alias ? ifCan_->remote_aliases()->lookup(m->src.alias) : 0;
         f->IncomingMessage(m->mti);
         // Return ourselves to the pool.
         lock_.TypedRelease(this);
@@ -629,8 +630,8 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
-        owned_flows_.push_back(std::unique_ptr<ControlFlow>(
-            new CanWriteFlow(this, executor)));
+        owned_flows_.push_back(
+            std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
