@@ -74,25 +74,6 @@ NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 4);
 static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
 const int main_priority = 0;
 
-extern "C" {
-
-#ifdef __FreeRTOS__ //TARGET_LPC11Cxx
-  // This gets rid of about 50 kbytes of flash code that is unnecessarily
-  // linked into the binary.
-void __wrap___cxa_pure_virtual(void) {
-  abort();
-}
-
-  // This removes 400 bytes of memory allocated at startup for the atexit
-  // structure.
-int __wrap___cxa_atexit(void) {
-  return 0;
-}
-
-#endif
-  
-}
-
 Executor* DefaultWriteFlowExecutor() {
     return &g_executor;
 }
