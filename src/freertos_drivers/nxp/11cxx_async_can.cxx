@@ -254,8 +254,9 @@ private:
         bufFull_ = 1;
         rxPending_ = 0;
 
-        frame_.can_id = msg_obj.mode_id & ((1 << 30) - 1);
-        HASSERT(frame_.can_id & 0xfff);
+        frame_.can_id = msg_obj.mode_id & ((1 << 29) - 1);
+        // JMRI crashes the node here.
+        // HASSERT(frame_.can_id & 0xfff);
         frame_.can_rtr = (msg_obj.mode_id & CAN_MSGOBJ_RTR) ? 1 : 0;
         frame_.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 1 : 0;
         frame_.can_err = 0;
