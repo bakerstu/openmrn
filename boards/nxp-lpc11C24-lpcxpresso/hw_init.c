@@ -506,3 +506,8 @@ int __wrap___cxa_atexit(void)
 {
     return 0;
 }
+
+void __wrap_exit(int r)
+{
+    abort();
+}
