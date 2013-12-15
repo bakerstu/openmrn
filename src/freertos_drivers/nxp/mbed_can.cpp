@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -42,7 +42,6 @@
 #include "LPC17xx.h"
 #endif
 
-
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
 /** mbed CAN implementation object */
 CAN cand1(P0_0, P0_1);
@@ -54,9 +53,9 @@ CAN cand2(P0_4, P0_5);
 typedef struct mbed_can_priv
 {
     CanPriv canPriv; /**< common private data */
-    CAN *can;
+    CAN* can;
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    volatile uint32_t *SR;
+    volatile uint32_t* SR;
 #endif
     char txPending; /**< transmission currently pending */
     char can_data[8];
@@ -64,38 +63,29 @@ typedef struct mbed_can_priv
 } MbedCanPriv;
 
 /** private data for the can device */
-static MbedCanPriv can_private[2] =
-{
-    {
-        CanPriv(),
-        &cand1,
+static MbedCanPriv can_private[2] = {{CanPriv(),     &cand1,
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-        &LPC_CAN1->SR,
+                                      &LPC_CAN1->SR,
 #endif
-        0
-    },
-    {
-        CanPriv(),
-        &cand2,
+                                      0},
+                                     {CanPriv(),     &cand2,
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-        &LPC_CAN2->SR,
+                                      &LPC_CAN2->SR,
 #endif
-        0
-    }
-};
+                                      0}};
 
-static int mbed_can_init(devtab_t *dev);
-static void ignore_dev_function(devtab_t *dev);
-static void mbed_can_tx_msg(devtab_t *dev);
+static int mbed_can_init(devtab_t* dev);
+static void ignore_dev_function(devtab_t* dev);
+static void mbed_can_tx_msg(devtab_t* dev);
 
 /** initialize the device
  * @param dev device to initialize
  * @return 0 upon success
  */
-static int mbed_can_init(devtab_t *dev)
+static int mbed_can_init(devtab_t* dev)
 {
-    MbedCanPriv *priv = (MbedCanPriv*)dev->priv;
-    //priv->can->frequency(125000);
+    MbedCanPriv* priv = (MbedCanPriv*)dev->priv;
+    // priv->can->frequency(125000);
     priv->can->frequency(250000);
     priv->can->attach(priv, &MbedCanPriv::interrupt);
 
@@ -108,18 +98,22 @@ static int mbed_can_init(devtab_t *dev)
 /** Empty device function. Does nothing.
  * @param dev device
  */
-static void ignore_dev_function(devtab_t *dev) {}
+static void ignore_dev_function(devtab_t* dev)
+{
+}
 
 /** Try and transmit a message. Does nothing if there is no message to transmit
  *  or no write buffers to transmit via.
  * @param dev device to transmit message on
  */
-static void mbed_can_tx_msg(devtab_t *dev)
+static void mbed_can_tx_msg(devtab_t* dev)
 {
-    MbedCanPriv *priv = (MbedCanPriv*)dev->priv;
-    if (priv->txPending) return;
+    MbedCanPriv* priv = (MbedCanPriv*)dev->priv;
+    if (priv->txPending)
+        return;
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    if (!(*priv->SR & 0x4)) return; // TX buffer is holding a packet
+    if (!(*priv->SR & 0x4))
+        return; // TX buffer is holding a packet
 #endif
 
     struct can_frame can_frame;
@@ -131,10 +125,8 @@ static void mbed_can_tx_msg(devtab_t *dev)
     {
         return;
     }
-    CANMessage msg(can_frame.can_id,
-                   (const char*) can_frame.data,
-                   can_frame.can_dlc,
-                   can_frame.can_rtr ? CANRemote : CANData,
+    CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
+                   can_frame.can_dlc, can_frame.can_rtr ? CANRemote : CANData,
                    can_frame.can_eff ? CANExtended : CANStandard);
     if (!priv->can->write(msg))
     {
@@ -150,7 +142,8 @@ static void mbed_can_tx_msg(devtab_t *dev)
 }
 
 /** Handler for CAN device. Called from the mbed irq handler. */
-void MbedCanPriv::interrupt() {
+void MbedCanPriv::interrupt()
+{
     int woken = 0;
     CANMessage msg;
     if (can->read(msg))
@@ -173,10 +166,10 @@ void MbedCanPriv::interrupt() {
     {
         // Transmit buffer 1 empty => transmit finished.
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame, &woken) == OS_MQ_NONE)
+        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame, &woken) ==
+            OS_MQ_NONE)
         {
-            CANMessage msg(can_frame.can_id,
-                           (const char*) can_frame.data,
+            CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
                            can_frame.can_dlc,
                            can_frame.can_rtr ? CANRemote : CANData,
                            can_frame.can_eff ? CANExtended : CANStandard);
@@ -206,11 +199,11 @@ void MbedCanPriv::interrupt() {
     if (woken)
     {
 #ifdef TARGET_LPC1768
-      portYIELD();
+        portYIELD();
 #elif defined(TARGET_LPC2368)
-      /** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
-       * portYIELD_FROM_ISR assumes that we have entered the ISR with context
-       * saving, which we didn't. */
+/** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
+ * portYIELD_FROM_ISR assumes that we have entered the ISR with context
+ * saving, which we didn't. */
 #else
 #error define how to yield on your CPU.
 #endif
