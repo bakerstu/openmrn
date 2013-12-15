@@ -70,7 +70,7 @@ extern "C" void __cxa_pure_virtual(void);
     * it requires mbed's custom glue code in the open(2) method, without which
       it crashes.
  */
-class MbedRawUSBSerial : public USBCDC, public Serial
+class MbedRawUSBSerial : public USBCDC, public ::Serial
 {
 public:
     MbedRawUSBSerial(const char* name, uint16_t vendor_id = 0x1f00,
@@ -78,7 +78,6 @@ public:
                      uint16_t product_release = 0x0001)
         : USBCDC(vendor_id, product_id, product_release),
           Serial(name),
-          serialPriv(serialPriv),
           txPending(false)
     {
         os_sem_init(&rxSem, 0);
@@ -94,7 +93,7 @@ public:
 protected:
     virtual bool EP2_OUT_callback()
     {
-        HASSERT(IsEpPending());
+        //HASSERT(IsEpPending());
         // and wake up the RX thread.
         os_sem_post_from_isr(&rxSem);
         return false;
@@ -107,7 +106,7 @@ protected:
         configASSERT(txPending);
         for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
         {
-            if (os_mq_receive_from_isr(serialPriv->txQ, &txData[count],
+            if (os_mq_receive_from_isr(txQ, &txData[count],
                                        &woken) != OS_MQ_NONE)
             {
                 /* no more data left to transmit */
@@ -153,7 +152,7 @@ private:
         int count;
         for (count = 0; count < TX_DATA_SIZE; count++)
         {
-            if (os_mq_timedreceive(serialPriv->txQ, txData + count, 0) !=
+            if (os_mq_timedreceive(txQ, txData + count, 0) !=
                 OS_MQ_NONE)
             {
                 /* no more data left to transmit */
@@ -180,7 +179,7 @@ private:
         {
             // An error occured, data was lost.
             txPending = false;
-            serialPriv->overrunCount += count;
+            overrunCount += count;
             return;
         }
         txPending = true;
@@ -202,7 +201,7 @@ private:
             }
             for (uint32_t i = 0; i < rxSize; i++)
             {
-                os_mq_send(serialPriv->rxQ, rxData + i);
+                os_mq_send(rxQ, rxData + i);
             }
             rxSize = 0;
             // We reactivate the endpoint to receive next characters
@@ -223,25 +222,6 @@ private:
     bool txPending;             /**< transmission currently pending */
     os_sem_t rxSem;
 };
-
-/** Private data for this implementation of Serial port
- */
-class MbedSerialPriv
-{
-public:
-    MbedSerialPriv() : serial(NULL)
-    {
-    }
-    SerialPriv serialPriv;    /**< common private data */
-    MbedRawUSBSerial* serial; /*< USB implementation object */
-};
-
-/** private data for the can device */
-static MbedSerialPriv serial_private[1];
-
-static int mbed_usbserial_init(devtab_t* dev);
-static void ignore_dev_function(devtab_t* dev);
-static void mbed_usbserial_tx_msg(devtab_t* dev);
 
 void* operator new(size_t size)
 {
@@ -268,42 +248,6 @@ void __cxa_guard_abort(__guard*) {};
 
 void __cxa_pure_virtual(void) {};
 
-/** initialize the device
- * @param dev device to initialize
- * @return 0 upon success
- */
-static int mbed_usbserial_init(devtab_t* dev)
-{
-    MbedSerialPriv* priv = (MbedSerialPriv*)dev->priv;
-    int r = serial_init(dev);
-    if (r)
-        return r;
-    priv->serial = new MbedRawUSBSerial(&priv->serialPriv);
-    priv->serialPriv.enable = ignore_dev_function;
-    priv->serialPriv.disable = ignore_dev_function;
-    priv->serialPriv.tx_char = mbed_usbserial_tx_msg;
-    // priv->serial->attach(priv, &MbedSerialPriv::RxCallback);
-    // priv->serial->txattach(priv, &MbedSerialPriv::TxCallback);
-    return r;
-}
 
-/** Empty device function. Does nothing.
- * @param dev device
- */
-static void ignore_dev_function(devtab_t* dev)
-{
-}
+MbedRawUSBSerial g_mbed_usb_serial("/dev/serUSB0");
 
-/** Try and transmit a message. Does nothing if there is no message to transmit
- *  or no write buffers to transmit via.
- * @param dev device to transmit message on
- */
-static void mbed_usbserial_tx_msg(devtab_t* dev)
-{
-    MbedSerialPriv* priv = (MbedSerialPriv*)dev->priv;
-    priv->serial->Transmit();
-}
-
-/** Device table entry for serial device */
-static SERIAL_DEVTAB_ENTRY(serUSB0, "/dev/serUSB0", mbed_usbserial_init,
-                           &serial_private[0]);
