@@ -33,7 +33,7 @@
  */
 
 #include "mbed.h"
-#include "can.h"
+#include "Can.hxx"
 #ifdef TARGET_LPC2368
 #include "lpc23xx.h"
 #endif
@@ -42,111 +42,76 @@
 #include "LPC17xx.h"
 #endif
 
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-/** mbed CAN implementation object */
-CAN cand1(P0_0, P0_1);
-CAN cand2(P0_4, P0_5);
-#endif
-
-/** Private data for this implementation of CAN
- */
-typedef struct mbed_can_priv
+class MbedCanDriver : public Can
 {
-    CanPriv canPriv; /**< common private data */
-    CAN* can;
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    volatile uint32_t* SR;
-#endif
-    char txPending; /**< transmission currently pending */
-    char can_data[8];
+public:
+    enum Instance {
+        CAN1,
+        CAN2
+    };
+    MbedCanDriver(Instance instance, const char* dev, int frequency)
+        : Can(dev),
+          mbedCan_(instance == CAN1 ? P0_0 : P0_4,
+                   instance == CAN1 ? P0_1 : P0_5),
+          SR_(instance == CAN1 ? &LPC_CAN1->SR : &LPC_CAN2->SR) {
+        mbedCan_.frequency(frequency);
+        mbedCan_.attach(this, &MbedCanDriver::interrupt);
+    }
+private:
+    virtual void enable() {}; /**< function to enable device */
+    virtual void disable() {}; /**< function to disable device */
+
     void interrupt();
-} MbedCanPriv;
+    virtual void tx_msg();
 
-/** private data for the can device */
-static MbedCanPriv can_private[2] = {{CanPriv(),     &cand1,
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-                                      &LPC_CAN1->SR,
-#endif
-                                      0},
-                                     {CanPriv(),     &cand2,
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-                                      &LPC_CAN2->SR,
-#endif
-                                      0}};
-
-static int mbed_can_init(devtab_t* dev);
-static void ignore_dev_function(devtab_t* dev);
-static void mbed_can_tx_msg(devtab_t* dev);
-
-/** initialize the device
- * @param dev device to initialize
- * @return 0 upon success
- */
-static int mbed_can_init(devtab_t* dev)
-{
-    MbedCanPriv* priv = (MbedCanPriv*)dev->priv;
-    // priv->can->frequency(125000);
-    priv->can->frequency(250000);
-    priv->can->attach(priv, &MbedCanPriv::interrupt);
-
-    priv->canPriv.enable = ignore_dev_function;
-    priv->canPriv.disable = ignore_dev_function;
-    priv->canPriv.tx_msg = mbed_can_tx_msg;
-    return can_init(dev);
-}
-
-/** Empty device function. Does nothing.
- * @param dev device
- */
-static void ignore_dev_function(devtab_t* dev)
-{
-}
+    mbed::CAN mbedCan_;
+    // Status register.
+    volatile uint32_t* SR_;
+    char txPending_;
+};
 
 /** Try and transmit a message. Does nothing if there is no message to transmit
  *  or no write buffers to transmit via.
  * @param dev device to transmit message on
  */
-static void mbed_can_tx_msg(devtab_t* dev)
+void MbedCanDriver::tx_msg()
 {
-    MbedCanPriv* priv = (MbedCanPriv*)dev->priv;
-    if (priv->txPending)
+    if (txPending_)
         return;
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    if (!(*priv->SR & 0x4))
+    if (!(*SR_ & 0x4))
         return; // TX buffer is holding a packet
-#endif
 
     struct can_frame can_frame;
     /** @todo (balazs.racz): think about how we could do with a shorter
      critical section. The problem is that an ISR might decide to send off the
      next frame ahead of us. */
     taskENTER_CRITICAL();
-    if (os_mq_timedreceive(priv->canPriv.txQ, &can_frame, 0) != OS_MQ_NONE)
+    if (os_mq_timedreceive(txQ, &can_frame, 0) != OS_MQ_NONE)
     {
         return;
     }
     CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
                    can_frame.can_dlc, can_frame.can_rtr ? CANRemote : CANData,
                    can_frame.can_eff ? CANExtended : CANStandard);
-    if (!priv->can->write(msg))
+    if (!mbedCan_.write(msg))
     {
         // NOTE(balazs.racz): This means that the CAN layer didn't find an
         // available TX buffer to send the CAN message. However, since
         // txPending == 0 at this point, that can only happen if someone else
         // was also writing frames to this CAN device. We won't handle that
         // case now.
-        priv->canPriv.overrunCount++;
+        overrunCount++;
     }
-    priv->txPending = 1;
+    txPending_ = 1;
     taskEXIT_CRITICAL();
 }
 
 /** Handler for CAN device. Called from the mbed irq handler. */
-void MbedCanPriv::interrupt()
+void MbedCanDriver::interrupt()
 {
     int woken = 0;
     CANMessage msg;
-    if (can->read(msg))
+    if (mbedCan_.read(msg))
     {
         struct can_frame can_frame;
         can_frame.can_id = msg.id;
@@ -156,39 +121,39 @@ void MbedCanPriv::interrupt()
         can_frame.can_dlc = msg.len;
         memcpy(can_frame.data, msg.data, msg.len);
         int woken = 0;
-        if (os_mq_send_from_isr(canPriv.rxQ, &can_frame, &woken) == OS_MQ_FULL)
+        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
         {
-            canPriv.overrunCount++;
+            overrunCount++;
         }
     }
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    if (*SR & 0x4)
+    if (*SR_ & 0x4)
     {
         // Transmit buffer 1 empty => transmit finished.
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(canPriv.txQ, &can_frame, &woken) ==
+        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) ==
             OS_MQ_NONE)
         {
             CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
                            can_frame.can_dlc,
                            can_frame.can_rtr ? CANRemote : CANData,
                            can_frame.can_eff ? CANExtended : CANStandard);
-            if (can->write(msg))
+            if (mbedCan_.write(msg))
             {
-                txPending = 1;
+                txPending_ = 1;
             }
             else
             {
                 // NOTE(balazs.racz): This is an inconsistency -- if *SR&0x4
                 // then TX1 buffer is empty, so if write fails, then... a task
                 // switch occured while serving an interrupt handler?
-                canPriv.overrunCount++;
-                txPending = 0;
+                overrunCount++;
+                txPending_ = 0;
             }
         }
         else
         {
-            txPending = 0;
+            txPending_ = 0;
         }
     }
 #else
@@ -210,6 +175,5 @@ void MbedCanPriv::interrupt()
     }
 }
 
-/** Device table entry for can device */
-static CAN_DEVTAB_ENTRY(can0, "/dev/can0", mbed_can_init, &can_private[0]);
-static CAN_DEVTAB_ENTRY(can1, "/dev/can1", mbed_can_init, &can_private[1]);
+MbedCanDriver can0(MbedCanDriver::CAN1, "/dev/can0", 250000);
+MbedCanDriver can1(MbedCanDriver::CAN2, "/dev/can1", 250000);
