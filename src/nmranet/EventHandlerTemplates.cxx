@@ -281,6 +281,30 @@ void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
                                  EventIdToBuffer(event->event), done);
 }
 
+void BitEventConsumer::HandleProducerIdentified(EventReport* event, Notifiable* done) {
+  done->Notify();
+  bool value;
+  if (event->state == VALID) {
+    value = true;
+  } else if (event->state == INVALID) {
+    value = false;
+  } else {
+    return;  // nothing to learn from this message.
+  }
+  if (event->event == bit_->event_on()) {
+    bit_->SetState(value);
+  } else if (event->event == bit_->event_off()) {
+    bit_->SetState(!value);
+  } else {
+    return;  // uninteresting event id.
+  }
+}
+
+void BitEventConsumer::SendQuery(WriteHelper* writer, Notifiable* done) {
+  writer->WriteAsync(bit_->node(), If::MTI_PRODUCER_IDENTIFY, WriteHelper::global(),
+                     EventIdToBuffer(bit_->event_on()), done);
+}
+
 void BitEventConsumer::HandleEventReport(EventReport* event, Notifiable* done) {
   if (event->event == bit_->event_on()) {
     bit_->SetState(true);

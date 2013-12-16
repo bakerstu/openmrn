@@ -50,6 +50,41 @@ TEST_F(BitEventConsumerTest, SimpleOnOff) {
   EXPECT_EQ(0, storage_);
 }
 
+TEST_F(BitEventConsumerTest, ProducerIdentifiedOnOff) {
+  storage_ = 0;
+  SendPacket(":X19544001N05010101FFFF0000;");
+  WaitForEventThread();
+  EXPECT_EQ(1, storage_);
+
+  SendPacket(":X19544001N05010101FFFF0000;");
+  WaitForEventThread();
+  EXPECT_EQ(1, storage_);
+
+  SendPacket(":X19544001N05010101FFFF0001;");
+  WaitForEventThread();
+  EXPECT_EQ(0, storage_);
+
+  SendPacket(":X19544001N05010101FFFF0001;");
+  WaitForEventThread();
+  EXPECT_EQ(0, storage_);
+
+  SendPacket(":X19545001N05010101FFFF0001;");
+  WaitForEventThread();
+  EXPECT_EQ(1, storage_);
+
+  SendPacket(":X19545001N05010101FFFF0001;");
+  WaitForEventThread();
+  EXPECT_EQ(1, storage_);
+
+  SendPacket(":X19545001N05010101FFFF0000;");
+  WaitForEventThread();
+  EXPECT_EQ(0, storage_);
+
+  SendPacket(":X19545001N05010101FFFF0000;");
+  WaitForEventThread();
+  EXPECT_EQ(0, storage_);
+}
+
 TEST_F(BitEventConsumerTest, GlobalIdentify) {
   storage_ = 1;
   ExpectPacket(":X194C522AN05010101FFFF0001;");
@@ -66,6 +101,15 @@ TEST_F(BitEventConsumerTest, GlobalIdentify) {
   ExpectPacket(":X194C522AN05010101FFFF0003;");
   SendPacket(":X19970001N;");
   WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+}
+
+TEST_F(BitEventConsumerTest, Query) {
+  ExpectPacket(":X1991422AN05010101FFFF0000;");
+  WriteHelper h;
+  SyncNotifiable n;
+  consumer_.SendQuery(&h, &n);
+  n.WaitForNotification();
+  WaitForEventThread();
 }
 
 TEST_F(BitEventConsumerTest, IdentifyConsumer) {

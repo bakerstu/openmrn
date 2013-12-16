@@ -188,9 +188,13 @@ class BitEventConsumer : public BitEventHandler {
   BitEventConsumer(BitEventInterface* bit)
       : BitEventHandler(bit) {}
 
+    /// Queries producers and acquires the current state of the bit.
+  void SendQuery(WriteHelper* writer, Notifiable* done);
+
   virtual void HandleEventReport(EventReport* event, Notifiable* done);
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
   virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
+  virtual void HandleProducerIdentified(EventReport* event, Notifiable* done);
 };
 
 class BitEventPC : public BitEventConsumer {
