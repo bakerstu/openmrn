@@ -134,6 +134,11 @@ class BitEventHandler : public SimpleEventHandler {
  public:
   BitEventHandler(BitEventInterface* bit);
   ~BitEventHandler();
+
+  // Sends an event report packet (unconditionally).
+  void SendEventReport(WriteHelper* writer,
+                       Notifiable* done);
+
  protected:
   // Sends off two packets using write_event_handler{1,2} of ProducerIdentified
   // for handling a global identify events message. Uses event_barrier.
@@ -142,10 +147,6 @@ class BitEventHandler : public SimpleEventHandler {
   // Sends off two packets using write_event_handler{3,4} of ConsumerIdentified
   // for handling a global identify events message. Uses event_barrier.
   void SendConsumerIdentified();
-
-  // Sends an event report packet (unconditionally).
-  void SendEventReport(WriteHelper* writer,
-                       Notifiable* done);
 
   // Checks if the event in the report is something we are interested in, and
   // if so, sends off a {Producer|Consumer}Identify message. Uses

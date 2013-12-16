@@ -5,7 +5,9 @@
 
 // This is a workaround for missing shared_ptr.h causing compilation errors. We
 // do not use shared_ptr.
+#ifndef __CR2_C___4_6_2_BITS_SHARED_PTR_H__
 #define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
+#endif
 
 #include <memory>
 

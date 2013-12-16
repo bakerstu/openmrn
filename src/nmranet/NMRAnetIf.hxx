@@ -88,13 +88,13 @@ public:
         MTI_PROTOCOL_SUPPORT_INQUIRY  = 0x0828, /**< inquire on supported protocols */
         MTI_PROTOCOL_SUPPORT_REPLY    = 0x0668, /**< reply with supported protocols */
         MTI_CONSUMER_IDENTIFY         = 0x08F4, /**< query about consumers */
-        MTI_CONSUMER_IDENTIFY_RANGE   = 0x04A4, /**< query about a range of consumers */
+        MTI_CONSUMER_IDENTIFIED_RANGE   = 0x04A4, /**< consumer broadcast about a range of consumers */
         MTI_CONSUMER_IDENTIFIED_UNKNOWN = 0x04C7, /**< consumer broadcast, validity unknown */
         MTI_CONSUMER_IDENTIFIED_VALID   = 0x04C4, /**< consumer broadcast, valid state */
         MTI_CONSUMER_IDENTIFIED_INVALID = 0x04C5, /**< consumer broadcast, invalid state */
         MTI_CONSUMER_IDENTIFIED_RESERVED = 0x04C6, /**< reserved for future use */
         MTI_PRODUCER_IDENTIFY         = 0x0914, /**< query about producers */
-        MTI_PRODUCER_IDENTIFY_RANGE   = 0x0524, /**< query about a range of producers */
+        MTI_PRODUCER_IDENTIFIED_RANGE   = 0x0524, /**< producer broadcast about a range of producers */
         MTI_PRODUCER_IDENTIFIED_UNKNOWN = 0x0547, /**< producer broadcast, validity unknown */
         MTI_PRODUCER_IDENTIFIED_VALID   = 0x0544, /**< producer broadcast, valid state */
         MTI_PRODUCER_IDENTIFIED_INVALID = 0x0545, /**< producer broadcast, invalid state */

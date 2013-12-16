@@ -37,7 +37,6 @@
 #include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
-#include "if/nmranet_if.h" // for MTI values
 
 //#define DESCRIBE_VAR
 
@@ -203,10 +202,10 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
                                            Notifiable* done) {
   uint64_t range = EncodeRange(event_base_, size_);
   event_barrier.Reset(done);
-  event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFY_RANGE,
+  event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  event_barrier.NewChild());
-  event_write_helper2.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFY_RANGE,
+  event_write_helper2.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  event_barrier.NewChild());
   event_barrier.MaybeDone();
@@ -327,4 +326,3 @@ void BitEventPC::HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
 }
 
 }; /* namespace NMRAnet */
-
