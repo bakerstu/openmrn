@@ -3,7 +3,7 @@
 
 char logbuffer[256];
 
-#ifdef TARGET_LPC1768
+#ifdef MBED_USE_STDIO_LOGGING  // TARGET_LPC1768
 
 extern "C" { void send_stdio_serial_message(const char* data); }
 
@@ -12,7 +12,6 @@ void log_output(char* buf, int size) {
     buf[size] = '\0';
     send_stdio_serial_message(buf);
 }
-
 
 #elif defined(__linux__)
 
