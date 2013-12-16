@@ -50,6 +50,7 @@
 #include "utils/pipe.hxx"
 #include "nmranet_can.h"
 
+namespace testing {
 /** Conveninence utility to do a printf directly into a C++ string. */
 string StringPrintf(const char* format, ...) {
   static const int kBufSize = 1000;
@@ -71,6 +72,9 @@ string StringPrintf(const char* format, ...) {
   ret.resize(n);
   return ret;
 }
+}
+
+using testing::StringPrintf;
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleMock(&argc, argv);
