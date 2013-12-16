@@ -166,7 +166,7 @@ SECTIONS
     /* Set stack top to end of RAM, and stack limit move down by
      * size of stack_dummy section */
     __StackTop = ORIGIN(RAM) + LENGTH(RAM);
-    __StackLimit = __StackTop - SIZEOF(.stack_dummy);
+    __StackLimit = __StackTop - 0x200;
     __cs3_heap_end = __StackLimit;
     PROVIDE(__stack = __StackTop);
     
