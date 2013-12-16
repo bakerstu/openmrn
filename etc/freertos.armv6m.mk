@@ -78,7 +78,8 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
 
 LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
         -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb --specs=nano.specs \
-        -Xlinker -Map="$(@:%.elf=%.map)"  \
+        -Xlinker -Map="$(@:%.elf=%.map)" -Wl,--wrap=__cxa_pure_virtual   \
+	-Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
 
 #use this only if armgcc == arm gcc 4.7
