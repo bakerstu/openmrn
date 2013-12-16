@@ -60,6 +60,10 @@ int __wrap___cxa_atexit(void) {
   return 0;
 }
 
+void __wrap_exit(int) {
+    abort();
+}
+
 extern uint32_t blinker_pattern;
 
 void enable_fiq(void);
