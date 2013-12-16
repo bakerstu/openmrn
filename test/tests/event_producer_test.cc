@@ -1,7 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "if/nmranet_if.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
