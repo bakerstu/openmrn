@@ -170,7 +170,7 @@ $(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
 $(info test deps: $(FULLPATHLIBS) )
 
 %_test.o : %_test.cc
-	$(CXX) $(CXXFLAGS:-Werror=) -fpermissive  $< -o $*_test.o
+	$(CXX) $(CXXFLAGS:-Werror=) -DTESTING -fpermissive  $< -o $*_test.o
 	$(CXX) -MM $(CXXFLAGS) $< > $*_test.d
 
 #$(TEST_OUTPUTS) : %_test.output : %_test.cc gtest-all.o gtest_main.o
