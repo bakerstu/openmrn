@@ -600,6 +600,10 @@ public:
         // This will be zero if the alias is not known.
         m->src.id =
             m->src.alias ? ifCan_->remote_aliases()->lookup(m->src.alias) : 0;
+        if (!m->src.id && m->src.alias)
+        {
+            m->src.id = ifCan_->local_aliases()->lookup(m->src.alias);
+        }
         f->IncomingMessage(m->mti);
         // Return ourselves to the pool.
         lock_.TypedRelease(this);
