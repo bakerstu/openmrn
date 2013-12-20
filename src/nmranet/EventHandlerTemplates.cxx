@@ -265,6 +265,12 @@ void BitEventHandler::SendEventReport(WriteHelper* writer, Notifiable* done) {
 
 void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
                                        Notifiable* done) {
+  if (event->src_node.id == bit_->node()->node_id()) {
+    // We don't respond to queries from our own node. This is not nice, but we
+    // want to avoid to answering our own Query command.
+    done->Notify();
+    return;
+  }
   bool active;
   if (event->event == bit_->event_on()) {
     active = bit_->GetCurrentState();
