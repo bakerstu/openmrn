@@ -38,13 +38,18 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 
-//#define DESCRIBE_VAR
+#ifdef __linux__
+#define DESCRIBE_VAR
+#endif
 
 #ifdef DESCRIBE_VAR
 #include <string>
 namespace NMRAnet
 {
 extern const string& GetNameForOffset(int);
+
+__attribute__ ((weak))
+const string& GetNameForOffset(int) { static string empty; return empty; }
 }
 #endif
 
