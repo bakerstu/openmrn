@@ -67,14 +67,11 @@ ARM_CFLAGS = $(CORECFLAGS)
 CFLAGS = $(CORECFLAGS) -mthumb 
 
 # -MT"$(@:%.o=%.d)"
-CXXFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
-           -D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
-           -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
-           -mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" -std=c++0x \
-           -Werror -D__FreeRTOS__ -mthumb -mthumb-interwork -mfloat-abi=soft \
-           -fno-stack-protector -D__STDC_FORMAT_MACROS \
-           -D__STDC_VERSION__=199901 -DTHUMB_INTERWORK \
-           -D__CR2_C___4_6_2_BITS_SHARED_PTR_H__ \
+CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) -fno-rtti -fno-exceptions \
+            -std=c++0x \
+           -mthumb  \
+            -D__STDC_FORMAT_MACROS \
+           -D__STDC_VERSION__=199901  \
            $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
@@ -85,6 +82,9 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
           -Wl,--defsym=__wrap__ZSt20__throw_length_errorPKc=abort \
+          -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
+          -Wl,--defsym=__wrap_exit=abort \
+          -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)

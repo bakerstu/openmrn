@@ -6,7 +6,10 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
 ifneq ($(FREERTOSPATH),)
-include $(OPENMRNPATH)/etc/armgcc.mk
+TOOLPATH ?= $(ARMCS3PATH)
+ifneq ($(TOOLPATH),)
+HAVE_ARMGCC = 1
+endif
 endif
 
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
@@ -32,24 +35,30 @@ ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
-ASFLAGS = -c -g -MD -MP \
-           -march=armv7-m -mthumb -mfloat-abi=soft
+ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
-CFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -std=gnu99 -D__FreeRTOS__ \
-         -fno-builtin \
-         -march=armv7-m -mthumb -mfloat-abi=soft -Wstrict-prototypes \
-         -fno-stack-protector -mfix-cortex-m3-ldrd -DGCC_ARMCM3 $(CFLAGSENV) $(CFLAGSEXTRA)
-CXXFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
-           -fno-builtin -std=c++0x  -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ \
-           -march=armv7-m -mthumb -mfloat-abi=soft \
-           -fno-stack-protector -mfix-cortex-m3-ldrd -fno-exceptions -fno-rtti -DGCC_ARMCM3 \
-           -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
+ASFLAGS = -c $(ARCHFLAGS)
+
+CORECFLAGS = $(ARCHFLAGS) -Wall -Werror \
+	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
+	-D__FreeRTOS__ -DGCC_ARMCM3 
+
+CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
+          -Wstrict-prototypes \
+          $(CFLAGSENV) $(CFLAGSEXTRA)
+
+CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++0x  \
+           -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
+           -fno-exceptions -fno-rtti \
+            $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
            -D__LINEAR_MAP__
 
-LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
-          $(LDFLAGSEXTRA) $(LDFLAGSENV) -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections
+LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
+          -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
+          -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
+          $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
-SYSLIBRARIES += $(SYSLIBRARIESEXTRA) -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA) -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit -Wl,--defsym=__wrap___cxa_pure_virtual=abort -Wl,--defsym=__wrap___cxa_atexit=ignore_fn
 
 EXTENTION = .elf
 

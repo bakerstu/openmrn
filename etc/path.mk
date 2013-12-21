@@ -79,6 +79,17 @@ LPCXPRESSOPATH:=$(TRYPATH)
 endif
 endif #LPCXPRESSOPATH
 
+################# cs3-arm ####################
+ifndef ARMCS3PATH
+SEARCHPATH := \
+  /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
+
+TRYPATH:=$(call findfirst,bin,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ARMCS3PATH:=$(TRYPATH)
+endif
+endif #ARMCS3PATH
+
 ################## checksum #####################
 ifndef CHECKSUM
 SEARCHPATH := \

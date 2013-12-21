@@ -778,6 +778,12 @@ void abort(void)
     }
 }
 
+/** This function does nothing. It can be used to alias other symbols to it via
+ * linker flags, such as atexit(). */
+void ignore_fn(void)
+{
+}
+
 extern char *heap_end;
 char *heap_end = 0;
 caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
