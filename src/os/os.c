@@ -515,6 +515,7 @@ void os_timer_start(os_timer_t timer, long long period)
     t->when = now + period;
     t->period = period;
     portTickType ticks = (period >> NSEC_TO_TICK_SHIFT);
+    if (!ticks) ticks = 1;
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
 #else
     Timer          *t = timer;
