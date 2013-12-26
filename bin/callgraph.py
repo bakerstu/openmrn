@@ -474,7 +474,25 @@ def DemangleAllNames():
     demangled_name = demangled_names[i]
     symbol.displayname = demangled_name
     enmangle[demangled_name] = all_names[i]
-    
+
+def PrintObjects():
+  objtotalsize = dict()
+  for symbol in all_symbols.itervalues():
+    o = symbol.objfile
+    newtotalsize = symbol.codesize
+    if o in objtotalsize:
+      newtotalsize += objtotalsize[o]
+    objtotalsize[o] = newtotalsize
+  objlist = [ (v, k) for k, v in objtotalsize.iteritems() ]
+  objlist.sort()
+  print >>sys.stderr, "Objects:"
+  totalsize = 0
+  for (v, k) in objlist:
+    print >>sys.stderr, "%5d %s" % (v, k)
+    totalsize += v
+  print >>sys.stderr, "--------------------"
+  print >>sys.stderr, "%5d %s" % (totalsize, "Total")
+  
 
 def PrintOutput():
   print "digraph g {"
@@ -583,6 +601,7 @@ def main():
     ProcessMapEntries(entries)
   CollectTotalSizes()
   ApplyFilters()
+  PrintObjects()
   PrintOutput()
 
 if __name__ == "__main__":
