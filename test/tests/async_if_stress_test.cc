@@ -158,9 +158,11 @@ protected:
     {
         while (!(g1_executor.empty() && g2_executor.empty() &&
                  g3_executor.empty() && g4_executor.empty() &&
+                 g_executor.empty() &&
                  DefaultWriteFlowExecutor()->empty()))
         {
             usleep(100);
+            Wait();
         }
         Wait();
     }
@@ -212,6 +214,7 @@ TEST_F(AsyncIfStressTest, hundrednodes)
     CreateNodes(100);
     barrier_.MaybeDone();
     n_.WaitForNotification();
+    usleep(500);
 }
 
 TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)

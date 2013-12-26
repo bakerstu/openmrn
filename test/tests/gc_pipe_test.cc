@@ -88,6 +88,7 @@ TEST_F(GcPipeTest, CreateDestroy) {
   AddChannel();
   EXPECT_EQ(1U, gc_side_.size());
   EXPECT_EQ(1U, can_side_.size());
+  Wait();
   channel_.reset();
   EXPECT_EQ(0U, gc_side_.size());
   EXPECT_EQ(0U, can_side_.size());
