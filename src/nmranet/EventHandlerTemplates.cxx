@@ -187,7 +187,7 @@ void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
 
 uint64_t EncodeRange(uint64_t begin, unsigned size) {
   // We assemble a valid event range identifier that covers our block.
-  uint64_t end = begin + size * 2;
+  uint64_t end = begin + size;
   uint64_t shift = 1;
   while (begin + shift <= end) {
     begin &= ~shift;
@@ -205,7 +205,7 @@ uint64_t EncodeRange(uint64_t begin, unsigned size) {
 
 void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
                                            Notifiable* done) {
-  uint64_t range = EncodeRange(event_base_, size_);
+  uint64_t range = EncodeRange(event_base_, size_ * 2);
   event_barrier.Reset(done);
   event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
@@ -214,6 +214,168 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  event_barrier.NewChild());
   event_barrier.MaybeDone();
+}
+
+ByteRangeEventC::ByteRangeEventC(AsyncNode *node,
+                                 uint64_t event_base, uint8_t* backing_store,
+                                 unsigned size)
+    : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
+  NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+}
+
+ByteRangeEventC::~ByteRangeEventC() {
+  NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+}
+
+void ByteRangeEventC::HandleEventReport(EventReport* event, Notifiable* done) {
+  done->Notify();
+  uint8_t* storage;
+  uint8_t value;
+  if (!DecodeEventId(event->event, &storage, &value))
+    return;
+#ifdef DESCRIBE_VAR
+  fprintf(stderr, "ByteRange: IN  byte %x to %d\n", storage - data_, value);
+#else
+  LOG(VERBOSE, "ByteRange: evt %x to %d", (unsigned)(storage - data_), value);
+#endif
+  *storage = value;
+}
+
+bool ByteRangeEventC::DecodeEventId(uint64_t event, uint8_t** storage, uint8_t*value) {
+  *storage = nullptr;
+  *value = 0;
+  if (event < event_base_) return false;
+  event -= event_base_;
+  *value = event & 0xff;
+  event >>= 8;
+  if (event >= size_) return false;
+  *storage = data_ + event;
+  return true;
+}
+
+void ByteRangeEventC::HandleIdentifyConsumer(EventReport* event,
+                                             Notifiable* done) {
+  uint8_t* storage;
+  uint8_t value;
+  if (!DecodeEventId(event->event, &storage, &value)) {
+    return done->Notify();
+  }
+  If::MTI mti = If::MTI_CONSUMER_IDENTIFIED_VALID;
+  if (*storage != value) {
+    mti++; // mti INVALID
+  }
+  event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
+                                 EventIdToBuffer(event->event), done);
+}
+
+void ByteRangeEventC::HandleIdentifyGlobal(EventReport* event,
+                                           Notifiable* done) {
+  uint64_t range = EncodeRange(event_base_, size_ * 256);
+  event_write_helper1.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFIED_RANGE,
+                                 WriteHelper::global(), EventIdToBuffer(range),
+                                 done);
+}
+
+ByteRangeEventP::ByteRangeEventP(AsyncNode *node,
+                                 uint64_t event_base, uint8_t* backing_store,
+                                 unsigned size)
+    : ByteRangeEventC(node, event_base, backing_store, size) {}
+
+void ByteRangeEventP::HandleEventReport(EventReport* event, Notifiable* done) {
+    // Nothing to do for producers.
+    done->Notify();
+}
+void ByteRangeEventP::HandleIdentifyConsumer(EventReport* event, Notifiable* done) {
+    // Nothing to do for producers.
+    done->Notify();
+}
+
+uint64_t ByteRangeEventP::CurrentEventId(unsigned byte) {
+    return event_base_ + (byte << 8) + data_[byte];
+}
+
+void ByteRangeEventP::HandleIdentifyProducer(EventReport* event, Notifiable* done) {
+    event_barrier.Reset(done);
+    uint8_t* storage;
+    uint8_t value;
+    if (!DecodeEventId(event->event, &storage, &value)) {
+        return event_barrier.MaybeDone();
+    }
+    If::MTI mti = If::MTI_PRODUCER_IDENTIFIED_VALID;
+    if (*storage != value) {
+        mti++; // mti INVALID
+        // We also send off the currently valid value.
+        Update(storage - data_, &event_write_helper2, event_barrier.NewChild());
+    }
+    event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
+                                   EventIdToBuffer(event->event), event_barrier.NewChild());
+    event_barrier.MaybeDone();
+}
+void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
+  uint64_t range = EncodeRange(event_base_, size_ * 256);
+  event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
+                                 WriteHelper::global(), EventIdToBuffer(range),
+                                 done);
+}
+
+void ByteRangeEventP::Update(unsigned byte, WriteHelper* writer, Notifiable* done) {
+    // @TODO(balazs.racz): Should we use producer identified valid or event
+    // report here?
+    writer->WriteAsync(node_, If::MTI_EVENT_REPORT, WriteHelper::global(),
+                       EventIdToBuffer(CurrentEventId(byte)), done);
+}
+
+// Responses to possible queries.
+void ByteRangeEventP::HandleConsumerIdentified(EventReport* event, Notifiable* done) {
+    uint8_t* storage;
+    uint8_t value;
+    if (!DecodeEventId(event->event, &storage, &value)) {
+        return done->Notify();
+    }
+    Update(storage - data_, &event_write_helper1, done);
+}
+
+void ByteRangeEventP::HandleConsumerIdentifiedRange(EventReport* event, Notifiable* done) {
+    /** @TODO(balazs.racz): We should respond with the correct signal aspect
+     *  for each offset that we offer. */
+    if (event->event + event->mask < event_base_) {
+        return done->Notify();
+    }
+    if (event->event >= event_base_ + size_ * 256) {
+        return done->Notify();
+    }
+    unsigned start_offset = 0;
+    unsigned end_offset = 0;
+    uint8_t* storage;
+    uint8_t value;
+    if (!DecodeEventId(event->event, &storage, &value)) {
+        start_offset = 0;
+    } else {
+        start_offset = storage - data_;
+    }
+    if (!DecodeEventId(event->event + event->mask, &storage, &value)) {
+        end_offset = size_;
+    } else {
+        end_offset = storage - data_ + 1;
+    }
+    unsigned cur = start_offset;
+    event_barrier.Reset(done);
+    if (cur < end_offset) {
+        Update(cur++, &event_write_helper1, event_barrier.NewChild());
+    }
+    if (cur < end_offset) {
+        Update(cur++, &event_write_helper2, event_barrier.NewChild());
+    }
+    if (cur < end_offset) {
+        Update(cur++, &event_write_helper3, event_barrier.NewChild());
+    }
+    if (cur < end_offset) {
+        Update(cur++, &event_write_helper4, event_barrier.NewChild());
+    }
+    // This will crash if more than four packets are to be produced. The above
+    // code should be replaced by a background iteration in that case.
+    HASSERT(cur >= end_offset);
+    event_barrier.MaybeDone();
 }
 
 BitEventHandler::BitEventHandler(BitEventInterface* bit)

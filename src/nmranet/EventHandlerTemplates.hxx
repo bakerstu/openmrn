@@ -253,6 +253,72 @@ class BitRangeEventPC : public SimpleEventHandler {
   unsigned size_;  //< number of bits stored.
 };
 
+class ByteRangeEventC : public SimpleEventHandler {
+ public:
+  // Creates a new byte range listener. backing store points to memory of at
+  // least size bytes. This class will advertise consuming size * 256 events
+  // contiguous from event_base. event_base will set byte 0 to value 0,
+  // event_base + 1 will set byte 0 to value 1, event_base + 256 will set byte
+  // 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
+  ByteRangeEventC(AsyncNode *node,
+                  uint64_t event_base,
+                  uint8_t* backing_store,
+                  unsigned size);
+  virtual ~ByteRangeEventC();
+
+  virtual void HandleEventReport(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+
+ protected:
+  // takes an event ID and checks if we are responsible for it. Returns false
+  // if it is an uninteresting eventid, returns true and fills *data with the
+  // byte pointer and *value with the corresponding value.
+  bool DecodeEventId(uint64_t event_id, uint8_t** data, uint8_t* value);
+
+  uint64_t event_base_;
+  AsyncNode *node_;
+  uint8_t* data_;
+  unsigned size_;  //< number of bytes consumed.
+};
+
+class ByteRangeEventP : public ByteRangeEventC {
+ public:
+  // Creates a new byte range producer. backing store points to memory of at
+  // least size bytes. This class will advertise producing size * 256 events
+  // contiguous from event_base. event_base will set byte 0 to value 0,
+  // event_base + 1 will set byte 0 to value 1, event_base + 256 will set byte
+  // 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
+  ByteRangeEventP(AsyncNode *node,
+                  uint64_t event_base,
+                  uint8_t* backing_store,
+                  unsigned size);
+
+  // Requests the event associated with the current value of a specific byte to
+  // be produced (unconditionally).
+  //
+  // @param byte is the offset of the value to produce (0 <= byte < size)
+  //
+  // @param writer is the output flow to be used.
+  //
+  // @param done is the notification callback. Must not be NULL.
+  void Update(unsigned byte, WriteHelper* writer, Notifiable* done);
+
+  // Need to override C behavior.
+  virtual void HandleEventReport(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
+  // Own behavior.
+  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+  // Responses to possible queries.
+  virtual void HandleConsumerIdentified(EventReport* event, Notifiable* done);
+  virtual void HandleConsumerIdentifiedRange(EventReport* event, Notifiable* done);
+
+ private:
+  // Creates the eventid of the currently valid value of a given byte.
+  uint64_t CurrentEventId(unsigned byte);
+};
+
 }; /* namespace NMRAnet */
 
 #endif  // _NMRAnet_EventHandlerTemplates_hxx_
