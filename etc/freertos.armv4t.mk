@@ -58,13 +58,13 @@ CORECFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
             -D__CODE_RED  -g3 -Wall -c -fmessage-length=0 -fno-builtin \
             -ffunction-sections -fdata-sections -mthumb-interwork \
             -mcpu=arm7tdmi -MMD -MP -MF"$(@:%.o=%.d)" \
-            -Werror -std=gnu99 -D__FreeRTOS__ -mfloat-abi=soft \
-            -Wstrict-prototypes -fno-stack-protector -DTHUMB_INTERWORK \
+            -Werror -D__FreeRTOS__ -mfloat-abi=soft \
+           -fno-stack-protector -DTHUMB_INTERWORK \
             $(CFLAGSENV) -D__CR2_C___4_6_2_BITS_SHARED_PTR_H__
 
 ARM_CFLAGS = $(CORECFLAGS)
 
-CFLAGS = $(CORECFLAGS) -mthumb 
+CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99 
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) -fno-rtti -fno-exceptions \

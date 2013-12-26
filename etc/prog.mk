@@ -43,7 +43,8 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
-SUBDIRS += lib
+#we don't have to recurse into lib, because there are no sources there. We don't need a liblib.a
+#SUBDIRS += lib
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 ifdef APP_PATH
 INCLUDES += -I$(APP_PATH)
@@ -69,7 +70,9 @@ else
 # This defines how to create nonexistant directories.
 MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
+ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
+endif
 
 all: $(EXECUTABLE)$(EXTENTION)
 
@@ -128,7 +131,7 @@ depmake:
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst *.map
+	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
