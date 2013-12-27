@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,37 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file BufferQueue.hxx
- * This file provides an implementation buffered queues.
+ * \file Allocator.cxx
  *
- * @author Stuart W. Baker
- * @date 3 August 2013
+ * Defines an allocation pool type that can be used for notification of
+ * pending resources.
+ *
+ * @author Stuart W Baker
+ * @date 26 December 2013
  */
 
-#include "BufferQueue.hxx"
-
-#include <cstdio>
-
-#if defined (__linux__)
-#define DEBUG_PRINTF printf
-#else
-#define DEBUG_PRINTF(_fmt...)
-#endif
-
-DynamicPool<Buffer> *mainBufferPool = new DynamicPool<Buffer>(DynamicPool<Buffer>::Bucket::init(4, 8, 16, 32, 0));
-
-/** Expand the buffer size.  Exercise caution when using this API.  If anyone
- * else is holding onto a reference of this, their reference will be corrupted.
- * @param size size buffer after expansion.
- * @return newly expanded buffer with old buffer data moved
- */
-Buffer *Buffer::expand(size_t size)
-{
-    Buffer *new_buffer = pool->alloc(size);
-    
-    memcpy(new_buffer->data(), data(), size_ - left);
-    new_buffer->left = (size - size_) + left;
-    pool->free(this);
-    return new_buffer;
-}
+#include "executor/Allocator.hxx"
 

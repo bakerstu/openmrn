@@ -33,9 +33,11 @@
  * @date 26 October 2013
  */
 
+#include "executor/Executor.hxx"
+
 #include <unistd.h>
 
-#include "executor/Executor.hxx"
+#include "executor/Service.hxx"
 
 Executor *Executor::list = NULL;
 
@@ -65,12 +67,11 @@ Executor::Executor(const char *name, int priority, size_t stack_size)
     }
 }
 
-/** Get a connection handle to the given Executor name
- * @param name name of Executor to connect to
- * @param wait wait forever for a connection to come online
- * @return connection handle upon success, NULL upon failure
+/** Lookup an executor by its name.
+ * @param name name of executor to lookup
+ * @return pointer to executor upon success, else NULL if not found
  */
-Executor::Connection Executor::connection(const char *name, bool wait)
+Executor *Executor::by_name(const char *name, bool wait)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -104,6 +105,7 @@ Executor::Connection Executor::connection(const char *name, bool wait)
  */
 long long Executor::timer_callback(void *data1, void *data2)
 {
+#if 0
     Executor *executor = (Executor*)data1;
     TimerCallback callback = (TimerCallback)data2;
 
@@ -112,6 +114,7 @@ long long Executor::timer_callback(void *data1, void *data2)
     IdTimer *message = (IdTimer*)buffer->start();
     message->callback = callback;
     executor->queue.insert(buffer);
+#endif
     return OS_TIMER_NONE;
 }
 
@@ -120,35 +123,15 @@ long long Executor::timer_callback(void *data1, void *data2)
  */
 void *Executor::entry()
 {
-    Buffer *buffer;
+    Message *msg;
     
-    /* Wait for Executor to be started */
+    /* wait for messages to process */
     for ( ; /* forever */ ; )
     {
-        buffer = queue.wait();
-        if (buffer->id() == ID_EXECUTOR_START)
-        {
-            break;
-        }
-        buffer->free();
-    }
-
-    thread_initialize();
-
-    /* Executor has been started, wait for messages to process */
-    for ( ; /* forever */ ; )
-    {
-        buffer->free();
-        buffer = queue.wait();
-        if (buffer->id() == ID_TIMER)
-        {
-            IdTimer *timer = (IdTimer*)buffer->start();
-            (timer->callback)();
-        }
-        else
-        {
-            process(buffer->id(), buffer->start(), buffer->used());
-        }
+        msg = queue.wait();
+        Service *service = (Service*)msg->to();
+        HASSERT(service);
+        service->process(msg);
     }
 
     return NULL;

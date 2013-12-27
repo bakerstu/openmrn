@@ -43,7 +43,7 @@ namespace NMRAnet
 /** Timeout for datagram acknowledgement. */
 #define DATAGRAM_TIMEOUT 3000000000LL
 
-BufferPool Datagram::pool(sizeof(Datagram::Message), Datagram::POOL_SIZE);
+FixedPool<Buffer> Datagram::pool(sizeof(Datagram::Message), Datagram::POOL_SIZE);
 BufferQueueWait Datagram::dq;
 BufferQueueWait Datagram::pending;
 OSThreadOnce Datagram::once(Datagram::one_time_init);
@@ -82,7 +82,7 @@ void Datagram::one_time_init()
 {
     for (size_t i = 0; i < POOL_SIZE; ++i)
     {
-        Buffer *buffer = pool.buffer_alloc(sizeof(Datagram::Message));
+        Buffer *buffer = pool.alloc();
         dq.insert(buffer);
     }
     

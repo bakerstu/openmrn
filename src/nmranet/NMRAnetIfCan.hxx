@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <new>
 
+#include "executor/ControlFlow.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet_config.h"
@@ -62,6 +63,12 @@ public:
           ssize_t (*read)(int, void*, size_t),
           ssize_t (*write)(int, const void*, size_t));
 
+    /** Message ID's that we can receive */
+    enum MessageId
+    {
+        CAN_FRAME = NMRANET_IF_CAN_BASE
+    };
+
 protected:
     /** Default destructor.
      */
@@ -69,7 +76,61 @@ protected:
     {
     }
 
+    /** Translate an incoming Message ID into a ControlFlow instance.
+     */
+    ControlFlow *lookup(uint32_t id)
+    {
+        switch (id)
+        {
+            default:
+                break;
+            case CAN_FRAME:
+                return &canFrameFlow;
+        }
+        return NULL;
+    }
+
 private:
+    /** handle incoming CAN frames.
+     */
+    class CanFrameFlow : public ControlFlow
+    {
+    public:
+        /** Constructor.
+         * @param service this control flow belongs to
+         */
+        CanFrameFlow(Service *service)
+            : ControlFlow(service)
+        {
+        }
+        
+        /** Destructor.
+         */
+        ~CanFrameFlow()
+        {
+        }
+        
+        /** Entry into the ControlFlow activity.
+         * @param msg Message belonging to the control flow
+         */
+        ControlFlowAction entry(Message *msg)
+        {
+            return call_immediately(STATE(state1));
+        }
+        
+        /** Entry into the ControlFlow activity.
+         * @param msg Message belonging to the control flow
+         */
+        ControlFlowAction state1(Message *msg)
+        {
+            return exit();
+        }
+        
+    private:
+    };
+    
+    CanFrameFlow canFrameFlow;
+
     /** Status value for an alias pool item.
      */
     enum AliasStatus
@@ -674,7 +735,7 @@ private:
     LinkStatus linkStatus;
 
     /** Datagram pool */
-    BufferPool datagramPool;
+    FixedPool<Buffer> datagramPool;
 
     /** Tree for tracking datagrams that are in flight */
     RBTree <uint64_t, Buffer*> datagramTree;

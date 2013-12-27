@@ -336,7 +336,7 @@ private:
     Message *alloc(void);
     
     /** the buffer pool used for all datagrams */
-    static BufferPool pool;
+    static FixedPool<Buffer> pool;
     
     /** A queue of unused buffers */
     static BufferQueueWait dq;

@@ -66,6 +66,7 @@ IfCan::IfCan(NodeID node_id, const char *device,
              ssize_t (*read)(int, void*, size_t),
              ssize_t (*write)(int, const void*, size_t))
     : If(node_id),
+      canFrameFlow(this),
       read(read),
       write(write),
       fd(open(device, O_RDWR)),
@@ -84,7 +85,7 @@ IfCan::IfCan(NodeID node_id, const char *device,
         Buffer *buffer[Datagram::POOL_SIZE];
         for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
         {
-            buffer[i] = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            buffer[i] = datagramPool.alloc();
             Datagram::Message *m = (Datagram::Message*)buffer[i]->start();
             OSTimer *t = (OSTimer*)(m + 1);
             /* Placement new allows for runtime/link-time array size */
@@ -829,7 +830,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
             break;
         case DATAGRAM_ONE_FRAME:
         {
-            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            Buffer *buffer = datagramPool.alloc();
             if (buffer == NULL)
             {
                 /* no buffer available, let the sender know */
@@ -863,7 +864,7 @@ void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
                 break;
             }
             
-            Buffer *buffer = datagramPool.buffer_alloc(DATAGRAM_MESSAGE_SIZE);
+            Buffer *buffer = datagramPool.alloc();
             if (buffer == NULL)
             {
                 /* no buffer available, let the sender know */

@@ -163,6 +163,7 @@ protected:
     virtual void process(Buffer *buffer) = 0;
 
 private:
+
     /** Process a Buffered message at the platform level.
      * @param buffer message buffer to process
      */

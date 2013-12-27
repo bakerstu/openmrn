@@ -24,37 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file BufferQueue.hxx
- * This file provides an implementation buffered queues.
+ * \file NMRAnet.hxx
+ * Container for the very few global NMRAnet objects
  *
  * @author Stuart W. Baker
- * @date 3 August 2013
+ * @date 26 September 2013
  */
 
-#include "BufferQueue.hxx"
+#include "executor/Executor.hxx"
 
-#include <cstdio>
+#ifndef _NMRAnet_hxx_
+#define _NMRAnet_hxx_
 
-#if defined (__linux__)
-#define DEBUG_PRINTF printf
-#else
-#define DEBUG_PRINTF(_fmt...)
-#endif
+/** The single executor instance used for all NMRAnet platform logic. */
+extern Executor *nmranetExecutor;
 
-DynamicPool<Buffer> *mainBufferPool = new DynamicPool<Buffer>(DynamicPool<Buffer>::Bucket::init(4, 8, 16, 32, 0));
+#define NMRANET_ID_BASE (1000)
+#define NMRANET_IF_CAN_BASE   (NMRANET_ID_BASE + 0)
+#define NMRANET_EVENT_BASE    (NMRANET_ID_BASE + 100)
+#define NMRANET_DATAGRAM_BASE (NMRANET_ID_BASE + 200)
+#define NMRANET_STREAM_BASE   (NMRANET_ID_BASE + 300)
 
-/** Expand the buffer size.  Exercise caution when using this API.  If anyone
- * else is holding onto a reference of this, their reference will be corrupted.
- * @param size size buffer after expansion.
- * @return newly expanded buffer with old buffer data moved
- */
-Buffer *Buffer::expand(size_t size)
-{
-    Buffer *new_buffer = pool->alloc(size);
-    
-    memcpy(new_buffer->data(), data(), size_ - left);
-    new_buffer->left = (size - size_) + left;
-    pool->free(this);
-    return new_buffer;
-}
-
+#endif /* _NMRAnet_hxx_ */

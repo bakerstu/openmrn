@@ -1,0 +1,10 @@
+VPATH := $(SRCDIR)
+
+CSRCS += errno_exit.c \
+         ieeehalfprecision.c
+
+CXXSRCS += BufferQueue.cxx \
+           GridConnect.cxx
+           
+           
+

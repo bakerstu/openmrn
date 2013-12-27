@@ -56,8 +56,6 @@ void nmranet_event_packet_global(If::MTI mti,
  */
 void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
 {
-    const uint8_t *bytes = (uint8_t*)data->start();
-
     Node::mutex.lock();
     if (dst != 0)
     {
@@ -104,7 +102,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                         break;
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
                         HASSERT(data == NULL);
-                        nmranet_event_packet_addressed(mti, src, node, NULL);
+                        //nmranet_event_packet_addressed(mti, src, node, NULL);
                         break;
                 }
             }
@@ -136,7 +134,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
             case MTI_PRODUCER_IDENTIFIED_RESERVED: /* fall through */
             case MTI_EVENTS_IDENTIFY_GLOBAL:       /* fall through */
             case MTI_EVENT_REPORT:
-                nmranet_event_packet_global(mti, src, data ? bytes : nullptr);
+                //nmranet_event_packet_global(mti, src, data ? bytes : nullptr);
                 break;
             default:
                 /* global message, deliver all, non-subscribe */
@@ -155,6 +153,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                             case MTI_VERIFY_NODE_ID_GLOBAL:
                                 if (data != NULL)
                                 {
+                                    const uint8_t *bytes = (uint8_t*)data->start();
                                     /** @todo (Stuart Baker) we can do this more
                                      * efficiently with different loop logic.
                                      */

@@ -1,0 +1,13 @@
+VPATH := $(SRCDIR)
+
+CSRCS += 
+
+CXXSRCS += NMRAnetAliasCache.cxx \
+           NMRAnet.cxx \
+           NMRAnetDatagram.cxx \
+           NMRAnetIfCan.cxx \
+           NMRAnetIf.cxx \
+           NMRAnetMemoryConfig.cxx \
+           NMRAnetNode.cxx \
+           NMRAnetStream.cxx \
+           NMRAnetVelocity.cxx

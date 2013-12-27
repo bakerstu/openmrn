@@ -36,8 +36,10 @@
 
 #include <cstdint>
 
-#include "utils/macros.h"
+#include "executor/Service.hxx"
+#include "nmranet/NMRAnet.hxx"
 #include "utils/BufferQueue.hxx"
+#include "utils/macros.h"
 
 namespace NMRAnet
 {
@@ -58,13 +60,14 @@ struct NodeHandle
 
 /** The generic interface for NMRAnet network interfaces
  */
-class If
+class If : public Service
 {
 public:
     /** Constructor.
      */
     If(NodeID node_id)
-        : nodeID(node_id)
+        : Service(nmranetExecutor),
+          nodeID(node_id)
     {
     }
 
@@ -187,6 +190,10 @@ protected:
 
     /** 48-bit NMRAnet node id associated with this interface */
     NodeID nodeID;
+
+    /** Translate an incoming Message ID into a ControlFlow instance.
+     */
+    virtual ControlFlow *lookup(uint32_t id) = 0;
 
 private:
     DISALLOW_COPY_AND_ASSIGN(If);

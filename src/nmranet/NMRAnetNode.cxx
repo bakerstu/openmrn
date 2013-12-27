@@ -84,8 +84,8 @@ void Node::initialized()
         write(If::MTI_INITIALIZATION_COMPLETE, {0, 0}, buffer);
 
         /* identify all of the events this node produces and consumes */
-        nmranet_identify_consumers(this, 0, 0);
-        nmranet_identify_producers(this, 0, 0);
+        //nmranet_identify_consumers(this, 0, 0);
+        //nmranet_identify_producers(this, 0, 0);
     }
     mutex.unlock();
 }
