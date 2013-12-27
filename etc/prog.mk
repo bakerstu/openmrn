@@ -80,7 +80,7 @@ all: $(EXECUTABLE)$(EXTENTION)
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 $(FULLPATHLIBS): $(BUILDDIRS)
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)  depmake
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) | depmake
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
 	$(SIZE) $@
@@ -162,12 +162,15 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
 	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
 
-.PHONY: $(TEST_OUTPUTS)
+#.PHONY: $(TEST_OUTPUTS)
 
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test --gtest_death_test_style=threadsafe
+	touch $@
 
-$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
+$(FULLPATHLIBS) : depmake
+
+$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) | depmake
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
 
 $(info test deps: $(FULLPATHLIBS) )
