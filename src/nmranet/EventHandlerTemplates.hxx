@@ -312,7 +312,7 @@ class ByteRangeEventP : public ByteRangeEventC {
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
   // Responses to possible queries.
   virtual void HandleConsumerIdentified(EventReport* event, Notifiable* done);
-  virtual void HandleConsumerIdentifiedRange(EventReport* event, Notifiable* done);
+  virtual void HandleConsumerRangeIdentified(EventReport* event, Notifiable* done);
 
  private:
   // Creates the eventid of the currently valid value of a given byte.

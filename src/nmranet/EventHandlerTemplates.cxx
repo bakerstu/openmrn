@@ -187,9 +187,9 @@ void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
 
 uint64_t EncodeRange(uint64_t begin, unsigned size) {
   // We assemble a valid event range identifier that covers our block.
-  uint64_t end = begin + size;
+  uint64_t end = begin + size - 1;
   uint64_t shift = 1;
-  while (begin + shift <= end) {
+  while ((begin + shift) < end) {
     begin &= ~shift;
     shift <<= 1;
   }
@@ -335,7 +335,7 @@ void ByteRangeEventP::HandleConsumerIdentified(EventReport* event, Notifiable* d
     Update(storage - data_, &event_write_helper1, done);
 }
 
-void ByteRangeEventP::HandleConsumerIdentifiedRange(EventReport* event, Notifiable* done) {
+void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport* event, Notifiable* done) {
     /** @TODO(balazs.racz): We should respond with the correct signal aspect
      *  for each offset that we offer. */
     if (event->event + event->mask < event_base_) {

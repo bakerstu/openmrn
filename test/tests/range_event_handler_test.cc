@@ -270,5 +270,29 @@ TEST_F(ByteRangePTest, IdentifyGlobal) {
   WaitForEventThread();
 }
 
+TEST_F(AsyncNodeTest, ByteRangePCSync) {
+  uint8_t consumer_storage[10] = {0,};
+  uint8_t producer_storage[2] = {0x23, 0x42};
+  uint8_t producer_storage_o[2] = {0x33, 0x52};
+  ByteRangeEventP producer(node_, kEventBase, producer_storage, 2);
+  ByteRangeEventP producer_o(node_, kEventBase + 512, producer_storage_o, 2);
+  Wait();
+  ExpectPacket(":X1952422AN05010101FFFF01FF;");
+  ExpectPacket(":X1952422AN05010101FFFF0200;");
+  SendPacket(":X19970001N;");
+
+  Wait();
+  ExpectAnyPacket();
+  ByteRangeEventC consumer(node_, kEventBase, consumer_storage, 10);
+  Wait();
+  SendPacket(":X19970001N;");
+  Wait();
+
+  EXPECT_EQ(0x23, consumer_storage[0]);
+  EXPECT_EQ(0x42, consumer_storage[1]);
+  EXPECT_EQ(0x33, consumer_storage[2]);
+  EXPECT_EQ(0x52, consumer_storage[3]);
+}
+
 
 }  // namespace NMRAnet
