@@ -24,6 +24,9 @@
 *.bin
 *.lst
 *.map
+*.dtest
+*.otest
+*.gcno
 # generated code by doxgen
 doc/html/*
 doc/latex/*
