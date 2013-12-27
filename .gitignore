@@ -16,7 +16,14 @@
 *~
 *.tag
 *.cout
+*.cxxout
+*.output
 *.ods#
+.project
+.cproject
+*.bin
+*.lst
+*.map
 # generated code by doxgen
 doc/html/*
 doc/latex/*
