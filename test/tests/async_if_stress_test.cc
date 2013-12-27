@@ -46,6 +46,14 @@ public:
 
     ~TestNode()
     {
+        Executor* e = round_execs[(nodeId_ >> 1) & 3];
+        while(!e->empty() ||
+              !ifCan_.frame_dispatcher()->IsNotStarted() ||
+              !ifCan_.dispatcher()->IsNotStarted() ||
+              !can_pipe0.empty() ||
+              !gc_pipe0.empty()) {
+            usleep(100);
+        }
     }
 
 private:
@@ -214,7 +222,6 @@ TEST_F(AsyncIfStressTest, hundrednodes)
     CreateNodes(100);
     barrier_.MaybeDone();
     n_.WaitForNotification();
-    usleep(500);
 }
 
 TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)

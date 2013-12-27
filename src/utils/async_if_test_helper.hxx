@@ -74,6 +74,10 @@ const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
+static void PrintPacket(const string& pkt) {
+    fprintf(stderr,"%s\n", pkt.c_str());
+}
+
 /** Test fixture base class with helper methods for exercising the asynchronous
  * interface code.
  *
@@ -160,6 +164,16 @@ protected:
     void ExpectPacket(const string& gc_packet)
     {
         EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));
+    }
+
+    /** Ignores all produced packets.
+     *
+     *  Tihs can be used in tests where the expectations are tested in a higher
+     *  level than monitoring the CANbus traffic.
+    */
+    void ExpectAnyPacket()
+    {
+        EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(WithArg<0>(Invoke(PrintPacket)));
     }
 
     /** Injects a packet to the interface. This acts as if a different node on
