@@ -24,38 +24,59 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file socket_listener.hxx
+ * \file socket_client.cxx
  *
- * Interface for listening to a socket and delivering a callback for each
- * incoming connection.
+ * Connects to a remote TCP socket.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 28 Dec 2013
  */
 
+#ifdef __linux__
 
-#ifndef _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
-#define _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
-#include "os/OS.hxx"
+#include "utils/socket_listener.hxx"
 
-class SocketListener {
- public:
-  typedef void (*connection_callback_t)(int);
+#include "utils/macros.h"
+#include "utils/logging.h"
 
-  SocketListener(int port, connection_callback_t callback);
+int ConnectSocket(const char* host, int port) {
+  struct hostent hnd, *hn;
+  char buf[300];
+  int local_errno;
+  if (gethostbyname_r(host, &hnd, buf, sizeof(buf), &hn,
+                      &local_errno) || !hn) {
+    LOG(ERROR, "gethostbyname failed for '%s': %s", host,
+        strerror(local_errno));
+    return -1;
+  }
 
+  struct sockaddr_in server;
+  server.sin_family=hn->h_addrtype;
+  server.sin_port=htons(port);
+  memcpy((caddr_t)&(server.sin_addr),hn->h_addr, hn->h_length);
 
-  void AcceptThreadBody();
+  int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (fd < 0) {
+    LOG(ERROR, "socket: %s", strerror(errno));
+    return -1;
+  }
 
- private:
-  int port_;
-  connection_callback_t callback_;
-  OSThread accept_thread_;
-};
+  int ret = connect(fd, (struct sockaddr *) &server, sizeof(server));
+  if (ret < 0) {
+    LOG(ERROR, "connect: %s", strerror(errno));
+    close(fd);
+    return -1;
+  }
+  LOG(INFO, "Connected to %s:%d. fd=%d", host, port, fd);
+  return fd;
+}
 
-// Connects a tcp socket to the specified host:port. Returns -1 if
-// unsuccessful; returns the fd is successful.
-int ConnectSocket(const char* host, int port);
-
-#endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#endif // __linux__
