@@ -170,6 +170,8 @@ $(TEST_OUTPUTS) : %_test.output : %_test
 
 $(FULLPATHLIBS) : depmake
 
+depmake : $(BUILDDIRS)
+
 $(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) | depmake
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
 
