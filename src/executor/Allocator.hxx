@@ -53,6 +53,16 @@ public:
     {
     }
     
+    /** Construct pool of objects.
+     * @param size size of variable sized objects
+     * @param items number of objects to seed the pool with
+     */
+    Allocator(size_t size, size_t items)
+        : Q<Message>(),
+          FixedPool<T>(size, items)
+    {
+    }
+    
     ~Allocator()
     {
     }
@@ -100,7 +110,7 @@ public:
             /* item allocated */
             T::init(item, 0);
             msg->from(item);
-            Service::static_send(msg->to(), msg);
+            Service::static_send(static_cast<Service*>(msg->to()), msg);
         }
         else
         {
@@ -122,7 +132,7 @@ public:
             /* someone is waiting for item, let's repurpose this one */
             T::init(item, 0);
             msg->from(item);
-            Service::static_send(msg->to(), msg);
+            Service::static_send(static_cast<Service*>(msg->to()), msg);
         }
         else
         {
@@ -134,7 +144,7 @@ public:
 
     /** Obtain the result of an allocation.
      */
-    T *allocation_result(Message *msg)
+    static T *allocation_result(Message *msg)
     {
         return static_cast<T*>(msg->from());
     }

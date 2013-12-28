@@ -37,13 +37,36 @@
 
 #include <type_traits>
 
+#include "executor/Allocator.hxx"
 #include "executor/Message.hxx"
 #include "utils/BufferQueue.hxx"
 
 #define STATE(_fn) (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
-class Service;
+//class Service;
 
+#define CONTROL_FLOW_START(_name)    \
+    class _name : public ControlFlow \
+    {                                \
+    public:                          \
+        _name(Service *service)      \
+            : ControlFlow(service)   \
+        {                            \
+        }                            \
+                                     \
+        ~_name()                     \
+        {                            \
+        }                            \
+                                     \
+    private:                         \
+        Action entry(Message *msg);
+
+#define CONTROL_FLOW_STATE(_state) Action _state(Message *msg);
+
+#define CONTROL_FLOW_END() };
+
+/** Runs incoming Messages through a State Flow.
+ */
 class ControlFlow : public Q<Message>
 {
 protected:
@@ -53,7 +76,7 @@ protected:
     ControlFlow(Service *service)
         : Q(),
           service(service),
-          state(&ControlFlow::entry)
+          state(STATE(terminated))
     {
     }
     
@@ -64,20 +87,20 @@ protected:
     }
 
     /* forward prototype */
-    class ControlFlowAction;
+    class Action;
 
     /** Control Flow callback prototype
      */
-    typedef ControlFlowAction (ControlFlow::*Callback)(Message *);
+    typedef Action (ControlFlow::*Callback)(Message *);
 
     /** Return type for a control flow callback.
      */
-    class ControlFlowAction
+    class Action
     {
     public:
         /** Constructor.
          */
-        ControlFlowAction(Callback s)
+        Action(Callback s)
             : nextState(s)
         {
         }
@@ -97,44 +120,58 @@ protected:
     /** Entry into the ControlFlow activity.  Pure virtual which must be
      * defined by derived class.
      * @param msg Message belonging to the control flow
+     * @return function pointer to next state
      */
-    virtual ControlFlowAction entry(Message *msg) = 0;
+    virtual Action entry(Message *msg) = 0;
 
     /** Terminate current ControlFlow activity.
+     * @return function pointer to terminated method
      */
-    ControlFlowAction exit()
+    Action exit()
     {
         return STATE(terminated);
     }
 
+    /** Terminate current ControlFlow activity. after releasing the message.
+     * @param msg to release
+     * @return function pointer to terminated method
+     */
+    Action release_and_exit(Message *msg)
+    {
+        msg->free();
+        return exit();
+    }
+
     /** Imediately call the next state upon return.
      * @param c Callback "state" to move to
+     * @return function pointer to passed in callback
      */
-    ControlFlowAction call_immediately(Callback c)
+    Action call_immediately(Callback c)
     {
-        return ControlFlowAction(c);
+        return Action(c);
     }
 
     /** Wait for resource to become available before proceeding to next state.
      * @param c Callback "state" to move to
      * @param msg Message instance we are waiting on
+     * @return function pointer to passed in callback
      */
-    ControlFlowAction wait_and_call(Callback c, Message *msg)
+    Action wait_and_call(Callback c, Message *msg)
     {
-        HASSERT(msg->id() & Message::IN_PROCESS_MSK);
-        return ControlFlowAction(c);
+        msg->id(msg->id() | Message::IN_PROCESS_MSK);
+        return Action(c);
     }
 
     /** Wait for resource to become available before proceeding to next state.
      * if an immediate allocation can be made, an immediate call to the next
      * state will be made.
-     * The template type needs to be derived from @ref Allocator
      * @param c Callback "state" to move to
      * @param msg Message instance we are waiting on
+     * @return function pointer to passed in callback
      */
-    template <class T> ControlFlowAction allocate_and_call(T *a, Callback c, Message *msg)
+    template <class T> Action allocate_and_call(Allocator<T> *a, Callback c, Message *msg)
     {
-        return a->allocate_immediate(msg) ? call_immediately(c) : ControlFlowAction(c);
+        return a->allocate_immediate(msg) ? call_immediately(c) : Action(c);
     }
 
     /** Imediately queue up the next callback for this flow through the executor.
@@ -142,24 +179,33 @@ protected:
      * of the Executor queue.
      * @param c Callback "state" to move to
      * @param msg Message instance we are acting upon
+     * @return function pointer to passed in callback
      */
-    ControlFlowAction yeild_and_call(Callback c, Message *msg);
+    Action yeild_and_call(Callback c, Message *msg);
+
+    /** Return a pointer to the service I am bound to.
+     * @return pointer to service
+     */
+    Service *me()
+    {
+        return service;
+    }
 
 private:
+    /** Service this ControlFlow belongs to */
+    Service *service;
+
     /** Terminate current ControlFlow activity.  This method only exists for the
      * purpose of providing a unique address pointer.
      * @param msg unused
      */
-    ControlFlowAction terminated(Message *msg);
+    Action terminated(Message *msg);
 
     /** Process an incoming message.
      * @param msg message to process
      */
     void process(Message *msg);
     
-    /** Service this ControlFlow belongs to */
-    Service *service;
-
     /** current active state in the flow */
     Callback state;
 

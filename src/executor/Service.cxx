@@ -33,9 +33,10 @@
  */
 
 #include "executor/Service.hxx"
+#include "executor/ControlFlow.hxx"
 
 /** main message pool instance */
-//MessagePool *mainMessagePool = new MessagePool();
+DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
 
 /** Process an incoming message.
  * @param buffer message to process
@@ -79,15 +80,12 @@ void ControlFlow::process(Message *msg)
 
     for ( ; /* forever */ ; )
     {
-        ControlFlowAction result = (this->*state)(msg);
+        Action result = (this->*state)(msg);
         state = result.next_state();
 
         if (state == STATE(terminated))
         {
-            /* free up the current message it the pool from whence it came and
-             * check to see if we have anything in our pending queue.
-             */
-            msg->free();
+             /* check to see if we have anything in our pending queue */
             msg = next();
 
             if (msg == NULL)
@@ -114,22 +112,23 @@ void ControlFlow::process(Message *msg)
  * of the Executor queue.
  * @param c Callback "state" to move to
  * @param msg Message instance we are acting upon
+ * @return function pointer to passed in callback
  */
-ControlFlow::ControlFlowAction ControlFlow::yeild_and_call(Callback c, Message *msg)
+ControlFlow::Action ControlFlow::yeild_and_call(Callback c, Message *msg)
 {
     /* marks this as an in-process message and queue us up for the next go
      * around.
      */
     msg->id(msg->id() | Message::IN_PROCESS_MSK);
     service->send(msg);
-    return ControlFlowAction(c);
+    return Action(c);
 }
 
 /** Terminate current ControlFlow activity.  This method only exists for the
  * purpose of providing a unique address pointer.
  * @param msg unused
  */
-ControlFlow::ControlFlowAction ControlFlow::terminated(Message *msg)
+ControlFlow::Action ControlFlow::terminated(Message *msg)
 {
     HASSERT(0);
     return terminated(msg);

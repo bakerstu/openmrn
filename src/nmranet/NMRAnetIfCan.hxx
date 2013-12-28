@@ -37,9 +37,10 @@
 #include <fcntl.h>
 #include <new>
 
+#include "executor/Allocator.hxx"
 #include "executor/ControlFlow.hxx"
-#include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
 #include "nmranet_can.h"
 
@@ -66,7 +67,8 @@ public:
     /** Message ID's that we can receive */
     enum MessageId
     {
-        CAN_FRAME = NMRANET_IF_CAN_BASE
+        CAN_READ_FRAME = NMRANET_IF_CAN_BASE,
+        CAN_WRITE_FRAME
     };
 
 protected:
@@ -84,52 +86,44 @@ protected:
         {
             default:
                 break;
-            case CAN_FRAME:
-                return &canFrameFlow;
+            case CAN_READ_FRAME:
+                return &canReadFlow;
+            case CAN_WRITE_FRAME:
+                return &canWriteFlow;
         }
         return NULL;
     }
 
 private:
-    /** handle incoming CAN frames.
+    /** Notify that an inteface is ready for read or write.
+     * @param context to pass into callback
      */
-    class CanFrameFlow : public ControlFlow
-    {
-    public:
-        /** Constructor.
-         * @param service this control flow belongs to
-         */
-        CanFrameFlow(Service *service)
-            : ControlFlow(service)
-        {
-        }
-        
-        /** Destructor.
-         */
-        ~CanFrameFlow()
-        {
-        }
-        
-        /** Entry into the ControlFlow activity.
-         * @param msg Message belonging to the control flow
-         */
-        ControlFlowAction entry(Message *msg)
-        {
-            return call_immediately(STATE(state1));
-        }
-        
-        /** Entry into the ControlFlow activity.
-         * @param msg Message belonging to the control flow
-         */
-        ControlFlowAction state1(Message *msg)
-        {
-            return exit();
-        }
-        
-    private:
-    };
+    static void notify_callback(void *context);
+
+    /* Handle incoming CAN frames.
+     */
+    CONTROL_FLOW_START(CanReadFlow)
+    CONTROL_FLOW_STATE(ccr_cid_frame)
+    CONTROL_FLOW_STATE(ccr_rid_frame)
+    CONTROL_FLOW_STATE(ccr_amd_frame)
+    CONTROL_FLOW_STATE(ccr_ame_frame)
+    CONTROL_FLOW_STATE(ccr_amr_frame)
+    CONTROL_FLOW_STATE(global_addressed)
+    CONTROL_FLOW_STATE(datagram)
+    CONTROL_FLOW_STATE(stream)
+    CONTROL_FLOW_STATE(write_frame_and_exit)
+    CONTROL_FLOW_END()
     
-    CanFrameFlow canFrameFlow;
+    /* Handle outgoing CAN frames.
+     */
+    CONTROL_FLOW_START(CanWriteFlow)
+    CONTROL_FLOW_STATE(wait_for_send)
+    CONTROL_FLOW_END()
+    
+    CanReadFlow canReadFlow;
+    CanReadFlow canWriteFlow;
+
+    Allocator<Message> writeCanFrame;
 
     /** Status value for an alias pool item.
      */
@@ -457,7 +451,7 @@ private:
      * @param _address addressed data
      * @return destination field value
      */
-    NodeAlias get_addressed_destination(uint16_t address)
+    static NodeAlias get_addressed_destination(uint16_t address)
     {
         return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
     }

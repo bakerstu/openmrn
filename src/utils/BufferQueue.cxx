@@ -50,11 +50,11 @@ DynamicPool<Buffer> *mainBufferPool = new DynamicPool<Buffer>(DynamicPool<Buffer
  */
 Buffer *Buffer::expand(size_t size)
 {
-    Buffer *new_buffer = pool->alloc(size);
+    Buffer *new_buffer = pool_->alloc(size);
     
     memcpy(new_buffer->data(), data(), size_ - left);
     new_buffer->left = (size - size_) + left;
-    pool->free(this);
+    pool_->free(this);
     return new_buffer;
 }
 

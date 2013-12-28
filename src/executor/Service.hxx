@@ -35,9 +35,10 @@
 #ifndef _Service_hxx_
 #define _Service_hxx_
 
-#include "executor/ControlFlow.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Message.hxx"
+
+class ControlFlow;
 
 /** Collection of related state machines that pend on incoming messages.
  */
@@ -98,6 +99,15 @@ public:
     void send(Message *msg)
     {
         send(this, msg);
+    }
+
+    /** Send a message to self.
+     * @param msg message to send
+     * @param id unique 31-bit identifier for the message
+     */
+    void send(Message *msg, uint32_t id)
+    {
+        send(this, msg, id);
     }
 
 protected:

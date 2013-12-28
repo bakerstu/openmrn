@@ -108,25 +108,21 @@ public:
     {
         return id_;
     }
-
-    /** Get the next pointer for a linked list.
-     * @return next item list
-     */
     
-private:
+    /** Get a pointer to the pool that this buffer belongs to.
+     * @return pool that this buffer belongs to
+     */
+    Pool<Message> *pool()
+    {
+        return pool_;
+    }
+    
     /** The total size of an array element of a Message for given payload.
      * @param size payload size
      */
     static size_t sizeof_type(size_t size)
     {
         return sizeof(Message) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
-    }
-
-    /** get a pointer to the start of the data.
-     */
-    char *data()
-    {
-        return data_;
     }
 
     /** Like a constructor, but in this case, we allocate extra space for the
@@ -160,7 +156,7 @@ private:
      */
     static Message *init(Message *msg, size_t size)
     {
-        HASSERT(msg->pool != NULL);
+        HASSERT(msg->pool_ != NULL);
         HASSERT(msg->size_ == size);
         BufferManager::init(msg, size);
         msg->to_ = NULL;
@@ -169,8 +165,16 @@ private:
         return msg;
     }
 
+private:
+    /** get a pointer to the start of the data.
+     */
+    char *data()
+    {
+        return data_;
+    }
+
     /** pointer to Pool instance that this buffer belongs to */
-    Pool<Message> *pool;
+    Pool<Message> *pool_;
 
     /** who this message is directed to */
     void *to_;
@@ -189,14 +193,14 @@ private:
     
     /** This class is a helper of Pool */
     template <class T> friend class Pool;
-    
+        
     /** Constructor.
      * @param size size of Message data in bytes
      * @param pool pool that this buffer belongs to
      */
     Message(size_t size, Pool<Message> *pool)
         : BufferManager(size),
-          pool(pool),
+          pool_(pool),
           to_(NULL),
           from_(NULL),
           id_(0)
@@ -249,8 +253,8 @@ private:
  */
 inline void Message::free()
 {
-    HASSERT(pool != NULL);
-    pool->free(this);
+    HASSERT(pool_ != NULL);
+    pool_->free(this);
 }
 
 /** Expand the buffer size.  Exercise caution when using this API.  If anyone
@@ -260,15 +264,15 @@ inline void Message::free()
  */
 inline Message *Message::expand(size_t size)
 {
-    Message *new_msg = pool->alloc(size);
+    Message *new_msg = pool_->alloc(size);
     
     memcpy(new_msg->data(), data(), size_ - left);
     new_msg->left = (size - size_) + left;
-    pool->free(this);
+    pool_->free(this);
     return new_msg;
 }
 
 /** main message pool instance */
-//extern MessagePool *mainMessagePool;
+extern DynamicPool<Message> *mainMessagePool;
 
 #endif /* _Message_hxx_ */

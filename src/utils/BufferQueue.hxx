@@ -82,6 +82,9 @@ protected:
 
     /** This class is a helper of Q */
     template <class T> friend class Q;
+
+    /** This class is a helper of DynamicPool */
+    template <class T> friend class DynamicPool;
 };
 
 class BufferManager : public QMember
@@ -151,7 +154,6 @@ public:
      */
     unsigned int reference();
 
-protected:
     /** Decrement count.
      */
     unsigned int dec_count()
@@ -159,6 +161,7 @@ protected:
         return --count;
     }
 
+protected:
     /** get a pointer to the start of the data.
      */
     virtual char *data() = 0;
@@ -267,6 +270,14 @@ public:
         return id_;
     }
 
+    /** Get a pointer to the pool that this buffer belongs to.
+     * @return pool that this buffer belongs to
+     */
+    Pool<Buffer> *pool()
+    {
+        return pool_;
+    }
+    
 private:
     /** get a pointer to the start of the data.
      */
@@ -314,7 +325,7 @@ private:
      */
     static Buffer *init(Buffer *buffer, size_t size)
     {
-        HASSERT(buffer->pool != NULL);
+        HASSERT(buffer->pool_ != NULL);
         HASSERT(buffer->size_ == size);
         BufferManager::init(buffer, size);
         buffer->id_ = 0;
@@ -322,7 +333,7 @@ private:
     }
 
     /** pointer to Pool instance that this buffer belongs to */
-    Pool<Buffer> *pool;
+    Pool<Buffer> *pool_;
 
     /** message ID for uniquely identifying this buffer in a queue */
     uint32_t id_;
@@ -345,7 +356,7 @@ private:
      */
     Buffer(size_t size, Pool<Buffer> *pool)
         : BufferManager(size),
-          pool(pool),
+          pool_(pool),
           id_(0)
     {
     }
@@ -655,7 +666,7 @@ public:
      */
     T *alloc(size_t size)
     {
-        Buffer *item = NULL;
+        T *item = NULL;
 
         for (Bucket *current = buckets; current->size_ != 0; current++)
         {
@@ -694,13 +705,13 @@ public:
      */
     void free(T *item)
     {
-        HASSERT(this == item->pool);
+        HASSERT(this == item->pool());
 
         if (item->dec_count() == 0)
         {
             for (Bucket *current = buckets; current->size_ != 0; current++)
             {
-                if (item->size_ <= current->size_)
+                if (item->size() <= current->size_)
                 {
                     Pool<T>::mutex.lock();
                     item->next = current->first_;
@@ -711,7 +722,7 @@ public:
             }
             Pool<T>::mutex.lock();
             /* big items are just freed */
-            totalSize -= item->size_;
+            totalSize -= item->size();
             totalSize -= sizeof(Buffer);
             Pool<T>::mutex.unlock();
             //DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
@@ -802,7 +813,7 @@ public:
      */
     virtual void free(T *item)
     {
-        HASSERT(this == item->pool);
+        HASSERT(this == item->pool());
 
         Pool<T>::mutex.lock();
         if (item->dec_count() == 0)
@@ -863,194 +874,7 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(FixedPool);
 };
-#if 0
-/** Pool of previously allocated, but currently unused, buffers. */
-class BufferPool : public DynamicPool <Buffer>
-{
-public:
-    /** Default Constructor */
-    BufferPool()
-        : DynamicPool<Buffer>(),
-          pool {NULL, NULL, NULL, NULL}
-    {
-    }
 
-    /** Constructor for a fixed size pool.
-     * @param item_size size of each item in the pool
-     * @param items number of items in the pool
-     */
-    BufferPool(size_t item_size, size_t items)
-        : DynamicPool<Buffer>(/*item_size, items*/)
-    {
-    }
-
-    /** default destructor */
-    ~BufferPool()
-    {
-    }
-
-    /** Get a free item out of the pool.
-     * @param size minimum size in bytes the item must hold
-     * @return pointer to the newly allocated item
-     */
-    Buffer *alloc(size_t size)
-    {
-        Buffer *item = NULL;
-#if 0
-
-        if (itemSize != 0)
-        {
-            HASSERT(size <= itemSize);
-            mutex.lock();
-            if (pool[1] != NULL)
-            {
-                item = pool[1];
-                pool[1] = static_cast<Buffer*>(item->next);
-                (void)T::init(item, size);
-                totalSize++;
-                //DEBUG_PRINTF("static buffer total size: %zu\n", totalSize);
-            }
-            mutex.unlock();
-            return item;
-        }
-
-        int index = 0;
-
-        if (size <= 4)
-        {
-            index = 0;
-            size = 4;
-        }
-        else if (size <= 8)
-        {
-            index = 1;
-            size = 8;
-        }
-        else if (size <= 16)
-        {
-            index = 2;
-            size = 16;
-        }
-        else if (size <= 32)
-        {
-            index = 3;
-            size = 32;
-        }
-        else
-        {
-            /* big items are just malloc'd freely */
-            item = T::alloc(this, size);
-            mutex.lock();
-            totalSize += size + sizeof(T);
-            mutex.unlock();
-            //DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
-            return item;
-        }
-
-        mutex.lock();
-        if (pool[index] != NULL)
-        {
-            item = pool[index];
-            pool[index] = static_cast<T*>(item->next);
-            (void)T::init(item, size);
-        }
-        else
-        {
-            item = T::alloc(this, size);
-
-            totalSize += size + sizeof(T);
-            //DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
-        }
-        mutex.unlock();
-#endif        
-        return item;
-    }
-
-    /** Release an item back to the free pool.
-     * @param item pointer to item to release
-     */
-    virtual void free(Buffer *item)
-    {
-#if 0
-        HASSERT(this == item->pool);
-
-        int index = 1;
-
-        mutex.lock();
-        if (item->dec_count() == 0)
-        {
-            /* this item is no longer in use by anyone */
-            if (itemSize == 0)
-            {
-                /* we don't have a fixed pool */
-                switch (item->size_)
-                {
-                    default:
-                        /* big items are just freed */
-                        totalSize -= item->size_;
-                        totalSize -= sizeof(Buffer);
-                        //DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
-                        free(item);
-                        mutex.unlock();
-                        return;
-                    case 4:
-                        index = 0;
-                        break;
-                    case 8:
-                        index = 1;
-                        break;
-                    case 16:
-                        index = 2;
-                        break;
-                    case 32:
-                        index = 3;
-                        break;
-                }
-            }
-            else
-            {
-                totalSize--;
-                //DEBUG_PRINTF("static buffer total used: %zu\n", totalSize);
-            }
-
-            item->next = pool[index];
-            pool[index] = item;
-        }
-
-        mutex.unlock();
-#endif
-    }
-
-private:
-    /** Free buffer pool */
-    Buffer *pool[4];
-
-    DISALLOW_COPY_AND_ASSIGN(BufferPool);
-};
-
-/** This class implements a linked list "queue" of buffers.  It may be
- * instantiated to use the mainBufferPool for its memory pool, or optionally
- * another BufferPool instance may be specified for its memory pool.
- */
-class BufferQueue : public QProtected <Buffer>
-{
-public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueue()
-        : QProtected<Buffer>()
-    {
-    }
-
-    /** Default destructor.
-     */
-    ~BufferQueue()
-    {
-    }
-
-private:
-    DISALLOW_COPY_AND_ASSIGN(BufferQueue);
-};
-#endif
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.
  */
@@ -1243,8 +1067,8 @@ inline void buffer_free(Buffer *buffer)
  */
 inline void Buffer::free()
 {
-    HASSERT(pool != NULL);
-    pool->free(this);
+    HASSERT(pool_ != NULL);
+    pool_->free(this);
 }
 
 /** Advance the position of the buffer.
