@@ -219,7 +219,7 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m)
     impl_->free_events_.TypedRelease(m);
 }
 
-#ifdef CPP_EVENT_HANDLER
+#if 0
 
 /** Process an event packet.
  * @param mti Message Type Indicator
@@ -371,6 +371,7 @@ void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
     nmranet_event_packet_global(If::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
+#endif // CPP_EVENT_HANDLER
+
 } /* namespace NMRAnet */
 
-#endif // CPP_EVENT_HANDLER

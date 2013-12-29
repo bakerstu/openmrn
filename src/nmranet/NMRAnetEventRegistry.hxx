@@ -45,7 +45,7 @@ namespace NMRAnet
 {
 
 typedef uint64_t EventId;
-class Node;
+class AsyncNode;
 
 enum EventState {
   VALID = 0,
@@ -63,7 +63,7 @@ typedef struct {
   EventId event;
   EventId mask;
   NodeHandle src_node;
-  Node* dst_node;
+  AsyncNode* dst_node;
   EventState state;
 } EventReport;
 

@@ -104,7 +104,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
                         break;
                     case MTI_EVENTS_IDENTIFY_ADDRESSED:
                         HASSERT(data == NULL);
-                        nmranet_event_packet_addressed(mti, src, node, NULL);
+                        //nmranet_event_packet_addressed(mti, src, node, NULL);
                         break;
                 }
             }
@@ -136,7 +136,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
             case MTI_PRODUCER_IDENTIFIED_RESERVED: /* fall through */
             case MTI_EVENTS_IDENTIFY_GLOBAL:       /* fall through */
             case MTI_EVENT_REPORT:
-                nmranet_event_packet_global(mti, src, data ? bytes : nullptr);
+                //nmranet_event_packet_global(mti, src, data ? bytes : nullptr);
                 break;
             default:
                 /* global message, deliver all, non-subscribe */
