@@ -49,6 +49,11 @@ ThreadExecutor g_executor("g_executor", 0, 1000);
 DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
 DEFINE_PIPE(display_pipe, &g_executor, 1);
 
+extern "C" {
+extern int GC_GENERATE_NEWLINES;
+int GC_GENERATE_NEWLINES = 1;
+}
+
 struct ClientInfo {
   int fd;
   char thread_name[30];
@@ -61,8 +66,8 @@ void NewConnection(int fd) {
   sprintf(c->thread_name, "thread_fd_%d", fd);
   c->fd = fd;
   c->client_pipe = new Pipe(&g_executor, 1);
-  c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
   c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
+  c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
 }
 
 /** Entry point to application.
