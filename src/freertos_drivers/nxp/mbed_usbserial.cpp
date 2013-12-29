@@ -60,6 +60,8 @@ extern "C" void __cxa_guard_abort(__guard*);
 
 extern "C" void __cxa_pure_virtual(void);
 
+extern DigitalOut d2;
+
 /** This class is an empty wrapper around MBed's USB CDC class. The difference
     between this and mbed::USBSerial is that this class does not have any
     buffering and no interaction with stdio, whereas mbed::USBSerial has the
@@ -175,6 +177,9 @@ private:
             txPending = false;
             return;
         }
+#ifdef TARGET_LPC1768
+        d2 = !d2;
+#endif
         if ((!configured()) || (!terminal_connected))
         {
             // An error occured, data was lost.

@@ -6,6 +6,9 @@
 
 #include "os/OS.hxx"
 
+
+extern DigitalOut d2;
+
 DigitalOut d1(LED1);
 DigitalOut d2(LED2);
 DigitalOut d3(LED3);
