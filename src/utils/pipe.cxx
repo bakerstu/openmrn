@@ -136,9 +136,10 @@ private:
             while (count > 0)
             {
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
-                if (!ret)
+                if (ret <= 0)
                 {
-                    LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
+                    LOG(ERROR, "%s reading pipe fd %d.\n",
+                        ret < 0 ? "error" : "EOF", t->fd_read_);
                     t->parent_->UnregisterMember(t);
                     ::close(t->fd_read_);
                     if (t->fd_write_ != t->fd_read_)
@@ -191,15 +192,16 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
 //! @TODO(balazs.racz) make this configurable.
 InitializedAllocator<CanPipeBuffer> g_can_alloc(3);
 
-void CanPipeBuffer::Reset() {
+void CanPipeBuffer::Reset()
+{
     pipe_buffer.data = &frame;
     pipe_buffer.size = sizeof(frame);
     pipe_buffer.done = this;
 }
-void CanPipeBuffer::Notify() {
+void CanPipeBuffer::Notify()
+{
     g_can_alloc.TypedRelease(this);
 }
-
 
 #ifdef __linux__
 void Pipe::AddVirtualDeviceToPipe(const char* thread_name, int stack_size,
