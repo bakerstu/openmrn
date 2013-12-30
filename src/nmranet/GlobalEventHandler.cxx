@@ -44,6 +44,10 @@ struct GlobalEventFlow::Impl
     // main event queue.
     EventReport main_event_report_;
 
+    // Statically allocated structure for calling the event handlers from the
+    // global event queue.
+    EventReport global_event_report_;
+
     // The implementation of the iterators.
     std::unique_ptr<NMRAnetEventHandler> handler_;
 
@@ -167,6 +171,8 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent()
         case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
         case If::MTI_EVENTS_IDENTIFY_GLOBAL:
             fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
+            impl_->global_event_report_ = *rep;
+            rep = &impl_->global_event_report_;
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -194,6 +200,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished()
     }
     // No pending message in the queue: releases the mutex and allows global
     // handlers to proceed.
+    event_handler_mutex.AssertLocked();
     event_handler_mutex.Unlock();
     return CallImmediately(ST(WaitForEvent));
 }
@@ -374,4 +381,3 @@ void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
 #endif // CPP_EVENT_HANDLER
 
 } /* namespace NMRAnet */
-

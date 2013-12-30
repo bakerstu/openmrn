@@ -111,6 +111,12 @@ public:
     return waiting_ && pending_flows_.empty();
   }
 
+  //! Returns true if there are no flows waiting for running. There might be a
+  //! flow currently being run.
+  bool no_pending_flows() {
+    return pending_flows_.empty();
+  }
+
   void WaitUntilEmpty();
 
 private:
