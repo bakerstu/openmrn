@@ -95,11 +95,13 @@ protected:
     }
 
 private:
+#if defined (__FreeRTOS__)
     /** Notify that an inteface is ready for read or write.
      * @param context to pass into callback
+     * @param woken is the task woken up
      */
-    static void notify_callback(void *context);
-
+    static void notify_callback(void *context, int *woken);
+#endif
     /* Handle incoming CAN frames.
      */
     CONTROL_FLOW_START(CanReadFlow)

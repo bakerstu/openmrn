@@ -83,8 +83,8 @@ protected:
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
-    void (*read_callback)(void*); /**< callback for read active notify */
-    void (*write_callback)(void*); /**< callback for write active notify */
+    void (*read_callback)(void*, int*); /**< callback for read active notify */
+    void (*write_callback)(void*, int*); /**< callback for write active notify */
     void *readContext; /**< callback argument for read active notify */
     void *writeContext; /**< callback argument for write active notify */
 

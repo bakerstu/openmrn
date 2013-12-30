@@ -110,6 +110,29 @@ public:
         send(this, msg, id);
     }
 
+#if defined (__FreeRTOS__)
+    /** Send a message to another service from ISR.
+     * @param to destination of this message
+     * @param msg message to send
+     * @param woken is the task woken up
+     */
+    void send_from_isr(Service *to, Message *msg, int *woken)
+    {
+        HASSERT(msg->id() != 0);
+        msg->to(to);
+        msg->from(this);
+        to->executor->send_from_isr(msg, woken);
+    }
+
+    /** Send a message to self from ISR.
+     * @param msg message to send
+     * @param woken is the task woken up
+     */
+    void send_from_isr(Message *msg, int *woken)
+    {
+        send_from_isr(this, msg, woken);
+    }
+#endif
 protected:
     /** Translate an incoming Message ID into a ControlFlow instance.
      */

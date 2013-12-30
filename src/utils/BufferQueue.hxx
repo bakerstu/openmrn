@@ -783,7 +783,7 @@ public:
     bool valid(T *item)
     {
         if (item >= first &&
-            item <= (first + (items * T::sizeof_type(itemSize))))
+            item <= (T*)((char*)first + (items * T::sizeof_type(itemSize))))
         {
             return true;
         }
@@ -835,7 +835,8 @@ public:
           //mutex(true),
           totalSize(0),
           first (T::alloc(this, item_size, items)),
-          itemSize(item_size)
+          itemSize(item_size),
+          items(items)
     {
         T *current = first;
         for (size_t i = 0; i < items; ++i)

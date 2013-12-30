@@ -38,15 +38,6 @@
 
 #include "executor/Message.hxx"
 
-enum
-{
-    /** Start the Executor */
-    ID_EXECUTOR_START = 0,
-    
-    /** This is a timer */
-    ID_TIMER,
-};
-
 /** This class implements an execution of tasks pulled off an input queue.
  */
 class Executor : public OSThread
@@ -100,7 +91,18 @@ protected:
     {
         queue.insert(msg);
     }
-
+#if defined (__FreeRTOS__)
+    /** Send a message to this Executor's queue.
+     * @param buffer buffer instance to insert into the input queue
+     * @param woken is the task woken up
+     */
+    void send_from_isr(Message *msg, int *woken)
+    {
+        int result = isrMQ.send_from_isr(&msg, woken);
+        /* crash if the queue is full */
+        HASSERT(result == OS_MQ_NONE);
+    }
+#endif
 private:
     /** Structure for timer messages.
      */
@@ -125,7 +127,21 @@ private:
     
     /** executor list for lookup purposes */
     static Executor *list;
-        
+
+#if defined (__FreeRTOS__)
+    /** message queue for connection between ISR and thread context */
+    static OSMQ isrMQ;
+    
+    /** thread for catching incoming messages from thread context */
+    static OSThread isrThread;
+    
+    /** Entry point for isrThread
+     * @param arg unused
+     * @return should never return
+     */
+    static void *isr_thread_entry(void *arg);
+#endif
+
     /** Default Constructor.
      */
     Executor();

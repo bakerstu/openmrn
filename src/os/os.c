@@ -551,6 +551,9 @@ void os_timer_stop(os_timer_t timer)
 
 #if defined (__FreeRTOS__)
 #if defined (TARGET_LPC2368) || defined(TARGET_LPC1768)
+/** @todo (Stuart Baker) move this logic to application specific code with a 
+ * weak definintion of stack_malloc provided here
+ */
 extern const char __ETHRAM_segment_start__;
 static const char* sstack_start = &__ETHRAM_segment_start__;
 extern const char __stacks_min__;
@@ -563,17 +566,20 @@ extern const char __stacks_min__;
  *  only suitable for stacks of threads that are running throughout the entire
  *  life of the application.
  */
-const void* stack_malloc(unsigned long length) {
-  const char* old_stack_start = sstack_start;
-  const char* new_stack_start = sstack_start + length;
-  if (new_stack_start > &__stacks_min__) {
-    diewith(BLINK_DIE_OUTOFMEMSTACK);
-  }
-  sstack_start = new_stack_start;
-  return old_stack_start;
+const void* stack_malloc(unsigned long length)
+{
+    const char* old_stack_start = sstack_start;
+    const char* new_stack_start = sstack_start + length;
+    if (new_stack_start > &__stacks_min__)
+    {
+        diewith(BLINK_DIE_OUTOFMEMSTACK);
+    }
+    sstack_start = new_stack_start;
+    return old_stack_start;
 }
 #elif defined(TARGET_LPC11Cxx)
-__attribute__((noinline)) const void* stack_malloc(unsigned long length) {
+__attribute__((noinline)) const void* stack_malloc(unsigned long length)
+{
     return malloc(length);
 }
 #else
@@ -598,7 +604,8 @@ static void os_thread_start(void *arg)
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
- * @param priority priority of created thread, 0 means default
+ * @param priority priority of created thread, 0 means default,
+ *        lower numbers means lower priority, higher numbers mean higher priority
  * @param stack_size size in bytes of the created thread's stack
  * @param start_routine entry point of the thread
  * @param arg entry parameter to the thread
@@ -632,9 +639,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         priority = configMAX_PRIORITIES / 2;
     }
-    else
+    else if (priority >= configMAX_PRIORITIES)
     {
-        priority = configMAX_PRIORITIES - priority;
+        priority = configMAX_PRIORITIES - 1;
     }
 
     TaskList *current = &taskList;

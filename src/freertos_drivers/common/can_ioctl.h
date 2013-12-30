@@ -42,7 +42,7 @@ extern "C" {
  */
 typedef struct can_active_callback
 {
-    void (*callback)(void*); /**< application callback to call */
+    void (*callback)(void*, int*); /**< application callback to call */
     void *context; /**< application callback argument to pass */
 } CanActiveCallback;
 

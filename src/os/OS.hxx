@@ -47,7 +47,9 @@ class OSThread
 public:
     /** Create a thread.
      * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread
+     * @param priority priority of created thread, 0 means default,
+     *        lower numbers means lower priority, higher numbers mean higher
+     *        priority
      * @param stack_size size in bytes of the created thread's stack
      * @param start_routine entry point of the thread
      * @param arg entry parameter to the thread
@@ -60,7 +62,9 @@ public:
 
    /** Create a thread.  This constructor can be used when OSThread is inherited.
      * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread
+     * @param priority priority of created thread, 0 means default,
+     *        lower numbers means lower priority, higher numbers mean higher
+     *        priority
      * @param stack_size size in bytes of the created thread's stack
      */
     OSThread(const char *name, int priority, size_t stack_size)
@@ -247,6 +251,120 @@ private:
 
     /** Private semaphore handle. */
     os_sem_t handle;
+};
+
+/** This class provides a simple message queue.
+ */
+class OSMQ
+{
+public:
+    
+    /** Constructor.
+     * @param length number of items the queue can hold
+     * @param item_size size of each item in bytes in the queue
+     */
+    OSMQ(size_t length, size_t item_size)
+        : handle(os_mq_create(length, item_size))
+    {
+        HASSERT(handle != NULL);
+    }
+    
+    /** Destructor.
+     */
+    ~OSMQ()
+    {
+        /** @todo (Stuart Baker) need a way to destroy a message queue */
+    }
+    
+    /** Blocking send of a message to a queue.
+     * @param data message to copy into queue
+     */
+    void send(const void *data)
+    {
+        os_mq_send(handle, data);
+    }
+
+    /** Send a message to a queue with a timeout.
+     * @param data message to copy into queue
+     * @param timeout time in nanoseconds to wait for queue to be able to accept message
+     * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
+     */
+    int timedsend(const void *data, long long timeout)
+    {
+        return os_mq_timedsend(handle, data, timeout);
+    }
+    
+    /** Blocking receive a message from a queue.
+     * @param data location to copy message from the queue
+     */
+    void receive(void *data)
+    {
+        os_mq_receive(handle, data);
+    }
+    
+    /** Receive a message from a queue.
+     * @param data location to copy message from the queue
+     * @param timeout time in nanoseconds to wait for queue to have a message available
+     * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
+     */
+    int timedreceive(void *data, long long timeout)
+    {
+        return os_mq_timedreceive(handle, data, timeout);
+    }
+
+    /** Send of a message to a queue from ISR context.
+     * @param data message to copy into queue
+     * @param woken is the task woken up
+     * @return OS_MQ_NONE on success, else OS_MQ_FULL
+     */
+    int send_from_isr(const void *data, int *woken)
+    {
+        return os_mq_send_from_isr(handle, data, woken);
+    }
+
+    /** Receive a message from a queue from ISR context.
+     * @param data location to copy message from the queue
+     * @param woken is the task woken up
+     * @return OS_MQ_NONE on success, else OS_MQ_FULL
+     */
+    int receive_from_isr(void *data, int *woken)
+    {
+        return os_mq_receive_from_isr(handle, data, woken);
+    }
+
+    /** Return the number of messages pending in the queue.
+     * @return number of messages in the queue
+     */
+    int num_pending()
+    {
+        return os_mq_num_pending(handle);
+    }
+
+    /** Return the number of messages pending in the queue from ISR context.
+     * @return number of messages in the queue
+     */
+    int pending_from_isr()
+    {
+        return os_mq_num_pending_from_isr(handle);
+    }
+
+    /** Check if a queue is full from ISR context.
+     * @return non-zero if the queue is full.
+     */
+    int is_full_from_isr()
+    {
+        return os_mq_is_full_from_isr(handle);
+    }
+    
+private:
+    /** Default Constructor.
+     */
+    OSMQ();
+
+    /** Private message queue handle */
+    os_mq_t handle;
+    
+    DISALLOW_COPY_AND_ASSIGN(OSMQ);
 };
 
 /** This class provides a mutex API.

@@ -60,6 +60,8 @@
 #include <unistd.h>
 #endif
 
+#include "utils/macros.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -703,7 +705,9 @@ static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeou
     if (xQueueReceive(queue, data, ticks) != pdTRUE)
     {
         return OS_MQ_TIMEDOUT;
-    }    
+    }
+#else
+    HASSERT(0);    
 #endif
     return OS_MQ_NONE;
 }
@@ -723,6 +727,8 @@ static inline int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woke
         return OS_MQ_FULL;
     }
     *woken |= local_woken;
+#else
+    HASSERT(0);    
 #endif
     return OS_MQ_NONE;
 }
@@ -735,6 +741,8 @@ static inline int os_mq_is_full_from_isr(os_mq_t queue)
 {
 #if defined (__FreeRTOS__)
     return xQueueIsQueueFullFromISR(queue);
+#else
+    HASSERT(0);    
 #endif
     return 1;
 }
@@ -755,11 +763,14 @@ static inline int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
         return OS_MQ_EMPTY;
     }
     *woken |= local_woken;
+#else
+    HASSERT(0);    
 #endif
     return OS_MQ_NONE;
 }
 
 /** Return the number of messages pending in the queue.
+ * @param queue queue to check
  * @return number of messages in the queue
  */
 static inline int os_mq_num_pending(os_mq_t queue)
@@ -767,11 +778,13 @@ static inline int os_mq_num_pending(os_mq_t queue)
 #if defined (__FreeRTOS__)
     return uxQueueMessagesWaiting(queue);
 #else
+    HASSERT(0);    
     return 0;
 #endif
 }
 
 /** Return the number of messages pending in the queue from ISR context.
+ * @param queue queue to check
  * @return number of messages in the queue
  */
 static inline int os_mq_num_pending_from_isr(os_mq_t queue)
@@ -779,6 +792,7 @@ static inline int os_mq_num_pending_from_isr(os_mq_t queue)
 #if defined (__FreeRTOS__)
     return uxQueueMessagesWaitingFromISR(queue);
 #else
+    HASSERT(0);    
     return 0;
 #endif
 }

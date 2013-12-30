@@ -41,6 +41,28 @@
 
 Executor *Executor::list = NULL;
 
+#if defined (__FreeRTOS__)
+OSMQ Executor::isrMQ(16, sizeof(Message*));
+
+/* we need to run at the highest priority in the system to minimize the risk
+ * of getting backlogged.
+ */
+OSThread Executor::isrThread("Executor ISR", configMAX_PRIORITIES - 1, 512,
+                             Executor::isr_thread_entry, NULL);
+
+void *Executor::isr_thread_entry(void *arg)
+{
+    for ( ; /* forever */ ; )
+    {
+        Message *msg;
+        isrMQ.receive(&msg);
+        static_cast<Service*>(msg->to())->send(msg);
+    }
+
+    return NULL;
+}
+#endif
+
 /** Constructor.
  * @param name name of executor
  * @param priority thread priority

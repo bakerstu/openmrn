@@ -198,7 +198,7 @@ void StellarisCan::interrupt_handler()
         /* wakeup anyone waiting for read active */
         if (read_callback)
         {
-            read_callback(readContext);
+            read_callback(readContext, &woken);
             read_callback = NULL;
             readContext = NULL;
         }
@@ -232,7 +232,7 @@ void StellarisCan::interrupt_handler()
             /* wakeup anyone waiting for write active */
             if (write_callback)
             {
-                write_callback(writeContext);
+                write_callback(writeContext, &woken);
                 write_callback = NULL;
                 writeContext = NULL;
             }

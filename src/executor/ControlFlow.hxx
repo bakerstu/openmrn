@@ -124,6 +124,14 @@ protected:
      */
     virtual Action entry(Message *msg) = 0;
 
+    /** Call the current state again.
+     * @return function pointer to current state handler
+     */
+    Action again()
+    {
+        return Action(state);
+    }
+
     /** Terminate current ControlFlow activity.
      * @return function pointer to terminated method
      */

@@ -527,7 +527,10 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
                     frame.data[0] = dst.alias >> 8;
                     frame.data[1] = dst.alias & 0xff;
                     size_t seg_size = len < 6 ? len : 6;
-                    memcpy(&frame.data[2], (char*)data->start() + index, seg_size);
+                    if (seg_size)
+                    {
+                        memcpy(&frame.data[2], (char*)data->start() + index, seg_size);
+                    }
                     frame.can_dlc = 2 + seg_size;
                     int result = (*write)(fd, &frame, sizeof(struct can_frame));
                     HASSERT(result == sizeof(struct can_frame));
@@ -1280,15 +1283,18 @@ ControlFlow::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
     return release_and_exit(msg);
 }
 
+#if defined (__FreeRTOS__)
 /** Notify that an inteface is ready for read or write.
  * @param context to pass into callback
+ * @param woken is the task woken up
  */
-void IfCan::notify_callback(void *context)
+void IfCan::notify_callback(void *context, int *woken)
 {
     Message *msg = static_cast<Message*>(context);
     /* wakeup the state machine to process the next state */
-    static_cast<Service*>(msg->to())->send(msg);
+    static_cast<Service*>(msg->to())->send_from_isr(msg, woken);
 }
+#endif
 
 /** Entry into the ControlFlow activity.
  * @param msg Message belonging to the control flow
@@ -1355,8 +1361,7 @@ ControlFlow::Action IfCan::CanReadFlow::entry(Message *msg)
             case DATAGRAM_MIDDLE_FRAME:
                 /* fall through */
             case DATAGRAM_FINAL_FRAME:
-                //datagram(frame.can_id, frame.can_dlc, frame.data);
-                break;
+                return call_immediately(STATE(datagram));
             case STREAM_DATA:
                 //stream(frame.can_id, frame.can_dlc, frame.data);
                 break;
@@ -1664,6 +1669,157 @@ ControlFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
             buffer = NULL;
         }
         if_can->rx_data(nmranet_mti(frame->can_id), src, 0, buffer);
+    }
+    return release_and_exit(msg);
+}
+
+/** Decode datagram CAN frame.
+ * @param msg Message belonging to the control flow
+ * @return next state
+ */
+ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
+{
+    IfCan *if_can = static_cast<IfCan*>(me());
+    struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
+
+    NodeHandle src;
+    NodeAlias dst_alias = get_dst(frame->can_id);
+
+    NodeID dst_id = if_can->upstreamCache.lookup(dst_alias);
+
+    if (dst_id == 0)
+    {
+        /* nobody here by that ID, not for us */
+        return release_and_exit(msg);
+    }
+
+    src.alias = get_src(frame->can_id);
+    src.id = if_can->downstreamCache.lookup(src.alias);
+
+    switch(get_can_frame_type(frame->can_id))
+    {
+        default:
+            break;
+        case DATAGRAM_ONE_FRAME:
+        {
+            Buffer *buffer = if_can->datagramPool.alloc();
+            if (buffer == NULL)
+            {
+                /* no buffer available, let the sender know */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                break;
+            }
+            Datagram::Message *m = (Datagram::Message*)buffer->start();
+            memcpy(m->data, frame->data, frame->can_dlc);
+            m->to = dst_id;
+            m->from.id = src.id;
+            m->from.alias = src.alias;
+            m->size = frame->can_dlc;
+            if_can->rx_data(nmranet_mti(frame->can_id), src, dst_id, buffer);
+            break;
+        }
+        case DATAGRAM_FIRST_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                if_can->datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node)
+            {
+                /* we are already receiving a datagram, this is an error */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                if_can->datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            
+            Buffer *buffer = if_can->datagramPool.alloc();
+            if (buffer == NULL)
+            {
+                /* no buffer available, let the sender know */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)buffer->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+
+            memcpy(m->data, frame->data, frame->can_dlc);
+            m->to = dst_id;
+            m->from.id = src.id;
+            m->from.alias = src.alias;
+            m->size = frame->can_dlc;
+
+            if_can->datagramTree.insert((dst_id << 12) + src.alias, buffer);
+            t->start(DATAGRAM_TIMEOUT);
+            break;
+        }
+        case DATAGRAM_MIDDLE_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                if_can->datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node == NULL)
+            {
+                /* we have no record of this datagram, this is an error */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)node->value->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+
+            if ((m->size + frame->can_dlc) > Datagram::MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                if_can->datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            memcpy(m->data + m->size, frame->data, frame->can_dlc);
+            m->size += frame->can_dlc;
+            t->start(DATAGRAM_TIMEOUT);
+            break;
+        }
+        case DATAGRAM_FINAL_FRAME:
+        {
+            RBTree <uint64_t, Buffer*>::Node *node =
+                if_can->datagramTree.find((dst_id << 12) + src.alias);
+
+            if (node == NULL)
+            {
+                /* we have no record of this datagram, this is an error */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                break;
+            }
+
+            Datagram::Message *m = (Datagram::Message*)node->value->start();
+            OSTimer *t = (OSTimer*)(m + 1);
+            t->stop();
+
+            if ((m->size + frame->can_dlc) > Datagram::MAX_SIZE)
+            {
+                /* we have too much data for a datagram, this is an error */
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
+                if_can->datagramTree.remove(node);
+                Datagram::Message *m = (Datagram::Message*)node->value->start();
+                OSTimer *t = (OSTimer*)(m + 1);
+                t->stop();
+                node->value->free();
+                break;
+            }
+            memcpy(m->data + m->size, frame->data, frame->can_dlc);
+            m->size += frame->can_dlc;
+            if_can->datagramTree.remove(node);
+            if_can->rx_data(nmranet_mti(frame->can_id), src, dst_id, node->value);
+            break;
+        }
     }
     return release_and_exit(msg);
 }
