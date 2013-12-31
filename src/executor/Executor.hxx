@@ -104,13 +104,14 @@ protected:
     }
 #endif
 private:
+    /** Typedef for Timer.  This is a cast of @ref ServiceTimer* */
     typedef void *Timer;
 
     /** Thread entry point.
      * @return Should never return
      */
     void *entry();
-
+    
     /** queue to wait for incoming messages on */
     QueueProtectedWait<Message> queue;
     

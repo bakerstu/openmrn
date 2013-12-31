@@ -174,6 +174,14 @@ void *Executor::entry()
         {
             msg = queue.wait();
         }
+        if (msg->id() == 0)
+        {
+            /* we were kicked awake, this typically means there was a change
+             * in the active timer list that we may need to react to.
+             */
+            continue;
+        }
+        
         Service *service = (Service*)msg->to();
         HASSERT(service);
         service->process(msg);

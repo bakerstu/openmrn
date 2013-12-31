@@ -85,7 +85,6 @@ long long Service::process_timer(Timer *timer)
 }
 
 /** Insert a timer into the active timer list.
- * @param timer timer to put in the list
  */
 void Service::Timer::insert()
 {
@@ -113,9 +112,10 @@ void Service::Timer::insert()
 }
 
 /** Remove a timer from the active timer list.
- * @param timer timer to remove from the list
+ * @return true if timer was removed from the list, false if the timer
+ *         is not in the list, and therefore not removed.
  */
-void Service::Timer::remove()
+bool Service::Timer::remove()
 {
     /* Search the active list for this timer */
     Timer *tp = static_cast<Timer*>(service->executor->active);
@@ -140,7 +140,20 @@ void Service::Timer::remove()
         } else {
             service->executor->active = tp->next;
         }
+        return true;
     }
+    return false;
+}
+
+/** ControlFlow timer callback.
+ * @param data "this" pointer to a ControlFlow instance
+ * @return Timer::NONE
+ */
+long long Service::control_flow_timeout(void *data)
+{
+    ControlFlow *cf = static_cast<ControlFlow*>(data);
+    cf->timeout();
+    return Timer::NONE;
 }
 
 /** Process an incoming message.

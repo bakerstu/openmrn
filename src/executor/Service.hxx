@@ -35,6 +35,8 @@
 #ifndef _Service_hxx_
 #define _Service_hxx_
 
+#include <type_traits>
+
 #include "executor/Executor.hxx"
 #include "executor/Message.hxx"
 
@@ -43,6 +45,13 @@
  * @return &Service::TimerCallback equivalent pointer
  */
 #define TIMEOUT(_fn) (TimerCallback)(&std::remove_reference<decltype(*this)>::type::_fn)
+
+/** Get a &Service::TimerCallback equivalent for a given function.
+ * @param _service pointer to a class derived from class Service
+ * @param _fn class Service derived member function
+ * @return &Service::TimerCallback equivalent pointer
+ */
+#define TIMEOUT_FROM(_service, _fn) (TimerCallback)(&std::remove_reference<decltype(*(_service))>::type::_fn)
 
 class ControlFlow;
 
@@ -97,7 +106,8 @@ public:
               next(NULL),
               service(service),
               when(0),
-              period(0)
+              period(0),
+              early_(false)
         {
         }
 
@@ -111,9 +121,20 @@ public:
          */
         void start(long long period)
         {
+            early_ = false;
             remove();
             when = OSTime::get_monotonic() + period;
             this->period = period;
+            insert();
+        }
+
+        /** Restart a timer with the existing period.
+         */
+        void restart()
+        {
+            early_ = false;
+            remove();
+            when = OSTime::get_monotonic() + period;
             insert();
         }
 
@@ -124,14 +145,45 @@ public:
             remove();
         }
 
+        /** This will wakeup the timer prematurely, immediately.  The timer
+         * period remains unchanged in case it is restarted. If the timer is
+         * already expired before this call, this does not produce an "early"
+         * condition.  If the timer is not running, this method effectively
+         * does nothing.
+         */
+        void trigger()
+        {
+            long long now = OSTime::get_monotonic();
+            if (now > when)
+            {
+                if (remove())
+                {
+                    /* timer is running in the active list */
+                    when = now;
+                    insert();
+                    early_ = true;
+                }
+            }
+        }
+
+        /** Test if the timer was triggered before it expired.
+         * @return true if timer was triggered, false if timer expired normally
+         */
+        bool early()
+        {
+            return early_;
+        }
+        
     private:
         /** Insert a timer into the active timer list.
          */
         void insert();
 
         /** Remove a timer from the active timer list.
+         * @return true if timer was removed from the list, false if the timer
+         *         is not in the list, and therefore not removed.
          */
-        void remove();
+        bool remove();
 
         TimerCallback callback; /**< user callback */
         void *data; /**< user data */        
@@ -139,6 +191,7 @@ public:
         Service *service; /**< parent service */
         long long when; /**< when in nanoseconds timer should expire */
         long long period; /**< period in nanoseconds for timer */
+        bool early_; /**< was the timer triggered early before the full period */
 
         /** Allows Service ability to access timer callback */
         friend class Service;
@@ -236,6 +289,12 @@ public:
         send_from_isr(this, msg, woken);
     }
 #endif
+    /** ControlFlow timer callback.
+     * @param data "this" pointer to a ControlFlow instance
+     * @return Timer::NONE
+     */
+    long long control_flow_timeout(void *data);
+    
 protected:
     /** Translate an incoming Message ID into a ControlFlow instance.
      */
