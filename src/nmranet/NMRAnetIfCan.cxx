@@ -51,7 +51,7 @@
 namespace NMRAnet
 {
 
-#define DATAGRAM_MESSAGE_SIZE (sizeof(Datagram::Message) + sizeof(OSTimer))
+#define DATAGRAM_MESSAGE_SIZE (sizeof(Datagram::Message) + sizeof(Service::Timer))
 
 /** This is how long we should wait before giving up on an incoming datagram.
  */
@@ -80,7 +80,7 @@ IfCan::IfCan(NodeID node_id, const char *device,
       mutex(),
       linkStatus(DOWN),
       datagramPool(DATAGRAM_MESSAGE_SIZE, Datagram::POOL_SIZE),
-      datagramTree(Datagram::POOL_SIZE)
+      datagramMap(Datagram::POOL_SIZE)
       
 {
     {
@@ -90,9 +90,9 @@ IfCan::IfCan(NodeID node_id, const char *device,
         {
             buffer[i] = datagramPool.alloc();
             Datagram::Message *m = (Datagram::Message*)buffer[i]->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Timer *t = (Timer*)(m + 1);
             /* Placement new allows for runtime/link-time array size */
-            new (t) OSTimer(datagram_timeout, this, buffer[i]);
+            new (t) Timer(TIMEOUT(datagram_timeout), this, buffer[i]);
         }
 
         for (unsigned int i = 0; i < Datagram::POOL_SIZE; ++i)
@@ -776,188 +776,18 @@ void IfCan::datagram_rejected(NodeAlias src, NodeAlias dst, int error_code)
 
 /** This is the timeout for giving up an incoming multi-frame datagram.
  * mapping request.
- * @param data1 a @ref IfCan typecast to a void*
- * @param data2 a @ref Buffer reference typecast to void*
+ * @param data a @ref Buffer reference typecast to void*
  * @return OS_TIMER_NONE
  */
-long long IfCan::datagram_timeout(void *data1, void *data2)
+long long IfCan::datagram_timeout(void *data)
 {
-    IfCan *if_can = (IfCan*)data1;
-    Buffer *buffer = (Buffer*)data2;
+    Buffer *buffer = (Buffer*)data;
     Datagram::Message *m = (Datagram::Message*)buffer->start();
     
-    if_can->mutex.lock();
-
-    /** @todo currently we fail silently, should we throw an error? */
-    /* we have to re-lookup the datagram buffer to prevent a race condition */
-    if (if_can->datagramTree.find((m->to << 12) + m->from.alias))
-    {
-        if_can->datagramTree.remove((m->to << 12) + m->from.alias);
-        buffer->free();
-    }
-
-    if_can->mutex.unlock();
+    datagramMap.erase((m->to << 12) + m->from.alias);
+    buffer->free();
     
-    /* delete our selves since we are no longer relevant */
-    return OS_TIMER_DELETE;
-}
-
-/** Decode datagram can frame.
- * @param can_id can identifier
- * @param dlc data length code
- * @param data pointer to up to 8 bytes of data
- */
-void IfCan::datagram(uint32_t can_id, uint8_t dlc, uint8_t *data)
-{
-    /* There is no need to use a mutex to access the datagram tree.  This is
-     * because this function can only be called from a single thread, the
-     * receive thread.  If this changes in the future, a mutex must be added
-     * to protect this tree.
-     */
-    NodeHandle src;
-    NodeAlias dst_alias = get_dst(can_id);
-
-    mutex.lock();
-    NodeID dst_id = upstreamCache.lookup(dst_alias);
-
-    if (dst_id == 0)
-    {
-        /* nobody here by that ID, not for us */
-        mutex.unlock();
-        return;
-    }
-
-    src.alias = get_src(can_id);
-    src.id = downstreamCache.lookup(src.alias);
-
-    switch(get_can_frame_type(can_id))
-    {
-        default:
-            break;
-        case DATAGRAM_ONE_FRAME:
-        {
-            Buffer *buffer = datagramPool.alloc();
-            if (buffer == NULL)
-            {
-                /* no buffer available, let the sender know */
-                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
-                break;
-            }
-            Datagram::Message *m = (Datagram::Message*)buffer->start();
-            memcpy(m->data, data, dlc);
-            m->to = dst_id;
-            m->from.id = src.id;
-            m->from.alias = src.alias;
-            m->size = dlc;
-            mutex.unlock();
-            rx_data(nmranet_mti(can_id), src, dst_id, buffer);
-            return;
-        }
-        case DATAGRAM_FIRST_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
-
-            if (node)
-            {
-                /* we are already receiving a datagram, this is an error */
-                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
-                t->stop();
-                node->value->free();
-                break;
-            }
-            
-            Buffer *buffer = datagramPool.alloc();
-            if (buffer == NULL)
-            {
-                /* no buffer available, let the sender know */
-                datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
-                break;
-            }
-
-            Datagram::Message *m = (Datagram::Message*)buffer->start();
-            OSTimer *t = (OSTimer*)(m + 1);
-
-            memcpy(m->data, data, dlc);
-            m->to = dst_id;
-            m->from.id = src.id;
-            m->from.alias = src.alias;
-            m->size = dlc;
-
-            HASSERT(datagramTree.insert((dst_id << 12) + src.alias, buffer) != NULL);
-            t->start(DATAGRAM_TIMEOUT);
-            break;
-        }
-        case DATAGRAM_MIDDLE_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
-
-            if (node == NULL)
-            {
-                /* we have no record of this datagram, this is an error */
-                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                break;
-            }
-
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
-
-            if ((m->size + dlc) > Datagram::MAX_SIZE)
-            {
-                /* we have too much data for a datagram, this is an error */
-                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
-                t->stop();
-                node->value->free();
-                break;
-            }
-            memcpy(m->data + m->size, data, dlc);
-            m->size += dlc;
-            t->start(DATAGRAM_TIMEOUT);
-            break;
-        }
-        case DATAGRAM_FINAL_FRAME:
-        {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                datagramTree.find((dst_id << 12) + src.alias);
-
-            if (node == NULL)
-            {
-                /* we have no record of this datagram, this is an error */
-                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                break;
-            }
-
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
-            t->stop();
-
-            if ((m->size + dlc) > Datagram::MAX_SIZE)
-            {
-                /* we have too much data for a datagram, this is an error */
-                datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
-                t->stop();
-                node->value->free();
-                break;
-            }
-            memcpy(m->data + m->size, data, dlc);
-            m->size += dlc;
-            datagramTree.remove(node);
-            mutex.unlock();
-            rx_data(nmranet_mti(can_id), src, dst_id, node->value);
-            return;
-        }
-    }
-    mutex.unlock();
+    return Timer::NONE;
 }
 
 /** Decode stream can frame.
@@ -1681,6 +1511,7 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
+    DatagramMap *map = &if_can->datagramMap;
 
     NodeHandle src;
     NodeAlias dst_alias = get_dst(frame->can_id);
@@ -1695,6 +1526,8 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
 
     src.alias = get_src(frame->can_id);
     src.id = if_can->downstreamCache.lookup(src.alias);
+    /* short hand for the mapping key */
+    uint64_t key = (dst_id << 12) + src.alias;
 
     switch(get_can_frame_type(frame->can_id))
     {
@@ -1720,18 +1553,17 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
         }
         case DATAGRAM_FIRST_FRAME:
         {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                if_can->datagramTree.find((dst_id << 12) + src.alias);
+            DatagramMap::Iterator it = map->find(key);
 
-            if (node)
+            if (it != map->end())
             {
                 /* we are already receiving a datagram, this is an error */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                if_can->datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
+                map->erase(it);
+                Datagram::Message *m = (Datagram::Message*)(*it).second->start();
+                Service::Timer *t = (Service::Timer*)(m + 1);
                 t->stop();
-                node->value->free();
+                (*it).second->free();
                 break;
             }
             
@@ -1744,7 +1576,7 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
             }
 
             Datagram::Message *m = (Datagram::Message*)buffer->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Service::Timer *t = (Service::Timer*)(m + 1);
 
             memcpy(m->data, frame->data, frame->can_dlc);
             m->to = dst_id;
@@ -1752,34 +1584,31 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
             m->from.alias = src.alias;
             m->size = frame->can_dlc;
 
-            if_can->datagramTree.insert((dst_id << 12) + src.alias, buffer);
+            (*map)[key] = buffer;
             t->start(DATAGRAM_TIMEOUT);
             break;
         }
         case DATAGRAM_MIDDLE_FRAME:
         {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                if_can->datagramTree.find((dst_id << 12) + src.alias);
+            DatagramMap::Iterator it = map->find(key);
 
-            if (node == NULL)
+            if (it == map->end())
             {
                 /* we have no record of this datagram, this is an error */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 break;
             }
 
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message *m = (Datagram::Message*)(*it).second->start();
+            Service::Timer *t = (Service::Timer*)(m + 1);
 
             if ((m->size + frame->can_dlc) > Datagram::MAX_SIZE)
             {
                 /* we have too much data for a datagram, this is an error */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                if_can->datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
+                map->erase(it);
                 t->stop();
-                node->value->free();
+                (*it).second->free();
                 break;
             }
             memcpy(m->data + m->size, frame->data, frame->can_dlc);
@@ -1789,35 +1618,30 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
         }
         case DATAGRAM_FINAL_FRAME:
         {
-            RBTree <uint64_t, Buffer*>::Node *node =
-                if_can->datagramTree.find((dst_id << 12) + src.alias);
+            DatagramMap::Iterator it = map->find(key);
 
-            if (node == NULL)
+            if (it == map->end())
             {
                 /* we have no record of this datagram, this is an error */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
                 break;
             }
 
-            Datagram::Message *m = (Datagram::Message*)node->value->start();
-            OSTimer *t = (OSTimer*)(m + 1);
+            Datagram::Message *m = (Datagram::Message*)(*it).second->start();
+            Service::Timer *t = (Service::Timer*)(m + 1);
             t->stop();
+            map->erase(it);
 
             if ((m->size + frame->can_dlc) > Datagram::MAX_SIZE)
             {
                 /* we have too much data for a datagram, this is an error */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::OUT_OF_ORDER);
-                if_can->datagramTree.remove(node);
-                Datagram::Message *m = (Datagram::Message*)node->value->start();
-                OSTimer *t = (OSTimer*)(m + 1);
-                t->stop();
-                node->value->free();
+                (*it).second->free();
                 break;
             }
             memcpy(m->data + m->size, frame->data, frame->can_dlc);
             m->size += frame->can_dlc;
-            if_can->datagramTree.remove(node);
-            if_can->rx_data(nmranet_mti(frame->can_id), src, dst_id, node->value);
+            if_can->rx_data(nmranet_mti(frame->can_id), src, dst_id, (*it).second);
             break;
         }
     }

@@ -72,7 +72,8 @@ Executor::Executor(const char *name, int priority, size_t stack_size)
     : OSThread(name, priority, stack_size),
       queue(),
       name(name),
-      next(NULL)
+      next(NULL),
+      active(NULL)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -150,7 +151,29 @@ void *Executor::entry()
     /* wait for messages to process */
     for ( ; /* forever */ ; )
     {
-        msg = queue.wait();
+        if (active)
+        {
+            /* act on the next active timer */
+            Service::Timer *timer = static_cast<Service::Timer*>(active);
+            long long result = timer->service->process_timer(timer);
+            
+            if (result == 0)
+            {
+                /* we handled a timeout */
+                continue;
+            }
+
+            msg = queue.timedwait(result);
+            if (msg == NULL)
+            {
+                /* timeout occured, handle it */
+                continue;
+            }
+        }
+        else
+        {
+            msg = queue.wait();
+        }
         Service *service = (Service*)msg->to();
         HASSERT(service);
         service->process(msg);

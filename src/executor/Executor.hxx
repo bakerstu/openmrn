@@ -104,12 +104,7 @@ protected:
     }
 #endif
 private:
-    /** Structure for timer messages.
-     */
-    struct IdTimer
-    {
-        TimerCallback callback; /**< callback for executing timer */
-    };
+    typedef void *Timer;
 
     /** Thread entry point.
      * @return Should never return
@@ -124,6 +119,9 @@ private:
     
     /** next executor in the lookup list */
     Executor *next;
+    
+    /** First next timer in the list */
+    Timer active;
     
     /** executor list for lookup purposes */
     static Executor *list;

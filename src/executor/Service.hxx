@@ -38,6 +38,12 @@
 #include "executor/Executor.hxx"
 #include "executor/Message.hxx"
 
+/** Get a &Service::TimerCallback equivalent for a given function.
+ * @param _fn class Service derived member function
+ * @return &Service::TimerCallback equivalent pointer
+ */
+#define TIMEOUT(_fn) (TimerCallback)(&std::remove_reference<decltype(*this)>::type::_fn)
+
 class ControlFlow;
 
 /** Collection of related state machines that pend on incoming messages.
@@ -58,6 +64,89 @@ public:
     {
     }
 
+    /** Control Flow callback prototype
+     */
+    typedef long long (Service::*TimerCallback)(void*);
+
+    /** A timer that runs in the context of a service using its executor queue.
+     * @todo (Stuart Baker) This implementation could be optimized by
+     * specializing a BufferManager just for timers and preventing an extra
+     * dynamic memory allocation with potentially wasted heap headers.
+     */
+    class Timer
+    {
+    public:
+        /** Potential return values for the timer callback.
+         */
+        enum
+        {
+            NONE    =  0, /**< Do not restart the timer */
+            RESTART =  1, /**< Restart the timer with existing period */
+            DELETE  = -1, /**< delete the timer, use with extreme caution */
+        };
+        
+        /** Constructor.
+         * @param timeout callback method, use @ref TIMEOUT macro for the
+         *        proper syntax conversion of a class Service derived method
+         * @param service "this" pointer for Service this timer belongs to
+         * @param data parameter passed back to callback
+         */
+        Timer(Service::TimerCallback callback, Service *service, void *data)
+            : callback(callback),
+              data(data),
+              next(NULL),
+              service(service),
+              when(0),
+              period(0)
+        {
+        }
+
+        /** Destructor. */
+        ~Timer()
+        {
+        }
+
+        /** Start a timer.
+         * @param period period in nanoseconds before expiration
+         */
+        void start(long long period)
+        {
+            remove();
+            when = OSTime::get_monotonic() + period;
+            this->period = period;
+            insert();
+        }
+
+        /** Delete a timer.
+         */
+        void stop()
+        {
+            remove();
+        }
+
+    private:
+        /** Insert a timer into the active timer list.
+         */
+        void insert();
+
+        /** Remove a timer from the active timer list.
+         */
+        void remove();
+
+        TimerCallback callback; /**< user callback */
+        void *data; /**< user data */        
+        Timer *next; /**< next timer in the list */
+        Service *service; /**< parent service */
+        long long when; /**< when in nanoseconds timer should expire */
+        long long period; /**< period in nanoseconds for timer */
+
+        /** Allows Service ability to access timer callback */
+        friend class Service;
+        
+        /** Allows Executor ability to access timer metadata */
+        friend class Executor;
+    };
+    
     /** Send a message anonymously, or to assert something other than a
      * service pointer into the Message::from field 
      * @param to destination of this message
@@ -65,8 +154,22 @@ public:
      */
     static void static_send(Service *to, Message *msg)
     {
+        HASSERT(msg->id() != 0);
         msg->to(to);
         to->executor->send(msg);        
+    }
+
+    /** Send a message anonymously, or to assert something other than a
+     * service pointer into the Message::from field 
+     * @param to destination of this message
+     * @param buffer message to send
+     * @param id unique 31-bit identifier for the message
+     */
+    static void static_send(Service *to, Message *msg, uint32_t id)
+    {
+        HASSERT((id & Message::IN_PROCESS_MSK) == 0);
+        msg->id(id);
+        static_send(to, msg);
     }
 
     /** Send a message to another service.
@@ -140,9 +243,15 @@ protected:
 
 private:
     /** Process an incoming message.
-     * @param buffer message to process
+     * @param msg message to process
      */
     void process(Message *msg);
+
+    /** Process the active timer.
+     * @param timer timer to process
+     * @return next timeout period in nanoseconds, 0 if we handled a timeout
+     */
+    long long process_timer(Timer *timer);
 
     /** access to the Service::process method */
     friend class Executor;

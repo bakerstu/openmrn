@@ -43,8 +43,6 @@
 
 #define STATE(_fn) (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
-//class Service;
-
 #define CONTROL_FLOW_START(_name)    \
     class _name : public ControlFlow \
     {                                \
@@ -61,7 +59,44 @@
     private:                         \
         Action entry(Message *msg);
 
+#define CONTROL_FLOW_START_WITH_TIMER(_name)                      \
+    class _name : public ControlFlow                              \
+    {                                                             \
+    public:                                                       \
+        _name(Service *service)                                   \
+            : ControlFlow(service),                               \
+              timer(timeout, this, NULL)                          \
+        {                                                         \
+        }                                                         \
+                                                                  \
+        ~_name()                                                  \
+        {                                                         \
+        }                                                         \
+                                                                  \
+    private:                                                      \
+        Action entry(Message *msg);                               \
+                                                                  \
+        static long long timeout(void* data1, void* data2)        \
+        {                                                         \
+            ((_name)*) flow = ((_name)*)data1;                    \
+            me()->send(flow->timerMsg);                           \
+            return OS_TIMER_NONE;                                 \
+        }                                                         \
+                                                                  \
+        Action timeout_and_call(Callback c, Message *msg, period) \
+        {                                                         \
+            msg->id(msg->id() | Message::IN_PROCESS_MSK);         \
+            timerMsg = msg;                                       \
+            timer.start(period);                                  \
+            return Action(c);                                     \
+        }                                                         \
+                                                                  \
+        OSTimer timer;                                            \
+        Message *timerMsg;
+
 #define CONTROL_FLOW_STATE(_state) Action _state(Message *msg);
+
+#define CONTROL_FLOW_USE_TIMEOUT()
 
 #define CONTROL_FLOW_END() };
 

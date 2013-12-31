@@ -523,11 +523,10 @@ private:
 
     /** This is the timeout for giving up an incoming multi-frame datagram.
      * mapping request.
-     * @param data1 a @ref IfCan typecast to a void*
-     * @param data2 a @ref Buffer reference typecast to void*
+     * @param data a @ref Buffer reference typecast to void*
      * @return OS_TIMER_NONE
      */
-    static long long datagram_timeout(void *data1, void *data2);
+    long long datagram_timeout(void *data);
 
     /** Decode datagram can frame.
      * @param can_id can identifier
@@ -733,8 +732,11 @@ private:
     /** Datagram pool */
     FixedPool<Buffer> datagramPool;
 
-    /** Tree for tracking datagrams that are in flight */
-    RBTree <uint64_t, Buffer*> datagramTree;
+    /** Short hand for the Datagram Map type */
+    typedef Map <uint64_t, Buffer*> DatagramMap;
+
+    /** Mapping for tracking datagrams that are in flight */
+    DatagramMap datagramMap;
 
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };

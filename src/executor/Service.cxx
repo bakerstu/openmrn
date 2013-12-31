@@ -50,6 +50,98 @@ void Service::process(Message *msg)
     cf->process(msg);
 }
 
+/** Process the active timer.
+ * @param timer timer to process
+ * @return next timeout period in nanoseconds, 0 if we handled a timeout
+ */
+long long Service::process_timer(Timer *timer)
+{
+    long long now = OSTime::get_monotonic();
+    if ( timer->when <= now)
+    {
+        /* remove timer from the list */
+        executor->active = timer->next;
+        
+        long long next_period = (this->*timer->callback)(timer->data);
+        switch (next_period)
+        {
+            case Timer::NONE:
+                break;
+            default:
+                timer->period = next_period;
+                /* fall through */
+            case Timer::RESTART:
+                timer->when += timer->period;
+                timer->insert();
+                break;
+            case Timer::DELETE:
+                delete timer;
+                break;
+        }
+        return 0;
+    }
+
+    return timer->when - now;
+}
+
+/** Insert a timer into the active timer list.
+ * @param timer timer to put in the list
+ */
+void Service::Timer::insert()
+{
+    Timer *tp = static_cast<Timer*>(service->executor->active);
+    Timer *last = NULL;
+    while (tp)
+    {
+        if (when <= tp->when)
+        {
+            break;
+        }
+        last = tp;
+        tp = tp->next;
+    }
+    if (last)
+    {
+        next = last->next;
+        last->next = this;
+    }
+    else
+    {
+        next = static_cast<Timer*>(service->executor->active);
+        service->executor->active = this;
+    }
+}
+
+/** Remove a timer from the active timer list.
+ * @param timer timer to remove from the list
+ */
+void Service::Timer::remove()
+{
+    /* Search the active list for this timer */
+    Timer *tp = static_cast<Timer*>(service->executor->active);
+    Timer *last = NULL;
+    while (tp)
+    {
+        if (tp == this)
+        {
+            /* Found the timer */
+            break;
+        }
+
+        last = tp;
+        tp = tp->next;
+    }
+
+    if (tp)
+    {
+        /* Remove the timer from the active list */
+        if (last) {
+            last->next = tp->next;
+        } else {
+            service->executor->active = tp->next;
+        }
+    }
+}
 
 /** Process an incoming message.
  * @param msg message to process

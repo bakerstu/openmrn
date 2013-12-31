@@ -504,6 +504,7 @@ static void os_timer_delete_locked(os_timer_t timer)
 /** Start a timer.
  * @param timer timer to start
  * @param period period in nanoseconds before expiration
+ *        use OS_TIMER_RESTART to use the same period as last time started
  */
 void os_timer_start(os_timer_t timer, long long period)
 {
@@ -511,6 +512,10 @@ void os_timer_start(os_timer_t timer, long long period)
 
 #if defined (__FreeRTOS__)
     Timer          *t = pvTimerGetTimerID(timer);
+    if (period == OS_TIMER_RESTART)
+    {
+        period = t->period;
+    }
     long long now = os_get_time_monotonic();
     t->when = now + period;
     t->period = period;
@@ -518,6 +523,10 @@ void os_timer_start(os_timer_t timer, long long period)
     xTimerChangePeriod(timer, ticks, portMAX_DELAY);
 #else
     Timer          *t = timer;
+    if (period == OS_TIMER_RESTART)
+    {
+        period = t->period;
+    }
     long long timeout = os_get_time_monotonic() + period;
 
     os_mutex_lock(&timerMutex);
