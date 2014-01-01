@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ControlFlow.hxx
+ * \file StateFlow.hxx
  *
  * Defines a type of state machine flow used within class Service.
  *
@@ -32,8 +32,8 @@
  * @date 25 December 2013
  */
 
-#ifndef _ControlFlow_hxx_
-#define _ControlFlow_hxx_
+#ifndef _StateFlow_hxx_
+#define _StateFlow_hxx_
 
 #include <type_traits>
 
@@ -43,12 +43,12 @@
 
 #define STATE(_fn) (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
-#define CONTROL_FLOW_START(_name)    \
-    class _name : public ControlFlow \
+#define STATE_FLOW_START(_name)      \
+    class _name : public StateFlow   \
     {                                \
     public:                          \
         _name(Service *service)      \
-            : ControlFlow(service)   \
+            : StateFlow(service)     \
         {                            \
         }                            \
                                      \
@@ -59,13 +59,13 @@
     private:                         \
         Action entry(Message *msg);
 
-#define CONTROL_FLOW_START_WITH_TIMER(_name)                                \
-    class _name : public ControlFlow                                        \
+#define STATE_FLOW_START_WITH_TIMER(_name)                                  \
+    class _name : public StateFlow                                          \
     {                                                                       \
     public:                                                                 \
         _name(Service *service)                                             \
-            : ControlFlow(service),                                         \
-              timer(TIMEOUT_FROM(service, control_flow_timeout),            \
+            : StateFlow(service),                                           \
+              timer(TIMEOUT_FROM(service, state_flow_timeout),              \
                     service,                                                \
                     this),                                                  \
               timerMsg(NULL)                                                \
@@ -107,21 +107,19 @@
         }
         
 
-#define CONTROL_FLOW_STATE(_state) Action _state(Message *msg);
+#define STATE_FLOW_STATE(_state) Action _state(Message *msg);
 
-#define CONTROL_FLOW_USE_TIMEOUT()
-
-#define CONTROL_FLOW_END() };
+#define STATE_FLOW_END() };
 
 /** Runs incoming Messages through a State Flow.
  */
-class ControlFlow : public Q<Message>
+class StateFlow : public Q<Message>
 {
 protected:
     /** Constructor.
-     * @param service Service that this control flow is part of
+     * @param service Service that this state flow is part of
      */
-    ControlFlow(Service *service)
+    StateFlow(Service *service)
         : Q(),
           service(service),
           state(STATE(terminated))
@@ -130,18 +128,18 @@ protected:
     
     /** Destructor.
      */
-    ~ControlFlow()
+    ~StateFlow()
     {
     }
 
     /* forward prototype */
     class Action;
 
-    /** Control Flow callback prototype
+    /** State Flow callback prototype
      */
-    typedef Action (ControlFlow::*Callback)(Message *);
+    typedef Action (StateFlow::*Callback)(Message *);
 
-    /** Return type for a control flow callback.
+    /** Return type for a state flow callback.
      */
     class Action
     {
@@ -153,7 +151,7 @@ protected:
         {
         }
         
-        /** Get the next state for the ControlFlowAction.
+        /** Get the next state for the StateFlowAction.
          */
         Callback next_state()
         {
@@ -161,13 +159,13 @@ protected:
         }
 
     private:
-        /** next state in control flow */
+        /** next state in state flow */
         Callback nextState;
     };
 
-    /** Entry into the ControlFlow activity.  Pure virtual which must be
+    /** Entry into the StateFlow activity.  Pure virtual which must be
      * defined by derived class.
-     * @param msg Message belonging to the control flow
+     * @param msg Message belonging to the state flow
      * @return function pointer to next state
      */
     virtual Action entry(Message *msg) = 0;
@@ -180,7 +178,7 @@ protected:
         return Action(state);
     }
 
-    /** Terminate current ControlFlow activity.
+    /** Terminate current StateFlow activity.
      * @return function pointer to terminated method
      */
     Action exit()
@@ -188,7 +186,7 @@ protected:
         return STATE(terminated);
     }
 
-    /** Terminate current ControlFlow activity. after releasing the message.
+    /** Terminate current StateFlow activity. after releasing the message.
      * @param msg to release
      * @return function pointer to terminated method
      */
@@ -254,10 +252,10 @@ protected:
     }
     
 private:
-    /** Service this ControlFlow belongs to */
+    /** Service this StateFlow belongs to */
     Service *service;
 
-    /** Terminate current ControlFlow activity.  This method only exists for the
+    /** Terminate current StateFlow activity.  This method only exists for the
      * purpose of providing a unique address pointer.
      * @param msg unused
      */
@@ -281,9 +279,9 @@ private:
 
     /** Default constructor.
      */
-    ControlFlow();
+    StateFlow();
 
-    DISALLOW_COPY_AND_ASSIGN(ControlFlow);
+    DISALLOW_COPY_AND_ASSIGN(StateFlow);
 };
 
-#endif /* _ControlFlow_hxx_ */
+#endif /* _StateFlow_hxx_ */

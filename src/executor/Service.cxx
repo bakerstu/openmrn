@@ -33,7 +33,7 @@
  */
 
 #include "executor/Service.hxx"
-#include "executor/ControlFlow.hxx"
+#include "executor/StateFlow.hxx"
 
 /** main message pool instance */
 DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
@@ -43,11 +43,11 @@ DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Mes
  */
 void Service::process(Message *msg)
 {
-    ControlFlow *cf = lookup(msg->id() & Message::ID_VALUE_MSK);
+    StateFlow *sf = lookup(msg->id() & Message::ID_VALUE_MSK);
     
-    HASSERT(cf);
+    HASSERT(sf);
     
-    cf->process(msg);
+    sf->process(msg);
 }
 
 /** Process the active timer.
@@ -149,94 +149,10 @@ bool Service::Timer::remove()
  * @param data "this" pointer to a ControlFlow instance
  * @return Timer::NONE
  */
-long long Service::control_flow_timeout(void *data)
+long long Service::state_flow_timeout(void *data)
 {
-    ControlFlow *cf = static_cast<ControlFlow*>(data);
-    cf->timeout();
+    StateFlow *sf = static_cast<StateFlow*>(data);
+    sf->timeout();
     return Timer::NONE;
 }
-
-/** Process an incoming message.
- * @param msg message to process
- */
-void ControlFlow::process(Message *msg)
-{
-    if (msg->id() & Message::IN_PROCESS_MSK)
-    {
-        /* continue existing in process control flow */
-        HASSERT(state != STATE(terminated));
-    }
-    else
-    {
-        if (state == STATE(terminated))
-        {
-            /* start the control flow */
-            state = STATE(entry);
-        }
-        else
-        {
-            /* we have a new incoming flow that we must queue until the
-             * previous flow is done precessing.
-             */
-            insert(msg);
-            return;
-        }
-    }
-
-    for ( ; /* forever */ ; )
-    {
-        Action result = (this->*state)(msg);
-        state = result.next_state();
-
-        if (state == STATE(terminated))
-        {
-             /* check to see if we have anything in our pending queue */
-            msg = next();
-
-            if (msg == NULL)
-            {
-                /* nothing left to process */
-                return;
-            }
-            /* pulled something out of the queue, get it started */
-            state = STATE(entry);
-        }
-        else
-        {
-            if (msg->id() & Message::IN_PROCESS_MSK)
-            {
-                /* Wait for next state transistion */
-                return;
-            }
-        }
-    }
-}
-
-/** Imediately queue up the next callback for this flow through the executor.
- * Similar to @ref call_immediately, except we place this flow on the back
- * of the Executor queue.
- * @param c Callback "state" to move to
- * @param msg Message instance we are acting upon
- * @return function pointer to passed in callback
- */
-ControlFlow::Action ControlFlow::yeild_and_call(Callback c, Message *msg)
-{
-    /* marks this as an in-process message and queue us up for the next go
-     * around.
-     */
-    msg->id(msg->id() | Message::IN_PROCESS_MSK);
-    service->send(msg);
-    return Action(c);
-}
-
-/** Terminate current ControlFlow activity.  This method only exists for the
- * purpose of providing a unique address pointer.
- * @param msg unused
- */
-ControlFlow::Action ControlFlow::terminated(Message *msg)
-{
-    HASSERT(0);
-    return terminated(msg);
-}
-
 

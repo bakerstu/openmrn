@@ -38,7 +38,7 @@
 #include <new>
 
 #include "executor/Allocator.hxx"
-#include "executor/ControlFlow.hxx"
+#include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
@@ -80,7 +80,7 @@ protected:
 
     /** Translate an incoming Message ID into a ControlFlow instance.
      */
-    ControlFlow *lookup(uint32_t id)
+    StateFlow *lookup(uint32_t id)
     {
         switch (id)
         {
@@ -104,23 +104,23 @@ private:
 #endif
     /* Handle incoming CAN frames.
      */
-    CONTROL_FLOW_START(CanReadFlow)
-    CONTROL_FLOW_STATE(ccr_cid_frame)
-    CONTROL_FLOW_STATE(ccr_rid_frame)
-    CONTROL_FLOW_STATE(ccr_amd_frame)
-    CONTROL_FLOW_STATE(ccr_ame_frame)
-    CONTROL_FLOW_STATE(ccr_amr_frame)
-    CONTROL_FLOW_STATE(global_addressed)
-    CONTROL_FLOW_STATE(datagram)
-    CONTROL_FLOW_STATE(stream)
-    CONTROL_FLOW_STATE(write_frame_and_exit)
-    CONTROL_FLOW_END()
+    STATE_FLOW_START(CanReadFlow)
+    STATE_FLOW_STATE(ccr_cid_frame)
+    STATE_FLOW_STATE(ccr_rid_frame)
+    STATE_FLOW_STATE(ccr_amd_frame)
+    STATE_FLOW_STATE(ccr_ame_frame)
+    STATE_FLOW_STATE(ccr_amr_frame)
+    STATE_FLOW_STATE(global_addressed)
+    STATE_FLOW_STATE(datagram)
+    STATE_FLOW_STATE(stream)
+    STATE_FLOW_STATE(write_frame_and_exit)
+    STATE_FLOW_END()
     
     /* Handle outgoing CAN frames.
      */
-    CONTROL_FLOW_START(CanWriteFlow)
-    CONTROL_FLOW_STATE(wait_for_send)
-    CONTROL_FLOW_END()
+    STATE_FLOW_START(CanWriteFlow)
+    STATE_FLOW_STATE(wait_for_send)
+    STATE_FLOW_END()
     
     CanReadFlow canReadFlow;
     CanReadFlow canWriteFlow;

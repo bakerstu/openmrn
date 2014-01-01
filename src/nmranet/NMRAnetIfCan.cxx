@@ -1064,11 +1064,11 @@ void IfCan::ccr_amr_frame(uint32_t ccr, uint8_t data[])
     //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
 }
 
-/** Entry into the ControlFlow activity.
- * @param msg Message belonging to the control flow
+/** Entry into the StateFlow activity.
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
+StateFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
 {
     HASSERT(msg->used() == sizeof(struct can_frame));
     IfCan *if_can = static_cast<IfCan*>(me());
@@ -1101,10 +1101,10 @@ ControlFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
 
 /** A previous write attempt failed.  We have been notified that it should now
  * succeed.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
+StateFlow::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     ssize_t result = (*if_can->write)(if_can->fd, msg->start(), sizeof(can_frame));
@@ -1126,11 +1126,11 @@ void IfCan::notify_callback(void *context, int *woken)
 }
 #endif
 
-/** Entry into the ControlFlow activity.
- * @param msg Message belonging to the control flow
+/** Entry into the StateFlow activity.
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::entry(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::entry(Message *msg)
 {
     HASSERT(msg->used() == sizeof(struct can_frame));
     IfCan *if_can = static_cast<IfCan*>(me());
@@ -1202,10 +1202,10 @@ ControlFlow::Action IfCan::CanReadFlow::entry(Message *msg)
 }
 
 /** Handle a CIR Frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1232,10 +1232,10 @@ ControlFlow::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
 }
 
 /** Handle a RID Frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1245,10 +1245,10 @@ ControlFlow::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
 }
 
 /** Handle Alias Map Definition CAN control frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1289,10 +1289,10 @@ ControlFlow::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
 }
 
 /** Decode Alias Map Enquiry CAN control frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1326,10 +1326,10 @@ ControlFlow::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
 }
 
 /** Decode Alias Map Reset CAN control frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1357,10 +1357,10 @@ ControlFlow::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
 }
 
 /** Decode global or addressed can frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1504,10 +1504,10 @@ ControlFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
 }
 
 /** Decode datagram CAN frame.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1649,10 +1649,10 @@ ControlFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
 }
 
 /** Write a CAN frame and exit.
- * @param msg Message belonging to the control flow
+ * @param msg Message belonging to the state flow
  * @return next state
  */
-ControlFlow::Action IfCan::CanReadFlow::write_frame_and_exit(Message *msg)
+StateFlow::Action IfCan::CanReadFlow::write_frame_and_exit(Message *msg)
 {
     Message *to_can = Allocator<Message>::allocation_result(msg);
     

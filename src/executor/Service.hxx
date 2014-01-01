@@ -53,7 +53,7 @@
  */
 #define TIMEOUT_FROM(_service, _fn) (TimerCallback)(&std::remove_reference<decltype(*(_service))>::type::_fn)
 
-class ControlFlow;
+class StateFlow;
 
 /** Collection of related state machines that pend on incoming messages.
  */
@@ -73,7 +73,7 @@ public:
     {
     }
 
-    /** Control Flow callback prototype
+    /** State Flow callback prototype
      */
     typedef long long (Service::*TimerCallback)(void*);
 
@@ -289,16 +289,16 @@ public:
         send_from_isr(this, msg, woken);
     }
 #endif
-    /** ControlFlow timer callback.
-     * @param data "this" pointer to a ControlFlow instance
+    /** StateFlow timer callback.
+     * @param data "this" pointer to a StateFlow instance
      * @return Timer::NONE
      */
-    long long control_flow_timeout(void *data);
+    long long state_flow_timeout(void *data);
     
 protected:
-    /** Translate an incoming Message ID into a ControlFlow instance.
+    /** Translate an incoming Message ID into a StateFlow instance.
      */
-    virtual ControlFlow *lookup(uint32_t id) = 0;
+    virtual StateFlow *lookup(uint32_t id) = 0;
 
 private:
     /** Process an incoming message.

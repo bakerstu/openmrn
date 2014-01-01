@@ -193,7 +193,7 @@ protected:
 
     /** Translate an incoming Message ID into a ControlFlow instance.
      */
-    virtual ControlFlow *lookup(uint32_t id) = 0;
+    virtual StateFlow *lookup(uint32_t id) = 0;
 
 private:
     DISALLOW_COPY_AND_ASSIGN(If);
