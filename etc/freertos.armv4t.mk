@@ -82,10 +82,12 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
           -Wl,--defsym=__wrap__ZSt20__throw_length_errorPKc=abort \
+          -Wl,--undefined=ignore_fn \
+          -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
           -Wl,--defsym=__wrap_exit=abort \
-          -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
+
 
 SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)
 

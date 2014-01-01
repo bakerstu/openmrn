@@ -781,8 +781,9 @@ void abort(void)
 
 /** This function does nothing. It can be used to alias other symbols to it via
  * linker flags, such as atexit(). */
-void ignore_fn(void)
+int ignore_fn(void)
 {
+    return 0;
 }
 
 extern char *heap_end;
