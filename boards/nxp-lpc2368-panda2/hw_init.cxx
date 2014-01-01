@@ -46,6 +46,9 @@
 
 DigitalIn startpin(P1_4);
 
+extern const int WAIT_FOR_START_PIN;
+__attribute__((__weak__)) extern const int WAIT_FOR_START_PIN = 1;
+
 extern "C" {
 
   // This gets rid of about 50 kbytes of flash code that is unnecessarily
@@ -131,12 +134,12 @@ void hw_init(void)
     LPC_GPIO3->FIODIR=(1<<26);
     LPC_GPIO3->FIOCLR=(1<<26);
     setblink(0x8000000AUL);
-#ifndef SECOND
-    // Waits for the start button to be pressed.
-    while(!startpin)
-    {
+    if (WAIT_FOR_START_PIN) {
+        // Waits for the start button to be pressed.
+        while(!startpin)
+        {
+        }
     }
-#endif
     resetblink(1);
 }
 
