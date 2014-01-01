@@ -67,7 +67,8 @@
             : ControlFlow(service),                                         \
               timer(TIMEOUT_FROM(service, control_flow_timeout),            \
                     service,                                                \
-                    this)                                                   \
+                    this),                                                  \
+              timerMsg(NULL)                                                \
         {                                                                   \
         }                                                                   \
                                                                             \
@@ -77,7 +78,13 @@
                                                                             \
         void timeout()                                                      \
         {                                                                   \
-            me()->send(timerMsg);                                           \
+            timerMsg ? me()->send(timerMsg) : ;                             \
+            timerMsg = NULL;                                                \
+        }                                                                   \
+                                                                            \
+        void trigger()                                                      \
+        {                                                                   \
+            timer.trigger();                                                \
         }                                                                   \
                                                                             \
     private:                                                                \
