@@ -46,8 +46,8 @@
 
 DigitalIn startpin(P1_4);
 
-extern const int WAIT_FOR_START_PIN;
-__attribute__((__weak__)) extern const int WAIT_FOR_START_PIN = 1;
+extern int WAIT_FOR_START_PIN;
+__attribute__((__weak__)) int WAIT_FOR_START_PIN = 1;
 
 extern "C" {
 
