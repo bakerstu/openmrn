@@ -89,12 +89,6 @@ bool BitRangeEventPC::Get(unsigned bit) const {
 void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
                           Notifiable* done) {
   HASSERT(bit < size_);
-#ifdef DESCRIBE_VAR
-  fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit,
-          GetNameForOffset(bit).c_str(), new_value);
-#else
-  LOG(VERBOSE, "BitRange: set bit %x to %d", bit, new_value);
-#endif
   uint32_t* ofs;
   uint32_t mask;
   GetBitAndMask(bit, &ofs, &mask);
@@ -103,6 +97,12 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
   if (ofs)
     old_value = (*ofs) & mask;
   if (old_value != new_value) {
+#ifdef DESCRIBE_VAR
+    fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit,
+            GetNameForOffset(bit).c_str(), new_value);
+#else
+    LOG(VERBOSE, "BitRange: set bit %x to %d", bit, new_value);
+#endif
     if (new_value) {
       *ofs |= mask;
     } else {
@@ -122,6 +122,10 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
       }
     }
   } else {
+#ifdef DESCRIBE_VAR
+    fprintf(stderr, "BitRange: out bit %x (%s) to %d\n", bit,
+            GetNameForOffset(bit).c_str(), new_value);
+#endif
     if (done)
       done->Notify();
   }
