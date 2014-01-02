@@ -43,22 +43,28 @@
 
 #define STATE(_fn) (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
-#define STATE_FLOW_START(_name)      \
-    class _name : public StateFlow   \
-    {                                \
-    public:                          \
-        _name(Service *service)      \
-            : StateFlow(service)     \
-        {                            \
-        }                            \
-                                     \
-        ~_name()                     \
-        {                            \
-        }                            \
-                                     \
-    private:                         \
+/** Begin the definition of a StateFlow.
+ * @param _name the class name of the StateFlow derived object
+ */
+#define STATE_FLOW_START(_name)     \
+    class _name : public StateFlow  \
+    {                               \
+    public:                         \
+        _name(Service *service)     \
+            : StateFlow(service)    \
+        {                           \
+        }                           \
+                                    \
+        ~_name()                    \
+        {                           \
+        }                           \
+                                    \
+    private:                        \
         Action entry(Message *msg);
 
+/** Begin the definition of a StateFlow that includes timeouts.
+ * @param _name the class name of the StateFlow derived object
+ */
 #define STATE_FLOW_START_WITH_TIMER(_name)                                  \
     class _name : public StateFlow                                          \
     {                                                                       \
@@ -107,8 +113,13 @@
         }
         
 
+/** Declare a state callback in a StateFlow.
+ * @param _state the method name of the StateFlow state callback
+ */
 #define STATE_FLOW_STATE(_state) Action _state(Message *msg);
 
+/** End the definition of a StateFlow.
+ */
 #define STATE_FLOW_END() };
 
 /** Runs incoming Messages through a State Flow.
@@ -245,7 +256,8 @@ protected:
         return service;
     }
 
-    /** Timeout expired.
+    /** Timeout expired.  The expectation is that a derived class will implement
+     * this if it desires timeouts.
      */
     virtual void timeout()
     {
@@ -258,6 +270,7 @@ private:
     /** Terminate current StateFlow activity.  This method only exists for the
      * purpose of providing a unique address pointer.
      * @param msg unused
+     * @return should never return
      */
     Action terminated(Message *msg);
 
@@ -275,8 +288,6 @@ private:
     /* Allow class Message to access our private and protected members */
     friend class Message;
     
-    /* Allow clas Allocate to access our private and protected members */
-
     /** Default constructor.
      */
     StateFlow();

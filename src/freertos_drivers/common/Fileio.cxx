@@ -110,7 +110,7 @@ int fd_alloc(void)
 }
 
 /** Free up a file descriptor.
- * @param file number to free up
+ * @param fd number to free up
  */
 void fd_free(int fd)
 {
@@ -196,10 +196,11 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
     return 0;
 }
 
-/** Request and ioctl transaction
+/** Request and ioctl transaction.
  * @param fd file descriptor
  * @param key ioctl key
  * @param ... key data
+ * @return 0 upon success, -1 upon failure with errno containing the cause
  */
 int ioctl(int fd, unsigned long int key, ...)
 {

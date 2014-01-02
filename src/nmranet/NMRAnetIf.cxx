@@ -32,12 +32,13 @@
  */
 
 #include "nmranet/NMRAnetIf.hxx"
+
 #include "nmranet/NMRAnetNode.hxx"
 
 namespace NMRAnet
 {
 
-
+#if 0
 // Temporary bridge to the event handler code
 void nmranet_event_packet_addressed(If::MTI mti,
                                     NodeHandle src,
@@ -46,7 +47,7 @@ void nmranet_event_packet_addressed(If::MTI mti,
 void nmranet_event_packet_global(If::MTI mti,
                                  NodeHandle src,
                                  const void* data);
-
+#endif
 
 /** Process receive data.
  * @param mti Message Type Indicator
@@ -184,6 +185,15 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
         }
     }
     Node::mutex.unlock();
+}
+
+/** Entry into the StateFlow activity.
+ * @param msg Message belonging to the state flow
+ * @return next state
+ */
+StateFlow::Action If::ReceiveFlow::entry(Message *msg)
+{
+    return release_and_exit(msg);
 }
 
 }; /* namespace NMRAnet */

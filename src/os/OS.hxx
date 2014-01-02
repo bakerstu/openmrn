@@ -486,6 +486,8 @@ private:
  */
 #define OSMutexLock(l) int error_omitted_mutex_lock_variable[-1]
 
+/** Allows for OS abstracted access to time.
+ */
 class OSTime
 {
 public:

@@ -33,5 +33,9 @@
 
 #include "nmranet/NMRAnet.hxx"
 
-Executor *nmranetExecutor = new Executor("nmranet executor", 0, 2048);
+namespace NMRAnet
+{
 
+Executor *nmranetExecutor = new Executor("nmranet", 0, 2048);
+
+}

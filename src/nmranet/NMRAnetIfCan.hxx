@@ -38,7 +38,6 @@
 #include <new>
 
 #include "executor/Allocator.hxx"
-#include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
@@ -78,20 +77,21 @@ protected:
     {
     }
 
-    /** Translate an incoming Message ID into a ControlFlow instance.
+    /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
      */
     StateFlow *lookup(uint32_t id)
     {
         switch (id)
         {
             default:
-                break;
+                return If::lookup(id);
             case CAN_READ_FRAME:
                 return &canReadFlow;
             case CAN_WRITE_FRAME:
                 return &canWriteFlow;
         }
-        return NULL;
     }
 
 private:
@@ -123,7 +123,7 @@ private:
     STATE_FLOW_END()
     
     CanReadFlow canReadFlow;
-    CanReadFlow canWriteFlow;
+    CanWriteFlow canWriteFlow;
 
     Allocator<Message> writeCanFrame;
 

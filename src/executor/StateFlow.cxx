@@ -112,6 +112,7 @@ StateFlow::Action StateFlow::yeild_and_call(Callback c, Message *msg)
 /** Terminate current StateFlow activity.  This method only exists for the
  * purpose of providing a unique address pointer.
  * @param msg unused
+ * @return should never return
  */
 StateFlow::Action StateFlow::terminated(Message *msg)
 {

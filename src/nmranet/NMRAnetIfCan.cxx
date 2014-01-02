@@ -51,6 +51,8 @@
 namespace NMRAnet
 {
 
+/** Shorthand for the size of a datagram message with a Timer as Metadata.
+ */
 #define DATAGRAM_MESSAGE_SIZE (sizeof(Datagram::Message) + sizeof(Service::Timer))
 
 /** This is how long we should wait before giving up on an incoming datagram.

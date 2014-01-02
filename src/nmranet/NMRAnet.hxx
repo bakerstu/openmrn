@@ -31,18 +31,35 @@
  * @date 26 September 2013
  */
 
-#include "executor/Executor.hxx"
-
 #ifndef _NMRAnet_hxx_
 #define _NMRAnet_hxx_
+
+#include "executor/Executor.hxx"
+
+namespace NMRAnet
+{
 
 /** The single executor instance used for all NMRAnet platform logic. */
 extern Executor *nmranetExecutor;
 
+/** Base identifier for all NMRAnet messages */
 #define NMRANET_ID_BASE (1000)
-#define NMRANET_IF_CAN_BASE   (NMRANET_ID_BASE + 0)
-#define NMRANET_EVENT_BASE    (NMRANET_ID_BASE + 100)
+
+/** Base identifier for all NMRAnet::If messages */
+#define NMRANET_IF_BASE (NMRANET_ID_BASE + 0)
+
+/** Base identifier for all NMRAnet::IfCan messages */
+#define NMRANET_IF_CAN_BASE (NMRANET_ID_BASE + 20)
+
+/** Base identifier for all NMRAnet::Event messages */
+#define NMRANET_EVENT_BASE (NMRANET_ID_BASE + 100)
+
+/** Base identifier for all NMRAnet::Datagram messages */
 #define NMRANET_DATAGRAM_BASE (NMRANET_ID_BASE + 200)
-#define NMRANET_STREAM_BASE   (NMRANET_ID_BASE + 300)
+
+/** Base identifier for all NMRAnet::Stream messages */
+#define NMRANET_STREAM_BASE (NMRANET_ID_BASE + 300)
+
+}
 
 #endif /* _NMRAnet_hxx_ */

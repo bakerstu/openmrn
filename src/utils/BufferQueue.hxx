@@ -87,6 +87,8 @@ protected:
     template <class T> friend class DynamicPool;
 };
 
+/** Base class for all QMember types that hold data in an expandable format
+ */
 class BufferManager : public QMember
 {
 public:
@@ -547,7 +549,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QProtected);
 };
 
-/** Pool of previously allocated, but currently unused, buffers. */
+/** Pool of previously allocated, but currently unused, items. */
 template <class T> class Pool
 {
 public:
@@ -590,6 +592,9 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Pool);
 };
 
+/** A specialization of a pool which can allocate new elements dynamically
+ * upon request.
+ */
 template <class T> class DynamicPool : public Pool <T>
 {
 public:
@@ -772,6 +777,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(DynamicPool);
 };
 
+/** Pool of fixed number of items which can be allocated up on request.
+ */
 template <class T> class FixedPool : public Pool <T>
 {
 public:

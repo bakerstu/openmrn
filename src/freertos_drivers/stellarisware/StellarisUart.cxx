@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StellarisUart.c
+ * \file StellarisUart.cxx
  * This file implements a USB CDC device driver layer specific to stellarisware.
  *
  * @author Stuart W. Baker

@@ -37,14 +37,17 @@
 
 #if defined (__LINEAR_MAP__)
 #include "utils/LinearMap.hxx"
+/** Define LinearMap as the base class for @ref Map */
 #define BASE_CLASS LinearMap
 
 #elif defined (__USE_LIBSTDCPP__)
 #include "utils/StlMap.hxx"
+/** Define LinearMap as the base class for @ref Map */
 #define BASE_CLASS StlMap
 
 #else
 #include "utils/SysMap.hxx"
+/** Define LinearMap as the base class for @ref Map */
 #define BASE_CLASS SysMap
 
 #endif

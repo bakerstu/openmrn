@@ -162,31 +162,40 @@ private:
     template <typename T> class Allocator
     {
     public:
+        /** List of unused elements.
+         */
         union FreeList
         {
-            T data;
-            FreeList *next;
+            T data; /**< unused item */
+            FreeList *next; /**< next item in the list */
         };
 
+        /** Start of free list */
         FreeList *freeList;
         
+        /** flag that tell us if we have initilized our selves or not */
         bool init;
         
+        /** number of elements in the fixed size pool */
         size_t entries;
         
-        typedef T value_type;
-        typedef value_type* pointer;
-        typedef const value_type* const_pointer;
-        typedef value_type& reference;
-        typedef const value_type& const_reference;
-        typedef std::size_t size_type;
-        typedef std::ptrdiff_t difference_type;
+        typedef T value_type; /**< value_type required by stl */
+        typedef value_type* pointer; /**< pointer required by stl */
+        typedef const value_type* const_pointer; /**< const_pointer required by stl */
+        typedef value_type& reference; /**< reference required by stl */
+        typedef const value_type& const_reference; /**< const_reference required by stl */
+        typedef std::size_t size_type; /**< size_type required by stl */
+        typedef std::ptrdiff_t difference_type; /**< difference_type required by stl */
         
+        /** typedef for allocator specialization */
         template <typename U> struct rebind
         {
             typedef Allocator<U> other;
         };
 
+        /** Constructor.
+         * @param e number of entries in the fixed size pool
+         */
         explicit Allocator(size_t e)
             : freeList(NULL),
               init(false),
@@ -194,6 +203,9 @@ private:
         {
         }
 
+        /** Copy constructor.
+         * @param a instance to copy
+         */
         explicit Allocator(Allocator const& a)
             : freeList(a.freeList),
               init(a.init),
@@ -201,10 +213,15 @@ private:
         {
         }
         
+        /** Destructor.
+         */
         ~Allocator()
         {
         }
         
+        /** template copy constructor.
+         * @param o insance to copy
+         */
         template <typename U> Allocator(Allocator<U> const& o)
             : freeList(NULL),
               init(o.init),
@@ -212,20 +229,28 @@ private:
         {
         }
 
-        //    address
-
+        /** Address of item.
+         * @param r item to take the address of
+         * @return address of item
+         */
         T *address(T &r)
         {
             return &r;
         }
 
+        /** Const address of item.
+         * @param r item to take the address of
+         * @return address of item
+         */
         const T *address(const T &r)
         {
             return &r;
         }
 
-        //    memory allocation
-
+        /** Allocate item(s) out of the pool.
+         * @param cnt number of items to allocate
+         * @return newly allocated item(s)
+         */
         T *allocate(size_t cnt, const void* = 0)
         {
             if (init == false)
@@ -247,6 +272,10 @@ private:
             return newT;
         }
         
+        /** Free itme.
+         * @param p item to free
+         * @param n number of items to free
+         */
         void deallocate(T *p, size_t n)
         {
             HASSERT(n == 1);
@@ -255,34 +284,50 @@ private:
             freeList = pFreeList;
         }
 
-        //    size
+        /** Maximum number of items that can be allocated.
+         */
         size_t max_size() const
         {
             return entries;
         }
 
-        //    construction/destruction
-
+        
+        /** Placement constructor.
+         * @param p location of placement
+         * @param t parameter to constructor
+         */
         void construct(T *p, const T& t)
         {
             new(p) T(t);
         }
         
+        /** Destruct.
+         * @param p item to destruct
+         */
         void destroy(T *p)
         {
             p->~T();
         }
 
+        /** Overloaded operator ==.
+         * @return always true.
+         */
         bool operator==(Allocator const&)
         {
             return true;
         }
         
+        /** Overloaded operator !=
+         * @param a item to compare
+         * @return always false
+         */
         bool operator!=(Allocator const& a)
         {
             return !operator==(a);
         }
     private:
+        /** Default Constructor.
+         */
         Allocator()
             : init(false),
               entries(0)

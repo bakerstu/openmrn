@@ -297,6 +297,8 @@ public:
     
 protected:
     /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
      */
     virtual StateFlow *lookup(uint32_t id) = 0;
 
