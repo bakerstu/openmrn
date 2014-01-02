@@ -490,7 +490,7 @@ public:
      * @param item to add to queue
      * @param index in the list to operate on
      */
-    void insert(T *q, unsigned index)
+    void insert(T *q, unsigned index = 0)
     {
         list[index].insert(q);
     }
@@ -499,7 +499,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue
      */
-    T *next(unsigned index)
+    T *next(unsigned index = 0)
     {
         return list[index].next();
     }
@@ -508,7 +508,7 @@ public:
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index = 0)
     {
         return list[index].pending();
     }
@@ -517,7 +517,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index = 0)
     {
         return list[index].empty();
     }
@@ -620,7 +620,7 @@ public:
      * @param item to add to queue
      * @param index in the list to operate on
      */
-    void insert(T *q, unsigned index)
+    void insert(T *q, unsigned index = 0)
     {
         mutex.lock();
         list[index].insert(q);
@@ -631,7 +631,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue
      */
-    T *next(unsigned index)
+    T *next(unsigned index = 0)
     {
         mutex.lock();
         T *result = list[index].next();
@@ -643,7 +643,7 @@ public:
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index = 0)
     {
         mutex.lock();
         size_t result = list[index].pending();
@@ -655,7 +655,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index = 0)
     {
         mutex.lock();
         bool result = list[index].empty();
@@ -1200,7 +1200,8 @@ private:
 };
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
- * Yes this uses multiple inheritance.
+ * Yes this uses multiple inheritance.  The priority of pulling items out of
+ * of the list is fixed to look at index 0 first and the highest index last.
  */
 template <class T> class QueueListProtectedWait : public QListProtected <T>, public OSSem
 {
@@ -1224,7 +1225,7 @@ public:
      * @param item item to add to queue
      * @param index in the list to operate on
      */
-    void insert(T *item, unsigned index)
+    void insert(T *item, unsigned index = 0)
     {
         QListProtected<T>::insert(item, index);
         post();
@@ -1238,7 +1239,7 @@ public:
         T *result = NULL;
         for (size_t i = 0; i < QListProtected<T>::size(); ++i)
         {
-            result = QListProtected<T>::next();
+            result = QListProtected<T>::next(i);
             if (result)
             {
                 break;
@@ -1262,7 +1263,7 @@ public:
         T *result = NULL;
         for (size_t i = 0; i < QListProtected<T>::size(); ++i)
         {
-            result = QListProtected<T>::next();
+            result = QListProtected<T>::next(i);
             if (result)
             {
                 break;
@@ -1291,7 +1292,7 @@ public:
         T *result = NULL;
         for (size_t i = 0; i < QListProtected<T>::size(); ++i)
         {
-            result = QListProtected<T>::next();
+            result = QListProtected<T>::next(i);
             if (result)
             {
                 break;

@@ -124,14 +124,15 @@
 
 /** Runs incoming Messages through a State Flow.
  */
-class StateFlow : public Q<Message>
+class StateFlow : public QList<Message>
 {
 protected:
     /** Constructor.
      * @param service Service that this state flow is part of
+     * @param size number of queues in the list
      */
-    StateFlow(Service *service)
-        : Q(),
+    StateFlow(Service *service, size_t size = 1)
+        : QList(size),
           service(service),
           state(STATE(terminated))
     {
