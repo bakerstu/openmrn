@@ -41,8 +41,10 @@ void StateFlow::process(Message *msg)
 {
     if (msg->id() & Message::IN_PROCESS_MSK)
     {
-        /* continue existing in process state flow */
-        HASSERT(state != STATE(terminated));
+       HASSERT(state != STATE(terminated));
+
+       /* Clear the IN_PROCESS_MASK and continue in process state flow */
+       msg->id(msg->id() & ~Message::IN_PROCESS_MSK);
     }
     else
     {
@@ -60,9 +62,6 @@ void StateFlow::process(Message *msg)
             return;
         }
     }
-
-    /* Clear the IN_PROCESS_MASK if it is set to start */
-    msg->id(msg->id() & ~Message::IN_PROCESS_MSK);
 
     for ( ; /* forever */ ; )
     {
