@@ -61,6 +61,9 @@ void StateFlow::process(Message *msg)
         }
     }
 
+    /* Clear the IN_PROCESS_MASK if it is set to start */
+    msg->id(msg->id() & ~Message::IN_PROCESS_MSK);
+
     for ( ; /* forever */ ; )
     {
         Action result = (this->*state)(msg);
