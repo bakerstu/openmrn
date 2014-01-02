@@ -467,15 +467,14 @@ private:
 
 /** A list of queues.
  */
-template <class T> class QList
+template <class T, unsigned items> class QList
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
     QList(size_t size = 1)
-        : list(new Q<T>[size]),
-          size_(size)
+        : list()
     {
     }
 
@@ -483,7 +482,6 @@ public:
      */
     ~QList()
     {
-        delete [] list;
     }
 
     /** Add an item to the back of the queue.
@@ -522,20 +520,9 @@ public:
         return list[index].empty();
     }
 
-    /** Get the number of queues in the list
-     * @return number of queues in the list
-     */
-    size_t size()
-    {
-        return size_;
-    }
-    
 private:
     /** the list of queues */
-    Q<T> *list;
-
-    /** number of queues in the lists */
-    size_t size_;
+    Q<T> list[items];
 };
 
 /** This is a specialization of the Q which uses a mutex for insertion and
@@ -596,15 +583,14 @@ private:
 
 /** A list of queues.
  */
-template <class T> class QListProtected
+template <class T, unsigned items> class QListProtected
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtected(size_t size = 1)
-        : list(new Q<T>[size]),
-          size_(size),
+    QListProtected()
+        : list(),
           mutex()
     {
     }
@@ -613,7 +599,6 @@ public:
      */
     ~QListProtected()
     {
-        delete [] list;
     }
 
     /** Add an item to the back of the queue.
@@ -663,21 +648,10 @@ public:
         return result;
     }
 
-    /** Get the number of queues in the list
-     * @return number of queues in the list
-     */
-    size_t size()
-    {
-        return size_;
-    }
-    
 private:
     /** the list of queues */
-    Q<T> *list;
+    Q<T> list[items];
     
-    /** number of queues in the lists */
-    size_t size_;
-
     /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
      * (smaller) locking mechanism
      */
@@ -1076,7 +1050,7 @@ public:
         return result;
     }
         
-    /** Wait for a buffer from the front of the queue.
+    /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR woken up asynchronously
@@ -1166,7 +1140,7 @@ public:
         return result;
     }
     
-    /** Wait for a buffer from the front of the queue.
+    /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
@@ -1203,14 +1177,14 @@ private:
  * Yes this uses multiple inheritance.  The priority of pulling items out of
  * of the list is fixed to look at index 0 first and the highest index last.
  */
-template <class T> class QueueListProtectedWait : public QListProtected <T>, public OSSem
+template <class T, unsigned items> class QueueListProtectedWait : public QListProtected <T, items>, public OSSem
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QueueListProtectedWait(size_t size)
-        : QListProtected<T>(size),
+    QueueListProtectedWait()
+        : QListProtected<T, items>(),
           OSSem(0)
     {
     }
@@ -1227,7 +1201,7 @@ public:
      */
     void insert(T *item, unsigned index = 0)
     {
-        QListProtected<T>::insert(item, index);
+        QListProtected<T, items>::insert(item, index);
         post();
     }
 
@@ -1237,9 +1211,9 @@ public:
     T *next()
     {
         T *result = NULL;
-        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T>::next(i);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
                 break;
@@ -1261,9 +1235,9 @@ public:
     {
         OSSem::wait();
         T *result = NULL;
-        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T>::next(i);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
                 break;
@@ -1276,7 +1250,7 @@ public:
         return result;
     }
     
-    /** Wait for a buffer from the front of the queue.
+    /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
@@ -1290,9 +1264,9 @@ public:
         }
         
         T *result = NULL;
-        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T>::next(i);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
                 break;
