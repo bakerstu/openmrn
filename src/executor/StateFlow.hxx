@@ -189,7 +189,9 @@ protected:
         return Action(state);
     }
 
-    /** Terminate current StateFlow activity.
+    /** Terminate current StateFlow activity.  The message instance is not
+     * released before termination.  This is usefull if the message will be 
+     * reused for the purpose of sending to another StateFlow.
      * @return function pointer to terminated method
      */
     Action exit()

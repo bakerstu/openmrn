@@ -91,6 +91,7 @@ protected:
     {
         queue.insert(msg);
     }
+
 #if defined (__FreeRTOS__)
     /** Send a message to this Executor's queue.
      * @param buffer buffer instance to insert into the input queue

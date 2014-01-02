@@ -185,6 +185,26 @@ public:
         RECEIVE = NMRANET_IF_BASE
     };
 
+    /** Message structure for an incoming NMRAnet Message
+     */
+    struct InMessage
+    {
+        Buffer *data; /** message payload */
+        NodeID dst; /**< destination Node ID, 0 if unavailable */
+        NodeHandle src; /**< source node ID, 0 if unavailable */
+        MTI mti; /**< message type identifier */
+    };
+    
+    /** Message structure for an incoming NMRAnet Message
+     */
+    struct OutMessage
+    {
+        Buffer *data; /** message payload */
+        NodeID src; /**< destination Node ID, 0 if unavailable */
+        NodeHandle dst; /**< source node ID, 0 if unavailable */
+        MTI mti; /**< message type identifier */
+    };
+    
 protected:
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from

@@ -193,6 +193,139 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
  */
 StateFlow::Action If::ReceiveFlow::entry(Message *msg)
 {
+    If *nmranet_if = static_cast<If*>(me());
+    InMessage *in_message = static_cast<InMessage*>(msg->start());
+    NodeID dst = in_message->dst;
+    NodeHandle src = in_message->src;
+    Buffer *data = in_message->data;
+    MTI mti = in_message->mti;
+
+    if (dst != 0)
+    {
+        /* !!! Because the message is addressed, the downstream protocol is
+         * !!! responsible for freeing any data buffers.
+         */
+        RBTree <NodeID, Node*>::Node *id_node = Node::idTree.find(dst);
+        if (id_node)
+        {
+            Node *node = id_node->value;
+            HASSERT(node->nmranetIf == nmranet_if);
+            /* we own this id */
+            if (node->state != Node::UNINITIALIZED)
+            {
+                /* the node is initialized */
+                switch (mti)
+                {
+                    default:
+                        if (data)
+                        {
+                            data->free();
+                        }
+                        break;
+                    case MTI_PROTOCOL_SUPPORT_INQUIRY:
+                        node->protocol_support_reply(src);
+                        break;
+                    case MTI_VERIFY_NODE_ID_ADDRESSED:
+                        node->verify_id_number();
+                        break;
+                    case MTI_IDENT_INFO_REQUEST:
+                        node->ident_info_reply(src);
+                        break;
+                    case MTI_DATAGRAM_REJECTED: /* fall through */
+                    case MTI_DATAGRAM_OK:       /* fall through */
+                    case MTI_DATAGRAM:
+                        //node->Datagram::packet(mti, src, data);
+                        break;
+                    case MTI_STREAM_INITIATE_REQUEST:
+                    case MTI_STREAM_INITIATE_REPLY:
+                    case MTI_STREAM_DATA:
+                    case MTI_STREAM_PROCEED:
+                    case MTI_STREAM_COMPLETE:
+                        //node->Stream::packet(mti, src, data);
+                        break;
+                    case MTI_EVENTS_IDENTIFY_ADDRESSED:
+                        HASSERT(data == NULL);
+                        //nmranet_event_packet_addressed(mti, src, node, NULL);
+                        break;
+                }
+            }
+        }
+        else
+        {
+            if (data)
+            {
+                data->free();
+            }
+        }
+    }
+    else
+    {
+        /* global message, handle subscribe based protocols first */
+        switch (mti)
+        {
+            case MTI_CONSUMER_IDENTIFY:            /* fall through */
+            case MTI_CONSUMER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_UNKNOWN:  /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_VALID:    /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_INVALID:  /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_RESERVED: /* fall through */
+            case MTI_PRODUCER_IDENTIFY:            /* fall through */
+            case MTI_PRODUCER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_UNKNOWN:  /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_VALID:    /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_INVALID:  /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_RESERVED: /* fall through */
+            case MTI_EVENTS_IDENTIFY_GLOBAL:       /* fall through */
+            case MTI_EVENT_REPORT:
+                //nmranet_event_packet_global(mti, src, data ? bytes : nullptr);
+                break;
+            default:
+                /* global message, deliver all, non-subscribe */
+                for (RBTree <NodeID, Node*>::Node * id_node = Node::idTree.first();
+                     id_node != NULL;
+                     id_node = Node::idTree.next(id_node))
+                {
+                    Node *node = id_node->value;
+                    if (node->state != Node::UNINITIALIZED)
+                    {
+                        /* the node is initialized */
+                        switch (mti)
+                        {
+                            default:
+                                break;
+                            case MTI_VERIFY_NODE_ID_GLOBAL:
+                                if (data != NULL)
+                                {
+                                    const uint8_t *bytes = (uint8_t*)data->start();
+                                    /** @todo (Stuart Baker) we can do this more
+                                     * efficiently with different loop logic.
+                                     */
+                                    NodeID id = ((NodeID)bytes[5] <<  0) +
+                                                ((NodeID)bytes[4] <<  8) +
+                                                ((NodeID)bytes[3] << 16) +
+                                                ((NodeID)bytes[2] << 24) +
+                                                ((NodeID)bytes[1] << 32) +
+                                                ((NodeID)bytes[0] << 40);
+                                    if (id != node->nodeID)
+                                    {
+                                        /* not a match, keep looking */
+                                        continue;
+                                    }
+                                }
+                                /* we own this id, it is initialized, respond */
+                                node->verify_id_number();
+                                break;
+                        }
+                    }
+                }
+                break;
+        }
+        /* global messages don't take possession of and free their data */
+        if (data)
+        {
+            data->free();
+        }
+    }
     return release_and_exit(msg);
 }
 

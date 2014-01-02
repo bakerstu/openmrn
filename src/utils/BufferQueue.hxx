@@ -416,24 +416,6 @@ public:
         count++;
     }
 
-    /** Add an item to the front of the queue.
-     * @param item to add to queue
-     */
-    void insert_front(T *q)
-    {
-        if (head == NULL)
-        {
-            head = tail = q;
-            q->next = NULL;
-        }
-        else
-        {
-            q->next = head;
-            head = q;
-        }
-        count++;
-    }
-
     /** Get an item from the front of the queue.
      * @return item retrieved from queue
      */
@@ -483,6 +465,79 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Q);
 };
 
+/** A list of queues.
+ */
+template <class T> class QList
+{
+public:
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QList(size_t size = 1)
+        : list(new Q<T>[size]),
+          size_(size)
+    {
+    }
+
+    /** Destructor.
+     */
+    ~QList()
+    {
+        delete [] list;
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(T *q, unsigned index)
+    {
+        list[index].insert(q);
+    }
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue
+     */
+    T *next(unsigned index)
+    {
+        return list[index].next();
+    }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        return list[index].pending();
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        return list[index].empty();
+    }
+
+    /** Get the number of queues in the list
+     * @return number of queues in the list
+     */
+    size_t size()
+    {
+        return size_;
+    }
+    
+private:
+    /** the list of queues */
+    Q<T> *list;
+
+    /** number of queues in the lists */
+    size_t size_;
+};
+
 /** This is a specialization of the Q which uses a mutex for insertion and
  * removal.
  */
@@ -513,16 +568,6 @@ public:
         mutex.unlock();
     }
 
-    /** Add an item to the front of the queue.
-     * @param item to add to queue
-     */
-    void insert_front(T *q)
-    {
-        mutex.lock();
-        Q<T>::insert_front(q);
-        mutex.unlock();
-    }
-
     /** Get an item from the front of the queue.
      * @return item retrieved from queue
      */
@@ -547,6 +592,97 @@ private:
     OSMutex mutex;
 
     DISALLOW_COPY_AND_ASSIGN(QProtected);
+};
+
+/** A list of queues.
+ */
+template <class T> class QListProtected
+{
+public:
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QListProtected(size_t size = 1)
+        : list(new Q<T>[size]),
+          size_(size),
+          mutex()
+    {
+    }
+
+    /** Destructor.
+     */
+    ~QListProtected()
+    {
+        delete [] list;
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(T *q, unsigned index)
+    {
+        mutex.lock();
+        list[index].insert(q);
+        mutex.unlock();
+    }
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue
+     */
+    T *next(unsigned index)
+    {
+        mutex.lock();
+        T *result = list[index].next();
+        mutex.unlock();
+        return result;
+    }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        mutex.lock();
+        size_t result = list[index].pending();
+        mutex.unlock();
+        return result;
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        mutex.lock();
+        bool result = list[index].empty();
+        mutex.unlock();
+        return result;
+    }
+
+    /** Get the number of queues in the list
+     * @return number of queues in the list
+     */
+    size_t size()
+    {
+        return size_;
+    }
+    
+private:
+    /** the list of queues */
+    Q<T> *list;
+    
+    /** number of queues in the lists */
+    size_t size_;
+
+    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
+     * (smaller) locking mechanism
+     */
+    /** Mutual exclusion for Queue */
+    OSMutex mutex;
 };
 
 /** Pool of previously allocated, but currently unused, items. */
@@ -889,7 +1025,7 @@ private:
 template <class T> class QueueWait : public Q <T>, public OSSem
 {
 public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
+    /** Default Constructor. */
     QueueWait()
         : Q<T>(),
           OSSem(0)
@@ -926,30 +1062,46 @@ public:
     }
     
     /** Wait for an item from the front of the queue.
-     * @return item retrieved from queue
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
      */
     T *wait()
     {
         OSSem::wait();
         T *result = Q<T>::next();
-        HASSERT(result != NULL);
+        if(result == NULL)
+        {
+            errno = EINTR;
+        }
         return result;
     }
-    
+        
     /** Wait for a buffer from the front of the queue.
      * @param timeout time to wait in nanoseconds
-     * @return buffer buffer retrieved from queue, NULL on timeout or error
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR woken up asynchronously
      */
     T *timedwait(long long timeout)
     {
         if (OSSem::timedwait(timeout) != 0)
         {
+            errno = ETIMEDOUT;
             return NULL;
         }
         
         T *result = Q<T>::next();
-        HASSERT(result != NULL);
+        if (result == NULL)
+        {
+            errno = EINTR;
+        }
         return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
     }
     
 private:
@@ -963,7 +1115,7 @@ private:
 template <class T> class QueueProtectedWait : public QProtected <T>, public OSSem
 {
 public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
+    /** Default Constructor. */
     QueueProtectedWait()
         : QProtected<T>(),
           OSSem(0)
@@ -981,7 +1133,7 @@ public:
      */
     void insert(T *item)
     {
-        Q<T>::insert(item);
+        QProtected<T>::insert(item);
         post();
     }
 
@@ -990,7 +1142,7 @@ public:
      */
     T *next()
     {
-        T *result = Q<T>::next();
+        T *result = QProtected<T>::next();
         if (result != NULL)
         {
             /* decrement semaphore */
@@ -1000,35 +1152,168 @@ public:
     }
     
     /** Wait for an item from the front of the queue.
-     * @return item retrieved from queue
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
      */
     T *wait()
     {
         OSSem::wait();
-        T *result = Q<T>::next();
-        HASSERT(result != NULL);
+        T *result = QProtected<T>::next();
+        if(result == NULL)
+        {
+            errno = EINTR;
+        }
         return result;
     }
     
     /** Wait for a buffer from the front of the queue.
      * @param timeout time to wait in nanoseconds
-     * @return buffer buffer retrieved from queue, NULL on timeout or error
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
     T *timedwait(long long timeout)
     {
         if (OSSem::timedwait(timeout) != 0)
         {
+            errno = ETIMEDOUT;
             return NULL;
         }
         
-        T *result = Q<T>::next();
-        HASSERT(result != NULL);
+        T *result = QProtected<T>::next();
+        if (result == NULL)
+        {
+            errno = EINTR;
+        }
         return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
     }
     
 private:
 
     DISALLOW_COPY_AND_ASSIGN(QueueProtectedWait);
+};
+
+/** A BufferQueue that adds the ability to wait on the next buffer.
+ * Yes this uses multiple inheritance.
+ */
+template <class T> class QueueListProtectedWait : public QListProtected <T>, public OSSem
+{
+public:
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QueueListProtectedWait(size_t size)
+        : QListProtected<T>(size),
+          OSSem(0)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QueueListProtectedWait()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(T *item, unsigned index)
+    {
+        QListProtected<T>::insert(item, index);
+        post();
+    }
+
+    /** Get an item from the front of the queue.
+     * @return item retrieved from one of the queues
+     */
+    T *next()
+    {
+        T *result = NULL;
+        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        {
+            result = QListProtected<T>::next();
+            if (result)
+            {
+                break;
+            }
+        }
+        if (result != NULL)
+        {
+            /* decrement semaphore */
+            OSSem::wait();
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
+     */
+    T *wait()
+    {
+        OSSem::wait();
+        T *result = NULL;
+        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        {
+            result = QListProtected<T>::next();
+            if (result)
+            {
+                break;
+            }
+        }
+        if(result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wait for a buffer from the front of the queue.
+     * @param timeout time to wait in nanoseconds
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
+     */
+    T *timedwait(long long timeout)
+    {
+        if (OSSem::timedwait(timeout) != 0)
+        {
+            errno = ETIMEDOUT;
+            return NULL;
+        }
+        
+        T *result = NULL;
+        for (size_t i = 0; i < QListProtected<T>::size(); ++i)
+        {
+            result = QListProtected<T>::next();
+            if (result)
+            {
+                break;
+            }
+        }
+        if (result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
+    }
+    
+private:
+
+    DISALLOW_COPY_AND_ASSIGN(QueueListProtectedWait);
 };
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
