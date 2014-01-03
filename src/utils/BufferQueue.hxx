@@ -417,7 +417,7 @@ public:
     }
 
     /** Get an item from the front of the queue.
-     * @return item retrieved from queue
+     * @return item retrieved from queue, NULL if no item available
      */
     T *next()
     {
@@ -465,15 +465,24 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Q);
 };
 
-/** A list of queues.
+/** A list of queues.  Index 0 is the highest priority queue with increasingly
+ * higher indexes having increasingly lower priority.
  */
 template <class T, unsigned items> class QList
 {
 public:
+    /** Result of pulling an item from the queue based on priority.
+     */
+    struct Result
+    {
+        T *item; /**< item pulled from queue */
+        unsigned index; /**< index of item pulled frim queue */
+    };
+    
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QList(size_t size = 1)
+    QList()
         : list()
     {
     }
@@ -488,41 +497,89 @@ public:
      * @param item to add to queue
      * @param index in the list to operate on
      */
-    void insert(T *q, unsigned index = 0)
+    void insert(T *q, unsigned index)
     {
         list[index].insert(q);
     }
 
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
-     * @return item retrieved from queue
+     * @return item retrieved from queue, NULL if no item available
      */
-    T *next(unsigned index = 0)
+    T *next(unsigned index)
     {
         return list[index].next();
+    }
+
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    Result next()
+    {
+        for (unsigned i = 0; i < items; ++i)
+        {
+            T *result = list[i].next();
+            if (result)
+            {
+                return {result, i};
+            }
+        }
+        return {NULL, 0};
     }
 
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index = 0)
+    size_t pending(unsigned index)
     {
         return list[index].pending();
+    }
+
+    /** Get the total number of pending items in all queues in the list.
+     * @param index in the list to operate on
+     * @return number of total pending items in all queues in the list
+     */
+    size_t pending()
+    {
+        size_t result = 0;
+        for (unsigned i = 0; i < items; ++i)
+        {
+            result += list[i].pending();
+        }
+        return result;
     }
 
     /** Test if the queue is empty.
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index = 0)
+    bool empty(unsigned index)
     {
         return list[index].empty();
+    }
+
+    /** Test if all the queues are empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty()
+    {
+        for (unsigned i = 0; i < items; ++i)
+        {
+            if (!list[i].empty())
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
 private:
     /** the list of queues */
     Q<T> list[items];
+
+    DISALLOW_COPY_AND_ASSIGN(QList);
 };
 
 /** This is a specialization of the Q which uses a mutex for insertion and
@@ -556,7 +613,7 @@ public:
     }
 
     /** Get an item from the front of the queue.
-     * @return item retrieved from queue
+     * @return item retrieved from queue, NULL if no item available
      */
     T *next()
     {
@@ -583,14 +640,14 @@ private:
 
 /** A list of queues.
  */
-template <class T, unsigned items> class QListProtected
+template <class T, unsigned items> class QListProtected : public QList <T, items>
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
     QListProtected()
-        : list(),
+        : QList<T, items>(),
           mutex()
     {
     }
@@ -603,55 +660,42 @@ public:
 
     /** Add an item to the back of the queue.
      * @param item to add to queue
-     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
      */
     void insert(T *q, unsigned index = 0)
     {
         mutex.lock();
-        list[index].insert(q);
+        QList<T, items>::insert(q, index);
         mutex.unlock();
     }
 
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
-     * @return item retrieved from queue
+     * @return item retrieved from queue, NULL if no item available
      */
-    T *next(unsigned index = 0)
+    T *next(unsigned index)
     {
         mutex.lock();
-        T *result = list[index].next();
+        T *result = QList<T, items>::next(index);
         mutex.unlock();
         return result;
     }
 
-    /** Get the number of pending items in the queue.
-     * @param index in the list to operate on
-     * @return number of pending items in the queue
-     */
-    size_t pending(unsigned index = 0)
-    {
-        mutex.lock();
-        size_t result = list[index].pending();
-        mutex.unlock();
-        return result;
-    }
-
-    /** Test if the queue is empty.
-     * @param index in the list to operate on
-     * @return true if empty, else false
-     */
-    bool empty(unsigned index = 0)
-    {
-        mutex.lock();
-        bool result = list[index].empty();
-        mutex.unlock();
-        return result;
-    }
-
-private:
-    /** the list of queues */
-    Q<T> list[items];
+    /** Translate the Result type */
+    typedef typename QList<T, items>::Result Result;
     
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    Result next()
+    {
+        mutex.lock();
+        Result result = QList<T, items>::next();
+        mutex.unlock();
+        return result;
+    }
+
+private:    
     /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
      * (smaller) locking mechanism
      */
@@ -1199,27 +1243,22 @@ public:
      * @param item item to add to queue
      * @param index in the list to operate on
      */
-    void insert(T *item, unsigned index = 0)
+    void insert(T *item, unsigned index)
     {
         QListProtected<T, items>::insert(item, index);
         post();
     }
 
+    /** Translate the Result type */
+    typedef typename QListProtected<T, items>::Result Result;
+    
     /** Get an item from the front of the queue.
      * @return item retrieved from one of the queues
      */
-    T *next()
+    Result next()
     {
-        T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
-        {
-            result = QListProtected<T, items>::next(i);
-            if (result)
-            {
-                break;
-            }
-        }
-        if (result != NULL)
+        Result result = QListProtected<T, items>::next();
+        if (result.item != NULL)
         {
             /* decrement semaphore */
             OSSem::wait();
@@ -1228,24 +1267,14 @@ public:
     }
     
     /** Wait for an item from the front of the queue.
-     * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
      */
-    T *wait(unsigned *priority)
+    Result wait()
     {
         OSSem::wait();
-        T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
-        {
-            result = QListProtected<T, items>::next(i);
-            if (result)
-            {
-                *priority = i;
-                break;
-            }
-        }
-        if(result == NULL)
+        Result result = QListProtected<T, items>::next();
+        if(result.item == NULL)
         {
             errno = EINTR;
         }
@@ -1258,25 +1287,16 @@ public:
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
-    T *timedwait(long long timeout, unsigned *priority)
+    Result timedwait(long long timeout)
     {
         if (OSSem::timedwait(timeout) != 0)
         {
             errno = ETIMEDOUT;
-            return NULL;
+            return {NULL, 0};
         }
         
-        T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
-        {
-            result = QListProtected<T, items>::next(i);
-            if (result)
-            {
-                *priority = i;
-                break;
-            }
-        }
-        if (result == NULL)
+        Result result = QListProtected<T, items>::next();
+        if (result.item == NULL)
         {
             errno = EINTR;
         }

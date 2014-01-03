@@ -71,7 +71,7 @@ void StateFlowBase::process(Message *msg, unsigned priority)
 
         if (state == STATE(terminated))
         {
-             /* check to see if we have anything in our pending queue */
+            /* check to see if we have anything in our pending queue */
             msg = next();
 
             if (msg == NULL)

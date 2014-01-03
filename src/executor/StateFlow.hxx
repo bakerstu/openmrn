@@ -345,7 +345,7 @@ private:
      */
     Message *next()
     {
-        return QList<Message, items>::next();
+        return QList<Message, items>::next().item;
     }
 
     /** Default constructor.

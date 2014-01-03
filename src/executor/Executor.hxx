@@ -142,7 +142,7 @@ protected:
      * @param msg Message instance to insert into the input queue
      * @param priority priority of message
      */
-    virtual void send(Message *msg, unsigned priority = 0)
+    void send(Message *msg, unsigned priority = UINT_MAX)
     {
         QueueListProtectedWait<Message, priorities>::insert(msg, priority >= priorities ? priorities - 1 : priority);
     }
@@ -156,7 +156,10 @@ private:
      */
     Message *timedwait(long long timeout, unsigned *priority)
     {
-        return QueueListProtectedWait<Message, priorities>::timedwait(timeout, priority);
+        typename QueueListProtectedWait<Message, priorities>::Result result =
+            QueueListProtectedWait<Message, priorities>::timedwait(timeout);
+        *priority = result.index;
+        return result.item;
     }
 
     /** Wait for an item from the front of the queue.
@@ -166,7 +169,10 @@ private:
      */
     Message *wait(unsigned *priority)
     {
-        return QueueListProtectedWait<Message, priorities>::wait(priority);
+        typename QueueListProtectedWait<Message, priorities>::Result result =
+            QueueListProtectedWait<Message, priorities>::wait();
+        *priority = result.index;
+        return result.item;
     }
 
     /** Default Constructor.
