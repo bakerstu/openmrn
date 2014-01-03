@@ -39,38 +39,15 @@
 
 #include "executor/Service.hxx"
 
-Executor *Executor::list = NULL;
-
-#if defined (__FreeRTOS__)
-OSMQ Executor::isrMQ(16, sizeof(Message*));
-
-/* we need to run at the highest priority in the system to minimize the risk
- * of getting backlogged.
- */
-OSThread Executor::isrThread("Executor ISR", configMAX_PRIORITIES - 1, 512,
-                             Executor::isr_thread_entry, NULL);
-
-void *Executor::isr_thread_entry(void *arg)
-{
-    for ( ; /* forever */ ; )
-    {
-        Message *msg;
-        isrMQ.receive(&msg);
-        static_cast<Service*>(msg->to())->send(msg);
-    }
-
-    return NULL;
-}
-#endif
+ExecutorBase *ExecutorBase::list = NULL;
 
 /** Constructor.
  * @param name name of executor
  * @param priority thread priority
  * @param stack_size thread stack size
  */
-Executor::Executor(const char *name, int priority, size_t stack_size)
+ExecutorBase::ExecutorBase(const char *name, int priority, size_t stack_size)
     : OSThread(name, priority, stack_size),
-      queue(),
       name(name),
       next(NULL),
       active(NULL)
@@ -94,14 +71,14 @@ Executor::Executor(const char *name, int priority, size_t stack_size)
  * @param name name of executor to lookup
  * @return pointer to executor upon success, else NULL if not found
  */
-Executor *Executor::by_name(const char *name, bool wait)
+ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
      */
     for ( ; /* forever */ ; )
     {
-        Executor *current = list;
+        ExecutorBase *current = list;
         while (current)
         {
             if (!strcmp(name, current->name))
@@ -121,36 +98,17 @@ Executor *Executor::by_name(const char *name, bool wait)
     }
 }
 
-/** Catch timer callback.
- * @param data1 pointer to an Executor instance
- * @param data2 pointer to an application callback
- * @return Always returns OS_TIMER_NONE
- */
-long long Executor::timer_callback(void *data1, void *data2)
-{
-#if 0
-    Executor *executor = (Executor*)data1;
-    TimerCallback callback = (TimerCallback)data2;
-
-    Buffer *buffer = buffer_alloc(sizeof(IdTimer));
-    buffer->id(ID_TIMER);
-    IdTimer *message = (IdTimer*)buffer->start();
-    message->callback = callback;
-    executor->queue.insert(buffer);
-#endif
-    return OS_TIMER_NONE;
-}
-
 /** Thread entry point.
  * @return Should never return
  */
-void *Executor::entry()
+void *ExecutorBase::entry()
 {
     Message *msg;
     
     /* wait for messages to process */
     for ( ; /* forever */ ; )
     {
+        unsigned priority;
         if (active)
         {
             /* act on the next active timer */
@@ -163,7 +121,7 @@ void *Executor::entry()
                 continue;
             }
 
-            msg = queue.timedwait(result);
+            msg = timedwait(result, &priority);
             if (msg == NULL)
             {
                 /* timeout occured, handle it */
@@ -172,7 +130,7 @@ void *Executor::entry()
         }
         else
         {
-            msg = queue.wait();
+            msg = wait(&priority);
         }
         if (msg->id() == 0)
         {
@@ -184,7 +142,7 @@ void *Executor::entry()
         
         Service *service = (Service*)msg->to();
         HASSERT(service);
-        service->process(msg);
+        service->process(msg, priority);
     }
 
     return NULL;

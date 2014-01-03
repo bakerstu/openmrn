@@ -191,7 +191,7 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action If::ReceiveFlow::entry(Message *msg)
+StateFlowBase::Action If::ReceiveFlow::entry(Message *msg)
 {
     If *nmranet_if = static_cast<If*>(me());
     InMessage *in_message = static_cast<InMessage*>(msg->start());

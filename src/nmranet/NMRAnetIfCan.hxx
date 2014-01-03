@@ -81,7 +81,7 @@ protected:
      * @param id itentifier to translate
      * @return StateFlow corresponding the given ID, NULL if not found
      */
-    StateFlow *lookup(uint32_t id)
+    StateFlowBase *lookup(uint32_t id)
     {
         switch (id)
         {
@@ -95,16 +95,9 @@ protected:
     }
 
 private:
-#if defined (__FreeRTOS__)
-    /** Notify that an inteface is ready for read or write.
-     * @param context to pass into callback
-     * @param woken is the task woken up
-     */
-    static void notify_callback(void *context, int *woken);
-#endif
     /* Handle incoming CAN frames.
      */
-    STATE_FLOW_START(CanReadFlow)
+    STATE_FLOW_START(CanReadFlow, 1)
     STATE_FLOW_STATE(ccr_cid_frame)
     STATE_FLOW_STATE(ccr_rid_frame)
     STATE_FLOW_STATE(ccr_amd_frame)
@@ -118,7 +111,7 @@ private:
     
     /* Handle outgoing CAN frames.
      */
-    STATE_FLOW_START(CanWriteFlow)
+    STATE_FLOW_START(CanWriteFlow, 1)
     STATE_FLOW_STATE(wait_for_send)
     STATE_FLOW_END()
     

@@ -110,7 +110,7 @@ public:
             /* item allocated */
             T::init(item, 0);
             msg->from(item);
-            Service::static_send(static_cast<Service*>(msg->to()), msg);
+            Service::static_send(static_cast<Service*>(msg->to()), msg, msg->id());
         }
         else
         {

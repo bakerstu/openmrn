@@ -40,7 +40,7 @@ namespace NMRAnet
 {
 
 /** The single executor instance used for all NMRAnet platform logic. */
-extern Executor *nmranetExecutor;
+extern Executor<4> *nmranetExecutor;
 
 /** Base identifier for all NMRAnet messages */
 #define NMRANET_ID_BASE (1000)

@@ -36,6 +36,6 @@
 namespace NMRAnet
 {
 
-Executor *nmranetExecutor = new Executor("nmranet", 0, 2048);
+Executor<4> *nmranetExecutor = new Executor<4>("nmranet", 0, 2048);
 
 }

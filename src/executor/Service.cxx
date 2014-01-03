@@ -41,13 +41,13 @@ DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Mes
 /** Process an incoming message.
  * @param buffer message to process
  */
-void Service::process(Message *msg)
+void Service::process(Message *msg, unsigned priority)
 {
-    StateFlow *sf = lookup(msg->id() & Message::ID_VALUE_MSK);
+    StateFlowBase *sf = lookup(msg->id() & Message::ID_VALUE_MSK);
     
     HASSERT(sf);
     
-    sf->process(msg);
+    sf->process(msg, priority);
 }
 
 /** Process the active timer.
@@ -151,7 +151,7 @@ bool Service::Timer::remove()
  */
 long long Service::state_flow_timeout(void *data)
 {
-    StateFlow *sf = static_cast<StateFlow*>(data);
+    StateFlowBase *sf = static_cast<StateFlowBase*>(data);
     sf->timeout();
     return Timer::NONE;
 }

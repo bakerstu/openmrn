@@ -1175,7 +1175,7 @@ private:
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.  The priority of pulling items out of
- * of the list is fixed to look at index 0 first and the highest index last.
+ * of the list is fixed to look at index 0 last and the highest index first.
  */
 template <class T, unsigned items> class QueueListProtectedWait : public QListProtected <T, items>, public OSSem
 {
@@ -1211,9 +1211,9 @@ public:
     T *next()
     {
         T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
+        for (size_t i = items; i > 0; --i)
         {
-            result = QListProtected<T, items>::next(i);
+            result = QListProtected<T, items>::next(i - 1);
             if (result)
             {
                 break;
@@ -1228,18 +1228,20 @@ public:
     }
     
     /** Wait for an item from the front of the queue.
+     * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
      */
-    T *wait()
+    T *wait(unsigned *priority)
     {
         OSSem::wait();
         T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
+        for (size_t i = items; i > 0; --i)
         {
-            result = QListProtected<T, items>::next(i);
+            result = QListProtected<T, items>::next(i - 1);
             if (result)
             {
+                *priority = i - 1;
                 break;
             }
         }
@@ -1252,10 +1254,11 @@ public:
     
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
+     * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
-    T *timedwait(long long timeout)
+    T *timedwait(long long timeout, unsigned *priority)
     {
         if (OSSem::timedwait(timeout) != 0)
         {
@@ -1264,11 +1267,12 @@ public:
         }
         
         T *result = NULL;
-        for (size_t i = 0; i < items; ++i)
+        for (size_t i = items; i > 0; --i)
         {
-            result = QListProtected<T, items>::next(i);
+            result = QListProtected<T, items>::next(i - 1);
             if (result)
             {
+                *priority = i - 1;
                 break;
             }
         }

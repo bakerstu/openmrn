@@ -231,7 +231,7 @@ protected:
      * @param id itentifier to translate
      * @return StateFlow corresponding the given ID, NULL if not found
      */
-    virtual StateFlow *lookup(uint32_t id)
+    virtual StateFlowBase *lookup(uint32_t id)
     {
         switch (id)
         {
@@ -245,7 +245,7 @@ protected:
 
 private:
     /** Handles receiving of incoming messages */
-    STATE_FLOW_START(ReceiveFlow)
+    STATE_FLOW_START(ReceiveFlow, 1)
     STATE_FLOW_END()
     
     /** State machine instance that handles receiving incoming messages */

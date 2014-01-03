@@ -45,32 +45,34 @@
 
 /** Begin the definition of a StateFlow.
  * @param _name the class name of the StateFlow derived object
+ * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START(_name)     \
-    class _name : public StateFlow  \
-    {                               \
-    public:                         \
-        _name(Service *service)     \
-            : StateFlow(service)    \
-        {                           \
-        }                           \
-                                    \
-        ~_name()                    \
-        {                           \
-        }                           \
-                                    \
-    private:                        \
+#define STATE_FLOW_START(_name, _priorities)             \
+    class _name : public StateFlow<_priorities>          \
+    {                                                    \
+    public:                                              \
+        _name(Service *service)                          \
+            : StateFlow<1>(service)                      \
+        {                                                \
+        }                                                \
+                                                         \
+        ~_name()                                         \
+        {                                                \
+        }                                                \
+                                                         \
+    private:                                             \
         Action entry(Message *msg);
 
 /** Begin the definition of a StateFlow that includes timeouts.
  * @param _name the class name of the StateFlow derived object
+ * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START_WITH_TIMER(_name)                                  \
-    class _name : public StateFlow                                          \
+#define STATE_FLOW_START_WITH_TIMER(_name, _priorities)                     \
+    class _name : public StateFlow<_priorities>                             \
     {                                                                       \
     public:                                                                 \
         _name(Service *service)                                             \
-            : StateFlow(service),                                           \
+            : StateFlow<_priorities>(service),                              \
               timer(TIMEOUT_FROM(service, state_flow_timeout),              \
                     service,                                                \
                     this),                                                  \
@@ -124,23 +126,22 @@
 
 /** Runs incoming Messages through a State Flow.
  */
-class StateFlow : public QList<Message, 1>
+class StateFlowBase
 {
 protected:
     /** Constructor.
      * @param service Service that this state flow is part of
      * @param size number of queues in the list
      */
-    StateFlow(Service *service)
-        : QList(),
-          service(service),
+    StateFlowBase(Service *service)
+        : service(service),
           state(STATE(terminated))
     {
     }
     
     /** Destructor.
      */
-    ~StateFlow()
+    ~StateFlowBase()
     {
     }
 
@@ -149,7 +150,7 @@ protected:
 
     /** State Flow callback prototype
      */
-    typedef Action (StateFlow::*Callback)(Message *);
+    typedef Action (StateFlowBase::*Callback)(Message *);
 
     /** Return type for a state flow callback.
      */
@@ -267,6 +268,17 @@ protected:
     }
     
 private:
+    /** Insert a message into one of the work queues.
+     * @param msg Message to insert
+     * @param index queue index to insert into
+     */
+    virtual void insert(Message *msg, unsigned index) = 0;
+    
+    /** Pull a message out of one of the work queues.
+     * @return message out of one of the work queues, NULL if none available
+     */
+    virtual Message *next() = 0;
+
     /** Service this StateFlow belongs to */
     Service *service;
 
@@ -279,18 +291,63 @@ private:
 
     /** Process an incoming message.
      * @param msg message to process
+     * @param priority priority of message
      */
-    void process(Message *msg);
+    void process(Message *msg, unsigned priority);
     
     /** current active state in the flow */
     Callback state;
 
-    /* Allow class Service to access our private members */
+    /** Allow class Service to access our private members */
     friend class Service;
     
-    /* Allow class Message to access our private and protected members */
+    /** Allow class Message to access our private and protected members */
     friend class Message;
     
+    /** Default constructor.
+     */
+    StateFlowBase();
+
+    DISALLOW_COPY_AND_ASSIGN(StateFlowBase);
+};
+
+template <unsigned items> class StateFlow : public StateFlowBase,
+                                            public QList<Message, items>
+{
+public:
+    /** Constructor.
+     * @param service Service that this state flow is part of
+     * @param size number of queues in the list
+     */
+    StateFlow(Service *service)
+        : StateFlowBase(service),
+          QList<Message, items>()
+    {
+    }
+    
+    /** Destructor.
+     */
+    ~StateFlow()
+    {
+    }
+private:
+    /** Insert a message into one of the work queues.
+     * @param msg Message to insert
+     * @param index queue index to insert into
+     */
+    void insert(Message *msg, unsigned index)
+    {
+        QList<Message, items>::insert(msg, index >= items ? items - 1 : index);
+    }
+    
+    /** Pull a message out of one of the work queues.
+     * @return message out of one of the work queues, NULL if none available
+     */
+    Message *next()
+    {
+        return QList<Message, items>::next();
+    }
+
     /** Default constructor.
      */
     StateFlow();

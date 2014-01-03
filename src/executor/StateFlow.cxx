@@ -36,8 +36,9 @@
 
 /** Process an incoming message.
  * @param msg message to process
+ * @param priority priority of message
  */
-void StateFlow::process(Message *msg)
+void StateFlowBase::process(Message *msg, unsigned priority)
 {
     if (msg->id() & Message::IN_PROCESS_MSK)
     {
@@ -58,7 +59,7 @@ void StateFlow::process(Message *msg)
             /* we have a new incoming flow that we must queue until the
              * previous flow is done precessing.
              */
-            insert(msg);
+            insert(msg, priority);
             return;
         }
     }
@@ -99,13 +100,13 @@ void StateFlow::process(Message *msg)
  * @param msg Message instance we are acting upon
  * @return function pointer to passed in callback
  */
-StateFlow::Action StateFlow::yeild_and_call(Callback c, Message *msg)
+StateFlowBase::Action StateFlowBase::yeild_and_call(Callback c, Message *msg)
 {
     /* marks this as an in-process message and queue us up for the next go
      * around.
      */
     msg->id(msg->id() | Message::IN_PROCESS_MSK);
-    service->send(msg);
+    service->send(msg, msg->id());
     return Action(c);
 }
 
@@ -114,7 +115,7 @@ StateFlow::Action StateFlow::yeild_and_call(Callback c, Message *msg)
  * @param msg unused
  * @return should never return
  */
-StateFlow::Action StateFlow::terminated(Message *msg)
+StateFlowBase::Action StateFlowBase::terminated(Message *msg)
 {
     HASSERT(0);
     return terminated(msg);

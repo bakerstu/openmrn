@@ -1070,7 +1070,7 @@ void IfCan::ccr_amr_frame(uint32_t ccr, uint8_t data[])
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
+StateFlowBase::Action IfCan::CanWriteFlow::entry(Message *msg)
 {
     HASSERT(msg->used() == sizeof(struct can_frame));
     IfCan *if_can = static_cast<IfCan*>(me());
@@ -1088,8 +1088,8 @@ StateFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
         {
             /* setup to wait for write active */
             #if defined (__FreeRTOS__)
-                CanActiveCallback can_active_callback = {if_can->notify_callback, static_cast<void*>(msg)};
-                ioctl(if_can->fd, CAN_IOC_WRITE_ACTIVE, &can_active_callback);
+                //CanActiveCallback can_active_callback = {if_can->notify_callback, static_cast<void*>(msg)};
+                //ioctl(if_can->fd, CAN_IOC_WRITE_ACTIVE, &can_active_callback);
             #else
                 HASSERT(0);
              #endif
@@ -1106,7 +1106,7 @@ StateFlow::Action IfCan::CanWriteFlow::entry(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
+StateFlowBase::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     ssize_t result = (*if_can->write)(if_can->fd, msg->start(), sizeof(can_frame));
@@ -1115,24 +1115,11 @@ StateFlow::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
     return release_and_exit(msg);
 }
 
-#if defined (__FreeRTOS__)
-/** Notify that an inteface is ready for read or write.
- * @param context to pass into callback
- * @param woken is the task woken up
- */
-void IfCan::notify_callback(void *context, int *woken)
-{
-    Message *msg = static_cast<Message*>(context);
-    /* wakeup the state machine to process the next state */
-    static_cast<Service*>(msg->to())->send_from_isr(msg, woken);
-}
-#endif
-
 /** Entry into the StateFlow activity.
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::entry(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::entry(Message *msg)
 {
     HASSERT(msg->used() == sizeof(struct can_frame));
     IfCan *if_can = static_cast<IfCan*>(me());
@@ -1207,7 +1194,7 @@ StateFlow::Action IfCan::CanReadFlow::entry(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1237,7 +1224,7 @@ StateFlow::Action IfCan::CanReadFlow::ccr_cid_frame(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1250,7 +1237,7 @@ StateFlow::Action IfCan::CanReadFlow::ccr_rid_frame(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1294,7 +1281,7 @@ StateFlow::Action IfCan::CanReadFlow::ccr_amd_frame(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1331,7 +1318,7 @@ StateFlow::Action IfCan::CanReadFlow::ccr_ame_frame(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1362,7 +1349,7 @@ StateFlow::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::global_addressed(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1509,7 +1496,7 @@ StateFlow::Action IfCan::CanReadFlow::global_addressed(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::datagram(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
     struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
@@ -1654,7 +1641,7 @@ StateFlow::Action IfCan::CanReadFlow::datagram(Message *msg)
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlow::Action IfCan::CanReadFlow::write_frame_and_exit(Message *msg)
+StateFlowBase::Action IfCan::CanReadFlow::write_frame_and_exit(Message *msg)
 {
     Message *to_can = Allocator<Message>::allocation_result(msg);
     
@@ -1700,7 +1687,7 @@ void *IfCan::read_thread(void *data)
         Message *msg = mainMessagePool->alloc(sizeof(struct can_frame));
         memcpy(msg->start(), &frame, sizeof(struct can_frame));
         msg->advance(sizeof(struct can_frame));
-        send(msg, CAN_READ_FRAME);
+        send(CAN_READ_FRAME, msg);
 #else        
         if (get_frame_type(frame.can_id) == CONTROL_MSG)
         {
