@@ -1175,7 +1175,7 @@ private:
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.  The priority of pulling items out of
- * of the list is fixed to look at index 0 last and the highest index first.
+ * of the list is fixed to look at index 0 first and the highest index last.
  */
 template <class T, unsigned items> class QueueListProtectedWait : public QListProtected <T, items>, public OSSem
 {
@@ -1211,9 +1211,9 @@ public:
     T *next()
     {
         T *result = NULL;
-        for (size_t i = items; i > 0; --i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T, items>::next(i - 1);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
                 break;
@@ -1236,12 +1236,12 @@ public:
     {
         OSSem::wait();
         T *result = NULL;
-        for (size_t i = items; i > 0; --i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T, items>::next(i - 1);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
-                *priority = i - 1;
+                *priority = i;
                 break;
             }
         }
@@ -1267,12 +1267,12 @@ public:
         }
         
         T *result = NULL;
-        for (size_t i = items; i > 0; --i)
+        for (size_t i = 0; i < items; ++i)
         {
-            result = QListProtected<T, items>::next(i - 1);
+            result = QListProtected<T, items>::next(i);
             if (result)
             {
-                *priority = i - 1;
+                *priority = i;
                 break;
             }
         }
