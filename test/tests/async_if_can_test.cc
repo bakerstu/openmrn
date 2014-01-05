@@ -474,4 +474,18 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
     Wait();
 }
 
+TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {0, alias},
+                                           node_id_to_buffer(id), &n);
+    n.WaitForNotification();
+}
+
 } // namespace NMRAnet
