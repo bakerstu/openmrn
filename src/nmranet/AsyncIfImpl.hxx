@@ -70,7 +70,12 @@ protected:
     NodeID src_;     ///< Source node that wants to send this message.
     NodeHandle dst_; /**< Destination node to send message to, or 0 if global
                         message. */
-    Buffer* data_; ///< Message payload.
+    AsyncNode* dstNode_; ///< node pointer to dst node (for local addressed).
+    Buffer* data_;       ///< Message payload.
+
+protected:
+    /// @returns the allocator that this flow belongs to.
+    virtual TypedAllocator<WriteFlow>* allocator() = 0;
 
 private:
     /// Entry point for external callers.
@@ -82,6 +87,7 @@ private:
         mti_ = mti;
         src_ = src;
         dst_ = dst;
+        dstNode_ = nullptr;
         data_ = data;
         StartFlowAt(ST(maybe_send_to_local_node));
     }
@@ -96,13 +102,19 @@ private:
         src_ = src;
         dst_.id = 0;
         dst_.alias = 0;
+        dstNode_ = nullptr;
         data_ = data;
         StartFlowAt(ST(send_to_local_nodes));
     }
 
+    /// Copies the buffered message to the local asyncif->dispatcher.
+    void
+    send_message_to_local_dispatcher(AsyncIf::MessageDispatchFlow* dispatcher);
+
     ControlFlowAction maybe_send_to_local_node();
     ControlFlowAction send_to_local_nodes();
     ControlFlowAction unaddressed_with_local_dispatcher();
+    ControlFlowAction addressed_with_local_dispatcher();
 };
 
 } // namespace NMRAnet

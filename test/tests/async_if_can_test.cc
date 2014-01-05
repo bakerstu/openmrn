@@ -15,7 +15,8 @@ public:
 
 MATCHER_P(IsExtCanFrameWithId, id, "")
 {
-    if (!IS_CAN_FRAME_EFF(*arg)) return false;
+    if (!IS_CAN_FRAME_EFF(*arg))
+        return false;
     return ((uint32_t)id) == GET_CAN_FRAME_ID_EFF(*arg);
 }
 
@@ -181,20 +182,26 @@ public:
 MATCHER_P(IsBufferValue, id, "")
 {
     uint64_t value = htobe64(id);
-    if (arg->used() != 8) return false;
-    if (memcmp(&value, arg->start(), 8)) return false;
+    if (arg->used() != 8)
+        return false;
+    if (memcmp(&value, arg->start(), 8))
+        return false;
     return true;
 }
 
 MATCHER_P(IsBufferNodeValue, id, "")
 {
     uint64_t value = htobe64(id);
-    if (arg->used() != 6) return false;
+    if (arg->used() != 6)
+        return false;
     uint8_t* expected = reinterpret_cast<uint8_t*>(&value) + 2;
     uint8_t* actual = static_cast<uint8_t*>(arg->start());
-    if (memcmp(expected, actual, 6)) {
-        for (int i = 0; i < 6; ++i) {
-            if (expected[i] != actual[i]) {
+    if (memcmp(expected, actual, 6))
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            if (expected[i] != actual[i])
+            {
                 LOG(INFO, "mismatch at position %d, expected %02x actual %02x",
                     i, expected[i], actual[i]);
             }
@@ -222,6 +229,37 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
+    Wait();
+}
+
+TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
+{
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&IncomingMessage::mti, If::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                Field(&IncomingMessage::payload, NotNull()),
+                Field(&IncomingMessage::payload,
+                      IsBufferValue(0x0102030405060708ULL)),
+                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&IncomingMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&IncomingMessage::dst_node, node_))),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    if_can_->dispatcher()->RegisterHandler(0, 0, &h);
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    /** Here we are using a new source node ID number, which would normally
+     * trigger an alias allocation. However, since the message never makes it
+     * to the canbus (is looped back), that does not happen.*/
+    falloc.result()->WriteAddressedMessage(
+        If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
+        {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL), &n);
+    n.WaitForNotification();
     Wait();
 }
 
@@ -337,20 +375,19 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
     EXPECT_CALL(
         h,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::alias, alias)),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::id, id)),
-                          Field(&IncomingMessage::dst, WriteHelper::global()),
-                          Field(&IncomingMessage::dst_node, IsNull()),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
-                                IsBufferValue(0x0102030405060708ULL)))),
+            Pointee(AllOf(
+                Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&IncomingMessage::src, Field(&NodeHandle::id, id)),
+                Field(&IncomingMessage::dst, WriteHelper::global()),
+                Field(&IncomingMessage::dst_node, IsNull()),
+                Field(&IncomingMessage::payload, NotNull()),
+                Field(&IncomingMessage::payload,
+                      IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     if_can_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
 
-    if_can_->remote_aliases()->add(id, alias);    
+    if_can_->remote_aliases()->add(id, alias);
 
     SendPacket(":X195B4210N0102030405060708;");
     Wait();
@@ -364,16 +401,15 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
     EXPECT_CALL(
         h,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::alias, alias)),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::id, 0)),
-                          Field(&IncomingMessage::dst, WriteHelper::global()),
-                          Field(&IncomingMessage::dst_node, IsNull()),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
-                                IsBufferValue(0x0102030405060708ULL)))),
+            Pointee(AllOf(
+                Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&IncomingMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&IncomingMessage::dst, WriteHelper::global()),
+                Field(&IncomingMessage::dst_node, IsNull()),
+                Field(&IncomingMessage::payload, NotNull()),
+                Field(&IncomingMessage::payload,
+                      IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     if_can_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
 
@@ -390,22 +426,19 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
     EXPECT_CALL(
         h,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::alias, alias)),
-                          Field(&IncomingMessage::src,
-                                Field(&NodeHandle::id, id)),
-                          Field(&IncomingMessage::dst,
-                                Field(&NodeHandle::alias, 0x22A)),
-                          Field(&IncomingMessage::dst,
-                                Field(&NodeHandle::id, TEST_NODE_ID)),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, IsNull())
-                          )),
+            Pointee(AllOf(
+                Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&IncomingMessage::src, Field(&NodeHandle::id, id)),
+                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&IncomingMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&IncomingMessage::dst_node, node_),
+                Field(&IncomingMessage::payload, IsNull()))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     if_can_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
 
-    if_can_->remote_aliases()->add(id, alias);    
+    if_can_->remote_aliases()->add(id, alias);
 
     SendPacket(":X19488210N022A;");
     Wait();

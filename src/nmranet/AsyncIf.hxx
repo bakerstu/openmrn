@@ -151,7 +151,8 @@ public:
 
     /** Adds @param f to the free global write flows. Should be used by If
      * implementations only. */
-    void add_global_write_flow(WriteFlow* f) {
+    void add_global_write_flow(WriteFlow* f)
+    {
         globalWriteAllocator_.ReleaseBack(f);
     }
 
@@ -164,7 +165,8 @@ public:
 
     /** Adds @param f to the free addressed write flows. Should be used by If
      * implementations only. */
-    void add_addressed_write_flow(WriteFlow* f) {
+    void add_addressed_write_flow(WriteFlow* f)
+    {
         addressedWriteAllocator_.ReleaseBack(f);
     }
 
