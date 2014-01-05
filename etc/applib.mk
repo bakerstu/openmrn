@@ -69,6 +69,8 @@ $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
 	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
+	touch ../lib/timestamp
+
 
 .PHONY: clean
 clean:

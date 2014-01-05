@@ -82,6 +82,7 @@ $(ARM_OBJS): %.o : %.c
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
+	touch ../lib/timestamp
 
 .PHONY: clean
 clean:
