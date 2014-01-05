@@ -228,10 +228,10 @@ private:
             // values. Longer data usually travels via datagrams or streams.
             HASSERT(data_->used() < 256);
         }
-        // @TODO(balazs.racz): need to add alias lookups.
         return CallImmediately(ST(find_local_alias));
     }
 
+protected:
     ControlFlowAction find_local_alias()
     {
         // We are on the IF's executor, so we can access the alias caches.
@@ -243,6 +243,7 @@ private:
         return CallImmediately(ST(src_alias_lookup_done));
     }
 
+private:
     ControlFlowAction allocate_new_alias()
     {
         /** At this point we assume that there will always be at least one
@@ -382,6 +383,7 @@ private:
         }
     }
 
+protected:
     ControlFlowAction finalize()
     {
         cleanup(); // Will release the buffer.
@@ -389,14 +391,22 @@ private:
     }
 };
 
-namespace
-{
+/** Specifies how long to wait for a response to an alias mapping enquiry
+ * message when trying to send an addressed message to a destination. The final
+ * timeout will be twice this time, because after the first timeout a global
+ * message for verify node id request will also be sent out.
+ *
+ * This value is writable for unittesting purposes. We might consider moving it
+ * to flash with a weak definition instead. */
+extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
+long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
 /* This write flow inherits all the business logic from the parent, just
  * maintains a separate allocation queue. This allows global messages to go out
  * even if addressed messages are waiting for destination address
  * resolution. */
-class AddressedCanMessageWriteFlow : public CanMessageWriteFlow
+class AddressedCanMessageWriteFlow : public CanMessageWriteFlow,
+                                     private IncomingFrameHandler
 {
 public:
     AddressedCanMessageWriteFlow(AsyncIfCan* if_can)
@@ -410,7 +420,186 @@ protected:
     {
         return if_can_->addressed_write_allocator();
     }
+
+    virtual ControlFlowAction send_to_hardware()
+    {
+        data_offset_ = 0;
+        src_alias_ = 0;
+        dst_alias_ = 0;
+        if (data_)
+        {
+            // We have limited space for counting offsets. In practice this
+            // valaue will be max 10 for certain traction control protocol
+            // values. Longer data usually travels via datagrams or streams.
+            HASSERT(data_->used() < 256);
+        }
+        HASSERT(dst_.id || dst_.alias); // We must have some kind of address.
+        if (dst_.id)
+        {
+            dst_alias_ = if_can_->remote_aliases()->lookup(dst_.id);
+        }
+        if (dst_.alias && dst_alias_ && dst_.alias != dst_alias_)
+        {
+            /** @TODO(balazs.racz) what should we do here? The caller said
+             * something different than the cache. */
+            LOG(INFO, "AddressedWriteFlow: Caller supplied outdated alias. "
+                      "Node id %012llx, Result from cache %03x, "
+                      "alias from caller %03x.",
+                dst_.id, dst_alias_, dst_.alias);
+        }
+        else if (!dst_alias_)
+        {
+            dst_alias_ = dst_.alias;
+        }
+        if (dst_alias_)
+        {
+            return CallImmediately(ST(find_local_alias));
+        }
+        else
+        {
+            return CallImmediately(ST(find_remote_alias));
+        }
+    }
+
+    ControlFlowAction find_remote_alias()
+    {
+        RegisterLocalHandler();
+        src_alias_ = if_can_->local_aliases()->lookup(src_);
+        if (src_alias_)
+        {
+            // We can try to send an AME (alias mapping enquiry) frame.
+            return Allocate(if_can_->write_allocator(), ST(send_ame_frame));
+        }
+        // No local alias -- we need to jump straight to local nodeid
+        // verify. That will allocate a new local alias.
+        return CallImmediately(ST(send_verify_nodeid_global));
+        // send inquiry frame
+        // sleep until response shows up or timer expires.
+        // if timer expired then try with the node id verify message
+        return WaitForNotification();
+    }
+
+    ControlFlowAction send_ame_frame()
+    {
+        CanFrameWriteFlow* write_flow;
+        GetAllocationResult(&write_flow);
+        struct can_frame* f = write_flow->mutable_frame();
+        IfCan::control_init(*f, src_alias_, IfCan::AME_FRAME, 0);
+        f->can_dlc = 6;
+        uint64_t rd = htobe64(dst_.id);
+        memcpy(f->data, reinterpret_cast<uint8_t*>(&rd) + 2, 6);
+        write_flow->Send(nullptr);
+        // We wait for a rmeote response to come via the handler input. If it
+        // doesn't come for 1 sec, go to more global and send a global
+        // unaddressed message inquiring the node id.
+        return Sleep(&sleep_data_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
+                     ST(send_verify_nodeid_global));
+    }
+
+    ControlFlowAction send_verify_nodeid_global()
+    {
+        return Allocate(if_can_->global_write_allocator(),
+                        ST(fill_verify_nodeid_global));
+    }
+
+    ControlFlowAction fill_verify_nodeid_global()
+    {
+        WriteFlow* f =
+            GetTypedAllocationResult(if_can_->global_write_allocator());
+        f->WriteGlobalMessage(If::MTI_VERIFY_NODE_ID_GLOBAL, src_,
+                              node_id_to_buffer(dst_.id), nullptr);
+        return Sleep(&sleep_data_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
+                     ST(timeout_looking_for_dst));
+    }
+
+    ControlFlowAction timeout_looking_for_dst()
+    {
+        LOG(INFO, "AsyncIfCan: Could not resolve destination address %012llx "
+                  "to an alias on the bus. Dropping packet.",
+            dst_.id);
+        UnregisterLocalHandler();
+        return CallImmediately(ST(finalize));
+    }
+
+    ControlFlowAction remote_alias_found()
+    {
+        HASSERT(dst_alias_);
+        return CallImmediately(ST(find_local_alias));
+    }
+
+    enum
+    {
+        // AMD frames
+        CAN_FILTER1 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x10701000,
+        CAN_MASK1 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        // Initialization complete
+        CAN_FILTER2 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x19100000,
+        CAN_MASK2 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        // Verified node ID number
+        CAN_FILTER3 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x19170000,
+        CAN_MASK3 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+    };
+
+    // Registers *this to the ifcan to receive alias resolution messages.
+    void RegisterLocalHandler()
+    {
+        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER1, CAN_MASK1,
+                                                     this);
+        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER2, CAN_MASK2,
+                                                     this);
+        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER3, CAN_MASK3,
+                                                     this);
+    }
+
+    // Unregisters *this from the ifcan to not receive alias resolution
+    // messages.
+    void UnregisterLocalHandler()
+    {
+        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER1, CAN_MASK1,
+                                                       this);
+        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER2, CAN_MASK2,
+                                                       this);
+        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER3, CAN_MASK3,
+                                                       this);
+    }
+
+    //! Handler callback for incoming messages.
+    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    {
+        AutoNotify an(done);
+        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
+        if (f->can_dlc != 6)
+        {
+            // Not sending a node ID.
+            return;
+        }
+        uint64_t nodeid_be = htobe64(dst_.id);
+        uint8_t* nodeid_start = reinterpret_cast<uint8_t*>(&nodeid_be) + 2;
+        if (memcmp(nodeid_start, f->data, 6))
+        {
+            // Node id does not match.
+            return;
+        }
+        // Now: we have an alias.
+        dst_alias_ = id & IfCan::SRC_MASK;
+        if (!dst_alias_)
+        {
+            LOG(ERROR, "Incoming alias definition message with zero alias. "
+                       "CAN frame id %08x",
+                (unsigned)id);
+            return;
+        }
+        UnregisterLocalHandler();
+        if_can_->remote_aliases()->add(dst_.id, dst_alias_);
+        StopTimer(&sleep_data_);
+        StartFlowAt(ST(remote_alias_found));
+    }
+
+    SleepData sleep_data_;
 };
+
+namespace
+{
 
 /* This write flow inherits all the business logic from the parent, just
  * maintains a separate allocation queue. This allows global messages to go out
@@ -690,7 +879,8 @@ public:
         if (!dstHandle_.id) // Not destined for us.
         {
             LOG(VERBOSE, "Dropping addressed message not for local destination."
-                "id %08x Alias %03x", (unsigned)id_, dstHandle_.alias);
+                         "id %08x Alias %03x",
+                (unsigned)id_, dstHandle_.alias);
             // Drop the frame.
             return;
         }
@@ -773,8 +963,7 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     {
         CanFrameWriteFlow* f = new CanWriteFlow(this, executor);
         write_allocator_.Release(f);
-        owned_flows_.push_back(
-            std::unique_ptr<ControlFlow>(f));
+        owned_flows_.push_back(std::unique_ptr<ControlFlow>(f));
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));

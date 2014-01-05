@@ -648,6 +648,7 @@ private:
     // These classes use the private enums for message field parsing.
     friend class AsyncAliasAllocator;
     friend class CanMessageWriteFlow;
+    friend class AddressedCanMessageWriteFlow;
     friend class AliasConflictHandler;
     friend class FrameToGlobalMessageParser;
     friend class FrameToAddressedMessageParser;
