@@ -186,6 +186,24 @@ MATCHER_P(IsBufferValue, id, "")
     return true;
 }
 
+MATCHER_P(IsBufferNodeValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg->used() != 6) return false;
+    uint8_t* expected = reinterpret_cast<uint8_t*>(&value) + 2;
+    uint8_t* actual = static_cast<uint8_t*>(arg->start());
+    if (memcmp(expected, actual, 6)) {
+        for (int i = 0; i < 6; ++i) {
+            if (expected[i] != actual[i]) {
+                LOG(INFO, "mismatch at position %d, expected %02x actual %02x",
+                    i, expected[i], actual[i]);
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
 TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
@@ -330,7 +348,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
                           Field(&IncomingMessage::payload,
                                 IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    if_can_->dispatcher()->RegisterHandler(0x5B4, 0xfff, &h);
+    if_can_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
 
     if_can_->remote_aliases()->add(id, alias);    
 
@@ -357,13 +375,13 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
                           Field(&IncomingMessage::payload,
                                 IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    if_can_->dispatcher()->RegisterHandler(0x5B4, 0xfff, &h);
+    if_can_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
 
     SendPacket(":X195B4210N0102030405060708;");
     Wait();
 }
 
-/*TEST_F(AsyncIfTest, PassAddressedMessageToIf)
+TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 {
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
@@ -372,25 +390,51 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
     EXPECT_CALL(
         h,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
+            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
                           Field(&IncomingMessage::src,
                                 Field(&NodeHandle::alias, alias)),
                           Field(&IncomingMessage::src,
                                 Field(&NodeHandle::id, id)),
-                          Field(&IncomingMessage::dst, WriteHelper::global()),
-                          Field(&IncomingMessage::dst_node, IsNull()),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
-                                IsBufferValue(0x0102030405060708ULL)))),
+                          Field(&IncomingMessage::dst,
+                                Field(&NodeHandle::alias, 0x22A)),
+                          Field(&IncomingMessage::dst,
+                                Field(&NodeHandle::id, TEST_NODE_ID)),
+                          Field(&IncomingMessage::dst_node, node_),
+                          Field(&IncomingMessage::payload, IsNull())
+                          )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    if_can_->dispatcher()->RegisterHandler(0x5B4, 0xfff, &h);
+    if_can_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
 
     if_can_->remote_aliases()->add(id, alias);    
 
-    SendPacket(":X195B4210N0102030405060708;");
+    SendPacket(":X19488210N022A;");
     Wait();
-    }*/
+}
 
+TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
+{
+    static const NodeAlias alias = 0x210U;
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&IncomingMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&IncomingMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&IncomingMessage::dst_node, node_),
+                Field(&IncomingMessage::payload, NotNull()),
+                Field(&IncomingMessage::payload,
+                      IsBufferNodeValue(0x010203040506ULL)))),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    if_can_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
 
+    SendPacket(":X19488210N022A010203040506;");
+    Wait();
+}
 
 } // namespace NMRAnet

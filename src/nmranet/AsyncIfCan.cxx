@@ -676,7 +676,7 @@ public:
         TypedAutoRelease<IncomingFrameHandler> ar(&lock_, this);
         id_ = GET_CAN_FRAME_ID_EFF(*f);
         // Do we have enough payloade for the destination address?
-        if (!f->can_dlc < 2)
+        if (f->can_dlc < 2)
         {
             LOG(WARNING, "Incoming can frame addressed message without payload."
                          " can ID %08x data length %d",
@@ -685,10 +685,12 @@ public:
             return;
         }
         // Gets the destination address and checks if it is our node.
-        NodeAlias dst_alias = ((f->data[0] & 0xf) << 4) | f->data[1];
-        NodeID dst_id = ifCan_->local_aliases()->lookup(dst_alias);
-        if (!dst_id) // Not destined for us.
+        dstHandle_.alias = (((unsigned)f->data[0] & 0xf) << 8) | f->data[1];
+        dstHandle_.id = ifCan_->local_aliases()->lookup(dstHandle_.alias);
+        if (!dstHandle_.id) // Not destined for us.
         {
+            LOG(VERBOSE, "Dropping addressed message not for local destination."
+                "id %08x Alias %03x", (unsigned)id_, dstHandle_.alias);
             // Drop the frame.
             return;
         }
@@ -707,7 +709,7 @@ public:
         if (f->can_dlc > 2)
         {
             buf_ = buffer_alloc(f->can_dlc - 2);
-            memcpy(buf_->start(), f->data, f->can_dlc - 2);
+            memcpy(buf_->start(), f->data + 2, f->can_dlc - 2);
             buf_->advance(f->can_dlc - 2);
         }
         else
@@ -727,8 +729,9 @@ public:
         m->mti =
             static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
-        m->dst = {0, 0};
-        m->dst_node = nullptr;
+        m->dst = dstHandle_;
+        // This might be NULL if dst is a proxied node in a router.
+        m->dst_node = ifCan_->lookup_local_node(dstHandle_.id);
         m->src.alias = id_ & IfCan::SRC_MASK;
         // This will be zero if the alias is not known.
         m->src.id =
@@ -750,6 +753,7 @@ public:
 private:
     uint32_t id_;
     Buffer* buf_;
+    NodeHandle dstHandle_;
     //! Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
     //! Parent interface.
@@ -799,6 +803,8 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
 
 void AsyncIfCan::add_addressed_message_support(int num_write_flows)
 {
+    owned_flows_.push_back(
+        std::unique_ptr<Executable>(new FrameToAddressedMessageParser(this)));
     for (int i = 0; i < num_write_flows; ++i)
     {
         owned_flows_.push_back(std::unique_ptr<Executable>(
