@@ -144,6 +144,10 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
     const char data[] = "01234567890123456789";
     memcpy(b->start(), data, 20);
     b->advance(20);
+    /** This is somewhat cheating, because we use the global message write flow
+     * to send an addressed message. @TODO(balazs.racz): replace this with
+     * addressed write flow once that is ready and working. Add checks for this
+     * not to happen in production. */
     falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
                                         TEST_NODE_ID, b, nullptr);
 }
