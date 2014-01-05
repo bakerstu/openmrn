@@ -74,8 +74,9 @@ const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
-static void PrintPacket(const string& pkt) {
-    fprintf(stderr,"%s\n", pkt.c_str());
+static void PrintPacket(const string& pkt)
+{
+    fprintf(stderr, "%s\n", pkt.c_str());
 }
 
 /** Test fixture base class with helper methods for exercising the asynchronous
@@ -153,18 +154,16 @@ protected:
             .RetiresOnSaturation();
     }
 
-    /** Adds an expectation that the code will send a packet to the CANbus.
+/** Adds an expectation that the code will send a packet to the CANbus.
 
-        Example:
-        ExpectPacket(":X1954412DN05010101FFFF0000;");
+    Example:
+    ExpectPacket(":X1954412DN05010101FFFF0000;");
 
-        @param gc_packet the packet in GridConnect format, including the leading
-        : and trailing ;
-    */
-    void ExpectPacket(const string& gc_packet)
-    {
-        EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));
-    }
+    @param gc_packet the packet in GridConnect format, including the leading
+    : and trailing ;
+*/
+#define ExpectPacket(gc_packet)                                                \
+    EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)))
 
     /** Ignores all produced packets.
      *
@@ -173,7 +172,8 @@ protected:
     */
     void ExpectAnyPacket()
     {
-        EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(WithArg<0>(Invoke(PrintPacket)));
+        EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+            WithArg<0>(Invoke(PrintPacket)));
     }
 
     /** Injects a packet to the interface. This acts as if a different node on
@@ -202,13 +202,11 @@ protected:
                 LockHolder h2(DefaultWriteFlowExecutor());
                 LockHolder h3(&g_gc_pipe_executor);
 
-                if (!g_executor.empty() ||
-                    !g_gc_pipe_executor.empty() ||
+                if (!g_executor.empty() || !g_gc_pipe_executor.empty() ||
                     !DefaultWriteFlowExecutor()->empty() ||
                     !if_can_->frame_dispatcher()->IsNotStarted() ||
                     !if_can_->dispatcher()->IsNotStarted() ||
-                    !can_pipe0.empty() ||
-                    !gc_pipe0.empty())
+                    !can_pipe0.empty() || !gc_pipe0.empty())
                 {
                     exit = false;
                 }
@@ -258,8 +256,7 @@ protected:
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
-    AsyncNodeTest()
-        : eventFlow_(&g_executor, 10)
+    AsyncNodeTest() : eventFlow_(&g_executor, 10)
     {
         EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
         ownedNode_.reset(new DefaultAsyncNode(if_can_.get(), TEST_NODE_ID));
