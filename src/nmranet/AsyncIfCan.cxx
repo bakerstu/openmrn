@@ -473,10 +473,6 @@ protected:
         // No local alias -- we need to jump straight to local nodeid
         // verify. That will allocate a new local alias.
         return CallImmediately(ST(send_verify_nodeid_global));
-        // send inquiry frame
-        // sleep until response shows up or timer expires.
-        // if timer expired then try with the node id verify message
-        return WaitForNotification();
     }
 
     ControlFlowAction send_ame_frame()
@@ -514,8 +510,8 @@ protected:
 
     ControlFlowAction timeout_looking_for_dst()
     {
-        LOG(INFO, "AsyncIfCan: Could not resolve destination address %012llx "
-                  "to an alias on the bus. Dropping packet.",
+        LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
+                  "address %012llx to an alias on the bus. Dropping packet.",
             dst_.id);
         UnregisterLocalHandler();
         return CallImmediately(ST(finalize));

@@ -488,4 +488,170 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
     n.WaitForNotification();
 }
 
+TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    if_can_->remote_aliases()->add(id, alias);
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithConflictingAlias)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // Both the cache and the caller gives an alias. System should use the
+    // cache.
+    if_can_->remote_aliases()->add(id, alias);
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0x111},
+                                           node_id_to_buffer(id), &n);
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMiss)
+{
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // An AME frame should be sent out.
+    ExpectPacket(":X1070222AN050101FFFFDD;");
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    SendPacketAndExpectResponse(
+        ":X10701210N050101FFFFDD;",   // AMD frame
+        ":X1948822AN0210050101FFFFDD;");
+
+    n.WaitForNotification();
+}
+
+extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
+
+TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissTimeout)
+{
+    static const NodeID id = 0x050101FFFFDDULL;
+    long long saved_timeout = ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // An AME frame should be sent out.
+    ExpectPacket(":X1070222AN050101FFFFDD;");
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = MSEC_TO_NSEC(20);
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    // Then a verify node id global.
+    ExpectPacket(":X1949022AN050101FFFFDD;");
+    // Then given up.
+    n.WaitForNotification();
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = saved_timeout;
+}
+
+TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissAMDTimeout)
+{
+    static const NodeID id = 0x050101FFFFDDULL;
+    long long saved_timeout = ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // An AME frame should be sent out.
+    ExpectPacket(":X1070222AN050101FFFFDD;");
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = MSEC_TO_NSEC(20);
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    Wait();
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(10);
+    ExpectPacket(":X1949022AN050101FFFFDD;");
+    usleep(30000);
+    SendPacketAndExpectResponse(
+        ":X19170210N050101FFFFDD;",   // Node id verified message
+        ":X1948822AN0210050101FFFFDD;");
+    n.WaitForNotification();
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = saved_timeout;
+}
+
+TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    if_can_->remote_aliases()->add(id, alias);
+    // Simulate cache miss on local alias cache.
+    if_can_->local_aliases()->remove(0x22A);
+    CreateAllocatedAlias();
+    ExpectNextAliasAllocation();
+    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    // And the frame goes out.
+    ExpectPacket(":X1948833AN0210050101FFFFDD;");
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    n.WaitForNotification();
+}
+
+
+TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
+{
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // Simulate cache miss on local alias cache.
+    if_can_->local_aliases()->remove(0x22A);
+    CreateAllocatedAlias();
+    ExpectNextAliasAllocation();
+    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    // And the new alias will do the lookup. Not with an AME frame but straight
+    // to the verify node id.
+    ExpectPacket(":X1949033AN050101FFFFDD;");
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    Wait();
+    SendPacketAndExpectResponse(
+        ":X19170210N050101FFFFDD;",   // Node id verified message
+        ":X1948833AN0210050101FFFFDD;");
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
+{
+    static const NodeID id = 0x050101FFFFDDULL;
+    long long saved_timeout = ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = MSEC_TO_NSEC(20);
+
+    TypedSyncAllocation<WriteFlow> falloc(if_can_->addressed_write_allocator());
+    SyncNotifiable n;
+    // Simulate cache miss on local alias cache.
+    if_can_->local_aliases()->remove(0x22A);
+    CreateAllocatedAlias();
+    ExpectNextAliasAllocation();
+    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    // And the new alias will do the lookup. Not with an AME frame but straight
+    // to the verify node id.
+    ExpectPacket(":X1949033AN050101FFFFDD;");
+    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+                                           TEST_NODE_ID, {id, 0},
+                                           node_id_to_buffer(id), &n);
+    n.WaitForNotification();
+    // The expectation here is that no more can frames are generated.
+    ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = saved_timeout;
+}
+
 } // namespace NMRAnet
