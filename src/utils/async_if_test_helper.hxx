@@ -259,11 +259,11 @@ class AsyncNodeTest : public AsyncIfTest
 {
 protected:
     AsyncNodeTest()
-        : eventFlow_(&g_executor, 10),
-          ownedNode_(if_can_.get(), TEST_NODE_ID),
-          node_(&ownedNode_)
+        : eventFlow_(&g_executor, 10)
     {
         EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
+        ownedNode_.reset(new DefaultAsyncNode(if_can_.get(), TEST_NODE_ID));
+        node_ = ownedNode_.get();
         if_can_->add_addressed_message_support(2);
         Wait();
         AddEventHandlerToIf(if_can_.get());
@@ -284,7 +284,7 @@ protected:
     }
 
     GlobalEventFlow eventFlow_;
-    DefaultAsyncNode ownedNode_;
+    std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode* node_;
 };
 
