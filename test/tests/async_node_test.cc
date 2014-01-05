@@ -19,6 +19,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     LOG(INFO, "after");
     Wait();
     EXPECT_TRUE(node.is_initialized());
+    EXPECT_EQ(&node, if_can_->lookup_local_node(TEST_NODE_ID));
 }
 
 TEST_F(AsyncIfTest, TwoNodesInitialize)
