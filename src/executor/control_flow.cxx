@@ -100,7 +100,7 @@ long long ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_ent
 ControlFlow::ControlFlowAction ControlFlow::Sleep(SleepData* data,
                                                   long long delay_nsec,
                                                   MemberFunction next_state) {
-  HASSERT(data->callback_count == 0);
+  data->callback_count = 0;
   if (data->timer_handle == NULL) {
     data->timer_handle =
       os_timer_create(&control_flow_single_timer, this, data);
@@ -121,8 +121,7 @@ void ControlFlow::WakeUpRepeatedly(SleepData* data, long long period_nsec) {
 
 void ControlFlow::StopTimer(SleepData* data) {
   HASSERT(data->timer_handle != NULL);
-  os_timer_delete(data->timer_handle);
-  data->timer_handle = NULL;
+  os_timer_stop(data->timer_handle);
 }
 
 
