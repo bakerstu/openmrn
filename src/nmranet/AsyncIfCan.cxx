@@ -143,7 +143,6 @@ public:
     CanWriteFlow(AsyncIfCan* parent, Executor* e)
         : CanFrameWriteFlow(e, nullptr), if_can_(parent)
     {
-        if_can_->write_allocator()->Release(this);
     }
 
     virtual void Send(Notifiable* done)
@@ -403,6 +402,7 @@ public:
     AddressedCanMessageWriteFlow(AsyncIfCan* if_can)
         : CanMessageWriteFlow(if_can)
     {
+        if_can_->add_addressed_write_flow(this);
     }
 
 protected:
@@ -421,7 +421,7 @@ class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 public:
     GlobalCanMessageWriteFlow(AsyncIfCan* if_can) : CanMessageWriteFlow(if_can)
     {
-        allocator()->ReleaseBack(this);
+        if_can_->add_global_write_flow(this);
     }
 
 protected:
@@ -767,8 +767,10 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
+        CanFrameWriteFlow* f = new CanWriteFlow(this, executor);
+        write_allocator_.Release(f);
         owned_flows_.push_back(
-            std::unique_ptr<ControlFlow>(new CanWriteFlow(this, executor)));
+            std::unique_ptr<ControlFlow>(f));
     }
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));

@@ -168,6 +168,7 @@ public:
     //! @returns the allocator for the *can frame* write flow.
     TypedAllocator<CanFrameWriteFlow>* write_allocator()
     {
+        HASSERT(write_allocator_.has_ever_seen_free_entries());
         return &write_allocator_;
     }
 

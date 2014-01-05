@@ -149,6 +149,12 @@ public:
         return &globalWriteAllocator_;
     }
 
+    /** Adds @param f to the free global write flows. Should be used by If
+     * implementations only. */
+    void add_global_write_flow(WriteFlow* f) {
+        globalWriteAllocator_.ReleaseBack(f);
+    }
+
     /// @returns an allocator for sending addressed messages to the bus.
     TypedAllocator<WriteFlow>* addressed_write_allocator()
     {
@@ -156,9 +162,16 @@ public:
         return &addressedWriteAllocator_;
     }
 
+    /** Adds @param f to the free addressed write flows. Should be used by If
+     * implementations only. */
+    void add_addressed_write_flow(WriteFlow* f) {
+        addressedWriteAllocator_.ReleaseBack(f);
+    }
+
     /** Transfers ownership of a module to the interface. It will be brought
-     * down in the destructor after any incoming message could come through and
-     * before any supporting structures are deleted.  */
+     * down in the destructor. The destruction order is guaranteed such that
+     * all supporting structures are still available when the flow is destryed,
+     * but incoming messages can not come in anymore. */
     virtual void add_owned_flow(Executable* e) = 0;
 
     /** Registers a new local node on this interface. This function must be
