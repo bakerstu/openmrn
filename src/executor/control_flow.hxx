@@ -208,7 +208,10 @@ protected:
   //! been called, the SleepData must not be used for a regular Sleep call.
   void WakeUpRepeatedly(SleepData* data, long long period_nsec);
 
-  //! Cancels a (possibly repeated) timer.
+  //! Cancels a (possibly repeated) timer. WARNING: a spurious notification
+  //! might come in afterwards in a rare race condition involving the timer
+  //! task and preemptions. It is also not guaranteed that another
+  //! immediately following sleep call will execute properly.
   void StopTimer(SleepData* data);
 
   //! Suspends the current control flow until a repeated timer event has come
