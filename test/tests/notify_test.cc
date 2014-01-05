@@ -76,6 +76,25 @@ TEST(DummyTest, Success) {
   EXPECT_EQ(34, i);
 }
 
+TEST(AutoNotify, Call) {
+    TestNotifiable n;
+    {
+        AutoNotify auton(&n);
+        EXPECT_FALSE(n.IsDone());
+    }
+    EXPECT_TRUE(n.IsDone());
+}
+
+TEST(AutoNotify, Transfer) {
+    TestNotifiable n;
+    {
+        AutoNotify auton(&n);
+        EXPECT_FALSE(n.IsDone());
+        EXPECT_EQ(&n, auton.Transfer());
+    }
+    EXPECT_FALSE(n.IsDone());
+}
+
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

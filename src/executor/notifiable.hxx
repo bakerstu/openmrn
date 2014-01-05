@@ -73,11 +73,11 @@ public:
     //! Creates a new callback. When this callback is called, the parent
     //! notifiable is called and HasBeenNotified() will return true after that
     //! point. This function must not be called again until the returned
-    //callback
+    // callback
     //! is invoked.
     //
     //! @returns a Notifiable to be used as a done callback for some
-    //asynchronous
+    // asynchronous
     //! processing.
     Notifiable* NewCallback(Notifiable* parent)
     {
@@ -148,5 +148,46 @@ inline BarrierNotifiable* NewBarrierNotifiable(Notifiable* done)
 {
     return new BarrierNotifiable(done);
 }
+
+/** This class sends a notification in its destructor. Use as RAII class:
+ *
+ * bool DoFoo(Notifiable* done)
+ * {
+ *    AutoNotify n(done);
+ *    // ... doo stuuufff ...
+ *    if (something_wrong) return false;
+ *    // do more stuff
+ *    return true;
+ * }
+ *
+ * The notification will be called on all return statements. */
+class AutoNotify
+{
+public:
+    AutoNotify(Notifiable* n) : n_(n)
+    {
+    }
+
+    ~AutoNotify()
+    {
+        if (n_)
+        {
+            n_->Notify();
+        }
+    }
+
+    /* Transfers the ownership of the notification; it will NOT be called in
+     * the destructor. The caller is now responsible for calling it.
+     * @returns the notification pointer stored in the constructor. */
+    Notifiable* Transfer()
+    {
+        Notifiable* r = n_;
+        n_ = nullptr;
+        return r;
+    }
+
+private:
+    Notifiable* n_;
+};
 
 #endif // _EXECUTOR_NOTIFIABLE_HXX_
