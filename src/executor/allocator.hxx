@@ -85,13 +85,18 @@ class AllocatorBase : public Lockable {
   //! returns NULL.
   QueueMember* AllocateOrNull();
 
+    /// @returns true if this allocator has ever seen free entries.
+  bool has_ever_seen_free_entries() { return hasEverSeenFreeEntries_; }
+
  private:
   // List of users waiting for entries OR list of entries available to be
   // allocated.
   Queue waiting_list_;
   // This is true if there are free entries on the waiting_list or the list is
   // empty.
-  bool has_free_entries_;
+  unsigned has_free_entries_ : 1;
+    // Non-zero if this allocator has ever had entries released to it.
+    unsigned hasEverSeenFreeEntries_ : 1;
 };
 
 //! An allocator class that can be used for type-safe operations.
@@ -227,6 +232,63 @@ class AllocatorMutex : public AllocatorBase {
 
  private:
   QueueMember token_;
+};
+
+/** Automatically releases an object to a freelist during desctruction. Use as
+ * RAII class:
+ *
+ * bool MyClass::DoFoo(Notifiable* done)
+ * {
+ *    AutoRelease r(&allocator_, this);
+ *    // ... doo stuuufff ...
+ *    if (something_wrong) return false;
+ *    // do more stuff
+ *    return true;
+ * }
+ *
+ * The object will be released to the allocator on all return statements. */
+class AutoRelease
+{
+public:
+    AutoRelease(AllocatorBase* allocator, QueueMember* entry)
+        : allocator_(allocator), entry_(entry)
+    {
+    }
+
+    ~AutoRelease()
+    {
+        if (entry_)
+        {
+            allocator_->Release(entry_);
+        }
+    }
+
+    /* Transfers the ownership of the object; it will NOT be released in
+     * the destructor.
+     * @returns the notification pointer stored in the constructor. */
+    QueueMember* Transfer()
+    {
+        QueueMember* r = entry_;
+        entry_ = nullptr;
+        return r;
+    }
+
+private:
+    AllocatorBase* allocator_;
+    QueueMember* entry_;
+};
+
+/// See @ref AutoRelease.
+template<class T> class TypedAutoRelease : private AutoRelease
+{
+public:
+    TypedAutoRelease(TypedAllocator<T>* allocator, T* entry)
+        : AutoRelease(allocator, entry) {}
+
+    T* Transfer()
+    {
+        return static_cast<T*>(AutoRelease::Transfer());
+    }
 };
 
 #endif  // _EXECUTOR_ALLOCATOR_HXX_

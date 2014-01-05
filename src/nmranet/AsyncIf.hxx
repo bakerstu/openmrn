@@ -145,12 +145,14 @@ public:
     /// @returns an allocator for sending global messages to the bus.
     TypedAllocator<WriteFlow>* global_write_allocator()
     {
+        HASSERT(globalWriteAllocator_.has_ever_seen_free_entries());
         return &globalWriteAllocator_;
     }
 
     /// @returns an allocator for sending addressed messages to the bus.
     TypedAllocator<WriteFlow>* addressed_write_allocator()
     {
+        HASSERT(addressedWriteAllocator_.has_ever_seen_free_entries());
         return &addressedWriteAllocator_;
     }
 
