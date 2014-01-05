@@ -55,6 +55,7 @@ void AllocatorBase::Release(QueueMember* entry) {
 }
 
 void AllocatorBase::ReleaseBack(QueueMember* entry) {
+  hasEverSeenFreeEntries_ = 1;
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
