@@ -645,10 +645,12 @@ private:
         friend class IfCan;
     };
     
+    // These classes use the private enums for message field parsing.
     friend class AsyncAliasAllocator;
     friend class CanMessageWriteFlow;
     friend class AliasConflictHandler;
     friend class FrameToGlobalMessageParser;
+    friend class FrameToAddressedMessageParser;
 
     /** file descriptor used for reading and writing data to and from physical
      * interface

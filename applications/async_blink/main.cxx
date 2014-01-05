@@ -67,7 +67,7 @@ const size_t CAN_TX_BUFFER_SIZE = 2;
 const size_t main_stack_size = 900;
 }
 
-NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 3, 3, 2);
+NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 3, 3, 2, 1);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 4);
 
@@ -161,7 +161,8 @@ int appl_main(int argc, char* argv[])
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
     BlinkerFlow blinker(&g_node);
-    g_if_can.AddWriteFlows(1, 1);
+    // We don't need to support addressed messages.
+    // g_if_can.add_addressed_message_support(1);
     g_if_can.set_alias_allocator(
         new NMRAnet::AsyncAliasAllocator(NODE_ID, &g_if_can));
     NMRAnet::AliasInfo info;

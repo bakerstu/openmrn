@@ -12,7 +12,7 @@ class AsyncEventTest : public AsyncIfTest
 protected:
     AsyncEventTest() : flow_(&g_executor, 10)
     {
-        if_can_->AddWriteFlows(2, 2);
+        if_can_->add_addressed_message_support(2);
         AddEventHandlerToIf(if_can_.get());
     }
 

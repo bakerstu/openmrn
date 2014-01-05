@@ -393,6 +393,10 @@ private:
 namespace
 {
 
+/* This write flow inherits all the business logic from the parent, just
+ * maintains a separate allocation queue. This allows global messages to go out
+ * even if addressed messages are waiting for destination address
+ * resolution. */
 class AddressedCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
@@ -408,6 +412,10 @@ protected:
     }
 };
 
+/* This write flow inherits all the business logic from the parent, just
+ * maintains a separate allocation queue. This allows global messages to go out
+ * even if addressed messages are waiting for destination address
+ * resolution. */
 class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
@@ -434,7 +442,8 @@ protected:
  * cache, forcing an alias reallocation for that node.
  *
  * . if the conflict is with a reserved but unused alias, kicks it out of the
- * cache and triggers allocating a new one instead.
+ * cache. This condition will be detected when a new node tries using that
+ * alias.
  *
  * NOTE: this handler could be a control flow, but since the flow is very
  * simple, it is implemented on first principles. The resulting object will
@@ -623,9 +632,133 @@ private:
     AsyncIfCan* ifCan_;
 };
 
+/** This class listens for incoming CAN frames of regular addressed OpenLCB
+ * messages detined for local nodes, then translates them in a generic way into
+ * a message, computing its MTI. The resulting message is then passed to the
+ * generic If for dispatching. */
+class FrameToAddressedMessageParser : public IncomingFrameHandler,
+                                      public AllocationResult
+{
+public:
+    enum
+    {
+        CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
+                     (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
+                     (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
+                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT) |
+                     (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
+        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
+                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
+                   (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
+    };
+
+    FrameToAddressedMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
+    {
+        lock_.TypedRelease(this);
+        ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
+    }
+
+    ~FrameToAddressedMessageParser()
+    {
+        ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
+                                                      this);
+    }
+
+    virtual AllocatorBase* get_allocator()
+    {
+        return &lock_;
+    }
+
+    //! Handler callback for incoming messages.
+    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    {
+        AutoNotify an(done);
+        TypedAutoRelease<IncomingFrameHandler> ar(&lock_, this);
+        id_ = GET_CAN_FRAME_ID_EFF(*f);
+        // Do we have enough payloade for the destination address?
+        if (!f->can_dlc < 2)
+        {
+            LOG(WARNING, "Incoming can frame addressed message without payload."
+                         " can ID %08x data length %d",
+                (unsigned)id_, f->can_dlc);
+            // Drop the frame.
+            return;
+        }
+        // Gets the destination address and checks if it is our node.
+        NodeAlias dst_alias = ((f->data[0] & 0xf) << 4) | f->data[1];
+        NodeID dst_id = ifCan_->local_aliases()->lookup(dst_alias);
+        if (!dst_id) // Not destined for us.
+        {
+            // Drop the frame.
+            return;
+        }
+        // Checks the continuation bits.
+        if (f->data[0] & 0b00110000)
+        {
+            /// @TODO: If this is not an only frame, we are in trouble here.
+            LOG(WARNING, "Received an addressed message with multiple frames. "
+                         "OpenMRN does not support generic reassembly yet. "
+                         "frame ID=%08x, fddd=%02x%02x",
+                (unsigned)id_, f->data[0], f->data[1]);
+            // Drop the frame.
+            return;
+        }
+        // Saves the payload.
+        if (f->can_dlc > 2)
+        {
+            buf_ = buffer_alloc(f->can_dlc - 2);
+            memcpy(buf_->start(), f->data, f->can_dlc - 2);
+            buf_->advance(f->can_dlc - 2);
+        }
+        else
+        {
+            buf_ = nullptr;
+        }
+        // Keeps the lock on *this.
+        ar.Transfer();
+        // Gets the dispatch flow.
+        ifCan_->dispatcher()->allocator()->AllocateEntry(this);
+    }
+
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
+        IncomingMessage* m = f->mutable_params();
+        m->mti =
+            static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+        m->payload = buf_;
+        m->dst = {0, 0};
+        m->dst_node = nullptr;
+        m->src.alias = id_ & IfCan::SRC_MASK;
+        // This will be zero if the alias is not known.
+        m->src.id =
+            m->src.alias ? ifCan_->remote_aliases()->lookup(m->src.alias) : 0;
+        if (!m->src.id && m->src.alias)
+        {
+            m->src.id = ifCan_->local_aliases()->lookup(m->src.alias);
+        }
+        f->IncomingMessage(m->mti);
+        // Return ourselves to the pool.
+        lock_.TypedRelease(this);
+    }
+
+    virtual void Run()
+    {
+        HASSERT(0);
+    }
+
+private:
+    uint32_t id_;
+    Buffer* buf_;
+    //! Lock for ourselves.
+    TypedAllocator<IncomingFrameHandler> lock_;
+    //! Parent interface.
+    AsyncIfCan* ifCan_;
+};
+
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
                        int local_alias_cache_size, int remote_alias_cache_size,
-                       int hw_write_flow_count)
+                       int hw_write_flow_count, int global_can_write_flow_count)
     : AsyncIf(executor),
       frame_dispatcher_(executor),
       localAliases_(0, local_alias_cache_size),
@@ -641,6 +774,11 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
         std::unique_ptr<Executable>(new AliasConflictHandler(this)));
     owned_flows_.push_back(
         std::unique_ptr<Executable>(new FrameToGlobalMessageParser(this)));
+    for (int i = 0; i < global_can_write_flow_count; ++i)
+    {
+        owned_flows_.push_back(
+            std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
+    }
 }
 
 AsyncIfCan::~AsyncIfCan()
@@ -657,14 +795,9 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
     aliasAllocator_.reset(a);
 }
 
-void AsyncIfCan::AddWriteFlows(int num_addressed, int num_global)
+void AsyncIfCan::add_addressed_message_support(int num_write_flows)
 {
-    for (int i = 0; i < num_global; ++i)
-    {
-        owned_flows_.push_back(
-            std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
-    }
-    for (int i = 0; i < num_addressed; ++i)
+    for (int i = 0; i < num_write_flows; ++i)
     {
         owned_flows_.push_back(std::unique_ptr<Executable>(
             new AddressedCanMessageWriteFlow(this)));

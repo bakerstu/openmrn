@@ -103,7 +103,7 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1));
         if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
@@ -264,7 +264,7 @@ protected:
           node_(&ownedNode_)
     {
         EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
-        if_can_->AddWriteFlows(2, 2);
+        if_can_->add_addressed_message_support(2);
         Wait();
         AddEventHandlerToIf(if_can_.get());
     }

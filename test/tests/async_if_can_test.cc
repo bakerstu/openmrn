@@ -91,7 +91,7 @@ class AsyncMessageCanTests : public AsyncIfTest
 protected:
     AsyncMessageCanTests()
     {
-        if_can_->AddWriteFlows(2, 2);
+        if_can_->add_addressed_message_support(2);
     }
 };
 

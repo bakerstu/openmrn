@@ -25,13 +25,13 @@ class TestNode
 public:
     TestNode(NodeID node_id)
         : nodeId_(node_id),
-          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10)
+          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10, 2)
     {
     }
 
     void start(BarrierNotifiable* done)
     {
-        ifCan_.AddWriteFlows(2, 2);
+        ifCan_.add_addressed_message_support(2);
         ifCan_.set_alias_allocator(new AsyncAliasAllocator(nodeId_, &ifCan_));
         ifCan_.alias_allocator()->empty_aliases()->Release(&testAlias_);
         WriteFlow* f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
