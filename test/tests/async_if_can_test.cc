@@ -444,7 +444,9 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 
     if_can_->remote_aliases()->add(id, alias);
 
-    SendPacket(":X19488210N022A;");
+    // The "verify nodeid handler" will respond.
+    SendPacketAndExpectResponse(":X19488210N022A;",
+                                ":X1917022AN02010d000003;");
     Wait();
 }
 
@@ -470,7 +472,11 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     if_can_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
 
-    SendPacket(":X19488210N022A010203040506;");
+    // The "verify node id handler" will respond. Although this message carries
+    // a node id that does not match, a response is still required because this
+    // is an addressed message.
+    SendPacketAndExpectResponse(":X19488210N022A010203040506;",
+                                ":X1917022AN02010d000003;");
     Wait();
 }
 

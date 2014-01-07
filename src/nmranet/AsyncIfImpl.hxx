@@ -117,6 +117,123 @@ private:
     ControlFlowAction addressed_with_local_dispatcher();
 };
 
+/** This handler handles VerifyNodeId messages (both addressed and global) on
+ * the interface level. Each interface implementation will want to create one
+ * of these. */
+class VerifyNodeIdHandler : private IncomingMessageHandler,
+                            public AllocationResult
+{
+public:
+    VerifyNodeIdHandler(AsyncIf* interface) : interface_(interface)
+    {
+        lock_.TypedRelease(this);
+        interface_->dispatcher()->RegisterHandler(
+            If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
+            0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
+                       If::MTI_VERIFY_NODE_ID_ADDRESSED),
+            this);
+    }
+
+    virtual AllocatorBase* get_allocator()
+    {
+        return &lock_;
+    }
+
+    //! Handler callback for incoming messages.
+    virtual void handle_message(IncomingMessage* m, Notifiable* done)
+    {
+        AutoNotify an(done);
+        if (m->dst.id)
+        {
+            // Addressed message.
+            srcNode_ = m->dst_node;
+        }
+        else if (m->payload && m->payload->used() == 6)
+        {
+            // Global message with a node id included
+            NodeID id = buffer_to_node_id(m->payload);
+            srcNode_ = interface_->lookup_local_node(id);
+        }
+        else
+        {
+// Global message. Everyone should respond.
+#ifdef SIMPLE_NODE_ONLY
+            // We assume there can be only one local node.
+            AsyncIf::VNodeMap::iterator it = interface_->localNodes_.begin();
+            if (it == interface_->localNodes_.end())
+            {
+                // No local nodes.
+                return;
+            }
+            srcNode_ = it++->second;
+            HASSERT(it == interface_->localNodes_.end());
+#else
+            // We need to do an iteration over all local nodes.
+            it_ = interface_->localNodes_.begin();
+            if (it_ == interface_->localNodes_.end())
+            {
+                // No local nodes.
+                return;
+            }
+            srcNode_ = it_->second;
+            ++it_;
+#endif // not simple node.
+        }
+        if (srcNode_)
+        {
+            return interface_->global_write_allocator()->AllocateEntry(this);
+        }
+    }
+
+#ifdef SIMPLE_NODE_ONLY
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        WriteFlow* f = interface->global_write_allocator()->cast_result(entry);
+        NodeID id = srcNode_->node_id();
+        f->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
+                              node_id_to_buffer(id), nullptr);
+    }
+
+    virtual void Run()
+    {
+        HASSERT(0);
+    }
+#else
+    virtual void AllocationCallback(QueueMember* entry)
+    {
+        f_ = interface_->global_write_allocator()->cast_result(entry);
+        // Need to jump to the main executor for two reasons:
+        // . we need to constrain stack usage
+        // . we need to access the node map which we can only do there.
+        interface_->dispatcher()->executor()->Add(this);
+    }
+
+    virtual void Run()
+    {
+        NodeID id = srcNode_->node_id();
+        f_->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
+                              node_id_to_buffer(id), nullptr);
+        // Continues the iteration over the nodes.
+        if (it_ != interface_->localNodes_.end())
+        {
+            srcNode_ = it_->second;
+            ++it_;
+            return interface_->global_write_allocator()->AllocateEntry(this);
+        }
+    }
+#endif // not simple node
+
+private:
+    TypedAllocator<IncomingMessageHandler> lock_;
+    AsyncIf* interface_;
+    AsyncNode* srcNode_;
+
+#ifndef SIMPLE_NODE_ONLY
+    WriteFlow* f_;
+    AsyncIf::VNodeMap::Iterator it_;
+#endif
+};
+
 } // namespace NMRAnet
 
 #endif // _NMRAnetAsyncIfImpl_hxx_

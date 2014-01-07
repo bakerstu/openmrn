@@ -954,6 +954,7 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {
+    add_owned_flow(new VerifyNodeIdHandler(this));
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
