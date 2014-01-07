@@ -112,6 +112,9 @@ protected:
     {
         Wait();
         gc_pipe0.UnregisterMember(&can_bus_);
+        if (printer_.get()) {
+            gc_pipe0.UnregisterMember(printer_.get());
+        }
     }
 
     /** Creates an alias allocator flow, and injects an already allocated
@@ -174,6 +177,18 @@ protected:
     {
         EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(PrintPacket)));
+    }
+
+    /** Prints all packets sent to the canbus until the end of the current test
+     * function.
+    */
+    void PrintAllPackets()
+    {
+        NiceMock<MockSend>* m = new NiceMock<MockSend>();
+        EXPECT_CALL(*m, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+            WithArg<0>(Invoke(PrintPacket)));
+        gc_pipe0.RegisterMember(m);
+        printer_.reset(m);
     }
 
     /** Injects a packet to the interface. This acts as if a different node on
@@ -244,6 +259,8 @@ protected:
 
     //! Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> can_bus_;
+    //! Object for debug-printing every packet (if requested).
+    std::unique_ptr<PipeMember> printer_;
     //! The interface under test.
     std::unique_ptr<AsyncIfCan> if_can_;
     /** Temporary object used to send aliases around in the alias allocator
