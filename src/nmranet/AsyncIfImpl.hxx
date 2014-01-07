@@ -143,6 +143,7 @@ public:
     virtual void handle_message(IncomingMessage* m, Notifiable* done)
     {
         AutoNotify an(done);
+        TypedAutoRelease<IncomingMessageHandler> ar(&lock_, this);
         if (m->dst.id)
         {
             // Addressed message.
@@ -181,6 +182,7 @@ public:
         }
         if (srcNode_)
         {
+            ar.Transfer();
             return interface_->global_write_allocator()->AllocateEntry(this);
         }
     }
@@ -192,6 +194,7 @@ public:
         NodeID id = srcNode_->node_id();
         f->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
                               node_id_to_buffer(id), nullptr);
+        lock_.TypedRelease(this);
     }
 
     virtual void Run()
@@ -211,8 +214,9 @@ public:
     virtual void Run()
     {
         NodeID id = srcNode_->node_id();
+        LOG(VERBOSE, "Sending verified reply from node %012llx", id);
         f_->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
-                              node_id_to_buffer(id), nullptr);
+                               node_id_to_buffer(id), nullptr);
         // Continues the iteration over the nodes.
         if (it_ != interface_->localNodes_.end())
         {
@@ -220,6 +224,7 @@ public:
             ++it_;
             return interface_->global_write_allocator()->AllocateEntry(this);
         }
+        lock_.TypedRelease(this);
     }
 #endif // not simple node
 
