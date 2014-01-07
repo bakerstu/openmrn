@@ -111,7 +111,9 @@ private:
         }
         else
         {
-            LOG(INFO, "event message without payload");
+            LOG(INFO, "event message without payload: mti %04x, "
+                "src node %012llx, src alias %03x", m_->mti, m_->src.id,
+                m_->src.alias);
             e->event = 0;
         }
         done_->Notify();
