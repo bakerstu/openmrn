@@ -54,6 +54,14 @@ class AsyncNode;
  */
 extern Buffer* node_id_to_buffer(NodeID id);
 
+/** Converts a 6-byte-long buffer to a node ID.
+ *
+ * @param buf is a buffer that has to have exactly 6 bytes used, filled with a
+ * big-endian node id.
+ * @returns the node id (in host endian).
+ */
+extern NodeID buffer_to_node_id(Buffer* buf);
+
 /** This class is used in the dispatching of incoming NMRAnet messages to the
  * message handlers at the protocol-agnostic level (i.e. not CAN or
  * TCP-specific). There will be one instance of this class that will be sent to
@@ -229,6 +237,8 @@ private:
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;
+
+    friend class VerifyNodeIdHandler;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIf);
 };
