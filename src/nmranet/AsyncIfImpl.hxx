@@ -160,13 +160,14 @@ public:
 // Global message. Everyone should respond.
 #ifdef SIMPLE_NODE_ONLY
             // We assume there can be only one local node.
-            AsyncIf::VNodeMap::iterator it = interface_->localNodes_.begin();
+            AsyncIf::VNodeMap::Iterator it = interface_->localNodes_.begin();
             if (it == interface_->localNodes_.end())
             {
                 // No local nodes.
                 return;
             }
-            srcNode_ = it++->second;
+            srcNode_ = it->second;
+            ++it;
             HASSERT(it == interface_->localNodes_.end());
 #else
             // We need to do an iteration over all local nodes.
@@ -190,7 +191,7 @@ public:
 #ifdef SIMPLE_NODE_ONLY
     virtual void AllocationCallback(QueueMember* entry)
     {
-        WriteFlow* f = interface->global_write_allocator()->cast_result(entry);
+        WriteFlow* f = interface_->global_write_allocator()->cast_result(entry);
         NodeID id = srcNode_->node_id();
         f->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
                               node_id_to_buffer(id), nullptr);

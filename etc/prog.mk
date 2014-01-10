@@ -80,6 +80,20 @@ all: $(EXECUTABLE)$(EXTENTION)
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 $(FULLPATHLIBS): $(BUILDDIRS)
 
+# This file acts as a guard describing when the last libsomething.a was remade
+# in the application libraries.
+lib/timestamp : FORCE $(BUILDDIRS)
+	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+
+# This file acts as a guard describing when the last libsomething.a was remade
+# in the core target libraries.
+$(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
+	make -C $(OPENMRNPATH)/targets/$(TARGET) all
+
+# We cannot make lib/timestamp a phony target or else every test will always be
+# remade.
+FORCE:
+
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
@@ -162,20 +176,6 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test --gtest_death_test_style=threadsafe
 	touch $@
-
-# This file acts as a guard describing when the last libsomething.a was remade
-# in the application libraries.
-lib/timestamp : $(BUILDDIRS)
-	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
-
-# This file acts as a guard describing when the last libsomething.a was remade
-# in the core target libraries.
-$(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
-	make -C $(OPENMRNPATH)/targets/$(TARGET) all
-
-# We cannot make lib/timestamp a phony target or else every test will always be
-# remade.
-FORCE:
 
 $(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++

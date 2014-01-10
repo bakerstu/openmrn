@@ -58,7 +58,7 @@ SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
         -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
-	-D__LINEAR_MAP__ \
+	-D__LINEAR_MAP__ -DSIMPLE_NODE_ONLY \
         $(CFLAGSENV)
 
 #	-D__USE_LIBSTDCPP__ \
