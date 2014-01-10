@@ -466,13 +466,17 @@ def CollectTotalSizes():
   BindSymbolsToMain()
   FindCycles()
 
+def ProcessDemangledName(name):
+  name = name.replace("NMRAnet::", "N:")
+  return name
+
 def DemangleAllNames():
   all_names = [k for k in all_symbols.iterkeys()]
   demangled_names = Demangle(all_names)
   for i in range(len(all_names)):
     symbol = all_symbols[all_names[i]]
     demangled_name = demangled_names[i]
-    symbol.displayname = demangled_name
+    symbol.displayname = ProcessDemangledName(demangled_name)
     enmangle[demangled_name] = all_names[i]
 
 def PrintObjects():
