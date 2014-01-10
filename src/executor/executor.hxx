@@ -60,7 +60,7 @@ public:
   ~Executor();
 
   // Runs the main loop of the executor in the current thread. Never returns.
-  void ThreadBody();
+  void ThreadBody() __attribute__((__noreturn__));
 
   // Adds entry to the back of the executor queue. `entry' must not be enqueued
   // here or in any other executor or queue.
