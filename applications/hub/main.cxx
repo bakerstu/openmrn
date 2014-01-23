@@ -45,6 +45,7 @@
 //DEFINE_PIPE(gc_can_pipe, 1);
 
 ThreadExecutor g_executor("g_executor", 0, 1000);
+ThreadExecutor client_executor("client_executor", 0, 1000);
 
 DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
 DEFINE_PIPE(display_pipe, &g_executor, 1);
@@ -65,7 +66,7 @@ void NewConnection(int fd) {
   ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
   sprintf(c->thread_name, "thread_fd_%d", fd);
   c->fd = fd;
-  c->client_pipe = new Pipe(&g_executor, 1);
+  c->client_pipe = new Pipe(&client_executor, 1);
   c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
   c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
 }
