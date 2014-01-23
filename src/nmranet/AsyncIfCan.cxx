@@ -948,8 +948,9 @@ private:
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
                        int local_alias_cache_size, int remote_alias_cache_size,
-                       int hw_write_flow_count, int global_can_write_flow_count)
-    : AsyncIf(executor),
+                       int hw_write_flow_count, int global_can_write_flow_count,
+                       int local_nodes_count)
+    : AsyncIf(executor, local_nodes_count),
       frame_dispatcher_(executor),
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)

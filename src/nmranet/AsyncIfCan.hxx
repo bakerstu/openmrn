@@ -148,7 +148,7 @@ public:
      */
     AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
                int remote_alias_cache_size, int hw_write_flow_count,
-               int global_can_write_flow_count);
+               int global_can_write_flow_count, int local_nodes_count);
 
     ~AsyncIfCan();
 

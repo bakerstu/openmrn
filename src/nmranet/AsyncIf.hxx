@@ -139,7 +139,7 @@ public:
         }
     };
 
-    AsyncIf(Executor* executor);
+    AsyncIf(Executor* executor, int local_nodes_count);
     virtual ~AsyncIf()
     {
     }
