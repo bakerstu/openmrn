@@ -117,7 +117,12 @@ public:
             {
                 LOG(ERROR, "EOF writing fd %d.", fd_write_);
             }
-            HASSERT(ret > 0);
+            if (ret < 0) {
+#ifdef __linux__
+                LOG(ERROR, "Error writing; errno %d %s", errno, strerror(errno));
+#endif
+                HASSERT(ret > 0);
+            }
             count -= ret;
             bbuf += ret;
         }
@@ -138,8 +143,11 @@ private:
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
                 if (ret <= 0)
                 {
-                    LOG(ERROR, "%s reading pipe fd %d.\n",
+                    LOG(ERROR, "%s reading pipe fd %d.",
                         ret < 0 ? "error" : "EOF", t->fd_read_);
+#ifdef __linux__
+                    LOG(ERROR, "errno %d %s", errno, strerror(errno));
+#endif
                     t->parent_->UnregisterMember(t);
                     ::close(t->fd_read_);
                     if (t->fd_write_ != t->fd_read_)
