@@ -20,6 +20,7 @@ _blacklist = set(['diewith', '__diewith_from_arm', 'memcpy', 'os_mutex_lock',
                   'os_mutex_unlock', 'malloc', 'free', 'abort',
                   'vPortEnterCritical', 'vPortExitCritical',
                   'xTaskResumeAll', 'vTaskSuspendAll',
+                  'xQueueGenericSend', 'xQueueGenericReceive',
                   '_ZdlPv', '_Znwj',  # operator new and delete
                   ])
 # '_vfprintf_r',
@@ -610,5 +611,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
