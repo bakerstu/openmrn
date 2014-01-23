@@ -112,14 +112,12 @@ public:
     class Iterator
     {
     public:
-        /** Default constructor.
-         */
-        Iterator()
-            : index(-1),
-              m(NULL)
+        /** Default constructor. The iterator must not be used until a valid
+         * iterator is assigned to it. */
+        Iterator() : index(-1), m(nullptr)
         {
         }
-        
+
         /** Copy constructor.
          */
         Iterator(const Iterator &it)
@@ -127,7 +125,7 @@ public:
               m(it.m)
         {
         }
-        
+
         /** Constructor.
          * @param context context passed in at instantiation
          * @param index index to initialize this iteration with
@@ -135,7 +133,6 @@ public:
         Iterator(LinearMap* context, size_t index)
             : index(index),
               m(context)
-            
         {
         }
 
@@ -143,7 +140,7 @@ public:
         ~Iterator()
         {
         }
-        
+
         /** Overloaded reference operator.
          */
         Pair& operator*() const
@@ -280,7 +277,7 @@ public:
                 return Iterator(this, i);
             }
         }
-        return Iterator();
+        return end();
     }
     
     /** Get an Iterator index pointing one past the last element in mapping.
@@ -288,7 +285,7 @@ public:
      */
     Iterator end()
     {
-        return Iterator();
+        return Iterator(this, size());
     }
 
     /** Get an Iterator index pointing to the first element in the mapping.
@@ -297,7 +294,7 @@ public:
      */
     Iterator begin()
     {
-        return used ? Iterator(this, 0) : Iterator();
+        return Iterator(this, 0);
     }
 
 private:
