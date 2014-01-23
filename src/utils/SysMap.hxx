@@ -58,16 +58,15 @@ public:
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    SysMap(size_t entries) 
+    SysMap(size_t entries)
         : entries(entries),
           used(0),
           freeList(NULL)
     {
         RB_INIT(&head);
         Node *first = new Node[entries];
-        first->entry.rbe_left = (Node*)this;
-        
-        for (size_t i = 1; i < entries; i++)
+
+        for (size_t i = 0; i < entries; i++)
         {
             first[i].entry.rbe_left = freeList;
             freeList = first + i;
@@ -313,7 +312,7 @@ private:
      */
     Node *alloc()
     {
-        if (freeList && freeList != (Node*)this)
+        if (freeList)
         {
             Node *node = freeList;
             freeList = freeList->entry.rbe_left;
@@ -328,12 +327,9 @@ private:
      */
     void free(Node *node)
     {
-        if (freeList || freeList == (Node*)this)
-        {
-            node->entry.rbe_left = freeList;
-            freeList = node;
-            --used;
-        }
+        node->entry.rbe_left = freeList;
+        freeList = node;
+        --used;
     }
 
     /** Compare two nodes.
