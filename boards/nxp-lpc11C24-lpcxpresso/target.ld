@@ -61,7 +61,7 @@ SECTIONS
 
         *(.after_vectors*)
         
-        *(.text*)
+        *(SORT(.text*))
 	*(.rodata)
         *(SORT(.rodata.*))
         . = ALIGN(4);

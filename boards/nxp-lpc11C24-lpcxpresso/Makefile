@@ -23,6 +23,29 @@ all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 $(EXECUTABLE)$(EXTENTION): target.ld
 
+
+arpreproc: delete_destructors
+	while read a ; do echo -W $${a}D0Ev  -W $${a}D1Ev -W $${a}D2Ev ; done < $< > $@
+
+
+ldpreproc: delete_destructors
+	(echo --undef=destructor ; while read a ; do echo --defsym=$${a}D0Ev=destructor  --defsym=$${a}D1Ev=destructor --defsym=$${a}D2Ev=destructor ; done < $< ) > $@
+
+
+delete_destructors:
+	if [ ! -f $@ ] ; then touch $@ ; fi
+
+
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp arpreproc ldpreproc
+	for f in $(FULLPATHLIBS) ; do $(OBJCOPY) @arpreproc $$f; done
+	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+ifdef SIZE
+	$(SIZE) $@
+endif
+
+LDFLAGSEXTRA += -Wl,@ldpreproc 
+
+
 %.lst: %.elf
 	$(SIZE) $<
 	$(OBJDUMP) -d $< > $@

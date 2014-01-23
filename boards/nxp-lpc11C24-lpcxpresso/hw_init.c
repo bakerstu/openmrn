@@ -37,7 +37,7 @@
 #include "FreeRTOSConfig.h"
 
 #define BLINK_DIE_UNEXPIRQ 0x800020CA  /* 3-1-1 */
-#define BLINK_DIE_HARDFAULT 0x8000A0CA /* 3-1-2 */
+#define BLINK_DIE_HARDFAULT 0x800CA0CA /* 3-1-2 */
 #define BLINK_DIE_NMI 0x8002A0CA       /* 3-1-3 */
 #define BLINK_DIE_SVC 0x800AA0CA       /* 3-1-4 */
 #define BLINK_DIE_PENDSV 0x802AA0CA    /* 3-1-5 */
@@ -510,4 +510,10 @@ int __wrap___cxa_atexit(void)
 void __wrap_exit(int r)
 {
     abort();
+}
+
+extern void destructor(void);
+
+void destructor() {
+    diewith(0x8000AAAA);
 }
