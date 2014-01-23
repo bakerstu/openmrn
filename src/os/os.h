@@ -65,6 +65,10 @@ extern "C" {
 #endif
 
 
+#ifndef OS_INLINE
+#define OS_INLINE extern inline
+#endif
+
 /** Entry point to application.
  * @param argc number of arguments
  * @param argv list of arguments
@@ -159,7 +163,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void));
  * @param routine method to call once
  * @return 0 upon success
  */
-static inline int os_thread_once(os_thread_once_t *once, void (*routine)(void))
+OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 {
     return pthread_once(once, routine);
 }
@@ -323,7 +327,7 @@ void os_timer_stop(os_timer_t timer);
  * @param mutex address of mutex handle to initialize
  * @return 0 upon succes or error number upon failure
  */
-static inline int os_mutex_init(os_mutex_t *mutex)
+OS_INLINE int os_mutex_init(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
     mutex->recursive = 0;
@@ -339,7 +343,7 @@ static inline int os_mutex_init(os_mutex_t *mutex)
  * @param mutex address of mutex handle to initialize
  * @return 0 upon succes or error number upon failure
  */
-static inline int os_recursive_mutex_init(os_mutex_t *mutex)
+OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
     mutex->recursive = 1;
@@ -370,7 +374,7 @@ static inline int os_recursive_mutex_init(os_mutex_t *mutex)
  * @param mutex address of mutex handle to destroy
  * @return 0 upon succes or error number upon failure
  */
-static inline int os_mutex_destroy(os_mutex_t *mutex)
+OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(mutex->sem);
@@ -385,7 +389,7 @@ static inline int os_mutex_destroy(os_mutex_t *mutex)
  * @param mutex address of mutex handle to lock
  * @return 0 upon succes or error number upon failure
  */
-static inline int os_mutex_lock(os_mutex_t *mutex)
+OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 {
 #if (__FreeRTOS__)
     vTaskSuspendAll();
@@ -420,7 +424,7 @@ static inline int os_mutex_lock(os_mutex_t *mutex)
  * @param mutex address of mutex handle to unlock
  * @return 0 upon succes or error number upon failure
  */
-static inline int os_mutex_unlock(os_mutex_t *mutex)
+OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
 {
 #if defined (__FreeRTOS__)
     if (mutex->recursive)
@@ -442,7 +446,7 @@ static inline int os_mutex_unlock(os_mutex_t *mutex)
  * @param value initial value of semaphore
  * @return 0 upon success
  */
-static inline int os_sem_init(os_sem_t *sem, unsigned int value)
+OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
 {
 #if defined (__FreeRTOS__)
 #if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
@@ -466,7 +470,7 @@ static inline int os_sem_init(os_sem_t *sem, unsigned int value)
  * @param sem address of semaphore to destroy
  * @return 0 upon success
  */
-static inline int os_sem_destroy(os_sem_t *sem)
+OS_INLINE int os_sem_destroy(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
 #if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
@@ -486,7 +490,7 @@ static inline int os_sem_destroy(os_sem_t *sem)
  * @param sem address of semaphore to increment
  * @return 0 upon success
  */
-static inline int os_sem_post(os_sem_t *sem)
+OS_INLINE int os_sem_post(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
     xSemaphoreGive(*sem);
@@ -501,7 +505,7 @@ static inline int os_sem_post(os_sem_t *sem)
 }
 
 #if defined (__FreeRTOS__)
-static inline int os_sem_post_from_isr(os_sem_t *sem)
+OS_INLINE int os_sem_post_from_isr(os_sem_t *sem)
 {
     portBASE_TYPE woken;
     xSemaphoreGiveFromISR(*sem, &woken);
@@ -513,7 +517,7 @@ static inline int os_sem_post_from_isr(os_sem_t *sem)
  * @param sem address of semaphore to decrement
  * @return 0 upon success
  */
-static inline int os_sem_wait(os_sem_t *sem)
+OS_INLINE int os_sem_wait(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
     xSemaphoreTake(*sem, portMAX_DELAY);
@@ -535,7 +539,7 @@ static inline int os_sem_wait(os_sem_t *sem)
  * @param timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
  * @return 0 upon success, else -1 with errno set to indicate error
  */
-static inline int os_sem_timedwait(os_sem_t *sem, long long timeout)
+OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
 {
     if (timeout == OS_WAIT_FOREVER)
     {
@@ -595,7 +599,7 @@ typedef struct queue_priv
  * @param item_size size in number of bytes of a message
  * @return handle to the created queue, NULL on failure
  */
-static inline os_mq_t os_mq_create(size_t length, size_t item_size)
+OS_INLINE os_mq_t os_mq_create(size_t length, size_t item_size)
 {
 #if defined (__FreeRTOS__)
     return xQueueCreate(length, item_size);
@@ -623,7 +627,7 @@ static inline os_mq_t os_mq_create(size_t length, size_t item_size)
  * @param queue queue to send message to
  * @param data message to copy into queue
  */
-static inline void os_mq_send(os_mq_t queue, const void *data)
+OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
 {
 #if defined (__FreeRTOS__)
     xQueueSend(queue, data, portMAX_DELAY);
@@ -650,7 +654,7 @@ static inline void os_mq_send(os_mq_t queue, const void *data)
  * @param timeout time in nanoseconds to wait for queue to be able to accept message
  * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
  */
-static inline int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
+OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
 #if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
@@ -668,7 +672,7 @@ static inline int os_mq_timedsend(os_mq_t queue, const void *data, long long tim
  * @param queue queue to receive message from
  * @param data location to copy message from the queue
  */
-static inline void os_mq_receive(os_mq_t queue, void *data)
+OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
 {
 #if defined (__FreeRTOS__)
     xQueueReceive(queue, data, portMAX_DELAY);
@@ -695,7 +699,7 @@ static inline void os_mq_receive(os_mq_t queue, void *data)
  * @param timeout time in nanoseconds to wait for queue to have a message available
  * @return OS_MQ_NONE on success, OS_MQ_TIMEDOUT on timeout
  */
-static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
+OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
 #if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
@@ -714,7 +718,7 @@ static inline int os_mq_timedreceive(os_mq_t queue, void *data, long long timeou
  * @param woken is the task woken up
  * @return OS_MQ_NONE on success, else OS_MQ_FULL
  */
-static inline int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
+OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
 {
 #if defined (__FreeRTOS__)
     portBASE_TYPE local_woken;
@@ -731,7 +735,7 @@ static inline int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woke
  * @param queue is the queue to check
  * @return non-zero if the queue is full.
  */
-static inline int os_mq_is_full_from_isr(os_mq_t queue)
+OS_INLINE int os_mq_is_full_from_isr(os_mq_t queue)
 {
 #if defined (__FreeRTOS__)
     return xQueueIsQueueFullFromISR(queue);
@@ -746,7 +750,7 @@ static inline int os_mq_is_full_from_isr(os_mq_t queue)
  * @param woken is the task woken up
  * @return OS_MQ_NONE on success, else OS_MQ_FULL
  */
-static inline int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
+OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
 {
 #if defined (__FreeRTOS__)
     portBASE_TYPE local_woken;
@@ -762,7 +766,7 @@ static inline int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
 /** Return the number of messages pending in the queue.
  * @return number of messages in the queue
  */
-static inline int os_mq_num_pending(os_mq_t queue)
+OS_INLINE int os_mq_num_pending(os_mq_t queue)
 {
 #if defined (__FreeRTOS__)
     return uxQueueMessagesWaiting(queue);
@@ -774,7 +778,7 @@ static inline int os_mq_num_pending(os_mq_t queue)
 /** Return the number of messages pending in the queue from ISR context.
  * @return number of messages in the queue
  */
-static inline int os_mq_num_pending_from_isr(os_mq_t queue)
+OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
 {
 #if defined (__FreeRTOS__)
     return uxQueueMessagesWaitingFromISR(queue);
@@ -809,59 +813,13 @@ do                                     \
 /** Get the monotonic time since the system started.
  * @return time in nanoseconds since system start
  */
-static inline long long os_get_time_monotonic(void)
-{
-    static long long last = 0;
-    long long time;
-#if defined (__FreeRTOS__)
-    portTickType tick = xTaskGetTickCount();
-    time = ((long long)tick) << NSEC_TO_TICK_SHIFT;
-#elif defined (__MACH__)
-    /* get the timebase info */
-    mach_timebase_info_data_t info;
-    mach_timebase_info(&info);
-    
-    /* get the timestamp */
-    time = (long long)mach_absolute_time();
-    
-    /* convert to nanoseconds */
-    time *= info.numer;
-    time /= info.denom;
-#elif defined (__WIN32__)
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
-           ((long long)tv.tv_usec * 1000LL);
-#else
-    struct timespec ts;
-#if defined (__nuttx__)
-    clock_gettime(CLOCK_REALTIME, &ts);
-#else
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-#endif
-    time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
-    
-#endif
-    /* This logic ensures that every successive call is one value larger
-     * than the last.  Each call returns a unique value.
-     */
-    if (time <= last)
-    {
-        last++;
-    }
-    else
-    {
-        last = time;
-    }
-
-    return last;
-}
+extern long long os_get_time_monotonic(void);
 
 #if defined (__WIN32__)
 /** Implementation of standard sleep().
  * @param seconds number of seconds to sleep
  */
-static inline unsigned sleep(unsigned seconds)
+OS_INLINE unsigned sleep(unsigned seconds)
 {
     usleep(seconds * 1000);
     return 0;

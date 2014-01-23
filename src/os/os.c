@@ -32,6 +32,8 @@
  * @date 13 August 2012
  */
 
+#define OS_INLINE inline
+
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -689,6 +691,12 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         return result;
     }
+    result = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (result != 0)
+    {
+        return result;
+    }
+
 #if !defined(__linux__) && !defined(__MACH__) /* Linux allocates stack as needed */
     struct sched_param sched_param;
     result = pthread_attr_setstacksize(&attr, stack_size);
@@ -719,11 +727,59 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     result = pthread_create(thread, &attr, start_routine, arg);
 
 #if !defined (__MINGW32__)
-    pthread_setname_np(*thread, name);
+    if (!result) pthread_setname_np(*thread, name);
 #endif
 
     return result;
 #endif
+}
+
+long long os_get_time_monotonic(void)
+{
+    static long long last = 0;
+    long long time;
+#if defined (__FreeRTOS__)
+    portTickType tick = xTaskGetTickCount();
+    time = ((long long)tick) << NSEC_TO_TICK_SHIFT;
+#elif defined (__MACH__)
+    /* get the timebase info */
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+    
+    /* get the timestamp */
+    time = (long long)mach_absolute_time();
+    
+    /* convert to nanoseconds */
+    time *= info.numer;
+    time /= info.denom;
+#elif defined (__WIN32__)
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
+           ((long long)tv.tv_usec * 1000LL);
+#else
+    struct timespec ts;
+#if defined (__nuttx__)
+    clock_gettime(CLOCK_REALTIME, &ts);
+#else
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+#endif
+    time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
+    
+#endif
+    /* This logic ensures that every successive call is one value larger
+     * than the last.  Each call returns a unique value.
+     */
+    if (time <= last)
+    {
+        last++;
+    }
+    else
+    {
+        last = time;
+    }
+
+    return last;
 }
 
 #if defined (__FreeRTOS__)
