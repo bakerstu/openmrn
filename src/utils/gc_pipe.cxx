@@ -40,8 +40,8 @@ class GCAdapter : public GCAdapterBase
 {
 public:
     GCAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
-        : parser_(can_side, &formatter_),
-          formatter_(gc_side, &parser_, double_bytes)
+        : parser_(can_side->executor(), can_side, &formatter_),
+          formatter_(can_side->executor(), gc_side, &parser_, double_bytes)
     {
         gc_side->RegisterMember(&parser_);
         can_side->RegisterMember(&formatter_);
@@ -57,9 +57,9 @@ private:
     class BinaryToGCMember : public PipeMember, public ControlFlow
     {
     public:
-        BinaryToGCMember(Pipe* destination, PipeMember* skip_member,
-                         int double_bytes)
-            : ControlFlow(destination->executor(), nullptr),
+        BinaryToGCMember(Executor* executor, Pipe* destination,
+                         PipeMember* skip_member, int double_bytes)
+            : ControlFlow(executor, nullptr),
               destination_(destination),
               skip_member_(skip_member),
               double_bytes_(double_bytes)
@@ -72,8 +72,8 @@ private:
             return destination_;
         }
 
-
-        virtual void write(const void* buf, size_t count) {
+        virtual void write(const void* buf, size_t count)
+        {
             HASSERT(0);
         }
 
@@ -139,12 +139,17 @@ private:
         int double_bytes_;
     };
 
-    class GCToBinaryMember : public PipeMember
+    class GCToBinaryMember : public PipeMember, public ControlFlow
     {
     public:
-        GCToBinaryMember(Pipe* destination, PipeMember* skip_member)
-            : offset_(-1), destination_(destination), skip_member_(skip_member)
+        GCToBinaryMember(Executor* executor, Pipe* destination,
+                         PipeMember* skip_member)
+            : ControlFlow(executor, nullptr),
+              offset_(-1),
+              destination_(destination),
+              skip_member_(skip_member)
         {
+            StartFlowAt(ST(Terminated));
         }
 
         Pipe* destination()
@@ -154,49 +159,86 @@ private:
 
         virtual void write(const void* buf, size_t count)
         {
-            const char* cbuf = static_cast<const char*>(buf);
-            for (size_t i = 0; i < count; ++i)
-            {
-                consume_byte(cbuf[i]);
-            }
+            HASSERT(0);
         }
 
-        void consume_byte(char c)
+        virtual void async_write(const void* buf, size_t count,
+                                 Notifiable* done)
+        {
+            HASSERT(IsDone());
+            inBuf_ = static_cast<const char*>(buf);
+            inBufSize_ = count;
+            Restart(done);
+            StartFlowAt(ST(process_buffer));
+        }
+
+        /** Takes more characters from the pending incoming buffer. */
+        ControlFlowAction process_buffer()
+        {
+            while (inBufSize_)
+            {
+                char c = *inBuf_;
+                inBuf_++;
+                inBufSize_--;
+                if (consume_byte(c))
+                {
+                    // End of frame. Allocate an output buffer and parse the
+                    // frame.
+                    return Allocate(&g_can_alloc, ST(parse_to_output_frame));
+                }
+            }
+            // Will notify the caller.
+            return Exit();
+        }
+
+        /** Takes the completed frame in cbuf_, parses it into the allocation
+         * result (a can pipe buffer) and sends off frame. Then comes back to
+         * process buffer. */
+        ControlFlowAction parse_to_output_frame()
+        {
+            CanPipeBuffer* pbuf = GetTypedAllocationResult(&g_can_alloc);
+            pbuf->Reset();
+            int ret = gc_format_parse(cbuf_, &pbuf->frame);
+            if (!ret)
+            {
+                pbuf->pipe_buffer.skipMember = skip_member_;
+                destination_->SendBuffer(&pbuf->pipe_buffer);
+            }
+            else
+            {
+                // Releases the buffer.
+                pbuf->pipe_buffer.done->Notify();
+            }
+            return CallImmediately(ST(process_buffer));
+        }
+
+        /** Adds the next character from the source stream. Returns true if
+         * cbuf_ contains a complete frame. */
+        bool consume_byte(char c)
         {
             if (c == ':')
             {
                 // Frame is starting here.
                 offset_ = 0;
-                return;
+                return false;
             }
             if (c == ';')
             {
                 if (offset_ < 0)
                 {
-                    return;
+                    return false;
                 }
                 // Frame ends here.
                 cbuf_[offset_] = 0;
-                TypedSyncAllocation<CanPipeBuffer> pbuf(&g_can_alloc);
-                pbuf.result()->Reset();
-                int ret = gc_format_parse(cbuf_, &pbuf.result()->frame);
-                if (!ret)
-                {
-                    pbuf.result()->pipe_buffer.skipMember = skip_member_;
-                    destination_->SendBuffer(&pbuf.result()->pipe_buffer);
-                } else {
-                    // Releases the buffer.
-                    pbuf.result()->pipe_buffer.done->Notify();
-                }
                 offset_ = -1;
-                return;
+                return true;
             }
             if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1))
             {
                 // We overran the buffer, so this can't be a valid frame.
                 // Reset and look for sync byte again.
                 offset_ = -1;
-                return;
+                return false;
             }
             if (offset_ >= 0)
             {
@@ -207,6 +249,7 @@ private:
                 // Drop byte to the floor -- we're not in the middle of a
                 // packet.
             }
+            return false;
         }
 
     private:
@@ -214,6 +257,14 @@ private:
         char cbuf_[32];
         //! offset of next byte in cbuf to write.
         int offset_;
+
+        //! The incoming characters.
+        const char* inBuf_;
+        //! The remaining number of characters in inBuf_.
+        size_t inBufSize_;
+
+        // ==== static data ====
+
         //! Pipe to send data to.
         Pipe* destination_;
         //! The pipe member that should be sent as "source".

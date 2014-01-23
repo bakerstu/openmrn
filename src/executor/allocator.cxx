@@ -73,6 +73,7 @@ void AllocatorBase::ReleaseBack(QueueMember* entry) {
 
 void AllocatorBase::AllocateEntry(AllocationResult* caller) {
   QueueMember* entry = nullptr;
+  HASSERT(caller);
   {
     LockHolder l(this);
     if ((!has_free_entries_) || waiting_list_.empty()) {
