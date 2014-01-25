@@ -25,7 +25,7 @@ class TestNode
 public:
     TestNode(NodeID node_id)
         : nodeId_(node_id),
-          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10, 2)
+          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10, 2, 5)
     {
     }
 
