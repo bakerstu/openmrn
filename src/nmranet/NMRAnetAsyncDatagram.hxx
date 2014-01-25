@@ -101,11 +101,8 @@ public:
      * @param interface is the async interface to which to bind.
      * @param num_registry_entries is the size of the registry map.
      */
-    DatagramDispatcher(AsyncIf* interface, size_t num_registry_entries)
-        : m_(nullptr), done_(nullptr), registry_(num_registry_entries)
-    {
-        lock_.TypedRelease(this);
-    }
+    DatagramDispatcher(AsyncIf* interface, size_t num_registry_entries);
+    ~DatagramDispatcher();
 
     /// @returns the registry of datagram handlers.
     Registry* registry()
@@ -134,6 +131,9 @@ protected:
     /// Message called from the dispatcher.
     IncomingMessage* m_;
     Notifiable* done_;
+
+    /// Interface on which we are registered.
+    AsyncIf* interface_;
 
     /// Maintains the registered datagram handlers.
     Registry registry_;

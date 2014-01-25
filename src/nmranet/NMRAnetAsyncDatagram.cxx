@@ -37,9 +37,27 @@
 namespace NMRAnet
 {
 
+DatagramDispatcher::DatagramDispatcher(AsyncIf* interface,
+                                       size_t num_registry_entries)
+    : m_(nullptr), done_(nullptr), interface_(interface), registry_(num_registry_entries)
+{
+    interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff, this);
+    lock_.TypedRelease(this);
+}
+
+DatagramDispatcher::~DatagramDispatcher() {
+    interface_->dispatcher()->UnregisterHandler(If::MTI_DATAGRAM, 0xffff, this);
+}
+
 void DatagramDispatcher::handle_message(IncomingMessage* m, Notifiable* done)
 {
     HASSERT(!m_);
+    if (!m->dst_node)
+    {
+        // Destination is not a local virtal node.
+        done->Notify();
+        return;
+    }
     m_ = m;
     done_ = done;
     g_incoming_datagram_allocator.AllocateEntry(this);
@@ -54,6 +72,8 @@ void DatagramDispatcher::AllocationCallback(QueueMember* entry)
     // Takes over ownership of payload.
     /// @TODO(balazs.racz) Implement buffer refcounting.
     m_->payload = nullptr;
+    // The incoming message is no longer needed.
+    done_->Notify();
 
     unsigned datagram_id = -1;
     if (!d->payload || !d->payload->used())
