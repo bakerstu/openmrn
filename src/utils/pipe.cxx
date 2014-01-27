@@ -95,8 +95,10 @@ public:
                              const char* rx_name, size_t stack_size)
         : fd_read_(fd_read), fd_write_(fd_write), parent_(parent)
     {
-        os_thread_create(&read_thread_, rx_name, 0, stack_size,
-                         &DeviceToPipeReaderThread, this);
+        if (fd_read_ >= 0) {
+            os_thread_create(&read_thread_, rx_name, 0, stack_size,
+                             &DeviceToPipeReaderThread, this);
+        }
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -193,8 +195,11 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
 {
     // The new member is effectively leaked here. The problem is that we cannot
     // destruct physical pipe members because they have a thread.
-    RegisterMember(new PhysicalDevicePipeMember(this, fd_read, fd_write,
-                                                thread_name, stack_size));
+    PipeMember* m = new PhysicalDevicePipeMember(this, fd_read, fd_write,
+                                                 thread_name, stack_size);
+    if (fd_write >= 0) {
+        RegisterMember(m);
+    }
 }
 
 //! @TODO(balazs.racz) make this configurable.

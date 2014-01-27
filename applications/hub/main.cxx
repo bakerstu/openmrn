@@ -58,7 +58,8 @@ int GC_GENERATE_NEWLINES = 1;
 struct ClientInfo {
   int fd;
   char thread_name[30];
-  Pipe* client_pipe;
+  Pipe* client_pipe_write;
+  Pipe* client_pipe_read;
   GCAdapterBase* bridge;
 };
 
@@ -66,9 +67,11 @@ void NewConnection(int fd) {
   ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
   sprintf(c->thread_name, "thread_fd_%d", fd);
   c->fd = fd;
-  c->client_pipe = new Pipe(&client_executor, 1);
-  c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe, &can_pipe, false);
-  c->client_pipe->AddPhysicalDeviceToPipe(fd, fd, c->thread_name, 0);
+  c->client_pipe_write = new Pipe(&client_executor, 1);
+  c->client_pipe_read = new Pipe(&client_executor, 1);
+  c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe_read, c->client_pipe_write, &can_pipe, false);
+  c->client_pipe_write->AddPhysicalDeviceToPipe(-1, fd, c->thread_name, 0);
+  c->client_pipe_read->AddPhysicalDeviceToPipe(fd, -1, c->thread_name, 0);
 }
 
 /** Entry point to application.
