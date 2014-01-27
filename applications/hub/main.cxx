@@ -75,7 +75,7 @@ void NewConnection(int fd) {
   c->client_pipe_write = new Pipe(&client_executor, 1);
   c->client_pipe_read = new Pipe(&client_executor, 1);
   c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe_read, c->client_pipe_write, &can_pipe, false);
-  c->client_pipe_write->AddPhysicalDeviceToPipe(-1, fd, c->thread_name, 0);
+  c->client_pipe_write->AddPhysicalDeviceToPipe(-1, dup(fd), c->thread_name, 0);
   c->client_pipe_read->AddPhysicalDeviceToPipe(fd, -1, c->thread_name, 0);
 }
 

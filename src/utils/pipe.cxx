@@ -118,12 +118,17 @@ public:
             if (!ret)
             {
                 LOG(ERROR, "EOF writing fd %d.", fd_write_);
+                ::close(fd_write_);
+                parent_->UnregisterMember(this);
+                return;
             }
             if (ret < 0) {
 #ifdef __linux__
                 LOG(ERROR, "Error writing; errno %d %s", errno, strerror(errno));
 #endif
-                HASSERT(ret > 0);
+                ::close(fd_write_);
+                parent_->UnregisterMember(this);
+                return;
             }
             count -= ret;
             bbuf += ret;
@@ -150,9 +155,10 @@ private:
 #ifdef __linux__
                     LOG(ERROR, "errno %d %s", errno, strerror(errno));
 #endif
-                    t->parent_->UnregisterMember(t);
                     ::close(t->fd_read_);
-                    if (t->fd_write_ != t->fd_read_)
+                    if (t->fd_write_ >= 0) {
+                    }
+                    if (t->fd_write_ != t->fd_read_ && t->fd_write_ >= 0)
                     {
                         ::close(t->fd_write_);
                     }

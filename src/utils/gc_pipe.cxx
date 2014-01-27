@@ -60,6 +60,8 @@ public:
     virtual ~GCAdapter()
     {
         parser_.destination()->UnregisterMember(&formatter_);
+        /// @TODO(balazs.racz) This is incorrect if the 3-pipe constructor is
+        /// used.
         formatter_.destination()->UnregisterMember(&parser_);
     }
 
