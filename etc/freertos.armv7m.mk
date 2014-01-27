@@ -39,9 +39,9 @@ ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
 ASFLAGS = -c $(ARCHFLAGS)
 
-CORECFLAGS = $(ARCHFLAGS) -Wall -Werror \
+CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -fdata-sections -ffunction-sections \
 	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
-	-D__FreeRTOS__ -DGCC_ARMCM3 
+	-D__FreeRTOS__ -DGCC_ARMCM3  -D__STDC_VERSION__=199901
 
 CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes \

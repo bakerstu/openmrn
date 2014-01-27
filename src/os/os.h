@@ -66,7 +66,7 @@ extern "C" {
 
 
 #ifndef OS_INLINE
-#define OS_INLINE extern inline
+#define OS_INLINE extern inline __attribute__((__gnu_inline__))
 #endif
 
 /** Entry point to application.

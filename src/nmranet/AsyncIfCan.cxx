@@ -401,10 +401,9 @@ protected:
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-/* This write flow inherits all the business logic from the parent, just
- * maintains a separate allocation queue. This allows global messages to go out
- * even if addressed messages are waiting for destination address
- * resolution. */
+/* The addressed write flow is responsible for sending addressed messages to
+ * the CANbus. It uses some shared states from the generic CAN write flow base
+ * class, and extends it with destination alias lookup states.  */
 class AddressedCanMessageWriteFlow : public CanMessageWriteFlow,
                                      private IncomingFrameHandler
 {
@@ -860,7 +859,7 @@ public:
         AutoNotify an(done);
         TypedAutoRelease<IncomingFrameHandler> ar(&lock_, this);
         id_ = GET_CAN_FRAME_ID_EFF(*f);
-        // Do we have enough payloade for the destination address?
+        // Do we have enough payload for the destination address?
         if (f->can_dlc < 2)
         {
             LOG(WARNING, "Incoming can frame addressed message without payload."

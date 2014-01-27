@@ -32,7 +32,8 @@
  * @date 13 August 2012
  */
 
-#define OS_INLINE inline
+// Forces one definition of each inline function to be compliled.
+#define OS_INLINE extern
 
 #include <stdint.h>
 #include <stdio.h>

@@ -104,7 +104,7 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
         if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
@@ -300,6 +300,14 @@ protected:
     GlobalEventFlow eventFlow_;
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode* node_;
+};
+
+class MockMessageHandler : public IncomingMessageHandler
+{
+public:
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(IncomingMessage* message, Notifiable* done));
 };
 
 } // namespace NMRAnet

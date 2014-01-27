@@ -34,6 +34,7 @@
 #ifndef _LinearMap_hxx_
 #define _LinearMap_hxx_
 
+#include <stdio.h>  // for ssize_t
 #include <sys/tree.hxx>
 
 #include "utils/macros.h"

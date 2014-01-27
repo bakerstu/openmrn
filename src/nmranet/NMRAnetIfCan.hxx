@@ -652,6 +652,7 @@ private:
     friend class AliasConflictHandler;
     friend class FrameToGlobalMessageParser;
     friend class FrameToAddressedMessageParser;
+    friend class CanDatagramParser;
 
     /** file descriptor used for reading and writing data to and from physical
      * interface

@@ -47,6 +47,16 @@ public:
         can_side->RegisterMember(&formatter_);
     }
 
+    GCAdapter(Pipe* gc_side_read, Pipe* gc_side_write, Pipe* can_side,
+              bool double_bytes)
+        : parser_(can_side->executor(), can_side, &formatter_),
+          formatter_(can_side->executor(), gc_side_write, &parser_,
+                     double_bytes)
+    {
+        gc_side_read->RegisterMember(&parser_);
+        can_side->RegisterMember(&formatter_);
+    }
+
     virtual ~GCAdapter()
     {
         parser_.destination()->UnregisterMember(&formatter_);
@@ -282,4 +292,12 @@ GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side,
                                                        bool double_bytes)
 {
     return new GCAdapter(gc_side, can_side, double_bytes);
+}
+
+GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side_read,
+                                                       Pipe* gc_side_write,
+                                                       Pipe* can_side,
+                                                       bool double_bytes)
+{
+    return new GCAdapter(gc_side_read, gc_side_write, can_side, double_bytes);
 }
