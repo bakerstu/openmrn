@@ -160,4 +160,54 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
     SendPacket(":X1D22B555N3131323334353637;");
 }
 
+class MockDatagramHandlerBase : public DatagramHandler, public ControlFlow
+{
+public:
+    MockDatagramHandlerBase() : ControlFlow(&g_executor, nullptr)
+    {
+        StartFlowAt(ST(wait_for_datagram));
+    }
+
+    virtual void handle_datagram(IncomingDatagram* d) = 0;
+
+    ControlFlowAction wait_for_datagram()
+    {
+        return Allocate(&queue_, ST(process_datagram));
+    }
+
+    ControlFlowAction process_datagram()
+    {
+        IncomingDatagram* d = GetTypedAllocationResult(&queue_);
+        handle_datagram(d);
+        d->free();
+        return CallImmediately(ST(wait_for_datagram));
+    }
+};
+
+class MockDatagramHandler : public MockDatagramHandlerBase
+{
+public:
+    MOCK_METHOD1(handle_datagram, void(IncomingDatagram* d));
+};
+
+TEST_F(AsyncDatagramTest, DispatchTest)
+{
+    StrictMock<MockDatagramHandler> dg;
+    DatagramDispatcher dispatcher(if_can_.get(), 10);
+    dispatcher.registry()->insert(nullptr, 0x30, &dg);
+    EXPECT_CALL(
+        dg, handle_datagram(Pointee(AllOf(
+                Field(&IncomingDatagram::src, Field(&NodeHandle::alias, 0x555)),
+                Field(&IncomingDatagram::dst, node_),
+                Field(&IncomingDatagram::payload, NotNull()),
+                Field(&IncomingDatagram::payload,
+                      IsBufferValueString("01234567")) //,
+                ))));
+    SendPacket(":X1A22A555N3031323334353637;");
+    Wait();
+    usleep(3000);
+}
+
+InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator(10);
+
 } // namespace NMRAnet

@@ -39,13 +39,17 @@ namespace NMRAnet
 
 DatagramDispatcher::DatagramDispatcher(AsyncIf* interface,
                                        size_t num_registry_entries)
-    : m_(nullptr), done_(nullptr), interface_(interface), registry_(num_registry_entries)
+    : m_(nullptr),
+      done_(nullptr),
+      interface_(interface),
+      registry_(num_registry_entries)
 {
     interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff, this);
     lock_.TypedRelease(this);
 }
 
-DatagramDispatcher::~DatagramDispatcher() {
+DatagramDispatcher::~DatagramDispatcher()
+{
     interface_->dispatcher()->UnregisterHandler(If::MTI_DATAGRAM, 0xffff, this);
 }
 
@@ -78,6 +82,9 @@ void DatagramDispatcher::AllocationCallback(QueueMember* entry)
     unsigned datagram_id = -1;
     if (!d->payload || !d->payload->used())
     {
+        LOG(WARNING, "Invalid arguments: incoming datagram from node %llx "
+                     "alias %x has no payload.",
+            d->src.id, d->src.alias);
         /// @TODO(balazs.racz): reject datagram with invalid arguments.
         d->free();
         return;
@@ -91,6 +98,8 @@ void DatagramDispatcher::AllocationCallback(QueueMember* entry)
     {
         /// @TODO(balazs.racz): reject datagram with permanent error no
         /// retries.
+        LOG(VERBOSE, "No datagram handler found for node %p id %x", d->dst,
+            datagram_id);
         d->free();
         return;
     }
