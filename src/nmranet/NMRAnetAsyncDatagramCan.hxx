@@ -49,10 +49,9 @@ public:
     enum
     {
         CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
-                     (0 << IfCan::CAN_FRAME_TYPE_SHIFT) |
                      (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
                      (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
-        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
+        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK  |
                    IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK,
     };
 
@@ -120,7 +119,7 @@ public:
                 buf_ = buffer_alloc(72);
 
                 void*& map_entry = pendingBuffers_[buffer_key];
-                if (!map_entry)
+                if (map_entry)
                 {
                     /** @TODO(balazs.racz) maybe we should reject the datagram
                      * in this case. It looks as if there are multiple

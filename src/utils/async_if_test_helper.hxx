@@ -310,6 +310,48 @@ public:
                  void(IncomingMessage* message, Notifiable* done));
 };
 
+MATCHER_P(IsBufferValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg->used() != 8)
+        return false;
+    if (memcmp(&value, arg->start(), 8))
+        return false;
+    return true;
+}
+
+MATCHER_P(IsBufferValueString, expected, "")
+{
+    string s(expected);
+    if (arg->used() != s.size())
+        return false;
+    if (memcmp(s.data(), arg->start(), arg->used()))
+        return false;
+    return true;
+}
+
+MATCHER_P(IsBufferNodeValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg->used() != 6)
+        return false;
+    uint8_t* expected = reinterpret_cast<uint8_t*>(&value) + 2;
+    uint8_t* actual = static_cast<uint8_t*>(arg->start());
+    if (memcmp(expected, actual, 6))
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            if (expected[i] != actual[i])
+            {
+                LOG(INFO, "mismatch at position %d, expected %02x actual %02x",
+                    i, expected[i], actual[i]);
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
 } // namespace NMRAnet
 
 #endif // _UTILS_ASYNC_IF_TEST_HELPER_HXX_

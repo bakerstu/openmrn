@@ -81,7 +81,7 @@ int appl_main(int argc, char* argv[]) {
   return RUN_ALL_TESTS();
 }
 
-ThreadExecutor g_executor("async_exec", 0, 2000);
+ThreadExecutor g_executor("g_executor", 0, 2000);
 DEFINE_PIPE(can_pipe0, &g_executor, sizeof(struct can_frame));
 
 void WaitForMainExecutor() {
