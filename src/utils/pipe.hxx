@@ -279,6 +279,9 @@ struct CanPipeBuffer : public QueueMember, private Notifiable {
     virtual void Notify();
 };
 
+extern "C" {
+extern int CAN_PIPE_BUFFER_COUNT;
+}
 extern InitializedAllocator<CanPipeBuffer> g_can_alloc;
 
 /** Defines a pipe to forward data between real and virtual devices.

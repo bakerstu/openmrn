@@ -44,6 +44,11 @@
 
 //DEFINE_PIPE(gc_can_pipe, 1);
 
+extern "C" {
+extern int CAN_PIPE_BUFFER_COUNT;
+int CAN_PIPE_BUFFER_COUNT = 32;
+}
+
 ThreadExecutor g_executor("g_executor", 0, 1000);
 ThreadExecutor client_executor("client_executor", 0, 1000);
 
