@@ -200,6 +200,11 @@ public:
         lock_.TypedRelease(this);
     }
 
+    virtual void Run()
+    {
+        HASSERT(0);
+    }
+
 private:
     // Buffer of the pending datagram. Filled when allocation is needed.
     Buffer* buf_;

@@ -302,6 +302,14 @@ protected:
     AsyncNode* node_;
 };
 
+class MockMessageHandler : public IncomingMessageHandler
+{
+public:
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(IncomingMessage* message, Notifiable* done));
+};
+
 } // namespace NMRAnet
 
 #endif // _UTILS_ASYNC_IF_TEST_HELPER_HXX_

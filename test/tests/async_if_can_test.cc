@@ -175,14 +175,6 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
                                         nullptr);
 }
 
-class MockMessageHandler : public IncomingMessageHandler
-{
-public:
-    MOCK_METHOD0(get_allocator, AllocatorBase*());
-    MOCK_METHOD2(handle_message,
-                 void(IncomingMessage* message, Notifiable* done));
-};
-
 MATCHER_P(IsBufferValue, id, "")
 {
     uint64_t value = htobe64(id);
