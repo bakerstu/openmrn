@@ -77,7 +77,6 @@ protected:
     /// @returns the allocator that this flow belongs to.
     virtual TypedAllocator<WriteFlow>* allocator() = 0;
 
-private:
     /// Entry point for external callers.
     virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
                                        Buffer* data, Notifiable* done)
@@ -107,6 +106,7 @@ private:
         StartFlowAt(ST(send_to_local_nodes));
     }
 
+private:
     /// Copies the buffered message to the local asyncif->dispatcher.
     void
     send_message_to_local_dispatcher(AsyncIf::MessageDispatchFlow* dispatcher);
