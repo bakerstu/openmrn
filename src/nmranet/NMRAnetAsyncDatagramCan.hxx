@@ -37,6 +37,7 @@
 
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/NMRAnetAsyncDatagram.hxx"
 
 namespace NMRAnet
 {
@@ -51,20 +52,24 @@ public:
         CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
                      (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
                      (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
-        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK  |
-                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK,
+        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::FRAME_TYPE_MASK |
+                   IfCan::PRIORITY_MASK,
     };
 
-    CanDatagramParser(AsyncIfCan* interface) : ifCan_(interface)
-    {
-        lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
-    }
+    /** @param num_clients tells how many datagram write flows (aka client
+     * flows) to put into the client allocator. */
+    CanDatagramParser(AsyncIfCan* interface, int num_clients);
+    ~CanDatagramParser();
 
-    ~CanDatagramParser()
+    /** Datagram clients.
+     *
+     * Use control flows from this allocator to send datagrams to remote nodes.
+     * When the client flow completes, it is the caller's responsibility to
+     * return it to this allocator, once the client is done examining the
+     * result codes. */
+    TypedAllocator<ControlFlow>* client_allocator()
     {
-        ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
-                                                      this);
+        return &clients_;
     }
 
     virtual AllocatorBase* get_allocator()
@@ -205,6 +210,8 @@ public:
     }
 
 private:
+    class CanDatagramClient;
+
     // Buffer of the pending datagram. Filled when allocation is needed.
     Buffer* buf_;
     AsyncNode* dstNode_;
@@ -216,6 +223,9 @@ private:
      * @TODO(balazs.racz) we need some kind of timeout-based release mechanism
      * in here. */
     StlMap<uint64_t, void*> pendingBuffers_;
+
+    // Datagram clients.
+    TypedAllocator<ControlFlow> clients_;
 
     //! Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;

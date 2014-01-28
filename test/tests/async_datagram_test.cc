@@ -9,7 +9,7 @@ namespace NMRAnet
 class AsyncDatagramTest : public AsyncNodeTest
 {
 protected:
-    AsyncDatagramTest() : parser_(if_can_.get())
+    AsyncDatagramTest() : parser_(if_can_.get(), 1)
     {
     }
 

@@ -83,6 +83,52 @@ protected:
     TypedAllocator<IncomingDatagram> queue_;
 };
 
+/** Use this class to send datagrams */
+class DatagramClient {
+public:
+    virtual ~DatagramClient() {}
+
+    /** Triggers sending a datagram.
+     *
+     * @param src is the sending node.
+     * @param dst is the destination node.
+     * @param payload is the datagram content buffer. The first byte has to be
+     * the datagram ID.
+     * @param done will be notified when the datagram send is successful or
+     * failed.
+     *
+     * After `done' is notified, the caller must ensure that the datagram
+     * client is released back to the allocator.
+     */
+    virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload, Notifiable* done) = 0;
+
+    /** Requests cancelling the datagram send operation. Will notify the done
+     * callback when the canceling is completed. */
+    virtual void cancel() = 0;
+
+    /** Returns a bitmask of ResultCodes for the transmission operation. */
+    uint32_t result() { return result_; }
+
+    enum ResultCodes {
+        PERMANENT_ERROR = 0x1000,
+        RESEND_OK = 0x2000,
+        // Resend OK errors
+        TRANSPORT_ERROR = 0x4000,
+        BUFFER_UNAVAILABLE = 0x0020,
+        OUT_OF_ORDER = 0x0040,
+        // Permanent error error bits
+        SOURCE_NOT_PERMITTED = 0x0020,
+        DATAGRAMS_NOT_ACCEPTED = 0x0040,
+
+        // Internal error codes
+        OPERATION_SUCCESS = 0x10000,  //< set when the Datagram OK arrives
+        OPERATION_PENDING = 0x20000,  //< cleared when done is called.
+    };
+
+protected:
+    uint32_t result_;
+};
+
 /** Transport-agnostic dispatcher of datagrams.
  *
  * There will be typically one instance of this for each interface with virtual
