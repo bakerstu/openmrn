@@ -67,7 +67,7 @@ public:
      * When the client flow completes, it is the caller's responsibility to
      * return it to this allocator, once the client is done examining the
      * result codes. */
-    TypedAllocator<ControlFlow>* client_allocator()
+    TypedAllocator<DatagramClient>* client_allocator()
     {
         return &clients_;
     }
@@ -225,7 +225,7 @@ private:
     StlMap<uint64_t, void*> pendingBuffers_;
 
     // Datagram clients.
-    TypedAllocator<ControlFlow> clients_;
+    TypedAllocator<DatagramClient> clients_;
 
     //! Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;

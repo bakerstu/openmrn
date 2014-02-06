@@ -48,6 +48,7 @@ public:
     }
 
     virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload, Notifiable* done) {
+        result_ = OPERATION_PENDING;
         WriteAddressedMessage(If::MTI_DATAGRAM, src, dst, payload, done);
     }
 
@@ -115,9 +116,25 @@ private:
         }
         else
         {
-            return CallImmediately(ST(finalize));
+            return CallImmediately(ST(datagram_finalize));
         }
     }
+
+    virtual ControlFlowAction timeout_looking_for_dst()
+    {
+        LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
+                  "address %012llx to an alias on the bus. Dropping packet.",
+            dst_.id);
+        UnregisterLocalHandler();
+        return CallImmediately(ST(datagram_finalize));
+    }
+
+    ControlFlowAction datagram_finalize() {
+        cleanup();  // will release the buffer.
+        result_ &= ~OPERATION_PENDING;
+        return Exit();
+    }
+
 };
 
 CanDatagramParser::CanDatagramParser(AsyncIfCan* interface, int num_clients)
@@ -126,6 +143,7 @@ CanDatagramParser::CanDatagramParser(AsyncIfCan* interface, int num_clients)
     lock_.TypedRelease(this);
     ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
     for (int i = 0; i < num_clients; ++i) {
+        /// @TODO(balazs.racz): need to deallocate these in the destructor.
         client_allocator()->TypedReleaseBack(new CanDatagramClient(interface));
     }
 }

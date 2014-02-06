@@ -355,7 +355,7 @@ protected:
                      ST(timeout_looking_for_dst));
     }
 
-    ControlFlowAction timeout_looking_for_dst()
+    virtual ControlFlowAction timeout_looking_for_dst()
     {
         LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",

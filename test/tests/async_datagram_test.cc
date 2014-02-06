@@ -210,4 +210,50 @@ TEST_F(AsyncDatagramTest, DispatchTest)
 
 InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator(10);
 
+Buffer* string_to_buffer(const string& value) {
+    Buffer* b = buffer_alloc(value.size());
+    memcpy(b->start(), value.data(), value.size());
+    b->advance(value.size());
+    return b;
+}
+
+TEST_F(AsyncDatagramTest, OutgoingTestSmall) {
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"), &n);
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncDatagramTest, OutgoingTestOneFull) {
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN3031323334353637;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("01234567"), &n);
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncDatagramTest, OutgoingTestBeginEnd) {
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1B77C22AN3031323334353637;");
+    ExpectPacket(":X1D77C22AN3839303132333435;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456789012345"), &n);
+    n.WaitForNotification();
+}
+
+TEST_F(AsyncDatagramTest, OutgoingTestMiddle) {
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1B77C22AN3031323334353637;");
+    ExpectPacket(":X1C77C22AN3839303132333435;");
+    ExpectPacket(":X1D77C22AN3031323334353637;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("012345678901234501234567"), &n);
+    n.WaitForNotification();
+}
+
 } // namespace NMRAnet
