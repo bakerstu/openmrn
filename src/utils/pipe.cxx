@@ -36,6 +36,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <signal.h>
+#endif
 
 #include <algorithm>
 using std::remove;
@@ -110,6 +113,13 @@ public:
 
     virtual void write(const void* buf, size_t count)
     {
+#ifdef __linux__
+        struct sigaction a;
+        a.sa_handler = SIG_IGN;
+        sigemptyset(&a.sa_mask);
+        a.sa_flags = 0;
+        HASSERT(!sigaction(SIGPIPE, &a, NULL));
+#endif
         const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
         ssize_t ret = 0;
         while (count > 0)
@@ -156,7 +166,7 @@ private:
                     LOG(ERROR, "errno %d %s", errno, strerror(errno));
 #endif
                     ::close(t->fd_read_);
-                    if (t->fd_write_ >= 0) {
+                    if (t->fd_write_ != t->fd_read_) {
                     }
                     if (t->fd_write_ != t->fd_read_ && t->fd_write_ >= 0)
                     {
