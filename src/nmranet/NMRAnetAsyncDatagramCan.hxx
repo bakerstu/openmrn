@@ -29,7 +29,7 @@
  * CANbus datagram parser and renderer flows.
  *
  * @author Balazs Racz
- * @date 25 Jan 2013
+ * @date 25 Jan 2014
  */
 
 #ifndef _NMRAnetAsyncDatagramCan_hxx_
