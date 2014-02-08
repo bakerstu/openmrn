@@ -126,15 +126,16 @@ private:
                   "address %012llx to an alias on the bus. Dropping packet.",
             dst_.id);
         UnregisterLocalHandler();
+        result_ |= DatagramClient::DST_NOT_FOUND;
         return CallImmediately(ST(datagram_finalize));
     }
 
     ControlFlowAction datagram_finalize() {
         cleanup();  // will release the buffer.
+        HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
         return Exit();
     }
-
 };
 
 CanDatagramParser::CanDatagramParser(AsyncIfCan* interface, int num_clients)
