@@ -82,6 +82,7 @@ public:
     {
         AutoNotify an(done);
         TypedAutoRelease<IncomingFrameHandler> ar(&lock_, this);
+        errorCode_ = 0;
 
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
         unsigned can_frame_type =
@@ -120,17 +121,20 @@ public:
                 break;
             case 3:
             {
-                // Datagram first frame. Get a full buffer.
-                buf_ = buffer_alloc(72);
-
                 void*& map_entry = pendingBuffers_[buffer_key];
                 if (map_entry)
                 {
-                    /** @TODO(balazs.racz) maybe we should reject the datagram
-                     * in this case. It looks as if there are multiple
-                     * datagrams in parallel between the same src/dst pair. */
                     static_cast<Buffer*>(map_entry)->free();
+                    pendingBuffers_.erase(buffer_key);
+                    /** Frames came out of order or more than one datagram is
+                     * being sent to the same dst. */
+                    errorCode_ = DatagramClient::RESEND_OK |
+                                 DatagramClient::OUT_OF_ORDER;
+                    break;
                 }
+
+                // Datagram first frame. Get a full buffer.
+                buf_ = buffer_alloc(72);
                 map_entry = buf_;
                 last_frame = false;
                 break;
@@ -158,7 +162,15 @@ public:
 
         if (!buf_)
         {
-            //@TODO(balazs.racz) Reject datagram with temporary error resend OK.
+            errorCode_ = DatagramClient::RESEND_OK |
+                DatagramClient::OUT_OF_ORDER;
+        }
+
+        if (errorCode_) {
+            // Keeps the lock on *this.
+            ar.Transfer();
+            // Gets the send flow to send rejection.
+            ifCan_->addressed_write_allocator()->AllocateEntry(this);
             return;
         }
 
@@ -182,6 +194,40 @@ public:
     /// Callback when the dispatch flow is ours.
     virtual void AllocationCallback(QueueMember* entry)
     {
+        if (errorCode_)
+        {
+            send_rejection(entry);
+        }
+        else
+        {
+            datagram_complete(entry);
+        }
+    }
+
+    /** Sends a datagram rejection. The lock_ is held and must be
+     * released. entry is an If::addressed write flow. errorCode_ != 0. */
+    void send_rejection(QueueMember* entry)
+    {
+        HASSERT(errorCode_);
+        HASSERT(dstNode_);
+        auto* f = ifCan_->addressed_write_allocator()->cast_result(entry);
+        Buffer* payload = buffer_alloc(2);
+        uint8_t* w = static_cast<uint8_t*>(payload->start());
+        w[0] = (errorCode_ >> 8) & 0xff;
+        w[1] = errorCode_ & 0xff;
+        payload->advance(2);
+        f->WriteAddressedMessage(If::MTI_DATAGRAM_REJECTED, dst_.id,
+                                 {0, srcAlias_}, payload, nullptr);
+        // Return ourselves to the pool.
+        lock_.TypedRelease(this);
+    }
+
+    /** Requests the datagram in buf_, dstNode_ etc... to be sent to the
+     * AsyncIf for processing. The lock_ is held and must be released. entry is
+     * the dispatcher. */
+    void datagram_complete(QueueMember* entry)
+    {
+        HASSERT(!errorCode_);
         auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
         IncomingMessage* m = f->mutable_params();
         m->mti = If::MTI_DATAGRAM;
@@ -217,7 +263,10 @@ private:
     AsyncNode* dstNode_;
 
     NodeHandle dst_;
-    unsigned srcAlias_ : 12;
+    unsigned short srcAlias_ : 12;
+    // If non-zero, contains a Rejection error code and the datagram should not
+    // be forwarded to the upper layer in this case.
+    uint16_t errorCode_;
 
     /** Open datagram buffers. Keyed by (dstid | srcid), value is a Buffer*.
      * @TODO(balazs.racz) we need some kind of timeout-based release mechanism

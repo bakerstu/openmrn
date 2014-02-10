@@ -86,6 +86,84 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
     SendPacket(":X1D22A555N3331323334353637;");
 }
 
+TEST_F(AsyncRawDatagramTest, OutOfOrderRestart)
+{
+    SendPacket(":X1B22A555N3031323334353637;");
+    SendPacket(":X1C22A555N3131323334353637;");
+    SendPacket(":X1C22A555N3231323334353637;");
+
+    // Another start packet -> rejection.
+    SendPacketAndExpectResponse(
+        ":X1B22A555N3031323334353637;",
+        ":X19A4822AN05552040;");
+
+    // Now the finish packet will die as well.
+    SendPacketAndExpectResponse(
+        ":X1D22A555N3331323334353637;",
+        ":X19A4822AN05552040;");
+}
+
+TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
+{
+    EXPECT_CALL(
+        handler_,
+        handle_message(
+            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                          Field(&IncomingMessage::dst_node, node_),
+                          Field(&IncomingMessage::payload, NotNull()),
+                          Field(&IncomingMessage::payload,
+                                IsBufferValueString(
+                                    "01234567112345672123456731234567")) //,
+                          )),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    SendPacket(":X1B22A555N3031323334353637;");
+    SendPacket(":X1C22A555N3131323334353637;");
+    SendPacket(":X1C22A555N3231323334353637;");
+    SendPacket(":X1D22A555N3331323334353637;");
+    // Datagram should be complete here.
+
+    // A finish packet out of the blue.
+    SendPacketAndExpectResponse(
+        ":X1D22A555N3331323334353637;",
+        ":X19A4822AN05552040;");
+
+    // A middle packet out of the blue.
+    SendPacketAndExpectResponse(
+        ":X1C22A555N3331323334353637;",
+        ":X19A4822AN05552040;");
+}
+
+TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
+{
+    EXPECT_CALL(
+        handler_,
+        handle_message(
+            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                          Field(&IncomingMessage::dst_node, node_),
+                          Field(&IncomingMessage::payload, NotNull()),
+                          Field(&IncomingMessage::payload,
+                                IsBufferValueString(
+                                    "01234567112345672123456731234567")) //,
+                          )),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(
+        handler_,
+        handle_message(
+            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                          Field(&IncomingMessage::dst_node, node_),
+                          Field(&IncomingMessage::payload, NotNull()),
+                          Field(&IncomingMessage::payload,
+                                IsBufferValueString(
+                                    "01234")) //,
+                          )),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    SendPacket(":X1B22A555N3031323334353637;");
+    SendPacket(":X1C22A555N3131323334353637;");
+    SendPacket(":X1A22A555N3031323334;");  // A single-frame datagram here.
+    SendPacket(":X1C22A555N3231323334353637;");
+    SendPacket(":X1D22A555N3331323334353637;");
+}
+
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
 {
     SendPacket(":X1B22A555N3031323334353637;");
