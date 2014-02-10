@@ -216,7 +216,7 @@ private:
         const uint8_t* payload = nullptr;
         if (message->payload)
         {
-            bytes = static_cast<const uint8_t*>(message->payload->start());
+            payload = static_cast<const uint8_t*>(message->payload->start());
             payload_length = message->payload->used();
         }
         if (payload_length >= 2)
@@ -259,6 +259,7 @@ private:
                     result_ |= payload[0];
                 }
                 result_ |= OPERATION_SUCCESS;
+                break;
             }
         default:
             // Ignore message.
