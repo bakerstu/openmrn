@@ -288,4 +288,265 @@ TEST_F(AsyncDatagramTest, ResponseOK)
               a.result()->result());
 }
 
+TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{TEST_NODE_ID + 3, 0};
+    if_can_->remote_aliases()->add(h.id, 0x77C);
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X19A2877CN022A00;"); // Received OK
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
+              a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0x050101FFFFDDULL, 0};
+    ExpectPacket(":X1070222AN050101FFFFDD;");  // AME frame
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacketAndExpectResponse(":X10701210N050101FFFFDD;", // AMD frame
+                                ":X1A21022AN30313233343536;");
+    SendPacket(":X19A28210N022A00;"); // Received OK
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
+              a.result()->result());
+    // Checks that the new lookup value got into the cache.
+    EXPECT_EQ(0x210U, if_can_->remote_aliases()->lookup(h.id));
+}
+
+TEST_F(AsyncDatagramTest, ResponseOKWithCode)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X19A2877CN022AA5;"); // Received OK
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS |
+                  (0xA5 << DatagramClient::RESPONSE_FLAGS_SHIFT),
+              a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X19A2877CN022A80;"); // Received OK
+    n.WaitForNotification();
+    EXPECT_TRUE(a.result()->result() & (DatagramClient::OK_REPLY_PENDING));
+}
+
+TEST_F(AsyncDatagramTest, Rejected)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X19A4877CN022A55AA;"); // Datagram rejected.
+    n.WaitForNotification();
+    EXPECT_EQ(0x55AAU, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, Timeout)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    n.WaitForNotification();
+    EXPECT_EQ(
+        (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
+        a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, RejectedNoData)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X19A4877CN022A;"); // Datagram rejected.
+    n.WaitForNotification();
+    EXPECT_TRUE(DatagramClient::PERMANENT_ERROR & a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X1906877CN022A5A;"); // OIR, payload invalid
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X1906877CN022A55AA0991;"); // OIR, payload with a different MTI
+    n.WaitForNotification();
+    // Timeout means the OIR was ignored.
+    EXPECT_EQ(
+        (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
+        a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X1906877CN022A55AA1C48;"); // OIR, payload with correct MTI
+    n.WaitForNotification();
+    EXPECT_EQ(0x55AAU, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X1906877CN022A00AA1C48;"); // OIR, payload with correct MTI
+    n.WaitForNotification();
+    EXPECT_EQ(0x10AAU, a.result()->result()); // Added PERMANENT_ERROR
+}
+
+TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X1906877CN022A2000;"); // OIR, temporary error
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X190A877CN022A5A;"); // TDE, payload invalid
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X190A877CN022A55AA0991;"); // TDE, payload with a different MTI
+    n.WaitForNotification();
+    // Timeout means the TDE was ignored.
+    EXPECT_EQ(
+        (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
+        a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X190A877CN022A55AA1C48;"); // TDE, payload with correct MTI
+    n.WaitForNotification();
+    EXPECT_EQ(0x55AAU, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X190A877CN022A00AA1C48;"); // TDE, payload with correct MTI
+    n.WaitForNotification();
+    EXPECT_EQ(0x10AAU, a.result()->result());
+}
+
+TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
+{
+    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{0, 0x77C};
+    ExpectPacket(":X1A77C22AN30313233343536;");
+    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
+                               &n);
+    Wait();
+    SendPacket(":X190A877CN022A2000;"); // TDE, temporary error
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
+}
+
 } // namespace NMRAnet

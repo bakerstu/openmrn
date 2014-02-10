@@ -90,6 +90,42 @@ void WaitForMainExecutor() {
   }
 }
 
+/** Overrides the value of a variable and restores it to the original value
+ * when destructed. Useful for changing flags for a single test only.
+ *
+ * Usage:
+ * {
+ *    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, 100000);
+ *    ... test code assuming new value ...
+ * }
+ * ... now the original value is restored.
+ */
+class ScopedOverride {
+ public:
+  template <class T> ScopedOverride(T* variable, T new_value)
+      : holder_(new Holder<T>(variable, new_value)) {}
+
+ private:
+  class HolderBase { public: virtual ~HolderBase() {} };
+
+  template<class T> class Holder : public HolderBase {
+   public:
+    Holder(T* variable, T new_value)
+        : variable_(variable), oldValue_(*variable) {
+      *variable = new_value;
+    }
+
+    ~Holder() {
+      *variable_ = oldValue_;
+    }
+   private:
+    T* variable_;
+    T oldValue_;
+  };
+
+  std::unique_ptr<HolderBase> holder_;
+};
+
 extern "C" {
 
 const char *nmranet_manufacturer = "Stuart W. Baker";

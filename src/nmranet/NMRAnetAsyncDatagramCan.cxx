@@ -256,7 +256,7 @@ private:
             {
                 if (payload_length) {
                     result_ &= ~(0xff << RESPONSE_FLAGS_SHIFT);
-                    result_ |= payload[0];
+                    result_ |= payload[0] << RESPONSE_FLAGS_SHIFT;
                 }
                 result_ |= OPERATION_SUCCESS;
                 break;
