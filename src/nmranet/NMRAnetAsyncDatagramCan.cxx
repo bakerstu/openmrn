@@ -213,7 +213,7 @@ private:
 
         uint16_t error_code = 0;
         uint8_t payload_length = 0;
-        const uint8_t* bytes = nullptr;
+        const uint8_t* payload = nullptr;
         if (message->payload)
         {
             bytes = static_cast<const uint8_t*>(message->payload->start());
