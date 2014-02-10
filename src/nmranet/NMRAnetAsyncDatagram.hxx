@@ -47,6 +47,9 @@ struct IncomingDatagram;
 /// Allocator for getting IncomingDatagram objects.
 extern InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator;
 
+/// Defines how long to wait for a Datagram_OK / Datagram_Rejected message.
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
+
 struct IncomingDatagram : public QueueMember
 {
     NodeHandle src;
@@ -126,6 +129,11 @@ public:
 
         DST_NOT_FOUND = 0x40000,  //< on CAN. Permanent error code.
         TIMEOUT = 0x80000,  //< Timeout waiting for ack/nack.
+
+        // The top byte of result_ is the response flags from Datagram_OK
+        // response.
+        RESPONSE_FLAGS_SHIFT = 24,
+        OK_REPLY_PENDING = (1<<31),
     };
 
 protected:
