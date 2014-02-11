@@ -93,14 +93,12 @@ TEST_F(AsyncRawDatagramTest, OutOfOrderRestart)
     SendPacket(":X1C22A555N3231323334353637;");
 
     // Another start packet -> rejection.
-    SendPacketAndExpectResponse(
-        ":X1B22A555N3031323334353637;",
-        ":X19A4822AN05552040;");
+    SendPacketAndExpectResponse(":X1B22A555N3031323334353637;",
+                                ":X19A4822AN05552040;");
 
     // Now the finish packet will die as well.
-    SendPacketAndExpectResponse(
-        ":X1D22A555N3331323334353637;",
-        ":X19A4822AN05552040;");
+    SendPacketAndExpectResponse(":X1D22A555N3331323334353637;",
+                                ":X19A4822AN05552040;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
@@ -123,14 +121,81 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     // Datagram should be complete here.
 
     // A finish packet out of the blue.
-    SendPacketAndExpectResponse(
-        ":X1D22A555N3331323334353637;",
-        ":X19A4822AN05552040;");
+    SendPacketAndExpectResponse(":X1D22A555N3331323334353637;",
+                                ":X19A4822AN05552040;");
 
     // A middle packet out of the blue.
+    SendPacketAndExpectResponse(":X1C22A555N3331323334353637;",
+                                ":X19A4822AN05552040;");
+}
+
+::std::ostream& operator<<(::std::ostream& o, const Buffer* b)
+{
+    o << "Buffer(";
+    if (!b)
+    {
+        o << "NULL)";
+    }
+    else
+    {
+        o << "used " << b->used() << " data ";
+        const uint8_t* bytes = static_cast<const uint8_t*>(b->start());
+        for (unsigned i = 0; i < b->used(); ++i)
+        {
+            o << StringPrintf("%02x ", bytes[i]);
+        }
+        o << ")";
+    }
+    return o;
+}
+
+::std::ostream& operator<<(::std::ostream& o, const NodeHandle& h)
+{
+    o << StringPrintf("Handle(%012llx, %03x)", h.id, h.alias);
+    return o;
+}
+
+::std::ostream& operator<<(::std::ostream& o, const IncomingMessage& m)
+{
+    o << "an IncomingMessage"
+      << " of MTI " << StringPrintf("%04x", m.mti) << " from " << m.src
+      << " to " << m.dst << " to node " << m.dst_node << " with payload "
+      << m.payload;
+    return o;
+}
+
+TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
+{
+    SendPacket(":X1B22A555N3031323334353637;"); // 8
+    for (int i = 0; i < 7; i++)
+    {                                                                     // +7*
+        SendPacket(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
+    }
+    EXPECT_CALL(
+        handler_,
+        handle_message(
+            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                          Field(&IncomingMessage::dst_node, node_),
+                          Field(&IncomingMessage::payload, NotNull()),
+                          Field(&IncomingMessage::payload,
+                                IsBufferValueString("01234567112345672123456731"
+                                                    "23456741234567512345676123"
+                                                    "45677123456781234567")) //,
+                          )),
+            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    SendPacket(":X1D22A555N3831323334353637;"); // 8
+}
+
+TEST_F(AsyncRawDatagramTest, TooLongDatagram)
+{
+    SendPacket(":X1B22A555N3031323334353637;"); // 8
+    for (int i = 0; i < 8; i++)
+    {                                                                     // +8*
+        SendPacket(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
+    }
     SendPacketAndExpectResponse(
-        ":X1C22A555N3331323334353637;",
-        ":X19A4822AN05552040;");
+        ":X1C22A555N3031323334353637;",
+        ":X19A4822AN05551000;"); // Rejected permanent error
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
@@ -153,13 +218,12 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
-                                IsBufferValueString(
-                                    "01234")) //,
+                                IsBufferValueString("01234")) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     SendPacket(":X1B22A555N3031323334353637;");
     SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1A22A555N3031323334;");  // A single-frame datagram here.
+    SendPacket(":X1A22A555N3031323334;"); // A single-frame datagram here.
     SendPacket(":X1C22A555N3231323334353637;");
     SendPacket(":X1D22A555N3331323334353637;");
 }
@@ -387,7 +451,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0x050101FFFFDDULL, 0};
-    ExpectPacket(":X1070222AN050101FFFFDD;");  // AME frame
+    ExpectPacket(":X1070222AN050101FFFFDD;"); // AME frame
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
     Wait();
