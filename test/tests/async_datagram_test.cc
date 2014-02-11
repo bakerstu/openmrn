@@ -195,7 +195,7 @@ TEST_F(AsyncRawDatagramTest, TooLongDatagram)
     }
     SendPacketAndExpectResponse(
         ":X1C22A555N3031323334353637;",
-        ":X19A4822AN05551000;"); // Rejected permanent error
+        ":X19A4822AN05551000;"); // Datagram rejected permanent error
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
