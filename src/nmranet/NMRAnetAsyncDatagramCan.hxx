@@ -164,7 +164,13 @@ public:
         {
             errorCode_ = DatagramClient::RESEND_OK |
                 DatagramClient::OUT_OF_ORDER;
+        } else if (buf_->available() < f->can_dlc) {
+            // Too long datagram arrived.
+            LOG(WARNING, "AsyncDatagramCan: too long incoming datagram arrived."
+                " Size: %d", buf_->used() + f->can_dlc);
+            errorCode_ = DatagramClient::PERMANENT_ERROR;
         }
+
 
         if (errorCode_) {
             // Keeps the lock on *this.
@@ -175,7 +181,6 @@ public:
         }
 
         // Copies new data into buf.
-        HASSERT(buf_->available() >= f->can_dlc);
         memcpy(buf_->position(), f->data, f->can_dlc);
         buf_->advance(f->can_dlc);
 
