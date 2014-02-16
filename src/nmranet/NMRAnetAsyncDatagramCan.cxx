@@ -53,7 +53,6 @@ public:
     virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload,
                                 Notifiable* done)
     {
-        LOG(VERBOSE, "write datagram next=%p", ((ControlFlow*)((AddressedCanMessageWriteFlow*)(this)))->next_);
         result_ = OPERATION_PENDING;
         if_can_->dispatcher()->RegisterHandler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->RegisterHandler(MTI_2, MASK_2, this);
@@ -182,7 +181,6 @@ private:
         cleanup(); // will release the buffer.
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
-        LOG(INFO, "Datagram finalized. done=%p", done_);
         // Will notify the done_ closure.
         return Exit();
     }

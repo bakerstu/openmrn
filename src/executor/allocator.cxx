@@ -39,7 +39,7 @@ AllocatorBase::AllocatorBase()
 
 void AllocatorBase::Release(QueueMember* entry) {
   hasEverSeenFreeEntries_ = 1;
-  HASSERT(entry->next_ == NULL);
+  HASSERT(!entry->has_next());
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
@@ -57,7 +57,7 @@ void AllocatorBase::Release(QueueMember* entry) {
 
 void AllocatorBase::ReleaseBack(QueueMember* entry) {
   hasEverSeenFreeEntries_ = 1;
-  HASSERT(entry->next_ == NULL);
+  HASSERT(!entry->has_next());
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
