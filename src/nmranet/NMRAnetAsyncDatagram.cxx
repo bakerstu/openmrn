@@ -37,23 +37,21 @@
 namespace NMRAnet
 {
 
-DatagramDispatcher::DatagramDispatcher(AsyncIf* interface,
-                                       size_t num_registry_entries)
-    : m_(nullptr),
-      done_(nullptr),
-      interface_(interface),
-      registry_(num_registry_entries)
+DatagramSupport::DatagramSupport(AsyncIf* interface,
+                                 size_t num_registry_entries)
+    : interface_(interface), dispatcher_(num_registry_entries)
 {
-    interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff, this);
-    lock_.TypedRelease(this);
+    interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff,
+                                              &dispatcher_);
 }
 
-DatagramDispatcher::~DatagramDispatcher()
+DatagramSupport::~DatagramSupport()
 {
-    interface_->dispatcher()->UnregisterHandler(If::MTI_DATAGRAM, 0xffff, this);
+    interface_->dispatcher()->UnregisterHandler(If::MTI_DATAGRAM, 0xffff,
+                                                &dispatcher_);
 }
 
-void DatagramDispatcher::handle_message(IncomingMessage* m, Notifiable* done)
+void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m, Notifiable* done)
 {
     HASSERT(!m_);
     if (!m->dst_node)
@@ -67,7 +65,7 @@ void DatagramDispatcher::handle_message(IncomingMessage* m, Notifiable* done)
     g_incoming_datagram_allocator.AllocateEntry(this);
 }
 
-void DatagramDispatcher::AllocationCallback(QueueMember* entry)
+void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
 {
     IncomingDatagram* d = g_incoming_datagram_allocator.cast_result(entry);
     d->src = m_->src;

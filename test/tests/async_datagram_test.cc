@@ -9,14 +9,14 @@ namespace NMRAnet
 class AsyncDatagramTest : public AsyncNodeTest
 {
 protected:
-    AsyncDatagramTest() : parser_(if_can_.get(), 1)
+    AsyncDatagramTest() : datagram_support_(if_can_.get(), 10, 2)
     {
     }
 
-    CanDatagramParser parser_;
+    CanDatagramSupport datagram_support_;
 };
 
-class AsyncRawDatagramTest : public AsyncDatagramTest
+class AsyncRawDatagramTest : public AsyncNodeTest
 {
 protected:
     AsyncRawDatagramTest()
@@ -25,6 +25,7 @@ protected:
         EXPECT_CALL(handler_, get_allocator()).WillRepeatedly(Return(nullptr));
         ON_CALL(handler_, handle_message(_, _))
             .WillByDefault(WithArg<1>(Invoke(&InvokeNotification)));
+        if_can_->add_owned_flow(TEST_CreateCanDatagramParser(if_can_.get()));
     }
     ~AsyncRawDatagramTest()
     {
@@ -335,8 +336,7 @@ public:
 TEST_F(AsyncDatagramTest, DispatchTest)
 {
     StrictMock<MockDatagramHandler> dg;
-    DatagramDispatcher dispatcher(if_can_.get(), 10);
-    dispatcher.registry()->insert(nullptr, 0x30, &dg);
+    datagram_support_.registry()->insert(nullptr, 0x30, &dg);
     EXPECT_CALL(
         dg, handle_datagram(Pointee(AllOf(
                 Field(&IncomingDatagram::src, Field(&NodeHandle::alias, 0x555)),
@@ -362,12 +362,14 @@ Buffer* string_to_buffer(const string& value)
 
 TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    PrintAllPackets();
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
+    Wait();
     Wait();
     SendPacket(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
@@ -375,7 +377,7 @@ TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 
 TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN3031323334353637;");
@@ -388,7 +390,7 @@ TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
 
 TEST_F(AsyncDatagramTest, OutgoingTestBeginEnd)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1B77C22AN3031323334353637;");
@@ -402,7 +404,7 @@ TEST_F(AsyncDatagramTest, OutgoingTestBeginEnd)
 
 TEST_F(AsyncDatagramTest, OutgoingTestMiddle)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1B77C22AN3031323334353637;");
@@ -417,7 +419,7 @@ TEST_F(AsyncDatagramTest, OutgoingTestMiddle)
 
 TEST_F(AsyncDatagramTest, ResponseOK)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -432,7 +434,7 @@ TEST_F(AsyncDatagramTest, ResponseOK)
 
 TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{TEST_NODE_ID + 3, 0};
     if_can_->remote_aliases()->add(h.id, 0x77C);
@@ -448,7 +450,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
 
 TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0x050101FFFFDDULL, 0};
     ExpectPacket(":X1070222AN050101FFFFDD;"); // AME frame
@@ -467,7 +469,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
 
 TEST_F(AsyncDatagramTest, ResponseOKWithCode)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -483,7 +485,7 @@ TEST_F(AsyncDatagramTest, ResponseOKWithCode)
 
 TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -497,7 +499,7 @@ TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
 
 TEST_F(AsyncDatagramTest, Rejected)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -512,7 +514,7 @@ TEST_F(AsyncDatagramTest, Rejected)
 TEST_F(AsyncDatagramTest, Timeout)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -527,7 +529,7 @@ TEST_F(AsyncDatagramTest, Timeout)
 
 TEST_F(AsyncDatagramTest, RejectedNoData)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -541,7 +543,7 @@ TEST_F(AsyncDatagramTest, RejectedNoData)
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -556,7 +558,7 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -574,7 +576,7 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -589,7 +591,7 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -603,7 +605,7 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -617,7 +619,7 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -632,7 +634,7 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
 TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -650,7 +652,7 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
 TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -665,7 +667,7 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
 TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(20));
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
@@ -679,7 +681,7 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
 {
-    TypedSyncAllocation<DatagramClient> a(parser_.client_allocator());
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
     ExpectPacket(":X1A77C22AN30313233343536;");
