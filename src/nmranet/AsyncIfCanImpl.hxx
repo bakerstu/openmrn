@@ -259,7 +259,6 @@ public:
     AddressedCanMessageWriteFlow(AsyncIfCan* if_can)
         : CanMessageWriteFlow(if_can)
     {
-        if_can_->add_addressed_write_flow(this);
     }
 
 protected:

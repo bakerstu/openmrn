@@ -601,8 +601,9 @@ void AsyncIfCan::add_addressed_message_support(int num_write_flows)
         std::unique_ptr<Executable>(new FrameToAddressedMessageParser(this)));
     for (int i = 0; i < num_write_flows; ++i)
     {
-        owned_flows_.push_back(std::unique_ptr<Executable>(
-            new AddressedCanMessageWriteFlow(this)));
+        auto* f = new AddressedCanMessageWriteFlow(this);
+        add_addressed_write_flow(f);
+        owned_flows_.push_back(std::unique_ptr<Executable>(f));
     }
 }
 
