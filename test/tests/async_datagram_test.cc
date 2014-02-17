@@ -2,6 +2,7 @@
 
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 #include "nmranet/NMRAnetAsyncDatagramCan.hxx"
+#include "nmranet/NMRAnetAsyncDatagramDefaultHandler.hxx"
 
 namespace NMRAnet
 {
@@ -691,6 +692,177 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     SendPacket(":X190A877CN022A2000;"); // TDE, temporary error
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
+}
+
+class PingPongHandler : public DefaultDatagramHandler
+{
+public:
+    enum
+    {
+        DATAGRAM_ID = 0x7A,
+    };
+
+    PingPongHandler(DatagramSupport* if_dg, AsyncNode* node)
+        : DefaultDatagramHandler(if_dg)
+    {
+        ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);
+    }
+
+    ~PingPongHandler()
+    {
+        /// @TODO(balazs.racz) Remove handler entry from the registry. It would
+        /// be important to remember the node for that, and need a remove API
+        /// on the NodeHandlerMap.
+    }
+
+    virtual ControlFlowAction datagram_arrived()
+    {
+        const uint8_t* bytes =
+            static_cast<const uint8_t*>(datagram_->payload->start());
+        size_t len = datagram_->payload->used();
+        HASSERT(len >= 1);
+        HASSERT(bytes[0] == DATAGRAM_ID);
+        if (len < 2)
+        {
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        if (bytes[1] > 0)
+        {
+            return respond_ok(DatagramClient::REPLY_PENDING);
+        }
+        else
+        {
+            return respond_ok(0);
+        }
+    }
+
+    virtual ControlFlowAction ok_response_sent()
+    {
+        uint8_t* bytes =
+            static_cast<uint8_t*>(datagram_->payload->start());
+        size_t len = datagram_->payload->used();
+        if (!bytes[1])
+        {
+            datagram_->free();
+            // No response.
+            return CallImmediately(ST(wait_for_datagram));
+        }
+
+        // We take over the buffer ownership.
+        Buffer* payload = datagram_->payload;
+        datagram_->payload = nullptr;
+        datagram_->free();
+
+        // The response datagram should be the same id, one less bytes and one
+        // less in the second byte.
+        payload->zero();
+        payload->advance(len - 1);
+        bytes[1]--;
+        responsePayload_ = payload;
+
+        return Allocate(ifDatagram_->client_allocator(),
+                        ST(send_response_datagram));
+    }
+
+    ControlFlowAction send_response_datagram()
+    {
+        auto* client_flow =
+            GetTypedAllocationResult(ifDatagram_->client_allocator());
+        client_flow->write_datagram(datagram_->dst->node_id(), datagram_->src,
+                                    responsePayload_, this);
+        return WaitAndCall(ST(wait_response_datagram));
+    }
+
+    ControlFlowAction wait_response_datagram()
+    {
+        // NOTE: This is dangerous - there must be no other allocations
+        // happening in this flow between when we allocate the datagram flow
+        // and when this phase is called.
+        auto* client_flow =
+            GetTypedAllocationResult(ifDatagram_->client_allocator());
+        if (client_flow->result() & DatagramClient::OPERATION_PENDING)
+        {
+            return WaitForNotification();
+        }
+        if (!client_flow->result() & DatagramClient::OPERATION_SUCCESS)
+        {
+            LOG(WARNING, "Error sending response datagram for PingPong: %x",
+                client_flow->result());
+        }
+        ifDatagram_->client_allocator()->TypedRelease(client_flow);
+        return CallImmediately(ST(wait_for_datagram));
+    }
+
+private:
+    Buffer* responsePayload_;
+};
+
+// @TODO(balazs.racz) add a test where a datagram is arriving without
+// payload. It should receive a rejection response.
+
+class TwoNodeDatagramTest : public AsyncDatagramTest
+{
+protected:
+    enum
+    {
+        OTHER_NODE_ID = TEST_NODE_ID + 0x100,
+        OTHER_NODE_ALIAS = 0x225,
+    };
+
+    void setup_other_node(bool separate_if)
+    {
+        if (separate_if)
+        {
+            otherIfCan_.reset(
+                new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
+            otherNodeIf_ = otherIfCan_.get();
+            otherNodeIf_->add_addressed_message_support(2);
+            otherDatagramSupport_.reset(
+                new CanDatagramSupport(otherNodeIf_, 10, 2));
+            otherNodeDatagram_ = otherDatagramSupport_.get();
+        }
+        else
+        {
+            otherNodeIf_ = if_can_.get();
+            otherNodeDatagram_ = &datagram_support_;
+        }
+        otherNodeIf_->local_aliases()->add(OTHER_NODE_ID, OTHER_NODE_ALIAS);
+        otherNode_.reset(new DefaultAsyncNode(otherNodeIf_, OTHER_NODE_ID));
+    }
+
+    std::unique_ptr<DefaultAsyncNode> otherNode_;
+    // Second objects if we want a bus-traffic test.
+    std::unique_ptr<AsyncIfCan> otherIfCan_;
+    AsyncIfCan* otherNodeIf_;
+    std::unique_ptr<CanDatagramSupport> otherDatagramSupport_;
+    CanDatagramSupport* otherNodeDatagram_;
+};
+
+TEST_F(TwoNodeDatagramTest, PingPongTestOne) {
+    ExpectAnyPacket();
+    //PrintAllPackets();
+    setup_other_node(true);
+    PingPongHandler handler_one(&datagram_support_, node_);
+    PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
+
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{OTHER_NODE_ID, 0};
+    Buffer* payload = buffer_alloc(4);
+    uint8_t* bytes =
+        static_cast<uint8_t*>(payload->start());
+    bytes[0] = PingPongHandler::DATAGRAM_ID;
+    bytes[1] = 2;
+    bytes[2] = 0x30;
+    bytes[3] = 0x31;
+    payload->advance(4);
+
+    a.result()->write_datagram(node_->node_id(), h, payload, &n);
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::OK_REPLY_PENDING |
+              DatagramClient::OPERATION_SUCCESS, a.result()->result())
+        << StringPrintf("result: %x", a.result()->result());
+    Wait();
 }
 
 } // namespace NMRAnet
