@@ -143,6 +143,13 @@ public:
         OK_REPLY_PENDING = (1 << 31),
     };
 
+    // These values are okay in the respond_ok flags byte.
+    enum ResponseFlag {
+        REPLY_PENDING = 0x80,
+        REPLY_TIMEOUT_SEC = 0x1,
+        REPLY_TIMEOUT_MASK = 0xf,
+    };
+
 protected:
     uint32_t result_;
 };

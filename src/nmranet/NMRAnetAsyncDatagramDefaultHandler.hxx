@@ -35,7 +35,7 @@
 #ifndef _NMRAnetAsyncDatagramDefaultHandler_hxx_
 #define _NMRAnetAsyncDatagramDefaultHandler_hxx_
 
-#include "nmranet/NRMAnetAsyncDatagram.hxx"
+#include "nmranet/NMRAnetAsyncDatagram.hxx"
 
 namespace NMRAnet
 {
@@ -44,7 +44,7 @@ class DefaultDatagramHandler : public DatagramHandler, public ControlFlow
 {
 public:
     DefaultDatagramHandler(DatagramSupport* if_datagram)
-        : ControlFlow(if_datagram->interface()->executor(), nullptr),
+        : ControlFlow(if_datagram->interface()->dispatcher()->executor(), nullptr),
           ifDatagram_(if_datagram)
     {
         StartFlowAt(ST(wait_for_datagram));
@@ -61,17 +61,56 @@ public:
         return CallImmediately(ST(datagram_arrived));
     }
 
+    /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
+     * from the user handler. The flow will end up in the ok_response_sent()
+     * state.
+     *
+     * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
     ControlFlowAction respond_ok(uint8_t flags)
     {
         responseMti_ = If::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
-        return Allocate() return CallImmediately(ST(wait_for_datagram));
+        return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
+                        ST(send_ok_response));
     }
 
+    ControlFlowAction send_ok_response()
+    {
+        auto* flow = GetTypedAllocationResult(
+            ifDatagram_->interface()->addressed_write_allocator());
+        Buffer* payload = buffer_alloc(1);
+        uint8_t* data = static_cast<uint8_t*>(payload->start());
+        data[0] = responseErrorCode_ & 0xff;
+        payload->advance(1);
+        flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
+                                    datagram_->src, payload, nullptr);
+        return CallImmediately(ST(ok_response_sent));
+    }
+
+    /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
+     * from the user handler. The flow will return to the
+     *
+     * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
     ControlFlowAction respond_reject(uint16_t error_code)
     {
         responseMti_ = If::MTI_DATAGRAM_REJECTED;
         responseErrorCode_ = error_code;
+        return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
+                        ST(send_reject_response));
+    }
+
+    ControlFlowAction send_reject_response()
+    {
+        auto* flow = GetTypedAllocationResult(
+            ifDatagram_->interface()->addressed_write_allocator());
+        Buffer* payload = buffer_alloc(2);
+        uint8_t* data = static_cast<uint8_t*>(payload->start());
+        data[0] = (responseErrorCode_ >> 8) & 0xff;
+        data[1] = responseErrorCode_ & 0xff;
+        payload->advance(2);
+        flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
+                                    datagram_->src, payload, nullptr);
+        datagram_->free();
         return CallImmediately(ST(wait_for_datagram));
     }
 
@@ -79,15 +118,25 @@ public:
      * respond_ok or respond_reject. */
     virtual ControlFlowAction datagram_arrived() = 0;
 
+    /** This state is where the handling will end up after a respond_ok
+     * call. The user is responsible for free-ing the datagram object and
+     * returning to the wait_for_datagram state. */
+    virtual ControlFlowAction ok_response_sent()
+    {
+        datagram_->free();
+        return CallImmediately(ST(wait_for_datagram));
+    }
+
 protected:
     /// The current datagram being processed.
     IncomingDatagram* datagram_;
 
+    /// The interface's datagram support code.
+    DatagramSupport* ifDatagram_;
+
 private:
     uint16_t responseErrorCode_;
-    uint16_t responseMti_;
-
-    DatagramSupport* ifDatagram_;
+    NMRAnet::If::MTI responseMti_;
 };
 
 } // namespace

@@ -67,6 +67,8 @@ void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m, Not
 
 void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
 {
+    TypedAutoRelease<IncomingMessageHandler> ar(&lock_, this);
+
     IncomingDatagram* d = g_incoming_datagram_allocator.cast_result(entry);
     d->src = m_->src;
     d->dst = m_->dst_node;
@@ -76,6 +78,8 @@ void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
     m_->payload = nullptr;
     // The incoming message is no longer needed.
     done_->Notify();
+    done_ = nullptr;
+    m_ = nullptr;
 
     unsigned datagram_id = -1;
     if (!d->payload || !d->payload->used())
@@ -103,7 +107,6 @@ void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
     }
 
     h->datagram_arrived(d);
-    lock_.TypedRelease(this);
 }
 
 } // namespace NMRAnet
