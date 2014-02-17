@@ -43,7 +43,9 @@ namespace NMRAnet
 class DefaultDatagramHandler : public DatagramHandler, public ControlFlow
 {
 public:
-    DefaultDatagramHandler(Executor* executor) : ControlFlow(executor, nullptr)
+    DefaultDatagramHandler(DatagramSupport* if_datagram)
+        : ControlFlow(if_datagram->interface()->executor(), nullptr),
+          ifDatagram_(if_datagram)
     {
         StartFlowAt(ST(wait_for_datagram));
     }
@@ -59,15 +61,17 @@ public:
         return CallImmediately(ST(datagram_arrived));
     }
 
-    ControlFlowAction respond_ok(uint8_t flags) {
+    ControlFlowAction respond_ok(uint8_t flags)
+    {
         responseMti_ = If::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
-        return Allocate()
-        return CallImmediately(ST(wait_for_datagram));
+        return Allocate() return CallImmediately(ST(wait_for_datagram));
     }
 
-    ControlFlowAction respond_reject(uint16_t error_code) {
-        datagram_->free();
+    ControlFlowAction respond_reject(uint16_t error_code)
+    {
+        responseMti_ = If::MTI_DATAGRAM_REJECTED;
+        responseErrorCode_ = error_code;
         return CallImmediately(ST(wait_for_datagram));
     }
 
@@ -82,6 +86,8 @@ protected:
 private:
     uint16_t responseErrorCode_;
     uint16_t responseMti_;
+
+    DatagramSupport* ifDatagram_;
 };
 
 } // namespace
