@@ -29,7 +29,7 @@
  * Interface for datagram functionality in Async NMRAnet implementation.
  *
  * @author Balazs Racz
- * @date 25 Jan 2013
+ * @date 25 Jan 2014
  */
 
 #ifndef _NMRAnetAsyncDatagram_hxx_
