@@ -144,7 +144,8 @@ public:
     };
 
     // These values are okay in the respond_ok flags byte.
-    enum ResponseFlag {
+    enum ResponseFlag
+    {
         REPLY_PENDING = 0x80,
         REPLY_TIMEOUT_SEC = 0x1,
         REPLY_TIMEOUT_MASK = 0xf,
@@ -198,16 +199,22 @@ public:
 
 private:
     class DatagramDispatcher : public IncomingMessageHandler,
-                               private AllocationResult
+                               private ControlFlow
     {
     public:
         /// @TODO(balazs.racz) we have two QueueMember base classes in here.
-        DatagramDispatcher(size_t num_registry_entries) : m_(nullptr), done_(nullptr), registry_(num_registry_entries)
+        DatagramDispatcher(AsyncIf* interface, size_t num_registry_entries)
+            : ControlFlow(interface->dispatcher()->executor(), nullptr),
+              m_(nullptr),
+              registry_(num_registry_entries),
+              interface_(interface)
         {
             lock_.TypedRelease(this);
         }
 
-        ~DatagramDispatcher() {}
+        ~DatagramDispatcher()
+        {
+        }
 
         /// @returns the registry of datagram handlers.
         Registry* registry()
@@ -224,22 +231,22 @@ private:
 
         /// Callback from the message dispatcher.
         virtual void handle_message(IncomingMessage* m, Notifiable* done);
-        /// Callback from the allocator.
-        virtual void AllocationCallback(QueueMember* entry);
 
-        virtual void Run()
+        ControlFlowAction incoming_datagram_allocated();
+        ControlFlowAction respond_rejection();
+
+        union
         {
-            HASSERT(0);
-        }
-
-        /// Message called from the dispatcher.
-        IncomingMessage* m_;
-        Notifiable* done_;
+            IncomingMessage* m_;  //< Message called from the dispatcher.
+            IncomingDatagram* d_; //< Datagram to send to handler.
+        };
+        uint16_t resultCode_;   //< Rejection reason
 
         /// Maintains the registered datagram handlers.
         Registry registry_;
 
         TypedAllocator<IncomingMessageHandler> lock_;
+        AsyncIf* interface_;
     };
 
     /// Interface on which we are registered.

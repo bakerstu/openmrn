@@ -39,7 +39,7 @@ namespace NMRAnet
 
 DatagramSupport::DatagramSupport(AsyncIf* interface,
                                  size_t num_registry_entries)
-    : interface_(interface), dispatcher_(num_registry_entries)
+    : interface_(interface), dispatcher_(interface_, num_registry_entries)
 {
     interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff,
                                               &dispatcher_);
@@ -51,35 +51,44 @@ DatagramSupport::~DatagramSupport()
                                                 &dispatcher_);
 }
 
-void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m, Notifiable* done)
+void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m,
+                                                         Notifiable* done)
 {
     HASSERT(!m_);
+    HASSERT(IsNotStarted());
     if (!m->dst_node)
     {
         // Destination is not a local virtal node.
+        lock_.TypedRelease(this);
         done->Notify();
         return;
     }
     m_ = m;
-    done_ = done;
-    g_incoming_datagram_allocator.AllocateEntry(this);
+    Restart(done);
+    Allocate(&g_incoming_datagram_allocator, ST(incoming_datagram_allocated));
 }
 
-void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
+ControlFlow::ControlFlowAction
+DatagramSupport::DatagramDispatcher::incoming_datagram_allocated()
 {
-    TypedAutoRelease<IncomingMessageHandler> ar(&lock_, this);
-
-    IncomingDatagram* d = g_incoming_datagram_allocator.cast_result(entry);
+    IncomingDatagram* d =
+        GetTypedAllocationResult(&g_incoming_datagram_allocator);
     d->src = m_->src;
     d->dst = m_->dst_node;
     d->payload = m_->payload;
     // Takes over ownership of payload.
     /// @TODO(balazs.racz) Implement buffer refcounting.
     m_->payload = nullptr;
-    // The incoming message is no longer needed.
-    done_->Notify();
-    done_ = nullptr;
+
+    // The incoming message is no longer needed; call the done callback. Since
+    // we don't release ourselves to the lock yet, there will be no other
+    // incoming message to handle coming yet.
     m_ = nullptr;
+    Exit();
+
+    // Saves the datagram pointer -- note that this is unioned over m_ which was
+    // cleared above.
+    d_ = d;
 
     unsigned datagram_id = -1;
     if (!d->payload || !d->payload->used())
@@ -87,9 +96,9 @@ void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
         LOG(WARNING, "Invalid arguments: incoming datagram from node %llx "
                      "alias %x has no payload.",
             d->src.id, d->src.alias);
-        /// @TODO(balazs.racz): reject datagram with invalid arguments.
-        d->free();
-        return;
+        resultCode_ = DatagramClient::PERMANENT_ERROR;
+        return Allocate(interface_->addressed_write_allocator(),
+                        ST(respond_rejection));
     }
     datagram_id = *static_cast<uint8_t*>(d->payload->start());
 
@@ -98,15 +107,33 @@ void DatagramSupport::DatagramDispatcher::AllocationCallback(QueueMember* entry)
 
     if (!h)
     {
-        /// @TODO(balazs.racz): reject datagram with permanent error no
-        /// retries.
         LOG(VERBOSE, "No datagram handler found for node %p id %x", d->dst,
             datagram_id);
-        d->free();
-        return;
+        resultCode_ = DatagramClient::PERMANENT_ERROR;
+        return Allocate(interface_->addressed_write_allocator(),
+                        ST(respond_rejection));
     }
 
-    h->datagram_arrived(d);
+    h->datagram_arrived(d_);
+    d_ = nullptr;
+    return ReleaseAndExit(&lock_, this);
+}
+
+ControlFlow::ControlFlowAction
+DatagramSupport::DatagramDispatcher::respond_rejection()
+{
+    auto* f = GetTypedAllocationResult(interface_->addressed_write_allocator());
+
+    Buffer* payload = buffer_alloc(2);
+    uint8_t* w = static_cast<uint8_t*>(payload->start());
+    w[0] = (resultCode_ >> 8) & 0xff;
+    w[1] = resultCode_ & 0xff;
+    payload->advance(2);
+    f->WriteAddressedMessage(If::MTI_DATAGRAM_REJECTED, d_->dst->node_id(),
+                             d_->src, payload, nullptr);
+    d_->free();
+    d_ = nullptr;
+    return ReleaseAndExit(&lock_, this);
 }
 
 } // namespace NMRAnet

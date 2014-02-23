@@ -50,6 +50,7 @@ ControlFlow::ControlFlowAction ControlFlow::Exit() {
   if (done_) {
     state_ = &ControlFlow::Terminated;
     done_->Notify();
+    done_ = nullptr;
   } else {
     delete this;
   }

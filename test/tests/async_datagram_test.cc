@@ -966,4 +966,58 @@ TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
     EXPECT_EQ(1, handler_one.process_count());
 }
 
+TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
+{
+    PrintAllPackets();
+    setup_other_node(false);
+    //expect_other_node_lookup();
+
+    PingPongHandler handler_one(&datagram_support_, node_);
+    PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
+
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{OTHER_NODE_ID, 0};
+    Buffer* payload = buffer_alloc(1);
+    uint8_t* bytes = static_cast<uint8_t*>(payload->start());
+    bytes[0] = PingPongHandler::DATAGRAM_ID;
+    payload->advance(1);
+
+    a.result()->write_datagram(node_->node_id(), h, payload, &n);
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
+        << StringPrintf("result: %x", a.result()->result());
+    Wait();
+    EXPECT_EQ(1, handler_two.process_count());
+    EXPECT_EQ(0, handler_one.process_count());
+}
+
+TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
+{
+    PrintAllPackets();
+    setup_other_node(true);
+    expect_other_node_lookup();
+
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{OTHER_NODE_ID, 0};
+    Buffer* payload = buffer_alloc(4);
+    uint8_t* bytes = static_cast<uint8_t*>(payload->start());
+    bytes[0] = PingPongHandler::DATAGRAM_ID;
+    bytes[1] = 2;
+    bytes[2] = 0x30;
+    bytes[3] = 0x31;
+    payload->advance(4);
+
+    ExpectPacket(":X1A22522AN7A023031;"); // ping
+    ExpectPacket(":X19A48225N022A1000;"); // rejected, permanent error
+
+    a.result()->write_datagram(node_->node_id(), h, payload, &n);
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR,
+              a.result()->result())
+        << StringPrintf("result: %x", a.result()->result());
+    Wait();
+}
+
 } // namespace NMRAnet
