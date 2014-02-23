@@ -115,6 +115,7 @@ private:
     ControlFlowAction send_to_local_nodes();
     ControlFlowAction unaddressed_with_local_dispatcher();
     ControlFlowAction addressed_with_local_dispatcher();
+    virtual ControlFlowAction addressed_local_dispatcher_done();
 };
 
 /** This handler handles VerifyNodeId messages (both addressed and global) on

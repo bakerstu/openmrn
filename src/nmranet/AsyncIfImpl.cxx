@@ -66,6 +66,11 @@ ControlFlow::ControlFlowAction WriteFlowBase::addressed_with_local_dispatcher()
     AsyncIf::MessageDispatchFlow* dispatcher;
     GetAllocationResult(&dispatcher);
     send_message_to_local_dispatcher(dispatcher);
+    return CallImmediately(ST(addressed_local_dispatcher_done));
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::addressed_local_dispatcher_done()
+{
     cleanup();
     return ReleaseAndExit(allocator(), this);
 }

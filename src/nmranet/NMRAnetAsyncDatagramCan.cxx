@@ -48,11 +48,14 @@ public:
     CanDatagramClient(AsyncIfCan* interface)
         : AddressedCanMessageWriteFlow(interface)
     {
+        StartFlowAt(ST(Terminated));
     }
 
     virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload,
                                 Notifiable* done)
     {
+        HASSERT(IsDone());
+        StartFlowAt(ST(NotStarted));
         result_ = OPERATION_PENDING;
         if_can_->dispatcher()->RegisterHandler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->RegisterHandler(MTI_2, MASK_2, this);
@@ -153,6 +156,13 @@ private:
                          ST(timeout_waiting_for_dg_response));
         }
     }
+    
+    // override
+    virtual ControlFlowAction addressed_local_dispatcher_done() {
+        return Sleep(&sleep_data_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
+                     ST(timeout_waiting_for_dg_response));
+    }
+
 
     // override.
     virtual ControlFlowAction timeout_looking_for_dst()
