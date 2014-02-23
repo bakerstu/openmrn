@@ -268,8 +268,8 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
 {
     EXPECT_CALL(can_bus_, MWrite(":X1910022BN02010D000004;")).Times(1);
-    DefaultAsyncNode other_node(if_can_.get(), TEST_NODE_ID + 1);
     if_can_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
+    DefaultAsyncNode other_node(if_can_.get(), TEST_NODE_ID + 1);
 
     SendPacket(":X1B22A555N3031323334353637;");
     SendPacket(":X1C22A555N3131323334353637;");
@@ -302,6 +302,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     SendPacket(":X1D22A555N3331323334353637;");
     SendPacket(":X1D22B555N3131323334353637;");
+    Wait();
 }
 
 class MockDatagramHandlerBase : public DatagramHandler, public ControlFlow
@@ -694,6 +695,18 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
 }
 
+/** Ping-pong is a fake datagram-based service. When it receives a datagram
+ * from a particular node, it sends back the datagram to the originating node
+ * with a slight difference: a TTL being decremented and the payload being
+ * shortened. Two ping-pong datagram handlers can therefore converse with each
+ * other after the injection of a single message.
+ *
+ * Datagram format: id=0x7A, second byte = length, then length number of bytes.
+ *
+ * The response will be in the same format, with length decreased by one, and
+ * the first length - 1 bytes of the incoming payload. A datagram with payload
+ * length 0 will not receive a response.
+ */
 class PingPongHandler : public DefaultDatagramHandler
 {
 public:
@@ -703,7 +716,7 @@ public:
     };
 
     PingPongHandler(DatagramSupport* if_dg, AsyncNode* node)
-        : DefaultDatagramHandler(if_dg)
+        : DefaultDatagramHandler(if_dg), processCount_(0)
     {
         ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);
     }
@@ -715,8 +728,15 @@ public:
         /// on the NodeHandlerMap.
     }
 
+    /// Returns how many datagrams this handler has seen so far.
+    int process_count()
+    {
+        return processCount_;
+    }
+
     virtual ControlFlowAction datagram_arrived()
     {
+        processCount_++;
         const uint8_t* bytes =
             static_cast<const uint8_t*>(datagram_->payload->start());
         size_t len = datagram_->payload->used();
@@ -738,8 +758,7 @@ public:
 
     virtual ControlFlowAction ok_response_sent()
     {
-        uint8_t* bytes =
-            static_cast<uint8_t*>(datagram_->payload->start());
+        uint8_t* bytes = static_cast<uint8_t*>(datagram_->payload->start());
         size_t len = datagram_->payload->used();
         if (!bytes[1])
         {
@@ -794,6 +813,7 @@ public:
     }
 
 private:
+    int processCount_; //< tracks the number of incoming datagrams
     Buffer* responsePayload_;
 };
 
@@ -827,7 +847,16 @@ protected:
             otherNodeDatagram_ = &datagram_support_;
         }
         otherNodeIf_->local_aliases()->add(OTHER_NODE_ID, OTHER_NODE_ALIAS);
+        ExpectPacket(":X19100225N02010D000103;"); // node up
         otherNode_.reset(new DefaultAsyncNode(otherNodeIf_, OTHER_NODE_ID));
+        Wait();
+    }
+
+    void expect_other_node_lookup()
+    {
+        ExpectPacket(":X1070222AN02010D000103;"); // looking for DST node
+        ExpectPacket(":X1949022AN02010D000103;"); // hard-looking for DST node
+        ExpectPacket(":X19170225N02010D000103;"); // node ID verified
     }
 
     std::unique_ptr<DefaultAsyncNode> otherNode_;
@@ -838,10 +867,12 @@ protected:
     CanDatagramSupport* otherNodeDatagram_;
 };
 
-TEST_F(TwoNodeDatagramTest, PingPongTestOne) {
-    ExpectAnyPacket();
-    //PrintAllPackets();
+TEST_F(TwoNodeDatagramTest, PingPongTestOne)
+{
+    PrintAllPackets();
     setup_other_node(true);
+    expect_other_node_lookup();
+
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
 
@@ -849,8 +880,75 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne) {
     SyncNotifiable n;
     NodeHandle h{OTHER_NODE_ID, 0};
     Buffer* payload = buffer_alloc(4);
-    uint8_t* bytes =
-        static_cast<uint8_t*>(payload->start());
+    uint8_t* bytes = static_cast<uint8_t*>(payload->start());
+    bytes[0] = PingPongHandler::DATAGRAM_ID;
+    bytes[1] = 2;
+    bytes[2] = 0x30;
+    bytes[3] = 0x31;
+    payload->advance(4);
+
+    ExpectPacket(":X1A22522AN7A023031;"); // ping
+    ExpectPacket(":X19A28225N022A80;");   // ack OK, reply pending
+    ExpectPacket(":X1A22A225N7A0130;");   // pong
+    ExpectPacket(":X19A2822AN022580;");   // ack OK, reply pending
+    ExpectPacket(":X1A22522AN7A00;");     // ping
+    ExpectPacket(":X19A28225N022A00;");   // ack OK, no reply
+
+    a.result()->write_datagram(node_->node_id(), h, payload, &n);
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::OK_REPLY_PENDING |
+                  DatagramClient::OPERATION_SUCCESS,
+              a.result()->result())
+        << StringPrintf("result: %x", a.result()->result());
+    Wait();
+    EXPECT_EQ(2, handler_two.process_count());
+    EXPECT_EQ(1, handler_one.process_count());
+}
+
+TEST_F(TwoNodeDatagramTest, PingPongTestError)
+{
+    PrintAllPackets();
+    setup_other_node(true);
+    expect_other_node_lookup();
+
+    PingPongHandler handler_one(&datagram_support_, node_);
+    PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
+
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{OTHER_NODE_ID, 0};
+    Buffer* payload = buffer_alloc(1);
+    uint8_t* bytes = static_cast<uint8_t*>(payload->start());
+    bytes[0] = PingPongHandler::DATAGRAM_ID;
+    payload->advance(1);
+
+    ExpectPacket(":X1A22522AN7A;");       // ping
+    ExpectPacket(":X19A48225N022A1000;"); // rejected permanent error
+
+    a.result()->write_datagram(node_->node_id(), h, payload, &n);
+    n.WaitForNotification();
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
+        << StringPrintf("result: %x", a.result()->result());
+    Wait();
+    EXPECT_EQ(1, handler_two.process_count());
+    EXPECT_EQ(0, handler_one.process_count());
+}
+
+/// @TODO(balazs.racz): turn this into a TEST_P
+TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
+{
+    PrintAllPackets();
+    setup_other_node(false);
+    // expect_other_node_lookup();
+
+    PingPongHandler handler_one(&datagram_support_, node_);
+    PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
+
+    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
+    SyncNotifiable n;
+    NodeHandle h{OTHER_NODE_ID, 0};
+    Buffer* payload = buffer_alloc(4);
+    uint8_t* bytes = static_cast<uint8_t*>(payload->start());
     bytes[0] = PingPongHandler::DATAGRAM_ID;
     bytes[1] = 2;
     bytes[2] = 0x30;
@@ -860,9 +958,12 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne) {
     a.result()->write_datagram(node_->node_id(), h, payload, &n);
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::OK_REPLY_PENDING |
-              DatagramClient::OPERATION_SUCCESS, a.result()->result())
+                  DatagramClient::OPERATION_SUCCESS,
+              a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
     Wait();
+    EXPECT_EQ(2, handler_two.process_count());
+    EXPECT_EQ(1, handler_one.process_count());
 }
 
 } // namespace NMRAnet
