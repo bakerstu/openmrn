@@ -41,7 +41,7 @@ ASFLAGS = -c $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -fdata-sections -ffunction-sections \
 	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
-	-D__FreeRTOS__ -DGCC_ARMCM3  #-D__STDC_VERSION__=199901
+	-D__FreeRTOS__ -DGCC_ARMCM3  
 
 CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes \
@@ -51,7 +51,7 @@ CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++0x  \
            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
            -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
-           -D__LINEAR_MAP__
+           -D__LINEAR_MAP__ -D__STDC_VERSION__=199901
 
 LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
           -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 \
