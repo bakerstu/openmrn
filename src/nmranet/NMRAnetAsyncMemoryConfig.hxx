@@ -60,6 +60,7 @@ public:
 
 class MemoryConfigHandler : public DefaultDatagramHandler
 {
+public:
     enum
     {
         DATAGRAM_ID = 0x20,
@@ -161,8 +162,6 @@ private:
 
     ControlFlowAction handle_read()
     {
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
         size_t len = datagram_->payload->used();
         if (len <= 6)
         {
@@ -179,10 +178,10 @@ private:
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
         address_t address = get_address();
-        size_t response_data_offset = 6 + 1;
-        if (bytes[1] & MemoryConfig::COMMAND_MASK)
+        size_t response_data_offset = 6;
+        if (has_custom_space())
         {
-            --response_data_offset;
+            ++response_data_offset;
         }
         size_t response_len = response_data_offset + read_len;
         response_ = buffer_alloc(response_len);
@@ -212,7 +211,7 @@ private:
     {
         const uint8_t* bytes =
             static_cast<const uint8_t*>(datagram_->payload->start());
-        return !(bytes[1] & MemoryConfig::COMMAND_MASK);
+        return !(bytes[1] & ~MemoryConfig::COMMAND_MASK);
     }
 
     /** Returns the memory space number, or -1 if the incoming datagram is of
@@ -225,7 +224,7 @@ private:
         int len = datagram_->payload->used();
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
-        if (has_custom_space())
+        if (!has_custom_space())
         {
             return MemoryConfig::COMMAND_MASK + (cmd & ~MemoryConfig::COMMAND_MASK);
         }
@@ -269,7 +268,7 @@ private:
         int ofs;
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
-        if (cmd & ~MemoryConfig::COMMAND_MASK)
+        if (!has_custom_space())
         {
             ofs = 6;
         }
@@ -314,13 +313,13 @@ private:
         const uint8_t* in_bytes =
             static_cast<const uint8_t*>(datagram_->payload->start());
         memcpy(bytes + 2, in_bytes + 2, 4);
-        if (in_bytes[1] & MemoryConfig::COMMAND_MASK)
+        if (has_custom_space())
         {
-            bytes[1] |= (in_bytes[1] & MemoryConfig::COMMAND_MASK);
+            bytes[6] = in_bytes[6];
         }
         else
         {
-            bytes[6] = in_bytes[6];
+            bytes[1] |= (in_bytes[1] & MemoryConfig::COMMAND_MASK);
         }
     }
 

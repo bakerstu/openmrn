@@ -373,8 +373,6 @@ TEST_F(AsyncDatagramTest, DispatchTest)
     usleep(3000);
 }
 
-InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator(10);
-
 Buffer* string_to_buffer(const string& value)
 {
     Buffer* b = buffer_alloc(value.size());

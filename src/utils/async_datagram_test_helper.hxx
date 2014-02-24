@@ -51,6 +51,8 @@ protected:
     CanDatagramSupport datagram_support_;
 };
 
+InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator(10);
+
 class TwoNodeDatagramTest : public AsyncDatagramTest
 {
 protected:
