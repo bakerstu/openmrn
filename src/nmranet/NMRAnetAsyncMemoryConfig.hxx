@@ -153,7 +153,7 @@ private:
         {
             LOG(WARNING,
                 "MemoryConfig: Failed to send response datagram. error code %x",
-                responseFlow_->result());
+                (unsigned)responseFlow_->result());
         }
         ifDatagram_->client_allocator()->TypedRelease(responseFlow_);
         response_ = nullptr;
