@@ -103,6 +103,32 @@ TEST_F(MemoryConfigTest, InvalidSpace)
     Wait();
 }
 
+TEST_F(MemoryConfigTest, InvalidSpecialSpace)
+{
+    StrictMock<MockMemorySpace> space;
+    memoryOne_.registry()->insert(node_, 0xFE, &space);
+
+    SendPacketAndExpectResponse(":X1A22A77CN2043000001000A;",
+                                ":X19A4822AN077C1000;"); // Permanent error.
+    Wait();
+}
+
+TEST_F(MemoryConfigTest, MockSpecialSpaceRead)
+{
+    StrictMock<MockMemorySpace> space;
+    memoryOne_.registry()->insert(node_, 0xFE, &space);
+
+    EXPECT_CALL(space, read(0x100, _, 10, _))
+        .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
+
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+    ExpectPacket(":X1B77C22AN2052000001003031;");
+    ExpectPacket(":X1D77C22AN3233343536373839;");
+
+    SendPacket(":X1A22A77CN2042000001000A;");
+    Wait();
+}
+
 TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
 {
     StrictMock<MockMemorySpace> space;

@@ -369,7 +369,7 @@ private:
         }
         else
         {
-            resp_bytes[1] |= (bytes[1] & MemoryConfig::COMMAND_MASK);
+            resp_bytes[1] |= (bytes[1] & ~MemoryConfig::COMMAND_MASK);
         }
     }
 
