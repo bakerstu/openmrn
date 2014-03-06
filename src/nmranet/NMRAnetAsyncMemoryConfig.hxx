@@ -69,7 +69,9 @@ public:
     MemoryConfigHandler(DatagramSupport* if_dg, AsyncNode* node,
                         size_t registry_size)
         : DefaultDatagramHandler(if_dg),
-          response_(nullptr), responseFlow_(nullptr), registry_(registry_size)
+          response_(nullptr),
+          responseFlow_(nullptr),
+          registry_(registry_size)
     {
         ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);
     }
@@ -94,8 +96,7 @@ private:
     virtual ControlFlowAction datagram_arrived()
     {
         HASSERT(!response_);
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
+        const uint8_t* bytes = in_bytes();
         size_t len = datagram_->payload->used();
         HASSERT(len >= 1);
         HASSERT(bytes[0] == DATAGRAM_ID);
@@ -185,7 +186,7 @@ private:
         }
         size_t response_len = response_data_offset + read_len;
         response_ = buffer_alloc(response_len);
-        uint8_t* response_bytes = static_cast<uint8_t*>(response_->start());
+        uint8_t* response_bytes = out_bytes();
         errorcode_t error = 0;
         int byte_read = space->read(
             address, response_bytes + response_data_offset, read_len, &error);
@@ -209,9 +210,7 @@ private:
     /// @return true iff we have a custom space
     bool has_custom_space()
     {
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
-        return !(bytes[1] & ~MemoryConfig::COMMAND_MASK);
+        return !(in_bytes()[1] & ~MemoryConfig::COMMAND_MASK);
     }
 
     /** Returns the memory space number, or -1 if the incoming datagram is of
@@ -219,14 +218,14 @@ private:
      * 2 (i.e., there is a command byte).*/
     int get_space_number()
     {
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
+        const uint8_t* bytes = in_bytes();
         int len = datagram_->payload->used();
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
         if (!has_custom_space())
         {
-            return MemoryConfig::COMMAND_MASK + (cmd & ~MemoryConfig::COMMAND_MASK);
+            return MemoryConfig::COMMAND_MASK +
+                   (cmd & ~MemoryConfig::COMMAND_MASK);
         }
         if (len <= 6)
         {
@@ -262,8 +261,7 @@ private:
      * datagram, or -1 if the incoming datagram is of incorrect format. */
     int get_length()
     {
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
+        const uint8_t* bytes = in_bytes();
         int len = datagram_->payload->used();
         int ofs;
         uint8_t cmd = bytes[1];
@@ -291,8 +289,7 @@ private:
      * 6*/
     address_t get_address()
     {
-        const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
+        const uint8_t* bytes = in_bytes();
         address_t a = bytes[2];
         a <<= 8;
         a |= bytes[3];
@@ -309,24 +306,23 @@ private:
      * command value before calling this function. */
     void set_address_and_space()
     {
-        uint8_t* bytes = static_cast<uint8_t*>(response_->start());
-        const uint8_t* in_bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
-        memcpy(bytes + 2, in_bytes + 2, 4);
+        uint8_t* resp_bytes = out_bytes();
+        const uint8_t* bytes = in_bytes();
+        memcpy(resp_bytes + 2, bytes + 2, 4);
         if (has_custom_space())
         {
-            bytes[6] = in_bytes[6];
+            resp_bytes[6] = bytes[6];
         }
         else
         {
-            bytes[1] |= (in_bytes[1] & MemoryConfig::COMMAND_MASK);
+            resp_bytes[1] |= (bytes[1] & MemoryConfig::COMMAND_MASK);
         }
     }
 
     /// Sets the address in the response payload buffer.
     void set_address(address_t address)
     {
-        uint8_t* bytes = static_cast<uint8_t*>(response_->start());
+        uint8_t* bytes = out_bytes();
         bytes[5] = address & 0xff;
         address >>= 8;
         bytes[4] = address & 0xff;
@@ -334,6 +330,18 @@ private:
         bytes[3] = address & 0xff;
         address >>= 8;
         bytes[2] = address & 0xff;
+    }
+
+    /// @Returns the response datagram payload buffer.
+    uint8_t* out_bytes()
+    {
+        return static_cast<uint8_t*>(response_->start());
+    }
+
+    /// @Returns the request datagram payload buffer.
+    const uint8_t* in_bytes()
+    {
+        return static_cast<const uint8_t*>(datagram_->payload->start());
     }
 
     Buffer* response_; //< reply payload to send back.

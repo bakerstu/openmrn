@@ -96,4 +96,41 @@ TEST_F(MemoryConfigTest, MockMemoryConfigRead)
     Wait();
 }
 
+TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
+{
+    StrictMock<MockMemorySpace> space;
+    memory_one.registry()->insert(node_, 0x27, &space);
+
+    // The read reaches EOF early.
+    EXPECT_CALL(space, read(0x100, _, 10, _))
+        .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(8)));
+
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+    ExpectPacket(
+        ":X1B77C22AN2050000001002730;");
+    ExpectPacket(
+        ":X1D77C22AN31323334353637;");
+
+    SendPacket(":X1A22A77CN204000000100270A;");
+    Wait();
+}
+
+TEST_F(MemoryConfigTest, MockMemoryConfigReadEof)
+{
+    StrictMock<MockMemorySpace> space;
+    memory_one.registry()->insert(node_, 0x27, &space);
+
+    // The read reaches EOF early.
+    EXPECT_CALL(space, read(0x100, _, 10, _))
+        .WillOnce(Return(0));
+
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+    ExpectPacket(
+        ":X1A77C22AN20500000010027;");
+
+    SendPacket(":X1A22A77CN204000000100270A;");
+    Wait();
+}
+
+
 } // namespace
