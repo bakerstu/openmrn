@@ -54,14 +54,14 @@ public:
 class MemoryConfigTest : public TwoNodeDatagramTest
 {
 protected:
-    MemoryConfigTest() : memory_one(&datagram_support_, node_, 10)
+    MemoryConfigTest() : memoryOne_(&datagram_support_, node_, 10)
     {
     }
     ~MemoryConfigTest()
     {
     }
 
-    MemoryConfigHandler memory_one;
+    MemoryConfigHandler memoryOne_;
     std::unique_ptr<MemoryConfigHandler> memory_two;
 };
 
@@ -79,37 +79,42 @@ using testing::WithArgs;
 TEST_F(MemoryConfigTest, MockMemoryConfigRead)
 {
     StrictMock<MockMemorySpace> space;
-    memory_one.registry()->insert(node_, 0x27, &space);
+    memoryOne_.registry()->insert(node_, 0x27, &space);
 
     EXPECT_CALL(space, read(0x100, _, 10, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
 
     ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
-    ExpectPacket(
-        ":X1B77C22AN2050000001002730;");
-    ExpectPacket(
-        ":X1C77C22AN3132333435363738;");
-    ExpectPacket(
-        ":X1D77C22AN39;");
+    ExpectPacket(":X1B77C22AN2050000001002730;");
+    ExpectPacket(":X1C77C22AN3132333435363738;");
+    ExpectPacket(":X1D77C22AN39;");
 
     SendPacket(":X1A22A77CN204000000100270A;");
+    Wait();
+}
+
+TEST_F(MemoryConfigTest, InvalidSpace)
+{
+    StrictMock<MockMemorySpace> space;
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    SendPacketAndExpectResponse(":X1A22A77CN204000000100330A;",
+                                ":X19A4822AN077C1000;"); // Permanent error.
     Wait();
 }
 
 TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
 {
     StrictMock<MockMemorySpace> space;
-    memory_one.registry()->insert(node_, 0x27, &space);
+    memoryOne_.registry()->insert(node_, 0x27, &space);
 
     // The read reaches EOF early.
     EXPECT_CALL(space, read(0x100, _, 10, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(8)));
 
     ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
-    ExpectPacket(
-        ":X1B77C22AN2050000001002730;");
-    ExpectPacket(
-        ":X1D77C22AN31323334353637;");
+    ExpectPacket(":X1B77C22AN2050000001002730;");
+    ExpectPacket(":X1D77C22AN31323334353637;");
 
     SendPacket(":X1A22A77CN204000000100270A;");
     Wait();
@@ -118,19 +123,97 @@ TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
 TEST_F(MemoryConfigTest, MockMemoryConfigReadEof)
 {
     StrictMock<MockMemorySpace> space;
-    memory_one.registry()->insert(node_, 0x27, &space);
+    memoryOne_.registry()->insert(node_, 0x27, &space);
 
     // The read reaches EOF early.
-    EXPECT_CALL(space, read(0x100, _, 10, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(space, read(0x100, _, 10, _)).WillOnce(Return(0));
 
     ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
-    ExpectPacket(
-        ":X1A77C22AN20500000010027;");
+    ExpectPacket(":X1A77C22AN20500000010027;");
 
     SendPacket(":X1A22A77CN204000000100270A;");
     Wait();
 }
 
+static const char MEMORY_BLOCK_DATA[] = "abrakadabra12345678xxxxyyyyzzzzwww.";
+
+class StaticBlockTest : public MemoryConfigTest
+{
+protected:
+    StaticBlockTest() : block_(MEMORY_BLOCK_DATA)
+    {
+        memoryOne_.registry()->insert(node_, 0x33, &block_);
+    }
+    ~StaticBlockTest()
+    {
+        Wait();
+    }
+
+    ReadOnlyMemoryBlock block_;
+};
+
+string StringToHex(const char* s) {
+    string ret;
+    while (*s) {
+        ret += StringPrintf("%02X", *s);
+        s++;
+    }
+    return ret;
+}
+
+TEST_F(StaticBlockTest, ReadBeginning) {
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+
+    ExpectPacket(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    ExpectPacket(":X1D77C22AN" + StringToHex("bra") + ";");
+
+    SendPacket(":X1A22A77CN2040000000003304;");
+    Wait();
+}
+
+TEST_F(StaticBlockTest, ReadMiddle) {
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+
+    ExpectPacket(":X1B77C22AN20500000000333" + StringToHex("a") + ";");
+    ExpectPacket(":X1C77C22AN" + StringToHex("kadabra1") + ";");
+    ExpectPacket(":X1D77C22AN" + StringToHex("2345678") + ";");
+
+    SendPacket(":X1A22A77CN2040000000033310;");
+    Wait();
+}
+
+TEST_F(StaticBlockTest, ReadEnd) {
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+
+    ExpectPacket(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    ExpectPacket(":X1D77C22AN" + StringToHex("w.") + ";");
+
+    SendPacket(":X1A22A77CN2040000000203303;");
+    Wait();
+}
+
+TEST_F(StaticBlockTest, ReadLong) {
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+
+    ExpectPacket(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    ExpectPacket(":X1D77C22AN" + StringToHex("w.") + ";");
+
+    SendPacket(":X1A22A77CN2040000000203310;");
+    Wait();
+}
+
+TEST_F(StaticBlockTest, ReadAll) {
+    ExpectPacket(":X19A2822AN077C80;"); // received ok, response pending
+
+    ExpectPacket(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    ExpectPacket(":X1C77C22AN" + StringToHex("brakadab") + ";");
+    ExpectPacket(":X1C77C22AN" + StringToHex("ra123456") + ";");
+    ExpectPacket(":X1C77C22AN" + StringToHex("78xxxxyy") + ";");
+    ExpectPacket(":X1C77C22AN" + StringToHex("yyzzzzww") + ";");
+    ExpectPacket(":X1D77C22AN" + StringToHex("w.") + ";");
+
+    SendPacket(":X1A22A77CN2040000000003340;");
+    Wait();
+}
 
 } // namespace

@@ -46,16 +46,70 @@ class MemorySpace
 public:
     typedef uint32_t address_t;
     typedef uint16_t errorcode_t;
-    virtual bool read_only() = 0;
-    virtual address_t min_address() = 0;
+    /// @returns whether the memory space does not accept writes.
+    virtual bool read_only() { return true; }
+    /// @returns the lowest address that's valid for this block.
+    virtual address_t min_address()
+    {
+        return 0;
+    }
+    /** @returns the largest valid address for this block.  A read of 1 from
+     *  this address should succeed in returning the last byte.
+     */
     virtual address_t max_address() = 0;
 
     virtual void write(address_t destination, const uint8_t* data, size_t len,
-                       errorcode_t* error) = 0;
+                       errorcode_t* error)
+    {
+        HASSERT(0);
+    }
     /** @returns the number of bytes successfully read (before hitting end of
      * space). If *error is set to non-null, then the operation has failed. */
     virtual size_t read(address_t source, uint8_t* dst, size_t len,
                         errorcode_t* error) = 0;
+};
+
+class ReadOnlyMemoryBlock : public MemorySpace
+{
+public:
+    /** Creates a memory block for a given pointer of data. The pointer must
+     * stay alive so long as this object is alive.  @param data is a
+     * null-terminated string, which may point into read-only memory. */
+    ReadOnlyMemoryBlock(const char* data)
+        : data_(reinterpret_cast<const uint8_t*>(data)), len_(strlen(data))
+    {
+    }
+
+    /** Initializes a memory block with a given block of memory. The address
+     * range [data, data+len) must be dereferenceable for read so long as this
+     * object is alive. It may point into read-only memory. */
+    ReadOnlyMemoryBlock(const uint8_t* data, address_t len)
+        : data_(data), len_(len)
+    {
+    }
+
+    virtual address_t max_address()
+    {
+        return len_ - 1;
+    }
+
+    virtual size_t read(address_t source, uint8_t* dst, size_t len,
+                        errorcode_t* error)
+    {
+        if (source >= len_)
+            return 0;
+        size_t count = len;
+        if (source + count > len_)
+        {
+            count = len_ - source;
+        }
+        memcpy(dst, data_ + source, count);
+        return count;
+    }
+
+private:
+    const uint8_t* data_; //< Data bytes to serve.
+    const address_t len_; //< Length of block to serve.
 };
 
 class MemoryConfigHandler : public DefaultDatagramHandler
