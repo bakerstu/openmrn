@@ -24,39 +24,46 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can_ioctl.h
- * This file implements can specific ioctl() keys.
+ * \file NMRAnet.hxx
+ * Container for the very few global NMRAnet objects
  *
  * @author Stuart W. Baker
- * @date 2 November 2013
+ * @date 26 September 2013
  */
 
-#ifndef _can_ioctl_h_
-#define _can_ioctl_h_
+#ifndef _NMRAnet_hxx_
+#define _NMRAnet_hxx_
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
+#include "executor/Executor.hxx"
 
-/** ioctl() structure to setup the RX/TX active callback.
- */
-typedef struct can_active_callback
+namespace NMRAnet
 {
-    void (*callback)(void*, int*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
-} CanActiveCallback;
 
-/** Magic number for this driver's ioctl calls */
-#define CAN_IOC_MAGIC ('c')
+/** The single executor instance used for all NMRAnet platform logic. */
+extern Executor<4> *nmranetExecutor;
 
-/** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
+/** Base identifier for all NMRAnet messages */
+#define NMRANET_ID_BASE (1000)
 
-/** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
+/** Base identifier for all NMRAnet::If messages */
+#define NMRANET_IF_BASE (NMRANET_ID_BASE + 0)
 
-#if defined (__cplusplus)
-}
-#endif
+/** Base identifier for all NMRAnet::IfCan messages */
+#define NMRANET_IF_CAN_BASE (NMRANET_ID_BASE + 20)
 
-#endif /* _can_ioctl_h_ */
+/** Base identifier for all NMRAnet::Event messages */
+#define NMRANET_EVENT_BASE (NMRANET_ID_BASE + 100)
+
+/** Base identifier for all NMRAnet::Datagram messages */
+#define NMRANET_DATAGRAM_BASE (NMRANET_ID_BASE + 200)
+
+/** Base identifier for all NMRAnet::Stream messages */
+#define NMRANET_STREAM_BASE (NMRANET_ID_BASE + 300)
+
+/** Initialize the NMRAnet stack.
+ */
+void nmranet_init(void);
+
+} /* namespace NMRAnet */
+
+#endif /* _NMRAnet_hxx_ */

@@ -1,0 +1,223 @@
+/** \copyright
+ * Copyright (c) 2013, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file GridConnect.cxxtest
+ * This file contains a unit test for GridConnect.hxx.
+ *
+ * @author Stuart W. Baker
+ * @date 9 December 2013
+ */
+
+#include "gtest/gtest.h"
+#include "utils/GridConnect.hxx"
+#include <cstdio>
+#include <fcntl.h>
+
+class Implementor : public GridConnect
+{
+public:
+    Implementor()
+        : GridConnect()
+    {
+    }
+    
+    ~Implementor()
+    {
+    }
+    
+    static ssize_t write(int fd, const void *data, size_t len)
+    {
+        return GridConnect::write(fd, data, len);
+    }
+
+    static ssize_t write_double(int fd, const void *data, size_t len)
+    {
+        return GridConnect::write_double(fd, data, len);
+    }
+
+    static ssize_t read(int fd, void *data, size_t len)
+    {
+        return GridConnect::read(fd, data, len);
+    }
+
+    static ssize_t read_double(int fd, void *data, size_t len)
+    {
+        return GridConnect::read_double(fd, data, len);
+    }
+};
+
+TEST(GridConnectTest, constructor)
+{
+    /* the constructor/destructor do nothing since everything in the object
+     * is static.  This just check that the constructor does not crash.
+     */
+    Implementor gc;
+}
+
+TEST(GridConnectTest, write)
+{
+    unlink("/tmp/gc_write");
+    int fd = open("/tmp/gc_write", O_CREAT | O_RDWR | O_TRUNC | O_NONBLOCK);
+    
+    EXPECT_TRUE(fd >= 0);
+    
+    struct can_frame frame;
+    
+    SET_CAN_FRAME_EFF(frame);
+    CLR_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    SET_CAN_FRAME_ID_EFF(frame, 0x5a5a5a5);
+    frame.data[0] = 1;
+    frame.data[1] = 2;
+    frame.data[2] = 3;
+    frame.data[3] = 4;
+    frame.data[4] = 5;
+    frame.data[5] = 6;
+    frame.data[6] = 7;
+    frame.data[7] = 8;
+    frame.can_dlc = 8;
+    
+    /* this should be an invalid write length */
+    EXPECT_TRUE(Implementor::write(fd, &frame, 1) < 0);
+    EXPECT_TRUE(errno == EINVAL);
+    
+    EXPECT_TRUE(Implementor::write(fd, &frame, sizeof(struct can_frame)) == sizeof(struct can_frame));
+    
+    lseek(fd, 0, SEEK_SET);
+    
+    char buf[500];
+    char expect[] = ":X05A5A5A5N0102030405060708;";
+    
+    ssize_t size = read(fd, buf, 500);
+    
+    EXPECT_TRUE(size > 0 && size < 500);
+    EXPECT_TRUE(!strncmp(buf, expect, strlen(expect)));
+    
+    buf[size] = '\0';
+    printf("%s", buf);
+    close(fd);
+}
+
+TEST(GridConnectTest, write_double)
+{
+    unlink("/tmp/gc_write");
+    int fd = open("/tmp/gc_write", O_CREAT | O_RDWR | O_TRUNC | O_NONBLOCK);
+    
+    EXPECT_TRUE(fd >= 0);
+    
+    struct can_frame frame;
+    
+    CLR_CAN_FRAME_EFF(frame);
+    SET_CAN_FRAME_RTR(frame);
+    CLR_CAN_FRAME_ERR(frame);
+    SET_CAN_FRAME_ID_EFF(frame, 0x5a5);
+    frame.can_dlc = 0;
+    
+    EXPECT_TRUE(Implementor::write_double(fd, &frame, sizeof(struct can_frame)) == sizeof(struct can_frame));
+    
+    lseek(fd, 0, SEEK_SET);
+    
+    char buf[500];
+    char expect[] = "!!SS55AA55RR;;";
+    
+    ssize_t size = read(fd, buf, 500);
+    
+    EXPECT_TRUE(size > 0 && size < 500);
+    EXPECT_TRUE(!strncmp(buf, expect, strlen(expect)));
+    
+    buf[size] = '\0';
+    printf("%s", buf);
+    close(fd);
+}
+
+TEST(GridConnectTest, read)
+{
+    char expect[] = ":X05A5A5A5N0102030405060708;";
+    unlink("/tmp/gc_read");
+    int fd = open("/tmp/gc_read", O_CREAT | O_RDWR | O_TRUNC | O_NONBLOCK);
+    
+    write(fd, expect, strlen(expect));
+    
+    lseek(fd, 0, SEEK_SET);
+    
+    EXPECT_TRUE(fd >= 0);
+    
+    struct can_frame frame;
+    
+    /* this should be an invalid read length */
+    EXPECT_TRUE(Implementor::read(fd, &frame, 1) < 0);
+    EXPECT_TRUE(errno == EINVAL);
+
+    EXPECT_TRUE(Implementor::read(fd, &frame, sizeof(struct can_frame)) == sizeof(struct can_frame));
+    
+    EXPECT_TRUE(IS_CAN_FRAME_EFF(frame));
+    EXPECT_FALSE(IS_CAN_FRAME_RTR(frame));
+    EXPECT_FALSE(IS_CAN_FRAME_ERR(frame));
+
+    EXPECT_TRUE(GET_CAN_FRAME_ID_EFF(frame) == 0x5a5a5a5);
+
+    EXPECT_TRUE(frame.data[0] == 1);
+    EXPECT_TRUE(frame.data[1] == 2);
+    EXPECT_TRUE(frame.data[2] == 3);
+    EXPECT_TRUE(frame.data[3] == 4);
+    EXPECT_TRUE(frame.data[4] == 5);
+    EXPECT_TRUE(frame.data[5] == 6);
+    EXPECT_TRUE(frame.data[6] == 7);
+    EXPECT_TRUE(frame.data[7] == 8);
+    EXPECT_TRUE(frame.can_dlc == 8);
+}
+
+TEST(GridConnectTest, read_double)
+{
+    char expect[] = "!!SS55AA55RR;;";
+    unlink("/tmp/gc_read");
+    int fd = open("/tmp/gc_read", O_CREAT | O_RDWR | O_TRUNC | O_NONBLOCK);
+    
+    write(fd, expect, strlen(expect));
+    
+    lseek(fd, 0, SEEK_SET);
+    
+    EXPECT_TRUE(fd >= 0);
+    
+    struct can_frame frame;
+    
+    EXPECT_TRUE(Implementor::read_double(fd, &frame, sizeof(struct can_frame)) == sizeof(struct can_frame));
+    
+    EXPECT_FALSE(IS_CAN_FRAME_EFF(frame));
+    EXPECT_TRUE(IS_CAN_FRAME_RTR(frame));
+    EXPECT_FALSE(IS_CAN_FRAME_ERR(frame));
+
+    EXPECT_TRUE(GET_CAN_FRAME_ID(frame) == 0x5a5);
+
+    EXPECT_TRUE(frame.can_dlc == 0);
+}
+
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+

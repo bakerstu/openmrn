@@ -34,11 +34,10 @@
 #ifndef _NMRAnetAliasCache_hxx_
 #define _NMRAnetAliasCache_hxx_
 
-#include "os/OS.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/macros.h"
-#include "utils/RBTree.hxx"
 #include "utils/Map.hxx"
+#include "utils/RBTree.hxx"
 
 namespace NMRAnet
 {
@@ -93,7 +92,9 @@ public:
      */
     void add(NodeID id, NodeAlias alias);
     
-    /** Remove an alias from an alias cache.
+    /** Remove an alias from an alias cache.  This method does not call the
+     * remove_callback method passed in at construction since it is a
+     * deliberate call not requiring notification.
      * @param alias 12-bit alias associated with Node ID
      */
     void remove(NodeAlias alias);
@@ -110,7 +111,8 @@ public:
      */
     NodeID lookup(NodeAlias alias);
 
-    /** Call the given callback function once for each alias tracked.
+    /** Call the given callback function once for each alias tracked.  The order
+     * will be in last "touched" order.
      * @param callback method to call
      * @param context context pointer to pass to callback
      */
@@ -124,7 +126,7 @@ public:
     /** Default destructor */
     ~AliasCache()
     {
-        delete pool;
+        delete [] pool;
     }
     
 private:
@@ -188,30 +190,7 @@ private:
     /** Update the time stamp for a given entry.
      * @param  metadata metadata associated with the entry
      */
-    void touch(Metadata* metadata)
-    {
-        metadata->timestamp = OSTime::get_monotonic();
-
-        if (metadata != newest)
-        {
-            if (metadata == oldest)
-            {
-                oldest = metadata->newer;
-            }
-            if (metadata->newer)
-            {
-                metadata->newer->older = metadata->older;
-            }
-            if (metadata->older)
-            {
-                metadata->older->newer = metadata->newer;
-            }
-            metadata->newer = NULL;
-            metadata->older = newest;
-            newest->newer = metadata;
-            newest = metadata;
-        }
-    }
+    void touch(Metadata* metadata);
 
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };

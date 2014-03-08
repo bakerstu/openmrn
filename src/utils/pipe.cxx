@@ -160,9 +160,10 @@ private:
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
                 if (ret <= 0)
                 {
+                    /// @todo (Stuart Baker) does not build against MinGW
+#ifdef __linux__
                     LOG(ERROR, "%s reading pipe fd %d.",
                         ret < 0 ? "error" : "EOF", t->fd_read_);
-#ifdef __linux__
                     LOG(ERROR, "errno %d %s", errno, strerror(errno));
 #endif
                     ::close(t->fd_read_);

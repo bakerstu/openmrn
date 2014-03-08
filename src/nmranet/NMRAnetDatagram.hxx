@@ -39,6 +39,64 @@
 namespace NMRAnet
 {
 
+class Node;
+
+/** Implement the Datagram Service singleton */
+class DatagramService : public Service
+{
+private:
+    /** Message ID's that we can receive */
+    enum MessageId
+    {
+        INCOMING = NMRANET_DATAGRAM_BASE,
+        DATAGRAM_REJECTED,
+        DATAGRAM_OK,
+        DATAGRAM
+    };
+    
+    /** Constructor.
+     */
+    DatagramService()
+        : Service(nmranetExecutor),
+          incoming(this)
+    {
+    }
+    
+    /** Destructor.
+     */
+    ~DatagramService()
+    {
+    }
+    
+    /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
+     */
+    StateFlowBase *lookup(uint32_t id)
+    {
+        switch (id)
+        {
+            default:
+                break;
+            case INCOMING:
+                return &incoming;
+            case DATAGRAM_REJECTED:
+            case DATAGRAM_OK:
+            case DATAGRAM:
+                break;
+        }
+        return NULL;
+    }
+    
+    
+    STATE_FLOW_START(Incoming, 4)
+    STATE_FLOW_END()
+    
+    Incoming incoming;
+    
+    friend class Datagram;
+};
+
 /** Access to NMRAnet datagram logic.  Note!!!  @ref Datagram should only ever
  * be inherited by the @ref Node class.  In the @ref Datagram implementation
  * we make some assumptions that a Datagram* is equal to a Node*.
@@ -46,6 +104,22 @@ namespace NMRAnet
 class Datagram
 {
 public:
+    /** Initialize the Datagram protocol.  This should not be called by user
+     * code.  It should only be referenced through @ref nmranet_init.
+     */
+    static void init()
+    {
+        service_ = new DatagramService();
+    }
+    
+    /** Get a reference to the datagram service.
+     * @return reference to datagram service
+     */
+    static Service *service()
+    {
+        return service_;
+    }
+    
     /** total number of datagrams to allocate to the datagram memory pool */
     static const size_t POOL_SIZE;
 
@@ -185,13 +259,8 @@ public:
     };
 
 protected:
-    /** Default Constructor. */
-    Datagram()
-        : txMessage(NULL),
-          timer(timeout, this, NULL)
-    {
-        once.once();
-    }
+    /** Constructor. */
+    Datagram(Node *node);
 
     /** Default destructor */
     ~Datagram()
@@ -245,7 +314,7 @@ private:
      * @param error error number
      * @return true or false
      */
-    bool resend_ok(uint16_t error)
+    static bool resend_ok(uint16_t error)
     {
         return error & RESEND_OK;
     }
@@ -336,7 +405,7 @@ private:
     Message *alloc(void);
     
     /** the buffer pool used for all datagrams */
-    static BufferPool pool;
+    static FixedPool<Buffer> pool;
     
     /** A queue of unused buffers */
     static BufferQueueWait dq;
@@ -353,10 +422,15 @@ private:
     /** one time initialization structure */
     static OSThreadOnce once;
 
+    /** Service instance for handling datagram messages */
+    static DatagramService *service_;
+
     DISALLOW_COPY_AND_ASSIGN(Datagram);
+    
+    friend class DatagramService;
 };
 
-};
+}
 
 #endif /* _NMRAnetDatagram_hxx_ */
 

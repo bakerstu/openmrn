@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetIfCanGcTcp.hxx
+ * \file NMRAnetIfCanGridConnect.hxx
  * This file provides an NMRAnet interface specific to CAN over Grid Connect.
  *
  * @author Stuart W. Baker
  * @date 18 September 2013
  */
 
-#ifndef _NMRAnetIfCanGcTCP_hxx_
-#define _NMRAnetIfCanGcTCP_hxx_
+#ifndef _NMRAnetIfCanGridConnect_hxx_
+#define _NMRAnetIfCanGridConnect_hxx_
 
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "utils/GridConnect.hxx"

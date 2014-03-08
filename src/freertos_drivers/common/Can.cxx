@@ -178,12 +178,36 @@ int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data
         default:
             return -EINVAL;
         case CAN_IOC_READ_ACTIVE:
-            can->read_callback = can_active_callback->callback;
-            can->readContext = can_active_callback->context;
+            portENTER_CRITICAL();
+            /** @todo (Stuart Baker) there is a potential race condition here */
+#if 0
+            if (os_mq_num_pending(can->rxQ) > 0)
+            {
+                can_active_callback->callback(can_active_callback->context);
+            }
+            else
+#endif
+            {
+                can->read_callback = can_active_callback->callback;
+                can->readContext = can_active_callback->context;
+            }
+            portEXIT_CRITICAL();
             break;
         case CAN_IOC_WRITE_ACTIVE:
-            can->write_callback = can_active_callback->callback;
-            can->writeContext = can_active_callback->context;
+            portENTER_CRITICAL();
+            /** @todo (Stuart Baker) there is a potential race condition here */
+#if 0
+            if (os_mq_num_pending(can->txQ) == 0)
+            {
+                can_active_callback->callback(can_active_callback->context);
+            }
+            else
+#endif
+            {
+                can->write_callback = can_active_callback->callback;
+                can->writeContext = can_active_callback->context;
+            }
+            portEXIT_CRITICAL();
             break;
     }
 

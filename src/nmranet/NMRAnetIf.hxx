@@ -36,20 +36,31 @@
 
 #include <cstdint>
 
-#include "utils/macros.h"
+#include "executor/Service.hxx"
+#include "executor/StateFlow.hxx"
+#include "nmranet/NMRAnet.hxx"
 #include "utils/BufferQueue.hxx"
+#include "utils/macros.h"
 
 namespace NMRAnet
 {
 
+/** 48-bit NMRAnet Node ID type */
 typedef uint64_t NodeID;
+
+/** Alias to a 48-bit NMRAnet Node ID type */
 typedef uint16_t NodeAlias;
 
+/** Container of both a NodeID and NodeAlias */
 struct NodeHandle
 {
-    NodeID id;
-    NodeAlias alias;
+    NodeID id; /**< 48-bit NMRAnet Node ID */
+    NodeAlias alias; /**< alias to NMRAnet Node ID */
 
+    /** Compare to NodeHandle instances.
+     * @param o object to compare to
+     * @return boolean result of compare
+     */
     bool operator==(const NodeHandle& o) const
     {
         return id == o.id && alias == o.alias;
@@ -58,13 +69,15 @@ struct NodeHandle
 
 /** The generic interface for NMRAnet network interfaces
  */
-class If
+class If : public Service
 {
 public:
     /** Constructor.
      */
     If(NodeID node_id)
-        : nodeID(node_id)
+        : Service(nmranetExecutor),
+          nodeID(node_id),
+          receiveFlow(this)
     {
     }
 
@@ -166,6 +179,33 @@ public:
      */
     virtual LinkStatus link_status() = 0;
 
+    /** Message ID's that we can receive */
+    enum MessageId
+    {
+        RECEIVE = NMRANET_IF_BASE,
+        SEND
+    };
+
+    /** Message structure for an incoming NMRAnet Message
+     */
+    struct InMessage
+    {
+        Buffer *data; /** message payload */
+        NodeID dst; /**< destination Node ID, 0 if unavailable */
+        NodeHandle src; /**< source node ID, 0 if unavailable */
+        MTI mti; /**< message type identifier */
+    };
+    
+    /** Message structure for an incoming NMRAnet Message
+     */
+    struct OutMessage
+    {
+        NodeID src; /**< destination Node ID, 0 if unavailable */
+        NodeHandle dst; /**< source node ID, 0 if unavailable */
+        MTI mti; /**< message type identifier */
+        uint8_t data[] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__))); /**< message payload */
+    };
+    
 protected:
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from
@@ -185,10 +225,45 @@ protected:
         return (mti & MTI_DATAGRAM_MASK);
     }
 
+    /** Get the MTI priority (value 0 through 3).
+     * @param mti MTI to extract field value from
+     * @return priority value 0 through 3
+     */
+    static unsigned int mti_priority(MTI mti)
+    {
+        return (mti & MTI_PRIORITY_MASK) >> MTI_PRIORITY_SHIFT;
+    }
+
     /** 48-bit NMRAnet node id associated with this interface */
     NodeID nodeID;
 
+    /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
+     */
+    virtual StateFlowBase *lookup(uint32_t id)
+    {
+        switch (id)
+        {
+            default:
+                break;
+            case RECEIVE:
+                return &receiveFlow;
+         }
+        return NULL;
+    }
+
+    /** Maximum size of a static addressed message payload */
+    static const size_t MAX_ADDRESSED_SIZE;
+
 private:
+    /** Handles receiving of incoming messages */
+    STATE_FLOW_START(ReceiveFlow, 4)
+    STATE_FLOW_END()
+    
+    /** State machine instance that handles receiving incoming messages */
+    ReceiveFlow receiveFlow;
+
     DISALLOW_COPY_AND_ASSIGN(If);
 };
 

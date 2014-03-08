@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,39 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can_ioctl.h
- * This file implements can specific ioctl() keys.
+ * \file Allocator.cxx
  *
- * @author Stuart W. Baker
- * @date 2 November 2013
+ * Defines an allocation pool type that can be used for notification of
+ * pending resources.
+ *
+ * @author Stuart W Baker
+ * @date 26 December 2013
  */
 
-#ifndef _can_ioctl_h_
-#define _can_ioctl_h_
+#include "executor/Allocator.hxx"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-/** ioctl() structure to setup the RX/TX active callback.
- */
-typedef struct can_active_callback
-{
-    void (*callback)(void*, int*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
-} CanActiveCallback;
-
-/** Magic number for this driver's ioctl calls */
-#define CAN_IOC_MAGIC ('c')
-
-/** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
-
-/** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* _can_ioctl_h_ */

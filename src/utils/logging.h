@@ -14,9 +14,9 @@ static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
 
-extern char logbuffer[256];
-
 #define LOG(level, message...) do { if (LOGLEVEL >= level) { int sret = snprintf(logbuffer, sizeof(logbuffer), message); if (sret > (int)sizeof(logbuffer)) sret = sizeof(logbuffer); log_output(logbuffer, sret); } } while(0)
+
+extern char logbuffer[256];
 
 
 #ifndef LOGLEVEL

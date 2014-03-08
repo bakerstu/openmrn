@@ -37,8 +37,9 @@
 #include <fcntl.h>
 #include <new>
 
-#include "nmranet/NMRAnetIf.hxx"
+#include "executor/Allocator.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
 #include "nmranet_can.h"
 
@@ -46,6 +47,57 @@
 
 namespace NMRAnet
 {
+
+class IfCan;
+
+/** Implement the Datagram Service singleton */
+class IfCanWriteService : public Service
+{
+private:
+    /** Message ID's that we can receive */
+    enum MessageId
+    {
+        MSG_WRITE = NMRANET_IF_CAN_BASE + 10,
+    };
+    
+    /** Constructor.
+     */
+    IfCanWriteService(IfCan *if_can)
+        : Service(new Executor<5>("", 0, 512)),
+          sendFlow(this),
+          frameFlow(this),
+          ifCan(if_can)
+    {
+    }
+    
+    /** Destructor.
+     */
+    ~IfCanWriteService()
+    {
+    }
+    
+    /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
+     */
+    StateFlowBase *lookup(uint32_t id);
+    
+    
+    STATE_FLOW_START(SendFlow, 5)
+    STATE_FLOW_END()
+    
+    STATE_FLOW_START(FrameFlow, 1)
+    STATE_FLOW_END()
+    
+    SendFlow sendFlow;
+    
+    FrameFlow frameFlow;
+    
+    /** CAN interface we are bound to */
+    IfCan *ifCan;
+    
+    friend class IfCan;
+};
 
 /** The generic interface for NMRAnet network interfaces
  */
@@ -62,6 +114,14 @@ public:
           ssize_t (*read)(int, void*, size_t),
           ssize_t (*write)(int, const void*, size_t));
 
+    /** Message ID's that we can receive */
+    enum MessageId
+    {
+        READ_FRAME = NMRANET_IF_CAN_BASE,
+        CONTROL_FRAME,
+        WRITE_FRAME
+    };
+
 protected:
     /** Default destructor.
      */
@@ -69,7 +129,53 @@ protected:
     {
     }
 
+    /** Translate an incoming Message ID into a StateFlow instance.
+     * @param id itentifier to translate
+     * @return StateFlow corresponding the given ID, NULL if not found
+     */
+    StateFlowBase *lookup(uint32_t id)
+    {
+        switch (id)
+        {
+            default:
+                return If::lookup(id);
+            case READ_FRAME:
+                return &canReadFlow;
+            case If::SEND:
+                return NULL;
+        }
+    }
+
 private:
+    /* Handle incoming CAN frames.
+     */
+    STATE_FLOW_START(CanReadFlow, 4)
+    STATE_FLOW_STATE(ccr_cid_frame)
+    STATE_FLOW_STATE(ccr_rid_frame)
+    STATE_FLOW_STATE(ccr_amd_frame)
+    STATE_FLOW_STATE(ccr_ame_frame)
+    STATE_FLOW_STATE(ccr_amr_frame)
+    STATE_FLOW_STATE(global_addressed)
+    STATE_FLOW_STATE(addressed)
+    STATE_FLOW_STATE(datagram)
+    STATE_FLOW_STATE(stream)
+    STATE_FLOW_STATE(write_frame_and_exit)
+    STATE_FLOW_END()
+    
+    STATE_FLOW_START(SendFlow, 4)
+    STATE_FLOW_END()
+    
+    //STATE_FLOW_START(FindAlias, 1)
+    //STATE_FLOW_END()
+    
+    CanReadFlow canReadFlow;
+    SendFlow sendFlow;
+    //FindAlias findAlias;
+    
+    //Message *findAliasList;
+
+    Allocator<Message> writeCanFrame;
+
     /** Status value for an alias pool item.
      */
     enum AliasStatus
@@ -201,7 +307,19 @@ private:
         FRAME_SHIFT       = 12, 
 
         /** reserved for future use */
-        RESERVED_SHIFT    = 14
+        RESERVED_SHIFT    = 14,
+        
+        /** single frame message */
+        FRAME_ONLY = 0x0,
+
+        /** First frame in multi-frame message */
+        FRAME_FIRST = 0x1,
+         
+        /** Last frame in multi-frame message */
+        FRAME_LAST = 0x2,
+        
+        /** Middle frame in multi-frame message */
+        FRAME_MIDDLE = 0x3
     };
     
     /** Get the source field value of the CAN ID.
@@ -402,11 +520,20 @@ private:
         frame.can_dlc = 0;
     }
 
+    /** Get the frame field of addressed data.
+     * @param _address addressed data
+     * @return destination field value
+     */
+    static unsigned get_addressed_frame(uint16_t address)
+    {
+        return (address & FRAME_MASK) >> FRAME_SHIFT;
+    }
+
     /** Get the destination field of addressed data.
      * @param _address addressed data
      * @return destination field value
      */
-    NodeAlias get_addressed_destination(uint16_t address)
+    static NodeAlias get_addressed_destination(uint16_t address)
     {
         return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
     }
@@ -475,12 +602,25 @@ private:
     void datagram_rejected(NodeAlias src, NodeAlias dst, int error_code);
 
     /** This is the timeout for giving up an incoming multi-frame datagram.
-     * mapping request.
-     * @param data1 a @ref IfCan typecast to a void*
-     * @param data2 a @ref Buffer reference typecast to void*
+     * @param data a @ref Buffer reference typecast to void*
      * @return OS_TIMER_NONE
      */
-    static long long datagram_timeout(void *data1, void *data2);
+    long long datagram_timeout(void *data);
+
+    /** This is the timeout for giving up an incoming multi-frame addressed messages.
+     * @param data a @ref Buffer reference typecast to void*
+     * @return OS_TIMER_NONE
+     */
+    long long addressed_timeout(void *data);
+
+    /** Helper that can init an addressed timer in the proper context.
+     * @param timer location to initialize the timer in place
+     * @param data user data to pass to timeout
+     */
+    void addressed_timer_init(Timer *timer, void *data)
+    {
+        new (timer) Timer(TIMEOUT(addressed_timeout), this, data);
+    }
 
     /** Decode datagram can frame.
      * @param can_id can identifier
@@ -664,6 +804,11 @@ private:
     friend class CanMessageWriteFlow;
     friend class FrameToAddressedMessageParser;
     friend class FrameToGlobalMessageParser;
+    friend class IfCanWriteService;
+    friend class IfCanWriteService::SendFlow;
+
+    /** Maximum number of multi-frame addressed messages we can track in flight */
+    static const size_t MAX_IN_FLIGHT_MULTI_FRAME;
 
     /** file descriptor used for reading and writing data to and from physical
      * interface
@@ -689,11 +834,25 @@ private:
     LinkStatus linkStatus;
 
     /** Datagram pool */
-    BufferPool datagramPool;
+    FixedPool<Buffer> datagramPool;
 
-    /** Tree for tracking datagrams that are in flight */
-    RBTree <uint64_t, Buffer*> datagramTree;
+    /** Short hand for the uint64_t/void* Map type */
+    typedef Map <uint64_t, Buffer*> DatagramMap;
 
+    /** Short hand for the uint64_t/void* Map type */
+    typedef Map <uint64_t, Message*> MultiFrameMap;
+
+    /** Mapping for tracking datagrams that are in flight */
+    DatagramMap datagramMap;
+
+    /** Mapping for tracking multi-frame addressed messages that are in flight */
+    MultiFrameMap multiFrameMap;
+    
+    /** number of multi-frame message in flight */
+    size_t multiFrameInFlight;
+
+    IfCanWriteService writeService;
+    
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 

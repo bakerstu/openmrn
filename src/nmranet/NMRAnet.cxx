@@ -24,39 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can_ioctl.h
- * This file implements can specific ioctl() keys.
+ * \file NMRAnet.hxx
+ * Container for the very few global NMRAnet objects
  *
  * @author Stuart W. Baker
- * @date 2 November 2013
+ * @date 26 September 2013
  */
 
-#ifndef _can_ioctl_h_
-#define _can_ioctl_h_
+#include "nmranet/NMRAnet.hxx"
+//#include "nmranet/NMRAnetDatagram.hxx"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-/** ioctl() structure to setup the RX/TX active callback.
- */
-typedef struct can_active_callback
+namespace NMRAnet
 {
-    void (*callback)(void*, int*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
-} CanActiveCallback;
 
-/** Magic number for this driver's ioctl calls */
-#define CAN_IOC_MAGIC ('c')
+Executor<4> *nmranetExecutor = NULL;
 
-/** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
-
-/** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
-
-#if defined (__cplusplus)
+/** Initialize the NMRAnet stack.
+ */
+void nmranet_init(void)
+{
+    nmranetExecutor = new Executor<4>("nmranet", 0, 2048);
+    //Datagram::init();
 }
-#endif
 
-#endif /* _can_ioctl_h_ */
+} /* namespace NMRAnet */
+

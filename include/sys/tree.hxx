@@ -595,7 +595,7 @@ name##_RB_INSERT(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp;						\
 	struct type *parent = NULL;					\
-	int comp = 0;							\
+	int64_t comp = 0;							\
 	tmp = RB_ROOT(head);						\
 	while (tmp) {							\
 		parent = tmp;						\
@@ -625,7 +625,7 @@ attr struct type *							\
 name##_RB_FIND(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp = RB_ROOT(head);				\
-	int comp;							\
+	int64_t comp;							\
 	while (tmp) {							\
 		comp = cmp(elm, tmp);					\
 		if (comp < 0)						\
@@ -644,7 +644,7 @@ name##_RB_NFIND(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp = RB_ROOT(head);				\
 	struct type *res = NULL;					\
-	int comp;							\
+	int64_t comp;							\
 	while (tmp) {							\
 		comp = cmp(elm, tmp);					\
 		if (comp < 0) {						\

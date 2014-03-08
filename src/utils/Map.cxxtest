@@ -24,39 +24,35 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file can_ioctl.h
- * This file implements can specific ioctl() keys.
+ * \file Map.cxxtest
+ * This file contains a unit test for Map.hxx.
  *
  * @author Stuart W. Baker
- * @date 2 November 2013
+ * @date 8 December 2013
  */
 
-#ifndef _can_ioctl_h_
-#define _can_ioctl_h_
+#include "gtest/gtest.h"
+#include "utils/Map.hxx"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-/** ioctl() structure to setup the RX/TX active callback.
- */
-typedef struct can_active_callback
+TEST(MapTest, map_constructor)
 {
-    void (*callback)(void*, int*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
-} CanActiveCallback;
-
-/** Magic number for this driver's ioctl calls */
-#define CAN_IOC_MAGIC ('c')
-
-/** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
-
-/** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
-
-#if defined (__cplusplus)
+    Map<uint16_t, uint16_t> map(4);
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() == 4);
 }
-#endif
 
-#endif /* _can_ioctl_h_ */
+TEST(MapTest, map_constructor_dynamic)
+{
+    Map<uint16_t, uint16_t> map;
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() > 1000);
+}
+
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+

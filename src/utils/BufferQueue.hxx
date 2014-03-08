@@ -34,53 +34,89 @@
 #ifndef _BufferQueue_hxx_
 #define _BufferQueue_hxx_
 
+#include <new>
 #include <cstdint>
 #include <cstdlib>
+#include <cstdarg>
 
 #include <os/OS.hxx>
 
-class BufferPool;
+template <class T> class DynamicPool;
+template <class T> class Pool;
+class Buffer;
 
 /** main buffer pool instance */
-extern BufferPool *mainBufferPool; 
+extern DynamicPool<Buffer> *mainBufferPool;
 
-/** Buffer structure that contains both metadata and user data */
-class Buffer
+
+/** Essentially a "next" pointer container.
+ */
+class QMember
+{
+protected:
+    /** Decrement count.  This method is here to allow a QMember to not
+     * have to implement a reference count, potentially saving 4 bytes of
+     * space.
+     * @return new count value
+     */
+    virtual unsigned int dec_count()
+    {
+        return 0;
+    }
+    
+    /** Constructor.
+     */
+    QMember()
+        : next(NULL)
+    {
+    }
+    
+    /** Destructor.
+     */ 
+    ~QMember()
+    {
+    }
+    
+    /** pointer to the next member in the queue */
+    QMember *next;
+
+    /** This class is a helper of Q */
+    template <class T> friend class Q;
+
+    /** This class is a helper of DynamicPool */
+    template <class T> friend class DynamicPool;
+};
+
+/** Base class for all QMember types that hold data in an expandable format
+ */
+class BufferManager : public QMember
 {
 public:
-    /** Free this buffer to the BufferPool from whence it came.
+    /** Free this buffer to the Pool from whence it came.
      */
-    inline void free();
+    virtual void free() = 0;
 
     /** Advance the position of the buffer.
      * @param bytes number of bytes to advance.
      * @return pointer to the new position (next available byte)
      */
-    void *advance(size_t bytes);
+    virtual void *advance(size_t bytes);
     
     /** reset the buffer position back to beginning.
      * @return pointer to the new position (next available byte)
      */
     void *zero()
     {
-        left = _size;
-        return data;
+        left = size_;
+        return data();
     }    
-    
-    /** Get a pointer to the first position (byte) of the buffer.
-     * @return pointer to the first position (byte)
-     */
-    const void *start() const
-    {
-        return data;
-    }
 
     /** Get a pointer to the first position (byte) of the buffer.
      * @return pointer to the first position (byte)
      */
     void *start()
     {
-        return data;
+        return data();
     }
 
     /** Get a pointer to the current position of the buffer.
@@ -88,7 +124,7 @@ public:
      */
     void *position()
     {
-        return &data[_size - left];
+        return &data()[size_ - left];
     }
 
     /** Get the size of the buffer in bytes.
@@ -96,7 +132,7 @@ public:
      */
     size_t size() const
     {
-        return _size;
+        return size_;
     }
 
     /** Get the number of unused bytes in the buffer.
@@ -112,10 +148,109 @@ public:
      */
     size_t used() const
     {
-        return _size - left;    
+        return size_ - left;    
     }
 
-    /** Expand the buffer size.
+    /** Add another reference to the buffer.
+     * @return total number of references to this point
+     */
+    unsigned int reference();
+
+    /** Decrement count.
+     */
+    unsigned int dec_count()
+    {
+        return --count;
+    }
+
+protected:
+    /** get a pointer to the start of the data.
+     */
+    virtual char *data() = 0;
+    
+    /** Like a constructor, but in this case, we allocate extra space for the
+     * user data.
+     * @param size size of user data in bytes
+     * @param align_size alignment size if allocated as an array
+     * @param items number of items to allocate
+     * @return newly allocated buffer or addres of first item in an array of
+     *         allocated buffers, HASSERT() on failure
+     */
+    static BufferManager *alloc(size_t size, size_t align_size, size_t items = 1)
+    {
+        HASSERT(items != 0);
+        BufferManager *buffer = (BufferManager*)malloc(align_size * items);
+        HASSERT(buffer != NULL);
+        BufferManager *result = buffer;
+        for (size_t i = 0; i < items; ++i)
+        {
+            buffer->next = NULL;
+            buffer->size_ = size;
+            buffer->left = size;
+            buffer->count = 1;
+            buffer = (BufferManager*)((char*)buffer + align_size);
+        }
+        return result;
+    }
+
+    /** Like a constructor, but in this case, we re-purpose an existing buffer
+     * with no new memory allocation.
+     * @param buffer instance of buffer to reinitialize
+     * @param size size of user data in bytes
+     * @return newly reinitialized buffer, HASSERT() on failure
+     */
+    static BufferManager *init(BufferManager *buffer, size_t size)
+    {
+        HASSERT(buffer->size_ == size);
+        buffer->next = NULL;
+        buffer->left = size;
+        buffer->count = 1;
+        return buffer;
+    }
+
+    /** size of data in bytes */
+    size_t size_;
+
+    /** amount for free space left in the buffer */
+    size_t left;
+
+    /** number of references in use */
+    unsigned int count;
+    
+    /** Constructor.
+     */
+    BufferManager(size_t size)
+        : QMember(),
+          size_(size),
+          left(size),
+          count(1)
+    {
+    }
+
+    /** Destructor.
+     */
+    ~BufferManager()
+    {
+    }
+
+private:
+    /** Constructor.
+     */
+    BufferManager();
+    
+    DISALLOW_COPY_AND_ASSIGN(BufferManager);
+};
+
+/** Buffer structure that contains both metadata and user data */
+class Buffer : public BufferManager
+{
+public:
+    /** Free this buffer to the BufferPool from whence it came.
+     */
+    inline void free();
+
+    /** Expand the buffer size.  Exercise caution when using this API.  If anyone
+     * else is holding onto a reference of this, their reference will be corrupted.
      * @param size size buffer after expansion.
      * @return newly expanded buffer with old buffer data moved
      */
@@ -126,7 +261,7 @@ public:
      */
     void id(uint32_t identifier)
     {
-        _id = identifier;
+        id_ = identifier;
     }
 
     /** Get the unique identifier for the buffer.
@@ -134,37 +269,43 @@ public:
      */
     uint32_t id()
     {
-        return _id;
+        return id_;
     }
 
-    /** Add another reference to the buffer.
-     * @return total number of references to this point
+    /** Get a pointer to the pool that this buffer belongs to.
+     * @return pool that this buffer belongs to
      */
-    unsigned int reference();
+    Pool<Buffer> *pool()
+    {
+        return pool_;
+    }
+    
+    /** The total size of an array element of a Buffer for given payload.
+     * @param size payload size
+     */
+    static size_t sizeof_type(size_t size)
+    {
+        return sizeof(Buffer) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
+    }
 
-private:
     /** Like a constructor, but in this case, we allocate extra space for the
      * user data.
-     * @param pool BufferPool instance from which this buffer will come
+     * @param pool Pool instance from which this buffer will come
      * @param size size of user data in bytes
      * @param items number of items to allocate
      * @return newly allocated buffer or addres of first item in an array of
      *         allocated buffers, HASSERT() on failure
      */
-    static Buffer *alloc(BufferPool *pool, size_t size, size_t items = 1)
+    static Buffer *alloc(Pool<Buffer> *pool, size_t size, size_t items = 1)
     {
-        HASSERT(pool != NULL && items != 0);
-        size_t align_size = sizeof_buffer(size);
+        HASSERT(pool != NULL);
+
+        size_t align_size = sizeof_type(size);
         Buffer *buffer = (Buffer*)malloc(align_size * items);
-        HASSERT(buffer != NULL);
         Buffer *result = buffer;
         for (size_t i = 0; i < items; ++i)
         {
-            buffer->next = NULL;
-            buffer->bufferPool = pool;
-            buffer->_size = size;
-            buffer->left = size;
-            buffer->count = 1;
+            new (buffer) Buffer(size, pool);
             buffer = (Buffer*)((char*)buffer + align_size);
         }
         return result;
@@ -178,213 +319,120 @@ private:
      */
     static Buffer *init(Buffer *buffer, size_t size)
     {
-        HASSERT(buffer->bufferPool != NULL);
-        HASSERT(buffer->_size == size);
-        buffer->next = NULL;
-        buffer->left = size;
-        buffer->count = 1;
+        HASSERT(buffer->pool_ != NULL);
+        HASSERT(buffer->size_ == size);
+        BufferManager::init(buffer, size);
+        buffer->id_ = 0;
         return buffer;
     }
 
-    /** Macro to position to beginning of structure from data member position*/
-    #define BUFFER(_buffer) (Buffer*)((char *)(_buffer) - sizeof(Buffer));
-
-    /* pointer to BufferPool instance that this buffer belongs to */
-    BufferPool *bufferPool;
-
-    /** next buffer in list */
-    Buffer *next;
+private:
+    /** get a pointer to the start of the data.
+     */
+    char *data()
+    {
+        return data_;
+    }
     
-    /** size of data in bytes */
-    size_t _size;
-
-    /** amount for free space left in the buffer */
-    size_t left;
+    /** pointer to Pool instance that this buffer belongs to */
+    Pool<Buffer> *pool_;
 
     /** message ID for uniquely identifying this buffer in a queue */
-    uint32_t _id;
-    
-    /** number of references in use */
-    unsigned int count;
+    uint32_t id_;
     
     /** user data */
-    char data[];
+    char data_[];
 
-    /** This class is a helper of BufferPool, so we know where to free to */
-    friend class BufferPool;
+    /** This class is a helper of Pool */
+    template <class T> friend class Pool;
     
-    /** This class is a helper of BufferQueue */
-    friend class BufferQueue;
-
-    /** The total size of an array element of a Buffer for given payload.
-     * @param size payload size
+    /** This class is a helper of Pool */
+    template <class T> friend class FixedPool;
+    
+    /** This class is a helper of Pool */
+    template <class T> friend class DynamicPool;
+    
+    /** Constructor.
+     * @param size size of buffer data in bytes
+     * @param pool pool that this buffer belongs to
      */
-    static size_t sizeof_buffer(size_t size)
+    Buffer(size_t size, Pool<Buffer> *pool)
+        : BufferManager(size),
+          pool_(pool),
+          id_(0)
     {
-        return sizeof(Buffer) + (((size/sizeof(long)) + (size % sizeof(long) ? 1 : 0)) * sizeof(long));
     }
     
-    /** Default constructor */
+    /** Destructor.
+     */
+    ~Buffer()
+    {
+    }
+
+    /** Default Constructor.
+     */
     Buffer();
-    
-    /** Default destructor */
-    ~Buffer();
 
     DISALLOW_COPY_AND_ASSIGN(Buffer);
-};
-
-/** Pool of previously allocated, but currently unused, buffers. */
-class BufferPool
-{
-public:
-    /* Default Constructor */
-    BufferPool()
-        : totalSize(0),
-          mutex(),
-          pool {NULL, NULL, NULL, NULL},
-          itemSize(0),
-          items(0)
-    {
-    }
-
-    /* Constructor for a fixed size pool.
-     * @param item_size size of each item in the pool
-     * @param items number of items in the pool
-     */
-    BufferPool(size_t item_size, size_t items)
-        : totalSize(0),
-          mutex(),
-          pool {Buffer::alloc(this, item_size, items), NULL, NULL, NULL},
-          itemSize(item_size),
-          items(items)
-    {
-        Buffer *current = first;
-        for (size_t i = 0; i < items; ++i)
-        {
-            current->next = pool[1];
-            pool[1] = current;
-            current = (Buffer*)((char*)current + Buffer::sizeof_buffer(item_size));
-        }
-        /* save the index just after last buffer in the bool */
-        pool[2] = current;
-    }
-
-    /* default destructor */
-    ~BufferPool()
-    {
-      /** @todo(stbaker): what is the required condition for a buffer pool to
-       be deallocated?
-       HASSERT(0);
-      */
-    }
-
-    /** Used in static pools to tell if this buffer is a member of the pool.
-     * @param buffer buffer to test validity on
-     * @return true if the buffer is in the pool, or this is not a fixed pool,
-     *         else return false;
-     */
-    bool valid(Buffer *buffer)
-    {
-        if (itemSize != 0)
-        {
-            if (buffer >= first && buffer <= pool[2])
-            {
-                return true;
-            }
-            return false;
-        }
-        return true;
-    }
-    
-    /** Get a free buffer out of the pool.  A buffer may be
-     * obtained without context (object reference) from the mainBufferPool
-     * with the ::buffer_free method.
-     *
-     * @param size minimum size in bytes the buffer must hold
-     * @return pointer to the newly allocated buffer
-     */
-    Buffer *buffer_alloc(size_t size);
-
-    /** Release a buffer back to the free buffer pool.  A buffer may be
-     * released without context (object reference) to the mainBufferPool
-     * with the ::buffer_free method.
-     *
-     * @param buffer pointer to buffer to release
-     */
-    void buffer_free(Buffer *buffer);
-    
-private:
-    /** keep track of total allocated size of memory */
-    size_t totalSize;
-    
-    /** Mutual exclusion for buffer pool */
-    OSMutex mutex;
-
-
-    /** this union save overlapping memory */
-    union
-    {
-        /** Free buffer pool */
-        Buffer *pool[4];
-        
-        /** First buffer in a pre-allocated array pool */
-        Buffer *first;
-    };
-    
-    /** item Size for fixed pools */
-    size_t itemSize;
-    
-    /** number of items for fixed pools */
-    size_t items;
-
-    /** This class is a helper of BufferQueue */
-    friend class BufferQueue;
-
-    /** This class is a helper of Buffer */
-    friend class Buffer;
-
-    DISALLOW_COPY_AND_ASSIGN(BufferPool);
 };
 
 /** This class implements a linked list "queue" of buffers.  It may be
  * instantiated to use the mainBufferPool for its memory pool, or optionally
  * another BufferPool instance may be specified for its memory pool.
  */
-class BufferQueue
+template <class T> class Q
 {
 public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueue()
+    /** Default Constructor.
+     */
+    Q()
         : head(NULL),
           tail(NULL),
-          count(0),
-          mutex()
+          count(0)
     {
     }
 
     /** Default destructor.
      */
-    ~BufferQueue()
+    ~Q()
     {
     }
 
-    /** Release a buffer back to the free buffer pool.
-     * @param buffer pointer to buffer to release
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
      */
-    void buffer_free(Buffer *buffer)
+    void insert(T *q)
     {
-        buffer->free();
+        if (head == NULL)
+        {
+            head = tail = q;
+        }
+        else
+        {
+            tail->next = q;
+            tail = q;
+        }
+        q->next = NULL;
+        ++count;
     }
 
-    /** Add a buffer to the back of the queue.
-     * @param buffer buffer to add to queue
+    /** Get an item from the front of the queue.
+     * @return item retrieved from queue, NULL if no item available
      */
-    void insert(Buffer *buffer);
+    T *next()
+    {
+        T *q;
 
-    /** Get a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *next();
+        if (head == NULL)
+        {
+            return NULL;
+        }
+        q = head;
+        head = static_cast<T*>(q->next);
+        --count;
+
+        return q;
+    }
 
     /** Get the number of pending items in the queue.
      * @return number of pending items in the queue
@@ -405,35 +453,877 @@ public:
 protected:
 
 private:
-    /** head buffer in queue */
-    Buffer *head;
+    /** head item in queue */
+    T *head;
     
-    /** tail buffer in queue */
-    Buffer *tail;
+    /** tail item in queue */
+    T *tail;
     
-    /** number of buffers in queue */
+    /** number of items in queue */
     size_t count;
 
+    DISALLOW_COPY_AND_ASSIGN(Q);
+};
+
+/** A list of queues.  Index 0 is the highest priority queue with increasingly
+ * higher indexes having increasingly lower priority.
+ */
+template <class T, unsigned items> class QList
+{
+public:
+    /** Result of pulling an item from the queue based on priority.
+     */
+    struct Result
+    {
+        T *item; /**< item pulled from queue */
+        unsigned index; /**< index of item pulled frim queue */
+    };
+    
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QList()
+        : list()
+    {
+    }
+
+    /** Destructor.
+     */
+    ~QList()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(T *q, unsigned index)
+    {
+        list[index].insert(q);
+    }
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
+     */
+    T *next(unsigned index)
+    {
+        return list[index].next();
+    }
+
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    Result next()
+    {
+        for (unsigned i = 0; i < items; ++i)
+        {
+            T *result = list[i].next();
+            if (result)
+            {
+                return {result, i};
+            }
+        }
+        return {NULL, 0};
+    }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        return list[index].pending();
+    }
+
+    /** Get the total number of pending items in all queues in the list.
+     * @param index in the list to operate on
+     * @return number of total pending items in all queues in the list
+     */
+    size_t pending()
+    {
+        size_t result = 0;
+        for (unsigned i = 0; i < items; ++i)
+        {
+            result += list[i].pending();
+        }
+        return result;
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        return list[index].empty();
+    }
+
+    /** Test if all the queues are empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty()
+    {
+        for (unsigned i = 0; i < items; ++i)
+        {
+            if (!list[i].empty())
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    /** the list of queues */
+    Q<T> list[items];
+
+    DISALLOW_COPY_AND_ASSIGN(QList);
+};
+
+/** This is a specialization of the Q which uses a mutex for insertion and
+ * removal.
+ */
+template <class T> class QProtected : public Q <T>
+{
+public:
+    /** Default Constructor.
+     */
+    QProtected()
+        : Q<T>(),
+          mutex()
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QProtected()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     */
+    void insert(T *q)
+    {
+        mutex.lock();
+        Q<T>::insert(q);
+        mutex.unlock();
+    }
+
+    /** Get an item from the front of the queue.
+     * @return item retrieved from queue, NULL if no item available
+     */
+    T *next()
+    {
+        T *q;
+
+        mutex.lock();
+        q = Q<T>::next();
+        mutex.unlock();
+
+        return q;
+    }
+
+protected:
+
+private:
     /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
      * (smaller) locking mechanism
      */
     /** Mutual exclusion for Queue */
     OSMutex mutex;
 
-    DISALLOW_COPY_AND_ASSIGN(BufferQueue);
+    DISALLOW_COPY_AND_ASSIGN(QProtected);
+};
+
+/** A list of queues.
+ */
+template <class T, unsigned items> class QListProtected : public QList <T, items>
+{
+public:
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QListProtected()
+        : QList<T, items>(),
+          mutex()
+    {
+    }
+
+    /** Destructor.
+     */
+    ~QListProtected()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @return item retrieved from queue, NULL if no item available
+     */
+    void insert(T *q, unsigned index = 0)
+    {
+        mutex.lock();
+        QList<T, items>::insert(q, index);
+        mutex.unlock();
+    }
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
+     */
+    T *next(unsigned index)
+    {
+        mutex.lock();
+        T *result = QList<T, items>::next(index);
+        mutex.unlock();
+        return result;
+    }
+
+    /** Translate the Result type */
+    typedef typename QList<T, items>::Result Result;
+    
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    Result next()
+    {
+        mutex.lock();
+        Result result = QList<T, items>::next();
+        mutex.unlock();
+        return result;
+    }
+
+private:    
+    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
+     * (smaller) locking mechanism
+     */
+    /** Mutual exclusion for Queue */
+    OSMutex mutex;
+};
+
+/** Pool of previously allocated, but currently unused, items. */
+template <class T> class Pool
+{
+public:
+    /** Get a free item out of the pool.
+     * @param size minimum size in bytes the item must hold
+     * @return pointer to the newly allocated item
+     */
+    virtual T *alloc(size_t size)
+    {
+        return NULL;
+    }
+
+    /** Release an item back to the free pool.
+     * @param item pointer to item to release
+     */
+    virtual void free(T *item)
+    {
+    }
+
+protected:
+    /** Default Constructor */
+    Pool()
+        : mutex(true),
+          totalSize(0)
+    {
+    }
+
+    /** default destructor */
+    ~Pool()
+    {
+    }
+
+    /** Mutual exclusion for buffer pool */
+    OSMutex mutex;
+
+    /** keep track of total allocated size of memory */
+    size_t totalSize;
+    
+private:
+    DISALLOW_COPY_AND_ASSIGN(Pool);
+};
+
+/** A specialization of a pool which can allocate new elements dynamically
+ * upon request.
+ */
+template <class T> class DynamicPool : public Pool <T>
+{
+public:
+    /** This is a struct for storing info about a specific size item in the
+     * DynamicPool.
+     */
+    class Bucket
+    {
+    public:
+        /** Allocate a Bucket array off of the heap initialized with sizes.
+         * @param s size of first bucket
+         * @param '0' terminated list of additional buckets
+         */
+        static Bucket *init(int s, ...)
+        {
+            va_list ap, aq;
+            va_start(ap, s);
+            va_copy(aq, ap);
+            int count = 1;
+            int current = s;
+            
+            while (current != 0)
+            {
+                ++count;
+                int next = va_arg(ap, int);
+                HASSERT(next > current || next == 0);
+                current = next;
+            }
+            
+            Bucket *bucket = new Bucket[count];
+
+            for (int i = 0; i < count; ++i)
+            {
+                bucket[i].size_ = va_arg(aq, int);
+                bucket[i].first_ = NULL;
+            }
+            
+            va_end(aq);
+            va_end(ap);
+            return bucket;
+        }
+    
+        /** destroy a bucket created with init.
+         * @param bucket Bucket array to destroy
+         */
+        static void destroy(Bucket *bucket)
+        {
+            delete [] bucket;
+        }
+        
+    private:
+        /** Constructor.
+         */
+        Bucket()
+        {
+        }
+        
+        /** Destructor.
+         */
+        ~Bucket()
+        {
+        }
+        
+        size_t size_; /**< size of entry */
+        T* first_; /**< first item in list of entries */
+        
+        /** Allow Dynamic Pool access to private members */
+        template <class C> friend class DynamicPool;
+    };
+    
+    /** Get a free item out of the pool.
+     * @param size minimum size in bytes the item must hold
+     * @return pointer to the newly allocated item
+     */
+    T *alloc(size_t size)
+    {
+        T *item = NULL;
+
+        for (Bucket *current = buckets; current->size_ != 0; ++current)
+        {
+            if (size <= current->size_)
+            {
+                Pool<T>::mutex.lock();
+                if (current->first_ != NULL)
+                {
+                    item = current->first_;
+                    current->first_ = static_cast<T*>(item->next);
+                    (void)T::init(item, current->size_);
+                }
+                else
+                {
+                    item = T::alloc(this, current->size_);
+
+                    totalSize += current->size_ + sizeof(T);
+                    //DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
+                }
+                Pool<T>::mutex.unlock();
+                return item;
+            }
+        }
+         
+        /* big items are just malloc'd freely */
+        item = T::alloc(this, size);
+        Pool<T>::mutex.lock();
+        totalSize += size + sizeof(T);
+        Pool<T>::mutex.unlock();
+        //DEBUG_PRINTF("cxx buffer total size: %zu\n", totalSize);
+        return item;
+     }
+
+    /** Release an item back to the free pool.
+     * @param item pointer to item to release
+     */
+    void free(T *item)
+    {
+        HASSERT(this == item->pool());
+
+        if (item->dec_count() == 0)
+        {
+            for (Bucket *current = buckets; current->size_ != 0; ++current)
+            {
+                if (item->size() <= current->size_)
+                {
+                    Pool<T>::mutex.lock();
+                    item->next = current->first_;
+                    current->first_ = item;
+                    Pool<T>::mutex.unlock();
+                    return;
+                }
+            }
+            Pool<T>::mutex.lock();
+            /* big items are just freed */
+            totalSize -= item->size();
+            totalSize -= sizeof(Buffer);
+            Pool<T>::mutex.unlock();
+            //DEBUG_PRINTF("buffer total size: %zu\n", totalSize);
+            free(item);
+        }
+    }
+
+    /** Constructor.
+     * @param sizes array of bucket sizes for the pool
+     */
+    DynamicPool(Bucket sizes[])
+        : Pool<T>(),
+          totalSize(0),
+          buckets(sizes),
+          first(NULL),
+          itemSize(0)
+    {
+    }
+
+    /** default destructor */
+    ~DynamicPool()
+    {
+        Bucket::destroy(buckets);
+    }
+
+protected:
+    /** keep track of total allocated size of memory */
+    size_t totalSize;
+    
+    /** Free buffer queue */
+    Bucket *buckets;
+    
+    /** First buffer in a pre-allocated array pool */
+    T *first;
+    
+    /** item Size for fixed pools */
+    size_t itemSize;
+    
+    /** total number of items in the queue */
+    size_t items;
+    
+private:
+    /** Default constructor.
+     */
+    DynamicPool();
+
+    DISALLOW_COPY_AND_ASSIGN(DynamicPool);
+};
+
+/** Pool of fixed number of items which can be allocated up on request.
+ */
+template <class T> class FixedPool : public Pool <T>
+{
+public:
+    /** Used in static pools to tell if this buffer is a member of the pool.
+     * @param buffer buffer to test validity on
+     * @return true if the buffer is in the pool, or this is not a fixed pool,
+     *         else return false;
+     */
+    bool valid(T *item)
+    {
+        if (item >= first &&
+            item <= (T*)((char*)first + (items * T::sizeof_type(itemSize))))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /** Get a free item out of the pool.
+     * @param size minimum size in bytes the item must hold
+     * @return pointer to the newly allocated item
+     */
+    virtual T *alloc()
+    {
+        Pool<T>::mutex.lock();
+        T *item = queue.next();
+        if (item != NULL)
+        {
+            (void)T::init(item, itemSize);
+            ++totalSize;
+            //DEBUG_PRINTF("static buffer total size: %zu\n", totalSize);
+        }
+        Pool<T>::mutex.unlock();
+        return item;
+    }
+
+    /** Release an item back to the free pool.
+     * @param item pointer to item to release
+     */
+    virtual void free(T *item)
+    {
+        HASSERT(this == item->pool());
+
+        Pool<T>::mutex.lock();
+        if (item->dec_count() == 0)
+        {
+            --totalSize;
+            queue.insert(item);
+            //DEBUG_PRINTF("static buffer total used: %zu\n", totalSize);
+        }
+
+        Pool<T>::mutex.unlock();
+    }
+
+    /** Constructor for a fixed size pool.
+     * @param item_size size of each item in the pool
+     * @param items number of items in the pool
+     */
+    FixedPool(size_t item_size, size_t items)
+        : Pool<T>(),
+          //mutex(true),
+          totalSize(0),
+          first (T::alloc(this, item_size, items)),
+          itemSize(item_size),
+          items(items)
+    {
+        T *current = first;
+        for (size_t i = 0; i < items; ++i)
+        {
+            queue.insert(current);
+            current = (T*)((char*)current + T::sizeof_type(item_size));
+        }
+    }
+
+    /** default destructor */
+    ~FixedPool()
+    {
+        /** @todo (Stuart Baker) need to free the itmes alloced */
+    }
+
+protected:
+    /** keep track of total allocated size of memory */
+    size_t totalSize;
+    
+    /** Free buffer queue */
+    Q<T> queue;
+    
+    /** First buffer in a pre-allocated array pool */
+    T *first;
+    
+    /** item Size for fixed pools */
+    size_t itemSize;
+    
+    /** total number of items in the queue */
+    size_t items;
+    
+private:
+    /** Default Constructor.
+     */
+    FixedPool();
+
+    DISALLOW_COPY_AND_ASSIGN(FixedPool);
 };
 
 /** A BufferQueue that adds the ability to wait on the next buffer.
- * Yes this uses multiple inheritance.  Yes multiple inheritance is bad.  It
- * is okay in this case, so get over it.
+ * Yes this uses multiple inheritance.
  */
-class BufferQueueWait : public BufferQueue, public OSSem
+template <class T> class QueueWait : public Q <T>, public OSSem
+{
+public:
+    /** Default Constructor. */
+    QueueWait()
+        : Q<T>(),
+          OSSem(0)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QueueWait()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item item to add to queue
+     */
+    void insert(T *item)
+    {
+        Q<T>::insert(item);
+        post();
+    }
+
+    /** Get an item from the front of the queue.
+     * @return item retrieved from queue
+     */
+    T *next()
+    {
+        T *result = Q<T>::next();
+        if (result != NULL)
+        {
+            /* decrement semaphore */
+            OSSem::wait();
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
+     */
+    T *wait()
+    {
+        OSSem::wait();
+        T *result = Q<T>::next();
+        if(result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+        
+    /** Wait for an item from the front of the queue.
+     * @param timeout time to wait in nanoseconds
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR woken up asynchronously
+     */
+    T *timedwait(long long timeout)
+    {
+        if (OSSem::timedwait(timeout) != 0)
+        {
+            errno = ETIMEDOUT;
+            return NULL;
+        }
+        
+        T *result = Q<T>::next();
+        if (result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
+    }
+    
+private:
+
+    DISALLOW_COPY_AND_ASSIGN(QueueWait);
+};
+
+/** A BufferQueue that adds the ability to wait on the next buffer.
+ * Yes this uses multiple inheritance.
+ */
+template <class T> class QueueProtectedWait : public QProtected <T>, public OSSem
+{
+public:
+    /** Default Constructor. */
+    QueueProtectedWait()
+        : QProtected<T>(),
+          OSSem(0)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QueueProtectedWait()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item item to add to queue
+     */
+    void insert(T *item)
+    {
+        QProtected<T>::insert(item);
+        post();
+    }
+
+    /** Get an item from the front of the queue.
+     * @return item retrieved from queue
+     */
+    T *next()
+    {
+        T *result = QProtected<T>::next();
+        if (result != NULL)
+        {
+            /* decrement semaphore */
+            OSSem::wait();
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
+     */
+    T *wait()
+    {
+        OSSem::wait();
+        T *result = QProtected<T>::next();
+        if(result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @param timeout time to wait in nanoseconds
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
+     */
+    T *timedwait(long long timeout)
+    {
+        if (OSSem::timedwait(timeout) != 0)
+        {
+            errno = ETIMEDOUT;
+            return NULL;
+        }
+        
+        T *result = QProtected<T>::next();
+        if (result == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
+    }
+    
+private:
+
+    DISALLOW_COPY_AND_ASSIGN(QueueProtectedWait);
+};
+
+/** A BufferQueue that adds the ability to wait on the next buffer.
+ * Yes this uses multiple inheritance.  The priority of pulling items out of
+ * of the list is fixed to look at index 0 first and the highest index last.
+ */
+template <class T, unsigned items> class QueueListProtectedWait : public QListProtected <T, items>, public OSSem
+{
+public:
+    /** Default Constructor.
+     * @param size number of queues in the list
+     */
+    QueueListProtectedWait()
+        : QListProtected<T, items>(),
+          OSSem(0)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QueueListProtectedWait()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(T *item, unsigned index)
+    {
+        QListProtected<T, items>::insert(item, index);
+        post();
+    }
+
+    /** Translate the Result type */
+    typedef typename QListProtected<T, items>::Result Result;
+    
+    /** Get an item from the front of the queue.
+     * @return item retrieved from one of the queues
+     */
+    Result next()
+    {
+        Result result = QListProtected<T, items>::next();
+        if (result.item != NULL)
+        {
+            /* decrement semaphore */
+            OSSem::wait();
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @return item retrieved from queue, else NULL with errno set:
+     *         EINTR - woken up asynchronously
+     */
+    Result wait()
+    {
+        OSSem::wait();
+        Result result = QListProtected<T, items>::next();
+        if(result.item == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wait for an item from the front of the queue.
+     * @param timeout time to wait in nanoseconds
+     * @param priority pass back the priority of the queue pulled from
+     * @return item retrieved from queue, else NULL with errno set:
+     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
+     */
+    Result timedwait(long long timeout)
+    {
+        if (OSSem::timedwait(timeout) != 0)
+        {
+            errno = ETIMEDOUT;
+            return {NULL, 0};
+        }
+        
+        Result result = QListProtected<T, items>::next();
+        if (result.item == NULL)
+        {
+            errno = EINTR;
+        }
+        return result;
+    }
+    
+    /** Wakeup anyone waiting on the wait queue.
+     */
+    void wakeup()
+    {
+        post();
+    }
+    
+private:
+
+    DISALLOW_COPY_AND_ASSIGN(QueueListProtectedWait);
+};
+
+/** A BufferQueue that adds the ability to wait on the next buffer.
+ * Yes this uses multiple inheritance.
+ */
+class BufferQueueWait : public QueueWait <Buffer>
 {
 public:
     /** Default Constructor, use mainBufferPool for buffer allocation. */
     BufferQueueWait()
-        : BufferQueue(),
-          sem(0)
+        : QueueWait<Buffer>()
     {
     }
 
@@ -443,59 +1333,7 @@ public:
     {
     }
 
-    /** Add a buffer to the back of the queue.
-     * @param buffer buffer to add to queue
-     */
-    void insert(Buffer *buffer)
-    {
-        BufferQueue::insert(buffer);
-        post();
-    }
-
-    /** Get a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *next()
-    {
-        Buffer *result = BufferQueue::next();
-        if (result != NULL)
-        {
-            /* decrement semaphore */
-            OSSem::wait();
-        }
-        return result;
-    }
-    
-    /** Wait for a buffer from the front of the queue.
-     * @return buffer buffer retrieved from queue
-     */
-    Buffer *wait()
-    {
-        OSSem::wait();
-        Buffer *result = BufferQueue::next();
-        HASSERT(result != NULL);
-        return result;
-    }
-    
-    /** Wait for a buffer from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @return buffer buffer retrieved from queue, NULL on timeout or error
-     */
-    Buffer *timedwait(long long timeout)
-    {
-        if (OSSem::timedwait(timeout) != 0)
-        {
-            return NULL;
-        }
-        
-        Buffer *result = BufferQueue::next();
-        HASSERT(result != NULL);
-        return result;
-    }
-    
 private:
-    /** Semaphore that we will wait on */
-    OSSem sem;
 
     DISALLOW_COPY_AND_ASSIGN(BufferQueueWait);
 };
@@ -506,7 +1344,7 @@ private:
  */
 inline Buffer *buffer_alloc(size_t size)
 {
-    return mainBufferPool->buffer_alloc(size);
+    return mainBufferPool->alloc(size);
 }
 
 /** Release a buffer back to the mainBufferPool free buffer pool.
@@ -514,38 +1352,39 @@ inline Buffer *buffer_alloc(size_t size)
  */
 inline void buffer_free(Buffer *buffer)
 {
-    mainBufferPool->buffer_free(buffer);
+    mainBufferPool->free(buffer);
 }
 
 /** Free this buffer to the BufferPool from whence it came.
  */
 inline void Buffer::free()
 {
-    HASSERT(bufferPool != NULL);
-    bufferPool->buffer_free(this);
+    HASSERT(pool_ != NULL);
+    pool_->free(this);
 }
 
 /** Advance the position of the buffer.
  * @param bytes number of bytes to advance.
  * @return pointer to the new position (next available byte)
  */
-inline void *Buffer::advance(size_t bytes)
+inline void *BufferManager::advance(size_t bytes)
 {
     /** @todo (Stuart Baker) do we really need a mutex lock here? */
-    bufferPool->mutex.lock();
+    //pool->mutex.lock();
     left -= bytes;    
-    bufferPool->mutex.unlock();
-    return &data[_size - left];
+    //pool->mutex.unlock();
+    return &data()[size_ - left];
 }
 
 /** Add another reference to the buffer.
  * @return total number of references to this point
  */
-inline unsigned int Buffer::reference()
+inline unsigned int BufferManager::reference()
 {
-    bufferPool->mutex.lock();
+    /** (Stuart Baker) we need a mutex lock here.  Maybe in the derived class. */
+    //pool->mutex.lock();
     ++count;
-    bufferPool->mutex.unlock();
+    //pool->mutex.unlock();
     return count;
 }
 

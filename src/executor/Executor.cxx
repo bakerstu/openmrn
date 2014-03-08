@@ -33,22 +33,24 @@
  * @date 26 October 2013
  */
 
-#include <unistd.h>
-
 #include "executor/Executor.hxx"
 
-Executor *Executor::list = NULL;
+#include <unistd.h>
+
+#include "executor/Service.hxx"
+
+ExecutorBase *ExecutorBase::list = NULL;
 
 /** Constructor.
  * @param name name of executor
  * @param priority thread priority
  * @param stack_size thread stack size
  */
-Executor::Executor(const char *name, int priority, size_t stack_size)
+ExecutorBase::ExecutorBase(const char *name, int priority, size_t stack_size)
     : OSThread(name, priority, stack_size),
-      queue(),
       name(name),
-      next(NULL)
+      next(NULL),
+      active(NULL)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -65,19 +67,18 @@ Executor::Executor(const char *name, int priority, size_t stack_size)
     }
 }
 
-/** Get a connection handle to the given Executor name
- * @param name name of Executor to connect to
- * @param wait wait forever for a connection to come online
- * @return connection handle upon success, NULL upon failure
+/** Lookup an executor by its name.
+ * @param name name of executor to lookup
+ * @return pointer to executor upon success, else NULL if not found
  */
-Executor::Connection Executor::connection(const char *name, bool wait)
+ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
      */
     for ( ; /* forever */ ; )
     {
-        Executor *current = list;
+        ExecutorBase *current = list;
         while (current)
         {
             if (!strcmp(name, current->name))
@@ -97,58 +98,51 @@ Executor::Connection Executor::connection(const char *name, bool wait)
     }
 }
 
-/** Catch timer callback.
- * @param data1 pointer to an Executor instance
- * @param data2 pointer to an application callback
- * @return Always returns OS_TIMER_NONE
- */
-long long Executor::timer_callback(void *data1, void *data2)
-{
-    Executor *executor = (Executor*)data1;
-    TimerCallback callback = (TimerCallback)data2;
-
-    Buffer *buffer = buffer_alloc(sizeof(IdTimer));
-    buffer->id(ID_TIMER);
-    IdTimer *message = (IdTimer*)buffer->start();
-    message->callback = callback;
-    executor->queue.insert(buffer);
-    return OS_TIMER_NONE;
-}
-
 /** Thread entry point.
  * @return Should never return
  */
-void *Executor::entry()
+void *ExecutorBase::entry()
 {
-    Buffer *buffer;
+    Message *msg;
     
-    /* Wait for Executor to be started */
+    /* wait for messages to process */
     for ( ; /* forever */ ; )
     {
-        buffer = queue.wait();
-        if (buffer->id() == ID_EXECUTOR_START)
+        unsigned priority;
+        if (active)
         {
-            break;
-        }
-        buffer->free();
-    }
+            /* act on the next active timer */
+            Service::Timer *timer = static_cast<Service::Timer*>(active);
+            long long result = timer->service->process_timer(timer);
+            
+            if (result == 0)
+            {
+                /* we handled a timeout */
+                continue;
+            }
 
-    thread_initialize();
-
-    /* Executor has been started, wait for messages to process */
-    for ( ; /* forever */ ; )
-    {
-        buffer->free();
-        buffer = queue.wait();
-        if (buffer->id() == ID_TIMER)
-        {
-            IdTimer *timer = (IdTimer*)buffer->start();
-            (timer->callback)();
+            msg = timedwait(result, &priority);
+            if (msg == NULL)
+            {
+                /* timeout occured, handle it */
+                continue;
+            }
         }
         else
         {
-            process(buffer->id(), buffer->start(), buffer->used());
+            msg = wait(&priority);
         }
+        if (msg->id() == 0)
+        {
+            /* we were kicked awake, this typically means there was a change
+             * in the active timer list that we may need to react to.
+             */
+            continue;
+        }
+        
+        Service *service = (Service*)msg->to();
+        HASSERT(service);
+        service->process(msg, priority);
     }
 
     return NULL;

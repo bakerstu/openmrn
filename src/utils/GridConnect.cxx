@@ -57,7 +57,7 @@ ssize_t GridConnect::encode(struct can_frame *frame, unsigned char buf[])
     }
     else
     {
-        buf[2] = 'S';
+        buf[1] = 'S';
         uint16_t id = GET_CAN_FRAME_ID(*frame);
         for (int i = 4; i >= 2; --i, id >>= 4)
         {
