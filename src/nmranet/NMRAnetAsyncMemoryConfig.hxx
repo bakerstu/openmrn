@@ -26,7 +26,7 @@
  *
  * \file NMRAnetAsyncMemoryConfig.hxx
  *
- * Implementaiton of the Memory Config Protocol server
+ * Implementation of the Memory Config Protocol server
  *
  * @author Balazs Racz
  * @date 23 Feb 2014
@@ -47,7 +47,10 @@ public:
     typedef uint32_t address_t;
     typedef uint16_t errorcode_t;
     /// @returns whether the memory space does not accept writes.
-    virtual bool read_only() { return true; }
+    virtual bool read_only()
+    {
+        return true;
+    }
     /// @returns the lowest address that's valid for this block.
     virtual address_t min_address()
     {
@@ -167,6 +170,14 @@ private:
         }
         switch (cmd)
         {
+            case MemoryConfig::COMMAND_LOCK:
+            {
+                // Unknown/unsupported command, reject datagram.
+                return respond_reject(DatagramClient::PERMANENT_ERROR);
+
+                // if (
+                break;
+            }
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -401,9 +412,11 @@ private:
     Buffer* response_; //< reply payload to send back.
     DatagramClient* responseFlow_;
 
+    NodeID lockNode_; //< Holds the node ID that locked us.
+
     Registry registry_;         //< holds the known memory spaces
     AsyncNode* registeredNode_; //< we registered as a datagram handler for
-                                // this node.
+                                // this node. May be null.
 };
 
 } // namespace NMRAnet
