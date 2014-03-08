@@ -192,6 +192,13 @@ protected:
      */
     virtual Action entry(Message *msg) = 0;
 
+    /** @returns the current message we are processing. */
+    Message* message() { reutrn currentMessage_; }
+
+    /*========== ACTION COMMANDS ===============*/
+    /* StateFlow implementations will have to use one of the following commands
+     * to return from a state handler to indicate what action to take. */
+
     /** Call the current state again.
      * @return function pointer to current state handler
      */
@@ -259,7 +266,7 @@ protected:
      * @param msg Message instance we are acting upon
      * @return function pointer to passed in callback
      */
-    Action yeild_and_call(Callback c, Message *msg);
+    Action yield_and_call(Callback c, Message *msg);
 
     /** Return a pointer to the service I am bound to.
      * @return pointer to service
@@ -305,14 +312,11 @@ private:
     void process(Message *msg, unsigned priority);
     
     /** current active state in the flow */
-    Callback state;
+    Callback state_;
 
-    /** Allow class Service to access our private members */
-    friend class Service;
-    
-    /** Allow class Message to access our private and protected members */
-    friend class Message;
-    
+    /** The message we are currently processing */
+    Message* currentMessage_;
+
     /** Default constructor.
      */
     StateFlowBase();
@@ -320,8 +324,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StateFlowBase);
 };
 
-template <unsigned items> class StateFlow : public StateFlowBase,
-                                            public QList<Message, items>
+template <unsigned NUM_PRIO> class StateFlow : public StateFlowBase,
+                                            public QList<Message, NUM_PRIO>
 {
 public:
     /** Constructor.
@@ -330,7 +334,7 @@ public:
      */
     StateFlow(Service *service)
         : StateFlowBase(service),
-          QList<Message, items>()
+          QList<Message, NUM_PRIO>()
     {
     }
     
@@ -355,7 +359,7 @@ private:
      */
     void insert(Message *msg, unsigned index)
     {
-        QList<Message, items>::insert(msg, index >= items ? items - 1 : index);
+        QList<Message, NUM_PRIO>::insert(msg, index >= NUM_PRIO ? NUM_PRIO - 1 : index);
     }
     
     /** Pull a message out of one of the work queues.
@@ -363,7 +367,7 @@ private:
      */
     Message *next()
     {
-        return QList<Message, items>::next().item;
+        return QList<Message, NUM_PRIO>::next().item;
     }
 
     /** Default constructor.
