@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -41,88 +41,84 @@
 #include "executor/Message.hxx"
 #include "utils/BufferQueue.hxx"
 
-#define STATE(_fn) (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
+#define STATE(_fn)                                                             \
+    (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
 /** Begin the definition of a StateFlow.
  * @param _name the class name of the StateFlow derived object
  * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START(_name, _priorities)    \
-    class _name : public StateFlow<_priorities> \
-    {                                           \
-    public:                                     \
-        _name(Service *service)                 \
-            : StateFlow<_priorities>(service)   \
-        {                                       \
-        }                                       \
-                                                \
-        ~_name()                                \
-        {                                       \
-        }                                       \
-                                                \
-    private:                                    \
-        Action entry(Message *msg);             \
-                                                \
-        _name();                                \
-                                                \
+#define STATE_FLOW_START(_name, _priorities)                                   \
+    class _name : public StateFlow<_priorities>                                \
+    {                                                                          \
+    public:                                                                    \
+        _name(Service *service) : StateFlow<_priorities>(service)              \
+        {                                                                      \
+        }                                                                      \
+                                                                               \
+        ~_name()                                                               \
+        {                                                                      \
+        }                                                                      \
+                                                                               \
+    private:                                                                   \
+        Action entry(Message *msg);                                            \
+                                                                               \
+        _name();                                                               \
+                                                                               \
         DISALLOW_COPY_AND_ASSIGN(_name);
 
 /** Begin the definition of a StateFlow that includes timeouts.
  * @param _name the class name of the StateFlow derived object
  * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START_WITH_TIMER(_name, _priorities)                     \
-    class _name : public StateFlow<_priorities>                             \
-    {                                                                       \
-    public:                                                                 \
-        _name(Service *service)                                             \
-            : StateFlow<_priorities>(service),                              \
-              timer(TIMEOUT_FROM(service, state_flow_timeout),              \
-                    service,                                                \
-                    this),                                                  \
-              timerMsg(NULL)                                                \
-        {                                                                   \
-        }                                                                   \
-                                                                            \
-        ~_name()                                                            \
-        {                                                                   \
-        }                                                                   \
-                                                                            \
-        void timeout()                                                      \
-        {                                                                   \
-            timerMsg ? me()->send(timerMsg) : ;                             \
-            timerMsg = NULL;                                                \
-        }                                                                   \
-                                                                            \
-        void trigger()                                                      \
-        {                                                                   \
-            timer.trigger();                                                \
-        }                                                                   \
-                                                                            \
-    private:                                                                \
-        Action entry(Message *msg);                                         \
-                                                                            \
-        Action timeout_and_call(Callback c, Message *msg, long long period) \
-        {                                                                   \
-            msg->id(msg->id() | Message::IN_PROCESS_MSK);                   \
-            timerMsg = msg;                                                 \
-            timer.start(period);                                            \
-            return Action(c);                                               \
-        }                                                                   \
-                                                                            \
-        Timer timer;                                                        \
-        Message *timerMsg;                                                  \
-                                                                            \
-        bool early()                                                        \
-        {                                                                   \
-            return timer.early();                                           \
-        }                                                                   \
-                                                                            \
-        _name();                                                            \
-                                                                            \
+#define STATE_FLOW_START_WITH_TIMER(_name, _priorities)                        \
+    class _name : public StateFlow<_priorities>                                \
+    {                                                                          \
+    public:                                                                    \
+        _name(Service *service)                                                \
+            : StateFlow<_priorities>(service),                                 \
+              timer(TIMEOUT_FROM(service, state_flow_timeout), service, this), \
+              timerMsg(NULL)                                                   \
+        {                                                                      \
+        }                                                                      \
+                                                                               \
+        ~_name()                                                               \
+        {                                                                      \
+        }                                                                      \
+                                                                               \
+        void timeout()                                                         \
+        {                                                                      \
+            timerMsg ? me()->send(timerMsg) :;                                 \
+            timerMsg = NULL;                                                   \
+        }                                                                      \
+                                                                               \
+        void trigger()                                                         \
+        {                                                                      \
+            timer.trigger();                                                   \
+        }                                                                      \
+                                                                               \
+    private:                                                                   \
+        Action entry(Message *msg);                                            \
+                                                                               \
+        Action timeout_and_call(Callback c, Message *msg, long long period)    \
+        {                                                                      \
+            msg->id(msg->id() | Message::IN_PROCESS_MSK);                      \
+            timerMsg = msg;                                                    \
+            timer.start(period);                                               \
+            return Action(c);                                                  \
+        }                                                                      \
+                                                                               \
+        Timer timer;                                                           \
+        Message *timerMsg;                                                     \
+                                                                               \
+        bool early()                                                           \
+        {                                                                      \
+            return timer.early();                                              \
+        }                                                                      \
+                                                                               \
+        _name();                                                               \
+                                                                               \
         DISALLOW_COPY_AND_ASSIGN(_name);
-
-        
 
 /** Declare a state callback in a StateFlow.
  * @param _state the method name of the StateFlow state callback
@@ -131,7 +127,9 @@
 
 /** End the definition of a StateFlow.
  */
-#define STATE_FLOW_END() };
+#define STATE_FLOW_END()                                                       \
+    }                                                                          \
+    ;
 
 /** Runs incoming Messages through a State Flow.
  */
@@ -142,12 +140,10 @@ protected:
      * @param service Service that this state flow is part of
      * @param size number of queues in the list
      */
-    StateFlowBase(Service *service)
-        : service(service),
-          state(STATE(terminated))
+    StateFlowBase(Service *service) : service(service), state(STATE(terminated))
     {
     }
-    
+
     /** Destructor.
      */
     ~StateFlowBase()
@@ -168,11 +164,10 @@ protected:
     public:
         /** Constructor.
          */
-        Action(Callback s)
-            : nextState(s)
+        Action(Callback s) : nextState(s)
         {
         }
-        
+
         /** Get the next state for the StateFlowAction.
          */
         Callback next_state()
@@ -193,7 +188,10 @@ protected:
     virtual Action entry(Message *msg) = 0;
 
     /** @returns the current message we are processing. */
-    Message* message() { reutrn currentMessage_; }
+    Message *message()
+    {
+        reutrn currentMessage_;
+    }
 
     /*========== ACTION COMMANDS ===============*/
     /* StateFlow implementations will have to use one of the following commands
@@ -208,7 +206,7 @@ protected:
     }
 
     /** Terminate current StateFlow activity.  The message instance is not
-     * released before termination.  This is usefull if the message will be 
+     * released before termination.  This is usefull if the message will be
      * reused for the purpose of sending to another StateFlow.
      * @return function pointer to terminated method
      */
@@ -254,12 +252,14 @@ protected:
      * @param msg Message instance we are waiting on
      * @return function pointer to passed in callback
      */
-    template <class T> Action allocate_and_call(Allocator<T> *a, Callback c, Message *msg)
+    template <class T>
+    Action allocate_and_call(Allocator<T> *a, Callback c, Message *msg)
     {
         return a->allocate_immediate(msg) ? call_immediately(c) : Action(c);
     }
 
-    /** Imediately queue up the next callback for this flow through the executor.
+    /** Imediately queue up the next callback for this flow through the
+     * executor.
      * Similar to @ref call_immediately, except we place this flow on the back
      * of the Executor queue.
      * @param c Callback "state" to move to
@@ -282,14 +282,14 @@ protected:
     virtual void timeout()
     {
     }
-    
+
 private:
     /** Insert a message into one of the work queues.
      * @param msg Message to insert
      * @param index queue index to insert into
      */
     virtual void insert(Message *msg, unsigned index) = 0;
-    
+
     /** Pull a message out of one of the work queues.
      * @return message out of one of the work queues, NULL if none available
      */
@@ -310,12 +310,12 @@ private:
      * @param priority priority of message
      */
     void process(Message *msg, unsigned priority);
-    
+
     /** current active state in the flow */
     Callback state_;
 
     /** The message we are currently processing */
-    Message* currentMessage_;
+    Message *currentMessage_;
 
     /** Default constructor.
      */
@@ -324,8 +324,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StateFlowBase);
 };
 
-template <unsigned NUM_PRIO> class StateFlow : public StateFlowBase,
-                                            public QList<Message, NUM_PRIO>
+template <unsigned NUM_PRIO>
+class StateFlow : public StateFlowBase, public QList<Message, NUM_PRIO>
 {
 public:
     /** Constructor.
@@ -333,11 +333,10 @@ public:
      * @param size number of queues in the list
      */
     StateFlow(Service *service)
-        : StateFlowBase(service),
-          QList<Message, NUM_PRIO>()
+        : StateFlowBase(service), QList<Message, NUM_PRIO>()
     {
     }
-    
+
     /** Destructor.
      */
     ~StateFlow()
@@ -359,9 +358,10 @@ private:
      */
     void insert(Message *msg, unsigned index)
     {
-        QList<Message, NUM_PRIO>::insert(msg, index >= NUM_PRIO ? NUM_PRIO - 1 : index);
+        QList<Message, NUM_PRIO>::insert(msg, index >= NUM_PRIO ? NUM_PRIO - 1
+                                                                : index);
     }
-    
+
     /** Pull a message out of one of the work queues.
      * @return message out of one of the work queues, NULL if none available
      */
