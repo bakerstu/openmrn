@@ -265,7 +265,7 @@ public:
     virtual void handle_message(struct can_frame* f, Notifiable* done)
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        done->Notify(); // We don't need the frame anymore.
+        done->notify(); // We don't need the frame anymore.
         f = nullptr;
         done = nullptr;
         if (IfCan::get_priority(id) != IfCan::NORMAL_PRIORITY)
@@ -383,7 +383,7 @@ public:
             buf_ = nullptr;
         }
         // We don't need the frame anymore.
-        done->Notify();
+        done->notify();
         // Get the dispatch flow.
         ifCan_->dispatcher()->allocator()->AllocateEntry(this);
     }

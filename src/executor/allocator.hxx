@@ -161,7 +161,7 @@ class SyncAllocation : private AllocationResult {
   //! @param entry is the entry allocated to this request.
   virtual void AllocationCallback(QueueMember* entry) {
     result_ = entry;
-    notify_.Notify();
+    notify_.notify();
   }
 
   //! A callback that should never be called, since *this is never used as an

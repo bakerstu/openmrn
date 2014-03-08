@@ -230,7 +230,7 @@ void CanPipeBuffer::Reset()
     pipe_buffer.size = sizeof(frame);
     pipe_buffer.done = this;
 }
-void CanPipeBuffer::Notify()
+void CanPipeBuffer::notify()
 {
     g_can_alloc.TypedRelease(this);
 }

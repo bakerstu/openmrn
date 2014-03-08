@@ -219,7 +219,7 @@ private:
             else
             {
                 // Releases the buffer.
-                pbuf->pipe_buffer.done->Notify();
+                pbuf->pipe_buffer.done->notify();
             }
             return CallImmediately(ST(process_buffer));
         }

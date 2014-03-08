@@ -36,7 +36,7 @@ using ::testing::_;
 
 static void InvokeNotification(Notifiable* done)
 {
-    done->Notify();
+    done->notify();
 }
 
 void (*g_invoke)(Notifiable*) = &InvokeNotification;

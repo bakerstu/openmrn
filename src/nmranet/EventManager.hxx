@@ -163,7 +163,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     proxy_fn_ = fn;
     standard_iterator_->InitIterator(event, done);
     InitStandardIterator();
-    this->Notify();
+    this->notify();
   }
 
   //! Implementations have to override this to re-set the global_iterator
@@ -175,12 +175,12 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     event_handler_mutex.AssertLocked();
     global_iterator_->InitIterator(event, EmptyNotifiable::DefaultInstance());
     InitGlobalIterator();
-    this->Notify();
+    this->notify();
     // Signals the caller that they can proceed to handling the next event.
     // The caller will then release the global iterator mutex which will allow
     // the global iteration flow to acquire it inside when we try to call
     // children.
-    done->Notify();
+    done->notify();
   }
 
  protected:
@@ -205,7 +205,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       Notifiable* d = standard_iterator_->done();
       HASSERT(d);
       standard_iterator_->ClearIteration();
-      d->Notify();
+      d->notify();
       return YieldAndCall(ST(StateInIteration));
     }
     (handler->*proxy_fn_)(standard_iterator_->event(),
@@ -231,7 +231,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       Notifiable* d = global_iterator_->done();
       HASSERT(d);
       global_iterator_->ClearIteration();
-      d->Notify();
+      d->notify();
       event_handler_mutex.AssertLocked();
       event_handler_mutex.Unlock();
       return YieldAndCall(ST(StateInIteration));

@@ -276,7 +276,7 @@ struct CanPipeBuffer : public QueueMember, private Notifiable {
     struct can_frame frame;
     // Sets up data, size and done of pipe_buffer.
     void Reset();
-    virtual void Notify();
+    virtual void notify();
 };
 
 extern "C" {

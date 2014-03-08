@@ -49,7 +49,7 @@ void ControlFlow::Run() {
 ControlFlow::ControlFlowAction ControlFlow::Exit() {
   if (done_) {
     state_ = &ControlFlow::Terminated;
-    done_->Notify();
+    done_->notify();
     done_ = nullptr;
   } else {
     delete this;
@@ -78,7 +78,7 @@ void ControlFlow::NotifyControlFlowTimer(SleepData* entry) {
   LockHolder h(executor());
   entry->callback_count++;
   // here we use that executor's mutex is reentrant.
-  Notify();
+  notify();
 }
                                    
 

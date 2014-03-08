@@ -79,7 +79,7 @@ class ProxyEventHandler : public NMRAnetEventHandler {
 class SimpleEventHandler : public NMRAnetEventHandler {
  public:
 #define IGNOREFN(FN) \
-  virtual void FN(EventReport* event, Notifiable* done) { done->Notify(); }
+  virtual void FN(EventReport* event, Notifiable* done) { done->notify(); }
 
   IGNOREFN(HandleEventReport);
   IGNOREFN(HandleConsumerIdentified);

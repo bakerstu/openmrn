@@ -198,7 +198,7 @@ void AsyncAliasAllocator::handle_message(struct can_frame* message,
     // 200 ms of sleep. It's somewhat difficult to ensure there is no race
     // condition there; there are no documented guarantees on the timer
     // deletion call vs timer callbacks being delivered.
-    done->Notify();
+    done->notify();
 }
 
 } // namespace NMRAnet

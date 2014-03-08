@@ -78,7 +78,7 @@ void AsyncPipeMember::write(const void* buf, size_t count) {
             in_buf_ = nullptr;
             Notifiable* done = in_done_;
             in_done_ = nullptr;
-            done->Notify();
+            done->notify();
             // Step input pointers.
             bytes += to_copy;
             count -= to_copy;

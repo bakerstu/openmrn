@@ -83,7 +83,7 @@ public:
     virtual void async_write(const void* buf, size_t count, Notifiable* done)
     {
         write(buf, count);
-        done->Notify();
+        done->notify();
     }
 };
 
@@ -150,7 +150,7 @@ private:
 
     virtual bool OnFlowFinished()
     {
-        currentBuffer_->done->Notify();
+        currentBuffer_->done->notify();
         currentBuffer_ = nullptr;
         StartFlowAt(ST(wait_for_buffer));
         return false;

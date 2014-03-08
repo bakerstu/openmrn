@@ -127,12 +127,12 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
             GetNameForOffset(bit).c_str(), new_value);
 #endif
     if (done)
-      done->Notify();
+      done->notify();
   }
 }
 
 void BitRangeEventPC::HandleEventReport(EventReport* event, Notifiable* done) {
-  done->Notify();
+  done->notify();
   if (event->event < event_base_)
     return;
   uint64_t d = (event->event - event_base_);
@@ -170,12 +170,12 @@ void BitRangeEventPC::HandleIdentifyConsumer(EventReport* event,
 void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
                                          Notifiable* done) {
   if (event->event < event_base_)
-    return done->Notify();
+    return done->notify();
   uint64_t d = (event->event - event_base_);
   bool new_value = !(d & 1);
   d >>= 1;
   if (d >= size_)
-    return done->Notify();
+    return done->notify();
   uint32_t* ofs = nullptr;
   uint32_t mask = 0;
   GetBitAndMask(d, &ofs, &mask);
@@ -232,7 +232,7 @@ ByteRangeEventC::~ByteRangeEventC() {
 }
 
 void ByteRangeEventC::HandleEventReport(EventReport* event, Notifiable* done) {
-  done->Notify();
+  done->notify();
   uint8_t* storage;
   uint8_t value;
   if (!DecodeEventId(event->event, &storage, &value))
@@ -262,7 +262,7 @@ void ByteRangeEventC::HandleIdentifyConsumer(EventReport* event,
   uint8_t* storage;
   uint8_t value;
   if (!DecodeEventId(event->event, &storage, &value)) {
-    return done->Notify();
+    return done->notify();
   }
   If::MTI mti = If::MTI_CONSUMER_IDENTIFIED_VALID;
   if (*storage != value) {
@@ -287,11 +287,11 @@ ByteRangeEventP::ByteRangeEventP(AsyncNode *node,
 
 void ByteRangeEventP::HandleEventReport(EventReport* event, Notifiable* done) {
     // Nothing to do for producers.
-    done->Notify();
+    done->notify();
 }
 void ByteRangeEventP::HandleIdentifyConsumer(EventReport* event, Notifiable* done) {
     // Nothing to do for producers.
-    done->Notify();
+    done->notify();
 }
 
 uint64_t ByteRangeEventP::CurrentEventId(unsigned byte) {
@@ -334,7 +334,7 @@ void ByteRangeEventP::HandleConsumerIdentified(EventReport* event, Notifiable* d
     uint8_t* storage;
     uint8_t value;
     if (!DecodeEventId(event->event, &storage, &value)) {
-        return done->Notify();
+        return done->notify();
     }
     Update(storage - data_, &event_write_helper1, done);
 }
@@ -343,10 +343,10 @@ void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport* event, Notifiab
     /** @TODO(balazs.racz): We should respond with the correct signal aspect
      *  for each offset that we offer. */
     if (event->event + event->mask < event_base_) {
-        return done->Notify();
+        return done->notify();
     }
     if (event->event >= event_base_ + size_ * 256) {
-        return done->Notify();
+        return done->notify();
     }
     unsigned start_offset = 0;
     unsigned end_offset = 0;
@@ -439,7 +439,7 @@ void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
   if (event->src_node.id == bit_->node()->node_id()) {
     // We don't respond to queries from our own node. This is not nice, but we
     // want to avoid to answering our own Query command.
-    done->Notify();
+    done->notify();
     return;
   }
   bool active;
@@ -448,7 +448,7 @@ void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
   } else if (event->event == bit_->event_off()) {
     active = !bit_->GetCurrentState();
   } else {
-    done->Notify();
+    done->notify();
     return;
   }
   if (!active) {
@@ -459,7 +459,7 @@ void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
 }
 
 void BitEventConsumer::HandleProducerIdentified(EventReport* event, Notifiable* done) {
-  done->Notify();
+  done->notify();
   bool value;
   if (event->state == VALID) {
     value = true;
@@ -488,7 +488,7 @@ void BitEventConsumer::HandleEventReport(EventReport* event, Notifiable* done) {
   } else if (event->event == bit_->event_off()) {
     bit_->SetState(false);
   }
-  done->Notify();
+  done->notify();
 }
 
 void BitEventProducer::HandleIdentifyGlobal(EventReport* event,

@@ -87,6 +87,27 @@ protected:
     template <class T> friend class DynamicPool;
 };
 
+/** Base class for all queue and priority queue implementations. */
+class AbstractQueue {
+public:
+    virtual ~AbstractQueue() {}
+
+    /** Inserts a member into the queue.
+     * @param entry is the new member to be added to the queue.
+     * @param priority is the priority to which to add it. Implementations may
+     * or may not support priorities.
+     *
+     * Never blocks. */
+    virtual void send(QMember* entry, unsigned priority) = 0;
+
+    /** Takes the front entry in the queue.
+     *
+     * @returns NULL if the queue is empty.
+     * @param priority will be set to the priority of the queue member removed
+     fomr the queue. */
+    virtual QMember *wait(unsigned *priority) = 0;
+};
+
 /** Base class for all QMember types that hold data in an expandable format
  */
 class BufferManager : public QMember

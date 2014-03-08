@@ -145,7 +145,7 @@ public:
         (*rom)->pCAND->can_transmit(&msg_obj);
 
         // The incoming frame is no longer needed.
-        done->Notify();
+        done->notify();
         released_ = 1;
         lock_.TypedReleaseBack(this);
     }

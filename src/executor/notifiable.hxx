@@ -8,7 +8,7 @@
 class Notifiable
 {
 public:
-    virtual void Notify() = 0;
+    virtual void notify() = 0;
 };
 
 // A Notifiable for synchronously waiting for a notification.
@@ -21,7 +21,7 @@ public:
     {
     }
 
-    virtual void Notify()
+    virtual void notify()
     {
         sem_.post();
     }
@@ -39,7 +39,7 @@ private:
 class EmptyNotifiable : public Notifiable
 {
 public:
-    virtual void Notify()
+    virtual void notify()
     {
     }
 
@@ -50,7 +50,7 @@ public:
 class CrashNotifiable : public Notifiable
 {
 public:
-    virtual void Notify();
+    virtual void notify();
 
     static Notifiable* DefaultInstance();
 };
@@ -94,12 +94,12 @@ public:
 
 private:
     //! Implementation of the private Notifiable interface.
-    virtual void Notify()
+    virtual void notify()
     {
         Notifiable* p = parent_;
         HASSERT(p);
         parent_ = nullptr;
-        p->Notify();
+        p->notify();
     }
 
     Notifiable* parent_;
@@ -128,9 +128,9 @@ public:
     // callback inline.
     void MaybeDone()
     {
-        Notify();
+        notify();
     }
-    virtual void Notify();
+    virtual void notify();
 
     // Returns true if the barrier condition is true, i.e., the owner has clled
     // MaybeDone and all children have called Done.
@@ -172,7 +172,7 @@ public:
     {
         if (n_)
         {
-            n_->Notify();
+            n_->notify();
         }
     }
 

@@ -62,7 +62,7 @@ public:
 
   //! Wakes up this control flow and puts it onto the executor's scheduling
   //! queue.
-  virtual void Notify() {
+  virtual void notify() {
     LOG(VERBOSE, "ControlFlow::Notify %p", this);
     LockHolder h(executor_);
     if (!executor_->IsMaybePending(this)) {
@@ -73,7 +73,7 @@ public:
   // Callback from an allocator.
   virtual void AllocationCallback(QueueMember* entry) {
     sub_flow_.allocation_result = entry;
-    this->Notify();
+    this->notify();
   }
 
   //! Returns true if this control flow has reached the terminated state.
@@ -140,7 +140,7 @@ protected:
   //! executor to run before proceeding to the next state.
   ControlFlowAction YieldAndCall(MemberFunction f) {
     state_ = f;
-    Notify();
+    notify();
     return WaitForNotification();
   }
 
@@ -153,7 +153,7 @@ protected:
   //! Yields to other callbacks in the current executor, and re-tries the
   //! current state again.
   ControlFlowAction yield() {
-    Notify();
+    notify();
     return WaitForNotification();
   }
 
@@ -163,7 +163,7 @@ protected:
   ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
     HASSERT(!executor_->IsMaybePending(this));
     state_ = &ControlFlow::NotStarted;
-    if (done_) done_->Notify();
+    if (done_) done_->notify();
     allocator->TypedRelease(entry);
     return WaitForNotification();
   }

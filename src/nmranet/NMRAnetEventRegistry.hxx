@@ -96,25 +96,25 @@ public:
   // event_id, mask=1, src_node, state.
   virtual void HandleConsumerIdentified(EventReport* event,
                                         Notifiable* done) {
-    done->Notify();
+    done->notify();
   };
 
   // Called on another node sending ConsumerRangeIdentified. Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleConsumerRangeIdentified(EventReport* event,
                                              Notifiable* done) {
-    done->Notify();
+    done->notify();
   }
 
   // Called on another node sending ProducerIdentified for this event. Filled: event_id, mask=1, src_node, state.
   virtual void HandleProducerIdentified(EventReport* event,
                                         Notifiable* done) {
-    done->Notify();
+    done->notify();
   }
 
   // Called on another node sending ProducerRangeIdentified for this event. Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleProducerRangeIdentified(EventReport* event,
                                              Notifiable* done) {
-    done->Notify();
+    done->notify();
   }
 
   // Called on the need of sending out identification messages. event is

@@ -60,7 +60,7 @@ void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m,
     {
         // Destination is not a local virtal node.
         lock_.TypedRelease(this);
-        done->Notify();
+        done->notify();
         return;
     }
     m_ = m;
