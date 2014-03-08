@@ -109,7 +109,7 @@ private:
         return key;
     }
 
-    StlMap<key_type, value_type> entries_;
+    SysMap<key_type, value_type> entries_;
 };
 
 template <class Node, class Handler>
