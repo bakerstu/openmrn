@@ -37,6 +37,14 @@
 #define _Executor_hxx_
 
 #include "executor/Message.hxx"
+#include "executor/notifiable.hxx"
+
+/// An object that can be scheduled on an executor to run.
+class Executable : public Notifiable, public QueueMember {
+public:
+  virtual void run() = 0;
+  virtual ~Executable() {}
+};
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
@@ -63,12 +71,11 @@ public:
      */
     static ExecutorBase *by_name(const char *name, bool wait);
 
-protected:    
     /** Send a message to this Executor's queue.
      * @param msg Message instance to insert into the input queue
      * @param priority priority of message
      */
-    virtual void send(Message *msg, unsigned priority = UINT_MAX) = 0;
+    virtual void send(Executable *action, unsigned priority = UINT_MAX) = 0;
 
 private:
     /** Wait for an item from the front of the queue.
