@@ -32,10 +32,20 @@
  */
 
 #include "nmranet/NMRAnet.hxx"
+//#include "nmranet/NMRAnetDatagram.hxx"
 
 namespace NMRAnet
 {
 
-Executor<4> *nmranetExecutor = new Executor<4>("nmranet", 0, 2048);
+Executor<4> *nmranetExecutor = NULL;
 
+/** Initialize the NMRAnet stack.
+ */
+void nmranet_init(void)
+{
+    nmranetExecutor = new Executor<4>("nmranet", 0, 2048);
+    //Datagram::init();
 }
+
+} /* namespace NMRAnet */
+

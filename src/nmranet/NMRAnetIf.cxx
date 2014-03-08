@@ -38,6 +38,8 @@
 namespace NMRAnet
 {
 
+const size_t If::MAX_ADDRESSED_SIZE = 14;
+
 #if 0
 // Temporary bridge to the event handler code
 void nmranet_event_packet_addressed(If::MTI mti,
@@ -234,6 +236,11 @@ StateFlowBase::Action If::ReceiveFlow::entry(Message *msg)
                     case MTI_DATAGRAM_REJECTED: /* fall through */
                     case MTI_DATAGRAM_OK:       /* fall through */
                     case MTI_DATAGRAM:
+                        if (node->protocols() & Node::Protocols::DATAGRAM)
+                        {
+                            Datagram::service()->send(msg, mti_priority(mti));
+                            return exit();
+                        }
                         //node->Datagram::packet(mti, src, data);
                         break;
                     case MTI_STREAM_INITIATE_REQUEST:

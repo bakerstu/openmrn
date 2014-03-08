@@ -35,6 +35,7 @@
 #define _SysMap_hxx_
 
 #include <sys/tree.hxx>
+#include <cstdint>
 
 #include "utils/macros.h"
 

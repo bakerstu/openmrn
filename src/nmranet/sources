@@ -2,7 +2,8 @@ VPATH := $(SRCDIR)
 
 CSRCS += 
 
-CXXSRCS += NMRAnetAliasCache.cxx \
+CXXSRCS += NMRAnetAddressedPool.cxx \
+           NMRAnetAliasCache.cxx \
            NMRAnet.cxx \
            NMRAnetDatagram.cxx \
            NMRAnetIfCan.cxx \

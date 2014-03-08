@@ -50,6 +50,9 @@ DynamicPool<Buffer> *mainBufferPool = new DynamicPool<Buffer>(DynamicPool<Buffer
  */
 Buffer *Buffer::expand(size_t size)
 {
+    /** @todo (Stuart Baker) optimization oportunity by rounding up to the
+     * next buffer size.
+     */
     Buffer *new_buffer = pool_->alloc(size);
     
     memcpy(new_buffer->data(), data(), size_ - left);

@@ -182,7 +182,8 @@ public:
     /** Message ID's that we can receive */
     enum MessageId
     {
-        RECEIVE = NMRANET_IF_BASE
+        RECEIVE = NMRANET_IF_BASE,
+        SEND
     };
 
     /** Message structure for an incoming NMRAnet Message
@@ -199,10 +200,10 @@ public:
      */
     struct OutMessage
     {
-        Buffer *data; /** message payload */
         NodeID src; /**< destination Node ID, 0 if unavailable */
         NodeHandle dst; /**< source node ID, 0 if unavailable */
         MTI mti; /**< message type identifier */
+        uint8_t data[] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__))); /**< message payload */
     };
     
 protected:
@@ -224,6 +225,15 @@ protected:
         return (mti & MTI_DATAGRAM_MASK);
     }
 
+    /** Get the MTI priority (value 0 through 3).
+     * @param mti MTI to extract field value from
+     * @return priority value 0 through 3
+     */
+    static unsigned int mti_priority(MTI mti)
+    {
+        return (mti & MTI_PRIORITY_MASK) >> MTI_PRIORITY_SHIFT;
+    }
+
     /** 48-bit NMRAnet node id associated with this interface */
     NodeID nodeID;
 
@@ -243,9 +253,12 @@ protected:
         return NULL;
     }
 
+    /** Maximum size of a static addressed message payload */
+    static const size_t MAX_ADDRESSED_SIZE;
+
 private:
     /** Handles receiving of incoming messages */
-    STATE_FLOW_START(ReceiveFlow, 1)
+    STATE_FLOW_START(ReceiveFlow, 4)
     STATE_FLOW_END()
     
     /** State machine instance that handles receiving incoming messages */

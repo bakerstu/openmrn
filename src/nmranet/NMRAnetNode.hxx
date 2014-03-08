@@ -55,7 +55,7 @@ public:
      * @param model node decription
      */
     Node(NodeID node_id, If *nmranet_if, const char *model, uint8_t *cdi = NULL)
-        : Datagram(),
+        : Datagram(this),
           Stream(),
           MemoryConfig(cdi),
           nodeID(node_id),
@@ -64,7 +64,8 @@ public:
           userDescription(NULL),
           state(UNINITIALIZED),
           nmranetIf(nmranet_if),
-          queue()
+          queue(),
+          protocols_(protocols_ | PROTOCOL_IDENTIFICATION | SIMPLE_NODE_INFORMATION)
     {
         mutex.lock();
         HASSERT(idTree.find(nodeID) == NULL);
@@ -156,6 +157,11 @@ public:
      */
     int write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data);
 
+    uint64_t protocols()
+    {
+        return protocols_;
+    }
+        
 protected:
     /** Process a Buffered message at the application level.
      * @param buffer message buffer to process
@@ -237,6 +243,9 @@ private:
 
     /** Receive Queue for incoming message */
     BufferQueueWait queue;
+    
+    /** Supported protocols */
+    uint64_t protocols_;
     
     /** manufacturer string */
     static const char *MANUFACTURER;

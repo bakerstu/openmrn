@@ -60,6 +60,10 @@ extern Executor<4> *nmranetExecutor;
 /** Base identifier for all NMRAnet::Stream messages */
 #define NMRANET_STREAM_BASE (NMRANET_ID_BASE + 300)
 
-}
+/** Initialize the NMRAnet stack.
+ */
+void nmranet_init(void);
+
+} /* namespace NMRAnet */
 
 #endif /* _NMRAnet_hxx_ */

@@ -280,14 +280,6 @@ public:
         return pool_;
     }
     
-private:
-    /** get a pointer to the start of the data.
-     */
-    char *data()
-    {
-        return data_;
-    }
-    
     /** The total size of an array element of a Buffer for given payload.
      * @param size payload size
      */
@@ -334,6 +326,14 @@ private:
         return buffer;
     }
 
+private:
+    /** get a pointer to the start of the data.
+     */
+    char *data()
+    {
+        return data_;
+    }
+    
     /** pointer to Pool instance that this buffer belongs to */
     Pool<Buffer> *pool_;
 
@@ -413,7 +413,7 @@ public:
             tail = q;
         }
         q->next = NULL;
-        count++;
+        ++count;
     }
 
     /** Get an item from the front of the queue.
@@ -429,7 +429,7 @@ public:
         }
         q = head;
         head = static_cast<T*>(q->next);
-        count--;
+        --count;
 
         return q;
     }
@@ -827,7 +827,7 @@ public:
     {
         T *item = NULL;
 
-        for (Bucket *current = buckets; current->size_ != 0; current++)
+        for (Bucket *current = buckets; current->size_ != 0; ++current)
         {
             if (size <= current->size_)
             {
@@ -868,7 +868,7 @@ public:
 
         if (item->dec_count() == 0)
         {
-            for (Bucket *current = buckets; current->size_ != 0; current++)
+            for (Bucket *current = buckets; current->size_ != 0; ++current)
             {
                 if (item->size() <= current->size_)
                 {
@@ -962,7 +962,7 @@ public:
         if (item != NULL)
         {
             (void)T::init(item, itemSize);
-            totalSize++;
+            ++totalSize;
             //DEBUG_PRINTF("static buffer total size: %zu\n", totalSize);
         }
         Pool<T>::mutex.unlock();
@@ -979,7 +979,7 @@ public:
         Pool<T>::mutex.lock();
         if (item->dec_count() == 0)
         {
-            totalSize--;
+            --totalSize;
             queue.insert(item);
             //DEBUG_PRINTF("static buffer total used: %zu\n", totalSize);
         }
@@ -1381,6 +1381,7 @@ inline void *BufferManager::advance(size_t bytes)
  */
 inline unsigned int BufferManager::reference()
 {
+    /** (Stuart Baker) we need a mutex lock here.  Maybe in the derived class. */
     //pool->mutex.lock();
     ++count;
     //pool->mutex.unlock();

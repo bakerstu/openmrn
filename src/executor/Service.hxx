@@ -78,9 +78,6 @@ public:
     typedef long long (Service::*TimerCallback)(void*);
 
     /** A timer that runs in the context of a service using its executor queue.
-     * @todo (Stuart Baker) This implementation could be optimized by
-     * specializing a BufferManager just for timers and preventing an extra
-     * dynamic memory allocation with potentially wasted heap headers.
      */
     class Timer
     {

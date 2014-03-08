@@ -47,9 +47,12 @@
 #include <unistd.h>
 
 #include "nmranet/NMRAnetDatagram.hxx"
+#include "nmranet/NMRAnetNode.hxx"
 
 namespace NMRAnet
 {
+
+const size_t IfCan::MAX_IN_FLIGHT_MULTI_FRAME = 4;
 
 /** Shorthand for the size of a datagram message with a Timer as Metadata.
  */
@@ -58,6 +61,10 @@ namespace NMRAnet
 /** This is how long we should wait before giving up on an incoming datagram.
  */
 #define DATAGRAM_TIMEOUT 3000000000LL
+
+/** This is how long we should wait before giving up on an incoming multi-frame addressed.
+ */
+#define MULTI_FRAME_TIMEOUT 3000000000LL
 
 /** Constructor.
  * @param node_id node ID of interface
@@ -70,7 +77,9 @@ IfCan::IfCan(NodeID node_id, const char *device,
              ssize_t (*write)(int, const void*, size_t))
     : If(node_id),
       canReadFlow(this),
-      canWriteFlow(this),
+      sendFlow(this),
+      //findAlias(this),
+      //findAliasList(NULL),
       writeCanFrame(sizeof(struct can_frame), 1),
       read(read),
       write(write),
@@ -82,7 +91,10 @@ IfCan::IfCan(NodeID node_id, const char *device,
       mutex(),
       linkStatus(DOWN),
       datagramPool(DATAGRAM_MESSAGE_SIZE, Datagram::POOL_SIZE),
-      datagramMap(Datagram::POOL_SIZE)
+      datagramMap(Datagram::POOL_SIZE),
+      multiFrameMap(MAX_IN_FLIGHT_MULTI_FRAME),
+      multiFrameInFlight(0),
+      writeService(this)
       
 {
     {
@@ -777,7 +789,6 @@ void IfCan::datagram_rejected(NodeAlias src, NodeAlias dst, int error_code)
 }
 
 /** This is the timeout for giving up an incoming multi-frame datagram.
- * mapping request.
  * @param data a @ref Buffer reference typecast to void*
  * @return OS_TIMER_NONE
  */
@@ -788,6 +799,23 @@ long long IfCan::datagram_timeout(void *data)
     
     datagramMap.erase((m->to << 12) + m->from.alias);
     buffer->free();
+    
+    return Timer::NONE;
+}
+
+/** This is the timeout for giving up an incoming multi-frame addressed messages.
+ * @param data a @ref Buffer reference typecast to void*
+ * @return OS_TIMER_NONE
+ */
+long long IfCan::addressed_timeout(void *data)
+{
+    Message *msg = (Message*)data;
+    Timer *timer = (Timer*)msg->start();
+    InMessage *in_msg = (InMessage*)(timer + 1);
+    
+    multiFrameMap.erase((in_msg->dst << 12) + in_msg->src.alias);
+    in_msg->data->free();
+    msg->free();
     
     return Timer::NONE;
 }
@@ -1066,51 +1094,261 @@ void IfCan::ccr_amr_frame(uint32_t ccr, uint8_t data[])
     //remove_datagram_in_progress(can_if, GET_CAN_CONTROL_FRAME_SOURCE(ccr));
 }
 
+/** Translate an incoming Message ID into a StateFlow instance.
+ * @param id itentifier to translate
+ * @return StateFlow corresponding the given ID, NULL if not found
+ */
+StateFlowBase *IfCanWriteService::lookup(uint32_t id)
+{
+    switch (id)
+    {
+        default:
+            break;
+        case If::SEND:
+            return &sendFlow;
+        case IfCan::CONTROL_FRAME:
+            return &frameFlow;
+        case IfCan::WRITE_FRAME:
+            return &frameFlow;
+    }
+    return NULL;
+}
+
 /** Entry into the StateFlow activity.
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlowBase::Action IfCan::CanWriteFlow::entry(Message *msg)
+StateFlowBase::Action IfCanWriteService::FrameFlow::entry(Message *msg)
 {
-    HASSERT(msg->used() == sizeof(struct can_frame));
-    IfCan *if_can = static_cast<IfCan*>(me());
+    IfCan *if_can = static_cast<IfCanWriteService*>(me())->ifCan;
+    /* This may block.  We are okay with this because all writes occur in their
+     * own executor thread.
+     */
+    ssize_t result = (*if_can->write)(if_can->fd,
+                                      msg->start(),
+                                      sizeof(struct can_frame));
+    HASSERT(result == sizeof(struct can_frame));
 
-    ssize_t result = (*if_can->write)(if_can->fd, msg->start(), sizeof(can_frame));
-    switch (result)
-    {
-        default:
-            HASSERT(0);
-            /* we should never get here */
-        case -1:
-            HASSERT(errno == EAGAIN || errno == EWOULDBLOCK);
-            /* fall through */
-        case 0:
-        {
-            /* setup to wait for write active */
-            #if defined (__FreeRTOS__)
-                //CanActiveCallback can_active_callback = {if_can->notify_callback, static_cast<void*>(msg)};
-                //ioctl(if_can->fd, CAN_IOC_WRITE_ACTIVE, &can_active_callback);
-            #else
-                HASSERT(0);
-             #endif
-            return wait_and_call(STATE(wait_for_send), msg);
-        }
-        case sizeof(struct can_frame):
-            break;
-    }
     return release_and_exit(msg);
 }
 
-/** A previous write attempt failed.  We have been notified that it should now
- * succeed.
+/** Entry into the StateFlow activity.
  * @param msg Message belonging to the state flow
  * @return next state
  */
-StateFlowBase::Action IfCan::CanWriteFlow::wait_for_send(Message *msg)
+StateFlowBase::Action IfCanWriteService::SendFlow::entry(Message *msg)
+{
+    return exit();
+}
+
+/** Entry into the StateFlow activity.
+ * @param msg Message belonging to the state flow
+ * @return next state
+ */
+StateFlowBase::Action IfCan::SendFlow::entry(Message *msg)
 {
     IfCan *if_can = static_cast<IfCan*>(me());
-    ssize_t result = (*if_can->write)(if_can->fd, msg->start(), sizeof(can_frame));
-    HASSERT(result == sizeof(can_frame));
+    If::OutMessage *out_msg = static_cast<If::OutMessage*>(msg->start());
+    NodeID src = out_msg->src;
+    NodeHandle dst = out_msg->dst;
+    If::MTI mti = out_msg->mti;
+    uint8_t *payload = out_msg->data;
+    size_t len = msg->size() - (msg->available() + sizeof(If::OutMessage));
+
+    NodeAlias alias = if_can->upstreamCache.lookup(src);
+    if (alias == 0)
+    {
+        /* we have never seen this node before, let's claim an alias for it */
+        alias = if_can->upstream_alias_setup(src);
+    }
+
+    HASSERT(alias != 0);
+
+    if (dst.alias != 0 || dst.id != 0)
+    {
+        /* we have an addressed message */
+        if (dst.alias == 0)
+        {
+            /* look for a downstream match */
+            dst.alias = if_can->downstreamCache.lookup(dst.id);
+        }
+        if (dst.alias)
+        {
+            int index = 0;
+            //size_t len;
+            /* check to see if we have a stream or datagram */
+            if (get_mti_datagram(mti))
+            {
+                //HASSERT(data != NULL);
+                //uint8_t *payload;
+
+                /* datagrams and streams are special because the CAN ID
+                 * also contains the destination alias.  These may also span
+                 * multiple CAN frames.
+                 */
+                if (mti == MTI_STREAM_DATA)
+                {
+                    //len = data->size() - data->available();
+                    HASSERT(len > 2);
+                    /* chop off the source and destination IDs */
+                    len -= 2;
+                    //payload = (uint8_t*)data->start();
+                }
+                else
+                {
+                    //Datagram::Message *m = (Datagram::Message*)data->start();
+                    //len = m->size;
+                    //payload = m->data;
+                }
+                for (int i = 0; len > 0; ++i)
+                {
+                    CanFrameType type;
+                    if (mti == MTI_STREAM_DATA)
+                    {
+                        type = STREAM_DATA;
+                    }
+                    else if (i == 0 && len <= 8)
+                    {
+                        type = DATAGRAM_ONE_FRAME;
+                    }
+                    else if (i == 0)
+                    {
+                        type = DATAGRAM_FIRST_FRAME;
+                    }
+                    else if (len <= 8)
+                    {
+                        type = DATAGRAM_FINAL_FRAME;
+                    }
+                    else
+                    {
+                        type = DATAGRAM_MIDDLE_FRAME;
+                    }
+                    Message *can_msg = mainMessagePool->alloc(sizeof(struct can_frame));
+                    struct can_frame *frame = (struct can_frame*)can_msg->start();
+                    set_fields(&frame->can_id, alias, (MTI)dst.alias, type, NMRANET_MSG, NORMAL_PRIORITY);
+                    SET_CAN_FRAME_EFF(*frame);
+                    CLR_CAN_FRAME_RTR(*frame);
+                    CLR_CAN_FRAME_ERR(*frame);
+                    size_t seg_size = len < 8 ? len : 8;
+                    memcpy(frame->data, payload + index, seg_size);
+                    frame->can_dlc = seg_size;
+
+                    me()->send(&if_can->writeService,
+                               WRITE_FRAME,
+                               can_msg,
+                               If::mti_priority(mti) + 1);
+                    //int result = (*write)(fd, &frame, sizeof(struct can_frame));
+                    //HASSERT (result == sizeof(struct can_frame));
+                    
+                    len-= seg_size;
+                    index += seg_size;
+                }
+            }
+            else
+            {
+                #if 0
+                if (data)
+                {
+                    len = data->size() - data->available();
+                }
+                else
+                {
+                    len = 0;
+                }
+                #endif
+                /* typically, only the simple node ident info reply will require
+                 * the sending of more than one CAN frame, but who knows what
+                 * the future might hold?
+                 */
+                do
+                {
+                    Message *can_msg = mainMessagePool->alloc(sizeof(struct can_frame));
+                    struct can_frame* frame = (struct can_frame*)can_msg->start();
+                    frame->can_id = can_identifier(mti, alias);
+                    SET_CAN_FRAME_EFF(*frame);
+                    CLR_CAN_FRAME_RTR(*frame);
+                    CLR_CAN_FRAME_ERR(*frame);
+                    frame->data[0] = dst.alias >> 8;
+                    frame->data[1] = dst.alias & 0xff;
+                    size_t seg_size = len < 6 ? len : 6;
+                    if (seg_size)
+                    {
+                        memcpy(&frame->data[2], (char*)payload + index, seg_size);
+                    }
+                    frame->can_dlc = 2 + seg_size;
+                    me()->send(&if_can->writeService,
+                               WRITE_FRAME,
+                               can_msg,
+                               If::mti_priority(mti) + 1);
+                    //int result = (*write)(fd, &frame, sizeof(struct can_frame));
+                    //HASSERT(result == sizeof(struct can_frame));
+
+                    len -= seg_size;
+                    index += seg_size;
+                    
+                } while (len > 0);
+            }
+        }
+        else
+        {
+#if 0
+            if (get_mti_address(mti))
+            {
+                if (msg->available() < sizeof(Message*))
+                {
+                    msg->expand(msg->size + sizeof(Message*))
+                }
+                /* this is an addressed message, so we need to buffer while
+                 * we determine what alias this node ID belongs to.  This
+                 * should happen infrequently because we should have the most
+                 * often addressed aliases cached.
+                 */
+                while (writeBuffer.in_use())
+                {
+                    mutex.unlock();
+                    usleep(300);
+                    mutex.lock();
+                }
+                writeBuffer.setup(mti, src, dst, data);
+
+                /* Verify Node ID Number Global */
+                struct can_frame frame;
+                frame.can_id = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
+                SET_CAN_FRAME_EFF(frame);
+                CLR_CAN_FRAME_RTR(frame);
+                CLR_CAN_FRAME_ERR(frame);
+                frame.can_dlc = 6;
+                frame.data[0] = (dst.id >> 40) & 0xff;
+                frame.data[1] = (dst.id >> 32) & 0xff;
+                frame.data[2] = (dst.id >> 24) & 0xff;
+                frame.data[3] = (dst.id >> 16) & 0xff;
+                frame.data[4] = (dst.id >>  8) & 0xff;
+                frame.data[5] = (dst.id >>  0) & 0xff;
+                int result = (*write)(fd, &frame, sizeof(struct can_frame));
+                HASSERT(result == (sizeof(struct can_frame)));
+            }
+#endif
+        }
+    }
+    else
+    {
+        /* we have an unaddressed message */
+        Message *can_msg = mainMessagePool->alloc(sizeof(struct can_frame));
+        struct can_frame* frame = (struct can_frame*)can_msg->start();
+        frame->can_id = can_identifier(mti, alias);
+        SET_CAN_FRAME_EFF(*frame);
+        CLR_CAN_FRAME_RTR(*frame);
+        CLR_CAN_FRAME_ERR(*frame);
+        frame->can_dlc = len;
+        memcpy(frame->data, payload, frame->can_dlc);
+        me()->send(&if_can->writeService,
+                   WRITE_FRAME,
+                   can_msg,
+                   If::mti_priority(mti) + 1);
+        //int result = (write)(fd, &frame, sizeof(struct can_frame));
+        //HASSERT(result == (sizeof(struct can_frame)));
+        
+    }        
 
     return release_and_exit(msg);
 }
@@ -1345,6 +1583,176 @@ StateFlowBase::Action IfCan::CanReadFlow::ccr_amr_frame(Message *msg)
     return release_and_exit(msg);
 }
 
+/** Decode an addressed can frame.
+ * @param msg Message belonging to the state flow
+ * @return next state
+ */
+StateFlowBase::Action IfCan::CanReadFlow::addressed(Message *msg)
+{
+    IfCan *if_can = static_cast<IfCan*>(me());
+    struct can_frame *frame = static_cast<struct can_frame*>(msg->start());
+    MultiFrameMap *map = &if_can->multiFrameMap;
+
+    /* addressed message destination and frame type */
+    uint16_t addressed = (frame->data[0] << 0) +
+                         (frame->data[1] << 8);
+    addressed = be16toh(addressed);
+    NodeID dst = if_can->upstreamCache.lookup(get_addressed_destination(addressed));
+
+    if (dst == 0)
+    {
+        /* This message is not destined for anyone here */
+        return release_and_exit(msg);
+    }
+
+    /* determine who this id from and if we know their ID */
+    NodeHandle src;
+    src.alias = get_src(frame->can_id);
+    src.id = if_can->downstreamCache.lookup(src.alias);
+
+    Message *incoming;
+    InMessage *in_msg;
+    Service::Timer *timer;
+    uint64_t key = (dst << 12) + src.alias;
+    MultiFrameMap::Iterator it;
+    
+    switch (get_addressed_frame(addressed))
+    {
+        default:
+            break;
+        case FRAME_ONLY:
+            /* decode single frame message */
+            incoming = mainMessagePool->alloc(sizeof(InMessage));
+            in_msg = (InMessage*)incoming->start();
+            if (frame->can_dlc > 2)
+            {
+                /* collect the data */
+                in_msg->data = mainBufferPool->alloc(frame->can_dlc - 2);
+                memcpy(in_msg->data->start(), frame->data, (frame->can_dlc - 2));
+                in_msg->data->advance(frame->can_dlc - 2);
+            }
+            else
+            {
+                in_msg->data = NULL;
+            }
+            in_msg->dst = dst;
+            in_msg->src = src;
+            in_msg->mti = nmranet_mti(frame->can_id);
+            me()->send(If::RECEIVE, incoming, If::mti_priority(in_msg->mti));
+            break;
+        case FRAME_FIRST:
+            /* decode first frame in multi-frame message */
+            HASSERT(frame->can_dlc > 2);
+            
+            if (if_can->multiFrameInFlight >= MAX_IN_FLIGHT_MULTI_FRAME)
+            {
+                /* we can passively ignore this because when we get to the
+                 * final frame, we will send the rejection to the sender.
+                 */
+                break;
+            }
+            
+            it = map->find(key);
+            if (it != map->end())
+            {
+                /* we already have a mapping, so lets give both and throw the
+                 * error back to the sender if/when we get the last frame.
+                 */
+                incoming = (*it).second;
+                in_msg = (InMessage*)incoming->start();
+                timer = (Service::Timer*)(in_msg + 1);
+                timer->stop();
+                map->erase(key);
+                in_msg->data->free();
+                incoming->free();
+                break;
+            }
+            
+            incoming = mainMessagePool->alloc(sizeof(InMessage) + sizeof(Service::Timer));
+            in_msg = (InMessage*)incoming->start();
+            timer = (Service::Timer*)(in_msg + 1);
+            if_can->addressed_timer_init(timer, incoming);
+            /* collect the data */
+            in_msg->data = mainBufferPool->alloc(frame->can_dlc - 2);
+            memcpy(in_msg->data->start(), frame->data, (frame->can_dlc - 2));
+            in_msg->data->advance(frame->can_dlc - 2);
+            in_msg->dst = dst;
+            in_msg->src = src;
+            in_msg->mti = nmranet_mti(frame->can_id);
+            (*map)[key] = incoming;
+            timer->start(MULTI_FRAME_TIMEOUT);
+            break;
+        case FRAME_MIDDLE:
+            /* decode middle frame in multi-frame message */
+            HASSERT(frame->can_dlc > 2);
+            
+            it = map->find(key);
+            if (it == map->end())
+            {
+                /* we are missing a mapping.  This is an error */
+                /** @todo (Stuart Baker) add proper handling */
+                HASSERT(1);
+            }
+            
+            incoming = (*it).second;
+            in_msg = (InMessage*)incoming->start();
+            timer = (Service::Timer*)(in_msg + 1);
+            HASSERT(in_msg->mti == nmranet_mti(frame->can_id));
+            
+            if (in_msg->data->used() < MAX_ADDRESSED_SIZE)
+            {
+                /* collect the data */
+                in_msg->data->expand(in_msg->data->used() + (frame->can_dlc - 2));
+                memcpy(in_msg->data->position(), frame->data, (frame->can_dlc - 2));
+                in_msg->data->advance(frame->can_dlc - 2);
+            }
+            timer->restart();
+            break;
+        case FRAME_LAST:
+            /* decode last frame in multi-frame message */
+            HASSERT(frame->can_dlc > 2);
+            
+            it = map->find(key);
+            if (it == map->end())
+            {
+                /* we are missing a mapping.  This is an error that could be
+                 * the result of a timeout, or out of room for in flight
+                 * multi-frame messages.  Either way, we should notify
+                 * the sender of the situation.  This is a transient error.
+                 */
+                /** @todo (Stuart Baker) add proper handling */
+                HASSERT(1);
+                break;
+            }
+            
+            incoming = (*it).second;
+            in_msg = (InMessage*)incoming->start();
+            timer = (Service::Timer*)(in_msg + 1);
+            HASSERT(in_msg->mti == nmranet_mti(frame->can_id));
+            if (in_msg->data->used() < MAX_ADDRESSED_SIZE)
+            {
+                /* collect the data */
+                in_msg->data->expand(in_msg->data->used() + (frame->can_dlc - 2));
+                memcpy(in_msg->data->position(), frame->data, (frame->can_dlc - 2));
+                in_msg->data->advance(frame->can_dlc - 2);
+                me()->send(If::RECEIVE, incoming, If::mti_priority(in_msg->mti));
+            }
+            else
+            {
+                /* we don't accept addressed messages this large.  This is
+                 * a permanent error.
+                 */
+                /** @todo (Stuart Baker) add proper handling */
+                in_msg->data->free();
+                incoming->free();
+            }
+            map->erase(key);
+            timer->stop();
+            break;
+    }
+    return release_and_exit(msg);
+}
+
 /** Decode global or addressed can frame.
  * @param msg Message belonging to the state flow
  * @return next state
@@ -1367,29 +1775,7 @@ StateFlowBase::Action IfCan::CanReadFlow::global_addressed(Message *msg)
             /* soft error, we throw this one away */
             return release_and_exit(msg);
         }
-        /* addressed message */
-        uint16_t addressed = (frame->data[0] << 0) +
-                             (frame->data[1] << 8);
-        addressed = be16toh(addressed);
-        NodeID dst = if_can->upstreamCache.lookup(get_addressed_destination(addressed));
-
-        if (dst != 0)
-        {
-            Buffer *buffer;
-            if (frame->can_dlc > 2)
-            {
-                /* collect the data */
-                buffer = buffer_alloc(frame->can_dlc - 2);
-                memcpy(buffer->start(), frame->data, (frame->can_dlc - 2));
-                buffer->advance((frame->can_dlc - 2));
-            }
-            else
-            {
-                buffer = NULL;
-            }
-                
-            if_can->rx_data(nmranet_mti(frame->can_id), src, dst, buffer);
-        }
+        return call_immediately(STATE(addressed));
     }
     else
     {
@@ -1513,6 +1899,25 @@ StateFlowBase::Action IfCan::CanReadFlow::datagram(Message *msg)
         return release_and_exit(msg);
     }
 
+    Node *node = Node::find(dst_id);
+    HASSERT(node);
+    if (!(node->protocols() & Node::Protocols::DATAGRAM))
+    {
+        /* this node does not accept datagrams, so give up now before wasting
+         * a buffer on the transaction
+         */
+        switch (get_can_frame_type(frame->can_id))
+        {
+            case DATAGRAM_ONE_FRAME:
+                /* fall through */
+            case DATAGRAM_FINAL_FRAME:
+                if_can->datagram_rejected(dst_alias, src.alias, Datagram::NOT_ACCEPTED);
+                /* fall through */
+            default:
+                return release_and_exit(msg);
+         }
+    }
+
     src.alias = get_src(frame->can_id);
     src.id = if_can->downstreamCache.lookup(src.alias);
     /* short hand for the mapping key */
@@ -1560,6 +1965,9 @@ StateFlowBase::Action IfCan::CanReadFlow::datagram(Message *msg)
             if (buffer == NULL)
             {
                 /* no buffer available, let the sender know */
+                /** @todo (Stuart Baker) should we wait until we get a final
+                 * frame for to reject this?  I think we should.
+                 */
                 if_can->datagram_rejected(dst_alias, src.alias, Datagram::BUFFER_UNAVAILABLE);
                 break;
             }
@@ -1648,7 +2056,7 @@ StateFlowBase::Action IfCan::CanReadFlow::write_frame_and_exit(Message *msg)
     memcpy(to_can->start(), msg->start(), sizeof(struct can_frame));
     to_can->advance(sizeof(struct can_frame));
     
-    me()->send(to_can, IfCan::CAN_WRITE_FRAME);
+    //me()->send(to_can, IfCan::CAN_WRITE_FRAME);
 
     return release_and_exit(msg);
 }
@@ -1687,7 +2095,7 @@ void *IfCan::read_thread(void *data)
         Message *msg = mainMessagePool->alloc(sizeof(struct can_frame));
         memcpy(msg->start(), &frame, sizeof(struct can_frame));
         msg->advance(sizeof(struct can_frame));
-        send(CAN_READ_FRAME, msg);
+        send(READ_FRAME, msg);
 #else        
         if (get_frame_type(frame.can_id) == CONTROL_MSG)
         {

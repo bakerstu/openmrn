@@ -31,10 +31,11 @@
  * @date 5 October 2013
  */
 
+#include "nmranet/NMRAnetDatagram.hxx"
+
 #include <unistd.h>
 
 #include "nmranet/NMRAnetMessageID.hxx"
-#include "nmranet/NMRAnetDatagram.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
 namespace NMRAnet
@@ -43,10 +44,21 @@ namespace NMRAnet
 /** Timeout for datagram acknowledgement. */
 #define DATAGRAM_TIMEOUT 3000000000LL
 
+DatagramService *Datagram::service_ = NULL;
+
 FixedPool<Buffer> Datagram::pool(sizeof(Datagram::Message), Datagram::POOL_SIZE);
 BufferQueueWait Datagram::dq;
 BufferQueueWait Datagram::pending;
 OSThreadOnce Datagram::once(Datagram::one_time_init);
+
+/** Constructor. */
+Datagram::Datagram(Node *node)
+    : txMessage(NULL),
+      timer(timeout, this, NULL)
+{
+    node->protocols_ |= Node::Protocols::DATAGRAM;
+    once.once();
+}
 
 /** Thread for handling platform datagrams.
  * @param arg unused
@@ -459,5 +471,81 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
     }
 }
 
-};
+StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
+{
+#if 0
+    //If *nmranet_if = static_cast<If*>(me());
+    If::InMessage *in_message = static_cast<If::InMessage*>(msg->start());
+    NodeID dst = in_message->dst;
+    NodeHandle src = in_message->src;
+    Buffer *data = in_message->data;
+    If::MTI mti = in_message->mti;
+
+    switch (mti)
+    {
+        default:
+            HASSERT(0);
+            break;
+#if 0
+        case If::MTI_DATAGRAM_REJECTED:
+        {
+            Datagram::Message *m = (Datagram::Message*)data->start();
+            uint16_t error = m->data[1] + (m->data[0] << 8);
+
+            if (Datagram::resend_ok(error))
+            {
+                /* we can try again */
+                timer.stop();
+
+                if (txMessage)
+                {
+                    write(If::MTI_DATAGRAM, src, txMessage);
+                    timer.start(DATAGRAM_TIMEOUT);
+                }
+            }
+            else
+            {
+#ifndef __FreeRTOS__
+                printf("datagram rejected\n");
+#endif
+                timer.stop();
+                if (txMessage)
+                {
+                    buffer_release(txMessage);
+                    txMessage = NULL;
+                }
+            }
+            /* release buffer back to the pool from whence it came */
+            data->free();
+            break;
+        }
+        case If::MTI_DATAGRAM_OK:
+            /* success! */
+            HASSERT(data == NULL);
+            timer.stop();
+            if (txMessage)
+            {
+                buffer_release(txMessage);
+                txMessage = NULL;
+            }
+            if (data)
+            {
+                data->free();
+            }
+            break;
+        case If::MTI_DATAGRAM:
+            if (process(data) == 0)
+            {
+                /* push this up for the application to process */
+                data->id(ID_DATAGRAM_DELIVER);
+                rx_queue()->insert(data);
+            }
+            break;
+#endif
+    }
+#endif
+    return release_and_exit(msg);
+}
+
+} /* namespace NMRAnet */
 

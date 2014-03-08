@@ -72,9 +72,11 @@ public:
      * available, queue up the Message to be sent when it does become available.
      * @param msg Message to send when item becomes available.
      *        from field of message will point to the item allocated
+     * @param true place the message on the pending queue if true and cannot
+     *        allocate imediately
      * @return true if allocated, false if not available
      */
-    bool allocate_immediate(Message *msg)
+    bool allocate_immediate(Message *msg, bool pend = true)
     {
         FixedPool<T>::mutex.lock();
         T *item = FixedPool<T>::alloc();
@@ -84,7 +86,7 @@ public:
             T::init(item, 0);
             msg->from(item);
         }
-        else
+        else if (pend)
         {
             /* could not allocate an item on the spot */
             msg->id(msg->id() | Message::IN_PROCESS_MSK);

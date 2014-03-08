@@ -47,21 +47,25 @@
  * @param _name the class name of the StateFlow derived object
  * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START(_name, _priorities)             \
-    class _name : public StateFlow<_priorities>          \
-    {                                                    \
-    public:                                              \
-        _name(Service *service)                          \
-            : StateFlow<1>(service)                      \
-        {                                                \
-        }                                                \
-                                                         \
-        ~_name()                                         \
-        {                                                \
-        }                                                \
-                                                         \
-    private:                                             \
-        Action entry(Message *msg);
+#define STATE_FLOW_START(_name, _priorities)    \
+    class _name : public StateFlow<_priorities> \
+    {                                           \
+    public:                                     \
+        _name(Service *service)                 \
+            : StateFlow<_priorities>(service)   \
+        {                                       \
+        }                                       \
+                                                \
+        ~_name()                                \
+        {                                       \
+        }                                       \
+                                                \
+    private:                                    \
+        Action entry(Message *msg);             \
+                                                \
+        _name();                                \
+                                                \
+        DISALLOW_COPY_AND_ASSIGN(_name);
 
 /** Begin the definition of a StateFlow that includes timeouts.
  * @param _name the class name of the StateFlow derived object
@@ -112,7 +116,12 @@
         bool early()                                                        \
         {                                                                   \
             return timer.early();                                           \
-        }
+        }                                                                   \
+                                                                            \
+        _name();                                                            \
+                                                                            \
+        DISALLOW_COPY_AND_ASSIGN(_name);
+
         
 
 /** Declare a state callback in a StateFlow.
@@ -330,6 +339,15 @@ public:
     ~StateFlow()
     {
     }
+
+protected:
+    /** Entry into the StateFlow activity.  Pure virtual which must be
+     * defined by derived class.
+     * @param msg Message belonging to the state flow
+     * @return function pointer to next state
+     */
+    virtual Action entry(Message *msg) = 0;
+
 private:
     /** Insert a message into one of the work queues.
      * @param msg Message to insert
