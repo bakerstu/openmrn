@@ -35,9 +35,11 @@
 #include "executor/allocator.hxx"
 
 AllocatorBase::AllocatorBase()
-    : has_free_entries_(true) {}
+    : has_free_entries_(1), hasEverSeenFreeEntries_(0) {}
 
 void AllocatorBase::Release(QueueMember* entry) {
+  hasEverSeenFreeEntries_ = 1;
+  HASSERT(!entry->has_next());
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
@@ -46,7 +48,7 @@ void AllocatorBase::Release(QueueMember* entry) {
       return;
     } else {
       caller = static_cast<AllocationResult*>(waiting_list_.Pop());
-      if (waiting_list_.empty()) has_free_entries_ = true;
+      if (waiting_list_.empty()) has_free_entries_ = 1;
     }
   }
   HASSERT(caller != nullptr);
@@ -54,6 +56,8 @@ void AllocatorBase::Release(QueueMember* entry) {
 }
 
 void AllocatorBase::ReleaseBack(QueueMember* entry) {
+  hasEverSeenFreeEntries_ = 1;
+  HASSERT(!entry->has_next());
   AllocationResult* caller = nullptr;
   {
     LockHolder l(this);
@@ -62,7 +66,7 @@ void AllocatorBase::ReleaseBack(QueueMember* entry) {
       return;
     } else {
       caller = static_cast<AllocationResult*>(waiting_list_.Pop());
-      if (waiting_list_.empty()) has_free_entries_ = true;
+      if (waiting_list_.empty()) has_free_entries_ = 1;
     }
   }
   HASSERT(caller != nullptr);
@@ -71,11 +75,12 @@ void AllocatorBase::ReleaseBack(QueueMember* entry) {
 
 void AllocatorBase::AllocateEntry(AllocationResult* caller) {
   QueueMember* entry = nullptr;
+  HASSERT(caller);
   {
     LockHolder l(this);
     if ((!has_free_entries_) || waiting_list_.empty()) {
       waiting_list_.Push(caller);
-      has_free_entries_ = false;
+      has_free_entries_ = 0;
       return;
     }
     // Now: has_free_entries_ == true and !empty.

@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -62,7 +62,14 @@ public:
        @return a pointer to the created object. It can be deleted, which will
        terminate the link and unregister the link members from both pipes.
     */
-    static GCAdapterBase* CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes);
+    static GCAdapterBase*
+    CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes);
+    /** Creates a gridconnect-CAN bridge with separate pipes for reading
+     * (parsing) from the GC side and writing (formatting) to the GC side. */
+    static GCAdapterBase* CreateGridConnectAdapter(Pipe* gc_side_read,
+                                                   Pipe* gc_side_write,
+                                                   Pipe* can_side,
+                                                   bool double_bytes);
 };
 
 #endif //_gc_pipe_hxx_

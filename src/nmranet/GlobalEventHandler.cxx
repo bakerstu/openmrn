@@ -7,10 +7,9 @@
 
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "if/nmranet_if.h"
-#include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventManager.hxx"
+#include "nmranet/NMRAnetIf.hxx"
 
 namespace NMRAnet
 {
@@ -44,6 +43,10 @@ struct GlobalEventFlow::Impl
     // Statically allocated structure for calling the event handlers from the
     // main event queue.
     EventReport main_event_report_;
+
+    // Statically allocated structure for calling the event handlers from the
+    // global event queue.
+    EventReport global_event_report_;
 
     // The implementation of the iterators.
     std::unique_ptr<NMRAnetEventHandler> handler_;
@@ -116,58 +119,60 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent()
     EventHandlerFunction fn;
     switch (impl_->message_->mti)
     {
-        case MTI_EVENT_REPORT:
+        case If::MTI_EVENT_REPORT:
             fn = &NMRAnetEventHandler::HandleEventReport;
             break;
-        case MTI_CONSUMER_IDENTIFY:
+        case If::MTI_CONSUMER_IDENTIFY:
             fn = &NMRAnetEventHandler::HandleIdentifyConsumer;
             break;
-        case MTI_CONSUMER_IDENTIFIED_RANGE:
+        case If::MTI_CONSUMER_IDENTIFIED_RANGE:
             DecodeRange(rep);
             fn = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
             break;
-        case MTI_CONSUMER_IDENTIFIED_UNKNOWN:
+        case If::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
             fn = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case MTI_CONSUMER_IDENTIFIED_VALID:
+        case If::MTI_CONSUMER_IDENTIFIED_VALID:
             rep->state = VALID;
             fn = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case MTI_CONSUMER_IDENTIFIED_INVALID:
+        case If::MTI_CONSUMER_IDENTIFIED_INVALID:
             rep->state = INVALID;
             fn = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case MTI_CONSUMER_IDENTIFIED_RESERVED:
+        case If::MTI_CONSUMER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
             fn = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case MTI_PRODUCER_IDENTIFY:
+        case If::MTI_PRODUCER_IDENTIFY:
             fn = &NMRAnetEventHandler::HandleIdentifyProducer;
             break;
-        case MTI_PRODUCER_IDENTIFIED_RANGE:
+        case If::MTI_PRODUCER_IDENTIFIED_RANGE:
             DecodeRange(rep);
             fn = &NMRAnetEventHandler::HandleProducerRangeIdentified;
             break;
-        case MTI_PRODUCER_IDENTIFIED_UNKNOWN:
+        case If::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
             fn = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case MTI_PRODUCER_IDENTIFIED_VALID:
+        case If::MTI_PRODUCER_IDENTIFIED_VALID:
             rep->state = VALID;
             fn = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case MTI_PRODUCER_IDENTIFIED_INVALID:
+        case If::MTI_PRODUCER_IDENTIFIED_INVALID:
             rep->state = INVALID;
             fn = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case MTI_PRODUCER_IDENTIFIED_RESERVED:
+        case If::MTI_PRODUCER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
             fn = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case MTI_EVENTS_IDENTIFY_ADDRESSED:
-        case MTI_EVENTS_IDENTIFY_GLOBAL:
+        case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
+        case If::MTI_EVENTS_IDENTIFY_GLOBAL:
             fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
+            impl_->global_event_report_ = *rep;
+            rep = &impl_->global_event_report_;
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -195,6 +200,7 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished()
     }
     // No pending message in the queue: releases the mutex and allows global
     // handlers to proceed.
+    event_handler_mutex.AssertLocked();
     event_handler_mutex.Unlock();
     return CallImmediately(ST(WaitForEvent));
 }
@@ -220,7 +226,7 @@ void GlobalEventFlow::FreeMessage(GlobalEventMessage* m)
     impl_->free_events_.TypedRelease(m);
 }
 
-#ifdef CPP_EVENT_HANDLER
+#if 0
 
 /** Process an event packet.
  * @param mti Message Type Indicator
@@ -372,6 +378,6 @@ void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
     nmranet_event_packet_global(If::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
-} /* namespace NMRAnet */
-
 #endif // CPP_EVENT_HANDLER
+
+} /* namespace NMRAnet */

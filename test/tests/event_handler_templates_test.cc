@@ -13,7 +13,6 @@ using ::testing::StrictMock;
 
 namespace NMRAnet {
 
-
 class SimpleEventProxy : public ProxyEventHandler {
  public:
   SimpleEventProxy(NMRAnetEventHandler* handler)

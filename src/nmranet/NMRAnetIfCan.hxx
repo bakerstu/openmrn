@@ -396,6 +396,16 @@ private:
         *can_id |= mti << MTI_SHIFT;
     }
 
+    /** Set the source field value of the CAN ID.
+     * @param can_id identifier to act upon, passed by pointer
+     * @param src source field value
+     */
+    static void set_src(uint32_t *can_id, NodeAlias src)
+    {
+        *can_id &= ~SRC_MASK;
+        *can_id |= src << SRC_SHIFT;
+    }
+
     /** Set the destination field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference
      * @param dst destination field value
@@ -785,9 +795,14 @@ private:
         friend class IfCan;
     };
     
-    friend class AsyncAliasAllocator;
-    friend class CanMessageWriteFlow;
+    // These classes use the private enums for message field parsing.
+    friend class AddressedCanMessageWriteFlow;
     friend class AliasConflictHandler;
+    friend class AsyncAliasAllocator;
+    friend class CanDatagramClient;
+    friend class CanDatagramParser;
+    friend class CanMessageWriteFlow;
+    friend class FrameToAddressedMessageParser;
     friend class FrameToGlobalMessageParser;
     friend class IfCanWriteService;
     friend class IfCanWriteService::SendFlow;
@@ -844,4 +859,3 @@ private:
 }; /* namespace NMRAnet */
 
 #endif /* _NMRAnetIfCan_hxx_ */
-

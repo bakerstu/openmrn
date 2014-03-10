@@ -27,6 +27,4 @@ all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 	$(OBJCOPY) -O binary $< $@
 	$(CHECKSUM) -p LPC2362 -d $@
 
-$(EXECUTABLE)$(EXTENTION): depmake
-
 endif  #MISSING_DEPS

@@ -80,7 +80,7 @@ class CompatEventHandler : public SimpleEventHandler {
   void HandleEventReport(EventReport* event, Notifiable* done) {
     event_post(current_node(&current_standard_iterator), event->src_node,
                current_eventid(&current_standard_iterator));
-    done->Notify();
+    done->notify();
   }
 
   void HandleIdentifyProducer(EventReport* event, Notifiable* done) {
@@ -92,7 +92,7 @@ class CompatEventHandler : public SimpleEventHandler {
           EventIdToBuffer(current_eventid(&current_standard_iterator)),
           done);
     } else {
-      done->Notify();
+      done->notify();
     }
   }
 
@@ -105,7 +105,7 @@ class CompatEventHandler : public SimpleEventHandler {
           EventIdToBuffer(current_eventid(&current_standard_iterator)),
           done);
     } else {
-      done->Notify();
+      done->notify();
     }
   }
 

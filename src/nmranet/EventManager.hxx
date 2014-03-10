@@ -70,8 +70,10 @@ class EventIterator : public ProxyNotifiable {
   // Stores the iteration completion callback.
   ::Notifiable* done_;
   // Proxies incoming notifications to this parent.
+    //! @TODO(balazs.racz) this seems unused.
   ::Notifiable* parent_;
   // When there is an incoming notification, this is set to true.
+    //! @TODO(balazs.racz) this seems unused.
   bool was_notified_;
 };
 
@@ -161,7 +163,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     proxy_fn_ = fn;
     standard_iterator_->InitIterator(event, done);
     InitStandardIterator();
-    this->Notify();
+    this->notify();
   }
 
   //! Implementations have to override this to re-set the global_iterator
@@ -171,12 +173,14 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
     LOG(VERBOSE, "Dual::IdentifyGlobal");
     event_handler_mutex.AssertLocked();
-    // We immediately release the global iterator mutex and will acquire it
-    // inside when we try to call children.
-    event_handler_mutex.Unlock();
-    global_iterator_->InitIterator(event, done);
+    global_iterator_->InitIterator(event, EmptyNotifiable::DefaultInstance());
     InitGlobalIterator();
-    this->Notify();
+    this->notify();
+    // Signals the caller that they can proceed to handling the next event.
+    // The caller will then release the global iterator mutex which will allow
+    // the global iteration flow to acquire it inside when we try to call
+    // children.
+    done->notify();
   }
 
  protected:
@@ -185,8 +189,10 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     if (standard_iterator_->done())
       return CallImmediately(ST(TryStandardIteration));
     // Then a global iteration.
-    if (global_iterator_->done())
+    if (global_iterator_->done()) {
+      if (!executor()->no_pending_flows()) return yield();
       return CallImmediately(ST(GetGlobalIterationLock));
+    }
     // Give up and wait for incoming messages.
     return WaitForNotification();
   }
@@ -199,7 +205,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       Notifiable* d = standard_iterator_->done();
       HASSERT(d);
       standard_iterator_->ClearIteration();
-      d->Notify();
+      d->notify();
       return YieldAndCall(ST(StateInIteration));
     }
     (handler->*proxy_fn_)(standard_iterator_->event(),
@@ -225,7 +231,9 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       Notifiable* d = global_iterator_->done();
       HASSERT(d);
       global_iterator_->ClearIteration();
-      d->Notify();
+      d->notify();
+      event_handler_mutex.AssertLocked();
+      event_handler_mutex.Unlock();
       return YieldAndCall(ST(StateInIteration));
     }
     handler->HandleIdentifyGlobal(global_iterator_->event(),

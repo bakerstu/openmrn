@@ -21,12 +21,12 @@
 <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN_SYMBOL" value="main"/>
 <booleanAttribute key="org.eclipse.cdt.launch.ENABLE_REGISTER_BOOKKEEPING" value="false"/>
 <booleanAttribute key="org.eclipse.cdt.launch.ENABLE_VARIABLE_BOOKKEEPING" value="false"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="targets/freertos.armv4t.lpc2368/cs.elf"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="cs"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="com.crt.advproject.toolchain.exe.debug.6375743"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="cs.elf"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="cs.panda"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value=""/>
 <booleanAttribute key="org.eclipse.cdt.launch.use_terminal" value="false"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-<listEntry value="/cs"/>
+<listEntry value="/cs.panda"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="4"/>

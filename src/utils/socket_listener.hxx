@@ -54,6 +54,8 @@ class SocketListener {
   OSThread accept_thread_;
 };
 
-
+// Connects a tcp socket to the specified host:port. Returns -1 if
+// unsuccessful; returns the fd is successful.
+int ConnectSocket(const char* host, int port);
 
 #endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_

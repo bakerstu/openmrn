@@ -152,4 +152,147 @@ TEST_F(BitRangeEventTest, DeathTooHighSet) {
     }, "bit < size");
 }
 
+class ByteRangeCTest : public AsyncNodeTest {
+ protected:
+  ByteRangeCTest()
+      : handler_(node_, kEventBase, storage_, 10) {
+    memset(storage_, 0, sizeof(storage_));
+  }
+
+  ~ByteRangeCTest() { Wait(); }
+
+  uint8_t storage_[10];
+  ByteRangeEventC handler_;
+};
+
+TEST_F(ByteRangeCTest, Simple) {
+  WaitForEventThread();
+}
+
+TEST_F(ByteRangeCTest, ValueSet) {
+  EXPECT_EQ(0, storage_[1]);
+  EXPECT_EQ(0, storage_[2]);
+  SendPacket(":X195B4001N05010101FFFF0120;");
+  WaitForEventThread();
+  EXPECT_EQ(0x20, storage_[1]);
+  SendPacket(":X195B4001N05010101FFFF0242;");
+  WaitForEventThread();
+  EXPECT_EQ(0x42, storage_[2]);
+  EXPECT_EQ(0x20, storage_[1]);
+  EXPECT_EQ(0, storage_[0]);
+  EXPECT_EQ(0, storage_[3]);
+}
+
+TEST_F(ByteRangeCTest, Query) {
+  storage_[1] = 0x42;
+  storage_[0] = 0x23;
+  // identify consumers 1==42; identified valid.
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0142;",
+                              ":X194C422AN05010101FFFF0142;");
+  // 1==23, invalid
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0123;",
+                              ":X194C522AN05010101FFFF0123;");
+  // identify consumers 0==23; identified valid.
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0023;",
+                              ":X194C422AN05010101FFFF0023;");
+  // 0==42, invalid
+  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0042;",
+                              ":X194C522AN05010101FFFF0042;");
+}
+
+TEST_F(ByteRangeCTest, IdentifyGlobal) {
+  // We have 10 bytes of 256 events each, which should be rounded up to 16*256
+  // events, mask 0x0fff.
+  ExpectPacket(":X194A422AN05010101FFFF0FFF;");
+  //pectPacket(":X1952422AN05010101FFFF0FFF;");
+  SendPacket(":X19970001N;");
+  WaitForEventThread();
+}
+
+class ByteRangePTest : public AsyncNodeTest {
+ protected:
+  ByteRangePTest()
+      : handler_(node_, kEventBase, storage_, 10) {
+    memset(storage_, 0, sizeof(storage_));
+  }
+
+  ~ByteRangePTest() { Wait(); }
+
+  uint8_t storage_[10];
+  ByteRangeEventP handler_;
+  SyncNotifiable n_;
+  WriteHelper write_helper_;
+};
+
+TEST_F(ByteRangePTest, Simple) {
+  WaitForEventThread();
+}
+
+TEST_F(ByteRangePTest, Update) {
+  storage_[1] = 0x42;
+  storage_[0] = 0x23;
+  ExpectPacket(":X195B422AN05010101FFFF0023;");
+  handler_.Update(0, &write_helper_, &n_);
+  n_.WaitForNotification();
+
+  ExpectPacket(":X195B422AN05010101FFFF0142;");
+  handler_.Update(1, &write_helper_, &n_);
+  n_.WaitForNotification();
+}
+
+TEST_F(ByteRangePTest, Query) {
+  storage_[1] = 0x42;
+  storage_[0] = 0x23;
+  // identify consumers 1==42; no response.
+  SendPacket(":X198F4001N05010101FFFF0142;");
+
+  // identify producer 1==42, valid.
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0142;",
+                              ":X1954422AN05010101FFFF0142;");
+  // 1==23, invalid
+  ExpectPacket(":X195B422AN05010101FFFF0142;"); // we also get the true value
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0123;",
+                              ":X1954522AN05010101FFFF0123;");
+  // identify consumers 0==23; identified valid.
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0023;",
+                              ":X1954422AN05010101FFFF0023;");
+  // 0==42, invalid
+  ExpectPacket(":X195B422AN05010101FFFF0023;"); // we also get the true value
+  SendPacketAndExpectResponse(":X19914001N05010101FFFF0042;",
+                              ":X1954522AN05010101FFFF0042;");
+}
+
+TEST_F(ByteRangePTest, IdentifyGlobal) {
+  // We have 10 bytes of 256 events each, which should be rounded up to 16*256
+  // events, mask 0x0fff.
+  ExpectPacket(":X1952422AN05010101FFFF0FFF;");
+  SendPacket(":X19970001N;");
+  WaitForEventThread();
+}
+
+TEST_F(AsyncNodeTest, ByteRangePCSync) {
+  uint8_t consumer_storage[10] = {0,};
+  uint8_t producer_storage[2] = {0x23, 0x42};
+  uint8_t producer_storage_o[2] = {0x33, 0x52};
+  ByteRangeEventP producer(node_, kEventBase, producer_storage, 2);
+  ByteRangeEventP producer_o(node_, kEventBase + 512, producer_storage_o, 2);
+  Wait();
+  ExpectPacket(":X1952422AN05010101FFFF01FF;");
+  ExpectPacket(":X1952422AN05010101FFFF0200;");
+  SendPacket(":X19970001N;");
+
+  Wait();
+  ExpectAnyPacket();
+  ByteRangeEventC consumer(node_, kEventBase, consumer_storage, 10);
+  Wait();
+  SendPacket(":X19970001N;");
+  Wait();
+
+  EXPECT_EQ(0x23, consumer_storage[0]);
+  EXPECT_EQ(0x42, consumer_storage[1]);
+  EXPECT_EQ(0x33, consumer_storage[2]);
+  EXPECT_EQ(0x52, consumer_storage[3]);
+}
+
+
 }  // namespace NMRAnet

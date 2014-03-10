@@ -25,13 +25,13 @@ class TestNode
 public:
     TestNode(NodeID node_id)
         : nodeId_(node_id),
-          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10)
+          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10, 2, 5)
     {
     }
 
     void start(BarrierNotifiable* done)
     {
-        ifCan_.AddWriteFlows(2, 2);
+        ifCan_.add_addressed_message_support(2);
         ifCan_.set_alias_allocator(new AsyncAliasAllocator(nodeId_, &ifCan_));
         ifCan_.alias_allocator()->empty_aliases()->Release(&testAlias_);
         WriteFlow* f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
@@ -46,6 +46,14 @@ public:
 
     ~TestNode()
     {
+        Executor* e = round_execs[(nodeId_ >> 1) & 3];
+        while(!e->empty() ||
+              !ifCan_.frame_dispatcher()->IsNotStarted() ||
+              !ifCan_.dispatcher()->IsNotStarted() ||
+              !can_pipe0.empty() ||
+              !gc_pipe0.empty()) {
+            usleep(100);
+        }
     }
 
 private:
@@ -158,9 +166,11 @@ protected:
     {
         while (!(g1_executor.empty() && g2_executor.empty() &&
                  g3_executor.empty() && g4_executor.empty() &&
+                 g_executor.empty() &&
                  DefaultWriteFlowExecutor()->empty()))
         {
             usleep(100);
+            Wait();
         }
         Wait();
     }

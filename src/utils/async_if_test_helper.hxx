@@ -36,7 +36,7 @@ using ::testing::_;
 
 static void InvokeNotification(Notifiable* done)
 {
-    done->Notify();
+    done->notify();
 }
 
 void (*g_invoke)(Notifiable*) = &InvokeNotification;
@@ -74,6 +74,11 @@ const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
+static void PrintPacket(const string& pkt)
+{
+    fprintf(stderr, "%s\n", pkt.c_str());
+}
+
 /** Test fixture base class with helper methods for exercising the asynchronous
  * interface code.
  *
@@ -99,7 +104,7 @@ protected:
     AsyncIfTest()
     {
         gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1));
+        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
         if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
@@ -107,6 +112,9 @@ protected:
     {
         Wait();
         gc_pipe0.UnregisterMember(&can_bus_);
+        if (printer_.get()) {
+            gc_pipe0.UnregisterMember(printer_.get());
+        }
     }
 
     /** Creates an alias allocator flow, and injects an already allocated
@@ -149,17 +157,38 @@ protected:
             .RetiresOnSaturation();
     }
 
-    /** Adds an expectation that the code will send a packet to the CANbus.
+/** Adds an expectation that the code will send a packet to the CANbus.
 
-        Example:
-        ExpectPacket(":X1954412DN05010101FFFF0000;");
+    Example:
+    ExpectPacket(":X1954412DN05010101FFFF0000;");
 
-        @param gc_packet the packet in GridConnect format, including the leading
-        : and trailing ;
+    @param gc_packet the packet in GridConnect format, including the leading
+    : and trailing ;
+*/
+#define ExpectPacket(gc_packet)                                                \
+    EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)))
+
+    /** Ignores all produced packets.
+     *
+     *  Tihs can be used in tests where the expectations are tested in a higher
+     *  level than monitoring the CANbus traffic.
     */
-    void ExpectPacket(const string& gc_packet)
+    void ExpectAnyPacket()
     {
-        EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)));
+        EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+            WithArg<0>(Invoke(PrintPacket)));
+    }
+
+    /** Prints all packets sent to the canbus until the end of the current test
+     * function.
+    */
+    void PrintAllPackets()
+    {
+        NiceMock<MockSend>* m = new NiceMock<MockSend>();
+        EXPECT_CALL(*m, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+            WithArg<0>(Invoke(PrintPacket)));
+        gc_pipe0.RegisterMember(m);
+        printer_.reset(m);
     }
 
     /** Injects a packet to the interface. This acts as if a different node on
@@ -188,13 +217,11 @@ protected:
                 LockHolder h2(DefaultWriteFlowExecutor());
                 LockHolder h3(&g_gc_pipe_executor);
 
-                if (!g_executor.empty() ||
-                    !g_gc_pipe_executor.empty() ||
+                if (!g_executor.empty() || !g_gc_pipe_executor.empty() ||
                     !DefaultWriteFlowExecutor()->empty() ||
                     !if_can_->frame_dispatcher()->IsNotStarted() ||
                     !if_can_->dispatcher()->IsNotStarted() ||
-                    !can_pipe0.empty() ||
-                    !gc_pipe0.empty())
+                    !can_pipe0.empty() || !gc_pipe0.empty())
                 {
                     exit = false;
                 }
@@ -232,6 +259,8 @@ protected:
 
     //! Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> can_bus_;
+    //! Object for debug-printing every packet (if requested).
+    std::unique_ptr<PipeMember> printer_;
     //! The interface under test.
     std::unique_ptr<AsyncIfCan> if_can_;
     /** Temporary object used to send aliases around in the alias allocator
@@ -244,13 +273,12 @@ protected:
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
-    AsyncNodeTest()
-        : eventFlow_(&g_executor, 10),
-          ownedNode_(if_can_.get(), TEST_NODE_ID),
-          node_(&ownedNode_)
+    AsyncNodeTest() : eventFlow_(&g_executor, 10)
     {
         EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
-        if_can_->AddWriteFlows(2, 2);
+        ownedNode_.reset(new DefaultAsyncNode(if_can_.get(), TEST_NODE_ID));
+        node_ = ownedNode_.get();
+        if_can_->add_addressed_message_support(2);
         Wait();
         AddEventHandlerToIf(if_can_.get());
     }
@@ -270,9 +298,59 @@ protected:
     }
 
     GlobalEventFlow eventFlow_;
-    DefaultAsyncNode ownedNode_;
+    std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode* node_;
 };
+
+class MockMessageHandler : public IncomingMessageHandler
+{
+public:
+    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD2(handle_message,
+                 void(IncomingMessage* message, Notifiable* done));
+};
+
+MATCHER_P(IsBufferValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg->used() != 8)
+        return false;
+    if (memcmp(&value, arg->start(), 8))
+        return false;
+    return true;
+}
+
+MATCHER_P(IsBufferValueString, expected, "")
+{
+    string s(expected);
+    if (arg->used() != s.size())
+        return false;
+    if (memcmp(s.data(), arg->start(), arg->used()))
+        return false;
+    return true;
+}
+
+MATCHER_P(IsBufferNodeValue, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg->used() != 6)
+        return false;
+    uint8_t* expected = reinterpret_cast<uint8_t*>(&value) + 2;
+    uint8_t* actual = static_cast<uint8_t*>(arg->start());
+    if (memcmp(expected, actual, 6))
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            if (expected[i] != actual[i])
+            {
+                LOG(INFO, "mismatch at position %d, expected %02x actual %02x",
+                    i, expected[i], actual[i]);
+            }
+        }
+        return false;
+    }
+    return true;
+}
 
 } // namespace NMRAnet
 

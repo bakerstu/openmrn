@@ -124,13 +124,13 @@ void If::rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data)
         switch (mti)
         {
             case MTI_CONSUMER_IDENTIFY:            /* fall through */
-            case MTI_CONSUMER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_CONSUMER_IDENTIFIED_RANGE:    /* fall through */
             case MTI_CONSUMER_IDENTIFIED_UNKNOWN:  /* fall through */
             case MTI_CONSUMER_IDENTIFIED_VALID:    /* fall through */
             case MTI_CONSUMER_IDENTIFIED_INVALID:  /* fall through */
             case MTI_CONSUMER_IDENTIFIED_RESERVED: /* fall through */
             case MTI_PRODUCER_IDENTIFY:            /* fall through */
-            case MTI_PRODUCER_IDENTIFY_RANGE:      /* fall through */
+            case MTI_PRODUCER_IDENTIFIED_RANGE:    /* fall through */
             case MTI_PRODUCER_IDENTIFIED_UNKNOWN:  /* fall through */
             case MTI_PRODUCER_IDENTIFIED_VALID:    /* fall through */
             case MTI_PRODUCER_IDENTIFIED_INVALID:  /* fall through */
@@ -337,5 +337,3 @@ StateFlowBase::Action If::ReceiveFlow::entry(Message *msg)
 }
 
 }; /* namespace NMRAnet */
-
-

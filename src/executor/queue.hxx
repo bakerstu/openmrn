@@ -44,6 +44,10 @@ public:
   QueueMember()
     : next_(NULL) {}
 
+  bool has_next() {
+    return next_ != nullptr;
+  }
+
 private:
   DISALLOW_COPY_AND_ASSIGN(QueueMember);
   friend class Queue;

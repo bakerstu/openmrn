@@ -46,6 +46,8 @@
 
 class ControlFlow;
 
+namespace deprecated {
+
 //! An object that can be scheduled on an executor to run.
 class Executable : public QueueMember {
 public:
@@ -60,7 +62,7 @@ public:
   ~Executor();
 
   // Runs the main loop of the executor in the current thread. Never returns.
-  void ThreadBody();
+  void ThreadBody() __attribute__((__noreturn__));
 
   // Adds entry to the back of the executor queue. `entry' must not be enqueued
   // here or in any other executor or queue.
@@ -98,10 +100,23 @@ public:
    */
   bool IsPendingOrRunning(Executable* entry);
 
+  /** Returns true if the given entry is on the executor right now.
+   */
+  bool IsRunning(Executable* entry) {
+      return current_ == entry;
+  }
+
+
   //! Returns true if this executor has run out of work.
   bool empty() {
     LockHolder h(this);
     return waiting_ && pending_flows_.empty();
+  }
+
+  //! Returns true if there are no flows waiting for running. There might be a
+  //! flow currently being run.
+  bool no_pending_flows() {
+    return pending_flows_.empty();
   }
 
   void WaitUntilEmpty();
@@ -132,6 +147,6 @@ private:
   OSThread thread_;
 };
 
-
+}  // namespace deprecated
 
 #endif // _EXECUTOR_EXECUTOR_HXX_

@@ -54,11 +54,11 @@ INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -D__USE_CMSIS=CMSISv2p00_LPC11xx -D__CODE_RED -D__FreeRTOS__  \
-        -g3 -Wall -Werror -c -fmessage-length=0 -fno-builtin \
+        -g3 -Wall -Werror -c -fmessage-length=0  \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
         -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
-	-D__LINEAR_MAP__ \
+	-D__LINEAR_MAP__ -DSIMPLE_NODE_ONLY \
         $(CFLAGSENV)
 
 #	-D__USE_LIBSTDCPP__ \
@@ -77,8 +77,9 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901 $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
-        -Xlinker --gc-sections  -mcpu=cortex-m0 -mthumb --specs=nano.specs \
-        -Xlinker -Map="$(@:%.elf=%.map)"  \
+        -Xlinker --gc-sections -mcpu=cortex-m0 -mthumb --specs=nano.specs \
+        -Xlinker -Map="$(@:%.elf=%.map)" -Wl,--wrap=__cxa_pure_virtual   \
+	-Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) \
 
 #use this only if armgcc == arm gcc 4.7

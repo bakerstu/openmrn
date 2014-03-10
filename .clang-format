@@ -27,7 +27,7 @@ PenaltyBreakString: 1000
 PenaltyBreakFirstLessLess: 120
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
-PointerBindsToType: true
+PointerBindsToType: false
 SpacesBeforeTrailingComments: 1
 Cpp11BracedListStyle: true
 Standard:        Cpp11

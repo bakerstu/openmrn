@@ -5,7 +5,9 @@
 
 // This is a workaround for missing shared_ptr.h causing compilation errors. We
 // do not use shared_ptr.
+#ifndef __CR2_C___4_6_2_BITS_SHARED_PTR_H__
 #define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
+#endif
 
 #include <memory>
 
@@ -16,7 +18,7 @@
 namespace NMRAnet
 {
 
-class Node;
+class AsyncNode;
 
 class GlobalEventFlow;
 
@@ -26,7 +28,7 @@ public:
     uint64_t event;      ///< payload (event or range or zero)
     NodeHandle src_node; ///< sender of the message
     If::MTI mti;         ///< what message showed up
-    Node* dst_node;      ///< for addressed messages or else nullptr.
+    AsyncNode* dst_node; ///< for addressed messages or else nullptr.
 private:
     DISALLOW_COPY_AND_ASSIGN(GlobalEventMessage);
     // We only allow allocation of this object by the GlobalEventFlow class.

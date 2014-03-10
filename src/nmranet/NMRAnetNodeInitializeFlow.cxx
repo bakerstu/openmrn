@@ -71,6 +71,28 @@ private:
     ControlFlowAction initialization_complete()
     {
         node_->set_initialized();
+        return CallImmediately(ST(identify_events));
+    }
+
+    ControlFlowAction identify_events()
+    {
+        // Get the dispatch flow.
+        return Allocate(node_->interface()->dispatcher()->allocator(),
+                        ST(initiate_local_identify));
+    }
+
+    ControlFlowAction initiate_local_identify()
+    {
+        auto* f = GetTypedAllocationResult(
+            node_->interface()->dispatcher()->allocator());
+        IncomingMessage* m = f->mutable_params();
+        m->mti = If::MTI_EVENTS_IDENTIFY_ADDRESSED;
+        m->payload = nullptr;
+        m->dst.id = node_->node_id();
+        m->dst_node = node_;
+        m->src.alias = 0;
+        m->src.id = node_->node_id();
+        f->IncomingMessage(m->mti);
         return Exit(); // will delete *this.
     }
 

@@ -83,7 +83,7 @@ private:
         if (m->mti == If::MTI_LEARN_EVENT)
         {
             // The global event flow does not care about learn event messages.
-            done->Notify();
+            done->notify();
             return;
         }
         m_ = m;
@@ -111,10 +111,12 @@ private:
         }
         else
         {
-            LOG(INFO, "event message without payload");
+            LOG(INFO, "event message without payload: mti %04x, "
+                "src node %012llx, src alias %03x", m_->mti, m_->src.id,
+                m_->src.alias);
             e->event = 0;
         }
-        done_->Notify();
+        done_->notify();
         GlobalEventFlow::instance->PostEvent(e);
         lock_.TypedRelease(this);
     }

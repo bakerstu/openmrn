@@ -54,6 +54,14 @@ class AsyncNode;
  */
 extern Buffer* node_id_to_buffer(NodeID id);
 
+/** Converts a 6-byte-long buffer to a node ID.
+ *
+ * @param buf is a buffer that has to have exactly 6 bytes used, filled with a
+ * big-endian node id.
+ * @returns the node id (in host endian).
+ */
+extern NodeID buffer_to_node_id(Buffer* buf);
+
 /** This class is used in the dispatching of incoming NMRAnet messages to the
  * message handlers at the protocol-agnostic level (i.e. not CAN or
  * TCP-specific). There will be one instance of this class that will be sent to
@@ -68,7 +76,7 @@ struct IncomingMessage
     //! Destination node.
     NodeHandle dst;
     //! If the destination node is local, this value is non-NULL.
-    Node* dst_node;
+    AsyncNode* dst_node;
     //! Data content in the message body. Owned by the dispatcher.
     Buffer* payload;
 };
@@ -131,7 +139,7 @@ public:
         }
     };
 
-    AsyncIf(Executor* executor);
+    AsyncIf(Executor* executor, int local_nodes_count);
     virtual ~AsyncIf()
     {
     }
@@ -145,18 +153,35 @@ public:
     /// @returns an allocator for sending global messages to the bus.
     TypedAllocator<WriteFlow>* global_write_allocator()
     {
+        HASSERT(globalWriteAllocator_.has_ever_seen_free_entries());
         return &globalWriteAllocator_;
+    }
+
+    /** Adds @param f to the free global write flows. Should be used by If
+     * implementations only. */
+    void add_global_write_flow(WriteFlow* f)
+    {
+        globalWriteAllocator_.ReleaseBack(f);
     }
 
     /// @returns an allocator for sending addressed messages to the bus.
     TypedAllocator<WriteFlow>* addressed_write_allocator()
     {
+        HASSERT(addressedWriteAllocator_.has_ever_seen_free_entries());
         return &addressedWriteAllocator_;
     }
 
+    /** Adds @param f to the free addressed write flows. Should be used by If
+     * implementations only. */
+    void add_addressed_write_flow(WriteFlow* f)
+    {
+        addressedWriteAllocator_.ReleaseBack(f);
+    }
+
     /** Transfers ownership of a module to the interface. It will be brought
-     * down in the destructor after any incoming message could come through and
-     * before any supporting structures are deleted.  */
+     * down in the destructor. The destruction order is guaranteed such that
+     * all supporting structures are still available when the flow is destryed,
+     * but incoming messages can not come in anymore. */
     virtual void add_owned_flow(Executable* e) = 0;
 
     /** Registers a new local node on this interface. This function must be
@@ -212,6 +237,8 @@ private:
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;
+
+    friend class VerifyNodeIdHandler;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIf);
 };

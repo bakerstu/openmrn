@@ -67,31 +67,12 @@ const size_t CAN_TX_BUFFER_SIZE = 2;
 const size_t main_stack_size = 900;
 }
 
-NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 3, 3, 2);
+NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_pipe, 3, 3, 2, 1, 1);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventFlow g_event_flow(&g_executor, 4);
 
 static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
 const int main_priority = 0;
-
-extern "C" {
-
-#ifdef __FreeRTOS__ //TARGET_LPC11Cxx
-  // This gets rid of about 50 kbytes of flash code that is unnecessarily
-  // linked into the binary.
-void __wrap___cxa_pure_virtual(void) {
-  abort();
-}
-
-  // This removes 400 bytes of memory allocated at startup for the atexit
-  // structure.
-int __wrap___cxa_atexit(void) {
-  return 0;
-}
-
-#endif
-  
-}
 
 Executor* DefaultWriteFlowExecutor() {
     return &g_executor;
@@ -180,7 +161,8 @@ int appl_main(int argc, char* argv[])
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
     BlinkerFlow blinker(&g_node);
-    g_if_can.AddWriteFlows(1, 1);
+    // We don't need to support addressed messages.
+    // g_if_can.add_addressed_message_support(1);
     g_if_can.set_alias_allocator(
         new NMRAnet::AsyncAliasAllocator(NODE_ID, &g_if_can));
     NMRAnet::AliasInfo info;

@@ -60,7 +60,7 @@ public:
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    SysMap(size_t entries) 
+    SysMap(size_t entries)
         : entries(entries),
           used(0),
           freeList(NULL),

@@ -28,6 +28,4 @@ all: $(EXECUTABLE).hex $(EXECUTABLE).lst
 	$(OBJDUMP) -h $<
 	$(OBJCOPY) -O ihex $< $@
 
-$(EXECUTABLE)$(EXTENTION): depmake
-
 endif  #MISSING_DEPS

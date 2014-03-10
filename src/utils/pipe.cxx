@@ -36,6 +36,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <signal.h>
+#endif
 
 #include <algorithm>
 using std::remove;
@@ -95,8 +98,10 @@ public:
                              const char* rx_name, size_t stack_size)
         : fd_read_(fd_read), fd_write_(fd_write), parent_(parent)
     {
-        os_thread_create(&read_thread_, rx_name, 0, stack_size,
-                         &DeviceToPipeReaderThread, this);
+        if (fd_read_ >= 0) {
+            os_thread_create(&read_thread_, rx_name, 0, stack_size,
+                             &DeviceToPipeReaderThread, this);
+        }
     }
 
     virtual ~PhysicalDevicePipeMember()
@@ -108,6 +113,13 @@ public:
 
     virtual void write(const void* buf, size_t count)
     {
+#ifdef __linux__
+        struct sigaction a;
+        a.sa_handler = SIG_IGN;
+        sigemptyset(&a.sa_mask);
+        a.sa_flags = 0;
+        HASSERT(!sigaction(SIGPIPE, &a, NULL));
+#endif
         const uint8_t* bbuf = static_cast<const uint8_t*>(buf);
         ssize_t ret = 0;
         while (count > 0)
@@ -116,8 +128,18 @@ public:
             if (!ret)
             {
                 LOG(ERROR, "EOF writing fd %d.", fd_write_);
+                ::close(fd_write_);
+                parent_->UnregisterMember(this);
+                return;
             }
-            HASSERT(ret > 0);
+            if (ret < 0) {
+#ifdef __linux__
+                LOG(ERROR, "Error writing; errno %d %s", errno, strerror(errno));
+#endif
+                ::close(fd_write_);
+                parent_->UnregisterMember(this);
+                return;
+            }
             count -= ret;
             bbuf += ret;
         }
@@ -136,13 +158,18 @@ private:
             while (count > 0)
             {
                 ssize_t ret = ::read(t->fd_read_, bbuf, count);
-                if (!ret)
+                if (ret <= 0)
                 {
                     /// @todo (Stuart Baker) does not build against MinGW
-                    // LOG(ERROR, "EOF reading pipe fd %d.\n", t->fd_read_);
-                    t->parent_->UnregisterMember(t);
+#ifdef __linux__
+                    LOG(ERROR, "%s reading pipe fd %d.",
+                        ret < 0 ? "error" : "EOF", t->fd_read_);
+                    LOG(ERROR, "errno %d %s", errno, strerror(errno));
+#endif
                     ::close(t->fd_read_);
-                    if (t->fd_write_ != t->fd_read_)
+                    if (t->fd_write_ != t->fd_read_) {
+                    }
+                    if (t->fd_write_ != t->fd_read_ && t->fd_write_ >= 0)
                     {
                         ::close(t->fd_write_);
                     }
@@ -185,22 +212,28 @@ void Pipe::AddPhysicalDeviceToPipe(int fd_read, int fd_write,
 {
     // The new member is effectively leaked here. The problem is that we cannot
     // destruct physical pipe members because they have a thread.
-    RegisterMember(new PhysicalDevicePipeMember(this, fd_read, fd_write,
-                                                thread_name, stack_size));
+    PipeMember* m = new PhysicalDevicePipeMember(this, fd_read, fd_write,
+                                                 thread_name, stack_size);
+    if (fd_write >= 0) {
+        RegisterMember(m);
+    }
 }
 
-//! @TODO(balazs.racz) make this configurable.
-InitializedAllocator<CanPipeBuffer> g_can_alloc(3);
+extern "C" {
+__attribute__((__weak__)) int CAN_PIPE_BUFFER_COUNT = 3;
+}
+InitializedAllocator<CanPipeBuffer> g_can_alloc(CAN_PIPE_BUFFER_COUNT);
 
-void CanPipeBuffer::Reset() {
+void CanPipeBuffer::Reset()
+{
     pipe_buffer.data = &frame;
     pipe_buffer.size = sizeof(frame);
     pipe_buffer.done = this;
 }
-void CanPipeBuffer::Notify() {
+void CanPipeBuffer::notify()
+{
     g_can_alloc.TypedRelease(this);
 }
-
 
 #ifdef __linux__
 void Pipe::AddVirtualDeviceToPipe(const char* thread_name, int stack_size,

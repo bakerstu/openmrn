@@ -37,6 +37,10 @@
 
 extern "C" {
 
+extern int GC_GENERATE_NEWLINES;
+
+__attribute__((__weak__)) int GC_GENERATE_NEWLINES = 0;
+
 /** Build an ASCII character representation of a nibble value (uppercase hex).
  * @param value to convert
  * @return converted value
@@ -238,6 +242,9 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
         output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
     }
     output(buf, ';');
+    if (GC_GENERATE_NEWLINES) {
+        output(buf, '\n');
+    }
     return buf;
 }
 

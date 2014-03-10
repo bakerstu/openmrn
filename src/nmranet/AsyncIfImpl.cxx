@@ -50,36 +50,64 @@ ControlFlow::ControlFlowAction WriteFlowBase::send_to_local_nodes()
 {
     return Allocate(async_if()->dispatcher()->allocator(),
                     ST(unaddressed_with_local_dispatcher));
-    ///@TODO(balazs.racz) actually send to local nodes.
-
-    return send_to_hardware();
 }
 
-ControlFlow::ControlFlowAction WriteFlowBase::unaddressed_with_local_dispatcher()
+ControlFlow::ControlFlowAction
+WriteFlowBase::unaddressed_with_local_dispatcher()
 {
     AsyncIf::MessageDispatchFlow* dispatcher;
     GetAllocationResult(&dispatcher);
+    send_message_to_local_dispatcher(dispatcher);
+    return send_to_hardware();
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::addressed_with_local_dispatcher()
+{
+    AsyncIf::MessageDispatchFlow* dispatcher;
+    GetAllocationResult(&dispatcher);
+    send_message_to_local_dispatcher(dispatcher);
+    return CallImmediately(ST(addressed_local_dispatcher_done));
+}
+
+ControlFlow::ControlFlowAction WriteFlowBase::addressed_local_dispatcher_done()
+{
+    cleanup();
+    return ReleaseAndExit(allocator(), this);
+}
+
+void WriteFlowBase::send_message_to_local_dispatcher(
+    AsyncIf::MessageDispatchFlow* dispatcher)
+{
     dispatcher->mutable_params()->mti = mti_;
     dispatcher->mutable_params()->src.id = src_;
     dispatcher->mutable_params()->src.alias = 0;
-    dispatcher->mutable_params()->dst = dst_;  // should be 0,0.
-    dispatcher->mutable_params()->dst_node = nullptr;
+    dispatcher->mutable_params()->dst = dst_;
+    dispatcher->mutable_params()->dst_node = dstNode_;
 
     dispatcher->mutable_params()->payload = nullptr;
-    if (data_) {
+    // Makes a copy of the input buffer if there is payload.
+    /// @TODO(stbaker): Add refcounting to Buffers to avoid this copy.
+    if (data_)
+    {
         Buffer* copy = buffer_alloc(data_->used());
         memcpy(copy->start(), data_->start(), data_->used());
         copy->advance(data_->used());
         dispatcher->mutable_params()->payload = copy;
     }
     dispatcher->IncomingMessage(mti_);
-
-    return send_to_hardware();
 }
 
 ControlFlow::ControlFlowAction WriteFlowBase::maybe_send_to_local_node()
 {
-    ///@TODO(balazs.racz) lookup local node and send.
+    if (dst_.id)
+    {
+        dstNode_ = async_if()->lookup_local_node(dst_.id);
+        if (dstNode_)
+        {
+            return Allocate(async_if()->dispatcher()->allocator(),
+                            ST(addressed_with_local_dispatcher));
+        }
+    }
     return send_to_hardware();
 }
 

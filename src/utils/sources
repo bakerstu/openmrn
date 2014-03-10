@@ -4,9 +4,8 @@ CSRCS += errno_exit.c \
          ieeehalfprecision.c
 
 CXXSRCS += BufferQueue.cxx \
-           GridConnect.cxx
+           GridConnect.cxx \
+           logging.cxx
 
-CXXTESTSRCS += BufferQueue.cxxtest
-           
-           
+CXXTESTSRCS += BufferQueue.cxxtest           
 

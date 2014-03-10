@@ -64,6 +64,9 @@ typedef void* nmranet_if_t; /**< interface handle */
  */
 enum mti_value
 {
+#ifdef __cplusplus
+#error You shouldn_t include nmranet_if in c++ programs. Use the C++ api.
+#endif
     MTI_INITIALIZATION_COMPLETE   = 0x0100, /**< initialization complete */
     MTI_VERIFY_NODE_ID_ADDRESSED  = 0x0488, /**< verify a Node ID */
     MTI_VERIFY_NODE_ID_GLOBAL     = 0x0490, /**< verify a Node ID globally */

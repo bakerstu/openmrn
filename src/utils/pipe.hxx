@@ -184,10 +184,10 @@ public:
     /** Adds a physical device to the members of this pipe.
 
         @param fd_read is the fd from which data will be read (and transmitted
-        to the pipe).
+        to the pipe). -1 if no input is needed.
 
         @param fd_write is the fd into which data from the pipe will be
-        written.
+        written. -1 if no output is needed.
 
         @param thread_name will be the name of the RX thread from the physical
         device
@@ -276,9 +276,12 @@ struct CanPipeBuffer : public QueueMember, private Notifiable {
     struct can_frame frame;
     // Sets up data, size and done of pipe_buffer.
     void Reset();
-    virtual void Notify();
+    virtual void notify();
 };
 
+extern "C" {
+extern int CAN_PIPE_BUFFER_COUNT;
+}
 extern InitializedAllocator<CanPipeBuffer> g_can_alloc;
 
 /** Defines a pipe to forward data between real and virtual devices.

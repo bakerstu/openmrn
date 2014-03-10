@@ -14,7 +14,7 @@ Notifiable* CrashNotifiable::DefaultInstance() {
   return &default_crash_notifiable;
 }
 
-void CrashNotifiable::Notify() { DIE("Called CrashNotifiable."); }
+void CrashNotifiable::notify() { DIE("Called CrashNotifiable."); }
 
 Notifiable* BarrierNotifiable::NewChild() {
   LockHolder h(this);
@@ -22,7 +22,7 @@ Notifiable* BarrierNotifiable::NewChild() {
   return this;
 }
 
-void BarrierNotifiable::Notify() {
+void BarrierNotifiable::notify() {
   unsigned new_value;
   {
     LockHolder h(this);
@@ -30,7 +30,7 @@ void BarrierNotifiable::Notify() {
   }
   if (!new_value) {
     HASSERT(done_);
-    done_->Notify();
+    done_->notify();
   }
 }
 

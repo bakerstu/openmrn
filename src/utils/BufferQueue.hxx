@@ -39,17 +39,9 @@
 #include <cstdlib>
 #include <cstdarg>
 
-#include <os/OS.hxx>
-#if 0
 #include "executor/notifiable.hxx"
-#else
-//! An object that can schedule itself on an executor to run.
-class Notifiable
-{
-    public:
-        virtual void Notify() = 0;
-};
-#endif
+#include "os/OS.hxx"
+#include "utils/Queue.hxx"
 
 
 class DynamicPool;
@@ -61,44 +53,6 @@ class BufferBase;
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
 
-
-/** Essentially a "next" pointer container.
- */
-class QMember
-{
-protected:    
-    /** Constructor.
-     */
-    QMember()
-        : next(NULL)
-    {
-    }
-    
-    /** Destructor.
-     */ 
-    ~QMember()
-    {
-    }
-    
-    /** pointer to the next member in the queue */
-    QMember *next;
-
-    /** This class is a helper of Q */
-    friend class Q;
-};
-
-#if 0
-#include "executor/stateFlow.hxx"
-#else
-//! An object that can schedule itself on an executor to run.
-class StateFlow : public QMember
-{
-public:
-    void alloc_result(BufferBase *bufer)
-    {
-    }
-};
-#endif
 
 
 class BufferBase : public QMember
@@ -332,6 +286,10 @@ public:
      */
     void insert(QMember *item, unsigned index)
     {
+        if (index >= items)
+        {
+            index = items - 1;
+        }
         list[index].insert(item);
     }
     
@@ -633,7 +591,7 @@ public:
         return size_;
     }
 
-    /** Pull out any pending stateflows.
+    /** Pull out any pending Executables.
      * @return next Qmember pending on an item in the bucket
      */
     QMember *pending()
@@ -691,7 +649,7 @@ public:
      *        behave as if @ref alloc_async() was called.
      */
     template <class BufferType> void alloc(Buffer<BufferType> **result,
-                                           StateFlow *flow = NULL)
+                                           Executable *flow = NULL)
     {
         *result = NULL;
 
@@ -721,13 +679,13 @@ public:
     }
 
     /** Get a free item out of the pool.
-     * @param flow StateFlow to notify upon allocation
+     * @param flow Executable to notify upon allocation
      */
-    template <class BufferType> void alloc_async(StateFlow *flow)
+    template <class BufferType> void alloc_async(Executable *flow)
     {
         Buffer<BufferType> *buffer;
         alloc<BufferType>(&buffer);
-        /* This pool will malloc indefinately to create more buffers.
+        /* This pool will malloc indefinitely to create more buffers.
          * We will always have the result.
          */
         flow->alloc_result(buffer);
@@ -1068,7 +1026,7 @@ public:
         return result;
     }
     
-    /** Wakeup anyone waiting on the wait queue.
+    /** Wakeup someone waiting on the wait queue.
      */
     void wakeup()
     {
@@ -1076,7 +1034,6 @@ public:
     }
     
 private:
-
     DISALLOW_COPY_AND_ASSIGN(QueueProtectedWait);
 };
 

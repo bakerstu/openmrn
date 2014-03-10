@@ -42,14 +42,17 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <memory>
 #include <string>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 #include "os/os.h"
-#include "utils/pipe.hxx"
+//#include "utils/pipe.hxx"
 #include "nmranet_can.h"
+#include "executor/Executor.hxx"
 
+namespace testing {
 /** Conveninence utility to do a printf directly into a C++ string. */
 string StringPrintf(const char* format, ...) {
   static const int kBufSize = 1000;
@@ -71,20 +74,80 @@ string StringPrintf(const char* format, ...) {
   ret.resize(n);
   return ret;
 }
+}
+
+using testing::StringPrintf;
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleMock(&argc, argv);
   return RUN_ALL_TESTS();
 }
 
-ThreadExecutor g_executor("async_exec", 0, 2000);
-DEFINE_PIPE(can_pipe0, &g_executor, sizeof(struct can_frame));
+Executor<1> g_executor("ex_thread", 0, 1024);
 
-void WaitForMainExecutor() {
-  while (!g_executor.empty()) {
-    usleep(100);
-  }
+template<class Executor>
+/** This class can be given an executor, and will notify itself when that
+ *   executor is out of work. */
+class ExecutorGuard : private Executable, public SyncNotifiable
+{
+public:
+    ExecutorGuard(Executor* e)
+        : executor_(e) {
+        executor_->add(this);  // lowest priority
+    }
+
+    virtual void run() {
+        if (executor_->empty()) {
+            SyncNotifiable::notify();
+        } else {
+            executor_->add(this);  // wait more on the lowest priority
+        }
+    }
+private:
+    Executor* executor_;
+};
+
+void wait_for_main_executor()
+{
+    ExecutorGuard<decltype(g_executor)> guard(&g_executor);
+    guard.wait_for_notification();
 }
+
+/** Overrides the value of a variable and restores it to the original value
+ * when destructed. Useful for changing flags for a single test only.
+ *
+ * Usage:
+ * {
+ *    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, 100000);
+ *    ... test code assuming new value ...
+ * }
+ * ... now the original value is restored.
+ */
+class ScopedOverride {
+ public:
+  template <class T> ScopedOverride(T* variable, T new_value)
+      : holder_(new Holder<T>(variable, new_value)) {}
+
+ private:
+  class HolderBase { public: virtual ~HolderBase() {} };
+
+  template<class T> class Holder : public HolderBase {
+   public:
+    Holder(T* variable, T new_value)
+        : variable_(variable), oldValue_(*variable) {
+      *variable = new_value;
+    }
+
+    ~Holder() {
+      *variable_ = oldValue_;
+    }
+   private:
+    T* variable_;
+    T oldValue_;
+  };
+
+  std::unique_ptr<HolderBase> holder_;
+};
 
 extern "C" {
 

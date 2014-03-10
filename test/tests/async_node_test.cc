@@ -15,15 +15,16 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     // Technically there is a race condition here. The initialization could
     // happen before we get to this expectation.
     EXPECT_FALSE(node.is_initialized());
-    if_can_->AddWriteFlows(2, 2);
+    if_can_->add_addressed_message_support(2);
     LOG(INFO, "after");
     Wait();
     EXPECT_TRUE(node.is_initialized());
+    EXPECT_EQ(&node, if_can_->lookup_local_node(TEST_NODE_ID));
 }
 
 TEST_F(AsyncIfTest, TwoNodesInitialize)
 {
-    if_can_->AddWriteFlows(2, 2);
+    if_can_->add_addressed_message_support(2);
     ExpectPacket(":X1910022AN02010d000003;"); // initialization complete
     CreateAllocatedAlias();
     LOG(INFO, "before");
@@ -39,7 +40,7 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
 
 TEST_F(AsyncIfTest, WriteHelperByMTI)
 {
-    if_can_->AddWriteFlows(2, 2);
+    if_can_->add_addressed_message_support(2);
     ExpectPacket(":X1910022AN02010d000003;"); // initialization complete
     DefaultAsyncNode node(if_can_.get(), TEST_NODE_ID);
     Wait();  // for initialized

@@ -60,14 +60,21 @@ public:
         os_thread_create(&handle, name, priority, stack_size, start_routine, arg);
     }
 
-   /** Create a thread.  This constructor can be used when OSThread is inherited.
-     * @param name name of thread, NULL for an auto generated name
-     * @param priority priority of created thread, 0 means default,
-     *        lower numbers means lower priority, higher numbers mean higher
-     *        priority
-     * @param stack_size size in bytes of the created thread's stack
-     */
-    OSThread(const char *name, int priority, size_t stack_size)
+    /** Creates a thread via inheritance. The user must overload the entry()
+     * function and call the start() method whenever convenient. */
+    OSThread()
+    {
+    }
+
+   /** Starts the thread.  This call can be used when OSThread is inherited and
+    * there is a virtual entry point.
+    * @param name name of thread, NULL for an auto generated name
+    * @param priority priority of created thread, 0 means default,
+    *        lower numbers means lower priority, higher numbers mean higher
+    *        priority
+    * @param stack_size size in bytes of the created thread's stack
+    */
+    void start(const char *name, int priority, size_t stack_size)
     {
         os_thread_create(&handle, name, priority, stack_size, start, this);
     }
@@ -81,8 +88,9 @@ protected:
     /** User entry point for the created thread.
      * @return exit status
      */
-    virtual void *entry()
-    {
+    virtual void *entry() {
+        HASSERT(0 && "forgot to overload OSThread entry point. This thread "
+                     "would do nothing.");
         return NULL;
     }
     
@@ -97,9 +105,6 @@ private:
         return thread->entry();
     }
 
-    /** Default Constructor */
-    OSThread();
-      
     DISALLOW_COPY_AND_ASSIGN(OSThread);
 
     /** Private thread handle. */

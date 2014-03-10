@@ -141,18 +141,23 @@ public:
      *
      * @param hw_write_flow_count tells how many concurrent write flows (each
      * with one CAN frame) should we have.
+     *
+     * @param global_can_write_flow_count tells how many concurrent write flows
+     * for global unaddressed messages (each with one MTI/message) should we
+     * have.
      */
     AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
-               int remote_alias_cache_size, int hw_write_flow_count);
+               int remote_alias_cache_size, int hw_write_flow_count,
+               int global_can_write_flow_count, int local_nodes_count);
 
     ~AsyncIfCan();
 
-    /** Initializes the write flow allocators with a number of new instances.
+    /** Adds support to this interface for addressed NMRAnet messages (both
+     * sending and receiving).
      *
-     *  @param num_addressed number of new addressed write flows to create.
-     *  @param num_global number of new global write flows to create.
-     */
-    void AddWriteFlows(int num_addressed, int num_global);
+     * @param num_write_flows sets how many concurrent addressed messages could
+     * be in flight sending (ex. waiting for destination address resolution).*/
+    void add_addressed_message_support(int num_write_flows);
 
     //! @returns the dispatcher of incoming CAN frames.
     FrameDispatchFlow* frame_dispatcher()
@@ -163,6 +168,7 @@ public:
     //! @returns the allocator for the *can frame* write flow.
     TypedAllocator<CanFrameWriteFlow>* write_allocator()
     {
+        HASSERT(write_allocator_.has_ever_seen_free_entries());
         return &write_allocator_;
     }
 

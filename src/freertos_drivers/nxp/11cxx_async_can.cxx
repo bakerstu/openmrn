@@ -145,7 +145,7 @@ public:
         (*rom)->pCAND->can_transmit(&msg_obj);
 
         // The incoming frame is no longer needed.
-        done->Notify();
+        done->notify();
         released_ = 1;
         lock_.TypedReleaseBack(this);
     }
@@ -154,7 +154,7 @@ public:
     {
         HASSERT(!(freeTxBuffers_ & (1 << buf_num)));
         freeTxBuffers_ |= (1 << buf_num);
-        if (frameToWrite_)
+        if (frameToWrite_ && !g_executor.IsRunning(this))
         {
             g_executor.AddFromIsr(this);
         }
@@ -254,8 +254,9 @@ private:
         bufFull_ = 1;
         rxPending_ = 0;
 
-        frame_.can_id = msg_obj.mode_id & ((1 << 30) - 1);
-        HASSERT(frame_.can_id & 0xfff);
+        frame_.can_id = msg_obj.mode_id & ((1 << 29) - 1);
+        // JMRI crashes the node here.
+        // HASSERT(frame_.can_id & 0xfff);
         frame_.can_rtr = (msg_obj.mode_id & CAN_MSGOBJ_RTR) ? 1 : 0;
         frame_.can_eff = (msg_obj.mode_id & CAN_MSGOBJ_EXT) ? 1 : 0;
         frame_.can_err = 0;

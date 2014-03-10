@@ -43,7 +43,8 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
-SUBDIRS += lib
+#we don't have to recurse into lib, because there are no sources there. We don't need a liblib.a
+#SUBDIRS += lib
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 ifdef APP_PATH
 INCLUDES += -I$(APP_PATH)
@@ -69,7 +70,9 @@ else
 # This defines how to create nonexistant directories.
 MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
+ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
+endif
 
 all: $(EXECUTABLE)$(EXTENTION)
 
@@ -77,7 +80,21 @@ all: $(EXECUTABLE)$(EXTENTION)
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 $(FULLPATHLIBS): $(BUILDDIRS)
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS)  depmake
+# This file acts as a guard describing when the last libsomething.a was remade
+# in the application libraries.
+lib/timestamp : FORCE $(BUILDDIRS)
+	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+
+# This file acts as a guard describing when the last libsomething.a was remade
+# in the core target libraries.
+$(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
+	make -C $(OPENMRNPATH)/targets/$(TARGET) all
+
+# We cannot make lib/timestamp a phony target or else every test will always be
+# remade.
+FORCE:
+
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
 	$(SIZE) $@
@@ -86,13 +103,12 @@ endif
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
 
+ifndef CGMINSIZE
+CGMINSIZE=300
+endif
+
 cg.svg: $(EXECUTABLE).lst $(OPENMRNPATH)/bin/callgraph.py
-	$(OPENMRNPATH)/bin/callgraph.py --min_size 300 --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
-
-.PHONY: depmake
-
-depmake:
-	make -C $(OPENMRNPATH)/targets/$(TARGET) all
+	$(OPENMRNPATH)/bin/callgraph.py --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)
@@ -124,7 +140,7 @@ depmake:
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst *.map
+	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local
@@ -155,18 +171,19 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
 	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
 
-.PHONY: $(TEST_OUTPUTS)
+#.PHONY: $(TEST_OUTPUTS)
 
 $(TEST_OUTPUTS) : %_test.output : %_test
 	./$*_test --gtest_death_test_style=threadsafe
+	touch $@
 
-$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS)
+$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
 
 $(info test deps: $(FULLPATHLIBS) )
 
 %_test.o : %_test.cc
-	$(CXX) $(CXXFLAGS:-Werror=) -fpermissive  $< -o $*_test.o
+	$(CXX) $(CXXFLAGS:-Werror=) -DTESTING -fpermissive  $< -o $*_test.o
 	$(CXX) -MM $(CXXFLAGS) $< > $*_test.d
 
 #$(TEST_OUTPUTS) : %_test.output : %_test.cc gtest-all.o gtest_main.o

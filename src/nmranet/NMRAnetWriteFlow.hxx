@@ -79,7 +79,7 @@ public:
             (!node->is_initialized() && mti != If::MTI_INITIALIZATION_COMPLETE))
         {
             // Drops packet to non-initialized node.
-            if (done) done->Notify();
+            if (done) done->notify();
             return;
         }
         node_ = node;

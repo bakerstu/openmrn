@@ -144,7 +144,7 @@ protected:
        A handler will be called if incoming_mti & mask == mti & mask.
 
        @param mti is the identifier of the message to listen to.
-       @param mask is the mask of the mti matcher.
+       @param mask is the mask of the mti matcher. 0=match all; 0xffff=match one
        @param handler is the MTI handler. It must stay alive so long as this If
        is alive.
      */
