@@ -37,6 +37,8 @@
 
 #include "utils/BufferQueue.hxx"
 
+typedef BufferBase Message;
+#if 0
 /** Buffer with additional fields to represent a complete message.
  */
 class Message : public BufferBase
@@ -174,7 +176,7 @@ private:
     }
 
     /** pointer to Pool instance that this buffer belongs to */
-    Pool<Message> *pool_;
+    Pool *pool_;
 
     /** who this message is directed to */
     void *to_;
@@ -192,13 +194,13 @@ private:
     char data_[];
     
     /** This class is a helper of Pool */
-    template <class T> friend class Pool;
+    friend class Pool;
         
     /** Constructor.
      * @param size size of Message data in bytes
      * @param pool pool that this buffer belongs to
      */
-    Message(size_t size, Pool<Message> *pool)
+    Message(size_t size, Pool *pool)
         : BufferBase(size, pool),
           pool_(pool),
           to_(NULL),
@@ -271,8 +273,9 @@ inline Message *Message::expand(size_t size)
     pool_->free(this);
     return new_msg;
 }
+#endif
 
 /** main message pool instance */
-extern DynamicPool<Message> *mainMessagePool;
+extern DynamicPool *mainMessagePool;
 
 #endif /* _Message_hxx_ */
