@@ -5,6 +5,8 @@ CSRCS += errno_exit.c \
 
 CXXSRCS += BufferQueue.cxx \
            GridConnect.cxx
+
+CXXTESTSRCS += BufferQueue.cxxtest
            
            
 

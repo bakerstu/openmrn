@@ -30,7 +30,6 @@
  * @author Stuart W. Baker
  * @date 3 August 2013
  */
-
 #include "BufferQueue.hxx"
 
 #include <cstdio>
@@ -41,7 +40,9 @@
 #define DEBUG_PRINTF(_fmt...)
 #endif
 
-DynamicPool<Buffer> *mainBufferPool = new DynamicPool<Buffer>(DynamicPool<Buffer>::Bucket::init(4, 8, 16, 32, 0));
+DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
+
+#if 0
 
 /** Expand the buffer size.  Exercise caution when using this API.  If anyone
  * else is holding onto a reference of this, their reference will be corrupted.
@@ -60,4 +61,4 @@ Buffer *Buffer::expand(size_t size)
     pool_->free(this);
     return new_buffer;
 }
-
+#endif

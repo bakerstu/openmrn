@@ -35,6 +35,7 @@
 #include "gtest/gtest.h"
 #include "utils/BufferQueue.hxx"
 
+#if 0
 TEST(BufferTest, free_alloc_init_4)
 {
     Buffer *buffer = mainBufferPool->buffer_alloc(4);
@@ -178,9 +179,293 @@ TEST(BufferQueueWaitTest, all)
     queue->buffer_free(buffer3);
 }
 
+#endif
+
+TEST(BufferBase, alloc)
+{
+    struct Item
+    {
+        uint32_t param1;
+        uint16_t param2;
+        uint16_t param3;
+    };
+    
+    Buffer<Item> *buffer;
+    mainBufferPool->alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer->references() == 1);
+    
+    buffer->data()->param1 = 4;
+    buffer->data()->param2 = 5;
+    buffer->data()->param3 = 6;
+    
+    EXPECT_TRUE(buffer->ref() == buffer);
+    EXPECT_TRUE(buffer->references() == 2);
+    
+    buffer->unref();
+    EXPECT_TRUE(buffer->references() == 1);
+    buffer->unref();
+}
+
+TEST(BufferBase, alloc_async)
+{
+    struct Item
+    {
+        uint32_t param1;
+        uint16_t param2;
+        uint16_t param3;
+    };
+    
+    StateFlow flow;
+    
+    mainBufferPool->alloc_async<Item>(&flow);
+}
+
+DynamicPool *unalignedBufferPool = new DynamicPool(Bucket::init(5, 9, 0));
+
+TEST(BufferBase, alloc_unaligned)
+{
+    struct Item
+    {
+        uint32_t param1;
+        uint16_t param2;
+        uint16_t param3;
+    };
+    
+    Buffer<Item> *buffer;
+    unalignedBufferPool->alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer->references() == 1);
+    buffer->unref();
+}
+
+TEST(QList, all)
+{
+    struct Item : public QMember
+    {
+    };
+    
+    QList<3> q;
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+    
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.next(2) == &a);
+    EXPECT_TRUE(q.next(1) == &b);
+    EXPECT_TRUE(q.next(0) == &c);
+    EXPECT_TRUE(q.next(0) == &d);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.pending() == 4);
+    EXPECT_TRUE(q.pending(2) == 1);
+    EXPECT_TRUE(q.pending(1) == 1);
+    EXPECT_TRUE(q.pending(0) == 2);
+    EXPECT_FALSE(q.empty());
+    EXPECT_FALSE(q.empty(2));
+    EXPECT_FALSE(q.empty(1));
+    EXPECT_FALSE(q.empty(0));
+    
+    QList<3>::Result result;
+    result = q.next();
+    EXPECT_TRUE(result.item == &c);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &d);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &b);
+    EXPECT_TRUE(result.index == 1);
+    result = q.next();
+    EXPECT_TRUE(result.item == &a);
+    EXPECT_TRUE(result.index == 2);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+
+    result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+}
+
+TEST(QListProtected, all)
+{
+    struct Item : public QMember
+    {
+    };
+    
+    QListProtected<3> q;
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+    
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.next(2) == &a);
+    EXPECT_TRUE(q.next(1) == &b);
+    EXPECT_TRUE(q.next(0) == &c);
+    EXPECT_TRUE(q.next(0) == &d);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.pending() == 4);
+    EXPECT_TRUE(q.pending(2) == 1);
+    EXPECT_TRUE(q.pending(1) == 1);
+    EXPECT_TRUE(q.pending(0) == 2);
+    EXPECT_FALSE(q.empty());
+    EXPECT_FALSE(q.empty(2));
+    EXPECT_FALSE(q.empty(1));
+    EXPECT_FALSE(q.empty(0));
+    
+    QList<3>::Result result;
+    result = q.next();
+    EXPECT_TRUE(result.item == &c);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &d);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &b);
+    EXPECT_TRUE(result.index == 1);
+    result = q.next();
+    EXPECT_TRUE(result.item == &a);
+    EXPECT_TRUE(result.index == 2);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+
+    result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+}
+
+struct Item : public QMember
+{
+};
+
+Item global;
+
+void *QListProtectedWait_thread(void *arg)
+{
+    QListProtectedWait<3>* q = static_cast<QListProtectedWait<3>*>(arg);
+    
+    q->insert(&global, 0);
+    return NULL;
+}
+
+void *QListProtectedWait_signal_thread(void *arg)
+{
+    QListProtectedWait<3>* q = static_cast<QListProtectedWait<3>*>(arg);
+    
+    q->wakeup();
+    return NULL;
+}
+
+void *QListProtectedWait_thread_timed(void *arg)
+{
+    QListProtectedWait<3>* q = static_cast<QListProtectedWait<3>*>(arg);
+    
+    q->insert(&global, 0);
+    return NULL;
+}
+
+void *QListProtectedWait_signal_thread_timed(void *arg)
+{
+    QListProtectedWait<3>* q = static_cast<QListProtectedWait<3>*>(arg);
+    
+    q->wakeup();
+    return NULL;
+}
+
+TEST(QListProtectedWait, all)
+{
+    QListProtectedWait<3> q;
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.pending() == 4);
+    EXPECT_TRUE(q.pending(2) == 1);
+    EXPECT_TRUE(q.pending(1) == 1);
+    EXPECT_TRUE(q.pending(0) == 2);
+    EXPECT_FALSE(q.empty());
+    EXPECT_FALSE(q.empty(2));
+    EXPECT_FALSE(q.empty(1));
+    EXPECT_FALSE(q.empty(0));
+    
+    QList<3>::Result result;
+    result = q.next();
+    EXPECT_TRUE(result.item == &c);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &d);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &b);
+    EXPECT_TRUE(result.index == 1);
+    result = q.next();
+    EXPECT_TRUE(result.item == &a);
+    EXPECT_TRUE(result.index == 2);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+
+    result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+    
+    pthread_t thread;
+    pthread_create(&thread, NULL, QListProtectedWait_thread, &q);
+    result = q.wait();
+    EXPECT_TRUE(result.item == &global);
+    EXPECT_TRUE(result.index == 0);
+
+    pthread_create(&thread, NULL, QListProtectedWait_signal_thread, &q);
+    result = q.wait();
+    EXPECT_TRUE(result.item == NULL);
+    EXPECT_TRUE(errno == EINTR);
+
+    pthread_create(&thread, NULL, QListProtectedWait_thread_timed, &q);
+    result = q.timedwait(500000000);
+    EXPECT_TRUE(result.item == &global);
+    EXPECT_TRUE(result.index == 0);
+
+    pthread_create(&thread, NULL, QListProtectedWait_signal_thread_timed, &q);
+    result = q.timedwait(500000000);
+    EXPECT_TRUE(result.item == NULL);
+    EXPECT_TRUE(errno == EINTR);
+
+    result = q.timedwait(500000000);
+    EXPECT_TRUE(result.item == NULL);
+    EXPECT_TRUE(errno == ETIMEDOUT);
+}
+
 int appl_main(int argc, char* argv[])
 {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 
