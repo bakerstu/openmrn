@@ -1,0 +1,13 @@
+VPATH := $(SRCDIR)
+
+CSRCS += 
+
+CXXSRCS += \
+        Executor.cxx \
+        StateFlow.cxx \
+        notifiable.cxx \
+        Service.cxx \
+        
+
+
+        
