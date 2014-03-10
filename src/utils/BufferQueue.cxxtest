@@ -34,6 +34,7 @@
 
 #include "gtest/gtest.h"
 #include "utils/BufferQueue.hxx"
+#include "executor/StateFlow.hxx"
 
 #if 0
 TEST(BufferTest, free_alloc_init_4)
@@ -206,6 +207,8 @@ TEST(BufferBase, alloc)
     buffer->unref();
 }
 
+Executor<1> executor("executor", 0, 1024);
+
 TEST(BufferBase, alloc_async)
 {
     struct Item
@@ -215,7 +218,16 @@ TEST(BufferBase, alloc_async)
         uint16_t param3;
     };
     
-    StateFlow flow;
+    class TrivialFlow : public StateFlowBase
+    {
+    public:
+        TrivialFlow(Service *s)
+            : StateFlowBase(s)
+        {}
+    };
+    
+    Service service(&executor);
+    TrivialFlow flow(&service);
     
     mainBufferPool->alloc_async<Item>(&flow);
 }
