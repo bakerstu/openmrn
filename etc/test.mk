@@ -54,7 +54,9 @@ LDFLAGS      += -L$(LIBDIR)
 
 all: $(TESTOUTPUTS)
 
-$(TESTOUTPUTS): $(OBJS) $(TESTOBJS)
+-include $(OBJS:.o=.d) $(TESTOBJS:.otest=.dtest)
+
+$(TESTOUTPUTS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS)
 	$(LD) -o $@ $*.otest $(GTESTPATH)/src/gtest-all.o \
 	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
 	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
@@ -88,7 +90,7 @@ tests: all
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.otest *.d *.dtest *.test *.gcda *.gcno *.png *.info bits ext home i686-linux-gnu opt usr *.html *.css lcovdir
+	rm -rf *.o *.otest *.d *.dtest *.test *.gcda *.gcno *.png *.info bits ext home i686-linux-gnu opt usr *.html *.css lcovdir *.map
 
 veryclean: clean-local
 
