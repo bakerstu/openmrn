@@ -41,6 +41,7 @@
 
 #include "executor/notifiable.hxx"
 #include "os/OS.hxx"
+#include "utils/macros.h"
 #include "utils/Queue.hxx"
 
 
@@ -1208,6 +1209,7 @@ inline unsigned int BufferManager::reference()
  */
 template <class T> void Buffer<T>::unref()
 {
+    HASSERT(sizeof(Buffer<T>) == size_);
     if (--count_ == 0)
     {
         this->~Buffer();
