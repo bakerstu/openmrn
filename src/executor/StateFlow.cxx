@@ -60,7 +60,7 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
 {
     LockHolder h(this);
     unsigned priority;
-    currentMessage_ = static_cast<Message *>(queue()->wait(&priority));
+    currentMessage_ = static_cast<Message *>(queue_next(&priority));
     if (currentMessage_)
     {
         isWaiting_ = 0;

@@ -520,6 +520,10 @@ public:
      */
     void insert(T *q, unsigned index)
     {
+        if (index >= items)
+        {
+            index = items - 1;
+        }
         list[index].insert(q);
     }
 

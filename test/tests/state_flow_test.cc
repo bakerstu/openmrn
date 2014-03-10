@@ -68,6 +68,128 @@ TEST_F(StateFlowTest, SimpleFlow) {
   EXPECT_EQ(5, b);
 }
 
+class QueueTestFlow : public StateFlow<Message, QList<Message, 3> > {
+public:
+    QueueTestFlow(vector<uint32_t>* seen_ids)
+        : StateFlow(&g_service),
+          seenIds_(seen_ids) {}
+protected:
+    virtual Action entry() {
+        seenIds_->push_back(message()->id());
+        return release_and_exit();
+    }
+
+private:
+    vector<uint32_t>* seenIds_;
+};
+
+DynamicPool<Message> g_message_pool(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
+
+class QueueTest : public StateFlowTest {
+public:
+    QueueTest() : flow_(&seenIds_) {
+    }
+protected:
+    vector<uint32_t> seenIds_;
+    QueueTestFlow flow_;
+};
+
+TEST_F(QueueTest, Nothing) {
+    wait();
+    EXPECT_TRUE(seenIds_.empty());
+}
+
+TEST_F(QueueTest, OneItem) {
+    Message* first = g_message_pool.alloc(0);
+    first->id(42);
+    wait();
+    EXPECT_TRUE(seenIds_.empty());
+    flow_.send(first);
+    wait();
+    ASSERT_EQ(1U, seenIds_.size());
+    EXPECT_EQ(42U, seenIds_[0]);
+}
+
+TEST_F(QueueTest, ThreeItems) {
+    Message* first = g_message_pool.alloc(0);
+    first->id(42);
+    wait();
+    EXPECT_TRUE(seenIds_.empty());
+    flow_.send(first);
+    wait();
+    ASSERT_EQ(1U, seenIds_.size());
+    EXPECT_EQ(42U, seenIds_[0]);
+    Message* second = g_message_pool.alloc(0);
+    second->id(43);
+    flow_.send(second);
+    Message* third = g_message_pool.alloc(0);
+    third->id(44);
+    flow_.send(third);
+    wait();
+    ASSERT_EQ(3U, seenIds_.size());
+    EXPECT_EQ(42U, seenIds_[0]);
+    EXPECT_EQ(43U, seenIds_[1]);
+    EXPECT_EQ(44U, seenIds_[2]);
+}
+
+/* Utility class to block an executor for a while.
+ *
+ * Usage: add an instance of BlockExecutor to the executor you want to block,
+ * then call wait_for_blocked() and later release_block().
+ */
+class BlockExecutor : public Executable
+{
+public:
+    virtual void run()
+    {
+        n_.notify();
+        m_.wait_for_notification();
+    }
+
+    /** Blocks the current thread until the BlockExecutor manages to block the
+    executor it was scheduled on. */
+    void wait_for_blocked()
+    {
+        n_.wait_for_notification();
+    }
+
+    /** Releases the executor that was blocked. */
+    void release_block()
+    {
+        m_.notify();
+    }
+
+private:
+    SyncNotifiable n_;
+    SyncNotifiable m_;
+};
+
+TEST_F(QueueTest, Priorities) {
+    Message* m[] = {g_message_pool.alloc(0),
+                    g_message_pool.alloc(0),
+                    g_message_pool.alloc(0)};
+    m[0]->id(42);
+    m[1]->id(43);
+    m[2]->id(44);
+    // We block the executor before sending off the messages to avoid this test
+    // being flakey on multi-core processors.
+    BlockExecutor b;
+    g_executor.add(&b, 0);
+    b.wait_for_blocked();
+
+    flow_.send(m[0]);
+    flow_.send(m[1], 1);
+    flow_.send(m[2], 0);
+    b.release_block();
+
+    wait();
+    // The order of the arrived messages should be reversed.
+    ASSERT_EQ(3U, seenIds_.size());
+    EXPECT_EQ(44U, seenIds_[0]);
+    EXPECT_EQ(43U, seenIds_[1]);
+    EXPECT_EQ(42U, seenIds_[2]);
+}
+
 /*TEST_F(StateFlowTest, CallDone) {
   SimpleTestFlow f(&done_notifier_);
   int a = 5, b = 0;

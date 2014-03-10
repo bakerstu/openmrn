@@ -110,7 +110,7 @@ private:
 void wait_for_main_executor()
 {
     ExecutorGuard<decltype(g_executor)> guard(&g_executor);
-    guard.WaitForNotification();
+    guard.wait_for_notification();
 }
 
 /** Overrides the value of a variable and restores it to the original value

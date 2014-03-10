@@ -332,11 +332,15 @@ private:
 
 /** A state flow that has an incoming message queue, pends on that queue, and
  * runs a flow for every message that comes in from that queue. */
-class StateFlowWithQueue : public StateFlowBase, private Lockable
+class StateFlowWithQueue : public StateFlowBase, protected Lockable
 {
+public:
+    /// Wakeup call arrived. Schedules *this on the executor.
+    virtual void notify();
+
 protected:
     StateFlowWithQueue(Service *service)
-        : StateFlowBase(service), currentMessage_(nullptr)
+        : StateFlowBase(service), isWaiting_(1), currentMessage_(nullptr)
     {
         reset_flow(STATE(wait_for_message));
     }
@@ -348,10 +352,12 @@ protected:
      */
     virtual Action entry() = 0;
 
-    /** Accessor to the queue implementation of the flow.
-     * @returns the queue for the flow.
-     */
-    virtual AbstractQueue *queue() = 0;
+    /** Takes the front entry in the queue.
+     *
+     * @returns NULL if the queue is empty.
+     * @param priority will be set to the priority of the queue member removed
+     fomr the queue. */
+    virtual QMember *queue_next(unsigned *priority) = 0;
 
     /** Terminates the processing of the current message. Flows should end with
      * this action. Frees the current message.
@@ -369,20 +375,19 @@ protected:
         return currentMessage_;
     }
 
+    /// Priority of the current message we are processing.
+    unsigned currentPriority_ : 31;
+
+    /** True if we are in the pending state, waiting for an entry to show up in
+     * the queue. Protected by Lockable *this. */
+    unsigned isWaiting_ : 1;
+
 private:
     STATE_FLOW_STATE(wait_for_message);
-
-    /// Wakeup call arrived. Schedules *this on the executor.
-    virtual void notify();
 
     /// Message we are currently processing.
     Message *currentMessage_;
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
-    /// Priority of the current message we are processing.
-    unsigned currentPriority_ : 31;
-    /** True if we are in the pending state, waiting for an entry to show up in
-     * the queue. Protected by Lockable *this. */
-    unsigned isWaiting_ : 1;
 };
 
 template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue
@@ -409,38 +414,43 @@ public:
      * @param msg Message to enqueue
      * @param priority the priority at which to enqueue this message.
      */
-    void send(const MessageType *msg, unsigned priority = UINT_MAX)
+    void send(MessageType *msg, unsigned priority = UINT_MAX)
     {
-        LockHolder h(this);
-        queue_->send(msg, priority);
-        if (isWaiting_) {
+        AtomicHolder h(this);
+        queue_.insert(msg, priority);
+        if (isWaiting_)
+        {
             isWaiting_ = 0;
             currentPriority_ = priority;
             this->notify();
         }
     }
 
-    /** Signals that the asynchronous call / wait is over. Will schedule *this
-     * on the executor. */
-    virtual void notify();
-
 protected:
-    virtual AbstractQueue *queue() {
-        return queue_;
+    /** Takes the front entry in the queue.
+     *
+     * @returns NULL if the queue is empty.
+     * @param priority will be set to the priority of the queue member removed
+     fomr the queue. */
+    virtual QMember *queue_next(unsigned *priority) {
+        typename QueueType::Result r = queue_.next();
+        if (r.item) {
+            *priority = r.index;
+        }
+        return r.item;
     }
 
     /** @returns the current message we are processing. */
-    const MessageType *message()
+    MessageType *message()
     {
         return static_cast<MessageType *>(StateFlowWithQueue::message());
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be
      * defined by derived class.
-     * @param msg Message belonging to the state flow
      * @return function pointer to next state
      */
-    virtual Action entry(Message *msg) = 0;
+    virtual Action entry() = 0;
 
 private:
     /** Implementation of the queue. */

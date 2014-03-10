@@ -26,14 +26,16 @@ public:
         sem_.post();
     }
 
-    void WaitForNotification()
+    /* Blocks the current thread until the notification is delivered. */
+    void wait_for_notification()
     {
         sem_.wait();
     }
 
 private:
-    DISALLOW_COPY_AND_ASSIGN(SyncNotifiable);
     OSSem sem_;
+
+    DISALLOW_COPY_AND_ASSIGN(SyncNotifiable);
 };
 
 class EmptyNotifiable : public Notifiable
