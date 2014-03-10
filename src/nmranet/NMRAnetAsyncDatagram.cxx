@@ -41,13 +41,13 @@ DatagramSupport::DatagramSupport(AsyncIf* interface,
                                  size_t num_registry_entries)
     : interface_(interface), dispatcher_(interface_, num_registry_entries)
 {
-    interface_->dispatcher()->RegisterHandler(If::MTI_DATAGRAM, 0xffff,
+    interface_->dispatcher()->register_handler(If::MTI_DATAGRAM, 0xffff,
                                               &dispatcher_);
 }
 
 DatagramSupport::~DatagramSupport()
 {
-    interface_->dispatcher()->UnregisterHandler(If::MTI_DATAGRAM, 0xffff,
+    interface_->dispatcher()->unregister_handler(If::MTI_DATAGRAM, 0xffff,
                                                 &dispatcher_);
 }
 

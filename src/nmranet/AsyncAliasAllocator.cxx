@@ -89,7 +89,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
     }
     // Registers ourselves as a handler for incoming CAN frames to detect
     // conflicts.
-    if_can_->frame_dispatcher()->RegisterHandler(pending_alias_->alias,
+    if_can_->frame_dispatcher()->register_handler(pending_alias_->alias,
                                                  ~0x1FFFF000U, this);
 
     // Grabs an outgoing frame buffer.
@@ -149,7 +149,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::handle_allocate_for_cid_fram
 ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
 {
     // Marks that we are no longer interested in frames from this alias.
-    if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
+    if_can_->frame_dispatcher()->unregister_handler(pending_alias_->alias,
                                                    ~0x1FFFF000U, this);
 
     // Burns up the alias.
@@ -179,7 +179,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
     write_flow->Send(nullptr);
     // The alias is reserved, put it into the freelist.
     pending_alias_->state = AliasInfo::STATE_RESERVED;
-    if_can_->frame_dispatcher()->UnregisterHandler(pending_alias_->alias,
+    if_can_->frame_dispatcher()->unregister_handler(pending_alias_->alias,
                                                    ~0x1FFFF000U, this);
     if_can_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                   pending_alias_->alias);

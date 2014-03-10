@@ -139,8 +139,8 @@ public:
   }
 
   // mask = 0 means exact event only. Mask = 64 means this is a global handler.
-  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
+  virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
+  virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
   
   virtual NMRAnetEventHandler* EventHandler() = 0;
 

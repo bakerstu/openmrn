@@ -128,7 +128,7 @@ public:
     VerifyNodeIdHandler(AsyncIf* interface) : interface_(interface)
     {
         lock_.TypedRelease(this);
-        interface_->dispatcher()->RegisterHandler(
+        interface_->dispatcher()->register_handler(
             If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
                        If::MTI_VERIFY_NODE_ID_ADDRESSED),

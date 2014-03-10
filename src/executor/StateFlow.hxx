@@ -331,6 +331,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StateFlowBase);
 };
 
+template<class T, class S> class StateFlow;
+
 /** A state flow that has an incoming message queue, pends on that queue, and
  * runs a flow for every message that comes in from that queue. */
 class StateFlowWithQueue : public StateFlowBase, protected Lockable
@@ -377,10 +379,18 @@ private:
 
     /// Message we are currently processing.
     Message *currentMessage_;
+
+    template<class T, class S> friend class StateFlow;
+
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
 };
 
-template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue
+template<class MessageType> class FlowInterface {
+public:
+    virtual void send(MessageType* message, unsigned priority = UINT_MAX) = 0;
+};
+
+template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
 {
 public:
     /** Constructor.

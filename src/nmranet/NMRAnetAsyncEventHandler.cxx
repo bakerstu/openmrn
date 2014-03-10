@@ -47,15 +47,15 @@ class EventMessageHandler : public IncomingMessageHandler,
 public:
     EventMessageHandler(AsyncIf* async_if) : if_(async_if)
     {
-        if_->dispatcher()->RegisterHandler(MTI_VALUE_1, MTI_MASK_1, this);
-        if_->dispatcher()->RegisterHandler(MTI_VALUE_2, MTI_MASK_2, this);
+        if_->dispatcher()->register_handler(MTI_VALUE_1, MTI_MASK_1, this);
+        if_->dispatcher()->register_handler(MTI_VALUE_2, MTI_MASK_2, this);
         lock_.TypedRelease(this);
     }
 
     ~EventMessageHandler()
     {
-        if_->dispatcher()->UnregisterHandler(MTI_VALUE_1, MTI_MASK_1, this);
-        if_->dispatcher()->UnregisterHandler(MTI_VALUE_2, MTI_MASK_2, this);
+        if_->dispatcher()->unregister_handler(MTI_VALUE_1, MTI_MASK_1, this);
+        if_->dispatcher()->unregister_handler(MTI_VALUE_2, MTI_MASK_2, this);
     }
 
 private:

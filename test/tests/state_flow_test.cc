@@ -68,14 +68,18 @@ TEST_F(StateFlowTest, SimpleFlow) {
   EXPECT_EQ(5, b);
 }
 
-class QueueTestFlow : public StateFlow<Message, QList<Message, 3> > {
+struct Id {
+    uint32_t id;
+};
+
+class QueueTestFlow : public StateFlow<Buffer<Id>, QList<3> > {
 public:
     QueueTestFlow(vector<uint32_t>* seen_ids)
         : StateFlow(&g_service),
           seenIds_(seen_ids) {}
 protected:
     virtual Action entry() {
-        seenIds_->push_back(message()->id());
+        seenIds_->push_back(message()->data()->id);
         return release_and_exit();
     }
 
@@ -83,7 +87,7 @@ private:
     vector<uint32_t>* seenIds_;
 };
 
-DynamicPool<Message> g_message_pool(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
+DynamicPool g_message_pool(Bucket::init(4, 8, 16, 32, 0));
 
 class QueueTest : public StateFlowTest {
 public:
@@ -100,8 +104,9 @@ TEST_F(QueueTest, Nothing) {
 }
 
 TEST_F(QueueTest, OneItem) {
-    Message* first = g_message_pool.alloc(0);
-    first->id(42);
+    Buffer<Id>* first;
+    g_message_pool.alloc(&first);
+    first->data()->id = 42;
     wait();
     EXPECT_TRUE(seenIds_.empty());
     flow_.send(first);
@@ -111,19 +116,24 @@ TEST_F(QueueTest, OneItem) {
 }
 
 TEST_F(QueueTest, ThreeItems) {
-    Message* first = g_message_pool.alloc(0);
-    first->id(42);
-    wait();
+    Buffer<Id>* first;
+    g_message_pool.alloc(&first);
+    first->data()->id = 42;
     EXPECT_TRUE(seenIds_.empty());
+
     flow_.send(first);
     wait();
     ASSERT_EQ(1U, seenIds_.size());
     EXPECT_EQ(42U, seenIds_[0]);
-    Message* second = g_message_pool.alloc(0);
-    second->id(43);
+
+    Buffer<Id>* second;
+    g_message_pool.alloc(&second);
+    second->data()->id = 43;
     flow_.send(second);
-    Message* third = g_message_pool.alloc(0);
-    third->id(44);
+
+    Buffer<Id>* third;
+    g_message_pool.alloc(&third);
+    third->data()->id = 44;
     flow_.send(third);
     wait();
     ASSERT_EQ(3U, seenIds_.size());
@@ -165,12 +175,13 @@ private:
 };
 
 TEST_F(QueueTest, Priorities) {
-    Message* m[] = {g_message_pool.alloc(0),
-                    g_message_pool.alloc(0),
-                    g_message_pool.alloc(0)};
-    m[0]->id(42);
-    m[1]->id(43);
-    m[2]->id(44);
+    Buffer<Id>* m[3];
+    g_message_pool.alloc(m + 0);
+    g_message_pool.alloc(m + 1);
+    g_message_pool.alloc(m + 2);
+    m[0]->data()->id = 42;
+    m[1]->data()->id = 43;
+    m[2]->data()->id = 44;
     // We block the executor before sending off the messages to avoid this test
     // being flakey on multi-core processors.
     BlockExecutor b;

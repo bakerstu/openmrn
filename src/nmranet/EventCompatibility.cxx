@@ -196,11 +196,11 @@ class CompatEventManager : public DualIteratorFlow {
       : DualIteratorFlow(executor, &std_, &global_),
         std_(&current_standard_iterator),
         global_(&current_global_iterator) {
-    NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(this, 0, 0);
   }
 
   ~CompatEventManager() {
-    NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+    NMRAnetEventRegistry::instance()->unregister_handler(this, 0, 0);
   }
 
   virtual void InitStandardIterator() {
