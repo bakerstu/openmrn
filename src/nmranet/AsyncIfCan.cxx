@@ -247,12 +247,12 @@ public:
     AliasConflictHandler(AsyncIfCan* if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->RegisterHandler(0, ~((1 << 30) - 1), this);
+        ifCan_->frame_dispatcher()->register_handler(0, ~((1 << 30) - 1), this);
     }
 
     ~AliasConflictHandler()
     {
-        ifCan_->frame_dispatcher()->UnregisterHandler(0, ~((1 << 30) - 1),
+        ifCan_->frame_dispatcher()->unregister_handler(0, ~((1 << 30) - 1),
                                                       this);
     }
 
@@ -354,12 +354,12 @@ public:
     FrameToGlobalMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
+        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);
     }
 
     ~FrameToGlobalMessageParser()
     {
-        ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
+        ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK,
                                                       this);
     }
 
@@ -447,12 +447,12 @@ public:
     FrameToAddressedMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
+        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);
     }
 
     ~FrameToAddressedMessageParser()
     {
-        ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK,
+        ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK,
                                                       this);
     }
 

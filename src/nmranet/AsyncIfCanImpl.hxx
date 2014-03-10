@@ -385,11 +385,11 @@ protected:
     // Registers *this to the ifcan to receive alias resolution messages.
     void RegisterLocalHandler()
     {
-        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER1, CAN_MASK1,
+        if_can_->frame_dispatcher()->register_handler(CAN_FILTER1, CAN_MASK1,
                                                      this);
-        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER2, CAN_MASK2,
+        if_can_->frame_dispatcher()->register_handler(CAN_FILTER2, CAN_MASK2,
                                                      this);
-        if_can_->frame_dispatcher()->RegisterHandler(CAN_FILTER3, CAN_MASK3,
+        if_can_->frame_dispatcher()->register_handler(CAN_FILTER3, CAN_MASK3,
                                                      this);
     }
 
@@ -397,11 +397,11 @@ protected:
     // messages.
     void UnregisterLocalHandler()
     {
-        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER1, CAN_MASK1,
+        if_can_->frame_dispatcher()->unregister_handler(CAN_FILTER1, CAN_MASK1,
                                                        this);
-        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER2, CAN_MASK2,
+        if_can_->frame_dispatcher()->unregister_handler(CAN_FILTER2, CAN_MASK2,
                                                        this);
-        if_can_->frame_dispatcher()->UnregisterHandler(CAN_FILTER3, CAN_MASK3,
+        if_can_->frame_dispatcher()->unregister_handler(CAN_FILTER3, CAN_MASK3,
                                                        this);
     }
 

@@ -390,7 +390,12 @@ private:
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
 };
 
-template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue
+template<class MessageType> class FlowInterface {
+public:
+    virtual void send(MessageType* message, unsigned priority = UINT_MAX) = 0;
+};
+
+template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
 {
 public:
     /** Constructor.

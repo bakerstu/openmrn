@@ -60,11 +60,11 @@ BitRangeEventPC::BitRangeEventPC(AsyncNode *node,
                                  uint64_t event_base, uint32_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(this, 0, 0);
 }
 
 BitRangeEventPC::~BitRangeEventPC() {
-  NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->unregister_handler(this, 0, 0);
 }
 
 void BitRangeEventPC::GetBitAndMask(unsigned bit, uint32_t** data,
@@ -224,11 +224,11 @@ ByteRangeEventC::ByteRangeEventC(AsyncNode *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(this, 0, 0);
 }
 
 ByteRangeEventC::~ByteRangeEventC() {
-  NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->unregister_handler(this, 0, 0);
 }
 
 void ByteRangeEventC::HandleEventReport(EventReport* event, Notifiable* done) {
@@ -384,11 +384,11 @@ void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport* event, Notifiab
 
 BitEventHandler::BitEventHandler(BitEventInterface* bit)
     : bit_(bit) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(this, 0, 0);
 }
 
 BitEventHandler::~BitEventHandler() {
-  NMRAnetEventRegistry::instance()->UnregisterHandler(this, 0, 0);
+  NMRAnetEventRegistry::instance()->unregister_handler(this, 0, 0);
 }
 
 void BitEventHandler::SendProducerIdentified() {

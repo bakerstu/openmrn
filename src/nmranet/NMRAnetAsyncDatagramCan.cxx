@@ -57,8 +57,8 @@ public:
         HASSERT(IsDone());
         StartFlowAt(ST(NotStarted));
         result_ = OPERATION_PENDING;
-        if_can_->dispatcher()->RegisterHandler(MTI_1, MASK_1, this);
-        if_can_->dispatcher()->RegisterHandler(MTI_2, MASK_2, this);
+        if_can_->dispatcher()->register_handler(MTI_1, MASK_1, this);
+        if_can_->dispatcher()->register_handler(MTI_2, MASK_2, this);
         WriteAddressedMessage(If::MTI_DATAGRAM, src, dst, payload, done);
     }
 
@@ -82,7 +82,7 @@ private:
         MTI_2 = MTI_2a,
     };
 
-    void RegisterHandlers()
+    void register_handlers()
     {
     }
 
@@ -186,8 +186,8 @@ private:
 
     ControlFlowAction datagram_finalize()
     {
-        if_can_->dispatcher()->UnregisterHandler(MTI_1, MASK_1, this);
-        if_can_->dispatcher()->UnregisterHandler(MTI_2, MASK_2, this);
+        if_can_->dispatcher()->unregister_handler(MTI_1, MASK_1, this);
+        if_can_->dispatcher()->unregister_handler(MTI_2, MASK_2, this);
         cleanup(); // will release the buffer.
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
@@ -566,12 +566,12 @@ CanDatagramSupport::~CanDatagramSupport()
 CanDatagramParser::CanDatagramParser(AsyncIfCan* interface) : ifCan_(interface)
 {
     lock_.TypedRelease(this);
-    ifCan_->frame_dispatcher()->RegisterHandler(CAN_FILTER, CAN_MASK, this);
+    ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);
 }
 
 CanDatagramParser::~CanDatagramParser()
 {
-    ifCan_->frame_dispatcher()->UnregisterHandler(CAN_FILTER, CAN_MASK, this);
+    ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK, this);
 }
 
 } // namespace NMRAnet

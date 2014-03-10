@@ -49,12 +49,12 @@ class EventVectorRegistry : public ProxyEventHandler {
         &NMRAnetEventHandler::HandleIdentifyGlobal, event, done);
   }
 
-  void RegisterHandler(NMRAnetEventHandler* handler) {
+  void register_handler(NMRAnetEventHandler* handler) {
     OSMutexLock l(&lock_);
     handlers_.push_back(handler);
   }
 
-  void UnregisterHandler(NMRAnetEventHandler* handler) {
+  void unregister_handler(NMRAnetEventHandler* handler) {
     OSMutexLock l(&lock_);
     // Since we cannot invalidate iterators, we have to wait for them to
     // finish.

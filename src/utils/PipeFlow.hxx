@@ -121,13 +121,13 @@ public:
     //! Adds a specific handler.
     void RegisterMember(PipeMember* handler)
     {
-        RegisterHandler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
+        register_handler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
     }
 
     //! Removes a specific instance of a handler from this IF.
     void UnregisterMember(PipeMember* handler)
     {
-        UnregisterHandler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
+        unregister_handler(reinterpret_cast<uint32_t>(handler), 0xffffffffU, handler);
     }
 
 protected:

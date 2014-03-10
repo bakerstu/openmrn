@@ -274,11 +274,11 @@ class VectorEventHandlers : public DualIteratorFlow, public NMRAnetEventRegistry
     global_iterator_impl_.Set(handlers_.begin(), handlers_.end());
   }
 
-  virtual void RegisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_back(handler);
   }
-  virtual void UnregisterHandler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.erase(std::remove(handlers_.begin(), handlers_.end(), handler));
   }
