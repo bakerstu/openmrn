@@ -32,6 +32,8 @@
  * @date 1 January 2013
  */
 
+#include <climits>
+
 #include "executor/StateFlow.hxx"
 
 /** Process an incoming message.
@@ -44,12 +46,13 @@ void StateFlowBase::run()
     do
     {
         Action action = (this->*state_)();
-        if (!action.nextState_)
+        if (!action.next_state())
         {
-            // Blocked or need to yield.
+            // This action is == wait(). This means we are blocked or asked to
+            // yield.
             return;
         }
-        state_ = action.nextState_;
+        state_ = action.next_state();
     } while (1);
 }
 
@@ -57,7 +60,7 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
 {
     LockHolder h(this);
     unsigned priority;
-    currentMessage_ = static_cast<Message *> queue()->wait(priority);
+    currentMessage_ = static_cast<Message *>(queue()->wait(&priority));
     if (currentMessage_)
     {
         isWaiting_ = 0;
@@ -69,31 +72,19 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
     else
     {
         isWaiting_ = 1;
-        currentPriority_ = UINT_MAX;
+        currentPriority_ = MAX_PRIORITY;
         return wait();
     }
 }
 
-void StateFlowWithQueue::notify()
+void StateFlowBase::notify()
 {
-    
+    service()->executor()->add(this);
 }
 
-/** Imediately queue up the next callback for this flow through the executor.
- * Similar to @ref call_immediately, except we place this flow on the back
- * of the Executor queue.
- * @param c Callback "state" to move to
- * @param msg Message instance we are acting upon
- * @return function pointer to passed in callback
- */
-StateFlowBase::Action StateFlowBase::yield_and_call(Callback c)
+void StateFlowWithQueue::notify()
 {
-    /* marks this as an in-process message and queue us up for the next go
-     * around.
-     */
-    msg->id(msg->id() | Message::IN_PROCESS_MSK);
-    service->send(msg, msg->id());
-    return Action(c);
+    service()->executor()->add(this, currentPriority_);
 }
 
 /** Terminate current StateFlow activity.  This method only exists for the

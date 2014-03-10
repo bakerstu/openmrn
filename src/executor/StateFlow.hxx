@@ -123,7 +123,7 @@
 /** Declare a state callback in a StateFlow.
  * @param _state the method name of the StateFlow state callback
  */
-#define STATE_FLOW_STATE(_state) Action _state(Message *msg)
+#define STATE_FLOW_STATE(_state) Action _state()
 
 /** End the definition of a StateFlow.
  */
@@ -133,6 +133,16 @@
  */
 class StateFlowBase : public Executable
 {
+public:
+    /** Callback from the executor. This function will be invoked when the
+     * current stateflow gets the CPU. It will execute the current states until
+     * the flow yields or is blocked in a waiting state. */
+    virtual void run();
+
+    /** Wakeup call arrived. Schedules *this on the executor. Does not know the
+     * priority. */
+    virtual void notify();
+
 protected:
     /** Constructor.
      * @param service Service that this state flow is part of
@@ -154,7 +164,7 @@ protected:
 
     /** State Flow callback prototype
      */
-    typedef Action (StateFlowBase::*Callback)(Message *);
+    typedef Action (StateFlowBase::*Callback)();
 
     /** Return type for a state flow callback.
      */
@@ -179,18 +189,22 @@ protected:
         Callback nextState_;
     };
 
-    /** Callback from the executor. This function will be invoked when the
-     * current stateflow gets the CPU. It will execute the current states until
-     * the flow yields or is blocked in a waiting state. */
-    virtual void run();
-
     /** Resets the flow to the specified state.
      * @param c is the state to continue the flow from after the next
      * notification.
      */
     void reset_flow(Callback c)
     {
-        nextState_ = c;
+        state_ = c;
+    }
+
+    /** Resets the flow to the specified state and starts it.
+     * @param c is the state to start the flow from.
+     */
+    void start_flow(Callback c)
+    {
+        HASSERT(state_ == STATE(terminated));
+        yield_and_call(c);
     }
 
     /*========== ACTION COMMANDS ===============*/
@@ -202,7 +216,7 @@ protected:
      */
     Action again()
     {
-        return Action(state);
+        return Action(state_);
     }
 
     /** Terminate current StateFlow activity.  The message instance is not
@@ -227,7 +241,7 @@ protected:
 
     /** Imediately call the next state upon return.
      * @param c Callback "state" to move to
-     * @return function pointer to passed in callback
+     * @return function pointer to be returned from state function
      */
     Action call_immediately(Callback c)
     {
@@ -235,8 +249,8 @@ protected:
     }
 
     /** Wait for an asynchronous call.
-     * @return special value of Action that will cause the StateFlow to wait
-     * for an incoming wakeup.
+     * @return special function pointer to return from a state handler that
+     * will cause the StateFlow to wait for an incoming wakeup (notification).
      */
     Action wait()
     {
@@ -245,7 +259,7 @@ protected:
 
     /** Wait for resource to become available before proceeding to next state.
      * @param c State to move to
-     * @return function pointer to return
+     * @return function pointer to be returned from state function
      */
     Action wait_and_call(Callback c)
     {
@@ -258,7 +272,7 @@ protected:
      * state will be made.
      * @param c Callback "state" to move to
      * @param msg Message instance we are waiting on
-     * @return function pointer to passed in callback
+     * @return function pointer to be returned from state function
      */
     template <class T>
     Action allocate_and_call(Allocator<T> *a, Callback c, Message *msg)
@@ -266,15 +280,18 @@ protected:
         return a->allocate_immediate(msg) ? call_immediately(c) : Action(c);
     }
 
-    /** Imediately queue up the next callback for this flow through the
-     * executor.
-     * Similar to @ref call_immediately, except we place this flow on the back
-     * of the Executor queue.
+    /** Place the current flow to the back of the executor, and transition to a
+     * new state after we get the CPU again.  Similar to @ref call_immediately,
+     * except we place this flow on the back of the Executor queue.
      * @param c Callback "state" to move to
-     * @param msg Message instance we are acting upon
-     * @return function pointer to passed in callback
+     * @return function pointer to be returned from state function
      */
-    Action yield_and_call(Callback c, Message *msg);
+    Action yield_and_call(Callback c)
+    {
+        state_ = c;
+        notify();
+        return wait();
+    }
 
     /** Return a pointer to the service I am bound to.
      * @return pointer to service
@@ -302,12 +319,6 @@ private:
      * @return should never return
      */
     Action terminated(Message *msg);
-
-    /** Process an incoming message.
-     * @param msg message to process
-     * @param priority priority of message
-     */
-    void process(Message *msg, unsigned priority);
 
     /** current active state in the flow */
     Callback state_;
@@ -366,6 +377,7 @@ private:
 
     /// Message we are currently processing.
     Message *currentMessage_;
+    static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
     /// Priority of the current message we are processing.
     unsigned currentPriority_ : 31;
     /** True if we are in the pending state, waiting for an entry to show up in
@@ -384,8 +396,6 @@ public:
         : StateFlowWithQueue(service)
     {
     }
-
-    // public QList<Message, NUM_PRIO>
 
     /** Destructor.
      */
@@ -410,6 +420,10 @@ public:
         }
     }
 
+    /** Signals that the asynchronous call / wait is over. Will schedule *this
+     * on the executor. */
+    virtual void notify();
+
 protected:
     virtual AbstractQueue *queue() {
         return queue_;
@@ -429,24 +443,6 @@ protected:
     virtual Action entry(Message *msg) = 0;
 
 private:
-    /** Insert a message into one of the work queues.
-     * @param msg Message to insert
-     * @param index queue index to insert into
-     */
-    void insert(Message *msg, unsigned index)
-    {
-        QList<Message, NUM_PRIO>::insert(msg, index >= NUM_PRIO ? NUM_PRIO - 1
-                                                                : index);
-    }
-
-    /** Pull a message out of one of the work queues.
-     * @return message out of one of the work queues, NULL if none available
-     */
-    Message *next()
-    {
-        return QList<Message, NUM_PRIO>::next().item;
-    }
-
     /** Implementation of the queue. */
     QueueType queue_;
 };

@@ -42,13 +42,15 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <memory>
 #include <string>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 #include "os/os.h"
-#include "utils/pipe.hxx"
+//#include "utils/pipe.hxx"
 #include "nmranet_can.h"
+#include "executor/Executor.hxx"
 
 namespace testing {
 /** Conveninence utility to do a printf directly into a C++ string. */
@@ -81,8 +83,7 @@ int appl_main(int argc, char* argv[]) {
   return RUN_ALL_TESTS();
 }
 
-ThreadExecutor g_executor("g_executor", 0, 2000);
-DEFINE_PIPE(can_pipe0, &g_executor, sizeof(struct can_frame));
+static Executor<1> g_executor("ex_thread", 0, 1024);
 
 void WaitForMainExecutor() {
   while (!g_executor.empty()) {

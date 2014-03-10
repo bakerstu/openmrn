@@ -38,18 +38,6 @@
 /** main message pool instance */
 DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
 
-/** Process an incoming message.
- * @param buffer message to process
- */
-void Service::process(Message *msg, unsigned priority)
-{
-    StateFlowBase *sf = lookup(msg->id() & Message::ID_VALUE_MSK);
-    
-    HASSERT(sf);
-    
-    sf->process(msg, priority);
-}
-
 /** Process the active timer.
  * @param timer timer to process
  * @return next timeout period in nanoseconds, 0 if we handled a timeout
@@ -60,7 +48,7 @@ long long Service::process_timer(Timer *timer)
     if ( timer->when <= now)
     {
         /* remove timer from the list */
-        executor->active = timer->next;
+        executor_->active = timer->next;
         
         long long next_period = (this->*timer->callback)(timer->data);
         switch (next_period)
@@ -88,7 +76,7 @@ long long Service::process_timer(Timer *timer)
  */
 void Service::Timer::insert()
 {
-    Timer *tp = static_cast<Timer*>(service->executor->active);
+    Timer *tp = static_cast<Timer*>(service->executor_->active);
     Timer *last = NULL;
     while (tp)
     {
@@ -106,8 +94,8 @@ void Service::Timer::insert()
     }
     else
     {
-        next = static_cast<Timer*>(service->executor->active);
-        service->executor->active = this;
+        next = static_cast<Timer*>(service->executor_->active);
+        service->executor_->active = this;
     }
 }
 
@@ -118,7 +106,7 @@ void Service::Timer::insert()
 bool Service::Timer::remove()
 {
     /* Search the active list for this timer */
-    Timer *tp = static_cast<Timer*>(service->executor->active);
+    Timer *tp = static_cast<Timer*>(service->executor_->active);
     Timer *last = NULL;
     while (tp)
     {
@@ -138,7 +126,7 @@ bool Service::Timer::remove()
         if (last) {
             last->next = tp->next;
         } else {
-            service->executor->active = tp->next;
+            service->executor_->active = tp->next;
         }
         return true;
     }
@@ -148,11 +136,11 @@ bool Service::Timer::remove()
 /** ControlFlow timer callback.
  * @param data "this" pointer to a ControlFlow instance
  * @return Timer::NONE
- */
 long long Service::state_flow_timeout(void *data)
 {
     StateFlowBase *sf = static_cast<StateFlowBase*>(data);
     sf->timeout();
     return Timer::NONE;
 }
+ */
 

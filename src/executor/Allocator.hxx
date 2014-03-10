@@ -112,7 +112,7 @@ public:
             /* item allocated */
             T::init(item, 0);
             msg->from(item);
-            Service::static_send(static_cast<Service*>(msg->to()), msg, msg->id());
+            //Service::static_send(static_cast<Service*>(msg->to()), msg, msg->id());
         }
         else
         {
@@ -134,7 +134,7 @@ public:
             /* someone is waiting for item, let's repurpose this one */
             T::init(item, 0);
             msg->from(item);
-            Service::static_send(static_cast<Service*>(msg->to()), msg);
+            //Service::static_send(static_cast<Service*>(msg->to()), msg);
         }
         else
         {

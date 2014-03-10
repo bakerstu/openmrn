@@ -103,7 +103,7 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
  */
 void *ExecutorBase::entry()
 {
-    Message *msg;
+    Executable *msg;
     
     /* wait for messages to process */
     for ( ; /* forever */ ; )
@@ -112,8 +112,8 @@ void *ExecutorBase::entry()
         if (active)
         {
             /* act on the next active timer */
-            Service::Timer *timer = static_cast<Service::Timer*>(active);
-            long long result = timer->service->process_timer(timer);
+            //Service::Timer *timer = static_cast<Service::Timer*>(active);
+            long long result = 0;//timer->service->process_timer(timer);
             
             if (result == 0)
             {
@@ -132,7 +132,7 @@ void *ExecutorBase::entry()
         {
             msg = wait(&priority);
         }
-        if (msg->id() == 0)
+        if (!msg)
         {
             /* we were kicked awake, this typically means there was a change
              * in the active timer list that we may need to react to.
@@ -140,9 +140,8 @@ void *ExecutorBase::entry()
             continue;
         }
         
-        Service *service = (Service*)msg->to();
-        HASSERT(service);
-        service->process(msg, priority);
+        // Process the message we got.
+        msg->run();
     }
 
     return NULL;

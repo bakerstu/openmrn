@@ -64,13 +64,19 @@ public:
      * @param e Executor to run this service from.
      */
     Service(ExecutorBase *e)
-        : executor(e)
+        : executor_(e)
     {
     }
     
     /** Destructor. */
     ~Service()
     {
+    }
+
+    /** @returns the executor used by this service. */
+    ExecutorBase *executor()
+    {
+        return executor_;
     }
 
     /** State Flow callback prototype
@@ -197,89 +203,11 @@ public:
         friend class ExecutorBase;
     };
     
-    /** Send a message anonymously, or to assert something other than a
-     * service pointer into the Message::from field 
-     * @param to destination of this message
-     * @param id unique 31-bit identifier for the message
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    static void static_send(Service *to, uint32_t id, Message *msg, unsigned priority = UINT_MAX)
-    {
-        HASSERT((id & Message::IN_PROCESS_MSK) == 0);
-        msg->id(id);
-        static_send(to, msg, priority);
-    }
-
-    /** Send a message anonymously, or to assert something other than a
-     * service pointer into the Message::from field 
-     * @param to destination of this message
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    static void static_send(Service *to, Message *msg, unsigned priority = UINT_MAX)
-    {
-        msg->to(to);
-        to->executor->send(msg, priority);
-    }
-
-    /** Send a message to another service.
-     * @param to destination of this message
-     * @param id unique 31-bit identifier for the message
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    void send(Service *to, uint32_t id, Message *msg, unsigned priority = UINT_MAX)
-    {
-        HASSERT((id & Message::IN_PROCESS_MSK) == 0);
-        msg->id(id);
-        send(to, msg, priority);
-    }
-
-    /** Send a message to another service.
-     * @param to destination of this message
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    void send(Service *to, Message *msg, unsigned priority = UINT_MAX)
-    {
-        msg->to(to);
-        msg->from(this);
-        executor->send(msg, priority);
-    }
-
-    /** Send a message to self.
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    void send(Message *msg, unsigned priority = UINT_MAX)
-    {
-        send(this, msg, priority);
-    }
-
-    /** Send a message to self.
-     * @param id unique 31-bit identifier for the message
-     * @param msg message to send
-     * @param priority priority of message
-     */
-    void send(uint32_t id, Message *msg, unsigned priority = UINT_MAX)
-    {
-        msg->id(id);
-        send(msg, priority);
-    }
-
     /** StateFlow timer callback.
      * @param data "this" pointer to a StateFlow instance
      * @return Timer::NONE
      */
     long long state_flow_timeout(void *data);
-    
-protected:
-    /** Translate an incoming Message ID into a StateFlow instance.
-     * @param id itentifier to translate
-     * @return StateFlow corresponding the given ID, NULL if not found
-     */
-    virtual StateFlowBase *lookup(uint32_t id) = 0;
 
 private:
     /** Process an incoming message.
@@ -294,11 +222,8 @@ private:
      */
     long long process_timer(Timer *timer);
 
-    /** access to the Service::process method */
-    friend class ExecutorBase;
-
     /** Executor to use */
-    ExecutorBase *executor;
+    ExecutorBase *executor_;
 };
 
 #endif /* _Service_hxx_ */
