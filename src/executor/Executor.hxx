@@ -156,7 +156,7 @@ private:
         typename QListProtectedWait<NUM_PRIO>::Result result =
             QListProtectedWait<NUM_PRIO>::timedwait(timeout);
         *priority = result.index;
-        return result.item;
+        return static_cast<Executable*>(result.item);
     }
 
     /** Wait for an item from the front of the queue.
@@ -169,7 +169,7 @@ private:
         typename QListProtectedWait<NUM_PRIO>::Result result =
             QListProtectedWait<NUM_PRIO>::wait();
         *priority = result.index;
-        return result.item;
+        return static_cast<Executable*>(result.item);
     }
 
     /** Default Constructor.
