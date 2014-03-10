@@ -245,6 +245,7 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
     // message.
     MessageType* copy;
     /// @todo(balazs.racz) make this asynchronous.
+    /// @todo(balazs.racz) make user specify the buffer pool for cloning.
     mainBufferPool->alloc(&copy);
     *copy->data() = *message()->data();
     lastHandlerToCall_->send(copy);
