@@ -255,7 +255,7 @@ private:
 /** A list of queues.  Index 0 is the highest priority queue with increasingly
  * higher indexes having increasingly lower priority.
  */
-template <unsigned items> class QList
+template <unsigned ITEMS> class QList
 {
 public:
     /** Result of pulling an item from the queue based on priority.
@@ -286,9 +286,9 @@ public:
      */
     void insert(QMember *item, unsigned index)
     {
-        if (index >= items)
+        if (index >= ITEMS)
         {
-            index = items - 1;
+            index = ITEMS - 1;
         }
         list[index].insert(item);
     }
@@ -307,7 +307,7 @@ public:
      */
     Result next()
     {
-        for (unsigned i = 0; i < items; ++i)
+        for (unsigned i = 0; i < ITEMS; ++i)
         {
             QMember *result = list[i].next();
             if (result)
@@ -334,7 +334,7 @@ public:
     size_t pending()
     {
         size_t result = 0;
-        for (unsigned i = 0; i < items; ++i)
+        for (unsigned i = 0; i < ITEMS; ++i)
         {
             result += list[i].pending();
         }
@@ -356,7 +356,7 @@ public:
      */
     bool empty()
     {
-        for (unsigned i = 0; i < items; ++i)
+        for (unsigned i = 0; i < ITEMS; ++i)
         {
             if (!list[i].empty())
             {
@@ -368,7 +368,7 @@ public:
 
 private:
     /** the list of queues */
-    Q list[items];
+    Q list[ITEMS];
 
     DISALLOW_COPY_AND_ASSIGN(QList);
 };
