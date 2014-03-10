@@ -103,6 +103,7 @@ TEST(MapTest, stlmap_manip)
     it = map.find(100);
     EXPECT_TRUE(it == map.end());
 }
+
 TEST(MapTest, stlmap_manip_dynamic)
 {
     StlMap<uint16_t, uint16_t> map;
@@ -152,8 +153,6 @@ TEST(MapTest, stlmap_manip_dynamic)
     EXPECT_TRUE(map.size() == 2);
     it = map.find(100);
     EXPECT_TRUE(it == map.end());
-#if 0
-#endif
 }
 
 int appl_main(int argc, char* argv[])
