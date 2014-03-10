@@ -7,5 +7,7 @@ CXXSRCS += BufferQueue.cxx \
            GridConnect.cxx \
            logging.cxx
 
-CXXTESTSRCS += BufferQueue.cxxtest           
+CXXTESTSRCS += BufferQueue.cxxtest \
+               StlMap.cxxtest      \
+               StlMultiMap.cxxtest      
 
