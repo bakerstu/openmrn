@@ -46,6 +46,8 @@
 
 class ControlFlow;
 
+namespace deprecated {
+
 //! An object that can be scheduled on an executor to run.
 class Executable : public QueueMember {
 public:
@@ -145,6 +147,6 @@ private:
   OSThread thread_;
 };
 
-
+}  // namespace deprecated
 
 #endif // _EXECUTOR_EXECUTOR_HXX_

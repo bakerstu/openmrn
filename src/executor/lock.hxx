@@ -34,14 +34,14 @@
  * @date 5 Aug 2013
  */
 
-#ifndef _UTILS_LOCK_HXX_
-#define _UTILS_LOCK_HXX_
+#ifndef _UTILS_ATOMIC_HXX_
+#define _UTILS_ATOMIC_HXX_
 
 #ifdef __FreeRTOS__
 
 #include "portmacro.h"
 
-class Lockable {
+class Atomic {
 public:
   void lock() {
     portENTER_CRITICAL();
@@ -55,28 +55,36 @@ public:
 
 #include "os/OS.hxx"
 
-class Lockable : public OSMutex {
+class Atomic : public OSMutex {
 public:
-  Lockable() : OSMutex(true) {}
+  Atomic() : OSMutex(true) {}
 };
 
 #endif
 
 //! See @OSMutexLock in os/OS.hxx
-class LockHolder {
+class AtomicHolder {
 public:
-  LockHolder(Lockable* parent)
+  AtomicHolder(Atomic* parent)
     : parent_(parent) {
     parent_->lock();
   }
-  ~LockHolder() {
+  ~AtomicHolder() {
     parent_->unlock();
   }
 private:
-  Lockable* parent_;
+  Atomic* parent_;
 };
 
 //! See @OSMutexLock in os/OS.hxx
 #define LockHolder(l) int error_omitted_lock_holder_variable[-1]
+
+//! See @OSMutexLock in os/OS.hxx
+#define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
+
+
+/// @todo(balazs.racz) rename users of Lockable to Atomic.
+typedef Atomic Lockable;
+typedef AtomicHolder LockHolder;
 
 #endif // _UTILS_LOCK_HXX_
