@@ -243,7 +243,13 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
     }
     // Now: we have at least two different handler. We need to clone the
     // message.
-    HASSERT(0 && "Cloning messages is not implemented yet.");
+    MessageType* copy;
+    /// @todo(balazs.racz) make this asynchronous.
+    mainBufferPool->alloc(&copy);
+    *copy->data() = *message()->data();
+    lastHandlerToCall_->send(copy);
+    lastHandlerToCall_ = handler;
+    return again();
 }
 
 template <class MessageType, int NUM_PRIO>
