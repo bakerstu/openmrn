@@ -83,12 +83,34 @@ int appl_main(int argc, char* argv[]) {
   return RUN_ALL_TESTS();
 }
 
-static Executor<1> g_executor("ex_thread", 0, 1024);
+Executor<1> g_executor("ex_thread", 0, 1024);
 
-void WaitForMainExecutor() {
-  while (!g_executor.empty()) {
-    usleep(100);
-  }
+template<class Executor>
+/** This class can be given an executor, and will notify itself when that
+ *   executor is out of work. */
+class ExecutorGuard : private Executable, public SyncNotifiable
+{
+public:
+    ExecutorGuard(Executor* e)
+        : executor_(e) {
+        executor_->add(this);  // lowest priority
+    }
+
+    virtual void run() {
+        if (executor_->empty()) {
+            SyncNotifiable::notify();
+        } else {
+            executor_->add(this);  // wait more on the lowest priority
+        }
+    }
+private:
+    Executor* executor_;
+};
+
+void wait_for_main_executor()
+{
+    ExecutorGuard<decltype(g_executor)> guard(&g_executor);
+    guard.WaitForNotification();
 }
 
 /** Overrides the value of a variable and restores it to the original value

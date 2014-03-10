@@ -36,6 +36,7 @@
 #ifndef _Executor_hxx_
 #define _Executor_hxx_
 
+#include "utils/logging.h"
 #include "executor/Message.hxx"
 #include "executor/notifiable.hxx"
 
@@ -49,24 +50,26 @@ public:
     /** Entry point. This funciton will be called when *this gets scheduled on
      * the CPU. */
     virtual void run() = 0;
+
+    virtual void notify() {
+        HASSERT(0 && "unexpected call to notify in Executable");
+    }
 };
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : public OSThread
+class ExecutorBase : protected OSThread
 {
 public:
     /** Constructor.
-     * @param name name of executor
-     * @param priority thread priority
-     * @param stack_size thread stack size
      */
-    ExecutorBase(const char *name, int priority, size_t stack_size);
+    ExecutorBase();
 
     /** Destructor.
      */
     ~ExecutorBase()
     {
+        LOG(ERROR, "Deleting executor");
     }
 
     /** Lookup an executor by its name.
@@ -81,6 +84,12 @@ public:
      * @param priority priority of execution
      */
     virtual void add(Executable *action, unsigned priority = UINT_MAX) = 0;
+
+protected:
+    /** Thread entry point.
+     * @return Should never return
+     */
+    virtual void *entry();
 
 private:
     /** Wait for an item from the front of the queue.
@@ -101,11 +110,6 @@ private:
     /** Typedef for Timer.  This is a cast of @ref ServiceTimer* */
     typedef void *Timer;
 
-    /** Thread entry point.
-     * @return Should never return
-     */
-    void *entry();
-
     /** name of this Executor */
     const char *name;
 
@@ -117,10 +121,6 @@ private:
 
     /** executor list for lookup purposes */
     static ExecutorBase *list;
-
-    /** Default Constructor.
-     */
-    ExecutorBase();
 
     /** provide access to Executor::send method. */
     friend class Service;
@@ -139,9 +139,8 @@ public:
      * @param stack_size thread stack size
      */
     Executor(const char *name, int priority, size_t stack_size)
-        : ExecutorBase(name, priority, stack_size),
-          QueueListProtectedWait<Executable, NUM_PRIO>()
     {
+        OSThread::start(name, priority, stack_size);
     }
 
     /** Destructor.
@@ -150,7 +149,6 @@ public:
     {
     }
 
-protected:
     /** Send a message to this Executor's queue.
      * @param msg Executable instance to insert into the input queue
      * @param priority priority of message

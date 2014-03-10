@@ -1226,7 +1226,7 @@ public:
         return result;
     }
     
-    /** Wakeup anyone waiting on the wait queue.
+    /** Wakeup someone waiting on the wait queue.
      */
     void wakeup()
     {
@@ -1234,7 +1234,6 @@ public:
     }
     
 private:
-
     DISALLOW_COPY_AND_ASSIGN(QueueProtectedWait);
 };
 

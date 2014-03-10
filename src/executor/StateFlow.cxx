@@ -87,13 +87,12 @@ void StateFlowWithQueue::notify()
     service()->executor()->add(this, currentPriority_);
 }
 
-/** Terminate current StateFlow activity.  This method only exists for the
- * purpose of providing a unique address pointer.
- * @param msg unused
- * @return should never return
+/** Terminates the current StateFlow activity.  This is a sink state, and there
+ * has to be an external call to do anything useful after this state has been
+ * reached.
+ * @returns delay.
  */
-StateFlowBase::Action StateFlowBase::terminated(Message *msg)
+StateFlowBase::Action StateFlowBase::terminated()
 {
-    HASSERT(0);
-    return terminated(msg);
+    return wait();
 }

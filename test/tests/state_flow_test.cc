@@ -4,18 +4,24 @@
 
 static Service g_service(&g_executor);
 
-class StateFlowTest : public testing::Test {
+class StateFlowTest : public testing::Test
+{
 public:
-  StateFlowTest() {}
+    StateFlowTest()
+    {
+    }
+    ~StateFlowTest()
+    {
+        wait();
+    }
 
 protected:
-  SyncNotifiable done_notifier_;
+    SyncNotifiable done_notifier_;
 
-  void wait() {
-    while (!g_executor.empty()) {
-      usleep(100);
-    }  
-  }
+    void wait()
+    {
+        wait_for_main_executor();
+    }
 };
 
 class TrivialFlow : public StateFlowBase {

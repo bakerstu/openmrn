@@ -46,9 +46,8 @@ ExecutorBase *ExecutorBase::list = NULL;
  * @param priority thread priority
  * @param stack_size thread stack size
  */
-ExecutorBase::ExecutorBase(const char *name, int priority, size_t stack_size)
-    : OSThread(name, priority, stack_size),
-      name(name),
+ExecutorBase::ExecutorBase()
+    : name(name),
       next(NULL),
       active(NULL)
 {

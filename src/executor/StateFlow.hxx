@@ -313,12 +313,12 @@ private:
     /** Service this StateFlow belongs to */
     Service *service_;
 
-    /** Terminate current StateFlow activity.  This method only exists for the
-     * purpose of providing a unique address pointer.
-     * @param msg unused
-     * @return should never return
+    /** Terminates the current StateFlow activity.  This is a sink state, and
+     * there has to be an external call to do anything useful after this state
+     * has been reached.
+     * @returns delay.
      */
-    Action terminated(Message *msg);
+    Action terminated();
 
     /** current active state in the flow */
     Callback state_;
