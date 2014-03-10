@@ -120,6 +120,9 @@ protected:
 template <class T> class Buffer : public BufferBase
 {
 public:
+    /** The type of payload this buffer contains. */
+    typedef T value_type;
+
     /** Add another reference to the buffer.
      * @return total number of references to this point
      */

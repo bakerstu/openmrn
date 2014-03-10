@@ -44,24 +44,25 @@
 #define STATE(_fn)                                                             \
     (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
 
+/** Declare a state callback in a StateFlow.
+ * @param _state the method name of the StateFlow state callback
+ */
+#define STATE_FLOW_STATE(_state) Action _state()
+
 /** Begin the definition of a StateFlow.
  * @param _name the class name of the StateFlow derived object
  * @param _priorities number of input queue priorities
  */
-#define STATE_FLOW_START(_name, _priorities)                                   \
-    class _name : public StateFlow<_priorities>                                \
+#define STATE_FLOW_START(_name, _message, _priorities)                         \
+    class _name : public StateFlow<_message, _priorities>                      \
     {                                                                          \
     public:                                                                    \
-        _name(Service *service) : StateFlow<_priorities>(service)              \
-        {                                                                      \
-        }                                                                      \
-                                                                               \
-        ~_name()                                                               \
+        _name(Service *service) : StateFlow<_priorities, _priorities>(service) \
         {                                                                      \
         }                                                                      \
                                                                                \
     private:                                                                   \
-        Action entry(Message *msg);                                            \
+        STATE_FLOW_STATE(entry);                                               \
                                                                                \
         _name();                                                               \
                                                                                \
@@ -98,7 +99,7 @@
         }                                                                      \
                                                                                \
     private:                                                                   \
-        Action entry(Message *msg);                                            \
+        STATE_FLOW_STATE(entry);                                               \
                                                                                \
         Action timeout_and_call(Callback c, Message *msg, long long period)    \
         {                                                                      \
@@ -119,11 +120,6 @@
         _name();                                                               \
                                                                                \
     DISALLOW_COPY_AND_ASSIGN(_name)
-
-/** Declare a state callback in a StateFlow.
- * @param _state the method name of the StateFlow state callback
- */
-#define STATE_FLOW_STATE(_state) Action _state()
 
 /** End the definition of a StateFlow.
  */
@@ -331,7 +327,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StateFlowBase);
 };
 
-template<class T, class S> class StateFlow;
+template <class T, class S> class StateFlow;
 
 /** A state flow that has an incoming message queue, pends on that queue, and
  * runs a flow for every message that comes in from that queue. */
@@ -343,7 +339,10 @@ public:
 
 protected:
     StateFlowWithQueue(Service *service)
-        : StateFlowBase(service), isWaiting_(1), currentMessage_(nullptr)
+        : StateFlowBase(service),
+          currentMessage_(nullptr),
+          currentPriority_(MAX_PRIORITY),
+          isWaiting_(1)
     {
         reset_flow(STATE(wait_for_message));
     }
@@ -363,9 +362,22 @@ protected:
     virtual QMember *queue_next(unsigned *priority) = 0;
 
     /// @returns the current message we are processing.
-    Message* message() {
+    Message *message()
+    {
         return currentMessage_;
     }
+
+    bool is_waiting()
+    {
+        AtomicHolder h(this);
+        return isWaiting_;
+    }
+
+private:
+    STATE_FLOW_STATE(wait_for_message);
+
+    /// Message we are currently processing.
+    Message *currentMessage_;
 
     /// Priority of the current message we are processing.
     unsigned currentPriority_ : 31;
@@ -374,31 +386,26 @@ protected:
      * the queue. Protected by Lockable *this. */
     unsigned isWaiting_ : 1;
 
-private:
-    STATE_FLOW_STATE(wait_for_message);
-
-    /// Message we are currently processing.
-    Message *currentMessage_;
-
-    template<class T, class S> friend class StateFlow;
+    template <class T, class S> friend class StateFlow;
 
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
 };
 
-template<class MessageType> class FlowInterface {
+template <class MessageType> class FlowInterface
+{
 public:
-    virtual void send(MessageType* message, unsigned priority = UINT_MAX) = 0;
+    virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 };
 
-template <class MessageType, class QueueType> class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
+template <class MessageType, class QueueType>
+class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
 {
 public:
     /** Constructor.
      * @param service Service that this state flow is part of
      * @param size number of queues in the list
      */
-    StateFlow(Service *service)
-        : StateFlowWithQueue(service)
+    StateFlow(Service *service) : StateFlowWithQueue(service)
     {
     }
 
@@ -427,14 +434,19 @@ public:
     }
 
 protected:
+    using StateFlowBase::call_immediately;
+    using StateFlowBase::Callback;
+
     /** Takes the front entry in the queue.
      *
      * @returns NULL if the queue is empty.
      * @param priority will be set to the priority of the queue member removed
      fomr the queue. */
-    virtual QMember *queue_next(unsigned *priority) {
+    virtual QMember *queue_next(unsigned *priority)
+    {
         typename QueueType::Result r = queue_.next();
-        if (r.item) {
+        if (r.item)
+        {
             *priority = r.index;
         }
         return r.item;
@@ -452,9 +464,22 @@ protected:
      */
     Action release_and_exit()
     {
-        message()->unref();
+        if (message())
+        {
+            message()->unref();
+        }
         currentMessage_ = nullptr;
         return call_immediately(STATE(wait_for_message));
+    }
+
+    /** Releases ownership of the current message.
+     * @return the current message.
+     */
+    MessageType *transfer_message()
+    {
+        MessageType *m = message();
+        currentMessage_ = nullptr;
+        return m;
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be

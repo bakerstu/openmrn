@@ -51,6 +51,7 @@
 //#include "utils/pipe.hxx"
 #include "nmranet_can.h"
 #include "executor/Executor.hxx"
+#include "executor/Service.hxx"
 
 namespace testing {
 /** Conveninence utility to do a printf directly into a C++ string. */
@@ -83,7 +84,8 @@ int appl_main(int argc, char* argv[]) {
   return RUN_ALL_TESTS();
 }
 
-Executor<1> g_executor("ex_thread", 0, 1024);
+static Executor<1> g_executor("ex_thread", 0, 1024);
+static Service g_service(&g_executor);
 
 template<class Executor>
 /** This class can be given an executor, and will notify itself when that

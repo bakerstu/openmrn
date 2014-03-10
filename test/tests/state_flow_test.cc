@@ -2,8 +2,6 @@
 
 #include "executor/StateFlow.hxx"
 
-static Service g_service(&g_executor);
-
 class StateFlowTest : public testing::Test
 {
 public:
@@ -69,7 +67,9 @@ TEST_F(StateFlowTest, SimpleFlow) {
 }
 
 struct Id {
-    uint32_t id;
+    typedef uint32_t id_type;
+    uint32_t id_;
+    id_type id() { return id_; }
 };
 
 class QueueTestFlow : public StateFlow<Buffer<Id>, QList<3> > {
@@ -79,7 +79,7 @@ public:
           seenIds_(seen_ids) {}
 protected:
     virtual Action entry() {
-        seenIds_->push_back(message()->data()->id);
+        seenIds_->push_back(message()->data()->id_);
         return release_and_exit();
     }
 
@@ -106,7 +106,7 @@ TEST_F(QueueTest, Nothing) {
 TEST_F(QueueTest, OneItem) {
     Buffer<Id>* first;
     g_message_pool.alloc(&first);
-    first->data()->id = 42;
+    first->data()->id_ = 42;
     wait();
     EXPECT_TRUE(seenIds_.empty());
     flow_.send(first);
@@ -118,7 +118,7 @@ TEST_F(QueueTest, OneItem) {
 TEST_F(QueueTest, ThreeItems) {
     Buffer<Id>* first;
     g_message_pool.alloc(&first);
-    first->data()->id = 42;
+    first->data()->id_ = 42;
     EXPECT_TRUE(seenIds_.empty());
 
     flow_.send(first);
@@ -128,12 +128,12 @@ TEST_F(QueueTest, ThreeItems) {
 
     Buffer<Id>* second;
     g_message_pool.alloc(&second);
-    second->data()->id = 43;
+    second->data()->id_ = 43;
     flow_.send(second);
 
     Buffer<Id>* third;
     g_message_pool.alloc(&third);
-    third->data()->id = 44;
+    third->data()->id_ = 44;
     flow_.send(third);
     wait();
     ASSERT_EQ(3U, seenIds_.size());
@@ -179,9 +179,9 @@ TEST_F(QueueTest, Priorities) {
     g_message_pool.alloc(m + 0);
     g_message_pool.alloc(m + 1);
     g_message_pool.alloc(m + 2);
-    m[0]->data()->id = 42;
-    m[1]->data()->id = 43;
-    m[2]->data()->id = 44;
+    m[0]->data()->id_ = 42;
+    m[1]->data()->id_ = 43;
+    m[2]->data()->id_ = 44;
     // We block the executor before sending off the messages to avoid this test
     // being flakey on multi-core processors.
     BlockExecutor b;
