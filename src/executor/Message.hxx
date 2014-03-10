@@ -39,7 +39,7 @@
 
 /** Buffer with additional fields to represent a complete message.
  */
-class Message : public BufferManager
+class Message : public BufferBase
 {
 public:
     /** Enumeration constants for manipulating 32-bit identifiers
@@ -199,7 +199,7 @@ private:
      * @param pool pool that this buffer belongs to
      */
     Message(size_t size, Pool<Message> *pool)
-        : BufferManager(size),
+        : BufferBase(size, pool),
           pool_(pool),
           to_(NULL),
           from_(NULL),

@@ -40,22 +40,6 @@
 #include "executor/Message.hxx"
 #include "executor/notifiable.hxx"
 
-/// An object that can be scheduled on an executor to run.
-class Executable : public Notifiable, public QMember
-{
-public:
-    virtual ~Executable()
-    {
-    }
-    /** Entry point. This funciton will be called when *this gets scheduled on
-     * the CPU. */
-    virtual void run() = 0;
-
-    virtual void notify() {
-        HASSERT(0 && "unexpected call to notify in Executable");
-    }
-};
-
 /** This class implements an execution of tasks pulled off an input queue.
  */
 class ExecutorBase : protected OSThread

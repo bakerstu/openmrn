@@ -3,12 +3,37 @@
 
 #include "os/OS.hxx"
 #include "executor/lock.hxx"
+#include "utils/Queue.hxx"
 
 //! An object that can schedule itself on an executor to run.
 class Notifiable
 {
 public:
     virtual void notify() = 0;
+};
+
+/// An object that can be scheduled on an executor to run.
+class Executable : public Notifiable, public QMember
+{
+public:
+    virtual ~Executable()
+    {
+    }
+    /** Entry point. This funciton will be called when *this gets scheduled on
+     * the CPU. */
+    virtual void run() = 0;
+
+    virtual void notify() {
+        HASSERT(0 && "unexpected call to notify in Executable");
+    }
+
+    /** Return the result of an alloc_async() from a memory @ref Pool
+     * @param item result of the the allocation
+     */
+    void alloc_result(QMember *item)
+    {
+        /** @todo (Balazs Racz) implement */
+    }
 };
 
 // A Notifiable for synchronously waiting for a notification.
