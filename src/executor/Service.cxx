@@ -36,7 +36,7 @@
 #include "executor/StateFlow.hxx"
 
 /** main message pool instance */
-DynamicPool<Message> *mainMessagePool = new DynamicPool<Message>(DynamicPool<Message>::Bucket::init(4, 8, 16, 32, 0));
+DynamicPool *mainMessagePool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
 /** Process the active timer.
  * @param timer timer to process

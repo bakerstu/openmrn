@@ -37,8 +37,8 @@
 
 #include <type_traits>
 
-#include "executor/Allocator.hxx"
 #include "executor/Message.hxx"
+#include "executor/Service.hxx"
 #include "utils/BufferQueue.hxx"
 
 #define STATE(_fn)                                                             \
@@ -228,17 +228,17 @@ protected:
     {
         return STATE(terminated);
     }
-
+#if 0
     /** Terminate current StateFlow activity. after releasing the message.
      * @param msg to release
      * @return function pointer to terminated method
      */
-    Action release_and_exit(Message *msg)
+    templateAction release_and_exit(Message *msg)
     {
-        msg->free();
+        msg->unref();
         return exit();
     }
-
+#endif
     /** Imediately call the next state upon return.
      * @param c Callback "state" to move to
      * @return function pointer to be returned from state function
@@ -267,6 +267,7 @@ protected:
         return wait();
     }
 
+#if 0
     /** Wait for resource to become available before proceeding to next state.
      * if an immediate allocation can be made, an immediate call to the next
      * state will be made.
@@ -279,7 +280,7 @@ protected:
     {
         return a->allocate_immediate(msg) ? call_immediately(c) : Action(c);
     }
-
+#endif
     /** Place the current flow to the back of the executor, and transition to a
      * new state after we get the CPU again.  Similar to @ref call_immediately,
      * except we place this flow on the back of the Executor queue.
@@ -358,17 +359,6 @@ protected:
      * @param priority will be set to the priority of the queue member removed
      fomr the queue. */
     virtual QMember *queue_next(unsigned *priority) = 0;
-
-    /** Terminates the processing of the current message. Flows should end with
-     * this action. Frees the current message.
-     * @return the action for checking for new messages.
-     */
-    Action release_and_exit()
-    {
-        currentMessage_->free();
-        currentMessage_ = nullptr;
-        return call_immediately(STATE(wait_for_message));
-    }
 
     /// @returns the current message we are processing.
     Message* message() {
@@ -449,6 +439,17 @@ protected:
     MessageType *message()
     {
         return static_cast<MessageType *>(StateFlowWithQueue::message());
+    }
+
+    /** Terminates the processing of the current message. Flows should end with
+     * this action. Frees the current message.
+     * @return the action for checking for new messages.
+     */
+    Action release_and_exit()
+    {
+        message()->unref();
+        currentMessage_ = nullptr;
+        return call_immediately(STATE(wait_for_message));
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be

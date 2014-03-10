@@ -9,8 +9,17 @@ include $(OPENMRNPATH)/etc/linux.x86.mk
 
 include $(OPENMRNPATH)/etc/path.mk
 
-VPATH = $(OPENMRNPATH)/src/$(BASENAME)/
+SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)/
+VPATH = $(SRCDIR)
 
+exist := $(wildcard $(SRCDIR)/sources)
+ifneq ($(strip $(exist)),)
+include $(VPATH)/sources
+else
+exist := $(wildcard sources)
+ifneq ($(strip $(exist)),)
+include sources
+else
 FULLPATHCSRCS        = $(wildcard $(VPATH)*.c)
 FULLPATHCXXSRCS      = $(wildcard $(VPATH)*.cxx)
 FULLPATHCXXTESTSRCS  = $(wildcard $(VPATH)*.cxxtest)
@@ -18,6 +27,8 @@ FULLPATHCXXTESTSRCS  = $(wildcard $(VPATH)*.cxxtest)
 CSRCS       = $(notdir $(FULLPATHCSRCS))       $(wildcard *.c)
 CXXSRCS     = $(notdir $(FULLPATHCXXSRCS))     $(wildcard *.cxx)
 CXXTESTSRCS = $(notdir $(FULLPATHCXXTESTSRCS)) $(wildcard *.cxxtest)
+endif
+endif
 
 OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
 TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)

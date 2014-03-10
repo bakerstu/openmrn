@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,41 +24,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file BufferQueue.hxx
+ * \file Queue.hxx
  * This file provides an implementation buffered queues.
  *
  * @author Stuart W. Baker
- * @date 3 August 2013
+ * @date 10 March 2014
  */
-#include "BufferQueue.hxx"
 
-#include <cstdio>
+#ifndef _Queue_hxx_
+#define _Queue_hxx_
 
-#if defined (__linux__)
-#define DEBUG_PRINTF printf
-#else
-#define DEBUG_PRINTF(_fmt...)
-#endif
-
-DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
-
-#if 0
-
-/** Expand the buffer size.  Exercise caution when using this API.  If anyone
- * else is holding onto a reference of this, their reference will be corrupted.
- * @param size size buffer after expansion.
- * @return newly expanded buffer with old buffer data moved
+/** Essentially a "next" pointer container.
  */
-Buffer *Buffer::expand(size_t size)
+class QMember
 {
-    /** @todo (Stuart Baker) optimization oportunity by rounding up to the
-     * next buffer size.
+protected:    
+    /** Constructor.
      */
-    Buffer *new_buffer = pool_->alloc(size);
+    QMember()
+        : next(NULL)
+    {
+    }
     
-    memcpy(new_buffer->data(), data(), size_ - left);
-    new_buffer->left = (size - size_) + left;
-    pool_->free(this);
-    return new_buffer;
-}
-#endif
+    /** Destructor.
+     */ 
+    ~QMember()
+    {
+    }
+    
+    /** pointer to the next member in the queue */
+    QMember *next;
+
+    /** This class is a helper of Q */
+    friend class Q;
+};
+
+#endif /* _Queue_hxx_ */

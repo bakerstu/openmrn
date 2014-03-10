@@ -36,25 +36,10 @@
 #ifndef _Executor_hxx_
 #define _Executor_hxx_
 
-#include "utils/logging.h"
 #include "executor/Message.hxx"
 #include "executor/notifiable.hxx"
-
-/// An object that can be scheduled on an executor to run.
-class Executable : public Notifiable, public QMember
-{
-public:
-    virtual ~Executable()
-    {
-    }
-    /** Entry point. This funciton will be called when *this gets scheduled on
-     * the CPU. */
-    virtual void run() = 0;
-
-    virtual void notify() {
-        HASSERT(0 && "unexpected call to notify in Executable");
-    }
-};
+#include "utils/BufferQueue.hxx"
+#include "utils/logging.h"
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
@@ -130,7 +115,7 @@ private:
 
 template <unsigned NUM_PRIO>
 class Executor : public ExecutorBase,
-                 public QueueListProtectedWait<Executable, NUM_PRIO>
+                 public QListProtectedWait<NUM_PRIO>
 {
 public:
     /** Constructor.
@@ -155,7 +140,7 @@ public:
      */
     void add(Executable *msg, unsigned priority = UINT_MAX)
     {
-        QueueListProtectedWait<Executable, NUM_PRIO>::insert(
+        QListProtectedWait<NUM_PRIO>::insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
     }
 
@@ -168,8 +153,8 @@ private:
      */
     Executable *timedwait(long long timeout, unsigned *priority)
     {
-        typename QueueListProtectedWait<Executable, NUM_PRIO>::Result result =
-            QueueListProtectedWait<Executable, NUM_PRIO>::timedwait(timeout);
+        typename QListProtectedWait<NUM_PRIO>::Result result =
+            QListProtectedWait<NUM_PRIO>::timedwait(timeout);
         *priority = result.index;
         return result.item;
     }
@@ -181,8 +166,8 @@ private:
      */
     Executable *wait(unsigned *priority)
     {
-        typename QueueListProtectedWait<Executable, NUM_PRIO>::Result result =
-            QueueListProtectedWait<Executable, NUM_PRIO>::wait();
+        typename QListProtectedWait<NUM_PRIO>::Result result =
+            QListProtectedWait<NUM_PRIO>::wait();
         *priority = result.index;
         return result.item;
     }
