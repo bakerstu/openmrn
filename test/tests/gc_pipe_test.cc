@@ -79,6 +79,7 @@ class GcPipeTest : public testing::Test {
         mainBufferPool->alloc(&buffer);
         struct can_frame* out_frame = buffer->data(); 
         *out_frame = *frame;
+        can_side_.send(buffer);
     }
 
     void send_gc_packet(const string& s) {
@@ -86,6 +87,7 @@ class GcPipeTest : public testing::Test {
         mainBufferPool->alloc(&buffer);
         string* out_data = buffer->data(); 
         *out_data = s;
+        gc_side_.send(buffer);
     }
 
   HubFlow gc_side_;
@@ -134,6 +136,7 @@ TEST_F(GcPipeTest, SendCanPacket) {
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveGcPacket));
   //ResultOf(&to_string, StrEq()), 18U
   send_can_frame(&f);
+  wait();
   EXPECT_THAT(saved_gc_data_, ElementsAre(":X195B4672NF0F1F2;"));
 }
 
@@ -153,6 +156,7 @@ TEST_F(GcPipeTest, SendTwoCanPacket) {
   SET_CAN_FRAME_ID_EFF(f, 0x195b2672);
   f.data[0] = 0xd0;
   send_can_frame(&f);
+  wait();
   EXPECT_THAT(saved_gc_data_, ElementsAre(
       ":X195B4672NF0F1F2;", ":X195B2672ND0F1F2;"));
 }

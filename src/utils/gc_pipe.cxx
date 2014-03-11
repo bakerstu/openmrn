@@ -86,6 +86,8 @@ private:
 
         Action entry()
         {
+            LOG(VERBOSE, "can packet arrived: %x",
+                GET_CAN_FRAME_ID_EFF(*message()->data()));
             char *end =
                 gc_format_generate(message()->data(), dbuf_, double_bytes_);
             size_t size = (end - dbuf_);
@@ -99,7 +101,7 @@ private:
                 /// @todo(balazs.racz) try to use an assign function for better
                 /// performance.
                 target_buffer->data()->resize(size);
-                memcpy(target_buffer->data(), dbuf_, size);
+                memcpy((char *)target_buffer->data()->data(), dbuf_, size);
                 destination_->send(target_buffer);
             }
             return release_and_exit();
@@ -166,6 +168,7 @@ private:
         {
             // CanPipeBuffer *pbuf = GetTypedAllocationResult(&g_can_alloc);
             // pbuf->Reset();
+            LOG(VERBOSE, "gc packet arrived: %s", cbuf_);
             int ret = gc_format_parse(cbuf_, outBuf_->data());
             if (!ret)
             {
