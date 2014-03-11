@@ -53,6 +53,7 @@ DynamicPool *CanFrameWriteFlow::pool()
 
 void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
+    LOG(INFO, "outgoing message %x.", GET_CAN_FRAME_ID_EFF(message->data()->frame()));
     message->data()->skipMember_ = ifCan_->hub_port();
     ifCan_->device()->send(message, priority);
 }
@@ -490,6 +491,7 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
 
 AsyncIfCan::~AsyncIfCan()
 {
+    this->device()->unregister_port(hub_port());
 }
 
 void AsyncIfCan::add_owned_flow(Executable *e)

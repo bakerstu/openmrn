@@ -31,6 +31,8 @@
  * @date 20 May 2013
  */
 
+//#define LOGLEVEL VERBOSE
+
 #include "executor/StateFlow.hxx"
 #include "nmranet_can.h"
 #include "utils/BufferQueue.hxx"
@@ -102,6 +104,8 @@ private:
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
                 destination_->send(target_buffer);
+            } else {
+                LOG(INFO, "gc generate failed.");
             }
             return release_and_exit();
         }

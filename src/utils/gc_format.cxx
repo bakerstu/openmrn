@@ -31,8 +31,10 @@
  * @date 20 May 2013
  */
 
-#include <stdint.h>
+//#define LOGLEVEL VERBOSE
 
+#include <stdint.h>
+#include "utils/logging.h"
 #include "nmranet_can.h"
 
 extern "C" {
@@ -196,6 +198,7 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
 {
     if (IS_CAN_FRAME_ERR(*can_frame))
     {
+        LOG(VERBOSE, "GC generate: incoming frame ERR.");
         return buf;
     }
     void (*output)(char*& dst, char value);

@@ -43,7 +43,7 @@ TEST_F(AsyncEventTest, Setup)
 
 TEST_F(AsyncEventTest, MockEventHandler)
 {
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(h1_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     send_packet(":X195B4621N0102030405060702;");
@@ -51,7 +51,7 @@ TEST_F(AsyncEventTest, MockEventHandler)
 
 TEST_F(AsyncEventTest, EventReportEventField)
 {
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_, HandleEventReport(
                  Pointee(Field(&EventReport::event, 0x0102030405060702ULL)), _))
@@ -64,7 +64,7 @@ TEST_F(AsyncEventTest, EventReportFields)
     static const NodeAlias alias = 0x621U;
     static const NodeID node_id = 0x050101FFFF3DULL;
     ifCan_->remote_aliases()->add(node_id, alias);
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_,
         HandleEventReport(
@@ -81,7 +81,7 @@ TEST_F(AsyncEventTest, EventReportFields)
 TEST_F(AsyncEventTest, EventReportUnknownNode)
 {
     static const NodeAlias alias = 0x631U;
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_,
         HandleEventReport(
@@ -97,7 +97,7 @@ TEST_F(AsyncEventTest, EventReportUnknownNode)
 
 TEST_F(AsyncEventTest, ProducerRangeIdentified)
 {
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_,
         HandleProducerRangeIdentified(
@@ -109,7 +109,7 @@ TEST_F(AsyncEventTest, ProducerRangeIdentified)
 
 TEST_F(AsyncEventTest, ManyEvents)
 {
-    NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_, HandleEventReport(
                  Pointee(Field(&EventReport::event, 0x01020304050655aaULL)), _))

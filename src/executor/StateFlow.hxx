@@ -438,6 +438,14 @@ public:
         return mainBufferPool;
     }
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
+
+    /** Synchronously allocates a message buffer from the pool of this flow. */
+    MessageType *alloc()
+    {
+        MessageType *ret;
+        pool()->alloc(&ret);
+        return ret;
+    }
 };
 
 template <class MessageType, class QueueType>

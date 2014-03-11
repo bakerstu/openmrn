@@ -34,44 +34,38 @@ TEST_F(AsyncIfTest, InjectFrame)
     send_packet(":X195B432DN05010103;");
     wait();
 }
-#if 0
 TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
 {
     StrictMock<MockCanFrameHandler> h;
-    ifCan_->frame_dispatcher()->RegisterHandler(0x195B4000, 0x1FFFF000, &h);
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _))
-        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    ifCan_->frame_dispatcher()->register_handler(&h, 0x195B4000, 0x1FFFF000);
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _));
 
     send_packet(":X195B432DN05010103;");
     wait();
-
     send_packet(":X195F432DN05010103;");
     send_packet(":X195F432DN05010103;");
 
     wait();
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _))
-        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _))
-        .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _));
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _));
     send_packet(":X195B4777N05010103;");
     send_packet(":X195F4333N05010103;");
     send_packet(":X195B4222N05010103;");
     wait();
-    ifCan_->frame_dispatcher()->UnregisterHandler(0x195B4000, 0x1FFFF000, &h);
+    ifCan_->frame_dispatcher()->unregister_handler(&h, 0x195B4000, 0x1FFFF000);
 }
 
 TEST_F(AsyncIfTest, WriteFrame)
 {
+    print_all_packets();
     expect_packet(":X195B432DNAA;");
-    TypedSyncAllocation<CanFrameWriteFlow> w(ifCan_->write_allocator());
-    struct can_frame *f = w.result()->mutable_frame();
+    auto* b = ifCan_->frame_write_flow()->alloc();
+    struct can_frame *f = b->data()->mutable_frame();
     SET_CAN_FRAME_EFF(*f);
     SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
     f->can_dlc = 1;
     f->data[0] = 0xaa;
-    w.result()->Send(nullptr);
+    ifCan_->frame_write_flow()->send(b);
 }
 
 TEST_F(AsyncIfTest, WriteMultipleFrames)
@@ -79,19 +73,20 @@ TEST_F(AsyncIfTest, WriteMultipleFrames)
     EXPECT_CALL(canBus_, mwrite(":X195B432DNAA;")).Times(10);
     for (int i = 0; i < 10; ++i)
     {
-        TypedSyncAllocation<CanFrameWriteFlow> w(ifCan_->write_allocator());
-        struct can_frame *f = w.result()->mutable_frame();
+        auto* b = ifCan_->frame_write_flow()->alloc();
+        struct can_frame *f = b->data()->mutable_frame();
         SET_CAN_FRAME_EFF(*f);
         SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
         f->can_dlc = 1;
         f->data[0] = 0xaa;
-        w.result()->Send(nullptr);
-        TypedSyncAllocation<CanFrameWriteFlow> ww(ifCan_->write_allocator());
-        SET_CAN_FRAME_RTR(*ww.result()->mutable_frame());
-        ww.result()->Cancel();
+        ifCan_->frame_write_flow()->send(b);
+        auto* bb = ifCan_->frame_write_flow()->alloc();
+        SET_CAN_FRAME_RTR(*bb->data()->mutable_frame());
+        bb->unref();
     }
 }
 
+#if 0
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:
@@ -182,7 +177,6 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
 TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h, handle_message(
                Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
@@ -190,7 +184,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
                              Field(&IncomingMessage::payload,
                                    IsBufferValue(0x0102030405060708ULL)))),
                _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0, 0, &h);
+    ifCan_->dispatcher()->register_handler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
     expect_packet(":X195B422AN0102030405060708;");
@@ -203,7 +197,6 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h,
         handle_message(
@@ -217,7 +210,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
                       Field(&NodeHandle::id, TEST_NODE_ID)),
                 Field(&IncomingMessage::dst_node, node_))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0, 0, &h);
+    ifCan_->dispatcher()->register_handler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
@@ -339,7 +332,6 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h,
         handle_message(
@@ -353,7 +345,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
                 Field(&IncomingMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(0x5B4, 0xffff, &h);
 
     ifCan_->remote_aliases()->add(id, alias);
 
@@ -365,7 +357,6 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
 {
     static const NodeAlias alias = 0x210U;
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h,
         handle_message(
@@ -379,7 +370,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
                 Field(&IncomingMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(0x5B4, 0xffff, &h);
 
     send_packet(":X195B4210N0102030405060708;");
     wait();
@@ -390,7 +381,6 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h,
         handle_message(
@@ -404,7 +394,7 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
                 Field(&IncomingMessage::dst_node, node_),
                 Field(&IncomingMessage::payload, IsNull()))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
 
     ifCan_->remote_aliases()->add(id, alias);
 
@@ -418,7 +408,6 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
 {
     static const NodeAlias alias = 0x210U;
     StrictMock<MockMessageHandler> h;
-    EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(
         h,
         handle_message(
@@ -434,7 +423,7 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
                 Field(&IncomingMessage::payload,
                       IsBufferNodeValue(0x010203040506ULL)))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->RegisterHandler(0x488, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
 
     // The "verify node id handler" will respond. Although this message carries
     // a node id that does not match, a response is still required because this

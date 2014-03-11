@@ -117,8 +117,8 @@ class EventHandlerTests : public ::testing::Test {
 };
 
 TEST_F(EventHandlerTests, SimpleRunTest) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
   EXPECT_CALL(h1_, HandleEventReport(_, _))
       .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
   EXPECT_CALL(h2_, HandleEventReport(_, _))
@@ -133,8 +133,8 @@ TEST_F(EventHandlerTests, SimpleRunTest) {
 }
 
 TEST_F(EventHandlerTests, SimpleRunTest2) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
   EXPECT_CALL(h1_, HandleEventReport(_, _))
       .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
   EXPECT_CALL(h2_, HandleEventReport(_, _))
@@ -149,8 +149,8 @@ TEST_F(EventHandlerTests, SimpleRunTest2) {
 }
 
 TEST_F(EventHandlerTests, Run100EventsTest) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
   EXPECT_CALL(h1_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
       WithArg<1>(Invoke(&InvokeNotification)));
   EXPECT_CALL(h2_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
@@ -167,7 +167,7 @@ TEST_F(EventHandlerTests, Run100EventsTest) {
 }
 
 TEST_F(EventHandlerTests, EventsOrderTest) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
   {
     InSequence s;
 
@@ -195,8 +195,8 @@ TEST_F(EventHandlerTests, EventsOrderTest) {
 }
 
 TEST_F(EventHandlerTests, GlobalRunTest1) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
   EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
       .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
   EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))
@@ -211,8 +211,8 @@ TEST_F(EventHandlerTests, GlobalRunTest1) {
 }
 
 TEST_F(EventHandlerTests, GlobalAndLocal) {
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
-  NMRAnetEventRegistry::instance()->RegisterHandler(&h2_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+  NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
   EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
       .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
   EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))

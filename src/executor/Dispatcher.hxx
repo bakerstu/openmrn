@@ -229,6 +229,9 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
             {
                 continue;
             }
+            LOG(VERBOSE, "dispatcher %p, handler match idx %d, handler %p "
+                         "message %p, id %x, mask %x, reg id %x",
+                this, currentIndex_, h.handler, message(), id, h.mask, h.id);
             if (negateMatch_ && (id & h.mask) == (h.id & h.mask))
             {
                 continue;

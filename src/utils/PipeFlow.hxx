@@ -44,6 +44,16 @@ class PipeMember;
 
 struct CanFrameContainer : public can_frame
 {
+    /* Constructor. Sets up (outgoing) frames to be empty extended frames by
+     * default. */
+    CanFrameContainer()
+    {
+        CLR_CAN_FRAME_ERR(*this);
+        CLR_CAN_FRAME_RTR(*this);
+        SET_CAN_FRAME_EFF(*this);
+        can_dlc = 0;
+    }
+
     /** @Returns a mutable pointer to the embedded CAN frame. */
     struct can_frame *mutable_frame()
     {

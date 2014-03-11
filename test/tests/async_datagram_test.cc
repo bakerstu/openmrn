@@ -43,7 +43,7 @@ class AsyncRawDatagramTest : public AsyncNodeTest
 protected:
     AsyncRawDatagramTest()
     {
-        ifCan_->dispatcher()->RegisterHandler(0x1C48, 0xFFFF, &handler_);
+        ifCan_->dispatcher()->register_handler(0x1C48, 0xFFFF, &handler_);
         EXPECT_CALL(handler_, get_allocator()).WillRepeatedly(Return(nullptr));
         ON_CALL(handler_, handle_message(_, _))
             .WillByDefault(WithArg<1>(Invoke(&InvokeNotification)));
@@ -52,7 +52,7 @@ protected:
     ~AsyncRawDatagramTest()
     {
         wait();
-        ifCan_->dispatcher()->UnregisterHandler(0x1C48, 0xFFFF, &handler_);
+        ifCan_->dispatcher()->unregister_handler(0x1C48, 0xFFFF, &handler_);
     }
 
     StrictMock<MockMessageHandler> handler_;
