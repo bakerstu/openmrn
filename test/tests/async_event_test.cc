@@ -18,16 +18,16 @@ protected:
 
     ~AsyncEventTest()
     {
-        Wait();
+        wait();
     }
 
-    void Wait()
+    void wait()
     {
         while (GlobalEventFlow::instance->EventProcessingPending())
         {
             usleep(100);
         }
-        AsyncIfTest::Wait();
+        AsyncIfTest::wait();
     }
 
     GlobalEventFlow flow_;
@@ -46,7 +46,7 @@ TEST_F(AsyncEventTest, MockEventHandler)
     NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
     EXPECT_CALL(h1_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X195B4621N0102030405060702;");
+    send_packet(":X195B4621N0102030405060702;");
 }
 
 TEST_F(AsyncEventTest, EventReportEventField)
@@ -56,7 +56,7 @@ TEST_F(AsyncEventTest, EventReportEventField)
         h1_, HandleEventReport(
                  Pointee(Field(&EventReport::event, 0x0102030405060702ULL)), _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X195B4621N0102030405060702;");
+    send_packet(":X195B4621N0102030405060702;");
 }
 
 TEST_F(AsyncEventTest, EventReportFields)
@@ -75,7 +75,7 @@ TEST_F(AsyncEventTest, EventReportFields)
                 Field(&EventReport::event, 0x0102030405060702ULL),
                 Field(&EventReport::mask, 1))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X195B4621N0102030405060702;");
+    send_packet(":X195B4621N0102030405060702;");
 }
 
 TEST_F(AsyncEventTest, EventReportUnknownNode)
@@ -92,7 +92,7 @@ TEST_F(AsyncEventTest, EventReportUnknownNode)
                 Field(&EventReport::event, 0x0102030405060703ULL),
                 Field(&EventReport::mask, 1))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X195B4631N0102030405060703;");
+    send_packet(":X195B4631N0102030405060703;");
 }
 
 TEST_F(AsyncEventTest, ProducerRangeIdentified)
@@ -104,7 +104,7 @@ TEST_F(AsyncEventTest, ProducerRangeIdentified)
             Pointee(AllOf(Field(&EventReport::event, 0x0102030405060000ULL),
                           Field(&EventReport::mask, 0xFFFF))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X19524621N010203040506FFFF;");
+    send_packet(":X19524621N010203040506FFFF;");
 }
 
 TEST_F(AsyncEventTest, ManyEvents)
@@ -116,7 +116,7 @@ TEST_F(AsyncEventTest, ManyEvents)
         .Times(100)
         .WillRepeatedly(WithArg<1>(Invoke(&InvokeNotification)));
     for (int i = 0; i < 100; ++i) {
-        SendPacket(":X195B4621N01020304050655aa;");
+        send_packet(":X195B4621N01020304050655aa;");
     }
 }
 

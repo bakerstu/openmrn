@@ -51,7 +51,7 @@ protected:
     }
     ~AsyncRawDatagramTest()
     {
-        Wait();
+        wait();
         ifCan_->dispatcher()->UnregisterHandler(0x1C48, 0xFFFF, &handler_);
     }
 
@@ -64,15 +64,15 @@ TEST_F(AsyncRawDatagramTest, CreateDestroy)
 
 TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesWrongTarget)
 {
-    SendPacket(":X1A333555NFF01020304050607;");
+    send_packet(":X1A333555NFF01020304050607;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesWrongTarget)
 {
-    SendPacket(":X1B333555NFF01020304050607;");
-    SendPacket(":X1C333555NFF01020304050607;");
-    SendPacket(":X1C333555NFF01020304050607;");
-    SendPacket(":X1D333555NFF01020304050607;");
+    send_packet(":X1B333555NFF01020304050607;");
+    send_packet(":X1C333555NFF01020304050607;");
+    send_packet(":X1C333555NFF01020304050607;");
+    send_packet(":X1D333555NFF01020304050607;");
 }
 
 TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
@@ -87,7 +87,7 @@ TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
                                 IsBufferValue(0xFF01020304050607ULL)) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1A22A555NFF01020304050607;");
+    send_packet(":X1A22A555NFF01020304050607;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
@@ -103,24 +103,24 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
                                     "01234567112345672123456731234567")) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1C22A555N3231323334353637;");
-    SendPacket(":X1D22A555N3331323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1C22A555N3231323334353637;");
+    send_packet(":X1D22A555N3331323334353637;");
 }
 
 TEST_F(AsyncRawDatagramTest, OutOfOrderRestart)
 {
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1C22A555N3231323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1C22A555N3231323334353637;");
 
     // Another start packet -> rejection.
-    SendPacketAndExpectResponse(":X1B22A555N3031323334353637;",
+    send_packet_and_expect_response(":X1B22A555N3031323334353637;",
                                 ":X19A4822AN05552040;");
 
     // Now the finish packet will die as well.
-    SendPacketAndExpectResponse(":X1D22A555N3331323334353637;",
+    send_packet_and_expect_response(":X1D22A555N3331323334353637;",
                                 ":X19A4822AN05552040;");
 }
 
@@ -137,18 +137,18 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
                                     "01234567112345672123456731234567")) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1C22A555N3231323334353637;");
-    SendPacket(":X1D22A555N3331323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1C22A555N3231323334353637;");
+    send_packet(":X1D22A555N3331323334353637;");
     // Datagram should be complete here.
 
     // A finish packet out of the blue.
-    SendPacketAndExpectResponse(":X1D22A555N3331323334353637;",
+    send_packet_and_expect_response(":X1D22A555N3331323334353637;",
                                 ":X19A4822AN05552040;");
 
     // A middle packet out of the blue.
-    SendPacketAndExpectResponse(":X1C22A555N3331323334353637;",
+    send_packet_and_expect_response(":X1C22A555N3331323334353637;",
                                 ":X19A4822AN05552040;");
 }
 
@@ -189,10 +189,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
 
 TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
 {
-    SendPacket(":X1B22A555N3031323334353637;"); // 8
+    send_packet(":X1B22A555N3031323334353637;"); // 8
     for (int i = 0; i < 7; i++)
     {                                                                     // +7*
-        SendPacket(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
+        send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
     }
     EXPECT_CALL(
         handler_,
@@ -206,17 +206,17 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
                                                     "45677123456781234567")) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1D22A555N3831323334353637;"); // 8
+    send_packet(":X1D22A555N3831323334353637;"); // 8
 }
 
 TEST_F(AsyncRawDatagramTest, TooLongDatagram)
 {
-    SendPacket(":X1B22A555N3031323334353637;"); // 8
+    send_packet(":X1B22A555N3031323334353637;"); // 8
     for (int i = 0; i < 8; i++)
     {                                                                     // +8*
-        SendPacket(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
+        send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
     }
-    SendPacketAndExpectResponse(
+    send_packet_and_expect_response(
         ":X1C22A555N3031323334353637;",
         ":X19A4822AN05551000;"); // Datagram rejected permanent error
 }
@@ -244,18 +244,18 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
                                 IsBufferValueString("01234")) //,
                           )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1A22A555N3031323334;"); // A single-frame datagram here.
-    SendPacket(":X1C22A555N3231323334353637;");
-    SendPacket(":X1D22A555N3331323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1A22A555N3031323334;"); // A single-frame datagram here.
+    send_packet(":X1C22A555N3231323334353637;");
+    send_packet(":X1D22A555N3331323334353637;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
 {
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1C22A555N3231323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1C22A555N3231323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
@@ -268,7 +268,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
                       IsBufferValueString("0123456711234567")) //,
                 )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1B22A577N3031323334353637;");
+    send_packet(":X1B22A577N3031323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
@@ -282,8 +282,8 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1D22A555N3331323334353637;");
-    SendPacket(":X1D22A577N3131323334353637;");
+    send_packet(":X1D22A555N3331323334353637;");
+    send_packet(":X1D22A577N3131323334353637;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
@@ -292,9 +292,9 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
     ifCan_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
     DefaultAsyncNode other_node(ifCan_.get(), TEST_NODE_ID + 1);
 
-    SendPacket(":X1B22A555N3031323334353637;");
-    SendPacket(":X1C22A555N3131323334353637;");
-    SendPacket(":X1C22A555N3231323334353637;");
+    send_packet(":X1B22A555N3031323334353637;");
+    send_packet(":X1C22A555N3131323334353637;");
+    send_packet(":X1C22A555N3231323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
@@ -307,7 +307,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
                       IsBufferValueString("0123456711234567")) //,
                 )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1B22B555N3031323334353637;");
+    send_packet(":X1B22B555N3031323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
@@ -321,9 +321,9 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X1D22A555N3331323334353637;");
-    SendPacket(":X1D22B555N3131323334353637;");
-    Wait();
+    send_packet(":X1D22A555N3331323334353637;");
+    send_packet(":X1D22B555N3131323334353637;");
+    wait();
 }
 
 class MockDatagramHandlerBase : public DatagramHandler, public ControlFlow
@@ -368,8 +368,8 @@ TEST_F(AsyncDatagramTest, DispatchTest)
                 Field(&IncomingDatagram::payload,
                       IsBufferValueString("01234567")) //,
                 ))));
-    SendPacket(":X1A22A555N3031323334353637;");
-    Wait();
+    send_packet(":X1A22A555N3031323334353637;");
+    wait();
     usleep(3000);
 }
 
@@ -383,16 +383,16 @@ Buffer* string_to_buffer(const string& value)
 
 TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 {
-    PrintAllPackets();
+    print_all_packets();
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
 }
 
@@ -401,11 +401,11 @@ TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN3031323334353637;");
+    expect_packet(":X1A77C22AN3031323334353637;");
     a.result()->write_datagram(node_->node_id(), h,
                                string_to_buffer("01234567"), &n);
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
 }
 
@@ -414,12 +414,12 @@ TEST_F(AsyncDatagramTest, OutgoingTestBeginEnd)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1B77C22AN3031323334353637;");
-    ExpectPacket(":X1D77C22AN3839303132333435;");
+    expect_packet(":X1B77C22AN3031323334353637;");
+    expect_packet(":X1D77C22AN3839303132333435;");
     a.result()->write_datagram(node_->node_id(), h,
                                string_to_buffer("0123456789012345"), &n);
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
 }
 
@@ -428,13 +428,13 @@ TEST_F(AsyncDatagramTest, OutgoingTestMiddle)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1B77C22AN3031323334353637;");
-    ExpectPacket(":X1C77C22AN3839303132333435;");
-    ExpectPacket(":X1D77C22AN3031323334353637;");
+    expect_packet(":X1B77C22AN3031323334353637;");
+    expect_packet(":X1C77C22AN3839303132333435;");
+    expect_packet(":X1D77C22AN3031323334353637;");
     a.result()->write_datagram(
         node_->node_id(), h, string_to_buffer("012345678901234501234567"), &n);
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
 }
 
@@ -443,11 +443,11 @@ TEST_F(AsyncDatagramTest, ResponseOK)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
               a.result()->result());
@@ -459,11 +459,11 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
     SyncNotifiable n;
     NodeHandle h{TEST_NODE_ID + 3, 0};
     ifCan_->remote_aliases()->add(h.id, 0x77C);
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A2877CN022A00;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
               a.result()->result());
@@ -474,13 +474,13 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0x050101FFFFDDULL, 0};
-    ExpectPacket(":X1070222AN050101FFFFDD;"); // AME frame
+    expect_packet(":X1070222AN050101FFFFDD;"); // AME frame
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacketAndExpectResponse(":X10701210N050101FFFFDD;", // AMD frame
+    wait();
+    send_packet_and_expect_response(":X10701210N050101FFFFDD;", // AMD frame
                                 ":X1A21022AN30313233343536;");
-    SendPacket(":X19A28210N022A00;"); // Received OK
+    send_packet(":X19A28210N022A00;"); // Received OK
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
               a.result()->result());
@@ -493,11 +493,11 @@ TEST_F(AsyncDatagramTest, ResponseOKWithCode)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A2877CN022AA5;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022AA5;"); // Received OK
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS |
                   (0xA5 << DatagramClient::RESPONSE_FLAGS_SHIFT),
@@ -509,11 +509,11 @@ TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A2877CN022A80;"); // Received OK
+    wait();
+    send_packet(":X19A2877CN022A80;"); // Received OK
     n.WaitForNotification();
     EXPECT_TRUE(a.result()->result() & (DatagramClient::OK_REPLY_PENDING));
 }
@@ -523,11 +523,11 @@ TEST_F(AsyncDatagramTest, Rejected)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A4877CN022A55AA;"); // Datagram rejected.
+    wait();
+    send_packet(":X19A4877CN022A55AA;"); // Datagram rejected.
     n.WaitForNotification();
     EXPECT_EQ(0x55AAU, a.result()->result());
 }
@@ -538,10 +538,10 @@ TEST_F(AsyncDatagramTest, Timeout)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
+    wait();
     n.WaitForNotification();
     EXPECT_EQ(
         (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
@@ -553,11 +553,11 @@ TEST_F(AsyncDatagramTest, RejectedNoData)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X19A4877CN022A;"); // Datagram rejected.
+    wait();
+    send_packet(":X19A4877CN022A;"); // Datagram rejected.
     n.WaitForNotification();
     EXPECT_TRUE(DatagramClient::PERMANENT_ERROR & a.result()->result());
 }
@@ -567,11 +567,11 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X1906877CN022A5A;"); // OIR, payload invalid
+    wait();
+    send_packet(":X1906877CN022A5A;"); // OIR, payload invalid
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
 }
@@ -582,11 +582,11 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X1906877CN022A55AA0991;"); // OIR, payload with a different MTI
+    wait();
+    send_packet(":X1906877CN022A55AA0991;"); // OIR, payload with a different MTI
     n.WaitForNotification();
     // Timeout means the OIR was ignored.
     EXPECT_EQ(
@@ -600,11 +600,11 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X1906877CN022A55AA1C48;"); // OIR, payload with correct MTI
+    wait();
+    send_packet(":X1906877CN022A55AA1C48;"); // OIR, payload with correct MTI
     n.WaitForNotification();
     EXPECT_EQ(0x55AAU, a.result()->result());
 }
@@ -615,11 +615,11 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X1906877CN022A00AA1C48;"); // OIR, payload with correct MTI
+    wait();
+    send_packet(":X1906877CN022A00AA1C48;"); // OIR, payload with correct MTI
     n.WaitForNotification();
     EXPECT_EQ(0x10AAU, a.result()->result()); // Added PERMANENT_ERROR
 }
@@ -629,11 +629,11 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X1906877CN022A2000;"); // OIR, temporary error
+    wait();
+    send_packet(":X1906877CN022A2000;"); // OIR, temporary error
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
 }
@@ -643,11 +643,11 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X190A877CN022A5A;"); // TDE, payload invalid
+    wait();
+    send_packet(":X190A877CN022A5A;"); // TDE, payload invalid
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
 }
@@ -658,11 +658,11 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X190A877CN022A55AA0991;"); // TDE, payload with a different MTI
+    wait();
+    send_packet(":X190A877CN022A55AA0991;"); // TDE, payload with a different MTI
     n.WaitForNotification();
     // Timeout means the TDE was ignored.
     EXPECT_EQ(
@@ -676,11 +676,11 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X190A877CN022A55AA1C48;"); // TDE, payload with correct MTI
+    wait();
+    send_packet(":X190A877CN022A55AA1C48;"); // TDE, payload with correct MTI
     n.WaitForNotification();
     EXPECT_EQ(0x55AAU, a.result()->result());
 }
@@ -691,11 +691,11 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X190A877CN022A00AA1C48;"); // TDE, payload with correct MTI
+    wait();
+    send_packet(":X190A877CN022A00AA1C48;"); // TDE, payload with correct MTI
     n.WaitForNotification();
     EXPECT_EQ(0x10AAU, a.result()->result());
 }
@@ -705,11 +705,11 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{0, 0x77C};
-    ExpectPacket(":X1A77C22AN30313233343536;");
+    expect_packet(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
-    Wait();
-    SendPacket(":X190A877CN022A2000;"); // TDE, temporary error
+    wait();
+    send_packet(":X190A877CN022A2000;"); // TDE, temporary error
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
 }
@@ -841,7 +841,7 @@ private:
 
 TEST_F(TwoNodeDatagramTest, PingPongTestOne)
 {
-    PrintAllPackets();
+    print_all_packets();
     setup_other_node(true);
     expect_other_node_lookup();
 
@@ -859,12 +859,12 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne)
     bytes[3] = 0x31;
     payload->advance(4);
 
-    ExpectPacket(":X1A22522AN7A023031;"); // ping
-    ExpectPacket(":X19A28225N022A80;");   // ack OK, reply pending
-    ExpectPacket(":X1A22A225N7A0130;");   // pong
-    ExpectPacket(":X19A2822AN022580;");   // ack OK, reply pending
-    ExpectPacket(":X1A22522AN7A00;");     // ping
-    ExpectPacket(":X19A28225N022A00;");   // ack OK, no reply
+    expect_packet(":X1A22522AN7A023031;"); // ping
+    expect_packet(":X19A28225N022A80;");   // ack OK, reply pending
+    expect_packet(":X1A22A225N7A0130;");   // pong
+    expect_packet(":X19A2822AN022580;");   // ack OK, reply pending
+    expect_packet(":X1A22522AN7A00;");     // ping
+    expect_packet(":X19A28225N022A00;");   // ack OK, no reply
 
     a.result()->write_datagram(node_->node_id(), h, payload, &n);
     n.WaitForNotification();
@@ -872,14 +872,14 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne)
                   DatagramClient::OPERATION_SUCCESS,
               a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
-    Wait();
+    wait();
     EXPECT_EQ(2, handler_two.process_count());
     EXPECT_EQ(1, handler_one.process_count());
 }
 
 TEST_F(TwoNodeDatagramTest, PingPongTestError)
 {
-    PrintAllPackets();
+    print_all_packets();
     setup_other_node(true);
     expect_other_node_lookup();
 
@@ -894,14 +894,14 @@ TEST_F(TwoNodeDatagramTest, PingPongTestError)
     bytes[0] = PingPongHandler::DATAGRAM_ID;
     payload->advance(1);
 
-    ExpectPacket(":X1A22522AN7A;");       // ping
-    ExpectPacket(":X19A48225N022A1000;"); // rejected permanent error
+    expect_packet(":X1A22522AN7A;");       // ping
+    expect_packet(":X19A48225N022A1000;"); // rejected permanent error
 
     a.result()->write_datagram(node_->node_id(), h, payload, &n);
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
-    Wait();
+    wait();
     EXPECT_EQ(1, handler_two.process_count());
     EXPECT_EQ(0, handler_one.process_count());
 }
@@ -909,7 +909,7 @@ TEST_F(TwoNodeDatagramTest, PingPongTestError)
 /// @TODO(balazs.racz): turn this into a TEST_P
 TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
 {
-    PrintAllPackets();
+    print_all_packets();
     setup_other_node(false);
     // expect_other_node_lookup();
 
@@ -933,14 +933,14 @@ TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
                   DatagramClient::OPERATION_SUCCESS,
               a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
-    Wait();
+    wait();
     EXPECT_EQ(2, handler_two.process_count());
     EXPECT_EQ(1, handler_one.process_count());
 }
 
 TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
 {
-    PrintAllPackets();
+    print_all_packets();
     setup_other_node(false);
     //expect_other_node_lookup();
 
@@ -959,14 +959,14 @@ TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
-    Wait();
+    wait();
     EXPECT_EQ(1, handler_two.process_count());
     EXPECT_EQ(0, handler_one.process_count());
 }
 
 TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
 {
-    PrintAllPackets();
+    print_all_packets();
     setup_other_node(true);
     expect_other_node_lookup();
 
@@ -981,15 +981,15 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
     bytes[3] = 0x31;
     payload->advance(4);
 
-    ExpectPacket(":X1A22522AN7A023031;"); // ping
-    ExpectPacket(":X19A48225N022A1000;"); // rejected, permanent error
+    expect_packet(":X1A22522AN7A023031;"); // ping
+    expect_packet(":X19A48225N022A1000;"); // rejected, permanent error
 
     a.result()->write_datagram(node_->node_id(), h, payload, &n);
     n.WaitForNotification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR,
               a.result()->result())
         << StringPrintf("result: %x", a.result()->result());
-    Wait();
+    wait();
 }
 
 } // namespace NMRAnet

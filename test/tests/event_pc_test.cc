@@ -25,66 +25,66 @@ class BitEventPcTest : public AsyncNodeTest {
 
 TEST_F(BitEventPcTest, SimpleOnOff) {
   storage_ = 0;
-  SendPacket(":X195B4001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0002;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
   EXPECT_EQ(2, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0002;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
   EXPECT_EQ(2, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0003;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0003;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 }
 
 TEST_F(BitEventPcTest, GlobalIdentify) {
   storage_ = 1;
-  ExpectPacket(":X194C522AN05010101FFFF0001;");
-  ExpectPacket(":X194C422AN05010101FFFF0000;");
-  ExpectPacket(":X194C422AN05010101FFFF0003;");
-  ExpectPacket(":X194C522AN05010101FFFF0002;");
-  ExpectPacket(":X1954522AN05010101FFFF0001;");
-  ExpectPacket(":X1954422AN05010101FFFF0000;");
-  ExpectPacket(":X1954422AN05010101FFFF0003;");
-  ExpectPacket(":X1954522AN05010101FFFF0002;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X194C522AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0003;");
+  expect_packet(":X194C522AN05010101FFFF0002;");
+  expect_packet(":X1954522AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0003;");
+  expect_packet(":X1954522AN05010101FFFF0002;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 2;
-  ExpectPacket(":X194C522AN05010101FFFF0000;");
-  ExpectPacket(":X194C422AN05010101FFFF0001;");
-  ExpectPacket(":X194C422AN05010101FFFF0002;");
-  ExpectPacket(":X194C522AN05010101FFFF0003;");
-  ExpectPacket(":X1954522AN05010101FFFF0000;");
-  ExpectPacket(":X1954422AN05010101FFFF0001;");
-  ExpectPacket(":X1954422AN05010101FFFF0002;");
-  ExpectPacket(":X1954522AN05010101FFFF0003;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X194C522AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0002;");
+  expect_packet(":X194C522AN05010101FFFF0003;");
+  expect_packet(":X1954522AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0002;");
+  expect_packet(":X1954522AN05010101FFFF0003;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventPcTest, IdentifyPc) {
   storage_ = 1;
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0000;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
                               ":X194C422AN05010101FFFF0000;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0001;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0001;",
                               ":X194C522AN05010101FFFF0001;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0002;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0002;",
                               ":X194C522AN05010101FFFF0002;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0003;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0003;",
                               ":X194C422AN05010101FFFF0003;");
 }
 

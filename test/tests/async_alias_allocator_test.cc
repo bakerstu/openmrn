@@ -15,7 +15,7 @@ protected:
 
     ~AsyncAliasAllocatorTest()
     {
-        Wait();
+        wait();
     }
 
     void SetSeed(unsigned seed, AsyncAliasAllocator* alloc = nullptr)
@@ -42,14 +42,14 @@ TEST_F(AsyncAliasAllocatorTest, AllocateOne)
 {
     SetSeed(0x555);
     AliasInfo info;
-    ExpectPacket(":X17020555N;");
-    ExpectPacket(":X1610D555N;");
-    ExpectPacket(":X15000555N;");
-    ExpectPacket(":X14003555N;");
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
     alias_allocator_.empty_aliases()->Release(&info);
-    Wait();
+    wait();
 
-    ExpectPacket(":X10700555N;");
+    expect_packet(":X10700555N;");
     TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
     EXPECT_EQ(0x555U, ialloc.result()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
@@ -59,14 +59,14 @@ TEST_F(AsyncAliasAllocatorTest, TestDelay)
 {
     SetSeed(0x555);
     AliasInfo info;
-    ExpectPacket(":X17020555N;");
-    ExpectPacket(":X1610D555N;");
-    ExpectPacket(":X15000555N;");
-    ExpectPacket(":X14003555N;");
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
     alias_allocator_.empty_aliases()->Release(&info);
-    Wait();
+    wait();
     usleep(150000);
-    ExpectPacket(":X10700555N;");
+    expect_packet(":X10700555N;");
     usleep(60000);
 }
 
@@ -75,11 +75,11 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     SetSeed(0x555);
     AliasInfo info;
     AliasInfo info2;
-    ExpectPacket(":X17020555N;");
-    ExpectPacket(":X1610D555N;");
-    ExpectPacket(":X15000555N;");
-    ExpectPacket(":X14003555N;");
-    ExpectPacket(":X10700555N;");
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
+    expect_packet(":X10700555N;");
     alias_allocator_.empty_aliases()->Release(&info);
     {
         TypedSyncAllocation<AliasInfo> ialloc(
@@ -88,13 +88,13 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
         EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
     }
     SetSeed(0xAAA);
-    ExpectPacket(":X17020AAAN;");
-    ExpectPacket(":X1610DAAAN;");
-    ExpectPacket(":X15000AAAN;");
-    ExpectPacket(":X14003AAAN;");
-    ExpectPacket(":X10700AAAN;");
+    expect_packet(":X17020AAAN;");
+    expect_packet(":X1610DAAAN;");
+    expect_packet(":X15000AAAN;");
+    expect_packet(":X14003AAAN;");
+    expect_packet(":X10700AAAN;");
     alias_allocator_.empty_aliases()->Release(&info2);
-    SendPacket(
+    send_packet(
         ":X10700555N;"); // Conflicts with the previous alias to be tested.
     {
         TypedSyncAllocation<AliasInfo> ialloc(
@@ -108,19 +108,19 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
 {
     SetSeed(0x555);
     AliasInfo info;
-    ExpectPacket(":X17020555N;");
-    ExpectPacket(":X1610D555N;");
-    ExpectPacket(":X15000555N;");
-    ExpectPacket(":X14003555N;");
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
     alias_allocator_.empty_aliases()->Release(&info);
-    Wait();
+    wait();
     SetSeed(0xAA5);
-    SendPacket(":X10700555N;");
-    ExpectPacket(":X17020AA5N;");
-    ExpectPacket(":X1610DAA5N;");
-    ExpectPacket(":X15000AA5N;");
-    ExpectPacket(":X14003AA5N;");
-    ExpectPacket(":X10700AA5N;");
+    send_packet(":X10700555N;");
+    expect_packet(":X17020AA5N;");
+    expect_packet(":X1610DAA5N;");
+    expect_packet(":X15000AA5N;");
+    expect_packet(":X14003AA5N;");
+    expect_packet(":X10700AA5N;");
     TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
     EXPECT_EQ(0xAA5U, ialloc.result()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
@@ -135,23 +135,23 @@ TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
 {
     SetSeed(0x555);
     AliasInfo info;
-    ExpectPacket(":X17020555N;");
-    ExpectPacket(":X1610D555N;");
-    ExpectPacket(":X15000555N;");
-    ExpectPacket(":X14003555N;");
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
     alias_allocator_.empty_aliases()->Release(&info);
-    Wait();
+    wait();
     SetSeed(0xAA5);
     usleep(100000);
-    SendPacket(":X10700555N;");
-    ExpectPacket(":X17020AA5N;");
-    ExpectPacket(":X1610DAA5N;");
-    ExpectPacket(":X15000AA5N;");
-    ExpectPacket(":X14003AA5N;");
-    Wait();
+    send_packet(":X10700555N;");
+    expect_packet(":X17020AA5N;");
+    expect_packet(":X1610DAA5N;");
+    expect_packet(":X15000AA5N;");
+    expect_packet(":X14003AA5N;");
+    wait();
     usleep(100000);
-    SendPacket(":X10700555N;");
-    ExpectPacket(":X10700AA5N;");
+    send_packet(":X10700555N;");
+    expect_packet(":X10700AA5N;");
     TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
     EXPECT_EQ(0xAA5U, ialloc.result()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
@@ -182,7 +182,7 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     EXPECT_NE(NextSeed(), NextSeed(&other));
     EXPECT_NE(NextSeed(), NextSeed(&other));
     // Makes sure 'other' disappears from the executor before destructing it.
-    Wait();
+    wait();
 }
 
 } // namespace NMRAnet

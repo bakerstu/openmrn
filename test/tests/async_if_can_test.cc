@@ -26,8 +26,8 @@ TEST_F(AsyncIfTest, Setup)
 
 TEST_F(AsyncIfTest, InjectFrame)
 {
-    SendPacket(":X195B432DN05010103;");
-    Wait();
+    send_packet(":X195B432DN05010103;");
+    wait();
 }
 
 TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
@@ -38,28 +38,28 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
     EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B432D), _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
 
-    SendPacket(":X195B432DN05010103;");
-    Wait();
+    send_packet(":X195B432DN05010103;");
+    wait();
 
-    SendPacket(":X195F432DN05010103;");
-    SendPacket(":X195F432DN05010103;");
+    send_packet(":X195F432DN05010103;");
+    send_packet(":X195F432DN05010103;");
 
-    Wait();
+    wait();
     EXPECT_CALL(h, get_allocator()).WillRepeatedly(Return(nullptr));
     EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4777), _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x195B4222), _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    SendPacket(":X195B4777N05010103;");
-    SendPacket(":X195F4333N05010103;");
-    SendPacket(":X195B4222N05010103;");
-    Wait();
+    send_packet(":X195B4777N05010103;");
+    send_packet(":X195F4333N05010103;");
+    send_packet(":X195B4222N05010103;");
+    wait();
     ifCan_->frame_dispatcher()->UnregisterHandler(0x195B4000, 0x1FFFF000, &h);
 }
 
 TEST_F(AsyncIfTest, WriteFrame)
 {
-    ExpectPacket(":X195B432DNAA;");
+    expect_packet(":X195B432DNAA;");
     TypedSyncAllocation<CanFrameWriteFlow> w(ifCan_->write_allocator());
     struct can_frame* f = w.result()->mutable_frame();
     SET_CAN_FRAME_EFF(*f);
@@ -100,7 +100,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
 
-    ExpectPacket(":X195B422AN0102030405060708;");
+    expect_packet(":X195B422AN0102030405060708;");
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
@@ -110,7 +110,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
 
-    ExpectPacket(":X195B422AN3132333435;");
+    expect_packet(":X195B422AN3132333435;");
     Buffer* b = buffer_alloc(5);
     const char data[] = "12345";
     memcpy(b->start(), data, 5);
@@ -123,7 +123,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
 {
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
 
-    ExpectPacket(":X1982822AN00003132333435;");
+    expect_packet(":X1982822AN00003132333435;");
     Buffer* b = buffer_alloc(5);
     const char data[] = "12345";
     memcpy(b->start(), data, 5);
@@ -136,10 +136,10 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
 {
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
 
-    ExpectPacket(":X1982822AN1000303132333435;"); // first frame
-    ExpectPacket(":X1982822AN3000363738393031;"); // middle frame
-    ExpectPacket(":X1982822AN3000323334353637;"); // middle frame
-    ExpectPacket(":X1982822AN20003839;");         // last frame
+    expect_packet(":X1982822AN1000303132333435;"); // first frame
+    expect_packet(":X1982822AN3000363738393031;"); // middle frame
+    expect_packet(":X1982822AN3000323334353637;"); // middle frame
+    expect_packet(":X1982822AN20003839;");         // last frame
     Buffer* b = buffer_alloc(20);
     const char data[] = "01234567890123456789";
     memcpy(b->start(), data, 20);
@@ -189,11 +189,11 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     ifCan_->dispatcher()->RegisterHandler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-    ExpectPacket(":X195B422AN0102030405060708;");
+    expect_packet(":X195B422AN0102030405060708;");
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
-    Wait();
+    wait();
 }
 
 TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
@@ -224,7 +224,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
         If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
         {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL), &n);
     n.WaitForNotification();
-    Wait();
+    wait();
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
@@ -233,8 +233,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 
     CreateAllocatedAlias();
     ExpectNextAliasAllocation();
-    ExpectPacket(":X1070133AN02010D000004;");
-    ExpectPacket(":X195B433AN0102030405060708;");
+    expect_packet(":X1070133AN02010D000004;");
+    expect_packet(":X195B433AN0102030405060708;");
     SyncNotifiable n;
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                                         EventIdToBuffer(0x0102030405060708ULL),
@@ -250,8 +250,8 @@ TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
     // This alias is in the cache since the setup routine.
     EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
     // If someone else uses it (not for CID frame)
-    SendPacket(":X1800022AN;");
-    Wait();
+    send_packet(":X1800022AN;");
+    wait();
     // Then it disappears from there.
     EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
 }
@@ -261,21 +261,21 @@ TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
     // This alias is in the cache since the setup routine.
     EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
     // If someone else sends a CID frame, then we respond with an RID frame
-    ExpectPacket(":X1070022AN;");
-    SendPacket(":X1700022AN;");
-    Wait();
+    expect_packet(":X1070022AN;");
+    send_packet(":X1700022AN;");
+    wait();
 
-    ExpectPacket(":X1070022AN;");
-    SendPacket(":X1612322AN;");
-    Wait();
+    expect_packet(":X1070022AN;");
+    send_packet(":X1612322AN;");
+    wait();
 
-    ExpectPacket(":X1070022AN;");
-    SendPacket(":X1545622AN;");
-    Wait();
+    expect_packet(":X1070022AN;");
+    send_packet(":X1545622AN;");
+    wait();
 
-    ExpectPacket(":X1070022AN;");
-    SendPacket(":X1478922AN;");
-    Wait();
+    expect_packet(":X1070022AN;");
+    send_packet(":X1478922AN;");
+    wait();
 
     // And we still have it in the cache.
     EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
@@ -287,26 +287,26 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
     CreateAllocatedAlias();
     ExpectNextAliasAllocation();
-    ExpectPacket(":X1070133AN02010D000003;");
-    ExpectPacket(":X195B433AN0102030405060708;");
+    expect_packet(":X1070133AN02010D000003;");
+    expect_packet(":X195B433AN0102030405060708;");
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
     usleep(250000);
-    Wait();
+    wait();
     // Here we have the next reserved alias.
     EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
               ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
     // A CID packet gets replied to.
-    ExpectPacket(":X1070044CN;");
-    SendPacket(":X1478944CN;");
-    Wait();
+    expect_packet(":X1070044CN;");
+    send_packet(":X1478944CN;");
+    wait();
     // We still have it in the cache.
     EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
               ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
     // We kick it out with a regular frame.
-    SendPacket(":X1800044CN;");
-    Wait();
+    send_packet(":X1800044CN;");
+    wait();
     EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
     // At this point we have an invalid alias in the reserved_aliases()
     // queue. We check here that a new node gets a new alias.
@@ -315,8 +315,8 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     // can't inject it. We can only inject one alias at a time, but now two
     // will be allocated in one go.
     ExpectNextAliasAllocation(0x6AA);
-    ExpectPacket(":X1070144DN02010D000004;");
-    ExpectPacket(":X195B444DN0102030405060709;");
+    expect_packet(":X1070144DN02010D000004;");
+    expect_packet(":X195B444DN0102030405060709;");
     SyncNotifiable n;
     TypedSyncAllocation<WriteFlow> ffalloc(ifCan_->global_write_allocator());
     ffalloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
@@ -353,8 +353,8 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
 
     ifCan_->remote_aliases()->add(id, alias);
 
-    SendPacket(":X195B4210N0102030405060708;");
-    Wait();
+    send_packet(":X195B4210N0102030405060708;");
+    wait();
 }
 
 TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
@@ -377,8 +377,8 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     ifCan_->dispatcher()->RegisterHandler(0x5B4, 0xffff, &h);
 
-    SendPacket(":X195B4210N0102030405060708;");
-    Wait();
+    send_packet(":X195B4210N0102030405060708;");
+    wait();
 }
 
 TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
@@ -405,9 +405,9 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
     ifCan_->remote_aliases()->add(id, alias);
 
     // The "verify nodeid handler" will respond.
-    SendPacketAndExpectResponse(":X19488210N022A;",
+    send_packet_and_expect_response(":X19488210N022A;",
                                 ":X1917022AN02010d000003;");
-    Wait();
+    wait();
 }
 
 TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
@@ -435,9 +435,9 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
     // The "verify node id handler" will respond. Although this message carries
     // a node id that does not match, a response is still required because this
     // is an addressed message.
-    SendPacketAndExpectResponse(":X19488210N022A010203040506;",
+    send_packet_and_expect_response(":X19488210N022A010203040506;",
                                 ":X1917022AN02010d000003;");
-    Wait();
+    wait();
 }
 
 TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
@@ -445,7 +445,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
 
-    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    expect_packet(":X1948822AN0210050101FFFFDD;");
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
@@ -459,7 +459,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
 
-    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    expect_packet(":X1948822AN0210050101FFFFDD;");
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     ifCan_->remote_aliases()->add(id, alias);
@@ -474,7 +474,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithConflictingAlias)
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
 
-    ExpectPacket(":X1948822AN0210050101FFFFDD;");
+    expect_packet(":X1948822AN0210050101FFFFDD;");
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     // Both the cache and the caller gives an alias. System should use the
@@ -493,11 +493,11 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMiss)
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     // An AME frame should be sent out.
-    ExpectPacket(":X1070222AN050101FFFFDD;");
+    expect_packet(":X1070222AN050101FFFFDD;");
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);
-    SendPacketAndExpectResponse(
+    send_packet_and_expect_response(
         ":X10701210N050101FFFFDD;",   // AMD frame
         ":X1948822AN0210050101FFFFDD;");
 
@@ -514,13 +514,13 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissTimeout)
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     // An AME frame should be sent out.
-    ExpectPacket(":X1070222AN050101FFFFDD;");
+    expect_packet(":X1070222AN050101FFFFDD;");
     ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = MSEC_TO_NSEC(20);
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);
     // Then a verify node id global.
-    ExpectPacket(":X1949022AN050101FFFFDD;");
+    expect_packet(":X1949022AN050101FFFFDD;");
     // Then given up.
     n.WaitForNotification();
     ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = saved_timeout;
@@ -534,16 +534,16 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissAMDTimeout)
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
     SyncNotifiable n;
     // An AME frame should be sent out.
-    ExpectPacket(":X1070222AN050101FFFFDD;");
+    expect_packet(":X1070222AN050101FFFFDD;");
     ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = MSEC_TO_NSEC(20);
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);
-    Wait();
+    wait();
     ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(10);
-    ExpectPacket(":X1949022AN050101FFFFDD;");
+    expect_packet(":X1949022AN050101FFFFDD;");
     usleep(30000);
-    SendPacketAndExpectResponse(
+    send_packet_and_expect_response(
         ":X19170210N050101FFFFDD;",   // Node id verified message
         ":X1948822AN0210050101FFFFDD;");
     n.WaitForNotification();
@@ -562,9 +562,9 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
     ifCan_->local_aliases()->remove(0x22A);
     CreateAllocatedAlias();
     ExpectNextAliasAllocation();
-    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the frame goes out.
-    ExpectPacket(":X1948833AN0210050101FFFFDD;");
+    expect_packet(":X1948833AN0210050101FFFFDD;");
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);
@@ -582,15 +582,15 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
     ifCan_->local_aliases()->remove(0x22A);
     CreateAllocatedAlias();
     ExpectNextAliasAllocation();
-    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
-    ExpectPacket(":X1949033AN050101FFFFDD;");
+    expect_packet(":X1949033AN050101FFFFDD;");
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);
-    Wait();
-    SendPacketAndExpectResponse(
+    wait();
+    send_packet_and_expect_response(
         ":X19170210N050101FFFFDD;",   // Node id verified message
         ":X1948833AN0210050101FFFFDD;");
     n.WaitForNotification();
@@ -608,10 +608,10 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     ifCan_->local_aliases()->remove(0x22A);
     CreateAllocatedAlias();
     ExpectNextAliasAllocation();
-    ExpectPacket(":X1070133AN02010D000003;");  // AMD for our new alias.
+    expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
-    ExpectPacket(":X1949033AN050101FFFFDD;");
+    expect_packet(":X1949033AN050101FFFFDD;");
     falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id), &n);

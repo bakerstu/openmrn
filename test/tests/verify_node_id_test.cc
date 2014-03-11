@@ -5,7 +5,7 @@ namespace NMRAnet
 
 TEST_F(AsyncNodeTest, VerifyNodeIdGlobalSingleNode)
 {
-    SendPacketAndExpectResponse(":X1949033AN;", ":X1917022AN02010d000003;");
+    send_packet_and_expect_response(":X1949033AN;", ":X1917022AN02010d000003;");
 }
 
 class TwoNodeTest : public AsyncNodeTest
@@ -15,16 +15,16 @@ public:
     {
         CreateAllocatedAlias();
         ExpectNextAliasAllocation();
-        ExpectPacket(":X1070133AN02010D000004;");
-        ExpectPacket(":X1910033AN02010D000004;");
+        expect_packet(":X1070133AN02010D000004;");
+        expect_packet(":X1910033AN02010D000004;");
         secondNode_.reset(
             new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID + 1));
-        Wait();
+        wait();
     }
 
     ~TwoNodeTest()
     {
-        Wait();
+        wait();
     }
 
 protected:
@@ -33,47 +33,47 @@ protected:
 
 TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodes)
 {
-    ExpectPacket(":X1917022AN02010d000003;");
-    ExpectPacket(":X1917033AN02010d000004;");
-    SendPacket(":X19490997N;");
-    Wait();
+    expect_packet(":X1917022AN02010d000003;");
+    expect_packet(":X1917033AN02010d000004;");
+    send_packet(":X19490997N;");
+    wait();
     Mock::VerifyAndClear(&canBus_);
     // Same thing again.
-    ExpectPacket(":X1917022AN02010d000003;");
-    ExpectPacket(":X1917033AN02010d000004;");
-    SendPacket(":X19490997N;");
+    expect_packet(":X1917022AN02010d000003;");
+    expect_packet(":X1917033AN02010d000004;");
+    send_packet(":X19490997N;");
 }
 
 TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodesWithNodeId)
 {
-    PrintAllPackets();
-    SendPacketAndExpectResponse(":X19490997N02010d000004;",
+    print_all_packets();
+    send_packet_and_expect_response(":X19490997N02010d000004;",
                                 ":X1917033AN02010d000004;");
-    SendPacketAndExpectResponse(":X19490997N02010d000003;",
+    send_packet_and_expect_response(":X19490997N02010d000003;",
                                 ":X1917022AN02010d000003;");
-    SendPacket(":X19490997N02010d000002;");  // No response.
+    send_packet(":X19490997N02010d000002;");  // No response.
 }
 
 TEST_F(AsyncIfTest, VerifyNodeIdGlobalNoNodes)
 {
-    PrintAllPackets();
-    SendPacket(":X1949033AN;");
+    print_all_packets();
+    send_packet(":X1949033AN;");
     // Try once more to check proper release.
-    SendPacket(":X1949033AN;");
+    send_packet(":X1949033AN;");
 }
 
 TEST_F(TwoNodeTest, VerifyNodeIdAddressed)
 {
-    SendPacketAndExpectResponse(":X19488997N022A;",
+    send_packet_and_expect_response(":X19488997N022A;",
                                 ":X1917022AN02010d000003;");
     // With mismatched node id.
-    SendPacketAndExpectResponse(":X19488997N033A02010d000003;",
+    send_packet_and_expect_response(":X19488997N033A02010d000003;",
                                 ":X1917033AN02010d000004;");
     // With correct node id.
-    SendPacketAndExpectResponse(":X19488997N033A02010d000004;",
+    send_packet_and_expect_response(":X19488997N033A02010d000004;",
                                 ":X1917033AN02010d000004;");
     // Nonexistant node.
-    SendPacket(":X19488997N044C;");  // No response.
+    send_packet(":X19488997N044C;");  // No response.
 }
 
 } // namespace NMRAnet

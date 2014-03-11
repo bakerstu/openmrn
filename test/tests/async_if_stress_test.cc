@@ -16,7 +16,7 @@ ThreadExecutor g3_executor("g3_exec", 0, 2000);
 ThreadExecutor g4_executor("g4_exec", 0, 2000);
 
 Executor* round_execs[] = {&g1_executor, &g2_executor,
-                           &g3_executor, &g4_executor};
+                           &g3_executor, &g4_executor};iceMock<MockSend> can_bus_;
 
 /** This class will create an AsyncIf, two virtual nodes on it, and send one
  * unaddressed global packet each. */
@@ -25,7 +25,7 @@ class TestNode
 public:
     TestNode(NodeID node_id)
         : nodeId_(node_id),
-          ifCan_(round_execs[(node_id >> 1) & 3], &can_pipe0, 10, 10, 10, 2, 5)
+          ifCan_(round_execs[(node_id >> 1) & 3], &can_hub0, 10, 10, 10, 2, 5)
     {
     }
 
@@ -50,8 +50,8 @@ public:
         while(!e->empty() ||
               !ifCan_.frame_dispatcher()->IsNotStarted() ||
               !ifCan_.dispatcher()->IsNotStarted() ||
-              !can_pipe0.empty() ||
-              !gc_pipe0.empty()) {
+              !can_hub0.empty() ||
+              !gc_hub0.empty()) {
             usleep(100);
         }
     }
@@ -74,13 +74,13 @@ public:
           amdFrames_(0),
           eventFrames_(0)
     {
-        can_pipe0.RegisterMember(this);
+        can_hub0.register_port(this);
         timer_.start(MSEC_TO_NSEC(1000));
     }
 
     ~Stats()
     {
-        can_pipe0.UnregisterMember(this);
+        can_hub0.unregister_port(this);
     }
 
     virtual void write(const void* buf, size_t count)
@@ -170,9 +170,9 @@ protected:
                  DefaultWriteFlowExecutor()->empty()))
         {
             usleep(100);
-            Wait();
+            wait();
         }
-        Wait();
+        wait();
     }
 
     void CreateNodes(int count)

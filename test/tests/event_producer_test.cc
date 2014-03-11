@@ -25,52 +25,52 @@ class BitEventProducerTest : public AsyncNodeTest {
 
 TEST_F(BitEventProducerTest, SimpleOnOff) {
   storage_ = 0;
-  ExpectPacket(":X195B422AN05010101FFFF0001;");
+  expect_packet(":X195B422AN05010101FFFF0001;");
   producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 1;
-  ExpectPacket(":X195B422AN05010101FFFF0000;");
+  expect_packet(":X195B422AN05010101FFFF0000;");
   producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-  ExpectPacket(":X195B422AN05010101FFFF0003;");
+  expect_packet(":X195B422AN05010101FFFF0003;");
   producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 3;
-  ExpectPacket(":X195B422AN05010101FFFF0002;");
+  expect_packet(":X195B422AN05010101FFFF0002;");
   producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventProducerTest, GlobalIdentify) {
   storage_ = 1;
-  ExpectPacket(":X1954522AN05010101FFFF0001;");
-  ExpectPacket(":X1954422AN05010101FFFF0000;");
-  ExpectPacket(":X1954422AN05010101FFFF0003;");
-  ExpectPacket(":X1954522AN05010101FFFF0002;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X1954522AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0003;");
+  expect_packet(":X1954522AN05010101FFFF0002;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 2;
-  ExpectPacket(":X1954522AN05010101FFFF0000;");
-  ExpectPacket(":X1954422AN05010101FFFF0001;");
-  ExpectPacket(":X1954422AN05010101FFFF0002;");
-  ExpectPacket(":X1954522AN05010101FFFF0003;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X1954522AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0002;");
+  expect_packet(":X1954522AN05010101FFFF0003;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventProducerTest, IdentifyProducer) {
   storage_ = 1;
-  SendPacketAndExpectResponse(":X19914001N05010101FFFF0000;",
+  send_packet_and_expect_response(":X19914001N05010101FFFF0000;",
                               ":X1954422AN05010101FFFF0000;");
-  SendPacketAndExpectResponse(":X19914001N05010101FFFF0001;",
+  send_packet_and_expect_response(":X19914001N05010101FFFF0001;",
                               ":X1954522AN05010101FFFF0001;");
-  SendPacketAndExpectResponse(":X19914001N05010101FFFF0002;",
+  send_packet_and_expect_response(":X19914001N05010101FFFF0002;",
                               ":X1954522AN05010101FFFF0002;");
-  SendPacketAndExpectResponse(":X19914001N05010101FFFF0003;",
+  send_packet_and_expect_response(":X19914001N05010101FFFF0003;",
                               ":X1954422AN05010101FFFF0003;");
 }
 

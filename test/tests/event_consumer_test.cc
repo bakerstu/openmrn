@@ -25,102 +25,102 @@ class BitEventConsumerTest : public AsyncNodeTest {
 
 TEST_F(BitEventConsumerTest, SimpleOnOff) {
   storage_ = 0;
-  SendPacket(":X195B4001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0002;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
   EXPECT_EQ(2, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0002;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
   EXPECT_EQ(2, storage_);
 
-  SendPacket(":X195B4001N05010101FFFF0003;");
-  WaitForEventThread();
+  send_packet(":X195B4001N05010101FFFF0003;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 }
 
 TEST_F(BitEventConsumerTest, ProducerIdentifiedOnOff) {
   storage_ = 0;
-  SendPacket(":X19544001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X19544001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X19544001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X19544001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X19544001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X19544001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 
-  SendPacket(":X19544001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X19544001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 
-  SendPacket(":X19545001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X19545001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X19545001N05010101FFFF0001;");
-  WaitForEventThread();
+  send_packet(":X19545001N05010101FFFF0001;");
+  wait_for_event_thread();
   EXPECT_EQ(1, storage_);
 
-  SendPacket(":X19545001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X19545001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 
-  SendPacket(":X19545001N05010101FFFF0000;");
-  WaitForEventThread();
+  send_packet(":X19545001N05010101FFFF0000;");
+  wait_for_event_thread();
   EXPECT_EQ(0, storage_);
 }
 
 TEST_F(BitEventConsumerTest, GlobalIdentify) {
   storage_ = 1;
-  ExpectPacket(":X194C522AN05010101FFFF0001;");
-  ExpectPacket(":X194C422AN05010101FFFF0000;");
-  ExpectPacket(":X194C422AN05010101FFFF0003;");
-  ExpectPacket(":X194C522AN05010101FFFF0002;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X194C522AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0003;");
+  expect_packet(":X194C522AN05010101FFFF0002;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 2;
-  ExpectPacket(":X194C522AN05010101FFFF0000;");
-  ExpectPacket(":X194C422AN05010101FFFF0001;");
-  ExpectPacket(":X194C422AN05010101FFFF0002;");
-  ExpectPacket(":X194C522AN05010101FFFF0003;");
-  SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
+  expect_packet(":X194C522AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0002;");
+  expect_packet(":X194C522AN05010101FFFF0003;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventConsumerTest, Query) {
-  ExpectPacket(":X1991422AN05010101FFFF0000;");
+  expect_packet(":X1991422AN05010101FFFF0000;");
   WriteHelper h;
   SyncNotifiable n;
   consumer_.SendQuery(&h, &n);
   n.WaitForNotification();
-  WaitForEventThread();
+  wait_for_event_thread();
 }
 
 TEST_F(BitEventConsumerTest, IdentifyConsumer) {
   storage_ = 1;
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0000;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
                               ":X194C422AN05010101FFFF0000;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0001;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0001;",
                               ":X194C522AN05010101FFFF0001;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0002;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0002;",
                               ":X194C522AN05010101FFFF0002;");
-  SendPacketAndExpectResponse(":X198F4001N05010101FFFF0003;",
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0003;",
                               ":X194C422AN05010101FFFF0003;");
 }
 }  // namespace NMRAnet

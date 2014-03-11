@@ -34,35 +34,37 @@ using ::testing::StrictMock;
 using ::testing::WithArg;
 using ::testing::_;
 
-void (*g_invoke)(Notifiable*) = &InvokeNotification;
+void (*g_invoke)(Notifiable *) = &InvokeNotification;
 
 HubFlow gc_hub0(&g_service);
 CanHubFlow can_hub0(&g_service);
-GCAdapterBase* g_gc_adapter = nullptr;
+GCAdapterBase *g_gc_adapter = nullptr;
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
-class MockSend : public HubPort {
- public:
-    MockPipeMember() : HubPort(&g_service) {}
+class MockSend : public HubPort
+{
+public:
+    MockPipeMember() : HubPort(&g_service)
+    {
+    }
 
-    MOCK_METHOD1(mwrite, void(const string& s));
+    MOCK_METHOD1(mwrite, void(const string &s));
 
-    virtual Action entry() {
+    virtual Action entry()
+    {
         string s(message()->data()->data(), message()->data()->size());
         mwrite(s);
         return release_and_exit();
     }
 };
 
-
-
 namespace NMRAnet
 {
 
-const char* Node::MANUFACTURER = "Stuart W. Baker";
-const char* Node::HARDWARE_REV = "N/A";
-const char* Node::SOFTWARE_REV = "0.1";
+const char *Node::MANUFACTURER = "Stuart W. Baker";
+const char *Node::HARDWARE_REV = "N/A";
+const char *Node::SOFTWARE_REV = "0.1";
 
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;
@@ -71,7 +73,7 @@ const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
-static void PrintPacket(const string& pkt)
+static void PrintPacket(const string &pkt)
 {
     fprintf(stderr, "%s\n", pkt.c_str());
 }
@@ -88,8 +90,8 @@ class AsyncIfTest : public testing::Test
 public:
     static void SetUpTestCase()
     {
-        g_gc_adapter = GCAdapterBase::CreateGridConnectAdapter(
-            &gc_hub0, &can_hub0, false);
+        g_gc_adapter =
+            GCAdapterBase::CreateGridConnectAdapter(&gc_hub0, &can_hub0, false);
     }
 
     static void TearDownTestCase()
@@ -100,17 +102,18 @@ public:
 protected:
     AsyncIfTest()
     {
-        gc_pipe0.register_port(&canBus_);
-        ifCan_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
+        gc_hub0.register_port(&canBus_);
+        ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 1, 1, 5));
         ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
     ~AsyncIfTest()
     {
-        Wait();
-        gc_pipe0.UnregisterMember(&canBus_);
-        if (printer_.get()) {
-            gc_pipe0.UnregisterMember(printer_.get());
+        wait();
+        gc_hub0.unregister_port(&canBus_);
+        if (printer_.get())
+        {
+            gc_hub0.unregister_port(printer_.get());
         }
     }
 
@@ -123,7 +126,7 @@ protected:
         testAlias_.alias = 0x33A;
         testAlias_.state = AliasInfo::STATE_RESERVED;
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
-                                      testAlias_.alias);
+                                     testAlias_.alias);
         ifCan_->alias_allocator()->reserved_aliases()->Release(&testAlias_);
         aliasSeed_ = 0x44C;
     }
@@ -157,12 +160,12 @@ protected:
 /** Adds an expectation that the code will send a packet to the CANbus.
 
     Example:
-    ExpectPacket(":X1954412DN05010101FFFF0000;");
+    expect_packet(":X1954412DN05010101FFFF0000;");
 
     @param gc_packet the packet in GridConnect format, including the leading
     : and trailing ;
 */
-#define ExpectPacket(gc_packet)                                                \
+#define expect_packet(gc_packet)                                               \
     EXPECT_CALL(canBus_, mwrite(StrCaseEq(gc_packet)))
 
     /** Ignores all produced packets.
@@ -170,7 +173,7 @@ protected:
      *  Tihs can be used in tests where the expectations are tested in a higher
      *  level than monitoring the CANbus traffic.
     */
-    void ExpectAnyPacket()
+    void expect_any_packet()
     {
         EXPECT_CALL(canBus_, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(PrintPacket)));
@@ -179,12 +182,12 @@ protected:
     /** Prints all packets sent to the canbus until the end of the current test
      * function.
     */
-    void PrintAllPackets()
+    void print_all_packets()
     {
-        NiceMock<MockSend>* m = new NiceMock<MockSend>();
+        NiceMock<MockSend> *m = new NiceMock<MockSend>();
         EXPECT_CALL(*m, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(PrintPacket)));
-        gc_pipe0.RegisterMember(m);
+        gc_hub0.register_port(m);
         printer_.reset(m);
     }
 
@@ -192,19 +195,19 @@ protected:
         the CANbus had sent that packet.
 
         Example:
-        SendPacket(":X195B4001N05010101FFFF0000;");
+        send_packet(":X195B4001N05010101FFFF0000;");
 
         @param gc_packet the packet in GridConnect format, including the leading
         : and trailing ;
     */
-    void SendPacket(const string& gc_packet)
+    void send_packet(const string &gc_packet)
     {
-        gc_pipe0.WriteToAll(&canBus_, gc_packet.data(), gc_packet.size());
+        gc_hub0.WriteToAll(&canBus_, gc_packet.data(), gc_packet.size());
     }
 
     /** Delays the current thread until we are certain that all asynchrnous
         processing has completed. */
-    void Wait()
+    void wait()
     {
         do
         {
@@ -218,7 +221,7 @@ protected:
                     !DefaultWriteFlowExecutor()->empty() ||
                     !ifCan_->frame_dispatcher()->IsNotStarted() ||
                     !ifCan_->dispatcher()->IsNotStarted() ||
-                    !can_pipe0.empty() || !gc_pipe0.empty())
+                    !can_hub0.empty() || !gc_hub0.empty())
                 {
                     exit = false;
                 }
@@ -240,17 +243,17 @@ protected:
         As a side effect, clears all pending expectations on the CANbus.
 
         Example:
-        SendPacketAndExpectResponse(":X198F4001N05010101FFFF0000;",
-                                    ":X194C412DN05010101FFFF0000;");
+        send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                                        ":X194C412DN05010101FFFF0000;");
 
         @param pkt is the packet to inject, in GridConnect format.
         @param resp is the response to expect, also in GridConnect format.
     */
-    void SendPacketAndExpectResponse(const string& pkt, const string& resp)
+    void send_packet_and_expect_response(const string &pkt, const string &resp)
     {
-        ExpectPacket(resp);
-        SendPacket(pkt);
-        Wait();
+        expect_packet(resp);
+        send_packet(pkt);
+        wait();
         Mock::VerifyAndClear(&canBus_);
     }
 
@@ -276,35 +279,35 @@ protected:
         ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
         node_ = ownedNode_.get();
         ifCan_->add_addressed_message_support(2);
-        Wait();
+        wait();
         AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncNodeTest()
     {
-        WaitForEventThread();
+        wait_for_event_thread();
     }
 
-    void WaitForEventThread()
+    void wait_for_event_thread()
     {
         while (GlobalEventFlow::instance->EventProcessingPending())
         {
             usleep(100);
         }
-        AsyncIfTest::Wait();
+        AsyncIfTest::wait();
     }
 
     GlobalEventFlow eventFlow_;
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
-    AsyncNode* node_;
+    AsyncNode *node_;
 };
 
 class MockMessageHandler : public IncomingMessageHandler
 {
 public:
-    MOCK_METHOD0(get_allocator, AllocatorBase*());
+    MOCK_METHOD0(get_allocator, AllocatorBase *());
     MOCK_METHOD2(handle_message,
-                 void(IncomingMessage* message, Notifiable* done));
+                 void(IncomingMessage *message, Notifiable *done));
 };
 
 MATCHER_P(IsBufferValue, id, "")
@@ -332,8 +335,8 @@ MATCHER_P(IsBufferNodeValue, id, "")
     uint64_t value = htobe64(id);
     if (arg->used() != 6)
         return false;
-    uint8_t* expected = reinterpret_cast<uint8_t*>(&value) + 2;
-    uint8_t* actual = static_cast<uint8_t*>(arg->start());
+    uint8_t *expected = reinterpret_cast<uint8_t *>(&value) + 2;
+    uint8_t *actual = static_cast<uint8_t *>(arg->start());
     if (memcmp(expected, actual, 6))
     {
         for (int i = 0; i < 6; ++i)
