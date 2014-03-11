@@ -64,7 +64,27 @@ public:
  * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
  */
 typedef HubContainer<string> HubData;
-typedef HubContainer<struct can_frame> CanHubData;
+
+/** This class can be sent via a Buffer to a CAN hub.
+ *
+ * Access the data content via members \ref mutable_frame and \ref frame.
+ *
+ * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
+ */
+class CanHubData : public HubContainer<struct can_frame>
+{
+public:
+    /** @Returns a mutable pointer to the embedded CAN frame. */
+    struct can_frame *mutable_frame()
+    {
+        return this;
+    }
+    /** @Returns the embedded CAN frame. */
+    const struct can_frame &frame() const
+    {
+        return *this;
+    }
+};
 
 /** All ports interfacing via a hub will have to derive from this flow. */
 typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
