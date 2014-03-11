@@ -213,11 +213,11 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
   event_barrier.Reset(done);
   event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
-                                 event_barrier.NewChild());
+                                 event_barrier.new_child());
   event_write_helper2.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
-                                 event_barrier.NewChild());
-  event_barrier.MaybeDone();
+                                 event_barrier.new_child());
+  event_barrier.maybe_done();
 }
 
 ByteRangeEventC::ByteRangeEventC(AsyncNode *node,
@@ -303,17 +303,17 @@ void ByteRangeEventP::HandleIdentifyProducer(EventReport* event, Notifiable* don
     uint8_t* storage;
     uint8_t value;
     if (!DecodeEventId(event->event, &storage, &value)) {
-        return event_barrier.MaybeDone();
+        return event_barrier.maybe_done();
     }
     If::MTI mti = If::MTI_PRODUCER_IDENTIFIED_VALID;
     if (*storage != value) {
         mti++; // mti INVALID
         // We also send off the currently valid value.
-        Update(storage - data_, &event_write_helper2, event_barrier.NewChild());
+        Update(storage - data_, &event_write_helper2, event_barrier.new_child());
     }
     event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
-                                   EventIdToBuffer(event->event), event_barrier.NewChild());
-    event_barrier.MaybeDone();
+                                   EventIdToBuffer(event->event), event_barrier.new_child());
+    event_barrier.maybe_done();
 }
 void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
   uint64_t range = EncodeRange(event_base_, size_ * 256);
@@ -365,21 +365,21 @@ void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport* event, Notifiab
     unsigned cur = start_offset;
     event_barrier.Reset(done);
     if (cur < end_offset) {
-        Update(cur++, &event_write_helper1, event_barrier.NewChild());
+        Update(cur++, &event_write_helper1, event_barrier.new_child());
     }
     if (cur < end_offset) {
-        Update(cur++, &event_write_helper2, event_barrier.NewChild());
+        Update(cur++, &event_write_helper2, event_barrier.new_child());
     }
     if (cur < end_offset) {
-        Update(cur++, &event_write_helper3, event_barrier.NewChild());
+        Update(cur++, &event_write_helper3, event_barrier.new_child());
     }
     if (cur < end_offset) {
-        Update(cur++, &event_write_helper4, event_barrier.NewChild());
+        Update(cur++, &event_write_helper4, event_barrier.new_child());
     }
     // This will crash if more than four packets are to be produced. The above
     // code should be replaced by a background iteration in that case.
     HASSERT(cur >= end_offset);
-    event_barrier.MaybeDone();
+    event_barrier.maybe_done();
 }
 
 BitEventHandler::BitEventHandler(BitEventInterface* bit)
@@ -398,7 +398,7 @@ void BitEventHandler::SendProducerIdentified() {
     mti++; // INVALID
   event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                  EventIdToBuffer(bit_->event_on()),
-                                 event_barrier.NewChild());
+                                 event_barrier.new_child());
   if (!value) {
     mti--; // VALID
   } else {
@@ -406,7 +406,7 @@ void BitEventHandler::SendProducerIdentified() {
   }
   event_write_helper2.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                  EventIdToBuffer(bit_->event_off()),
-                                 event_barrier.NewChild());
+                                 event_barrier.new_child());
 }
 
 void BitEventHandler::SendConsumerIdentified() {
@@ -416,7 +416,7 @@ void BitEventHandler::SendConsumerIdentified() {
     mti++; // INVALID
   event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                  EventIdToBuffer(bit_->event_on()),
-                                 event_barrier.NewChild());
+                                 event_barrier.new_child());
   if (!value) {
     mti--; // VALID
   } else {
@@ -424,7 +424,7 @@ void BitEventHandler::SendConsumerIdentified() {
   }
   event_write_helper4.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                  EventIdToBuffer(bit_->event_off()),
-                                 event_barrier.NewChild());
+                                 event_barrier.new_child());
 }
 
 void BitEventHandler::SendEventReport(WriteHelper* writer, Notifiable* done) {
@@ -495,7 +495,7 @@ void BitEventProducer::HandleIdentifyGlobal(EventReport* event,
                                             Notifiable* done) {
   event_barrier.Reset(done);
   SendProducerIdentified();
-  event_barrier.MaybeDone();
+  event_barrier.maybe_done();
 }
 
 void BitEventProducer::HandleIdentifyProducer(EventReport* event,
@@ -516,14 +516,14 @@ void BitEventConsumer::HandleIdentifyGlobal(EventReport* event,
                                             Notifiable* done) {
   event_barrier.Reset(done);
   SendConsumerIdentified();
-  event_barrier.MaybeDone();
+  event_barrier.maybe_done();
 }
 
 void BitEventPC::HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
   event_barrier.Reset(done);
   SendProducerIdentified();
   SendConsumerIdentified();
-  event_barrier.MaybeDone();
+  event_barrier.maybe_done();
 }
 
 }; /* namespace NMRAnet */

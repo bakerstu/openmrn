@@ -70,7 +70,7 @@ class MockEventHandler : public NMRAnetEventHandler {
 #undef DEFPROXYFN
 };
 
-static void InvokeNotification(Notifiable* done) { done->Notify(); }
+static void InvokeNotification(Notifiable* done) { done->notify(); }
 
 static const uint64_t kExitEventId = 0x0808080804040404ULL;
 static const uint64_t kTestEventId = 0x0102030405060708ULL;
@@ -94,7 +94,7 @@ class EventHandlerTests : public ::testing::Test {
 
   ~EventHandlerTests() { WaitForMainExecutor(); }
 
-  void InvokeExitNotification() { exit_notify_.Notify(); }
+  void InvokeExitNotification() { exit_notify_.notify(); }
 
   void WaitForCompleted() {
     GlobalEventMessage* m = flow_.AllocateMessage();

@@ -117,7 +117,7 @@ class CompatEventHandler : public SimpleEventHandler {
           MTI_PRODUCER_IDENTIFIED_VALID + producer_state_,
           WriteHelper::Global(),
           EventIdToBuffer(current_eventid(&current_global_iterator)),
-          event_barrier.NewChild());
+          event_barrier.new_child());
     }
     if (has_consumer_) {
       event_write_helper2.WriteAsync(
@@ -125,9 +125,9 @@ class CompatEventHandler : public SimpleEventHandler {
           MTI_CONSUMER_IDENTIFIED_VALID + consumer_state_,
           WriteHelper::Global(),
           EventIdToBuffer(current_eventid(&current_global_iterator)),
-          event_barrier.NewChild());
+          event_barrier.new_child());
     }
-    event_barrier.MaybeDone();
+    event_barrier.maybe_done();
   }
 
  public:

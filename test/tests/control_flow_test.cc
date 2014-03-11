@@ -51,7 +51,7 @@ private:
 
 TEST_F(ControlFlowTest, NotifyEmptyFlow) {
   ControlFlow f(&global_executor, EmptyNotifiable::DefaultInstance());
-  f.Notify();
+  f.notify();
   RunToCompletion();
 }
 

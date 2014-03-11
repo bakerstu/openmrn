@@ -37,11 +37,11 @@ public:
         WriteFlow* f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
         HASSERT(f);
         f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_,
-                              EventIdToBuffer(nodeId_), done->NewChild());
+                              EventIdToBuffer(nodeId_), done->new_child());
         f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
         HASSERT(f);
         f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_ + 1,
-                              EventIdToBuffer(nodeId_ + 1), done->NewChild());
+                              EventIdToBuffer(nodeId_ + 1), done->new_child());
     }
 
     ~TestNode()
@@ -199,35 +199,35 @@ protected:
 
 TEST_F(AsyncIfStressTest, nonode)
 {
-    barrier_.MaybeDone();
+    barrier_.maybe_done();
     n_.WaitForNotification();
 }
 
 TEST_F(AsyncIfStressTest, onenode)
 {
     CreateNodes(1);
-    barrier_.MaybeDone();
+    barrier_.maybe_done();
     n_.WaitForNotification();
 }
 
 TEST_F(AsyncIfStressTest, tennodes)
 {
     CreateNodes(10);
-    barrier_.MaybeDone();
+    barrier_.maybe_done();
     n_.WaitForNotification();
 }
 
 TEST_F(AsyncIfStressTest, hundrednodes)
 {
     CreateNodes(100);
-    barrier_.MaybeDone();
+    barrier_.maybe_done();
     n_.WaitForNotification();
 }
 
 TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)
 {
     CreateNodes(1000);
-    barrier_.MaybeDone();
+    barrier_.maybe_done();
     n_.WaitForNotification();
 }
 

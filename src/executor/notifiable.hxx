@@ -144,16 +144,16 @@ public:
     BarrierNotifiable(Notifiable* done) : count_(1), done_(done)
     {
     }
-    void Reset(Notifiable* done);
+    void reset(Notifiable* done);
     ~BarrierNotifiable();
 
     // Call this for each child task.
-    Notifiable* NewChild();
+    BarrierNotifiable* new_child();
     // When there are no more child tasks to add, call MaybeDone. Then once all
     // previously added child tasks are done, the parent callback will be
     // called. If you haven't added any children, this will call the parent
     // callback inline.
-    void MaybeDone()
+    void maybe_done()
     {
         notify();
     }
@@ -161,7 +161,7 @@ public:
 
     // Returns true if the barrier condition is true, i.e., the owner has clled
     // MaybeDone and all children have called Done.
-    bool IsDone()
+    bool is_done()
     {
         return !count_;
     }
@@ -216,5 +216,8 @@ public:
 private:
     Notifiable* n_;
 };
+
+#define AutoNotify(l) int error_omitted_autonotify_holder_variable[-1]
+
 
 #endif // _EXECUTOR_NOTIFIABLE_HXX_

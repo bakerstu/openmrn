@@ -16,7 +16,7 @@ Notifiable* CrashNotifiable::DefaultInstance() {
 
 void CrashNotifiable::notify() { DIE("Called CrashNotifiable."); }
 
-Notifiable* BarrierNotifiable::NewChild() {
+BarrierNotifiable* BarrierNotifiable::new_child() {
   LockHolder h(this);
   count_++;
   return this;
@@ -36,7 +36,7 @@ void BarrierNotifiable::notify() {
 
 BarrierNotifiable::~BarrierNotifiable() { HASSERT(!count_); }
 
-void BarrierNotifiable::Reset(Notifiable* done) {
+void BarrierNotifiable::reset(Notifiable* done) {
   LockHolder h(this);
   HASSERT(!count_);
   count_ = 1;
