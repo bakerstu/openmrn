@@ -18,7 +18,7 @@ public:
         ExpectPacket(":X1070133AN02010D000004;");
         ExpectPacket(":X1910033AN02010D000004;");
         secondNode_.reset(
-            new DefaultAsyncNode(if_can_.get(), TEST_NODE_ID + 1));
+            new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID + 1));
         Wait();
     }
 
@@ -37,7 +37,7 @@ TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodes)
     ExpectPacket(":X1917033AN02010d000004;");
     SendPacket(":X19490997N;");
     Wait();
-    Mock::VerifyAndClear(&can_bus_);
+    Mock::VerifyAndClear(&canBus_);
     // Same thing again.
     ExpectPacket(":X1917022AN02010d000003;");
     ExpectPacket(":X1917033AN02010d000004;");

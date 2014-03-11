@@ -106,24 +106,24 @@ TEST_F(BitRangeEventTest, IdentifyGlobal) {
 TEST_F(BitRangeEventTest, ProduceBits) {
   ExpectPacket(":X195B422AN05010101FFFF0280;");
   handler_.Set(320, true, &event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   // Another set will not produce another event.
   handler_.Set(320, true, &event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   ExpectPacket(":X195B422AN05010101FFFF0281;");
   handler_.Set(320, false, &event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   handler_.Set(320, false, &event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 }
 
 
 TEST_F(BitRangeEventTest, IgnoreUnrelated) {
   // Sets the expectation that no output packet shall be produced.
-  EXPECT_CALL(can_bus_, MWrite(_)).Times(0);
+  EXPECT_CALL(canBus_, mwrite(_)).Times(0);
 
   EXPECT_EQ(0, storage_[10]);
   SendPacket(":X195B4001N05010101FFFF176E;");

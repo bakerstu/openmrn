@@ -43,16 +43,16 @@ class AsyncRawDatagramTest : public AsyncNodeTest
 protected:
     AsyncRawDatagramTest()
     {
-        if_can_->dispatcher()->RegisterHandler(0x1C48, 0xFFFF, &handler_);
+        ifCan_->dispatcher()->RegisterHandler(0x1C48, 0xFFFF, &handler_);
         EXPECT_CALL(handler_, get_allocator()).WillRepeatedly(Return(nullptr));
         ON_CALL(handler_, handle_message(_, _))
             .WillByDefault(WithArg<1>(Invoke(&InvokeNotification)));
-        if_can_->add_owned_flow(TEST_CreateCanDatagramParser(if_can_.get()));
+        ifCan_->add_owned_flow(TEST_CreateCanDatagramParser(ifCan_.get()));
     }
     ~AsyncRawDatagramTest()
     {
         Wait();
-        if_can_->dispatcher()->UnregisterHandler(0x1C48, 0xFFFF, &handler_);
+        ifCan_->dispatcher()->UnregisterHandler(0x1C48, 0xFFFF, &handler_);
     }
 
     StrictMock<MockMessageHandler> handler_;
@@ -288,9 +288,9 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
 
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
 {
-    EXPECT_CALL(can_bus_, MWrite(":X1910022BN02010D000004;")).Times(1);
-    if_can_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
-    DefaultAsyncNode other_node(if_can_.get(), TEST_NODE_ID + 1);
+    EXPECT_CALL(canBus_, mwrite(":X1910022BN02010D000004;")).Times(1);
+    ifCan_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
+    DefaultAsyncNode other_node(ifCan_.get(), TEST_NODE_ID + 1);
 
     SendPacket(":X1B22A555N3031323334353637;");
     SendPacket(":X1C22A555N3131323334353637;");
@@ -458,7 +458,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
     TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
     SyncNotifiable n;
     NodeHandle h{TEST_NODE_ID + 3, 0};
-    if_can_->remote_aliases()->add(h.id, 0x77C);
+    ifCan_->remote_aliases()->add(h.id, 0x77C);
     ExpectPacket(":X1A77C22AN30313233343536;");
     a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
                                &n);
@@ -485,7 +485,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
               a.result()->result());
     // Checks that the new lookup value got into the cache.
-    EXPECT_EQ(0x210U, if_can_->remote_aliases()->lookup(h.id));
+    EXPECT_EQ(0x210U, ifCan_->remote_aliases()->lookup(h.id));
 }
 
 TEST_F(AsyncDatagramTest, ResponseOKWithCode)

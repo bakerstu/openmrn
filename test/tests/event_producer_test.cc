@@ -27,21 +27,21 @@ TEST_F(BitEventProducerTest, SimpleOnOff) {
   storage_ = 0;
   ExpectPacket(":X195B422AN05010101FFFF0001;");
   producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 1;
   ExpectPacket(":X195B422AN05010101FFFF0000;");
   producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   ExpectPacket(":X195B422AN05010101FFFF0003;");
   producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 3;
   ExpectPacket(":X195B422AN05010101FFFF0002;");
   producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventProducerTest, GlobalIdentify) {
@@ -51,7 +51,7 @@ TEST_F(BitEventProducerTest, GlobalIdentify) {
   ExpectPacket(":X1954422AN05010101FFFF0003;");
   ExpectPacket(":X1954522AN05010101FFFF0002;");
   SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 2;
   ExpectPacket(":X1954522AN05010101FFFF0000;");
@@ -59,7 +59,7 @@ TEST_F(BitEventProducerTest, GlobalIdentify) {
   ExpectPacket(":X1954422AN05010101FFFF0002;");
   ExpectPacket(":X1954522AN05010101FFFF0003;");
   SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventProducerTest, IdentifyProducer) {

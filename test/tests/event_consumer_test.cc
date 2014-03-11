@@ -92,7 +92,7 @@ TEST_F(BitEventConsumerTest, GlobalIdentify) {
   ExpectPacket(":X194C422AN05010101FFFF0003;");
   ExpectPacket(":X194C522AN05010101FFFF0002;");
   SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 2;
   ExpectPacket(":X194C522AN05010101FFFF0000;");
@@ -100,7 +100,7 @@ TEST_F(BitEventConsumerTest, GlobalIdentify) {
   ExpectPacket(":X194C422AN05010101FFFF0002;");
   ExpectPacket(":X194C522AN05010101FFFF0003;");
   SendPacket(":X19970001N;");
-  WaitForEventThread(); Mock::VerifyAndClear(&can_bus_);
+  WaitForEventThread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitEventConsumerTest, Query) {

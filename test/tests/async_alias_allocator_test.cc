@@ -9,7 +9,7 @@ namespace NMRAnet
 class AsyncAliasAllocatorTest : public AsyncIfTest
 {
 protected:
-    AsyncAliasAllocatorTest() : alias_allocator_(TEST_NODE_ID, if_can_.get())
+    AsyncAliasAllocatorTest() : alias_allocator_(TEST_NODE_ID, ifCan_.get())
     {
     }
 
@@ -126,9 +126,9 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     EXPECT_EQ(AliasInfo::STATE_RESERVED, ialloc.result()->state);
     // This one should be marked as reserved.
     EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
-              if_can_->local_aliases()->lookup(NodeAlias(0xAA5)));
+              ifCan_->local_aliases()->lookup(NodeAlias(0xAA5)));
     // This one should be unknown.
-    EXPECT_EQ(0U, if_can_->local_aliases()->lookup(NodeAlias(0x555)));
+    EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
 }
 
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
@@ -175,7 +175,7 @@ TEST_F(AsyncAliasAllocatorTest, GenerationCycleLength)
 TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
 {
     SetSeed(0x555);
-    AsyncAliasAllocator other(TEST_NODE_ID + 13, if_can_.get());
+    AsyncAliasAllocator other(TEST_NODE_ID + 13, ifCan_.get());
     SetSeed(0x555, &other);
     // Checks that the two alias allocators generate different values after a
     // conflict.

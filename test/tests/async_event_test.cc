@@ -12,8 +12,8 @@ class AsyncEventTest : public AsyncIfTest
 protected:
     AsyncEventTest() : flow_(&g_executor, 10)
     {
-        if_can_->add_addressed_message_support(2);
-        AddEventHandlerToIf(if_can_.get());
+        ifCan_->add_addressed_message_support(2);
+        AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncEventTest()
@@ -63,7 +63,7 @@ TEST_F(AsyncEventTest, EventReportFields)
 {
     static const NodeAlias alias = 0x621U;
     static const NodeID node_id = 0x050101FFFF3DULL;
-    if_can_->remote_aliases()->add(node_id, alias);
+    ifCan_->remote_aliases()->add(node_id, alias);
     NMRAnetEventRegistry::instance()->RegisterHandler(&h1_, 0, 0);
     EXPECT_CALL(
         h1_,

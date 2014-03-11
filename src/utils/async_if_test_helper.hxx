@@ -34,31 +34,28 @@ using ::testing::StrictMock;
 using ::testing::WithArg;
 using ::testing::_;
 
-static void InvokeNotification(Notifiable* done)
-{
-    done->notify();
-}
-
 void (*g_invoke)(Notifiable*) = &InvokeNotification;
 
-ThreadExecutor g_gc_pipe_executor("gc_pipe", 0, 2000);
-
-DEFINE_PIPE(gc_pipe0, &g_gc_pipe_executor, 1);
+HubFlow gc_hub0(&g_service);
+CanHubFlow can_hub0(&g_service);
 GCAdapterBase* g_gc_adapter = nullptr;
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
-class MockSend : public PipeMember
-{
-public:
-    virtual void write(const void* buf, size_t count)
-    {
-        string s(static_cast<const char*>(buf), count);
-        MWrite(s);
-    }
+class MockSend : public HubPort {
+ public:
+    MockPipeMember() : HubPort(&g_service) {}
 
-    MOCK_METHOD1(MWrite, void(const string& s));
+    MOCK_METHOD1(mwrite, void(const string& s));
+
+    virtual Action entry() {
+        string s(message()->data()->data(), message()->data()->size());
+        mwrite(s);
+        return release_and_exit();
+    }
 };
+
+
 
 namespace NMRAnet
 {
@@ -92,7 +89,7 @@ public:
     static void SetUpTestCase()
     {
         g_gc_adapter = GCAdapterBase::CreateGridConnectAdapter(
-            &gc_pipe0, &can_pipe0, false);
+            &gc_hub0, &can_hub0, false);
     }
 
     static void TearDownTestCase()
@@ -103,15 +100,15 @@ public:
 protected:
     AsyncIfTest()
     {
-        gc_pipe0.RegisterMember(&can_bus_);
-        if_can_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
-        if_can_->local_aliases()->add(TEST_NODE_ID, 0x22A);
+        gc_pipe0.register_port(&canBus_);
+        ifCan_.reset(new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
+        ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
     ~AsyncIfTest()
     {
         Wait();
-        gc_pipe0.UnregisterMember(&can_bus_);
+        gc_pipe0.UnregisterMember(&canBus_);
         if (printer_.get()) {
             gc_pipe0.UnregisterMember(printer_.get());
         }
@@ -121,13 +118,13 @@ protected:
      *  alias. */
     void CreateAllocatedAlias()
     {
-        if_can_->set_alias_allocator(
-            new AsyncAliasAllocator(TEST_NODE_ID, if_can_.get()));
+        ifCan_->set_alias_allocator(
+            new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
         testAlias_.alias = 0x33A;
         testAlias_.state = AliasInfo::STATE_RESERVED;
-        if_can_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
+        ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                       testAlias_.alias);
-        if_can_->alias_allocator()->reserved_aliases()->Release(&testAlias_);
+        ifCan_->alias_allocator()->reserved_aliases()->Release(&testAlias_);
         aliasSeed_ = 0x44C;
     }
 
@@ -135,24 +132,24 @@ protected:
     {
         if (!a)
         {
-            if_can_->alias_allocator()->seed_ = aliasSeed_;
+            ifCan_->alias_allocator()->seed_ = aliasSeed_;
             a = aliasSeed_;
             aliasSeed_++;
         }
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X17020%03XN;", a)))
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X17020%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X1610D%03XN;", a)))
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X1610D%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X15000%03XN;", a)))
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X15000%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X14003%03XN;", a)))
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X14003%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
 
-        EXPECT_CALL(can_bus_, MWrite(StringPrintf(":X10700%03XN;", a)))
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X10700%03XN;", a)))
             .Times(AtMost(1))
             .RetiresOnSaturation();
     }
@@ -166,7 +163,7 @@ protected:
     : and trailing ;
 */
 #define ExpectPacket(gc_packet)                                                \
-    EXPECT_CALL(can_bus_, MWrite(StrCaseEq(gc_packet)))
+    EXPECT_CALL(canBus_, mwrite(StrCaseEq(gc_packet)))
 
     /** Ignores all produced packets.
      *
@@ -175,7 +172,7 @@ protected:
     */
     void ExpectAnyPacket()
     {
-        EXPECT_CALL(can_bus_, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+        EXPECT_CALL(canBus_, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(PrintPacket)));
     }
 
@@ -185,7 +182,7 @@ protected:
     void PrintAllPackets()
     {
         NiceMock<MockSend>* m = new NiceMock<MockSend>();
-        EXPECT_CALL(*m, MWrite(_)).Times(AtLeast(0)).WillRepeatedly(
+        EXPECT_CALL(*m, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(PrintPacket)));
         gc_pipe0.RegisterMember(m);
         printer_.reset(m);
@@ -202,7 +199,7 @@ protected:
     */
     void SendPacket(const string& gc_packet)
     {
-        gc_pipe0.WriteToAll(&can_bus_, gc_packet.data(), gc_packet.size());
+        gc_pipe0.WriteToAll(&canBus_, gc_packet.data(), gc_packet.size());
     }
 
     /** Delays the current thread until we are certain that all asynchrnous
@@ -219,8 +216,8 @@ protected:
 
                 if (!g_executor.empty() || !g_gc_pipe_executor.empty() ||
                     !DefaultWriteFlowExecutor()->empty() ||
-                    !if_can_->frame_dispatcher()->IsNotStarted() ||
-                    !if_can_->dispatcher()->IsNotStarted() ||
+                    !ifCan_->frame_dispatcher()->IsNotStarted() ||
+                    !ifCan_->dispatcher()->IsNotStarted() ||
                     !can_pipe0.empty() || !gc_pipe0.empty())
                 {
                     exit = false;
@@ -254,15 +251,15 @@ protected:
         ExpectPacket(resp);
         SendPacket(pkt);
         Wait();
-        Mock::VerifyAndClear(&can_bus_);
+        Mock::VerifyAndClear(&canBus_);
     }
 
     //! Helper object for setting expectations on the packets sent on the bus.
-    NiceMock<MockSend> can_bus_;
+    NiceMock<MockSend> canBus_;
     //! Object for debug-printing every packet (if requested).
     std::unique_ptr<PipeMember> printer_;
     //! The interface under test.
-    std::unique_ptr<AsyncIfCan> if_can_;
+    std::unique_ptr<AsyncIfCan> ifCan_;
     /** Temporary object used to send aliases around in the alias allocator
      *  flow. */
     AliasInfo testAlias_;
@@ -275,12 +272,12 @@ class AsyncNodeTest : public AsyncIfTest
 protected:
     AsyncNodeTest() : eventFlow_(&g_executor, 10)
     {
-        EXPECT_CALL(can_bus_, MWrite(":X1910022AN02010D000003;")).Times(1);
-        ownedNode_.reset(new DefaultAsyncNode(if_can_.get(), TEST_NODE_ID));
+        EXPECT_CALL(canBus_, mwrite(":X1910022AN02010D000003;")).Times(1);
+        ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
         node_ = ownedNode_.get();
-        if_can_->add_addressed_message_support(2);
+        ifCan_->add_addressed_message_support(2);
         Wait();
-        AddEventHandlerToIf(if_can_.get());
+        AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncNodeTest()
