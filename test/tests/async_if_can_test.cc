@@ -231,8 +231,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 {
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
 
-    CreateAllocatedAlias();
-    ExpectNextAliasAllocation();
+    create_allocated_alias();
+    expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
     SyncNotifiable n;
@@ -285,8 +285,8 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
 {
     ifCan_->local_aliases()->remove(NodeAlias(0x22A)); // resets the cache.
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-    CreateAllocatedAlias();
-    ExpectNextAliasAllocation();
+    create_allocated_alias();
+    expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");
     expect_packet(":X195B433AN0102030405060708;");
     falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
@@ -310,11 +310,11 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
     // At this point we have an invalid alias in the reserved_aliases()
     // queue. We check here that a new node gets a new alias.
-    ExpectNextAliasAllocation();
+    expect_next_alias_allocation();
     // Unfortunately we have to guess the second next alias here because we
     // can't inject it. We can only inject one alias at a time, but now two
     // will be allocated in one go.
-    ExpectNextAliasAllocation(0x6AA);
+    expect_next_alias_allocation(0x6AA);
     expect_packet(":X1070144DN02010D000004;");
     expect_packet(":X195B444DN0102030405060709;");
     SyncNotifiable n;
@@ -560,8 +560,8 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
     ifCan_->remote_aliases()->add(id, alias);
     // Simulate cache miss on local alias cache.
     ifCan_->local_aliases()->remove(0x22A);
-    CreateAllocatedAlias();
-    ExpectNextAliasAllocation();
+    create_allocated_alias();
+    expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the frame goes out.
     expect_packet(":X1948833AN0210050101FFFFDD;");
@@ -580,8 +580,8 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
     SyncNotifiable n;
     // Simulate cache miss on local alias cache.
     ifCan_->local_aliases()->remove(0x22A);
-    CreateAllocatedAlias();
-    ExpectNextAliasAllocation();
+    create_allocated_alias();
+    expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
@@ -606,8 +606,8 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     SyncNotifiable n;
     // Simulate cache miss on local alias cache.
     ifCan_->local_aliases()->remove(0x22A);
-    CreateAllocatedAlias();
-    ExpectNextAliasAllocation();
+    create_allocated_alias();
+    expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");  // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.

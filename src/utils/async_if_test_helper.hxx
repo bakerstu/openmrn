@@ -34,7 +34,8 @@ using ::testing::StrictMock;
 using ::testing::WithArg;
 using ::testing::_;
 
-void (*g_invoke)(Notifiable *) = &InvokeNotification;
+///@todo(balazs.racz) remove
+//void (*g_invoke)(Notifiable *) = &InvokeNotification;
 
 HubFlow gc_hub0(&g_service);
 CanHubFlow can_hub0(&g_service);
@@ -73,7 +74,7 @@ const uint16_t Stream::MAX_BUFFER_SIZE = 512;
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
-static void PrintPacket(const string &pkt)
+static void print_packet(const string &pkt)
 {
     fprintf(stderr, "%s\n", pkt.c_str());
 }
@@ -119,7 +120,7 @@ protected:
 
     /** Creates an alias allocator flow, and injects an already allocated
      *  alias. */
-    void CreateAllocatedAlias()
+    void create_allocated_alias()
     {
         ifCan_->set_alias_allocator(
             new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
@@ -131,7 +132,7 @@ protected:
         aliasSeed_ = 0x44C;
     }
 
-    void ExpectNextAliasAllocation(NodeAlias a = 0)
+    void expect_next_alias_allocation(NodeAlias a = 0)
     {
         if (!a)
         {
@@ -176,7 +177,7 @@ protected:
     void expect_any_packet()
     {
         EXPECT_CALL(canBus_, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
-            WithArg<0>(Invoke(PrintPacket)));
+            WithArg<0>(Invoke(print_packet)));
     }
 
     /** Prints all packets sent to the canbus until the end of the current test
@@ -186,7 +187,7 @@ protected:
     {
         NiceMock<MockSend> *m = new NiceMock<MockSend>();
         EXPECT_CALL(*m, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
-            WithArg<0>(Invoke(PrintPacket)));
+            WithArg<0>(Invoke(print_packet)));
         gc_hub0.register_port(m);
         printer_.reset(m);
     }
@@ -202,14 +203,19 @@ protected:
     */
     void send_packet(const string &gc_packet)
     {
-        gc_hub0.WriteToAll(&canBus_, gc_packet.data(), gc_packet.size());
+        Buffer<HubData>* packet;
+        mainBufferPool.alloc(&packet);
+        packet->data()->assign(gc_packet);
+        packet->data()->skipMember_ = &canBus_;
+        gc_hub0.send(packet);
     }
 
     /** Delays the current thread until we are certain that all asynchrnous
         processing has completed. */
     void wait()
     {
-        do
+        wait_for_main_executor();
+/*        do
         {
             bool exit = true;
             {
@@ -234,7 +240,7 @@ protected:
             {
                 usleep(100);
             }
-        } while (true);
+            } while (true);*/
     }
 
     /** Injects an incoming packet to the interface and expects that the node
@@ -260,7 +266,7 @@ protected:
     //! Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> canBus_;
     //! Object for debug-printing every packet (if requested).
-    std::unique_ptr<PipeMember> printer_;
+    std::unique_ptr<HubPort> printer_;
     //! The interface under test.
     std::unique_ptr<AsyncIfCan> ifCan_;
     /** Temporary object used to send aliases around in the alias allocator
@@ -270,6 +276,7 @@ protected:
     NodeAlias aliasSeed_;
 };
 
+/*
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
@@ -301,14 +308,16 @@ protected:
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode *node_;
 };
+*/
 
+ /*
 class MockMessageHandler : public IncomingMessageHandler
 {
 public:
     MOCK_METHOD0(get_allocator, AllocatorBase *());
     MOCK_METHOD2(handle_message,
                  void(IncomingMessage *message, Notifiable *done));
-};
+                 };*/
 
 MATCHER_P(IsBufferValue, id, "")
 {

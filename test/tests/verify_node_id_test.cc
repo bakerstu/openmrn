@@ -13,8 +13,8 @@ class TwoNodeTest : public AsyncNodeTest
 public:
     TwoNodeTest()
     {
-        CreateAllocatedAlias();
-        ExpectNextAliasAllocation();
+        create_allocated_alias();
+        expect_next_alias_allocation();
         expect_packet(":X1070133AN02010D000004;");
         expect_packet(":X1910033AN02010D000004;");
         secondNode_.reset(

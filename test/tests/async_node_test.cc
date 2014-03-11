@@ -9,7 +9,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
 {
     //expect_packet(":X1070122AN02010d000003"); // AMD frame
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
-    //CreateAllocatedAlias();
+    //create_allocated_alias();
     LOG(INFO, "before");
     DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
     // Technically there is a race condition here. The initialization could
@@ -26,14 +26,14 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
 {
     ifCan_->add_addressed_message_support(2);
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
-    CreateAllocatedAlias();
+    create_allocated_alias();
     LOG(INFO, "before");
     DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
     LOG(INFO, "after");
     wait();
     expect_packet(":X1070133AN02010d000004;"); // AMD frame
     expect_packet(":X1910033AN02010d000004;"); // initialization complete
-    ExpectNextAliasAllocation();
+    expect_next_alias_allocation();
     DefaultAsyncNode node2(ifCan_.get(), TEST_NODE_ID + 1);
     wait();
 }
