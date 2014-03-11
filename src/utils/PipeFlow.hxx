@@ -34,15 +34,28 @@
 #ifndef _utils_PipeFlow_hxx_
 #define _utils_PipeFlow_hxx_
 
-#include "utils/pipe.hxx"
+#include <stdint.h>
+#include <string>
+
 #include "executor/Dispatcher.hxx"
 
 class PipeBuffer;
 class PipeMember;
 
-class HubData;
-// Abstract member of the hub. The Dispatcher keeps account by this type.
-typedef FlowInterface<Buffer<HubData>> HubMember;
+template <class T> class HubContainer : public T
+{
+public:
+    typedef FlowInterface<Buffer<HubContainer<T>>> HubMember;
+    HubContainer() : skipMember_(0)
+    {
+    }
+    typedef uintptr_t id_type;
+    uintptr_t skipMember_;
+    id_type id()
+    {
+        return skipMember_;
+    }
+};
 
 /** This class can be sent via a Buffer to a hub.
  *
@@ -50,32 +63,57 @@ typedef FlowInterface<Buffer<HubData>> HubMember;
  *
  * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
  */
-class HubData : public string
-{
-    HubData() : skipMember_(nullptr)
-    {
-    }
-    typedef void *id_type;
-    void *skipMember_;
-    id_type id()
-    {
-        return skipMember_;
-    }
-};
+typedef HubContainer<string> HubData;
+typedef HubContainer<struct can_frame> CanHubData;
+
+/** All ports interfacing via a hub will have to derive from this flow. */
+typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
+typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
+
+// This should work for both 32 and 64-bit architectures.
+static const uintptr_t POINTER_MASK = UINTPTR_MAX;
 
 /** A generic hub that proxies packets of untyped data. */
 class HubFlow : public DispatchFlow<Buffer<HubData>, 1>
 {
 public:
-    HubFlow(Service *s) : DispatchFlow<Buffer<HubData>, 1>> (s)
+    HubFlow(Service *s) : DispatchFlow<Buffer<HubData>, 1>(s)
     {
         negateMatch_ = true;
     }
+
+    void register_port(HubPort *port)
+    {
+        register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
+    }
+
+    void unregister_port(HubPort *port)
+    {
+        unregister_handler(port, reinterpret_cast<uintptr_t>(port),
+                           POINTER_MASK);
+    }
 };
 
-/** All ports interfacing via a hub will have to derive from this flow. */
-typedef StateFlow<Buffer<HubData>, 1> HubPort;
+/** A generic hub that proxies packets of untyped data. */
+class CanHubFlow : public DispatchFlow<Buffer<CanHubData>, 1>
+{
+public:
+    CanHubFlow(Service *s) : DispatchFlow<Buffer<CanHubData>, 1>(s)
+    {
+        negateMatch_ = true;
+    }
 
+    void register_port(CanHubPort *port)
+    {
+        register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
+    }
+
+    void unregister_port(CanHubPort *port)
+    {
+        unregister_handler(port, reinterpret_cast<uintptr_t>(port),
+                           POINTER_MASK);
+    }
+};
 
 #if 0
 /// @TODO(balazs.racz) consider adding an api like this to HubFlow.

@@ -60,10 +60,8 @@ public:
 
     ~DispatchFlow();
 
-    size_t handler_count()
-    {
-        return handlers_.size();
-    }
+    /** @returns the number of handlers registered. */
+    size_t size();
 
     typedef typename MessageType::value_type::id_type ID;
     typedef FlowInterface<MessageType> HandlerType;
@@ -109,6 +107,8 @@ protected:
 private:
     // true if this flow should negate the match condition.
     bool negateMatch_;
+    friend class HubFlow;
+    friend class CanHubFlow;
 
     struct HandlerInfo
     {
@@ -153,6 +153,21 @@ DispatchFlow<MessageType, NUM_PRIO>::~DispatchFlow()
 }
 
 template <class MessageType, int NUM_PRIO>
+size_t DispatchFlow<MessageType, NUM_PRIO>::size()
+{
+    OSMutexLock h(&lock_);
+    size_t ret = 0;
+    for (auto &h : handlers_)
+    {
+        if (h.handler)
+        {
+            ++ret;
+        }
+    }
+    return ret;
+}
+
+template <class MessageType, int NUM_PRIO>
 void DispatchFlow<MessageType, NUM_PRIO>::register_handler(HandlerType *handler,
                                                            ID id, ID mask)
 {
@@ -187,7 +202,7 @@ DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(HandlerType *handler,
     HASSERT(idx < handlers_.size() &&
             "Tried to unregister a handler not previously registered.");
     handlers_[idx].handler = nullptr;
-    if (id == handlers_.size() - 1)
+    if (idx == handlers_.size() - 1)
     {
         handlers_.resize(handlers_.size() - 1);
     }
@@ -206,7 +221,6 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
 {
     HandlerType *handler;
     ID id = message()->data()->id();
-    LOG(INFO, "iterate id=%d", id);
     {
         OSMutexLock l(&lock_);
         while (true)

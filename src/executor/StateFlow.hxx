@@ -139,6 +139,14 @@ public:
      * priority. */
     virtual void notify();
 
+    /** Return a pointer to the service I am bound to.
+     * @return pointer to service
+     */
+    Service *service()
+    {
+        return service_;
+    }
+
 protected:
     /** Constructor.
      * @param service Service that this state flow is part of
@@ -288,14 +296,6 @@ protected:
         state_ = c;
         notify();
         return wait();
-    }
-
-    /** Return a pointer to the service I am bound to.
-     * @return pointer to service
-     */
-    Service *service()
-    {
-        return service_;
     }
 
     /** Timeout expired.  The expectation is that a derived class will implement

@@ -4,12 +4,9 @@
 
 using namespace std;
 
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-#include "os/os.h"
 #include "utils/test_main.hxx"
 #include "utils/gc_pipe.hxx"
-#include "utils/pipe.hxx"
+#include "utils/PipeFlow.hxx"
 #include "nmranet_can.h"
 
 using testing::StrEq;
@@ -25,29 +22,41 @@ void ClearFrame(struct can_frame* frame) {
   frame->can_dlc = 0;
 }
 
-class MockPipeMember : public PipeMember {
+class MockPipeMember : public HubPort {
  public:
-  MOCK_METHOD2(write, void(const void* buf, size_t count));
+    MockPipeMember() : HubPort(&g_service) {}
+
+    MOCK_METHOD2(write, void(const void* buf, size_t count));
+
+    virtual Action entry() {
+        write(message()->data()->data(), message()->data()->size());
+        return release_and_exit();
+    }
 };
 
-ThreadExecutor g_gc_executor("gc_executor", 0, 2000);
+class MockCanPipeMember : public CanHubPort {
+ public:
+    MockCanPipeMember() : CanHubPort(&g_service) {}
+
+    MOCK_METHOD1(write, void(const struct can_frame* frame));
+
+    virtual Action entry() {
+        write(message()->data());
+        return release_and_exit();
+    }
+};
 
 class GcPipeTest : public testing::Test {
  public:
   GcPipeTest()
-      : gc_side_(&g_gc_executor, 1), can_side_(&g_executor, sizeof(struct can_frame)) {}
+      : gc_side_(&g_service), can_side_(&g_service) {}
 
   ~GcPipeTest() {
-    Wait();
+    wait();
   }
 
-  void Wait() {
-    while (!g_executor.empty() ||
-           !g_gc_executor.empty() ||
-           !gc_side_.empty() ||
-           !can_side_.empty()) {
-      usleep(100);
-    }
+  void wait() {
+      wait_for_main_executor();
   }
 
   void SaveGcPacket(const void* buf, size_t count) {
@@ -55,40 +64,54 @@ class GcPipeTest : public testing::Test {
     saved_gc_data_.push_back(s);
   }
 
-  void SaveCanFrame(const void* buf, size_t count) {
-    const struct can_frame *f = static_cast<const struct can_frame*>(
-        buf);
-    while (count >= sizeof(struct can_frame)) {
-      saved_can_data_.push_back(*f);
-      count -= sizeof(struct can_frame);
-      f++;
-    }
-    assert(count == 0);
+  void SaveCanFrame(const struct can_frame* frame) {
+      saved_can_data_.push_back(*frame);
   }
 
-
  protected:
-  void AddChannel() {
+  void add_channel() {
     channel_.reset(GCAdapterBase::CreateGridConnectAdapter(
         &gc_side_, &can_side_, false));
   }
 
-  Pipe gc_side_;
-  Pipe can_side_;
+    void send_can_frame(const struct can_frame* frame) {
+        Buffer<CanHubData> *buffer;
+        mainBufferPool->alloc(&buffer);
+        struct can_frame* out_frame = buffer->data(); 
+        *out_frame = *frame;
+    }
+
+    void send_gc_packet(const string& s) {
+        Buffer<HubData> *buffer;
+        mainBufferPool->alloc(&buffer);
+        string* out_data = buffer->data(); 
+        *out_data = s;
+    }
+
+  HubFlow gc_side_;
+  CanHubFlow can_side_;
   std::unique_ptr<GCAdapterBase> channel_;
 
   vector<string> saved_gc_data_;
   vector<struct can_frame> saved_can_data_;
 };
 
+TEST(HubTest, PointerMaskTest) {
+#ifdef __x86_64
+    EXPECT_EQ(0xFFFFFFFFFFFFFFFFUL, POINTER_MASK);
+#else
+    EXPECT_EQ(0xFFFFFFFFU, POINTER_MASK);
+#endif
+}
+
 
 TEST_F(GcPipeTest, CreateDestroy) {
   EXPECT_EQ(0U, gc_side_.size());
   EXPECT_EQ(0U, can_side_.size());
-  AddChannel();
+  add_channel();
   EXPECT_EQ(1U, gc_side_.size());
   EXPECT_EQ(1U, can_side_.size());
-  Wait();
+  wait();
   channel_.reset();
   EXPECT_EQ(0U, gc_side_.size());
   EXPECT_EQ(0U, can_side_.size());
@@ -99,7 +122,7 @@ string void_to_string(const void* d) {
 }
 
 TEST_F(GcPipeTest, SendCanPacket) {
-  AddChannel();
+  add_channel();
   struct can_frame f;
   ClearFrame(&f);
   SET_CAN_FRAME_EFF(f);
@@ -107,15 +130,15 @@ TEST_F(GcPipeTest, SendCanPacket) {
   f.can_dlc = 3;
   f.data[0] = 0xf0; f.data[1] = 0xf1; f.data[2] = 0xf2;
   MockPipeMember mock;
-  gc_side_.RegisterMember(&mock);
+  gc_side_.register_port(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveGcPacket));
   //ResultOf(&to_string, StrEq()), 18U
-  can_side_.WriteToAll(NULL, &f, sizeof(f));
+  send_can_frame(&f);
   EXPECT_THAT(saved_gc_data_, ElementsAre(":X195B4672NF0F1F2;"));
 }
 
 TEST_F(GcPipeTest, SendTwoCanPacket) {
-  AddChannel();
+  add_channel();
   struct can_frame f;
   ClearFrame(&f);
   SET_CAN_FRAME_EFF(f);
@@ -123,25 +146,25 @@ TEST_F(GcPipeTest, SendTwoCanPacket) {
   f.can_dlc = 3;
   f.data[0] = 0xf0; f.data[1] = 0xf1; f.data[2] = 0xf2;
   MockPipeMember mock;
-  gc_side_.RegisterMember(&mock);
+  gc_side_.register_port(&mock);
   EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveGcPacket));
   //ResultOf(&to_string, StrEq()), 18U
-  can_side_.WriteToAll(NULL, &f, sizeof(f));
+  send_can_frame(&f);
   SET_CAN_FRAME_ID_EFF(f, 0x195b2672);
   f.data[0] = 0xd0;
-  can_side_.WriteToAll(NULL, &f, sizeof(f));
+  send_can_frame(&f);
   EXPECT_THAT(saved_gc_data_, ElementsAre(
       ":X195B4672NF0F1F2;", ":X195B2672ND0F1F2;"));
 }
 
 TEST_F(GcPipeTest, SendGcPacket) {
-  AddChannel();
+  add_channel();
   string s = ":X195B4672NF0F1F2;";
-  MockPipeMember mock;
-  can_side_.RegisterMember(&mock);
-  EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
-  gc_side_.WriteToAll(NULL, s.data(), s.size());
-  Wait();
+  MockCanPipeMember mock;
+  can_side_.register_port(&mock);
+  EXPECT_CALL(mock, write(_)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
+  send_gc_packet(s);
+  wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -151,13 +174,13 @@ TEST_F(GcPipeTest, SendGcPacket) {
 }
 
 TEST_F(GcPipeTest, SendGcPacketWithGarbage) {
-  AddChannel();
+  add_channel();
   string s = "garbage\n:X195B4672NF0F1F2;\n";
-  MockPipeMember mock;
-  can_side_.RegisterMember(&mock);
-  EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
-  gc_side_.WriteToAll(NULL, s.data(), s.size());
-  Wait();
+  MockCanPipeMember mock;
+  can_side_.register_port(&mock);
+  EXPECT_CALL(mock, write(_)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
+  send_gc_packet(s);
+  wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);
@@ -167,17 +190,17 @@ TEST_F(GcPipeTest, SendGcPacketWithGarbage) {
 }
 
 TEST_F(GcPipeTest, PartialPacket) {
-  AddChannel();
+  add_channel();
   string s = "garbage\n:X195B";
   string s2 = "4672NF";
   string s3 = "0F1F2;\n";
-  MockPipeMember mock;
-  can_side_.RegisterMember(&mock);
-  EXPECT_CALL(mock, write(_, _)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
-  gc_side_.WriteToAll(NULL, s.data(), s.size());
-  gc_side_.WriteToAll(NULL, s2.data(), s2.size());
-  gc_side_.WriteToAll(NULL, s3.data(), s3.size());
-  Wait();
+  MockCanPipeMember mock;
+  can_side_.register_port(&mock);
+  EXPECT_CALL(mock, write(_)).WillRepeatedly(Invoke(this, &GcPipeTest::SaveCanFrame));
+  send_gc_packet(s);
+  send_gc_packet(s2);
+  send_gc_packet(s3);
+  wait();
   ASSERT_EQ(1U, saved_can_data_.size());
   EXPECT_EQ(0x195b4672U, GET_CAN_FRAME_ID_EFF(saved_can_data_[0]));
   ASSERT_EQ(3, saved_can_data_[0].can_dlc);

@@ -31,197 +31,154 @@
  * @date 20 May 2013
  */
 
-#include "utils/pipe.hxx"
-#include "utils/gc_pipe.hxx"
-#include "utils/gc_format.h"
+#include "executor/StateFlow.hxx"
 #include "nmranet_can.h"
+#include "utils/BufferQueue.hxx"
+#include "utils/PipeFlow.hxx"
+#include "utils/gc_format.h"
+#include "utils/gc_pipe.hxx"
 
 class GCAdapter : public GCAdapterBase
 {
 public:
-    GCAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes)
-        : parser_(can_side->executor(), can_side, &formatter_),
-          formatter_(can_side->executor(), gc_side, &parser_, double_bytes)
+    GCAdapter(HubFlow *gc_side, CanHubFlow *can_side, bool double_bytes)
+        : parser_(can_side->service(), can_side, &formatter_),
+          formatter_(can_side->service(), gc_side, &parser_, double_bytes)
     {
-        gc_side->RegisterMember(&parser_);
-        can_side->RegisterMember(&formatter_);
+        gc_side->register_port(&parser_);
+        can_side->register_port(&formatter_);
     }
 
-    GCAdapter(Pipe* gc_side_read, Pipe* gc_side_write, Pipe* can_side,
-              bool double_bytes)
-        : parser_(can_side->executor(), can_side, &formatter_),
-          formatter_(can_side->executor(), gc_side_write, &parser_,
-                     double_bytes)
+    GCAdapter(HubFlow *gc_side_read, HubFlow *gc_side_write,
+              CanHubFlow *can_side, bool double_bytes)
+        : parser_(can_side->service(), can_side, &formatter_),
+          formatter_(can_side->service(), gc_side_write, &parser_, double_bytes)
     {
-        gc_side_read->RegisterMember(&parser_);
-        can_side->RegisterMember(&formatter_);
+        gc_side_read->register_port(&parser_);
+        can_side->register_port(&formatter_);
     }
 
     virtual ~GCAdapter()
     {
-        parser_.destination()->UnregisterMember(&formatter_);
+        parser_.destination()->unregister_port(&formatter_);
         /// @TODO(balazs.racz) This is incorrect if the 3-pipe constructor is
         /// used.
-        formatter_.destination()->UnregisterMember(&parser_);
+        formatter_.destination()->unregister_port(&parser_);
     }
 
 private:
-    class BinaryToGCMember : public PipeMember, public ControlFlow
+    class BinaryToGCMember : public CanHubPort
     {
     public:
-        BinaryToGCMember(Executor* executor, Pipe* destination,
-                         PipeMember* skip_member, int double_bytes)
-            : ControlFlow(executor, nullptr),
+        BinaryToGCMember(Service *service, HubFlow *destination,
+                         HubPort *skip_member, int double_bytes)
+            : CanHubPort(service),
               destination_(destination),
-              skip_member_(skip_member),
+              skipMember_(skip_member),
               double_bytes_(double_bytes)
         {
-            StartFlowAt(ST(Terminated));
         }
 
-        Pipe* destination()
+        HubFlow *destination()
         {
             return destination_;
         }
 
-        virtual void write(const void* buf, size_t count)
+        Action entry()
         {
-            HASSERT(0);
-        }
-
-        virtual void async_write(const void* buf, size_t count,
-                                 Notifiable* done)
-        {
-            HASSERT(IsDone());
-            buf_ = static_cast<const struct can_frame*>(buf);
-            byte_count_ = count;
-            Restart(done);
-            StartFlowAt(ST(next_frame));
-        }
-
-        ControlFlowAction next_frame()
-        {
-            if (byte_count_ < sizeof(struct can_frame))
+            char *end =
+                gc_format_generate(message()->data(), dbuf_, double_bytes_);
+            size_t size = (end - dbuf_);
+            if (size)
             {
-                return Exit();
+                Buffer<HubData> *target_buffer;
+                /// @todo(balazs.racz) switch to asynchronous allocation here.
+                mainBufferPool->alloc(&target_buffer);
+                target_buffer->data()->skipMember_ =
+                    reinterpret_cast<uintptr_t>(skipMember_);
+                /// @todo(balazs.racz) try to use an assign function for better
+                /// performance.
+                target_buffer->data()->resize(size);
+                memcpy(target_buffer->data(), dbuf_, size);
+                destination_->send(target_buffer);
             }
-
-            char* end = gc_format_generate(buf_, dbuf_, double_bytes_);
-            dstBuf_.size = (end - dbuf_);
-
-            byte_count_ -= sizeof(*buf_);
-            buf_++;
-
-            if (dstBuf_.size)
-            {
-                dstBuf_.data = dbuf_;
-                //! @TODO: merge these two fields.
-                dstBuf_.skipMember = skip_member_;
-                dstBuf_.done = notifiable_.NewCallback(this);
-                destination_->SendBuffer(&dstBuf_);
-                return WaitAndCall(ST(wait_for_sent));
-            }
-            else
-            {
-                return RetryCurrentState();
-            }
-        }
-
-        ControlFlowAction wait_for_sent()
-        {
-            if (!notifiable_.HasBeenNotified())
-                return WaitForNotification();
-            return CallImmediately(ST(next_frame));
+            return release_and_exit();
         }
 
     private:
-        ProxyNotifiable notifiable_;
-        // Incoming packet.
-        const struct can_frame* buf_;
-        size_t byte_count_;
-        // Buffer for sending to destination pipe.
-        PipeBuffer dstBuf_;
         //! Destination buffer (characters).
         char dbuf_[56];
         //! Pipe to send data to.
-        Pipe* destination_;
+        HubFlow *destination_;
         //! The pipe member that should be sent as "source".
-        PipeMember* skip_member_;
+        HubPort *skipMember_;
         //! Non-zero if doubling was requested.
         int double_bytes_;
     };
 
-    class GCToBinaryMember : public PipeMember, public ControlFlow
+    class GCToBinaryMember : public HubPort
     {
     public:
-        GCToBinaryMember(Executor* executor, Pipe* destination,
-                         PipeMember* skip_member)
-            : ControlFlow(executor, nullptr),
+        GCToBinaryMember(Service *service, CanHubFlow *destination,
+                         CanHubPort *skip_member)
+            : HubPort(service),
               offset_(-1),
               destination_(destination),
-              skip_member_(skip_member)
+              skipMember_(skip_member)
         {
-            StartFlowAt(ST(Terminated));
         }
 
-        Pipe* destination()
+        CanHubFlow *destination()
         {
             return destination_;
         }
 
-        virtual void write(const void* buf, size_t count)
-        {
-            HASSERT(0);
-        }
-
-        virtual void async_write(const void* buf, size_t count,
-                                 Notifiable* done)
-        {
-            HASSERT(IsDone());
-            inBuf_ = static_cast<const char*>(buf);
-            inBufSize_ = count;
-            Restart(done);
-            StartFlowAt(ST(process_buffer));
-        }
-
         /** Takes more characters from the pending incoming buffer. */
-        ControlFlowAction process_buffer()
+        Action entry()
         {
-            while (inBufSize_)
+            inBuf_ = message()->data()->data();
+            inBufSize_ = message()->data()->size();
+            return call_immediately(STATE(parse_more_data));
+        }
+
+        Action parse_more_data()
+        {
+            while (inBufSize_--)
             {
-                char c = *inBuf_;
-                inBuf_++;
-                inBufSize_--;
+                char c = *inBuf_++;
                 if (consume_byte(c))
                 {
                     // End of frame. Allocate an output buffer and parse the
                     // frame.
-                    return Allocate(&g_can_alloc, ST(parse_to_output_frame));
+                    /// @todo(balazs.racz) use a configurable buffer pool
+                    mainBufferPool->alloc(&outBuf_);
+                    return call_immediately(STATE(parse_to_output_frame));
                 }
             }
             // Will notify the caller.
-            return Exit();
+            return release_and_exit();
         }
 
         /** Takes the completed frame in cbuf_, parses it into the allocation
          * result (a can pipe buffer) and sends off frame. Then comes back to
          * process buffer. */
-        ControlFlowAction parse_to_output_frame()
+        Action parse_to_output_frame()
         {
-            CanPipeBuffer* pbuf = GetTypedAllocationResult(&g_can_alloc);
-            pbuf->Reset();
-            int ret = gc_format_parse(cbuf_, &pbuf->frame);
+            // CanPipeBuffer *pbuf = GetTypedAllocationResult(&g_can_alloc);
+            // pbuf->Reset();
+            int ret = gc_format_parse(cbuf_, outBuf_->data());
             if (!ret)
             {
-                pbuf->pipe_buffer.skipMember = skip_member_;
-                destination_->SendBuffer(&pbuf->pipe_buffer);
+                outBuf_->data()->skipMember_ =
+                    reinterpret_cast<uintptr_t>(skipMember_);
+                destination_->send(outBuf_);
             }
             else
             {
                 // Releases the buffer.
-                pbuf->pipe_buffer.done->notify();
+                outBuf_->unref();
             }
-            return CallImmediately(ST(process_buffer));
+            return call_immediately(STATE(parse_more_data));
         }
 
         /** Adds the next character from the source stream. Returns true if
@@ -271,16 +228,19 @@ private:
         int offset_;
 
         //! The incoming characters.
-        const char* inBuf_;
+        const char *inBuf_;
         //! The remaining number of characters in inBuf_.
         size_t inBufSize_;
+
+        //! The buffer to send to the destination hub.
+        Buffer<CanHubData> *outBuf_;
 
         // ==== static data ====
 
         //! Pipe to send data to.
-        Pipe* destination_;
+        CanHubFlow *destination_;
         //! The pipe member that should be sent as "source".
-        PipeMember* skip_member_;
+        CanHubPort *skipMember_;
     };
 
     //! PipeMember doing the parsing.
@@ -289,16 +249,16 @@ private:
     BinaryToGCMember formatter_;
 };
 
-GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side,
-                                                       Pipe* can_side,
+GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side,
+                                                       CanHubFlow *can_side,
                                                        bool double_bytes)
 {
     return new GCAdapter(gc_side, can_side, double_bytes);
 }
 
-GCAdapterBase* GCAdapterBase::CreateGridConnectAdapter(Pipe* gc_side_read,
-                                                       Pipe* gc_side_write,
-                                                       Pipe* can_side,
+GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
+                                                       HubFlow *gc_side_write,
+                                                       CanHubFlow *can_side,
                                                        bool double_bytes)
 {
     return new GCAdapter(gc_side_read, gc_side_write, can_side, double_bytes);

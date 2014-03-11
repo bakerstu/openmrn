@@ -43,9 +43,6 @@ using std::vector;
 //#include "devtab.h"
 #include "os/os.h"
 #include "os/OS.hxx"
-#include "executor/allocator.hxx"
-#include "executor/notifiable.hxx"
-#include "nmranet/ReadDispatch.hxx"
 #include "utils/PipeFlow.hxx"
 #include "nmranet_can.h"
 

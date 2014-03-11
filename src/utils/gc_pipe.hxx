@@ -35,6 +35,10 @@
 #define _gc_pipe_hxx_
 
 class Pipe;
+class HubFlow;
+template <class T> class FlowInterface;
+template <class T, int N> class DispatchFlow;
+class CanHubFlow;
 
 class GCAdapterBase
 {
@@ -48,13 +52,13 @@ public:
        binary CAN adapter, performing the necessary format conversions
        inbetween.
 
-       Specifically, it takes two Pipes as input, one carrying CAN frames in
-       GridConnect protocol, and the other carrying CAN frames in the binary
+       Specifically, it takes two Hub flows as input, one carrying CAN frames
+       in GridConnect protocol, and the other carrying CAN frames in the binary
        protocol.
 
-       @param gc_side is the Pipe that has the ASCII GridConnect traffic.
+       @param gc_side is the Hub that has the ASCII GridConnect traffic.
 
-       @param can_side is the Pipe that has the binary CAN traffic.
+       @param can_side is the Hub that has the binary CAN traffic.
 
        @param double_bytes if true, any frame rendered into the GC protocol
        will have their characters doubled.
@@ -62,13 +66,14 @@ public:
        @return a pointer to the created object. It can be deleted, which will
        terminate the link and unregister the link members from both pipes.
     */
-    static GCAdapterBase*
-    CreateGridConnectAdapter(Pipe* gc_side, Pipe* can_side, bool double_bytes);
+    static GCAdapterBase *CreateGridConnectAdapter(HubFlow *gc_side,
+                                                   CanHubFlow *can_side,
+                                                   bool double_bytes);
     /** Creates a gridconnect-CAN bridge with separate pipes for reading
      * (parsing) from the GC side and writing (formatting) to the GC side. */
-    static GCAdapterBase* CreateGridConnectAdapter(Pipe* gc_side_read,
-                                                   Pipe* gc_side_write,
-                                                   Pipe* can_side,
+    static GCAdapterBase *CreateGridConnectAdapter(HubFlow *gc_side_read,
+                                                   HubFlow *gc_side_write,
+                                                   CanHubFlow *can_side,
                                                    bool double_bytes);
 };
 
