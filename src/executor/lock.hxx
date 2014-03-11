@@ -62,7 +62,7 @@ public:
 
 #endif
 
-//! See @OSMutexLock in os/OS.hxx
+/// See @OSMutexLock in os/OS.hxx
 class AtomicHolder {
 public:
   AtomicHolder(Atomic* parent)
@@ -76,10 +76,10 @@ private:
   Atomic* parent_;
 };
 
-//! See @OSMutexLock in os/OS.hxx
+/// See @OSMutexLock in os/OS.hxx
 #define LockHolder(l) int error_omitted_lock_holder_variable[-1]
 
-//! See @OSMutexLock in os/OS.hxx
+/// See @OSMutexLock in os/OS.hxx
 #define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
 
 

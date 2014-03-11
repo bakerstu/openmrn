@@ -5,7 +5,7 @@
 #include "executor/lock.hxx"
 #include "utils/Queue.hxx"
 
-//! An object that can schedule itself on an executor to run.
+/// An object that can schedule itself on an executor to run.
 class Notifiable
 {
 public:
@@ -97,30 +97,30 @@ public:
     ProxyNotifiable() : parent_(nullptr)
     {
     }
-    //! Creates a new callback. When this callback is called, the parent
-    //! notifiable is called and HasBeenNotified() will return true after that
-    //! point. This function must not be called again until the returned
+    /// Creates a new callback. When this callback is called, the parent
+    /// notifiable is called and HasBeenNotified() will return true after that
+    /// point. This function must not be called again until the returned
     // callback
-    //! is invoked.
+    /// is invoked.
     //
-    //! @returns a Notifiable to be used as a done callback for some
+    /// @returns a Notifiable to be used as a done callback for some
     // asynchronous
-    //! processing.
+    /// processing.
     Notifiable* NewCallback(Notifiable* parent)
     {
         HASSERT(!parent_);
         parent_ = parent;
         return this;
     }
-    //! @Returns true if the Notifiable returned by NewCallback has already been
-    //! called.
+    /// @Returns true if the Notifiable returned by NewCallback has already been
+    /// called.
     bool HasBeenNotified()
     {
         return !parent_;
     };
 
 private:
-    //! Implementation of the private Notifiable interface.
+    /// Implementation of the private Notifiable interface.
     virtual void notify()
     {
         Notifiable* p = parent_;

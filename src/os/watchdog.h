@@ -38,9 +38,9 @@
 extern "C" {
 #endif
 
-//! Starts a watchdog thread that must be reset more often than period_msec.
+/// Starts a watchdog thread that must be reset more often than period_msec.
 void start_watchdog(int period_msec);
-//! Resets the watchdog.
+/// Resets the watchdog.
 void reset_watchdog(void);
 /**
    Inserts a timer that will periodically reset the watchdog, thereby

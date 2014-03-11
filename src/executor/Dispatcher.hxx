@@ -80,7 +80,7 @@ public:
      */
     void register_handler(HandlerType *handler, ID id, ID mask);
 
-    //! Removes a specific instance of a handler from this dispatcher.
+    /// Removes a specific instance of a handler from this dispatcher.
     void unregister_handler(HandlerType *handler, ID id, ID mask);
 
 protected:

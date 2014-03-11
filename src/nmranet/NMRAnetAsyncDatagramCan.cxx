@@ -535,9 +535,9 @@ private:
      * in here. */
     StlMap<uint64_t, void*> pendingBuffers_;
 
-    //! Lock for ourselves.
+    /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
-    //! Parent interface.
+    /// Parent interface.
     AsyncIfCan* ifCan_;
 };
 

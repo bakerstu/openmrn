@@ -151,19 +151,19 @@ public:
         return !flow_->full_buffers()->Peek();
     }
 
-    //! Enqueues a buffer for sending to the pipe. Thread-safe.
+    /// Enqueues a buffer for sending to the pipe. Thread-safe.
     void SendBuffer(PipeBuffer* buf);
 
-    //! Writes some data to all receivers of the pipe, except the one denoted
-    //! by "skip_member".
+    /// Writes some data to all receivers of the pipe, except the one denoted
+    /// by "skip_member".
     ssize_t WriteToAll(PipeMember* skip_member, const void* buf, size_t count);
 
-    //! Adds a new member for the pipe. After this call all data will be
-    //! transmitted ot the new member as well. Not thread-safe with writes.
+    /// Adds a new member for the pipe. After this call all data will be
+    /// transmitted ot the new member as well. Not thread-safe with writes.
     void RegisterMember(PipeMember* member);
 
-    //! Removes a member. After this call no more new data will be transmitted
-    //! to the member. Not thread-safe with writes.
+    /// Removes a member. After this call no more new data will be transmitted
+    /// to the member. Not thread-safe with writes.
     void UnregisterMember(PipeMember* member);
 
     /** Adds a physical device to the members of this pipe.
@@ -220,13 +220,13 @@ public:
     }
 
 private:
-    //! The size (in bytes) of each read and write command. Only reads and
-    //! writes in multiples of this unit are valid.
+    /// The size (in bytes) of each read and write command. Only reads and
+    /// writes in multiples of this unit are valid.
     size_t unit_;
     PipeFlow* flow_;
 };
 
-//! Private data structure for pipe file nodes (aka virtual device nodes).
+/// Private data structure for pipe file nodes (aka virtual device nodes).
 class VirtualPipeMember : public PipeMember
 {
 public:
@@ -245,10 +245,10 @@ public:
         // been constructed. Do not call anything there.
     }
 
-    //! Handles data that comes from the parent Pipe.
+    /// Handles data that comes from the parent Pipe.
     virtual void write(const void* buf, size_t count);
 
-    //! Class containing static methods for pipe fd operations.
+    /// Class containing static methods for pipe fd operations.
     class Ops;
     friend class Ops;
 
@@ -294,7 +294,7 @@ extern InitializedAllocator<CanPipeBuffer> g_can_alloc;
  */
 #define DEFINE_PIPE(name, executor, unit) Pipe name(executor, unit)
 
-//! Use this if you need to refer to a pipe that was defined in a different
+/// Use this if you need to refer to a pipe that was defined in a different
 //compilation unit.
 #define DECLARE_PIPE(name) extern Pipe name
 

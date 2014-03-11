@@ -109,7 +109,7 @@ public:
     }
 
 private:
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* message, Notifiable* done);
 
     ControlFlowAction HandleGetMoreWork();
@@ -122,16 +122,16 @@ private:
 
     ControlFlowAction HandleAliasConflict();
 
-    //! Generates the next alias to check in the seed_ variable.
+    /// Generates the next alias to check in the seed_ variable.
     void NextSeed();
 
     friend class AsyncAliasAllocatorTest;
     friend class AsyncIfTest;
 
-    //! 48-bit nodeID that we will use for alias reservations.
+    /// 48-bit nodeID that we will use for alias reservations.
     NodeID if_id_;
-    //! Physical interface for sending packets and assigning handlers to
-    //! received packets.
+    /// Physical interface for sending packets and assigning handlers to
+    /// received packets.
     AsyncIfCan* if_can_;
 
     /** This allocator contains the info structures for aliases that we need to
@@ -144,17 +144,17 @@ private:
         allocator. */
     TypedAllocator<AliasInfo> reserved_alias_allocator_;
 
-    //! The alias currently being checked.
+    /// The alias currently being checked.
     AliasInfo* pending_alias_;
-    //! Which CID frame are we trying to send out. Valid values: 7..4
+    /// Which CID frame are we trying to send out. Valid values: 7..4
     unsigned cid_frame_sequence_ : 3;
-    //! Set to 1 if an incoming frame signals an alias conflict.
+    /// Set to 1 if an incoming frame signals an alias conflict.
     unsigned conflict_detected_ : 1;
 
-    //! Seed for generating random-looking alias numbers.
+    /// Seed for generating random-looking alias numbers.
     unsigned seed_ : 12;
 
-    //! Timer needed for sleeping the control flow.
+    /// Timer needed for sleeping the control flow.
     SleepData sleep_helper_;
 };
 }

@@ -71,15 +71,15 @@ class AsyncNode;
  * handlers are done, the instance should be freed. */
 struct NMRAnetMessage
 {
-    //! OpenLCB MTI of the incoming message.
+    /// OpenLCB MTI of the incoming message.
     If::MTI mti;
-    //! Source node.
+    /// Source node.
     NodeHandle src;
-    //! Destination node.
+    /// Destination node.
     NodeHandle dst;
-    //! If the destination node is local, this value is non-NULL.
+    /// If the destination node is local, this value is non-NULL.
     AsyncNode *dst_node;
-    //! Data content in the message body. Owned by the dispatcher.
+    /// Data content in the message body. Owned by the dispatcher.
     /// @todo(balazs.racz) figure out a better container.
     string payload;
 

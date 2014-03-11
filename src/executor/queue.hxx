@@ -59,13 +59,13 @@ public:
   Queue()
     : tail_(this) {}
 
-  //! Returns true if the queue has no elements.
+  /// Returns true if the queue has no elements.
   bool empty() {
     return next_ == NULL;
   }
 
-  //! Adds an entry to the end of the queue. Not thread-safe (caller has to
-  //! lock).
+  /// Adds an entry to the end of the queue. Not thread-safe (caller has to
+  /// lock).
   void Push(QueueMember* entry) {
     HASSERT(entry);
     HASSERT(entry->next_ == NULL);
@@ -75,8 +75,8 @@ public:
     tail_ = entry;
   }
 
-  //! Adds an entry to the front of the queue. Not thread-safe (caller has to
-  //! lock).
+  /// Adds an entry to the front of the queue. Not thread-safe (caller has to
+  /// lock).
   void PushFront(QueueMember* entry) {
     if (empty()) {
       Push(entry);

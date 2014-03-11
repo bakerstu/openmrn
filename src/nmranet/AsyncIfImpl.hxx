@@ -140,7 +140,7 @@ public:
         return &lock_;
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(IncomingMessage* m, Notifiable* done)
     {
         AutoNotify an(done);

@@ -108,13 +108,13 @@ private:
         }
 
     private:
-        //! Destination buffer (characters).
+        /// Destination buffer (characters).
         char dbuf_[56];
-        //! Pipe to send data to.
+        /// Pipe to send data to.
         HubFlow *destination_;
-        //! The pipe member that should be sent as "source".
+        /// The pipe member that should be sent as "source".
         HubPort *skipMember_;
-        //! Non-zero if doubling was requested.
+        /// Non-zero if doubling was requested.
         int double_bytes_;
     };
 
@@ -225,30 +225,30 @@ private:
         }
 
     private:
-        //! Collects data from a partial GC packet.
+        /// Collects data from a partial GC packet.
         char cbuf_[32];
-        //! offset of next byte in cbuf to write.
+        /// offset of next byte in cbuf to write.
         int offset_;
 
-        //! The incoming characters.
+        /// The incoming characters.
         const char *inBuf_;
-        //! The remaining number of characters in inBuf_.
+        /// The remaining number of characters in inBuf_.
         size_t inBufSize_;
 
-        //! The buffer to send to the destination hub.
+        /// The buffer to send to the destination hub.
         Buffer<CanHubData> *outBuf_;
 
         // ==== static data ====
 
-        //! Pipe to send data to.
+        /// Pipe to send data to.
         CanHubFlow *destination_;
-        //! The pipe member that should be sent as "source".
+        /// The pipe member that should be sent as "source".
         CanHubPort *skipMember_;
     };
 
-    //! PipeMember doing the parsing.
+    /// PipeMember doing the parsing.
     GCToBinaryMember parser_;
-    //! PipeMember doing the formatting.
+    /// PipeMember doing the formatting.
     BinaryToGCMember formatter_;
 };
 

@@ -24,27 +24,27 @@ namespace NMRAnet
 // handlers.
 class EventIterator : public ProxyNotifiable {
  public:
-  //! Creates an EventIterator.
+  /// Creates an EventIterator.
   //
-  //! @param parent is a Notifiable. Any notifications coming into the
-  //! Notifiables created by NewCallback will be forwarded to this callback.
+  /// @param parent is a Notifiable. Any notifications coming into the
+  /// Notifiables created by NewCallback will be forwarded to this callback.
   EventIterator()
       : event_(nullptr), done_(nullptr) {}
 
-  //! Steps the iteration.
+  /// Steps the iteration.
   //
-  //! @returns the next entry or NULL if the iteration is done.
+  /// @returns the next entry or NULL if the iteration is done.
   //
-  //! May be called many times after the iteratin is ended and should
-  //! consistently return NULL.
+  /// May be called many times after the iteratin is ended and should
+  /// consistently return NULL.
   virtual NMRAnetEventHandler* NextEntry() = 0;
 
-  //! Sets up variables used during iteration.
+  /// Sets up variables used during iteration.
   //
-  //! @param event is the EventReport that will be used for this iteration.
+  /// @param event is the EventReport that will be used for this iteration.
   //
-  //! @param done is the Notifiable that shall be called when the iteration is
-  //! completed.
+  /// @param done is the Notifiable that shall be called when the iteration is
+  /// completed.
   void InitIterator(EventReport* event, ::Notifiable* done) {
     HASSERT(event_ == nullptr);
     HASSERT(done_ == nullptr);
@@ -52,16 +52,16 @@ class EventIterator : public ProxyNotifiable {
     done_ = done;
   }
 
-  //! Resets iteration variables.
+  /// Resets iteration variables.
   void ClearIteration() {
     event_ = nullptr;
     done_ = nullptr;
   }
 
-  //! @returns the EventReport structure used for this iteration.
+  /// @returns the EventReport structure used for this iteration.
   EventReport* event() { return event_; }
 
-  //! @returns the callback to be called when the iteration is completed.
+  /// @returns the callback to be called when the iteration is completed.
   ::Notifiable* done() { return done_; }
 
  private:
@@ -70,37 +70,37 @@ class EventIterator : public ProxyNotifiable {
   // Stores the iteration completion callback.
   ::Notifiable* done_;
   // Proxies incoming notifications to this parent.
-    //! @TODO(balazs.racz) this seems unused.
+    /// @TODO(balazs.racz) this seems unused.
   ::Notifiable* parent_;
   // When there is an incoming notification, this is set to true.
-    //! @TODO(balazs.racz) this seems unused.
+    /// @TODO(balazs.racz) this seems unused.
   bool was_notified_;
 };
 
-//! An implementation of the EventIterator abstract class that iterates through
-//! an STL container's range by the begin-end iterators.
+/// An implementation of the EventIterator abstract class that iterates through
+/// an STL container's range by the begin-end iterators.
 template <class IT>
 class StlIterator : public EventIterator {
  public:
   StlIterator() {}
 
-  //! Initializes the iteration with begin-end iterator pair.
+  /// Initializes the iteration with begin-end iterator pair.
   void Set(IT begin, IT end) {
     it_ = begin;
     end_ = end;
   }
 
  protected:
-  //! The current iterator.
+  /// The current iterator.
   IT it_;
-  //! The end of the iteration.
+  /// The end of the iteration.
   IT end_;
 };
 
 template<class IT>
 class StraightStlIterator : public StlIterator<IT> {
  public:
-  //! Returns the next iterated entry.
+  /// Returns the next iterated entry.
   virtual NMRAnetEventHandler* NextEntry() {
     if (this->it_ == this->end_)
       return NULL;
@@ -140,21 +140,21 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
         global_iterator_(global_iterator) {
   }
 
-  //! Implementations should call this after their construction is complete.
+  /// Implementations should call this after their construction is complete.
   void Start() {
     StartFlowAt(ST(StateInIteration));
   }
 
-  //! Implementations have to override this to re-set the standard_iterator
-  //! from the information in standard_iterator->event().
+  /// Implementations have to override this to re-set the standard_iterator
+  /// from the information in standard_iterator->event().
   virtual void InitStandardIterator() = 0;
 
-  //! Handler function for high-priority event calls. Starts a
-  //! StandardIterator.
+  /// Handler function for high-priority event calls. Starts a
+  /// StandardIterator.
   //
-  //! This function is called (by the ProxyEventHandler) for any event handler
-  //! functions we didn't override explicitly, that is, everything except
-  //! Identify Global.
+  /// This function is called (by the ProxyEventHandler) for any event handler
+  /// functions we didn't override explicitly, that is, everything except
+  /// Identify Global.
   virtual void HandlerFn(EventHandlerFunction fn,
                          EventReport* event,
                          Notifiable* done) {
@@ -166,8 +166,8 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
     this->notify();
   }
 
-  //! Implementations have to override this to re-set the global_iterator
-  //! based on the information in global_iterator->event().
+  /// Implementations have to override this to re-set the global_iterator
+  /// based on the information in global_iterator->event().
   virtual void InitGlobalIterator() = 0;
 
   virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) {
@@ -251,7 +251,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   }
 
  private:
-  //! Holds which event handler function the standard iteration should call.
+  /// Holds which event handler function the standard iteration should call.
   EventHandlerFunction proxy_fn_;
   EventIterator* standard_iterator_;
   EventIterator* global_iterator_;

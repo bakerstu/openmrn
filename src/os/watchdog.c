@@ -7,7 +7,7 @@
 static int watchdog_period_msec;
 static int watchdog_ticks = 0;
 
-//! Thread running a watchdog.
+/// Thread running a watchdog.
 static void* watchdog_thread(void* arg)
 {
     while (1)

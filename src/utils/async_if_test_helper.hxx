@@ -263,16 +263,16 @@ protected:
         Mock::VerifyAndClear(&canBus_);
     }
 
-    //! Helper object for setting expectations on the packets sent on the bus.
+    /// Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> canBus_;
-    //! Object for debug-printing every packet (if requested).
+    /// Object for debug-printing every packet (if requested).
     std::unique_ptr<HubPort> printer_;
-    //! The interface under test.
+    /// The interface under test.
     std::unique_ptr<AsyncIfCan> ifCan_;
     /** Temporary object used to send aliases around in the alias allocator
      *  flow. */
     AliasInfo testAlias_;
-    //! The next alias we will make the allocator create.
+    /// The next alias we will make the allocator create.
     NodeAlias aliasSeed_;
 };
 

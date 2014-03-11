@@ -77,7 +77,7 @@ private:
         return &lock_;
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(IncomingMessage* m, Notifiable* done)
     {
         if (m->mti == If::MTI_LEARN_EVENT)
@@ -130,10 +130,10 @@ private:
     IncomingMessage* m_;
     Notifiable* done_;
 
-    //! Lock for ourselves.
+    /// Lock for ourselves.
     TypedAllocator<IncomingMessageHandler> lock_;
 
-    //! Parent interface.
+    /// Parent interface.
     AsyncIf* if_;
 };
 

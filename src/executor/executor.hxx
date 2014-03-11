@@ -48,7 +48,7 @@ class ControlFlow;
 
 namespace deprecated {
 
-//! An object that can be scheduled on an executor to run.
+/// An object that can be scheduled on an executor to run.
 class Executable : public QueueMember {
 public:
   virtual void Run() = 0;
@@ -107,14 +107,14 @@ public:
   }
 
 
-  //! Returns true if this executor has run out of work.
+  /// Returns true if this executor has run out of work.
   bool empty() {
     LockHolder h(this);
     return waiting_ && pending_flows_.empty();
   }
 
-  //! Returns true if there are no flows waiting for running. There might be a
-  //! flow currently being run.
+  /// Returns true if there are no flows waiting for running. There might be a
+  /// flow currently being run.
   bool no_pending_flows() {
     return pending_flows_.empty();
   }
@@ -122,18 +122,18 @@ public:
   void WaitUntilEmpty();
 
 private:
-  //! This semaphore is used for blocking the executor thread, and will be
-  //! posted for each Add to wake up.
+  /// This semaphore is used for blocking the executor thread, and will be
+  /// posted for each Add to wake up.
   OSSem notify_;
-  //! Queue of work to do.
+  /// Queue of work to do.
   Queue pending_flows_;
-  //! true if the executor is waiting in the semaphore for work to do.
+  /// true if the executor is waiting in the semaphore for work to do.
   bool waiting_;
-  //! Work currently scheduled on the thread.
+  /// Work currently scheduled on the thread.
   Executable* current_;
 };
 
-//! An executor that automatically starts up a new thread to run its loop.
+/// An executor that automatically starts up a new thread to run its loop.
 class ThreadExecutor : public Executor {
 public:
   ThreadExecutor(const char* thread_name,

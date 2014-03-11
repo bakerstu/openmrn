@@ -35,7 +35,7 @@
 #ifndef _NMRANET_EVENTCOMPATIBILITY_HXX_
 #define _NMRANET_EVENTCOMPATIBILITY_HXX_
 
-//! Create an instance of this class to enable the C-style event handler API.
+/// Create an instance of this class to enable the C-style event handler API.
 class EventCompatibilityLayer {
  public:
   EventCompatibilityLayer();

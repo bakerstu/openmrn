@@ -235,7 +235,7 @@ class BitRangeEventPC : public SimpleEventHandler {
   // be invoked inline and potentially block the calling thread.
   void Set(unsigned bit, bool new_value, WriteHelper* writer, Notifiable* done);
 
-  //! @returns the value of a given bit. 0 <= bit < size_.
+  /// @returns the value of a given bit. 0 <= bit < size_.
   bool Get(unsigned bit) const;
 
   virtual void HandleEventReport(EventReport* event, Notifiable* done);

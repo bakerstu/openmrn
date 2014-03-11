@@ -145,7 +145,7 @@ ControlFlow::ControlFlowAction ControlFlow::WaitForTimer() {
   return CallImmediately(next_state_);
 }
 
-//! Implementation state that is waiting for another flow to finish.
+/// Implementation state that is waiting for another flow to finish.
 ControlFlow::ControlFlowAction ControlFlow::WaitForControlFlow() {
   LockHolder h(executor_);
   if (sub_flow_.called_flow->IsDone()) {

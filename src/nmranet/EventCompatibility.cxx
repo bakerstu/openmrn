@@ -173,7 +173,7 @@ class CompatEventIterator : public StlIterator<HandlerMap::iterator> {
  public:
   CompatEventIterator(HandlerMap::iterator* exp) : export_(exp) {}
 
-  //! Returns the next iterated entry.
+  /// Returns the next iterated entry.
   virtual NMRAnetEventHandler* NextEntry() {
     if (it_ == end_)
       return NULL;

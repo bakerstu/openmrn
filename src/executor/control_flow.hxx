@@ -56,12 +56,12 @@ public:
 
   virtual ~ControlFlow() {}
   
-  //! Callback from the executor. This method will be run every time the
-  //! control flow is scheduled on the executor.
+  /// Callback from the executor. This method will be run every time the
+  /// control flow is scheduled on the executor.
   virtual void Run();
 
-  //! Wakes up this control flow and puts it onto the executor's scheduling
-  //! queue.
+  /// Wakes up this control flow and puts it onto the executor's scheduling
+  /// queue.
   virtual void notify() {
     LOG(VERBOSE, "ControlFlow::Notify %p", this);
     LockHolder h(executor_);
@@ -76,7 +76,7 @@ public:
     this->notify();
   }
 
-  //! Returns true if this control flow has reached the terminated state.
+  /// Returns true if this control flow has reached the terminated state.
   bool IsDone() {
     return state_ == &ControlFlow::Terminated;
   }
@@ -98,7 +98,7 @@ protected:
   struct ControlFlowAction;
 
 public:
-  //! The prototype of the member functions of all control flow stages.
+  /// The prototype of the member functions of all control flow stages.
   typedef ControlFlowAction (ControlFlow::*MemberFunction)();
 
 protected:
@@ -108,50 +108,50 @@ protected:
   };
 
 protected:
-  //! This function should be used to start the flow. The caller is responsible
-  //! to ensure that the flow is not running at this moment. The flow will be
-  //! scheduled onto its own executor, so it is safe to call this from a
-  //! different thread.
+  /// This function should be used to start the flow. The caller is responsible
+  /// to ensure that the flow is not running at this moment. The flow will be
+  /// scheduled onto its own executor, so it is safe to call this from a
+  /// different thread.
   void StartFlowAt(MemberFunction f) {
     YieldAndCall(f);
   }
 
   // ==========  ACTION COMMANDS =============
 
-  //! Suspends the execution of the current control flow until an external
-  //! notification arrives. After the notification the current state will be
-  //! re-tried.
+  /// Suspends the execution of the current control flow until an external
+  /// notification arrives. After the notification the current state will be
+  /// re-tried.
   ControlFlowAction WaitForNotification() {
     return ControlFlowAction(nullptr);
   }
 
-  //! Transition to a new state, and calls the new state handler immediately
-  //! following the current handler.
+  /// Transition to a new state, and calls the new state handler immediately
+  /// following the current handler.
   ControlFlowAction CallImmediately(MemberFunction f) {
     return ControlFlowAction(f);
   }
 
-  //! Retries the current state immediately.
+  /// Retries the current state immediately.
   ControlFlowAction RetryCurrentState() {
     return CallImmediately(state_);
   }
 
-  //! Transitions to a new state, but allows all other pending callbacks of the
-  //! executor to run before proceeding to the next state.
+  /// Transitions to a new state, but allows all other pending callbacks of the
+  /// executor to run before proceeding to the next state.
   ControlFlowAction YieldAndCall(MemberFunction f) {
     state_ = f;
     notify();
     return WaitForNotification();
   }
 
-  //! Transitions to a new state, but waits for a notification first.
+  /// Transitions to a new state, but waits for a notification first.
   ControlFlowAction WaitAndCall(MemberFunction f) {
     state_ = f;
     return WaitForNotification();
   }
 
-  //! Yields to other callbacks in the current executor, and re-tries the
-  //! current state again.
+  /// Yields to other callbacks in the current executor, and re-tries the
+  /// current state again.
   ControlFlowAction yield() {
     notify();
     return WaitForNotification();
@@ -203,19 +203,19 @@ protected:
   ControlFlowAction Sleep(SleepData* data, long long delay_nsec,
                           MemberFunction next_state);
 
-  //! Sets up a repeated timer call. The individual waits have to be
-  //! instantiated using the WaitForTimerWakeUpAndCall call. After this has
-  //! been called, the SleepData must not be used for a regular Sleep call.
+  /// Sets up a repeated timer call. The individual waits have to be
+  /// instantiated using the WaitForTimerWakeUpAndCall call. After this has
+  /// been called, the SleepData must not be used for a regular Sleep call.
   void WakeUpRepeatedly(SleepData* data, long long period_nsec);
 
-  //! Cancels a (possibly repeated) timer. WARNING: a spurious notification
-  //! might come in afterwards in a rare race condition involving the timer
-  //! task and preemptions. It is also not guaranteed that another
-  //! immediately following sleep call will execute properly.
+  /// Cancels a (possibly repeated) timer. WARNING: a spurious notification
+  /// might come in afterwards in a rare race condition involving the timer
+  /// task and preemptions. It is also not guaranteed that another
+  /// immediately following sleep call will execute properly.
   void StopTimer(SleepData* data);
 
-  //! Suspends the current control flow until a repeated timer event has come
-  //! in. Precondition: WakeUpRepeatedly has been called previously.
+  /// Suspends the current control flow until a repeated timer event has come
+  /// in. Precondition: WakeUpRepeatedly has been called previously.
   ControlFlowAction WaitForTimerWakeUpAndCall(SleepData* data,
                                               MemberFunction next_state);
 
@@ -225,8 +225,8 @@ protected:
     size_t count;
   };
 
-  //! Calls a child control flow, and when that flow is completed, transitions
-  //! to next_state. Will send a notification to the dst flow.
+  /// Calls a child control flow, and when that flow is completed, transitions
+  /// to next_state. Will send a notification to the dst flow.
   ControlFlowAction CallFlow(ControlFlow* dst, MemberFunction next_state) {
     sub_flow_.called_flow = dst;
     next_state_ = next_state;
@@ -237,17 +237,17 @@ protected:
   MemberFunction next_state() { return next_state_; }
 
 
-  //! Implementation state for a not-yet-started control flow.
+  /// Implementation state for a not-yet-started control flow.
   ControlFlowAction NotStarted();
-  //! Implementation state for an exited control flow.
+  /// Implementation state for an exited control flow.
   ControlFlowAction Terminated();
 private:
-  //! Implementation state that is waiting for a timer callback.
+  /// Implementation state that is waiting for a timer callback.
   ControlFlowAction WaitForTimer();
-  //! Implementation state that is waiting for another flow to finish.
+  /// Implementation state that is waiting for another flow to finish.
   ControlFlowAction WaitForControlFlow();
 
-  //! Helper function for timer implementation.
+  /// Helper function for timer implementation.
   void NotifyControlFlowTimer(SleepData* entry);
   static long long control_flow_single_timer(void* arg_flow, void* arg_entry);
   static long long control_flow_repeated_timer(void* arg_flow, void* arg_entry);
@@ -258,21 +258,21 @@ private:
     QueueMember* allocation_result;
   } sub_flow_;
 
-  //! The current state that needs to be tried.
+  /// The current state that needs to be tried.
   MemberFunction state_;
 
-  //! If a sub flow is running, this state will be transitioned to when the
-  //! subflow terminates. This is used by the sleep subflow.
+  /// If a sub flow is running, this state will be transitioned to when the
+  /// subflow terminates. This is used by the sleep subflow.
   MemberFunction next_state_;
 
-  //! Spcifies what to do when the control flow is done. If this is NULL, the
-  //! control flow will delete itself when done. If this is not NULL, it will
-  //! be called when the control flow is done. Typically this is the pointer to
-  //! the caller flow that has *this as a subflow.
+  /// Spcifies what to do when the control flow is done. If this is NULL, the
+  /// control flow will delete itself when done. If this is not NULL, it will
+  /// be called when the control flow is done. Typically this is the pointer to
+  /// the caller flow that has *this as a subflow.
   Notifiable* done_;
 
-  //! Executor controlling this control flow. Also hosts the lock for the
-  //! control flow.
+  /// Executor controlling this control flow. Also hosts the lock for the
+  /// control flow.
   Executor* executor_;
 };
 

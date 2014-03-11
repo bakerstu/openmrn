@@ -50,39 +50,39 @@ class AllocatorBase : public Lockable {
  public:
   AllocatorBase();
 
-  //! Returns an entry to the pool of free entries. no type checking is
-  //! performed by this function.
+  /// Returns an entry to the pool of free entries. no type checking is
+  /// performed by this function.
   //
-  //! @param entry is the entry to release. It should be compatible with the
-  //! entries expected from this Allocator.
+  /// @param entry is the entry to release. It should be compatible with the
+  /// entries expected from this Allocator.
   void Release(QueueMember* entry);
 
-  //! Returns an entry to the end (back) of the pool of free entries. no type
-  //! checking is performed by this function.
+  /// Returns an entry to the end (back) of the pool of free entries. no type
+  /// checking is performed by this function.
   //
-  //! @param entry is the entry to release. It should be compatible with the
-  //! entries expected from this Allocator.
+  /// @param entry is the entry to release. It should be compatible with the
+  /// entries expected from this Allocator.
   void ReleaseBack(QueueMember* entry);
 
-  //! Allocates an object, possibly by putting the caller into a waiting list
-  //! for allocated objects.
+  /// Allocates an object, possibly by putting the caller into a waiting list
+  /// for allocated objects.
   //
-  //! @param caller is a callback. When the next object to allocate is
-  //! available, the allocation callback will be called.
+  /// @param caller is a callback. When the next object to allocate is
+  /// available, the allocation callback will be called.
   //
-  //! The callback may be called inline, but it may also be called from a
-  //! different thread. No locking is performed while calling the callback.
+  /// The callback may be called inline, but it may also be called from a
+  /// different thread. No locking is performed while calling the callback.
   void AllocateEntry(AllocationResult* caller);
 
-  //! @returns true if there is an entry waiting to be allocated.
+  /// @returns true if there is an entry waiting to be allocated.
   //
-  //! NOTE: using this method is likely result in race conditions.
+  /// NOTE: using this method is likely result in race conditions.
   bool Peek();
 
-  //! Synchronously tries to allocate an entry.
+  /// Synchronously tries to allocate an entry.
   //
-  //! @returns the first allocatable entry, if there is any free. Otherwise
-  //! returns NULL.
+  /// @returns the first allocatable entry, if there is any free. Otherwise
+  /// returns NULL.
   QueueMember* AllocateOrNull();
 
     /// @returns true if this allocator has ever seen free entries.
@@ -99,18 +99,18 @@ class AllocatorBase : public Lockable {
     unsigned hasEverSeenFreeEntries_ : 1;
 };
 
-//! An allocator class that can be used for type-safe operations.
+/// An allocator class that can be used for type-safe operations.
 template <class T>
 class TypedAllocator : public AllocatorBase {
  public:
-  //! Returns an entry to the allocator.
+  /// Returns an entry to the allocator.
   //
-  //! @param entry is the object to return.
+  /// @param entry is the object to return.
   void TypedRelease(T* entry) { Release(entry); }
 
-  //! Returns an entry to the allocator at the back of the freelist..
+  /// Returns an entry to the allocator at the back of the freelist..
   //
-  //! @param entry is the object to return.
+  /// @param entry is the object to return.
   void TypedReleaseBack(T* entry) { ReleaseBack(entry); }
 
   T* TypedAllocateOrNull() { return cast_result(AllocateOrNull()); }
@@ -121,7 +121,7 @@ class TypedAllocator : public AllocatorBase {
 template<class T>
 class InitializedAllocator : public TypedAllocator<T> {
 public:
-    //! Creates the allocator and fills it with @param count entries.
+    /// Creates the allocator and fills it with @param count entries.
     InitializedAllocator(size_t count)
         : members_(new T[count]) {
         for (size_t i = 0; i < count; ++i) {
@@ -134,100 +134,100 @@ private:
 };
 
 
-//! Helper class that encapsulates a call to an allocator, which blocks the
-//! current thread until a free entry shows up.
+/// Helper class that encapsulates a call to an allocator, which blocks the
+/// current thread until a free entry shows up.
 //
-//! Usage:
+/// Usage:
 //
-//! SyncAllocation a(allocator);  // may block the thread
-//! DoSomething(a.untyped_result())
+/// SyncAllocation a(allocator);  // may block the thread
+/// DoSomething(a.untyped_result())
 class SyncAllocation : private AllocationResult {
  public:
-  //! Synchronously allocates an entry from an allocator. Blocks the current
-  //! thread until an entry is available.
+  /// Synchronously allocates an entry from an allocator. Blocks the current
+  /// thread until an entry is available.
   //
-  //! @param allocator is the allocator to allocate an entry from.
+  /// @param allocator is the allocator to allocate an entry from.
   SyncAllocation(AllocatorBase* allocator) : result_(nullptr) {
     allocator->AllocateEntry(this);
     notify_.WaitForNotification();
   }
 
-  //! @returns the entry allocated.
+  /// @returns the entry allocated.
   QueueMember* untyped_result() { return result_; }
 
  private:
-  //! Callback from the allocator.
+  /// Callback from the allocator.
   //
-  //! @param entry is the entry allocated to this request.
+  /// @param entry is the entry allocated to this request.
   virtual void AllocationCallback(QueueMember* entry) {
     result_ = entry;
     notify_.notify();
   }
 
-  //! A callback that should never be called, since *this is never used as an
-  //! Executable.
+  /// A callback that should never be called, since *this is never used as an
+  /// Executable.
   virtual void Run() {
     extern int unexpected_call_to_syncallocation_run();
     HASSERT(false && unexpected_call_to_syncallocation_run());
   }
 
  protected:
-  //! Stores the result of the allocation callback.
+  /// Stores the result of the allocation callback.
   QueueMember* result_;
-  //! Helper for blocking the current thread until the allocation is
-  //! successful.
+  /// Helper for blocking the current thread until the allocation is
+  /// successful.
   SyncNotifiable notify_;
 };
 
-//! Helper class for type-safe synchronous allocation from an Allocator.
+/// Helper class for type-safe synchronous allocation from an Allocator.
 template <class T>
 class TypedSyncAllocation : public SyncAllocation {
  public:
-  //! Allocates an entry from a (typed) allocator.
+  /// Allocates an entry from a (typed) allocator.
   //
-  //! @param allocator is the allocator to allocate from.
+  /// @param allocator is the allocator to allocate from.
   TypedSyncAllocation(TypedAllocator<T>* allocator)
       : SyncAllocation(allocator) {}
 
-  //! @returns the result of the allocation.
+  /// @returns the result of the allocation.
   T* result() { return static_cast<T*>(untyped_result()); }
 };
 
-//! Helper class that simulates a (non-reentrant) mutex using the Allocator
-//! queue and a single QueueMember token.
+/// Helper class that simulates a (non-reentrant) mutex using the Allocator
+/// queue and a single QueueMember token.
 //
-//! The mutex is defined as unlocked if there is an entry on the allocator
-//! queue. Locking the mutex will take the entry off of the allocator
-//! queue. Any other acquisition attempts will block so long as the allocator's
-//! queue is empty.
+/// The mutex is defined as unlocked if there is an entry on the allocator
+/// queue. Locking the mutex will take the entry off of the allocator
+/// queue. Any other acquisition attempts will block so long as the allocator's
+/// queue is empty.
 //
-//! Unlocking the mutex will release the token back to the allocator, waking up
-//! the first caller in the queue.
+/// Unlocking the mutex will release the token back to the allocator, waking up
+/// the first caller in the queue.
 //
-//! To lock the mutex, use any allocation mechanism (e.g. control
-//! flow::Allocate, or SyncAllocator). To Unlock the mutex, call the Unlock
-//! method.
+/// To lock the mutex, use any allocation mechanism (e.g. control
+/// flow::Allocate, or SyncAllocator). To Unlock the mutex, call the Unlock
+/// method.
 class AllocatorMutex : public AllocatorBase {
  public:
-  //! Creates an allocator mutex.
+  /// Creates an allocator mutex.
   AllocatorMutex() { Unlock(); }
 
-  //! Crashes if the the particular value is not the token associated with this
-  //! mutex.
+  /// Crashes if the the particular value is not the token associated with this
+  /// mutex.
   //
-  //! @param token is the value to check.
+  /// @param token is the value to check.
   void CheckToken(QueueMember* token) { HASSERT(token == &token_); }
 
-  //! Crashes if the mutex is not locked.
+  /// Crashes if the mutex is not locked.
   void AssertLocked() { HASSERT(!Peek()); }
 
-  //! Crashes if the mutex is locked.
+  /// Crashes if the mutex is locked.
   void AssertUnlocked() { HASSERT(Peek()); }
 
-  //! Unlocks the mutex. Crashes if the mutex is unlocked.
+  /// Unlocks the mutex. Crashes if the mutex is unlocked.
   void Unlock() { Release(&token_); }
 
-  //! Synchronously locks the mutex. Might block the current thread.
+  /// Synchronously locks the mutex. Might block the current thread.
   void Lock() { SyncAllocation a(this); }
 
  private:

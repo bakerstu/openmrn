@@ -184,18 +184,18 @@ private:
         return NULL;
     }
 
-    //! File descriptor from the physical device.
+    /// File descriptor from the physical device.
     int fd_read_;
-    //! File descriptor to the physical device.
+    /// File descriptor to the physical device.
     int fd_write_;
 
-    //! Pipe to forward information to.
+    /// Pipe to forward information to.
     Pipe* parent_;
 
-    //! Thread handle for reader thread.
+    /// Thread handle for reader thread.
     os_thread_t read_thread_;
 
-    //! Protects writes to the device.
+    /// Protects writes to the device.
     OSMutex lock_;
 };
 

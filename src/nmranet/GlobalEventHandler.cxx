@@ -69,7 +69,7 @@ GlobalEventFlow::~GlobalEventFlow()
     GlobalEventFlow::instance = nullptr;
 }
 
-//! Returns true if there are outstanding events that are not yet handled.
+/// Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventFlow::EventProcessingPending()
 {
     if (!this) return false;

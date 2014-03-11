@@ -405,7 +405,7 @@ protected:
                                                        this);
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* f, Notifiable* done)
     {
         AutoNotify an(done);

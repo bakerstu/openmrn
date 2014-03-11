@@ -97,18 +97,18 @@ class FakeRead : public PipeMember {
     }
   }
 
-  //! Holds the pending frames.
+  /// Holds the pending frames.
   std::queue<struct can_frame> frames_;
-  //! Notified for incoming frames. Waited in the read method.
+  /// Notified for incoming frames. Waited in the read method.
   OSSem notify_;
-  //! Protects frames_ and is_done_.
+  /// Protects frames_ and is_done_.
   OSMutex lock_;
-  //! Set to true when all incoming frames have been processed and the reading
-  //! thread returned into a blocked state.
+  /// Set to true when all incoming frames have been processed and the reading
+  /// thread returned into a blocked state.
   bool is_done_;
-  //! Notified when is_done is flipped to true.
+  /// Notified when is_done is flipped to true.
   OSSem done_notify_;
-  //! Parent pipe where we are registered.
+  /// Parent pipe where we are registered.
   Pipe* parent_;
 };
 
