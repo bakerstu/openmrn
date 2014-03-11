@@ -96,8 +96,7 @@ private:
                 Buffer<HubData> *target_buffer;
                 /// @todo(balazs.racz) switch to asynchronous allocation here.
                 mainBufferPool->alloc(&target_buffer);
-                target_buffer->data()->skipMember_ =
-                    reinterpret_cast<uintptr_t>(skipMember_);
+                target_buffer->data()->skipMember_ = skipMember_;
                 /// @todo(balazs.racz) try to use an assign function for better
                 /// performance.
                 target_buffer->data()->resize(size);
@@ -172,8 +171,7 @@ private:
             int ret = gc_format_parse(cbuf_, outBuf_->data());
             if (!ret)
             {
-                outBuf_->data()->skipMember_ =
-                    reinterpret_cast<uintptr_t>(skipMember_);
+                outBuf_->data()->skipMember_ = skipMember_;
                 destination_->send(outBuf_);
             }
             else
@@ -243,7 +241,7 @@ private:
         /// Pipe to send data to.
         CanHubFlow *destination_;
         /// The pipe member that should be sent as "source".
-        CanHubPort *skipMember_;
+        CanHubPortInterface *skipMember_;
     };
 
     /// PipeMember doing the parsing.

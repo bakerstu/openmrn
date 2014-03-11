@@ -47,6 +47,17 @@ namespace NMRAnet
 
 size_t g_alias_use_conflicts = 0;
 
+DynamicPool *CanFrameWriteFlow::pool()
+{
+    return ifCan_->device()->pool();
+}
+
+void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
+{
+    message->data()->skipMember = ifCan_->hub_port();
+    ifCan_->device()->send(message, priority);
+}
+
 /**
    This is a control flow running in an infinite loop, reading from the device
    in an asynchronous way and sending packets to the frame dispatcher.
@@ -57,7 +68,7 @@ size_t g_alias_use_conflicts = 0;
 class AsyncIfCan::CanReadFlow : public ControlFlow, public PipeMember
 {
 public:
-    CanReadFlow(Pipe* pipe, AsyncIfCan* if_can, Executor* e)
+    CanReadFlow(Pipe *pipe, AsyncIfCan *if_can, Executor *e)
         : ControlFlow(e, nullptr), if_can_(if_can), pipe_(pipe)
     {
         StartFlowAt(ST(Terminated));
@@ -72,22 +83,22 @@ public:
         pipe_->UnregisterMember(this);
     }
 
-    Pipe* parent()
+    Pipe *parent()
     {
         return pipe_;
     }
 
     // Callback from the pipe.
-    virtual void write(const void* buf, size_t count)
+    virtual void write(const void *buf, size_t count)
     {
         HASSERT(0);
     }
 
     // Callback from the pipe.
-    virtual void async_write(const void* buf, size_t count, Notifiable* done)
+    virtual void async_write(const void *buf, size_t count, Notifiable *done)
     {
         HASSERT(IsDone());
-        buf_ = static_cast<const struct can_frame*>(buf);
+        buf_ = static_cast<const struct can_frame *>(buf);
         byte_count_ = count;
         Restart(done);
         StartFlowAt(ST(next_frame));
@@ -118,9 +129,9 @@ private:
     {
         // At this point we know that the frame is an extended frame and we
         // have the dispatcher.
-        AsyncIfCan::FrameDispatchFlow* flow =
+        AsyncIfCan::FrameDispatchFlow *flow =
             GetTypedAllocationResult(if_can_->frame_dispatcher()->allocator());
-        struct can_frame* frame = flow->mutable_params();
+        struct can_frame *frame = flow->mutable_params();
         memcpy(frame, buf_, sizeof(*frame));
         buf_++;
         byte_count_ -= sizeof(*buf_);
@@ -131,22 +142,22 @@ private:
         return CallImmediately(ST(next_frame));
     }
 
-    const struct can_frame* buf_;
+    const struct can_frame *buf_;
     size_t byte_count_;
     /// Parent interface. Owned externlly.
-    AsyncIfCan* if_can_;
-    Pipe* pipe_;
+    AsyncIfCan *if_can_;
+    Pipe *pipe_;
 };
 
 class AsyncIfCan::CanWriteFlow : public CanFrameWriteFlow
 {
 public:
-    CanWriteFlow(AsyncIfCan* parent, Executor* e)
+    CanWriteFlow(AsyncIfCan *parent, Executor *e)
         : CanFrameWriteFlow(e, nullptr), if_can_(parent)
     {
     }
 
-    virtual void Send(Notifiable* done)
+    virtual void Send(Notifiable *done)
     {
         Restart(done);
         StartFlowAt(ST(HandleSend));
@@ -161,7 +172,7 @@ public:
 private:
     ControlFlowAction HandleSend()
     {
-        PipeBuffer* b = &pipeBuffer_;
+        PipeBuffer *b = &pipeBuffer_;
         b->data = &frame_;
         b->size = sizeof(frame_);
         b->skipMember = if_can_->pipe_member();
@@ -186,9 +197,8 @@ private:
     PipeBuffer pipeBuffer_;
     ProxyNotifiable notifiable_;
     /// Parent interface. Owned externlly.
-    AsyncIfCan* if_can_;
+    AsyncIfCan *if_can_;
 };
-
 
 /** Specifies how long to wait for a response to an alias mapping enquiry
  * message when trying to send an addressed message to a destination. The final
@@ -200,7 +210,6 @@ private:
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-
 namespace
 {
 
@@ -211,13 +220,13 @@ namespace
 class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
-    GlobalCanMessageWriteFlow(AsyncIfCan* if_can) : CanMessageWriteFlow(if_can)
+    GlobalCanMessageWriteFlow(AsyncIfCan *if_can) : CanMessageWriteFlow(if_can)
     {
         if_can_->add_global_write_flow(this);
     }
 
 protected:
-    virtual TypedAllocator<WriteFlow>* allocator()
+    virtual TypedAllocator<WriteFlow> *allocator()
     {
         return if_can_->global_write_allocator();
     }
@@ -244,7 +253,7 @@ class AliasConflictHandler : public AllocationResult,
                              public IncomingFrameHandler
 {
 public:
-    AliasConflictHandler(AsyncIfCan* if_can) : ifCan_(if_can)
+    AliasConflictHandler(AsyncIfCan *if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
         ifCan_->frame_dispatcher()->register_handler(0, ~((1 << 30) - 1), this);
@@ -253,16 +262,16 @@ public:
     ~AliasConflictHandler()
     {
         ifCan_->frame_dispatcher()->unregister_handler(0, ~((1 << 30) - 1),
-                                                      this);
+                                                       this);
     }
 
-    virtual AllocatorBase* get_allocator()
+    virtual AllocatorBase *get_allocator()
     {
         return &lock_;
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    virtual void handle_message(struct can_frame *f, Notifiable *done)
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
         done->notify(); // We don't need the frame anymore.
@@ -306,7 +315,7 @@ public:
         lock_.TypedRelease(this);
     }
 
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void AllocationCallback(QueueMember *entry)
     {
         frameWriteFlow_ = ifCan_->write_allocator()->cast_result(entry);
         ifCan_->frame_dispatcher()->executor()->Add(this);
@@ -315,7 +324,7 @@ public:
     virtual void Run()
     {
         // We are sending an RID frame.
-        struct can_frame* f = frameWriteFlow_->mutable_frame();
+        struct can_frame *f = frameWriteFlow_->mutable_frame();
         IfCan::control_init(*f, alias_, IfCan::RID_FRAME, 0);
         frameWriteFlow_->Send(nullptr);
         lock_.TypedRelease(this);
@@ -325,11 +334,11 @@ private:
     /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
     /// Parent interface.
-    AsyncIfCan* ifCan_;
+    AsyncIfCan *ifCan_;
     /// Alias being checked.
     unsigned alias_ : 12;
     /// The write flow we received from the allocator.
-    CanFrameWriteFlow* frameWriteFlow_;
+    CanFrameWriteFlow *frameWriteFlow_;
 };
 
 /** This class listens for incoming CAN frames of regular unaddressed global
@@ -351,25 +360,26 @@ public:
                    (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
     };
 
-    FrameToGlobalMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
+    FrameToGlobalMessageParser(AsyncIfCan *if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);
+        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK,
+                                                     this);
     }
 
     ~FrameToGlobalMessageParser()
     {
         ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK,
-                                                      this);
+                                                       this);
     }
 
-    virtual AllocatorBase* get_allocator()
+    virtual AllocatorBase *get_allocator()
     {
         return &lock_;
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    virtual void handle_message(struct can_frame *f, Notifiable *done)
     {
         id_ = GET_CAN_FRAME_ID_EFF(*f);
         if (f->can_dlc)
@@ -388,10 +398,10 @@ public:
         ifCan_->dispatcher()->allocator()->AllocateEntry(this);
     }
 
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void AllocationCallback(QueueMember *entry)
     {
-        auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
-        IncomingMessage* m = f->mutable_params();
+        auto *f = ifCan_->dispatcher()->allocator()->cast_result(entry);
+        IncomingMessage *m = f->mutable_params();
         m->mti =
             static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
@@ -417,11 +427,11 @@ public:
 
 private:
     uint32_t id_;
-    Buffer* buf_;
+    Buffer *buf_;
     /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
     /// Parent interface.
-    AsyncIfCan* ifCan_;
+    AsyncIfCan *ifCan_;
 };
 
 /** This class listens for incoming CAN frames of regular addressed OpenLCB
@@ -444,25 +454,26 @@ public:
                    (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
     };
 
-    FrameToAddressedMessageParser(AsyncIfCan* if_can) : ifCan_(if_can)
+    FrameToAddressedMessageParser(AsyncIfCan *if_can) : ifCan_(if_can)
     {
         lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);
+        ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK,
+                                                     this);
     }
 
     ~FrameToAddressedMessageParser()
     {
         ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK,
-                                                      this);
+                                                       this);
     }
 
-    virtual AllocatorBase* get_allocator()
+    virtual AllocatorBase *get_allocator()
     {
         return &lock_;
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame* f, Notifiable* done)
+    virtual void handle_message(struct can_frame *f, Notifiable *done)
     {
         AutoNotify an(done);
         TypedAutoRelease<IncomingFrameHandler> ar(&lock_, this);
@@ -515,10 +526,10 @@ public:
         ifCan_->dispatcher()->allocator()->AllocateEntry(this);
     }
 
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void AllocationCallback(QueueMember *entry)
     {
-        auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
-        IncomingMessage* m = f->mutable_params();
+        auto *f = ifCan_->dispatcher()->allocator()->cast_result(entry);
+        IncomingMessage *m = f->mutable_params();
         m->mti =
             static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
@@ -545,18 +556,20 @@ public:
 
 private:
     uint32_t id_;
-    Buffer* buf_;
+    Buffer *buf_;
     NodeHandle dstHandle_;
     /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
     /// Parent interface.
-    AsyncIfCan* ifCan_;
+    AsyncIfCan *ifCan_;
 };
 
-AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
+AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
     : AsyncIf(executor, local_nodes_count),
+      device_(device),
+      frameWriteFlow_(this),
       frame_dispatcher_(this),
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
@@ -565,7 +578,7 @@ AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
-        CanFrameWriteFlow* f = new CanWriteFlow(this, executor);
+        CanFrameWriteFlow *f = new CanWriteFlow(this, executor);
         write_allocator_.Release(f);
         owned_flows_.push_back(std::unique_ptr<ControlFlow>(f));
     }
@@ -584,12 +597,12 @@ AsyncIfCan::~AsyncIfCan()
 {
 }
 
-void AsyncIfCan::add_owned_flow(Executable* e)
+void AsyncIfCan::add_owned_flow(Executable *e)
 {
     owned_flows_.push_back(std::unique_ptr<Executable>(e));
 }
 
-void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator* a)
+void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
 {
     aliasAllocator_.reset(a);
 }
@@ -600,7 +613,7 @@ void AsyncIfCan::add_addressed_message_support(int num_write_flows)
         std::unique_ptr<Executable>(new FrameToAddressedMessageParser(this)));
     for (int i = 0; i < num_write_flows; ++i)
     {
-        auto* f = new AddressedCanMessageWriteFlow(this);
+        auto *f = new AddressedCanMessageWriteFlow(this);
         add_addressed_write_flow(f);
         owned_flows_.push_back(std::unique_ptr<Executable>(f));
     }

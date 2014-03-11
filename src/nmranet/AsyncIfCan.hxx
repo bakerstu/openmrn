@@ -110,61 +110,45 @@ typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
 extern size_t g_alias_use_conflicts;
 
 class AsyncAliasAllocator;
+class AsyncIfCan;
 
-#if 0
 /** Interface class for the asynchronous frame write flow. This flow allows you
     to write frames to the CAN bus.
 
     Usage:
-    . allocate a flow instance through the write_allocator.
-    . fill in flow->mutable_frame() [*]
-    . call flow->Send()
-
-    [*] When a write flow arrives from an allocator, it is guaranteed that it
-    is a regular (non-err, non-remote) extended data frame.
-
-    The flow will return itself to the allocator when done.
+    . allocate a buffer for this flow.
+    . fill in buffer->data()->mutable_frame() [*]
+    . call flow->send(buffer)
 */
-class CanFrameWriteFlow : public ControlFlow
+class CanFrameWriteFlow : public OutgoingFrameHandler
 {
 public:
-    CanFrameWriteFlow(Executor *e, Notifiable *done) : ControlFlow(e, done)
+    CanFrameWriteFlow(AsyncIfCan *service) : ifCan_(service)
     {
-        ResetFrameEff();
     }
 
-    /// @returns the frame buffer to be filled.
-    struct can_frame *mutable_frame()
-    {
-        return &frame_;
-    }
+    virtual DynamicPool *pool();
+    virtual void send(Buffer<CanHubData> *message,
+                      unsigned priority = UINT_MAX);
 
-    /** Requests the frame buffer to be sent to the bus. Takes ownership of
-     *  *this and returns it to the allocator.
-     *
-     *  @param done will be notified, when the frame was successfully
-     *  enqueued. In most cases it can be set to NULL.
-     */
-    virtual void Send(Notifiable *done) = 0;
-
-    /** Releases this frame buffer without sending of anything to the bus. Takes
-     *  ownership of *this and returns it to the allocator.
-     */
-    virtual void Cancel() = 0;
-
-    /** Resets the frame buffer to regular (non-err, non-remote) extended data
-     * frame */
-    void ResetFrameEff()
-    {
-        CLR_CAN_FRAME_ERR(frame_);
-        CLR_CAN_FRAME_RTR(frame_);
-        SET_CAN_FRAME_EFF(frame_);
-    }
-
-protected:
-    struct can_frame frame_;
+private:
+    AsyncIfCan *ifCan_;
 };
-#endif
+
+class CanFrameReadFlow : public OutgoingFrameHandler
+{
+public:
+    CanFrameReadFlow(AsyncIfCan *service) : ifCan_(service)
+    {
+    }
+
+    virtual DynamicPool *pool();
+    virtual void send(Buffer<CanHubData> *message,
+                      unsigned priority = UINT_MAX);
+
+private:
+    AsyncIfCan *ifCan_;
+};
 
 class AsyncIfCan : public AsyncIf
 {
@@ -211,21 +195,10 @@ public:
         return &frameWriteFlow_;
     }
 
-    /// @Returns the raw device.
-    CanHubFlow *device() {
-        return 
-    }
-
     /// Implementation class for receiving frames from CAN.
     class CanReadFlow;
     /// Implementation class for sending frames to CAN.
-    class CanWriteFlow;
-
-    /// @returns the asynchronous read/write object.
-    CanReadFlow *pipe_member()
-    {
-        return pipe_member_.get();
-    }
+    /// class CanWriteFlow;
 
     /// @returns the alias cache for local nodes (vnodes and proxies)
     AliasCache *local_aliases()
@@ -251,11 +224,30 @@ public:
     virtual void add_owned_flow(Executable *e);
 
 private:
+    friend class CanFrameWriteFlow; // accesses the device and the hubport.
+    /// @returns the asynchronous read/write object.
+    CanReadFlow *hub_port()
+    {
+        return hubPort_.get();
+    }
+    /// @returns the device (hub) that we need to send the packets to.
+    CanHubFlow *device()
+    {
+        return device_;
+    }
+
+    /// The device we need to send packets to.
+    CanHubFlow* device_;
+
+    /** Flow responsible for translating from generic packets to CAN hub
+     * packets. */
+    CanFrameWriteFlow frameWriteFlow_;
+
     /// Flow responsible for routing incoming messages to handlers.
     FrameDispatchFlow frameDispatcher_;
 
     /// Handles asynchronous reading and writing from the device.
-    std::unique_ptr<CanReadFlow> pipePort_;
+    std::unique_ptr<CanReadFlow> hubPort_;
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.
      *

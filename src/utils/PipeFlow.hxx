@@ -42,18 +42,32 @@
 class PipeBuffer;
 class PipeMember;
 
+struct CanFrameContainer : public can_frame
+{
+    /** @Returns a mutable pointer to the embedded CAN frame. */
+    struct can_frame *mutable_frame()
+    {
+        return this;
+    }
+    /** @Returns the embedded CAN frame. */
+    const struct can_frame &frame() const
+    {
+        return *this;
+    }
+};
+
 template <class T> class HubContainer : public T
 {
 public:
-    typedef FlowInterface<Buffer<HubContainer<T>>> HubMember;
+    // typedef FlowInterface<Buffer<HubContainer<T>>> HubMember;
     HubContainer() : skipMember_(0)
     {
     }
     typedef uintptr_t id_type;
-    uintptr_t skipMember_;
+    FlowInterface<Buffer<HubContainer<T>>> *skipMember_;
     id_type id()
     {
-        return skipMember_;
+        return reinterpret_cast<uintptr_t>(skipMember_);
     }
 };
 
@@ -71,23 +85,12 @@ typedef HubContainer<string> HubData;
  *
  * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
  */
-class CanHubData : public HubContainer<struct can_frame>
-{
-public:
-    /** @Returns a mutable pointer to the embedded CAN frame. */
-    struct can_frame *mutable_frame()
-    {
-        return this;
-    }
-    /** @Returns the embedded CAN frame. */
-    const struct can_frame &frame() const
-    {
-        return *this;
-    }
-};
+typedef HubContainer<CanFrameContainer> CanHubData;
 
 /** All ports interfacing via a hub will have to derive from this flow. */
+typedef FlowInterface<Buffer<HubData>> HubPortInterface;
 typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
+typedef FlowInterface<Buffer<CanHubData>> CanHubPortInterface;
 typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
 
 // This should work for both 32 and 64-bit architectures.
@@ -102,19 +105,19 @@ public:
         negateMatch_ = true;
     }
 
-    void register_port(HubPort *port)
+    void register_port(HubPortInterface *port)
     {
         register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
     }
 
-    void unregister_port(HubPort *port)
+    void unregister_port(HubPortInterface *port)
     {
         unregister_handler(port, reinterpret_cast<uintptr_t>(port),
                            POINTER_MASK);
     }
 };
 
-/** A generic hub that proxies packets of untyped data. */
+/** A hub that proxies packets of CAN frames. */
 class CanHubFlow : public DispatchFlow<Buffer<CanHubData>, 1>
 {
 public:
@@ -123,12 +126,12 @@ public:
         negateMatch_ = true;
     }
 
-    void register_port(CanHubPort *port)
+    void register_port(CanHubPortInterface *port)
     {
         register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
     }
 
-    void unregister_port(CanHubPort *port)
+    void unregister_port(CanHubPortInterface *port)
     {
         unregister_handler(port, reinterpret_cast<uintptr_t>(port),
                            POINTER_MASK);
