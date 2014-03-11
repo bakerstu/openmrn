@@ -58,147 +58,39 @@ void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
     ifCan_->device()->send(message, priority);
 }
 
-/**
-   This is a control flow running in an infinite loop, reading from the device
-   in an asynchronous way and sending packets to the frame dispatcher.
-
-   Allocation semantics: none. Flow is allocated by the IfCan object, and never
-   terminates.
- */
-class AsyncIfCan::CanReadFlow : public ControlFlow, public PipeMember
+DynamicPool *CanFrameReadFlow::pool()
 {
-public:
-    CanReadFlow(Pipe *pipe, AsyncIfCan *if_can, Executor *e)
-        : ControlFlow(e, nullptr), if_can_(if_can), pipe_(pipe)
-    {
-        StartFlowAt(ST(Terminated));
-        // Ensures that the underlying pipe will read and write whole frames.
-        HASSERT(pipe_->unit() == sizeof(struct can_frame));
-        pipe_->RegisterMember(this);
-    }
+    return ifCan_->dispatcher()->pool();
+}
 
-    ~CanReadFlow()
-    {
-        HASSERT(IsDone());
-        pipe_->UnregisterMember(this);
-    }
-
-    Pipe *parent()
-    {
-        return pipe_;
-    }
-
-    // Callback from the pipe.
-    virtual void write(const void *buf, size_t count)
-    {
-        HASSERT(0);
-    }
-
-    // Callback from the pipe.
-    virtual void async_write(const void *buf, size_t count, Notifiable *done)
-    {
-        HASSERT(IsDone());
-        buf_ = static_cast<const struct can_frame *>(buf);
-        byte_count_ = count;
-        Restart(done);
-        StartFlowAt(ST(next_frame));
-    };
-
-private:
-    ControlFlowAction next_frame()
-    {
-        if (byte_count_ < sizeof(struct can_frame))
-        {
-            return Exit();
-        }
-
-        if (IS_CAN_FRAME_ERR(*buf_) || IS_CAN_FRAME_RTR(*buf_) ||
-            !IS_CAN_FRAME_EFF(*buf_))
-        {
-            // Ignore these frames, read another frame.
-            ++buf_;
-            byte_count_ -= sizeof(*buf_);
-            return RetryCurrentState();
-        }
-
-        return Allocate(if_can_->frame_dispatcher()->allocator(),
-                        ST(handle_dispatcher));
-    }
-
-    ControlFlowAction handle_dispatcher()
-    {
-        // At this point we know that the frame is an extended frame and we
-        // have the dispatcher.
-        AsyncIfCan::FrameDispatchFlow *flow =
-            GetTypedAllocationResult(if_can_->frame_dispatcher()->allocator());
-        struct can_frame *frame = flow->mutable_params();
-        memcpy(frame, buf_, sizeof(*frame));
-        buf_++;
-        byte_count_ -= sizeof(*buf_);
-        uint32_t can_id = GET_CAN_FRAME_ID_EFF(*frame);
-        flow->IncomingMessage(can_id);
-        // Now we abandon the dispatcher flow, which will come back into the
-        // allocator when the message is handled properly.
-        return CallImmediately(ST(next_frame));
-    }
-
-    const struct can_frame *buf_;
-    size_t byte_count_;
-    /// Parent interface. Owned externlly.
-    AsyncIfCan *if_can_;
-    Pipe *pipe_;
-};
-
-class AsyncIfCan::CanWriteFlow : public CanFrameWriteFlow
+void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
-public:
-    CanWriteFlow(AsyncIfCan *parent, Executor *e)
-        : CanFrameWriteFlow(e, nullptr), if_can_(parent)
+    const struct can_frame &frame = message->data()->frame();
+    if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame) ||
+        !IS_CAN_FRAME_EFF(frame))
     {
+        // Ignores these frames.
+        message->unref();
+        return;
     }
 
-    virtual void Send(Notifiable *done)
-    {
-        Restart(done);
-        StartFlowAt(ST(HandleSend));
-    }
+    // We typecast the incoming buffer to a different buffer type that should be
+    // the subset of the data.
+    Buffer<CanMessageData> *incoming_buffer;
 
-    virtual void Cancel()
-    {
-        ResetFrameEff();
-        if_can_->write_allocator()->Release(this);
-    }
+    // Checks that it fits.
+    HASSERT(sizeof(*incoming_buffer) <= sizeof(*message));
+    // Does the cast.
+    incoming_buffer = static_cast<Buffer<CanMessageData> *>(
+        static_cast<BufferBase *>(message));
+    // Checks that the frame is still in the same place (by pointer).
+    HASSERT(incoming_buffer->data()->mutable_frame() ==
+            message->data()->mutable_frame());
 
-private:
-    ControlFlowAction HandleSend()
-    {
-        PipeBuffer *b = &pipeBuffer_;
-        b->data = &frame_;
-        b->size = sizeof(frame_);
-        b->skipMember = if_can_->pipe_member();
-        b->done = notifiable_.NewCallback(this);
-        if_can_->pipe_member()->parent()->SendBuffer(b);
-        return WaitAndCall(ST(wait_for_sent));
-    }
-
-    ControlFlowAction wait_for_sent()
-    {
-        if (!notifiable_.HasBeenNotified())
-            return WaitForNotification();
-        ResetFrameEff();
-        return CallImmediately(ST(handle_release));
-    }
-
-    ControlFlowAction handle_release()
-    {
-        return ReleaseAndExit(if_can_->write_allocator(), this);
-    }
-
-    PipeBuffer pipeBuffer_;
-    ProxyNotifiable notifiable_;
-    /// Parent interface. Owned externlly.
-    AsyncIfCan *if_can_;
-};
+    /** @TODO(balazs.racz): Figure out what priority the new message should be
+     * at. */
+    ifCan_->dispatcher()->send(incoming_buffer, priority);
+}
 
 /** Specifies how long to wait for a response to an alias mapping enquiry
  * message when trying to send an addressed message to a destination. The final
@@ -570,7 +462,8 @@ AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
     : AsyncIf(executor, local_nodes_count),
       device_(device),
       frameWriteFlow_(this),
-      frame_dispatcher_(this),
+      frameReadFlow_(this),
+      frameDispatcher_(this),
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {
@@ -591,6 +484,7 @@ AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
         owned_flows_.push_back(
             std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
     }
+    device()->register_port(hub_port());
 }
 
 AsyncIfCan::~AsyncIfCan()

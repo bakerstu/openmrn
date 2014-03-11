@@ -7,12 +7,12 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AsyncAliasAllocator.hxx"
+//#include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfCan.hxx"
-#include "nmranet/GlobalEventHandler.hxx"
-#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
-#include "nmranet/NMRAnetAsyncEventHandler.hxx"
-#include "nmranet/NMRAnetWriteFlow.hxx"
+//#include "nmranet/GlobalEventHandler.hxx"
+//#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+//#include "nmranet/NMRAnetAsyncEventHandler.hxx"
+//#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
 #include "utils/pipe.hxx"

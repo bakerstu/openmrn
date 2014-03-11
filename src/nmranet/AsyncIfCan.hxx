@@ -135,6 +135,8 @@ private:
     AsyncIfCan *ifCan_;
 };
 
+/** This flow is responsible for taking data from the can HUB and sending it to
+ * the IfCan's dispatcher. */
 class CanFrameReadFlow : public OutgoingFrameHandler
 {
 public:
@@ -228,7 +230,7 @@ private:
     /// @returns the asynchronous read/write object.
     CanReadFlow *hub_port()
     {
-        return hubPort_.get();
+        return &frameReadFlow_;
     }
     /// @returns the device (hub) that we need to send the packets to.
     CanHubFlow *device()
@@ -239,15 +241,15 @@ private:
     /// The device we need to send packets to.
     CanHubFlow* device_;
 
-    /** Flow responsible for translating from generic packets to CAN hub
-     * packets. */
+    /** Flow responsible for writing packets to the CAN hub. */
     CanFrameWriteFlow frameWriteFlow_;
+
+    /** Flow responsible for translating from CAN hub packets to dispatcher
+     * packets. */
+    CanFrameReadFlow frameReadFlow_;
 
     /// Flow responsible for routing incoming messages to handlers.
     FrameDispatchFlow frameDispatcher_;
-
-    /// Handles asynchronous reading and writing from the device.
-    std::unique_ptr<CanReadFlow> hubPort_;
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.
      *
@@ -262,13 +264,6 @@ private:
 
     /// Various implementation control flows that this interface owns.
     std::vector<std::unique_ptr<Executable>> ownedFlows_;
-
-    /** Allocator that holds (and mutex-controls) the frame write flow.
-     *
-     *  It is important that this allocator be destructed before the
-     *  owned_flows_.
-     */
-    TypedAllocator<CanFrameWriteFlow> write_allocator_;
 
     /// Owns the alias allocator module.
     std::unique_ptr<AsyncAliasAllocator> aliasAllocator_;
