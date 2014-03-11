@@ -145,9 +145,9 @@ TEST_F(DispatcherTest, TestCreateDestroyEmptyRun)
 TEST_F(DispatcherTest, TestAddAndNotCall)
 {
     StrictMock<MockCanMessageHandler> h1;
-    f_.register_handler(1, 0x1FFFFFFFUL, &h1);
-    f_.unregister_handler(1, 0x1FFFFFFFUL, &h1);
-    f_.register_handler(1, 0x1FFFFFFFUL, &h1);
+    f_.register_handler(&h1, 1, 0x1FFFFFFFUL);
+    f_.unregister_handler(&h1, 1, 0x1FFFFFFFUL);
+    f_.register_handler(&h1, 1, 0x1FFFFFFFUL);
 
     send_message(0);
 }
@@ -155,7 +155,7 @@ TEST_F(DispatcherTest, TestAddAndNotCall)
 TEST_F(DispatcherTest, TestAddAndCall)
 {
     StrictMock<MockCanMessageHandler> h1;
-    f_.register_handler(1, 0x1FFFFFFFUL, &h1);
+    f_.register_handler(&h1, 1, 0x1FFFFFFFUL);
 
     EXPECT_CALL(h1, handle_message(1, 0));
 
@@ -166,7 +166,7 @@ TEST_F(DispatcherTest, TestAddAndCall)
 TEST_F(DispatcherTest, TestCallWithMask)
 {
     StrictMock<MockCanMessageHandler> h1;
-    f_.register_handler(1, 0xFFUL, &h1);
+    f_.register_handler(&h1, 1, 0xFFUL);
 
     EXPECT_CALL(h1, handle_message(257, _));
 
@@ -178,11 +178,11 @@ TEST_F(DispatcherTest, TestCallWithMask)
 TEST_F(DispatcherTest, TestMultiplehandlers)
 {
     StrictMock<MockCanMessageHandler> h1;
-    f_.register_handler(1, 0xFFUL, &h1);
+    f_.register_handler(&h1, 1, 0xFFUL);
     StrictMock<MockCanMessageHandler> h2;
-    f_.register_handler(257, 0x1FFFFFFFUL, &h2);
+    f_.register_handler(&h2, 257, 0x1FFFFFFFUL);
     StrictMock<MockCanMessageHandler> h3;
-    f_.register_handler(2, 0xFFUL, &h3);
+    f_.register_handler(&h3, 2, 0xFFUL);
 
     EXPECT_CALL(h1, handle_message(_, _)).Times(2);
     EXPECT_CALL(h2, handle_message(_, _)).Times(1);
@@ -225,7 +225,7 @@ TEST_F(DispatcherTest, TestMultiplehandlers)
 TEST_F(DispatcherTest, TestParams)
 {
     StrictMock<MockCanFrameHandler> h1;
-    f_.register_handler(17, 0x1FFFFFFFUL, &h1);
+    f_.register_handler(&h1, 17, 0x1FFFFFFFUL);
 
     CanMessage* m;
     mainBufferPool->alloc(&m);
@@ -241,7 +241,7 @@ TEST_F(DispatcherTest, TestParams)
 TEST_F(DispatcherTest, TestUnregister)
 {
     StrictMock<MockCanMessageHandler> h1;
-    f_.register_handler(1, 0xFFUL, &h1);
+    f_.register_handler(&h1, 1, 0xFFUL);
 
     EXPECT_CALL(h1, handle_message(1, _));
     EXPECT_CALL(h1, handle_message(257, _));
@@ -250,7 +250,7 @@ TEST_F(DispatcherTest, TestUnregister)
     send_message(1);
     wait();
 
-    f_.unregister_handler(1, 0xFFUL, &h1);
+    f_.unregister_handler(&h1, 1, 0xFFUL);
     send_message(1);
 
     wait();

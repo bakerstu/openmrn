@@ -80,10 +80,10 @@ public:
        @param handler is the flow to forward message to. It must stay alive so
        long as *this is alive or the handler is removed.
      */
-    void register_handler(ID id, ID mask, HandlerType *handler);
+    void register_handler(HandlerType *handler, ID id, ID mask);
 
     //! Removes a specific instance of a handler from this dispatcher.
-    void unregister_handler(ID id, ID mask, HandlerType *handler);
+    void unregister_handler(HandlerType *handler, ID id, ID mask);
 
 protected:
     typedef typename StateFlow<MessageType, QList<NUM_PRIO>>::Callback Callback;
@@ -95,17 +95,16 @@ protected:
 
     STATE_FLOW_STATE(entry);
 
-/*    Action entry()
-    {
-        currentIndex_ = 0;
-        lastHandlerToCall_ = nullptr;
-        return call_immediately(STATE(iterate));
-        }*/
-
+    /*    Action entry()
+        {
+            currentIndex_ = 0;
+            lastHandlerToCall_ = nullptr;
+            return call_immediately(STATE(iterate));
+            }*/
 
     STATE_FLOW_STATE(iterate);
     STATE_FLOW_STATE(iteration_done);
-    //STATE_FLOW_STATE(handle_call);
+    // STATE_FLOW_STATE(handle_call);
 
 private:
     // true if this flow should negate the match condition.
@@ -154,8 +153,8 @@ DispatchFlow<MessageType, NUM_PRIO>::~DispatchFlow()
 }
 
 template <class MessageType, int NUM_PRIO>
-void DispatchFlow<MessageType, NUM_PRIO>::register_handler(ID id, ID mask,
-                                                           HandlerType *handler)
+void DispatchFlow<MessageType, NUM_PRIO>::register_handler(HandlerType *handler,
+                                                           ID id, ID mask)
 {
     OSMutexLock h(&lock_);
     size_t idx = 0;
@@ -174,8 +173,8 @@ void DispatchFlow<MessageType, NUM_PRIO>::register_handler(ID id, ID mask,
 
 template <class MessageType, int NUM_PRIO>
 void
-DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(ID id, ID mask,
-                                                        HandlerType *handler)
+DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(HandlerType *handler,
+                                                        ID id, ID mask)
 {
     OSMutexLock h(&lock_);
     /// @todo(balazs.racz) optimize by looking at the current index - 1.
@@ -243,9 +242,10 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
     }
     // Now: we have at least two different handler. We need to clone the
     // message.
-    MessageType* copy;
+    MessageType *copy;
     /// @todo(balazs.racz) make this asynchronous.
     /// @todo(balazs.racz) make user specify the buffer pool for cloning.
+    /// @todo(balazs.racz) set the proxied notifiable.
     mainBufferPool->alloc(&copy);
     *copy->data() = *message()->data();
     lastHandlerToCall_->send(copy);
