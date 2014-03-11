@@ -394,6 +394,10 @@ private:
 template <class MessageType> class FlowInterface
 {
 public:
+    /** @returns the buffer pool to use for sending messages to this flow. This
+     * is to be used as a hint, the caller is allowed to send buffers from
+     * different source. */
+    virtual Pool* pool() { return mainBufferPool; }
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 };
 

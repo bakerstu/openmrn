@@ -41,6 +41,7 @@
 
 class Notifiable;
 
+/** @todo(balazs.racz) I think this class should be deleted. */
 class AsyncPipeMember : public PipeMember
 {
 public:

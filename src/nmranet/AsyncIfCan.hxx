@@ -39,16 +39,65 @@
 
 #include "nmranet/AsyncIf.hxx"
 #include "nmranet/NMRAnetIf.hxx"
-#include "nmranet/ReadDispatch.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet_can.h"
 #include "utils/BufferQueue.hxx"
-#include "utils/async_pipe_member.hxx"
-
-class Pipe;
+#include "utils/PipeFlow.hxx"
 
 namespace NMRAnet
 {
+
+/** Thin wrapper around struct can_frame that will allow a dispatcher select
+ * the frames by CAN ID and mask as desired by the handlers. */
+struct CanMessageData : public can_frame
+{
+    /** Constructor. Resets the inlined frame to an empty extended frame. */
+    CanMessageData()
+    {
+        CLR_CAN_FRAME_ERR(*this);
+        CLR_CAN_FRAME_RTR(*this);
+        SET_CAN_FRAME_EFF(*this);
+        can_dlc = 0;
+    }
+
+    typedef uint32_t id_type;
+
+    /** This bit will be set in standard CAN frames when they get to the
+        dispatcher. */ static const id_type
+    STANDARD_FRAME_BIT = (1U << 30);
+
+    /** Filter to OR onto a can ID to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_EXT_FRAME_FILTER = 0;
+    /** Mask to OR onto a can mask to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_EXT_FRAME_MASK = ~0x1FFFFFFFU;
+
+    /** @returns the identifier for dispatching */
+    id_type id()
+    {
+        if (IS_CAN_FRAME_EFF(*this))
+        {
+            return GET_CAN_FRAME_ID_EFF(*this);
+        }
+        else
+        {
+            return GET_CAN_FRAME_ID(*this) | STANDARD_FRAME_BIT;
+        }
+    }
+
+    /** @Returns a mutable pointer to the embedded CAN frame. */
+    struct can_frame *mutable_frame()
+    {
+        return this;
+    }
+
+    /** @Returns the embedded CAN frame. */
+    const struct can_frame &frame() const
+    {
+        return *this;
+    }
+};
 
 /** Counts the number of alias conflicts that we see for aliases that we
  * already reserved. */
@@ -56,7 +105,7 @@ extern size_t g_alias_use_conflicts;
 
 class AsyncAliasAllocator;
 
-typedef ParamHandler<struct can_frame> IncomingFrameHandler;
+typedef FlowInterface<CanMessageData> IncomingFrameHandler;
 
 /** Interface class for the asynchronous frame write flow. This flow allows you
     to write frames to the CAN bus.
@@ -74,13 +123,13 @@ typedef ParamHandler<struct can_frame> IncomingFrameHandler;
 class CanFrameWriteFlow : public ControlFlow
 {
 public:
-    CanFrameWriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done)
+    CanFrameWriteFlow(Executor *e, Notifiable *done) : ControlFlow(e, done)
     {
         ResetFrameEff();
     }
 
     /// @returns the frame buffer to be filled.
-    struct can_frame* mutable_frame()
+    struct can_frame *mutable_frame()
     {
         return &frame_;
     }
@@ -91,7 +140,7 @@ public:
      *  @param done will be notified, when the frame was successfully
      *  enqueued. In most cases it can be set to NULL.
      */
-    virtual void Send(Notifiable* done) = 0;
+    virtual void Send(Notifiable *done) = 0;
 
     /** Releases this frame buffer without sending of anything to the bus. Takes
      *  ownership of *this and returns it to the allocator.
@@ -116,13 +165,6 @@ class AsyncIfCan : public AsyncIf
 public:
     typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
 
-    /** Filter to OR onto a can ID to tell the dispatcher to only consider
-     * extended can frames. */
-    static const uint32_t CAN_EXT_FRAME_FILTER = 0;
-    /** Mask to OR onto a can mask to tell the dispatcher to only consider
-     * extended can frames. */
-    static const uint32_t CAN_EXT_FRAME_MASK = ~0x1FFFFFFFU;
-
     /**
      * Creates a CAN interface.
      *
@@ -146,7 +188,7 @@ public:
      * for global unaddressed messages (each with one MTI/message) should we
      * have.
      */
-    AsyncIfCan(Executor* executor, Pipe* device, int local_alias_cache_size,
+    AsyncIfCan(Executor *executor, Pipe *device, int local_alias_cache_size,
                int remote_alias_cache_size, int hw_write_flow_count,
                int global_can_write_flow_count, int local_nodes_count);
 
@@ -160,13 +202,13 @@ public:
     void add_addressed_message_support(int num_write_flows);
 
     //! @returns the dispatcher of incoming CAN frames.
-    FrameDispatchFlow* frame_dispatcher()
+    FrameDispatchFlow *frame_dispatcher()
     {
         return &frame_dispatcher_;
     }
 
     //! @returns the allocator for the *can frame* write flow.
-    TypedAllocator<CanFrameWriteFlow>* write_allocator()
+    TypedAllocator<CanFrameWriteFlow> *write_allocator()
     {
         HASSERT(write_allocator_.has_ever_seen_free_entries());
         return &write_allocator_;
@@ -178,33 +220,34 @@ public:
     class CanWriteFlow;
 
     //! @returns the asynchronous read/write object.
-    CanReadFlow* pipe_member()
+    CanReadFlow *pipe_member()
     {
         return pipe_member_.get();
     }
 
     //! @returns the alias cache for local nodes (vnodes and proxies)
-    AliasCache* local_aliases()
+    AliasCache *local_aliases()
     {
         return &localAliases_;
     }
 
     //! @returns the alias cache for remote nodes on this IF
-    AliasCache* remote_aliases()
+    AliasCache *remote_aliases()
     {
         return &remoteAliases_;
     }
 
     //! @returns the alias cache for remote nodes on this IF
-    AsyncAliasAllocator* alias_allocator()
+    AsyncAliasAllocator *alias_allocator()
     {
         return aliasAllocator_.get();
     }
 
     //! Sets the alias allocator for this If. Takes ownership of pointer.
-    void set_alias_allocator(AsyncAliasAllocator* a);
+    void set_alias_allocator(AsyncAliasAllocator *a);
 
-    virtual void add_owned_flow(Executable* e);
+    virtual void add_owned_flow(Executable *e);
+
 private:
     //! Flow responsible for routing incoming messages to handlers.
     FrameDispatchFlow frame_dispatcher_;
