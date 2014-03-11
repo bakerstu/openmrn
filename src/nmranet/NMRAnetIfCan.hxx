@@ -37,7 +37,6 @@
 #include <fcntl.h>
 #include <new>
 
-#include "executor/Allocator.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
@@ -50,54 +49,6 @@ namespace NMRAnet
 
 class IfCan;
 
-/** Implement the Datagram Service singleton */
-class IfCanWriteService : public Service
-{
-private:
-    /** Message ID's that we can receive */
-    enum MessageId
-    {
-        MSG_WRITE = NMRANET_IF_CAN_BASE + 10,
-    };
-    
-    /** Constructor.
-     */
-    IfCanWriteService(IfCan *if_can)
-        : Service(new Executor<5>("", 0, 512)),
-          sendFlow(this),
-          frameFlow(this),
-          ifCan(if_can)
-    {
-    }
-    
-    /** Destructor.
-     */
-    ~IfCanWriteService()
-    {
-    }
-    
-    /** Translate an incoming Message ID into a StateFlow instance.
-     * @param id itentifier to translate
-     * @return StateFlow corresponding the given ID, NULL if not found
-     */
-    StateFlowBase *lookup(uint32_t id);
-    
-    
-    STATE_FLOW_START(SendFlow, 5)
-    STATE_FLOW_END()
-    
-    STATE_FLOW_START(FrameFlow, 1)
-    STATE_FLOW_END()
-    
-    SendFlow sendFlow;
-    
-    FrameFlow frameFlow;
-    
-    /** CAN interface we are bound to */
-    IfCan *ifCan;
-    
-    friend class IfCan;
-};
 
 /** The generic interface for NMRAnet network interfaces
  */
@@ -129,52 +80,7 @@ protected:
     {
     }
 
-    /** Translate an incoming Message ID into a StateFlow instance.
-     * @param id itentifier to translate
-     * @return StateFlow corresponding the given ID, NULL if not found
-     */
-    StateFlowBase *lookup(uint32_t id)
-    {
-        switch (id)
-        {
-            default:
-                return If::lookup(id);
-            case READ_FRAME:
-                return &canReadFlow;
-            case If::SEND:
-                return NULL;
-        }
-    }
-
 private:
-    /* Handle incoming CAN frames.
-     */
-    STATE_FLOW_START(CanReadFlow, 4)
-    STATE_FLOW_STATE(ccr_cid_frame)
-    STATE_FLOW_STATE(ccr_rid_frame)
-    STATE_FLOW_STATE(ccr_amd_frame)
-    STATE_FLOW_STATE(ccr_ame_frame)
-    STATE_FLOW_STATE(ccr_amr_frame)
-    STATE_FLOW_STATE(global_addressed)
-    STATE_FLOW_STATE(addressed)
-    STATE_FLOW_STATE(datagram)
-    STATE_FLOW_STATE(stream)
-    STATE_FLOW_STATE(write_frame_and_exit)
-    STATE_FLOW_END()
-    
-    STATE_FLOW_START(SendFlow, 4)
-    STATE_FLOW_END()
-    
-    //STATE_FLOW_START(FindAlias, 1)
-    //STATE_FLOW_END()
-    
-    CanReadFlow canReadFlow;
-    SendFlow sendFlow;
-    //FindAlias findAlias;
-    
-    //Message *findAliasList;
-
-    Allocator<Message> writeCanFrame;
 
     /** Status value for an alias pool item.
      */
@@ -538,167 +444,6 @@ private:
         return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
     }
 
-    /** Write a message onto the CAN bus.
-     * @param mti Message Type Indicator
-     * @param src source node ID, 0 if unavailable
-     * @param dst destination node ID, 0 if unavailable
-     * @param data NMRAnet packet data
-     * @return 0 upon success
-     */
-    int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
-    {
-        mutex.lock();
-        int result = if_write_locked(mti, src, dst, data);
-        mutex.unlock();
-        return result;
-    }
-
-    /** Write a message onto the CAN bus.  The interface mutex should already
-     * be locked.
-     * @param mti Message Type Indicator
-     * @param src source node ID, 0 if unavailable
-     * @param dst destination node ID, 0 if unavailable
-     * @param data NMRAnet packet data
-     * @return 0 upon success
-     */
-    int if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data);
-
-    /** Entry point of thread for reading the data from the interface.
-     * @param data pointer to an IfCan instance
-     * @return NULL, should never return
-     */
-    static void *read_thread_entry(void *data)
-    {
-        IfCan *if_can = (IfCan*)data;
-        
-        return if_can->read_thread(data);
-    }
-
-    /** Thread for reading the data from the interface in proper context.
-     * @param data pointer to an IfCan instance
-     * @return NULL, should never return
-     */
-    void *read_thread(void *data);
-
-    /** Setup the relationship between an alias and a downstream node.  This method
-     * must always be called with the mutex locked.
-     * @param node_id Node ID
-     * @return assigned alias
-     */
-    NodeAlias upstream_alias_setup(NodeID node_id);
-    
-    /** Decode global or addressed can frame.
-     * @param can_id can identifier
-     * @param dlc data length code
-     * @param data pointer to up to 8 bytes of data
-     */
-    void global_addressed(uint32_t can_id, uint8_t dlc, uint8_t *data);
-
-    /** Send a datagram error from the receiver to the sender.
-     * @param src source alias to send message from
-     * @param dst destination alias to send message to
-     * @param error_code error value to send
-     */
-    void datagram_rejected(NodeAlias src, NodeAlias dst, int error_code);
-
-    /** This is the timeout for giving up an incoming multi-frame datagram.
-     * @param data a @ref Buffer reference typecast to void*
-     * @return OS_TIMER_NONE
-     */
-    long long datagram_timeout(void *data);
-
-    /** This is the timeout for giving up an incoming multi-frame addressed messages.
-     * @param data a @ref Buffer reference typecast to void*
-     * @return OS_TIMER_NONE
-     */
-    long long addressed_timeout(void *data);
-
-    /** Helper that can init an addressed timer in the proper context.
-     * @param timer location to initialize the timer in place
-     * @param data user data to pass to timeout
-     */
-    void addressed_timer_init(Timer *timer, void *data)
-    {
-        new (timer) Timer(TIMEOUT(addressed_timeout), this, data);
-    }
-
-    /** Decode datagram can frame.
-     * @param can_id can identifier
-     * @param dlc data length code
-     * @param data pointer to up to 8 bytes of data
-     */
-    void datagram(uint32_t can_id, uint8_t dlc, uint8_t *data);
-
-    /** Decode stream can frame.
-     * @param can_id can identifier
-     * @param dlc data length code
-     * @param data pointer to up to 8 bytes of data
-     */
-    void stream(uint32_t can_id, uint8_t dlc, uint8_t *data);
-
-    /** Test to see if the alias is in conflict with an alias we are using.
-     * @param alias alias to look for conflict with
-     * @param release true if we should release the alias if we have it reserved
-     * @return false if no conflict found, else true
-     */
-    bool alias_conflict(NodeAlias alias, bool release);
-
-    /** Put out a claim on an alias.  The alias mutex should be locked during this
-     * call.
-     * @param node_id node id that is making the claim
-     * @param alias alias that node is claiming
-     * @param entry entry within the pool to use for claim.
-     */
-    void claim_alias(NodeID node_id, NodeAlias alias, Pool *entry);
-
-    /** Callback that is called when an upstream alias is kicked out of the cache.
-     * @param id 48-bit NMRAnet Node ID
-     * @param alias node alias
-     * @param context pointer to an interface instance
-     */
-    static void upstream_alias_removed(NodeID id, NodeAlias alias, void *context);
-    
-    /** Decode Check ID CAN control frame.
-     * @param ccr CAN control frame
-     */
-    void ccr_cid_frame(uint32_t ccr);
-
-    /** Decode Reserve ID CAN control frame.
-     * @param ccr CAN control frame
-     */
-    void ccr_rid_frame(uint32_t ccr)
-    {
-        /* someone just reserved this alias.  Kick it out of our cache if we
-         * reserved it in the past.  This should never happen, we should catch
-         * it before now.
-         */
-        alias_conflict(get_control_src(ccr), 1);
-    }
-
-    /** Decode Alias Map Definition CAN control frame.
-     * @param ccr CAN control frame
-     * @param data frame data representing the full 48-bit Node ID
-     */
-    void ccr_amd_frame(uint32_t ccr, uint8_t data[]);
-
-    /** Decode Alias Map Enquiry CAN control frame.
-     * @param ccr CAN control frame
-     * @param data frame data representing the full 48-bit Node ID
-     */
-    void ccr_ame_frame(uint32_t ccr, uint8_t data[]);
-
-    /** Send an AMD frame for a given Node ID and Alias pair.
-     * @param data context pointer
-     * @param id Node ID
-     * @param alias Node Alias
-     */
-    static void send_amd_frame(void *data, NodeID id, NodeAlias alias);
-
-    /** Decode Alias Map Reset CAN control frame.
-     * @param ccr CAN control frame
-     * @param data frame data representing the full 48-bit Node ID
-     */
-    void ccr_amr_frame(uint32_t ccr, uint8_t data[]);
 
     ssize_t (*read)(int, void*, size_t); /**< read method for device */
     ssize_t (*write)(int, const void*, size_t); /**< write method for device */
@@ -718,82 +463,6 @@ private:
     /** Transition to link down state.
      */
     void link_down();
-
-    /** Structure for buffering an addressed write until we can lookup its alias.
-     */
-    class WriteBuffer
-    {
-    public:
-        /** Constructor.
-         * @param if_can parent instance of IfCan
-         */
-        WriteBuffer(IfCan *if_can)
-            : src(0),
-              dst({0,0}),
-              data(NULL),
-              mti(MTI_NONE),
-              timer(timeout, if_can, this)
-        {
-        }
-        
-        /** Buffer a rite message on the CAN bus waiting for its alias mapping.
-         * @param m Message Type Indicator
-         * @param s source node ID, 0 if unavailable
-         * @param d destination node ID, 0 if unavailable
-         * @param b NMRAnet packet data
-         * @return 0 upon success
-         */
-        void setup(MTI m, NodeID s, NodeHandle d, Buffer *b)
-        {
-            src = s;
-            dst = d;
-            data = b;
-            mti = m;
-            timer.start(WRITE_BUFFER_TIMEOUT);
-        }
-        
-        /** Release the buffer from use.
-         */
-        void release()
-        {
-            mti = MTI_NONE;
-        }
-        
-        /** Test if the buffer is in use.
-         * @return true if in use, else false
-         */
-        bool in_use()
-        {
-            return (mti != 0);
-        }
-
-        /** This is the timeout for giving up on an outstanding Node ID to alias
-         * mapping request.
-         * @param data1 a @ref IfCan* typecast to a void*
-         * @param data2 a @ref WriteBuffer* typecast to a void*
-         * @return OS_TIMER_NONE
-         */
-        static long long timeout(void *data1, void *data2)
-        {
-            IfCan       *if_can = (IfCan*)data1;
-            WriteBuffer *me     = (WriteBuffer*)data2;
-
-            /** @todo currently we fail silently, should we throw an error? */
-            if_can->mutex.lock();
-            me->release();
-            if_can->mutex.unlock();
-            return OS_TIMER_NONE;
-        }
-
-        NodeID src;     /**< source node ID */
-        NodeHandle dst; /**< destination node ID and/or alias */
-        Buffer *data;   /**< message data */
-        MTI mti;        /**< MTI value, 0 if buffer not in use */
-        OSTimer timer;  /**< timeout on error */
-
-        /** we need to be friends with IfCan in order to access its mutex */
-        friend class IfCan;
-    };
     
     // These classes use the private enums for message field parsing.
     friend class AddressedCanMessageWriteFlow;
@@ -804,8 +473,6 @@ private:
     friend class CanMessageWriteFlow;
     friend class FrameToAddressedMessageParser;
     friend class FrameToGlobalMessageParser;
-    friend class IfCanWriteService;
-    friend class IfCanWriteService::SendFlow;
 
     /** Maximum number of multi-frame addressed messages we can track in flight */
     static const size_t MAX_IN_FLIGHT_MULTI_FRAME;
@@ -814,9 +481,6 @@ private:
      * interface
      */
     int fd;
-
-    /** single buffer to hold write data while we determine the proper alias */
-    WriteBuffer writeBuffer;
 
     /** Array of Pool entries for pre-allocated aliases */
     Pool *pool;
@@ -833,17 +497,8 @@ private:
     /** current link status */
     LinkStatus linkStatus;
 
-    /** Datagram pool */
-    FixedPool<Buffer> datagramPool;
-
-    /** Short hand for the uint64_t/void* Map type */
-    typedef Map <uint64_t, Buffer*> DatagramMap;
-
     /** Short hand for the uint64_t/void* Map type */
     typedef Map <uint64_t, Message*> MultiFrameMap;
-
-    /** Mapping for tracking datagrams that are in flight */
-    DatagramMap datagramMap;
 
     /** Mapping for tracking multi-frame addressed messages that are in flight */
     MultiFrameMap multiFrameMap;
@@ -851,8 +506,6 @@ private:
     /** number of multi-frame message in flight */
     size_t multiFrameInFlight;
 
-    IfCanWriteService writeService;
-    
     DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 

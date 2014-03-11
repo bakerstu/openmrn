@@ -37,7 +37,7 @@
 namespace NMRAnet
 {
 
-Buffer *node_id_to_buffer(NodeID id)
+/*Buffer *node_id_to_buffer(NodeID id)
 {
     Buffer *ret = buffer_alloc(6);
     id = htobe64(id);
@@ -54,10 +54,10 @@ NodeID buffer_to_node_id(Buffer *buf)
     uint64_t d = 0;
     memcpy(reinterpret_cast<uint8_t *>(&d) + 2, buf->start(), 6);
     return be64toh(d);
-}
+    }*/
 
 /// @TODO(balazs.racz): make the map size parametrizable.
-AsyncIf::AsyncIf(Executor *executor, int local_nodes_count)
+AsyncIf::AsyncIf(ExecutorBase *executor, int local_nodes_count)
     : Service(executor),
       globalWriteFlow_(nullptr),
       addressedWriteFlow_(nullptr),

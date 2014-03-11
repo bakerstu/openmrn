@@ -7,7 +7,7 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-//#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfCan.hxx"
 //#include "nmranet/GlobalEventHandler.hxx"
 //#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
@@ -15,7 +15,6 @@
 //#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/gc_pipe.hxx"
-#include "utils/pipe.hxx"
 #include "utils/test_main.hxx"
 
 using ::testing::AtLeast;
@@ -46,7 +45,7 @@ GCAdapterBase *g_gc_adapter = nullptr;
 class MockSend : public HubPort
 {
 public:
-    MockPipeMember() : HubPort(&g_service)
+    MockSend() : HubPort(&g_service)
     {
     }
 
@@ -63,6 +62,7 @@ public:
 namespace NMRAnet
 {
 
+/*
 const char *Node::MANUFACTURER = "Stuart W. Baker";
 const char *Node::HARDWARE_REV = "N/A";
 const char *Node::SOFTWARE_REV = "0.1";
@@ -70,7 +70,7 @@ const char *Node::SOFTWARE_REV = "0.1";
 const size_t Datagram::POOL_SIZE = 10;
 const size_t Datagram::THREAD_STACK_SIZE = 512;
 const size_t Stream::CHANNELS_PER_NODE = 10;
-const uint16_t Stream::MAX_BUFFER_SIZE = 512;
+const uint16_t Stream::MAX_BUFFER_SIZE = 512;*/
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
@@ -104,7 +104,7 @@ protected:
     AsyncIfTest()
     {
         gc_hub0.register_port(&canBus_);
-        ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 1, 1, 5));
+        ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 5));
         ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
@@ -122,24 +122,27 @@ protected:
      *  alias. */
     void create_allocated_alias()
     {
-        ifCan_->set_alias_allocator(
+        HASSERT(0);
+        /*ifCan_->set_alias_allocator(
             new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
         testAlias_.alias = 0x33A;
         testAlias_.state = AliasInfo::STATE_RESERVED;
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                      testAlias_.alias);
-        ifCan_->alias_allocator()->reserved_aliases()->Release(&testAlias_);
+                                     ifCan_->alias_allocator()->reserved_aliases()->Release(&testAlias_);*/
         aliasSeed_ = 0x44C;
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)
     {
+        HASSERT(0);
+        /*
         if (!a)
         {
             ifCan_->alias_allocator()->seed_ = aliasSeed_;
             a = aliasSeed_;
             aliasSeed_++;
-        }
+            }*/
         EXPECT_CALL(canBus_, mwrite(StringPrintf(":X17020%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
@@ -204,7 +207,7 @@ protected:
     void send_packet(const string &gc_packet)
     {
         Buffer<HubData>* packet;
-        mainBufferPool.alloc(&packet);
+        mainBufferPool->alloc(&packet);
         packet->data()->assign(gc_packet);
         packet->data()->skipMember_ = &canBus_;
         gc_hub0.send(packet);

@@ -2,11 +2,13 @@ VPATH := $(SRCDIR)
 
 CSRCS += 
 
-CXXSRCS += 
+CXXSRCS += \
+           NMRAnetAliasCache.cxx \
+           AsyncIfCan.cxx \
+           AsyncIf.cxx \
 
 
 DEAD_CXX +=  \
-           NMRAnetAliasCache.cxx \
            NMRAnet.cxx \
            NMRAnetDatagram.cxx \
            NMRAnetIfCan.cxx \

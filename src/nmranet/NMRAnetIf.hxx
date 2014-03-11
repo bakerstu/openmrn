@@ -69,15 +69,12 @@ struct NodeHandle
 
 /** The generic interface for NMRAnet network interfaces
  */
-class If : public Service
+class If
 {
 public:
     /** Constructor.
      */
-    If(NodeID node_id)
-        : Service(nmranetExecutor),
-          nodeID(node_id),
-          receiveFlow(this)
+    If()
     {
     }
 
@@ -157,56 +154,11 @@ public:
         DOWN /**< link is down and unable to transmit */
     };
     
-    /** Write a message onto the interface.
-     * @param mti Message Type Indicator
-     * @param src source node ID, 0 if unavailable
-     * @param dst destination node ID, 0 if unavailable
-     * @param data NMRAnet packet data
-     * @return 0 upon success
-     */
-    virtual int if_write(MTI mti, NodeID src, NodeHandle dst, Buffer *data) = 0;
-
-    /** Process receive data.
-     * @param mti Message Type Indicator
-     * @param src source node ID, 0 if unavailable
-     * @param dst destination node ID, 0 if unavailable
-     * @param data NMRAnet packet data
-     */
-    void rx_data(MTI mti, NodeHandle src, NodeID dst, Buffer *data);
-    
     /** Can be used by the application to determine if the link is up or down.
      * @return current link status
      */
     virtual LinkStatus link_status() = 0;
 
-    /** Message ID's that we can receive */
-    enum MessageId
-    {
-        RECEIVE = NMRANET_IF_BASE,
-        SEND
-    };
-
-    /** Message structure for an incoming NMRAnet Message
-     */
-    struct InMessage
-    {
-        Buffer *data; /** message payload */
-        NodeID dst; /**< destination Node ID, 0 if unavailable */
-        NodeHandle src; /**< source node ID, 0 if unavailable */
-        MTI mti; /**< message type identifier */
-    };
-    
-    /** Message structure for an incoming NMRAnet Message
-     */
-    struct OutMessage
-    {
-        NodeID src; /**< destination Node ID, 0 if unavailable */
-        NodeHandle dst; /**< source node ID, 0 if unavailable */
-        MTI mti; /**< message type identifier */
-        uint8_t data[] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__))); /**< message payload */
-    };
-    
-protected:
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from
      * @return true if MTI is an addressed message, else false
@@ -234,36 +186,10 @@ protected:
         return (mti & MTI_PRIORITY_MASK) >> MTI_PRIORITY_SHIFT;
     }
 
-    /** 48-bit NMRAnet node id associated with this interface */
-    NodeID nodeID;
-
-    /** Translate an incoming Message ID into a StateFlow instance.
-     * @param id itentifier to translate
-     * @return StateFlow corresponding the given ID, NULL if not found
-     */
-    virtual StateFlowBase *lookup(uint32_t id)
-    {
-        switch (id)
-        {
-            default:
-                break;
-            case RECEIVE:
-                return &receiveFlow;
-         }
-        return NULL;
-    }
-
     /** Maximum size of a static addressed message payload */
     static const size_t MAX_ADDRESSED_SIZE;
 
 private:
-    /** Handles receiving of incoming messages */
-    STATE_FLOW_START(ReceiveFlow, 4)
-    STATE_FLOW_END()
-    
-    /** State machine instance that handles receiving incoming messages */
-    ReceiveFlow receiveFlow;
-
     DISALLOW_COPY_AND_ASSIGN(If);
 };
 

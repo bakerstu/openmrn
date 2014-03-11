@@ -13,7 +13,7 @@ public:
                  void(struct can_frame *message, unsigned priority));
     virtual void send(Buffer<CanMessageData> *message, unsigned priority)
     {
-        handle_message(message->data->mutable_frame(), priority);
+        handle_message(message->data()->mutable_frame(), priority);
         message->unref();
     }
 };

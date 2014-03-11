@@ -46,7 +46,7 @@ namespace NMRAnet
 extern size_t g_alias_test_conflicts;
 
 /** Information we know locally about an NMRAnet CAN alias. */
-struct AliasInfo : public QueueMember
+struct AliasInfo : public QMember
 {
     AliasInfo() : alias(0), state(STATE_EMPTY)
     {
@@ -72,6 +72,7 @@ struct AliasInfo : public QueueMember
     };
 };
 
+#if 0
 /** This control flow is responsible for reserving node ID aliases.
 
 
@@ -157,6 +158,10 @@ private:
     /// Timer needed for sleeping the control flow.
     SleepData sleep_helper_;
 };
+#else
+    class AsyncAliasAllocator {};
+#endif
+
 }
 
 #endif // _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_

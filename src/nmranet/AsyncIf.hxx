@@ -35,9 +35,14 @@
 #ifndef _NMRAnetAsyncIf_hxx_
 #define _NMRAnetAsyncIf_hxx_
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
+/// @todo(balazs.racz) remove this dep
+#include <string>
+
+//#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/NMRAnetIf.hxx"
-#include "nmranet/ReadDispatch.hxx"
+#include "executor/Dispatcher.hxx"
+#include "executor/Service.hxx"
+#include "executor/Executor.hxx"
 #include "utils/BufferQueue.hxx"
 #include "utils/Map.hxx"
 
@@ -84,7 +89,7 @@ struct NMRAnetMessage
     string payload;
 
     typedef If::MTI id_type;
-    void id() const
+    id_type id() const
     {
         return mti;
     }
@@ -133,6 +138,18 @@ public:
 class AsyncIf : public Service
 {
 public:
+    /** Constructs an NMRAnet interface.
+     * @param executor is the thread that will be used for all processing on
+     * this interface.
+     * @param local_nodes_count is the maximum number of virtual nodes that
+     * this interface will support. */
+    AsyncIf(ExecutorBase *executor, int local_nodes_count);
+
+    /** Destructor */
+    virtual ~AsyncIf()
+    {
+    }
+
     /** @return Flow to send global messages to the NMRAnet bus. */
     MessageHandler *global_message_write_flow()
     {
@@ -146,33 +163,13 @@ public:
         return addressedWriteFlow_;
     }
 
+    /** Type of the dispatcher of incoming NMRAnet messages. */
+    typedef DispatchFlow<Buffer<NMRAnetMessage>, 4> MessageDispatchFlow;
+
     /** @return Dispatcher of incoming NMRAnet messages. */
     MessageDispatchFlow *dispatcher()
     {
         return &dispatcher_;
-    }
-
-    /** Type of the dispatcher of incoming NMRAnet messages. */
-    typedef DispatchFlow<NMRAnetMessage, 4> MessageDispatchFlow;
-
-    /** Constructs an NMRAnet interface.
-     * @param executor is the thread that will be used for all processing on
-     * this interface.
-     * @param local_nodes_count is the maximum number of virtual nodes that
-     * this interface will support. */
-    AsyncIf(Executor *executor, int local_nodes_count);
-
-    /** Destructor */
-    virtual ~AsyncIf()
-    {
-    }
-
-
-    /** Adds @param f to the free addressed write flows. Should be used by If
-     * implementations only. */
-    void add_addressed_write_flow(WriteFlow *f)
-    {
-        addressedWriteAllocator_.ReleaseBack(f);
     }
 
     /** Transfers ownership of a module to the interface. It will be brought
@@ -190,9 +187,10 @@ public:
      */
     void add_local_node(AsyncNode *node)
     {
-        NodeID id = node->node_id();
+        HASSERT(0);
+        /*NodeID id = node->node_id();
         HASSERT(localNodes_.find(id) == localNodes_.end());
-        localNodes_[id] = node;
+        localNodes_[id] = node;*/
     }
 
     /** Removes a local node from this interface. This function must be called
@@ -202,9 +200,11 @@ public:
      */
     void delete_local_node(AsyncNode *node)
     {
+        HASSERT(0);
+        /*
         auto it = localNodes_.find(node->node_id());
         HASSERT(it != localNodes_.end());
-        localNodes_.erase(it);
+        localNodes_.erase(it);*/
     }
 
     /** Looks up a node ID in the local nodes' registry. This function must be

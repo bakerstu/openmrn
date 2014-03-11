@@ -34,12 +34,11 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 
-#include "executor/allocator.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
-#include "nmranet/AsyncIfImpl.hxx"
-#include "nmranet/AsyncIfCanImpl.hxx"
+//#include "nmranet/AsyncIfImpl.hxx"
+//#include "nmranet/AsyncIfCanImpl.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
-#include "nmranet/NMRAnetWriteFlow.hxx"
+//#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_can.h"
 
 namespace NMRAnet
@@ -54,7 +53,7 @@ DynamicPool *CanFrameWriteFlow::pool()
 
 void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
-    message->data()->skipMember = ifCan_->hub_port();
+    message->data()->skipMember_ = ifCan_->hub_port();
     ifCan_->device()->send(message, priority);
 }
 
@@ -89,7 +88,7 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 
     /** @TODO(balazs.racz): Figure out what priority the new message should be
      * at. */
-    ifCan_->dispatcher()->send(incoming_buffer, priority);
+    ifCan_->frame_dispatcher()->send(incoming_buffer, priority);
 }
 
 /** Specifies how long to wait for a response to an alias mapping enquiry
@@ -102,6 +101,7 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
+#if 0
 namespace
 {
 
@@ -455,8 +455,9 @@ private:
     /// Parent interface.
     AsyncIfCan *ifCan_;
 };
+#endif
 
-AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
+AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
     : AsyncIf(executor, local_nodes_count),
@@ -467,7 +468,7 @@ AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {
-    add_owned_flow(new VerifyNodeIdHandler(this));
+    /*add_owned_flow(new VerifyNodeIdHandler(this));
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
@@ -483,8 +484,8 @@ AsyncIfCan::AsyncIfCan(Executor *executor, CanHubFlow *device,
     {
         owned_flows_.push_back(
             std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
-    }
-    device()->register_port(hub_port());
+            }*/
+    this->device()->register_port(hub_port());
 }
 
 AsyncIfCan::~AsyncIfCan()
@@ -493,7 +494,7 @@ AsyncIfCan::~AsyncIfCan()
 
 void AsyncIfCan::add_owned_flow(Executable *e)
 {
-    owned_flows_.push_back(std::unique_ptr<Executable>(e));
+    ownedFlows_.push_back(std::unique_ptr<Executable>(e));
 }
 
 void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
@@ -501,16 +502,16 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
     aliasAllocator_.reset(a);
 }
 
-void AsyncIfCan::add_addressed_message_support(int num_write_flows)
+void AsyncIfCan::add_addressed_message_support()
 {
-    owned_flows_.push_back(
+    /*owned_flows_.push_back(
         std::unique_ptr<Executable>(new FrameToAddressedMessageParser(this)));
     for (int i = 0; i < num_write_flows; ++i)
     {
         auto *f = new AddressedCanMessageWriteFlow(this);
         add_addressed_write_flow(f);
         owned_flows_.push_back(std::unique_ptr<Executable>(f));
-    }
+        }*/
 }
 
 } // namespace NMRAnet

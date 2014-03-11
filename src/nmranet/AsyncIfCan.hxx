@@ -97,6 +97,10 @@ struct CanMessageData : public can_frame
     {
         return *this;
     }
+
+    /* This will be aliased onto CanHubData::skipMember_. It is needed to keep
+     * the two structures the same size for casting between them. */
+    void* unused;
 };
 
 /** @todo(balazs.racz) make these two somehow compatible with each other. It's
@@ -173,7 +177,7 @@ public:
      *
      * @param local_nodes_count is the maximum number of virtual nodes that
      * this interface will support. */
-    AsyncIfCan(Executor *executor, CanHubFlow *device,
+    AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
                int local_alias_cache_size, int remote_alias_cache_size,
                int local_nodes_count);
 
@@ -228,7 +232,7 @@ public:
 private:
     friend class CanFrameWriteFlow; // accesses the device and the hubport.
     /// @returns the asynchronous read/write object.
-    CanReadFlow *hub_port()
+    CanHubPortInterface *hub_port()
     {
         return &frameReadFlow_;
     }
