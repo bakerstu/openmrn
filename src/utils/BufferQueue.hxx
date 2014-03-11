@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -44,18 +44,14 @@
 #include "utils/macros.h"
 #include "utils/Queue.hxx"
 
-
 class DynamicPool;
 class FixedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
 
-
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
-
-
 
 class BufferBase : public QMember
 {
@@ -83,28 +79,24 @@ protected:
     {
         return pool_;
     }
-    
+
     /** size of data in bytes */
     uint16_t size_;
 
     /** number of references in use */
     uint16_t count_;
-    
+
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
-    
+
     Notifiable *done_;
-    
+
     /** Constructor.
      * @param size size of buffer data
      * @param pool pool this buffer belong to
      */
     BufferBase(size_t size, Pool *pool)
-        : QMember(),
-          size_(size),
-          count_(1),
-          pool_(pool),
-          done_(NULL)
+        : QMember(), size_(size), count_(1), pool_(pool), done_(NULL)
     {
     }
 
@@ -137,21 +129,19 @@ public:
     /** Decrement count.
      */
     inline void unref();
-    
+
     /** get a pointer to the start of the data.
      */
     T *data()
     {
         return &data_;
     }
-    
-private:    
+
+private:
     /** Constructor.
      * @param pool pool this buffer belong to
      */
-    Buffer(Pool *pool)
-        : BufferBase(sizeof(Buffer<T>), pool),
-          data_()
+    Buffer(Pool *pool) : BufferBase(sizeof(Buffer<T>), pool), data_()
     {
     }
 
@@ -184,39 +174,34 @@ public:
     {
         /** Defualt Constructor.
          */
-        Result()
-            : item(NULL),
-              index(0)
+        Result() : item(NULL), index(0)
         {
         }
-        
+
         /** Explicit initializer constructor.
          * @param item item presented in result
          * @param index index presented in result
          */
-        Result(QMember *item, unsigned index)
-            : item(item),
-              index(index)
+        Result(QMember *item, unsigned index) : item(item), index(index)
         {
         }
-        
-        
+
         /** Default Destructor.
          */
         ~Result()
         {
         }
-        
-        QMember *item; /**< item pulled from queue */
+
+        QMember *item;  /**< item pulled from queue */
         unsigned index; /**< index of item pulled from queue */
     };
-    
+
     /** Add an item to the back of the queue.
      * @param item to add to queue
      * @param index in the list to operate on
      */
     virtual void insert(QMember *item, unsigned index) = 0;
-    
+
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
@@ -258,7 +243,7 @@ protected:
     QInterface()
     {
     }
-    
+
     /** Default Destructor.
      */
     virtual ~QInterface()
@@ -275,11 +260,7 @@ class Q : public QInterface
 public:
     /** Default Constructor.
      */
-    Q()
-        : QInterface(),
-          head(NULL),
-          tail(NULL),
-          count(0)
+    Q() : QInterface(), head(NULL), tail(NULL), count(0)
     {
     }
 
@@ -328,7 +309,7 @@ public:
             return Result();
         }
         --count;
-        QMember* qm = head;
+        QMember *qm = head;
         head = (qm->next);
 
         return Result(qm, 0);
@@ -367,14 +348,14 @@ public:
     {
         return (head == NULL);
     }
-    
+
 private:
     /** head item in queue */
     QMember *head;
-    
+
     /** tail item in queue */
     QMember *tail;
-    
+
     /** number of items in queue */
     size_t count;
 
@@ -390,9 +371,7 @@ public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QList()
-        : QInterface(),
-          list()
+    QList() : QInterface(), list()
     {
     }
 
@@ -414,7 +393,7 @@ public:
         }
         list[index].insert(item);
     }
-    
+
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
@@ -555,15 +534,13 @@ private:
 
 /** A list of queues.
  */
-template <unsigned items> class QListProtected : public QList <items>
+template <unsigned items> class QListProtected : public QList<items>
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtected()
-        : QList<items>(),
-          mutex()
+    QListProtected() : QList<items>(), mutex()
     {
     }
 
@@ -598,7 +575,7 @@ public:
 
     /** Translate the Result type */
     typedef typename QList<items>::Result Result;
-    
+
     /** Get an item from the front of the queue queue in priority order.
      * @return item retrieved from queue + index, NULL if no item available
      */
@@ -610,7 +587,7 @@ public:
         return result;
     }
 
-private:    
+private:
     /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
      * (smaller) locking mechanism
      */
@@ -622,12 +599,26 @@ private:
 class Pool
 {
 public:
+    /** Cast the result of an asynchronous allocation and perform a placement
+     * new on it.
+     * @param base untyped buffer
+     * @param result pointer to a pointer to the cast result
+     */
+    template <class BufferType>
+    static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
+    {
+        HASSERT(base);
+        HASSERT(sizeof(Buffer<BufferType>) <= base->size());
+        *result = static_cast<Buffer<BufferType> *>(base);
+        /** We assume that the BufferBase has already been initialized before
+         * returned to the asynchronous allocation callback. We only construct
+         * the typed portion here. */
+        new ((*result)->data()) BufferType();
+    }
 
 protected:
     /** Default Constructor */
-    Pool()
-        : mutex(true),
-          totalSize(0)
+    Pool() : mutex(true), totalSize(0)
     {
     }
 
@@ -648,11 +639,11 @@ protected:
 
     /** keep track of total allocated size of memory */
     size_t totalSize;
-    
+
 private:
     /** Allow BufferBase to access this class */
     template <class T> friend class Buffer;
-    
+
     DISALLOW_COPY_AND_ASSIGN(Pool);
 };
 
@@ -665,7 +656,8 @@ public:
     /** Allocate a Bucket array off of the heap initialized with sizes.
      * @param s size of first bucket
      * @param ... '0' terminated list of additional buckets
-     * @todo (Stuart Baker) fix such that sizes do not need to be in strict ascending order
+     * @todo (Stuart Baker) fix such that sizes do not need to be in strict
+     * ascending order
      */
     static Bucket *init(int s, ...)
     {
@@ -674,7 +666,7 @@ public:
         va_copy(aq, ap);
         int count = 1;
         int current = s;
-        
+
         while (current != 0)
         {
             ++count;
@@ -682,8 +674,8 @@ public:
             HASSERT(next > current || next == 0);
             current = next;
         }
-        
-        Bucket *bucket = (Bucket*)malloc(sizeof(Bucket) * count);
+
+        Bucket *bucket = (Bucket *)malloc(sizeof(Bucket) * count);
         Bucket *now = bucket;
 
         for (int i = 0; i < count; ++i)
@@ -691,7 +683,7 @@ public:
             new (now) Bucket(va_arg(aq, int));
             now++;
         }
-        
+
         va_end(aq);
         va_end(ap);
         return bucket;
@@ -704,7 +696,7 @@ public:
     {
         free(bucket);
     }
-    
+
     /** Get the size of the bucket.
      * @return size of bucket
      */
@@ -720,27 +712,24 @@ public:
     {
         return pending_.next().item;
     }
-    
+
 private:
     /** Constructor.
      */
-    Bucket(size_t size)
-        : Q(),
-          size_(size),
-          pending_()
+    Bucket(size_t size) : Q(), size_(size), pending_()
     {
     }
-    
+
     /** Destructor.
      */
     ~Bucket()
     {
     }
-    
+
     size_t size_; /**< size of entry */
 
     /** list of anyone waiting for an item in the bucket */
-    Q pending_;    
+    Q pending_;
 };
 
 /** A specialization of a pool which can allocate new elements dynamically
@@ -752,10 +741,7 @@ public:
     /** Constructor.
      * @param sizes array of bucket sizes for the pool
      */
-    DynamicPool(Bucket sizes[])
-        : Pool(),
-          totalSize(0),
-          buckets(sizes)
+    DynamicPool(Bucket sizes[]) : Pool(), totalSize(0), buckets(sizes)
     {
     }
 
@@ -770,8 +756,8 @@ public:
      * @param flow if !NULL, then the alloc call is considered async and will
      *        behave as if @ref alloc_async() was called.
      */
-    template <class BufferType> void alloc(Buffer<BufferType> **result,
-                                           Executable *flow = NULL)
+    template <class BufferType>
+    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
     {
         *result = NULL;
 
@@ -780,10 +766,11 @@ public:
             if (sizeof(Buffer<BufferType>) <= current->size())
             {
                 mutex.lock();
-                *result = static_cast<Buffer<BufferType>*>(current->next().item);
+                *result =
+                    static_cast<Buffer<BufferType> *>(current->next().item);
                 if (*result == NULL)
                 {
-                    *result = (Buffer<BufferType>*)malloc(current->size());
+                    *result = (Buffer<BufferType> *)malloc(current->size());
                     totalSize += current->size();
                 }
                 new (*result) Buffer<BufferType>(this);
@@ -791,9 +778,9 @@ public:
                 return;
             }
         }
-         
+
         /* big items are just malloc'd freely */
-        *result = (Buffer<BufferType>*)malloc(sizeof(Buffer<BufferType>));
+        *result = (Buffer<BufferType> *)malloc(sizeof(Buffer<BufferType>));
         new (*result) Buffer<BufferType>(this);
         mutex.lock();
         totalSize += sizeof(Buffer<BufferType>);
@@ -806,6 +793,9 @@ public:
     template <class BufferType> void alloc_async(Executable *flow)
     {
         Buffer<BufferType> *buffer;
+        /** @todo(balazs.racz) There is a bug here: this call will call the
+         * constructor, and then the flow will come back to init and we'll cal
+         * the constructor once more. */
         alloc<BufferType>(&buffer);
         /* This pool will malloc indefinitely to create more buffers.
          * We will always have the result.
@@ -813,25 +803,13 @@ public:
         flow->alloc_result(buffer);
     }
 
-    /** Cast the result of an asynchronous allocation and perform a placement
-     * new on it.
-     * @param base untyped buffer
-     * @param result pointer to a pointer to the cast result
-     */
-    template <class BufferType> static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
-    {
-        HASSERT(sizeof(Buffer<BufferType>) <= base->size());
-        *result = static_cast<Buffer<BufferType>*>(base);
-        new (*result) Buffer<BufferType>();
-    }
-
 protected:
     /** keep track of total allocated size of memory */
     size_t totalSize;
-    
+
     /** Free buffer queue */
     Bucket *buckets;
-    
+
 private:
     /** Release an item back to the free pool.
      * @param item pointer to item to release
@@ -873,7 +851,8 @@ public:
      */
     bool valid(QMember *item)
     {
-        if ((char*)item >= mempool && (char*)item < (mempool + (items * itemSize)))
+        if ((char *)item >= mempool &&
+            (char *)item < (mempool + (items * itemSize)))
         {
             return true;
         }
@@ -885,13 +864,13 @@ public:
      * @param flow if !NULL, then the alloc call is considered async and will
      *        behave as if @ref alloc_async() was called.
      */
-    template <class BufferType> void alloc(Buffer<BufferType> **result,
-                                           Executable *flow = NULL)
+    template <class BufferType>
+    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
     {
         mutex.lock();
         if (empty == false)
         {
-            *result = static_cast<Buffer<BufferType>*>(queue.next(0));
+            *result = static_cast<Buffer<BufferType> *>(queue.next(0));
             if (*result)
             {
                 new (*result) Buffer<BufferType>(this);
@@ -935,39 +914,39 @@ public:
           empty(false)
     {
         HASSERT(item_size != 0 && items != 0);
-        QMember *current = (QMember*)mempool;
+        QMember *current = (QMember *)mempool;
         for (size_t i = 0; i < items; ++i)
         {
             queue.insert(current);
-            current = (QMember*)((char*)current + item_size);
+            current = (QMember *)((char *)current + item_size);
         }
     }
 
     /** default destructor */
     ~FixedPool()
     {
-        delete [] mempool;
+        delete[] mempool;
     }
 
 protected:
     /** keep track of total allocated size of memory */
     size_t totalSize;
-    
+
     /** Free buffer queue */
     Q queue;
-    
+
     /** First buffer in a pre-allocated array pool */
     char *mempool;
-    
+
     /** item Size for fixed pools */
     size_t itemSize;
-    
+
     /** total number of items in the queue */
     size_t items;
-    
+
     /** is the pool empty */
     bool empty;
-    
+
 private:
     /** Release an item back to the free pool.
      * @param item pointer to item to release
@@ -979,7 +958,7 @@ private:
         HASSERT(item->size() <= itemSize);
         if (empty == true)
         {
-            Executable *waiting = static_cast<Executable*>(queue.next().item);
+            Executable *waiting = static_cast<Executable *>(queue.next().item);
             if (waiting)
             {
                 waiting->alloc_result(item);
@@ -1188,15 +1167,14 @@ private:
  * Yes this uses multiple inheritance.  The priority of pulling items out of
  * of the list is fixed to look at index 0 first and the highest index last.
  */
-template <unsigned items> class QListProtectedWait : public QListProtected <items>, public OSSem
+template <unsigned items>
+class QListProtectedWait : public QListProtected<items>, public OSSem
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtectedWait()
-        : QListProtected<items>(),
-          OSSem(0)
+    QListProtectedWait() : QListProtected<items>(), OSSem(0)
     {
     }
 
@@ -1218,7 +1196,7 @@ public:
 
     /** Translate the Result type */
     typedef typename QListProtected<items>::Result Result;
-    
+
     /** Get an item from the front of the queue.
      * @return item retrieved from one of the queues
      */
@@ -1232,7 +1210,7 @@ public:
         }
         return result;
     }
-    
+
     /** Wait for an item from the front of the queue.
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
@@ -1241,13 +1219,13 @@ public:
     {
         OSSem::wait();
         Result result = QListProtected<items>::next();
-        if(result.item == NULL)
+        if (result.item == NULL)
         {
             errno = EINTR;
         }
         return result;
     }
-    
+
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -1261,7 +1239,7 @@ public:
             errno = ETIMEDOUT;
             return {NULL, 0};
         }
-        
+
         Result result = QListProtected<items>::next();
         if (result.item == NULL)
         {
@@ -1269,16 +1247,15 @@ public:
         }
         return result;
     }
-    
+
     /** Wakeup anyone waiting on the wait queue.
      */
     void wakeup()
     {
         post();
     }
-    
-private:
 
+private:
     DISALLOW_COPY_AND_ASSIGN(QListProtectedWait);
 };
 
@@ -1360,6 +1337,5 @@ template <class T> void Buffer<T>::unref()
         pool_->free(this);
     }
 }
-    
 
 #endif /* _BufferQueue_hxx_ */

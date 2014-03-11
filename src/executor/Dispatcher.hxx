@@ -101,8 +101,8 @@ protected:
             }*/
 
     STATE_FLOW_STATE(iterate);
+    STATE_FLOW_STATE(clone);
     STATE_FLOW_STATE(iteration_done);
-    // STATE_FLOW_STATE(handle_call);
 
 private:
     // true if this flow should negate the match condition.
@@ -219,18 +219,12 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::entry()
 template <class MessageType, int NUM_PRIO>
 StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
 {
-    HandlerType *handler;
     ID id = message()->data()->id();
     {
         OSMutexLock l(&lock_);
-        while (true)
+        for (;currentIndex_ < handlers_.size(); ++currentIndex_)
         {
-            if (currentIndex_ >= handlers_.size())
-            {
-                return call_immediately(STATE(iteration_done));
-            }
             auto &h = handlers_[currentIndex_];
-            ++currentIndex_;
             if (!h.handler)
             {
                 continue;
@@ -243,28 +237,36 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
             {
                 continue;
             }
-            handler = h.handler;
             break;
         }
+    }
+    if (currentIndex_ >= handlers_.size())
+    {
+        return call_immediately(STATE(iteration_done));
     }
     // At this point: we have another handler.
     if (!lastHandlerToCall_)
     {
         // This was the first we found.
-        lastHandlerToCall_ = handler;
+        lastHandlerToCall_ = handlers_[currentIndex_].handler;
+        ++currentIndex_;
         return again();
     }
     // Now: we have at least two different handler. We need to clone the
-    // message.
-    MessageType *copy;
-    /// @todo(balazs.racz) make this asynchronous.
-    /// @todo(balazs.racz) make user specify the buffer pool for cloning.
+    // message. We use the pool of the last handler to call by default.
+    return allocate_and_call(lastHandlerToCall_, STATE(clone));
+}
+
+template <class MessageType, int NUM_PRIO>
+StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::clone()
+{
+    MessageType *copy = get_allocation_result(lastHandlerToCall_);
     /// @todo(balazs.racz) set the proxied notifiable.
-    mainBufferPool->alloc(&copy);
     *copy->data() = *message()->data();
     lastHandlerToCall_->send(copy);
-    lastHandlerToCall_ = handler;
-    return again();
+    lastHandlerToCall_ = handlers_[currentIndex_].handler;
+    ++currentIndex_;
+    return call_immediately(STATE(iterate));
 }
 
 template <class MessageType, int NUM_PRIO>

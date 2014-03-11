@@ -30,9 +30,9 @@ public:
     /** Return the result of an alloc_async() from a memory @ref Pool
      * @param item result of the the allocation
      */
-    void alloc_result(QMember *item)
+    virtual void alloc_result(QMember *item)
     {
-        /** @todo (Balazs Racz) implement */
+        HASSERT(0 && "unexpected call to alloc_result");
     }
 };
 

@@ -125,6 +125,8 @@
  */
 #define STATE_FLOW_END() }
 
+template <class T> class FlowInterface;
+
 /** Runs incoming Messages through a State Flow.
  */
 class StateFlowBase : public Executable
@@ -271,20 +273,42 @@ protected:
         return wait();
     }
 
-#if 0
-    /** Wait for resource to become available before proceeding to next state.
-     * if an immediate allocation can be made, an immediate call to the next
-     * state will be made.
-     * @param c Callback "state" to move to
-     * @param msg Message instance we are waiting on
+    /** Allocates a buffer from a pool and proceed to the next state when
+     * allocation is successful.
+     * @param target_flow defines the type of buffer to allocate.
+     * @param c Callback "state" to move to after allocation
+     * @param pool pool to allocate from; defaults to the pool of the target
+     * flow.
      * @return function pointer to be returned from state function
      */
     template <class T>
-    Action allocate_and_call(Allocator<T> *a, Callback c, Message *msg)
+    Action allocate_and_call(FlowInterface<Buffer<T>> *target_flow, Callback c,
+                             DynamicPool *pool = nullptr)
     {
-        return a->allocate_immediate(msg) ? call_immediately(c) : Action(c);
+        allocationResult_ = nullptr;
+        DynamicPool *p = pool;
+        if (!p)
+        {
+            p = target_flow->pool();
+        }
+        LOG(VERBOSE, "allocate from pool %p, main pool %p", p, mainBufferPool);
+        p->alloc_async<T>(this);
+        return wait_and_call(c);
     }
-#endif
+
+    /** Takes the result of the asynchronous allocation. This should be the
+     * first statement in the state where the allocation transitioned.
+     * @param target_flow is the StateFlow for which we allocated.
+     * @return an initialized buffer of the correct type. */
+    template <class T>
+    Buffer<T> *get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
+    {
+        Buffer<T> *result;
+        Pool::alloc_async_init(static_cast<BufferBase *>(allocationResult_),
+                               &result);
+        return result;
+    }
+
     /** Place the current flow to the back of the executor, and transition to a
      * new state after we get the CPU again.  Similar to @ref call_immediately,
      * except we place this flow on the back of the Executor queue.
@@ -317,8 +341,19 @@ private:
      */
     Action terminated();
 
+    /** Callback from a Pool in case of an asynchronous allocation. */
+    virtual void alloc_result(QMember *b)
+    {
+        LOG(VERBOSE, "allocation result arrived.");
+        allocationResult_ = b;
+        notify();
+    }
+
     /** current active state in the flow */
     Callback state_;
+
+    /** The result of the next allocation that comes in. */
+    QMember *allocationResult_;
 
     /** Default constructor.
      */
@@ -396,8 +431,12 @@ template <class MessageType> class FlowInterface
 public:
     /** @returns the buffer pool to use for sending messages to this flow. This
      * is to be used as a hint, the caller is allowed to send buffers from
-     * different source. */
-    virtual Pool* pool() { return mainBufferPool; }
+     * different source.
+     * @todo(stbaker) change this to Pool* once it supports async alloc. */
+    virtual DynamicPool *pool()
+    {
+        return mainBufferPool;
+    }
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 };
 
