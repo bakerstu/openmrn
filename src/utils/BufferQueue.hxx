@@ -46,6 +46,7 @@
 
 
 class DynamicPool;
+class FixedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
@@ -162,21 +163,118 @@ private:
     /** Allow DynamicPool access to our constructor */
     friend class DynamicPool;
 
+    /** Allow FixedPool access to our constructor */
+    friend class FixedPool;
+
     /** user data */
     T data_;
+};
+
+/** Abstract interface to all Queues of all types.
+ */
+class QInterface
+{
+public:
+    /** Result of pulling an item from the queue based on priority.
+     */
+    struct Result
+    {
+        /** Defualt Constructor.
+         */
+        Result()
+            : item(NULL),
+              index(0)
+        {
+        }
+        
+        /** Explicit initializer constructor.
+         * @param item item presented in result
+         * @param index index presented in result
+         */
+        Result(QMember *item, unsigned index)
+            : item(item),
+              index(index)
+        {
+        }
+        
+        
+        /** Default Destructor.
+         */
+        ~Result()
+        {
+        }
+        
+        QMember *item; /**< item pulled from queue */
+        unsigned index; /**< index of item pulled from queue */
+    };
+    
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    virtual void insert(QMember *item, unsigned index) = 0;
+    
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
+     */
+    virtual QMember *next(unsigned index) = 0;
+
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    virtual Result next() = 0;
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    virtual size_t pending(unsigned index) = 0;
+
+    /** Get the total number of pending items in all queues in the list.
+     * @param index in the list to operate on
+     * @return number of total pending items in all queues in the list
+     */
+    virtual size_t pending() = 0;
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    virtual bool empty(unsigned index) = 0;
+
+    /** Test if all the queues are empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    virtual bool empty() = 0;
+
+protected:
+    /** Default Constructor.
+     */
+    QInterface()
+    {
+    }
+    
+    /** Default Destructor.
+     */
+    virtual ~QInterface()
+    {
+    }
 };
 
 /** This class implements a linked list "queue" of buffers.  It may be
  * instantiated to use the mainBufferPool for its memory pool, or optionally
  * another BufferPool instance may be specified for its memory pool.
  */
-class Q
+class Q : public QInterface
 {
 public:
     /** Default Constructor.
      */
     Q()
-        : head(NULL),
+        : QInterface(),
+          head(NULL),
           tail(NULL),
           count(0)
     {
@@ -190,8 +288,9 @@ public:
 
     /** Add an item to the back of the queue.
      * @param item to add to queue
+     * @param index unused parameter
      */
-    void insert(QMember *q)
+    void insert(QMember *q, unsigned index = 0)
     {
         if (head == NULL)
         {
@@ -207,22 +306,39 @@ public:
     }
 
     /** Get an item from the front of the queue.
+     * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next()
+    QMember *next(unsigned index)
     {
-        QMember *q;
+        return next().item;
+    }
 
+    /** Get an item from the front of the queue.
+     * @return @ref Result structure with item retrieved from queue, NULL if
+     *         no item available
+     */
+    Result next()
+    {
         if (head == NULL)
         {
-            return NULL;
+            return Result();
         }
-        q = head;
-        head = (q->next);
         --count;
+        QMember* qm = head;
+        head = (qm->next);
 
-        return q;
+        return Result(qm, 0);
     }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        return pending();
+    };
 
     /** Get the number of pending items in the queue.
      * @return number of pending items in the queue
@@ -230,6 +346,15 @@ public:
     size_t pending()
     {
         return count;
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        return empty();
     }
 
     /** Test if the queue is empty.
@@ -256,22 +381,15 @@ private:
 /** A list of queues.  Index 0 is the highest priority queue with increasingly
  * higher indexes having increasingly lower priority.
  */
-template <unsigned ITEMS> class QList
+template <unsigned ITEMS> class QList : public QInterface
 {
 public:
-    /** Result of pulling an item from the queue based on priority.
-     */
-    struct Result
-    {
-        QMember *item; /**< item pulled from queue */
-        unsigned index; /**< index of item pulled from queue */
-    };
-    
     /** Default Constructor.
      * @param size number of queues in the list
      */
     QList()
-        : list()
+        : QInterface(),
+          list()
     {
     }
 
@@ -300,7 +418,7 @@ public:
      */
     QMember *next(unsigned index)
     {
-        return list[index].next();
+        return list[index].next().item;
     }
 
     /** Get an item from the front of the queue queue in priority order.
@@ -310,13 +428,13 @@ public:
     {
         for (unsigned i = 0; i < ITEMS; ++i)
         {
-            QMember *result = list[i].next();
+            QMember *result = list[i].next(0);
             if (result)
             {
-                return {result, i};
+                return Result(result, i);
             }
         }
-        return {NULL, 0};
+        return Result();
     }
 
     /** Get the number of pending items in the queue.
@@ -595,9 +713,9 @@ public:
     /** Pull out any pending Executables.
      * @return next Qmember pending on an item in the bucket
      */
-    QMember *pending()
+    QMember *executables()
     {
-        return pending_.next();
+        return pending_.next().item;
     }
     
 private:
@@ -659,7 +777,7 @@ public:
             if (sizeof(Buffer<BufferType>) <= current->size())
             {
                 mutex.lock();
-                *result = static_cast<Buffer<BufferType>*>(current->next());
+                *result = static_cast<Buffer<BufferType>*>(current->next().item);
                 if (*result == NULL)
                 {
                     *result = (Buffer<BufferType>*)malloc(current->size());
@@ -699,6 +817,7 @@ public:
      */
     template <class BufferType> static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
     {
+        HASSERT(sizeof(Buffer<BufferType>) <= base->size());
         *result = static_cast<Buffer<BufferType>*>(base);
         new (*result) Buffer<BufferType>();
     }
@@ -721,27 +840,15 @@ private:
         {
             if (item->size() <= current->size())
             {
-#if 0
-                Pool::mutex.lock();
-                StateFlow *waiting = static_cast<StateFlow*>(current->pending());
-                if (waiting)
-                {
-                    waiting->alloc_result(item);
-                }
-                else
-#endif
-                {
-                    current->insert(item);
-                }
-                Pool::mutex.unlock();
+                current->insert(item);
+                mutex.unlock();
                 return;
             }
         }
-        Pool::mutex.lock();
+        mutex.lock();
         /* big items are just freed */
         totalSize -= item->size();
-        totalSize -= sizeof(BufferBase);
-        Pool::mutex.unlock();
+        mutex.unlock();
         ::free(item);
     }
 
@@ -752,21 +859,18 @@ private:
     DISALLOW_COPY_AND_ASSIGN(DynamicPool);
 };
 
-#if 0
 /** Pool of fixed number of items which can be allocated up on request.
  */
-template <class T> class FixedPool : public Pool <T>
+class FixedPool : public Pool
 {
 public:
-    /** Used in static pools to tell if this buffer is a member of the pool.
-     * @param buffer buffer to test validity on
-     * @return true if the buffer is in the pool, or this is not a fixed pool,
-     *         else return false;
+    /** Used in static pools to tell if this item is a member of the pool.
+     * @param item to test validity on
+     * @return true if the item is in the pool, else return false;
      */
-    bool valid(T *item)
+    bool valid(QMember *item)
     {
-        if (item >= first &&
-            item <= (T*)((char*)first + (items * T::sizeof_type(itemSize))))
+        if ((char*)item >= mempool && (char*)item < (mempool + (items * itemSize)))
         {
             return true;
         }
@@ -774,39 +878,45 @@ public:
     }
 
     /** Get a free item out of the pool.
-     * @param size minimum size in bytes the item must hold
-     * @return pointer to the newly allocated item
+     * @param result pointer to a pointer to the result
+     * @param flow if !NULL, then the alloc call is considered async and will
+     *        behave as if @ref alloc_async() was called.
      */
-    virtual T *alloc()
+    template <class BufferType> void alloc(Buffer<BufferType> **result,
+                                           Executable *flow = NULL)
     {
-        Pool<T>::mutex.lock();
-        T *item = queue.next();
-        if (item != NULL)
+        mutex.lock();
+        if (empty == false)
         {
-            (void)T::init(item, itemSize);
-            ++totalSize;
-            //DEBUG_PRINTF("static buffer total size: %zu\n", totalSize);
+            *result = static_cast<Buffer<BufferType>*>(queue.next(0));
+            if (*result)
+            {
+                new (*result) Buffer<BufferType>(this);
+                totalSize += itemSize;
+                mutex.unlock();
+                if (flow)
+                {
+                    flow->alloc_result(*result);
+                }
+                return;
+            }
+            empty = true;
         }
-        Pool<T>::mutex.unlock();
-        return item;
+        *result = NULL;
+        if (flow)
+        {
+            queue.insert(flow);
+        }
+        mutex.unlock();
     }
 
-    /** Release an item back to the free pool.
-     * @param item pointer to item to release
+    /** Get a free item out of the pool.
+     * @param flow Executable to notify upon allocation
      */
-    virtual void free(T *item)
+    template <class BufferType> void alloc_async(Executable *flow)
     {
-        HASSERT(this == item->pool());
-
-        Pool<T>::mutex.lock();
-        if (item->dec_count() == 0)
-        {
-            --totalSize;
-            queue.insert(item);
-            //DEBUG_PRINTF("static buffer total used: %zu\n", totalSize);
-        }
-
-        Pool<T>::mutex.unlock();
+        Buffer<BufferType> *buffer;
+        alloc<BufferType>(&buffer, flow);
     }
 
     /** Constructor for a fixed size pool.
@@ -814,25 +924,26 @@ public:
      * @param items number of items in the pool
      */
     FixedPool(size_t item_size, size_t items)
-        : Pool<T>(),
-          //mutex(true),
+        : Pool(),
           totalSize(0),
-          first (T::alloc(this, item_size, items)),
+          mempool(new char[(item_size * items)]),
           itemSize(item_size),
-          items(items)
+          items(items),
+          empty(false)
     {
-        T *current = first;
+        HASSERT(item_size != 0 && items != 0);
+        QMember *current = (QMember*)mempool;
         for (size_t i = 0; i < items; ++i)
         {
             queue.insert(current);
-            current = (T*)((char*)current + T::sizeof_type(item_size));
+            current = (QMember*)((char*)current + item_size);
         }
     }
 
     /** default destructor */
     ~FixedPool()
     {
-        /** @todo (Stuart Baker) need to free the itmes alloced */
+        delete [] mempool;
     }
 
 protected:
@@ -840,10 +951,10 @@ protected:
     size_t totalSize;
     
     /** Free buffer queue */
-    Q<T> queue;
+    Q queue;
     
     /** First buffer in a pre-allocated array pool */
-    T *first;
+    char *mempool;
     
     /** item Size for fixed pools */
     size_t itemSize;
@@ -851,7 +962,36 @@ protected:
     /** total number of items in the queue */
     size_t items;
     
+    /** is the pool empty */
+    bool empty;
+    
 private:
+    /** Release an item back to the free pool.
+     * @param item pointer to item to release
+     * @param size size of buffer to free
+     */
+    void free(BufferBase *item)
+    {
+        HASSERT(valid(item));
+        HASSERT(item->size() <= itemSize);
+        if (empty == true)
+        {
+            Executable *waiting = static_cast<Executable*>(queue.next().item);
+            if (waiting)
+            {
+                waiting->alloc_result(item);
+            }
+            if (queue.pending() == 0)
+            {
+                empty = false;
+            }
+        }
+        else
+        {
+            queue.insert(item);
+        }
+    }
+
     /** Default Constructor.
      */
     FixedPool();
@@ -859,6 +999,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(FixedPool);
 };
 
+#if 0
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.
  */
