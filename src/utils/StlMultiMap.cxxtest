@@ -1,0 +1,244 @@
+/** \copyright
+ * Copyright (c) 2014, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file StlMultiMap.cxxtest
+ * This file contains a unit test for StlMultiMap.hxx.
+ *
+ * @author Stuart W. Baker
+ * @date 10 March 2014
+ */
+
+#include "gtest/gtest.h"
+#include "utils/StlMultiMap.hxx"
+
+TEST(MultiMapTest, StlMultiMap_constructor)
+{
+    StlMultiMap<uint16_t, uint16_t> map(4);
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() == 4);
+}
+
+TEST(MultiMapTest, StlMultiMap_manip)
+{
+    StlMultiMap<uint16_t, uint16_t> map(5);
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() == 5);
+    EXPECT_TRUE(map.begin() == map.end());
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(100, 76));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(105, 86));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(102, 104));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(1000, 900));
+    
+    EXPECT_TRUE(map.begin() != map.end());
+    EXPECT_TRUE(map.size() == 4);
+    EXPECT_TRUE(map.max_size() == 5);
+
+    StlMultiMap<uint16_t, uint16_t>::Iterator it;
+
+    it = map.begin();
+    ++it;
+    EXPECT_TRUE(it != map.end());
+    ++it;
+    EXPECT_TRUE(it != map.end());
+    ++it;
+    EXPECT_TRUE(it != map.end());
+    ++it;
+    EXPECT_TRUE(it == map.end());   
+    
+    it = map.find(100);
+    EXPECT_TRUE((*it).second == 76);
+    it = map.find(105);
+    EXPECT_TRUE((*it).second == 86);
+    it = map.find(102);
+    EXPECT_TRUE((*it).second == 104);
+    it = map.find(1000);
+    EXPECT_TRUE(it->second == 900);
+    
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(105, 405));
+    EXPECT_TRUE(map.size() == 5);
+    EXPECT_TRUE(map.max_size() == 5);
+    it = map.find(105);
+    EXPECT_TRUE((*it).second == 405 || (*it).second == 86);
+    EXPECT_TRUE(it != map.end());
+
+    EXPECT_TRUE(map.erase(102) == 1);
+    it = map.find(102);
+    EXPECT_TRUE(it == map.end());
+    EXPECT_TRUE(map.size() == 4);
+
+    it = map.find(199);
+    EXPECT_TRUE(it == map.end());
+    EXPECT_TRUE(map.erase(199) == 0);
+    EXPECT_TRUE(map.size() == 4);
+
+    it = map.find(100);
+    map.erase(it);
+    EXPECT_TRUE(map.size() == 3);
+    it = map.find(100);
+    EXPECT_TRUE(it == map.end());
+}
+
+TEST(MultiMapTest, StlMultiMap_manip_fifo)
+{
+    StlMultiMap<uint16_t, uint16_t> map(5);
+    StlMultiMap<uint16_t, uint16_t>::Iterator it;
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() == 5);
+    EXPECT_TRUE(map.begin() == map.end());
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(100, 76));
+
+    it = map.upper_bound(100);
+    it--;
+    EXPECT_TRUE((*it).second == 76);
+    it++;
+    map.insert(it, StlMultiMap<uint16_t, uint16_t>::Pair(100, 86));
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(102, 104));
+
+    it = map.upper_bound(100);    
+    it--;
+    EXPECT_TRUE((*it).second == 86);
+    it++;
+    map.insert(it, StlMultiMap<uint16_t, uint16_t>::Pair(100, 900));
+    
+    EXPECT_TRUE(map.begin() != map.end());
+    EXPECT_TRUE(map.size() == 4);
+    EXPECT_TRUE(map.max_size() == 5);
+    
+    it = map.find(100);
+    EXPECT_TRUE((*it).second == 76);
+    it++;
+    EXPECT_TRUE((*it).second == 86);
+    it++;
+    EXPECT_TRUE(it->second == 900);
+
+    it = map.find(102);
+    EXPECT_TRUE((*it).second == 104);
+}
+
+TEST(MultiMapTest, StlMultiMap_manip_lifo)
+{
+    StlMultiMap<uint16_t, uint16_t> map(5);
+    StlMultiMap<uint16_t, uint16_t>::Iterator it;
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() == 5);
+    EXPECT_TRUE(map.begin() == map.end());
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(100, 76));
+
+    it = map.lower_bound(100);
+    EXPECT_TRUE((*it).second == 76);
+    map.insert(it, StlMultiMap<uint16_t, uint16_t>::Pair(100, 86));
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(102, 104));
+
+    it = map.lower_bound(100);    
+    EXPECT_TRUE((*it).second == 86);
+    map.insert(it, StlMultiMap<uint16_t, uint16_t>::Pair(100, 900));
+    
+    EXPECT_TRUE(map.begin() != map.end());
+    EXPECT_TRUE(map.size() == 4);
+    EXPECT_TRUE(map.max_size() == 5);
+    
+    it = map.find(100);
+    EXPECT_TRUE((*it).second == 900);
+    it++;
+    EXPECT_TRUE((*it).second == 86);
+    it++;
+    EXPECT_TRUE(it->second == 76);
+
+    it = map.find(102);
+    EXPECT_TRUE((*it).second == 104);
+    
+    EXPECT_TRUE(map.count(100) == 3);
+    EXPECT_TRUE(map.count(102) == 1);
+}
+
+TEST(MapTest, stlmap_manip_dynamic)
+{
+    StlMultiMap<uint16_t, uint16_t> map;
+    
+    EXPECT_TRUE(map.size() == 0);
+    EXPECT_TRUE(map.max_size() > 1000);
+    EXPECT_TRUE(map.begin() == map.end());
+
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(100, 76));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(105, 86));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(102, 104));
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(1000, 900));
+    
+    EXPECT_TRUE(map.begin() != map.end());
+    EXPECT_TRUE(map.size() == 4);
+    EXPECT_TRUE(map.max_size() > 1000);
+
+    StlMultiMap<uint16_t, uint16_t>::Iterator it;
+    it = map.find(100);
+    EXPECT_TRUE((*it).second == 76);
+    it = map.find(105);
+    EXPECT_TRUE((*it).second == 86);
+    it = map.find(102);
+    EXPECT_TRUE((*it).second == 104);
+    it = map.find(1000);
+    EXPECT_TRUE((*it).second == 900);
+    
+    map.insert(StlMultiMap<uint16_t, uint16_t>::Pair(105, 405));
+    EXPECT_TRUE(map.count(105) == 2);
+    EXPECT_TRUE(map.size() == 5);
+    EXPECT_TRUE(map.max_size() > 1000);
+    
+    it = map.find(105);
+    EXPECT_TRUE((*it).second == 405 || (*it).second == 86);
+    EXPECT_TRUE(it != map.end());
+
+    EXPECT_TRUE(map.erase(102) == 1);
+    it = map.find(102);
+    EXPECT_TRUE(it == map.end());
+    EXPECT_TRUE(map.size() == 4);
+
+    it = map.find(199);
+    EXPECT_TRUE(it == map.end());
+    EXPECT_TRUE(map.erase(199) == 0);
+    EXPECT_TRUE(map.size() == 4);
+
+    it = map.find(100);
+    map.erase(it);
+    EXPECT_TRUE(map.size() == 3);
+    it = map.find(100);
+    EXPECT_TRUE(it == map.end());
+}
+
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
