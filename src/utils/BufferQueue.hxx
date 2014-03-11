@@ -61,9 +61,23 @@ public:
         return count_;
     }
 
-    void set_done(Notifiable *done)
+    void set_done(BarrierNotifiable *done)
     {
         done_ = done;
+    }
+
+    /** Creates a new child notifiable of the current done notifiable. @return
+     * the new notifiable, or NULL if there is no current notifiable. */
+    BarrierNotifiable *new_child()
+    {
+        if (done_)
+        {
+            return done_->new_child();
+        }
+        else
+        {
+            return nullptr;
+        }
     }
 
     size_t size()
@@ -89,7 +103,7 @@ protected:
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
-    Notifiable *done_;
+    BarrierNotifiable *done_;
 
     /** Constructor.
      * @param size size of buffer data

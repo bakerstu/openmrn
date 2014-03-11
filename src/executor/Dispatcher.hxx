@@ -222,7 +222,7 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
     ID id = message()->data()->id();
     {
         OSMutexLock l(&lock_);
-        for (;currentIndex_ < handlers_.size(); ++currentIndex_)
+        for (; currentIndex_ < handlers_.size(); ++currentIndex_)
         {
             auto &h = handlers_[currentIndex_];
             if (!h.handler)
@@ -261,7 +261,7 @@ template <class MessageType, int NUM_PRIO>
 StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::clone()
 {
     MessageType *copy = get_allocation_result(lastHandlerToCall_);
-    /// @todo(balazs.racz) set the proxied notifiable.
+    copy->set_done(message()->new_child());
     *copy->data() = *message()->data();
     lastHandlerToCall_->send(copy);
     lastHandlerToCall_ = handlers_[currentIndex_].handler;
