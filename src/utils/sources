@@ -10,5 +10,7 @@ CXXSRCS += BufferQueue.cxx \
            gc_format.cxx \
 
 
-CXXTESTSRCS += BufferQueue.cxxtest           
+CXXTESTSRCS += BufferQueue.cxxtest \
+               StlMap.cxxtest      \
+               StlMultiMap.cxxtest      
 

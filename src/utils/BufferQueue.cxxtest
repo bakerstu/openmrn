@@ -34,152 +34,8 @@
 
 #include "gtest/gtest.h"
 #include "utils/BufferQueue.hxx"
+#include "executor/StateFlow.hxx"
 
-#if 0
-TEST(BufferTest, free_alloc_init_4)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(4);
-    EXPECT_TRUE(buffer != NULL);
-    buffer->free();
-    buffer = mainBufferPool->buffer_alloc(4);
-    EXPECT_TRUE(buffer != NULL);    
-}
-
-TEST(BufferTest, free_alloc_init_8)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(8);
-    EXPECT_TRUE(buffer != NULL);
-    buffer->free();
-    buffer = mainBufferPool->buffer_alloc(8);
-    EXPECT_TRUE(buffer != NULL);    
-}
-
-TEST(BufferTest, free_alloc_init_16)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(16);
-    EXPECT_TRUE(buffer != NULL);
-    buffer->free();
-    buffer = mainBufferPool->buffer_alloc(16);
-    EXPECT_TRUE(buffer != NULL);    
-}
-
-TEST(BufferTest, free_alloc_init_32)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(32);
-    EXPECT_TRUE(buffer != NULL);
-    buffer->free();
-    buffer = mainBufferPool->buffer_alloc(32);
-    EXPECT_TRUE(buffer != NULL);    
-}
-
-TEST(BufferTest, advance_size_available)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(100);
-    buffer->advance(10);
-    EXPECT_TRUE(buffer->size() == 100);
-    EXPECT_TRUE(buffer->available() == 90);
-    EXPECT_TRUE((char*)buffer->start() + 10 == buffer->position());
-}
-
-TEST(BufferTest, expand)
-{
-    Buffer *buffer = mainBufferPool->buffer_alloc(100);
-    buffer = buffer->expand(200);
-    EXPECT_TRUE(buffer->size() == 200);
-    EXPECT_TRUE(buffer->available() == 200);
-    EXPECT_TRUE(buffer->start() == buffer->position());
-}
-
-TEST(BufferQueueTest, all)
-{
-    Buffer *buffer1 = mainBufferPool->buffer_alloc(100);
-    Buffer *buffer2 = mainBufferPool->buffer_alloc(32);
-    EXPECT_TRUE(buffer1 != NULL);
-    EXPECT_TRUE(buffer2 != NULL);
-    BufferQueue *queue = new BufferQueue();
-    EXPECT_TRUE(queue != NULL);
-    EXPECT_EQ(queue->pending(), (size_t)0);
-    EXPECT_TRUE(queue->empty());
-    EXPECT_TRUE(queue->next() == NULL);
-
-    queue->insert(buffer1);
-    EXPECT_EQ(queue->pending(), (size_t)1);
-    EXPECT_FALSE(queue->empty());
-
-    queue->insert(buffer2);
-    EXPECT_EQ(queue->pending(), (size_t)2);
-    EXPECT_FALSE(queue->empty());
-
-    EXPECT_TRUE(queue->next() == buffer1);
-    EXPECT_EQ(queue->pending(), (size_t)1);
-    EXPECT_FALSE(queue->empty());
-
-    EXPECT_TRUE(queue->next() == buffer2);
-    EXPECT_EQ(queue->pending(), (size_t)0);
-    EXPECT_TRUE(queue->empty());
-
-    EXPECT_TRUE(queue->next() == NULL);
-    
-    queue->buffer_free(buffer1);
-    queue->buffer_free(buffer2);
-}
-
-TEST(BufferQueueWaitTest, all)
-{
-    long long start, stop;
-
-    Buffer *buffer1 = mainBufferPool->buffer_alloc(100);
-    Buffer *buffer2 = mainBufferPool->buffer_alloc(32);
-    Buffer *buffer3 = mainBufferPool->buffer_alloc(8);
-    EXPECT_TRUE(buffer1 != NULL);
-    EXPECT_TRUE(buffer2 != NULL);
-    EXPECT_TRUE(buffer3 != NULL);
-    BufferQueueWait *queue = new BufferQueueWait();
-    EXPECT_TRUE(queue != NULL);
-    EXPECT_EQ(queue->pending(), (size_t)0);
-    EXPECT_TRUE(queue->empty());
-    EXPECT_TRUE(queue->next() == NULL);
-
-    queue->insert(buffer1);
-    EXPECT_EQ(queue->pending(), (size_t)1);
-    EXPECT_FALSE(queue->empty());
-
-    queue->insert(buffer2);
-    EXPECT_EQ(queue->pending(), (size_t)2);
-    EXPECT_FALSE(queue->empty());
-
-    queue->insert(buffer3);
-    EXPECT_EQ(queue->pending(), (size_t)3);
-    EXPECT_FALSE(queue->empty());
-
-    EXPECT_TRUE(queue->next() == buffer1);
-    EXPECT_EQ(queue->pending(), (size_t)2);
-    EXPECT_FALSE(queue->empty());
-
-    EXPECT_TRUE(queue->wait() == buffer2);
-    EXPECT_EQ(queue->pending(), (size_t)1);
-    EXPECT_FALSE(queue->empty());
-
-    start = OSTime::get_monotonic();
-    EXPECT_TRUE(queue->timedwait(OS_WAIT_FOREVER) == buffer3);
-    EXPECT_EQ(queue->pending(), (size_t)0);
-    EXPECT_TRUE(queue->empty());
-    stop = OSTime::get_monotonic();
-    EXPECT_TRUE((stop - start) < (long long)1000000);
-
-    start = OSTime::get_monotonic();
-    EXPECT_TRUE(queue->next() == NULL);
-    EXPECT_TRUE(queue->timedwait(1000000000) == NULL);
-    stop = OSTime::get_monotonic();
-    EXPECT_TRUE((stop - start) > (long long)998000000);
-    EXPECT_TRUE((stop - start) < (long long)1002000000);
-    
-    queue->buffer_free(buffer1);
-    queue->buffer_free(buffer2);
-    queue->buffer_free(buffer3);
-}
-
-#endif
 
 TEST(BufferBase, alloc)
 {
@@ -206,6 +62,8 @@ TEST(BufferBase, alloc)
     buffer->unref();
 }
 
+Executor<1> executor("executor", 0, 1024);
+
 TEST(BufferBase, alloc_async)
 {
     struct Item
@@ -215,7 +73,16 @@ TEST(BufferBase, alloc_async)
         uint16_t param3;
     };
     
-    StateFlow flow;
+    class TrivialFlow : public StateFlowBase
+    {
+    public:
+        TrivialFlow(Service *s)
+            : StateFlowBase(s)
+        {}
+    };
+    
+    Service service(&executor);
+    TrivialFlow flow(&service);
     
     mainBufferPool->alloc_async<Item>(&flow);
 }
@@ -461,6 +328,82 @@ TEST(QListProtectedWait, all)
     result = q.timedwait(500000000);
     EXPECT_TRUE(result.item == NULL);
     EXPECT_TRUE(errno == ETIMEDOUT);
+}
+
+TEST(FixedPoolTest, all)
+{
+    class Item
+    {
+    public:
+        Item()
+        {
+        }
+        
+        uint32_t data;
+    };
+
+    FixedPool pool(sizeof(Buffer<Item>), 4);
+    
+    Buffer<Item> *buffer;
+    Buffer<Item> *buffer_alt;
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer);
+    EXPECT_TRUE(pool.valid(buffer));
+
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.valid(buffer));
+
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.valid(buffer));
+
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.valid(buffer));
+    buffer_alt = buffer;
+    
+    /* put us past the end of the pool */
+    ++buffer;
+    EXPECT_FALSE(pool.valid(buffer));
+
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer == NULL);
+    EXPECT_FALSE(pool.valid(buffer));
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer == NULL);
+    EXPECT_FALSE(pool.valid(buffer));
+    
+    buffer_alt->unref();
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.valid(buffer));
+}
+
+TEST(FixedPoolTest, alloc_async)
+{
+    class Item
+    {
+    public:
+        Item()
+        {
+        }
+        
+        uint32_t data;
+    };
+
+    FixedPool pool(sizeof(Buffer<Item>), 4);
+    
+    class TrivialFlow : public StateFlowBase
+    {
+    public:
+        TrivialFlow(Service *s)
+            : StateFlowBase(s)
+        {}
+        
+        
+    };
+    
+    Service service(&executor);
+    TrivialFlow flow(&service);
+    
+    pool.alloc_async<Item>(&flow);
 }
 
 int appl_main(int argc, char* argv[])

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StlMap.hxx
- * This file provides a feature limited abstraction of std::map
+ * \file StlMultiMap.hxx
+ * This file provides a feature limited abstraction of std::multimap
  *
  * @author Stuart W. Baker
- * @date 2 December 2013
+ * @date 10 March 2014
  */
 
-#ifndef _StlMap_hxx_
-#define _StlMap_hxx_
+#ifndef _StlMultiMap_hxx_
+#define _StlMultiMap_hxx_
 
 #include <map>
 
@@ -40,18 +40,18 @@
 #include "utils/macros.h"
 
 /** Though at the surface, this may seem like an unnecessary abstraction of
- * std::map, it has the purpose of limiting the implementation to features
- * found only in common to @ref SysMap and @ref LinearMap implementations.  In
- * this way, one can use @ref Map and based on compile time settings choose to
- * use any one of @ref StlMap, @ref SysMap, or @ref LinearMap from the same
- * source usage of @ref Map.
+ * std::multimap, it has the purpose of limiting the implementation to features
+ * found only in common to  @ref LinearMultiMap implementation.  In
+ * this way, one can use @ref MultiMap and based on compile time settings choose to
+ * use any one of @ref StlMultiMap or @ref LinearMultiMap from the same
+ * source usage of @ref MultiMap.
  */
-template <typename Key, typename Value> class StlMap
+template <typename Key, typename Value> class StlMultiMap
 {
 public:
     /** Default Constructor which with no mapping entry limit.
      */
-    StlMap()
+    StlMultiMap()
         : mappingAllocator(NULL),
           mapping(new Mapping())
     {
@@ -60,7 +60,7 @@ public:
     /** Constructor that limits the number of mappings to a static pool.
      * @param entries number of nodes to statically create and track
      */
-    StlMap(size_t entries) 
+    StlMultiMap(size_t entries) 
         : mappingAllocator(new MappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries))),
           mapping(NULL)
     {
@@ -68,7 +68,7 @@ public:
 
     /** Destructor.
      */
-    ~StlMap()
+    ~StlMultiMap()
     {
         if (mappingAllocator)
         {
@@ -81,10 +81,10 @@ public:
     }
 
     /** This translation is done for consistency with @ref SysMap and @ref LinearMap */
-    typedef pair<Key, Value> Pair;
+    typedef std::pair<Key, Value> Pair;
 
     /** Short hand for the iterator type of a given instance */
-    typedef typename std::map<Key, Value>::iterator Iterator;
+    typedef typename std::multimap<Key, Value>::iterator Iterator;
 
     /** Remove an element from the tree.
      * @param key key for the element to remove
@@ -102,14 +102,24 @@ public:
     {
         mapping ? mapping->erase(it) : mappingAllocator->erase(it);
     }
-    
-    /** Find the index associated with the key and create it if does not exist.
-     * @param key key to lookup
-     * @return value of the key by reference
+
+    /** Insert (create) a new key value pair.
+     * @param pos hint as to the position to which to place the new mapping
+     * @param val Key, Value Pair to insert into the mapping
+     * @return Iterator pointing to new or exising Key, Value Pair
      */
-    Value& operator[](const Key &key)
+    Iterator insert(const Iterator pos, const Pair& val)
     {
-        return mapping ? (*mapping)[key] : (*mappingAllocator)[key];
+        return mapping ? mapping->insert(pos, val) : mappingAllocator->insert(pos, val);
+    }
+
+    /** Insert (create) a new key value pair.
+     * @param val Key, Value Pair to insert into the mapping
+     * @return Iterator pointing to new or exising Key, Value Pair
+     */
+    Iterator insert(const Pair& val)
+    {
+        return mapping ? mapping->insert(val) : mappingAllocator->insert(val);
     }
 
     /** Number of elements currently in the map.
@@ -137,6 +147,26 @@ public:
         return mapping ? mapping->find(key) : mappingAllocator->find(key);
     }
     
+    /** Get an iterator pointing the  the first element in the map
+     * with the provided key, else iterator end() if not found.
+     * @param key key for the elements to lower bound
+     * @return iterator pointing to first element with the provided key
+     */
+    Iterator lower_bound(const Key& key)
+    {
+        return mapping ? mapping->lower_bound(key) : mappingAllocator->lower_bound(key);
+    }
+
+    /** Get an iterator pointing the  the first element in the map
+     * after the provided key.
+     * @param key key for the elements to upper bound
+     * @return iterator pointing to first element after the provided key
+     */
+    Iterator upper_bound(const Key& key)
+    {
+        return mapping ? mapping->upper_bound(key) : mappingAllocator->upper_bound(key);
+    }
+
     /** Get an iterator index pointing one past the last element in mapping.
      * @return iterator index pointing to one past the last element in mapping
      */
@@ -153,12 +183,21 @@ public:
         return mapping ? mapping->begin() : mappingAllocator->begin();
     }
 
+    /** Get the count of elements with a givin Key.
+     * @param key key for the elements to count
+     * @return number of elements with a givin key
+     */
+    size_t count(const Key& key) const
+    {
+        return mapping ? mapping->count(key) : mappingAllocator->count(key);
+    }
+
 private:
     /** short hand for the custom allocator std::map type */
-    typedef std::map<Key, Value, std::less<Key>, Allocator<std::pair<const Key, Value>>> MappingAllocator;
+    typedef std::multimap<Key, Value, std::less<Key>, Allocator<std::pair<const Key, Value>>> MappingAllocator;
     
     /** short hand for the default allocator std::map type */
-    typedef std::map<Key, Value> Mapping;
+    typedef std::multimap<Key, Value> Mapping;
     
     /** pointer to an std::map instance with a custom allocator */
     MappingAllocator *mappingAllocator;
@@ -166,7 +205,7 @@ private:
     /** pointer to an std::map instance with a default allocator */
     Mapping *mapping;
 
-    DISALLOW_COPY_AND_ASSIGN(StlMap);
+    DISALLOW_COPY_AND_ASSIGN(StlMultiMap);
 };
 
-#endif /* _StlMap_hxx_ */
+#endif /* _StlMultiMap_hxx_ */
