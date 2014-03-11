@@ -133,7 +133,7 @@ private:
 
     const struct can_frame* buf_;
     size_t byte_count_;
-    //! Parent interface. Owned externlly.
+    /// Parent interface. Owned externlly.
     AsyncIfCan* if_can_;
     Pipe* pipe_;
 };
@@ -185,7 +185,7 @@ private:
 
     PipeBuffer pipeBuffer_;
     ProxyNotifiable notifiable_;
-    //! Parent interface. Owned externlly.
+    /// Parent interface. Owned externlly.
     AsyncIfCan* if_can_;
 };
 
@@ -261,7 +261,7 @@ public:
         return &lock_;
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* f, Notifiable* done)
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
@@ -322,13 +322,13 @@ public:
     }
 
 private:
-    //! Lock for ourselves.
+    /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
-    //! Parent interface.
+    /// Parent interface.
     AsyncIfCan* ifCan_;
-    //! Alias being checked.
+    /// Alias being checked.
     unsigned alias_ : 12;
-    //! The write flow we received from the allocator.
+    /// The write flow we received from the allocator.
     CanFrameWriteFlow* frameWriteFlow_;
 };
 
@@ -368,7 +368,7 @@ public:
         return &lock_;
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* f, Notifiable* done)
     {
         id_ = GET_CAN_FRAME_ID_EFF(*f);
@@ -418,9 +418,9 @@ public:
 private:
     uint32_t id_;
     Buffer* buf_;
-    //! Lock for ourselves.
+    /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
-    //! Parent interface.
+    /// Parent interface.
     AsyncIfCan* ifCan_;
 };
 
@@ -461,7 +461,7 @@ public:
         return &lock_;
     }
 
-    //! Handler callback for incoming messages.
+    /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* f, Notifiable* done)
     {
         AutoNotify an(done);
@@ -547,18 +547,17 @@ private:
     uint32_t id_;
     Buffer* buf_;
     NodeHandle dstHandle_;
-    //! Lock for ourselves.
+    /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
-    //! Parent interface.
+    /// Parent interface.
     AsyncIfCan* ifCan_;
 };
 
 AsyncIfCan::AsyncIfCan(Executor* executor, Pipe* device,
                        int local_alias_cache_size, int remote_alias_cache_size,
-                       int hw_write_flow_count, int global_can_write_flow_count,
                        int local_nodes_count)
     : AsyncIf(executor, local_nodes_count),
-      frame_dispatcher_(executor),
+      frame_dispatcher_(this),
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {

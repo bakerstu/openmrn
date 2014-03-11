@@ -99,14 +99,19 @@ struct CanMessageData : public can_frame
     }
 };
 
+/** @todo(balazs.racz) make these two somehow compatible with each other. It's
+ * not easy, because they use different ID functions and their size differs
+ * a bit as well. */
+typedef FlowInterface<Buffer<CanMessageData>> IncomingFrameHandler;
+typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
+
 /** Counts the number of alias conflicts that we see for aliases that we
  * already reserved. */
 extern size_t g_alias_use_conflicts;
 
 class AsyncAliasAllocator;
 
-typedef FlowInterface<CanMessageData> IncomingFrameHandler;
-
+#if 0
 /** Interface class for the asynchronous frame write flow. This flow allows you
     to write frames to the CAN bus.
 
@@ -159,21 +164,20 @@ public:
 protected:
     struct can_frame frame_;
 };
+#endif
 
 class AsyncIfCan : public AsyncIf
 {
 public:
-    typedef TypedDispatchFlow<uint32_t, struct can_frame> FrameDispatchFlow;
-
     /**
      * Creates a CAN interface.
      *
      * @param executor will be used to process incoming (and outgoing) messages.
      *
-     * @param device is a Pipe. The interface will add a member to this pipe to
-     * handle incoming and outgoing traffic. The caller should add the
+     * @param device is a CanHub. The interface will add a member to this pipe
+     * to handle incoming and outgoing traffic. The caller should add the
      * necessary hardware device, GridConnect bridge or mock interface to this
-     * pipe (before this call or else outgoing packets might be lost).
+     * pipe (before this constructor or else outgoing packets might be lost).
      *
      * @param local_alias_cache_size tells the number of aliases to keep track
      * of for nocal virtual nodes and proxied nodes.
@@ -181,79 +185,77 @@ public:
      * @param remote_alias_cache_size tells the number of aliases to keep track
      * of for remote nodes on the bus.
      *
-     * @param hw_write_flow_count tells how many concurrent write flows (each
-     * with one CAN frame) should we have.
-     *
-     * @param global_can_write_flow_count tells how many concurrent write flows
-     * for global unaddressed messages (each with one MTI/message) should we
-     * have.
-     */
-    AsyncIfCan(Executor *executor, Pipe *device, int local_alias_cache_size,
-               int remote_alias_cache_size, int hw_write_flow_count,
-               int global_can_write_flow_count, int local_nodes_count);
+     * @param local_nodes_count is the maximum number of virtual nodes that
+     * this interface will support. */
+    AsyncIfCan(Executor *executor, CanHubFlow *device,
+               int local_alias_cache_size, int remote_alias_cache_size,
+               int local_nodes_count);
 
     ~AsyncIfCan();
 
-    /** Adds support to this interface for addressed NMRAnet messages (both
-     * sending and receiving).
-     *
-     * @param num_write_flows sets how many concurrent addressed messages could
-     * be in flight sending (ex. waiting for destination address resolution).*/
-    void add_addressed_message_support(int num_write_flows);
+    typedef DispatchFlow<Buffer<CanMessageData>, 4> FrameDispatchFlow;
 
-    //! @returns the dispatcher of incoming CAN frames.
+    /** Adds support to this interface for addressed NMRAnet messages (both
+     * sending and receiving). */
+    void add_addressed_message_support();
+
+    /// @returns the dispatcher of incoming CAN frames.
     FrameDispatchFlow *frame_dispatcher()
     {
-        return &frame_dispatcher_;
+        return &frameDispatcher_;
     }
 
-    //! @returns the allocator for the *can frame* write flow.
-    TypedAllocator<CanFrameWriteFlow> *write_allocator()
+    /// @returns the flow for writing CAN frames to the bus.
+    OutgoingFrameHandler *frame_write_flow()
     {
-        HASSERT(write_allocator_.has_ever_seen_free_entries());
-        return &write_allocator_;
+        return &frameWriteFlow_;
     }
 
-    //! Implementation class for receiving frames from CAN.
+    /// @Returns the raw device.
+    CanHubFlow *device() {
+        return 
+    }
+
+    /// Implementation class for receiving frames from CAN.
     class CanReadFlow;
-    //! Implementation class for sending frames to CAN.
+    /// Implementation class for sending frames to CAN.
     class CanWriteFlow;
 
-    //! @returns the asynchronous read/write object.
+    /// @returns the asynchronous read/write object.
     CanReadFlow *pipe_member()
     {
         return pipe_member_.get();
     }
 
-    //! @returns the alias cache for local nodes (vnodes and proxies)
+    /// @returns the alias cache for local nodes (vnodes and proxies)
     AliasCache *local_aliases()
     {
         return &localAliases_;
     }
 
-    //! @returns the alias cache for remote nodes on this IF
+    /// @returns the alias cache for remote nodes on this IF
     AliasCache *remote_aliases()
     {
         return &remoteAliases_;
     }
 
-    //! @returns the alias cache for remote nodes on this IF
+    /// @returns the alias cache for remote nodes on this IF
     AsyncAliasAllocator *alias_allocator()
     {
         return aliasAllocator_.get();
     }
 
-    //! Sets the alias allocator for this If. Takes ownership of pointer.
+    /// Sets the alias allocator for this If. Takes ownership of pointer.
     void set_alias_allocator(AsyncAliasAllocator *a);
 
     virtual void add_owned_flow(Executable *e);
 
 private:
-    //! Flow responsible for routing incoming messages to handlers.
-    FrameDispatchFlow frame_dispatcher_;
+    /// Flow responsible for routing incoming messages to handlers.
+    FrameDispatchFlow frameDispatcher_;
 
-    //! Handles asynchronous reading and writing from the device.
-    std::unique_ptr<CanReadFlow> pipe_member_;
+    /// Handles asynchronous reading and writing from the device.
+    std::unique_ptr<CanReadFlow> pipePort_;
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.
      *
@@ -266,8 +268,8 @@ private:
      */
     AliasCache remoteAliases_;
 
-    //! Various implementation control flows that this interface owns.
-    std::vector<std::unique_ptr<Executable>> owned_flows_;
+    /// Various implementation control flows that this interface owns.
+    std::vector<std::unique_ptr<Executable>> ownedFlows_;
 
     /** Allocator that holds (and mutex-controls) the frame write flow.
      *
@@ -276,7 +278,7 @@ private:
      */
     TypedAllocator<CanFrameWriteFlow> write_allocator_;
 
-    //! Owns the alias allocator module.
+    /// Owns the alias allocator module.
     std::unique_ptr<AsyncAliasAllocator> aliasAllocator_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
