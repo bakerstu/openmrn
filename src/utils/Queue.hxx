@@ -38,7 +38,7 @@
  */
 class QMember
 {
-protected:    
+protected:
     /** Constructor.
      */
     QMember()
