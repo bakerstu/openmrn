@@ -52,7 +52,7 @@ class AsyncNode;
  * @returns a new buffer (from the main pool) with 6 bytes of used space, a
  * big-endian representation of the node ID.
  */
-extern Buffer* node_id_to_buffer(NodeID id);
+// extern Buffer* node_id_to_buffer(NodeID id);
 
 /** Converts a 6-byte-long buffer to a node ID.
  *
@@ -60,14 +60,16 @@ extern Buffer* node_id_to_buffer(NodeID id);
  * big-endian node id.
  * @returns the node id (in host endian).
  */
-extern NodeID buffer_to_node_id(Buffer* buf);
+// extern NodeID buffer_to_node_id(Buffer* buf);
 
-/** This class is used in the dispatching of incoming NMRAnet messages to the
- * message handlers at the protocol-agnostic level (i.e. not CAN or
- * TCP-specific). There will be one instance of this class that will be sent to
- * all handlers that expressed interest in that MTI. When all those handlers
- * are done, the instance will be freed. */
-struct IncomingMessage
+/** This class is used in the dispatching of incoming or outgoing NMRAnet
+ * messages to the message handlers at the protocol-agnostic level (i.e. not
+ * CAN or TCP-specific).
+ *
+ * TODO(balazs.racz) There shall be one instance of this class that will be
+ * sent to all handlers that expressed interest in that MTI. When all those
+ * handlers are done, the instance should be freed. */
+struct NMRAnetMessage
 {
     //! OpenLCB MTI of the incoming message.
     If::MTI mti;
@@ -76,17 +78,26 @@ struct IncomingMessage
     //! Destination node.
     NodeHandle dst;
     //! If the destination node is local, this value is non-NULL.
-    AsyncNode* dst_node;
+    AsyncNode *dst_node;
     //! Data content in the message body. Owned by the dispatcher.
-    Buffer* payload;
+    /// @todo(balazs.racz) figure out a better container.
+    string payload;
+
+    typedef If::MTI id_type;
+    void id() const
+    {
+        return mti;
+    }
 };
 
-typedef ParamHandler<IncomingMessage> IncomingMessageHandler;
+typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
 
+#if 0
+/** @todo(balazs.racz) delete this class */
 class WriteFlow : public ControlFlow
 {
 public:
-    WriteFlow(Executor* e, Notifiable* done) : ControlFlow(e, done)
+    WriteFlow(Executor *e, Notifiable *done) : ControlFlow(e, done)
     {
     }
 
@@ -102,7 +113,7 @@ public:
      *  May be set to nullptr.
      */
     virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
-                                       Buffer* data, Notifiable* done) = 0;
+                                       Buffer *data, Notifiable *done) = 0;
 
     /** Initiates sending an unaddressed (global) message onto the NMRAnet bus.
      *
@@ -114,66 +125,52 @@ public:
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
-    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
-                                    Notifiable* done) = 0;
+    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer *data,
+                                    Notifiable *done) = 0;
 };
+#endif
 
-class AsyncIf
+class AsyncIf : public Service
 {
 public:
-    class MessageDispatchFlow
-        : public TypedDispatchFlow<uint32_t, IncomingMessage>
+    /** @return Flow to send global messages to the NMRAnet bus. */
+    MessageHandler *global_message_write_flow()
     {
-    public:
-        MessageDispatchFlow(Executor* e) : TypedDispatchFlow(e)
-        {
-        }
-
-        virtual bool OnFlowFinished()
-        {
-            if (params_.payload)
-            {
-                params_.payload->free();
-            }
-            return true;
-        }
-    };
-
-    AsyncIf(Executor* executor, int local_nodes_count);
-    virtual ~AsyncIf()
+        HASSERT(globalWriteFlow_);
+        return globalWriteFlow_;
+    }
+    /** @return Flow to send addressed messages to the NMRAnet bus. */
+    MessageHandler *addressed_message_write_flow()
     {
+        HASSERT(addressedWriteFlow_);
+        return addressedWriteFlow_;
     }
 
-    /// @returns the dispatcher of incoming messages.
-    MessageDispatchFlow* dispatcher()
+    /** @return Dispatcher of incoming NMRAnet messages. */
+    MessageDispatchFlow *dispatcher()
     {
         return &dispatcher_;
     }
 
-    /// @returns an allocator for sending global messages to the bus.
-    TypedAllocator<WriteFlow>* global_write_allocator()
+    /** Type of the dispatcher of incoming NMRAnet messages. */
+    typedef DispatchFlow<NMRAnetMessage, 4> MessageDispatchFlow;
+
+    /** Constructs an NMRAnet interface.
+     * @param executor is the thread that will be used for all processing on
+     * this interface.
+     * @param local_nodes_count is the maximum number of virtual nodes that
+     * this interface will support. */
+    AsyncIf(Executor *executor, int local_nodes_count);
+
+    /** Destructor */
+    virtual ~AsyncIf()
     {
-        HASSERT(globalWriteAllocator_.has_ever_seen_free_entries());
-        return &globalWriteAllocator_;
     }
 
-    /** Adds @param f to the free global write flows. Should be used by If
-     * implementations only. */
-    void add_global_write_flow(WriteFlow* f)
-    {
-        globalWriteAllocator_.ReleaseBack(f);
-    }
-
-    /// @returns an allocator for sending addressed messages to the bus.
-    TypedAllocator<WriteFlow>* addressed_write_allocator()
-    {
-        HASSERT(addressedWriteAllocator_.has_ever_seen_free_entries());
-        return &addressedWriteAllocator_;
-    }
 
     /** Adds @param f to the free addressed write flows. Should be used by If
      * implementations only. */
-    void add_addressed_write_flow(WriteFlow* f)
+    void add_addressed_write_flow(WriteFlow *f)
     {
         addressedWriteAllocator_.ReleaseBack(f);
     }
@@ -181,15 +178,17 @@ public:
     /** Transfers ownership of a module to the interface. It will be brought
      * down in the destructor. The destruction order is guaranteed such that
      * all supporting structures are still available when the flow is destryed,
-     * but incoming messages can not come in anymore. */
-    virtual void add_owned_flow(Executable* e) = 0;
+     * but incoming messages can not come in anymore.
+     *
+     * @todo(balazs.racz) revise whether this needs to be virtual. */
+    virtual void add_owned_flow(Executable *e) = 0;
 
     /** Registers a new local node on this interface. This function must be
      * called from the interface's executor.
      *
      * @param node is the node to register.
      */
-    void add_local_node(AsyncNode* node)
+    void add_local_node(AsyncNode *node)
     {
         NodeID id = node->node_id();
         HASSERT(localNodes_.find(id) == localNodes_.end());
@@ -201,7 +200,7 @@ public:
      *
      * @param node is the node to delete.
      */
-    void delete_local_node(AsyncNode* node)
+    void delete_local_node(AsyncNode *node)
     {
         auto it = localNodes_.find(node->node_id());
         HASSERT(it != localNodes_.end());
@@ -214,7 +213,7 @@ public:
      * @param id is the 48-bit NMRAnet node ID to look up.
      * @returns the node pointer or NULL if the node is not registered.
      */
-    AsyncNode* lookup_local_node(NodeID id)
+    AsyncNode *lookup_local_node(NodeID id)
     {
         auto it = localNodes_.find(id);
         if (it == localNodes_.end())
@@ -224,16 +223,17 @@ public:
         return it->second;
     }
 
+protected:
+    /// Allocator containing the global write flows.
+    MessageHandler *globalWriteFlow_;
+    /// Allocator containing the addressed write flows.
+    MessageHandler *addressedWriteFlow_;
+
 private:
     /// Flow responsible for routing incoming messages to handlers.
     MessageDispatchFlow dispatcher_;
 
-    /// Allocator containing the global write flows.
-    TypedAllocator<WriteFlow> globalWriteAllocator_;
-    /// Allocator containing the addressed write flows.
-    TypedAllocator<WriteFlow> addressedWriteAllocator_;
-
-    typedef Map<NodeID, AsyncNode*> VNodeMap;
+    typedef Map<NodeID, AsyncNode *> VNodeMap;
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;
