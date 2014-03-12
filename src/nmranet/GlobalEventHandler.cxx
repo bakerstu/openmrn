@@ -80,13 +80,13 @@ bool GlobalEventFlow::EventProcessingPending()
     return false;
 }
 
-ControlFlow::Action GlobalEventFlow::WaitForEvent()
+StateFlowBase::Action GlobalEventFlow::WaitForEvent()
 {
     LOG(VERBOSE, "GlobalFlow::WaitForEvent");
     return Allocate(&impl_->event_queue_, ST(HandleEventArrived));
 }
 
-ControlFlow::Action GlobalEventFlow::HandleEventArrived()
+StateFlowBase::Action GlobalEventFlow::HandleEventArrived()
 {
     LOG(VERBOSE, "GlobalFlow::EventArrived");
     GetAllocationResult(&impl_->message_);
@@ -107,7 +107,7 @@ void DecodeRange(EventReport* r)
     r->event &= ~r->mask;
 }
 
-ControlFlow::Action GlobalEventFlow::HandleEvent()
+StateFlowBase::Action GlobalEventFlow::HandleEvent()
 {
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
     EventReport* rep = &impl_->main_event_report_;
@@ -185,12 +185,12 @@ ControlFlow::Action GlobalEventFlow::HandleEvent()
     return WaitAndCall(STATE(HandlerFinished));
 }
 
-ControlFlow::Action GlobalEventFlow::WaitForHandler()
+StateFlowBase::Action GlobalEventFlow::WaitForHandler()
 {
     return WaitAndCall(STATE(HandlerFinished));
 }
 
-ControlFlow::Action GlobalEventFlow::HandlerFinished()
+StateFlowBase::Action GlobalEventFlow::HandlerFinished()
 {
     LOG(VERBOSE, "GlobalFlow::HandlerFinished");
     impl_->message_ = impl_->event_queue_.TypedAllocateOrNull();
