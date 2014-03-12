@@ -40,7 +40,9 @@
 #include <cstdarg>
 
 #include "executor/notifiable.hxx"
+
 #include "os/OS.hxx"
+#include "executor/lock.hxx"
 #include "utils/macros.h"
 #include "utils/Queue.hxx"
 
@@ -120,6 +122,15 @@ protected:
     {
     }
 
+    /** Allow Pool access to our constructor */
+    friend class Pool;
+
+    /** Allow DynamicPool access to our constructor */
+    friend class DynamicPool;
+
+    /** Allow FixedPool access to our constructor */
+    friend class FixedPool;
+
     DISALLOW_COPY_AND_ASSIGN(BufferBase);
 };
 
@@ -155,7 +166,9 @@ private:
     /** Constructor.
      * @param pool pool this buffer belong to
      */
-    Buffer(Pool *pool) : BufferBase(sizeof(Buffer<T>), pool), data_()
+    Buffer(Pool *pool)
+        : BufferBase(sizeof(Buffer<T>), pool)
+        , data_()
     {
     }
 
@@ -167,11 +180,8 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Buffer);
 
-    /** Allow DynamicPool access to our constructor */
-    friend class DynamicPool;
-
-    /** Allow FixedPool access to our constructor */
-    friend class FixedPool;
+    /** Allow Pool access to our constructor */
+    friend class Pool;
 
     /** user data */
     T data_;
@@ -613,6 +623,30 @@ private:
 class Pool
 {
 public:
+    /** Get a free item out of the pool.
+     * @param result pointer to a pointer to the result
+     * @param flow if !NULL, then the alloc call is considered async and will
+     *        behave as if @ref alloc_async() was called.
+     */
+    template <class BufferType>
+    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
+    {
+        *result = static_cast<Buffer<BufferType> *>(alloc_untyped(sizeof(Buffer<BufferType>), flow));
+        if (*result && !flow)
+        {
+            new (*result) Buffer<BufferType>(this);
+        }
+    }
+
+    /** Get a free item out of the pool.
+     * @param flow Executable to notify upon allocation
+     */
+    template <class BufferType> void alloc_async(Executable *flow)
+    {
+        Buffer<BufferType> *buffer;
+        alloc(&buffer, flow);
+    }
+
     /** Cast the result of an asynchronous allocation and perform a placement
      * new on it.
      * @param base untyped buffer
@@ -622,12 +656,9 @@ public:
     static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
     {
         HASSERT(base);
-        HASSERT(sizeof(Buffer<BufferType>) <= base->size());
+        HASSERT(sizeof(Buffer<BufferType>) == base->size());
         *result = static_cast<Buffer<BufferType> *>(base);
-        /** We assume that the BufferBase has already been initialized before
-         * returned to the asynchronous allocation callback. We only construct
-         * the typed portion here. */
-        new ((*result)->data()) BufferType();
+        new (*result) Buffer<BufferType>(base->pool());
     }
 
 protected:
@@ -641,6 +672,8 @@ protected:
     {
     }
 
+    virtual BufferBase *alloc_untyped(size_t size, Executable *flow) = 0;
+    
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      */
@@ -730,7 +763,10 @@ public:
 private:
     /** Constructor.
      */
-    Bucket(size_t size) : Q(), size_(size), pending_()
+    Bucket(size_t size)
+        : Q(),
+          size_(size),
+          pending_()
     {
     }
 
@@ -749,13 +785,16 @@ private:
 /** A specialization of a pool which can allocate new elements dynamically
  * upon request.
  */
-class DynamicPool : public Pool
+class DynamicPool : public Pool, private Atomic
 {
 public:
     /** Constructor.
      * @param sizes array of bucket sizes for the pool
      */
-    DynamicPool(Bucket sizes[]) : Pool(), totalSize(0), buckets(sizes)
+    DynamicPool(Bucket sizes[])
+        : Pool(),
+          totalSize(0),
+          buckets(sizes)
     {
     }
 
@@ -763,58 +802,6 @@ public:
     ~DynamicPool()
     {
         Bucket::destroy(buckets);
-    }
-
-    /** Get a free item out of the pool.
-     * @param result pointer to a pointer to the result
-     * @param flow if !NULL, then the alloc call is considered async and will
-     *        behave as if @ref alloc_async() was called.
-     */
-    template <class BufferType>
-    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
-    {
-        *result = NULL;
-
-        for (Bucket *current = buckets; current->size() != 0; ++current)
-        {
-            if (sizeof(Buffer<BufferType>) <= current->size())
-            {
-                mutex.lock();
-                *result =
-                    static_cast<Buffer<BufferType> *>(current->next().item);
-                if (*result == NULL)
-                {
-                    *result = (Buffer<BufferType> *)malloc(current->size());
-                    totalSize += current->size();
-                }
-                new (*result) Buffer<BufferType>(this);
-                mutex.unlock();
-                return;
-            }
-        }
-
-        /* big items are just malloc'd freely */
-        *result = (Buffer<BufferType> *)malloc(sizeof(Buffer<BufferType>));
-        new (*result) Buffer<BufferType>(this);
-        mutex.lock();
-        totalSize += sizeof(Buffer<BufferType>);
-        mutex.unlock();
-    }
-
-    /** Get a free item out of the pool.
-     * @param flow Executable to notify upon allocation
-     */
-    template <class BufferType> void alloc_async(Executable *flow)
-    {
-        Buffer<BufferType> *buffer;
-        /** @todo(balazs.racz) There is a bug here: this call will call the
-         * constructor, and then the flow will come back to init and we'll cal
-         * the constructor once more. */
-        alloc<BufferType>(&buffer);
-        /* This pool will malloc indefinitely to create more buffers.
-         * We will always have the result.
-         */
-        flow->alloc_result(buffer);
     }
 
 protected:
@@ -825,27 +812,18 @@ protected:
     Bucket *buckets;
 
 private:
+    /** Get a free item out of the pool.
+     * @param result pointer to a pointer to the result
+     * @param flow if !NULL, then the alloc call is considered async and will
+     *        behave as if @ref alloc_async() was called.
+     */
+    BufferBase *alloc_untyped(size_t size, Executable *flow);
+        
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free
      */
-    void free(BufferBase *item)
-    {
-        for (Bucket *current = buckets; current->size() != 0; ++current)
-        {
-            if (item->size() <= current->size())
-            {
-                current->insert(item);
-                mutex.unlock();
-                return;
-            }
-        }
-        mutex.lock();
-        /* big items are just freed */
-        totalSize -= item->size();
-        mutex.unlock();
-        ::free(item);
-    }
+    void free(BufferBase *item);
 
     /** Default constructor.
      */
@@ -856,7 +834,7 @@ private:
 
 /** Pool of fixed number of items which can be allocated up on request.
  */
-class FixedPool : public Pool
+class FixedPool : public Pool, public Atomic
 {
 public:
     /** Used in static pools to tell if this item is a member of the pool.
@@ -873,59 +851,17 @@ public:
         return false;
     }
 
-    /** Get a free item out of the pool.
-     * @param result pointer to a pointer to the result
-     * @param flow if !NULL, then the alloc call is considered async and will
-     *        behave as if @ref alloc_async() was called.
-     */
-    template <class BufferType>
-    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
-    {
-        mutex.lock();
-        if (empty == false)
-        {
-            *result = static_cast<Buffer<BufferType> *>(queue.next(0));
-            if (*result)
-            {
-                new (*result) Buffer<BufferType>(this);
-                totalSize += itemSize;
-                mutex.unlock();
-                if (flow)
-                {
-                    flow->alloc_result(*result);
-                }
-                return;
-            }
-            empty = true;
-        }
-        *result = NULL;
-        if (flow)
-        {
-            queue.insert(flow);
-        }
-        mutex.unlock();
-    }
-
-    /** Get a free item out of the pool.
-     * @param flow Executable to notify upon allocation
-     */
-    template <class BufferType> void alloc_async(Executable *flow)
-    {
-        Buffer<BufferType> *buffer;
-        alloc<BufferType>(&buffer, flow);
-    }
-
     /** Constructor for a fixed size pool.
      * @param item_size size of each item in the pool
      * @param items number of items in the pool
      */
     FixedPool(size_t item_size, size_t items)
-        : Pool(),
-          totalSize(0),
-          mempool(new char[(item_size * items)]),
-          itemSize(item_size),
-          items(items),
-          empty(false)
+        : Pool()
+        , totalSize(0)
+        , mempool(new char[(item_size * items)])
+        , itemSize(item_size)
+        , items(items)
+        , empty(false)
     {
         HASSERT(item_size != 0 && items != 0);
         QMember *current = (QMember *)mempool;
@@ -962,31 +898,18 @@ protected:
     bool empty;
 
 private:
+    /** Get a free item out of the pool.
+     * @param result pointer to a pointer to the result
+     * @param flow if !NULL, then the alloc call is considered async and will
+     *        behave as if @ref alloc_async() was called.
+     */
+    BufferBase *alloc_untyped(size_t size, Executable *flow);
+    
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free
      */
-    void free(BufferBase *item)
-    {
-        HASSERT(valid(item));
-        HASSERT(item->size() <= itemSize);
-        if (empty == true)
-        {
-            Executable *waiting = static_cast<Executable *>(queue.next().item);
-            if (waiting)
-            {
-                waiting->alloc_result(item);
-            }
-            if (queue.pending() == 0)
-            {
-                empty = false;
-            }
-        }
-        else
-        {
-            queue.insert(item);
-        }
-    }
+    void free(BufferBase *item);
 
     /** Default Constructor.
      */

@@ -34,6 +34,7 @@
 
 #include "gtest/gtest.h"
 #include "utils/BufferQueue.hxx"
+#include "utils/test_main.hxx"
 #include "executor/StateFlow.hxx"
 
 
@@ -85,6 +86,7 @@ TEST(BufferBase, alloc_async)
     TrivialFlow flow(&service);
     
     mainBufferPool->alloc_async<Item>(&flow);
+    wait_for_main_executor();
 }
 
 DynamicPool *unalignedBufferPool = new DynamicPool(Bucket::init(5, 9, 0));
@@ -404,6 +406,7 @@ TEST(FixedPoolTest, alloc_async)
     TrivialFlow flow(&service);
     
     pool.alloc_async<Item>(&flow);
+    wait_for_main_executor();
 }
 
 int appl_main(int argc, char* argv[])

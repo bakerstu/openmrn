@@ -30,9 +30,10 @@
  * @author Stuart W. Baker
  * @date 3 August 2013
  */
-#include "BufferQueue.hxx"
 
 #include <cstdio>
+
+#include "utils/BufferQueue.hxx"
 
 #if defined (__linux__)
 #define DEBUG_PRINTF printf
@@ -42,23 +43,140 @@
 
 DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
-#if 0
-
-/** Expand the buffer size.  Exercise caution when using this API.  If anyone
- * else is holding onto a reference of this, their reference will be corrupted.
- * @param size size buffer after expansion.
- * @return newly expanded buffer with old buffer data moved
+/** Get a free item out of the pool.
+ * @param result pointer to a pointer to the result
+ * @param flow if !NULL, then the alloc call is considered async and will
+ *        behave as if @ref alloc_async() was called.
  */
-Buffer *Buffer::expand(size_t size)
+BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
 {
-    /** @todo (Stuart Baker) optimization oportunity by rounding up to the
-     * next buffer size.
-     */
-    Buffer *new_buffer = pool_->alloc(size);
-    
-    memcpy(new_buffer->data(), data(), size_ - left);
-    new_buffer->left = (size - size_) + left;
-    pool_->free(this);
-    return new_buffer;
+    BufferBase *result = NULL;
+
+    for (Bucket *current = buckets; current->size() != 0; ++current)
+    {
+        if (size <= current->size())
+        {
+            result = static_cast<BufferBase*>(current->next().item);
+            if (result == NULL)
+            {
+                result = (BufferBase*)malloc(current->size());
+                {
+                    AtomicHolder h(this);
+                    totalSize += current->size();
+                }
+            }
+            new (result) BufferBase(size, this);
+        }
+    }
+
+    if (!result)
+    {
+        /* big items are just malloc'd freely */
+        result = (BufferBase*)malloc(size);
+        new (result) BufferBase(size, this);
+        {
+            AtomicHolder h(this);
+            totalSize += size;
+        }
+    }
+    if (flow)
+    {
+        flow->alloc_result(result);
+    }
+    return result;
 }
-#endif
+
+/** Release an item back to the free pool.
+ * @param item pointer to item to release
+ * @param size size of buffer to free
+ */
+void DynamicPool::free(BufferBase *item)
+{
+    for (Bucket *current = buckets; current->size() != 0; ++current)
+    {
+        if (item->size() <= current->size())
+        {
+            current->insert(item);
+            {
+                AtomicHolder h(this);
+                totalSize -= current->size();
+            }
+            return;
+        }
+    }
+    /* big items are just freed */
+    ::free(item);
+    {
+        AtomicHolder h(this);
+        totalSize -= item->size();
+    }
+}
+
+/** Get a free item out of the pool.
+ * @param result pointer to a pointer to the result
+ * @param flow if !NULL, then the alloc call is considered async and will
+ *        behave as if @ref alloc_async() was called.
+ */
+BufferBase *FixedPool::alloc_untyped(size_t size, Executable *flow)
+{
+    BufferBase *result = NULL;
+    
+    {
+        AtomicHolder h(this);
+        if (empty == false)
+        {
+            result = static_cast<BufferBase *>(queue.next(0));
+            if (result)
+            {
+                new (result) BufferBase(size, this);
+                totalSize += itemSize;
+            }
+            else
+            {
+                empty = true;
+            }
+        }
+        if (flow && empty)
+        {
+            queue.insert(flow);
+        }
+    }
+    if (result && flow)
+    {
+        flow->alloc_result(result);
+    }
+    return result;
+}
+
+/** Release an item back to the free pool.
+ * @param item pointer to item to release
+ * @param size size of buffer to free
+ */
+void FixedPool::free(BufferBase *item)
+{
+    HASSERT(valid(item));
+    HASSERT(item->size() <= itemSize);
+    
+    Executable *waiting = NULL;
+    {
+        AtomicHolder h(this);
+        if (empty == true)
+        {
+            waiting = static_cast<Executable *>(queue.next().item);
+            if (queue.pending() == 0)
+            {
+                empty = false;
+            }
+        }
+        else
+        {
+            queue.insert(item);
+        }
+    }
+    if (waiting)
+    {
+        waiting->alloc_result(item);
+    }
+
+}
+
