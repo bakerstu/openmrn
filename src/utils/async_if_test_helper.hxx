@@ -313,21 +313,23 @@ protected:
 };
 */
 
- /*
-class MockMessageHandler : public IncomingMessageHandler
+class MockMessageHandler : public MessageHandler
 {
 public:
-    MOCK_METHOD0(get_allocator, AllocatorBase *());
     MOCK_METHOD2(handle_message,
-                 void(IncomingMessage *message, Notifiable *done));
-                 };*/
+                 void(NMRAnetMessage *message, unsigned priority));
+    virtual void send(Buffer<NMRAnetMessage>* message, unsigned priority) {
+        handle_message(message->data(), priority);
+        message->unref();
+    }
+};
 
 MATCHER_P(IsBufferValue, id, "")
 {
     uint64_t value = htobe64(id);
-    if (arg->used() != 8)
+    if (arg.size() != 8)
         return false;
-    if (memcmp(&value, arg->start(), 8))
+    if (memcmp(&value, arg.data(), 8))
         return false;
     return true;
 }

@@ -53,7 +53,8 @@ DynamicPool *CanFrameWriteFlow::pool()
 
 void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
-    LOG(INFO, "outgoing message %x.", GET_CAN_FRAME_ID_EFF(message->data()->frame()));
+    LOG(VERBOSE, "outgoing message %x.",
+        GET_CAN_FRAME_ID_EFF(message->data()->frame()));
     message->data()->skipMember_ = ifCan_->hub_port();
     ifCan_->device()->send(message, priority);
 }
@@ -102,7 +103,6 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-
 namespace
 {
 
@@ -118,8 +118,14 @@ public:
     }
 
 protected:
-    virtual Action entry() {
+    virtual Action entry()
+    {
         return call_immediately(STATE(send_to_hardware));
+    }
+
+    virtual Action send_finished()
+    {
+        return call_immediately(STATE(global_entry));
     }
 };
 
@@ -461,15 +467,15 @@ private:
 AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
-    : AsyncIf(executor, local_nodes_count),
-      device_(device),
-      frameWriteFlow_(this),
-      frameReadFlow_(this),
-      frameDispatcher_(this),
-      localAliases_(0, local_alias_cache_size),
-      remoteAliases_(0, remote_alias_cache_size)
+    : AsyncIf(executor, local_nodes_count)
+    , device_(device)
+    , frameWriteFlow_(this)
+    , frameReadFlow_(this)
+    , frameDispatcher_(this)
+    , localAliases_(0, local_alias_cache_size)
+    , remoteAliases_(0, remote_alias_cache_size)
 {
-    auto* gflow = new GlobalCanMessageWriteFlow(this);
+    auto *gflow = new GlobalCanMessageWriteFlow(this);
     globalWriteFlow_ = gflow;
     add_owned_flow(gflow);
     /*add_owned_flow(new VerifyNodeIdHandler(this));

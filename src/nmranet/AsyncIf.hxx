@@ -102,10 +102,10 @@ struct NMRAnetMessage
     /// @todo(balazs.racz) figure out a better container.
     string payload;
 
-    typedef If::MTI id_type;
+    typedef uint32_t id_type;
     id_type id() const
     {
-        return mti;
+        return static_cast<uint32_t>(mti);
     }
 };
 

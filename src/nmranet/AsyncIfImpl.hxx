@@ -115,7 +115,7 @@ protected:
             StartFlowAt(STATE(send_to_local_nodes));
         }
     */
-private:
+
     /** Addressed write flows should call this state BEFORE sending to the
      * hardware. They may get back control at the send_to_hardware state if
      * needed.
