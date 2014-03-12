@@ -43,6 +43,114 @@
 
 DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
+
+
+/** Add an item to the back of the queue.
+ * @param item to add to queue
+ * @param index unused parameter
+ */
+void Q::insert(QMember *item, unsigned index)
+{
+    HASSERT(item->next == NULL);
+    HASSERT(item != tail);
+    AtomicHolder h(this);
+    if (head == NULL)
+    {
+        head = tail = item;
+    }
+    else
+    {
+        tail->next = item;
+        tail = item;
+    }
+    item->next = NULL;
+    ++count;
+}
+
+/** Get an item from the front of the queue.
+ * @return @ref Result structure with item retrieved from queue, NULL if
+ *         no item available
+ */
+Q::Result Q::next()
+{
+    AtomicHolder h(this);
+    if (head == NULL)
+    {
+        return Result();
+    }
+    --count;
+    QMember *qm = head;
+    if (head == tail)
+    {
+        tail = NULL;
+    }
+    head = (qm->next);
+    qm->next = NULL;
+
+    return Result(qm, 0);
+}
+
+/** Add an item to the back of the queue.
+ * @param item to add to queue
+ * @param index unused parameter
+ */
+void QAsync::insert(QMember *item, unsigned index)
+{
+    Executable *executable = NULL;
+    {
+        AtomicHolder h(this);
+        if (waiting)
+        {
+            if (Q::pending() == 0)
+            {
+                Q::insert(item);
+                waiting = false;
+            }
+            else
+            {
+                executable = static_cast<Executable *>(Q::next().item);
+            }
+        }
+        else
+        {
+            Q::insert(item);
+        }
+    }
+    if (executable)
+    {
+        executable->alloc_result(item);
+    }
+}
+
+/** Get an item from the front of the queue.
+ * @param flow Executable that will wait on the item
+ * @return item retrieved from queue, NULL if no item available
+ */
+void QAsync::next_async(Executable *flow)
+{
+    QMember *qm = NULL;
+    {
+        AtomicHolder h(this);
+        if (waiting)
+        {
+            Q::insert(flow);
+        }
+        else
+        {
+            qm = Q::next(0);
+            if (qm == NULL)
+            {
+                Q::insert(flow);
+                waiting = true;
+            }
+        }
+    }
+    if (qm)
+    {
+        flow->alloc_result(qm);
+    }
+}
+
 /** Get a free item out of the pool.
  * @param result pointer to a pointer to the result
  * @param flow if !NULL, then the alloc call is considered async and will
@@ -105,11 +213,11 @@ void DynamicPool::free(BufferBase *item)
         }
     }
     /* big items are just freed */
-    ::free(item);
     {
         AtomicHolder h(this);
         totalSize -= item->size();
     }
+    ::free(item);
 }
 
 /** Get a free item out of the pool.
