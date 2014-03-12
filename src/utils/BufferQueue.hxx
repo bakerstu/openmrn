@@ -120,6 +120,10 @@ protected:
      */
     ~BufferBase()
     {
+        if (done_)
+        {
+            done_->notify();
+        }
     }
 
     /** Allow Pool access to our constructor */
