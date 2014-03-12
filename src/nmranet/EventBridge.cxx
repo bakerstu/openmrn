@@ -89,10 +89,10 @@ class EventVectorRegistry : public ProxyEventHandler {
         if (IsDone() || IsNotStarted())
           ++parent_->pending_iterators_;
       }
-      StartFlowAt(ST(MainIteration));
+      StartFlowAt(STATE(MainIteration));
     }
 
-    ControlFlowAction MainIteration() {
+    Action MainIteration() {
       NMRAnetEventHandler* handler = nullptr;
       {
         OSMutexLock l(&parent_->lock_);
@@ -113,7 +113,7 @@ class EventVectorRegistry : public ProxyEventHandler {
 
    protected:
     EventVectorRegistry* parent_;
-    virtual ControlFlowAction VExit() { return Exit(); }
+    virtual Action VExit() { return Exit(); }
 
    private:
     HandlerList::const_iterator it_;
@@ -126,7 +126,7 @@ class EventVectorRegistry : public ProxyEventHandler {
     AllocatedIteratedCall(EventVectorRegistry* parent) : IteratedCall(parent) {}
 
    protected:
-    virtual ControlFlowAction VExit() {
+    virtual Action VExit() {
       return ReleaseAndExit(&parent_->event_iterators_, this);
     }
   };

@@ -48,14 +48,14 @@ public:
     CanDatagramClient(AsyncIfCan* interface)
         : AddressedCanMessageWriteFlow(interface)
     {
-        StartFlowAt(ST(Terminated));
+        StartFlowAt(STATE(Terminated));
     }
 
     virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload,
                                 Notifiable* done)
     {
         HASSERT(IsDone());
-        StartFlowAt(ST(NotStarted));
+        StartFlowAt(STATE(NotStarted));
         result_ = OPERATION_PENDING;
         if_can_->dispatcher()->register_handler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->register_handler(MTI_2, MASK_2, this);
@@ -93,7 +93,7 @@ private:
         HASSERT(0);
     }
 
-    virtual ControlFlowAction fill_can_frame_buffer()
+    virtual Action fill_can_frame_buffer()
     {
         LOG(VERBOSE, "fill can frame buffer");
         CanFrameWriteFlow* write_flow;
@@ -148,7 +148,7 @@ private:
 
         if (need_more_frames)
         {
-            return CallImmediately(ST(get_can_frame_buffer));
+            return call_immediately(STATE(get_can_frame_buffer));
         }
         else
         {
@@ -158,33 +158,32 @@ private:
     }
     
     // override
-    virtual ControlFlowAction addressed_local_dispatcher_done() {
+    virtual Action addressed_local_dispatcher_done() {
         return Sleep(&sleep_data_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
                      ST(timeout_waiting_for_dg_response));
     }
 
-
     // override.
-    virtual ControlFlowAction timeout_looking_for_dst()
+    virtual Action timeout_looking_for_dst()
     {
         LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
             dst_.id);
         UnregisterLocalHandler();
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
-        return CallImmediately(ST(datagram_finalize));
+        return call_immediately(STATE(datagram_finalize));
     }
 
-    virtual ControlFlowAction timeout_waiting_for_dg_response()
+    virtual Action timeout_waiting_for_dg_response()
     {
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
                   "destination %012llx.",
             dst_.id);
         result_ |= PERMANENT_ERROR | TIMEOUT;
-        return CallImmediately(ST(datagram_finalize));
+        return call_immediately(STATE(datagram_finalize));
     }
 
-    ControlFlowAction datagram_finalize()
+    Action datagram_finalize()
     {
         if_can_->dispatcher()->unregister_handler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->unregister_handler(MTI_2, MASK_2, this);
@@ -303,7 +302,7 @@ private:
         /// @TODO(balazs.racz) Here we might want to decide whether to start a
         /// retry.
         LOG(VERBOSE, "restarting at datagram finalize");
-        StartFlowAt(ST(datagram_finalize));
+        StartFlowAt(STATE(datagram_finalize));
     } // handle_message
 };
 

@@ -68,7 +68,7 @@ void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m,
     Allocate(&g_incoming_datagram_allocator, ST(incoming_datagram_allocated));
 }
 
-ControlFlow::ControlFlowAction
+ControlFlow::Action
 DatagramSupport::DatagramDispatcher::incoming_datagram_allocated()
 {
     IncomingDatagram* d =
@@ -119,7 +119,7 @@ DatagramSupport::DatagramDispatcher::incoming_datagram_allocated()
     return ReleaseAndExit(&lock_, this);
 }
 
-ControlFlow::ControlFlowAction
+ControlFlow::Action
 DatagramSupport::DatagramDispatcher::respond_rejection()
 {
     auto* f = GetTypedAllocationResult(interface_->addressed_write_allocator());

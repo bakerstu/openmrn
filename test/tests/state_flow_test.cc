@@ -229,7 +229,7 @@ public:
   void ReptSleepNTimes(int n) {
     count_ = n;
     WakeUpRepeatedly(&sleep_data_, MSEC_TO_NSEC(3));
-    StartFlowAt(ST(StartReptSleep));
+    StartFlowAt(STATE(StartReptSleep));
   }
 
 private:
@@ -244,7 +244,7 @@ private:
       return Sleep(&sleep_data_, MSEC_TO_NSEC(3),
                    (MemberFunction)&SleeperFlow::MSleepCount);
     } else {
-      return CallImmediately((MemberFunction)&SleeperFlow::MSleepDone);
+      return call_immediately((MemberFunction)&SleeperFlow::MSleepDone);
     }
   }
 
@@ -257,7 +257,7 @@ private:
   StateFlowAction MReptSleepCount() {
     if (!--count_) {
       StopTimer(&sleep_data_);
-      return CallImmediately(ST(MSleepDone));
+      return call_immediately(STATE(MSleepDone));
     }
     return WaitForNotification();
   }
@@ -300,7 +300,7 @@ public:
 
   void RunFlowAndSubFlow(bool *r) {
     r_ = r;
-    StartFlowAt(ST(Start));
+    StartFlowAt(STATE(Start));
   }
 
 private:

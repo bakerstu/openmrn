@@ -39,14 +39,14 @@ void ControlFlow::Run() {
   LOG(VERBOSE, "ControlFlow::Run %p", this);
   HASSERT(state_);
   do {
-    ControlFlowAction action = (this->*state_)();
+    Action action = (this->*state_)();
     // We got a WaitForNotification.
     if (!action.next_state_) return;
     state_ = action.next_state_;
   } while (1);
 }
 
-ControlFlow::ControlFlowAction ControlFlow::Exit() {
+ControlFlow::Action ControlFlow::Exit() {
   if (done_) {
     state_ = &ControlFlow::Terminated;
     done_->notify();
@@ -59,11 +59,11 @@ ControlFlow::ControlFlowAction ControlFlow::Exit() {
   return WaitForNotification();
 }
 
-ControlFlow::ControlFlowAction ControlFlow::NotStarted() {
+ControlFlow::Action ControlFlow::NotStarted() {
   return WaitForNotification();
 }
 
-ControlFlow::ControlFlowAction ControlFlow::Terminated() {
+ControlFlow::Action ControlFlow::Terminated() {
   return WaitForNotification();
 }
 
@@ -98,7 +98,7 @@ long long ControlFlow::control_flow_repeated_timer(void* arg_flow, void* arg_ent
   return OS_TIMER_RESTART;
 }
 
-ControlFlow::ControlFlowAction ControlFlow::Sleep(SleepData* data,
+ControlFlow::Action ControlFlow::Sleep(SleepData* data,
                                                   long long delay_nsec,
                                                   MemberFunction next_state) {
   data->callback_count = 0;
@@ -126,30 +126,30 @@ void ControlFlow::StopTimer(SleepData* data) {
 }
 
 
-ControlFlow::ControlFlowAction ControlFlow::WaitForTimerWakeUpAndCall(
+ControlFlow::Action ControlFlow::WaitForTimerWakeUpAndCall(
     SleepData* data,
     MemberFunction next_state) {
   next_state_ = next_state;
   sub_flow_.sleep = data;
   // We use CallImmediately here in case the timer has expired before (or
   // immediately). Useful especially for repeated calls.
-  return CallImmediately(&ControlFlow::WaitForTimer);
+  return call_immediately(&ControlFlow::WaitForTimer);
 }
 
-ControlFlow::ControlFlowAction ControlFlow::WaitForTimer() {
+ControlFlow::Action ControlFlow::WaitForTimer() {
   {
     LockHolder h(executor_);
     if (sub_flow_.sleep->callback_count == 0) return WaitForNotification();
     --sub_flow_.sleep->callback_count;
   }
-  return CallImmediately(next_state_);
+  return call_immediately(next_state_);
 }
 
 /// Implementation state that is waiting for another flow to finish.
-ControlFlow::ControlFlowAction ControlFlow::WaitForControlFlow() {
+ControlFlow::Action ControlFlow::WaitForControlFlow() {
   LockHolder h(executor_);
   if (sub_flow_.called_flow->IsDone()) {
-    return CallImmediately(next_state_);
+    return call_immediately(next_state_);
   } else {
     return WaitForNotification();
   }

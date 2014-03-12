@@ -83,7 +83,7 @@ struct NMRAnetMessage
     /// Destination node.
     NodeHandle dst;
     /// If the destination node is local, this value is non-NULL.
-    AsyncNode *dst_node;
+    AsyncNode *dstNode;
     /// Data content in the message body. Owned by the dispatcher.
     /// @todo(balazs.racz) figure out a better container.
     string payload;

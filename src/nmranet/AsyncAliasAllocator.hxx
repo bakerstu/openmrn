@@ -52,7 +52,7 @@ struct AliasInfo : public QMember
     {
     }
 
-    void Reset()
+    void reset()
     {
         alias = 0;
         state = STATE_EMPTY;
@@ -113,15 +113,15 @@ private:
     /// Handler callback for incoming messages.
     virtual void handle_message(struct can_frame* message, Notifiable* done);
 
-    ControlFlowAction HandleGetMoreWork();
-    ControlFlowAction HandleWorkArrived();
-    ControlFlowAction HandleInitAliasCheck();
-    ControlFlowAction handle_allocate_for_cid_frame();
-    ControlFlowAction HandleSendCidFrames();
-    ControlFlowAction HandleWaitDone();
-    ControlFlowAction HandleSendRidFrame();
+    Action HandleGetMoreWork();
+    Action HandleWorkArrived();
+    Action HandleInitAliasCheck();
+    Action handle_allocate_for_cid_frame();
+    Action HandleSendCidFrames();
+    Action HandleWaitDone();
+    Action HandleSendRidFrame();
 
-    ControlFlowAction HandleAliasConflict();
+    Action HandleAliasConflict();
 
     /// Generates the next alias to check in the seed_ variable.
     void NextSeed();
@@ -159,7 +159,10 @@ private:
     SleepData sleep_helper_;
 };
 #else
-    class AsyncAliasAllocator {};
+    class AsyncAliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>> {
+    public:
+        DynamicPool* reserved_aliases() { return mainBufferPool; }
+    };
 #endif
 
 }

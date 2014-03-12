@@ -63,11 +63,11 @@ public:
     static GlobalEventFlow* instance;
 
 protected:
-    ControlFlowAction WaitForEvent();
-    ControlFlowAction HandleEventArrived();
-    ControlFlowAction HandleEvent();
-    ControlFlowAction WaitForHandler();
-    ControlFlowAction HandlerFinished();
+    Action WaitForEvent();
+    Action HandleEventArrived();
+    Action HandleEvent();
+    Action WaitForHandler();
+    Action HandlerFinished();
 
     void FreeMessage(GlobalEventMessage* m);
 

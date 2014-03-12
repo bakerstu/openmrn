@@ -58,25 +58,25 @@ AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan* if_can)
     seed_ ^= if_id >> 18;
     seed_ ^= if_id >> 6;
     seed_ ^= uint16_t(if_id >> 42) | uint16_t(if_id << 6);
-    StartFlowAt(ST(HandleGetMoreWork));
+    StartFlowAt(STATE(HandleGetMoreWork));
 }
 
 AsyncAliasAllocator::~AsyncAliasAllocator()
 {
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleGetMoreWork()
+ControlFlow::Action AsyncAliasAllocator::HandleGetMoreWork()
 {
     return Allocate(&empty_alias_allocator_, ST(HandleWorkArrived));
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleWorkArrived()
+ControlFlow::Action AsyncAliasAllocator::HandleWorkArrived()
 {
     GetAllocationResult(&pending_alias_);
-    return CallImmediately(ST(HandleInitAliasCheck));
+    return call_immediately(STATE(HandleInitAliasCheck));
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
+ControlFlow::Action AsyncAliasAllocator::HandleInitAliasCheck()
 {
     cid_frame_sequence_ = 7;
     conflict_detected_ = 0;
@@ -93,7 +93,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleInitAliasCheck()
                                                  ~0x1FFFF000U, this);
 
     // Grabs an outgoing frame buffer.
-    return CallImmediately(ST(handle_allocate_for_cid_frame));
+    return call_immediately(STATE(handle_allocate_for_cid_frame));
 }
 
 void AsyncAliasAllocator::NextSeed()
@@ -114,7 +114,7 @@ void AsyncAliasAllocator::NextSeed()
     seed_ += offset;
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
+ControlFlow::Action AsyncAliasAllocator::HandleSendCidFrames()
 {
     LOG(VERBOSE, "Sending CID frame %d for alias %03x", cid_frame_sequence_,
         pending_alias_->alias);
@@ -123,17 +123,17 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendCidFrames()
     if (conflict_detected_)
     {
         write_flow->Cancel();
-        return CallImmediately(ST(HandleAliasConflict));
+        return call_immediately(STATE(HandleAliasConflict));
     }
     IfCan::control_init(*write_flow->mutable_frame(), pending_alias_->alias,
                         (if_id_ >> (12 * (cid_frame_sequence_ - 4))) & 0xfff,
                         cid_frame_sequence_);
     write_flow->Send(this);
     --cid_frame_sequence_;
-    return WaitAndCall(ST(handle_allocate_for_cid_frame));
+    return WaitAndCall(STATE(handle_allocate_for_cid_frame));
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::handle_allocate_for_cid_frame()
+ControlFlow::Action AsyncAliasAllocator::handle_allocate_for_cid_frame()
 {
     if (cid_frame_sequence_ >= 4)
     {
@@ -146,7 +146,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::handle_allocate_for_cid_fram
     }
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
+ControlFlow::Action AsyncAliasAllocator::HandleAliasConflict()
 {
     // Marks that we are no longer interested in frames from this alias.
     if_can_->frame_dispatcher()->unregister_handler(pending_alias_->alias,
@@ -156,20 +156,20 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleAliasConflict()
     pending_alias_->alias = 0;
     pending_alias_->state = AliasInfo::STATE_EMPTY;
     // Restarts the lookup.
-    return CallImmediately(ST(HandleInitAliasCheck));
+    return call_immediately(STATE(HandleInitAliasCheck));
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleWaitDone()
+ControlFlow::Action AsyncAliasAllocator::HandleWaitDone()
 {
     if (conflict_detected_)
     {
-        return CallImmediately(ST(HandleAliasConflict));
+        return call_immediately(STATE(HandleAliasConflict));
     }
     // grab a frame buffer for the RID frame.
     return Allocate(if_can_->write_allocator(), ST(HandleSendRidFrame));
 }
 
-ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
+ControlFlow::Action AsyncAliasAllocator::HandleSendRidFrame()
 {
     LOG(VERBOSE, "Sending RID frame for alias %03x", pending_alias_->alias);
     CanFrameWriteFlow* write_flow;
@@ -186,7 +186,7 @@ ControlFlow::ControlFlowAction AsyncAliasAllocator::HandleSendRidFrame()
     reserved_alias_allocator_.ReleaseBack(pending_alias_);
     pending_alias_ = nullptr;
     // We go back to the infinite loop.
-    return CallImmediately(ST(HandleGetMoreWork));
+    return call_immediately(STATE(HandleGetMoreWork));
 }
 
 void AsyncAliasAllocator::handle_message(struct can_frame* message,

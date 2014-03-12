@@ -331,22 +331,22 @@ class MockDatagramHandlerBase : public DatagramHandler, public ControlFlow
 public:
     MockDatagramHandlerBase() : ControlFlow(&g_executor, nullptr)
     {
-        StartFlowAt(ST(wait_for_datagram));
+        StartFlowAt(STATE(wait_for_datagram));
     }
 
     virtual void handle_datagram(IncomingDatagram* d) = 0;
 
-    ControlFlowAction wait_for_datagram()
+    Action wait_for_datagram()
     {
         return Allocate(&queue_, ST(process_datagram));
     }
 
-    ControlFlowAction process_datagram()
+    Action process_datagram()
     {
         IncomingDatagram* d = GetTypedAllocationResult(&queue_);
         handle_datagram(d);
         d->free();
-        return CallImmediately(ST(wait_for_datagram));
+        return call_immediately(STATE(wait_for_datagram));
     }
 };
 
@@ -753,7 +753,7 @@ public:
         return processCount_;
     }
 
-    virtual ControlFlowAction datagram_arrived()
+    virtual Action datagram_arrived()
     {
         processCount_++;
         const uint8_t* bytes =
@@ -775,7 +775,7 @@ public:
         }
     }
 
-    virtual ControlFlowAction ok_response_sent()
+    virtual Action ok_response_sent()
     {
         uint8_t* bytes = static_cast<uint8_t*>(datagram_->payload->start());
         size_t len = datagram_->payload->used();
@@ -783,7 +783,7 @@ public:
         {
             datagram_->free();
             // No response.
-            return CallImmediately(ST(wait_for_datagram));
+            return call_immediately(STATE(wait_for_datagram));
         }
 
         // We take over the buffer ownership.
@@ -802,16 +802,16 @@ public:
                         ST(send_response_datagram));
     }
 
-    ControlFlowAction send_response_datagram()
+    Action send_response_datagram()
     {
         auto* client_flow =
             GetTypedAllocationResult(ifDatagram_->client_allocator());
         client_flow->write_datagram(datagram_->dst->node_id(), datagram_->src,
                                     responsePayload_, this);
-        return WaitAndCall(ST(wait_response_datagram));
+        return WaitAndCall(STATE(wait_response_datagram));
     }
 
-    ControlFlowAction wait_response_datagram()
+    Action wait_response_datagram()
     {
         // NOTE: This is dangerous - there must be no other allocations
         // happening in this flow between when we allocate the datagram flow
@@ -828,7 +828,7 @@ public:
                 client_flow->result());
         }
         ifDatagram_->client_allocator()->TypedRelease(client_flow);
-        return CallImmediately(ST(wait_for_datagram));
+        return call_immediately(STATE(wait_for_datagram));
     }
 
 private:

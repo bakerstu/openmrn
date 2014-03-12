@@ -47,18 +47,18 @@ public:
         : ControlFlow(if_datagram->interface()->dispatcher()->executor(), nullptr),
           ifDatagram_(if_datagram)
     {
-        StartFlowAt(ST(wait_for_datagram));
+        StartFlowAt(STATE(wait_for_datagram));
     }
 
-    ControlFlowAction wait_for_datagram()
+    Action wait_for_datagram()
     {
         return Allocate(&queue_, ST(datagram_arrived_stub));
     }
 
-    ControlFlowAction datagram_arrived_stub()
+    Action datagram_arrived_stub()
     {
         datagram_ = GetTypedAllocationResult(&queue_);
-        return CallImmediately(ST(datagram_arrived));
+        return call_immediately(STATE(datagram_arrived));
     }
 
     /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
@@ -66,7 +66,7 @@ public:
      * state.
      *
      * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
-    ControlFlowAction respond_ok(uint8_t flags)
+    Action respond_ok(uint8_t flags)
     {
         responseMti_ = If::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
@@ -74,7 +74,7 @@ public:
                         ST(send_ok_response));
     }
 
-    ControlFlowAction send_ok_response()
+    Action send_ok_response()
     {
         auto* flow = GetTypedAllocationResult(
             ifDatagram_->interface()->addressed_write_allocator());
@@ -84,14 +84,14 @@ public:
         payload->advance(1);
         flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
                                     datagram_->src, payload, nullptr);
-        return CallImmediately(ST(ok_response_sent));
+        return call_immediately(STATE(ok_response_sent));
     }
 
     /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
      * from the user handler. The flow will return to the
      *
      * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
-    ControlFlowAction respond_reject(uint16_t error_code)
+    Action respond_reject(uint16_t error_code)
     {
         responseMti_ = If::MTI_DATAGRAM_REJECTED;
         responseErrorCode_ = error_code;
@@ -99,7 +99,7 @@ public:
                         ST(send_reject_response));
     }
 
-    ControlFlowAction send_reject_response()
+    Action send_reject_response()
     {
         auto* flow = GetTypedAllocationResult(
             ifDatagram_->interface()->addressed_write_allocator());
@@ -111,20 +111,20 @@ public:
         flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
                                     datagram_->src, payload, nullptr);
         datagram_->free();
-        return CallImmediately(ST(wait_for_datagram));
+        return call_immediately(STATE(wait_for_datagram));
     }
 
     /** Handles a new incoming datagram. Implementation must eventually call
      * respond_ok or respond_reject. */
-    virtual ControlFlowAction datagram_arrived() = 0;
+    virtual Action datagram_arrived() = 0;
 
     /** This state is where the handling will end up after a respond_ok
      * call. The user is responsible for free-ing the datagram object and
      * returning to the wait_for_datagram state. */
-    virtual ControlFlowAction ok_response_sent()
+    virtual Action ok_response_sent()
     {
         datagram_->free();
-        return CallImmediately(ST(wait_for_datagram));
+        return call_immediately(STATE(wait_for_datagram));
     }
 
 protected:

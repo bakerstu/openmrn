@@ -95,15 +95,15 @@ public:
 
   // ============ Interface to children (actual flows) ==============
 protected:
-  struct ControlFlowAction;
+  struct Action;
 
 public:
   /// The prototype of the member functions of all control flow stages.
-  typedef ControlFlowAction (ControlFlow::*MemberFunction)();
+  typedef Action (ControlFlow::*MemberFunction)();
 
 protected:
-  struct ControlFlowAction {
-    ControlFlowAction(MemberFunction s) : next_state_(s) {}
+  struct Action {
+    Action(MemberFunction s) : next_state_(s) {}
     MemberFunction next_state_;
   };
 
@@ -121,46 +121,46 @@ protected:
   /// Suspends the execution of the current control flow until an external
   /// notification arrives. After the notification the current state will be
   /// re-tried.
-  ControlFlowAction WaitForNotification() {
-    return ControlFlowAction(nullptr);
+  Action WaitForNotification() {
+    return Action(nullptr);
   }
 
   /// Transition to a new state, and calls the new state handler immediately
   /// following the current handler.
-  ControlFlowAction CallImmediately(MemberFunction f) {
-    return ControlFlowAction(f);
+  Action call_immediately(MemberFunction f) {
+    return Action(f);
   }
 
   /// Retries the current state immediately.
-  ControlFlowAction RetryCurrentState() {
-    return CallImmediately(state_);
+  Action RetryCurrentState() {
+    return call_immediately(state_);
   }
 
   /// Transitions to a new state, but allows all other pending callbacks of the
   /// executor to run before proceeding to the next state.
-  ControlFlowAction YieldAndCall(MemberFunction f) {
+  Action YieldAndCall(MemberFunction f) {
     state_ = f;
     notify();
     return WaitForNotification();
   }
 
   /// Transitions to a new state, but waits for a notification first.
-  ControlFlowAction WaitAndCall(MemberFunction f) {
+  Action WaitAndCall(MemberFunction f) {
     state_ = f;
     return WaitForNotification();
   }
 
   /// Yields to other callbacks in the current executor, and re-tries the
   /// current state again.
-  ControlFlowAction yield() {
+  Action yield() {
     notify();
     return WaitForNotification();
   }
 
-  ControlFlowAction Exit();
+  Action Exit();
 
   template <class T, class U>
-  ControlFlowAction ReleaseAndExit(T* allocator, U* entry) {
+  Action ReleaseAndExit(T* allocator, U* entry) {
     HASSERT(!executor_->IsMaybePending(this));
     state_ = &ControlFlow::NotStarted;
     if (done_) done_->notify();
@@ -168,18 +168,18 @@ protected:
     return WaitForNotification();
   }
 
-  ControlFlowAction Allocate(AllocatorBase* allocator, MemberFunction next) {
+  Action Allocate(AllocatorBase* allocator, MemberFunction next) {
     next_state_ = next;
     sub_flow_.allocation_result = nullptr;
     allocator->AllocateEntry(this);
     // We can't call immediately, because that would create a spurious
     // notification.
-    return WaitAndCall(ST(WaitForAllocation));
+    return WaitAndCall(STATE(WaitForAllocation));
   }
 
-  ControlFlowAction WaitForAllocation() {
+  Action WaitForAllocation() {
     if (!sub_flow_.allocation_result) return WaitForNotification();
-    return CallImmediately(next_state_);
+    return call_immediately(next_state_);
   }
 
   template<class T> void GetAllocationResult(T** value) {
@@ -200,7 +200,7 @@ protected:
     os_timer_t timer_handle;
   };
 
-  ControlFlowAction Sleep(SleepData* data, long long delay_nsec,
+  Action Sleep(SleepData* data, long long delay_nsec,
                           MemberFunction next_state);
 
   /// Sets up a repeated timer call. The individual waits have to be
@@ -216,7 +216,7 @@ protected:
 
   /// Suspends the current control flow until a repeated timer event has come
   /// in. Precondition: WakeUpRepeatedly has been called previously.
-  ControlFlowAction WaitForTimerWakeUpAndCall(SleepData* data,
+  Action WaitForTimerWakeUpAndCall(SleepData* data,
                                               MemberFunction next_state);
 
   struct FileIOData {
@@ -227,10 +227,10 @@ protected:
 
   /// Calls a child control flow, and when that flow is completed, transitions
   /// to next_state. Will send a notification to the dst flow.
-  ControlFlowAction CallFlow(ControlFlow* dst, MemberFunction next_state) {
+  Action CallFlow(ControlFlow* dst, MemberFunction next_state) {
     sub_flow_.called_flow = dst;
     next_state_ = next_state;
-    return CallImmediately(&ControlFlow::WaitForControlFlow);
+    return call_immediately(&ControlFlow::WaitForControlFlow);
   }
 
   MemberFunction state() { return state_; }
@@ -238,14 +238,14 @@ protected:
 
 
   /// Implementation state for a not-yet-started control flow.
-  ControlFlowAction NotStarted();
+  Action NotStarted();
   /// Implementation state for an exited control flow.
-  ControlFlowAction Terminated();
+  Action Terminated();
 private:
   /// Implementation state that is waiting for a timer callback.
-  ControlFlowAction WaitForTimer();
+  Action WaitForTimer();
   /// Implementation state that is waiting for another flow to finish.
-  ControlFlowAction WaitForControlFlow();
+  Action WaitForControlFlow();
 
   /// Helper function for timer implementation.
   void NotifyControlFlowTimer(SleepData* entry);
