@@ -131,7 +131,7 @@ endif #CMSIS_LPC11_PATH
 ############### GMOCK ###################
 ifndef GMOCKPATH
 SEARCHPATH := \
-  /opt/gmock/gmock-1.6.0 \
+  /opt/gmock/default \
   /usr \
 
 TRYPATH:=$(call findfirst,include/gmock/gmock.h,$(SEARCHPATH))
@@ -144,7 +144,7 @@ ifndef GMOCKSRCPATH
 SEARCHPATH := \
   $(GMOCKPATH) \
   /usr/src/gmock \
-  /opt/gmock/gmock-1.6.0 \
+  /opt/gmock/default \
 
 TRYPATH:=$(call findfirst,src/gmock-all.cc,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -157,8 +157,8 @@ endif #GMOCKSRCPATH
 ifndef GTESTPATH
 SEARCHPATH := \
   $(GMOCKPATH)/gtest \
-  /opt/gmock/gmock-1.6.0/gtest \
-  /opt/gtest/gtest-1.6.0 \
+  /opt/gmock/default/gtest \
+  /opt/gtest/gtest \
   /usr \
 
 TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
@@ -170,9 +170,9 @@ endif #GTESTPATH
 ifndef GTESTSRCPATH
 SEARCHPATH := \
   $(GTESTPATH) \
-  /opt/gmock/gmock-1.6.0/gtest \
+  /opt/gmock/default/gtest \
   /usr/src/gtest \
-  /opt/gtest/gtest-1.6.0 \
+  /opt/gtest/default \
 
 TRYPATH:=$(call findfirst,src/gtest-all.cc,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
