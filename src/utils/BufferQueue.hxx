@@ -110,7 +110,7 @@ protected:
 
     BarrierNotifiable *done_;
 
-    /** Constructor.
+    /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
      * @param pool pool this buffer belong to
      */
@@ -288,12 +288,16 @@ protected:
  * instantiated to use the mainBufferPool for its memory pool, or optionally
  * another BufferPool instance may be specified for its memory pool.
  */
-class Q : public QInterface
+class Q : public QInterface, public Atomic
 {
 public:
     /** Default Constructor.
      */
-    Q() : QInterface(), head(NULL), tail(NULL), count(0)
+    Q()
+        : QInterface()
+        , head(NULL)
+        , tail(NULL)
+        , count(0)
     {
     }
 
@@ -307,20 +311,7 @@ public:
      * @param item to add to queue
      * @param index unused parameter
      */
-    void insert(QMember *q, unsigned index = 0)
-    {
-        if (head == NULL)
-        {
-            head = tail = q;
-        }
-        else
-        {
-            tail->next = q;
-            tail = q;
-        }
-        q->next = NULL;
-        ++count;
-    }
+    void insert(QMember *item, unsigned index = 0);
 
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
@@ -335,18 +326,7 @@ public:
      * @return @ref Result structure with item retrieved from queue, NULL if
      *         no item available
      */
-    Result next()
-    {
-        if (head == NULL)
-        {
-            return Result();
-        }
-        --count;
-        QMember *qm = head;
-        head = (qm->next);
-
-        return Result(qm, 0);
-    }
+    Result next();
 
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
@@ -395,6 +375,96 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Q);
 };
 
+/** Asynchronous specialization of @ref Q.
+ */
+class QAsync : public Q
+{
+public:
+    /** Default Constructor.
+     */
+    QAsync()
+     : Q()
+     , waiting(true)
+    {
+    }
+
+    /** Default destructor.
+     */
+    ~QAsync()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index unused parameter
+     */
+    void insert(QMember *item, unsigned index = 0);
+
+    /** Get an item from the front of the queue.
+     * @param flow Executable that will wait on the item
+     * @return item retrieved from queue, NULL if no item available
+     */
+    void next_async(Executable *flow);
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
+     */
+    QMember *next(unsigned index)
+    {
+        return next().item;
+    }
+
+    /** Get an item from the front of the queue.
+     * @return @ref Result structure with item retrieved from queue, NULL if
+     *         no item available
+     */
+    Result next()
+    {
+        return waiting ? Result() : Q::next();
+    }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        return pending();
+    };
+
+    /** Get the number of pending items in the queue.
+     * @return number of pending items in the queue
+     */
+    size_t pending()
+    {
+        return waiting ? 0 : Q::pending();
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        return empty();
+    }
+
+    /** Test if the queue is empty.
+     * @return true if empty, else false
+     */
+    bool empty()
+    {
+        return waiting ? true : Q::empty();
+    }
+
+private:
+    /** true if someone is waiting for an insertion */
+    bool waiting;
+
+    DISALLOW_COPY_AND_ASSIGN(QAsync);
+};
+
 /** A list of queues.  Index 0 is the highest priority queue with increasingly
  * higher indexes having increasingly lower priority.
  */
@@ -404,7 +474,9 @@ public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QList() : QInterface(), list()
+    QList()
+        : QInterface()
+        , list()
     {
     }
 
@@ -876,6 +948,7 @@ public:
         QMember *current = (QMember *)mempool;
         for (size_t i = 0; i < items; ++i)
         {
+            current->init();
             queue.insert(current);
             current = (QMember *)((char *)current + item_size);
         }

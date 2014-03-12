@@ -88,7 +88,7 @@ private:
 
         Action entry()
         {
-            LOG(VERBOSE, "can packet arrived: %x",
+            LOG(VERBOSE, "can packet arrived: %" PRIx32,
                 GET_CAN_FRAME_ID_EFF(*message()->data()));
             char *end =
                 gc_format_generate(message()->data(), dbuf_, double_bytes_);

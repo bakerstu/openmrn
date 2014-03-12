@@ -63,8 +63,6 @@ TEST(BufferBase, alloc)
     buffer->unref();
 }
 
-Executor<1> executor("executor", 0, 1024);
-
 TEST(BufferBase, alloc_async)
 {
     struct Item
@@ -82,7 +80,7 @@ TEST(BufferBase, alloc_async)
         {}
     };
     
-    Service service(&executor);
+    Service service(&g_executor);
     TrivialFlow flow(&service);
     
     mainBufferPool->alloc_async<Item>(&flow);
@@ -163,6 +161,78 @@ TEST(QList, all)
 
     result = q.next();
     EXPECT_TRUE(result.item == NULL);
+}
+
+TEST(QAsync, all)
+{
+    struct Item : public QMember
+    {
+    };
+    
+    QAsync q;
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+    
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.next(2) == &a);
+    EXPECT_TRUE(q.next(1) == &b);
+    EXPECT_TRUE(q.next(0) == &c);
+    EXPECT_TRUE(q.next(0) == &d);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+    
+    EXPECT_TRUE(q.pending(0) == 0);
+
+    QAsync::Result result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+
+
+    class TrivialFlow : public StateFlowBase
+    {
+    public:
+        TrivialFlow(Service *s)
+            : StateFlowBase(s)
+        {}
+        
+        
+    };
+    
+    Service service(&g_executor);
+    TrivialFlow flow(&service);
+    TrivialFlow flow2(&service);
+    
+    q.next_async(&flow);
+    EXPECT_TRUE(q.pending() == 0);
+    EXPECT_TRUE(q.next().item == NULL);
+    EXPECT_TRUE(q.empty());
+
+    q.next_async(&flow2);
+    EXPECT_TRUE(q.pending() == 0);
+    EXPECT_TRUE(q.next().item == NULL);
+    EXPECT_TRUE(q.empty());
+
+    wait_for_main_executor();
+
+    q.insert(&a, 2);
+    wait_for_main_executor();
+    q.insert(&b, 1);
+
+    EXPECT_TRUE(q.empty());
+    q.insert(&b, 1);
+    EXPECT_TRUE(q.pending() == 1);
+    q.next_async(&flow);
+    EXPECT_TRUE(q.empty());
+
+    wait_for_main_executor();
 }
 
 TEST(QListProtected, all)
@@ -402,7 +472,7 @@ TEST(FixedPoolTest, alloc_async)
         
     };
     
-    Service service(&executor);
+    Service service(&g_executor);
     TrivialFlow flow(&service);
     
     pool.alloc_async<Item>(&flow);
@@ -433,7 +503,7 @@ TEST(FixedPoolTest, alloc_async_wait)
         
     };
     
-    Service service(&executor);
+    Service service(&g_executor);
     TrivialFlow flow(&service);
     Buffer<Item> *buffer;
     

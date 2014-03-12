@@ -7,6 +7,7 @@
 #endif
 
 #include <stdio.h>
+#include <inttypes.h>
 
 static const int FATAL = 0;
 static const int ERROR = 1;
