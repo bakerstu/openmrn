@@ -54,7 +54,7 @@ public:
 #else
 
 #include "os/OS.hxx"
-
+/// @todo make this a single global mutex
 class Atomic : public OSMutex {
 public:
   Atomic() : OSMutex(true) {}
@@ -83,7 +83,7 @@ private:
 #define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
 
 
-/// @todo(balazs.racz) rename users of Lockable to Atomic.
+/// @todo(balazs.racz) rename users of Lockable to Atomic and rename executor/lock.hxx to utils/Atomic.hxx.
 typedef Atomic Lockable;
 typedef AtomicHolder LockHolder;
 
