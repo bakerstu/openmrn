@@ -52,6 +52,10 @@ class Pool;
 template <class T> class Buffer;
 class BufferBase;
 
+namespace NMRAnet {
+class AsyncIfTest;
+}
+
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
 
@@ -101,7 +105,6 @@ protected:
 
     /** number of references in use */
     uint16_t count_;
-
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
@@ -125,6 +128,8 @@ protected:
             done_->notify();
         }
     }
+
+    friend class NMRAnet::AsyncIfTest;
 
     /** Allow Pool access to our constructor */
     friend class Pool;
@@ -867,7 +872,7 @@ public:
         , items(items)
         , empty(false)
     {
-        HASSERT(item_size != 0 && items != 0);
+        //HASSERT(item_size != 0 && items != 0);
         QMember *current = (QMember *)mempool;
         for (size_t i = 0; i < items; ++i)
         {
