@@ -10,11 +10,11 @@ include $(OPENMRNPATH)/etc/linux.x86.mk
 include $(OPENMRNPATH)/etc/path.mk
 
 SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)/
-VPATH = $(SRCDIR)
+VPATH = $(SRCDIR):$(GMOCKPATH)/src:$(GMOCKSRCPATH)
 
 exist := $(wildcard $(SRCDIR)/sources)
 ifneq ($(strip $(exist)),)
-include $(VPATH)/sources
+include $(SRCDIR)/sources
 else
 exist := $(wildcard sources)
 ifneq ($(strip $(exist)),)
@@ -32,6 +32,7 @@ endif
 
 OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
 TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)
+TESTOBJSEXTRA = gtest-all.o gmock-all.o
 
 TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.test)
 
@@ -43,7 +44,8 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
-INCLUDES     += -I$(GTESTPATH)/include -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
+INCLUDES     += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
+                -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
 CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
 CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
 SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage -O0
@@ -56,10 +58,18 @@ all: $(TESTOUTPUTS)
 
 -include $(OBJS:.o=.d) $(TESTOBJS:.otest=.dtest)
 
-$(TESTOUTPUTS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS)
-	$(LD) -o $@ $*.otest $(GTESTPATH)/src/gtest-all.o \
-	$(GTESTPATH)/src/gtest_main.o $(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
+$(TESTOUTPUTS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
+	$(LD) -o $@ $*.otest $(TESTOBJSEXTRA) \
+	$(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
 	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+
+gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
+	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
+	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
+
+gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
+	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
+	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
 
 .cxx.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
