@@ -48,40 +48,40 @@ public:
         : ControlFlow(node->interface()->dispatcher()->executor(), nullptr),
           node_(node)
     {
-        StartFlowAt(ST(handle_start));
+        StartFlowAt(STATE(handle_start));
     }
 
 private:
-    ControlFlowAction handle_start()
+    Action handle_start()
     {
         return Allocate(node_->interface()->global_write_allocator(),
                         ST(send_initialized));
     }
 
-    ControlFlowAction send_initialized()
+    Action send_initialized()
     {
         WriteFlow* flow = GetTypedAllocationResult(
             node_->interface()->global_write_allocator());
         NodeID id = node_->node_id();
         flow->WriteGlobalMessage(If::MTI_INITIALIZATION_COMPLETE, id,
                                  node_id_to_buffer(id), this);
-        return WaitAndCall(ST(initialization_complete));
+        return WaitAndCall(STATE(initialization_complete));
     }
 
-    ControlFlowAction initialization_complete()
+    Action initialization_complete()
     {
         node_->set_initialized();
-        return CallImmediately(ST(identify_events));
+        return call_immediately(STATE(identify_events));
     }
 
-    ControlFlowAction identify_events()
+    Action identify_events()
     {
         // Get the dispatch flow.
         return Allocate(node_->interface()->dispatcher()->allocator(),
                         ST(initiate_local_identify));
     }
 
-    ControlFlowAction initiate_local_identify()
+    Action initiate_local_identify()
     {
         auto* f = GetTypedAllocationResult(
             node_->interface()->dispatcher()->allocator());

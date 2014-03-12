@@ -40,7 +40,7 @@ public:
   }
 
 private:
-  ControlFlowAction CopyData() {
+  Action CopyData() {
     *bar_ = foo_;
     return Exit();
   }
@@ -90,40 +90,40 @@ public:
   void ReptSleepNTimes(int n) {
     count_ = n;
     WakeUpRepeatedly(&sleep_data_, MSEC_TO_NSEC(3));
-    StartFlowAt(ST(StartReptSleep));
+    StartFlowAt(STATE(StartReptSleep));
   }
 
 private:
   bool* r_;
-  ControlFlowAction MSleepOnce() {
+  Action MSleepOnce() {
     return Sleep(&sleep_data_, MSEC_TO_NSEC(3),
                  (MemberFunction)&SleeperFlow::MSleepDone);
   }
 
-  ControlFlowAction MSleepCount() {
+  Action MSleepCount() {
     if (count_--) {
       return Sleep(&sleep_data_, MSEC_TO_NSEC(3),
                    (MemberFunction)&SleeperFlow::MSleepCount);
     } else {
-      return CallImmediately((MemberFunction)&SleeperFlow::MSleepDone);
+      return call_immediately((MemberFunction)&SleeperFlow::MSleepDone);
     }
   }
 
-  ControlFlowAction StartReptSleep() {
+  Action StartReptSleep() {
     return WaitForTimerWakeUpAndCall(
         &sleep_data_,
         (MemberFunction)&SleeperFlow::MReptSleepCount);
   }
 
-  ControlFlowAction MReptSleepCount() {
+  Action MReptSleepCount() {
     if (!--count_) {
       StopTimer(&sleep_data_);
-      return CallImmediately(ST(MSleepDone));
+      return call_immediately(STATE(MSleepDone));
     }
     return WaitForNotification();
   }
 
-  ControlFlowAction MSleepDone() {
+  Action MSleepDone() {
     if (r_) *r_ = true;
     return Exit();
   }
@@ -161,20 +161,20 @@ public:
 
   void RunFlowAndSubFlow(bool *r) {
     r_ = r;
-    StartFlowAt(ST(Start));
+    StartFlowAt(STATE(Start));
   }
 
 private:
   bool* r_;
   SleeperFlow* sleeper_flow_;
 
-  ControlFlowAction Start() {
+  Action Start() {
     sleeper_flow_ = new SleeperFlow(this);
     sleeper_flow_->SleepOnce(r_);
     return CallFlow(sleeper_flow_, ST(ChildDone));
   }
 
-  ControlFlowAction ChildDone() {
+  Action ChildDone() {
     delete sleeper_flow_;
     return Exit();
   }

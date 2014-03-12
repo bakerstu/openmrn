@@ -42,10 +42,11 @@ namespace NMRAnet
 {
 
 /** Implementation of the hardware-independent parts of the write flows. */
-class WriteFlowBase : public WriteFlow
+class WriteFlowBase : public StateFlow<Buffer<NMRAnetMessage>, QList<4>>
 {
 public:
-    WriteFlowBase(Executor* e, Notifiable* done) : WriteFlow(e, done)
+    WriteFlowBase(AsyncIf *async_if)
+        : StateFlow<Buffer<NMRAnetMessage>, QList<4>>(async_if)
     {
     }
 
@@ -56,68 +57,77 @@ protected:
      *
      * NOTE: it is possible that this functon will never be called for a given
      * flow. */
-    virtual ControlFlowAction send_to_hardware() = 0;
+    virtual Action send_to_hardware() = 0;
+
+    /** Virtual method called after the send is completed, i.e., all the frames
+     * are generated and sent to the hardware. Various flows might need to take
+     * additional steps afterwards. */
+    virtual Action send_finished()
+    {
+        return release_and_exit();
+    }
 
     /// @returns the interface that this flow is assigned to.
-    virtual AsyncIf* async_if() = 0;
+    AsyncIf *async_if()
+    {
+        return static_cast<AsyncIf *>(service());
+    }
 
     /** Implementations shall call this function when they are done with
      * sending the packet.
      */
-    void cleanup();
+    // void cleanup();
 
-    If::MTI mti_;    ///< MTI of message to send.
-    NodeID src_;     ///< Source node that wants to send this message.
-    NodeHandle dst_; /**< Destination node to send message to, or 0 if global
-                        message. */
-    AsyncNode* dstNode_; ///< node pointer to dst node (for local addressed).
-    Buffer* data_;       ///< Message payload.
+    /// Returns the NMRAnet message we are trying to send.
+    NMRAnetMessage *nmsg()
+    {
+        return message()->data();
+    }
 
 protected:
-    /// @returns the allocator that this flow belongs to.
-    virtual TypedAllocator<WriteFlow>* allocator() = 0;
+    /*    /// Entry point for external callers.
+        virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle
+       dst,
+                                           Buffer* data, Notifiable* done)
+        {
+            HASSERT(IsNotStarted());
+            Restart(done);
+            mti_ = mti;
+            src_ = src;
+            dst_ = dst;
+            dstNode_ = nullptr;
+            data_ = data;
+            StartFlowAt(STATE(maybe_send_to_local_node));
+        }
 
-    /// Entry point for external callers.
-    virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
-                                       Buffer* data, Notifiable* done)
-    {
-        HASSERT(IsNotStarted());
-        Restart(done);
-        mti_ = mti;
-        src_ = src;
-        dst_ = dst;
-        dstNode_ = nullptr;
-        data_ = data;
-        StartFlowAt(ST(maybe_send_to_local_node));
-    }
+        /// Entry point for external callers.
+        virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
+                                        Notifiable* done)
+        {
+            HASSERT(IsNotStarted());
+            Restart(done);
+            mti_ = mti;
+            src_ = src;
+            dst_.id = 0;
+            dst_.alias = 0;
+            dstNode_ = nullptr;
+            data_ = data;
+            StartFlowAt(STATE(send_to_local_nodes));
+        }
+    */
 
-    /// Entry point for external callers.
-    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
-                                    Notifiable* done)
-    {
-        HASSERT(IsNotStarted());
-        Restart(done);
-        mti_ = mti;
-        src_ = src;
-        dst_.id = 0;
-        dst_.alias = 0;
-        dstNode_ = nullptr;
-        data_ = data;
-        StartFlowAt(ST(send_to_local_nodes));
-    }
-
-private:
-    /// Copies the buffered message to the local asyncif->dispatcher.
-    void
-    send_message_to_local_dispatcher(AsyncIf::MessageDispatchFlow* dispatcher);
-
-    ControlFlowAction maybe_send_to_local_node();
-    ControlFlowAction send_to_local_nodes();
-    ControlFlowAction unaddressed_with_local_dispatcher();
-    ControlFlowAction addressed_with_local_dispatcher();
-    virtual ControlFlowAction addressed_local_dispatcher_done();
+    /** Addressed write flows should call this state BEFORE sending to the
+     * hardware. They may get back control at the send_to_hardware state if
+     * needed.
+     * NOTE: datagram write flow cannot use this because it won't get back. */
+    Action addressed_entry();
+    /** Global write flows should return to this state AFTER sending the
+     * message to the hardware. They should ensure the message is still
+     * intact. They will not get back control. */
+    Action global_entry();
 };
 
+#if 0
 /** This handler handles VerifyNodeId messages (both addressed and global) on
  * the interface level. Each interface implementation will want to create one
  * of these. */
@@ -125,7 +135,7 @@ class VerifyNodeIdHandler : private IncomingMessageHandler,
                             public AllocationResult
 {
 public:
-    VerifyNodeIdHandler(AsyncIf* interface) : interface_(interface)
+    VerifyNodeIdHandler(AsyncIf *interface) : interface_(interface)
     {
         lock_.TypedRelease(this);
         interface_->dispatcher()->register_handler(
@@ -135,13 +145,13 @@ public:
             this);
     }
 
-    virtual AllocatorBase* get_allocator()
+    virtual AllocatorBase *get_allocator()
     {
         return &lock_;
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(IncomingMessage* m, Notifiable* done)
+    virtual void handle_message(IncomingMessage *m, Notifiable *done)
     {
         AutoNotify an(done);
         TypedAutoRelease<IncomingMessageHandler> ar(&lock_, this);
@@ -190,9 +200,9 @@ public:
     }
 
 #ifdef SIMPLE_NODE_ONLY
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void AllocationCallback(QueueMember *entry)
     {
-        WriteFlow* f = interface_->global_write_allocator()->cast_result(entry);
+        WriteFlow *f = interface_->global_write_allocator()->cast_result(entry);
         NodeID id = srcNode_->node_id();
         f->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
                               node_id_to_buffer(id), nullptr);
@@ -204,7 +214,7 @@ public:
         HASSERT(0);
     }
 #else
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void AllocationCallback(QueueMember *entry)
     {
         f_ = interface_->global_write_allocator()->cast_result(entry);
         // Need to jump to the main executor for two reasons:
@@ -232,15 +242,15 @@ public:
 
 private:
     TypedAllocator<IncomingMessageHandler> lock_;
-    AsyncIf* interface_;
-    AsyncNode* srcNode_;
+    AsyncIf *interface_;
+    AsyncNode *srcNode_;
 
 #ifndef SIMPLE_NODE_ONLY
-    WriteFlow* f_;
+    WriteFlow *f_;
     AsyncIf::VNodeMap::Iterator it_;
 #endif
 };
-
+#endif // if 0
 } // namespace NMRAnet
 
 #endif // _NMRAnetAsyncIfImpl_hxx_

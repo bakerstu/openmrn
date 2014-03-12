@@ -87,28 +87,14 @@ int appl_main(int argc, char* argv[]) {
 static Executor<1> g_executor("ex_thread", 0, 1024);
 static Service g_service(&g_executor);
 
-template<class Executor>
-/** This class can be given an executor, and will notify itself when that
- *   executor is out of work. */
-class ExecutorGuard : private Executable, public SyncNotifiable
-{
-public:
-    ExecutorGuard(Executor* e)
-        : executor_(e) {
-        executor_->add(this);  // lowest priority
-    }
-
-    virtual void run() {
-        if (executor_->empty()) {
-            SyncNotifiable::notify();
-        } else {
-            executor_->add(this);  // wait more on the lowest priority
-        }
-    }
-private:
-    Executor* executor_;
-};
-
+/** Blocks the current thread until the main executor has run out of work.
+ *
+ * Use this function in unittest functions to wait for any asynchronous work
+ * you may have scheduled on the main executor. This typically happens before
+ * expectations. Also if you have stack-allocated objects that will schedule
+ * themselves on the main executor, then you must call this function before
+ * ending the scope that will deallocate them -- it is typical to have this as
+ * the last command in a TEST_F. */
 void wait_for_main_executor()
 {
     ExecutorGuard<decltype(g_executor)> guard(&g_executor);

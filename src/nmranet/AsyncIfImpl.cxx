@@ -38,77 +38,24 @@
 namespace NMRAnet
 {
 
-void WriteFlowBase::cleanup()
+StateFlowBase::Action WriteFlowBase::addressed_entry()
 {
-    if (data_)
+    if (nmsg()->dst.id)
     {
-        data_->free();
-    }
-}
-
-ControlFlow::ControlFlowAction WriteFlowBase::send_to_local_nodes()
-{
-    return Allocate(async_if()->dispatcher()->allocator(),
-                    ST(unaddressed_with_local_dispatcher));
-}
-
-ControlFlow::ControlFlowAction
-WriteFlowBase::unaddressed_with_local_dispatcher()
-{
-    AsyncIf::MessageDispatchFlow* dispatcher;
-    GetAllocationResult(&dispatcher);
-    send_message_to_local_dispatcher(dispatcher);
-    return send_to_hardware();
-}
-
-ControlFlow::ControlFlowAction WriteFlowBase::addressed_with_local_dispatcher()
-{
-    AsyncIf::MessageDispatchFlow* dispatcher;
-    GetAllocationResult(&dispatcher);
-    send_message_to_local_dispatcher(dispatcher);
-    return CallImmediately(ST(addressed_local_dispatcher_done));
-}
-
-ControlFlow::ControlFlowAction WriteFlowBase::addressed_local_dispatcher_done()
-{
-    cleanup();
-    return ReleaseAndExit(allocator(), this);
-}
-
-void WriteFlowBase::send_message_to_local_dispatcher(
-    AsyncIf::MessageDispatchFlow* dispatcher)
-{
-    dispatcher->mutable_params()->mti = mti_;
-    dispatcher->mutable_params()->src.id = src_;
-    dispatcher->mutable_params()->src.alias = 0;
-    dispatcher->mutable_params()->dst = dst_;
-    dispatcher->mutable_params()->dst_node = dstNode_;
-
-    dispatcher->mutable_params()->payload = nullptr;
-    // Makes a copy of the input buffer if there is payload.
-    /// @TODO(stbaker): Add refcounting to Buffers to avoid this copy.
-    if (data_)
-    {
-        Buffer* copy = buffer_alloc(data_->used());
-        memcpy(copy->start(), data_->start(), data_->used());
-        copy->advance(data_->used());
-        dispatcher->mutable_params()->payload = copy;
-    }
-    dispatcher->IncomingMessage(mti_);
-}
-
-ControlFlow::ControlFlowAction WriteFlowBase::maybe_send_to_local_node()
-{
-    if (dst_.id)
-    {
-        dstNode_ = async_if()->lookup_local_node(dst_.id);
-        if (dstNode_)
+        nmsg()->dstNode = async_if()->lookup_local_node(nmsg()->dst.id);
+        if (nmsg()->dstNode)
         {
-            return Allocate(async_if()->dispatcher()->allocator(),
-                            ST(addressed_with_local_dispatcher));
+            async_if()->dispatcher()->send(transfer_message(), priority());
+            return call_immediately(STATE(send_finished));
         }
     }
     return send_to_hardware();
+}
+
+StateFlowBase::Action WriteFlowBase::global_entry()
+{
+    async_if()->dispatcher()->send(transfer_message());
+    return release_and_exit();
 }
 
 } // namespace NMRAnet

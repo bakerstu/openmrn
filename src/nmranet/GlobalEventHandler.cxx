@@ -61,7 +61,7 @@ GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
 {
     GlobalEventFlow::instance = this;
     impl_->handler_.reset(new VectorEventHandlers(executor));
-    StartFlowAt(ST(WaitForEvent));
+    StartFlowAt(STATE(WaitForEvent));
 }
 
 GlobalEventFlow::~GlobalEventFlow()
@@ -80,13 +80,13 @@ bool GlobalEventFlow::EventProcessingPending()
     return false;
 }
 
-ControlFlow::ControlFlowAction GlobalEventFlow::WaitForEvent()
+ControlFlow::Action GlobalEventFlow::WaitForEvent()
 {
     LOG(VERBOSE, "GlobalFlow::WaitForEvent");
     return Allocate(&impl_->event_queue_, ST(HandleEventArrived));
 }
 
-ControlFlow::ControlFlowAction GlobalEventFlow::HandleEventArrived()
+ControlFlow::Action GlobalEventFlow::HandleEventArrived()
 {
     LOG(VERBOSE, "GlobalFlow::EventArrived");
     GetAllocationResult(&impl_->message_);
@@ -107,7 +107,7 @@ void DecodeRange(EventReport* r)
     r->event &= ~r->mask;
 }
 
-ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent()
+ControlFlow::Action GlobalEventFlow::HandleEvent()
 {
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
     EventReport* rep = &impl_->main_event_report_;
@@ -182,27 +182,27 @@ ControlFlow::ControlFlowAction GlobalEventFlow::HandleEvent()
 
     (impl_->handler_.get()->*fn)(rep, this);
     // We insert an intermediate state to consume any pending notifications.
-    return WaitAndCall(ST(HandlerFinished));
+    return WaitAndCall(STATE(HandlerFinished));
 }
 
-ControlFlow::ControlFlowAction GlobalEventFlow::WaitForHandler()
+ControlFlow::Action GlobalEventFlow::WaitForHandler()
 {
-    return WaitAndCall(ST(HandlerFinished));
+    return WaitAndCall(STATE(HandlerFinished));
 }
 
-ControlFlow::ControlFlowAction GlobalEventFlow::HandlerFinished()
+ControlFlow::Action GlobalEventFlow::HandlerFinished()
 {
     LOG(VERBOSE, "GlobalFlow::HandlerFinished");
     impl_->message_ = impl_->event_queue_.TypedAllocateOrNull();
     if (impl_->message_)
     {
-        return CallImmediately(ST(HandleEvent));
+        return call_immediately(STATE(HandleEvent));
     }
     // No pending message in the queue: releases the mutex and allows global
     // handlers to proceed.
     event_handler_mutex.AssertLocked();
     event_handler_mutex.Unlock();
-    return CallImmediately(ST(WaitForEvent));
+    return call_immediately(STATE(WaitForEvent));
 }
 
 TypedAllocator<GlobalEventMessage>* GlobalEventFlow::message_allocator()

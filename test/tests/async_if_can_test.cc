@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-//#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 
 namespace NMRAnet
 {
@@ -86,70 +86,58 @@ TEST_F(AsyncIfTest, WriteMultipleFrames)
     }
 }
 
-#if 0
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:
     AsyncMessageCanTests()
     {
-        ifCan_->add_addressed_message_support(2);
+        //ifCan_->add_addressed_message_support(2);
     }
 };
 
 TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-
+    auto* b = ifCan_->global_message_write_flow()->alloc();
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
+                     EventIdToBuffer(0x0102030405060708ULL));
     expect_packet(":X195B422AN0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
-                                        EventIdToBuffer(0x0102030405060708ULL),
-                                        nullptr);
+    ifCan_->global_message_write_flow()->send(b);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-
+    auto* b = ifCan_->global_message_write_flow()->alloc();
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, "12345");
     expect_packet(":X195B422AN3132333435;");
-    Buffer *b = buffer_alloc(5);
-    const char data[] = "12345";
-    memcpy(b->start(), data, 5);
-    b->advance(5);
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID, b,
-                                        nullptr);
+    ifCan_->global_message_write_flow()->send(b);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
 
     expect_packet(":X1982822AN00003132333435;");
-    Buffer *b = buffer_alloc(5);
-    const char data[] = "12345";
-    memcpy(b->start(), data, 5);
-    b->advance(5);
-    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
-                                        TEST_NODE_ID, b, nullptr);
+    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
+                     TEST_NODE_ID, "12345");
+    ifCan_->global_message_write_flow()->send(b);
 }
+
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
 
     expect_packet(":X1982822AN1000303132333435;"); // first frame
     expect_packet(":X1982822AN3000363738393031;"); // middle frame
     expect_packet(":X1982822AN3000323334353637;"); // middle frame
     expect_packet(":X1982822AN20003839;");         // last frame
-    Buffer *b = buffer_alloc(20);
-    const char data[] = "01234567890123456789";
-    memcpy(b->start(), data, 20);
-    b->advance(20);
     /** This is somewhat cheating, because we use the global message write flow
      * to send an addressed message. @TODO(balazs.racz): replace this with
      * addressed write flow once that is ready and working. Add checks for this
      * not to happen in production. */
-    falloc.result()->WriteGlobalMessage(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
-                                        TEST_NODE_ID, b, nullptr);
+    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
+                     TEST_NODE_ID, "01234567890123456789");
+    ifCan_->global_message_write_flow()->send(b);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
@@ -157,42 +145,48 @@ TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
     EXPECT_CALL(canBus_, mwrite(":X195B422AN0102030405060708;")).Times(100);
     for (int i = 0; i < 100; ++i)
     {
-        TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-        falloc.result()->WriteGlobalMessage(
+        auto* b = ifCan_->global_message_write_flow()->alloc();
+        b->data()->reset(
             If::MTI_EVENT_REPORT, TEST_NODE_ID,
-            EventIdToBuffer(0x0102030405060708ULL), nullptr);
+            EventIdToBuffer(0x0102030405060708ULL));
+        ifCan_->global_message_write_flow()->send(b);
     }
 }
 
+
 TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
 
     EXPECT_CALL(canBus_, mwrite(_)).Times(0);
-    falloc.result()->WriteGlobalMessage(If::MTI_DATAGRAM, TEST_NODE_ID,
-                                        EventIdToBuffer(0x0102030405060708ULL),
-                                        nullptr);
+    b->data()->reset(If::MTI_DATAGRAM, TEST_NODE_ID,
+                     EventIdToBuffer(0x0102030405060708ULL));
+    ifCan_->global_message_write_flow()->send(b);
 }
+
 
 TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
         h, handle_message(
-               Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
-                             Field(&IncomingMessage::payload, NotNull()),
-                             Field(&IncomingMessage::payload,
+               Pointee(AllOf(Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+                             //Field(&NMRAnetMessage::payload, NotNull()),
+                             Field(&NMRAnetMessage::payload,
                                    IsBufferValue(0x0102030405060708ULL)))),
-               _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    ifCan_->dispatcher()->register_handler(0, 0, &h);
+               _));
+    ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
     expect_packet(":X195B422AN0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
-                                        EventIdToBuffer(0x0102030405060708ULL),
-                                        nullptr);
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+                     EventIdToBuffer(0x0102030405060708ULL));
+    ifCan_->global_message_write_flow()->send(b);
     wait();
 }
+
+#if 0
+
 
 TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
 {
@@ -201,15 +195,15 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_EVENTS_IDENTIFY_ADDRESSED),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::mti, If::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)),
-                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&IncomingMessage::dst,
+                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&IncomingMessage::dst_node, node_))),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+                Field(&NMRAnetMessage::dst_node, node_))),
+            _));
     ifCan_->dispatcher()->register_handler(0, 0, &h);
 
     TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
@@ -226,14 +220,14 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
 
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
     SyncNotifiable n;
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         &n);
     n.WaitForNotification();
@@ -281,12 +275,12 @@ TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
 TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
 {
     ifCan_->local_aliases()->remove(NodeAlias(0x22A)); // resets the cache.
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
+    auto* b = ifCan_->global_message_write_flow()->alloc();
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");
     expect_packet(":X195B433AN0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                                         EventIdToBuffer(0x0102030405060708ULL),
                                         nullptr);
     usleep(250000);
@@ -316,7 +310,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     expect_packet(":X195B444DN0102030405060709;");
     SyncNotifiable n;
     TypedSyncAllocation<WriteFlow> ffalloc(ifCan_->global_write_allocator());
-    ffalloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+    fb->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                                          EventIdToBuffer(0x0102030405060709ULL),
                                          &n);
     n.WaitForNotification();
@@ -336,15 +330,15 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&IncomingMessage::src, Field(&NodeHandle::id, id)),
-                Field(&IncomingMessage::dst, WriteHelper::global()),
-                Field(&IncomingMessage::dst_node, IsNull()),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
+                Field(&NMRAnetMessage::dst, WriteHelper::global()),
+                Field(&NMRAnetMessage::dst_node, IsNull()),
+                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     ifCan_->dispatcher()->register_handler(0x5B4, 0xffff, &h);
 
     ifCan_->remote_aliases()->add(id, alias);
@@ -361,15 +355,15 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_EVENT_REPORT),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&IncomingMessage::src, Field(&NodeHandle::id, 0)),
-                Field(&IncomingMessage::dst, WriteHelper::global()),
-                Field(&IncomingMessage::dst_node, IsNull()),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&NMRAnetMessage::dst, WriteHelper::global()),
+                Field(&NMRAnetMessage::dst_node, IsNull()),
+                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     ifCan_->dispatcher()->register_handler(0x5B4, 0xffff, &h);
 
     send_packet(":X195B4210N0102030405060708;");
@@ -385,15 +379,15 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&IncomingMessage::src, Field(&NodeHandle::id, id)),
-                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&IncomingMessage::dst,
+                Field(&NMRAnetMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
+                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&IncomingMessage::dst_node, node_),
-                Field(&IncomingMessage::payload, IsNull()))),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+                Field(&NMRAnetMessage::dst_node, node_),
+                Field(&NMRAnetMessage::payload, IsNull()))),
+            _));
     ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
 
     ifCan_->remote_aliases()->add(id, alias);
@@ -412,17 +406,17 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&IncomingMessage::src, Field(&NodeHandle::id, 0)),
-                Field(&IncomingMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&IncomingMessage::dst,
+                Field(&NMRAnetMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&IncomingMessage::dst_node, node_),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::dst_node, node_),
+                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferNodeValue(0x010203040506ULL)))),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
 
     // The "verify node id handler" will respond. Although this message carries

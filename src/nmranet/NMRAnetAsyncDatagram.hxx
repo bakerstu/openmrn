@@ -232,8 +232,8 @@ private:
         /// Callback from the message dispatcher.
         virtual void handle_message(IncomingMessage* m, Notifiable* done);
 
-        ControlFlowAction incoming_datagram_allocated();
-        ControlFlowAction respond_rejection();
+        Action incoming_datagram_allocated();
+        Action respond_rejection();
 
         union
         {

@@ -35,8 +35,8 @@
 #include "nmranet/AsyncIfCan.hxx"
 
 #include "nmranet/AsyncAliasAllocator.hxx"
-//#include "nmranet/AsyncIfImpl.hxx"
-//#include "nmranet/AsyncIfCanImpl.hxx"
+#include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/AsyncIfCanImpl.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
 //#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_can.h"
@@ -53,7 +53,8 @@ DynamicPool *CanFrameWriteFlow::pool()
 
 void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
-    LOG(INFO, "outgoing message %" PRIx32 ".", GET_CAN_FRAME_ID_EFF(message->data()->frame()));
+    LOG(INFO, "outgoing message %" PRIx32 ".",
+        GET_CAN_FRAME_ID_EFF(message->data()->frame()));
     message->data()->skipMember_ = ifCan_->hub_port();
     ifCan_->device()->send(message, priority);
 }
@@ -102,7 +103,6 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-#if 0
 namespace
 {
 
@@ -115,17 +115,23 @@ class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 public:
     GlobalCanMessageWriteFlow(AsyncIfCan *if_can) : CanMessageWriteFlow(if_can)
     {
-        if_can_->add_global_write_flow(this);
     }
 
 protected:
-    virtual TypedAllocator<WriteFlow> *allocator()
+    virtual Action entry()
     {
-        return if_can_->global_write_allocator();
+        return call_immediately(STATE(send_to_hardware));
+    }
+
+    virtual Action send_finished()
+    {
+        return call_immediately(STATE(global_entry));
     }
 };
 
 } // namespace
+
+#if 0
 
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:
@@ -461,14 +467,17 @@ private:
 AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
-    : AsyncIf(executor, local_nodes_count),
-      device_(device),
-      frameWriteFlow_(this),
-      frameReadFlow_(this),
-      frameDispatcher_(this),
-      localAliases_(0, local_alias_cache_size),
-      remoteAliases_(0, remote_alias_cache_size)
+    : AsyncIf(executor, local_nodes_count)
+    , device_(device)
+    , frameWriteFlow_(this)
+    , frameReadFlow_(this)
+    , frameDispatcher_(this)
+    , localAliases_(0, local_alias_cache_size)
+    , remoteAliases_(0, remote_alias_cache_size)
 {
+    auto *gflow = new GlobalCanMessageWriteFlow(this);
+    globalWriteFlow_ = gflow;
+    add_owned_flow(gflow);
     /*add_owned_flow(new VerifyNodeIdHandler(this));
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)

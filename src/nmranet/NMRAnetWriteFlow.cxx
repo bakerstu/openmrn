@@ -32,6 +32,8 @@
  * @date 3 Nov 2013
  */
 
+#include <string>
+
 #include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
 #include "endian.h"
@@ -39,20 +41,10 @@
 namespace NMRAnet
 {
 
-Executor* DefaultWriteFlowExecutor() __attribute__((__weak__));
-
-Executor* DefaultWriteFlowExecutor() {
-  static ThreadExecutor e("write_flow", 0, WRITE_FLOW_THREAD_STACK_SIZE);
-  return &e;
-}
-
-Buffer *EventIdToBuffer(uint64_t eventid)
+string EventIdToBuffer(uint64_t eventid)
 {
-    Buffer *buffer = buffer_alloc(sizeof(eventid));
-    uint64_t* b = static_cast<uint64_t*>(buffer->start());
-    *b = htobe64(eventid);
-    buffer->advance(sizeof(eventid));
-    return buffer;
+    eventid = htobe64(eventid);
+    return string(reinterpret_cast<char*>(&eventid), 8);
 }
 
 }; /* namespace NMRAnet */

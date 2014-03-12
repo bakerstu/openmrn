@@ -35,19 +35,21 @@
 #ifndef _NMRAnetWriteFlow_hxx_
 #define _NMRAnetWriteFlow_hxx_
 
+#include <string>
+
 #include "nmranet_config.h"
-#include "executor/executor.hxx"
-#include "executor/notifiable.hxx"
 
 #include "utils/BufferQueue.hxx"
-#include "nmranet/NMRAnetAsyncNode.hxx"
+//#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/AsyncIf.hxx"
 
 namespace NMRAnet
 {
 
-Executor* DefaultWriteFlowExecutor();
+//Executor* DefaultWriteFlowExecutor();
 
+
+#if 0
 class WriteHelper : private AllocationResult
 {
 public:
@@ -140,8 +142,8 @@ private:
     Buffer* buffer_;
     Notifiable* done_;
 };
-
-Buffer* EventIdToBuffer(uint64_t eventid);
+#endif // if 0
+string EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace NMRAnet */
 

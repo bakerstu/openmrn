@@ -150,7 +150,7 @@ private:
     typedef MemorySpace::errorcode_t errorcode_t;
 
     // override
-    virtual ControlFlowAction datagram_arrived()
+    virtual Action datagram_arrived()
     {
         HASSERT(!response_);
         const uint8_t* bytes = in_bytes();
@@ -166,7 +166,7 @@ private:
 
         if ((cmd & MemoryConfig::COMMAND_MASK) == MemoryConfig::COMMAND_READ)
         {
-            return CallImmediately(ST(handle_read));
+            return call_immediately(STATE(handle_read));
         }
         switch (cmd)
         {
@@ -184,7 +184,7 @@ private:
         }
     }
 
-    virtual ControlFlowAction ok_response_sent()
+    virtual Action ok_response_sent()
     {
         if (response_)
         {
@@ -194,26 +194,26 @@ private:
         else
         {
             datagram_->free();
-            return CallImmediately(ST(cleanup));
+            return call_immediately(STATE(cleanup));
         }
     }
 
-    ControlFlowAction cleanup()
+    Action cleanup()
     {
-        return CallImmediately(ST(wait_for_datagram));
+        return call_immediately(STATE(wait_for_datagram));
     }
 
-    ControlFlowAction send_response_datagram()
+    Action send_response_datagram()
     {
         responseFlow_ =
             GetTypedAllocationResult(ifDatagram_->client_allocator());
         responseFlow_->write_datagram(datagram_->dst->node_id(), datagram_->src,
                                       response_, this);
         datagram_->free();
-        return WaitAndCall(ST(response_flow_complete));
+        return WaitAndCall(STATE(response_flow_complete));
     }
 
-    ControlFlowAction response_flow_complete()
+    Action response_flow_complete()
     {
         if (!responseFlow_->result() & DatagramClient::OPERATION_SUCCESS)
         {
@@ -223,10 +223,10 @@ private:
         }
         ifDatagram_->client_allocator()->TypedRelease(responseFlow_);
         response_ = nullptr;
-        return CallImmediately(ST(cleanup));
+        return call_immediately(STATE(cleanup));
     }
 
-    ControlFlowAction handle_read()
+    Action handle_read()
     {
         size_t len = datagram_->payload->used();
         if (len <= 6)

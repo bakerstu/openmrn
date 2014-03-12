@@ -130,9 +130,7 @@ public:
 
     /** Destructor.
      */
-    ~Executor()
-    {
-    }
+    ~Executor();
 
     /** Send a message to this Executor's queue.
      * @param msg Executable instance to insert into the input queue
@@ -178,5 +176,36 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Executor);
 };
+
+template<class Executor>
+/** This class can be given an executor, and will notify itself when that
+ *   executor is out of work. Callers can pend on the sync notifiable to wait
+ *   for that. */
+class ExecutorGuard : private Executable, public SyncNotifiable
+{
+public:
+    ExecutorGuard(Executor* e)
+        : executor_(e) {
+        executor_->add(this);  // lowest priority
+    }
+
+    virtual void run() {
+        if (executor_->empty()) {
+            SyncNotifiable::notify();
+        } else {
+            executor_->add(this);  // wait more on the lowest priority
+        }
+    }
+private:
+    Executor* executor_;
+};
+
+template <unsigned NUM_PRIO>
+/** Destructs the executor. Waits for the executor to run out of work first. */
+Executor<NUM_PRIO>::~Executor()
+{
+    ExecutorGuard<Executor<NUM_PRIO>> g(this);
+    g.wait_for_notification();
+}
 
 #endif /* _Executor_hxx_ */

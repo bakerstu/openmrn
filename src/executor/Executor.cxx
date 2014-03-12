@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -47,9 +47,9 @@ ExecutorBase *ExecutorBase::list = NULL;
  * @param stack_size thread stack size
  */
 ExecutorBase::ExecutorBase()
-    : name(name),
-      next(NULL),
-      active(NULL)
+    : name(name)
+    , next(NULL)
+    , active(NULL)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -75,7 +75,7 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
      */
-    for ( ; /* forever */ ; )
+    for (; /* forever */;)
     {
         ExecutorBase *current = list;
         while (current)
@@ -103,17 +103,17 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
 void *ExecutorBase::entry()
 {
     Executable *msg;
-    
+
     /* wait for messages to process */
-    for ( ; /* forever */ ; )
+    for (; /* forever */;)
     {
         unsigned priority;
         if (active)
         {
             /* act on the next active timer */
-            //Service::Timer *timer = static_cast<Service::Timer*>(active);
-            long long result = 0;//timer->service->process_timer(timer);
-            
+            // Service::Timer *timer = static_cast<Service::Timer*>(active);
+            long long result = 0; // timer->service->process_timer(timer);
+
             if (result == 0)
             {
                 /* we handled a timeout */
@@ -138,11 +138,10 @@ void *ExecutorBase::entry()
              */
             continue;
         }
-        
+
         // Process the message we got.
         msg->run();
     }
 
     return NULL;
 }
-

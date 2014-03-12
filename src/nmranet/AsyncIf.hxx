@@ -76,6 +76,20 @@ class AsyncNode;
  * handlers are done, the instance should be freed. */
 struct NMRAnetMessage
 {
+    void reset(If::MTI mti, NodeID src, NodeHandle dst, const string& payload) {
+        this->mti = mti;
+        this->src = {src, 0};
+        this->dst = dst;
+        this->payload = payload;
+    }
+
+    void reset(If::MTI mti, NodeID src, const string& payload) {
+        this->mti = mti;
+        this->src = {src, 0};
+        this->dst = {0, 0};
+        this->payload = payload;
+    }
+
     /// OpenLCB MTI of the incoming message.
     If::MTI mti;
     /// Source node.
@@ -83,15 +97,15 @@ struct NMRAnetMessage
     /// Destination node.
     NodeHandle dst;
     /// If the destination node is local, this value is non-NULL.
-    AsyncNode *dst_node;
+    AsyncNode *dstNode;
     /// Data content in the message body. Owned by the dispatcher.
     /// @todo(balazs.racz) figure out a better container.
     string payload;
 
-    typedef If::MTI id_type;
+    typedef uint32_t id_type;
     id_type id() const
     {
-        return mti;
+        return static_cast<uint32_t>(mti);
     }
 };
 

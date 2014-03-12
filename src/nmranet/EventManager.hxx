@@ -142,7 +142,7 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
 
   /// Implementations should call this after their construction is complete.
   void Start() {
-    StartFlowAt(ST(StateInIteration));
+    StartFlowAt(STATE(StateInIteration));
   }
 
   /// Implementations have to override this to re-set the standard_iterator
@@ -184,20 +184,20 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
   }
 
  protected:
-  ControlFlowAction StateInIteration() {
+  Action StateInIteration() {
     // We first try a standard iteration.
     if (standard_iterator_->done())
-      return CallImmediately(ST(TryStandardIteration));
+      return call_immediately(STATE(TryStandardIteration));
     // Then a global iteration.
     if (global_iterator_->done()) {
       if (!executor()->no_pending_flows()) return yield();
-      return CallImmediately(ST(GetGlobalIterationLock));
+      return call_immediately(STATE(GetGlobalIterationLock));
     }
     // Give up and wait for incoming messages.
     return WaitForNotification();
   }
 
-  ControlFlowAction TryStandardIteration() {
+  Action TryStandardIteration() {
     NMRAnetEventHandler* handler = standard_iterator_->NextEntry();
     if (!handler) {
       // Iteration done.
@@ -206,25 +206,25 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       HASSERT(d);
       standard_iterator_->ClearIteration();
       d->notify();
-      return YieldAndCall(ST(StateInIteration));
+      return YieldAndCall(STATE(StateInIteration));
     }
     (handler->*proxy_fn_)(standard_iterator_->event(),
                           standard_iterator_->NewCallback(this));
-    return CallImmediately(ST(WaitForStandardReturn));
+    return call_immediately(STATE(WaitForStandardReturn));
   }
 
-  ControlFlowAction WaitForStandardReturn() {
+  Action WaitForStandardReturn() {
     LOG(VERBOSE, "Standard entry return");
     if (!standard_iterator_->HasBeenNotified())
       return WaitForNotification();
-    return CallImmediately(ST(TryStandardIteration));
+    return call_immediately(STATE(TryStandardIteration));
   }
 
-  ControlFlowAction GetGlobalIterationLock() {
+  Action GetGlobalIterationLock() {
     return Allocate(&event_handler_mutex, ST(CallGlobalIteration));
   }
 
-  ControlFlowAction CallGlobalIteration() {
+  Action CallGlobalIteration() {
     NMRAnetEventHandler* handler = global_iterator_->NextEntry();
     if (!handler) {
       // Iteration done. We hand back the iterator lock.
@@ -234,20 +234,20 @@ class DualIteratorFlow : public ControlFlow, public ProxyEventHandler {
       d->notify();
       event_handler_mutex.AssertLocked();
       event_handler_mutex.Unlock();
-      return YieldAndCall(ST(StateInIteration));
+      return YieldAndCall(STATE(StateInIteration));
     }
     handler->HandleIdentifyGlobal(global_iterator_->event(),
                                   global_iterator_->NewCallback(this));
-    return CallImmediately(ST(WaitForGlobalReturn));
+    return call_immediately(STATE(WaitForGlobalReturn));
   }
 
-  ControlFlowAction WaitForGlobalReturn() {
+  Action WaitForGlobalReturn() {
     if (!global_iterator_->HasBeenNotified())
       return WaitForNotification();
     // Releases the iteration lock and yields to other control flows that might
     // want it.
     event_handler_mutex.Unlock();
-    return YieldAndCall(ST(StateInIteration));
+    return YieldAndCall(STATE(StateInIteration));
   }
 
  private:

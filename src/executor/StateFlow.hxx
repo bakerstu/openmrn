@@ -77,9 +77,9 @@
     {                                                                          \
     public:                                                                    \
         _name(Service *service)                                                \
-            : StateFlow<_priorities>(service),                                 \
-              timer(TIMEOUT_FROM(service, state_flow_timeout), service, this), \
-              timerMsg(NULL)                                                   \
+            : StateFlow<_priorities>(service)                                  \
+            , timer(TIMEOUT_FROM(service, state_flow_timeout), service, this)  \
+            , timerMsg(NULL)                                                   \
         {                                                                      \
         }                                                                      \
                                                                                \
@@ -155,7 +155,8 @@ protected:
      * @param size number of queues in the list
      */
     StateFlowBase(Service *service)
-        : service_(service), state_(STATE(terminated))
+        : service_(service)
+        , state_(STATE(terminated))
     {
     }
 
@@ -280,6 +281,8 @@ protected:
      * @param pool pool to allocate from; defaults to the pool of the target
      * flow.
      * @return function pointer to be returned from state function
+     *
+     * @TODO(balazs.racz) this hould be Pool* instead of DynamicPool*
      */
     template <class T>
     Action allocate_and_call(FlowInterface<Buffer<T>> *target_flow, Callback c,
@@ -374,10 +377,10 @@ public:
 
 protected:
     StateFlowWithQueue(Service *service)
-        : StateFlowBase(service),
-          currentMessage_(nullptr),
-          currentPriority_(MAX_PRIORITY),
-          isWaiting_(1)
+        : StateFlowBase(service)
+        , currentMessage_(nullptr)
+        , currentPriority_(MAX_PRIORITY)
+        , isWaiting_(1)
     {
         reset_flow(STATE(wait_for_message));
     }
@@ -402,6 +405,13 @@ protected:
         return currentMessage_;
     }
 
+    /// @returns the priority of the message currently being processed.
+    unsigned priority()
+    {
+        return currentPriority_;
+    }
+
+    /// @returns true if the flow is waiting for work.
     bool is_waiting()
     {
         AtomicHolder h(this);
