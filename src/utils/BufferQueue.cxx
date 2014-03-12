@@ -167,6 +167,10 @@ void FixedPool::free(BufferBase *item)
             {
                 empty = false;
             }
+            if (!waiting)
+            {
+                queue.insert(item);
+            }
         }
         else
         {

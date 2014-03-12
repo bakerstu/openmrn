@@ -409,9 +409,42 @@ TEST(FixedPoolTest, alloc_async)
     wait_for_main_executor();
 }
 
-int appl_main(int argc, char* argv[])
+TEST(FixedPoolTest, alloc_async_wait)
 {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    class Item
+    {
+    public:
+        Item()
+        {
+        }
+        
+        uint32_t data;
+    };
+
+    FixedPool pool(sizeof(Buffer<Item>), 1);
+    
+    class TrivialFlow : public StateFlowBase
+    {
+    public:
+        TrivialFlow(Service *s)
+            : StateFlowBase(s)
+        {}
+        
+        
+    };
+    
+    Service service(&executor);
+    TrivialFlow flow(&service);
+    Buffer<Item> *buffer;
+    
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer);
+    buffer->unref();
+    pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(buffer);
+    
+    pool.alloc_async<Item>(&flow);
+    buffer->unref();
+    wait_for_main_executor();
 }
 
