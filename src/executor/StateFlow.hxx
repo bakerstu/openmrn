@@ -286,10 +286,10 @@ protected:
      */
     template <class T>
     Action allocate_and_call(FlowInterface<Buffer<T>> *target_flow, Callback c,
-                             DynamicPool *pool = nullptr)
+                             Pool *pool = nullptr)
     {
         allocationResult_ = nullptr;
-        DynamicPool *p = pool;
+        Pool *p = pool;
         if (!p)
         {
             p = target_flow->pool();
