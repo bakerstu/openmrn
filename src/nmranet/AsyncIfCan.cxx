@@ -35,8 +35,8 @@
 #include "nmranet/AsyncIfCan.hxx"
 
 #include "nmranet/AsyncAliasAllocator.hxx"
-//#include "nmranet/AsyncIfImpl.hxx"
-//#include "nmranet/AsyncIfCanImpl.hxx"
+#include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/AsyncIfCanImpl.hxx"
 #include "nmranet/NMRAnetIfCan.hxx"
 //#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_can.h"
@@ -102,7 +102,7 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-#if 0
+
 namespace
 {
 
@@ -115,17 +115,17 @@ class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 public:
     GlobalCanMessageWriteFlow(AsyncIfCan *if_can) : CanMessageWriteFlow(if_can)
     {
-        if_can_->add_global_write_flow(this);
     }
 
 protected:
-    virtual TypedAllocator<WriteFlow> *allocator()
-    {
-        return if_can_->global_write_allocator();
+    virtual Action entry() {
+        return call_immediately(STATE(send_to_hardware));
     }
 };
 
 } // namespace
+
+#if 0
 
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:
@@ -469,6 +469,9 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
       localAliases_(0, local_alias_cache_size),
       remoteAliases_(0, remote_alias_cache_size)
 {
+    auto* gflow = new GlobalCanMessageWriteFlow(this);
+    globalWriteFlow_ = gflow;
+    add_owned_flow(gflow);
     /*add_owned_flow(new VerifyNodeIdHandler(this));
     pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)

@@ -6,6 +6,7 @@ CXXSRCS += \
            NMRAnetAliasCache.cxx \
            AsyncIfCan.cxx \
            AsyncIf.cxx \
+           AsyncIfImpl.cxx \
 
 
 DEAD_CXX +=  \
