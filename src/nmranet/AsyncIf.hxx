@@ -76,6 +76,20 @@ class AsyncNode;
  * handlers are done, the instance should be freed. */
 struct NMRAnetMessage
 {
+    void reset(If::MTI mti, NodeID src, NodeHandle dst, const string& payload) {
+        this->mti = mti;
+        this->src = {src, 0};
+        this->dst = dst;
+        this->payload = payload;
+    }
+
+    void reset(If::MTI mti, NodeID src, const string& payload) {
+        this->mti = mti;
+        this->src = {src, 0};
+        this->dst = {0, 0};
+        this->payload = payload;
+    }
+
     /// OpenLCB MTI of the incoming message.
     If::MTI mti;
     /// Source node.

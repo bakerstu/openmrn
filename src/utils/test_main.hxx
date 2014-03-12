@@ -109,6 +109,14 @@ private:
     Executor* executor_;
 };
 
+/** Blocks the current thread until the main executor has run out of work.
+ *
+ * Use this function in unittest functions to wait for any asynchronous work
+ * you may have scheduled on the main executor. This typically happens before
+ * expectations. Also if you have stack-allocated objects that will schedule
+ * themselves on the main executor, then you must call this function before
+ * ending the scope that will deallocate them -- it is typical to have this as
+ * the last command in a TEST_F. */
 void wait_for_main_executor()
 {
     ExecutorGuard<decltype(g_executor)> guard(&g_executor);

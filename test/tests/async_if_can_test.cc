@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-//#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/NMRAnetWriteFlow.hxx"
 
 namespace NMRAnet
 {
@@ -86,38 +86,33 @@ TEST_F(AsyncIfTest, WriteMultipleFrames)
     }
 }
 
-#if 0
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:
     AsyncMessageCanTests()
     {
-        ifCan_->add_addressed_message_support(2);
+        //ifCan_->add_addressed_message_support(2);
     }
 };
 
 TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-
+    auto* b = ifCan_->global_message_write_flow()->alloc();
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
+                     EventIdToBuffer(0x0102030405060708ULL));
     expect_packet(":X195B422AN0102030405060708;");
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID,
-                                        EventIdToBuffer(0x0102030405060708ULL),
-                                        nullptr);
+    ifCan_->global_message_write_flow()->send(b);
 }
 
 TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->global_write_allocator());
-
+    auto* b = ifCan_->global_message_write_flow()->alloc();
+    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, "12345");
     expect_packet(":X195B422AN3132333435;");
-    Buffer *b = buffer_alloc(5);
-    const char data[] = "12345";
-    memcpy(b->start(), data, 5);
-    b->advance(5);
-    falloc.result()->WriteGlobalMessage(If::MTI_EVENT_REPORT, TEST_NODE_ID, b,
-                                        nullptr);
+    ifCan_->global_message_write_flow()->send(b);
 }
+
+#if 0
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
 {
