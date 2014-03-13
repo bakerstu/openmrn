@@ -299,6 +299,18 @@ protected:
         return wait_and_call(c);
     }
 
+    /** Allocates an entry from an asynchronous queue, and transitions to a
+     * state once the allocation is complete.
+     * @param c is the state to transition to after allocation
+     * @param queue is the queue to allocate from.
+     */
+    Action allocate_and_call(Callback c, QAsync *queue)
+    {
+        allocationResult_ = nullptr;
+        queue->next_async(this);
+        return wait_and_call(c);
+    }
+
     /** Takes the result of the asynchronous allocation. This should be the
      * first statement in the state where the allocation transitioned.
      * @param target_flow is the StateFlow for which we allocated.

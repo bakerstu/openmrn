@@ -97,17 +97,14 @@ public:
 
        @param if_can is the interface to which this alias allocator should talk
        to.
-
-       @param num_free_aliases will be the number of aliases that this node
-       will reserve for future use (over the actually in-use aliases).
      */
-    AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can, int num_free_aliases);
+    AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can);
 
     virtual ~AsyncAliasAllocator();
 
     /** "Allocate" a buffer from this pool (but without initialization) in
      * order to get a reserved alias. */
-    FixedPool *reserved_aliases()
+    QAsync *reserved_aliases()
     {
         return &reserved_alias_pool_;
     }
@@ -147,7 +144,7 @@ private:
     /** Freelist of reserved aliases that can be used by virtual nodes. The
         AliasAllocatorFlow will post successfully reserved aliases to this
         allocator. */
-    FixedPool reserved_alias_pool_;
+    QAsync reserved_alias_pool_;
 
     /// 48-bit nodeID that we will use for alias reservations.
     NodeID if_id_;

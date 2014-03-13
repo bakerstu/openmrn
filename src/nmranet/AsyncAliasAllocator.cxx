@@ -42,11 +42,9 @@ namespace NMRAnet
 
 size_t g_alias_test_conflicts = 0;
 
-AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can,
-                                         int num_free_aliases)
+AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can)
     : StateFlow<Buffer<AliasInfo>, QList<1>>(if_can)
     , conflictHandler_(this)
-    , reserved_alias_pool_(sizeof(Buffer<AliasInfo>), num_free_aliases)
     , if_id_(if_id)
     , cid_frame_sequence_(0)
     , conflict_detected_(0)
@@ -57,15 +55,21 @@ AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can,
     seed_ ^= uint16_t(if_id >> 42) | uint16_t(if_id << 6);
     // Moves all the allocated alias buffers over to the input queue for
     // allocation.
-    while (true)
+}
+
+/** Helper function to instruct the async alias allocator to pre-allocate N
+ * aliases.
+ *
+ * @param aliases is the async alias allocator to use.
+ * @param pool is the pool from where we take the buffers for the aliases.
+ * @param n is how many aliases we pre-allocate.
+ */
+void seed_alias_allocator(AsyncAliasAllocator* aliases, Pool* pool, int n) {
+    for (int i = 0; i < n; i++)
     {
         Buffer<AliasInfo> *b;
-        reserved_alias_pool_.alloc(&b);
-        if (!b)
-        {
-            break;
-        }
-        this->send(b);
+        pool->alloc(&b);
+        aliases->send(b);
     }
 }
 
@@ -185,10 +189,7 @@ StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
         &conflictHandler_, pending_alias()->alias, ~0x1FFFF000U);
     if_can()->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                    pending_alias()->alias);
-    // reserved_alias_allocator_.ReleaseBack(pending_alias());
-    /** This will return the alias into the fixedpool that it came from. This
-     * will call the destructor but that won't harm the alias in the buffer
-     * data. */
+    reserved_alias_pool_.insert(transfer_message());
     return release_and_exit();
 }
 

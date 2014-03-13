@@ -124,17 +124,14 @@ protected:
     {
         HASSERT(0);
         ifCan_->set_alias_allocator(
-            new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get(), 0));
+            new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
         Buffer<AliasInfo> *a;
         mainBufferPool->alloc(&a);        
         a->data()->alias = 0x33A;
         a->data()->state = AliasInfo::STATE_RESERVED;
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                      a->data()->alias);
-        // TODO(balazs.racz) replace this trick with the proper asynchronous
-        // queue insert call.
-        a->pool_ = ifCan_->alias_allocator()->reserved_aliases();
-        a->unref();  // releases it to the pool.
+        ifCan_->alias_allocator()->reserved_aliases()->insert(a);        
         aliasSeed_ = 0x44C;
     }
 
