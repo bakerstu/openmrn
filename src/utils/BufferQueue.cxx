@@ -51,7 +51,7 @@ DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
  */
 void Q::insert(QMember *item, unsigned index)
 {
-    HASSERT(item->next == NULL);
+    HASSERT(item->next == nullptr);
     HASSERT(item != tail);
     AtomicHolder h(this);
     if (head == NULL)

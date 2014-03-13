@@ -37,8 +37,37 @@
 #include "utils/test_main.hxx"
 #include "executor/StateFlow.hxx"
 
+TEST(QTest, insert_assert_2)
+{
+    Q q;
+    
+    struct Item : public QMember
+    {
+    };
+    
+    Item qm;
+    Item qm2;
+    q.insert(&qm);
+    q.insert(&qm2);
 
-TEST(BufferBase, alloc)
+    EXPECT_DEATH(q.insert(&qm), "next == nullptr");
+}
+
+TEST(QTest, insert_assert_1)
+{
+    Q q;
+    
+    struct Item : public QMember
+    {
+    };
+    
+    Item qm;
+    q.insert(&qm);
+
+    EXPECT_DEATH(q.insert(&qm), "item != tail");
+}
+
+TEST(BufferBaseTest, alloc)
 {
     struct Item
     {
@@ -86,6 +115,37 @@ TEST(BufferBase, alloc_async)
     mainBufferPool->alloc_async<Item>(&flow);
     wait_for_main_executor();
 }
+
+class MockExecutable : public Executable
+{
+public:
+    MOCK_METHOD0(run, void());
+    
+    MOCK_METHOD1(alloc_result, void(QMember *));
+};
+#if 0
+ACTION(unref_buffer)
+{
+    arg0->unref();
+}
+    
+TEST(BufferBase, alloc_async_mock)
+{
+    struct Item
+    {
+        uint32_t param1;
+        uint16_t param2;
+        uint16_t param3;
+    };
+    
+    testing::StrictMock<MockExecutable> h;
+    
+    EXPECT_CALL(h, alloc_result(testing::_))
+        .WillOnce(testing::WithArg<0>(unref_buffer));
+
+    mainBufferPool->alloc_async<Item>(&h);
+}
+#endif
 
 DynamicPool *unalignedBufferPool = new DynamicPool(Bucket::init(5, 9, 0));
 
