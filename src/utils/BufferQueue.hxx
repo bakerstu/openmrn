@@ -421,6 +421,7 @@ public:
      */
     Result next()
     {
+        AtomicHolder h(this);
         return waiting ? Result() : Q::next();
     }
 
@@ -438,6 +439,7 @@ public:
      */
     size_t pending()
     {
+        AtomicHolder h(this);
         return waiting ? 0 : Q::pending();
     }
 
@@ -455,6 +457,7 @@ public:
      */
     bool empty()
     {
+        AtomicHolder h(this);
         return waiting ? true : Q::empty();
     }
 
