@@ -79,6 +79,8 @@ TEST(BufferBaseTest, alloc)
     Buffer<Item> *buffer;
     mainBufferPool->alloc<Item>(&buffer);
     EXPECT_TRUE(buffer->references() == 1);
+    EXPECT_TRUE(mainBufferPool->free_items() == 0);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 0);
     
     buffer->data()->param1 = 4;
     buffer->data()->param2 = 5;
@@ -88,11 +90,57 @@ TEST(BufferBaseTest, alloc)
     EXPECT_TRUE(buffer->references() == 2);
     
     buffer->unref();
+    EXPECT_TRUE(mainBufferPool->free_items() == 0);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 0);
     EXPECT_TRUE(buffer->references() == 1);
     buffer->unref();
+    EXPECT_TRUE(mainBufferPool->free_items() == 1);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>) * 2) == 0);
 }
 
-TEST(BufferBase, alloc_async)
+class MockExecutable : public Executable
+{
+public:
+    MOCK_METHOD0(run, void());
+    
+    MOCK_METHOD1(alloc_result, void(QMember *));
+};
+
+TEST(BufferBaseTest, expand)
+{
+    struct Item
+    {
+        uint32_t param1;
+        uint16_t param2;
+        uint16_t param3;
+    };
+    
+    Buffer<Item> *buffer;
+    mainBufferPool->alloc<Item>(&buffer);
+    
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 0);
+    buffer->data()->param1 = 1;
+    buffer->data()->param2 = 2;
+    buffer->data()->param3 = 3;
+    buffer->ref();
+    
+    buffer = static_cast<Buffer<Item> *>(buffer->expand());
+    
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
+    EXPECT_TRUE(buffer->data()->param1 == 1);
+    EXPECT_TRUE(buffer->data()->param2 == 2);
+    EXPECT_TRUE(buffer->data()->param3 == 3);
+    EXPECT_TRUE(buffer->size() >= sizeof(Buffer<Item>) * 2);
+    buffer->unref();
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>) * 2) == 0);
+    buffer->unref();
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
+    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>) * 2) == 0);
+}
+
+TEST(BufferBaseTest, alloc_async)
 {
     struct Item
     {
@@ -116,13 +164,6 @@ TEST(BufferBase, alloc_async)
     wait_for_main_executor();
 }
 
-class MockExecutable : public Executable
-{
-public:
-    MOCK_METHOD0(run, void());
-    
-    MOCK_METHOD1(alloc_result, void(QMember *));
-};
 #if 0
 ACTION(unref_buffer)
 {
@@ -476,19 +517,26 @@ TEST(FixedPoolTest, all)
 
     FixedPool pool(sizeof(Buffer<Item>), 4);
     
+    EXPECT_TRUE(pool.free_items(sizeof(Buffer<Item>)) == 4);
+    EXPECT_TRUE(pool.free_items(sizeof(Buffer<Item>) + 1) == 0);
+    
     Buffer<Item> *buffer;
     Buffer<Item> *buffer_alt;
     pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.free_items() == 3);
     EXPECT_TRUE(buffer);
     EXPECT_TRUE(pool.valid(buffer));
 
     pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.free_items() == 2);
     EXPECT_TRUE(pool.valid(buffer));
 
     pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.free_items() == 1);
     EXPECT_TRUE(pool.valid(buffer));
 
     pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.free_items() == 0);
     EXPECT_TRUE(pool.valid(buffer));
     buffer_alt = buffer;
     
@@ -504,7 +552,9 @@ TEST(FixedPoolTest, all)
     EXPECT_FALSE(pool.valid(buffer));
     
     buffer_alt->unref();
+    EXPECT_TRUE(pool.free_items() == 1);
     pool.alloc<Item>(&buffer);
+    EXPECT_TRUE(pool.free_items() == 0);
     EXPECT_TRUE(pool.valid(buffer));
 }
 

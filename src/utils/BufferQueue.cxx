@@ -43,7 +43,27 @@
 
 DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
+/** Expand the buffer by allocating a buffer double the size, copying the
+ * contents to the new buffer, and freeing the old buffer.  The "this" pointer
+ * of the caller will be used to free the buffer.
+ * @return newly expanded buffer
+ */
+BufferBase *BufferBase::expand()
+{
+    /* create the new buffer */
+    BufferBase *expanded_buffer = pool_->alloc_untyped(size_ * 2, NULL);
+    HASSERT(expanded_buffer);
 
+    /* copy uninitialized data over */
+    memcpy(expanded_buffer + 1, this + 1, size_ - sizeof(BufferBase));
+    expanded_buffer->count_ = count_;
+    expanded_buffer->done_ = done_;
+    
+    /* free the old buffer */
+    pool_->free(this);
+
+    return expanded_buffer;
+}
 
 /** Add an item to the back of the queue.
  * @param item to add to queue
@@ -149,6 +169,35 @@ void QAsync::next_async(Executable *flow)
     {
         flow->alloc_result(qm);
     }
+}
+
+/** Number of free items in the pool.
+ * @return number of free items in the pool
+ */
+size_t DynamicPool::free_items()
+{
+    size_t total = 0;
+    for (Bucket *current = buckets; current->size() != 0; ++current)
+    {
+        total += current->pending();
+    }
+    return total;
+}
+
+/** Number of free items in the pool for a given allocation size.
+ * @param size size of interest
+ * @return number of free items in the pool for a given allocation size
+ */
+size_t DynamicPool::free_items(size_t size)
+{
+    for (Bucket *current = buckets; current->size() != 0; ++current)
+    {
+        if (current->size() >= size)
+        {
+            return current->pending();
+        }
+    }
+    return 0;
 }
 
 /** Get a free item out of the pool.
@@ -278,11 +327,13 @@ void FixedPool::free(BufferBase *item)
             if (!waiting)
             {
                 queue.insert(item);
+                totalSize -= itemSize;
             }
         }
         else
         {
             queue.insert(item);
+            totalSize -= itemSize;
         }
     }
     if (waiting)

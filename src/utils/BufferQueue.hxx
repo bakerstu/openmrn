@@ -87,6 +87,13 @@ public:
         return size_;
     }
 
+    /** Expand the buffer by allocating a buffer double the size, copying the
+     * contents to the new buffer, and freeing the old buffer.  The "this" pointer
+     * of the caller will be used to free the buffer.
+     * @return newly expanded buffer
+     */
+    BufferBase *expand();
+
 protected:
     /** Get a pointer to the pool that this buffer belongs to.
      * @return pool that this buffer belongs to
@@ -570,64 +577,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QList);
 };
 
-#if 0
-/** This is a specialization of the Q which uses a mutex for insertion and
- * removal.
- */
-template <class T> class QProtected : public Q <T>
-{
-public:
-    /** Default Constructor.
-     */
-    QProtected()
-        : Q<T>(),
-          mutex()
-    {
-    }
-
-    /** Default destructor.
-     */
-    ~QProtected()
-    {
-    }
-
-    /** Add an item to the back of the queue.
-     * @param item to add to queue
-     */
-    void insert(T *q)
-    {
-        mutex.lock();
-        Q<T>::insert(q);
-        mutex.unlock();
-    }
-
-    /** Get an item from the front of the queue.
-     * @return item retrieved from queue, NULL if no item available
-     */
-    T *next()
-    {
-        T *q;
-
-        mutex.lock();
-        q = Q<T>::next();
-        mutex.unlock();
-
-        return q;
-    }
-
-protected:
-
-private:
-    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
-     * (smaller) locking mechanism
-     */
-    /** Mutual exclusion for Queue */
-    OSMutex mutex;
-
-    DISALLOW_COPY_AND_ASSIGN(QProtected);
-};
-#endif
-
 /** A list of queues.
  */
 template <unsigned items> class QListProtected : public QList<items>
@@ -733,9 +682,21 @@ public:
         new (*result) Buffer<BufferType>(base->pool());
     }
 
+    /** Number of free items in the pool.
+     * @return number of free items in the pool
+     */
+    virtual size_t free_items();
+
+    /** Number of free items in the pool for a given allocation size.
+     * @param size size of interest
+     * @return number of free items in the pool for a given allocation size
+     */
+    virtual size_t free_items(size_t size);
+
 protected:
     /** Default Constructor */
-    Pool() : mutex(true), totalSize(0)
+    Pool()
+        : totalSize(0)
     {
     }
 
@@ -749,18 +710,16 @@ protected:
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      */
-    virtual void free(BufferBase *item)
-    {
-    }
-
-    /** Mutual exclusion for buffer pool */
-    OSMutex mutex;
+    virtual void free(BufferBase *item) = 0;
 
     /** keep track of total allocated size of memory */
     size_t totalSize;
 
 private:
     /** Allow BufferBase to access this class */
+    friend class BufferBase;
+
+    /** Allow Buffer to access this class */
     template <class T> friend class Buffer;
 
     DISALLOW_COPY_AND_ASSIGN(Pool);
@@ -876,6 +835,17 @@ public:
         Bucket::destroy(buckets);
     }
 
+    /** Number of free items in the pool.
+     * @return number of free items in the pool
+     */
+    size_t free_items();
+
+    /** Number of free items in the pool for a given allocation size.
+     * @param size size of interest
+     * @return number of free items in the pool for a given allocation size
+     */
+    size_t free_items(size_t size);
+
 protected:
     /** keep track of total allocated size of memory */
     size_t totalSize;
@@ -949,6 +919,23 @@ public:
     ~FixedPool()
     {
         delete[] mempool;
+    }
+
+    /** Number of free items in the pool.
+     * @return number of free items in the pool
+     */
+    size_t free_items()
+    {
+        return items - (totalSize/itemSize);
+    }
+
+    /** Number of free items in the pool for a given allocation size.
+     * @param size size of interest
+     * @return number of free items in the pool for a given allocation size
+     */
+    size_t free_items(size_t size)
+    {
+        return size == itemSize ? free_items() : 0;
     }
 
 protected:
@@ -1269,78 +1256,11 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QListProtectedWait);
 };
 
-#if 0
-/** A BufferQueue that adds the ability to wait on the next buffer.
- * Yes this uses multiple inheritance.
- */
-class BufferQueueWait : public QueueWait <Buffer>
-{
-public:
-    /** Default Constructor, use mainBufferPool for buffer allocation. */
-    BufferQueueWait()
-        : QueueWait<Buffer>()
-    {
-    }
-
-    /** Default destructor.
-     */
-    ~BufferQueueWait()
-    {
-    }
-
-private:
-
-    DISALLOW_COPY_AND_ASSIGN(BufferQueueWait);
-};
-
-/** Get a free buffer out of the mainBufferPool pool.
- * @param size minimum size in bytes the buffer must hold
- * @return pointer to the newly allocated buffer
- */
-inline Buffer *buffer_alloc(size_t size)
-{
-    return mainBufferPool->alloc(size);
-}
-
-/** Release a buffer back to the mainBufferPool free buffer pool.
- * @param buffer pointer to buffer to release
- */
-inline void buffer_free(Buffer *buffer)
-{
-    mainBufferPool->free(buffer);
-}
-
-/** Advance the position of the buffer.
- * @param bytes number of bytes to advance.
- * @return pointer to the new position (next available byte)
- */
-inline void *BufferManager::advance(size_t bytes)
-{
-    /** @todo (Stuart Baker) do we really need a mutex lock here? */
-    //pool->mutex.lock();
-    left -= bytes;    
-    //pool->mutex.unlock();
-    return &data()[size_ - left];
-}
-
-/** Add another reference to the buffer.
- * @return total number of references to this point
- */
-inline unsigned int BufferManager::reference()
-{
-    /** (Stuart Baker) we need a mutex lock here.  Maybe in the derived class. */
-    //pool->mutex.lock();
-    ++count;
-    //pool->mutex.unlock();
-    return count;
-}
-#endif
-
 /** Decrement count.
  */
 template <class T> void Buffer<T>::unref()
 {
-    HASSERT(sizeof(Buffer<T>) == size_);
+    HASSERT(sizeof(Buffer<T>) <= size_);
     if (--count_ == 0)
     {
         this->~Buffer();
