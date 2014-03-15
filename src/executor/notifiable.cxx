@@ -36,9 +36,10 @@ void BarrierNotifiable::notify() {
 
 BarrierNotifiable::~BarrierNotifiable() { HASSERT(!count_); }
 
-void BarrierNotifiable::reset(Notifiable* done) {
+BarrierNotifiable* BarrierNotifiable::reset(Notifiable* done) {
   LockHolder h(this);
   HASSERT(!count_);
   count_ = 1;
   done_ = done;
+  return this;
 }

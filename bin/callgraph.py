@@ -3,16 +3,24 @@
 
 import re, sys, math, subprocess, getopt, bisect
 
+## These regular expressions match on the ARM assembler output (and maybe
+# MIPS). @todo: update this regexp to also match x86 output.
+
+# Matches a new symbol start, typically the start of a function.
 f_re = re.compile('(^[0-9a-f]*) <([a-zA-Z0-9_:()*., ]*)>:$')
+
+# Matches a function call, when one function depends on another. 
 c_re = re.compile('\t(b[xl]?|jal)[ \t]*[0-9a-f]* <([a-zA-Z0-9_:()*, ]*)>')
+
+# Matches an embedded address of a symbol, typically when one function takesthe
+# address of another (to do indirect call etc.)
 a_re = re.compile('\t.word[ \t]*0x([0-9a-f]*)$')
+
+# This matches every line that takes up code space, by the hex address at the
+# beginning of the line. The last of these lines in a block of code will
+# determine how long that block of code is.
 pa_re = re.compile('(^[0-9a-f]*):\t')
 
-
-_blacklist = set(['sys_init', 'SYS_ResetSystem', 'puts', 'getButtons',
-    'malloc', 'free', 'memalign', 'fflush', 'sd_mkdir', 'check_fatpath',
-    'memset', 'memcpy', 'DCFlushRange', 'iosAlloc', 'iosFree',
-    'DCInvalidateRange'])
 _blacklist_pre = ['__', 'str', 'f_', 'VIDEO_']
 _blacklist_cont = ['printf']
 

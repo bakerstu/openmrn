@@ -121,10 +121,10 @@ void QAsync::insert(QMember *item, unsigned index)
         AtomicHolder h(this);
         if (waiting)
         {
-            if (Q::pending() == 0)
+            if (Q::empty())
             {
-                Q::insert(item);
                 waiting = false;
+                Q::insert(item);
             }
             else
             {
@@ -320,7 +320,7 @@ void FixedPool::free(BufferBase *item)
         if (empty == true)
         {
             waiting = static_cast<Executable *>(queue.next().item);
-            if (queue.pending() == 0)
+            if (queue.empty())
             {
                 empty = false;
             }

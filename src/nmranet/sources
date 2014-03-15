@@ -8,6 +8,7 @@ CXXSRCS += \
            AsyncIf.cxx \
            AsyncIfImpl.cxx \
            NMRAnetWriteFlow.cxx \
+           AsyncAliasAllocator.cxx \
 
 
 DEAD_CXX +=  \

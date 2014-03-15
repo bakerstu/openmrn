@@ -138,13 +138,18 @@ private:
 class BarrierNotifiable : public Notifiable, private Lockable
 {
 public:
+    /** Constructs a barrier notifiable that is done. Users should call reset()
+     * later. */
     BarrierNotifiable() : count_(0), done_(nullptr)
     {
     }
     BarrierNotifiable(Notifiable* done) : count_(1), done_(done)
     {
     }
-    void reset(Notifiable* done);
+
+    // Resets the barrier. Returns &*this. Asserts that is_done().
+    BarrierNotifiable* reset(Notifiable* done);
+
     ~BarrierNotifiable();
 
     // Call this for each child task.

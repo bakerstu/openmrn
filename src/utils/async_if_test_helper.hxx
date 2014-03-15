@@ -123,13 +123,15 @@ protected:
     void create_allocated_alias()
     {
         HASSERT(0);
-        /*ifCan_->set_alias_allocator(
+        ifCan_->set_alias_allocator(
             new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
-        testAlias_.alias = 0x33A;
-        testAlias_.state = AliasInfo::STATE_RESERVED;
+        Buffer<AliasInfo> *a;
+        mainBufferPool->alloc(&a);        
+        a->data()->alias = 0x33A;
+        a->data()->state = AliasInfo::STATE_RESERVED;
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
-                                     testAlias_.alias);
-                                     ifCan_->alias_allocator()->reserved_aliases()->Release(&testAlias_);*/
+                                     a->data()->alias);
+        ifCan_->alias_allocator()->reserved_aliases()->insert(a);        
         aliasSeed_ = 0x44C;
     }
 

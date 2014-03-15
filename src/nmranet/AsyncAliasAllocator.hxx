@@ -37,6 +37,7 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/NMRAnetIf.hxx"
+#include "utils/BufferQueue.hxx"
 
 namespace NMRAnet
 {
@@ -48,7 +49,9 @@ extern size_t g_alias_test_conflicts;
 /** Information we know locally about an NMRAnet CAN alias. */
 struct AliasInfo : public QMember
 {
-    AliasInfo() : alias(0), state(STATE_EMPTY)
+    AliasInfo()
+        : alias(0)
+        , state(STATE_EMPTY)
     {
     }
 
@@ -72,17 +75,20 @@ struct AliasInfo : public QMember
     };
 };
 
-#if 0
-/** This control flow is responsible for reserving node ID aliases.
-
-
-
+/** This state flow is responsible for reserving node ID aliases.
+ *
+ * For every incoming Buffer<AliasInfo> it will run through the
+ * standard-compliant flow of reserving an alias, and then push the alias into
+ * the queue of reserved aliases.
+ *
+ * Users who need an allocated alias should get it from the queue in
+ * reserved_aliases().
  */
-class AsyncAliasAllocator : public ControlFlow, private IncomingFrameHandler
+class AsyncAliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>>
 {
 public:
     /**
-       Constructs a new AliasAllotator flow.
+       Constructs a new AliasAllocator flow.
 
        @param if_id is a 48-bit NMRAnet NodeID. This node id will be used for
        reserving all aliases. This NodeID must be unique to the hardware on the
@@ -91,62 +97,65 @@ public:
 
        @param if_can is the interface to which this alias allocator should talk
        to.
-
-       @param executor is the executor on which the allocation flow will
-       run. Typically the same executor as the interface.
      */
-    AsyncAliasAllocator(NodeID if_id, AsyncIfCan* if_can);
+    AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can);
 
     virtual ~AsyncAliasAllocator();
 
-    TypedAllocator<AliasInfo>* empty_aliases()
+    /** "Allocate" a buffer from this pool (but without initialization) in
+     * order to get a reserved alias. */
+    QAsync *reserved_aliases()
     {
-        return &empty_alias_allocator_;
-    }
-
-    TypedAllocator<AliasInfo>* reserved_aliases()
-    {
-        return &reserved_alias_allocator_;
+        return &reserved_alias_pool_;
     }
 
 private:
-    /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame* message, Notifiable* done);
+    /** Listens to incoming CAN frames and handles alias conflicts. */
+    class ConflictHandler : public IncomingFrameHandler {
+    public:
+        ConflictHandler(AsyncAliasAllocator* parent)
+            : parent_(parent) {}
+        virtual void send(Buffer<CanMessageData> *message, unsigned priority);
+    private:
+        AsyncAliasAllocator* parent_;
+    } conflictHandler_;
 
-    Action HandleGetMoreWork();
-    Action HandleWorkArrived();
-    Action HandleInitAliasCheck();
+    friend class ConflictHandler;
+
+    AliasInfo *pending_alias()
+    {
+        return message()->data();
+    }
+
+    Action entry();
     Action handle_allocate_for_cid_frame();
-    Action HandleSendCidFrames();
-    Action HandleWaitDone();
-    Action HandleSendRidFrame();
+    Action send_cid_frame();
+    Action wait_done();
+    Action send_rid_frame();
 
-    Action HandleAliasConflict();
+    Action handle_alias_conflict();
 
     /// Generates the next alias to check in the seed_ variable.
-    void NextSeed();
+    void next_seed();
 
     friend class AsyncAliasAllocatorTest;
     friend class AsyncIfTest;
 
-    /// 48-bit nodeID that we will use for alias reservations.
-    NodeID if_id_;
-    /// Physical interface for sending packets and assigning handlers to
-    /// received packets.
-    AsyncIfCan* if_can_;
-
-    /** This allocator contains the info structures for aliases that we need to
-        reserve. The AliasAllocatorFlow will automatically wake up if an alias
-        info is posted to this allocator, and try to reserve that alias. */
-    TypedAllocator<AliasInfo> empty_alias_allocator_;
-
     /** Freelist of reserved aliases that can be used by virtual nodes. The
         AliasAllocatorFlow will post successfully reserved aliases to this
         allocator. */
-    TypedAllocator<AliasInfo> reserved_alias_allocator_;
+    QAsync reserved_alias_pool_;
 
-    /// The alias currently being checked.
-    AliasInfo* pending_alias_;
+    /// 48-bit nodeID that we will use for alias reservations.
+    NodeID if_id_;
+
+    /** Physical interface for sending packets and assigning handlers to
+     * received packets. */
+    AsyncIfCan *if_can()
+    {
+        return static_cast<AsyncIfCan *>(service());
+    }
+
     /// Which CID frame are we trying to send out. Valid values: 7..4
     unsigned cid_frame_sequence_ : 3;
     /// Set to 1 if an incoming frame signals an alias conflict.
@@ -155,16 +164,18 @@ private:
     /// Seed for generating random-looking alias numbers.
     unsigned seed_ : 12;
 
+    /// Notifiable used for tracking outgoing frames.
+    BarrierNotifiable n_;
+
     /// Timer needed for sleeping the control flow.
-    SleepData sleep_helper_;
+    // SleepData sleep_helper_;
 };
-#else
+#if 0
     class AsyncAliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>> {
     public:
         DynamicPool* reserved_aliases() { return mainBufferPool; }
     };
 #endif
-
 }
 
 #endif // _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_

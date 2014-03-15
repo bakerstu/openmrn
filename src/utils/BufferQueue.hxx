@@ -52,6 +52,10 @@ class Pool;
 template <class T> class Buffer;
 class BufferBase;
 
+namespace NMRAnet {
+class AsyncIfTest;
+}
+
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
 
@@ -108,7 +112,6 @@ protected:
 
     /** number of references in use */
     uint16_t count_;
-
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
@@ -127,7 +130,13 @@ protected:
      */
     ~BufferBase()
     {
+        if (done_)
+        {
+            done_->notify();
+        }
     }
+
+    friend class NMRAnet::AsyncIfTest;
 
     /** Allow Pool access to our constructor */
     friend class Pool;
@@ -419,6 +428,7 @@ public:
      */
     Result next()
     {
+        AtomicHolder h(this);
         return waiting ? Result() : Q::next();
     }
 
@@ -436,6 +446,7 @@ public:
      */
     size_t pending()
     {
+        AtomicHolder h(this);
         return waiting ? 0 : Q::pending();
     }
 
@@ -453,6 +464,7 @@ public:
      */
     bool empty()
     {
+        AtomicHolder h(this);
         return waiting ? true : Q::empty();
     }
 
@@ -905,7 +917,7 @@ public:
         , items(items)
         , empty(false)
     {
-        HASSERT(item_size != 0 && items != 0);
+        //HASSERT(item_size != 0 && items != 0);
         QMember *current = (QMember *)mempool;
         for (size_t i = 0; i < items; ++i)
         {

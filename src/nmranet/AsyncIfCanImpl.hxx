@@ -105,7 +105,6 @@ private:
          * mechanism. */
         HASSERT(if_can()->alias_allocator());
         return allocate_and_call(
-            if_can()->alias_allocator(),
             STATE(take_new_alias),
             if_can()->alias_allocator()->reserved_aliases());
     }

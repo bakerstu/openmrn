@@ -286,16 +286,28 @@ protected:
      */
     template <class T>
     Action allocate_and_call(FlowInterface<Buffer<T>> *target_flow, Callback c,
-                             DynamicPool *pool = nullptr)
+                             Pool *pool = nullptr)
     {
         allocationResult_ = nullptr;
-        DynamicPool *p = pool;
+        Pool *p = pool;
         if (!p)
         {
             p = target_flow->pool();
         }
         LOG(VERBOSE, "allocate from pool %p, main pool %p", p, mainBufferPool);
         p->alloc_async<T>(this);
+        return wait_and_call(c);
+    }
+
+    /** Allocates an entry from an asynchronous queue, and transitions to a
+     * state once the allocation is complete.
+     * @param c is the state to transition to after allocation
+     * @param queue is the queue to allocate from.
+     */
+    Action allocate_and_call(Callback c, QAsync *queue)
+    {
+        allocationResult_ = nullptr;
+        queue->next_async(this);
         return wait_and_call(c);
     }
 
