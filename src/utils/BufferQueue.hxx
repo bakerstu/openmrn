@@ -44,6 +44,7 @@
 #include "os/OS.hxx"
 #include "executor/lock.hxx"
 #include "utils/macros.h"
+#include "utils/MultiMap.hxx"
 #include "utils/Queue.hxx"
 
 class DynamicPool;
@@ -289,6 +290,130 @@ protected:
     virtual ~QInterface()
     {
     }
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(QInterface);
+};
+
+/** QInterface that enqueues items based on priority.  FIFO ordering for
+ * entries of the same priority.
+ */
+class QPriority : public QInterface
+                , private MultiMap <unsigned, QMember *>
+                , private Atomic
+{
+public:
+    /** Default Constructor.
+     */
+    QPriority()
+        : QInterface()
+        , MultiMap<unsigned, QMember *>()
+    {
+    }
+
+    /** Constructor.
+     * @param entries number of entries in a fixed size queue
+     */
+    QPriority(size_t entries)
+        : QInterface()
+        , MultiMap<unsigned, QMember *>(entries)
+    {
+    }
+
+    /** Destructor.
+     */
+    ~QPriority()
+    {
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert(QMember *item, unsigned index)
+    {
+        AtomicHolder h(this);
+        MultiMap<unsigned, QMember *>::Iterator it = upper_bound(index);
+        MultiMap<unsigned, QMember *>::
+            insert(it, MultiMap<unsigned, QMember *>::Pair(index, item));
+    }
+
+    /** Get an item from the front of the queue.
+     * @param index in the list to operate on
+     * @return item retrieved from queue, NULL if no item available
+     */
+    QMember *next(unsigned index)
+    {
+        AtomicHolder h(this);
+        MultiMap<unsigned, QMember *>::Iterator it;
+        it = MultiMap<unsigned, QMember *>::find(index);
+        if (it != MultiMap<unsigned, QMember *>::end())
+        {
+             QMember *result = (*it).second;
+             MultiMap<unsigned, QMember *>::erase(it);
+             return result;
+        }
+
+        return NULL;
+    }
+
+    /** Get an item from the front of the queue queue in priority order.
+     * @return item retrieved from queue + index, NULL if no item available
+     */
+    Result next()
+    {
+        AtomicHolder h(this);
+        MultiMap<unsigned, QMember *>::Iterator it;
+        it = MultiMap<unsigned, QMember *>::begin();
+        if (it != MultiMap<unsigned, QMember *>::end())
+        {
+             Result result((*it).second, (*it).first);
+             MultiMap<unsigned, QMember *>::erase(it);
+             return result;
+        }
+
+        return Result();
+    }
+
+    /** Get the number of pending items in the queue.
+     * @param index in the list to operate on
+     * @return number of pending items in the queue
+     */
+    size_t pending(unsigned index)
+    {
+        return MultiMap<unsigned, QMember *>::count(index);
+    }
+
+    /** Get the total number of pending items in all queues in the list.
+     * @param index in the list to operate on
+     * @return number of total pending items in all queues in the list
+     */
+    size_t pending()
+    {
+        return MultiMap<unsigned, QMember *>::size();
+    }
+
+    /** Test if the queue is empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty(unsigned index)
+    {
+        return (pending(index) == 0);
+    }
+
+    /** Test if all the queues are empty.
+     * @param index in the list to operate on
+     * @return true if empty, else false
+     */
+    bool empty()
+    {
+        return (pending() == 0);
+    }
+
+private:
+
+    DISALLOW_COPY_AND_ASSIGN(QPriority);
 };
 
 /** This class implements a linked list "queue" of buffers.  It may be
@@ -720,7 +845,7 @@ protected:
     }
 
     virtual BufferBase *alloc_untyped(size_t size, Executable *flow) = 0;
-    
+
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      */
@@ -874,7 +999,7 @@ private:
      *        behave as if @ref alloc_async() was called.
      */
     BufferBase *alloc_untyped(size_t size, Executable *flow);
-        
+
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free
@@ -978,7 +1103,7 @@ private:
      *        behave as if @ref alloc_async() was called.
      */
     BufferBase *alloc_untyped(size_t size, Executable *flow);
-    
+
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free
@@ -1034,7 +1159,7 @@ public:
         }
         return result;
     }
-    
+
     /** Wait for an item from the front of the queue.
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
@@ -1049,7 +1174,7 @@ public:
         }
         return result;
     }
-        
+
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
@@ -1062,7 +1187,7 @@ public:
             errno = ETIMEDOUT;
             return NULL;
         }
-        
+
         T *result = Q<T>::next();
         if (result == NULL)
         {
@@ -1070,14 +1195,14 @@ public:
         }
         return result;
     }
-    
+
     /** Wakeup anyone waiting on the wait queue.
      */
     void wakeup()
     {
         post();
     }
-    
+
 private:
 
     DISALLOW_COPY_AND_ASSIGN(QueueWait);
@@ -1124,7 +1249,7 @@ public:
         }
         return result;
     }
-    
+
     /** Wait for an item from the front of the queue.
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
@@ -1139,7 +1264,7 @@ public:
         }
         return result;
     }
-    
+
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
@@ -1152,7 +1277,7 @@ public:
             errno = ETIMEDOUT;
             return NULL;
         }
-        
+
         T *result = QProtected<T>::next();
         if (result == NULL)
         {
@@ -1160,14 +1285,14 @@ public:
         }
         return result;
     }
-    
+
     /** Wakeup someone waiting on the wait queue.
      */
     void wakeup()
     {
         post();
     }
-    
+
 private:
     DISALLOW_COPY_AND_ASSIGN(QueueProtectedWait);
 };
