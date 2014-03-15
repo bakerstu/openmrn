@@ -697,23 +697,25 @@ public:
     /** Number of free items in the pool.
      * @return number of free items in the pool
      */
-    virtual size_t free_items();
+    virtual size_t free_items() = 0;
 
     /** Number of free items in the pool for a given allocation size.
      * @param size size of interest
      * @return number of free items in the pool for a given allocation size
      */
-    virtual size_t free_items(size_t size);
+    virtual size_t free_items(size_t size) = 0;
 
 protected:
-    /** Default Constructor */
+    /** Default Constructor.
+     */
     Pool()
         : totalSize(0)
     {
     }
 
-    /** default destructor */
-    ~Pool()
+    /** default destructor.
+     */
+    virtual ~Pool()
     {
     }
 
