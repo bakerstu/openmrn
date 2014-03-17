@@ -1,0 +1,15 @@
+
+FULLPATHTESTSRCS = \
+                 $(VPATH)/tests/assert_ndebug_test.cc \
+                 $(VPATH)/tests/async_alias_allocator_test.cc \
+                 $(VPATH)/tests/async_if_can_test.cc \
+                 $(VPATH)/tests/dispatch_test.cc \
+                 $(VPATH)/tests/dummy_test.cc \
+                 $(VPATH)/tests/gc_format_test.cc \
+                 $(VPATH)/tests/gc_pipe_test.cc \
+                 $(VPATH)/tests/macros_test.cc \
+                 $(VPATH)/tests/node_handler_map_test.cc \
+                 $(VPATH)/tests/notify_test.cc \
+                 $(VPATH)/tests/queue_test.cc \
+                 $(VPATH)/tests/state_flow_test.cc \
+
