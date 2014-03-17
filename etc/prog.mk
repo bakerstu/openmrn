@@ -17,12 +17,14 @@ include $(OPENMRNPATH)/etc/path.mk
 
 VPATH = $(abspath ../../)
 
+-include $(VPATH)/tests/sources
+
 FULLPATHASMSRCS  = $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS    = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS  = $(wildcard $(VPATH)/*.cxx)
 FULLPATHCPPSRCS  = $(wildcard $(VPATH)/*.cpp)
 FULLPATHXMLSRCS  = $(wildcard $(VPATH)/*.xml)
-FULLPATHTESTSRCS = $(wildcard $(VPATH)/tests/*_test.cc)
+FULLPATHTESTSRCS ?= $(wildcard $(VPATH)/tests/*_test.cc)
 
 ASMSRCS  = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
 CSRCS    = $(notdir $(FULLPATHCSRCS))   $(wildcard *.c)
@@ -30,6 +32,8 @@ CXXSRCS  = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
 CPPSRCS  = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
 XMLSRCS  = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
 TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
+
+$(info fullptest=$(FULLPATHTESTSRCS) test=$(TESTSRCS))
 
 OBJS := $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
        $(XMLSRCS:.xml=.o)

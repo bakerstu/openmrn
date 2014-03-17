@@ -87,7 +87,7 @@ const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 1024;
 const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
-#endif
+#endif  // ifdef, target!=lpc11c
 
 const int main_priority = 0;
 
@@ -102,7 +102,7 @@ void diewith(uint32_t pattern);
 }
 #else
 #define resetblink( x )
-#endif
+#endif  // #if target
 
 node_t node;
 
@@ -221,16 +221,18 @@ int appl_main(int argc, char *argv[])
 
     return 0;
 }
-#else
+#else  // c++ implementation
+
+#include "os/os.h"
+
+#if 0
 #include "nmranet/NMRAnetNode.hxx"
 #include "nmranet/NMRAnetStream.hxx"
 #include "nmranet/NMRAnetIfCanGridConnect.hxx"
 #include "nmranet/NMRAnetMessageID.hxx"
 #include "nmranet_config.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /** Number of receive CAN messages that are buffered in the CAN driver.
  */
@@ -331,6 +333,8 @@ private:
     }
     
 };
+#endif  // if 0 - old c++ implementation
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -339,6 +343,7 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
+#if 0
     If *nmranet_if = IfCanGridConnect::instance(0x02010d000000ULL,
                                                 "/tcp/10098",
                                                 false, false);
@@ -353,7 +358,8 @@ int appl_main(int argc, char *argv[])
 
     node1->sopen({0x02010d000002ULL, 0}, 1000000000LL);
     
-    
+#endif    
+
     while(1)
     {
         sleep(10);
