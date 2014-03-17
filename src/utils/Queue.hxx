@@ -66,6 +66,8 @@ protected:
 
     /** This class is a helper of Q */
     friend class Q;
+    /** ActiveTimers needs to iterate through the queue. */
+    friend class ActiveTimers;
 };
 
 #endif /* _Queue_hxx_ */

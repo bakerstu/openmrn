@@ -38,8 +38,11 @@
 
 #include "executor/Message.hxx"
 #include "executor/notifiable.hxx"
+#include "executor/Timer.hxx"
 #include "utils/BufferQueue.hxx"
 #include "utils/logging.h"
+
+class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
@@ -69,6 +72,9 @@ public:
      * @param priority priority of execution
      */
     virtual void add(Executable *action, unsigned priority = UINT_MAX) = 0;
+
+    /** @returns the list of active timers. */
+    ActiveTimers* active_timers() { return &activeTimers_; }
 
 protected:
     /** Thread entry point.
@@ -106,6 +112,9 @@ private:
 
     /** executor list for lookup purposes */
     static ExecutorBase *list;
+
+    /** List of active timers. */
+    ActiveTimers activeTimers_;
 
     /** provide access to Executor::send method. */
     friend class Service;

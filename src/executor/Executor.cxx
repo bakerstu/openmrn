@@ -49,7 +49,7 @@ ExecutorBase *ExecutorBase::list = NULL;
 ExecutorBase::ExecutorBase()
     : name(name)
     , next(NULL)
-    , active(NULL)
+    , activeTimers_(this)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
