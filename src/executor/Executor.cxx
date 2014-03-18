@@ -50,6 +50,7 @@ ExecutorBase::ExecutorBase()
     : name(name)
     , next(NULL)
     , activeTimers_(this)
+    , done_(0)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -108,40 +109,36 @@ void *ExecutorBase::entry()
     for (; /* forever */;)
     {
         unsigned priority;
-        if (active)
+        long long wait_length = activeTimers_.get_next_timeout();
+        msg = timedwait(wait_length, &priority);
+        if (msg == this)
         {
-            /* act on the next active timer */
-            // Service::Timer *timer = static_cast<Service::Timer*>(active);
-            long long result = 0; // timer->service->process_timer(timer);
-
-            if (result == 0)
-            {
-                /* we handled a timeout */
-                continue;
-            }
-
-            msg = timedwait(result, &priority);
-            if (msg == NULL)
-            {
-                /* timeout occured, handle it */
-                continue;
-            }
+            // exit closure
+            done_ = 1;
+            return NULL;
         }
-        else
+        if (msg != NULL)
         {
-            msg = wait(&priority);
+            msg->run();
         }
-        if (!msg)
-        {
-            /* we were kicked awake, this typically means there was a change
-             * in the active timer list that we may need to react to.
-             */
-            continue;
-        }
-
-        // Process the message we got.
-        msg->run();
     }
 
     return NULL;
+}
+
+void ExecutorBase::shutdown()
+{
+    add(this);
+    while (!done_)
+    {
+        usleep(100);
+    }
+}
+
+ExecutorBase::~ExecutorBase()
+{
+    if (!done_)
+    {
+        shutdown();
+    }
 }

@@ -46,7 +46,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread
+class ExecutorBase : protected OSThread, private Executable
 {
 public:
     /** Constructor.
@@ -55,10 +55,7 @@ public:
 
     /** Destructor.
      */
-    ~ExecutorBase()
-    {
-        LOG(ERROR, "Deleting executor");
-    }
+    ~ExecutorBase();
 
     /** Lookup an executor by its name.
      * @param name name of executor to lookup
@@ -76,11 +73,17 @@ public:
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }
 
+    /** Terminates the executor thread. Waits until it is safe to delete the
+     * executor. */
+    void shutdown();
+
 protected:
     /** Thread entry point.
      * @return Should never return
      */
     virtual void *entry();
+
+    virtual void run() {}
 
 private:
     /** Wait for an item from the front of the queue.
@@ -115,6 +118,10 @@ private:
 
     /** List of active timers. */
     ActiveTimers activeTimers_;
+
+    /** Set to 1 when the executor thread has exited and it is safe to delete
+     * *this. */
+    unsigned done_ : 1;
 
     /** provide access to Executor::send method. */
     friend class Service;
@@ -213,8 +220,7 @@ template <unsigned NUM_PRIO>
 /** Destructs the executor. Waits for the executor to run out of work first. */
 Executor<NUM_PRIO>::~Executor()
 {
-    ExecutorGuard<Executor<NUM_PRIO>> g(this);
-    g.wait_for_notification();
+    shutdown();
 }
 
 #endif /* _Executor_hxx_ */

@@ -12,4 +12,5 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/notify_test.cc \
                  $(VPATH)/tests/queue_test.cc \
                  $(VPATH)/tests/state_flow_test.cc \
+                 $(VPATH)/tests/timer_test.cc \
 
