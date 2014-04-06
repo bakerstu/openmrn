@@ -264,9 +264,15 @@ protected:
         @param pkt is the packet to inject, in GridConnect format.
         @param resp is the response to expect, also in GridConnect format.
     */
-    void send_packet_and_expect_response(const string &pkt, const string &resp)
+#define send_packet_and_expect_response(pkt, resp)                             \
+    do                                                                         \
+    {                                                                          \
+        expect_packet(resp);                                                   \
+        send_packet_and_flush_expect(pkt);                                     \
+    } while (0)
+
+    void send_packet_and_flush_expect(const string &pkt)
     {
-        expect_packet(resp);
         send_packet(pkt);
         wait();
         Mock::VerifyAndClear(&canBus_);

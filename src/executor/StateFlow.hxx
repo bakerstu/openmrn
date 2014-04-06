@@ -561,12 +561,20 @@ protected:
     /** Releases the current message buffer back to the pool it came from. The
      * state flow will continue running (and not get another message) until it
      * reaches the state exit(). */
-    void release() {
+    void release()
+    {
         if (message())
         {
             message()->unref();
         }
         currentMessage_ = nullptr;
+    }
+
+    /** Terminates the processing of this flow. Takes the next message and
+     * start processing agian from entry().*/
+    Action exit()
+    {
+        return call_immediately(STATE(wait_for_message));
     }
 
     /** Terminates the processing of the current message. Flows should end with
@@ -576,7 +584,7 @@ protected:
     Action release_and_exit()
     {
         release();
-        return call_immediately(STATE(wait_for_message));
+        return exit();
     }
 
     /** Releases ownership of the current message.
