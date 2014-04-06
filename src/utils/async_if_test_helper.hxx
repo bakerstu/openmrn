@@ -278,6 +278,20 @@ protected:
         Mock::VerifyAndClear(&canBus_);
     }
 
+    BarrierNotifiable *get_notifiable()
+    {
+        bn_.reset(&n_);
+        return &bn_;
+    }
+
+    void wait_for_notification()
+    {
+        n_.wait_for_notification();
+    }
+
+    SyncNotifiable n_;
+    BarrierNotifiable bn_;
+
     /// Helper object for setting expectations on the packets sent on the bus.
     NiceMock<MockSend> canBus_;
     /// Object for debug-printing every packet (if requested).
@@ -360,6 +374,28 @@ MATCHER_P(IsBufferNodeValue, id, "")
 {
     uint64_t value = htobe64(id);
     if (arg->used() != 6)
+        return false;
+    uint8_t *expected = reinterpret_cast<uint8_t *>(&value) + 2;
+    uint8_t *actual = static_cast<uint8_t *>(arg->start());
+    if (memcmp(expected, actual, 6))
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            if (expected[i] != actual[i])
+            {
+                LOG(INFO, "mismatch at position %d, expected %02x actual %02x",
+                    i, expected[i], actual[i]);
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
+MATCHER_P(IsBufferNodeValueString, id, "")
+{
+    uint64_t value = htobe64(id);
+    if (arg.size() != 6)
         return false;
     uint8_t *expected = reinterpret_cast<uint8_t *>(&value) + 2;
     uint8_t *actual = static_cast<uint8_t *>(arg->start());

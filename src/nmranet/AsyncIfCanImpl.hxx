@@ -243,6 +243,7 @@ private:
         }
     }
 };
+
 #if 0
 /* The addressed write flow is responsible for sending addressed messages to
  * the CANbus. It uses some shared states from the generic CAN write flow base

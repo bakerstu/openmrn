@@ -130,7 +130,7 @@ protected:
 /** This handler handles VerifyNodeId messages (both addressed and global) on
  * the interface level. Each interface implementation will want to create one
  * of these. */
-class VerifyNodeIdHandler : private IncomingMessageStateFlow
+class VerifyNodeIdHandler : public IncomingMessageStateFlow
 {
 public:
     VerifyNodeIdHandler(AsyncIf *service) : IncomingMessageStateFlow(service)
@@ -171,15 +171,15 @@ public:
 // Global message. Everyone should respond.
 #ifdef SIMPLE_NODE_ONLY
             // We assume there can be only one local node.
-            AsyncIf::VNodeMap::Iterator it = interface_->localNodes_.begin();
-            if (it == interface_->localNodes_.end())
+            AsyncIf::VNodeMap::Iterator it = interface()->localNodes_.begin();
+            if (it == interface()->localNodes_.end())
             {
                 // No local nodes.
                 return release_and_exit();
             }
             srcNode_ = it->second;
             ++it;
-            HASSERT(it == interface_->localNodes_.end());
+            HASSERT(it == interface()->localNodes_.end());
 #else
             // We need to do an iteration over all local nodes.
             it_ = interface()->localNodes_.begin();
@@ -200,6 +200,7 @@ public:
         }
         else
         {
+            LOG(WARNING, "node pointer not found.");
             return release_and_exit();
         }
     }
@@ -208,7 +209,7 @@ public:
     Action send_response()
     {
         auto *b =
-            get_allocation_result(interface_->global_message_write_flow());
+            get_allocation_result(interface()->global_message_write_flow());
         NMRAnetMessage *m = b->data();
         NodeID id = srcNode_->node_id();
         m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
@@ -225,6 +226,7 @@ public:
         NodeID id = srcNode_->node_id();
         LOG(VERBOSE, "Sending verified reply from node %012llx", id);
         m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
+        interface()->global_message_write_flow()->send(b);
 
         /** Continues the iteration over the nodes.
          *

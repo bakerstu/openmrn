@@ -94,20 +94,6 @@ protected:
         ifCan_->add_addressed_message_support(
             /*2 : num addressed write flows*/);
     }
-
-    BarrierNotifiable *get_notifiable()
-    {
-        bn_.reset(&n_);
-        return &bn_;
-    }
-
-    void wait_for_notification()
-    {
-        n_.wait_for_notification();
-    }
-
-    SyncNotifiable n_;
-    BarrierNotifiable bn_;
 };
 
 TEST_F(AsyncMessageCanTests, WriteByMTI)
@@ -395,6 +381,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
 
 TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 {
+    print_all_packets();
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
     StrictMock<MockMessageHandler> h;
@@ -416,15 +403,11 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 
     ifCan_->remote_aliases()->add(id, alias);
 
-    // @TODO(balazs.racz): enable verify nodeid handler.
     // The "verify nodeid handler" will respond.
-    //send_packet_and_expect_response(":X19488210N022A;",
-    //                                ":X1917022AN02010d000003;");
-    send_packet(":X19488210N022A;");
+    send_packet_and_expect_response(":X19488210N022A;",
+                                    ":X1917022AN02010d000003;");
     wait();
 }
-
-#if 0
 
 TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
 {
@@ -440,12 +423,12 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dst_node, node_),
-                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::dstNode, node_),
+                //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
-                      IsBufferNodeValue(0x010203040506ULL)))),
+                      node_id_to_buffer(0x010203040506ULL)))),
             _));
-    ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
 
     // The "verify node id handler" will respond. Although this message carries
     // a node id that does not match, a response is still required because this
@@ -455,18 +438,22 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
     wait();
 }
 
+#if 0
+
 TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
 {
     static const NodeAlias alias = 0x210U;
     static const NodeID id = 0x050101FFFFDDULL;
 
     expect_packet(":X1948822AN0210050101FFFFDD;");
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
-    SyncNotifiable n;
-    falloc.result()->WriteAddressedMessage(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+
+    auto* b = ifCan_->addressed_message_write_flow()->alloc();
+    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {0, alias},
-                                           node_id_to_buffer(id), &n);
-    n.WaitForNotification();
+                     node_id_to_buffer(id));
+    b->set_done(get_notifiable());
+    ifCan_->addressed_message_write_flow()->send(b);
+    wait_for_notification();
 }
 
 TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)

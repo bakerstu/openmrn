@@ -414,17 +414,14 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
 
     add_owned_flow(new AliasConflictHandler(this));
     add_owned_flow(new FrameToGlobalMessageParser(this));
-
-    /*add_owned_flow(new VerifyNodeIdHandler(this));
-    pipe_member_.reset(new CanReadFlow(device, this, executor));
+    add_owned_flow(new VerifyNodeIdHandler(this));
+    /*pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
         CanFrameWriteFlow *f = new CanWriteFlow(this, executor);
         write_allocator_.Release(f);
         owned_flows_.push_back(std::unique_ptr<ControlFlow>(f));
     }
-    owned_flows_.push_back(
-        std::unique_ptr<Executable>();
     for (int i = 0; i < global_can_write_flow_count; ++i)
     {
         owned_flows_.push_back(
