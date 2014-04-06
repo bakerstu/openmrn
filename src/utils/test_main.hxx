@@ -101,6 +101,38 @@ void wait_for_main_executor()
     guard.wait_for_notification();
 }
 
+/* Utility class to block an executor for a while.
+ *
+ * Usage: add an instance of BlockExecutor to the executor you want to block,
+ * then call wait_for_blocked() and later release_block().
+ */
+class BlockExecutor : public Executable
+{
+public:
+    virtual void run()
+    {
+        n_.notify();
+        m_.wait_for_notification();
+    }
+
+    /** Blocks the current thread until the BlockExecutor manages to block the
+    executor it was scheduled on. */
+    void wait_for_blocked()
+    {
+        n_.wait_for_notification();
+    }
+
+    /** Releases the executor that was blocked. */
+    void release_block()
+    {
+        m_.notify();
+    }
+
+private:
+    SyncNotifiable n_;
+    SyncNotifiable m_;
+};
+
 /** Overrides the value of a variable and restores it to the original value
  * when destructed. Useful for changing flags for a single test only.
  *

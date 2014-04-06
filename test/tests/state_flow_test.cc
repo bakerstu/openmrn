@@ -142,38 +142,6 @@ TEST_F(QueueTest, ThreeItems) {
     EXPECT_EQ(44U, seenIds_[2]);
 }
 
-/* Utility class to block an executor for a while.
- *
- * Usage: add an instance of BlockExecutor to the executor you want to block,
- * then call wait_for_blocked() and later release_block().
- */
-class BlockExecutor : public Executable
-{
-public:
-    virtual void run()
-    {
-        n_.notify();
-        m_.wait_for_notification();
-    }
-
-    /** Blocks the current thread until the BlockExecutor manages to block the
-    executor it was scheduled on. */
-    void wait_for_blocked()
-    {
-        n_.wait_for_notification();
-    }
-
-    /** Releases the executor that was blocked. */
-    void release_block()
-    {
-        m_.notify();
-    }
-
-private:
-    SyncNotifiable n_;
-    SyncNotifiable m_;
-};
-
 TEST_F(QueueTest, Priorities) {
     Buffer<Id>* m[3];
     g_message_pool.alloc(m + 0);
