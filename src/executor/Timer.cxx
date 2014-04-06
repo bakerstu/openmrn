@@ -38,6 +38,28 @@
 
 Timer::~Timer()
 {
+    HASSERT(!isActive_);
+    HASSERT(!isExpired_);
+}
+
+void Timer::run()
+{
+    isExpired_ = 0;
+    long long new_period = timeout();
+    if (new_period == RESTART)
+    {
+        when_ += period_;
+        isActive_ = 1;
+        activeTimers_->schedule_timer(this);
+    }
+    else if (new_period == DELETE)
+    {
+        delete this;
+    }
+    else if (new_period > 0)
+    {
+        start(new_period);
+    }
 }
 
 ActiveTimers::~ActiveTimers()
@@ -46,11 +68,16 @@ ActiveTimers::~ActiveTimers()
 
 void ActiveTimers::notify()
 {
-    executor_->add(this);
+    if (!isPending_)
+    {
+        isPending_ = 1;
+        executor_->add(this);
+    }
 }
 
 void ActiveTimers::run()
 {
+    isPending_ = 0;
     // Do nothing; the work of scheduling users is done in the get_next_timeout
     // call.
 }
@@ -110,7 +137,7 @@ void ActiveTimers::insert_locked(Timer *timer)
     Timer *current_timer = static_cast<Timer *>(*last);
     while (current_timer && current_timer->when_ <= timer->when_)
     {
-        *last = current_timer->next;
+        last = &current_timer->next;
         current_timer = static_cast<Timer *>(*last);
     }
     // Inserts into the queue.

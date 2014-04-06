@@ -47,7 +47,9 @@ class ExecutorBase;
 class ActiveTimers : public Executable
 {
 public:
-    ActiveTimers(ExecutorBase *executor) : executor_(executor)
+    ActiveTimers(ExecutorBase *executor)
+        : executor_(executor)
+        , isPending_(0)
     {
     }
 
@@ -95,16 +97,20 @@ public:
 private:
     /** Removes a timer from the active list. Assert fails if it is not
      * there. Caller must hold the lock. */
-    void remove_locked(Timer* timer);
+    void remove_locked(Timer *timer);
 
     /** Inserts a timer into the active list. Caller must hold the lock. */
-    void insert_locked(Timer* timer);
+    void insert_locked(Timer *timer);
 
     ExecutorBase *executor_;
     /// Protects the timer list.
     OSMutex lock_;
     /// List of timers that are scheduled.
     QMember activeTimers_;
+    // 1 if we in the executor's queue.
+    unsigned isPending_ : 1;
+
+    friend class TimerTest;
 
     DISALLOW_COPY_AND_ASSIGN(ActiveTimers);
 };
@@ -120,38 +126,29 @@ public:
      */
     Timer(ActiveTimers *timers)
         : activeTimers_(timers)
-        , isActive_(0)
-        , isExpired_(0)
         , priority_(UINT_MAX)
         , when_(0)
         , period_(0)
+        , isActive_(0)
+        , isExpired_(0)
+        , tcIsCancelled_(0)
+        , tcRequestStop_(0)
     {
     }
 
     /** Destructor. */
     ~Timer();
 
-    /** Callback form the executor when this timer is scheduled. */
-    virtual void run()
-    {
-        isExpired_ = 0;
-        long long new_period = timeout();
-        if (new_period == RESTART) {
-            when_ += period_;
-            activeTimers_->schedule_timer(this);
-        } else if (new_period == DELETE) {
-            delete this;
-        } else if (new_period > 0) {
-            start(new_period);
-        }
-    }
+    /** Callback from the executor when this timer is scheduled. It will call
+     * the virtual method timeout(). */
+    virtual void run();
 
     /** Special return values from the timeout function. */
     enum
     {
-        NONE    =  0, /**< Do not restart the timer */
-        RESTART =  1, /**< Restart the timer with existing period */
-        DELETE  = -1, /**< delete the timer, use with extreme caution */
+        NONE = 0,    /**< Do not restart the timer */
+        RESTART = 1, /**< Restart the timer with existing period */
+        DELETE = -1, /**< delete the timer, use with extreme caution */
     };
 
     /** Clients of timer should override this function. It will be called on
@@ -181,11 +178,15 @@ public:
     void restart()
     {
         /// @TODO(balazs.racz) assert here that we are on the given executor.
-        if (isExpired_) return;
+        if (isExpired_)
+            return;
         when_ = OSTime::get_monotonic() + period_;
-        if (isActive_) {
+        if (isActive_)
+        {
             activeTimers_->update_timer(this);
-        } else {
+        }
+        else
+        {
             isActive_ = 1;
             activeTimers_->schedule_timer(this);
         }
@@ -199,7 +200,8 @@ public:
     void trigger()
     {
         /// @TODO(balazs.racz) assert here that we are on the given executor.
-        if (isExpired_) return;
+        if (isExpired_)
+            return;
         HASSERT(isActive_);
         when_ = 2; // in the past
         activeTimers_->update_timer(this);
@@ -207,21 +209,26 @@ public:
 
 private:
     friend class ActiveTimers;  // for scheduling an expiring timers
-    friend class CountingTimer;  // for testing
+    friend class CountingTimer; // for testing
 
     /** Points to the executor's timer structure. Not owned. */
     ActiveTimers *activeTimers_;
+    /** what priority to schedule this timer at */
+    unsigned priority_;
+    /** when in nanoseconds timer should expire */
+    long long when_;
+    /** period in nanoseconds for timer */
+    long long period_;
     /** true when the timer is in the active timers list */
     unsigned isActive_ : 1;
     /** True when the timer is in the pending executables list of the
      * Executor. */
     unsigned isExpired_ : 1;
-    /** what priority to schedule this timer at */
-    unsigned priority_; 
-    /** when in nanoseconds timer should expire */
-    long long when_;
-    /** period in nanoseconds for timer */
-    long long period_;
+    /** Storage for children: Was the timer cancelled or did the timer expire
+     * regularly? */
+    unsigned tcIsCancelled_ : 1;
+    /** For children: 1 if a repeated timer should stop sending wakeups. */
+    unsigned tcRequestStop_ : 1;
 
     DISALLOW_COPY_AND_ASSIGN(Timer);
 };

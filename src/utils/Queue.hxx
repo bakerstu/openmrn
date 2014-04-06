@@ -68,6 +68,7 @@ protected:
     friend class Q;
     /** ActiveTimers needs to iterate through the queue. */
     friend class ActiveTimers;
+    friend class TimerTest;
 };
 
 #endif /* _Queue_hxx_ */
