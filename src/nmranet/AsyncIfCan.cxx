@@ -131,8 +131,6 @@ protected:
 
 } // namespace
 
-#if 0
-
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:
  *
@@ -144,60 +142,52 @@ protected:
  * . if the conflict is with a reserved but unused alias, kicks it out of the
  * cache. This condition will be detected when a new node tries using that
  * alias.
- *
- * NOTE: this handler could be a control flow, but since the flow is very
- * simple, it is implemented on first principles. The resulting object will
- * take much less RAM. */
-class AliasConflictHandler : public AllocationResult,
-                             public IncomingFrameHandler
+ */
+class AliasConflictHandler : public StateFlow<Buffer<CanMessageData>, QList<1>>
 {
 public:
-    AliasConflictHandler(AsyncIfCan *if_can) : ifCan_(if_can)
+    AliasConflictHandler(AsyncIfCan *service)
+        : StateFlow<Buffer<CanMessageData>, QList<1>>(service)
     {
-        lock_.TypedRelease(this);
-        ifCan_->frame_dispatcher()->register_handler(0, ~((1 << 30) - 1), this);
+        if_can()->frame_dispatcher()->register_handler(this, 0,
+                                                       ~((1 << 30) - 1));
     }
 
     ~AliasConflictHandler()
     {
-        ifCan_->frame_dispatcher()->unregister_handler(0, ~((1 << 30) - 1),
-                                                       this);
+        if_can()->frame_dispatcher()->unregister_handler(this, 0,
+                                                         ~((1 << 30) - 1));
     }
 
-    virtual AllocatorBase *get_allocator()
+    AsyncIfCan *if_can()
     {
-        return &lock_;
+        return static_cast<AsyncIfCan *>(service());
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame *f, Notifiable *done)
+    virtual Action entry()
     {
-        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        done->notify(); // We don't need the frame anymore.
-        f = nullptr;
-        done = nullptr;
+        uint32_t id = GET_CAN_FRAME_ID_EFF(*message()->data());
+        release();
         if (IfCan::get_priority(id) != IfCan::NORMAL_PRIORITY)
         {
             // Probably not an OpenLCB frame.
-            lock_.TypedRelease(this);
-            return;
+            return exit();
         }
         NodeAlias alias = IfCan::get_src(id);
         // If the caller comes with alias 000, we ignore that.
-        NodeID node = alias ? ifCan_->local_aliases()->lookup(alias) : 0;
+        NodeID node = alias ? if_can()->local_aliases()->lookup(alias) : 0;
         if (!node)
         {
             // This is not a local alias of ours.
-            lock_.TypedRelease(this);
-            return;
+            return exit();
         }
         if (IfCan::is_cid_frame(id))
         {
             // This is a CID frame. We own the alias, let them know.
             alias_ = alias;
-            ifCan_->write_allocator()->AllocateEntry(this);
-            // We keep the lock.
-            return;
+            return allocate_and_call(if_can()->frame_write_flow(),
+                                     STATE(send_reserved_alias));
         }
         /* Removes the alias from the local alias cache.  If it was assigned to
          * a node, the node will grab a new alias next time it tries to send
@@ -210,36 +200,26 @@ public:
          * into the empty_alias_allocator() instead to be picked up by the
          * alias allocator flow.  */
         g_alias_use_conflicts++;
-        ifCan_->local_aliases()->remove(alias);
-        lock_.TypedRelease(this);
+        if_can()->local_aliases()->remove(alias);
+        return exit();
     }
 
-    virtual void AllocationCallback(QueueMember *entry)
+    Action send_reserved_alias()
     {
-        frameWriteFlow_ = ifCan_->write_allocator()->cast_result(entry);
-        ifCan_->frame_dispatcher()->executor()->Add(this);
-    }
-
-    virtual void Run()
-    {
+        auto *b = get_allocation_result(if_can()->frame_write_flow());
         // We are sending an RID frame.
-        struct can_frame *f = frameWriteFlow_->mutable_frame();
+        struct can_frame *f = b->data();
         IfCan::control_init(*f, alias_, IfCan::RID_FRAME, 0);
-        frameWriteFlow_->Send(nullptr);
-        lock_.TypedRelease(this);
+        if_can()->frame_write_flow()->send(b);
+        return exit();
     }
 
 private:
-    /// Lock for ourselves.
-    TypedAllocator<IncomingFrameHandler> lock_;
-    /// Parent interface.
-    AsyncIfCan *ifCan_;
     /// Alias being checked.
     unsigned alias_ : 12;
-    /// The write flow we received from the allocator.
-    CanFrameWriteFlow *frameWriteFlow_;
 };
 
+#if 0
 /** This class listens for incoming CAN frames of regular unaddressed global
  * OpenLCB messages, then translates it in a generic way into a message,
  * computing its MTI. The resulting message is then passed to the generic If
