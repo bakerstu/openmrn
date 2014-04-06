@@ -38,7 +38,7 @@
 /// @todo(balazs.racz) remove this dep
 #include <string>
 
-//#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
@@ -57,7 +57,7 @@ class AsyncNode;
  * @returns a new buffer (from the main pool) with 6 bytes of used space, a
  * big-endian representation of the node ID.
  */
-// extern Buffer* node_id_to_buffer(NodeID id);
+extern string node_id_to_buffer(NodeID id);
 
 /** Converts a 6-byte-long buffer to a node ID.
  *
@@ -65,7 +65,7 @@ class AsyncNode;
  * big-endian node id.
  * @returns the node id (in host endian).
  */
-// extern NodeID buffer_to_node_id(Buffer* buf);
+extern NodeID buffer_to_node_id(const string& buf);
 
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
@@ -77,14 +77,16 @@ class AsyncNode;
  * copied by the dispatcher separately for each handler. */
 struct NMRAnetMessage
 {
-    void reset(If::MTI mti, NodeID src, NodeHandle dst, const string& payload) {
+    void reset(If::MTI mti, NodeID src, NodeHandle dst, const string &payload)
+    {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = dst;
         this->payload = payload;
     }
 
-    void reset(If::MTI mti, NodeID src, const string& payload) {
+    void reset(If::MTI mti, NodeID src, const string &payload)
+    {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = {0, 0};
@@ -149,7 +151,6 @@ public:
                                     Notifiable *done) = 0;
 };
 #endif
-
 class AsyncIf : public Service
 {
 public:
@@ -202,10 +203,9 @@ public:
      */
     void add_local_node(AsyncNode *node)
     {
-        HASSERT(0);
-        /*NodeID id = node->node_id();
+        NodeID id = node->node_id();
         HASSERT(localNodes_.find(id) == localNodes_.end());
-        localNodes_[id] = node;*/
+        localNodes_[id] = node;
     }
 
     /** Removes a local node from this interface. This function must be called
@@ -256,6 +256,22 @@ private:
     friend class VerifyNodeIdHandler;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIf);
+};
+
+/** Base class for incoming message handler flows. */
+class IncomingMessageStateFlow
+    : public StateFlow<Buffer<NMRAnetMessage>, QList<4>>
+{
+public:
+    IncomingMessageStateFlow(AsyncIf *interface)
+        : StateFlow<Buffer<NMRAnetMessage>, QList<4>>(interface)
+    {
+    }
+
+    AsyncIf *interface()
+    {
+        return static_cast<AsyncIf *>(service());
+    }
 };
 
 } // namespace NMRAnet

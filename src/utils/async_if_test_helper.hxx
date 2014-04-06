@@ -10,7 +10,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfCan.hxx"
 //#include "nmranet/GlobalEventHandler.hxx"
-//#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 //#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 //#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"
@@ -293,18 +293,17 @@ protected:
     bool pendingAliasAllocation_;
 };
 
-/*
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
-    AsyncNodeTest() : eventFlow_(&g_executor, 10)
+    AsyncNodeTest() //: eventFlow_(&g_executor, 10)
     {
         EXPECT_CALL(canBus_, mwrite(":X1910022AN02010D000003;")).Times(1);
         ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
         node_ = ownedNode_.get();
-        ifCan_->add_addressed_message_support(2);
+        ifCan_->add_addressed_message_support();
         wait();
-        AddEventHandlerToIf(ifCan_.get());
+        //AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncNodeTest()
@@ -314,18 +313,17 @@ protected:
 
     void wait_for_event_thread()
     {
-        while (GlobalEventFlow::instance->EventProcessingPending())
+        /*while (GlobalEventFlow::instance->EventProcessingPending())
         {
             usleep(100);
-        }
+            }*/
         AsyncIfTest::wait();
     }
 
-    GlobalEventFlow eventFlow_;
+    //GlobalEventFlow eventFlow_;
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode *node_;
 };
-*/
 
 class MockMessageHandler : public MessageHandler
 {

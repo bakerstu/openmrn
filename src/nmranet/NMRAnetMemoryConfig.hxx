@@ -161,7 +161,7 @@ protected:
     /** Process a memory configuration datagram.
      * @param datagram datagram to process, this pointer is stale upon return
      */
-    void process(Buffer *buffer);
+    void process(BufferBase *buffer);
 
 private:
     /** Helper function for replyoing to a memory config request.

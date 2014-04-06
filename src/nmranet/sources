@@ -8,6 +8,8 @@ CXXSRCS += \
            AsyncIf.cxx \
            AsyncIfImpl.cxx \
            NMRAnetWriteFlow.cxx \
+           NMRAnetAsyncDefaultNode.cxx \
+           NMRAnetNodeInitializeFlow.cxx \
            AsyncAliasAllocator.cxx \
 
 

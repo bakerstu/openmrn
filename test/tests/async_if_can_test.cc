@@ -393,7 +393,6 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
     wait();
 }
 
-#if 0
 TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 {
     static const NodeAlias alias = 0x210U;
@@ -409,18 +408,23 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::payload, IsNull()))),
+                Field(&NMRAnetMessage::dstNode, node_)
+                //Field(&NMRAnetMessage::payload, IsNull())
+                        )),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
 
     ifCan_->remote_aliases()->add(id, alias);
 
+    // @TODO(balazs.racz): enable verify nodeid handler.
     // The "verify nodeid handler" will respond.
-    send_packet_and_expect_response(":X19488210N022A;",
-                                    ":X1917022AN02010d000003;");
+    //send_packet_and_expect_response(":X19488210N022A;",
+    //                                ":X1917022AN02010d000003;");
+    send_packet(":X19488210N022A;");
     wait();
 }
+
+#if 0
 
 TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
 {

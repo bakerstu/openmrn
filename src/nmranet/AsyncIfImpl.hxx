@@ -127,44 +127,44 @@ protected:
     Action global_entry();
 };
 
-#if 0
 /** This handler handles VerifyNodeId messages (both addressed and global) on
  * the interface level. Each interface implementation will want to create one
  * of these. */
-class VerifyNodeIdHandler : private IncomingMessageHandler,
-                            public AllocationResult
+class VerifyNodeIdHandler : private IncomingMessageStateFlow
 {
 public:
-    VerifyNodeIdHandler(AsyncIf *interface) : interface_(interface)
+    VerifyNodeIdHandler(AsyncIf *service) : IncomingMessageStateFlow(service)
     {
-        lock_.TypedRelease(this);
-        interface_->dispatcher()->register_handler(
+        interface()->dispatcher()->register_handler(
+            this,
             If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
-                       If::MTI_VERIFY_NODE_ID_ADDRESSED),
-            this);
+                       If::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
 
-    virtual AllocatorBase *get_allocator()
+    ~VerifyNodeIdHandler()
     {
-        return &lock_;
+        interface()->dispatcher()->unregister_handler(
+            this,
+            If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
+            0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
+                       If::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(IncomingMessage *m, Notifiable *done)
+    virtual Action entry()
     {
-        AutoNotify an(done);
-        TypedAutoRelease<IncomingMessageHandler> ar(&lock_, this);
+        NMRAnetMessage *m = message()->data();
         if (m->dst.id)
         {
             // Addressed message.
-            srcNode_ = m->dst_node;
+            srcNode_ = m->dstNode;
         }
-        else if (m->payload && m->payload->used() == 6)
+        else if (!m->payload.empty() && m->payload.size() == 6)
         {
             // Global message with a node id included
             NodeID id = buffer_to_node_id(m->payload);
-            srcNode_ = interface_->lookup_local_node(id);
+            srcNode_ = interface()->lookup_local_node(id);
         }
         else
         {
@@ -175,18 +175,18 @@ public:
             if (it == interface_->localNodes_.end())
             {
                 // No local nodes.
-                return;
+                return release_and_exit();
             }
             srcNode_ = it->second;
             ++it;
             HASSERT(it == interface_->localNodes_.end());
 #else
             // We need to do an iteration over all local nodes.
-            it_ = interface_->localNodes_.begin();
-            if (it_ == interface_->localNodes_.end())
+            it_ = interface()->localNodes_.begin();
+            if (it_ == interface()->localNodes_.end())
             {
                 // No local nodes.
-                return;
+                return release_and_exit();
             }
             srcNode_ = it_->second;
             ++it_;
@@ -194,63 +194,63 @@ public:
         }
         if (srcNode_)
         {
-            ar.Transfer();
-            return interface_->global_write_allocator()->AllocateEntry(this);
+            release();
+            return allocate_and_call(interface()->global_message_write_flow(),
+                                     STATE(send_response));
+        }
+        else
+        {
+            return release_and_exit();
         }
     }
 
 #ifdef SIMPLE_NODE_ONLY
-    virtual void AllocationCallback(QueueMember *entry)
+    Action send_response()
     {
-        WriteFlow *f = interface_->global_write_allocator()->cast_result(entry);
+        auto *b =
+            get_allocation_result(interface_->global_message_write_flow());
+        NMRAnetMessage *m = b->data();
         NodeID id = srcNode_->node_id();
-        f->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
-                              node_id_to_buffer(id), nullptr);
-        lock_.TypedRelease(this);
-    }
-
-    virtual void Run()
-    {
-        HASSERT(0);
+        m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
+        interface_->global_message_write_flow()->send(b);
     }
 #else
-    virtual void AllocationCallback(QueueMember *entry)
+    Action send_response()
     {
-        f_ = interface_->global_write_allocator()->cast_result(entry);
-        // Need to jump to the main executor for two reasons:
-        // . we need to constrain stack usage
-        // . we need to access the node map which we can only do there.
-        interface_->dispatcher()->executor()->Add(this);
-    }
-
-    virtual void Run()
-    {
+        auto *b =
+            get_allocation_result(interface()->global_message_write_flow());
+        NMRAnetMessage *m = b->data();
+        // This is called on the main executor of the interface, this we are
+        // allowed to access the local nodes cache.
         NodeID id = srcNode_->node_id();
         LOG(VERBOSE, "Sending verified reply from node %012llx", id);
-        f_->WriteGlobalMessage(If::MTI_VERIFIED_NODE_ID_NUMBER, id,
-                               node_id_to_buffer(id), nullptr);
-        // Continues the iteration over the nodes.
-        if (it_ != interface_->localNodes_.end())
+        m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
+
+        /** Continues the iteration over the nodes.
+         *
+         * @TODO(balazs.racz): we should probably wait for the outgoing message
+         * to be sent. */
+        if (it_ != interface()->localNodes_.end())
         {
             srcNode_ = it_->second;
             ++it_;
-            return interface_->global_write_allocator()->AllocateEntry(this);
+            return allocate_and_call(interface()->global_message_write_flow(),
+                                     STATE(send_response));
         }
-        lock_.TypedRelease(this);
+        else
+        {
+            return exit();
+        }
     }
 #endif // not simple node
 
 private:
-    TypedAllocator<IncomingMessageHandler> lock_;
-    AsyncIf *interface_;
     AsyncNode *srcNode_;
 
 #ifndef SIMPLE_NODE_ONLY
-    WriteFlow *f_;
     AsyncIf::VNodeMap::Iterator it_;
 #endif
 };
-#endif // if 0
 } // namespace NMRAnet
 
 #endif // _NMRAnetAsyncIfImpl_hxx_

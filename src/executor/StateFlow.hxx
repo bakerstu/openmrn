@@ -242,6 +242,18 @@ protected:
     {
         return STATE(terminated);
     }
+
+    /** Terminates the flow and deletes *this. Do not access any member
+     * function after this call has been made. */
+    Action delete_this()
+    {
+        state_ = STATE(terminated);
+        delete this;
+        // Ensures that Run() does not touch the class member variables
+        // anymore.
+        return wait();
+    }
+
 #if 0
     /** Terminate current StateFlow activity. after releasing the message.
      * @param msg to release
