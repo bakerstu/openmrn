@@ -201,6 +201,7 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
      * which avoids race condition between the trigger and the regular timeout
      * call. */
     parent_->timer_.trigger();
+    message->unref();
 }
 
 void AsyncAliasAllocator::TEST_finish_pending_allocation() {
