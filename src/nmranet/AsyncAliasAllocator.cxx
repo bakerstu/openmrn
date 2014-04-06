@@ -203,4 +203,10 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
     parent_->timer_.trigger();
 }
 
+void AsyncAliasAllocator::TEST_finish_pending_allocation() {
+    if (is_state(STATE(wait_done))) {
+        timer_.trigger();
+    }
+}
+
 } // namespace NMRAnet

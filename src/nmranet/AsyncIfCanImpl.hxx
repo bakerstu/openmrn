@@ -118,7 +118,7 @@ private:
         NodeAlias alias = 0;
         {
             Buffer<AliasInfo> *new_alias =
-                get_allocation_result(if_can()->alias_allocator());
+                full_allocation_result(if_can()->alias_allocator());
             HASSERT(new_alias->data()->alias);
             alias = new_alias->data()->alias;
             /* Sends the alias back for reallocating. This will trigger the
@@ -126,7 +126,8 @@ private:
             new_alias->data()->reset();
             if_can()->alias_allocator()->send(new_alias);
         }
-        LOG(INFO, "Allocating new alias %03X for node %012llx", alias, nmsg()->src.id);
+        LOG(INFO, "Allocating new alias %03X for node %012llx", alias,
+            nmsg()->src.id);
 
         // Checks that there was no conflict on this alias.
         if (if_can()->local_aliases()->lookup(alias) !=
@@ -189,11 +190,12 @@ private:
 
         // Sets the CAN id.
         uint32_t can_id = 0;
-        IfCan::set_fields(&can_id, srcAlias_, nmsg()->mti, IfCan::GLOBAL_ADDRESSED,
-                          IfCan::NMRANET_MSG, IfCan::NORMAL_PRIORITY);
+        IfCan::set_fields(&can_id, srcAlias_, nmsg()->mti,
+                          IfCan::GLOBAL_ADDRESSED, IfCan::NMRANET_MSG,
+                          IfCan::NORMAL_PRIORITY);
         SET_CAN_FRAME_ID_EFF(*f, can_id);
 
-        const string& data = nmsg()->payload;
+        const string &data = nmsg()->payload;
         bool need_more_frames = false;
         // Sets the destination bytes if needed. Adds the payload.
         if (If::get_mti_address(nmsg()->mti))

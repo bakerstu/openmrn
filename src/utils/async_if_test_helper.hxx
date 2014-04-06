@@ -102,6 +102,7 @@ public:
 
 protected:
     AsyncIfTest()
+        : pendingAliasAllocation_(false)
     {
         gc_hub0.register_port(&canBus_);
         ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 5));
@@ -111,6 +112,10 @@ protected:
     ~AsyncIfTest()
     {
         wait();
+        if (pendingAliasAllocation_) {
+            ifCan_->alias_allocator()->TEST_finish_pending_allocation();
+            wait();
+        }
         gc_hub0.unregister_port(&canBus_);
         if (printer_.get())
         {
@@ -122,7 +127,6 @@ protected:
      *  alias. */
     void create_allocated_alias()
     {
-        HASSERT(0);
         ifCan_->set_alias_allocator(
             new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
         Buffer<AliasInfo> *a;
@@ -133,18 +137,18 @@ protected:
                                      a->data()->alias);
         ifCan_->alias_allocator()->reserved_aliases()->insert(a);        
         aliasSeed_ = 0x44C;
+        pendingAliasAllocation_ = false;
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)
     {
-        HASSERT(0);
-        /*
+        pendingAliasAllocation_ = true;
         if (!a)
         {
             ifCan_->alias_allocator()->seed_ = aliasSeed_;
             a = aliasSeed_;
             aliasSeed_++;
-            }*/
+        }
         EXPECT_CALL(canBus_, mwrite(StringPrintf(":X17020%03XN;", a)))
             .Times(1)
             .RetiresOnSaturation();
@@ -279,6 +283,8 @@ protected:
     AliasInfo testAlias_;
     /// The next alias we will make the allocator create.
     NodeAlias aliasSeed_;
+    /// true if we have a pending async alias allocation task.
+    bool pendingAliasAllocation_;
 };
 
 /*

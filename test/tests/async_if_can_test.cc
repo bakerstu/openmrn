@@ -59,7 +59,7 @@ TEST_F(AsyncIfTest, WriteFrame)
 {
     print_all_packets();
     expect_packet(":X195B432DNAA;");
-    auto* b = ifCan_->frame_write_flow()->alloc();
+    auto *b = ifCan_->frame_write_flow()->alloc();
     struct can_frame *f = b->data()->mutable_frame();
     SET_CAN_FRAME_EFF(*f);
     SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
@@ -73,14 +73,14 @@ TEST_F(AsyncIfTest, WriteMultipleFrames)
     EXPECT_CALL(canBus_, mwrite(":X195B432DNAA;")).Times(10);
     for (int i = 0; i < 10; ++i)
     {
-        auto* b = ifCan_->frame_write_flow()->alloc();
+        auto *b = ifCan_->frame_write_flow()->alloc();
         struct can_frame *f = b->data()->mutable_frame();
         SET_CAN_FRAME_EFF(*f);
         SET_CAN_FRAME_ID_EFF(*f, 0x195B432D);
         f->can_dlc = 1;
         f->data[0] = 0xaa;
         ifCan_->frame_write_flow()->send(b);
-        auto* bb = ifCan_->frame_write_flow()->alloc();
+        auto *bb = ifCan_->frame_write_flow()->alloc();
         SET_CAN_FRAME_RTR(*bb->data()->mutable_frame());
         bb->unref();
     }
@@ -91,13 +91,28 @@ class AsyncMessageCanTests : public AsyncIfTest
 protected:
     AsyncMessageCanTests()
     {
-        //ifCan_->add_addressed_message_support(2);
+        ifCan_->add_addressed_message_support(
+            /*2 : num addressed write flows*/);
     }
+
+    BarrierNotifiable *get_notifiable()
+    {
+        bn_.reset(&n_);
+        return &bn_;
+    }
+
+    void wait_for_notification()
+    {
+        n_.wait_for_notification();
+    }
+
+    SyncNotifiable n_;
+    BarrierNotifiable bn_;
 };
 
 TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
     b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
                      EventIdToBuffer(0x0102030405060708ULL));
     expect_packet(":X195B422AN0102030405060708;");
@@ -106,7 +121,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTI)
 
 TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
     b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, "12345");
     expect_packet(":X195B422AN3132333435;");
     ifCan_->global_message_write_flow()->send(b);
@@ -114,18 +129,16 @@ TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
 
     expect_packet(":X1982822AN00003132333435;");
-    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
-                     TEST_NODE_ID, "12345");
+    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID, "12345");
     ifCan_->global_message_write_flow()->send(b);
 }
 
-
 TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
 
     expect_packet(":X1982822AN1000303132333435;"); // first frame
     expect_packet(":X1982822AN3000363738393031;"); // middle frame
@@ -135,8 +148,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
      * to send an addressed message. @TODO(balazs.racz): replace this with
      * addressed write flow once that is ready and working. Add checks for this
      * not to happen in production. */
-    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY,
-                     TEST_NODE_ID, "01234567890123456789");
+    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID,
+                     "01234567890123456789");
     ifCan_->global_message_write_flow()->send(b);
 }
 
@@ -145,18 +158,16 @@ TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
     EXPECT_CALL(canBus_, mwrite(":X195B422AN0102030405060708;")).Times(100);
     for (int i = 0; i < 100; ++i)
     {
-        auto* b = ifCan_->global_message_write_flow()->alloc();
-        b->data()->reset(
-            If::MTI_EVENT_REPORT, TEST_NODE_ID,
-            EventIdToBuffer(0x0102030405060708ULL));
+        auto *b = ifCan_->global_message_write_flow()->alloc();
+        b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+                         EventIdToBuffer(0x0102030405060708ULL));
         ifCan_->global_message_write_flow()->send(b);
     }
 }
 
-
 TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
 
     EXPECT_CALL(canBus_, mwrite(_)).Times(0);
     b->data()->reset(If::MTI_DATAGRAM, TEST_NODE_ID,
@@ -164,20 +175,19 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
     ifCan_->global_message_write_flow()->send(b);
 }
 
-
 TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
         h, handle_message(
                Pointee(AllOf(Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
-                             //Field(&NMRAnetMessage::payload, NotNull()),
+                             // Field(&NMRAnetMessage::payload, NotNull()),
                              Field(&NMRAnetMessage::payload,
                                    IsBufferValue(0x0102030405060708ULL)))),
                _));
     ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
     expect_packet(":X195B422AN0102030405060708;");
     b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
                      EventIdToBuffer(0x0102030405060708ULL));
@@ -186,9 +196,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 }
 
 #if 0
-
-
-TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
+// this will only work once the addressed flow is okay
+TEST_F(AsyncMessageCanTests, WriteByMTIAddressedDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
@@ -196,46 +205,55 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
         handle_message(
             Pointee(AllOf(
                 Field(&NMRAnetMessage::mti, If::MTI_EVENTS_IDENTIFY_ADDRESSED),
-                Field(&NMRAnetMessage::payload, NotNull()),
+                //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)),
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
-                      Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dst_node, node_))),
-            _));
-    ifCan_->dispatcher()->register_handler(0, 0, &h);
+                      Field(&NodeHandle::id, TEST_NODE_ID))
+                /// @TODO(balazs.racz): reenable node check.
+//                Field(&NMRAnetMessage::dstNode, node_))),
+                        )), _));
+    ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
-    TypedSyncAllocation<WriteFlow> falloc(ifCan_->addressed_write_allocator());
-    SyncNotifiable n;
+    create_allocated_alias();
+    expect_next_alias_allocation();
+
+//    auto* b = ifCan_->addressed_message_write_flow()->alloc();
+    auto* b = ifCan_->global_message_write_flow()->alloc();
     /** Here we are using a new source node ID number, which would normally
      * trigger an alias allocation. However, since the message never makes it
      * to the canbus (is looped back), that does not happen.*/
-    falloc.result()->WriteAddressedMessage(
-        If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
-        {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL), &n);
-    n.WaitForNotification();
+    b->data()->reset(If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
+        {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL));
+    b->set_done(get_notifiable());
+    // ifCan_->addressed_message_write_flow()->send(b);
+    ifCan_->global_message_write_flow()->send(b);
+    wait_for_notification();
     wait();
 }
+#endif
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 {
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto *b = ifCan_->global_message_write_flow()->alloc();
 
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
-    SyncNotifiable n;
     b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
-                                        EventIdToBuffer(0x0102030405060708ULL),
-                                        &n);
-    n.WaitForNotification();
+                     EventIdToBuffer(0x0102030405060708ULL));
+    b->set_done(get_notifiable());
+    ifCan_->global_message_write_flow()->send(b);
+    wait_for_notification();
     EXPECT_EQ(0x33AU, ifCan_->local_aliases()->lookup(TEST_NODE_ID + 1));
     EXPECT_EQ(TEST_NODE_ID + 1,
               ifCan_->local_aliases()->lookup(NodeAlias(0x33A)));
 }
 
+
+#if 0
 TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
 {
     // This alias is in the cache since the setup routine.

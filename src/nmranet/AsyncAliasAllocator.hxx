@@ -53,6 +53,7 @@ struct AliasInfo : public QMember
         : alias(0)
         , state(STATE_EMPTY)
     {
+        LOG(ERROR, "alias info reset.");
     }
 
     void reset()
@@ -108,6 +109,10 @@ public:
     {
         return &reserved_alias_pool_;
     }
+
+    /** If there is a pending alias allocation waiting for the timer to expire,
+     * finishes it immediately. Needed in test destructors. */
+    void TEST_finish_pending_allocation();
 
 private:
     /** Listens to incoming CAN frames and handles alias conflicts. */

@@ -515,6 +515,7 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
 
 void AsyncIfCan::add_addressed_message_support()
 {
+    ///@TODO(balazs.racz): implement addressed message support.
     /*owned_flows_.push_back(
         std::unique_ptr<Executable>(new FrameToAddressedMessageParser(this)));
     for (int i = 0; i < num_write_flows; ++i)

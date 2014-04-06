@@ -206,6 +206,12 @@ protected:
         state_ = c;
     }
 
+    /** Returns true if the state flow is in a specific state. */
+    bool is_state(Callback c)
+    {
+        return state_ == c;
+    }
+
     /** Resets the flow to the specified state and starts it.
      * @param c is the state to start the flow from.
      */
@@ -310,6 +316,19 @@ protected:
         allocationResult_ = nullptr;
         queue->next_async(this);
         return wait_and_call(c);
+    }
+
+    /** Takes the result of the asynchronous allocation without resetting the
+     * object. This should be the first statement in the state where the
+     * allocation transitioned. If you expect an empty object, use
+     * \ref get_allocation_result() instead.
+     * @param target_flow is the StateFlow for which we allocated.
+     * @return The full buffer as it was inserted into the async queue. */
+    template <class T>
+    Buffer<T> *full_allocation_result(FlowInterface<Buffer<T>> *target_flow)
+    {
+        Buffer<T> *result = static_cast<Buffer<T> *>(allocationResult_);
+        return result;
     }
 
     /** Takes the result of the asynchronous allocation. This should be the
@@ -583,7 +602,8 @@ private:
  * in the constructor initialize it with
  *   , timer_(this).
  * then in the state function do
- *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200), STATE(next_after_timeout);
+ *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200),
+ *STATE(next_after_timeout);
  * If needed, you can wake up the timer in a handler function by calling
  * timer_.trigger(). This will transition to the new state immediately.
  */
