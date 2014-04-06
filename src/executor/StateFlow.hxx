@@ -558,17 +558,24 @@ protected:
         return static_cast<MessageType *>(StateFlowWithQueue::message());
     }
 
+    /** Releases the current message buffer back to the pool it came from. The
+     * state flow will continue running (and not get another message) until it
+     * reaches the state exit(). */
+    void release() {
+        if (message())
+        {
+            message()->unref();
+        }
+        currentMessage_ = nullptr;
+    }
+
     /** Terminates the processing of the current message. Flows should end with
      * this action. Frees the current message.
      * @return the action for checking for new messages.
      */
     Action release_and_exit()
     {
-        if (message())
-        {
-            message()->unref();
-        }
-        currentMessage_ = nullptr;
+        release();
         return call_immediately(STATE(wait_for_message));
     }
 
