@@ -132,25 +132,26 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
 }
 
-#if 0
 TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
 {
     set_seed(0x555);
-    AliasInfo info;
+    mainBufferPool->alloc(&b_);
     expect_packet(":X17020555N;");
     expect_packet(":X1610D555N;");
     expect_packet(":X15000555N;");
     expect_packet(":X14003555N;");
-    alias_allocator_.empty_aliases()->Release(&info);
+    alias_allocator_.send(b_);
+    b_ = nullptr;
     wait();
     set_seed(0xAA5);
-    send_packet(":X10700555N;");
     expect_packet(":X17020AA5N;");
     expect_packet(":X1610DAA5N;");
     expect_packet(":X15000AA5N;");
     expect_packet(":X14003AA5N;");
     expect_packet(":X10700AA5N;");
-    TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
+    send_packet(":X10700555N;");
+
+    get_next_alias();
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
     // This one should be marked as reserved.
@@ -163,29 +164,29 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
 {
     set_seed(0x555);
-    AliasInfo info;
+    mainBufferPool->alloc(&b_);
     expect_packet(":X17020555N;");
     expect_packet(":X1610D555N;");
     expect_packet(":X15000555N;");
     expect_packet(":X14003555N;");
-    alias_allocator_.empty_aliases()->Release(&info);
+    alias_allocator_.send(b_);
+    b_ = nullptr;
     wait();
     set_seed(0xAA5);
     usleep(100000);
-    send_packet(":X10700555N;");
     expect_packet(":X17020AA5N;");
     expect_packet(":X1610DAA5N;");
     expect_packet(":X15000AA5N;");
     expect_packet(":X14003AA5N;");
+    send_packet(":X10700555N;");
     wait();
     usleep(100000);
-    send_packet(":X10700555N;");
     expect_packet(":X10700AA5N;");
-    TypedSyncAllocation<AliasInfo> ialloc(alias_allocator_.reserved_aliases());
+    send_packet(":X10700555N;");
+    get_next_alias();
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
 }
-#endif
 
 TEST_F(AsyncAliasAllocatorTest, GenerationCycleLength)
 {

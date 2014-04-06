@@ -45,6 +45,7 @@ size_t g_alias_test_conflicts = 0;
 AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can)
     : StateFlow<Buffer<AliasInfo>, QList<1>>(if_can)
     , conflictHandler_(this)
+    , timer_(this)
     , if_id_(if_id)
     , cid_frame_sequence_(0)
     , conflict_detected_(0)
@@ -125,10 +126,7 @@ StateFlowBase::Action AsyncAliasAllocator::handle_allocate_for_cid_frame()
     else
     {
         // All CID frames are sent, let's wait.
-
-        // @TODO(balazs.racz) add sleep here
-        // return Sleep(&sleep_helper_, MSEC_TO_NSEC(200), ST(HandleWaitDone));
-        return yield_and_call(STATE(wait_done));
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(200), STATE(wait_done));
     }
 }
 
@@ -202,6 +200,8 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
     // 200 ms of sleep. It's somewhat difficult to ensure there is no race
     // condition there; there are no documented guarantees on the timer
     // deletion call vs timer callbacks being delivered.
+
+    parent_->timer_.trigger();
 
     // parent->notify(); will this work when we have timers? Or creates a
     // spurious notification?

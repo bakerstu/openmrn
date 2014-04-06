@@ -141,6 +141,8 @@ private:
     friend class AsyncAliasAllocatorTest;
     friend class AsyncIfTest;
 
+    StateFlowTimer timer_;
+
     /** Freelist of reserved aliases that can be used by virtual nodes. The
         AliasAllocatorFlow will post successfully reserved aliases to this
         allocator. */
