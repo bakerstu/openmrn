@@ -39,6 +39,7 @@
 
 #include "executor/Message.hxx"
 #include "executor/Service.hxx"
+#include "executor/Timer.hxx"
 #include "utils/BufferQueue.hxx"
 
 #define STATE(_fn)                                                             \
@@ -337,12 +338,19 @@ protected:
         return wait();
     }
 
-    /** Timeout expired.  The expectation is that a derived class will implement
-     * this if it desires timeouts.
+    /** Suspends execution of this control flow for a specified time. After
+     * the timeout expires the flow will continue in state c.
+     *
+     * @param timer is the timer to start. This timer should be set up to
+     * eventually call notify() on *this. We recommend using a StateFlowTimer.
+     * @param timeout_nsec is the timeout with which to start the timer.
+     * @param c is the next state to transition to when the timeout expires or
+     * the timer gets triggered.
      */
-    virtual void timeout()
+    Action sleep_and_call(Timer *timer, long long timeout_nsec, Callback c)
     {
-        HASSERT(0 && "unexpected timeout call arrived");
+        timer->start(timeout_nsec);
+        return wait_and_call(c);
     }
 
 private:
@@ -564,6 +572,26 @@ protected:
 private:
     /** Implementation of the queue. */
     QueueType queue_;
+};
+
+class StateFlowTimer : public Timer
+{
+public:
+    StateFlowTimer(StateFlowBase *parent)
+        : Timer(parent->service()->executor()->active_timers())
+        , parent_(parent)
+    {
+    }
+
+    virtual long long timeout()
+    {
+        parent_->notify();
+        return NONE;
+    }
+
+protected:
+    /// The timer will deliver notifications to this flow.
+    StateFlowBase *parent_;
 };
 
 #endif /* _StateFlow_hxx_ */
