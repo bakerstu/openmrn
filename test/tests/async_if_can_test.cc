@@ -341,7 +341,6 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
               ifCan_->local_aliases()->lookup(NodeAlias(0x6AA)));
 }
 
-#if 0
 
 
 TEST_F(AsyncIfTest, PassGlobalMessageToIf)
@@ -356,9 +355,9 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
                 Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
-                Field(&NMRAnetMessage::dst, WriteHelper::global()),
-                Field(&NMRAnetMessage::dst_node, IsNull()),
-                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::dst, NodeHandle({0, 0})),
+                Field(&NMRAnetMessage::dstNode, IsNull()),
+//                Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
             _));
@@ -382,18 +381,19 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
                 Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
-                Field(&NMRAnetMessage::dst, WriteHelper::global()),
-                Field(&NMRAnetMessage::dst_node, IsNull()),
-                Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::dst, NodeHandle({0,0})),
+                Field(&NMRAnetMessage::dstNode, IsNull()),
+                //  Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)))),
             _));
-    ifCan_->dispatcher()->register_handler(0x5B4, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(&h, 0x5B4, 0xffff);
 
     send_packet(":X195B4210N0102030405060708;");
     wait();
 }
 
+#if 0
 TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 {
     static const NodeAlias alias = 0x210U;
@@ -409,10 +409,10 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dst_node, node_),
+                Field(&NMRAnetMessage::dstNode, node_),
                 Field(&NMRAnetMessage::payload, IsNull()))),
             _));
-    ifCan_->dispatcher()->register_handler(0x488, 0xffff, &h);
+    ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
 
     ifCan_->remote_aliases()->add(id, alias);
 

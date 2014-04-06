@@ -100,7 +100,7 @@ struct CanMessageData : public can_frame
 
     /* This will be aliased onto CanHubData::skipMember_. It is needed to keep
      * the two structures the same size for casting between them. */
-    void* unused;
+    void *unused;
 };
 
 /** @todo(balazs.racz) make these two somehow compatible with each other. It's
@@ -108,6 +108,8 @@ struct CanMessageData : public can_frame
  * a bit as well. */
 typedef FlowInterface<Buffer<CanMessageData>> IncomingFrameHandler;
 typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
+
+class AsyncIfCan;
 
 /** Counts the number of alias conflicts that we see for aliases that we
  * already reserved. */
@@ -243,7 +245,7 @@ private:
     }
 
     /// The device we need to send packets to.
-    CanHubFlow* device_;
+    CanHubFlow *device_;
 
     /** Flow responsible for writing packets to the CAN hub. */
     CanFrameWriteFlow frameWriteFlow_;
@@ -273,6 +275,21 @@ private:
     std::unique_ptr<AsyncAliasAllocator> aliasAllocator_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
+};
+
+/** Base class for incoming CAN frame handlers. */
+class CanFrameStateFlow : public StateFlow<Buffer<CanMessageData>, QList<1>>
+{
+public:
+    CanFrameStateFlow(AsyncIfCan *service)
+        : StateFlow<Buffer<CanMessageData>, QList<1>>(service)
+    {
+    }
+
+    AsyncIfCan *if_can()
+    {
+        return static_cast<AsyncIfCan *>(service());
+    }
 };
 
 } // namespace NMRAnet
