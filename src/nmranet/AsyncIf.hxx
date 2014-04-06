@@ -73,7 +73,8 @@ class AsyncNode;
  *
  * TODO(balazs.racz) There shall be one instance of this class that will be
  * sent to all handlers that expressed interest in that MTI. When all those
- * handlers are done, the instance should be freed. */
+ * handlers are done, the instance should be freed. Currently the instance is
+ * copied by the dispatcher separately for each handler. */
 struct NMRAnetMessage
 {
     void reset(If::MTI mti, NodeID src, NodeHandle dst, const string& payload) {
