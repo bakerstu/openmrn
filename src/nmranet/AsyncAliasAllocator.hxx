@@ -53,7 +53,6 @@ struct AliasInfo : public QMember
         : alias(0)
         , state(STATE_EMPTY)
     {
-        LOG(ERROR, "alias info reset.");
     }
 
     void reset()
