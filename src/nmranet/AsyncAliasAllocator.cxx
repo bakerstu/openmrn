@@ -196,15 +196,11 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
 {
     parent_->conflict_detected_ = 1;
     g_alias_test_conflicts++;
-    // @TODO(balazs.racz): wake up the actual flow to not have to wait all the
-    // 200 ms of sleep. It's somewhat difficult to ensure there is no race
-    // condition there; there are no documented guarantees on the timer
-    // deletion call vs timer callbacks being delivered.
-
+    /* Wakes up the actual flow to not have to wait all the 200 ms of
+     * sleep. This will request the timer callback to be issued immediately,
+     * which avoids race condition between the trigger and the regular timeout
+     * call. */
     parent_->timer_.trigger();
-
-    // parent->notify(); will this work when we have timers? Or creates a
-    // spurious notification?
 }
 
 } // namespace NMRAnet

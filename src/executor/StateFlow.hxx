@@ -574,6 +574,19 @@ private:
     QueueType queue_;
 };
 
+/** Use this timer class to deliver the timeout notification to a stateflow.
+ *
+ * Usage:
+ *
+ * in the StateFlow class create a variable
+ *   StateFlowTimer timer_;
+ * in the constructor initialize it with
+ *   , timer_(this).
+ * then in the state function do
+ *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200), STATE(next_after_timeout);
+ * If needed, you can wake up the timer in a handler function by calling
+ * timer_.trigger(). This will transition to the new state immediately.
+ */
 class StateFlowTimer : public Timer
 {
 public:
