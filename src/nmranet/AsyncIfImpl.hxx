@@ -198,11 +198,8 @@ public:
             return allocate_and_call(interface()->global_message_write_flow(),
                                      STATE(send_response));
         }
-        else
-        {
-            LOG(WARNING, "node pointer not found.");
-            return release_and_exit();
-        }
+        LOG(WARNING, "node pointer not found.");
+        return release_and_exit();
     }
 
 #ifdef SIMPLE_NODE_ONLY

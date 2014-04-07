@@ -33,15 +33,16 @@ protected:
 
 TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodes)
 {
+    print_all_packets();
     expect_packet(":X1917022AN02010d000003;");
     expect_packet(":X1917033AN02010d000004;");
     send_packet(":X19490997N;");
     wait();
-    Mock::VerifyAndClear(&canBus_);
     // Same thing again.
     expect_packet(":X1917022AN02010d000003;");
     expect_packet(":X1917033AN02010d000004;");
     send_packet(":X19490997N;");
+    wait();
 }
 
 TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodesWithNodeId)
