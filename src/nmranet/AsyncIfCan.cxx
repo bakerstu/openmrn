@@ -448,13 +448,9 @@ void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
 void AsyncIfCan::add_addressed_message_support()
 {
     add_owned_flow(new FrameToAddressedMessageParser(this));
-    ///@TODO(balazs.racz): implement addressed message support.
-    /*    for (int i = 0; i < num_write_flows; ++i)
-    {
-        auto *f = new AddressedCanMessageWriteFlow(this);
-        add_addressed_write_flow(f);
-        owned_flows_.push_back(std::unique_ptr<Executable>(f));
-        }*/
+    auto* f = new AddressedCanMessageWriteFlow(this);
+    addressedWriteFlow_ = f;
+    add_owned_flow(f);
 }
 
 } // namespace NMRAnet

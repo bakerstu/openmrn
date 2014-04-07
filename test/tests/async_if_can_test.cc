@@ -181,9 +181,8 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     wait();
 }
 
-#if 0
 // this will only work once the addressed flow is okay
-TEST_F(AsyncMessageCanTests, WriteByMTIAddressedDoesLoopback)
+TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
 {
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
@@ -196,29 +195,23 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedDoesLoopback)
                       IsBufferValue(0x0102030405060708ULL)),
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
-                      Field(&NodeHandle::id, TEST_NODE_ID))
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
                 /// @TODO(balazs.racz): reenable node check.
-//                Field(&NMRAnetMessage::dstNode, node_))),
-                        )), _));
+                Field(&NMRAnetMessage::dstNode, node_))),
+            _));
     ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
-    create_allocated_alias();
-    expect_next_alias_allocation();
-
-//    auto* b = ifCan_->addressed_message_write_flow()->alloc();
-    auto* b = ifCan_->global_message_write_flow()->alloc();
+    auto* b = ifCan_->addressed_message_write_flow()->alloc();
     /** Here we are using a new source node ID number, which would normally
      * trigger an alias allocation. However, since the message never makes it
      * to the canbus (is looped back), that does not happen.*/
     b->data()->reset(If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
         {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL));
     b->set_done(get_notifiable());
-    // ifCan_->addressed_message_write_flow()->send(b);
-    ifCan_->global_message_write_flow()->send(b);
+    ifCan_->addressed_message_write_flow()->send(b);
     wait_for_notification();
     wait();
 }
-#endif
 
 TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 {

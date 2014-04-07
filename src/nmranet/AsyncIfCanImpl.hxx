@@ -258,6 +258,14 @@ public:
     }
 
 protected:
+    /** Entry point of message handling flow. We start with the shared
+     * implementation. We may get back control at the send_to_hardware
+     * action. */
+    virtual Action entry()
+    {
+        return call_immediately(STATE(addressed_entry));
+    }
+
     virtual Action send_to_hardware()
     {
         dataOffset_ = 0;
@@ -270,7 +278,7 @@ protected:
             // messages. Longer data usually travels via datagrams or streams.
             HASSERT(nmsg()->payload.size() < 256);
         }
-        NodeHandle& dst_ = message()->data()->dst;
+        NodeHandle &dst_ = nmsg()->dst;
         HASSERT(dst_.id || dst_.alias); // We must have some kind of address.
         if (dst_.id)
         {
@@ -302,7 +310,8 @@ protected:
     Action find_remote_alias()
     {
         RegisterLocalHandler();
-        srcAlias_ = if_can()->local_aliases()->lookup(message()->data()->src.id);
+        srcAlias_ =
+            if_can()->local_aliases()->lookup(nmsg()->src.id);
         if (srcAlias_)
         {
             // We can try to send an AME (alias mapping enquiry) frame.
@@ -320,7 +329,7 @@ protected:
         struct can_frame *f = b->data();
         IfCan::control_init(*f, srcAlias_, IfCan::AME_FRAME, 0);
         f->can_dlc = 6;
-        uint64_t rd = htobe64(message()->data()->dst.id);
+        uint64_t rd = htobe64(nmsg()->dst.id);
         memcpy(f->data, reinterpret_cast<uint8_t *>(&rd) + 2, 6);
         if_can()->frame_write_flow()->send(b);
         // We wait for a remote response to come via the handler input. If it
@@ -343,8 +352,9 @@ protected:
     Action fill_verify_nodeid_global()
     {
         auto *b = get_allocation_result(if_can()->global_message_write_flow());
-        b->data()->reset(If::MTI_VERIFY_NODE_ID_GLOBAL, message()->data()->src.id,
-                         node_id_to_buffer(message()->data()->dst.id));
+        b->data()->reset(If::MTI_VERIFY_NODE_ID_GLOBAL,
+                         nmsg()->src.id,
+                         node_id_to_buffer(nmsg()->dst.id));
         if_can()->global_message_write_flow()->send(b);
         return sleep_and_call(&timer_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
                               STATE(timeout_looking_for_dst));
@@ -358,7 +368,7 @@ protected:
         }
         LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
-            message()->data()->dst.id);
+            nmsg()->dst.id);
         UnregisterLocalHandler();
         return call_immediately(STATE(send_finished));
     }
@@ -416,7 +426,7 @@ protected:
             message->unref();
             return;
         }
-        uint64_t nodeid_be = htobe64(this->message()->data()->dst.id);
+        uint64_t nodeid_be = htobe64(this->nmsg()->dst.id);
         uint8_t *nodeid_start = reinterpret_cast<uint8_t *>(&nodeid_be) + 2;
         if (memcmp(nodeid_start, f->data, 6))
         {
@@ -435,7 +445,8 @@ protected:
             return;
         }
         UnregisterLocalHandler();
-        if_can()->remote_aliases()->add(this->message()->data()->dst.id, dstAlias_);
+        if_can()->remote_aliases()->add(this->nmsg()->dst.id,
+                                        dstAlias_);
         timer_.trigger();
         message->unref();
     }
