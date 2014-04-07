@@ -244,7 +244,6 @@ private:
     }
 };
 
-#if 0
 /* The addressed write flow is responsible for sending addressed messages to
  * the CANbus. It uses some shared states from the generic CAN write flow base
  * class, and extends it with destination alias lookup states.  */
@@ -254,27 +253,24 @@ class AddressedCanMessageWriteFlow : public CanMessageWriteFlow,
 public:
     AddressedCanMessageWriteFlow(AsyncIfCan *if_can)
         : CanMessageWriteFlow(if_can)
+        , timer_(this)
     {
     }
 
 protected:
-    virtual TypedAllocator<WriteFlow> *allocator()
-    {
-        return if_can()->addressed_write_allocator();
-    }
-
     virtual Action send_to_hardware()
     {
-        data_offset_ = 0;
+        dataOffset_ = 0;
         srcAlias_ = 0;
         dstAlias_ = 0;
-        if (data_)
+        if (nmsg()->payload.size())
         {
             // We have limited space for counting offsets. In practice this
-            // valaue will be max 10 for certain traction control protocol
-            // values. Longer data usually travels via datagrams or streams.
-            HASSERT(data_->used() < 256);
+            // value will be max 10 for certain traction control protocol
+            // messages. Longer data usually travels via datagrams or streams.
+            HASSERT(nmsg()->payload.size() < 256);
         }
+        NodeHandle& dst_ = message()->data()->dst;
         HASSERT(dst_.id || dst_.alias); // We must have some kind of address.
         if (dst_.id)
         {
@@ -306,11 +302,12 @@ protected:
     Action find_remote_alias()
     {
         RegisterLocalHandler();
-        srcAlias_ = if_can()->local_aliases()->lookup(src_);
+        srcAlias_ = if_can()->local_aliases()->lookup(message()->data()->src.id);
         if (srcAlias_)
         {
             // We can try to send an AME (alias mapping enquiry) frame.
-            return Allocate(if_can()->write_allocator(), ST(send_ame_frame));
+            return allocate_and_call(if_can()->frame_write_flow(),
+                                     STATE(send_ame_frame));
         }
         // No local alias -- we need to jump straight to local nodeid
         // verify. That will allocate a new local alias.
@@ -319,44 +316,51 @@ protected:
 
     Action send_ame_frame()
     {
-        CanFrameWriteFlow *write_flow;
-        GetAllocationResult(&write_flow);
-        struct can_frame *f = write_flow->mutable_frame();
+        auto *b = get_allocation_result(if_can()->frame_write_flow());
+        struct can_frame *f = b->data();
         IfCan::control_init(*f, srcAlias_, IfCan::AME_FRAME, 0);
         f->can_dlc = 6;
-        uint64_t rd = htobe64(dst_.id);
+        uint64_t rd = htobe64(message()->data()->dst.id);
         memcpy(f->data, reinterpret_cast<uint8_t *>(&rd) + 2, 6);
-        write_flow->Send(nullptr);
-        // We wait for a rmeote response to come via the handler input. If it
+        if_can()->frame_write_flow()->send(b);
+        // We wait for a remote response to come via the handler input. If it
         // doesn't come for 1 sec, go to more global and send a global
         // unaddressed message inquiring the node id.
-        return Sleep(&sleep_data_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
-                     ST(send_verify_nodeid_global));
+        return sleep_and_call(&timer_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
+                              STATE(send_verify_nodeid_global));
     }
 
     Action send_verify_nodeid_global()
     {
-        return Allocate(if_can()->global_write_allocator(),
-                        ST(fill_verify_nodeid_global));
+        if (dstAlias_)
+        {
+            return call_immediately(STATE(remote_alias_found));
+        }
+        return allocate_and_call(if_can()->global_message_write_flow(),
+                                 STATE(fill_verify_nodeid_global));
     }
 
     Action fill_verify_nodeid_global()
     {
-        WriteFlow *f =
-            GetTypedAllocationResult(if_can()->global_write_allocator());
-        f->WriteGlobalMessage(If::MTI_VERIFY_NODE_ID_GLOBAL, src_,
-                              node_id_to_buffer(dst_.id), nullptr);
-        return Sleep(&sleep_data_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
-                     ST(timeout_looking_for_dst));
+        auto *b = get_allocation_result(if_can()->global_message_write_flow());
+        b->data()->reset(If::MTI_VERIFY_NODE_ID_GLOBAL, message()->data()->src.id,
+                         node_id_to_buffer(message()->data()->dst.id));
+        if_can()->global_message_write_flow()->send(b);
+        return sleep_and_call(&timer_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
+                              STATE(timeout_looking_for_dst));
     }
 
     virtual Action timeout_looking_for_dst()
     {
+        if (dstAlias_)
+        {
+            return call_immediately(STATE(remote_alias_found));
+        }
         LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
-            dst_.id);
+            message()->data()->dst.id);
         UnregisterLocalHandler();
-        return call_immediately(STATE(finalize));
+        return call_immediately(STATE(send_finished));
     }
 
     Action remote_alias_found()
@@ -368,54 +372,56 @@ protected:
     enum
     {
         // AMD frames
-        CAN_FILTER1 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x10701000,
-        CAN_MASK1 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
+        CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
         // Initialization complete
-        CAN_FILTER2 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x19100000,
-        CAN_MASK2 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        CAN_FILTER2 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19100000,
+        CAN_MASK2 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
         // Verified node ID number
-        CAN_FILTER3 = AsyncIfCan::CAN_EXT_FRAME_FILTER | 0x19170000,
-        CAN_MASK3 = AsyncIfCan::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        CAN_FILTER3 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19170000,
+        CAN_MASK3 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
     };
 
     // Registers *this to the ifcan to receive alias resolution messages.
     void RegisterLocalHandler()
     {
-        if_can()->frame_dispatcher()->register_handler(CAN_FILTER1, CAN_MASK1,
-                                                       this);
-        if_can()->frame_dispatcher()->register_handler(CAN_FILTER2, CAN_MASK2,
-                                                       this);
-        if_can()->frame_dispatcher()->register_handler(CAN_FILTER3, CAN_MASK3,
-                                                       this);
+        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER1,
+                                                       CAN_MASK1);
+        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER2,
+                                                       CAN_MASK2);
+        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER3,
+                                                       CAN_MASK3);
     }
 
     // Unregisters *this from the ifcan to not receive alias resolution
     // messages.
     void UnregisterLocalHandler()
     {
-        if_can()->frame_dispatcher()->unregister_handler(CAN_FILTER1, CAN_MASK1,
-                                                         this);
-        if_can()->frame_dispatcher()->unregister_handler(CAN_FILTER2, CAN_MASK2,
-                                                         this);
-        if_can()->frame_dispatcher()->unregister_handler(CAN_FILTER3, CAN_MASK3,
-                                                         this);
+        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER1,
+                                                         CAN_MASK1);
+        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER2,
+                                                         CAN_MASK2);
+        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER3,
+                                                         CAN_MASK3);
     }
 
     /// Handler callback for incoming messages.
-    virtual void handle_message(struct can_frame *f, Notifiable *done)
+    virtual void send(Buffer<CanMessageData> *message, unsigned priority)
     {
-        AutoNotify an(done);
+        struct can_frame *f = message->data();
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
         if (f->can_dlc != 6)
         {
             // Not sending a node ID.
+            message->unref();
             return;
         }
-        uint64_t nodeid_be = htobe64(dst_.id);
+        uint64_t nodeid_be = htobe64(this->message()->data()->dst.id);
         uint8_t *nodeid_start = reinterpret_cast<uint8_t *>(&nodeid_be) + 2;
         if (memcmp(nodeid_start, f->data, 6))
         {
             // Node id does not match.
+            message->unref();
             return;
         }
         // Now: we have an alias.
@@ -425,17 +431,17 @@ protected:
             LOG(ERROR, "Incoming alias definition message with zero alias. "
                        "CAN frame id %08x",
                 (unsigned)id);
+            message->unref();
             return;
         }
         UnregisterLocalHandler();
-        if_can()->remote_aliases()->add(dst_.id, dstAlias_);
-        StopTimer(&sleep_data_);
-        StartFlowAt(STATE(remote_alias_found));
+        if_can()->remote_aliases()->add(this->message()->data()->dst.id, dstAlias_);
+        timer_.trigger();
+        message->unref();
     }
 
-    SleepData sleep_data_;
+    StateFlowTimer timer_;
 };
-#endif // if 0
 } // namespace NMRAnet
 
 #endif //_NMRANET_ASYNC_IF_CAN_IMPL_HXX_
