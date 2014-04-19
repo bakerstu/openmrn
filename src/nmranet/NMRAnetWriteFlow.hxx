@@ -46,7 +46,7 @@
 namespace NMRAnet
 {
 
-class WriteHelper : private Executable
+class WriteHelper : public Executable
 {
 public:
     typedef AsyncNode* node_type;
@@ -91,38 +91,47 @@ public:
         buffer_ = buffer;
         if (dst == global())
         {
-            node->interface()->global_message_write_flow()->pool()->alloc_async(this);
+            node->interface()->global_message_write_flow()->alloc_async(this);
         }
         else
         {
-            node->interface()->addressed_message_write_flow()->pool()->alloc_async(this);
+            node->interface()->addressed_message_write_flow()->alloc_async(this);
         }
     }
 
 private:
     // Callback from the allocator.
-    virtual void AllocationCallback(QueueMember* entry)
+    virtual void alloc_result(QMember* entry)
     {
-        auto* b = node_->interface()->addressed_message_write_flow()->pool()->alloc_async_init(
-        WriteFlow* e =
-            node_->interface()->global_write_allocator()->cast_result(entry);
-        /* NOTE(balazs.racz): We could choose not to pass on the done_
+
+
+/*
+x            e->WriteAddressedMessage(mti_, node_->node_id(), dst_, buffer_,
+-                                     done_);
++           e->WriteGlobalMessage(mti_, node_->node_id(), buffer_, done_);
+-
+*/  
+      /* NOTE(balazs.racz): We could choose not to pass on the done_
          * callback. That will allow the current write flow to be released
          * earlier for reuse, but breaks the assumption that done means that
          * the current packet is enqueued on the physical layer. */
         if (dst_ == global())
         {
-            e->WriteGlobalMessage(mti_, node_->node_id(), buffer_, done_);
+            auto* f = node_->interface()->global_message_write_flow();
+            Buffer<NMRAnetMessage>* b = f->cast_alloc(entry);
+            b->data()->reset(mti_, node_->node_id(), buffer_);
+            b->set_done(&done_);
+            f->send(b);
+        } else {
+            auto* f = node_->interface()->addressed_message_write_flow();
+            auto* b = f->cast_alloc(entry);
+            b->data()->reset(mti_, node_->node_id(), dst_, buffer_);
+            b->set_done(&done_);
+            f->send(b);
         }
-        else
-        {
-            e->WriteAddressedMessage(mti_, node_->node_id(), dst_, buffer_,
-                                     done_);
-        }
-        done_ = nullptr;
     }
 
-    virtual void Run()
+    virtual void run()
     {
         HASSERT(0);
     }
@@ -133,7 +142,6 @@ private:
     payload_type buffer_;
     BarrierNotifiable done_;
 };
-#endif // if 0
 string EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace NMRAnet */

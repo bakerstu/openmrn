@@ -348,7 +348,8 @@ protected:
      * @param target_flow is the StateFlow for which we allocated.
      * @return an initialized buffer of the correct type. */
     template <class T>
-    inline Buffer<T> *get_allocation_result(FlowInterface<Buffer<T>> *target_flow);
+    inline Buffer<T> *
+    get_allocation_result(FlowInterface<Buffer<T>> *target_flow);
 
     /** Place the current flow to the back of the executor, and transition to a
      * new state after we get the CPU again.  Similar to @ref call_immediately,
@@ -502,6 +503,17 @@ public:
         return ret;
     }
 
+    /** Asynchronously allocates a message buffer from the pool of this
+     * flow. Will call target->AllocationCallback with the pointer. The callee
+     * shall come back and use cast_alloc to turn the pointer into a usable
+     * object. */
+    void alloc_async(Executable *target)
+    {
+        typedef typename MessageType::value_type T;
+        Pool* p = pool();
+        p->alloc_async<T>(target);
+    }
+
     /** Down casts and initializes an asynchronous allocation result to the
      * appropriate flow's buffer type.
      *
@@ -511,18 +523,17 @@ public:
     static MessageType *cast_alloc(QMember *entry)
     {
         MessageType *result;
-        Pool::alloc_async_init(static_cast<BufferBase *>(allocationResult_),
-                               &result);
+        Pool::alloc_async_init(static_cast<BufferBase *>(entry), &result);
         return result;
     }
 };
 
 template <class T>
-Buffer<T> * StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
+Buffer<T> *
+StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
 {
     return target_flow->cast_alloc(allocationResult_);
 }
-
 
 template <class MessageType, class QueueType>
 class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>

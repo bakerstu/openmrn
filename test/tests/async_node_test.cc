@@ -1,5 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
+#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 
 namespace NMRAnet
@@ -51,7 +52,7 @@ TEST_F(AsyncIfTest, WriteHelperByMTI)
     helper.WriteAsync(&node, If::MTI_EVENT_REPORT,
                       WriteHelper::global(),
                       EventIdToBuffer(0x0102030405060708ULL), &n);
-    n.WaitForNotification();
+    n.wait_for_notification();
 }
 
 } // namespace NMRAnet
