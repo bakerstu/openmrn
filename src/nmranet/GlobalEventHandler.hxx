@@ -12,7 +12,7 @@
 #include <memory>
 
 #include "utils/macros.h"
-#include "executor/control_flow.hxx"
+#include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 
 namespace NMRAnet
@@ -22,54 +22,37 @@ class AsyncNode;
 
 class GlobalEventFlow;
 
-struct GlobalEventMessage : public QueueMember
+struct GlobalEventMessage
 {
 public:
     uint64_t event;      ///< payload (event or range or zero)
     NodeHandle src_node; ///< sender of the message
     If::MTI mti;         ///< what message showed up
     AsyncNode* dst_node; ///< for addressed messages or else nullptr.
-private:
-    DISALLOW_COPY_AND_ASSIGN(GlobalEventMessage);
-    // We only allow allocation of this object by the GlobalEventFlow class.
-    GlobalEventMessage()
-    {
-    }
-    friend class GlobalEventFlow;
 };
 
 // The global event handler is a control flow that runs in the user thread's
 // executor. It listens to the incoming event queue, and runs the registered
 // global event handlers when there is an incoming event message.
-class GlobalEventFlow : public ControlFlow
+class GlobalEventFlow : public IncomingMessageStateFlow
 {
 public:
-    // @param max_event_slots sets the maximum number of pending incoming event
-    // messages in the global event queue.
-    GlobalEventFlow(Executor* executor, int max_event_slots);
+    GlobalEventFlow(AsyncIf* interface);
     ~GlobalEventFlow();
-
-    // This call will block until a slot can be acquired.
-    GlobalEventMessage* AllocateMessage();
-    /// @returns the allocator for new incoming messages.
-    TypedAllocator<GlobalEventMessage>* message_allocator();
-    // Sends a global event message to the handler flow. Can be called from any
-    // thread. Will not block.
-    void PostEvent(GlobalEventMessage* message);
 
     /// Returns true if there are outstanding events that are not yet handled.
     bool EventProcessingPending();
 
+    /// Statically points to the global instance of the event handler.
     static GlobalEventFlow* instance;
 
 protected:
+    Action entry() OVERRIDE;
     Action WaitForEvent();
     Action HandleEventArrived();
     Action HandleEvent();
     Action WaitForHandler();
     Action HandlerFinished();
-
-    void FreeMessage(GlobalEventMessage* m);
 
 private:
     class Impl;

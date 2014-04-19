@@ -29,16 +29,16 @@ struct GlobalEventFlow::Impl
 
     // This is the queue of events that are coming from the read thread to the
     // handler thread. Every "released" event is a new incoming event message.
-    TypedAllocator<GlobalEventMessage> event_queue_;
+    //TypedAllocator<GlobalEventMessage> event_queue_;
 
     // This is the queue of global identify events.
-    TypedAllocator<GlobalEventMessage> global_event_queue_;
+    //TypedAllocator<GlobalEventMessage> global_event_queue_;
 
     // Freelist of event message objects.
-    TypedAllocator<GlobalEventMessage> free_events_;
+    //TypedAllocator<GlobalEventMessage> free_events_;
 
     // Incoming event message, as it got off the event_queue.
-    GlobalEventMessage* message_;
+    //GlobalEventMessage* message_;
 
     // Statically allocated structure for calling the event handlers from the
     // main event queue.
@@ -52,16 +52,16 @@ struct GlobalEventFlow::Impl
     std::unique_ptr<NMRAnetEventHandler> handler_;
 
     // Holds the memory used by the event messages for destruction.
-    std::unique_ptr<GlobalEventMessage[]> message_block_;
+    //std::unique_ptr<GlobalEventMessage[]> message_block_;
 };
 
-GlobalEventFlow::GlobalEventFlow(Executor* executor, int max_event_slots)
-    : ControlFlow(executor, CrashNotifiable::DefaultInstance()),
-      impl_(new Impl(max_event_slots))
+GlobalEventFlow::GlobalEventFlow(AsyncIf* interface)
+    : IncomingMessageStateFlow(interface),
+      impl_(new Impl())
 {
+    HASSERT(GlobalEventFlow::instance == nullptr);
     GlobalEventFlow::instance = this;
-    impl_->handler_.reset(new VectorEventHandlers(executor));
-    StartFlowAt(STATE(WaitForEvent));
+    impl_->handler_.reset(new VectorEventHandlers(service()->executor()));
 }
 
 GlobalEventFlow::~GlobalEventFlow()
@@ -72,8 +72,9 @@ GlobalEventFlow::~GlobalEventFlow()
 /// Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventFlow::EventProcessingPending()
 {
+    // Protects against static instance == nullptr.
     if (!this) return false;
-    // TODO(balazs.racz): maybe the order of these checks should be different.
+    /// @TODO(balazs.racz): maybe the order of these checks should be different.
     if (IsPendingOrRunning()) return true;
     if (next_state() != ST(HandleEventArrived)) return true;
     if (impl_->event_queue_.Peek()) return true;

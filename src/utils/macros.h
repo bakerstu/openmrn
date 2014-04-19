@@ -97,4 +97,10 @@ using namespace std;
   TypeName(const TypeName&);   \
   void operator=(const TypeName&)
 
+/** Function attribute for virtual functions declaring that this funciton is
+ * overriding a funciton that should be virtual in the base class. Supported by
+ * GCC >= 4.7, so currently empty */
+#define OVERRIDE 
+
+
 #endif // _UTILS_MACROS_H_
