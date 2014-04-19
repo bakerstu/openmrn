@@ -348,13 +348,7 @@ protected:
      * @param target_flow is the StateFlow for which we allocated.
      * @return an initialized buffer of the correct type. */
     template <class T>
-    Buffer<T> *get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
-    {
-        Buffer<T> *result;
-        Pool::alloc_async_init(static_cast<BufferBase *>(allocationResult_),
-                               &result);
-        return result;
-    }
+    inline Buffer<T> *get_allocation_result(FlowInterface<Buffer<T>> *target_flow);
 
     /** Place the current flow to the back of the executor, and transition to a
      * new state after we get the CPU again.  Similar to @ref call_immediately,
@@ -507,7 +501,28 @@ public:
         pool()->alloc(&ret);
         return ret;
     }
+
+    /** Down casts and initializes an asynchronous allocation result to the
+     * appropriate flow's buffer type.
+     *
+     * @param entry is the value that got returned by allocation_callback of
+     * this pool.
+     * @returns a default-constructed (zeroed) message for this flow. */
+    static MessageType *cast_alloc(QMember *entry)
+    {
+        MessageType *result;
+        Pool::alloc_async_init(static_cast<BufferBase *>(allocationResult_),
+                               &result);
+        return result;
+    }
 };
+
+template <class T>
+Buffer<T> * StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
+{
+    return target_flow->cast_alloc(allocationResult_);
+}
+
 
 template <class MessageType, class QueueType>
 class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
