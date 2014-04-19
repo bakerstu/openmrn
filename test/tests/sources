@@ -3,6 +3,7 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/assert_ndebug_test.cc \
                  $(VPATH)/tests/async_alias_allocator_test.cc \
                  $(VPATH)/tests/async_if_can_test.cc \
+                 $(VPATH)/tests/async_node_test.cc \
                  $(VPATH)/tests/dispatch_test.cc \
                  $(VPATH)/tests/dummy_test.cc \
                  $(VPATH)/tests/gc_format_test.cc \
@@ -20,7 +21,6 @@ DISABLED_TESTS = \
                  $(VPATH)/tests/async_datagram_test.cc \
                  $(VPATH)/tests/async_event_test.cc \
                  $(VPATH)/tests/async_if_stress_test.cc \
-                 $(VPATH)/tests/async_node_test.cc \
                  $(VPATH)/tests/control_flow_test.cc \
                  $(VPATH)/tests/event_consumer_test.cc \
                  $(VPATH)/tests/event_handler_templates_test.cc \

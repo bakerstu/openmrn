@@ -15,7 +15,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     // Technically there is a race condition here. The initialization could
     // happen before we get to this expectation.
     EXPECT_FALSE(node.is_initialized());
-    ifCan_->add_addressed_message_support(2);
+    ifCan_->add_addressed_message_support();
     LOG(INFO, "after");
     wait();
     EXPECT_TRUE(node.is_initialized());
@@ -24,7 +24,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
 
 TEST_F(AsyncIfTest, TwoNodesInitialize)
 {
-    ifCan_->add_addressed_message_support(2);
+    ifCan_->add_addressed_message_support();
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
     create_allocated_alias();
     LOG(INFO, "before");
@@ -40,7 +40,7 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
 
 TEST_F(AsyncIfTest, WriteHelperByMTI)
 {
-    ifCan_->add_addressed_message_support(2);
+    ifCan_->add_addressed_message_support();
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
     DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
     wait();  // for initialized
