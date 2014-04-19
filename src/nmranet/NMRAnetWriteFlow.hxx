@@ -46,21 +46,18 @@
 namespace NMRAnet
 {
 
-//Executor* DefaultWriteFlowExecutor();
-
-
-#if 0
-class WriteHelper : private AllocationResult
+class WriteHelper : private Executable
 {
 public:
     typedef AsyncNode* node_type;
+    typedef string payload_type;
 
     static NodeHandle global()
     {
         return {0, 0};
     }
 
-    WriteHelper() : done_(nullptr)
+    WriteHelper()
     {
     }
 
@@ -74,45 +71,39 @@ public:
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
     void WriteAsync(AsyncNode* node, If::MTI mti, NodeHandle dst,
-                    Buffer* buffer, Notifiable* done)
+                    const payload_type& buffer, Notifiable* done)
     {
-        HASSERT(!done_);
+        if (done) {
+            done_.reset(done);
+        } else {
+            // We don't support synchronous sending anymore.
+            HASSERT(0);
+        }
         if (!node ||
             (!node->is_initialized() && mti != If::MTI_INITIALIZATION_COMPLETE))
         {
-            // Drops packet to non-initialized node.
-            if (done) done->notify();
+            done_.notify();
             return;
         }
         node_ = node;
         mti_ = mti;
         dst_ = dst;
         buffer_ = buffer;
-        if (done)
-        {
-            done_ = done;
-        }
-        else
-        {
-            // We don't support synchronous sending anymore.
-            HASSERT(0);
-        }
-        TypedAllocator<WriteFlow>* a = nullptr;
         if (dst == global())
         {
-            a = node->interface()->global_write_allocator();
+            node->interface()->global_message_write_flow()->pool()->alloc_async(this);
         }
         else
         {
-            a = node->interface()->addressed_write_allocator();
+            node->interface()->addressed_message_write_flow()->pool()->alloc_async(this);
         }
-        a->AllocateEntry(this);
     }
 
 private:
     // Callback from the allocator.
     virtual void AllocationCallback(QueueMember* entry)
     {
+        auto* b = node_->interface()->addressed_message_write_flow()->pool()->alloc_async_init(
         WriteFlow* e =
             node_->interface()->global_write_allocator()->cast_result(entry);
         /* NOTE(balazs.racz): We could choose not to pass on the done_
@@ -139,8 +130,8 @@ private:
     NodeHandle dst_;
     If::MTI mti_;
     AsyncNode* node_;
-    Buffer* buffer_;
-    Notifiable* done_;
+    payload_type buffer_;
+    BarrierNotifiable done_;
 };
 #endif // if 0
 string EventIdToBuffer(uint64_t eventid);
