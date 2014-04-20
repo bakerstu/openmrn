@@ -14,6 +14,7 @@
 #include "utils/macros.h"
 #include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/AsyncIf.hxx"
 
 namespace NMRAnet
 {
@@ -39,11 +40,7 @@ public:
     GlobalEventService(ExecutorBase *e);
     /** Creates a global event service that runs on an interface's thread and
      * registers the interface. */
-    GlobalEventService(AsyncIf *interface)
-        : GlobalEventService(interface->executor())
-    {
-        RegisterInterface(interface);
-    }
+    GlobalEventService(AsyncIf *interface);
     ~GlobalEventService();
 
     /** Registers this global event handler with an interface. This operation

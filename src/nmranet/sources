@@ -12,6 +12,7 @@ CXXSRCS += \
            NMRAnetNodeInitializeFlow.cxx \
            AsyncAliasAllocator.cxx \
            NMRAnetEventRegistry.cxx \
+           GlobalEventHandler.cxx \
 
 
 DEAD_CXX +=  \

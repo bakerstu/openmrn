@@ -41,12 +41,14 @@
 #include <vector>
 
 #include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/NMRAnetEventRegistry.hxx"
 
 namespace NMRAnet
 {
 
 class IncomingEventFlow;
 class GlobalIdentifyFlow;
+class NMRAnetEventHandler;
 
 class GlobalEventService::Impl
 {
@@ -79,7 +81,7 @@ public:
 /** Flow to receive incoming messages of event protocol, and dispatch them to
  * the global event handler. This flow runs on the executor of the event
  * service (and not necessarily the interface). */
-class GlobalEventFlow : public IncomingMessageStateFlow
+class GlobalEventFlow : public MessageStateFlowBase
 {
 public:
     GlobalEventFlow(GlobalEventService *service, AsyncIf *interface);
@@ -106,7 +108,13 @@ protected:
     GlobalEventService *service()
     {
         return static_cast<GlobalEventService *>(
-            IncomingMessageStateFlow::service());
+            MessageStateFlowBase::service());
+    }
+
+    /// Returns the NMRAnet message we received.
+    NMRAnetMessage *nmsg()
+    {
+        return message()->data();
     }
 
 private:
@@ -119,4 +127,4 @@ private:
 
 } // namespace NMRAnet
 
-#endif _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_
+#endif // _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_

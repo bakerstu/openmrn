@@ -6,9 +6,11 @@
 #include <endian.h>
 
 #include "nmranet/GlobalEventHandler.hxx"
+
+#include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/EventManager.hxx"
+//#include "nmranet/EventManager.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/EndianHelper.hxx"
 
@@ -18,93 +20,70 @@ namespace NMRAnet
 /*static*/
 GlobalEventService *GlobalEventService::instance = nullptr;
 
-struct GlobalEventFlow::Impl
-{
-    Impl(int max_event_slots)
-    {
-        message_block_.reset(new GlobalEventMessage[max_event_slots]);
-        for (int i = 0; i < max_event_slots; ++i)
-        {
-            free_events_.TypedRelease(&message_block_[i]);
-        }
-    }
-
-    // This is the queue of events that are coming from the read thread to the
-    // handler thread. Every "released" event is a new incoming event message.
-    // TypedAllocator<GlobalEventMessage> event_queue_;
-
-    // This is the queue of global identify events.
-    // TypedAllocator<GlobalEventMessage> global_event_queue_;
-
-    // Freelist of event message objects.
-    // TypedAllocator<GlobalEventMessage> free_events_;
-
-    // Incoming event message, as it got off the event_queue.
-    // GlobalEventMessage* message_;
-
-    // Statically allocated structure for calling the event handlers from the
-    // global event queue.
-    EventReport global_event_report_;
-
-    // Holds the memory used by the event messages for destruction.
-    // std::unique_ptr<GlobalEventMessage[]> message_block_;
-};
-
 GlobalEventService::GlobalEventService(ExecutorBase *e) : Service(e)
 {
-    HASSERT(instance_ == nullptr);
-    instance_ = this;
+    HASSERT(instance == nullptr);
+    instance = this;
     impl_.reset(new Impl());
 }
 
-GlobalEventService::~GlobalEventService() {
-    HASSERT(instance_ == this);
-    instance_ = nullptr;
+GlobalEventService::GlobalEventService(AsyncIf *interface)
+    : Service(interface->executor())
+{
+    HASSERT(instance == nullptr);
+    instance = this;
+    impl_.reset(new Impl());
+    register_interface(interface);
+}
+
+GlobalEventService::~GlobalEventService()
+{
+    HASSERT(instance == this);
+    instance = nullptr;
 }
 
 GlobalEventService::Impl::Impl()
 {
-    handler_.reset(new VectorEventHandlers(service()->executor()));
+    // @TODO(balazs.racz): reenable this.
+    // handler_.reset(new VectorEventHandlers(service()->executor()));
 }
 
 GlobalEventService::Impl::~Impl()
 {
 }
 
-GlobalEventFlow::GlobalEventFlow(GlobalEventService *service,
-                                 AsyncIf *interface)
-    : IncomingMessageStateFlow(service),
-      interface_(interface)
+GlobalEventFlow::GlobalEventFlow(GlobalEventService *service, AsyncIf *async_if)
+    : MessageStateFlowBase(service)
+    , interface_(async_if)
 {
     interface()->dispatcher()->register_handler(
-        GlobalEventService::Impl::MTI_VALUE_EVENT,
-        GlobalEventService::Impl::MTI_MASK_EVENT,
-        this);
+        this, GlobalEventService::Impl::MTI_VALUE_EVENT,
+        GlobalEventService::Impl::MTI_MASK_EVENT);
 }
 
 GlobalEventFlow::~GlobalEventFlow()
 {
     interface()->dispatcher()->unregister_handler(
-        GlobalEventService::Impl::MTI_VALUE_EVENT,
-        GlobalEventService::Impl::MTI_MASK_EVENT,
-        this);
+        this, GlobalEventService::Impl::MTI_VALUE_EVENT,
+        GlobalEventService::Impl::MTI_MASK_EVENT);
 }
 
 /// Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventService::event_processing_pending()
 {
     HASSERT(0);
-/*    // Protects against static instance == nullptr.
-    if (!this)
-        return false;
-    /// @TODO(balazs.racz): maybe the order of these checks should be different.
-    if (IsPendingOrRunning())
-        return true;
-    if (next_state() != ST(HandleEventArrived))
-        return true;
-    if (impl_->event_queue_.Peek())
-        return true;
-        return false;*/
+    /*    // Protects against static instance == nullptr.
+        if (!this)
+            return false;
+        /// @TODO(balazs.racz): maybe the order of these checks should be
+       different.
+        if (IsPendingOrRunning())
+            return true;
+        if (next_state() != ST(HandleEventArrived))
+            return true;
+        if (impl_->event_queue_.Peek())
+            return true;
+            return false;*/
 }
 
 StateFlowBase::Action GlobalEventFlow::entry()
@@ -132,13 +111,14 @@ StateFlowBase::Action GlobalEventFlow::call_handler()
     // at this point: we have the mutex.
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
     EventReport *rep = &main_event_report_;
-    rep->src_node = nmsg()->src_node;
+    rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
-    if (nmsg()->payload.size() != 8) {
+    if (nmsg()->payload.size() != 8)
+    {
         LOG(INFO, "Invalid input event message, payload length %d",
             (unsigned)nmsg()->payload.size());
         event_handler_mutex.Unlock();
-        return call_immediately(STATE(wait_for_message));
+        return exit();
     }
     rep->event = NetworkToEventID(nmsg()->payload.data());
     rep->mask = 1;
@@ -197,9 +177,10 @@ StateFlowBase::Action GlobalEventFlow::call_handler()
             break;
         case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
         case If::MTI_EVENTS_IDENTIFY_GLOBAL:
-            fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
+            DIE("global messages should not get here");
+            /*fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
             impl_->global_event_report_ = *rep;
-            rep = &impl_->global_event_report_;
+            rep = &impl_->global_event_report_;*/
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -216,8 +197,9 @@ StateFlowBase::Action GlobalEventFlow::handler_finished()
     // We still have the event mutex.
     LOG(VERBOSE, "GlobalFlow::HandlerFinished");
     unsigned priority;
-    Message* next_message = static_cast<Message*>(queue_next(&priority));
-    if (!next_message) {
+    Message *next_message = static_cast<Message *>(queue_next(&priority));
+    if (!next_message)
+    {
         // No pending message in the queue: releases the mutex and allows global
         // handlers to proceed.
         event_handler_mutex.AssertLocked();

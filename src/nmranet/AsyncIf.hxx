@@ -260,13 +260,15 @@ private:
     DISALLOW_COPY_AND_ASSIGN(AsyncIf);
 };
 
+typedef StateFlow<Buffer<NMRAnetMessage>, QList<4>> MessageStateFlowBase;
+
 /** Base class for incoming message handler flows. */
 class IncomingMessageStateFlow
-    : public StateFlow<Buffer<NMRAnetMessage>, QList<4>>
+    : public MessageStateFlowBase
 {
 public:
     IncomingMessageStateFlow(AsyncIf *interface)
-        : StateFlow<Buffer<NMRAnetMessage>, QList<4>>(interface)
+        : MessageStateFlowBase(interface)
     {
     }
 
