@@ -98,6 +98,7 @@ public:
     /** Synchronously locks the mutex. Might block the current thread.
     void Lock()
     {
+    @TODO(balazs.racz) we don't have a synchronous mechanism to allocate from a QAsync.
         SyncAllocation a(this);
     }
     */
