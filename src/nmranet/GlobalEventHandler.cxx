@@ -10,6 +10,7 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventManager.hxx"
 #include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/EndianHelper.hxx"
 
 namespace NMRAnet
 {
@@ -133,7 +134,13 @@ StateFlowBase::Action GlobalEventFlow::call_handler()
     EventReport *rep = &main_event_report_;
     rep->src_node = nmsg()->src_node;
     rep->dst_node = nmsg()->dstNode;
-    rep->event = nmsg()->event;
+    if (nmsg()->payload.size() != 8) {
+        LOG(INFO, "Invalid input event message, payload length %d",
+            (unsigned)nmsg()->payload.size());
+        event_handler_mutex.Unlock();
+        return call_immediately(STATE(wait_for_message));
+    }
+    rep->event = NetworkToEventID(nmsg()->payload.data());
     rep->mask = 1;
 
     EventHandlerFunction fn;
@@ -197,53 +204,30 @@ StateFlowBase::Action GlobalEventFlow::call_handler()
         default:
             DIE("Unexpected message arrived at the global event handler.");
     } //    case
-    FreeMessage(nmsg());
-    nmsg() = nullptr;
+    // The incoming message is not needed anymore.
+    release();
 
-    (impl_->handler_.get()->*fn)(rep, this);
-    // We insert an intermediate state to consume any pending notifications.
-    return WaitAndCall(STATE(HandlerFinished));
+    (service()->impl()->handler_.get()->*fn)(rep, this);
+    return wait_and_call(STATE(handler_finished));
 }
 
-StateFlowBase::Action GlobalEventFlow::WaitForHandler()
+StateFlowBase::Action GlobalEventFlow::handler_finished()
 {
-    return WaitAndCall(STATE(HandlerFinished));
-}
-
-StateFlowBase::Action GlobalEventFlow::HandlerFinished()
-{
+    // We still have the event mutex.
     LOG(VERBOSE, "GlobalFlow::HandlerFinished");
-    nmsg() = impl_->event_queue_.TypedAllocateOrNull();
-    if (nmsg())
-    {
-        return call_immediately(STATE(HandleEvent));
+    unsigned priority;
+    Message* next_message = static_cast<Message*>(queue_next(&priority));
+    if (!next_message) {
+        // No pending message in the queue: releases the mutex and allows global
+        // handlers to proceed.
+        event_handler_mutex.AssertLocked();
+        event_handler_mutex.Unlock();
+        return exit();
     }
-    // No pending message in the queue: releases the mutex and allows global
-    // handlers to proceed.
-    event_handler_mutex.AssertLocked();
-    event_handler_mutex.Unlock();
-    return call_immediately(STATE(WaitForEvent));
-}
-
-TypedAllocator<GlobalEventMessage> *GlobalEventFlow::message_allocator()
-{
-    return &impl_->free_events_;
-}
-
-GlobalEventMessage *GlobalEventFlow::AllocateMessage()
-{
-    TypedSyncAllocation<GlobalEventMessage> a(&impl_->free_events_);
-    return a.result();
-}
-
-void GlobalEventFlow::PostEvent(GlobalEventMessage *message)
-{
-    impl_->event_queue_.TypedReleaseBack(message);
-}
-
-void GlobalEventFlow::FreeMessage(GlobalEventMessage *m)
-{
-    impl_->free_events_.TypedRelease(m);
+    reset_message(next_message, priority);
+    // Passes on the event mutex here. Yields to achieve the appropriate
+    // priority.
+    return yield_and_call(STATE(call_handler));
 }
 
 #if 0
