@@ -83,6 +83,7 @@ struct NMRAnetMessage
         this->src = {src, 0};
         this->dst = dst;
         this->payload = payload;
+        this->dstNode = nullptr;
     }
 
     void reset(If::MTI mti, NodeID src, const string &payload)
@@ -91,6 +92,7 @@ struct NMRAnetMessage
         this->src = {src, 0};
         this->dst = {0, 0};
         this->payload = payload;
+        this->dstNode = nullptr;
     }
 
     /// OpenLCB MTI of the incoming message.
@@ -271,6 +273,12 @@ public:
     AsyncIf *interface()
     {
         return static_cast<AsyncIf *>(service());
+    }
+
+    /// Returns the NMRAnet message we received.
+    NMRAnetMessage *nmsg()
+    {
+        return message()->data();
     }
 };
 
