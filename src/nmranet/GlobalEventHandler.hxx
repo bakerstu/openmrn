@@ -22,41 +22,47 @@ class AsyncNode;
 
 class GlobalEventFlow;
 
-struct GlobalEventMessage
-{
+/*
+struct GlobalEventMessage {
 public:
     uint64_t event;      ///< payload (event or range or zero)
     NodeHandle src_node; ///< sender of the message
     If::MTI mti;         ///< what message showed up
     AsyncNode* dst_node; ///< for addressed messages or else nullptr.
 };
+*/
 
-// The global event handler is a control flow that runs in the user thread's
-// executor. It listens to the incoming event queue, and runs the registered
-// global event handlers when there is an incoming event message.
-class GlobalEventFlow : public IncomingMessageStateFlow
+class GlobalEventService : public Service
 {
 public:
-    GlobalEventFlow(AsyncIf* interface);
-    ~GlobalEventFlow();
+    /** Creates a global event service with no interfaces registered. */
+    GlobalEventService(ExecutorBase *e);
+    /** Creates a global event service that runs on an interface's thread and
+     * registers the interface. */
+    GlobalEventService(AsyncIf *interface)
+        : GlobalEventService(interface->executor())
+    {
+        RegisterInterface(interface);
+    }
+    ~GlobalEventService();
 
-    /// Returns true if there are outstanding events that are not yet handled.
-    bool EventProcessingPending();
+    /** Registers this global event handler with an interface. This operation
+     * will be undone in the destructor. */
+    void register_interface(AsyncIf *interface);
 
-    /// Statically points to the global instance of the event handler.
-    static GlobalEventFlow* instance;
+    struct Impl;
+    Impl *impl()
+    {
+        return impl_.get();
+    }
 
-protected:
-    Action entry() OVERRIDE;
-    Action WaitForEvent();
-    Action HandleEventArrived();
-    Action HandleEvent();
-    Action WaitForHandler();
-    Action HandlerFinished();
+    /** Returns true if there are outstanding events that are not yet
+     * handled. */
+    bool event_processing_pending();
+
+    static GlobalEventService *instance;
 
 private:
-    class Impl;
-
     std::unique_ptr<Impl> impl_;
 };
 

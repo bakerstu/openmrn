@@ -15,86 +15,104 @@ namespace NMRAnet
 {
 
 /*static*/
-GlobalEventFlow* GlobalEventFlow::instance = nullptr;
+GlobalEventService *GlobalEventService::instance = nullptr;
 
 struct GlobalEventFlow::Impl
 {
     Impl(int max_event_slots)
     {
         message_block_.reset(new GlobalEventMessage[max_event_slots]);
-        for (int i = 0; i < max_event_slots; ++i) {
+        for (int i = 0; i < max_event_slots; ++i)
+        {
             free_events_.TypedRelease(&message_block_[i]);
         }
     }
 
     // This is the queue of events that are coming from the read thread to the
     // handler thread. Every "released" event is a new incoming event message.
-    //TypedAllocator<GlobalEventMessage> event_queue_;
+    // TypedAllocator<GlobalEventMessage> event_queue_;
 
     // This is the queue of global identify events.
-    //TypedAllocator<GlobalEventMessage> global_event_queue_;
+    // TypedAllocator<GlobalEventMessage> global_event_queue_;
 
     // Freelist of event message objects.
-    //TypedAllocator<GlobalEventMessage> free_events_;
+    // TypedAllocator<GlobalEventMessage> free_events_;
 
     // Incoming event message, as it got off the event_queue.
-    //GlobalEventMessage* message_;
-
-    // Statically allocated structure for calling the event handlers from the
-    // main event queue.
-    EventReport main_event_report_;
+    // GlobalEventMessage* message_;
 
     // Statically allocated structure for calling the event handlers from the
     // global event queue.
     EventReport global_event_report_;
 
-    // The implementation of the iterators.
-    std::unique_ptr<NMRAnetEventHandler> handler_;
-
     // Holds the memory used by the event messages for destruction.
-    //std::unique_ptr<GlobalEventMessage[]> message_block_;
+    // std::unique_ptr<GlobalEventMessage[]> message_block_;
 };
 
-GlobalEventFlow::GlobalEventFlow(AsyncIf* interface)
-    : IncomingMessageStateFlow(interface),
-      impl_(new Impl())
+GlobalEventService::GlobalEventService(ExecutorBase *e) : Service(e)
 {
-    HASSERT(GlobalEventFlow::instance == nullptr);
-    GlobalEventFlow::instance = this;
-    impl_->handler_.reset(new VectorEventHandlers(service()->executor()));
+    HASSERT(instance_ == nullptr);
+    instance_ = this;
+    impl_.reset(new Impl());
+}
+
+GlobalEventService::~GlobalEventService() {
+    HASSERT(instance_ == this);
+    instance_ = nullptr;
+}
+
+GlobalEventService::Impl::Impl()
+{
+    handler_.reset(new VectorEventHandlers(service()->executor()));
+}
+
+GlobalEventService::Impl::~Impl()
+{
+}
+
+GlobalEventFlow::GlobalEventFlow(GlobalEventService *service,
+                                 AsyncIf *interface)
+    : IncomingMessageStateFlow(service),
+      interface_(interface)
+{
+    interface()->dispatcher()->register_handler(
+        GlobalEventService::Impl::MTI_VALUE_EVENT,
+        GlobalEventService::Impl::MTI_MASK_EVENT,
+        this);
 }
 
 GlobalEventFlow::~GlobalEventFlow()
 {
-    GlobalEventFlow::instance = nullptr;
+    interface()->dispatcher()->unregister_handler(
+        GlobalEventService::Impl::MTI_VALUE_EVENT,
+        GlobalEventService::Impl::MTI_MASK_EVENT,
+        this);
 }
 
 /// Returns true if there are outstanding events that are not yet handled.
-bool GlobalEventFlow::EventProcessingPending()
+bool GlobalEventService::event_processing_pending()
 {
-    // Protects against static instance == nullptr.
-    if (!this) return false;
+    HASSERT(0);
+/*    // Protects against static instance == nullptr.
+    if (!this)
+        return false;
     /// @TODO(balazs.racz): maybe the order of these checks should be different.
-    if (IsPendingOrRunning()) return true;
-    if (next_state() != ST(HandleEventArrived)) return true;
-    if (impl_->event_queue_.Peek()) return true;
-    return false;
+    if (IsPendingOrRunning())
+        return true;
+    if (next_state() != ST(HandleEventArrived))
+        return true;
+    if (impl_->event_queue_.Peek())
+        return true;
+        return false;*/
 }
 
-StateFlowBase::Action GlobalEventFlow::WaitForEvent()
+StateFlowBase::Action GlobalEventFlow::entry()
 {
     LOG(VERBOSE, "GlobalFlow::WaitForEvent");
-    return Allocate(&impl_->event_queue_, ST(HandleEventArrived));
+    return allocate_and_call(STATE(call_handler), &event_handler_mutex);
 }
 
-StateFlowBase::Action GlobalEventFlow::HandleEventArrived()
-{
-    LOG(VERBOSE, "GlobalFlow::EventArrived");
-    GetAllocationResult(&impl_->message_);
-    return Allocate(&event_handler_mutex, ST(HandleEvent));
-}
-
-void DecodeRange(EventReport* r)
+void DecodeRange(EventReport *r)
 {
     uint64_t e = r->event;
     if (e & 1)
@@ -108,17 +126,18 @@ void DecodeRange(EventReport* r)
     r->event &= ~r->mask;
 }
 
-StateFlowBase::Action GlobalEventFlow::HandleEvent()
+StateFlowBase::Action GlobalEventFlow::call_handler()
 {
+    // at this point: we have the mutex.
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
-    EventReport* rep = &impl_->main_event_report_;
-    rep->src_node = impl_->message_->src_node;
-    rep->dst_node = impl_->message_->dst_node;
-    rep->event = impl_->message_->event;
+    EventReport *rep = &main_event_report_;
+    rep->src_node = nmsg()->src_node;
+    rep->dst_node = nmsg()->dstNode;
+    rep->event = nmsg()->event;
     rep->mask = 1;
 
     EventHandlerFunction fn;
-    switch (impl_->message_->mti)
+    switch (nmsg()->mti)
     {
         case If::MTI_EVENT_REPORT:
             fn = &NMRAnetEventHandler::HandleEventReport;
@@ -178,8 +197,8 @@ StateFlowBase::Action GlobalEventFlow::HandleEvent()
         default:
             DIE("Unexpected message arrived at the global event handler.");
     } //    case
-    FreeMessage(impl_->message_);
-    impl_->message_ = nullptr;
+    FreeMessage(nmsg());
+    nmsg() = nullptr;
 
     (impl_->handler_.get()->*fn)(rep, this);
     // We insert an intermediate state to consume any pending notifications.
@@ -194,8 +213,8 @@ StateFlowBase::Action GlobalEventFlow::WaitForHandler()
 StateFlowBase::Action GlobalEventFlow::HandlerFinished()
 {
     LOG(VERBOSE, "GlobalFlow::HandlerFinished");
-    impl_->message_ = impl_->event_queue_.TypedAllocateOrNull();
-    if (impl_->message_)
+    nmsg() = impl_->event_queue_.TypedAllocateOrNull();
+    if (nmsg())
     {
         return call_immediately(STATE(HandleEvent));
     }
@@ -206,23 +225,23 @@ StateFlowBase::Action GlobalEventFlow::HandlerFinished()
     return call_immediately(STATE(WaitForEvent));
 }
 
-TypedAllocator<GlobalEventMessage>* GlobalEventFlow::message_allocator()
+TypedAllocator<GlobalEventMessage> *GlobalEventFlow::message_allocator()
 {
     return &impl_->free_events_;
 }
 
-GlobalEventMessage* GlobalEventFlow::AllocateMessage()
+GlobalEventMessage *GlobalEventFlow::AllocateMessage()
 {
     TypedSyncAllocation<GlobalEventMessage> a(&impl_->free_events_);
     return a.result();
 }
 
-void GlobalEventFlow::PostEvent(GlobalEventMessage* message)
+void GlobalEventFlow::PostEvent(GlobalEventMessage *message)
 {
     impl_->event_queue_.TypedReleaseBack(message);
 }
 
-void GlobalEventFlow::FreeMessage(GlobalEventMessage* m)
+void GlobalEventFlow::FreeMessage(GlobalEventMessage *m)
 {
     impl_->free_events_.TypedRelease(m);
 }
