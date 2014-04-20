@@ -37,7 +37,7 @@
 #include <stdint.h>
 
 #include "executor/notifiable.hxx"
-#include "executor/allocator.hxx"
+#include "utils/AsyncMutex.hxx"
 #include "utils/macros.h"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
@@ -72,7 +72,7 @@ typedef struct {
 // This allocator-mutex is held for any call into any NMRAnetEventHandler. It
 // ensures that the event handler output flow is empty and is able to receive a
 // message.
-extern AllocatorMutex event_handler_mutex;
+extern AsyncMutex event_handler_mutex;
 
 // These allow event handlers to produce up to four messages per
 // invocation. They are locked by the event-handler_mutex and always available

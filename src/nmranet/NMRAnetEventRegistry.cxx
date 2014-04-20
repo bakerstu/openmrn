@@ -39,13 +39,12 @@ namespace NMRAnet
 
 NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
 
-AllocatorMutex event_handler_mutex;
+AsyncMutex event_handler_mutex;
 WriteHelper event_write_helper1;
 WriteHelper event_write_helper2;
 WriteHelper event_write_helper3;
 WriteHelper event_write_helper4;
 BarrierNotifiable event_barrier;
-
 
 NMRAnetEventRegistry::NMRAnetEventRegistry() {
   HASSERT(instance_ == nullptr);

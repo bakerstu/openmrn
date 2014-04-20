@@ -11,6 +11,7 @@ CXXSRCS += \
            NMRAnetAsyncDefaultNode.cxx \
            NMRAnetNodeInitializeFlow.cxx \
            AsyncAliasAllocator.cxx \
+           NMRAnetEventRegistry.cxx \
 
 
 DEAD_CXX +=  \
