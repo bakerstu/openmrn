@@ -438,7 +438,7 @@ protected:
      */
     virtual Action entry() = 0;
 
-    /** Takes the front entry in the queue.
+    /** Takes the front entry in the queue. Must be called with the lock held.
      *
      * @returns NULL if the queue is empty.
      * @param priority will be set to the priority of the queue member removed
@@ -449,6 +449,13 @@ protected:
     Message *message()
     {
         return currentMessage_;
+    }
+
+    /** Sets the current message being processed. */
+    void reset_message(Message* message, unsigned priority) {
+        HASSERT(!currentMessage_);
+        currentMessage_ = message;
+        currentPriority_ = priority;
     }
 
     /// @returns the priority of the message currently being processed.
@@ -478,6 +485,7 @@ private:
     unsigned isWaiting_ : 1;
 
     template <class T, class S> friend class StateFlow;
+    friend class GlobalEventFlow;
 
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
 };
@@ -588,6 +596,11 @@ protected:
             *priority = r.index;
         }
         return r.item;
+    }
+
+    bool queue_empty() {
+        AtomicHolder h(this);
+        return queue_.empty();
     }
 
     /** @returns the current message we are processing. */

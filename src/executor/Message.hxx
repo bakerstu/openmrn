@@ -38,6 +38,8 @@
 #include "utils/BufferQueue.hxx"
 
 typedef BufferBase Message;
+
+///@TODO(balazs.racz) get rid of this file
 #if 0
 /** Buffer with additional fields to represent a complete message.
  */
