@@ -69,11 +69,6 @@ typedef struct {
 
 // Static objects usable by all event handler implementations
 
-// This allocator-mutex is held for any call into any NMRAnetEventHandler. It
-// ensures that the event handler output flow is empty and is able to receive a
-// message.
-extern AsyncMutex event_handler_mutex;
-
 // These allow event handlers to produce up to four messages per
 // invocation. They are locked by the event-handler_mutex and always available
 // at the entry to an event handler function.
@@ -131,8 +126,38 @@ public:
                                       Notifiable* done) = 0;
 };
 
+typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
+                                                          Notifiable* done);
+
+
+// Abstract class for representing iteration through a container for event
+// handlers.
+class EventIterator {
+protected:
+    /// Creates an EventIterator.
+    EventIterator() {}
+
+public:
+    /** Steps the iteration.
+     * @returns the next entry or NULL if the iteration is done.
+     * May be called many times after the iteratin is ended and should
+     * consistently return NULL. */
+    virtual NMRAnetEventHandler* next_entry() = 0;
+
+    /** Starts the iteration. If the iteration is not done yet, call
+     * clear_iteration first.
+     *
+     * @param event is the event report to reset the iteration for. */
+    virtual void init_iteration(EventReport* event) = 0;
+
+    /** Stops iteration and resets iteration variables. */
+    virtual void clear_iteration() = 0;
+};
+
 class NMRAnetEventRegistry {
 public:
+  virtual ~NMRAnetEventRegistry();
+
   static NMRAnetEventRegistry* instance() {
     HASSERT(instance_);
     return instance_;
@@ -142,11 +167,11 @@ public:
   virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
   virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
   
-  virtual NMRAnetEventHandler* EventHandler() = 0;
+    // Creates a new event iterator. Caller takes ownership of object.
+    virtual EventIterator* create_iterator() = 0;
 
 protected:
   NMRAnetEventRegistry();
-  ~NMRAnetEventRegistry();
 
 private:
   static NMRAnetEventRegistry* instance_;

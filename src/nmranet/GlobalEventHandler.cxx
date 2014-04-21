@@ -24,7 +24,7 @@ GlobalEventService::GlobalEventService(ExecutorBase *e) : Service(e)
 {
     HASSERT(instance == nullptr);
     instance = this;
-    impl_.reset(new Impl());
+    impl_.reset(new Impl(this));
 }
 
 GlobalEventService::GlobalEventService(AsyncIf *interface)
@@ -32,7 +32,7 @@ GlobalEventService::GlobalEventService(AsyncIf *interface)
 {
     HASSERT(instance == nullptr);
     instance = this;
-    impl_.reset(new Impl());
+    impl_.reset(new Impl(this));
     register_interface(interface);
 }
 
@@ -42,7 +42,8 @@ GlobalEventService::~GlobalEventService()
     instance = nullptr;
 }
 
-GlobalEventService::Impl::Impl()
+GlobalEventService::Impl::Impl(GlobalEventService *service)
+    : callerFlow_(service)
 {
     // @TODO(balazs.racz): reenable this.
     // handler_.reset(new VectorEventHandlers(service()->executor()));
@@ -52,9 +53,24 @@ GlobalEventService::Impl::~Impl()
 {
 }
 
-GlobalEventFlow::GlobalEventFlow(GlobalEventService *service, AsyncIf *async_if)
-    : MessageStateFlowBase(service)
-    , interface_(async_if)
+StateFlowBase::Action EventCallerFlow::entry()
+{
+    n_.reset(this);
+    EventHandlerCall *c = message()->data();
+    (c->handler->*(c->fn))(c->rep, &n_);
+    return wait_and_call(STATE(call_done));
+}
+
+StateFlowBase::Action EventCallerFlow::call_done()
+{
+    return release_and_exit();
+}
+
+GlobalEventFlow::GlobalEventFlow(AsyncIf *async_if,
+                                 GlobalEventService *event_service)
+    : IncomingMessageStateFlow(async_if)
+    , eventService_(event_service)
+    , iterator_(event_service->impl()->registry->create_iterator())
 {
     interface()->dispatcher()->register_handler(
         this, GlobalEventService::Impl::MTI_VALUE_EVENT,
@@ -86,12 +102,6 @@ bool GlobalEventService::event_processing_pending()
             return false;*/
 }
 
-StateFlowBase::Action GlobalEventFlow::entry()
-{
-    LOG(VERBOSE, "GlobalFlow::WaitForEvent");
-    return allocate_and_call(STATE(call_handler), &event_handler_mutex);
-}
-
 void DecodeRange(EventReport *r)
 {
     uint64_t e = r->event;
@@ -106,81 +116,79 @@ void DecodeRange(EventReport *r)
     r->event &= ~r->mask;
 }
 
-StateFlowBase::Action GlobalEventFlow::call_handler()
+StateFlowBase::Action GlobalEventFlow::entry()
 {
     // at this point: we have the mutex.
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
-    EventReport *rep = &main_event_report_;
+    EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
     if (nmsg()->payload.size() != 8)
     {
         LOG(INFO, "Invalid input event message, payload length %d",
             (unsigned)nmsg()->payload.size());
-        event_handler_mutex.Unlock();
-        return exit();
+        return release_and_exit();
     }
     rep->event = NetworkToEventID(nmsg()->payload.data());
     rep->mask = 1;
 
-    EventHandlerFunction fn;
     switch (nmsg()->mti)
     {
         case If::MTI_EVENT_REPORT:
-            fn = &NMRAnetEventHandler::HandleEventReport;
+            fn_ = &NMRAnetEventHandler::HandleEventReport;
             break;
         case If::MTI_CONSUMER_IDENTIFY:
-            fn = &NMRAnetEventHandler::HandleIdentifyConsumer;
+            fn_ = &NMRAnetEventHandler::HandleIdentifyConsumer;
             break;
         case If::MTI_CONSUMER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
+            fn_ = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
             break;
         case If::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
-            fn = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
         case If::MTI_CONSUMER_IDENTIFIED_VALID:
             rep->state = VALID;
-            fn = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
         case If::MTI_CONSUMER_IDENTIFIED_INVALID:
             rep->state = INVALID;
-            fn = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
         case If::MTI_CONSUMER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
-            fn = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
         case If::MTI_PRODUCER_IDENTIFY:
-            fn = &NMRAnetEventHandler::HandleIdentifyProducer;
+            fn_ = &NMRAnetEventHandler::HandleIdentifyProducer;
             break;
         case If::MTI_PRODUCER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn = &NMRAnetEventHandler::HandleProducerRangeIdentified;
+            fn_ = &NMRAnetEventHandler::HandleProducerRangeIdentified;
             break;
         case If::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
-            fn = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
         case If::MTI_PRODUCER_IDENTIFIED_VALID:
             rep->state = VALID;
-            fn = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
         case If::MTI_PRODUCER_IDENTIFIED_INVALID:
             rep->state = INVALID;
-            fn = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
         case If::MTI_PRODUCER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
-            fn = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
         case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
         case If::MTI_EVENTS_IDENTIFY_GLOBAL:
             DIE("global messages should not get here");
-            /*fn = &NMRAnetEventHandler::HandleIdentifyGlobal;
-            impl_->global_event_report_ = *rep;
-            rep = &impl_->global_event_report_;*/
+            /*fn_ = &NMRAnetEventHandler::HandleIdentifyGlobal;
+            impl_->global_eventReport_ = *rep;
+            rep = &impl_->global_eventReport_;*/
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -188,28 +196,27 @@ StateFlowBase::Action GlobalEventFlow::call_handler()
     // The incoming message is not needed anymore.
     release();
 
-    (service()->impl()->handler_.get()->*fn)(rep, this);
-    return wait_and_call(STATE(handler_finished));
+    iterator_->init_iteration(rep);
+    return call_immediately(STATE(iterate_next));
 }
 
-StateFlowBase::Action GlobalEventFlow::handler_finished()
+StateFlowBase::Action GlobalEventFlow::iterate_next()
 {
-    // We still have the event mutex.
-    LOG(VERBOSE, "GlobalFlow::HandlerFinished");
-    unsigned priority;
-    Message *next_message = static_cast<Message *>(queue_next(&priority));
-    if (!next_message)
+    NMRAnetEventHandler *handler = iterator_->next_entry();
+    if (!handler)
     {
-        // No pending message in the queue: releases the mutex and allows global
-        // handlers to proceed.
-        event_handler_mutex.AssertLocked();
-        event_handler_mutex.Unlock();
         return exit();
     }
-    reset_message(next_message, priority);
-    // Passes on the event mutex here. Yields to achieve the appropriate
-    // priority.
-    return yield_and_call(STATE(call_handler));
+    Buffer<EventHandlerCall> *b;
+    /* This could be made an asynchronous allocation. Then the pool could be
+     * made fixed size. */
+    eventService_->impl()->callerFlow_.pool()->alloc(&b, nullptr);
+    HASSERT(b);
+    b->data()->reset(&eventReport_, handler, fn_);
+    n_.reset(this);
+    b->set_done(&n_);
+    eventService_->impl()->callerFlow_.send(b);
+    return wait();
 }
 
 #if 0

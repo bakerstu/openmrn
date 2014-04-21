@@ -50,19 +50,46 @@ class IncomingEventFlow;
 class GlobalIdentifyFlow;
 class NMRAnetEventHandler;
 
+struct EventHandlerCall
+{
+    EventReport *rep;
+    NMRAnetEventHandler *handler;
+    EventHandlerFunction fn;
+    void reset(EventReport *rep, NMRAnetEventHandler *handler, EventHandlerFunction fn)
+    {
+        this->rep = rep;
+        this->handler = handler;
+        this->fn = fn;
+    }
+};
+
+class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<4> > {
+public:
+    EventCallerFlow(Service* service);
+
+private:
+    virtual Action entry() OVERRIDE;
+    Action call_done();
+
+    BarrierNotifiable n_;
+};
+
 class GlobalEventService::Impl
 {
 public:
-    Impl();
+    Impl(GlobalEventService* service);
     ~Impl();
 
-    /* The implementation of the event handler. This will typically be a proxy
-     * for registering all events. */
-    std::unique_ptr<NMRAnetEventHandler> handler_;
+    /* The implementation of the event registry. */
+    std::unique_ptr<NMRAnetEventRegistry> registry;
 
     /** Flows that we own. There will be a few entries for each interface
      * registered. */
     std::vector<std::unique_ptr<Executable>> owned_flows_;
+
+    /** This flow will serialize calls to NMRAnetEventHandler objects. All such
+     * calls need to be sent to this flow. */
+    EventCallerFlow callerFlow_;
 
     enum
     {
@@ -81,46 +108,28 @@ public:
 /** Flow to receive incoming messages of event protocol, and dispatch them to
  * the global event handler. This flow runs on the executor of the event
  * service (and not necessarily the interface). */
-class GlobalEventFlow : public MessageStateFlowBase
+class GlobalEventFlow : public IncomingMessageStateFlow
 {
 public:
-    GlobalEventFlow(GlobalEventService *service, AsyncIf *interface);
+    GlobalEventFlow(AsyncIf *interface, GlobalEventService *event_service);
     ~GlobalEventFlow();
-
-    /// Statically points to the global instance of the event handler.
-    static GlobalEventFlow *instance;
 
 protected:
     Action entry() OVERRIDE;
-
-    Action call_handler();
-    Action handler_finished();
-    Action WaitForHandler();
-    Action HandlerFinished();
-
-    /** This function will mask the interface() function of
-     * IncomingMessageStateFlow */
-    AsyncIf *interface()
-    {
-        return interface_;
-    }
-
-    GlobalEventService *service()
-    {
-        return static_cast<GlobalEventService *>(
-            MessageStateFlowBase::service());
-    }
-
-    /// Returns the NMRAnet message we received.
-    NMRAnetMessage *nmsg()
-    {
-        return message()->data();
-    }
+    Action iterate_next();
 
 private:
+    GlobalEventService* eventService_;
+
     // Statically allocated structure for calling the event handlers from the
     // main event queue.
-    EventReport main_event_report_;
+    EventReport eventReport_;
+
+    /** Iterator for generating the event handlers from the registry. */
+    std::unique_ptr<EventIterator> iterator_;
+
+    BarrierNotifiable n_;
+    EventHandlerFunction fn_;
 
     AsyncIf *interface_;
 };

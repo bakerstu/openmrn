@@ -42,9 +42,6 @@
 namespace NMRAnet
 {
 
-typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
-                                                          Notifiable* done);
-
 // A proxy event handler has a single helper function that gets every event
 // handler call with an indication of which call it is. It is helpful to create
 // event containers that proxy calls to many event handler instances.
