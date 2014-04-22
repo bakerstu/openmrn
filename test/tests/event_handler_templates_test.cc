@@ -1,8 +1,4 @@
-#include <stdio.h>
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-
-#include "os/os.h"
+#include "utils/test_main.hxx"
 
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"
@@ -19,8 +15,8 @@ class SimpleEventProxy : public ProxyEventHandler {
       : handler_(handler) {}
 
   virtual void HandlerFn(EventHandlerFunction fn,
-                                 EventReport* event,
-                                 Notifiable* done) {
+                         EventReport* event,
+                         BarrierNotifiable* done) {
     (handler_->*fn)(event, done);
   }
 
@@ -42,14 +38,4 @@ TEST(EventProxy, ConsumerRange) {
   proxy.HandleConsumerRangeIdentified(NULL, NULL);
 }
 
-TEST(DummyTest, Success) {
-  int i = 34;
-  EXPECT_EQ(34, i);
-}
-
 }  // namespace NMRAnet
-
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
