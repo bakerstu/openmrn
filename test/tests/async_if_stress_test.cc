@@ -10,13 +10,13 @@
 namespace NMRAnet
 {
 
-ThreadExecutor g1_executor("g1_exec", 0, 2000);
-ThreadExecutor g2_executor("g2_exec", 0, 2000);
-ThreadExecutor g3_executor("g3_exec", 0, 2000);
-ThreadExecutor g4_executor("g4_exec", 0, 2000);
+Executor<1> g1_executor("g1_exec", 0, 2000);
+Executor<1> g2_executor("g2_exec", 0, 2000);
+Executor<1> g3_executor("g3_exec", 0, 2000);
+Executor<1> g4_executor("g4_exec", 0, 2000);
 
-Executor* round_execs[] = {&g1_executor, &g2_executor,
-                           &g3_executor, &g4_executor};iceMock<MockSend> can_bus_;
+Executor<1>* round_execs[] = {&g1_executor, &g2_executor,
+                              &g3_executor, &g4_executor};
 
 /** This class will create an AsyncIf, two virtual nodes on it, and send one
  * unaddressed global packet each. */
@@ -25,33 +25,41 @@ class TestNode
 public:
     TestNode(NodeID node_id)
         : nodeId_(node_id),
-          ifCan_(round_execs[(node_id >> 1) & 3], &can_hub0, 10, 10, 10, 2, 5)
+          ifCan_(round_execs[(node_id >> 1) & 3], &can_hub0, 10, 10, 2)
     {
     }
 
     void start(BarrierNotifiable* done)
     {
-        ifCan_.add_addressed_message_support(2);
+        ifCan_.add_addressed_message_support();
         ifCan_.set_alias_allocator(new AsyncAliasAllocator(nodeId_, &ifCan_));
-        ifCan_.alias_allocator()->empty_aliases()->Release(&testAlias_);
-        WriteFlow* f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
-        HASSERT(f);
-        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_,
-                              EventIdToBuffer(nodeId_), done->new_child());
-        f = ifCan_.global_write_allocator()->TypedAllocateOrNull();
-        HASSERT(f);
-        f->WriteGlobalMessage(If::MTI_EVENT_REPORT, nodeId_ + 1,
-                              EventIdToBuffer(nodeId_ + 1), done->new_child());
+        {
+            // Adds one alias buffer to the alias allocation flow.
+            auto* b = ifCan_.alias_allocator()->alloc();
+            ifCan_.alias_allocator()->send(b);
+        }
+        auto* b = ifCan_.global_message_write_flow()->alloc();
+        b->data()->reset(If::MTI_EVENT_REPORT, nodeId_,
+                         EventIdToBuffer(nodeId_));
+        b->set_done(done->new_child());
+        ifCan_.global_message_write_flow()->send(b);
+        b = ifCan_.global_message_write_flow()->alloc();
+        b->data()->reset(If::MTI_EVENT_REPORT, nodeId_ + 1,
+                         EventIdToBuffer(nodeId_ + 1));
+        b->set_done(done->new_child());
+        ifCan_.global_message_write_flow()->send(b);
     }
 
     ~TestNode()
     {
-        Executor* e = round_execs[(nodeId_ >> 1) & 3];
-        while(!e->empty() ||
-              !ifCan_.frame_dispatcher()->IsNotStarted() ||
+        //ifCan_.alias_allocator()->TEST_finish_pending_allocation();
+        Executor<1>* e = round_execs[(nodeId_ >> 1) & 3];
+        while(!e->empty() || !g_executor.empty()
+              || !ifCan_.alias_allocator()->is_waiting()) {
+/*              !ifCan_.frame_dispatcher()->IsNotStarted() ||
               !ifCan_.dispatcher()->IsNotStarted() ||
               !can_hub0.empty() ||
-              !gc_hub0.empty()) {
+              !gc_hub0.empty()) {*/
             usleep(100);
         }
     }
@@ -59,10 +67,10 @@ public:
 private:
     NodeID nodeId_;
     AsyncIfCan ifCan_;
-    AliasInfo testAlias_;
+//    AliasInfo testAlias_;
 };
 
-class Stats : public PipeMember
+class Stats : public CanHubPortInterface
 {
 public:
     Stats()
@@ -80,23 +88,14 @@ public:
 
     ~Stats()
     {
+        timer_.stop();
         can_hub0.unregister_port(this);
     }
 
-    virtual void write(const void* buf, size_t count)
+    void send(Buffer<CanHubData>* b, unsigned /*priority*/)
     {
-        const struct can_frame* f = static_cast<const struct can_frame*>(buf);
-        while (count >= sizeof(*f))
-        {
-            handle_frame(f);
-            f++;
-            count -= sizeof(*f);
-        }
-        HASSERT(!count);
-    }
-
-    void handle_frame(const struct can_frame* f)
-    {
+        const struct can_frame* f = b->data();
+        AutoReleaseBuffer<CanHubData> releaser(b);
         OSMutexLock h(&lock_);
         numFrames_++;
         if (!IS_CAN_FRAME_EFF(*f))
@@ -166,8 +165,7 @@ protected:
     {
         while (!(g1_executor.empty() && g2_executor.empty() &&
                  g3_executor.empty() && g4_executor.empty() &&
-                 g_executor.empty() &&
-                 DefaultWriteFlowExecutor()->empty()))
+                 g_executor.empty()))
         {
             usleep(100);
             wait();
@@ -200,35 +198,35 @@ protected:
 TEST_F(AsyncIfStressTest, nonode)
 {
     barrier_.maybe_done();
-    n_.WaitForNotification();
+    n_.wait_for_notification();
 }
 
 TEST_F(AsyncIfStressTest, onenode)
 {
     CreateNodes(1);
     barrier_.maybe_done();
-    n_.WaitForNotification();
+    n_.wait_for_notification();
 }
 
 TEST_F(AsyncIfStressTest, tennodes)
 {
     CreateNodes(10);
     barrier_.maybe_done();
-    n_.WaitForNotification();
+    n_.wait_for_notification();
 }
 
 TEST_F(AsyncIfStressTest, hundrednodes)
 {
     CreateNodes(100);
     barrier_.maybe_done();
-    n_.WaitForNotification();
+    n_.wait_for_notification();
 }
 
-TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)
+TEST_F(AsyncIfStressTest, thousandnodes)
 {
     CreateNodes(1000);
     barrier_.maybe_done();
-    n_.WaitForNotification();
+    n_.wait_for_notification();
 }
 
 } // namespace NMRAnet
