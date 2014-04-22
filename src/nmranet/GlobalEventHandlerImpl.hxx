@@ -55,7 +55,8 @@ struct EventHandlerCall
     EventReport *rep;
     NMRAnetEventHandler *handler;
     EventHandlerFunction fn;
-    void reset(EventReport *rep, NMRAnetEventHandler *handler, EventHandlerFunction fn)
+    void reset(EventReport *rep, NMRAnetEventHandler *handler,
+               EventHandlerFunction fn)
     {
         this->rep = rep;
         this->handler = handler;
@@ -63,9 +64,11 @@ struct EventHandlerCall
     }
 };
 
-class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<4> > {
+class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<4>>
+{
 public:
-    EventCallerFlow(Service* service);
+    EventCallerFlow(Service *service)
+        : StateFlow<Buffer<EventHandlerCall>, QList<4>>(service) {};
 
 private:
     virtual Action entry() OVERRIDE;
@@ -77,7 +80,7 @@ private:
 class GlobalEventService::Impl
 {
 public:
-    Impl(GlobalEventService* service);
+    Impl(GlobalEventService *service);
     ~Impl();
 
     /* The implementation of the event registry. */
@@ -97,11 +100,10 @@ public:
         // id.
         MTI_VALUE_EVENT = If::MTI_EVENT_MASK,
         MTI_MASK_EVENT = If::MTI_EVENT_MASK,
-        // These match the two event messages without event id: Global and
-        // addressed identify all events.
-        MTI_VALUE_GLOBAL =
-            If::MTI_EVENTS_IDENTIFY_ADDRESSED & If::MTI_EVENTS_IDENTIFY_GLOBAL,
-        MTI_MASK_GLOBAL = (~If::MTI_SIMPLE_MASK) & (~If::MTI_ADDRESS_MASK),
+        MTI_VALUE_GLOBAL = If::MTI_EVENTS_IDENTIFY_GLOBAL,
+        MTI_MASK_GLOBAL = 0xffff,
+        MTI_VALUE_ADDRESSED_ALL = If::MTI_EVENTS_IDENTIFY_ADDRESSED,
+        MTI_MASK_ADDRESSED_ALL = 0xffff,
     };
 };
 
@@ -111,7 +113,8 @@ public:
 class GlobalEventFlow : public IncomingMessageStateFlow
 {
 public:
-    GlobalEventFlow(AsyncIf *interface, GlobalEventService *event_service);
+    GlobalEventFlow(AsyncIf *interface, GlobalEventService *event_service,
+                    unsigned mti_value, unsigned mti_mask);
     ~GlobalEventFlow();
 
 protected:
@@ -119,7 +122,7 @@ protected:
     Action iterate_next();
 
 private:
-    GlobalEventService* eventService_;
+    GlobalEventService *eventService_;
 
     // Statically allocated structure for calling the event handlers from the
     // main event queue.

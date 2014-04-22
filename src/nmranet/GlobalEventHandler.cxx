@@ -44,7 +44,15 @@ GlobalEventService::~GlobalEventService()
 
 void GlobalEventService::register_interface(AsyncIf *interface)
 {
-    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(interface, this));
+    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
+        interface, this, GlobalEventService::Impl::MTI_VALUE_EVENT,
+        GlobalEventService::Impl::MTI_MASK_EVENT));
+    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
+        interface, this, GlobalEventService::Impl::MTI_VALUE_GLOBAL,
+        GlobalEventService::Impl::MTI_MASK_GLOBAL));
+    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
+        interface, this, GlobalEventService::Impl::MTI_VALUE_ADDRESSED_ALL,
+        GlobalEventService::Impl::MTI_MASK_ADDRESSED_ALL));
 }
 
 GlobalEventService::Impl::Impl(GlobalEventService *service)
@@ -71,28 +79,27 @@ StateFlowBase::Action EventCallerFlow::call_done()
 }
 
 GlobalEventFlow::GlobalEventFlow(AsyncIf *async_if,
-                                 GlobalEventService *event_service)
+                                 GlobalEventService *event_service,
+                                 unsigned mti_value, unsigned mti_mask)
     : IncomingMessageStateFlow(async_if)
     , eventService_(event_service)
     , iterator_(event_service->impl()->registry->create_iterator())
 {
-    interface()->dispatcher()->register_handler(
-        this, GlobalEventService::Impl::MTI_VALUE_EVENT,
-        GlobalEventService::Impl::MTI_MASK_EVENT);
+    interface()->dispatcher()->register_handler(this, mti_value, mti_mask);
 }
 
 GlobalEventFlow::~GlobalEventFlow()
 {
-    interface()->dispatcher()->unregister_handler(
-        this, GlobalEventService::Impl::MTI_VALUE_EVENT,
-        GlobalEventService::Impl::MTI_MASK_EVENT);
+    interface()->dispatcher()->unregister_handler_all(this);
 }
 
 /// Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventService::event_processing_pending()
 {
-    for (auto& f : impl()->ownedFlows_) {
-        if (!f->is_waiting()) return true;
+    for (auto &f : impl()->ownedFlows_)
+    {
+        if (!f->is_waiting())
+            return true;
     }
     return false;
 }
@@ -118,14 +125,21 @@ StateFlowBase::Action GlobalEventFlow::entry()
     EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
-    if (nmsg()->payload.size() != 8)
-    {
-        LOG(INFO, "Invalid input event message, payload length %d",
-            (unsigned)nmsg()->payload.size());
-        return release_and_exit();
+    if ((nmsg()->mti & If::MTI_EVENT_MASK) == If::MTI_EVENT_MASK) {
+        if (nmsg()->payload.size() != 8)
+        {
+            LOG(INFO, "Invalid input event message, payload length %d",
+                (unsigned)nmsg()->payload.size());
+            return release_and_exit();
+        }
+        rep->event = NetworkToEventID(nmsg()->payload.data());
+        rep->mask = 1;
+    } else {
+        // Message without event payload.
+        rep->event = 0;
+        /// @TODO(balazs.racz) refactor this into a 
+        rep->mask = 0xFFFFFFFFFFFFFFFFULL;
     }
-    rep->event = NetworkToEventID(nmsg()->payload.data());
-    rep->mask = 1;
 
     switch (nmsg()->mti)
     {
@@ -179,11 +193,15 @@ StateFlowBase::Action GlobalEventFlow::entry()
             fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
         case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
+            if (!rep->dst_node)
+            {
+                LOG(INFO, "Invalid addressed identify all message, destination "
+                          "node not found");
+                return release_and_exit();
+            }
+        // fall through
         case If::MTI_EVENTS_IDENTIFY_GLOBAL:
-            DIE("global messages should not get here");
-            /*fn_ = &NMRAnetEventHandler::HandleIdentifyGlobal;
-            impl_->global_eventReport_ = *rep;
-            rep = &impl_->global_eventReport_;*/
+            fn_ = &NMRAnetEventHandler::HandleIdentifyGlobal;
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -366,6 +384,6 @@ void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
     nmranet_event_packet_global(If::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
-#endif // CPP_EVENT_HANDLER
+#endif // if 0
 
 } /* namespace NMRAnet */
