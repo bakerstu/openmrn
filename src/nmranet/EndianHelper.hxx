@@ -42,7 +42,7 @@ namespace NMRAnet {
 
 /** Takes six bytes (big-endian) from *data, and returns the node ID they
  * represent. */
-NodeID NetworkToNodeID(const uint8_t* data) {
+inline NodeID NetworkToNodeID(const uint8_t* data) {
     uint64_t ret = 0;
     memcpy(&ret, data, 6);
     return be64toh(ret);
@@ -50,23 +50,31 @@ NodeID NetworkToNodeID(const uint8_t* data) {
 
 /** Takes a node id from @param id, and copies 6 bytes network-endian into
  * *dst. */
-void NodeIDToNetwork(const NodeID id, uint8_t* dst) {
+inline void NodeIDToNetwork(const NodeID id, uint8_t* dst) {
     uint64_t be_id = htobe64(id);
     memcpy(dst, &be_id, 6);
 }
 
 /** Takes 8 bytes (big-endian) from *data, and returns the event id they
  * represent. */
-uint64_t NetworkToEventID(const void* data) {
+inline uint64_t NetworkToEventID(const void* data) {
     uint64_t ret = 0;
     memcpy(&ret, data, 8);
     return be64toh(ret);
 }
 
 /** Takes an event id from id, and copies it network-endian into *data. */
-void EventIDToNetwork(const uint64_t event_id, uint8_t* dst) {
+inline void EventIDToNetwork(const uint64_t event_id, void* dst) {
     uint64_t be_id = htobe64(event_id);
     memcpy(dst, &be_id, 8);
+}
+
+/** Takes an event ID and returns a network encoding of it in a payload
+ * buffer.*/
+inline string EventIDToPayload(const uint64_t event_id) {
+    string v(8, 0);
+    EventIDToNetwork(event_id, &v[0]);
+    return v;
 }
 
 }  // namespace NRMAnet
