@@ -204,6 +204,31 @@ private:
     T data_;
 };
 
+/** This class will automatically unref a Buffer when going out of scope. */
+template<class T>
+class AutoReleaseBuffer
+{
+public:
+    AutoReleaseBuffer(Buffer<T>* b)
+        : b_(b) {}
+
+    ~AutoReleaseBuffer() {
+        if (b_)
+        {
+            b_->unref();
+        }
+    }
+
+    Buffer<T>* release() {
+        Buffer<T>* b = b_;
+        b_ = nullptr;
+        return b;
+    }
+
+private:
+    Buffer<T>* b_;
+};
+
 /** Abstract interface to all Queues of all types.
  */
 class QInterface
