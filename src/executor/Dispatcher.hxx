@@ -83,6 +83,9 @@ public:
     /// Removes a specific instance of a handler from this dispatcher.
     void unregister_handler(HandlerType *handler, ID id, ID mask);
 
+    /// Removes all instances of a handler from this dispatcher.
+    void unregister_handler_all(HandlerType *handler);
+
 protected:
     typedef typename StateFlow<MessageType, QList<NUM_PRIO>>::Callback Callback;
     using StateFlow<MessageType, QList<NUM_PRIO>>::again;
@@ -142,7 +145,8 @@ private:
 
 template <class MessageType, int NUM_PRIO>
 DispatchFlow<MessageType, NUM_PRIO>::DispatchFlow(Service *service)
-    : StateFlow<MessageType, QList<NUM_PRIO>>(service), negateMatch_(false)
+    : StateFlow<MessageType, QList<NUM_PRIO>>(service)
+    , negateMatch_(false)
 {
 }
 
@@ -205,6 +209,24 @@ DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(HandlerType *handler,
     if (idx == handlers_.size() - 1)
     {
         handlers_.resize(handlers_.size() - 1);
+    }
+}
+
+template <class MessageType, int NUM_PRIO>
+void DispatchFlow<MessageType, NUM_PRIO>::unregister_handler_all(
+    HandlerType *handler)
+{
+    OSMutexLock h(&lock_);
+    for (size_t i = 0; i < handlers_.size(); ++i)
+    {
+        if (handlers_[i].handler == handler)
+        {
+            handlers_[i].handler = nullptr;
+        }
+    }
+    while (!handlers_.empty() && handlers_.back().handler == nullptr)
+    {
+        handlers_.pop_back();
     }
 }
 
