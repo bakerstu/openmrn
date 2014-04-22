@@ -7,13 +7,11 @@
 namespace NMRAnet
 {
 
-class AsyncEventTest : public AsyncIfTest
+class AsyncEventTest : public AsyncNodeTest
 {
 protected:
-    AsyncEventTest() : flow_(&g_executor, 10)
+    AsyncEventTest()
     {
-        ifCan_->add_addressed_message_support(2);
-        AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncEventTest()
@@ -23,14 +21,10 @@ protected:
 
     void wait()
     {
-        while (GlobalEventFlow::instance->EventProcessingPending())
-        {
-            usleep(100);
-        }
-        AsyncIfTest::wait();
+        wait_for_event_thread();
+        AsyncNodeTest::wait();
     }
 
-    GlobalEventFlow flow_;
     StrictMock<MockEventHandler> h1_;
     StrictMock<MockEventHandler> h2_;
     StrictMock<MockEventHandler> h3_;

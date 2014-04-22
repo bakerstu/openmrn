@@ -59,6 +59,11 @@ public:
     }
 };
 
+static void InvokeNotification(Notifiable *done)
+{
+    done->notify();
+}
+
 namespace NMRAnet
 {
 

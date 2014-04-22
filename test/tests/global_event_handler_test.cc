@@ -2,6 +2,7 @@
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/NMRAnetEventTestHelper.hxx"
 #include "nmranet/EndianHelper.hxx"
 
 using testing::Eq;
@@ -62,29 +63,6 @@ TEST_F(DecodeRangeTest, LongPositive)
 TEST_F(DecodeRangeTest, LongNegative)
 {
     ExpectDecode(0xffffffffffffff0fULL, 0xffffffffffffff00ULL, 0xf);
-}
-
-class MockEventHandler : public NMRAnetEventHandler
-{
-public:
-#define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
-
-    DEFPROXYFN(HandleEventReport);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
-
-#undef DEFPROXYFN
-};
-
-static void InvokeNotification(Notifiable *done)
-{
-    done->notify();
 }
 
 static const uint64_t kExitEventId = 0x0808080804040404ULL;

@@ -42,23 +42,22 @@
 
 namespace NMRAnet {
 
-class MockEventHandler : public NMRAnetEventHandler {
- public:
-  MOCK_METHOD2(HandleEventReport, void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleConsumerIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleConsumerRangeIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleProducerIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleProducerRangeIdentified,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyGlobal,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyConsumer,
-               void(EventReport* event, Notifiable* done));
-  MOCK_METHOD2(HandleIdentifyProducer,
-               void(EventReport* event, Notifiable* done));
+class MockEventHandler : public NMRAnetEventHandler
+{
+public:
+#define DEFPROXYFN(FN)                                                         \
+    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
+
+    DEFPROXYFN(HandleEventReport);
+    DEFPROXYFN(HandleConsumerIdentified);
+    DEFPROXYFN(HandleConsumerRangeIdentified);
+    DEFPROXYFN(HandleProducerIdentified);
+    DEFPROXYFN(HandleProducerRangeIdentified);
+    DEFPROXYFN(HandleIdentifyGlobal);
+    DEFPROXYFN(HandleIdentifyConsumer);
+    DEFPROXYFN(HandleIdentifyProducer);
+
+#undef DEFPROXYFN
 };
 
 }  // namespace NMRAnet
