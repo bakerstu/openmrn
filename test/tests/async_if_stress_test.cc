@@ -222,7 +222,7 @@ TEST_F(AsyncIfStressTest, hundrednodes)
     n_.wait_for_notification();
 }
 
-TEST_F(AsyncIfStressTest, thousandnodes)
+TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)
 {
     CreateNodes(1000);
     barrier_.maybe_done();
