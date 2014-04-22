@@ -53,7 +53,7 @@ DynamicPool *CanFrameWriteFlow::pool()
 
 void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
-    LOG(INFO, "outgoing message %" PRIx32 ".",
+    LOG(VERBOSE, "outgoing message %" PRIx32 ".",
         GET_CAN_FRAME_ID_EFF(message->data()->frame()));
     message->data()->skipMember_ = ifCan_->hub_port();
     ifCan_->device()->send(message, priority);
