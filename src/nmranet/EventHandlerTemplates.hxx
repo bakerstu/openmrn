@@ -53,10 +53,10 @@ class ProxyEventHandler : public NMRAnetEventHandler {
   // function.
   virtual void HandlerFn(EventHandlerFunction fn,
                          EventReport* event,
-                         Notifiable* done) = 0;
+                         BarrierNotifiable* done) = 0;
 
 #define DEFPROXYFN(FN)                                    \
-  virtual void FN(EventReport* event, Notifiable* done) { \
+  virtual void FN(EventReport* event, BarrierNotifiable* done) { \
     HandlerFn(&NMRAnetEventHandler::FN, event, done);     \
   }
 
@@ -76,7 +76,7 @@ class ProxyEventHandler : public NMRAnetEventHandler {
 class SimpleEventHandler : public NMRAnetEventHandler {
  public:
 #define IGNOREFN(FN) \
-  virtual void FN(EventReport* event, Notifiable* done) { done->notify(); }
+  virtual void FN(EventReport* event, BarrierNotifiable* done) { done->notify(); }
 
   IGNOREFN(HandleEventReport);
   IGNOREFN(HandleConsumerIdentified);
@@ -134,21 +134,23 @@ class BitEventHandler : public SimpleEventHandler {
 
   // Sends an event report packet (unconditionally).
   void SendEventReport(WriteHelper* writer,
-                       Notifiable* done);
+                       BarrierNotifiable* done);
 
  protected:
   // Sends off two packets using write_event_handler{1,2} of ProducerIdentified
-  // for handling a global identify events message. Uses event_barrier.
-  void SendProducerIdentified();
+  // for handling a global identify events message. Allocated children from
+  // barrier done.
+  void SendProducerIdentified(BarrierNotifiable* done);
 
   // Sends off two packets using write_event_handler{3,4} of ConsumerIdentified
-  // for handling a global identify events message. Uses event_barrier.
-  void SendConsumerIdentified();
+  // for handling a global identify events message. Allocated children from
+  // barrier done.
+  void SendConsumerIdentified(BarrierNotifiable* done);
 
   // Checks if the event in the report is something we are interested in, and
   // if so, sends off a {Producer|Consumer}Identify message. Uses
   // write_event_handler1.
-  void HandlePCIdentify(If::MTI mti_valid, EventReport* event, Notifiable* done);
+  void HandlePCIdentify(If::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
 
   BitEventInterface* bit_;
 
@@ -169,12 +171,12 @@ class BitEventProducer : public BitEventHandler {
   // @param done is the notification callback. If it is NULL, the writer will
   // be invoked inline and potentially block the calling thread.
   void Update(WriteHelper* writer,
-              Notifiable* done) {
+              BarrierNotifiable* done) {
     SendEventReport(writer, done);
   }
 
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BitEventProducer);
@@ -186,12 +188,12 @@ class BitEventConsumer : public BitEventHandler {
       : BitEventHandler(bit) {}
 
     /// Queries producers and acquires the current state of the bit.
-  void SendQuery(WriteHelper* writer, Notifiable* done);
+  void SendQuery(WriteHelper* writer, BarrierNotifiable* done);
 
-  virtual void HandleEventReport(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
-  virtual void HandleProducerIdentified(EventReport* event, Notifiable* done);
+  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleProducerIdentified(EventReport* event, BarrierNotifiable* done);
 };
 
 class BitEventPC : public BitEventConsumer {
@@ -199,8 +201,8 @@ class BitEventPC : public BitEventConsumer {
   BitEventPC(BitEventInterface* bit)
       : BitEventConsumer(bit) {}
 
-  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
 };
 
 class BitRangeEventPC : public SimpleEventHandler {
@@ -230,18 +232,18 @@ class BitRangeEventPC : public SimpleEventHandler {
   //
   // @param done is the notification callback. If it is NULL, the writer will
   // be invoked inline and potentially block the calling thread.
-  void Set(unsigned bit, bool new_value, WriteHelper* writer, Notifiable* done);
+  void Set(unsigned bit, bool new_value, WriteHelper* writer, BarrierNotifiable* done);
 
   /// @returns the value of a given bit. 0 <= bit < size_.
   bool Get(unsigned bit) const;
 
-  virtual void HandleEventReport(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
 
  private:
-  void HandleIdentifyBase(If::MTI mti_valid, EventReport* event, Notifiable* done);
+  void HandleIdentifyBase(If::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
   void GetBitAndMask(unsigned bit, uint32_t** data, uint32_t* mask) const;
 
   uint64_t event_base_;
@@ -263,9 +265,9 @@ class ByteRangeEventC : public SimpleEventHandler {
                   unsigned size);
   virtual ~ByteRangeEventC();
 
-  virtual void HandleEventReport(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
 
  protected:
   // takes an event ID and checks if we are responsible for it. Returns false
@@ -299,17 +301,17 @@ class ByteRangeEventP : public ByteRangeEventC {
   // @param writer is the output flow to be used.
   //
   // @param done is the notification callback. Must not be NULL.
-  void Update(unsigned byte, WriteHelper* writer, Notifiable* done);
+  void Update(unsigned byte, WriteHelper* writer, BarrierNotifiable* done);
 
   // Need to override C behavior.
-  virtual void HandleEventReport(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, Notifiable* done);
+  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
   // Own behavior.
-  virtual void HandleIdentifyProducer(EventReport* event, Notifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done);
+  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
   // Responses to possible queries.
-  virtual void HandleConsumerIdentified(EventReport* event, Notifiable* done);
-  virtual void HandleConsumerRangeIdentified(EventReport* event, Notifiable* done);
+  virtual void HandleConsumerIdentified(EventReport* event, BarrierNotifiable* done);
+  virtual void HandleConsumerRangeIdentified(EventReport* event, BarrierNotifiable* done);
 
  private:
   // Creates the eventid of the currently valid value of a given byte.
