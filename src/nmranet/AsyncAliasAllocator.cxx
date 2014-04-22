@@ -180,6 +180,11 @@ StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
     auto *b = get_allocation_result(if_can()->frame_write_flow());
     struct can_frame *f = b->data()->mutable_frame();
     IfCan::control_init(*f, pending_alias()->alias, IfCan::RID_FRAME, 0);
+    if (conflict_detected_)
+    {
+        b->unref();
+        return call_immediately(STATE(handle_alias_conflict));
+    }
     if_can()->frame_write_flow()->send(b);
     // The alias is reserved, put it into the freelist.
     pending_alias()->state = AliasInfo::STATE_RESERVED;
@@ -194,13 +199,19 @@ StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
 void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
                                                 unsigned priority)
 {
+    if (parent_->conflict_detected_) {
+        message->unref();
+        return;
+    }
     parent_->conflict_detected_ = 1;
     g_alias_test_conflicts++;
-    /* Wakes up the actual flow to not have to wait all the 200 ms of
-     * sleep. This will request the timer callback to be issued immediately,
-     * which avoids race condition between the trigger and the regular timeout
-     * call. */
-    parent_->timer_.trigger();
+    if (parent_->is_state(static_cast<StateFlowBase::Callback>(&AsyncAliasAllocator::wait_done))) {
+        /* Wakes up the actual flow to not have to wait all the 200 ms of
+         * sleep. This will request the timer callback to be issued
+         * immediately, which avoids race condition between the trigger and the
+         * regular timeout call. */
+        parent_->timer_.trigger();
+    }
     message->unref();
 }
 
