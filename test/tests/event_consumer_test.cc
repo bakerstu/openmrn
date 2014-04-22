@@ -106,9 +106,8 @@ TEST_F(BitEventConsumerTest, GlobalIdentify) {
 TEST_F(BitEventConsumerTest, Query) {
   expect_packet(":X1991422AN05010101FFFF0000;");
   WriteHelper h;
-  SyncNotifiable n;
-  consumer_.SendQuery(&h, &n);
-  n.WaitForNotification();
+  consumer_.SendQuery(&h, get_notifiable());
+  wait_for_notification();
   wait_for_event_thread();
 }
 

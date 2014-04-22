@@ -18,13 +18,13 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/global_event_handler_test.cc \
                  $(VPATH)/tests/event_producer_test.cc \
                  $(VPATH)/tests/async_event_test.cc \
+                 $(VPATH)/tests/event_consumer_test.cc \
 
 
 DISABLED_TESTS = \
                  $(VPATH)/tests/async_datagram_test.cc \
                  $(VPATH)/tests/async_if_stress_test.cc \
                  $(VPATH)/tests/control_flow_test.cc \
-                 $(VPATH)/tests/event_consumer_test.cc \
                  $(VPATH)/tests/event_handler_templates_test.cc \
                  $(VPATH)/tests/event_pc_test.cc \
                  $(VPATH)/tests/executor_test.cc \
