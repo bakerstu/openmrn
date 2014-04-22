@@ -12,10 +12,12 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
     //create_allocated_alias();
     LOG(INFO, "before");
+    BlockExecutor block(nullptr);
     DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
     // Technically there is a race condition here. The initialization could
     // happen before we get to this expectation.
     EXPECT_FALSE(node.is_initialized());
+    block.release_block();
     ifCan_->add_addressed_message_support();
     LOG(INFO, "after");
     wait();
