@@ -76,7 +76,6 @@ extern WriteHelper event_write_helper1;
 extern WriteHelper event_write_helper2;
 extern WriteHelper event_write_helper3;
 extern WriteHelper event_write_helper4;
-extern BarrierNotifiable event_barrier;
 
 class NMRAnetEventHandler {
 public:
@@ -85,49 +84,49 @@ public:
   // Called on incoming EventReport messages. Filled: src_node, event. Mask is
   // always 1 (filled in). state is not filled in.
   virtual void HandleEventReport(EventReport* event,
-                                 Notifiable* done) = 0;
+                                 BarrierNotifiable* done) = 0;
 
   // Called on another node sending ConsumerIdentified for this event. Filled:
   // event_id, mask=1, src_node, state.
   virtual void HandleConsumerIdentified(EventReport* event,
-                                        Notifiable* done) {
+                                        BarrierNotifiable* done) {
     done->notify();
   };
 
   // Called on another node sending ConsumerRangeIdentified. Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleConsumerRangeIdentified(EventReport* event,
-                                             Notifiable* done) {
+                                             BarrierNotifiable* done) {
     done->notify();
   }
 
   // Called on another node sending ProducerIdentified for this event. Filled: event_id, mask=1, src_node, state.
   virtual void HandleProducerIdentified(EventReport* event,
-                                        Notifiable* done) {
+                                        BarrierNotifiable* done) {
     done->notify();
   }
 
   // Called on another node sending ProducerRangeIdentified for this event. Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleProducerRangeIdentified(EventReport* event,
-                                             Notifiable* done) {
+                                             BarrierNotifiable* done) {
     done->notify();
   }
 
   // Called on the need of sending out identification messages. event is
   // NULL. This happens on startup, or when a global or addressed
   // IdentifyGlobal message arrives. Might have destination node id!
-  virtual void HandleIdentifyGlobal(EventReport* event, Notifiable* done) = 0;
+  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done) = 0;
 
   // Called on another node sending IdentifyConsumer. Filled: src_node, event, mask=1. Not filled: state.
   virtual void HandleIdentifyConsumer(EventReport* event,
-                                      Notifiable* done) = 0;
+                                      BarrierNotifiable* done) = 0;
 
   // Called on another node sending IdentifyProducer. Filled: src_node, event, mask=1. Not filled: state.
   virtual void HandleIdentifyProducer(EventReport* event,
-                                      Notifiable* done) = 0;
+                                      BarrierNotifiable* done) = 0;
 };
 
 typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
-                                                          Notifiable* done);
+                                                          BarrierNotifiable* done);
 
 
 // Abstract class for representing iteration through a container for event
