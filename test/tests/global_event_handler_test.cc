@@ -11,8 +11,6 @@ using testing::StrictMock;
 using testing::WithArg;
 using testing::_;
 
-static ThreadExecutor global_executor("ex_thread", 0, 1024);
-
 namespace NMRAnet {
 
 extern void DecodeRange(EventReport* r);
@@ -80,8 +78,8 @@ static const If::MTI kGlobalIdentifyEvents = If::MTI_EVENTS_IDENTIFY_GLOBAL;
 static const If::MTI kAddressedIdentifyEvents = If::MTI_EVENTS_IDENTIFY_ADDRESSED;
 
 class EventHandlerTests : public ::testing::Test {
- protected:
-  EventHandlerTests() : flow_(&global_executor, 10) {
+protected:
+  EventHandlerTests() : flow_(&g_executor, 10) {
     for (auto* h : {&h1_, &h2_, &h3_, &h4_}) {
       EXPECT_CALL(*h, HandleProducerIdentified(
                           Field(&EventReport::event, kExitEventId), _))
