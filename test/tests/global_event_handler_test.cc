@@ -1,6 +1,8 @@
-#include "utils/test_main.hxx"
+#include "utils/async_if_test_helper.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EndianHelper.hxx"
 
 using testing::Eq;
 using testing::Field;
@@ -94,52 +96,40 @@ static const If::MTI kGlobalIdentifyEvents = If::MTI_EVENTS_IDENTIFY_GLOBAL;
 static const If::MTI kAddressedIdentifyEvents =
     If::MTI_EVENTS_IDENTIFY_ADDRESSED;
 
-class EventHandlerTests : public ::testing::Test
+class EventHandlerTests : public AsyncIfTest
 {
 protected:
-    EventHandlerTests() : flow_(&g_executor, 10)
+    EventHandlerTests()
+        : service_(ifCan_.get())
     {
-        for (auto *h : {&h1_, &h2_, &h3_, &h4_})
-        {
-            EXPECT_CALL(*h, HandleProducerIdentified(
-                                Field(&EventReport::event, kExitEventId), _))
-                .WillRepeatedly(DoAll(
-                     WithArg<1>(Invoke(&InvokeNotification)),
-                     InvokeWithoutArgs(
-                         this, &EventHandlerTests::InvokeExitNotification)));
-        }
     }
 
     ~EventHandlerTests()
     {
-        WaitForMainExecutor();
+        wait();
     }
 
-    void InvokeExitNotification()
+    void wait()
     {
-        exit_notify_.notify();
-    }
-
-    void WaitForCompleted()
-    {
-        GlobalEventMessage *m = flow_.AllocateMessage();
-        m = flow_.AllocateMessage();
-        m->mti = kProducerIdentifiedResvdMti;
-        m->event = kExitEventId;
-        m->dst_node = 0;
-        m->src_node = {0, 0};
-        flow_.PostEvent(m);
-        exit_notify_.WaitForNotification();
-        while (!flow_.executor()->empty())
+        while (service_.event_processing_pending())
+        {
             usleep(100);
+        }
+        AsyncIfTest::wait();
     }
 
+    void send_message(If::MTI mti, uint64_t event)
+    {
+        auto *b = ifCan_->dispatcher()->alloc();
+        b->data()->reset(mti, 0, {0, 0}, EventIDToPayload(event));
+        ifCan_->dispatcher()->send(b);
+    }
+
+    GlobalEventService service_;
     StrictMock<MockEventHandler> h1_;
     StrictMock<MockEventHandler> h2_;
     StrictMock<MockEventHandler> h3_;
     StrictMock<MockEventHandler> h4_;
-    GlobalEventFlow flow_;
-    SyncNotifiable exit_notify_;
 };
 
 TEST_F(EventHandlerTests, SimpleRunTest)
@@ -150,13 +140,8 @@ TEST_F(EventHandlerTests, SimpleRunTest)
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    GlobalEventMessage *m = flow_.AllocateMessage();
-    m->mti = kEventReportMti;
-    m->event = kTestEventId;
-    m->dst_node = 0;
-    m->src_node = {0, 0};
-    flow_.PostEvent(m);
-    WaitForCompleted();
+    send_message(kEventReportMti, kTestEventId);
+    wait();
 }
 
 TEST_F(EventHandlerTests, SimpleRunTest2)
@@ -167,13 +152,8 @@ TEST_F(EventHandlerTests, SimpleRunTest2)
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    GlobalEventMessage *m = flow_.AllocateMessage();
-    m->mti = kEventReportMti;
-    m->event = 0x0102030405060708ULL;
-    m->dst_node = 0;
-    m->src_node = {0, 0};
-    flow_.PostEvent(m);
-    WaitForCompleted();
+    send_packet(":X195B4111N0102030405060708;");
+    wait();
 }
 
 TEST_F(EventHandlerTests, Run100EventsTest)
@@ -186,14 +166,9 @@ TEST_F(EventHandlerTests, Run100EventsTest)
         WithArg<1>(Invoke(&InvokeNotification)));
     for (int i = 0; i < 100; i++)
     {
-        GlobalEventMessage *m = flow_.AllocateMessage();
-        m->mti = kEventReportMti;
-        m->event = 0x0102030405060708ULL;
-        m->dst_node = 0;
-        m->src_node = {0, 0};
-        flow_.PostEvent(m);
+        send_message(kEventReportMti, 0x0102030405060708ULL);
     }
-    WaitForCompleted();
+    wait();
 }
 
 TEST_F(EventHandlerTests, EventsOrderTest)
@@ -212,18 +187,13 @@ TEST_F(EventHandlerTests, EventsOrderTest)
                              Field(&EventReport::event, kTestEventId + 2), _))
             .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     }
-    event_handler_mutex.Lock();
+    BlockExecutor block(nullptr);
     for (int i = 0; i < 3; i++)
     {
-        GlobalEventMessage *m = flow_.AllocateMessage();
-        m->mti = kEventReportMti;
-        m->event = kTestEventId + i;
-        m->dst_node = 0;
-        m->src_node = {0, 0};
-        flow_.PostEvent(m);
+        send_message(kEventReportMti, kTestEventId + i);
     }
-    event_handler_mutex.Unlock();
-    WaitForCompleted();
+    block.release_block();
+    wait();
 }
 
 TEST_F(EventHandlerTests, GlobalRunTest1)
@@ -234,13 +204,10 @@ TEST_F(EventHandlerTests, GlobalRunTest1)
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
-    GlobalEventMessage *m = flow_.AllocateMessage();
-    m->mti = kGlobalIdentifyEvents;
-    m->event = 0;
-    m->dst_node = 0;
-    m->src_node = {0, 0};
-    flow_.PostEvent(m);
-    WaitForCompleted();
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(kGlobalIdentifyEvents, 0, "");
+    ifCan_->dispatcher()->send(b);
+    wait();
 }
 
 TEST_F(EventHandlerTests, GlobalAndLocal)
@@ -255,22 +222,12 @@ TEST_F(EventHandlerTests, GlobalAndLocal)
         WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
-    GlobalEventMessage *m = flow_.AllocateMessage();
-    m->mti = kGlobalIdentifyEvents;
-    m->event = 0;
-    m->dst_node = 0;
-    m->src_node = {0, 0};
-    flow_.PostEvent(m);
+    send_packet(":X19970111N;");
     for (int i = 0; i < 100; i++)
     {
-        GlobalEventMessage *m = flow_.AllocateMessage();
-        m->mti = kEventReportMti;
-        m->event = 0x0102030405060708ULL;
-        m->dst_node = 0;
-        m->src_node = {0, 0};
-        flow_.PostEvent(m);
+        send_message(kEventReportMti, 0x0102030405060708ULL);
     }
-    WaitForCompleted();
+    wait();
 }
 
 } // namespace NMRAnet
