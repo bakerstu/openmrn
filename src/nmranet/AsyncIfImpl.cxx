@@ -54,6 +54,15 @@ StateFlowBase::Action WriteFlowBase::addressed_entry()
 
 StateFlowBase::Action WriteFlowBase::global_entry()
 {
+    // We do not pass on the done notifiable with the loopbacked message.
+    BarrierNotifiable* d = message()->new_child();
+    if (d) {
+        // This is abuse of the barriernotifiable code, because we assume that
+        // notifying the child twice will cause the parent to be notified once.
+        d->notify();
+        d->notify();
+        message()->set_done(nullptr);
+    }
     async_if()->dispatcher()->send(transfer_message());
     return release_and_exit();
 }
