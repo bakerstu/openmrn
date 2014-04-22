@@ -106,18 +106,18 @@ TEST_F(TimerTest, Simple)
 {
     CountingTimer t1(g_executor.active_timers());
     EXPECT_EQ(0, t1.count());
-    usleep(20000);
+    usleep(40000);
     EXPECT_EQ(0, t1.count());
     EXPECT_FALSE(t1.is_active());
-    t1.start(MSEC_TO_NSEC(30));
+    t1.start(MSEC_TO_NSEC(60));
     EXPECT_TRUE(t1.is_active());
-    EXPECT_LT(MSEC_TO_NSEC(20), g_executor.active_timers()->get_next_timeout());
-    EXPECT_GT(MSEC_TO_NSEC(40), g_executor.active_timers()->get_next_timeout());
+    EXPECT_LT(MSEC_TO_NSEC(40), g_executor.active_timers()->get_next_timeout());
+    EXPECT_GT(MSEC_TO_NSEC(80), g_executor.active_timers()->get_next_timeout());
     EXPECT_EQ(0, t1.count());
-    usleep(20000);
+    usleep(40000);
     wait_for_main_executor();
     EXPECT_EQ(0, t1.count());
-    usleep(20000);
+    usleep(40000);
     EXPECT_EQ(1, t1.count());
     EXPECT_FALSE(t1.is_active());
     EXPECT_LT(SEC_TO_NSEC(1800),
@@ -210,12 +210,12 @@ TEST_F(TimerTest, Wakeup)
 TEST_F(TimerTest, Restart)
 {
     RestartingTimer t1(g_executor.active_timers());
-    t1.start(MSEC_TO_NSEC(10));
-    usleep(5000);
-    EXPECT_EQ(0, t1.count());
+    t1.start(MSEC_TO_NSEC(20));
     usleep(10000);
-    EXPECT_EQ(1, t1.count());
+    EXPECT_EQ(0, t1.count());
     usleep(20000);
+    EXPECT_EQ(1, t1.count());
+    usleep(40000);
     EXPECT_EQ(3, t1.count());
     EXPECT_TRUE(t1.is_active());
     t1.stop();
