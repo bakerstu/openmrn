@@ -9,7 +9,7 @@
 
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfCan.hxx"
-//#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 //#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 //#include "nmranet/NMRAnetWriteFlow.hxx"
@@ -310,7 +310,7 @@ protected:
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
-    AsyncNodeTest() //: eventFlow_(&g_executor, 10)
+    AsyncNodeTest() : eventService_(ifCan_.get())
     {
         EXPECT_CALL(canBus_, mwrite(":X1910022AN02010D000003;")).Times(1);
         ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
@@ -327,14 +327,14 @@ protected:
 
     void wait_for_event_thread()
     {
-        /*while (GlobalEventFlow::instance->EventProcessingPending())
+        while (GlobalEventService::instance->event_processing_pending())
         {
             usleep(100);
-            }*/
+        }
         AsyncIfTest::wait();
     }
 
-    //GlobalEventFlow eventFlow_;
+    GlobalEventService eventService_;
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
     AsyncNode *node_;
 };
