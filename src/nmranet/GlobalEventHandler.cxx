@@ -10,7 +10,7 @@
 #include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-//#include "nmranet/EventManager.hxx"
+#include "nmranet/EventManager.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/EndianHelper.hxx"
 
@@ -42,11 +42,15 @@ GlobalEventService::~GlobalEventService()
     instance = nullptr;
 }
 
+void GlobalEventService::register_interface(AsyncIf *interface)
+{
+    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(interface, this));
+}
+
 GlobalEventService::Impl::Impl(GlobalEventService *service)
     : callerFlow_(service)
 {
-    // @TODO(balazs.racz): reenable this.
-    // handler_.reset(new VectorEventHandlers(service()->executor()));
+    registry.reset(new VectorEventHandlers());
 }
 
 GlobalEventService::Impl::~Impl()
@@ -87,19 +91,10 @@ GlobalEventFlow::~GlobalEventFlow()
 /// Returns true if there are outstanding events that are not yet handled.
 bool GlobalEventService::event_processing_pending()
 {
-    HASSERT(0);
-    /*    // Protects against static instance == nullptr.
-        if (!this)
-            return false;
-        /// @TODO(balazs.racz): maybe the order of these checks should be
-       different.
-        if (IsPendingOrRunning())
-            return true;
-        if (next_state() != ST(HandleEventArrived))
-            return true;
-        if (impl_->event_queue_.Peek())
-            return true;
-            return false;*/
+    for (auto& f : impl()->ownedFlows_) {
+        if (!f->is_waiting()) return true;
+    }
+    return false;
 }
 
 void DecodeRange(EventReport *r)

@@ -421,6 +421,14 @@ public:
     /// Wakeup call arrived. Schedules *this on the executor.
     virtual void notify();
 
+    /// @returns true if the flow is waiting for work.
+    bool is_waiting()
+    {
+        AtomicHolder h(this);
+        if (!queue_empty()) return false;
+        return isWaiting_;
+    }
+
 protected:
     StateFlowWithQueue(Service *service)
         : StateFlowBase(service)
@@ -445,6 +453,10 @@ protected:
      fomr the queue. */
     virtual QMember *queue_next(unsigned *priority) = 0;
 
+    /** Returns true if there are no messages queued up for later
+     * processing. */
+    virtual bool queue_empty() = 0;
+
     /// @returns the current message we are processing.
     Message *message()
     {
@@ -462,13 +474,6 @@ protected:
     unsigned priority()
     {
         return currentPriority_;
-    }
-
-    /// @returns true if the flow is waiting for work.
-    bool is_waiting()
-    {
-        AtomicHolder h(this);
-        return isWaiting_;
     }
 
 private:

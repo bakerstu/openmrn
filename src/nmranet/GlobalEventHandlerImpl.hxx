@@ -85,7 +85,7 @@ public:
 
     /** Flows that we own. There will be a few entries for each interface
      * registered. */
-    std::vector<std::unique_ptr<Executable>> owned_flows_;
+    std::vector<std::unique_ptr<StateFlowWithQueue>> ownedFlows_;
 
     /** This flow will serialize calls to NMRAnetEventHandler objects. All such
      * calls need to be sent to this flow. */
