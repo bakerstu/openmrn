@@ -53,35 +53,39 @@
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
-namespace testing {
+namespace testing
+{
 /** Conveninence utility to do a printf directly into a C++ string. */
-string StringPrintf(const char* format, ...) {
-  static const int kBufSize = 1000;
-  char buffer[kBufSize];
-  va_list ap;
+string StringPrintf(const char *format, ...)
+{
+    static const int kBufSize = 1000;
+    char buffer[kBufSize];
+    va_list ap;
 
-  va_start(ap, format);
-  int n = vsnprintf(buffer, kBufSize, format, ap);
-  va_end(ap);
-  HASSERT(n >= 0);
-  if (n < kBufSize) {
-    return string(buffer, n);
-  }
-  string ret(n + 1, 0);
-  va_start(ap, format);
-  n = vsnprintf(&ret[0], ret.size(), format, ap);
-  va_end(ap);
-  HASSERT(n >= 0);
-  ret.resize(n);
-  return ret;
+    va_start(ap, format);
+    int n = vsnprintf(buffer, kBufSize, format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    if (n < kBufSize)
+    {
+        return string(buffer, n);
+    }
+    string ret(n + 1, 0);
+    va_start(ap, format);
+    n = vsnprintf(&ret[0], ret.size(), format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    ret.resize(n);
+    return ret;
 }
 }
 
 using testing::StringPrintf;
 
-int appl_main(int argc, char* argv[]) {
-  testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
+int appl_main(int argc, char *argv[])
+{
+    testing::InitGoogleMock(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 
 static Executor<1> g_executor("ex_thread", 0, 1024);
@@ -109,6 +113,25 @@ void wait_for_main_executor()
 class BlockExecutor : public Executable
 {
 public:
+    BlockExecutor()
+    {
+    }
+
+    /** Creates a block against executor e and waits until the block
+     * suceeds. If e==null, then blocks g_executor. */
+    BlockExecutor(ExecutorBase *e)
+    {
+        if (e)
+        {
+            e->add(this);
+        }
+        else
+        {
+            g_executor.add(this);
+        }
+        wait_for_blocked();
+    }
+
     virtual void run()
     {
         n_.notify();
@@ -143,30 +166,45 @@ private:
  * }
  * ... now the original value is restored.
  */
-class ScopedOverride {
- public:
-  template <class T> ScopedOverride(T* variable, T new_value)
-      : holder_(new Holder<T>(variable, new_value)) {}
-
- private:
-  class HolderBase { public: virtual ~HolderBase() {} };
-
-  template<class T> class Holder : public HolderBase {
-   public:
-    Holder(T* variable, T new_value)
-        : variable_(variable), oldValue_(*variable) {
-      *variable = new_value;
+class ScopedOverride
+{
+public:
+    template <class T>
+    ScopedOverride(T *variable, T new_value)
+        : holder_(new Holder<T>(variable, new_value))
+    {
     }
 
-    ~Holder() {
-      *variable_ = oldValue_;
-    }
-   private:
-    T* variable_;
-    T oldValue_;
-  };
+private:
+    class HolderBase
+    {
+    public:
+        virtual ~HolderBase()
+        {
+        }
+    };
 
-  std::unique_ptr<HolderBase> holder_;
+    template <class T> class Holder : public HolderBase
+    {
+    public:
+        Holder(T *variable, T new_value)
+            : variable_(variable)
+            , oldValue_(*variable)
+        {
+            *variable = new_value;
+        }
+
+        ~Holder()
+        {
+            *variable_ = oldValue_;
+        }
+
+    private:
+        T *variable_;
+        T oldValue_;
+    };
+
+    std::unique_ptr<HolderBase> holder_;
 };
 
 extern "C" {
@@ -188,7 +226,6 @@ const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
 const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 1024;
 const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
-
 }
 
 #endif // _UTILS_TEST_MAIN_HXX_
