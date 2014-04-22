@@ -105,18 +105,18 @@ TEST_F(BitRangeEventTest, IdentifyGlobal) {
 
 TEST_F(BitRangeEventTest, ProduceBits) {
   expect_packet(":X195B422AN05010101FFFF0280;");
-  handler_.Set(320, true, &event_write_helper1, EmptyNotifiable::DefaultInstance());
+  handler_.Set(320, true, &event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   // Another set will not produce another event.
-  handler_.Set(320, true, &event_write_helper1, EmptyNotifiable::DefaultInstance());
+  handler_.Set(320, true, &event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   expect_packet(":X195B422AN05010101FFFF0281;");
-  handler_.Set(320, false, &event_write_helper1, EmptyNotifiable::DefaultInstance());
+  handler_.Set(320, false, &event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-  handler_.Set(320, false, &event_write_helper1, EmptyNotifiable::DefaultInstance());
+  handler_.Set(320, false, &event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
@@ -148,7 +148,7 @@ TEST_F(BitRangeEventTest, DeathTooHighSet) {
   // Death tests are expensive for IfTests because they wait for the alias
   // reserve timeout, which is 1 second. Use them sparingly.
   EXPECT_DEATH({
-      handler_.Set(3000, false, &event_write_helper1, EmptyNotifiable::DefaultInstance());
+      handler_.Set(3000, false, &event_write_helper1, get_notifiable());
     }, "bit < size");
 }
 
@@ -232,12 +232,12 @@ TEST_F(ByteRangePTest, Update) {
   storage_[1] = 0x42;
   storage_[0] = 0x23;
   expect_packet(":X195B422AN05010101FFFF0023;");
-  handler_.Update(0, &write_helper_, &n_);
-  n_.WaitForNotification();
+  handler_.Update(0, &write_helper_, get_notifiable());
+  wait_for_notification();
 
   expect_packet(":X195B422AN05010101FFFF0142;");
-  handler_.Update(1, &write_helper_, &n_);
-  n_.WaitForNotification();
+  handler_.Update(1, &write_helper_, get_notifiable());
+  wait_for_notification();
 }
 
 TEST_F(ByteRangePTest, Query) {

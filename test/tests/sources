@@ -23,6 +23,7 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/state_flow_test.cc \
                  $(VPATH)/tests/timer_test.cc \
                  $(VPATH)/tests/verify_node_id_test.cc \
+                 $(VPATH)/tests/range_event_handler_test.cc \
 
 
 DISABLED_TESTS = \
@@ -30,5 +31,4 @@ DISABLED_TESTS = \
                  $(VPATH)/tests/control_flow_test.cc \
                  $(VPATH)/tests/executor_test.cc \
                  $(VPATH)/tests/memory_config_test.cc \
-                 $(VPATH)/tests/range_event_handler_test.cc \
 
