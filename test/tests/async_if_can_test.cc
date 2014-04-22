@@ -532,6 +532,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissAMDTimeout)
     wait();
     expect_packet(":X1949022AN050101FFFFDD;");
     usleep(30000);
+    wait();
     send_packet_and_expect_response(
         ":X19170210N050101FFFFDD;", // Node id verified message
         ":X1948822AN0210050101FFFFDD;");

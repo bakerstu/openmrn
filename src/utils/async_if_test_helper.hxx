@@ -59,7 +59,7 @@ public:
     }
 };
 
-static void InvokeNotification(Notifiable *done)
+void InvokeNotification(Notifiable *done)
 {
     done->notify();
 }
