@@ -26,6 +26,7 @@ void BarrierNotifiable::notify() {
   unsigned new_value;
   {
     LockHolder h(this);
+    HASSERT(count_ && "barrier notifyable received too many notifys");
     new_value = --count_;
   }
   if (!new_value) {
