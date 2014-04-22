@@ -16,6 +16,7 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/timer_test.cc \
                  $(VPATH)/tests/verify_node_id_test.cc \
                  $(VPATH)/tests/global_event_handler_test.cc \
+                 $(VPATH)/tests/event_producer_test.cc \
 
 
 DISABLED_TESTS = \
@@ -26,7 +27,6 @@ DISABLED_TESTS = \
                  $(VPATH)/tests/event_consumer_test.cc \
                  $(VPATH)/tests/event_handler_templates_test.cc \
                  $(VPATH)/tests/event_pc_test.cc \
-                 $(VPATH)/tests/event_producer_test.cc \
                  $(VPATH)/tests/executor_test.cc \
                  $(VPATH)/tests/if_test_test.cc \
                  $(VPATH)/tests/memory_config_test.cc \

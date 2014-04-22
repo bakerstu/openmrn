@@ -68,7 +68,7 @@ class MockEventHandler : public NMRAnetEventHandler
 {
 public:
 #define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, Notifiable *done))
+    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
 
     DEFPROXYFN(HandleEventReport);
     DEFPROXYFN(HandleConsumerIdentified);

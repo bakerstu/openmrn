@@ -26,21 +26,21 @@ class BitEventProducerTest : public AsyncNodeTest {
 TEST_F(BitEventProducerTest, SimpleOnOff) {
   storage_ = 0;
   expect_packet(":X195B422AN05010101FFFF0001;");
-  producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
+  producer_.Update(&event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 1;
   expect_packet(":X195B422AN05010101FFFF0000;");
-  producer_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
+  producer_.Update(&event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   expect_packet(":X195B422AN05010101FFFF0003;");
-  producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
+  producer2_.Update(&event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 3;
   expect_packet(":X195B422AN05010101FFFF0002;");
-  producer2_.Update(&event_write_helper1, EmptyNotifiable::DefaultInstance());
+  producer2_.Update(&event_write_helper1, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
