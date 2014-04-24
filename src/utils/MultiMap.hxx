@@ -83,4 +83,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(MultiMap);
 };
 
+#undef BASE_CLASS
+
 #endif /* _MultiMap_hxx_ */

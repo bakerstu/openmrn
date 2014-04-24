@@ -91,4 +91,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Map);
 };
 
+#undef BASE_CLASS
+
 #endif /* _Map_hxx_ */
