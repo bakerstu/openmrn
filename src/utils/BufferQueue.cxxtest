@@ -67,6 +67,21 @@ TEST(QTest, insert_assert_1)
     EXPECT_DEATH(q.insert(&qm), "item != tail");
 }
 
+TEST(QTest, all)
+{
+    Q q;
+    
+    struct Item : public QMember
+    {
+    };
+    
+    Item qm;
+    q.insert(&qm);
+    
+    EXPECT_TRUE(q.pending(0) == 1);
+    EXPECT_FALSE(q.empty(0));
+}
+
 TEST(BufferBaseTest, alloc)
 {
     struct Item
@@ -242,6 +257,148 @@ TEST(QList, all)
     EXPECT_FALSE(q.empty(0));
     
     QList<3>::Result result;
+    result = q.next();
+    EXPECT_TRUE(result.item == &c);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &d);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &b);
+    EXPECT_TRUE(result.index == 1);
+    result = q.next();
+    EXPECT_TRUE(result.item == &a);
+    EXPECT_TRUE(result.index == 2);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+
+    result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+}
+
+TEST(QPriorityTest, all)
+{
+    struct Item : public QMember
+    {
+    };
+    
+    QPriority q;
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+    
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 1);
+    q.insert(&d, 6);
+    
+    EXPECT_TRUE(q.next().item == &b);
+    EXPECT_TRUE(q.next().item == &c);
+    EXPECT_TRUE(q.next().item == &a);
+    EXPECT_TRUE(q.next().item == &d);
+    EXPECT_TRUE(q.next().item == NULL);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.next(2) == &a);
+    EXPECT_TRUE(q.next(1) == &b);
+    EXPECT_TRUE(q.next(0) == &c);
+    EXPECT_TRUE(q.next(0) == &d);
+    EXPECT_TRUE(q.next(0) == NULL);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.pending() == 4);
+    EXPECT_TRUE(q.pending(2) == 1);
+    EXPECT_TRUE(q.pending(1) == 1);
+    EXPECT_TRUE(q.pending(0) == 2);
+    EXPECT_FALSE(q.empty());
+    EXPECT_FALSE(q.empty(2));
+    EXPECT_FALSE(q.empty(1));
+    EXPECT_FALSE(q.empty(0));
+    
+    QPriority::Result result;
+    result = q.next();
+    EXPECT_TRUE(result.item == &c);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &d);
+    EXPECT_TRUE(result.index == 0);
+    result = q.next();
+    EXPECT_TRUE(result.item == &b);
+    EXPECT_TRUE(result.index == 1);
+    result = q.next();
+    EXPECT_TRUE(result.item == &a);
+    EXPECT_TRUE(result.index == 2);
+
+    EXPECT_TRUE(q.empty());
+    EXPECT_TRUE(q.empty(2));
+    EXPECT_TRUE(q.empty(1));
+    EXPECT_TRUE(q.empty(0));
+
+    result = q.next();
+    EXPECT_TRUE(result.item == NULL);
+}
+
+TEST(QPriorityFixedSizeTest, all)
+{
+    struct Item : public QMember
+    {
+    };
+    
+    QPriority q(10);
+    Item a;
+    Item b;
+    Item c;
+    Item d;
+    
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 1);
+    q.insert(&d, 6);
+    
+    EXPECT_TRUE(q.next().item == &b);
+    EXPECT_TRUE(q.next().item == &c);
+    EXPECT_TRUE(q.next().item == &a);
+    EXPECT_TRUE(q.next().item == &d);
+    EXPECT_TRUE(q.next().item == NULL);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.next(2) == &a);
+    EXPECT_TRUE(q.next(1) == &b);
+    EXPECT_TRUE(q.next(0) == &c);
+    EXPECT_TRUE(q.next(0) == &d);
+    EXPECT_TRUE(q.next(0) == NULL);
+
+    q.insert(&a, 2);
+    q.insert(&b, 1);
+    q.insert(&c, 0);
+    q.insert(&d, 0);
+    
+    EXPECT_TRUE(q.pending() == 4);
+    EXPECT_TRUE(q.pending(2) == 1);
+    EXPECT_TRUE(q.pending(1) == 1);
+    EXPECT_TRUE(q.pending(0) == 2);
+    EXPECT_FALSE(q.empty());
+    EXPECT_FALSE(q.empty(2));
+    EXPECT_FALSE(q.empty(1));
+    EXPECT_FALSE(q.empty(0));
+    
+    QPriority::Result result;
     result = q.next();
     EXPECT_TRUE(result.item == &c);
     EXPECT_TRUE(result.index == 0);

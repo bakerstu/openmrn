@@ -382,7 +382,7 @@ public:
         return NULL;
     }
 
-    /** Get an item from the front of the queue queue in priority order.
+    /** Get an item from the front of the queue in priority order.
      * @return item retrieved from queue + index, NULL if no item available
      */
     Result next()
