@@ -89,7 +89,9 @@ public:
 protected:
     typedef typename StateFlow<MessageType, QList<NUM_PRIO>>::Callback Callback;
     using StateFlow<MessageType, QList<NUM_PRIO>>::again;
+    using StateFlow<MessageType, QList<NUM_PRIO>>::allocate_and_call;
     using StateFlow<MessageType, QList<NUM_PRIO>>::call_immediately;
+    using StateFlow<MessageType, QList<NUM_PRIO>>::get_allocation_result;
     using StateFlow<MessageType, QList<NUM_PRIO>>::message;
     using StateFlow<MessageType, QList<NUM_PRIO>>::release_and_exit;
     using StateFlow<MessageType, QList<NUM_PRIO>>::transfer_message;
