@@ -20,10 +20,10 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/node_handler_map_test.cc \
                  $(VPATH)/tests/notify_test.cc \
                  $(VPATH)/tests/queue_test.cc \
+                 $(VPATH)/tests/range_event_handler_test.cc \
                  $(VPATH)/tests/state_flow_test.cc \
                  $(VPATH)/tests/timer_test.cc \
                  $(VPATH)/tests/verify_node_id_test.cc \
-                 $(VPATH)/tests/range_event_handler_test.cc \
 
 
 DISABLED_TESTS = \
