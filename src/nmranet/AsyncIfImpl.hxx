@@ -210,7 +210,8 @@ public:
         NMRAnetMessage *m = b->data();
         NodeID id = srcNode_->node_id();
         m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
-        interface_->global_message_write_flow()->send(b);
+        interface()->global_message_write_flow()->send(b);
+        return exit();
     }
 #else
     Action send_response()

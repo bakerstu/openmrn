@@ -34,6 +34,8 @@
 #ifndef _UTILS_HUBDEVICE_HXX_
 #define _UTILS_HUBDEVICE_HXX_
 
+#include <unistd.h>
+
 #include "utils/PipeFlow.hxx"
 
 template <class Data> class FdHubWriteFlow;

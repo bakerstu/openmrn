@@ -48,6 +48,7 @@ struct ClientInfo : public Notifiable
         , gcWrite_(&gcHub_, fd, this)
     {
     }
+    virtual ~ClientInfo() {}
 
     HubFlow gcHub_;
     std::unique_ptr<GCAdapterBase> bridge_;

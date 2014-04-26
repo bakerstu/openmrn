@@ -163,7 +163,7 @@ int appl_main(int argc, char* argv[])
 #ifdef __linux__
     GcTcpHub hub(&can_hub0, 12021);
 #endif
-#ifdef TARGET_LPC11Cxx
+#ifdef NNTARGET_LPC11Cxx
     lpc11cxx::CreateCanDriver(&can_pipe);
 #endif
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");

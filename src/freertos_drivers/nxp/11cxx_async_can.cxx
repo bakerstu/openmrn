@@ -32,6 +32,7 @@
  * @date 14 Dec 2013
  */
 
+#if 0
 #ifdef TARGET_LPC11Cxx
 
 #include "11CXX_rom_driver_CAN.h"
@@ -348,3 +349,4 @@ void CAN_IRQHandler(void)
 #else
 #error You need to define TARGET_LPC11Cxx if you want to compiple its rom driver.
 #endif
+#endif // if 0
