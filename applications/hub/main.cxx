@@ -57,9 +57,7 @@ extern "C" {
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
-
-HubFlow display_gc0(&g_service);
-GCAdapterBase *g_gc0_adapter = nullptr;
+GcPacketPrinter packet_printer(&can_hub0);
 
 // DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
 // DEFINE_PIPE(display_pipe, &g_executor, 1);
@@ -96,22 +94,6 @@ void NewConnection(int fd)
     new ClientInfo(fd);
 }
 
-/** Helper class for printing all CAN traffic to stdout. */
-class DisplayPort : public HubPort
-{
-public:
-    DisplayPort() : HubPort(&g_service)
-    {
-    }
-
-    virtual Action entry()
-    {
-        string s(message()->data()->data(), message()->data()->size());
-        printf("%s", s.c_str());
-        return release_and_exit();
-    }
-};
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -119,9 +101,6 @@ public:
  */
 int appl_main(int argc, char *argv[])
 {
-    GCAdapterBase::CreateGridConnectAdapter(&display_gc0, &can_hub0, false);
-    DisplayPort display_port;
-    display_gc0.register_port(&display_port);
     SocketListener listener(8082, NewConnection);
     while (1)
     {

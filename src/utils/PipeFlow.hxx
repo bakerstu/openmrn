@@ -163,6 +163,24 @@ public:
     }
 };
 
+/** This port prints all traffic from a hub to stdout. */
+class DisplayPort : public HubPort
+{
+public:
+    DisplayPort(Service* service) : HubPort(service)
+    {
+    }
+
+    virtual Action entry()
+    {
+        string s(message()->data()->data(), message()->data()->size());
+        printf("%s", s.c_str());
+        return release_and_exit();
+    }
+};
+
+
+
 #if 0
 /// @TODO(balazs.racz) consider adding an api like this to HubFlow.
 /**

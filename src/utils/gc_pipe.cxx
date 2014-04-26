@@ -44,8 +44,8 @@ class GCAdapter : public GCAdapterBase
 {
 public:
     GCAdapter(HubFlow *gc_side, CanHubFlow *can_side, bool double_bytes)
-        : parser_(can_side->service(), can_side, &formatter_),
-          formatter_(can_side->service(), gc_side, &parser_, double_bytes)
+        : parser_(can_side->service(), can_side, &formatter_)
+        , formatter_(can_side->service(), gc_side, &parser_, double_bytes)
     {
         gc_side->register_port(&parser_);
         can_side->register_port(&formatter_);
@@ -53,8 +53,8 @@ public:
 
     GCAdapter(HubFlow *gc_side_read, HubFlow *gc_side_write,
               CanHubFlow *can_side, bool double_bytes)
-        : parser_(can_side->service(), can_side, &formatter_),
-          formatter_(can_side->service(), gc_side_write, &parser_, double_bytes)
+        : parser_(can_side->service(), can_side, &formatter_)
+        , formatter_(can_side->service(), gc_side_write, &parser_, double_bytes)
     {
         gc_side_read->register_port(&parser_);
         can_side->register_port(&formatter_);
@@ -68,16 +68,15 @@ public:
         formatter_.destination()->unregister_port(&parser_);
     }
 
-private:
     class BinaryToGCMember : public CanHubPort
     {
     public:
         BinaryToGCMember(Service *service, HubFlow *destination,
                          HubPort *skip_member, int double_bytes)
-            : CanHubPort(service),
-              destination_(destination),
-              skipMember_(skip_member),
-              double_bytes_(double_bytes)
+            : CanHubPort(service)
+            , destination_(destination)
+            , skipMember_(skip_member)
+            , double_bytes_(double_bytes)
         {
         }
 
@@ -104,7 +103,9 @@ private:
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
                 destination_->send(target_buffer);
-            } else {
+            }
+            else
+            {
                 LOG(INFO, "gc generate failed.");
             }
             return release_and_exit();
@@ -126,10 +127,10 @@ private:
     public:
         GCToBinaryMember(Service *service, CanHubFlow *destination,
                          CanHubPort *skip_member)
-            : HubPort(service),
-              offset_(-1),
-              destination_(destination),
-              skipMember_(skip_member)
+            : HubPort(service)
+            , offset_(-1)
+            , destination_(destination)
+            , skipMember_(skip_member)
         {
         }
 
@@ -248,6 +249,7 @@ private:
         CanHubPortInterface *skipMember_;
     };
 
+private:
     /// PipeMember doing the parsing.
     GCToBinaryMember parser_;
     /// PipeMember doing the formatting.
@@ -267,4 +269,36 @@ GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
                                                        bool double_bytes)
 {
     return new GCAdapter(gc_side_read, gc_side_write, can_side, double_bytes);
+}
+
+struct GcPacketPrinter::Impl
+{
+    Impl(CanHubFlow *can_hub)
+        : canHub_(can_hub)
+        , gcHub_(canHub_->service())
+        , displayPort_(canHub_->service())
+        , formatter_(canHub_->service(), &gcHub_, nullptr, false)
+    {
+        gcHub_.register_port(&displayPort_);
+        canHub_->register_port(&formatter_);
+    }
+
+    ~Impl()
+    {
+        canHub_->unregister_port(&formatter_);
+        gcHub_.unregister_port(&displayPort_);
+    }
+
+    CanHubFlow *canHub_;
+    HubFlow gcHub_;
+    DisplayPort displayPort_;
+    GCAdapter::BinaryToGCMember formatter_;
+};
+
+GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub) : impl_(new Impl(can_hub))
+{
+}
+
+GcPacketPrinter::~GcPacketPrinter()
+{
 }

@@ -34,6 +34,8 @@
 #ifndef _gc_pipe_hxx_
 #define _gc_pipe_hxx_
 
+#include <memory>
+
 class Pipe;
 class HubFlow;
 template <class T> class FlowInterface;
@@ -75,6 +77,17 @@ public:
                                                    HubFlow *gc_side_write,
                                                    CanHubFlow *can_side,
                                                    bool double_bytes);
+};
+
+/** Create this port for a CAN hub and all packets will be written to stdout in
+ * gridconnect format. */
+class GcPacketPrinter {
+public:
+    GcPacketPrinter(CanHubFlow* can_hub);
+    ~GcPacketPrinter();
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 #endif //_gc_pipe_hxx_
