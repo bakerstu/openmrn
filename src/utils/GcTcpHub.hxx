@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2014, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,39 +24,35 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file socket_listener.hxx
- *
- * Interface for listening to a socket and delivering a callback for each
- * incoming connection.
+ * \file GcTcpHub.hxx
+ * A component that starts a gridconnect-protocol HUB listening on a TCP port.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 26 Apr 2014
  */
 
+#ifndef _UTILS_GCTCPHUB_HXX_
+#define _UTILS_GCTCPHUB_HXX_
 
-#ifndef _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
-#define _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#include "utils/socket_listener.hxx"
 
-#include <functional>
+class ExecutorBase;
+class CanHubFlow;
 
-#include "os/OS.hxx"
+/** This class runs a CAN-bus HUB listening on TCP socket using the gridconnect
+ * format. Any new incoming connection will be wired into the same virtual CAN
+ * hub. All packets will be forwarded to every participant, without
+ * loopback. */
+class GcTcpHub {
+public:
+    GcTcpHub(CanHubFlow* can_hub, int port);
+    ~GcTcpHub();
 
-class SocketListener {
- public:
-  typedef std::function<void(int)> connection_callback_t;
+private:
+    void OnNewConnection(int fd);
 
-  SocketListener(int port, connection_callback_t callback);
-
-  void AcceptThreadBody();
-
- private:
-  int port_;
-  connection_callback_t callback_;
-  OSThread accept_thread_;
+    CanHubFlow* canHub_;
+    SocketListener tcpListener_;
 };
 
-// Connects a tcp socket to the specified host:port. Returns -1 if
-// unsuccessful; returns the fd is successful.
-int ConnectSocket(const char* host, int port);
-
-#endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#endif // _UTILS_GCTCPHUB_HXX_

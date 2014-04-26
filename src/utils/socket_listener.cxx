@@ -73,7 +73,7 @@ void SocketListener::AcceptThreadBody() {
              setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
 
   ERRNOCHECK("bind",
-             bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
+             ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",

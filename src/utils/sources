@@ -9,6 +9,7 @@ CXXSRCS += BufferQueue.cxx \
            gc_pipe.cxx \
            gc_format.cxx \
            HubDevice.cxx \
+           GcTcpHub.cxx \
            socket_listener.cxx \
 
 

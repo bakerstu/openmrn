@@ -38,60 +38,20 @@
 #include <memory>
 
 #include "os/os.h"
-//#include "utils/pipe.hxx"
-#include "utils/gc_pipe.hxx"
 #include "utils/PipeFlow.hxx"
-#include "utils/HubDevice.hxx"
-#include "utils/socket_listener.hxx"
-#include "nmranet_can.h"
+#include "utils/gc_pipe.hxx"
+#include "utils/GcTcpHub.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
-
-// DEFINE_PIPE(gc_can_pipe, 1);
-
-extern "C" {
-// extern int CAN_PIPE_BUFFER_COUNT;
-// int CAN_PIPE_BUFFER_COUNT = 32;
-}
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 GcPacketPrinter packet_printer(&can_hub0);
 
-// DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
-// DEFINE_PIPE(display_pipe, &g_executor, 1);
-
 extern "C" {
 extern int GC_GENERATE_NEWLINES;
 int GC_GENERATE_NEWLINES = 1;
-}
-
-struct ClientInfo : public Notifiable
-{
-    ClientInfo(int fd)
-        : gcHub_(&g_service)
-        , bridge_(GCAdapterBase::CreateGridConnectAdapter(&gcHub_, &can_hub0,
-                                                          false))
-        , gcWrite_(&gcHub_, fd, this)
-    {
-    }
-
-    HubFlow gcHub_;
-    std::unique_ptr<GCAdapterBase> bridge_;
-    FdHubPort<HubFlow> gcWrite_;
-
-    void notify() OVERRIDE
-    {
-        // We get this call when something is wrong with the FDs and we need to
-        // close the connection.
-        delete this;
-    }
-};
-
-void NewConnection(int fd)
-{
-    new ClientInfo(fd);
 }
 
 /** Entry point to application.
@@ -101,7 +61,7 @@ void NewConnection(int fd)
  */
 int appl_main(int argc, char *argv[])
 {
-    SocketListener listener(8082, NewConnection);
+    GcTcpHub hub(&can_hub0, 12021);
     while (1)
     {
         sleep(1);

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2014, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,39 +24,57 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file socket_listener.hxx
- *
- * Interface for listening to a socket and delivering a callback for each
- * incoming connection.
+ * \file GcTcpHub.cxx
+ * A component that starts a gridconnect-protocol HUB listening on a TCP port.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 26 Apr 2014
  */
 
+#include <memory>
 
-#ifndef _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
-#define _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#include "utils/GcTcpHub.hxx"
 
-#include <functional>
+#include "utils/gc_pipe.hxx"
+#include "utils/PipeFlow.hxx"
+#include "utils/HubDevice.hxx"
 
-#include "os/OS.hxx"
+struct ClientInfo : public Notifiable
+{
+    ClientInfo(CanHubFlow *can_hub, int fd)
+        : gcHub_(can_hub->service())
+        , bridge_(GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub,
+                                                          false))
+        , gcWrite_(&gcHub_, fd, this)
+    {
+    }
 
-class SocketListener {
- public:
-  typedef std::function<void(int)> connection_callback_t;
+    HubFlow gcHub_;
+    std::unique_ptr<GCAdapterBase> bridge_;
+    FdHubPort<HubFlow> gcWrite_;
 
-  SocketListener(int port, connection_callback_t callback);
-
-  void AcceptThreadBody();
-
- private:
-  int port_;
-  connection_callback_t callback_;
-  OSThread accept_thread_;
+    void notify() OVERRIDE
+    {
+        /* We get this call when something is wrong with the FDs and we need to
+         * close the connection. It is guaranteed that by the time we got this
+         * call the device is unregistered from the char bridge, and the
+         * service thread is ready to be stopped. */
+        delete this;
+    }
 };
 
-// Connects a tcp socket to the specified host:port. Returns -1 if
-// unsuccessful; returns the fd is successful.
-int ConnectSocket(const char* host, int port);
+void GcTcpHub::OnNewConnection(int fd)
+{
+    new ClientInfo(canHub_, fd);
+}
 
-#endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
+    : canHub_(can_hub)
+    , tcpListener_(port, std::bind(&GcTcpHub::OnNewConnection, this,
+                                   std::placeholders::_1))
+{
+}
+
+GcTcpHub::~GcTcpHub()
+{
+}
