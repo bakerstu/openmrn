@@ -38,6 +38,7 @@
 #include <string>
 
 #include "executor/Dispatcher.hxx"
+#include "nmranet_can.h"
 
 class PipeBuffer;
 class PipeMember;
@@ -63,6 +64,14 @@ struct CanFrameContainer : public can_frame
     const struct can_frame &frame() const
     {
         return *this;
+    }
+
+    const void* data() const {
+        return &frame();
+    }
+
+    size_t size() {
+        return sizeof(struct can_frame);
     }
 };
 
@@ -110,6 +119,9 @@ static const uintptr_t POINTER_MASK = UINTPTR_MAX;
 class HubFlow : public DispatchFlow<Buffer<HubData>, 1>
 {
 public:
+    typedef HubData value_type;
+    typedef Buffer<HubData> buffer_type;
+
     HubFlow(Service *s) : DispatchFlow<Buffer<HubData>, 1>(s)
     {
         negateMatch_ = true;
@@ -131,6 +143,9 @@ public:
 class CanHubFlow : public DispatchFlow<Buffer<CanHubData>, 1>
 {
 public:
+    typedef CanHubData value_type;
+    typedef Buffer<CanHubData> buffer_type;
+
     CanHubFlow(Service *s) : DispatchFlow<Buffer<CanHubData>, 1>(s)
     {
         negateMatch_ = true;

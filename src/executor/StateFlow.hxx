@@ -254,6 +254,12 @@ protected:
         return wait();
     }
 
+    /** Sets the flow to terminated state. */
+    Action set_terminated() {
+        state_ = STATE(terminated);
+        return wait();
+    }
+
 #if 0
     /** Terminate current StateFlow activity. after releasing the message.
      * @param msg to release

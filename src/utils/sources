@@ -8,6 +8,8 @@ CXXSRCS += BufferQueue.cxx \
            logging.cxx \
            gc_pipe.cxx \
            gc_format.cxx \
+           HubDevice.cxx \
+           socket_listener.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \

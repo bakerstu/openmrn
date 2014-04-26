@@ -35,49 +35,82 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <memory>
+
 #include "os/os.h"
-#include "utils/pipe.hxx"
+//#include "utils/pipe.hxx"
 #include "utils/gc_pipe.hxx"
+#include "utils/PipeFlow.hxx"
+#include "utils/HubDevice.hxx"
 #include "utils/socket_listener.hxx"
 #include "nmranet_can.h"
-#include "executor/executor.hxx"
+#include "executor/Executor.hxx"
+#include "executor/Service.hxx"
 
-//DEFINE_PIPE(gc_can_pipe, 1);
+// DEFINE_PIPE(gc_can_pipe, 1);
 
 extern "C" {
-extern int CAN_PIPE_BUFFER_COUNT;
-int CAN_PIPE_BUFFER_COUNT = 32;
+// extern int CAN_PIPE_BUFFER_COUNT;
+// int CAN_PIPE_BUFFER_COUNT = 32;
 }
 
-ThreadExecutor g_executor("g_executor", 0, 1000);
-ThreadExecutor client_executor("client_executor", 0, 1000);
+Executor<1> g_executor("g_executor", 0, 1024);
+Service g_service(&g_executor);
+CanHubFlow can_hub0(&g_service);
 
-DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
-DEFINE_PIPE(display_pipe, &g_executor, 1);
+HubFlow display_gc0(&g_service);
+GCAdapterBase *g_gc0_adapter = nullptr;
+
+// DEFINE_PIPE(can_pipe, &g_executor, sizeof(struct can_frame));
+// DEFINE_PIPE(display_pipe, &g_executor, 1);
 
 extern "C" {
 extern int GC_GENERATE_NEWLINES;
 int GC_GENERATE_NEWLINES = 1;
 }
 
-struct ClientInfo {
-  int fd;
-  char thread_name[30];
-  Pipe* client_pipe_write;
-  Pipe* client_pipe_read;
-  GCAdapterBase* bridge;
+struct ClientInfo : public Notifiable
+{
+    ClientInfo(int fd)
+        : gcHub_(&g_service)
+        , bridge_(GCAdapterBase::CreateGridConnectAdapter(&gcHub_, &can_hub0,
+                                                          false))
+        , gcWrite_(&gcHub_, fd, this)
+    {
+    }
+
+    HubFlow gcHub_;
+    std::unique_ptr<GCAdapterBase> bridge_;
+    FdHubPort<HubFlow> gcWrite_;
+
+    void notify() OVERRIDE
+    {
+        // We get this call when something is wrong with the FDs and we need to
+        // close the connection.
+        delete this;
+    }
 };
 
-void NewConnection(int fd) {
-  ClientInfo* c = new ClientInfo(); // @TODO(balazs.racz): this is leaked.
-  sprintf(c->thread_name, "thread_fd_%d", fd);
-  c->fd = fd;
-  c->client_pipe_write = new Pipe(&client_executor, 1);
-  c->client_pipe_read = new Pipe(&client_executor, 1);
-  c->bridge = GCAdapterBase::CreateGridConnectAdapter(c->client_pipe_read, c->client_pipe_write, &can_pipe, false);
-  c->client_pipe_write->AddPhysicalDeviceToPipe(-1, dup(fd), c->thread_name, 0);
-  c->client_pipe_read->AddPhysicalDeviceToPipe(fd, -1, c->thread_name, 0);
+void NewConnection(int fd)
+{
+    new ClientInfo(fd);
 }
+
+/** Helper class for printing all CAN traffic to stdout. */
+class DisplayPort : public HubPort
+{
+public:
+    DisplayPort() : HubPort(&g_service)
+    {
+    }
+
+    virtual Action entry()
+    {
+        string s(message()->data()->data(), message()->data()->size());
+        printf("%s", s.c_str());
+        return release_and_exit();
+    }
+};
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -86,11 +119,13 @@ void NewConnection(int fd) {
  */
 int appl_main(int argc, char *argv[])
 {
-  GCAdapterBase::CreateGridConnectAdapter(&display_pipe, &can_pipe, false);
-  display_pipe.AddPhysicalDeviceToPipe(1, 1, "display_thread", 0);
-  SocketListener listener(8082, NewConnection);
-  while(1) {
-    sleep(1);
-  }
-  return 0;
+    GCAdapterBase::CreateGridConnectAdapter(&display_gc0, &can_hub0, false);
+    DisplayPort display_port;
+    display_gc0.register_port(&display_port);
+    SocketListener listener(8082, NewConnection);
+    while (1)
+    {
+        sleep(1);
+    }
+    return 0;
 }
