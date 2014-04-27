@@ -362,6 +362,7 @@ void StellarisCdc::interrupt_handler(void)
     os_isr_exit_yield_test(woken);
 }
 
+extern "C" {
 /** Handle interrupts for USB0.
  */
 void usb0_interrupt_handler(void)
@@ -372,3 +373,5 @@ void usb0_interrupt_handler(void)
         instances[0]->interrupt_handler();
     }
 }
+
+} // extern "C"

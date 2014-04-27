@@ -246,6 +246,7 @@ void StellarisCan::interrupt_handler()
     os_isr_exit_yield_test(woken);
 }
 
+extern "C" {
 /** This is the interrupt handler for the can0 device.
  */
 void can0_interrupt_handler(void)
@@ -265,4 +266,5 @@ void can1_interrupt_handler(void)
 }
 #endif
 
+} // extern "C"
 

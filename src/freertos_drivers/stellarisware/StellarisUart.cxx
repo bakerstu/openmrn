@@ -189,6 +189,7 @@ void StellarisUart::interrupt_handler()
     os_isr_exit_yield_test(woken);
 }
 
+extern "C" {
 /** UART0 interrupt handler.
  */
 void uart0_interrupt_handler(void)
@@ -268,3 +269,4 @@ void uart7_interrupt_handler(void)
     }
 }
 
+} // extern C
