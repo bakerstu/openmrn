@@ -115,13 +115,16 @@ public:
 
 private:
     /** Listens to incoming CAN frames and handles alias conflicts. */
-    class ConflictHandler : public IncomingFrameHandler {
+    class ConflictHandler : public IncomingFrameHandler
+    {
     public:
-        ConflictHandler(AsyncAliasAllocator* parent)
-            : parent_(parent) {}
+        ConflictHandler(AsyncAliasAllocator *parent) : parent_(parent)
+        {
+        }
         virtual void send(Buffer<CanMessageData> *message, unsigned priority);
+
     private:
-        AsyncAliasAllocator* parent_;
+        AsyncAliasAllocator *parent_;
     } conflictHandler_;
 
     friend class ConflictHandler;
@@ -182,6 +185,20 @@ private:
         DynamicPool* reserved_aliases() { return mainBufferPool; }
     };
 #endif
-}
+
+/** Create this object statically to add an alias allocator to an already
+ * statically allocated interface. */
+class AddAliasAllocator
+{
+public:
+    AddAliasAllocator(NodeID if_id, AsyncIfCan *interface)
+    {
+        interface->set_alias_allocator(
+            new AsyncAliasAllocator(if_id, interface));
+    }
+};
+
+}  // namespace NMRAnet
+
 
 #endif // _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_
