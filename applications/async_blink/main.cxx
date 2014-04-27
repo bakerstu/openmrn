@@ -71,10 +71,15 @@ extern const size_t CAN_TX_BUFFER_SIZE;
 extern const size_t CAN_RX_BUFFER_SIZE;
 const size_t CAN_RX_BUFFER_SIZE = 1;
 const size_t CAN_TX_BUFFER_SIZE = 2;
+extern const size_t SERIAL_RX_BUFFER_SIZE;
+extern const size_t SERIAL_TX_BUFFER_SIZE;
+const size_t SERIAL_RX_BUFFER_SIZE = 16;
+const size_t SERIAL_TX_BUFFER_SIZE = 16;
 const size_t main_stack_size = 900;
 }
 
 NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+static NMRAnet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventService g_event_service(&g_if_can);
 
@@ -166,15 +171,14 @@ int appl_main(int argc, char* argv[])
 #ifdef NNTARGET_LPC11Cxx
     lpc11cxx::CreateCanDriver(&can_pipe);
 #endif
+    // Bootstraps the alias allocation process.
+    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
+
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
     BlinkerFlow blinker(&g_node);
     // We don't need to support addressed messages.
     // g_if_can.add_addressed_message_support(1);
-    g_if_can.set_alias_allocator(
-        new NMRAnet::AsyncAliasAllocator(NODE_ID, &g_if_can));
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
     while(1) {
         sleep(1);
     }
