@@ -93,7 +93,22 @@
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
 
-#define diewith( x ) abort()
+
+/// @todo(balazs.racz) i implemented diewith for the launchpad ek-xxx, so this is not needed anymore.
+//#define diewith( x ) abort()
+// Assertion facility
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+
+#define BLINK_DIE_UNEXPIRQ 0x800002CA // 3-1-1
+#define BLINK_DIE_HARDFAULT 0x80000ACA // 3-1-2
+
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names - or at least those used in the unmodified vector table. */
