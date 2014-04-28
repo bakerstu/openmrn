@@ -331,7 +331,7 @@ volatile uint32_t psr;/* Program status register. */
  * inspired by FreeRTOS.
  * @param address address of the stack
  */
-void hard_fault_handler_c( unsigned long *hardfault_args )
+__attribute__((__naked__)) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
     /* These are volatile to try and prevent the compiler/linker optimising them
     away as the variables never actually get used.  If the debugger won't show the
@@ -399,6 +399,7 @@ static void hard_fault_handler(void)
 {
     __asm volatile
     (
+        "BKPT  #0 \n"
         "MOVS   R0, #4                  \n"
         "MOV    R1, LR                  \n"
         "TST    R0, R1                  \n"
@@ -408,6 +409,7 @@ static void hard_fault_handler(void)
         "_MSP:                          \n"
         "MRS    R0, MSP                 \n"
         "B      hard_fault_handler_c    \n"
+        "BX    LR\n"
     );
 }
 
