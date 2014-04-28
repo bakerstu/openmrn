@@ -37,6 +37,7 @@
 #include "nmranet_can.h"
 #include "utils/BufferQueue.hxx"
 #include "utils/PipeFlow.hxx"
+#include "utils/HubDevice.hxx"
 #include "utils/gc_format.h"
 #include "utils/gc_pipe.hxx"
 
@@ -301,4 +302,33 @@ GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub) : impl_(new Impl(can_hub))
 
 GcPacketPrinter::~GcPacketPrinter()
 {
+}
+
+struct GcHubPort : public Notifiable
+{
+    GcHubPort(CanHubFlow *can_hub, int fd)
+        : gcHub_(can_hub->service())
+        , bridge_(GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub,
+                                                          false))
+        , gcWrite_(&gcHub_, fd, this)
+    {
+    }
+    virtual ~GcHubPort() {}
+
+    HubFlow gcHub_;
+    std::unique_ptr<GCAdapterBase> bridge_;
+    FdHubPort<HubFlow> gcWrite_;
+
+    void notify() OVERRIDE
+    {
+        /* We get this call when something is wrong with the FDs and we need to
+         * close the connection. It is guaranteed that by the time we got this
+         * call the device is unregistered from the char bridge, and the
+         * service thread is ready to be stopped. */
+        delete this;
+    }
+};
+
+void create_gc_port_for_can_hub(CanHubFlow* can_hub, int fd) {
+    new GcHubPort(can_hub, fd);
 }

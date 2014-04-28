@@ -90,4 +90,12 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+/** Creates a new port on a CAN hub in gridconnect format. The port will
+ * automatically be closed and deleted when the fd encounters an error.
+ *
+ * NOTE(balazs.racz): this cound be expanded to return an object pointer via
+ * which the port can be closed. Also a method for notifying the caller about a
+ * closedown would be helpful. */
+void create_gc_port_for_can_hub(CanHubFlow* can_hub, int fd);
+
 #endif //_gc_pipe_hxx_
