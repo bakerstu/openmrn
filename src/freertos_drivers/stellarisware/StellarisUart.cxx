@@ -31,6 +31,8 @@
  * @date 11 January 2013
  */
 
+#include <algorithm>
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
@@ -103,11 +105,19 @@ StellarisUart::StellarisUart(const char *name, unsigned long base)
             break;
     }
     
-    MAP_UARTConfigSetExpClk(base, MAP_SysCtlClockGet(), 115200,
+    /* We set the preliminary clock here, but it will be re-set when the device
+     * gets enabled. The reason for re-setting is that the system clock is
+     * switched in HwInit but that has not run yet at this point. */
+    MAP_UARTConfigSetExpClk(base, 16000000, 115200,
                             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
     MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
-    MAP_IntEnable(interrupt);
+    MAP_IntDisable(interrupt);
+    /* We set the priority so that it is slightly lower than the highest needed
+     * for FreeRTOS compatibility. This will ensure that CAN interrupts take
+     * precedence over UART. */
+    MAP_IntPrioritySet(interrupt,
+                       std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
     MAP_UARTIntEnable(base, UART_INT_RX | UART_INT_RT);
 }
 
@@ -116,6 +126,8 @@ StellarisUart::StellarisUart(const char *name, unsigned long base)
  */
 void StellarisUart::enable()
 {
+    MAP_UARTConfigSetExpClk(base, MAP_SysCtlClockGet(), 115200,
+                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
     MAP_IntEnable(interrupt);
     MAP_UARTEnable(base);
 }
@@ -132,15 +144,14 @@ void StellarisUart::disable()
  */
 void StellarisUart::tx_char()
 {
-    if (txPending == false)
+    unsigned char data;
+    while (MAP_UARTSpaceAvail(base) &&
+           os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
     {
-        unsigned char data;
-        if (MAP_UARTSpaceAvail(base) &&
-            os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
+        MAP_UARTCharPutNonBlocking(base, data);
+        if (txPending == false)
         {
-            MAP_IntDisable(interrupt);
             txPending = true;
-            MAP_UARTCharPutNonBlocking(base, data);
             MAP_UARTIntEnable(base, UART_INT_TX);
         }
     }
@@ -171,7 +182,7 @@ void StellarisUart::interrupt_handler()
     /* tranmit a character if we have pending tx data */
     if (txPending)
     {
-        if (MAP_UARTSpaceAvail(base))
+        while (MAP_UARTSpaceAvail(base))
         {
             unsigned char data;
             if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE)
