@@ -32,6 +32,7 @@
  * @date 7 Dec 2013
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -75,7 +76,11 @@ extern const size_t SERIAL_RX_BUFFER_SIZE;
 extern const size_t SERIAL_TX_BUFFER_SIZE;
 const size_t SERIAL_RX_BUFFER_SIZE = 16;
 const size_t SERIAL_TX_BUFFER_SIZE = 16;
+#ifdef BOARD_LAUNCHPAD_EK
+const size_t main_stack_size = 2500;
+#else
 const size_t main_stack_size = 900;
+#endif
 }
 
 NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
@@ -170,6 +175,12 @@ int appl_main(int argc, char* argv[])
 #endif
 #ifdef NNTARGET_LPC11Cxx
     lpc11cxx::CreateCanDriver(&can_pipe);
+#endif
+#ifdef BOARD_LAUNCHPAD_EK
+    int fd = ::open("/dev/ser0", O_RDWR);
+    HASSERT(fd >= 0);
+    printf("hello, world!\n");
+    create_gc_port_for_can_hub(&can_hub0, fd);
 #endif
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
