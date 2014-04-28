@@ -89,6 +89,9 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
 void StellarisCan::enable()
 {
     MAP_IntEnable(interrupt);
+    // The priority of CAN interrupt is as high as possible while maintaining
+    // FreeRTOS compatibility.
+    MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
     MAP_CANEnable(base);
 }
 
