@@ -130,6 +130,7 @@ void StellarisUart::enable()
                             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
     MAP_IntEnable(interrupt);
     MAP_UARTEnable(base);
+    MAP_UARTFIFOEnable(base);
 }
 
 /** Disable use of the device.
@@ -145,8 +146,9 @@ void StellarisUart::disable()
 void StellarisUart::tx_char()
 {
     unsigned char data;
-    while (MAP_UARTSpaceAvail(base) &&
-           os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
+    portENTER_CRITICAL();
+    if (MAP_UARTSpaceAvail(base) &&
+        os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
     {
         MAP_UARTCharPutNonBlocking(base, data);
         if (txPending == false)
@@ -155,6 +157,7 @@ void StellarisUart::tx_char()
             MAP_UARTIntEnable(base, UART_INT_TX);
         }
     }
+    portEXIT_CRITICAL();
 }
 
 /** Common interrupt handler for all UART devices.
@@ -194,6 +197,7 @@ void StellarisUart::interrupt_handler()
                 /* no more data pending */
                 txPending = false;
                 MAP_UARTIntDisable(base, UART_INT_TX);
+                break;
             }
         }
     }
