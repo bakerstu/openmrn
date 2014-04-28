@@ -19,7 +19,7 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/StellarisCan.
 CXXFLAGSEXTRA += -DTARGET_LM4F120XL
 
 TARGET := freertos.armv7m
-BOARD := TARGET_LM4F120XL
+BOARD := BOARD_LAUNCHPAD_EK
 include $(OPENMRNPATH)/etc/prog.mk
 
 all: $(EXECUTABLE).lst
