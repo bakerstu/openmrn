@@ -107,18 +107,19 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
     
     while (count)
     {
-        if (file->flags & O_NONBLOCK)
+        if (os_mq_timedreceive(serial->rxQ, data, 0) == OS_MQ_TIMEDOUT)
         {
-            if (os_mq_timedreceive(serial->rxQ, data, 0) == OS_MQ_TIMEDOUT)
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) ||
+                result > 0)
             {
-                /* no more data to receive */
                 break;
             }
-        }
-        else
-        {
-            /* wait for data to come in */
-            os_mq_receive(serial->rxQ, data);
+            else
+            {
+                /* wait for data to come in */
+                os_mq_receive(serial->rxQ, data);
+            }
         }
 
         count--;
@@ -178,4 +179,3 @@ int Serial::ioctl(File *file, Node *node, unsigned long int key, unsigned long d
 {
     return 0;
 }
-
