@@ -90,6 +90,7 @@ $(FULLPATHLIBS): $(BUILDDIRS)
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
 lib/timestamp : FORCE $(BUILDDIRS)
+	if [ ! -d lib ] ; then mkdir lib ; fi  # creates the lib directory
 	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
 
 # This file acts as a guard describing when the last libsomething.a was remade
