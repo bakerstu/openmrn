@@ -11,6 +11,7 @@ CXXSRCS += BufferQueue.cxx \
            HubDevice.cxx \
            GcTcpHub.cxx \
            socket_listener.cxx \
+           constants.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \

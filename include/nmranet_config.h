@@ -49,6 +49,8 @@
 
 #include <stdlib.h>
 
+#include "utils/constants.hxx"
+
 /** Define this macro to use the new C++ event transport implementation. */
 #define CPP_EVENT_HANDLER
 
@@ -96,5 +98,8 @@ extern const size_t COMPAT_EVENT_THREAD_STACK_SIZE;
 #ifdef __cplusplus
 }
 #endif
+
+/** Defines the default bit-rate for CAN devices. */
+DECLARE_CONST(nmranet_can_bitrate);
 
 #endif /* _nmranet_config_h_ */
