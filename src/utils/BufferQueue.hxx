@@ -741,13 +741,13 @@ private:
 
 /** A list of queues.
  */
-template <unsigned items> class QListProtected : public QList<items>
+template <unsigned items> class QListProtected : public QList<items>, private Atomic
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtected() : QList<items>(), mutex()
+    QListProtected() : QList<items>()
     {
     }
 
@@ -763,9 +763,8 @@ public:
      */
     void insert(QMember *q, unsigned index = 0)
     {
-        mutex.lock();
+        AtomicHolder h(this);
         QList<items>::insert(q, index);
-        mutex.unlock();
     }
 
     /** Get an item from the front of the queue.
@@ -774,10 +773,8 @@ public:
      */
     QMember *next(unsigned index)
     {
-        mutex.lock();
-        QMember *result = QList<items>::next(index);
-        mutex.unlock();
-        return result;
+        AtomicHolder h(this);
+        return QList<items>::next(index);
     }
 
     /** Translate the Result type */
@@ -788,18 +785,9 @@ public:
      */
     Result next()
     {
-        mutex.lock();
-        Result result = QList<items>::next();
-        mutex.unlock();
-        return result;
+        AtomicHolder h(this);
+        return QList<items>::next();
     }
-
-private:
-    /** @todo (Stuart Baker) For free RTOS, we may want to consider a different
-     * (smaller) locking mechanism
-     */
-    /** Mutual exclusion for Queue */
-    OSMutex mutex;
 };
 
 /** Pool of previously allocated, but currently unused, items. */
