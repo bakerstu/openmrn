@@ -40,6 +40,7 @@
 #include "driverlib/can.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
+#include "nmranet_config.h"
 
 #include "StellarisDev.hxx"
 
@@ -71,11 +72,11 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
             instances[1] = this;
             break;
     }
-    
+
     MAP_CANInit(base);
-    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), 125000);
+    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), get_nmranet_can_bitrate());
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
-    
+
     tCANMsgObject can_message;
     can_message.ulMsgID = 0;
     can_message.ulMsgIDMask = 0;
@@ -88,6 +89,7 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
  */
 void StellarisCan::enable()
 {
+    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), get_nmranet_can_bitrate());
     MAP_IntEnable(interrupt);
     // The priority of CAN interrupt is as high as possible while maintaining
     // FreeRTOS compatibility.
@@ -210,7 +212,7 @@ void StellarisCan::interrupt_handler()
     {
         /* tx complete */
         MAP_CANIntClear(base, 2);
-
+        HASSERT(txPending);
         struct can_frame can_frame;
         if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE)
         {
@@ -270,4 +272,3 @@ void can1_interrupt_handler(void)
 #endif
 
 } // extern "C"
-
