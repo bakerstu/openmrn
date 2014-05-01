@@ -88,7 +88,7 @@ static NMRAnet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventService g_event_service(&g_if_can);
 
-static const uint64_t EVENT_ID = 0x050101011441FF00ULL;
+static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 const int main_priority = 0;
 
 class BlinkerFlow : public StateFlowBase
@@ -187,7 +187,7 @@ int appl_main(int argc, char* argv[])
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
-    BlinkerFlow blinker(&g_node);
+    //BlinkerFlow blinker(&g_node);
     // We don't need to support addressed messages.
     // g_if_can.add_addressed_message_support(1);
     while(1) {
