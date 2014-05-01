@@ -82,7 +82,7 @@ extern "C" { void resetblink(uint32_t pattern); }
  */
 int appl_main(int argc, char* argv[])
 {
-    int serial_fd = ::open("/dev/serUSB0", O_RDWR);
+    int serial_fd = ::open("/dev/serUSB0", O_RDWR); // or /dev/ser0
     HASSERT(serial_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, serial_fd);
 
