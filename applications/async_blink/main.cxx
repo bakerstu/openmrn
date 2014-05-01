@@ -43,6 +43,7 @@
 #include "nmranet_config.h"
 
 #include "utils/GcTcpHub.hxx"
+#include "utils/HubDevice.hxx"
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
@@ -172,16 +173,21 @@ int appl_main(int argc, char* argv[])
 {
 #ifdef __linux__
     GcTcpHub hub(&can_hub0, 12021);
-#endif
+#else
 #ifdef NNTARGET_LPC11Cxx
     lpc11cxx::CreateCanDriver(&can_pipe);
-#endif
-#ifdef BOARD_LAUNCHPAD_EK
+#else
+    int can_fd = ::open("/dev/can0", O_RDWR);
+    HASSERT(can_fd >= 0);
+
+    FdHubPort<CanHubFlow> can_hub_port(&can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
+#endif  // default target
+#endif  // FreeRTOS
+
     int fd = ::open("/dev/ser0", O_RDWR);
     HASSERT(fd >= 0);
-    printf("hello, world!\n");
     create_gc_port_for_can_hub(&can_hub0, fd);
-#endif
+
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
