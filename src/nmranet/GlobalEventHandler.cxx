@@ -91,6 +91,7 @@ GlobalEventFlow::GlobalEventFlow(AsyncIf *async_if,
 GlobalEventFlow::~GlobalEventFlow()
 {
     interface()->dispatcher()->unregister_handler_all(this);
+    delete iterator_;
 }
 
 /// Returns true if there are outstanding events that are not yet handled.

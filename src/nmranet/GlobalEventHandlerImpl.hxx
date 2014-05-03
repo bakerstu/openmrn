@@ -129,7 +129,7 @@ private:
     EventReport eventReport_;
 
     /** Iterator for generating the event handlers from the registry. */
-    std::unique_ptr<EventIterator> iterator_;
+    EventIterator* iterator_;
 
     BarrierNotifiable n_;
     EventHandlerFunction fn_;
