@@ -13,11 +13,14 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o \
 #	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_i2c.o \
 #	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
 
+CGMINSIZE=2000
+
 include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(MISSING_DEPS),)
 
 all: $(EXECUTABLE).bin $(EXECUTABLE).lst
+
 
 %.lst: %.elf
 	$(SIZE) $<
