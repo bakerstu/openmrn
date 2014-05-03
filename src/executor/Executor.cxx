@@ -119,7 +119,9 @@ void *ExecutorBase::entry()
         }
         if (msg != NULL)
         {
+            current = msg;
             msg->run();
+            current = nullptr;
         }
     }
 

@@ -70,6 +70,16 @@ public:
      */
     virtual void add(Executable *action, unsigned priority = UINT_MAX) = 0;
 
+#ifdef __FreeRTOS__
+    /** Send a message to this Executor's queue. Callable from interrupt
+     * context.
+     * @param action Executable instance to insert into the input queue
+     * @param priority priority of execution
+     */
+    virtual void add_from_isr(Executable *action,
+                              unsigned priority = UINT_MAX) = 0;
+#endif
+
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }
 
@@ -116,6 +126,9 @@ private:
     /** executor list for lookup purposes */
     static ExecutorBase *list;
 
+    /** Currently executing closure. USeful for debugging crashes. */
+    Executable* current;
+
     /** List of active timers. */
     ActiveTimers activeTimers_;
 
@@ -129,11 +142,17 @@ private:
     DISALLOW_COPY_AND_ASSIGN(ExecutorBase);
 };
 
+class NO_THREAD {
+public:
+    NO_THREAD() {}
+};
+
 template <unsigned NUM_PRIO>
 class Executor : public ExecutorBase,
                  public QListProtectedWait<NUM_PRIO>
 {
 public:
+
     /** Constructor.
      * @param name name of executor
      * @param priority thread priority
@@ -143,6 +162,8 @@ public:
     {
         OSThread::start(name, priority, stack_size);
     }
+
+    explicit Executor(const NO_THREAD& unused) {}
 
     /** Destructor.
      */
@@ -156,6 +177,27 @@ public:
     {
         QListProtectedWait<NUM_PRIO>::insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+    }
+
+#ifdef __FreeRTOS__
+    /** Send a message to this Executor's queue. Callable from interrupt
+     * context.
+     * @param msg Executable instance to insert into the input queue
+     * @param priority priority of message
+     */
+    void add_from_isr(Executable *msg, unsigned priority = UINT_MAX)
+    {
+        QListProtectedWait<NUM_PRIO>::insert_from_isr(
+            msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+    }
+#endif
+
+    /** If the executor was created with NO_THREAD, then this function needs to
+     * be called to run the executor loop. It will exit when the execut gets
+     * shut down. Useful for having an executor loop run in the main thread. */
+    void thread_body() {
+        HASSERT(!is_created());
+        entry();
     }
 
 private:
