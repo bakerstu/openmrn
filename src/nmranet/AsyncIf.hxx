@@ -84,6 +84,8 @@ struct NMRAnetMessage
         this->dst = dst;
         this->payload = payload;
         this->dstNode = nullptr;
+        this->flagsSrc = 0;
+        this->flagsDst = 0;
     }
 
     void reset(If::MTI mti, NodeID src, const string &payload)
@@ -93,6 +95,8 @@ struct NMRAnetMessage
         this->dst = {0, 0};
         this->payload = payload;
         this->dstNode = nullptr;
+        this->flagsSrc = 0;
+        this->flagsDst = 0;
     }
 
     /// OpenLCB MTI of the incoming message.
@@ -107,11 +111,50 @@ struct NMRAnetMessage
     /// @todo(balazs.racz) figure out a better container.
     string payload;
 
+    unsigned flagsSrc : 4;
+    unsigned flagsDst : 4;
+    unsigned get_flags_src() {
+        return flagsSrc;
+    }
+    unsigned get_flags_dst() {
+        return flagsDst;
+    }
+    void set_flag_src(unsigned flags) {
+        flagsSrc |= flags;
+    }
+    void clear_flag_src(unsigned flags) {
+        flagsSrc &= ~flags;
+    }
+    /** Returns true if src flags has all the specified flags set. */
+    bool has_flag_src(unsigned flags) {
+        return ((flagsSrc & flags) == flags);
+    }
+    void set_flag_dst(unsigned flags) {
+        flagsDst |= flags;
+    }
+    void clear_flag_dst(unsigned flags) {
+        flagsDst &= ~flags;
+    }
+    /** Returns true if src flags has all the specified flags set. */
+    bool has_flag_dst(unsigned flags) {
+        return ((flagsDst & flags) == flags);
+    }
+
     typedef uint32_t id_type;
     id_type id() const
     {
         return static_cast<uint32_t>(mti);
     }
+
+    enum DstFlags {
+        /** Specifies that the stack should wait for the local loopback
+         * processing before invoking the done notifiable. */
+        WAIT_FOR_LOCAL_LOOPBACK = 1,
+        // 2, 4, 8: free
+    };
+    enum SrcFlags {
+        // 1, 2, 4, 8: free
+    };
 };
 
 typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
