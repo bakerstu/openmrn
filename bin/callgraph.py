@@ -66,7 +66,7 @@ def escape(s):
 all_symbols = dict()
 enmangle = dict()
 address_lookup = dict()
-sections = []
+sections = dict()
 section_addresses = []
 object_expn = dict()  # object escaped name -> called symbol name
 object_parent = dict()  # object escaped name -> caller object escaped name
@@ -166,6 +166,11 @@ def Demangle(names):
     # Each line ends with a newline, so the final entry of the split output
     # will always be ''.
     assert len(demangled) == len(names)+1
+
+    f = open('demangled.txt', 'w')
+    for i in xrange(len(demangled)-1):
+      print >>f, names[i], demangled[i]
+    f.close()
     return demangled[:-1]
 
 def ReadLstFile(f):
@@ -274,6 +279,12 @@ def ReadMapFile(f):
         elif src_fun in enmangle and enmangle[src_fun] in all_symbols:
           sym_name = enmangle[src_fun]
           symbol = all_symbols[sym_name]
+        elif "__" + src_fun in all_symbols:
+          sym_name = "__" + src_fun
+          symbol = all_symbols[sym_name]
+        elif src_fun.replace("D2Ev", "D1Ev") in all_symbols:
+          sym_name = src_fun.replace("D2Ev", "D1Ev")
+          symbol = all_symbols[sym_name]
         else:
           print >>sys.stderr, "Cound not resolve function name to symbol: ", src_fun
         if sym_name:
@@ -290,6 +301,8 @@ def ReadMapFile(f):
       if m.group('section'):
         section = m.group('section')
         subsection = None
+      if section[:6] == 'debug_':
+        continue
       if m.group('subsection'):
         subsection = m.group('subsection')
       if m.group('object'):
@@ -319,7 +332,7 @@ def ReadMapFile(f):
         entry.objfile = objfile
         entry.library = library
         section_addresses.append(entry.address)
-        sections.append(entry)
+        sections[entry.address] = entry
   print >>sys.stderr, "found %d lines, %d entries." % (count, len(entries))
   return entries
 
@@ -365,21 +378,25 @@ def ProcessMapEntries(entries):
         symbol.objfile = escape(e.objfile)
   print >>sys.stderr, ('map symbol lookup: found %d via direct, %d via enmangle, %d via subsection, %d aliased, %d not found' % (direct_found_count, enmangle_found_count, subsection_found_count, alias_count, not_found_count))
   missing_count = 0
+  section_addresses.sort()
   for sym in all_symbols.itervalues():
     if sym.objfile is not None:
       continue
     # lookup section
     i = bisect.bisect_right(section_addresses, sym.address)
+    print >>sys.stderr, ("bisect lookup address %x index %d, section count %d" % (sym.address, i, len(section_addresses)))
     if i:
-      section = sections[i-1]
+      section = sections[section_addresses[i-1]]
       if not (section.address <= sym.address and (section.address + section.length) > sym.address):
         print >>sys.stderr, ("section address mismatch: name %s, address %x, section address %x, section length %d" % (sym.name, sym.address, section.address, section.length))
       elif section.subsection is not None and section.address == sym.address and section.subsection != sym.name and  sym.name != re.sub('D2Ev', 'D1Ev', section.subsection):
         print >>sys.stderr, ("subsection mismatch: name %s, subsection %s" % (sym.name, section.subsection))
       else:
-        print >>sys.stderr, "objfile found for symbol: ", sym.name
+        print >>sys.stderr, "objfile found for symbol: ", sym.name, (" :@%x " % section.address), section.objfile
         sym.objfile = escape(section.objfile)
         continue
+    else:
+      print >>sys.stderr, ("Bisect address lookup failed: address %x" % sym.address)
     missing_count += 1
     print >>sys.stderr, "symbol missing objfile: ", sym.name
   print >>sys.stderr, ("%d symbols missing objfile" % missing_count)
