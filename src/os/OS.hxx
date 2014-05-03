@@ -63,6 +63,7 @@ public:
     /** Creates a thread via inheritance. The user must overload the entry()
      * function and call the start() method whenever convenient. */
     OSThread()
+        : handle(0)
     {
     }
 
@@ -82,6 +83,12 @@ public:
     /** Default destructor. */
     ~OSThread()
     {
+    }
+
+    /** Returns true if a thread was already created. */
+    bool is_created()
+    {
+        return handle != 0;
     }
 
 protected:
