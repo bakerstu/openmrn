@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -37,7 +37,7 @@
 namespace NMRAnet
 {
 
-NMRAnetEventRegistry* NMRAnetEventRegistry::instance_ = nullptr;
+NMRAnetEventRegistry *NMRAnetEventRegistry::instance_ = nullptr;
 
 AsyncMutex event_handler_mutex;
 WriteHelper event_write_helper1;
@@ -46,15 +46,48 @@ WriteHelper event_write_helper3;
 WriteHelper event_write_helper4;
 BarrierNotifiable event_barrier;
 
-NMRAnetEventRegistry::NMRAnetEventRegistry() {
-  HASSERT(instance_ == nullptr);
-  instance_ = this;
+NMRAnetEventRegistry::NMRAnetEventRegistry()
+{
+    HASSERT(instance_ == nullptr);
+    instance_ = this;
 }
 
-NMRAnetEventRegistry::~NMRAnetEventRegistry() {
-  HASSERT(instance_ == this);
-  instance_ = nullptr;
+NMRAnetEventRegistry::~NMRAnetEventRegistry()
+{
+    HASSERT(instance_ == this);
+    instance_ = nullptr;
+}
+
+// static
+unsigned NMRAnetEventRegistry::align_mask(EventId *event, unsigned size)
+{
+    // example: size = 140. highest bit set is bit 7
+    // example2: size = 256. highest bit set is bit 8, but it is power-of-two.
+    HASSERT(event);
+    if (size <= 1)
+    {
+        return 0;
+    }
+    // should be 7 in both examples
+    unsigned log2 = sizeof(size) * 8 - __builtin_clz(size - 1) - 1;
+    uint64_t new_event, rounded_range;
+    do
+    {
+        ++log2;  // 8 in both examples
+        rounded_range = 1ULL << log2; // 256
+        new_event = *event & (~(rounded_range - 1));
+        // we have to be careful for overflowing uint64 in new_event =
+        // rounded_range
+    } while (log2 < 64 &&
+             ((new_event + (rounded_range - 1)) < (*event + (size - 1))));
+    if (log2 >= 64)
+    {
+        new_event = 0;
+        log2 = 64;
+    }
+    // The rounding is successful.
+    *event = new_event;
+    return log2;
 }
 
 }; /* namespace NMRAnet */
-

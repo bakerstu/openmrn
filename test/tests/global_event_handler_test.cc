@@ -1,9 +1,11 @@
 #include "utils/async_if_test_helper.hxx"
+#include "nmranet/EventManager.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"
 #include "nmranet/EndianHelper.hxx"
+#include "gmock/gmock.h"
 
 using testing::Eq;
 using testing::Field;
@@ -13,6 +15,7 @@ using testing::InvokeWithoutArgs;
 using testing::StrictMock;
 using testing::WithArg;
 using testing::_;
+using testing::ElementsAre;
 
 namespace NMRAnet
 {
@@ -65,6 +68,97 @@ TEST_F(DecodeRangeTest, LongNegative)
     ExpectDecode(0xffffffffffffff0fULL, 0xffffffffffffff00ULL, 0xf);
 }
 
+class AlignMaskTest : public testing::Test
+{
+protected:
+    void ExpectAlign(uint64_t event, unsigned size, unsigned expected_mask)
+    {
+        tmp_event = event;
+        unsigned actual_mask =
+            NMRAnetEventRegistry::align_mask(&tmp_event, size);
+        string dbg = StringPrintf(
+            "event 0x%llx size %u actual event 0x%llx actual mask %u", event,
+            size, tmp_event, actual_mask);
+        EXPECT_LE(tmp_event, event) << dbg;
+        if (actual_mask < 64)
+        {
+            EXPECT_LE(event + size - 1, tmp_event + ((1ULL << actual_mask) - 1))
+                << dbg;
+            EXPECT_EQ(0ULL, tmp_event & ((1ULL << actual_mask) - 1)) << dbg;
+        }
+        else
+        {
+            EXPECT_EQ(0U, tmp_event);
+        }
+        EXPECT_EQ(expected_mask, actual_mask) << dbg;
+    }
+
+    uint64_t tmp_event;
+};
+
+TEST_F(AlignMaskTest, Zeros)
+{
+    ExpectAlign(0xA, 0, 0);
+    ExpectAlign(0xB, 0, 0);
+    ExpectAlign(0xF, 0, 0);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 0, 0);
+
+    ExpectAlign(0xA, 1, 0);
+    ExpectAlign(0xB, 1, 0);
+    ExpectAlign(0xF, 1, 0);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 1, 0);
+}
+
+TEST_F(AlignMaskTest, Twos)
+{
+    ExpectAlign(0xA, 2, 1);
+    ExpectAlign(0xB, 2, 3);
+    EXPECT_EQ(0x8U, tmp_event);
+    ExpectAlign(0xF, 2, 5);
+    EXPECT_EQ(0x0U, tmp_event);
+    ExpectAlign(0xBF, 2, 7);
+    EXPECT_EQ(0x80U, tmp_event);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 2, 64);
+    EXPECT_EQ(0ULL, tmp_event);
+    ExpectAlign(0xBFFFFFFFFFFFFFFFULL, 2, 63);
+    EXPECT_EQ(0x8000000000000000ULL, tmp_event);
+    ExpectAlign(0x3FFFFFFFFFFFFFFFULL, 2, 63);
+    EXPECT_EQ(0x0000000000000000ULL, tmp_event);
+}
+
+TEST_F(AlignMaskTest, Aligned)
+{
+    ExpectAlign(0x70, 16, 4);
+    EXPECT_EQ(0x70U, tmp_event);
+
+    ExpectAlign(0x100, 256, 8);
+    EXPECT_EQ(0x100U, tmp_event);
+}
+
+TEST_F(AlignMaskTest, Unaligned)
+{
+    ExpectAlign(0x65, 16, 5);
+    EXPECT_EQ(0x60U, tmp_event);
+
+    ExpectAlign(0x55, 8, 4);
+    EXPECT_EQ(0x50U, tmp_event);
+
+    ExpectAlign(0x55, 16, 6);
+    EXPECT_EQ(0x40U, tmp_event);
+
+    ExpectAlign(0x3F0121, 175, 8);
+    EXPECT_EQ(0x3F0100ULL, tmp_event);
+
+    ExpectAlign(0x3F0121, 37, 7);
+    EXPECT_EQ(0x3F0100ULL, tmp_event);
+
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 175, 64);
+    EXPECT_EQ(0x0ULL, tmp_event);
+
+    ExpectAlign(0x0501010114FF07FFULL, 175, 12);
+    EXPECT_EQ(0x0501010114FF0000ULL, tmp_event);
+}
+
 static const uint64_t kExitEventId = 0x0808080804040404ULL;
 static const uint64_t kTestEventId = 0x0102030405060708ULL;
 static const If::MTI kEventReportMti = If::MTI_EVENT_REPORT;
@@ -112,8 +206,8 @@ protected:
 
 TEST_F(EventHandlerTests, SimpleRunTest)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
-    NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h2_, 0, 64);
     EXPECT_CALL(h1_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _))
@@ -124,8 +218,8 @@ TEST_F(EventHandlerTests, SimpleRunTest)
 
 TEST_F(EventHandlerTests, SimpleRunTest2)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
-    NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h2_, 0, 64);
     EXPECT_CALL(h1_, HandleEventReport(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _))
@@ -136,8 +230,8 @@ TEST_F(EventHandlerTests, SimpleRunTest2)
 
 TEST_F(EventHandlerTests, Run100EventsTest)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
-    NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h2_, 0, 64);
     EXPECT_CALL(h1_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleEventReport(_, _)).Times(100).WillRepeatedly(
@@ -151,7 +245,7 @@ TEST_F(EventHandlerTests, Run100EventsTest)
 
 TEST_F(EventHandlerTests, EventsOrderTest)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
     {
         InSequence s;
 
@@ -176,8 +270,8 @@ TEST_F(EventHandlerTests, EventsOrderTest)
 
 TEST_F(EventHandlerTests, GlobalRunTest1)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
-    NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h2_, 0, 64);
     EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))
@@ -190,8 +284,8 @@ TEST_F(EventHandlerTests, GlobalRunTest1)
 
 TEST_F(EventHandlerTests, GlobalAndLocal)
 {
-    NMRAnetEventRegistry::instance()->register_handler(&h1_, 0, 0);
-    NMRAnetEventRegistry::instance()->register_handler(&h2_, 0, 0);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h1_, 0, 64);
+    NMRAnetEventRegistry::instance()->register_handlerr(&h2_, 0, 64);
     EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _))
         .WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _))

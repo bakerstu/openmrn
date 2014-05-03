@@ -157,16 +157,27 @@ public:
 
 class NMRAnetEventRegistry {
 public:
-  virtual ~NMRAnetEventRegistry();
+    virtual ~NMRAnetEventRegistry();
 
-  static NMRAnetEventRegistry* instance() {
-    HASSERT(instance_);
-    return instance_;
-  }
+    static NMRAnetEventRegistry* instance() {
+        HASSERT(instance_);
+        return instance_;
+    }
 
-  // mask = 0 means exact event only. Mask = 64 means this is a global handler.
-  virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
+    /** Computes the alignment mask for registering an event range. Updates the
+     * event by rounding and returns the mask value to be sent to the
+     * register_handler function.
+     * @param event is the event id to be registered. Will be modified.
+     * @param is the number of events to register from that offset. [event,
+     * event+size) will be the registration range.
+     */
+    static unsigned align_mask(EventId* event, unsigned size);
+
+    /** mask = 0 means exact event only. Mask = 63 means this is a global
+     * handler. Mask == 0 means we should be registered for one single
+     * eventid. */
+  virtual void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
+  virtual void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
   
     // Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator* create_iterator() = 0;

@@ -20,7 +20,6 @@ class BitRangeEventTest : public AsyncNodeTest {
   BitRangeEventPC handler_;
 };
 
-
 TEST_F(BitRangeEventTest, Simple) {
   wait_for_event_thread();
 }
