@@ -137,6 +137,8 @@ protected:
     EventIterator() {}
 
 public:
+    virtual ~EventIterator() {}
+
     /** Steps the iteration.
      * @returns the next entry or NULL if the iteration is done.
      * May be called many times after the iteratin is ended and should
