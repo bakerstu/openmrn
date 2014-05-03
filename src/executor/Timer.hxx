@@ -66,7 +66,7 @@ public:
      *
      * @param timer is the timer to schedule. It must not be already
      * scheduled. */
-    void schedule_timer(Timer *timer);
+    void schedule_timer(::Timer *timer);
 
     /** Updates the expiration time of an already scheduled timer. This call is
      * somewhat expensive, because it needs to walk the entire queue of active
@@ -74,14 +74,14 @@ public:
      *
      * @param timer is the timer whose next execution time has been updated. It
      * must already be scheduled. */
-    void update_timer(Timer *timer);
+    void update_timer(::Timer *timer);
 
     /** Deletes an already scheduled but not yet expired timer. This call is
      * somewhat expensive, because it needs to walk the entire queue of active
      * timers. Asserts that the timer is in fact not yet expired.
      *
      * @param timer is the timer to delete. */
-    void remove_timer(Timer *timer);
+    void remove_timer(::Timer *timer);
 
     /** @returns the executor on which the timers will be scheduled. */
     ExecutorBase *executor()
@@ -97,10 +97,10 @@ public:
 private:
     /** Removes a timer from the active list. Assert fails if it is not
      * there. Caller must hold the lock. */
-    void remove_locked(Timer *timer);
+    void remove_locked(::Timer *timer);
 
     /** Inserts a timer into the active list. Caller must hold the lock. */
-    void insert_locked(Timer *timer);
+    void insert_locked(::Timer *timer);
 
     ExecutorBase *executor_;
     /// Protects the timer list.

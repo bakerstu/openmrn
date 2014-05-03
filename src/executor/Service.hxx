@@ -101,7 +101,7 @@ private:
      * @param timer timer to process
      * @return next timeout period in nanoseconds, 0 if we handled a timeout
      */
-    long long process_timer(Timer *timer);
+    long long process_timer(::Timer *timer);
 
     /** Executor to use */
     ExecutorBase *executor_;
