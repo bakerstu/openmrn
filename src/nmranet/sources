@@ -14,6 +14,7 @@ CXXSRCS += \
            NMRAnetEventRegistry.cxx \
            GlobalEventHandler.cxx \
            EventHandlerTemplates.cxx \
+	   EventManager.cxx \
 
 
 DEAD_CXX +=  \

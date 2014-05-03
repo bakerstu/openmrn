@@ -10,6 +10,7 @@
 #define LOGLEVEL VERBOSE
 #endif
 
+#include "executor/lock.hxx"
 #include "utils/logging.h"
 //#include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
@@ -35,7 +36,7 @@ public:
     void clear_iteration() OVERRIDE {
         it_ = container_->end();
     }
-    void init_iteration(EventReport*) {
+    void init_iteration(EventReport*) OVERRIDE {
         it_ = container_->begin();
     }
 
@@ -53,18 +54,38 @@ class VectorEventHandlers : public NMRAnetEventRegistry {
         return new FullContainerIterator<HandlersList>(&handlers_);
     }
 
-  virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_front(handler);
   }
-  virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.remove(handler);
   }
-  
+
  private:
   typedef std::forward_list<NMRAnetEventHandler*> HandlersList;
   HandlersList handlers_;
+};
+
+class TreeEventHandlers : public NMRAnetEventRegistry, private Atomic {
+public:
+    TreeEventHandlers();
+
+    EventIterator* create_iterator() OVERRIDE;
+    void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) OVERRIDE;
+    void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) OVERRIDE;
+
+private:
+    class Iterator;
+    friend class Iterator;
+
+    typedef std::multimap<uint64_t, NMRAnetEventHandler*> OneMaskMap;
+    typedef std::map<uint8_t, OneMaskMap> MaskLookupMap;
+    /** The registered handlers. The offset in the first map tell us how many
+     * bits wide the registration is (it is the mask value in the register
+     * call).*/
+    MaskLookupMap handlers_;
 };
 
 }; /* namespace NMRAnet */

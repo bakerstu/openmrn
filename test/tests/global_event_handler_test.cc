@@ -302,4 +302,93 @@ TEST_F(EventHandlerTests, GlobalAndLocal)
     wait();
 }
 
+class TreeEventHandlerTest : public ::testing::Test
+{
+public:
+    TreeEventHandlerTest()
+        : iter_(handlers_.create_iterator())
+    {
+    }
+
+    vector<NMRAnetEventHandler *> get_all_matching(uint64_t event,
+                                                   uint64_t mask = 1)
+    {
+        report_.event = event;
+        report_.mask = mask;
+        iter_->init_iteration(&report_);
+        vector<NMRAnetEventHandler *> r;
+        while (NMRAnetEventHandler *h = iter_->next_entry())
+        {
+            r.push_back(h);
+        }
+        sort(r.begin(), r.end());
+        return r;
+    }
+
+    NMRAnetEventHandler *h(int n)
+    {
+        return reinterpret_cast<NMRAnetEventHandler *>(0x100 + n);
+    }
+
+    void add_handler(int n, uint64_t eventid, unsigned mask)
+    {
+        handlers_.register_handlerr(h(n), eventid, mask);
+    }
+
+private:
+    EventReport report_;
+    TreeEventHandlers handlers_;
+    std::unique_ptr<EventIterator> iter_;
+};
+
+TEST_F(TreeEventHandlerTest, Empty)
+{
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre());
+}
+
+TEST_F(TreeEventHandlerTest, MatchAllCorrect)
+{
+    add_handler(1, 0, 64);
+    add_handler(3, 0, 64);
+    add_handler(2, 0, 64);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+                ElementsAre(h(1), h(2), h(3)));
+}
+
+TEST_F(TreeEventHandlerTest, SingleLookup)
+{
+    add_handler(1, 0x3FF, 0);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x300, 0xFF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x300, 0x7F), ElementsAre());
+    EXPECT_THAT(get_all_matching(0x3FF, 0), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre());
+
+    EXPECT_THAT(get_all_matching(0x103FF, 0), ElementsAre());
+}
+
+TEST_F(TreeEventHandlerTest, MultiLookup)
+{
+    add_handler(1, 0x3FF, 0);
+    add_handler(12, 0x10300, 8);
+    add_handler(13, 0x10300, 5);
+    add_handler(14, 0x10300, 4);
+    add_handler(15, 0x300, 8);
+    add_handler(16, 0x300, 5);
+    add_handler(17, 0x300, 4);
+    add_handler(3, 0x3F0, 4);
+    add_handler(4, 0x3E0, 4);
+    add_handler(5, 0x3E0, 5);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+                ElementsAre(h(1), h(3), h(4), h(5), h(12), h(13), h(14), h(15),
+                            h(16), h(17)));
+    EXPECT_THAT(get_all_matching(0x300, 0x7F),
+                ElementsAre(h(15), h(16), h(17)));
+    EXPECT_THAT(get_all_matching(0x380, 0x7F),
+                ElementsAre(h(1), h(3), h(4), h(5), h(15)));
+    EXPECT_THAT(get_all_matching(0x3FF, 0),
+                ElementsAre(h(1), h(3), h(5), h(15)));
+    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
+}
+
 } // namespace NMRAnet

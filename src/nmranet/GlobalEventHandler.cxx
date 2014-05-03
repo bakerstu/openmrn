@@ -58,7 +58,8 @@ void GlobalEventService::register_interface(AsyncIf *interface)
 GlobalEventService::Impl::Impl(GlobalEventService *service)
     : callerFlow_(service)
 {
-    registry.reset(new VectorEventHandlers());
+    registry.reset(new TreeEventHandlers());
+    //registry.reset(new VectorEventHandlers());
 }
 
 GlobalEventService::Impl::~Impl()
