@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <forward_list>
 #include <endian.h>
 
 #ifndef LOGLEVEL
@@ -54,15 +55,15 @@ class VectorEventHandlers : public NMRAnetEventRegistry {
 
   virtual void register_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
-    handlers_.push_back(handler);
+    handlers_.push_front(handler);
   }
   virtual void unregister_handler(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
-    handlers_.erase(std::remove(handlers_.begin(), handlers_.end(), handler));
+    handlers_.remove(handler);
   }
   
  private:
-  typedef std::vector<NMRAnetEventHandler*> HandlersList;
+  typedef std::forward_list<NMRAnetEventHandler*> HandlersList;
   HandlersList handlers_;
 };
 
