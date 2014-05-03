@@ -49,7 +49,7 @@ namespace NMRAnet
 class WriteHelper : public Executable
 {
 public:
-    typedef AsyncNode* node_type;
+    typedef AsyncNode *node_type;
     typedef string payload_type;
 
     static NodeHandle global()
@@ -58,7 +58,13 @@ public:
     }
 
     WriteHelper()
+        : waitForLocalLoopback_(0)
     {
+    }
+
+    void set_wait_for_local_loopback(bool wait = true)
+    {
+        waitForLocalLoopback_ = (wait ? 1 : 0);
     }
 
     /** Originates an NMRAnet message from a particular node.
@@ -70,12 +76,15 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void WriteAsync(AsyncNode* node, If::MTI mti, NodeHandle dst,
-                    const payload_type& buffer, Notifiable* done)
+    void WriteAsync(AsyncNode *node, If::MTI mti, NodeHandle dst,
+                    const payload_type &buffer, Notifiable *done)
     {
-        if (done) {
+        if (done)
+        {
             done_.reset(done);
-        } else {
+        }
+        else
+        {
             // We don't support synchronous sending anymore.
             HASSERT(0);
         }
@@ -95,37 +104,51 @@ public:
         }
         else
         {
-            node->interface()->addressed_message_write_flow()->alloc_async(this);
+            node->interface()->addressed_message_write_flow()->alloc_async(
+                this);
         }
     }
 
 private:
     // Callback from the allocator.
-    virtual void alloc_result(QMember* entry)
+    virtual void alloc_result(QMember *entry)
     {
 
-
-/*
-x            e->WriteAddressedMessage(mti_, node_->node_id(), dst_, buffer_,
--                                     done_);
-+           e->WriteGlobalMessage(mti_, node_->node_id(), buffer_, done_);
--
-*/  
-      /* NOTE(balazs.racz): We could choose not to pass on the done_
-         * callback. That will allow the current write flow to be released
-         * earlier for reuse, but breaks the assumption that done means that
-         * the current packet is enqueued on the physical layer. */
+        /*
+        x            e->WriteAddressedMessage(mti_, node_->node_id(), dst_,
+        buffer_,
+        -                                     done_);
+        +           e->WriteGlobalMessage(mti_, node_->node_id(), buffer_,
+        done_);
+        -
+        */
+        /* NOTE(balazs.racz): We could choose not to pass on the done_
+           * callback. That will allow the current write flow to be released
+           * earlier for reuse, but breaks the assumption that done means that
+           * the current packet is enqueued on the physical layer. */
         if (dst_ == global())
         {
-            auto* f = node_->interface()->global_message_write_flow();
-            Buffer<NMRAnetMessage>* b = f->cast_alloc(entry);
+            auto *f = node_->interface()->global_message_write_flow();
+            Buffer<NMRAnetMessage> *b = f->cast_alloc(entry);
             b->data()->reset(mti_, node_->node_id(), buffer_);
+            if (waitForLocalLoopback_)
+            {
+                b->data()->set_flag_dst(
+                    NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+            }
             b->set_done(&done_);
             f->send(b);
-        } else {
-            auto* f = node_->interface()->addressed_message_write_flow();
-            auto* b = f->cast_alloc(entry);
+        }
+        else
+        {
+            auto *f = node_->interface()->addressed_message_write_flow();
+            auto *b = f->cast_alloc(entry);
             b->data()->reset(mti_, node_->node_id(), dst_, buffer_);
+            if (waitForLocalLoopback_)
+            {
+                b->data()->set_flag_dst(
+                    NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+            }
             b->set_done(&done_);
             f->send(b);
         }
@@ -136,9 +159,10 @@ x            e->WriteAddressedMessage(mti_, node_->node_id(), dst_, buffer_,
         HASSERT(0);
     }
 
+    unsigned waitForLocalLoopback_ : 1;
     NodeHandle dst_;
     If::MTI mti_;
-    AsyncNode* node_;
+    AsyncNode *node_;
     payload_type buffer_;
     BarrierNotifiable done_;
 };
