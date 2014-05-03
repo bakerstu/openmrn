@@ -1,5 +1,5 @@
 #include "mbed.h"
-#include "utils/pipe.hxx"
+#include "utils/PipeFlow.hxx"
 #include "can.h"
 
 #include "FreeRTOSConfig.h"
@@ -41,24 +41,21 @@ void send_stdio_serial_message(const char* data) {
   }
 }
 
-class StdOutPipeMember : public PipeMember
+class StdOutPipeMember : public HubPortInterface
 {
 public:
-  virtual void write(const void* buf, size_t count) {
-    const char* cb = (const char*)(buf);
-    OSMutexLock l(&m);
-    for (size_t i = 0; i < count; i++) {
+    virtual void send(Buffer<HubData>* b, unsigned) {
+    const char* cb = (const char*)(b->data()->data());
+    for (size_t i = 0; i < b->data()->size(); i++) {
       serial_putc(stdio_serial, cb[i]);
     }
     serial_putc(stdio_serial, '\n');
+    b->unref();
   }
-
-private:
-  OSMutex m;
 };
 
 StdOutPipeMember stdout_pipem;
-PipeMember* stdout_pipmember = &stdout_pipem;
+HubPortInterface* stdout_pipmember = &stdout_pipem;
 
 
 void setblink(uint32_t pattern);

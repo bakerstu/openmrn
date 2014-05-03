@@ -36,7 +36,6 @@
 
 #include "LPC23xx.h"
 #include "mbed.h"
-#include "utils/pipe.hxx"
 #include "can.h"
 #include "FreeRTOSConfig.h"
 #include "src/base.h"

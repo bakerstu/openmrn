@@ -84,7 +84,7 @@ public:
     {
         os_sem_init(&rxSem, 0);
         os_thread_t thread;
-        os_thread_create(&thread, "usbserial.rx", 1, 1024, &_RxThread, this);
+        os_thread_create(&thread, "usbserial.rx", 3, 1024, &_RxThread, this);
     }
 
     ~MbedRawUSBSerial()
@@ -255,4 +255,3 @@ void __cxa_pure_virtual(void) {};
 
 
 MbedRawUSBSerial g_mbed_usb_serial("/dev/serUSB0");
-
