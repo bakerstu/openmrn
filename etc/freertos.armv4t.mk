@@ -86,8 +86,35 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
           -Wl,--defsym=__wrap_exit=abort \
+          -Wl,--wrap=__cxa_throw   \
+          -Wl,--defsym=__wrap___cxa_throw=abort \
+          -Wl,--wrap=__gxx_personality_v0   \
+          -Wl,--defsym=__wrap___gxx_personality_v0=abort \
+          -Wl,--wrap=_ZSt19__throw_logic_errorPKc   \
+          -Wl,--defsym=__wrap__ZSt19__throw_logic_errorPKc=abort \
+          -Wl,--wrap=_ZSt9terminatev   \
+          -Wl,--defsym=__wrap__ZSt9terminatev=abort \
+          -Wl,--wrap=__cxa_rethrow   \
+          -Wl,--defsym=__wrap___cxa_rethrow=abort \
+          -Wl,--wrap=__cxa_end_cleanup   \
+          -Wl,--defsym=__wrap___cxa_end_cleanup=abort \
+          -Wl,--wrap=__cxa_begin_catch   \
+          -Wl,--defsym=__wrap___cxa_begin_catch=abort \
+          -Wl,--wrap=__cxa_end_catch   \
+          -Wl,--defsym=__wrap___cxa_end_catch=abort \
+          -Wl,--wrap=_ZSt20__throw_out_of_rangePKc   \
+          -Wl,--defsym=__wrap__ZSt20__throw_out_of_rangePKc=abort \
+          -Wl,--wrap=__aeabi_unwind_cpp_pr0   \
+          -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr0=abort \
+          -Wl,--wrap=__aeabi_unwind_cpp_pr1   \
+          -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
+ifdef asdsajdflaskgd
+          -Wl,--wrap=   \
+          -Wl,--defsym=__wrap_=abort \
+
+endif
 
 SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)
 
