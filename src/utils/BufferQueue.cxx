@@ -41,7 +41,8 @@
 #define DEBUG_PRINTF(_fmt...)
 #endif
 
-DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
+DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
+//DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
 /** Expand the buffer by allocating a buffer double the size, copying the
  * contents to the new buffer, and freeing the old buffer.  The "this" pointer
@@ -200,6 +201,13 @@ size_t DynamicPool::free_items(size_t size)
     return 0;
 }
 
+#ifdef DEBUG_BUFFER_MEMORY
+/* key: buffer pointer. Value: instruction pointer for allocation caller. */
+std::map<BufferBase*, void*> g_alloc_source;
+Atomic g_alloc_atomic;
+void* g_current_alloc;
+#endif
+
 /** Get a free item out of the pool.
  * @param result pointer to a pointer to the result
  * @param flow if !NULL, then the alloc call is considered async and will
@@ -223,6 +231,7 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
                 }
             }
             new (result) BufferBase(size, this);
+            break;
         }
     }
 
@@ -236,6 +245,12 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
             totalSize += size;
         }
     }
+#ifdef DEBUG_BUFFER_MEMORY
+    {
+        AtomicHolder h(&g_alloc_atomic);
+        g_alloc_source[result] = g_current_alloc;
+    }
+#endif
     if (flow)
     {
         flow->alloc_result(result);
@@ -249,15 +264,17 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
  */
 void DynamicPool::free(BufferBase *item)
 {
+#ifdef DEBUG_BUFFER_MEMORY
+    {
+        AtomicHolder h(&g_alloc_atomic);
+        g_alloc_source.erase(item);
+    }
+#endif
     for (Bucket *current = buckets; current->size() != 0; ++current)
     {
         if (item->size() <= current->size())
         {
             current->insert(item);
-            {
-                AtomicHolder h(this);
-                totalSize -= current->size();
-            }
             return;
         }
     }
@@ -342,4 +359,3 @@ void FixedPool::free(BufferBase *item)
     }
 
 }
-

@@ -53,12 +53,15 @@ class Pool;
 template <class T> class Buffer;
 class BufferBase;
 
-namespace NMRAnet {
+namespace NMRAnet
+{
 class AsyncIfTest;
 }
 
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
+/** THis pointer will be saved for debugging the current allocation source. */
+extern void* g_current_alloc;
 
 class BufferBase : public QMember
 {
@@ -93,7 +96,8 @@ public:
     }
 
     /** Expand the buffer by allocating a buffer double the size, copying the
-     * contents to the new buffer, and freeing the old buffer.  The "this" pointer
+     * contents to the new buffer, and freeing the old buffer.  The "this"
+     * pointer
      * of the caller will be used to free the buffer.
      * @return newly expanded buffer
      */
@@ -123,7 +127,11 @@ protected:
      * @param pool pool this buffer belong to
      */
     BufferBase(size_t size, Pool *pool)
-        : QMember(), size_(size), count_(1), pool_(pool), done_(NULL)
+        : QMember()
+        , size_(size)
+        , count_(1)
+        , pool_(pool)
+        , done_(NULL)
     {
     }
 
@@ -205,28 +213,31 @@ private:
 };
 
 /** This class will automatically unref a Buffer when going out of scope. */
-template<class T>
-class AutoReleaseBuffer
+template <class T> class AutoReleaseBuffer
 {
 public:
-    AutoReleaseBuffer(Buffer<T>* b)
-        : b_(b) {}
+    AutoReleaseBuffer(Buffer<T> *b)
+        : b_(b)
+    {
+    }
 
-    ~AutoReleaseBuffer() {
+    ~AutoReleaseBuffer()
+    {
         if (b_)
         {
             b_->unref();
         }
     }
 
-    Buffer<T>* release() {
-        Buffer<T>* b = b_;
+    Buffer<T> *release()
+    {
+        Buffer<T> *b = b_;
         b_ = nullptr;
         return b;
     }
 
 private:
-    Buffer<T>* b_;
+    Buffer<T> *b_;
 };
 
 /** Abstract interface to all Queues of all types.
@@ -240,7 +251,9 @@ public:
     {
         /** Defualt Constructor.
          */
-        Result() : item(NULL), index(0)
+        Result()
+            : item(NULL)
+            , index(0)
         {
         }
 
@@ -248,7 +261,9 @@ public:
          * @param item item presented in result
          * @param index index presented in result
          */
-        Result(QMember *item, unsigned index) : item(item), index(index)
+        Result(QMember *item, unsigned index)
+            : item(item)
+            , index(index)
         {
         }
 
@@ -323,9 +338,9 @@ private:
 /** QInterface that enqueues items based on priority.  FIFO ordering for
  * entries of the same priority.
  */
-class QPriority : public QInterface
-                , private MultiMap <unsigned, QMember *>
-                , private Atomic
+class QPriority : public QInterface,
+                  private MultiMap<unsigned, QMember *>,
+                  private Atomic
 {
 public:
     /** Default Constructor.
@@ -359,8 +374,8 @@ public:
     {
         AtomicHolder h(this);
         MultiMap<unsigned, QMember *>::Iterator it = upper_bound(index);
-        MultiMap<unsigned, QMember *>::
-            insert(it, MultiMap<unsigned, QMember *>::Pair(index, item));
+        MultiMap<unsigned, QMember *>::insert(
+            it, MultiMap<unsigned, QMember *>::Pair(index, item));
     }
 
     /** Get an item from the front of the queue.
@@ -374,9 +389,9 @@ public:
         it = MultiMap<unsigned, QMember *>::find(index);
         if (it != MultiMap<unsigned, QMember *>::end())
         {
-             QMember *result = (*it).second;
-             MultiMap<unsigned, QMember *>::erase(it);
-             return result;
+            QMember *result = (*it).second;
+            MultiMap<unsigned, QMember *>::erase(it);
+            return result;
         }
 
         return NULL;
@@ -392,9 +407,9 @@ public:
         it = MultiMap<unsigned, QMember *>::begin();
         if (it != MultiMap<unsigned, QMember *>::end())
         {
-             Result result((*it).second, (*it).first);
-             MultiMap<unsigned, QMember *>::erase(it);
-             return result;
+            Result result((*it).second, (*it).first);
+            MultiMap<unsigned, QMember *>::erase(it);
+            return result;
         }
 
         return Result();
@@ -437,7 +452,6 @@ public:
     }
 
 private:
-
     DISALLOW_COPY_AND_ASSIGN(QPriority);
 };
 
@@ -540,8 +554,8 @@ public:
     /** Default Constructor.
      */
     QAsync()
-     : Q()
-     , waiting(true)
+        : Q()
+        , waiting(true)
     {
     }
 
@@ -694,7 +708,6 @@ public:
     }
 
     /** Get the total number of pending items in all queues in the list.
-     * @param index in the list to operate on
      * @return number of total pending items in all queues in the list
      */
     size_t pending()
@@ -705,6 +718,11 @@ public:
             result += list[i].pending();
         }
         return result;
+    }
+
+    size_t size()
+    {
+        return pending();
     }
 
     /** Test if the queue is empty.
@@ -741,13 +759,15 @@ private:
 
 /** A list of queues.
  */
-template <unsigned items> class QListProtected : public QList<items>, private Atomic
+template <unsigned items>
+class QListProtected : public QList<items>, private Atomic
 {
 public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtected() : QList<items>()
+    QListProtected()
+        : QList<items>()
     {
     }
 
@@ -764,6 +784,15 @@ public:
     void insert(QMember *q, unsigned index = 0)
     {
         AtomicHolder h(this);
+        QList<items>::insert(q, index);
+    }
+
+    /** Add an item to the back of the queue.
+     * @param item to add to queue
+     * @return item retrieved from queue, NULL if no item available
+     */
+    void insert_locked(QMember *q, unsigned index = 0)
+    {
         QList<items>::insert(q, index);
     }
 
@@ -802,7 +831,12 @@ public:
     template <class BufferType>
     void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
     {
-        *result = static_cast<Buffer<BufferType> *>(alloc_untyped(sizeof(Buffer<BufferType>), flow));
+#ifdef DEBUG_BUFFER_MEMORY
+        g_current_alloc = &&alloc;
+        alloc:
+#endif
+        *result = static_cast<Buffer<BufferType> *>(
+            alloc_untyped(sizeof(Buffer<BufferType>), flow));
         if (*result && !flow)
         {
             new (*result) Buffer<BufferType>(this);
@@ -947,9 +981,9 @@ private:
     /** Constructor.
      */
     Bucket(size_t size)
-        : Q(),
-          size_(size),
-          pending_()
+        : Q()
+        , size_(size)
+        , pending_()
     {
     }
 
@@ -975,9 +1009,9 @@ public:
      * @param sizes array of bucket sizes for the pool
      */
     DynamicPool(Bucket sizes[])
-        : Pool(),
-          totalSize(0),
-          buckets(sizes)
+        : Pool()
+        , totalSize(0)
+        , buckets(sizes)
     {
     }
 
@@ -997,6 +1031,12 @@ public:
      * @return number of free items in the pool for a given allocation size
      */
     size_t free_items(size_t size);
+
+    /** Returns the total memory held by this pool. */
+    size_t total_size()
+    {
+        return totalSize;
+    }
 
 protected:
     /** keep track of total allocated size of memory */
@@ -1057,7 +1097,7 @@ public:
         , items(items)
         , empty(false)
     {
-        //HASSERT(item_size != 0 && items != 0);
+        // HASSERT(item_size != 0 && items != 0);
         QMember *current = (QMember *)mempool;
         for (size_t i = 0; i < items; ++i)
         {
@@ -1078,7 +1118,7 @@ public:
      */
     size_t free_items()
     {
-        return items - (totalSize/itemSize);
+        return items - (totalSize / itemSize);
     }
 
     /** Number of free items in the pool for a given allocation size.
@@ -1249,6 +1289,17 @@ public:
         post();
     }
 
+#ifdef __FreeRTOS__
+    /** Add an item to the back of the queue, callable from interrupt context.
+     * @param item item to add to queue
+     */
+    void insert_from_isr(T *item)
+    {
+        QProtected<T>::insert_locked(item);
+        post_from_isr();
+    }
+#endif
+
     /** Get an item from the front of the queue.
      * @return item retrieved from queue
      */
@@ -1323,7 +1374,9 @@ public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtectedWait() : QListProtected<items>(), OSSem(0)
+    QListProtectedWait()
+        : QListProtected<items>()
+        , OSSem(0)
     {
     }
 
@@ -1342,6 +1395,18 @@ public:
         QListProtected<items>::insert(item, index);
         post();
     }
+
+#ifdef __FreeRTOS__
+    /** Add an item to the back of the queue.
+     * @param item item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert_from_isr(QMember *item, unsigned index)
+    {
+        QListProtected<items>::insert_locked(item, index);
+        this->post_from_isr();
+    }
+#endif
 
     /** Translate the Result type */
     typedef typename QListProtected<items>::Result Result;
