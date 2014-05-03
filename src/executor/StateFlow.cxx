@@ -36,6 +36,38 @@
 
 #include "executor/StateFlow.hxx"
 
+// static
+StateFlowWithQueue* StateFlowWithQueue::head_ = nullptr;
+Atomic StateFlowWithQueue::headMu_;
+
+StateFlowWithQueue::StateFlowWithQueue(Service *service)
+  : StateFlowBase(service)
+  , queueSize_(0)
+  , currentMessage_(nullptr)
+  , currentPriority_(MAX_PRIORITY)
+  , isWaiting_(1)
+{
+    reset_flow(STATE(wait_for_message));
+    AtomicHolder h(&headMu_);
+    link_ = head_;
+    head_ = this;
+}
+
+StateFlowWithQueue::~StateFlowWithQueue()
+{
+    AtomicHolder h(&headMu_);
+    StateFlowWithQueue** p = &head_;
+    while (*p && *p != this) {
+        p = &((*p)->link_);
+    }
+    if (*p == this) {
+        *p = this->link_;
+    } else {
+        HASSERT(0);
+    }
+}
+
+
 /** Process an incoming message.
  * @param msg message to process
  * @param priority priority of message
@@ -65,6 +97,7 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
     {
         isWaiting_ = 0;
         currentPriority_ = priority;
+        queueSize_--;
         // Yielding here will ensure that we are processing the next message on
         // the current executor according to its priority.
         return yield_and_call(STATE(entry));
@@ -72,6 +105,7 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
     else
     {
         isWaiting_ = 1;
+        queueSize_ = 0;
         currentPriority_ = MAX_PRIORITY;
         return wait();
     }

@@ -379,7 +379,7 @@ protected:
      * @param c is the next state to transition to when the timeout expires or
      * the timer gets triggered.
      */
-    Action sleep_and_call(Timer *timer, long long timeout_nsec, Callback c)
+    Action sleep_and_call(::Timer *timer, long long timeout_nsec, Callback c)
     {
         timer->start(timeout_nsec);
         return wait_and_call(c);
@@ -424,6 +424,8 @@ template <class T, class S> class StateFlow;
 class StateFlowWithQueue : public StateFlowBase, protected Lockable
 {
 public:
+    ~StateFlowWithQueue();
+
     /// Wakeup call arrived. Schedules *this on the executor.
     virtual void notify();
 
@@ -436,14 +438,7 @@ public:
     }
 
 protected:
-    StateFlowWithQueue(Service *service)
-        : StateFlowBase(service)
-        , currentMessage_(nullptr)
-        , currentPriority_(MAX_PRIORITY)
-        , isWaiting_(1)
-    {
-        reset_flow(STATE(wait_for_message));
-    }
+    StateFlowWithQueue(Service *service);
 
     /** Entry into the StateFlow activity.  Pure virtual which must be defined
      * by derived class. Must eventually (through some number of states) call
@@ -485,6 +480,11 @@ protected:
 private:
     STATE_FLOW_STATE(wait_for_message);
 
+    StateFlowWithQueue* link_;
+    static StateFlowWithQueue* head_;
+    static Atomic headMu_;
+    unsigned queueSize_;
+
     /// Message we are currently processing.
     Message *currentMessage_;
 
@@ -504,6 +504,8 @@ private:
 template <class MessageType> class FlowInterface
 {
 public:
+    virtual ~FlowInterface() {}
+
     /** @returns the buffer pool to use for sending messages to this flow. This
      * is to be used as a hint, the caller is allowed to send buffers from
      * different source.
@@ -582,6 +584,7 @@ public:
     {
         AtomicHolder h(this);
         queue_.insert(msg, priority);
+        queueSize_ = queue_.size();
         if (isWaiting_)
         {
             isWaiting_ = 0;
@@ -684,7 +687,7 @@ private:
  * If needed, you can wake up the timer in a handler function by calling
  * timer_.trigger(). This will transition to the new state immediately.
  */
-class StateFlowTimer : public Timer
+class StateFlowTimer : public ::Timer
 {
 public:
     StateFlowTimer(StateFlowBase *parent)
