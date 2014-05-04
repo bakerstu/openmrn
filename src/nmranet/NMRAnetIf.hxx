@@ -113,6 +113,10 @@ public:
         MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< request identify all of every node's events */
         MTI_LEARN_EVENT               = 0x0594, /**< */
         MTI_EVENT_REPORT              = 0x05B4, /**< */
+        MTI_TRACTION_CONTROL_COMMAND  = 0x05EA,
+        MTI_TRACTION_CONTROL_REPLY    = 0x05E8,
+        MTI_TRACTION_PROXY_COMMAND    = 0x01EA,
+        MTI_TRACTION_PROXY_REPLY      = 0x01E8,
         MTI_XPRESSNET                 = 0x09C0, /**< */
         MTI_IDENT_INFO_REQUEST        = 0x0DE8, /**< request node identity */
         MTI_IDENT_INFO_REPLY          = 0x0A08, /**< node identity reply */
