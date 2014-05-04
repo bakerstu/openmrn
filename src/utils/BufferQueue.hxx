@@ -34,6 +34,9 @@
 #ifndef _BufferQueue_hxx_
 #define _BufferQueue_hxx_
 
+// Enable this to collect the pointer of all buffers live.
+//#define DEBUG_BUFFER_MEMORY
+
 #include <new>
 #include <cstdint>
 #include <cstdlib>
