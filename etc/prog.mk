@@ -109,7 +109,7 @@ ifdef SIZE
 endif
 
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
-	$(OBJDUMP) -d $< > $@
+	$(OBJDUMP) -C -d $< > $@
 
 ifndef CGMINSIZE
 CGMINSIZE=300
