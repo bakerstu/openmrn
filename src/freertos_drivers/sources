@@ -18,10 +18,6 @@ ifdef STELLARISWAREPATH
 ifeq ($(TARGET),freertos.armv7m)
 include $(OPENMRNPATH)/etc/stellarisware.mk
 
-CSRCS += stellaris_can.c \
-         stellaris_uart.c \
-         stellaris_usb_cdc_device.c
-
 CXXSRCS += StellarisCan.cxx \
            StellarisUart.cxx \
            StellarisUsbCdcDevice.cxx
