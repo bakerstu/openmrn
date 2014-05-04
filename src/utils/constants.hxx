@@ -48,7 +48,7 @@
     EXTERNC extern void _sym_##name(void);                                     \
     EXTERNCEND typedef unsigned char                                           \
     _do_not_add_declare_and_default_const_to_the_same_file_for_##name;         \
-    static inline ptrdiff_t get_##name(void)                                   \
+    static inline ptrdiff_t config_##name(void)                                \
     {                                                                          \
         return (ptrdiff_t)(&_sym_##name);                                      \
     }
