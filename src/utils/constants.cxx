@@ -34,3 +34,12 @@
 #include "utils/constants.hxx"
 
 DEFAULT_CONST(nmranet_can_bitrate, 125000);
+
+DEFAULT_CONST(main_thread_priority, 0);
+DEFAULT_CONST(main_thread_stack_size, 2048);
+
+DEFAULT_CONST(can_tx_buffer_size, 16);
+DEFAULT_CONST(can_rx_buffer_size, 16);
+
+DEFAULT_CONST(serial_tx_buffer_size, 16);
+DEFAULT_CONST(serial_rx_buffer_size, 16);
