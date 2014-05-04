@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -101,5 +101,24 @@ extern const size_t COMPAT_EVENT_THREAD_STACK_SIZE;
 
 /** Defines the default bit-rate for CAN devices. */
 DECLARE_CONST(nmranet_can_bitrate);
+
+/** The priority of main thread. Used in FreeRTOS. 0 = default priority
+ * (middle). Larger number gets the CPU over smaller number. The limit is
+ * configMAX_PRIORITIES from FreeRTOSConfig.h */
+DECLARE_CONST(main_thread_priority);
+/** Stack size of main thread. Used in FreeRTOS. */
+DECLARE_CONST(main_thread_stack_size);
+
+/** Number of packets to queue in the CANbus device driver for send. Each packet
+ * takes 16 bytes of RAM. */
+DECLARE_CONST(can_tx_buffer_size);
+/** Number of packets to queue in the CANbus device driver for receive. Each
+ * packet takes 16 bytes of RAM. */
+DECLARE_CONST(can_rx_buffer_size);
+
+/** Number of bytes to queue in the serial driver for send. */
+DECLARE_CONST(serial_tx_buffer_size);
+/** Number of bytes to queue in the serial driver for receive. */
+DECLARE_CONST(serial_rx_buffer_size);
 
 #endif /* _nmranet_config_h_ */

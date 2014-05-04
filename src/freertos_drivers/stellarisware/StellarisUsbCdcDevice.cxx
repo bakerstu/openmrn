@@ -191,7 +191,7 @@ void StellarisCdc::tx_char()
         /* do this if we have data to send */
         available = USBDCDCTxPacketAvailable(&usbdcdcDevice);
         
-        for (count = 0; count < TX_DATA_SIZE && count < available; count++)
+        for (count = 0; count < USB_CDC_TX_DATA_SIZE && count < available; count++)
         {
             if (os_mq_timedreceive(txQ, &txData[count], 0) != OS_MQ_NONE)
             {
@@ -293,12 +293,12 @@ unsigned long StellarisCdc::rx_callback(void *data, unsigned long event, unsigne
                 unsigned long count;
                 
                 //available = USBDCDCRxPacketAvailable(&serial->usbdcdcDevice);
-                space = SERIAL_RX_BUFFER_SIZE - os_mq_num_pending_from_isr(serial->rxQ);
+                space = config_serial_rx_buffer_size() - os_mq_num_pending_from_isr(serial->rxQ);
 
                 count = USBDCDCPacketRead(&serial->usbdcdcDevice,
-                                            serial->rxData,
-                                            space,
-                                            true);
+                                          serial->rxData,
+                                          space,
+                                          true);
                 if (serial->enabled)
                 {
                     /* transfer data up */
@@ -334,7 +334,7 @@ unsigned long StellarisCdc::tx_callback(void *data, unsigned long event, unsigne
             /* do this if we have data to send */
             available = USBDCDCTxPacketAvailable(&serial->usbdcdcDevice);
             
-            for (count = 0; count < TX_DATA_SIZE && count < available; count++)
+            for (count = 0; count < USB_CDC_TX_DATA_SIZE && count < available; count++)
             {
                 if (os_mq_receive_from_isr(serial->txQ, &serial->txData[count], &serial->woken) != OS_MQ_NONE)
                 {

@@ -47,8 +47,11 @@
 #include "Serial.hxx"
 #include "Can.hxx"
 
-#define TX_DATA_SIZE 64
-#define RX_DATA_SIZE 64
+/* This is fixed and equals the USB packet size that the CDC device will
+ * advertise to be able to receive. This is a performance parameter, 64 is the
+ * largest packet size permitted by USB for virtual serial ports. */
+#define USB_CDC_TX_DATA_SIZE 64
+#define USB_CDC_RX_DATA_SIZE 64
 
 /** Private data for this implementation of serial.
  */
@@ -85,8 +88,10 @@ private:
 
     tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
     tCDCSerInstance serialInstance; /**< CDC serial device private data */
-    unsigned char txData[TX_DATA_SIZE]; /**< buffer for pending tx data */
-    unsigned char rxData[RX_DATA_SIZE]; /**< buffer for pending tx data */
+    /** buffer for pending tx data */
+    unsigned char txData[USB_CDC_TX_DATA_SIZE];
+    /** buffer for pending rx data */
+    unsigned char rxData[USB_CDC_RX_DATA_SIZE];
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */

@@ -35,15 +35,8 @@
 #define _Serial_hxx_
 
 #include "Devtab.hxx"
+#include "nmranet_config.h"
 #include "os/OS.hxx"
-
-/** Number of receive characters that are buffered in the serial driver.
- */
-extern const size_t SERIAL_RX_BUFFER_SIZE;
-
-/** Number of transmit characters that are buffered in the serial driver.
- */
-extern const size_t SERIAL_TX_BUFFER_SIZE;
 
 /** Private data for a can device */
 class Serial : public Node
@@ -53,12 +46,14 @@ protected:
      * @param name device name in file system
      */
     Serial(const char *name)
-        : Node(),
-          txQ(os_mq_create(SERIAL_TX_BUFFER_SIZE, sizeof(unsigned char))),
-          rxQ(os_mq_create(SERIAL_RX_BUFFER_SIZE, sizeof(unsigned char))),
-          overrunCount(0),
-          mutex(),
-          devtab(name, &ops, this)
+        : Node()
+        , txQ(os_mq_create(config_serial_tx_buffer_size(),
+                           sizeof(unsigned char)))
+        , rxQ(os_mq_create(config_serial_rx_buffer_size(),
+                           sizeof(unsigned char)))
+        , overrunCount(0)
+        , mutex()
+        , devtab(name, &ops, this)
     {
     }    
 

@@ -35,16 +35,9 @@
 #define _Can_hxx_
 
 #include "Devtab.hxx"
-#include "os/OS.hxx"
 #include "nmranet_can.h"
-
-/** Number of receive CAN messages that are buffered in the CAN driver.
- */
-extern const size_t CAN_RX_BUFFER_SIZE;
-
-/** Number of transmit CAN messages that are buffered in the CAN driver.
- */
-extern const size_t CAN_TX_BUFFER_SIZE;
+#include "nmranet_config.h"
+#include "os/OS.hxx"
 
 /** Private data for a can device */
 class Can : public Node
@@ -54,16 +47,18 @@ protected:
      * @param name device name in file system
      */
     Can(const char *name)
-        : Node(),
-          txQ(os_mq_create(CAN_TX_BUFFER_SIZE, sizeof(struct can_frame))),
-          rxQ(os_mq_create(CAN_RX_BUFFER_SIZE, sizeof(struct can_frame))),
-          overrunCount(0),
-          read_callback(NULL),
-          write_callback(NULL),
-          readContext(NULL),
-          writeContext(NULL),
-          mutex(),
-          devtab(name, &ops, this)
+        : Node()
+        , txQ(os_mq_create(config_can_tx_buffer_size(),
+                           sizeof(struct can_frame)))
+        , rxQ(os_mq_create(config_can_rx_buffer_size(),
+                           sizeof(struct can_frame)))
+        , overrunCount(0)
+        , read_callback(NULL)
+        , write_callback(NULL)
+        , readContext(NULL)
+        , writeContext(NULL)
+        , mutex()
+        , devtab(name, &ops, this)
     {
     }    
 

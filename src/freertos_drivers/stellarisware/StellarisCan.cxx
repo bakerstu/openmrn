@@ -74,7 +74,7 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
     }
 
     MAP_CANInit(base);
-    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), get_nmranet_can_bitrate());
+    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), config_nmranet_can_bitrate());
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
     tCANMsgObject can_message;
@@ -89,7 +89,7 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
  */
 void StellarisCan::enable()
 {
-    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), get_nmranet_can_bitrate());
+    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), config_nmranet_can_bitrate());
     MAP_IntEnable(interrupt);
     // The priority of CAN interrupt is as high as possible while maintaining
     // FreeRTOS compatibility.
