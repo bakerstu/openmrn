@@ -40,6 +40,13 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
 
+void diewith(unsigned long pattern)
+{
+    /** @TODO: disable interrupts. */
+    /** @TODO: blink some LED according to the pattern. */
+    while(1);
+}
+
 /** Initialize the processor hardware.
  */
 void hw_init(void)
