@@ -57,6 +57,8 @@
 #include <signal.h>
 #endif
 
+#include "nmranet_config.h"
+
 #include "utils/macros.h"
 #include "os/os.h"
 
@@ -916,13 +918,6 @@ void vApplicationIdleHook( void )
     }
 }
 
-/** Stack size of the main thread */
-extern const size_t main_stack_size;
-
-
-/** priority of the main thread */
-extern const int main_priority;
-
 /** Entry point to the main thread.
  * @param arg unused argument
  * @return NULL;
@@ -974,13 +969,13 @@ int main(int argc, char *argv[])
     priv->entry = NULL;
     priv->arg = NULL;
     
-    if (main_priority == 0)
+    if (config_main_thread_priority() == 0)
     {
         priority = configMAX_PRIORITIES / 2;
     }
     else
     {
-        priority = configMAX_PRIORITIES - main_priority;
+        priority = config_main_thread_priority();
     }
     
     /* stdin */
@@ -1000,17 +995,14 @@ int main(int argc, char *argv[])
     }
 
     /* start the main thread */
-    xTaskGenericCreate(main_thread,
-                       (signed char *)"thread.main",
-                       main_stack_size/sizeof(portSTACK_TYPE),
-                       priv,
-                       priority,
-                       &task_handle,
-                       (long unsigned int*)stack_malloc(main_stack_size),
-                       NULL
-                       );
+    xTaskGenericCreate(
+        main_thread, (signed char *)"thread.main",
+        config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
+        priority, &task_handle,
+        (long unsigned int *)stack_malloc(config_main_thread_stack_size()),
+        NULL);
     taskList.task = task_handle;
-    taskList.unused = main_stack_size;
+    taskList.unused = config_main_thread_stack_size();
     taskList.name = "thread.main";
 
     vTaskStartScheduler();
