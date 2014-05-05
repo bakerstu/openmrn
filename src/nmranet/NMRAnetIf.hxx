@@ -151,6 +151,11 @@ public:
 
     };
 
+    enum ErrorCodes {
+        ERROR_PERMANENT = 0x1000,
+        ERROR_TEMPORARY = 0x2000,
+    };
+
     /** Status of the pysical layer link */
     enum LinkStatus
     {
