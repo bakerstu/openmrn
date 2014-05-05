@@ -43,7 +43,7 @@ namespace
 class InitializeFlow : public StateFlowBase
 {
 public:
-    InitializeFlow(DefaultAsyncNode *node)
+    InitializeFlow(AsyncNode *node)
         : StateFlowBase(node->interface()->dispatcher()->service())
         , node_(node)
     {
@@ -99,13 +99,13 @@ private:
         return delete_this();
     }
 
-    DefaultAsyncNode *node_;
+    AsyncNode *node_;
     BarrierNotifiable done_;
 };
 
 } // namespace
 
-void StartInitializationFlow(DefaultAsyncNode *node)
+void StartInitializationFlow(AsyncNode *node)
 {
     new InitializeFlow(node);
 }

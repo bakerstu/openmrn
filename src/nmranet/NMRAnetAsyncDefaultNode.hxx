@@ -60,7 +60,7 @@ public:
     }
 
     // Sets the initialized status to true.
-    void set_initialized() {
+    void set_initialized() OVERRIDE {
         isInitialized_ = 1;
     }
 

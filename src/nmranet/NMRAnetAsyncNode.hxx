@@ -60,6 +60,11 @@ public:
      *
      * Nodes not in initialized state may not send traffic to the bus. */
     virtual bool is_initialized() = 0;
+
+    /** Callback from the node initialization flow when the node finished
+     * initialization. Nodes are not required to implement if they are not
+     * using NodeInitializationFlow. */
+    virtual void set_initialized() {}
 };
 
 } // namespace NMRAnet
