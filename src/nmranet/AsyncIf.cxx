@@ -52,6 +52,16 @@ NodeID buffer_to_node_id(const string &buf)
     return be64toh(d);
 }
 
+string error_to_buffer(uint16_t error_code, uint16_t mti)
+{
+    string ret(4, '\0');
+    ret[0] = error_code >> 8;
+    ret[1] = error_code & 0xff;
+    ret[2] = mti >> 8;
+    ret[3] = mti & 0xff;
+    return ret;
+}
+
 /*Buffer *node_id_to_buffer(NodeID id)
 {
     Buffer *ret = buffer_alloc(6);

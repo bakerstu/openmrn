@@ -67,6 +67,11 @@ extern string node_id_to_buffer(NodeID id);
  */
 extern NodeID buffer_to_node_id(const string& buf);
 
+
+/** Formats a payload for response of error response messages such as OPtioanl
+ * Interaction Rejected or Terminate Due To Error. */
+extern string error_to_buffer(uint16_t error_code, uint16_t mti);
+
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
  * CAN or TCP-specific).
