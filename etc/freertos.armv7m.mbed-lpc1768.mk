@@ -57,8 +57,8 @@ CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
 CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 # On a cortex-m3 we can compile IRQ handlers as thumb too.
 ARM_CFLAGS = $(CFLAGS)
-CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
-           -fno-rtti -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901 $(CXXFLAGSENV)
+CXXFLAGS = $(CORECFLAGS)  -std=gnu++0x  -D_ISOC99_SOURCE -fno-exceptions  \
+           -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -nostartfiles -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" --specs=nano.specs \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
