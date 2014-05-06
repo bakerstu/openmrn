@@ -39,3 +39,6 @@
 doc/html/*
 doc/latex/*
 doc/warnings
+
+# build artifacts
+timestamp
