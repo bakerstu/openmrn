@@ -2,8 +2,10 @@
 #ifndef _LOGGING_H_
 #define _LOGGING_H_
 
+#ifndef __cplusplus
 #ifndef __STDC_VERSION__
 #define __STDC_VERSION__ 199901L
+#endif
 #endif
 
 #include <stdio.h>
