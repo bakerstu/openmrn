@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file main.c
- * This file represents the interrupt vector table for TI Stellaris MCUs.
+ * This file sets up the runtime environment for TI Stellaris/Tiva MCUs.
  *
  * @author Stuart W. Baker
- * @date 5 January 2013
+ * @date 4 May 2014
  */
 
 #include "inc/lm4f120h5qr.h"
@@ -38,19 +38,21 @@
 #include "FreeRTOSConfig.h"
 
 /* prototypes */
-extern unsigned long *__cs3_stack;
-extern void __cs3_reset(void);
-extern void __cs3_isr_nmi(void);
-extern void __cs3_isr_hard_fault(void);
-extern void __cs3_isr_mpu_fault(void);
-extern void __cs3_isr_bus_fault(void);
-extern void __cs3_isr_usage_fault(void);
+extern unsigned long *__stack;
+extern void reset_handler(void);
+static void nmi_handler(void);
+static void hard_fault_handler(void);
+static void mpu_fault_handler(void);
+static void bus_fault_handler(void);
+static void usage_fault_handler(void);
 
 extern void SVC_Handler(void);
 extern void PendSV_Handler(void);
 extern void SysTick_Handler(void);
 
-static void hard_fault_handler(void);
+extern void __libc_init_array(void);
+
+extern int main(int argc, char *argv[]);
 
 extern void debug_interrupt_handler(void);
 extern void porta_interrupt_handler(void);
@@ -155,25 +157,25 @@ extern void pwm1_3_interrupt_handler(void);
 extern void pwm1_fault_interrupt_handler(void);
 
 /** Exception table */
-__attribute__ ((section(".cs3.interrupt_vector")))
-void (* const __cs3_interrupt_vector_micro[])(void) =
+__attribute__ ((section(".interrupt_vector")))
+void (* const __interrupt_vector[])(void) =
 {
-    (void (*)(void))(&__cs3_stack),  /**<   0 initial stack pointer */
-    __cs3_reset,           /**<   1 reset vector */
-    __cs3_isr_nmi,                   /**<   2 non-maskable interrupt */
+    (void (*)(void))(&__stack),      /**<   0 initial stack pointer */
+    reset_handler,                   /**<   1 reset vector */
+    nmi_handler,                     /**<   2 non-maskable interrupt */
     hard_fault_handler,              /**<   3 hard fault */
-    __cs3_isr_mpu_fault,             /**<   4 memory managment */
-    __cs3_isr_bus_fault,             /**<   5 bus Fault */
-    __cs3_isr_usage_fault,           /**<   6 usage fault */
+    mpu_fault_handler,               /**<   4 memory managment */
+    bus_fault_handler,               /**<   5 bus Fault */
+    usage_fault_handler,             /**<   6 usage fault */
     0,                               /**<   7 reserved */
     0,                               /**<   8 reserved */
     0,                               /**<   9 reserved */
     0,                               /**<  10 reserved */
-    SVC_Handler,                 /**<  11 SV call */
+    SVC_Handler,                     /**<  11 SV call */
     debug_interrupt_handler,         /**<  12 debug monitor */
     0,                               /**<  13 reserved */
-    PendSV_Handler,              /**<  14 pend SV */
-    SysTick_Handler,             /**<  15 system tick */
+    PendSV_Handler,                  /**<  14 pend SV */
+    SysTick_Handler,                 /**<  15 system tick */
     porta_interrupt_handler,         /**<  16 GPIO port A */
     portb_interrupt_handler,         /**<  17 GPIO port B */
     portc_interrupt_handler,         /**<  18 GPIO port C */
@@ -315,6 +317,61 @@ void (* const __cs3_interrupt_vector_micro[])(void) =
     pwm1_fault_interrupt_handler,    /**< 154 PWM1 fault */
 };
 
+extern unsigned long __data_section_table;
+extern unsigned long __data_section_table_end;
+extern unsigned long __bss_section_table;
+extern unsigned long __bss_section_table_end;
+
+extern unsigned long _etext;
+extern unsigned long _data;
+extern unsigned long _edata;
+extern unsigned long _bss;
+extern unsigned long _ebss;
+
+/** Startup the C/C++ runtime environment.
+ */
+void reset_handler(void)
+{
+    unsigned long *section_table_addr = &__data_section_table;
+
+    /* copy ram load sections from flash to ram */
+    while (section_table_addr < &__data_section_table_end)
+    {
+        unsigned long *src = (unsigned long *)*section_table_addr++;
+        unsigned long *dst = (unsigned long *)*section_table_addr++;
+        unsigned long  len = (unsigned long)  *section_table_addr++;
+
+        for ( ; len; len -= 4)
+        {
+            *dst++ = *src++;
+        }
+    }
+
+    /* zero initialize bss segment(s) */
+    while (section_table_addr < &__bss_section_table_end)
+    {
+        unsigned long *zero = (unsigned long *)*section_table_addr++;
+        unsigned long  len  = (unsigned long)  *section_table_addr++;
+        
+        for ( ; len; len -= 4)
+        {
+            *zero++ = 0;
+        }
+    }
+
+    /* call static constructors */
+    __libc_init_array();
+
+    /* execute main */
+    char *argv[] = {0};
+    main(0, argv);
+
+    for ( ; /* forever */ ;)
+    {
+        /* if we ever return from main, loop forever */
+    }
+}
+
 extern void resetblink(unsigned long pattern);
 //extern void diewith(unsigned pattern);
 
@@ -411,6 +468,34 @@ static void hard_fault_handler(void)
         "B      hard_fault_handler_c    \n"
         "BX    LR\n"
     );
+}
+
+static void nmi_handler(void)
+{
+    for ( ; /* forever */ ; )
+    {
+    }
+}
+
+static void mpu_fault_handler(void)
+{
+    for ( ; /* forever */ ; )
+    {
+    }
+}
+
+static void bus_fault_handler(void)
+{
+    for ( ; /* forever */ ; )
+    {
+    }
+}
+
+static void usage_fault_handler(void)
+{
+    for ( ; /* forever */ ; )
+    {
+    }
 }
 
 volatile unsigned long _INTCTRL = 0;
