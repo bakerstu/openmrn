@@ -30,6 +30,7 @@ find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depva
 ################ stellarisware ##################
 ifndef STELLARISWAREPATH
 SEARCHPATH := \
+  /opt/ti/StellarisWare/default \
   /opt/StellarisWare/default \
   /opt/StellarisWare \
   $(HOME)/StellarisWare
@@ -38,7 +39,21 @@ TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 STELLARISWAREPATH:=$(TRYPATH)
 endif
-endif #FREERTOSPATH
+endif #STELLARISWAREPATH
+
+################ tivaware ##################
+ifndef TIVAWAREPATH
+SEARCHPATH := \
+  /opt/ti/TivaWare/default \
+  /opt/TivaWare/default \
+  /opt/TivaWare \
+  $(HOME)/TivaWare
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TIVAWAREPATH:=$(TRYPATH)
+endif
+endif #TIVAWAREPATH
 
 ################# mbed library ##################
 
