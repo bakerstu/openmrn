@@ -107,6 +107,9 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/times
 ifdef SIZE
 	$(SIZE) $@
 endif
+ifdef OBJDUMP
+	$(OBJDUMP) -h $@
+endif
 
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
