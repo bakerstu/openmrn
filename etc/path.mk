@@ -55,6 +55,28 @@ TIVAWAREPATH:=$(TRYPATH)
 endif
 endif #TIVAWAREPATH
 
+################ lpcopen_18xx_43xx ##################
+ifndef LPCOPENPATH_18XX_43XX
+SEARCHPATH := \
+  /opt/nxp/lpcopen_18xx_43xx/default 
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+LPCOPENPATH_18XX_43XX:=$(TRYPATH)
+endif
+endif #LPCOPENPATH_18XX_43XX
+
+################ nxpusblib ##################
+ifndef NXPUSBLIBPATH
+SEARCHPATH := \
+  /opt/nxp/nxpUSBlib/default 
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+NXPUSBLIBPATH:=$(TRYPATH)
+endif
+endif #NXPUSBLIBPATH
+
 ################# mbed library ##################
 
 ifndef MBEDPATH
