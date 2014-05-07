@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StellarisDev.hxx
- * This file implements the device class prototypes for Stellaris.
+ * \file TivaDev.hxx
+ * This file implements the device class prototypes for TivaWare.
  *
  * @author Stuart W. Baker
- * @date 31 October 2013
+ * @date 6 May 2014
  */
 
-#ifndef _StellarisDev_hxx_
-#define _StellarisDev_hxx_
+#ifndef _TivaDev_hxx_
+#define _TivaDev_hxx_
 
 #ifndef gcc
 #define gcc
@@ -55,18 +55,18 @@
 
 /** Private data for this implementation of serial.
  */
-class StellarisCdc : public Serial
+class TivaCdc : public Serial
 {
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
-     * @param base base address of this device
+     * @param interrupt interrupt number used by the device
      */
-    StellarisCdc(const char *name);
+    TivaCdc(const char *name, uint32_t interrupt);
     
     /** Destructor.
      */
-    ~StellarisCdc()
+    ~TivaCdc()
     {
     }
 
@@ -87,36 +87,37 @@ private:
     static unsigned long tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
     tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
-    tCDCSerInstance serialInstance; /**< CDC serial device private data */
     /** buffer for pending tx data */
     unsigned char txData[USB_CDC_TX_DATA_SIZE];
     /** buffer for pending rx data */
     unsigned char rxData[USB_CDC_RX_DATA_SIZE];
+    uint32_t interrupt; /**< interrupt number for device */
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */
     
     /** Default constructor.
      */
-    StellarisCdc();
+    TivaCdc();
     
-    DISALLOW_COPY_AND_ASSIGN(StellarisCdc);
+    DISALLOW_COPY_AND_ASSIGN(TivaCdc);
 };
 
-/** Specialization of Serial driver for Stellaris UART.
+/** Specialization of Serial driver for Tiva UART.
  */
-class StellarisUart : public Serial
+class TivaUart : public Serial
 {
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
+     * @param interrupt interrupt number of this device
      */
-    StellarisUart(const char *name, unsigned long base);
+    TivaUart(const char *name, unsigned long base, uint32_t interrupt);
     
     /** Destructor.
      */
-    ~StellarisUart()
+    ~TivaUart()
     {
     }
 
@@ -136,25 +137,26 @@ private:
 
     /** Default constructor.
      */
-    StellarisUart();
+    TivaUart();
     
-    DISALLOW_COPY_AND_ASSIGN(StellarisUart);
+    DISALLOW_COPY_AND_ASSIGN(TivaUart);
 };
 
-/** Specialization of CAN driver for Stellaris CAN.
+/** Specialization of CAN driver for Tiva CAN.
  */
-class StellarisCan : public Can
+class TivaCan : public Can
 {
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
+     * @param interrupt interrupt number of this device
      */
-    StellarisCan(const char *name, unsigned long base);
+    TivaCan(const char *name, unsigned long base, uint32_t interrupt);
     
     /** Destructor.
      */
-    ~StellarisCan()
+    ~TivaCan()
     {
     }
 
@@ -175,10 +177,10 @@ private:
 
     /** Default constructor.
      */
-    StellarisCan();
+    TivaCan();
     
-    DISALLOW_COPY_AND_ASSIGN(StellarisCan);
+    DISALLOW_COPY_AND_ASSIGN(TivaCan);
 };
 
-#endif /* _StellarisDev_hxx_ */
+#endif /* _TivaDev_hxx_ */
 

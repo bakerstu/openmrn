@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StellarisCan.cxx
- * This file implements a can device driver layer specific to stellarisware.
+ * \file TivaCan.cxx
+ * This file implements a can device driver layer specific to TivaWare.
  *
  * @author Stuart W. Baker
- * @date 3 January 2013
+ * @date 6 May 2014
  */
+
+#include <stdint.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -42,19 +44,20 @@
 #include "driverlib/sysctl.h"
 #include "nmranet_config.h"
 
-#include "StellarisDev.hxx"
+#include "TivaDev.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
-static StellarisCan *instances[2] = {NULL};
+static TivaCan *instances[2] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
+ * @param interrupt interrupt number of this device
  */
-StellarisCan::StellarisCan(const char *name, unsigned long base)
+TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
     : Can(name),
       base(base),
-      interrupt(0),
+      interrupt(interrupt),
       txPending(false)
 {
     switch (base)
@@ -63,12 +66,10 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
             HASSERT(0);
         case CAN0_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
-            interrupt = INT_CAN0;
             instances[0] = this;
             break;
         case CAN1_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN1);
-            interrupt = INT_CAN1;
             instances[1] = this;
             break;
     }
@@ -78,16 +79,16 @@ StellarisCan::StellarisCan(const char *name, unsigned long base)
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
     tCANMsgObject can_message;
-    can_message.ulMsgID = 0;
-    can_message.ulMsgIDMask = 0;
-    can_message.ulFlags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    can_message.ulMsgLen = 8;
+    can_message.ui32MsgID = 0;
+    can_message.ui32MsgIDMask = 0;
+    can_message.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
+    can_message.ui32MsgLen = 8;
     MAP_CANMessageSet(base, 1, &can_message, MSG_OBJ_TYPE_RX);
 }
 
 /** Enable use of the device.
  */
-void StellarisCan::enable()
+void TivaCan::enable()
 {
     MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), config_nmranet_can_bitrate());
     MAP_IntEnable(interrupt);
@@ -99,7 +100,7 @@ void StellarisCan::enable()
 
 /** Disable use of the device.
  */
-void StellarisCan::disable()
+void TivaCan::disable()
 {
     MAP_IntDisable(interrupt);
     MAP_CANDisable(base);
@@ -107,7 +108,7 @@ void StellarisCan::disable()
 
 /* Try and transmit a message.
  */
-void StellarisCan::tx_msg()
+void TivaCan::tx_msg()
 {
     if (txPending == false)
     {
@@ -116,19 +117,19 @@ void StellarisCan::tx_msg()
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
-            can_message.ulMsgID = can_frame.can_id;
-            can_message.ulMsgIDMask = 0;
-            can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
+            can_message.ui32MsgID = can_frame.can_id;
+            can_message.ui32MsgIDMask = 0;
+            can_message.ui32Flags = MSG_OBJ_TX_INT_ENABLE;
             if (can_frame.can_eff)
             {
-                can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
+                can_message.ui32Flags |= MSG_OBJ_EXTENDED_ID;
             }
             if (can_frame.can_rtr)
             {
-                can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
+                can_message.ui32Flags |= MSG_OBJ_REMOTE_FRAME;
             }
-            can_message.ulMsgLen = can_frame.can_dlc;
-            can_message.pucMsgData = data;
+            can_message.ui32MsgLen = can_frame.can_dlc;
+            can_message.pui8MsgData = data;
             memcpy(data, can_frame.data, can_frame.can_dlc);
             
             MAP_IntDisable(interrupt);
@@ -141,7 +142,7 @@ void StellarisCan::tx_msg()
 
 /** Common interrupt handler for all CAN devices.
  */
-void StellarisCan::interrupt_handler()
+void TivaCan::interrupt_handler()
 {
     uint32_t status = MAP_CANIntStatus(base, CAN_INT_STS_CAUSE);
     int woken = false;
@@ -184,18 +185,18 @@ void StellarisCan::interrupt_handler()
         /* rx data received */
         tCANMsgObject can_message;
         uint8_t data[8];
-        can_message.pucMsgData = data;
+        can_message.pui8MsgData = data;
 
         /* Read a message from CAN and clear the interrupt source */
         MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
         
         struct can_frame can_frame;
-        can_frame.can_id = can_message.ulMsgID;
-        can_frame.can_rtr = (can_message.ulFlags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
-        can_frame.can_eff = (can_message.ulFlags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
+        can_frame.can_id = can_message.ui32MsgID;
+        can_frame.can_rtr = (can_message.ui32Flags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
+        can_frame.can_eff = (can_message.ui32Flags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
         can_frame.can_err = 0;
-        can_frame.can_dlc = can_message.ulMsgLen;
-        memcpy(can_frame.data, data, can_message.ulMsgLen);
+        can_frame.can_dlc = can_message.ui32MsgLen;
+        memcpy(can_frame.data, data, can_message.ui32MsgLen);
         if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
         {
             overrunCount++;
@@ -218,19 +219,19 @@ void StellarisCan::interrupt_handler()
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
-            can_message.ulMsgID = can_frame.can_id;
-            can_message.ulMsgIDMask = 0;
-            can_message.ulFlags = MSG_OBJ_TX_INT_ENABLE;
+            can_message.ui32MsgID = can_frame.can_id;
+            can_message.ui32MsgIDMask = 0;
+            can_message.ui32Flags = MSG_OBJ_TX_INT_ENABLE;
             if (can_frame.can_eff)
             {
-                can_message.ulFlags |= MSG_OBJ_EXTENDED_ID;
+                can_message.ui32Flags |= MSG_OBJ_EXTENDED_ID;
             }
             if (can_frame.can_rtr)
             {
-                can_message.ulFlags |= MSG_OBJ_REMOTE_FRAME;
+                can_message.ui32Flags |= MSG_OBJ_REMOTE_FRAME;
             }
-            can_message.ulMsgLen = can_frame.can_dlc;
-            can_message.pucMsgData = data;
+            can_message.ui32MsgLen = can_frame.can_dlc;
+            can_message.pui8MsgData = data;
             memcpy(data, can_frame.data, can_frame.can_dlc);
             
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
