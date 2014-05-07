@@ -31,11 +31,15 @@
  * @date 4 May 2014
  */
 
-#include "inc/lm4f120h5qr.h"
-
 #include <stdint.h>
 
 #include "FreeRTOSConfig.h"
+
+/* we define this our selves because TivaWare forces us to otherwise bring in 
+ * a device specific header to define this.  We want to keep this file generic
+ * to all Cortex-M based TI MCU's
+ */
+#define NVIC_INT_CTRL_R (*((volatile uint32_t *)0xE000ED04))
 
 /* prototypes */
 extern unsigned long *__stack;
