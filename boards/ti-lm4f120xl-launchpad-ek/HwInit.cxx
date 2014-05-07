@@ -25,13 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file HwInit.cxx
- * This file represents the interrupt vector table for TI Stellaris MCUs.
+ * This file represents the hardware initialization for the TI Tiva MCU.
  *
  * @author Stuart W. Baker
  * @date 5 January 2013
  */
 
-#define PART_LM4F120H5QR
+#define PART_TM4C1233H6PM /* Tiva equivalent to PART_LM4F120H5QR */
 
 #include <cstdint>
 #include <new>
@@ -45,8 +45,9 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
+#include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "StellarisDev.hxx"
+#include "TivaDev.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -58,13 +59,13 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** USB Device CDC serial driver instance */
-static StellarisCdc cdc0("/dev/serUSB0");
+static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));
 
 /** UART 0 serial driver instance */
-static StellarisUart uart0("/dev/ser0", UART0_BASE);
+static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 
 /** CAN 0 CAN driver instance */
-static StellarisCan can0("/dev/can0", CAN0_BASE);
+static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 /** Blink LED */
 extern "C" {

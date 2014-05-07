@@ -6,17 +6,17 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
      else echo OPENMRNPATH not found; fi" \
 )
 
-# Find StellarisWare
-include $(OPENMRNPATH)/etc/stellarisware.mk
+# Find TivaWare
+include $(OPENMRNPATH)/etc/tivaware.mk
 
 LDFLAGSEXTRA = -L$(STELLARISWAREPATH)/driverlib/gcc-cm3 \
                -L$(STELLARISWAREPATH)/usblib/gcc-cm3
 SYSLIBRARIESEXTRA = -lusb-cm3 -ldriver-cm3
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/StellarisCan.o \
-           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/StellarisUart.o \
-           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/StellarisUsbCdcDevice.o
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaCan.o \
+           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUart.o \
+           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUsbCdcDevice.o
 
-CXXFLAGSEXTRA += -DTARGET_LM4F120XL
+#CXXFLAGSEXTRA += -DTARGET_LM4F120XL
 
 TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
