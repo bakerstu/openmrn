@@ -1,1 +1,1 @@
-../../../../boards/ti-lm4f120xl-launchpad-ek/HwInit.cxx
+../../../../boards/ti-ek-lm4f120xl-launchpad/HwInit.cxx

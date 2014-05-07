@@ -31,8 +31,6 @@
  * @date 5 January 2013
  */
 
-#define PART_TM4C1233H6PM /* Tiva equivalent to PART_LM4F120H5QR */
-
 #include <cstdint>
 #include <new>
 

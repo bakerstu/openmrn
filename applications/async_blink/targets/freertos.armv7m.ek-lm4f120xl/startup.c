@@ -1,1 +1,1 @@
-../../../../boards/ti-lm4f120xl-launchpad-ek/startup.c
+../../../../boards/ti-ek-lm4f120xl-launchpad/startup.c

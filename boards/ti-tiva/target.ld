@@ -3,11 +3,8 @@ ENTRY(reset_handler)
 SEARCH_DIR(.)
 GROUP(-lgcc -lc)
 
-MEMORY
-{
-  FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
-  RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 32K
-}
+/* include device specific memory map */
+INCLUDE memory_map.ld
 
 __top_RAM = ORIGIN(RAM) + LENGTH(RAM);
 
