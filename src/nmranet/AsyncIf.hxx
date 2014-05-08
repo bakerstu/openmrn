@@ -72,6 +72,9 @@ extern NodeID buffer_to_node_id(const string& buf);
  * Interaction Rejected or Terminate Due To Error. */
 extern string error_to_buffer(uint16_t error_code, uint16_t mti);
 
+/** A global class / variable for empty or not-yet-initialized payloads. */
+extern string EMPTY_PAYLOAD;
+
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
  * CAN or TCP-specific).

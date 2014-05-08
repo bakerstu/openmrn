@@ -62,6 +62,8 @@ string error_to_buffer(uint16_t error_code, uint16_t mti)
     return ret;
 }
 
+string EMPTY_PAYLOAD;
+
 /*Buffer *node_id_to_buffer(NodeID id)
 {
     Buffer *ret = buffer_alloc(6);
