@@ -37,10 +37,11 @@
 
 #include "nmranet/NMRAnetAsyncNode.hxx"
 
+#include <set>
+#include "nmranet/TractionDefs.hxx"
+
 namespace NMRAnet
 {
-
-typedef float SpeedType;
 
 class TrainImpl
 {
@@ -52,6 +53,18 @@ public:
     virtual void set_speed(SpeedType speed) = 0;
     /** Returns the last set speed of the locomotive. */
     virtual SpeedType get_speed() = 0;
+    /** Returns the commanded speed of the locomotive. */
+    virtual SpeedType get_commanded_speed() {
+        return nan_to_speed();
+    }
+    /** Returns the actual speed of the locomotive, as provided by feedback
+     * from the decoder. */
+    virtual SpeedType get_actual_speed() {
+        return nan_to_speed();
+    }
+
+    /** Sets the train to emergency stop. */
+    virtual void set_emergencystop() = 0;
 
     /** Sets the value of a function.
      * @param address is a 24-bit address of the function to set. For legacy DCC
@@ -59,10 +72,10 @@ public:
      * 1-28= traditional function buttons).
      * @param value is the function value. For binary functions, any non-zero
      * value sets the function to on, zero sets it to off.*/
-    virtual void set_fn(unsigned address, uint16_t value) = 0;
+    virtual void set_fn(uint32_t address, uint16_t value) = 0;
 
     /** @returns the value of a function. */
-    virtual uint16_t get_fn(unsigned address) = 0;
+    virtual uint16_t get_fn(uint32_t address) = 0;
 
     /** @returns the legacy (DCC) address of this train. This value is used in
      * determining the train's NMRAnet NodeID.
@@ -73,16 +86,15 @@ public:
     virtual uint32_t legacy_address() = 0;
 };
 
+class TrainService;
+
 class TrainNode : public AsyncNode
 {
 public:
     TrainNode(TrainService *service, TrainImpl *train);
 
     NodeID node_id() OVERRIDE;
-    AsyncIf *interface() OVERRIDE
-    {
-        return service_->interface();
-    }
+    AsyncIf *interface() OVERRIDE;
     bool is_initialized() OVERRIDE
     {
         return isInitialized_;
@@ -122,11 +134,11 @@ public:
 private:
     struct Impl;
     /** Implementation flows. */
-    Impl* impl_;
+    Impl *impl_;
 
     AsyncIf *interface_;
     /** List of train nodes managed by this Service. */
-    std::set<TrainNode> nodes_;
+    std::set<TrainNode *> nodes_;
 };
 
 } // namespace NMRAnet
