@@ -137,7 +137,7 @@ int singles2halfp(void *target, void *source, int numel)
                 if( xm == 0 ) { // If mantissa is zero ...
                     *hp++ = (UINT16_TYPE) ((xs >> 16) | 0x7C00u); // Signed Inf
                 } else {
-                    *hp++ = (UINT16_TYPE) 0xFE00u; // NaN, only 1st mantissa bit set
+                    *hp++ = (UINT16_TYPE) (x >> 16); // NaN, only 1st mantissa bit set
                 }
             } else { // Normalized number
                 hs = (UINT16_TYPE) (xs >> 16); // Sign bit
@@ -334,7 +334,7 @@ int halfp2singles(void *target, void *source, int numel)
                 if( hm == 0 ) { // If mantissa is zero ...
                     *xp++ = (((UINT32_TYPE) hs) << 16) | ((UINT32_TYPE) 0x7F800000u); // Signed Inf
                 } else {
-                    *xp++ = (UINT32_TYPE) 0xFFC00000u; // NaN, only 1st mantissa bit set
+                    *xp++ = ((UINT32_TYPE) h) << 16; // NaN, only 1st mantissa bit set
                 }
             } else { // Normalized number
                 xs = ((UINT32_TYPE) hs) << 16; // Sign bit
