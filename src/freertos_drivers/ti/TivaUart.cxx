@@ -138,19 +138,20 @@ void TivaUart::disable()
  */
 void TivaUart::tx_char()
 {
-    unsigned char data;
-    portENTER_CRITICAL();
-    if (MAP_UARTSpaceAvail(base) &&
-        os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
+    if (txPending == false)
     {
-        MAP_UARTCharPutNonBlocking(base, data);
-        if (txPending == false)
+        unsigned char data;
+
+        if (os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
         {
+            MAP_UARTCharPutNonBlocking(base, data);
+
+            MAP_IntDisable(interrupt);
             txPending = true;
             MAP_UARTIntEnable(base, UART_INT_TX);
+            MAP_IntEnable(interrupt);
         }
     }
-    portEXIT_CRITICAL();
 }
 
 /** Common interrupt handler for all UART devices.
