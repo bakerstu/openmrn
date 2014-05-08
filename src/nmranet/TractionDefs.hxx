@@ -36,7 +36,35 @@
 #ifndef _NMRANET_TRACTIONDEFS_HXX_
 #define _NMRANET_TRACTIONDEFS_HXX_
 
+#include <cmath>
+#include <stdint.h>
+
 namespace NMRAnet {
+
+typedef float SpeedType;
+
+/** Parses a SpeedType value from an unaligned memory address, typically from
+ * the input buffer. */
+SpeedType fp16_to_speed(const void *fp16);
+
+/** Parses a SpeedType value from an unaligned memory address, typically from
+ * the input buffer.
+ *
+ * @param speed is the speed to write
+ * @param fp16 is an unaligned two-byte location to write the float16 value
+ * to.*/
+void speed_to_fp16(SpeedType speed, void *fp16);
+
+/** @returns NAN as speed. */
+struct NanSpeedImpl {
+    NanSpeedImpl();
+    SpeedType value;
+};
+extern NanSpeedImpl NAN_SPEED;
+
+inline SpeedType nan_to_speed() {
+    return NAN_SPEED.value;
+}
 
 struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
@@ -111,8 +139,8 @@ struct TractionDefs {
         FNCONFIG_BINARYSTATE_SHORT = 0x2,
         /** Analog outputs, defined by NMRA DCC WG Topic 9910241. Offset 0-255,
          * values 0-255 each. */
-        FNCONFIG_ANALOG_OUTPUT = 0x3,
-    }
+        FNCONFIG_ANALOG_OUTPUT = 0x3
+    };
 };
 
 }  // namespace NMRAnet
