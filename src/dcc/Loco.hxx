@@ -59,14 +59,14 @@ public:
     }
 
     void set_speed(SpeedType speed) OVERRIDE;
-    virtual SpeedType get_speed() OVERRIDE;
-    virtual SpeedType get_commanded_speed() OVERRIDE {
+    SpeedType get_speed() OVERRIDE;
+    SpeedType get_commanded_speed() OVERRIDE {
         return get_speed();
     }
-    virtual void set_emergencystop() OVERRIDE;
-    virtual void set_fn(uint32_t address, uint16_t value) OVERRIDE;
-    virtual uint16_t get_fn(uint32_t address) OVERRIDE;
-    virtual uint32_t legacy_address() OVERRIDE;
+    void set_emergencystop() OVERRIDE;
+    void set_fn(uint32_t address, uint16_t value) OVERRIDE;
+    uint16_t get_fn(uint32_t address) OVERRIDE;
+    uint32_t legacy_address() OVERRIDE;
 
     // Generates next outgoing packet.
     void get_next_packet(unsigned code, Packet* packet) OVERRIDE;
@@ -75,7 +75,7 @@ private:
     // largest address allowed is 10239.
     unsigned dccAddress_ : 14;
     unsigned isShortAddress_ : 1;
-    // 1: forward, 0: reverse
+    // 0: forward, 1: reverse
     unsigned direction_ : 1;
     unsigned directionChanged_ : 1;
     unsigned speed_ : 5;
