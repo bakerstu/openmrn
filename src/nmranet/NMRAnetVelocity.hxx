@@ -37,6 +37,8 @@
 #include <cmath>
 #include <cstdint>
 
+#include "utils/macros.h"
+
 extern "C" {
 /* These come from the ieeehalfprecision.c */
 int singles2halfp(void *target, void *source, int numel);
@@ -46,12 +48,12 @@ int halfp2singles(void *target, void *source, int numel);
 /** Conversion factor for MPH. */
 #define MPH_FACTOR 0.44704F
 
-namespace NMRAnet
-{
-
 /** This type represents how velocity is seen on the wire (16 bit float).
  */
 typedef uint16_t float16_t;
+
+namespace NMRAnet
+{
 
 /** This class provides a mechanism for working with velocity in different
  *  forms.  A single precision floating point value is used internally to store
@@ -154,6 +156,21 @@ public:
         return FORWARD;
     }
     
+    void set_direction(int direction)
+    {
+        switch (direction)
+        {
+        case FORWARD:
+            forward();
+            break;
+        case REVERSE:
+            reverse();
+            break;
+        default:
+            DIE("Unexpected direction value");
+        }
+    }
+
     /** Set the direction to forward. */
     void forward()
     {
