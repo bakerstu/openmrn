@@ -36,6 +36,9 @@
 #define _DCC_PACKET_HXX_
 
 #include <stdint.h>
+#include <string.h>
+
+#include "dcc/Address.hxx"
 
 namespace dcc
 {
@@ -45,7 +48,15 @@ namespace dcc
  * booster itself, such as "power off". */
 struct Packet
 {
+    /** Maximum number of payload bytes. */
     static const unsigned MAX_PAYLOAD = 5;
+    /** Send this speed step to emergency-stop the locomotive. */
+    static const unsigned EMERGENCY_STOP = 0xFFFF;
+    
+    Packet() {
+        memset(this, 0, sizeof(*this));
+    }
+
     struct pkt_t
     {
         // Always 0.
@@ -93,8 +104,23 @@ struct Packet
     }
 
     /** Appends one byte to the packet payload that represents the XOR checksum
-     * for DCC. */
+     * for DCC. This should be used mostly internally; the custom packet setup
+     * code properly initializes checksum bytes.  */
     void AddDccChecksum();
+
+    /** Creates a packet for speed-and-direction (dcc baseline packet). Speed
+     * is maximum 14. */
+    void SetDccSpeed14(DccShortAddress address, bool is_fwd, bool light, unsigned speed);
+
+    /** Creates a packet for speed-and-direction (dcc baseline packet). Speed
+     * is maximum 28. */
+    void SetDccSpeed28(DccShortAddress address, bool is_fwd, unsigned speed);
+
+    /** Creates a DCC idle packet. */
+    void SetDccIdle();
+
+    /** Creates a DCC reset-all-decoders packet. */
+    void SetDccResetAllDecoders();
 };
 
 } // namespace dcc
