@@ -1,0 +1,18 @@
+openmrn/src/DCC
+^^^^^^^^^^^^^^^
+
+This directory contains an optional module that most OpenMRN application will
+not need to include. The module defines some classes for representing DCC
+packets as well as some common utilities for generating packets.
+
+While the library is named after DCC, there may be support for other protocols
+on the track as well, such as Marklin-Motorola.
+
+These libraries can be helpful for applications implementing a command station,
+and are in use by the example applications that define a command station.
+
+Every C++ object will be wrapped in the namespace dcc.
+
+namespace dcc {
+
+}  // namespace dcc
