@@ -52,8 +52,9 @@ struct Packet
     static const unsigned MAX_PAYLOAD = 5;
     /** Send this speed step to emergency-stop the locomotive. */
     static const unsigned EMERGENCY_STOP = 0xFFFF;
-    
-    Packet() {
+
+    Packet()
+    {
         memset(this, 0, sizeof(*this));
     }
 
@@ -103,24 +104,46 @@ struct Packet
         return packet_header.is_pkt;
     }
 
+    /** Initializes the packet structure for a regular DCC packet. */
+    void start_dcc_packet()
+    {
+        header_raw_data = 0;
+        dlc = 0;
+    }
+
+    void add_dcc_address(DccShortAddress address);
+    void add_dcc_address(DccLongAddress address);
+
+    /** Adds a speed-and-direction command (dcc baseline command) ot the
+     * packet. Speed is maximum 14. This should be called after
+     * add_dcc_address. */
+    void add_dcc_speed14(bool is_fwd, bool light, unsigned speed);
+    void set_dcc_speed14(DccShortAddress a, bool is_fwd, bool light,
+                         unsigned speed)
+    {
+        add_dcc_address(a);
+        add_dcc_speed14(is_fwd, light, speed);
+    }
+
+    /** Adds a speed-and-direction command (dcc baseline command) to the
+     * packet. Speed is maximum 28. This should be called after
+     * add_dcc_address. */
+    void add_dcc_speed28(bool is_fwd, unsigned speed);
+    void set_dcc_speed28(DccShortAddress a, bool is_fwd, unsigned speed)
+    {
+        add_dcc_address(a);
+        add_dcc_speed28(is_fwd, speed);
+    }
+
     /** Appends one byte to the packet payload that represents the XOR checksum
-     * for DCC. This should be used mostly internally; the custom packet setup
-     * code properly initializes checksum bytes.  */
-    void AddDccChecksum();
+     * for DCC. */
+    void add_dcc_checksum();
 
-    /** Creates a packet for speed-and-direction (dcc baseline packet). Speed
-     * is maximum 14. */
-    void SetDccSpeed14(DccShortAddress address, bool is_fwd, bool light, unsigned speed);
+    /** Creates a DCC idle packet. (Includes the checksum.) */
+    void set_dcc_idle();
 
-    /** Creates a packet for speed-and-direction (dcc baseline packet). Speed
-     * is maximum 28. */
-    void SetDccSpeed28(DccShortAddress address, bool is_fwd, unsigned speed);
-
-    /** Creates a DCC idle packet. */
-    void SetDccIdle();
-
-    /** Creates a DCC reset-all-decoders packet. */
-    void SetDccResetAllDecoders();
+    /** Creates a DCC reset-all-decoders packet. (Includes the checksum.) */
+    void set_dcc_reset_all_decoders();
 };
 
 } // namespace dcc

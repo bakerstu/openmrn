@@ -53,36 +53,59 @@ enum {
     DCC_BASELINE_SPEED_LIGHT = 0b00010000,
 };
 
-void Packet::AddDccChecksum()
+void Packet::add_dcc_checksum()
 {
     HASSERT(dlc < MAX_PAYLOAD);
+    // Protects against double call of add checksum.
+    HASSERT(!packet_header.skip_ec);
     uint8_t cs = 0;
     for (int i = 0; i < dlc; ++i)
     {
         cs ^= payload[i];
     }
     payload[dlc++] = cs;
+    packet_header.skip_ec = 1;
 }
 
-void Packet::SetDccIdle() {
+void Packet::set_dcc_idle() {
     dlc = 3;
     payload[0] = payload[2] = 0xFF;
     payload[1] = 0;
 }
 
-void Packet::SetDccResetAllDecoders() {
+void Packet::set_dcc_reset_all_decoders() {
     dlc = 3;
     payload[0] = payload[1] = payload[2] = 0;
 }
 
-void Packet::SetDccSpeed14(DccShortAddress address, bool is_fwd, bool light, unsigned speed) {
+void Packet::add_dcc_address(DccShortAddress address) {
+    start_dcc_packet();
+    payload[dlc++] = address.value & 0x7F;
+}
+
+void Packet::add_dcc_address(DccLongAddress address) {
+    start_dcc_packet();
     HASSERT(0);
 }
 
-void Packet::SetDccSpeed28(DccShortAddress address, bool is_fwd, unsigned speed) {
-    header_raw_data = DCC_DEFAULT_CMD;
-    dlc = 2;
-    payload[0] = address.value & 0x7F;
+void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed) {
+    /// TODO(balazs.racz) add unittests.
+    uint8_t b1 = DCC_BASELINE_SPEED;
+    if (is_fwd) b1 |= DCC_BASELINE_SPEED_FORWARD;
+    if (light) b1 |= DCC_BASELINE_SPEED_LIGHT;
+    if (speed == EMERGENCY_STOP) {
+        b1 |= 1;
+    } else if (speed == 0) {
+    } else {
+        HASSERT(speed <= 14);
+        speed += 1; // avoids 01 (e-stop)
+        b1 |= speed & 0xf;
+    }
+    payload[dlc++] = b1;
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_speed28(bool is_fwd, unsigned speed) {
     uint8_t b1 = DCC_BASELINE_SPEED;
     if (is_fwd) b1 |= DCC_BASELINE_SPEED_FORWARD;
     if (speed == EMERGENCY_STOP) {
@@ -94,8 +117,8 @@ void Packet::SetDccSpeed28(DccShortAddress address, bool is_fwd, unsigned speed)
         if (speed & 1) b1 |= DCC_BASELINE_SPEED_LIGHT;
         b1 |= (speed >> 1) & 0xf;
     }
-    payload[1] = b1;
-    AddDccChecksum();
+    payload[dlc++] = b1;
+    add_dcc_checksum();
 }
 
 } // namespace dcc

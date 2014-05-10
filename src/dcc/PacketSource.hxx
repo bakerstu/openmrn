@@ -45,7 +45,6 @@ typedef NMRAnet::SpeedType SpeedType;
 
 class PacketSource : public NMRAnet::TrainImpl {
 public:
-
     /** Generates the next packet to send out to the track. 
      * @param code if 0, then the next background refresh packet shold be
      * generated. If non-zero, then it specifies a train-specific value that
