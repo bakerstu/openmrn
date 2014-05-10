@@ -98,11 +98,11 @@ protected:
         expect_next_alias_allocation();
         EXPECT_CALL(m1_, legacy_address()).Times(AtLeast(0)).WillRepeatedly(
             Return(0x00003456U));
-        trainNode_.reset(new TrainNode(&trainService_, &m1_));
         // alias reservation
         expect_packet(":X1070133AN060100003456;");
         // initialized
         expect_packet(":X1910033AN060100003456;");
+        trainNode_.reset(new TrainNode(&trainService_, &m1_));
         wait();
     }
     ~TractionSingleMockTest()
