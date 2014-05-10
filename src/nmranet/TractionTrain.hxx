@@ -39,6 +39,7 @@
 
 #include <set>
 #include "nmranet/TractionDefs.hxx"
+#include "nmranet/TrainInterface.hxx"
 
 namespace NMRAnet
 {

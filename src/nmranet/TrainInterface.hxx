@@ -35,7 +35,7 @@
 #ifndef _NMRANET_TRAININTERFACE_HXX_
 #define _NMRANET_TRAININTERFACE_HXX_
 
-#include "nrmanet/TractionDefs.hxx"
+#include "nmranet/TractionDefs.hxx"
 
 namespace NMRAnet {
 
