@@ -202,6 +202,9 @@ $(info test deps: $(FULLPATHLIBS) )
 
 tests : all $(TEST_OUTPUTS)
 
+mksubdirs:
+	mkdir lib
+
 endif  # if we are able to run tests
 
 endif
