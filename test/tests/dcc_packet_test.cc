@@ -6,6 +6,8 @@
 
 using ::testing::StrictMock;
 using ::testing::ElementsAre;
+using ::testing::SaveArg;
+using ::testing::Mock;
 using ::testing::_;
 
 namespace dcc {
@@ -127,7 +129,7 @@ protected:
     }
 
     void do_callback() {
-        loop_.VerifyAndClear();
+        Mock::VerifyAndClear(&loop_);
         new (&pkt_) Packet();
         train_.get_next_packet(code_, &pkt_);
         code_ = 0;
@@ -147,7 +149,7 @@ TEST_F(Train28Test, SetSpeed) {
     EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_speed(SpeedType(37.5));
     do_callback();
-    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01110011, _));
 }
 
 }  // namespace dcc
