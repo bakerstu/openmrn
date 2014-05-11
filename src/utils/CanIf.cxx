@@ -61,8 +61,7 @@ DynamicPool *CanFrameReadFlow::pool()
 void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
 {
     const struct can_frame &frame = message->data()->frame();
-    if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame) ||
-        !IS_CAN_FRAME_EFF(frame))
+    if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame))
     {
         // Ignores these frames.
         message->unref();

@@ -40,7 +40,6 @@
 #include "nmranet_can.h"
 #include "utils/PipeFlow.hxx"
 
-
 /** Thin wrapper around struct can_frame that will allow a dispatcher select
  * the frames by CAN ID and mask as desired by the handlers. */
 struct CanMessageData : public can_frame
@@ -57,8 +56,8 @@ struct CanMessageData : public can_frame
     typedef uint32_t id_type;
 
     /** This bit will be set in standard CAN frames when they get to the
-        dispatcher. */ static const id_type
-    STANDARD_FRAME_BIT = (1U << 30);
+     *  dispatcher. */
+    static const id_type STANDARD_FRAME_BIT = (1U << 30);
 
     /** Filter to OR onto a can ID to tell the dispatcher to only consider
      * extended can frames. */
@@ -116,7 +115,8 @@ class CanIf;
 class CanFrameWriteFlow : public OutgoingFrameHandler
 {
 public:
-    CanFrameWriteFlow(CanIf *service) : ifCan_(service)
+    CanFrameWriteFlow(CanIf *service)
+        : ifCan_(service)
     {
     }
 
@@ -133,7 +133,8 @@ private:
 class CanFrameReadFlow : public OutgoingFrameHandler
 {
 public:
-    CanFrameReadFlow(CanIf *service) : ifCan_(service)
+    CanFrameReadFlow(CanIf *service)
+        : ifCan_(service)
     {
     }
 
@@ -145,9 +146,10 @@ private:
     CanIf *ifCan_;
 };
 
-class CanIf {
+class CanIf
+{
 public:
-    CanIf(Service* service, CanHubFlow* device);
+    CanIf(Service *service, CanHubFlow *device);
     ~CanIf();
 
     typedef DispatchFlow<Buffer<CanMessageData>, 4> FrameDispatchFlow;
@@ -166,10 +168,10 @@ public:
 
 private:
     friend class CanFrameWriteFlow;
-    //friend class CanFrameReadFlow;
+    // friend class CanFrameReadFlow;
 
     /** The device we need to send packets to. */
-    CanHubFlow* device_;
+    CanHubFlow *device_;
 
     /** Flow responsible for writing packets to the CAN hub. */
     CanFrameWriteFlow frameWriteFlow_;
@@ -191,8 +193,6 @@ private:
     {
         return device_;
     }
-
 };
-
 
 #endif // _UTILS_CANIF_HXX_
