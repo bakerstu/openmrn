@@ -89,7 +89,7 @@ int appl_main(int argc, char *argv[])
 }
 
 static Executor<1> g_executor("ex_thread", 0, 1024);
-static Service g_service(&g_executor);
+Service g_service(&g_executor);
 
 /** Blocks the current thread until the main executor has run out of work.
  *

@@ -201,7 +201,8 @@ public:
      * is ignored. */
     void set_mph(float mph)
     {
-        velocity = std::copysign(mph * MPH_FACTOR, velocity);
+        // should this be std::copysign? armgcc says not.
+        velocity = copysign(mph * MPH_FACTOR, velocity);
     }
     
     /** Get the speed in DCC 128 speed step format.
