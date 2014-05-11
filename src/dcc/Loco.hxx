@@ -77,13 +77,13 @@ private:
     unsigned isShortAddress_ : 1;
     // 0: forward, 1: reverse
     unsigned direction_ : 1;
-    unsigned directionChanged_ : 1;
-    unsigned speed_ : 5;
-    // Which refresh packet should go out next.
-    unsigned nextRefresh_ : 2;
-    // functions f0-f4.
-    unsigned fn_ : 5;
     unsigned lastSetSpeed_ : 16;
+    // functions f0-f28.
+    unsigned fn_ : 29;
+    // Which refresh packet should go out next.
+    unsigned nextRefresh_ : 3;
+    unsigned speed_ : 5;
+    unsigned directionChanged_ : 1;
 };
 
 } // namespace dcc

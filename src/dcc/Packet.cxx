@@ -155,6 +155,7 @@ void Packet::add_dcc_function0_4(unsigned values)
         b1 |= DCC_FUNCTION1_F0;
     b1 |= (values >> 1) & 0xf;
     payload[dlc++] = b1;
+    add_dcc_checksum();
 }
 
 void Packet::add_dcc_function5_8(unsigned values)
@@ -162,6 +163,7 @@ void Packet::add_dcc_function5_8(unsigned values)
     uint8_t b1 = DCC_FUNCTION2_F5;
     b1 |= values & 0xf;
     payload[dlc++] = b1;
+    add_dcc_checksum();
 }
 
 void Packet::add_dcc_function9_12(unsigned values)
@@ -169,18 +171,21 @@ void Packet::add_dcc_function9_12(unsigned values)
     uint8_t b1 = DCC_FUNCTION2_F9;
     b1 |= values & 0xf;
     payload[dlc++] = b1;
+    add_dcc_checksum();
 }
 
 void Packet::add_dcc_function13_20(unsigned values)
 {
     payload[dlc++] = DCC_FEATURE_EXP_F13;
     payload[dlc++] = values & 0xff;
+    add_dcc_checksum();
 }
 
 void Packet::add_dcc_function21_28(unsigned values)
 {
     payload[dlc++] = DCC_FEATURE_EXP_F21;
     payload[dlc++] = values & 0xff;
+    add_dcc_checksum();
 }
 
 } // namespace dcc

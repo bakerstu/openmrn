@@ -44,10 +44,15 @@ enum DccTrainUpdateCode
 {
     REFRESH = 0,
     SPEED = 1,
-    FUNCTION1 = 2,
+    FUNCTION0 = 2,
+    FUNCTION5 = 3,
+    FUNCTION9 = 4,
+    FUNCTION13 = 5,
+    FUNCTION21 = 6,
     MIN_REFRESH = SPEED,
-    MAX_REFRESH = SPEED, // temporary disable function refresh
-    //    MAX_REFRESH = FUNCTION1, // we only support 5 functions now
+    /** @TODO(balazs.racz) choose adaptive max-refresh based on how many
+     * functions are actually in use for the loco. */
+    MAX_REFRESH = FUNCTION9,
     ESTOP = 16,
 };
 
@@ -55,6 +60,7 @@ void Dcc28Train::set_speed(SpeedType speed)
 {
     float16_t new_speed = speed.get_wire();
     if (lastSetSpeed_ == new_speed) {
+        LOG(VERBOSE, "not updating speed: old speed %04x, new speed %04x", lastSetSpeed_, new_speed);
         return;
     }
     lastSetSpeed_ = new_speed;
@@ -69,6 +75,7 @@ void Dcc28Train::set_speed(SpeedType speed)
         unsigned sp = f_speed;
         sp++; // makes sure it is at least speed step 1.
         if (sp > 28) sp = 28;
+        LOG(VERBOSE, "set speed to step %u", sp);
         speed_ = sp;
     } else {
         speed_ = 0;
@@ -95,7 +102,7 @@ void Dcc28Train::set_emergencystop()
 
 void Dcc28Train::set_fn(uint32_t address, uint16_t value)
 {
-    if (address < 5)
+    if (address <= 28)
     {
         unsigned bit = 1 << address;
         if (value)
@@ -106,13 +113,23 @@ void Dcc28Train::set_fn(uint32_t address, uint16_t value)
         {
             fn_ &= ~bit;
         }
-        packet_processor_notify_update(this, FUNCTION1);
+        if (address < 5) {
+            packet_processor_notify_update(this, FUNCTION0);
+        } else if (address < 9) {
+            packet_processor_notify_update(this, FUNCTION5);
+        } else if (address < 13) {
+            packet_processor_notify_update(this, FUNCTION9);
+        } else if (address < 21) {
+            packet_processor_notify_update(this, FUNCTION13);
+        } else {
+            packet_processor_notify_update(this, FUNCTION21);
+        }
     }
 }
 
 uint16_t Dcc28Train::get_fn(uint32_t address)
 {
-    if (address < 5)
+    if (address <= 28)
     {
         if (fn_ & (1 << address))
         {
@@ -161,9 +178,29 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
     }
     switch (code)
     {
-        case FUNCTION1:
+        case FUNCTION0:
         {
-            /// @TODO(balazs.racz): set function command
+            packet->add_dcc_function0_4(fn_ & 0x1F);
+            return;
+        }
+        case FUNCTION5:
+        {
+            packet->add_dcc_function5_8(fn_ >> 5);
+            return;
+        }
+        case FUNCTION9:
+        {
+            packet->add_dcc_function9_12(fn_ >> 9);
+            return;
+        }
+        case FUNCTION13:
+        {
+            packet->add_dcc_function13_20(fn_ >> 13);
+            return;
+        }
+        case FUNCTION21:
+        {
+            packet->add_dcc_function21_28(fn_ >> 21);
             return;
         }
         case ESTOP:
