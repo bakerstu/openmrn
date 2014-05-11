@@ -88,14 +88,14 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 
 tests: all
 	echo $(foreach TESTOUTPUTS,$(TESTOUTPUTS),gcov $(VPATH)$(TESTOUTPUTS:.test=.cxxtest))
-	mkdir -p lcovdir; cd lcovdir; \
+	[ -z "$(TESTOUTPUTS)" ] || (mkdir -p lcovdir; cd lcovdir; \
 	lcov --directory ../ --no-recursion -z; \
-	$(foreach TESTOUTPUTS,$(TESTOUTPUTS),../$(TESTOUTPUTS);) \
+	$(foreach TESTOUTPUTS,$(TESTOUTPUTS),../$(TESTOUTPUTS) --gtest_death_test_style=threadsafe;) \
 	lcov --directory ../ --no-recursion --capture --output-file app.info; \
 	lcov -r app.info "/usr/include/*" -o app.info; \
 	lcov -r app.info "*.cxxtest" -o app.info; \
 	lcov -r app.info "*gtest*" -o app.info; \
-	genhtml -o . app.info
+	genhtml -o . app.info )
 
 clean: clean-local
 
