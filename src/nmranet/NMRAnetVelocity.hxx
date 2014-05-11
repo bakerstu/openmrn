@@ -37,21 +37,23 @@
 #include <cmath>
 #include <cstdint>
 
+#include "utils/macros.h"
+
 extern "C" {
 /* These come from the ieeehalfprecision.c */
 int singles2halfp(void *target, void *source, int numel);
 int halfp2singles(void *target, void *source, int numel);
 }
 
-/** Conversion factor for MPH. */
-#define MPH_FACTOR 0.44704F
-
-namespace NMRAnet
-{
+/** Conversion factor for MPH. 1 mph = this many m/s. */
+#define MPH_FACTOR 0.44704f
 
 /** This type represents how velocity is seen on the wire (16 bit float).
  */
 typedef uint16_t float16_t;
+
+namespace NMRAnet
+{
 
 /** This class provides a mechanism for working with velocity in different
  *  forms.  A single precision floating point value is used internally to store
@@ -154,6 +156,21 @@ public:
         return FORWARD;
     }
     
+    void set_direction(int direction)
+    {
+        switch (direction)
+        {
+        case FORWARD:
+            forward();
+            break;
+        case REVERSE:
+            reverse();
+            break;
+        default:
+            DIE("Unexpected direction value");
+        }
+    }
+
     /** Set the direction to forward. */
     void forward()
     {
@@ -173,11 +190,18 @@ public:
     }
     
     /** Convert the native meters/sec representation into mile per hour.
-     * @return velocity represented as miles per hour
+     * @return velocity represented as miles per hour. Always non-negative.
      */
     float mph()
     {
-        return zero_adjust(velocity * MPH_FACTOR, velocity);
+        return speed() / MPH_FACTOR;
+    }
+
+    /** Sets the speed value from a given mph value. The sign of the mph value
+     * is ignored. */
+    void set_mph(float mph)
+    {
+        velocity = std::copysign(mph * MPH_FACTOR, velocity);
     }
     
     /** Get the speed in DCC 128 speed step format.

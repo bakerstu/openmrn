@@ -9,14 +9,14 @@ namespace NMRAnet
 TEST(Fp16Test, NanToSpeedIsNan)
 {
     SpeedType nan_speed = nan_to_speed();
-    EXPECT_TRUE(isnan(nan_speed));
+    EXPECT_TRUE(isnan(nan_speed.speed()));
 }
 
 TEST(Fp16Test, FFFFToSpeedIsNan)
 {
     uint16_t nan_fp16 = 0xffffU;
     SpeedType nan_speed = fp16_to_speed(&nan_fp16);
-    EXPECT_TRUE(isnan(nan_speed));
+    EXPECT_TRUE(isnan(nan_speed.speed()));
 
     uint32_t fp_nan = 0;
     memcpy(&fp_nan, &nan_speed, 4);
@@ -52,7 +52,7 @@ TEST(Fp16Test, UnalignedSave)
     speed_to_fp16(s, b + 1);
     EXPECT_EQ(0U, v & 0xFF0000FFU);
     SpeedType ss = fp16_to_speed(b + 1);
-    EXPECT_EQ(37.5, ss);
+    EXPECT_EQ(37.5, ss.speed());
 }
 
 TEST(Fp16Test, MaintainsDirection)
@@ -74,7 +74,7 @@ uint8_t k37_5[] = {0x50, 0xB0};
 TEST(Fp16Test, ThirtySevenAndAHalf)
 {
     SpeedType s = fp16_to_speed(k37_5);
-    EXPECT_EQ(37.5, s);
+    EXPECT_EQ(37.5, s.speed());
 }
 
 class MockTrain : public TrainImpl
@@ -111,11 +111,11 @@ protected:
         expect_next_alias_allocation();
         EXPECT_CALL(m1_, legacy_address()).Times(AtLeast(0)).WillRepeatedly(
             Return(0x00003456U));
-        trainNode_.reset(new TrainNode(&trainService_, &m1_));
         // alias reservation
         expect_packet(":X1070133AN060100003456;");
         // initialized
         expect_packet(":X1910033AN060100003456;");
+        trainNode_.reset(new TrainNode(&trainService_, &m1_));
         wait();
     }
     ~TractionSingleMockTest()
@@ -129,7 +129,7 @@ protected:
 TEST_F(TractionSingleMockTest, SetSpeed)
 {
     LOG(INFO, "node %p", trainNode_.get());
-    EXPECT_CALL(m1_, set_speed(37.5));
+    EXPECT_CALL(m1_, set_speed(Velocity(37.5)));
     send_packet(":X195EA551N033A0050B0;");
 }
 

@@ -45,22 +45,21 @@ extern int halfp2singles(void *target, void *source, int numel);
 namespace NMRAnet {
 
 SpeedType fp16_to_speed(const void *fp16) {
-    float speed;
+    Velocity speed;
     DASSERT(sizeof(speed) == 4);
-    uint16_t input;
+    float16_t input;
     const uint8_t* in_p = static_cast<const uint8_t*>(fp16);
     // We assemble the input assuming it is big-endian.
     input = *in_p++;
     input <<= 8;
     input |= *in_p;
-    halfp2singles(&speed, &input, 1);
+    speed.set_wire(input);
     return speed;
 }
 
 void speed_to_fp16(SpeedType speed, void *fp16) {
     DASSERT(sizeof(speed) == 4);
-    uint16_t output;
-    singles2halfp(&output, &speed, 1);
+    float16_t output = speed.get_wire();
     uint8_t* o = static_cast<uint8_t*>(fp16);
     *o++ = output >> 8;
     *o = output & 0xff;

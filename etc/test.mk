@@ -104,3 +104,5 @@ clean-local:
 
 veryclean: clean-local
 
+#nothing to do
+mksubdirs:

@@ -39,16 +39,18 @@
 #include <cmath>
 #include <stdint.h>
 
+#include "nmranet/NMRAnetVelocity.hxx"
+
 namespace NMRAnet {
 
-typedef float SpeedType;
+typedef Velocity SpeedType;
 
 /** Parses a SpeedType value from an unaligned memory address, typically from
  * the input buffer. */
 SpeedType fp16_to_speed(const void *fp16);
 
-/** Parses a SpeedType value from an unaligned memory address, typically from
- * the input buffer.
+/** Renders a SpeedType value to an unaligned memory address, typically to the
+ * output buffer.
  *
  * @param speed is the speed to write
  * @param fp16 is an unaligned two-byte location to write the float16 value

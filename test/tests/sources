@@ -25,6 +25,7 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/timer_test.cc \
                  $(VPATH)/tests/traction_test.cc \
                  $(VPATH)/tests/verify_node_id_test.cc \
+                 $(VPATH)/tests/dcc_packet_test.cc \
 
 
 DISABLED_TESTS = \

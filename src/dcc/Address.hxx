@@ -24,82 +24,42 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TractionTrain.hxx
+ * \file Address.hxx
  *
- * Defines an NMRAnet Train node.
+ * Defines structures for holding and identifying DCC addresses.
  *
  * @author Balazs Racz
- * @date 5 May 2014
+ * @date 10 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTRAIN_HXX_
-#define _NMRANET_TRACTIONTRAIN_HXX_
+#include <stdint.h>
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "utils/macros.h"
 
-#include <set>
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TrainInterface.hxx"
+namespace dcc {
 
-namespace NMRAnet
-{
-
-
-class TrainService;
-
-class TrainNode : public AsyncNode
-{
-public:
-    TrainNode(TrainService *service, TrainImpl *train);
-
-    NodeID node_id() OVERRIDE;
-    AsyncIf *interface() OVERRIDE;
-    bool is_initialized() OVERRIDE
-    {
-        return isInitialized_;
+struct DccShortAddress {
+    uint8_t value;
+    explicit DccShortAddress(uint8_t v)
+        : value(v) {
+        HASSERT(value < 128);
     }
-    void set_initialized() OVERRIDE
-    {
-        isInitialized_ = 1;
-    }
-
-    TrainImpl *train()
-    {
-        return train_;
-    }
-
-private:
-    unsigned isInitialized_ : 1;
-
-    TrainService *service_;
-    TrainImpl *train_;
 };
 
-class TrainService : public Service, private Atomic
-{
-public:
-    TrainService(AsyncIf *interface);
-    ~TrainService();
-
-    AsyncIf *interface()
-    {
-        return interface_;
+struct DccLongAddress {
+    uint16_t value;
+    explicit DccLongAddress(uint16_t v)
+        : value(v) {
+        HASSERT(value <= 10239);
     }
-
-    /** Registers a new train with the train service. Will initiate a node
-        initialization flow for the train. */
-    void register_train(TrainNode *node);
-
-private:
-    struct Impl;
-    /** Implementation flows. */
-    Impl *impl_;
-
-    AsyncIf *interface_;
-    /** List of train nodes managed by this Service. */
-    std::set<TrainNode *> nodes_;
 };
 
-} // namespace NMRAnet
+struct MMAddress {
+    uint8_t value;
+    explicit MMAddress(uint8_t v)
+        : value(v) {
+        HASSERT(v <= 80);
+    }
+};
 
-#endif // _NMRANET_TRACTIONTRAIN_HXX_
+}  // namespace dcc

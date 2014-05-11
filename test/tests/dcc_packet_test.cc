@@ -1,0 +1,389 @@
+#include "utils/test_main.hxx"
+
+#include "dcc/Packet.hxx"
+#include "dcc/Loco.hxx"
+#include "dcc/UpdateLoop.hxx"
+
+using ::testing::AtLeast;
+using ::testing::ElementsAre;
+using ::testing::Mock;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
+using ::testing::_;
+
+namespace dcc
+{
+
+class PacketTest : public ::testing::Test
+{
+protected:
+    vector<uint8_t> get_packet()
+    {
+        return vector<uint8_t>(pkt_.payload + 0, pkt_.payload + pkt_.dlc);
+    }
+
+    vector<uint8_t> packet(const std::initializer_list<int> &data)
+    {
+        vector<uint8_t> v;
+        for (int b : data)
+        {
+            v.push_back(b & 0xff);
+        }
+        return v;
+    }
+
+    Packet pkt_;
+};
+
+TEST_F(PacketTest, ChecksumRegular)
+{
+    pkt_.dlc = 3;
+    pkt_.payload[0] = 0xA0;
+    pkt_.payload[1] = 0x53;
+    pkt_.payload[2] = 0x0F;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(4, pkt_.dlc);
+    EXPECT_EQ(0xFC, pkt_.payload[3]);
+}
+
+TEST_F(PacketTest, ChecksumEmpty)
+{
+    pkt_.dlc = 0;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(1, pkt_.dlc);
+    EXPECT_EQ(0, pkt_.payload[3]);
+}
+
+TEST_F(PacketTest, ChecksumFF)
+{
+    pkt_.dlc = 3;
+    pkt_.payload[0] = 0xFF;
+    pkt_.payload[1] = 0xFF;
+    pkt_.payload[2] = 0xFF;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(4, pkt_.dlc);
+    EXPECT_EQ(0xFF, pkt_.payload[3]);
+}
+
+TEST_F(PacketTest, DccSpeed28)
+{
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, 6);
+    EXPECT_THAT(get_packet(), ElementsAre(0b00110111, 0b01110100, 0b01000011));
+}
+
+TEST_F(PacketTest, DccSpeed28_zero)
+{
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, 0);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
+}
+
+TEST_F(PacketTest, DccSpeed28_reversezero)
+{
+    pkt_.set_dcc_speed28(DccShortAddress(55), false, 0);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01000000, _));
+}
+
+TEST_F(PacketTest, DccSpeed28_estop)
+{
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, Packet::EMERGENCY_STOP);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100001, _));
+}
+
+TEST_F(PacketTest, DccSpeed28_step123)
+{
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, 1);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
+
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, 2);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01110010, _));
+
+    pkt_.set_dcc_speed28(DccShortAddress(55), true, 3);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100011, _));
+}
+
+TEST_F(PacketTest, DccIdle)
+{
+    pkt_.set_dcc_idle();
+    EXPECT_THAT(get_packet(), ElementsAre(0xff, 0, 0xff));
+}
+
+TEST_F(PacketTest, DccReset)
+{
+    pkt_.set_dcc_reset_all_decoders();
+    EXPECT_THAT(get_packet(), ElementsAre(0, 0, 0));
+}
+
+TEST_F(PacketTest, Fn0)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function0_4(0b10110);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10001011, _));
+}
+
+TEST_F(PacketTest, Fn0_light)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function0_4(0b10111);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10011011, _));
+}
+
+TEST_F(PacketTest, Fn5)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function5_8(0b1101);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10111101, _));
+}
+
+TEST_F(PacketTest, Fn9)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function9_12(0b0110);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10100110, _));
+}
+
+TEST_F(PacketTest, Fn13)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function13_20(0x55);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011110, 0x55, _));
+}
+
+TEST_F(PacketTest, Fn20)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function21_28(0xAA);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0xAA, _));
+}
+
+class MockUpdateLoop;
+MockUpdateLoop *g_update_loop = nullptr;
+
+class MockUpdateLoop
+{
+public:
+    MockUpdateLoop()
+    {
+        HASSERT(!g_update_loop);
+        g_update_loop = this;
+    }
+    ~MockUpdateLoop()
+    {
+        g_update_loop = nullptr;
+    }
+    MOCK_METHOD2(send_update, void(PacketSource *source, unsigned code));
+};
+
+void packet_processor_notify_update(PacketSource *source, unsigned code)
+{
+    HASSERT(g_update_loop);
+    g_update_loop->send_update(source, code);
+}
+
+class Train28Test : public PacketTest
+{
+protected:
+    Train28Test()
+        : code_(0)
+        , train_(DccShortAddress(55))
+    {
+    }
+
+    void do_refresh()
+    {
+        new (&pkt_) Packet();
+        train_.get_next_packet(0, &pkt_);
+    }
+
+    void do_callback()
+    {
+        Mock::VerifyAndClear(&loop_);
+        new (&pkt_) Packet();
+        train_.get_next_packet(code_, &pkt_);
+        code_ = 0;
+    }
+
+    unsigned code_;
+    StrictMock<MockUpdateLoop> loop_;
+    Dcc28Train train_;
+};
+
+TEST_F(Train28Test, DefaultPacket)
+{
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
+}
+
+TEST_F(Train28Test, SetSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    train_.set_speed(SpeedType(37.5));
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101011, _));
+}
+
+TEST_F(Train28Test, MaxSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    s.set_mph(128);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01111111, _));
+}
+
+TEST_F(Train28Test, BelowMaxSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    s.set_mph(123.42);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101111, _));
+}
+
+TEST_F(Train28Test, MinSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    // Even the smallest nonzero velocity should set the train in motion.
+    s.set_mph(0.001);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
+    // We expecet the given speed to be represented very accurately in the
+    // returned value.
+    SpeedType ss = train_.get_speed();
+    EXPECT_NEAR(0.001, ss.mph(), 1e-3);
+
+    EXPECT_CALL(loop_, send_update(&train_, _));
+    s.set_mph(1.37);
+    train_.set_speed(s);
+    ss = train_.get_speed();
+    EXPECT_NEAR(1.37, ss.mph(), 1e-3);
+}
+
+TEST_F(Train28Test, ZeroSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).Times(2).WillRepeatedly(
+        SaveArg<1>(&code_));
+    SpeedType s;
+    // Even the smallest nonzero velocity should set the train in motion.
+    s.set_mph(0.001);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
+
+    s.set_mph(0);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
+}
+
+TEST_F(Train28Test, RefreshLoop)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).Times(AtLeast(1));
+    train_.set_speed(SpeedType(-37.5));
+    for (int i : {0, 3, 7, 9, 12, 15, 16, 20, 23, 25, 26})
+    {
+        train_.set_fn(i, 1);
+    }
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01001011, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10010100, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10110100, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10101001, _));
+
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01001011, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10010100, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10110100, _));
+    do_refresh();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10101001, _));
+}
+
+TEST_F(Train28Test, Function0)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
+    train_.set_fn(3, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10000100, _));
+}
+
+TEST_F(Train28Test, Function5)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
+    train_.set_fn(6, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10110010, _));
+}
+
+TEST_F(Train28Test, Function9)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
+    train_.set_fn(11, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b10100100, _));
+}
+
+TEST_F(Train28Test, Function13)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
+    train_.set_fn(13, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011110, 1, _));
+}
+
+TEST_F(Train28Test, Function28)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
+    train_.set_fn(28, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0x80, _));
+}
+
+TEST_F(Train28Test, AllFunctions)
+{
+    for (int a = 0; a <= 28; ++a) {
+        EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+            SaveArg<1>(&code_));
+        train_.set_fn(a, 1);
+        do_callback();
+        auto old_p = get_packet();
+
+        EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+            SaveArg<1>(&code_));
+        train_.set_fn(a, 0);
+        do_callback();
+        auto new_p = get_packet();
+        EXPECT_NE(old_p, new_p);
+    }
+}
+
+TEST_F(Train28Test, isSmall)
+{
+    EXPECT_EQ(16U, sizeof(train_));
+    // 4 bytes of function bits   // 3
+    // 4 bytes of virtual method table
+    // 2 bytes of old speed // 1
+    // almost 2 bytes of address // 2
+    // 6 bits of speed and direction
+    // 3 bits of refresh loop state
+    // 1 bit of directionChanged_
+    // and that takes us over 12 bytes.
+
+    // with more code we could go down to 12 bytes by dropping speed-and-dir
+    // and always recomputing it from previous-speed. The rest of the state
+    // bits would fit into the cracks.
+}
+
+} // namespace dcc

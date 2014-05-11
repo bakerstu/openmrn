@@ -24,82 +24,68 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TractionTrain.hxx
+ * \file Loco.hxx
  *
- * Defines an NMRAnet Train node.
+ * Defines a simple DCC locomotive.
  *
  * @author Balazs Racz
- * @date 5 May 2014
+ * @date 10 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTRAIN_HXX_
-#define _NMRANET_TRACTIONTRAIN_HXX_
+#ifndef _DCC_LOCO_HXX_
+#define _DCC_LOCO_HXX_
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "dcc/Packet.hxx"
+#include "dcc/PacketSource.hxx"
 
-#include <set>
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TrainInterface.hxx"
-
-namespace NMRAnet
+namespace dcc
 {
 
-
-class TrainService;
-
-class TrainNode : public AsyncNode
+class Dcc28Train : public PacketSource
 {
 public:
-    TrainNode(TrainService *service, TrainImpl *train);
-
-    NodeID node_id() OVERRIDE;
-    AsyncIf *interface() OVERRIDE;
-    bool is_initialized() OVERRIDE
+    Dcc28Train(DccShortAddress a)
     {
-        return isInitialized_;
-    }
-    void set_initialized() OVERRIDE
-    {
-        isInitialized_ = 1;
+        memset(this, 0, sizeof(*this));
+        isShortAddress_ = 1;
+        dccAddress_ = a.value;
     }
 
-    TrainImpl *train()
+    Dcc28Train(DccLongAddress a)
     {
-        return train_;
+        memset(this, 0, sizeof(*this));
+        isShortAddress_ = 0;
+        dccAddress_ = a.value;
     }
+
+    void set_speed(SpeedType speed) OVERRIDE;
+    SpeedType get_speed() OVERRIDE;
+    SpeedType get_commanded_speed() OVERRIDE {
+        return get_speed();
+    }
+    void set_emergencystop() OVERRIDE;
+    void set_fn(uint32_t address, uint16_t value) OVERRIDE;
+    uint16_t get_fn(uint32_t address) OVERRIDE;
+    uint32_t legacy_address() OVERRIDE;
+
+    // Generates next outgoing packet.
+    void get_next_packet(unsigned code, Packet* packet) OVERRIDE;
 
 private:
-    unsigned isInitialized_ : 1;
-
-    TrainService *service_;
-    TrainImpl *train_;
+    // largest address allowed is 10239.
+    unsigned dccAddress_ : 14;
+    unsigned isShortAddress_ : 1;
+    // 0: forward, 1: reverse
+    unsigned direction_ : 1;
+    unsigned lastSetSpeed_ : 16;
+    // functions f0-f28.
+    unsigned fn_ : 29;
+    // Which refresh packet should go out next.
+    unsigned nextRefresh_ : 3;
+    unsigned speed_ : 5;
+    unsigned directionChanged_ : 1;
 };
 
-class TrainService : public Service, private Atomic
-{
-public:
-    TrainService(AsyncIf *interface);
-    ~TrainService();
+} // namespace dcc
 
-    AsyncIf *interface()
-    {
-        return interface_;
-    }
-
-    /** Registers a new train with the train service. Will initiate a node
-        initialization flow for the train. */
-    void register_train(TrainNode *node);
-
-private:
-    struct Impl;
-    /** Implementation flows. */
-    Impl *impl_;
-
-    AsyncIf *interface_;
-    /** List of train nodes managed by this Service. */
-    std::set<TrainNode *> nodes_;
-};
-
-} // namespace NMRAnet
-
-#endif // _NMRANET_TRACTIONTRAIN_HXX_
+#endif // _DCC_LOCO_HXX_

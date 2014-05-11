@@ -24,82 +24,36 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TractionTrain.hxx
+ * \file PacketSource.hxx
  *
- * Defines an NMRAnet Train node.
+ * Defines an abstract TrainImpl class that is able to provide packets for
+ * refresh.
  *
  * @author Balazs Racz
- * @date 5 May 2014
+ * @date 10 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTRAIN_HXX_
-#define _NMRANET_TRACTIONTRAIN_HXX_
+#ifndef _DCC_PACKETSOURCE_HXX_
+#define _DCC_PACKETSOURCE_HXX_
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
-
-#include <set>
-#include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 
-namespace NMRAnet
-{
+namespace dcc {
 
+class Packet;
+typedef NMRAnet::SpeedType SpeedType;
 
-class TrainService;
-
-class TrainNode : public AsyncNode
-{
+class PacketSource : public NMRAnet::TrainImpl {
 public:
-    TrainNode(TrainService *service, TrainImpl *train);
-
-    NodeID node_id() OVERRIDE;
-    AsyncIf *interface() OVERRIDE;
-    bool is_initialized() OVERRIDE
-    {
-        return isInitialized_;
-    }
-    void set_initialized() OVERRIDE
-    {
-        isInitialized_ = 1;
-    }
-
-    TrainImpl *train()
-    {
-        return train_;
-    }
-
-private:
-    unsigned isInitialized_ : 1;
-
-    TrainService *service_;
-    TrainImpl *train_;
+    /** Generates the next packet to send out to the track. 
+     * @param code if 0, then the next background refresh packet shold be
+     * generated. If non-zero, then it specifies a train-specific value that
+     * tells which recently changed value should be generated. 
+     * @param packet is the storage to set the outgoing packet in. */
+    virtual void get_next_packet(unsigned code, Packet* packet) = 0;
 };
 
-class TrainService : public Service, private Atomic
-{
-public:
-    TrainService(AsyncIf *interface);
-    ~TrainService();
+}  // namespace dcc
 
-    AsyncIf *interface()
-    {
-        return interface_;
-    }
 
-    /** Registers a new train with the train service. Will initiate a node
-        initialization flow for the train. */
-    void register_train(TrainNode *node);
-
-private:
-    struct Impl;
-    /** Implementation flows. */
-    Impl *impl_;
-
-    AsyncIf *interface_;
-    /** List of train nodes managed by this Service. */
-    std::set<TrainNode *> nodes_;
-};
-
-} // namespace NMRAnet
-
-#endif // _NMRANET_TRACTIONTRAIN_HXX_
+#endif // _DCC_PACKETSOURCE_HXX_
