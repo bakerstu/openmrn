@@ -55,6 +55,19 @@ TEST(Fp16Test, UnalignedSave)
     EXPECT_EQ(37.5, ss);
 }
 
+TEST(Fp16Test, MaintainsDirection)
+{
+    uint16_t fp_f0 = 0x0000;
+    SpeedType fwd0 = fp16_to_speed(&fp_f0);
+    EXPECT_FALSE(std::signbit(fwd0));
+
+    // It's important that the test case be big-endian.
+    uint8_t fp_b0[] = {0x80, 0};
+    SpeedType bk0 = fp16_to_speed(fp_b0);
+    EXPECT_TRUE(std::signbit(bk0));
+}
+
+
 // The wire format shall be big endian. This is binary 1.001011 * 2^-5
 uint8_t k37_5[] = {0x50, 0xB0};
 
