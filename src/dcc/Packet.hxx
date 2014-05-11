@@ -118,8 +118,8 @@ struct Packet
      * packet. Speed is maximum 14. This should be called after
      * add_dcc_address. */
     void add_dcc_speed14(bool is_fwd, bool light, unsigned speed);
-    void set_dcc_speed14(DccShortAddress a, bool is_fwd, bool light,
-                         unsigned speed)
+    template <class A>
+    void set_dcc_speed14(A a, bool is_fwd, bool light, unsigned speed)
     {
         add_dcc_address(a);
         add_dcc_speed14(is_fwd, light, speed);
@@ -129,11 +129,19 @@ struct Packet
      * packet. Speed is maximum 28. This should be called after
      * add_dcc_address. */
     void add_dcc_speed28(bool is_fwd, unsigned speed);
-    void set_dcc_speed28(DccShortAddress a, bool is_fwd, unsigned speed)
+    template <class A> void set_dcc_speed28(A a, bool is_fwd, unsigned speed)
     {
         add_dcc_address(a);
         add_dcc_speed28(is_fwd, speed);
     }
+
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero. */
+    void add_dcc_function0_4(unsigned values);
+    void add_dcc_function5_8(unsigned values);
+    void add_dcc_function9_12(unsigned values);
+    void add_dcc_function13_20(unsigned values);
+    void add_dcc_function21_28(unsigned values);
 
     /** Appends one byte to the packet payload that represents the XOR checksum
      * for DCC. */

@@ -38,7 +38,8 @@
 
 namespace dcc
 {
-enum {
+enum
+{
     MARKLIN_DEFAULT_CMD = 0b00100110,
     DCC_DEFAULT_CMD = 0,
     DCC_LONG_PREAMBLE_CMD = 0b00001100,
@@ -51,6 +52,12 @@ enum {
     DCC_BASELINE_SPEED = 0b01000000,
     DCC_BASELINE_SPEED_FORWARD = 0b00100000,
     DCC_BASELINE_SPEED_LIGHT = 0b00010000,
+    DCC_FUNCTION1 = 0b10000000,
+    DCC_FUNCTION1_F0 = 0b00010000,
+    DCC_FUNCTION2_F5 = 0b10110000,
+    DCC_FUNCTION2_F9 = 0b10100000,
+    DCC_FEATURE_EXP_F13 = 0b11011110,
+    DCC_FEATURE_EXP_F21 = 0b11011111,
 };
 
 void Packet::add_dcc_checksum()
@@ -67,36 +74,48 @@ void Packet::add_dcc_checksum()
     packet_header.skip_ec = 1;
 }
 
-void Packet::set_dcc_idle() {
+void Packet::set_dcc_idle()
+{
     dlc = 3;
     payload[0] = payload[2] = 0xFF;
     payload[1] = 0;
 }
 
-void Packet::set_dcc_reset_all_decoders() {
+void Packet::set_dcc_reset_all_decoders()
+{
     dlc = 3;
     payload[0] = payload[1] = payload[2] = 0;
 }
 
-void Packet::add_dcc_address(DccShortAddress address) {
+void Packet::add_dcc_address(DccShortAddress address)
+{
     start_dcc_packet();
     payload[dlc++] = address.value & 0x7F;
 }
 
-void Packet::add_dcc_address(DccLongAddress address) {
+void Packet::add_dcc_address(DccLongAddress address)
+{
     start_dcc_packet();
     HASSERT(0);
 }
 
-void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed) {
+void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed)
+{
     /// TODO(balazs.racz) add unittests.
     uint8_t b1 = DCC_BASELINE_SPEED;
-    if (is_fwd) b1 |= DCC_BASELINE_SPEED_FORWARD;
-    if (light) b1 |= DCC_BASELINE_SPEED_LIGHT;
-    if (speed == EMERGENCY_STOP) {
+    if (is_fwd)
+        b1 |= DCC_BASELINE_SPEED_FORWARD;
+    if (light)
+        b1 |= DCC_BASELINE_SPEED_LIGHT;
+    if (speed == EMERGENCY_STOP)
+    {
         b1 |= 1;
-    } else if (speed == 0) {
-    } else {
+    }
+    else if (speed == 0)
+    {
+    }
+    else
+    {
         HASSERT(speed <= 14);
         speed += 1; // avoids 01 (e-stop)
         b1 |= speed & 0xf;
@@ -105,20 +124,63 @@ void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed) {
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_speed28(bool is_fwd, unsigned speed) {
+void Packet::add_dcc_speed28(bool is_fwd, unsigned speed)
+{
     uint8_t b1 = DCC_BASELINE_SPEED;
-    if (is_fwd) b1 |= DCC_BASELINE_SPEED_FORWARD;
-    if (speed == EMERGENCY_STOP) {
+    if (is_fwd)
+        b1 |= DCC_BASELINE_SPEED_FORWARD;
+    if (speed == EMERGENCY_STOP)
+    {
         b1 |= 1;
-    } else if (speed == 0) {
-    } else {
+    }
+    else if (speed == 0)
+    {
+    }
+    else
+    {
         HASSERT(speed <= 28);
         speed += 3; // avoids 00, 01 (stop) and 10 11 (e-stop)
-        if (speed & 1) b1 |= DCC_BASELINE_SPEED_LIGHT;
+        if (speed & 1)
+            b1 |= DCC_BASELINE_SPEED_LIGHT;
         b1 |= (speed >> 1) & 0xf;
     }
     payload[dlc++] = b1;
     add_dcc_checksum();
+}
+
+void Packet::add_dcc_function0_4(unsigned values)
+{
+    uint8_t b1 = DCC_FUNCTION1;
+    if (values & 1)
+        b1 |= DCC_FUNCTION1_F0;
+    b1 |= (values >> 1) & 0xf;
+    payload[dlc++] = b1;
+}
+
+void Packet::add_dcc_function5_8(unsigned values)
+{
+    uint8_t b1 = DCC_FUNCTION2_F5;
+    b1 |= values & 0xf;
+    payload[dlc++] = b1;
+}
+
+void Packet::add_dcc_function9_12(unsigned values)
+{
+    uint8_t b1 = DCC_FUNCTION2_F9;
+    b1 |= values & 0xf;
+    payload[dlc++] = b1;
+}
+
+void Packet::add_dcc_function13_20(unsigned values)
+{
+    payload[dlc++] = DCC_FEATURE_EXP_F13;
+    payload[dlc++] = values & 0xff;
+}
+
+void Packet::add_dcc_function21_28(unsigned values)
+{
+    payload[dlc++] = DCC_FEATURE_EXP_F21;
+    payload[dlc++] = values & 0xff;
 }
 
 } // namespace dcc
