@@ -149,7 +149,53 @@ TEST_F(Train28Test, SetSpeed) {
     EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_speed(SpeedType(37.5));
     do_callback();
-    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01110011, _));
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101011, _));
+}
+
+TEST_F(Train28Test, MaxSpeed) {
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    s.set_mph(128);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01111111, _));
+}
+
+TEST_F(Train28Test, BelowMaxSpeed) {
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    s.set_mph(123.42);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101111, _));
+}
+
+TEST_F(Train28Test, MinSpeed) {
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    // Even the smallest nonzero velocity should set the train in motion. 
+    s.set_mph(0.001);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
+
+    SpeedType ss = train_.get_speed();
+    EXPECT_NEAR(0.001, ss.mph(), 1e-7);
+}
+
+TEST_F(Train28Test, ZeroSpeed) {
+    EXPECT_CALL(loop_, send_update(&train_, _)).Times(2).WillRepeatedly(SaveArg<1>(&code_));
+    SpeedType s;
+    // Even the smallest nonzero velocity should set the train in motion. 
+    s.set_mph(0.001);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
+
+    s.set_mph(0);
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
 }
 
 }  // namespace dcc
