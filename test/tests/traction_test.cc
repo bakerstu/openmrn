@@ -59,12 +59,12 @@ TEST(Fp16Test, MaintainsDirection)
 {
     uint16_t fp_f0 = 0x0000;
     SpeedType fwd0 = fp16_to_speed(&fp_f0);
-    EXPECT_FALSE(std::signbit(fwd0));
+    EXPECT_EQ(0, fwd0.direction());
 
     // It's important that the test case be big-endian.
     uint8_t fp_b0[] = {0x80, 0};
     SpeedType bk0 = fp16_to_speed(fp_b0);
-    EXPECT_TRUE(std::signbit(bk0));
+    EXPECT_EQ(1, bk0.direction());
 }
 
 
