@@ -12,6 +12,7 @@ CXXSRCS += BufferQueue.cxx \
            GcTcpHub.cxx \
            socket_listener.cxx \
            constants.cxx \
+	   CanIf.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \

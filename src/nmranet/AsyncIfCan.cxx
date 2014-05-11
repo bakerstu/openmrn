@@ -46,53 +46,6 @@ namespace NMRAnet
 
 size_t g_alias_use_conflicts = 0;
 
-DynamicPool *CanFrameWriteFlow::pool()
-{
-    return ifCan_->device()->pool();
-}
-
-void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
-{
-    LOG(VERBOSE, "outgoing message %" PRIx32 ".",
-        GET_CAN_FRAME_ID_EFF(message->data()->frame()));
-    message->data()->skipMember_ = ifCan_->hub_port();
-    ifCan_->device()->send(message, priority);
-}
-
-DynamicPool *CanFrameReadFlow::pool()
-{
-    return ifCan_->dispatcher()->pool();
-}
-
-void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
-{
-    const struct can_frame &frame = message->data()->frame();
-    if (IS_CAN_FRAME_ERR(frame) || IS_CAN_FRAME_RTR(frame) ||
-        !IS_CAN_FRAME_EFF(frame))
-    {
-        // Ignores these frames.
-        message->unref();
-        return;
-    }
-
-    // We typecast the incoming buffer to a different buffer type that should be
-    // the subset of the data.
-    Buffer<CanMessageData> *incoming_buffer;
-
-    // Checks that it fits.
-    HASSERT(sizeof(*incoming_buffer) <= sizeof(*message));
-    // Does the cast.
-    incoming_buffer = static_cast<Buffer<CanMessageData> *>(
-        static_cast<BufferBase *>(message));
-    // Checks that the frame is still in the same place (by pointer).
-    HASSERT(incoming_buffer->data()->mutable_frame() ==
-            message->data()->mutable_frame());
-
-    /** @TODO(balazs.racz): Figure out what priority the new message should be
-     * at. */
-    ifCan_->frame_dispatcher()->send(incoming_buffer, priority);
-}
-
 /** Specifies how long to wait for a response to an alias mapping enquiry
  * message when trying to send an addressed message to a destination. The final
  * timeout will be twice this time, because after the first timeout a global
@@ -401,10 +354,7 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
     : AsyncIf(executor, local_nodes_count)
-    , device_(device)
-    , frameWriteFlow_(this)
-    , frameReadFlow_(this)
-    , frameDispatcher_(this)
+    , CanIf(this, device)
     , localAliases_(0, local_alias_cache_size)
     , remoteAliases_(0, remote_alias_cache_size)
 {
@@ -427,12 +377,10 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
         owned_flows_.push_back(
             std::unique_ptr<Executable>(new GlobalCanMessageWriteFlow(this)));
             }*/
-    this->device()->register_port(hub_port());
 }
 
 AsyncIfCan::~AsyncIfCan()
 {
-    this->device()->unregister_port(hub_port());
 }
 
 void AsyncIfCan::add_owned_flow(Executable *e)
