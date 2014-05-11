@@ -190,11 +190,11 @@ public:
     }
     
     /** Convert the native meters/sec representation into mile per hour.
-     * @return velocity represented as miles per hour
+     * @return velocity represented as miles per hour. Always non-negative.
      */
     float mph()
     {
-        return zero_adjust(velocity / MPH_FACTOR, velocity);
+        return speed() / MPH_FACTOR;
     }
 
     /** Sets the speed value from a given mph value. The sign of the mph value
