@@ -66,6 +66,14 @@ struct CanMessageData : public can_frame
      * extended can frames. */
     static const uint32_t CAN_EXT_FRAME_MASK = ~0x1FFFFFFFU;
 
+    /** Filter to OR onto a can ID to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_STD_FRAME_FILTER = STANDARD_FRAME_BIT;
+    /** Mask to OR onto a can mask to tell the dispatcher to only consider
+     * extended can frames. */
+    static const uint32_t CAN_STD_FRAME_MASK = ~0x7FFU;
+
+
     /** @returns the identifier for dispatching */
     id_type id()
     {
@@ -100,6 +108,7 @@ struct CanMessageData : public can_frame
  * not easy, because they use different ID functions and their size differs
  * a bit as well. */
 typedef FlowInterface<Buffer<CanMessageData>> IncomingFrameHandler;
+typedef StateFlow<Buffer<CanMessageData>, QList<1>> IncomingFrameFlow;
 typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
 
 class CanIf;
@@ -153,6 +162,11 @@ public:
     ~CanIf();
 
     typedef DispatchFlow<Buffer<CanMessageData>, 4> FrameDispatchFlow;
+
+    Service *service()
+    {
+        return frameDispatcher_.service();
+    }
 
     /// @returns the dispatcher of incoming CAN frames.
     FrameDispatchFlow *frame_dispatcher()
