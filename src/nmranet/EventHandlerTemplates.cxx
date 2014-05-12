@@ -39,7 +39,7 @@
 #include "nmranet/GlobalEventHandler.hxx"
 
 #ifdef __linux__
-#define DESCRIBE_VAR
+//#define DESCRIBE_VAR
 #endif
 
 #ifdef DESCRIBE_VAR
