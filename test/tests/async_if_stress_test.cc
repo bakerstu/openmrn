@@ -55,7 +55,10 @@ public:
         //ifCan_.alias_allocator()->TEST_finish_pending_allocation();
         Executor<1>* e = round_execs[(nodeId_ >> 1) & 3];
         while(!e->empty() || !g_executor.empty()
-              || !ifCan_.alias_allocator()->is_waiting()) {
+              || !ifCan_.alias_allocator()->is_waiting()
+              || !ifCan_.dispatcher()->is_waiting()
+              || !ifCan_.frame_dispatcher()->is_waiting()
+              ) {
 /*              !ifCan_.frame_dispatcher()->IsNotStarted() ||
               !ifCan_.dispatcher()->IsNotStarted() ||
               !can_hub0.empty() ||
