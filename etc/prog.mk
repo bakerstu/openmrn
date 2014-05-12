@@ -52,6 +52,8 @@ LIBS = $(STARTGROUP) \
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 ifdef APP_PATH
 INCLUDES += -I$(APP_PATH)
+else
+#$(error no APP_PATH found)
 endif
 ifdef BOARD
 INCLUDES += -D$(BOARD)
@@ -203,7 +205,7 @@ $(info test deps: $(FULLPATHLIBS) )
 tests : all $(TEST_OUTPUTS)
 
 mksubdirs:
-	mkdir lib
+	[ -d lib ] || mkdir lib
 
 endif  # if we are able to run tests
 
