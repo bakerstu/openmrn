@@ -34,7 +34,7 @@ using ::testing::WithArg;
 using ::testing::_;
 
 ///@todo(balazs.racz) remove
-//void (*g_invoke)(Notifiable *) = &InvokeNotification;
+// void (*g_invoke)(Notifiable *) = &InvokeNotification;
 
 HubFlow gc_hub0(&g_service);
 CanHubFlow can_hub0(&g_service);
@@ -45,7 +45,8 @@ GCAdapterBase *g_gc_adapter = nullptr;
 class MockSend : public HubPort
 {
 public:
-    MockSend() : HubPort(&g_service)
+    MockSend()
+        : HubPort(&g_service)
     {
     }
 
@@ -84,14 +85,7 @@ static void print_packet(const string &pkt)
     fprintf(stderr, "%s\n", pkt.c_str());
 }
 
-/** Test fixture base class with helper methods for exercising the asynchronous
- * interface code.
- *
- * Usage:
- *
- * Inherit your test fixture class from AsyncIfTest.
- */
-class AsyncIfTest : public testing::Test
+class AsyncCanTest : public testing::Test
 {
 public:
     static void SetUpTestCase()
@@ -106,21 +100,13 @@ public:
     }
 
 protected:
-    AsyncIfTest()
-        : pendingAliasAllocation_(false)
+    AsyncCanTest()
     {
         gc_hub0.register_port(&canBus_);
-        ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 5));
-        ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
-    ~AsyncIfTest()
+    ~AsyncCanTest()
     {
-        wait();
-        if (pendingAliasAllocation_) {
-            ifCan_->alias_allocator()->TEST_finish_pending_allocation();
-            wait();
-        }
         gc_hub0.unregister_port(&canBus_);
         if (printer_.get())
         {
@@ -128,48 +114,11 @@ protected:
         }
     }
 
-    /** Creates an alias allocator flow, and injects an already allocated
-     *  alias. */
-    void create_allocated_alias()
+    /** Delays the current thread until we are certain that all asynchrnous
+        processing has completed. */
+    void wait()
     {
-        ifCan_->set_alias_allocator(
-            new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
-        Buffer<AliasInfo> *a;
-        mainBufferPool->alloc(&a);        
-        a->data()->alias = 0x33A;
-        a->data()->state = AliasInfo::STATE_RESERVED;
-        ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
-                                     a->data()->alias);
-        ifCan_->alias_allocator()->reserved_aliases()->insert(a);        
-        aliasSeed_ = 0x44C;
-        pendingAliasAllocation_ = false;
-    }
-
-    void expect_next_alias_allocation(NodeAlias a = 0)
-    {
-        pendingAliasAllocation_ = true;
-        if (!a)
-        {
-            ifCan_->alias_allocator()->seed_ = aliasSeed_;
-            a = aliasSeed_;
-            aliasSeed_++;
-        }
-        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X17020%03XN;", a)))
-            .Times(1)
-            .RetiresOnSaturation();
-        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X1610D%03XN;", a)))
-            .Times(1)
-            .RetiresOnSaturation();
-        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X15000%03XN;", a)))
-            .Times(1)
-            .RetiresOnSaturation();
-        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X14003%03XN;", a)))
-            .Times(1)
-            .RetiresOnSaturation();
-
-        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X10700%03XN;", a)))
-            .Times(AtMost(1))
-            .RetiresOnSaturation();
+        wait_for_main_executor();
     }
 
 /** Adds an expectation that the code will send a packet to the CANbus.
@@ -217,58 +166,25 @@ protected:
     */
     void send_packet(const string &gc_packet)
     {
-        Buffer<HubData>* packet;
+        Buffer<HubData> *packet;
         mainBufferPool->alloc(&packet);
         packet->data()->assign(gc_packet);
         packet->data()->skipMember_ = &canBus_;
         gc_hub0.send(packet);
     }
 
-    /** Delays the current thread until we are certain that all asynchrnous
-        processing has completed. */
-    void wait()
-    {
-        wait_for_main_executor();
-/*        do
-        {
-            bool exit = true;
-            {
-                LockHolder h1(&g_executor);
-                LockHolder h2(DefaultWriteFlowExecutor());
-                LockHolder h3(&g_gc_pipe_executor);
+/** Injects an incoming packet to the interface and expects that the node
+    will send out a response packet for it.
 
-                if (!g_executor.empty() || !g_gc_pipe_executor.empty() ||
-                    !DefaultWriteFlowExecutor()->empty() ||
-                    !ifCan_->frame_dispatcher()->IsNotStarted() ||
-                    !ifCan_->dispatcher()->IsNotStarted() ||
-                    !can_hub0.empty() || !gc_hub0.empty())
-                {
-                    exit = false;
-                }
-            }
-            if (exit)
-            {
-                return;
-            }
-            else
-            {
-                usleep(100);
-            }
-            } while (true);*/
-    }
+    As a side effect, clears all pending expectations on the CANbus.
 
-    /** Injects an incoming packet to the interface and expects that the node
-        will send out a response packet for it.
+    Example:
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                                    ":X194C412DN05010101FFFF0000;");
 
-        As a side effect, clears all pending expectations on the CANbus.
-
-        Example:
-        send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
-                                        ":X194C412DN05010101FFFF0000;");
-
-        @param pkt is the packet to inject, in GridConnect format.
-        @param resp is the response to expect, also in GridConnect format.
-    */
+    @param pkt is the packet to inject, in GridConnect format.
+    @param resp is the response to expect, also in GridConnect format.
+*/
 #define send_packet_and_expect_response(pkt, resp)                             \
     do                                                                         \
     {                                                                          \
@@ -282,6 +198,84 @@ protected:
         wait();
         Mock::VerifyAndClear(&canBus_);
     }
+
+    /// Helper object for setting expectations on the packets sent on the bus.
+    NiceMock<MockSend> canBus_;
+    /// Object for debug-printing every packet (if requested).
+    std::unique_ptr<HubPort> printer_;
+};
+
+/** Test fixture base class with helper methods for exercising the asynchronous
+ * interface code.
+ *
+ * Usage:
+ *
+ * Inherit your test fixture class from AsyncIfTest.
+ */
+class AsyncIfTest : public AsyncCanTest
+{
+protected:
+    AsyncIfTest()
+        : pendingAliasAllocation_(false)
+    {
+        ifCan_.reset(new AsyncIfCan(&g_executor, &can_hub0, 10, 10, 5));
+        ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
+    }
+
+    ~AsyncIfTest()
+    {
+        wait();
+        if (pendingAliasAllocation_)
+        {
+            ifCan_->alias_allocator()->TEST_finish_pending_allocation();
+            wait();
+        }
+    }
+
+    /** Creates an alias allocator flow, and injects an already allocated
+     *  alias. */
+    void create_allocated_alias()
+    {
+        ifCan_->set_alias_allocator(
+            new AsyncAliasAllocator(TEST_NODE_ID, ifCan_.get()));
+        Buffer<AliasInfo> *a;
+        mainBufferPool->alloc(&a);
+        a->data()->alias = 0x33A;
+        a->data()->state = AliasInfo::STATE_RESERVED;
+        ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
+                                     a->data()->alias);
+        ifCan_->alias_allocator()->reserved_aliases()->insert(a);
+        aliasSeed_ = 0x44C;
+        pendingAliasAllocation_ = false;
+    }
+
+    void expect_next_alias_allocation(NodeAlias a = 0)
+    {
+        pendingAliasAllocation_ = true;
+        if (!a)
+        {
+            ifCan_->alias_allocator()->seed_ = aliasSeed_;
+            a = aliasSeed_;
+            aliasSeed_++;
+        }
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X17020%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X1610D%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X15000%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X14003%03XN;", a)))
+            .Times(1)
+            .RetiresOnSaturation();
+
+        EXPECT_CALL(canBus_, mwrite(StringPrintf(":X10700%03XN;", a)))
+            .Times(AtMost(1))
+            .RetiresOnSaturation();
+    }
+
 
     BarrierNotifiable *get_notifiable()
     {
@@ -297,10 +291,6 @@ protected:
     SyncNotifiable n_;
     BarrierNotifiable bn_;
 
-    /// Helper object for setting expectations on the packets sent on the bus.
-    NiceMock<MockSend> canBus_;
-    /// Object for debug-printing every packet (if requested).
-    std::unique_ptr<HubPort> printer_;
     /// The interface under test.
     std::unique_ptr<AsyncIfCan> ifCan_;
     /** Temporary object used to send aliases around in the alias allocator
@@ -315,14 +305,15 @@ protected:
 class AsyncNodeTest : public AsyncIfTest
 {
 protected:
-    AsyncNodeTest() : eventService_(ifCan_.get())
+    AsyncNodeTest()
+        : eventService_(ifCan_.get())
     {
         EXPECT_CALL(canBus_, mwrite(":X1910022AN02010D000003;")).Times(1);
         ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
         node_ = ownedNode_.get();
         ifCan_->add_addressed_message_support();
         wait();
-        //AddEventHandlerToIf(ifCan_.get());
+        // AddEventHandlerToIf(ifCan_.get());
     }
 
     ~AsyncNodeTest()
@@ -349,7 +340,8 @@ class MockMessageHandler : public MessageHandler
 public:
     MOCK_METHOD2(handle_message,
                  void(NMRAnetMessage *message, unsigned priority));
-    virtual void send(Buffer<NMRAnetMessage>* message, unsigned priority) {
+    virtual void send(Buffer<NMRAnetMessage> *message, unsigned priority)
+    {
         handle_message(message->data(), priority);
         message->unref();
     }
