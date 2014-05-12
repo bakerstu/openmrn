@@ -35,6 +35,11 @@
 #ifndef _DCC_UPDATELOOP_HXX_
 #define _DCC_UPDATELOOP_HXX_
 
+template<class T> class FlowInterface;
+template<class T> class Buffer;
+namespace dcc { class Packet; }
+typedef FlowInterface<Buffer<dcc::Packet> > PacketFlowInterface;
+
 namespace dcc {
 
 class PacketSource;
