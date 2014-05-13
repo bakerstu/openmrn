@@ -58,14 +58,10 @@ SpeedType fp16_to_speed(const void *fp16);
 void speed_to_fp16(SpeedType speed, void *fp16);
 
 /** @returns NAN as speed. */
-struct NanSpeedImpl {
-    NanSpeedImpl();
-    SpeedType value;
-};
-extern NanSpeedImpl NAN_SPEED;
-
 inline SpeedType nan_to_speed() {
-    return NAN_SPEED.value;
+    SpeedType s;
+    s.set_wire(0xFFFFU);
+    return s;
 }
 
 struct TractionDefs {

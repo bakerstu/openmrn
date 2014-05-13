@@ -65,11 +65,4 @@ void speed_to_fp16(SpeedType speed, void *fp16) {
     *o = output & 0xff;
 }
 
-NanSpeedImpl::NanSpeedImpl() {
-    uint32_t d = 0xFFFF0000;
-    memcpy(&value, &d, 4);
-}
-
-NanSpeedImpl NAN_SPEED;
-
 }  // namespace NMRAnet
