@@ -171,6 +171,8 @@ public:
         g_update_loop = nullptr;
     }
     MOCK_METHOD2(send_update, void(PacketSource *source, unsigned code));
+    MOCK_METHOD1(register_source, void(PacketSource *source));
+    MOCK_METHOD1(unregister_source, void(PacketSource *source));
 };
 
 void packet_processor_notify_update(PacketSource *source, unsigned code)
@@ -179,13 +181,31 @@ void packet_processor_notify_update(PacketSource *source, unsigned code)
     g_update_loop->send_update(source, code);
 }
 
+void packet_processor_add_refresh_source(PacketSource *source)
+{
+    HASSERT(g_update_loop);
+    g_update_loop->register_source(source);
+}
+
+void packet_processor_remove_refresh_source(PacketSource *source)
+{
+    HASSERT(g_update_loop);
+    g_update_loop->unregister_source(source);
+}
+
 class Train28Test : public PacketTest
 {
 protected:
     Train28Test()
         : code_(0)
+        , regExpect_(&loop_, &train_)
         , train_(DccShortAddress(55))
     {
+    }
+
+    ~Train28Test()
+    {
+        EXPECT_CALL(loop_, unregister_source(&train_));
     }
 
     void do_refresh()
@@ -204,6 +224,15 @@ protected:
 
     unsigned code_;
     StrictMock<MockUpdateLoop> loop_;
+    // We use a constructor trick here to expect the registration expectation
+    // at the right time.
+    struct AddRegisterExpect
+    {
+        AddRegisterExpect(StrictMock<MockUpdateLoop> *l, Dcc28Train *t)
+        {
+            EXPECT_CALL(*l, register_source(t));
+        }
+    } regExpect_;
     Dcc28Train train_;
 };
 
@@ -308,8 +337,7 @@ TEST_F(Train28Test, RefreshLoop)
 
 TEST_F(Train28Test, Function0)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-        SaveArg<1>(&code_));
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_fn(3, 1);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b10000100, _));
@@ -317,8 +345,7 @@ TEST_F(Train28Test, Function0)
 
 TEST_F(Train28Test, Function5)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-        SaveArg<1>(&code_));
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_fn(6, 1);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b10110010, _));
@@ -326,8 +353,7 @@ TEST_F(Train28Test, Function5)
 
 TEST_F(Train28Test, Function9)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-        SaveArg<1>(&code_));
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_fn(11, 1);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b10100100, _));
@@ -335,8 +361,7 @@ TEST_F(Train28Test, Function9)
 
 TEST_F(Train28Test, Function13)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-        SaveArg<1>(&code_));
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_fn(13, 1);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011110, 1, _));
@@ -344,8 +369,7 @@ TEST_F(Train28Test, Function13)
 
 TEST_F(Train28Test, Function28)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-        SaveArg<1>(&code_));
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     train_.set_fn(28, 1);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0x80, _));
@@ -353,15 +377,16 @@ TEST_F(Train28Test, Function28)
 
 TEST_F(Train28Test, AllFunctions)
 {
-    for (int a = 0; a <= 28; ++a) {
-        EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-            SaveArg<1>(&code_));
+    for (int a = 0; a <= 28; ++a)
+    {
+        EXPECT_CALL(loop_, send_update(&train_, _))
+            .WillOnce(SaveArg<1>(&code_));
         train_.set_fn(a, 1);
         do_callback();
         auto old_p = get_packet();
 
-        EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
-            SaveArg<1>(&code_));
+        EXPECT_CALL(loop_, send_update(&train_, _))
+            .WillOnce(SaveArg<1>(&code_));
         train_.set_fn(a, 0);
         do_callback();
         auto new_p = get_packet();
