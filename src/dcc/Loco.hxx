@@ -44,23 +44,14 @@ namespace dcc
 class Dcc28Train : public PacketSource
 {
 public:
-    Dcc28Train(DccShortAddress a)
-    {
-        memset(this, 0, sizeof(*this));
-        isShortAddress_ = 1;
-        dccAddress_ = a.value;
-    }
-
-    Dcc28Train(DccLongAddress a)
-    {
-        memset(this, 0, sizeof(*this));
-        isShortAddress_ = 0;
-        dccAddress_ = a.value;
-    }
+    Dcc28Train(DccShortAddress a);
+    Dcc28Train(DccLongAddress a);
+    ~Dcc28Train();
 
     void set_speed(SpeedType speed) OVERRIDE;
     SpeedType get_speed() OVERRIDE;
-    SpeedType get_commanded_speed() OVERRIDE {
+    SpeedType get_commanded_speed() OVERRIDE
+    {
         return get_speed();
     }
     void set_emergencystop() OVERRIDE;
@@ -69,7 +60,7 @@ public:
     uint32_t legacy_address() OVERRIDE;
 
     // Generates next outgoing packet.
-    void get_next_packet(unsigned code, Packet* packet) OVERRIDE;
+    void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 
 private:
     // largest address allowed is 10239.

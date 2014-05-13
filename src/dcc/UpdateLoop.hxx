@@ -52,6 +52,12 @@ class PacketSource;
  * the get_next_packet callback. It should not be zero.*/
 void packet_processor_notify_update(PacketSource* source, unsigned code);
 
+/** Adds a new refresh source to the background refresh loop. */
+void packet_processor_add_refresh_source(PacketSource* source);
+
+/** Removes a refresh source from the background refresh loop. */
+void packet_processor_remove_refresh_source(PacketSource* source);
+
 }  // namespace dcc
 
 #endif //_DCC_UPDATELOOP_HXX_

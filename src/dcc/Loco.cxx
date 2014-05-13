@@ -40,6 +40,27 @@
 namespace dcc
 {
 
+Dcc28Train::Dcc28Train(DccShortAddress a)
+{
+    memset(this, 0, sizeof(*this));
+    isShortAddress_ = 1;
+    dccAddress_ = a.value;
+    packet_processor_add_refresh_source(this);
+}
+
+Dcc28Train::Dcc28Train(DccLongAddress a)
+{
+    memset(this, 0, sizeof(*this));
+    isShortAddress_ = 0;
+    dccAddress_ = a.value;
+    packet_processor_add_refresh_source(this);
+}
+
+Dcc28Train::~Dcc28Train()
+{
+    packet_processor_remove_refresh_source(this);
+}
+
 enum DccTrainUpdateCode
 {
     REFRESH = 0,
@@ -59,8 +80,10 @@ enum DccTrainUpdateCode
 void Dcc28Train::set_speed(SpeedType speed)
 {
     float16_t new_speed = speed.get_wire();
-    if (lastSetSpeed_ == new_speed) {
-        LOG(VERBOSE, "not updating speed: old speed %04x, new speed %04x", lastSetSpeed_, new_speed);
+    if (lastSetSpeed_ == new_speed)
+    {
+        LOG(VERBOSE, "not updating speed: old speed %04x, new speed %04x",
+            lastSetSpeed_, new_speed);
         return;
     }
     lastSetSpeed_ = new_speed;
@@ -70,14 +93,18 @@ void Dcc28Train::set_speed(SpeedType speed)
         direction_ = speed.direction();
     }
     float f_speed = speed.mph();
-    if (f_speed > 0) {
-        f_speed *= (28.0/128);
+    if (f_speed > 0)
+    {
+        f_speed *= (28.0 / 128);
         unsigned sp = f_speed;
         sp++; // makes sure it is at least speed step 1.
-        if (sp > 28) sp = 28;
+        if (sp > 28)
+            sp = 28;
         LOG(VERBOSE, "set speed to step %u", sp);
         speed_ = sp;
-    } else {
+    }
+    else
+    {
         speed_ = 0;
     }
     packet_processor_notify_update(this, SPEED);
@@ -113,15 +140,24 @@ void Dcc28Train::set_fn(uint32_t address, uint16_t value)
         {
             fn_ &= ~bit;
         }
-        if (address < 5) {
+        if (address < 5)
+        {
             packet_processor_notify_update(this, FUNCTION0);
-        } else if (address < 9) {
+        }
+        else if (address < 9)
+        {
             packet_processor_notify_update(this, FUNCTION5);
-        } else if (address < 13) {
+        }
+        else if (address < 13)
+        {
             packet_processor_notify_update(this, FUNCTION9);
-        } else if (address < 21) {
+        }
+        else if (address < 21)
+        {
             packet_processor_notify_update(this, FUNCTION13);
-        } else {
+        }
+        else
+        {
             packet_processor_notify_update(this, FUNCTION21);
         }
     }
