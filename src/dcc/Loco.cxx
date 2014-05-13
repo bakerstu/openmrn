@@ -42,7 +42,10 @@ namespace dcc
 
 Dcc28Train::Dcc28Train(DccShortAddress a)
 {
-    memset(this, 0, sizeof(*this));
+    // If this fails, then we might be zeroing out the wrong place.
+    HASSERT(sizeof(*this) == 4 + sizeof(data_));
+    memset(data_, 0, sizeof(data_));
+
     isShortAddress_ = 1;
     dccAddress_ = a.value;
     packet_processor_add_refresh_source(this);
@@ -50,7 +53,10 @@ Dcc28Train::Dcc28Train(DccShortAddress a)
 
 Dcc28Train::Dcc28Train(DccLongAddress a)
 {
-    memset(this, 0, sizeof(*this));
+    // If this fails, then we might be zeroing out the wrong place.
+    HASSERT(sizeof(*this) == 4 + sizeof(data_));
+    memset(data_, 0, sizeof(data_));
+
     isShortAddress_ = 0;
     dccAddress_ = a.value;
     packet_processor_add_refresh_source(this);

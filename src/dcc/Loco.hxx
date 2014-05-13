@@ -63,18 +63,25 @@ public:
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 
 private:
-    // largest address allowed is 10239.
-    unsigned dccAddress_ : 14;
-    unsigned isShortAddress_ : 1;
-    // 0: forward, 1: reverse
-    unsigned direction_ : 1;
-    unsigned lastSetSpeed_ : 16;
-    // functions f0-f28.
-    unsigned fn_ : 29;
-    // Which refresh packet should go out next.
-    unsigned nextRefresh_ : 3;
-    unsigned speed_ : 5;
-    unsigned directionChanged_ : 1;
+    union
+    {
+        uint8_t data_[12];
+        struct
+        {
+            // largest address allowed is 10239.
+            unsigned dccAddress_ : 14;
+            unsigned isShortAddress_ : 1;
+            // 0: forward, 1: reverse
+            unsigned direction_ : 1;
+            unsigned lastSetSpeed_ : 16;
+            // functions f0-f28.
+            unsigned fn_ : 29;
+            // Which refresh packet should go out next.
+            unsigned nextRefresh_ : 3;
+            unsigned speed_ : 5;
+            unsigned directionChanged_ : 1;
+        };
+    };
 };
 
 } // namespace dcc
