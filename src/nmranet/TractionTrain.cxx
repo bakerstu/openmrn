@@ -32,7 +32,7 @@
  * @date 5 May 2014
  */
 
-#define LOGLEVEL VERBOSE
+//#define LOGLEVEL VERBOSE
 
 #include "nmranet/TractionTrain.hxx"
 
