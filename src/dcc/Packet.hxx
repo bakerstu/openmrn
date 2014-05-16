@@ -104,6 +104,12 @@ struct Packet
         return packet_header.is_pkt;
     }
 
+    void set_cmd(uint8_t cmd) {
+        dlc = 0;
+        HASSERT(cmd & 1);
+        header_raw_data = cmd;
+    }
+
     /** Initializes the packet structure for a regular DCC packet. */
     void start_dcc_packet()
     {
