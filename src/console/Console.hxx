@@ -48,10 +48,11 @@ class Console : public OSThread
 {
 public:
     /** Constructor.
+     * @param stdio start a Console connection instance on stdio if true
      * @param port TCP port number to open a telnet listen socket on, -1 mean
      *        do not open a listen port.
      */
-    Console(int port = -1);
+    Console(bool stdio, int port = -1);
 
     /** Destructor.
      */
@@ -65,6 +66,7 @@ public:
     {
         COMMAND_OK,    /**< Command executed successfully */
         COMMAND_ERROR, /**< Command had some kind of error */
+        COMMAND_CLOSE, /**< Command wants to close the session. */
     };
 
     /** Console command callback.
@@ -157,6 +159,27 @@ private:
      */
     int help_command(FILE *fp, int argc, const char *argv[]);
 
+    /** Quit out of the current login session by calling the in context helper
+     * function.
+     * @param fp file pointer to console
+     * @param argc number of arguments including the command itself
+     * @param argv array of arguments starting with the command itself
+     * @param context pointer to a Console context
+     * @return COMMAND_OK
+     */
+    static int quit_command(FILE *fp, int argc, const char *argv[], void *context)
+    {
+        return static_cast<Console*>(context)->quit_command(fp, argc, argv);
+    }
+
+    /** Quit out of the current login session.
+     * @param fp file pointer to console
+     * @param argc number of arguments including the command itself
+     * @param argv array of arguments starting with the command itself
+     * @return COMMAND_OK
+     */
+    int quit_command(FILE *fp, int argc, const char *argv[]);
+
     /** Create a listen socket.
      * @param port port number to listen on
      */
@@ -191,8 +214,9 @@ private:
      * @param fp file pointer to console
      * @param argc number of arguments including the command itself
      * @param argv array of arguments starting with the command itself
+     * @return if false, close the session
      */
-    void callback(FILE *fp, int argc, const char *argv[]);
+    bool callback(FILE *fp, int argc, const char *argv[]);
 
     /** Decode in incoming character.
      * @param c character to decode

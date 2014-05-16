@@ -34,16 +34,18 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 
 #include "console/Console.hxx"
 
 /** Constructor.
+ * @param stdio start a Console connection instance on stdio if true
  * @param port TCP port number to open a telnet listen socket on, -1 mean
  *        do not open a listen port.
  */
-Console::Console(int port)
+Console::Console(bool stdio, int port)
     : OSThread()
     , help("help", help_command, this, &helpMark)
     , helpMark("?", help_command, this)
@@ -51,13 +53,18 @@ Console::Console(int port)
     , fdListen(-1)
     , fdHighest(0)
 {
+    FD_ZERO(&readfds);
     if (port >= 0)
     {
-        FD_ZERO(&readfds);
         listen_create(port);
     }
 
-    open_session(0);
+    if (stdio)
+    {
+        open_session(0);
+    }
+
+    add_command("quit", quit_command, this);
     start("console", 0, 1024);
 }
 
@@ -109,11 +116,12 @@ void Console::open_session(int fd)
  */
 void Console::close_session(Session *s)
 {
-   FD_CLR(s->fd, &readfds);
+    /** @todo need to pull this out of the Session list */
+    FD_CLR(s->fd, &readfds);
 
     if (fdHighest == s->fd)
     {
-        for (int i = s->fd; i >= 0; i--)
+        for (int i = s->fd; i >= 0; --i)
         {
             if (FD_ISSET(i, &readfds))
             {
@@ -124,6 +132,7 @@ void Console::close_session(Session *s)
     }
     fclose(s->fp);
     close(s->fd);
+    free(s->line);
     delete s;
 }
 
@@ -208,7 +217,7 @@ void Console::listen_create(int port)
  */
 void Console::add_command(const char *name, Callback callback, void *context)
 {
-    Command *current = helpMark.next;
+    Command *current = &helpMark;
 
     /* seek to the end of the list */
     while (current->next)
@@ -233,6 +242,7 @@ int Console::help_command(FILE *fp, int argc, const char *argv[])
     /* call each of the commands with argc = 0 */
     for (Command *current = helpMark.next; current; current = current->next)
     {
+        fprintf(fp, "%10s : ", current->name);
         const char *argv[2] = {current->name, "             "};
         (*current->callback)(fp, 0, argv, NULL);
     }
@@ -240,12 +250,35 @@ int Console::help_command(FILE *fp, int argc, const char *argv[])
     return COMMAND_OK;
 }
 
+/** Quit out of the current login session.
+ * @param fp file pointer to console
+ * @param argc number of arguments including the command itself
+ * @param argv array of arguments starting with the command itself
+ * @return COMMAND_OK
+ */
+int Console::quit_command(FILE *fp, int argc, const char *argv[])
+{
+    switch (argc)
+    {
+        case 0:
+            fprintf(fp, "terminate the current login session, only\n%s"
+                        "has an effect on socket based logins sessions\n",
+                    argv[1]);
+            return COMMAND_OK; 
+        case 1:
+            return COMMAND_CLOSE;
+        default:
+            return COMMAND_ERROR;
+    }
+}
+
 /** Process a potential callback for a given command
  * @param fp file pointer to console
  * @param argc number of arguments including the command itself
  * @param argv array of arguments starting with the command itself
+ * @return if false, close the session
  */
-void Console::callback(FILE *fp, int argc, const char *argv[])
+bool Console::callback(FILE *fp, int argc, const char *argv[])
 {
     /* run through each command */
     for (Command *current = &help; current; current = current->next)
@@ -255,14 +288,21 @@ void Console::callback(FILE *fp, int argc, const char *argv[])
         {
             /* found a match, call the registered callback */
             int result = (*current->callback)(fp, argc, argv, current->context);
-            if (result != COMMAND_OK)
+            switch (result)
             {
-                fprintf(fp, "invalid arguments\n");
+                default:
+                    break;
+                case COMMAND_ERROR:
+                    fprintf(fp, "invalid arguments\n");
+                    break;
+                case COMMAND_CLOSE:
+                    return false;
             }
-            return;
+            return true;
         }
     }
     fprintf(fp, "%s: command not found\n", argv[0]);
+    return true;
 }
 
 /** Decode in incoming character.
@@ -309,10 +349,21 @@ void Console::decode(char c, Session *s)
                 fprintf(s->fp, "too many arguments\n");
                 break;
             default:
-                callback(s->fp, argc, args);
+                if (callback(s->fp, argc, args) == false)
+                {
+                    struct stat stat;
+                    fstat(s->fd, &stat);
+                    if (stat.st_mode & S_IFSOCK)
+                    {
+                        fprintf(s->fp, "shutting down session\n");
+                        close_session(s);
+                        return;
+                    }
+                    fprintf(s->fp, "session not a socket,"
+                                   " aborting session shutdown\n");
+                }
                 break;
         }
-
         s->pos = 0;
         prompt(s->fp);
     }
