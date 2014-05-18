@@ -683,7 +683,7 @@ private:
  *   , timer_(this).
  * then in the state function do
  *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200),
- *STATE(next_after_timeout);
+ *                         STATE(next_after_timeout));
  * If needed, you can wake up the timer in a handler function by calling
  * timer_.trigger(). This will transition to the new state immediately.
  */
