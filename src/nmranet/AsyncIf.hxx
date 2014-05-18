@@ -51,6 +51,8 @@ namespace NMRAnet
 
 class AsyncNode;
 
+typedef string Payload;
+
 /** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
  *
  * @param id is the 48-bit ID to render.
@@ -85,6 +87,9 @@ extern string EMPTY_PAYLOAD;
  * copied by the dispatcher separately for each handler. */
 struct NMRAnetMessage
 {
+    NMRAnetMessage()
+        : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
+
     void reset(If::MTI mti, NodeID src, NodeHandle dst, const string &payload)
     {
         this->mti = mti;
