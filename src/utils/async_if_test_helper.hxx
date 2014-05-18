@@ -40,6 +40,10 @@ HubFlow gc_hub0(&g_service);
 CanHubFlow can_hub0(&g_service);
 GCAdapterBase *g_gc_adapter = nullptr;
 
+HubFlow gc_hub1(&g_service);
+CanHubFlow can_hub1(&g_service);
+GCAdapterBase *g_gc_adapter1 = nullptr;
+
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
 class MockSend : public HubPort
