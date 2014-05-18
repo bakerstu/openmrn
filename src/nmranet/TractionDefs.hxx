@@ -40,6 +40,7 @@
 #include <stdint.h>
 
 #include "nmranet/NMRAnetVelocity.hxx"
+#include "nmranet/Payload.hxx"
 
 namespace NMRAnet {
 
@@ -139,6 +140,40 @@ struct TractionDefs {
          * values 0-255 each. */
         FNCONFIG_ANALOG_OUTPUT = 0x3
     };
+
+    static Payload speed_set_payload(Velocity v) {
+        Payload p(3, 0);
+        p[0] = REQ_SET_SPEED;
+        speed_to_fp16(v, &p[1]);
+        return p;
+    }
+
+    static Payload speed_get_payload() {
+        Payload p(1, 0);
+        p[0] = REQ_QUERY_SPEED;
+        return p;
+    }
+
+    static Payload fn_set_payload(unsigned address, uint16_t value) {
+        Payload p(6, 0);
+        p[0] = REQ_SET_FN;
+        p[1] = (address >> 16) & 0xff;
+        p[2] = (address >> 8) & 0xff;
+        p[3] = address & 0xff;
+        p[4] = (value >> 8) & 0xff;
+        p[5] = value & 0xff;
+        return p;
+    }
+
+    static Payload fn_get_payload(unsigned address) {
+        Payload p(4, 0);
+        p[0] = REQ_SET_FN;
+        p[1] = (address >> 16) & 0xff;
+        p[2] = (address >> 8) & 0xff;
+        p[3] = address & 0xff;
+        return p;
+    }
+
 };
 
 }  // namespace NMRAnet
