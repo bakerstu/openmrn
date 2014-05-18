@@ -37,11 +37,6 @@
 #include <string.h>
 #include "utils/macros.h"
 
-extern "C" {
-extern int singles2halfp(void *target, void *source, int numel);
-extern int halfp2singles(void *target, void *source, int numel);
-}
-
 namespace NMRAnet {
 
 SpeedType fp16_to_speed(const void *fp16) {

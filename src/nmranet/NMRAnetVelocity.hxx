@@ -41,8 +41,8 @@
 
 extern "C" {
 /* These come from the ieeehalfprecision.c */
-int singles2halfp(void *target, void *source, int numel);
-int halfp2singles(void *target, void *source, int numel);
+int singles2halfp(void *target, const void *source, int numel);
+int halfp2singles(void *target, const void *source, int numel);
 }
 
 /** Conversion factor for MPH. 1 mph = this many m/s. */
@@ -139,7 +139,7 @@ public:
     /** Return the speed independent of direction.
      * @return speed absolute value of velocity
      */
-    float speed()
+    float speed() const
     {
         return fabsf(velocity);
     }
@@ -147,7 +147,7 @@ public:
     /** Return the direction independent of speed.
      * @return direction FORWARD or REVERSE
      */
-    int direction()
+    int direction() const
     {
         if (std::signbit(velocity))
         {
@@ -192,7 +192,7 @@ public:
     /** Convert the native meters/sec representation into mile per hour.
      * @return velocity represented as miles per hour. Always non-negative.
      */
-    float mph()
+    float mph() const
     {
         return speed() / MPH_FACTOR;
     }
@@ -271,7 +271,7 @@ public:
     /** Get a wire version of the velocity.
      * @return IEEE half precision floating point representation of velocity
      */
-    float16_t get_wire()
+    float16_t get_wire() const
     {
         float16_t result;
         singles2halfp(&result, &velocity, 1);
