@@ -207,6 +207,22 @@ public:
         activeTimers_->update_timer(this);
     }
 
+    /** Dangerous, do not call. Contains a race condition. Production users
+     * should use the trigger() method to cancel an active timer.
+     * 
+     * Cancels an active timer. Crashes if the timer is expired. Use in
+     * unittests only. Does nothing if the timer is not active. Can be called
+     * from outside the main executor. */
+    void cancel()
+    {
+        when_ = INT64_MAX;  // This will ensure the we don't get from active to
+                            // expired from now on.
+        HASSERT(!isExpired_);
+        if (isActive_) {
+            activeTimers_->remove_timer(this);
+        }
+    }
+
 private:
     friend class ActiveTimers;  // for scheduling an expiring timers
     friend class CountingTimer; // for testing

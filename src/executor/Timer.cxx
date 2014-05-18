@@ -170,3 +170,11 @@ void ActiveTimers::update_timer(Timer *timer)
     remove_locked(timer);
     insert_locked(timer);
 }
+
+void ActiveTimers::remove_timer(Timer *timer)
+{
+    HASSERT(timer);
+    OSMutexLock l(&lock_);
+    remove_locked(timer);
+    timer->isActive_ = 0;
+}
