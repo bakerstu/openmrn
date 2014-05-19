@@ -41,13 +41,15 @@ namespace dcc
 enum
 {
     MARKLIN_DEFAULT_CMD = 0b00100110,
+    // Direction change bits for marklin-old format.
+    MARKLIN_CHANGE_DIR_B2 = 0b11000000,
+
     DCC_DEFAULT_CMD = 0,
     DCC_LONG_PREAMBLE_CMD = 0b00001100,
     DCC_SERVICE_MODE_5X_WITH_ACK_CMD = 0b00111000,
     // standard dcc packet with 5x repeat.
     DCC_SERVICE_MODE_5X_CMD = 0b00101000,
     DCC_SERVICE_MODE_1X_CMD = 0b00001000,
-
     DCC_LONG_ADDRESS_FIRST = 0b11000000,
 
     // Baseline packet: speed and direction.
@@ -193,6 +195,136 @@ void Packet::add_dcc_function21_28(unsigned values)
     payload[dlc++] = DCC_FEATURE_EXP_F21;
     payload[dlc++] = values & 0xff;
     add_dcc_checksum();
+}
+
+void Packet::start_mm_packet()
+{
+    dlc = 3;
+    payload[0] = 0;
+    payload[1] = 0;
+    payload[2] = 0;
+    header_raw_data = MARKLIN_DEFAULT_CMD;
+}
+
+static const uint8_t marklin_address[3] = {0b00, 0b11, 0b10};
+static const uint8_t marklin_fn_bits[5] = {0,          0b01010000, 0b00000100,
+                                           0b00010100, 0b01010100};
+
+/** Sets the address bits of an MM packet to a specific loco address. */
+void Packet::add_mm_address(MMAddress a, bool light)
+{
+    uint8_t address = a.value;
+    payload[0] |= marklin_address[address % 3];
+    address /= 3;
+    payload[1] |= marklin_address[address % 3] << 6;
+    address /= 3;
+    payload[1] |= marklin_address[address % 3] << 4;
+    address /= 3;
+    payload[1] |= marklin_address[address % 3] << 2;
+    if (light)
+    {
+        payload[1] |= 0b11;
+    }
+}
+
+unsigned Packet::set_mm_speed_bits(unsigned speed)
+{
+    // avoids speed step 1.
+    if (speed > 0)
+        ++speed;
+    // clips speed
+    if (speed > 15)
+        speed = 15;
+    if (speed & 1)
+        payload[2] |= 0x80;
+    if (speed & 2)
+        payload[2] |= 0x20;
+    if (speed & 4)
+        payload[2] |= 0x08;
+    if (speed & 8)
+        payload[2] |= 0x02;
+    return speed;
+}
+
+/** Sets the packet to a 14-step MM speed-and-light packet. Max value of
+ * speed is 14. A special value of speed == CHANGE_DIR will signal
+ * direction change. */
+void Packet::add_mm_speed(unsigned speed)
+{
+    if (speed == CHANGE_DIR || speed == EMERGENCY_STOP)
+    {
+        payload[2] = MARKLIN_CHANGE_DIR_B2;
+        // Up the repeat count so that it will be surely heard.
+        header_raw_data |= 0b01100000;
+    }
+    else
+    {
+        set_mm_speed_bits(speed);
+        // The old marklin protocol needs all bits doubled.
+        payload[2] |= (payload[2] >> 1);
+    }
+}
+
+/** Sets the packet to a direction-aware 14-step MM speed-and-light
+ * packet. Max value of speed is 14. */
+void Packet::add_mm_new_speed(bool is_fwd, unsigned speed)
+{
+    if (speed == CHANGE_DIR || speed == EMERGENCY_STOP)
+    {
+        payload[2] = MARKLIN_CHANGE_DIR_B2;
+        // Up the repeat count so that it will be surely heard.
+        header_raw_data |= 0b01100000;
+    }
+    else
+    {
+        speed = set_mm_speed_bits(speed);
+        if (is_fwd)
+        {
+            payload[2] |= 0x10;
+        }
+        else
+        {
+            payload[2] |= 0x44;
+        }
+        if (speed <= 7)
+        {
+            payload[2] |= 1;
+        }
+    }
+}
+
+void Packet::add_mm_new_fn(unsigned fn_num, bool value, unsigned speed)
+{
+    if (speed == CHANGE_DIR || speed == EMERGENCY_STOP || fn_num < 1 ||
+        fn_num > 4)
+    {
+        return add_mm_new_speed(false, speed);
+    }
+    // Sets the base speed bits.
+    speed = set_mm_speed_bits(speed);
+    // Sets the function number bits.
+    payload[2] |= marklin_fn_bits[fn_num];
+    // And the function bit.
+    if (value)
+    {
+        payload[2] |= 1;
+    }
+    // Checks for exceptions, when we generated a packet valid for the old
+    // protocol. (aka all bits are doubled)
+    if (((payload[2] & 0xaa) >> 1) == (payload[2] & 0x55))
+    {
+        payload[2] &= 0xaa;
+        if (speed >= 8)
+        {
+            // High speeds. new bits are 0101.
+            payload[2] |= 0b00010001;
+        }
+        else
+        {
+            // Low speeds. New bits are 1010.
+            payload[2] |= 0b01000100;
+        }
+    }
 }
 
 } // namespace dcc

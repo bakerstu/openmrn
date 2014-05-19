@@ -161,6 +161,102 @@ TEST_F(PacketTest, Fn20)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0xAA, _));
 }
 
+TEST_F(PacketTest, MMOld)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), false);
+    pkt_.add_mm_speed(7);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001100, 0b00000011));
+}
+
+TEST_F(PacketTest, MMOldLight)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(7);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b00000011));
+}
+
+TEST_F(PacketTest, MMOldStop)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(0);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b00000000));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(1);
+    // Speed step 1 = binary 10.
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b00110000));
+}
+
+TEST_F(PacketTest, MMOldMax)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(14);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11111111));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(20);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11111111));
+}
+
+TEST_F(PacketTest, MMOldReverse)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(Packet::CHANGE_DIR);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11000000));
+}
+
+TEST_F(PacketTest, MMOldEStop)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_speed(Packet::EMERGENCY_STOP);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11000000));
+}
+
+TEST_F(PacketTest, MMNew)
+{
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_new_speed(false, 6);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11101101));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), false);
+    pkt_.add_mm_new_speed(true, 7);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001100, 0b00010010));
+}
+
+TEST_F(PacketTest, MMNewFn)
+{
+    //Loco #34, function ON, speed -4, aux. function f1 ON and f2,f3,f4 OFF.
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_new_fn(1, true, 4);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11011001));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_new_fn(2, false, 4);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b10001100));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_new_fn(3, false, 4);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b10011100));
+
+    pkt_.start_mm_packet();
+    pkt_.add_mm_address(MMAddress(34), true);
+    pkt_.add_mm_new_fn(4, false, 4);
+    EXPECT_THAT(get_packet(), ElementsAre(0b11, 0b10001111, 0b11011100));
+}
+
 class MockUpdateLoop;
 MockUpdateLoop *g_update_loop = nullptr;
 

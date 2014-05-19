@@ -52,6 +52,9 @@ struct Packet
     static const unsigned MAX_PAYLOAD = 5;
     /** Send this speed step to emergency-stop the locomotive. */
     static const unsigned EMERGENCY_STOP = 0xFFFF;
+    /** Send this speed step to switch direction of the locomotive. Only used
+     * for marklin-14-step speed commands. */
+    static const unsigned CHANGE_DIR = 0xFFFF;
 
     Packet()
     {
@@ -104,7 +107,8 @@ struct Packet
         return packet_header.is_pkt;
     }
 
-    void set_cmd(uint8_t cmd) {
+    void set_cmd(uint8_t cmd)
+    {
         dlc = 0;
         HASSERT(cmd & 1);
         header_raw_data = cmd;
@@ -158,6 +162,36 @@ struct Packet
 
     /** Creates a DCC reset-all-decoders packet. (Includes the checksum.) */
     void set_dcc_reset_all_decoders();
+
+    /** Sets the packet type to marklin-motorola. Initilizes the packet with 18
+     * zero bits. */
+    void start_mm_packet();
+
+    /** Sets the address and F0 bits of an MM packet to a specific loco
+     * address. */
+    void add_mm_address(MMAddress address, bool light);
+
+    /** Sets the packet to a 14-step MM speed-and-light packet. Max value of
+     * speed is 14. A special value of speed == CHANGE_DIR will signal
+     * direction change. */
+    void add_mm_speed(unsigned speed);
+
+    /** Sets the packet to a direction-aware 14-step MM speed-and-light
+     * packet. Max value of speed is 14. */
+    void add_mm_new_speed(bool is_fwd, unsigned speed);
+
+    /** Creates a speed-and-fn packet for the new MM format.
+     * @param fn_num is the function, valid values = 1..4
+     * @param is whether the funciton is on or off
+     * @param speed is the speed step (0..14). If it is set to emergency stop,
+     * then no function packet will be generated.
+     */
+    void add_mm_new_fn(unsigned fn_num, bool value, unsigned speed);
+
+private:
+    /** Sets the speed bits of an MM packet. Clips speed to 15, avoids speed==1
+     * and returns the final speed step number. */
+    unsigned set_mm_speed_bits(unsigned speed);
 };
 
 } // namespace dcc
