@@ -48,6 +48,8 @@ enum
     DCC_SERVICE_MODE_5X_CMD = 0b00101000,
     DCC_SERVICE_MODE_1X_CMD = 0b00001000,
 
+    DCC_LONG_ADDRESS_FIRST = 0b11000000,
+
     // Baseline packet: speed and direction.
     DCC_BASELINE_SPEED = 0b01000000,
     DCC_BASELINE_SPEED_FORWARD = 0b00100000,
@@ -100,7 +102,8 @@ void Packet::add_dcc_address(DccShortAddress address)
 void Packet::add_dcc_address(DccLongAddress address)
 {
     start_dcc_packet();
-    HASSERT(0);
+    payload[dlc++] = DCC_LONG_ADDRESS_FIRST | (address.value >> 8);
+    payload[dlc++] = address.value & 0xff;
 }
 
 void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed)

@@ -89,6 +89,12 @@ TEST_F(PacketTest, DccSpeed28_estop)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100001, _));
 }
 
+TEST_F(PacketTest, DccSpeed28_estop_longa)
+{
+    pkt_.set_dcc_speed28(DccLongAddress(3721), true, Packet::EMERGENCY_STOP);
+    EXPECT_THAT(get_packet(), ElementsAre(0xCE, 0x89, 0b01100001, _));
+}
+
 TEST_F(PacketTest, DccSpeed28_step123)
 {
     pkt_.set_dcc_speed28(DccShortAddress(55), true, 1);
