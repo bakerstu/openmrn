@@ -2,6 +2,7 @@
 
 #include "nmranet/TractionTrain.hxx"
 #include "nmranet/TractionDefs.hxx"
+#include "nmranet/TractionClient.hxx"
 
 namespace NMRAnet
 {
@@ -67,7 +68,6 @@ TEST(Fp16Test, MaintainsDirection)
     EXPECT_EQ(1, bk0.direction());
 }
 
-
 // The wire format shall be big endian. This is binary 1.001011 * 2^-5
 uint8_t k37_5[] = {0x50, 0xB0};
 
@@ -76,7 +76,6 @@ TEST(Fp16Test, ThirtySevenAndAHalf)
     SpeedType s = fp16_to_speed(k37_5);
     EXPECT_EQ(37.5, s.speed());
 }
-
 
 class TractionSingleMockTest : public TractionTest
 {
@@ -150,6 +149,83 @@ TEST_F(TractionSingleMockTest, GetFn)
     EXPECT_CALL(m1_, get_fn(0x332244)).WillOnce(Return(0x6622));
     send_packet_and_expect_response(":X195EA551N033A11332244;",
                                     ":X195E833AN0551113322446622;");
+}
+
+class ClientFlow : public StateFlowBase
+{
+public:
+    ClientFlow(TractionResponseHandler *handler)
+        : StateFlowBase(handler->service())
+        , timer_(this)
+        , handler_(handler)
+    {
+    }
+
+    void enter()
+    {
+        bn_.reset(&n_);
+        start_flow(STATE(entry));
+    }
+
+    void block()
+    {
+        n_.wait_for_notification();
+    }
+
+    Action entry()
+    {
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(100), STATE(called));
+    }
+
+    Action called()
+    {
+        handler_->wait_timeout(); // or success
+        bn_.notify();
+        return set_terminated();
+    }
+
+    ::Timer* trigger() { return &timer_; }
+
+private:
+    StateFlowTimer timer_;
+    TractionResponseHandler *handler_;
+    BarrierNotifiable bn_;
+    SyncNotifiable n_;
+};
+
+class TractionClientTest : public AsyncNodeTest
+{
+protected:
+    TractionClientTest()
+        : handler_(ifCan_.get(), node_)
+        , flow_(&handler_)
+    {
+    }
+
+    TractionResponseHandler handler_;
+    ClientFlow flow_;
+};
+
+TEST_F(TractionClientTest, CreateDestroy)
+{
+}
+
+TEST_F(TractionClientTest, SimpleTimeout)
+{
+    flow_.enter();
+    flow_.block();
+    EXPECT_EQ(nullptr, handler_.response());
+}
+
+TEST_F(TractionClientTest, SimpleResponse)
+{
+    flow_.enter();
+    handler_.wait_for_response({0, 0x33C}, 65, flow_.trigger());
+    send_packet(":X195E833CN022A414243;");
+    flow_.block();
+    ASSERT_NE(nullptr, handler_.response());
+    EXPECT_EQ("ABC", handler_.response()->data()->payload);
+    handler_.response()->unref();
 }
 
 } // namespace NMRAnet
