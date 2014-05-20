@@ -42,6 +42,8 @@ namespace NMRAnet {
 class TrainImpl
 {
 public:
+    virtual ~TrainImpl() {}
+
     /** Sets the speed of the locomotive.
      * @param speed is the requested scale speed in m/s. The sign of the number
      * means the direction.
