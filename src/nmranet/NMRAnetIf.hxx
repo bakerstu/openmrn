@@ -51,6 +51,8 @@ typedef uint64_t NodeID;
 /** Alias to a 48-bit NMRAnet Node ID type */
 typedef uint16_t NodeAlias;
 
+static const NodeAlias NOT_RESPONDING = 0xF000;
+
 /** Container of both a NodeID and NodeAlias */
 struct NodeHandle
 {

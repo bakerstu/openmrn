@@ -283,6 +283,13 @@ protected:
         if (dst_.id)
         {
             dstAlias_ = if_can()->remote_aliases()->lookup(dst_.id);
+            if (dstAlias_ == NOT_RESPONDING)
+            {
+                LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
+                    "address %012llx to an alias on the bus. Dropping packet.",
+                    nmsg()->dst.id);
+                return call_immediately(STATE(send_finished));
+            }
         }
         if (dst_.alias && dstAlias_ && dst_.alias != dstAlias_)
         {
@@ -362,7 +369,7 @@ protected:
 
     virtual Action timeout_looking_for_dst()
     {
-        if (dstAlias_)
+        if (dstAlias_ && dstAlias_ <= 0xFFF)
         {
             return call_immediately(STATE(remote_alias_found));
         }
@@ -370,6 +377,7 @@ protected:
                   "address %012llx to an alias on the bus. Dropping packet.",
             nmsg()->dst.id);
         UnregisterLocalHandler();
+        if_can()->remote_aliases()->add(nmsg()->dst.id, NOT_RESPONDING);
         return call_immediately(STATE(send_finished));
     }
 
