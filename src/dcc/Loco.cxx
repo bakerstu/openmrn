@@ -42,23 +42,15 @@ namespace dcc
 
 Dcc28Train::Dcc28Train(DccShortAddress a)
 {
-    // If this fails, then we might be zeroing out the wrong place.
-    HASSERT(sizeof(*this) == 4 + sizeof(data_));
-    memset(data_, 0, sizeof(data_));
-
     isShortAddress_ = 1;
-    dccAddress_ = a.value;
+    p.address_ = a.value;
     packet_processor_add_refresh_source(this);
 }
 
 Dcc28Train::Dcc28Train(DccLongAddress a)
 {
-    // If this fails, then we might be zeroing out the wrong place.
-    HASSERT(sizeof(*this) == 4 + sizeof(data_));
-    memset(data_, 0, sizeof(data_));
-
     isShortAddress_ = 0;
-    dccAddress_ = a.value;
+    p.address_ = a.value;
     packet_processor_add_refresh_source(this);
 }
 
@@ -83,7 +75,146 @@ enum DccTrainUpdateCode
     ESTOP = 16,
 };
 
-void Dcc28Train::set_speed(SpeedType speed)
+unsigned Dcc28Payload::get_fn_update_code(unsigned address)
+{
+    if (address < 5)
+    {
+        return FUNCTION0;
+    }
+    else if (address < 9)
+    {
+        return FUNCTION5;
+    }
+    else if (address < 13)
+    {
+        return FUNCTION9;
+    }
+    else if (address < 21)
+    {
+        return FUNCTION13;
+    }
+    else if (address <= 28)
+    {
+        return FUNCTION21;
+    }
+    return SPEED;
+}
+
+// Generates next outgoing packet.
+void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
+{
+    packet->start_dcc_packet();
+    if (isShortAddress_)
+    {
+        packet->add_dcc_address(DccShortAddress(dccAddress_));
+    }
+    else
+    {
+        packet->add_dcc_address(DccLongAddress(dccAddress_));
+    }
+    if (code == REFRESH)
+    {
+        code = MIN_REFRESH + nextRefresh_++;
+        if (nextRefresh_ > MAX_REFRESH - MIN_REFRESH)
+        {
+            nextRefresh_ = 0;
+        }
+    }
+    else
+    {
+        // User action. Up repeat count.
+        packet->packet_header.rept_count = 1;
+    }
+    switch (code)
+    {
+        case FUNCTION0:
+        {
+            packet->add_dcc_function0_4(fn_ & 0x1F);
+            return;
+        }
+        case FUNCTION5:
+        {
+            packet->add_dcc_function5_8(fn_ >> 5);
+            return;
+        }
+        case FUNCTION9:
+        {
+            packet->add_dcc_function9_12(fn_ >> 9);
+            return;
+        }
+        case FUNCTION13:
+        {
+            packet->add_dcc_function13_20(fn_ >> 13);
+            return;
+        }
+        case FUNCTION21:
+        {
+            packet->add_dcc_function21_28(fn_ >> 21);
+            return;
+        }
+        case ESTOP:
+        {
+            packet->add_dcc_speed28(!direction_, Packet::EMERGENCY_STOP);
+            packet->packet_header.rept_count = 3;
+            return;
+        }
+        default:
+            LOG(WARNING, "Unknown packet generation code: %x", code);
+        // fall through
+        case SPEED:
+        {
+            if (directionChanged_)
+            {
+                packet->packet_header.rept_count = 2;
+                directionChanged_ = 0;
+            }
+            packet->add_dcc_speed28(!direction_, speed_);
+            return;
+        }
+    }
+}
+
+
+
+MMOldTrain::MMOldTrain(DccShortAddress a)
+{
+    // If this fails, then we might be zeroing out the wrong place.
+    HASSERT(sizeof(*this) == 4 + sizeof(data_));
+    memset(data_, 0, sizeof(data_));
+
+    isShortAddress_ = 1;
+    dccAddress_ = a.value;
+    packet_processor_add_refresh_source(this);
+}
+
+MMOldTrain::MMOldTrain(DccLongAddress a)
+{
+    p.address_ = a.value;
+    packet_processor_add_refresh_source(this);
+}
+
+MMOldTrain::~MMOldTrain()
+{
+    packet_processor_remove_refresh_source(this);
+}
+
+enum DccTrainUpdateCode
+{
+    REFRESH = 0,
+    SPEED = 1,
+    FUNCTION0 = 2,
+    FUNCTION5 = 3,
+    FUNCTION9 = 4,
+    FUNCTION13 = 5,
+    FUNCTION21 = 6,
+    MIN_REFRESH = SPEED,
+    /** @TODO(balazs.racz) choose adaptive max-refresh based on how many
+     * functions are actually in use for the loco. */
+    MAX_REFRESH = FUNCTION9,
+    ESTOP = 16,
+};
+
+void MMOldTrain::set_speed(SpeedType speed)
 {
     float16_t new_speed = speed.get_wire();
     if (lastSetSpeed_ == new_speed)
@@ -116,14 +247,14 @@ void Dcc28Train::set_speed(SpeedType speed)
     packet_processor_notify_update(this, SPEED);
 };
 
-SpeedType Dcc28Train::get_speed()
+SpeedType MMOldTrain::get_speed()
 {
     SpeedType v;
     v.set_wire(lastSetSpeed_);
     return v;
 }
 
-void Dcc28Train::set_emergencystop()
+void MMOldTrain::set_emergencystop()
 {
     speed_ = 0;
     SpeedType dir0;
@@ -133,7 +264,7 @@ void Dcc28Train::set_emergencystop()
     packet_processor_notify_update(this, ESTOP);
 }
 
-void Dcc28Train::set_fn(uint32_t address, uint16_t value)
+void MMOldTrain::set_fn(uint32_t address, uint16_t value)
 {
     if (address <= 28)
     {
@@ -169,7 +300,7 @@ void Dcc28Train::set_fn(uint32_t address, uint16_t value)
     }
 }
 
-uint16_t Dcc28Train::get_fn(uint32_t address)
+uint16_t MMOldTrain::get_fn(uint32_t address)
 {
     if (address <= 28)
     {
@@ -188,13 +319,13 @@ uint16_t Dcc28Train::get_fn(uint32_t address)
     }
 }
 
-uint32_t Dcc28Train::legacy_address()
+uint32_t MMOldTrain::legacy_address()
 {
     return dccAddress_;
 }
 
 // Generates next outgoing packet.
-void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
+void MMOldTrain::get_next_packet(unsigned code, Packet *packet)
 {
     packet->start_dcc_packet();
     if (isShortAddress_)

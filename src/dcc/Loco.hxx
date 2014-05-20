@@ -41,47 +41,175 @@
 namespace dcc
 {
 
-class Dcc28Train : public PacketSource
+template <class P> class AbstractTrain : public PacketSource
+{
+public:
+    AbstractTrain()
+    {
+    }
+
+    void set_speed(SpeedType speed) OVERRIDE
+    {
+        float16_t new_speed = speed.get_wire();
+        if (p.lastSetSpeed_ == new_speed)
+        {
+            LOG(VERBOSE, "not updating speed: old speed %04x, new speed %04x",
+                lastSetSpeed_, new_speed);
+            return;
+        }
+        lastSetSpeed_ = new_speed;
+        if (speed.direction() != direction_)
+        {
+            p.directionChanged_ = 1;
+            p.direction_ = speed.direction();
+        }
+        float f_speed = speed.mph();
+        if (f_speed > 0)
+        {
+            f_speed *= (p.get_speed_steps() / 128);
+            unsigned sp = f_speed;
+            sp++; // makes sure it is at least speed step 1.
+            if (sp > 28)
+                sp = 28;
+            LOG(VERBOSE, "set speed to step %u", sp);
+            p.speed_ = sp;
+        }
+        else
+        {
+            p.speed_ = 0;
+        }
+        packet_processor_notify_update(this, SPEED);
+    }
+
+    SpeedType get_speed() OVERRIDE
+    {
+        SpeedType v;
+        v.set_wire(lastSetSpeed_);
+        return v;
+    }
+    SpeedType get_commanded_speed() OVERRIDE
+    {
+        return get_speed();
+    }
+    void set_emergencystop() OVERRIDE
+    {
+        speed_ = 0;
+        SpeedType dir0;
+        dir0.set_direction(direction_);
+        lastSetSpeed_ = dir0.get_wire();
+        directionChanged_ = 1;
+        packet_processor_notify_update(this, ESTOP);
+    }
+    void set_fn(uint32_t address, uint16_t value) OVERRIDE
+    {
+        if (address > p.get_max_fn())
+        {
+            // Ignore.
+            return;
+        }
+        unsigned bit = 1 << address;
+        if (value)
+        {
+            p.fn_ |= bit;
+        }
+        else
+        {
+            p.fn_ &= ~bit;
+        }
+        packet_processor_notify_update(this, p.get_fn_update_code(address));
+    }
+    uint16_t get_fn(uint32_t address) OVERRIDE
+    {
+        if (address > p.get_max_fn())
+        {
+            // Unknown.
+            return 0;
+        }
+        unsigned bit = 1 << address;
+        return (fn_ & (1 << address)) ? 1 : 0;
+    }
+    uint32_t legacy_address() OVERRIDE
+    {
+        return p.address_;
+    }
+
+protected:
+    // Payload -- actual data we know about the train.
+    P p;
+};
+
+struct Dcc28Payload
+{
+    Dcc28Payload()
+    {
+        memset(this, 0, sizeof(*this));
+    }
+    // largest address allowed is 10239.
+    unsigned address_ : 14;
+    unsigned isShortAddress_ : 1;
+    // 0: forward, 1: reverse
+    unsigned direction_ : 1;
+    unsigned lastSetSpeed_ : 16;
+    // functions f0-f28.
+    unsigned fn_ : 29;
+    // Which refresh packet should go out next.
+    unsigned nextRefresh_ : 3;
+    unsigned speed_ : 5;
+    unsigned directionChanged_ : 1;
+
+    /** @Returns the number of speed steps (in float). */
+    float get_speed_steps()
+    {
+        return 28.0f;
+    }
+
+    /** @Returns the largest function number that is still valid. */
+    unsigned get_max_fn()
+    {
+        return 28;
+    }
+
+    /** @returns the update code to send ot the packet handler for a given
+     * function value change. */
+    unsigned get_fn_update_code(unsigned address);
+};
+
+class Dcc28Train : public AbstractTrain<Dcc28Payload>
 {
 public:
     Dcc28Train(DccShortAddress a);
     Dcc28Train(DccLongAddress a);
     ~Dcc28Train();
 
-    void set_speed(SpeedType speed) OVERRIDE;
-    SpeedType get_speed() OVERRIDE;
-    SpeedType get_commanded_speed() OVERRIDE
+    // Generates next outgoing packet.
+    void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
+};
+
+struct MMOldPayload
+{
+    MMOldPayload()
     {
-        return get_speed();
+        memset(this, 0, sizeof(*this));
     }
-    void set_emergencystop() OVERRIDE;
-    void set_fn(uint32_t address, uint16_t value) OVERRIDE;
-    uint16_t get_fn(uint32_t address) OVERRIDE;
-    uint32_t legacy_address() OVERRIDE;
+    // largest address allowed is 80, but we keep a few more bits around to
+    // allow for an extension to arbitrary MM address packets.
+    unsigned address_ : 8;
+    unsigned lastSetSpeed_ : 16;
+    unsigned fn_ : 1;
+    // 0: forward, 1: reverse
+    unsigned direction_ : 1;
+    unsigned directionChanged_ : 1;
+    unsigned speed_ : 4;
+};
+
+class MMOldTrain : public AbstractTrain<MMOldPayload>
+{
+public:
+    MMOldTrain(MMAddress a);
+    ~MMOldTrain();
 
     // Generates next outgoing packet.
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
-
-private:
-    union
-    {
-        uint8_t data_[12];
-        struct
-        {
-            // largest address allowed is 10239.
-            unsigned dccAddress_ : 14;
-            unsigned isShortAddress_ : 1;
-            // 0: forward, 1: reverse
-            unsigned direction_ : 1;
-            unsigned lastSetSpeed_ : 16;
-            // functions f0-f28.
-            unsigned fn_ : 29;
-            // Which refresh packet should go out next.
-            unsigned nextRefresh_ : 3;
-            unsigned speed_ : 5;
-            unsigned directionChanged_ : 1;
-        };
-    };
 };
 
 } // namespace dcc
