@@ -59,7 +59,6 @@ Dcc28Train::~Dcc28Train()
     packet_processor_remove_refresh_source(this);
 }
 
-
 unsigned Dcc28Payload::get_fn_update_code(unsigned address)
 {
     if (address < 5)
@@ -108,7 +107,7 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
     else
     {
         // User action. Up repeat count.
-        packet->packet_header.rept_count = 1;
+        // packet->packet_header.rept_count = 1;
     }
     switch (code)
     {
@@ -140,7 +139,7 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
         case ESTOP:
         {
             packet->add_dcc_speed28(!p.direction_, Packet::EMERGENCY_STOP);
-            packet->packet_header.rept_count = 3;
+            // packet->packet_header.rept_count = 3;
             return;
         }
         default:
@@ -150,7 +149,7 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
         {
             if (p.directionChanged_)
             {
-                packet->packet_header.rept_count = 2;
+                // packet->packet_header.rept_count = 2;
                 p.directionChanged_ = 0;
             }
             packet->add_dcc_speed28(!p.direction_, p.speed_);
@@ -158,8 +157,6 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
         }
     }
 }
-
-
 
 MMOldTrain::MMOldTrain(MMAddress a)
 {
@@ -177,77 +174,25 @@ void MMOldTrain::get_next_packet(unsigned code, Packet *packet)
 {
     packet->start_mm_packet();
     packet->add_mm_address(MMAddress(p.address_), p.fn_ & 1);
-    packet->add_mm_speed(p.speed_);
-    /*
-    packet->start_dcc_packet();
-    if (isShortAddress_)
+
+    if (code == ESTOP)
     {
-        packet->add_dcc_address(DccShortAddress(dccAddress_));
+        packet->add_mm_speed(Packet::EMERGENCY_STOP); // will change the direction.
+        p.direction_ = !p.direction_;
+        p.directionChanged_ = 0;
+    }
+    else if (p.directionChanged_)
+    {
+        packet->add_mm_speed(Packet::CHANGE_DIR);
+        p.directionChanged_ = 0;
     }
     else
     {
-        packet->add_dcc_address(DccLongAddress(dccAddress_));
-    }
-    if (code == REFRESH)
-    {
-        code = MIN_REFRESH + nextRefresh_++;
-        if (nextRefresh_ > MAX_REFRESH - MIN_REFRESH)
-        {
-            nextRefresh_ = 0;
+        packet->add_mm_speed(p.speed_);
+        if (code != REFRESH) {
+            packet->packet_header.rept_count = 2;
         }
     }
-    else
-    {
-        // User action. Up repeat count.
-        packet->packet_header.rept_count = 1;
-    }
-    switch (code)
-    {
-        case FUNCTION0:
-        {
-            packet->add_dcc_function0_4(fn_ & 0x1F);
-            return;
-        }
-        case FUNCTION5:
-        {
-            packet->add_dcc_function5_8(fn_ >> 5);
-            return;
-        }
-        case FUNCTION9:
-        {
-            packet->add_dcc_function9_12(fn_ >> 9);
-            return;
-        }
-        case FUNCTION13:
-        {
-            packet->add_dcc_function13_20(fn_ >> 13);
-            return;
-        }
-        case FUNCTION21:
-        {
-            packet->add_dcc_function21_28(fn_ >> 21);
-            return;
-        }
-        case ESTOP:
-        {
-            packet->add_dcc_speed28(!direction_, Packet::EMERGENCY_STOP);
-            packet->packet_header.rept_count = 3;
-            return;
-        }
-        default:
-            LOG(WARNING, "Unknown packet generation code: %x", code);
-        // fall through
-        case SPEED:
-        {
-            if (directionChanged_)
-            {
-                packet->packet_header.rept_count = 2;
-                directionChanged_ = 0;
-            }
-            packet->add_dcc_speed28(!direction_, speed_);
-            return;
-        }
-        }*/
 }
 
 } // namespace dcc
