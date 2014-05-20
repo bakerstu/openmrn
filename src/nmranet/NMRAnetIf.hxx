@@ -90,6 +90,7 @@ public:
      */
     enum MTI
     {
+        MTI_EXACT                     = 0xFFFF, /**< match mask for a single MTI */
         MTI_NONE                      = 0x0000, /**< invalid MTI */
         MTI_INITIALIZATION_COMPLETE   = 0x0100, /**< initialization complete */
         MTI_VERIFY_NODE_ID_ADDRESSED  = 0x0488, /**< verify a Node ID */
