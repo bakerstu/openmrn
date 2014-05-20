@@ -35,11 +35,28 @@
 #ifndef _DCC_LOCO_HXX_
 #define _DCC_LOCO_HXX_
 
+#include "utils/logging.h"
 #include "dcc/Packet.hxx"
 #include "dcc/PacketSource.hxx"
 
 namespace dcc
 {
+
+enum DccTrainUpdateCode
+{
+    REFRESH = 0,
+    SPEED = 1,
+    FUNCTION0 = 2,
+    FUNCTION5 = 3,
+    FUNCTION9 = 4,
+    FUNCTION13 = 5,
+    FUNCTION21 = 6,
+    MIN_REFRESH = SPEED,
+    /** @TODO(balazs.racz) choose adaptive max-refresh based on how many
+     * functions are actually in use for the loco. */
+    MAX_REFRESH = FUNCTION9,
+    ESTOP = 16,
+};
 
 template <class P> class AbstractTrain : public PacketSource
 {
@@ -54,11 +71,11 @@ public:
         if (p.lastSetSpeed_ == new_speed)
         {
             LOG(VERBOSE, "not updating speed: old speed %04x, new speed %04x",
-                lastSetSpeed_, new_speed);
+                p.lastSetSpeed_, new_speed);
             return;
         }
-        lastSetSpeed_ = new_speed;
-        if (speed.direction() != direction_)
+        p.lastSetSpeed_ = new_speed;
+        if (speed.direction() != p.direction_)
         {
             p.directionChanged_ = 1;
             p.direction_ = speed.direction();
@@ -84,7 +101,7 @@ public:
     SpeedType get_speed() OVERRIDE
     {
         SpeedType v;
-        v.set_wire(lastSetSpeed_);
+        v.set_wire(p.lastSetSpeed_);
         return v;
     }
     SpeedType get_commanded_speed() OVERRIDE
@@ -93,11 +110,11 @@ public:
     }
     void set_emergencystop() OVERRIDE
     {
-        speed_ = 0;
+        p.speed_ = 0;
         SpeedType dir0;
-        dir0.set_direction(direction_);
-        lastSetSpeed_ = dir0.get_wire();
-        directionChanged_ = 1;
+        dir0.set_direction(p.direction_);
+        p.lastSetSpeed_ = dir0.get_wire();
+        p.directionChanged_ = 1;
         packet_processor_notify_update(this, ESTOP);
     }
     void set_fn(uint32_t address, uint16_t value) OVERRIDE
@@ -125,8 +142,7 @@ public:
             // Unknown.
             return 0;
         }
-        unsigned bit = 1 << address;
-        return (fn_ & (1 << address)) ? 1 : 0;
+        return (p.fn_ & (1 << address)) ? 1 : 0;
     }
     uint32_t legacy_address() OVERRIDE
     {
@@ -200,6 +216,24 @@ struct MMOldPayload
     unsigned direction_ : 1;
     unsigned directionChanged_ : 1;
     unsigned speed_ : 4;
+
+    /** @Returns the number of speed steps (in float). */
+    float get_speed_steps()
+    {
+        return 14.0f;
+    }
+
+    /** @Returns the largest function number that is still valid. */
+    unsigned get_max_fn()
+    {
+        return 0;
+    }
+
+    /** @returns the update code to send ot the packet handler for a given
+     * function value change. */
+    unsigned get_fn_update_code(unsigned address) {
+        return SPEED;
+    }
 };
 
 class MMOldTrain : public AbstractTrain<MMOldPayload>
