@@ -36,7 +36,6 @@
 
 #include <cstdint>
 
-#include "nmranet/NMRAnet.hxx"
 #include "utils/macros.h"
 
 namespace NMRAnet

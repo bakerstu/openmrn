@@ -34,7 +34,7 @@
 #ifndef _NMRAnetAliasCache_hxx_
 #define _NMRAnetAliasCache_hxx_
 
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "utils/macros.h"
 #include "utils/Map.hxx"
 #include "utils/RBTree.hxx"

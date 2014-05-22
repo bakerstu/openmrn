@@ -40,7 +40,7 @@
 #include "executor/StateFlow.hxx"
 #include "nmranet/AsyncIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "utils/CanIf.hxx"
 
 namespace NMRAnet

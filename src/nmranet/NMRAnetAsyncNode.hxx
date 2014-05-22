@@ -35,7 +35,7 @@
 #ifndef _NMRAnetAsyncNode_hxx_
 #define _NMRAnetAsyncNode_hxx_
 
-#include "nmranet/NMRAnetIf.hxx"  // for NodeID
+#include "nmranet/Defs.hxx"  // for NodeID
 
 namespace NMRAnet
 {

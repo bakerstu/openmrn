@@ -36,7 +36,7 @@
 #define _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_
 
 #include "nmranet/AsyncIfCan.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "executor/StateFlow.hxx"
 
 namespace NMRAnet

@@ -39,7 +39,7 @@
 #include <string>
 
 #include "nmranet/NMRAnetAsyncNode.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
 #include "executor/Executor.hxx"

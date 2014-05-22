@@ -33,6 +33,8 @@
 
 #include "nmranet/NMRAnetAliasCache.hxx"
 
+#include "os/OS.hxx"
+
 namespace NMRAnet
 {
 
