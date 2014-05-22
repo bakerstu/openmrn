@@ -44,7 +44,7 @@
 #include <vector>
 
 #include "utils/macros.h"
-#include "utils/singleton.hxx"
+#include "utils/Singleton.hxx"
 
 class VolatileState;
 struct VolatileStateRef;
