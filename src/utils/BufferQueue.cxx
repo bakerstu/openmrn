@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file BufferQueue.hxx
- * This file provides an implementation buffered queues.
+ * This file provides an implementation buffers and pools for buffers.
  *
  * @author Stuart W. Baker
  * @date 3 August 2013
