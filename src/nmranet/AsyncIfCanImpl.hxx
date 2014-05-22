@@ -35,7 +35,7 @@
 #ifndef _NMRANET_ASYNC_IF_CAN_IMPL_HXX_
 #define _NMRANET_ASYNC_IF_CAN_IMPL_HXX_
 
-#include "nmranet/NMRAnetIfCan.hxx"
+#include "nmranet/CanDefs.hxx"
 #include "executor/StateFlow.hxx"
 #include "nmranet/AsyncIfImpl.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
@@ -151,7 +151,7 @@ private:
     {
         auto *b = get_allocation_result(if_can()->frame_write_flow());
         struct can_frame *f = b->data()->mutable_frame();
-        IfCan::control_init(*f, srcAlias_, IfCan::AMD_FRAME, 0);
+        CanDefs::control_init(*f, srcAlias_, CanDefs::AMD_FRAME, 0);
         f->can_dlc = 6;
         uint64_t rd = htobe64(nmsg()->src.id);
         memcpy(f->data, reinterpret_cast<uint8_t *>(&rd) + 2, 6);
@@ -190,9 +190,9 @@ private:
 
         // Sets the CAN id.
         uint32_t can_id = 0;
-        IfCan::set_fields(&can_id, srcAlias_, nmsg()->mti,
-                          IfCan::GLOBAL_ADDRESSED, IfCan::NMRANET_MSG,
-                          IfCan::NORMAL_PRIORITY);
+        CanDefs::set_fields(&can_id, srcAlias_, nmsg()->mti,
+                          CanDefs::GLOBAL_ADDRESSED, CanDefs::NMRANET_MSG,
+                          CanDefs::NORMAL_PRIORITY);
         SET_CAN_FRAME_ID_EFF(*f, can_id);
 
         const string &data = nmsg()->payload;
@@ -334,7 +334,7 @@ protected:
     {
         auto *b = get_allocation_result(if_can()->frame_write_flow());
         struct can_frame *f = b->data();
-        IfCan::control_init(*f, srcAlias_, IfCan::AME_FRAME, 0);
+        CanDefs::control_init(*f, srcAlias_, CanDefs::AME_FRAME, 0);
         f->can_dlc = 6;
         uint64_t rd = htobe64(nmsg()->dst.id);
         memcpy(f->data, reinterpret_cast<uint8_t *>(&rd) + 2, 6);
@@ -443,7 +443,7 @@ protected:
             return;
         }
         // Now: we have an alias.
-        dstAlias_ = id & IfCan::SRC_MASK;
+        dstAlias_ = id & CanDefs::SRC_MASK;
         if (!dstAlias_)
         {
             LOG(ERROR, "Incoming alias definition message with zero alias. "

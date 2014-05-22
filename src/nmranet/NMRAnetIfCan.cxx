@@ -58,7 +58,7 @@ namespace NMRAnet
  * @param can_id CAN identifider
  * @return NMRAnet MTI
  */
-Defs::MTI IfCan::nmranet_mti(uint32_t can_id)
+Defs::MTI CanDefs::nmranet_mti(uint32_t can_id)
 {
     switch (get_can_frame_type(can_id))
     {
@@ -84,7 +84,7 @@ Defs::MTI IfCan::nmranet_mti(uint32_t can_id)
  * @param src Source node alias
  * @return CAN identifier
  */
-uint32_t IfCan::can_identifier(MTI mti, NodeAlias src)
+uint32_t CanDefs::can_identifier(MTI mti, NodeAlias src)
 {
     return ((src << SRC_SHIFT           ) & SRC_MASK) +
            ((mti << MTI_SHIFT           ) & MTI_MASK) +

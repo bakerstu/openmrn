@@ -141,7 +141,7 @@ StateFlowBase::Action AsyncAliasAllocator::send_cid_frame()
         b->unref();
         return call_immediately(STATE(handle_alias_conflict));
     }
-    IfCan::control_init(*f, pending_alias()->alias,
+    CanDefs::control_init(*f, pending_alias()->alias,
                         (if_id_ >> (12 * (cid_frame_sequence_ - 4))) & 0xfff,
                         cid_frame_sequence_);
     b->set_done(n_.reset(this));
@@ -179,7 +179,7 @@ StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
     LOG(VERBOSE, "Sending RID frame for alias %03x", pending_alias()->alias);
     auto *b = get_allocation_result(if_can()->frame_write_flow());
     struct can_frame *f = b->data()->mutable_frame();
-    IfCan::control_init(*f, pending_alias()->alias, IfCan::RID_FRAME, 0);
+    CanDefs::control_init(*f, pending_alias()->alias, CanDefs::RID_FRAME, 0);
     if (conflict_detected_)
     {
         b->unref();

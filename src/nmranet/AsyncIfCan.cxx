@@ -116,12 +116,12 @@ public:
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*message()->data());
         release();
-        if (IfCan::get_priority(id) != IfCan::NORMAL_PRIORITY)
+        if (CanDefs::get_priority(id) != CanDefs::NORMAL_PRIORITY)
         {
             // Probably not an OpenLCB frame.
             return exit();
         }
-        NodeAlias alias = IfCan::get_src(id);
+        NodeAlias alias = CanDefs::get_src(id);
         // If the caller comes with alias 000, we ignore that.
         NodeID node = alias ? if_can()->local_aliases()->lookup(alias) : 0;
         if (!node)
@@ -129,7 +129,7 @@ public:
             // This is not a local alias of ours.
             return exit();
         }
-        if (IfCan::is_cid_frame(id))
+        if (CanDefs::is_cid_frame(id))
         {
             // This is a CID frame. We own the alias, let them know.
             alias_ = alias;
@@ -156,7 +156,7 @@ public:
         auto *b = get_allocation_result(if_can()->frame_write_flow());
         // We are sending an RID frame.
         struct can_frame *f = b->data();
-        IfCan::control_init(*f, alias_, IfCan::RID_FRAME, 0);
+        CanDefs::control_init(*f, alias_, CanDefs::RID_FRAME, 0);
         if_can()->frame_write_flow()->send(b);
         return exit();
     }
@@ -176,12 +176,12 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-                     (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
-                     (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
-                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
-                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
-                   (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
+                     (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
+                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
+                   (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
     FrameToGlobalMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
@@ -219,11 +219,11 @@ public:
         auto *b = get_allocation_result(if_can()->dispatcher());
         NMRAnetMessage* m = b->data();
         m->mti =
-            static_cast<Defs::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+            static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload = buf_;
         m->dst = {0, 0};
         m->dstNode = nullptr;
-        m->src.alias = id_ & IfCan::SRC_MASK;
+        m->src.alias = id_ & CanDefs::SRC_MASK;
         // This will be zero if the alias is not known.
         m->src.id =
             m->src.alias ? if_can()->remote_aliases()->lookup(m->src.alias) : 0;
@@ -252,13 +252,13 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-                     (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
-                     (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
-                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT) |
-                     (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
-                   IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
-                   (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
+                     (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
+                     (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
+                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
+                   (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
     FrameToAddressedMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
@@ -327,12 +327,12 @@ public:
         auto *b = get_allocation_result(if_can()->dispatcher());
         NMRAnetMessage* m = b->data();
         m->mti =
-            static_cast<Defs::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+            static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload = buf_;
         m->dst = dstHandle_;
         // This might be NULL if dst is a proxied node in a router.
         m->dstNode = if_can()->lookup_local_node(dstHandle_.id);
-        m->src.alias = id_ & IfCan::SRC_MASK;
+        m->src.alias = id_ & CanDefs::SRC_MASK;
         // This will be zero if the alias is not known.
         m->src.id =
             m->src.alias ? if_can()->remote_aliases()->lookup(m->src.alias) : 0;

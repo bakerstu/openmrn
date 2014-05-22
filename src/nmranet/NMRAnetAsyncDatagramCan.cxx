@@ -103,9 +103,9 @@ private:
 
         // Sets the CAN id.
         uint32_t can_id = 0x1A000000;
-        IfCan::set_src(&can_id, src_alias_);
+        CanDefs::set_src(&can_id, src_alias_);
         LOG(VERBOSE, "dst alias %x", dst_alias_);
-        IfCan::set_dst(&can_id, dst_alias_);
+        CanDefs::set_dst(&can_id, dst_alias_);
 
         HASSERT(data_);
         bool need_more_frames = false;
@@ -117,12 +117,12 @@ private:
             need_more_frames = true;
             if (data_offset_)
             {
-                IfCan::set_can_frame_type(&can_id,
-                                          IfCan::DATAGRAM_MIDDLE_FRAME);
+                CanDefs::set_can_frame_type(&can_id,
+                                          CanDefs::DATAGRAM_MIDDLE_FRAME);
             }
             else
             {
-                IfCan::set_can_frame_type(&can_id, IfCan::DATAGRAM_FIRST_FRAME);
+                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_FIRST_FRAME);
             }
         }
         else
@@ -130,11 +130,11 @@ private:
             // No more data after this frame.
             if (data_offset_)
             {
-                IfCan::set_can_frame_type(&can_id, IfCan::DATAGRAM_FINAL_FRAME);
+                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_FINAL_FRAME);
             }
             else
             {
-                IfCan::set_can_frame_type(&can_id, IfCan::DATAGRAM_ONE_FRAME);
+                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_ONE_FRAME);
             }
         }
 
@@ -314,10 +314,10 @@ public:
     enum
     {
         CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
-                     (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
-                     (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
-        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | IfCan::FRAME_TYPE_MASK |
-                   IfCan::PRIORITY_MASK,
+                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK |
+                   CanDefs::PRIORITY_MASK,
     };
 
     /** @param num_clients tells how many datagram write flows (aka client
@@ -340,7 +340,7 @@ public:
 
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
         unsigned can_frame_type =
-            (id & IfCan::CAN_FRAME_TYPE_MASK) >> IfCan::CAN_FRAME_TYPE_SHIFT;
+            (id & CanDefs::CAN_FRAME_TYPE_MASK) >> CanDefs::CAN_FRAME_TYPE_SHIFT;
 
         if (can_frame_type < 2 || can_frame_type > 5)
         {
@@ -348,11 +348,11 @@ public:
             return;
         }
 
-        srcAlias_ = (id & IfCan::SRC_MASK) >> IfCan::SRC_SHIFT;
+        srcAlias_ = (id & CanDefs::SRC_MASK) >> CanDefs::SRC_SHIFT;
 
-        uint64_t buffer_key = id & (IfCan::DST_MASK | IfCan::SRC_MASK);
+        uint64_t buffer_key = id & (CanDefs::DST_MASK | CanDefs::SRC_MASK);
 
-        dst_.alias = buffer_key >> (IfCan::DST_SHIFT);
+        dst_.alias = buffer_key >> (CanDefs::DST_SHIFT);
         dstNode_ = nullptr;
         dst_.id = ifCan_->local_aliases()->lookup(NodeAlias(dst_.alias));
         if (dst_.id)
