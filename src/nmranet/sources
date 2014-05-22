@@ -5,7 +5,7 @@ CSRCS +=
 CXXSRCS += \
            NMRAnetAliasCache.cxx \
            AsyncIfCan.cxx \
-           AsyncIf.cxx \
+           If.cxx \
            AsyncIfImpl.cxx \
            NMRAnetWriteFlow.cxx \
            NMRAnetAsyncDefaultNode.cxx \

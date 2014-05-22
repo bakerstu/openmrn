@@ -32,7 +32,7 @@
  * @date 3 Dec 2013
  */
 
-#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/IfCan.hxx"
 
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfImpl.hxx"

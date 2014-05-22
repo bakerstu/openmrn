@@ -3,7 +3,7 @@
 #include <set>
 
 #include "nmranet/NMRAnetWriteFlow.hxx"
-#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/IfCan.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "os/OS.hxx"
 

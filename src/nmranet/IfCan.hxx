@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _NMRAnetAsyncIfCan_hxx_
-#define _NMRAnetAsyncIfCan_hxx_
+#ifndef _NMRANET_IFCAN_HXX_
+#define _NMRANET_IFCAN_HXX_
 
 #include <memory>
 
@@ -150,4 +150,4 @@ public:
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncIfCan_hxx_
+#endif // _NMRANET_IFCAN_HXX_

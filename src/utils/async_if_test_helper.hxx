@@ -8,7 +8,7 @@
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
 #include "nmranet/AsyncAliasAllocator.hxx"
-#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/IfCan.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 //#include "nmranet/NMRAnetAsyncEventHandler.hxx"

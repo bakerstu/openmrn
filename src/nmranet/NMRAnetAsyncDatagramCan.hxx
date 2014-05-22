@@ -36,7 +36,7 @@
 #define _NMRAnetAsyncDatagramCan_hxx_
 
 #include "nmranet/NMRAnetIfCan.hxx"
-#include "nmranet/AsyncIfCan.hxx"
+#include "nmranet/IfCan.hxx"
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 
 namespace nmranet
