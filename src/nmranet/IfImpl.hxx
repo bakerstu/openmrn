@@ -33,8 +33,8 @@
  * @date 4 Dec 2013
  */
 
-#ifndef _NMRAnetAsyncIfImpl_hxx_
-#define _NMRAnetAsyncIfImpl_hxx_
+#ifndef _NMRANET_IFIMPL_HXX_
+#define _NMRANET_IFIMPL_HXX_
 
 #include "nmranet/If.hxx"
 
@@ -253,4 +253,4 @@ private:
 };
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncIfImpl_hxx_
+#endif // _NMRANET_IFIMPL_HXX_

@@ -35,7 +35,7 @@
 #include "nmranet/IfCan.hxx"
 
 #include "nmranet/AsyncAliasAllocator.hxx"
-#include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/IfImpl.hxx"
 #include "nmranet/AsyncIfCanImpl.hxx"
 #include "nmranet/CanDefs.hxx"
 #include "nmranet_can.h"

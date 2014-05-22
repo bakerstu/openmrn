@@ -37,7 +37,7 @@
 
 #include "nmranet/CanDefs.hxx"
 #include "executor/StateFlow.hxx"
-#include "nmranet/AsyncIfImpl.hxx"
+#include "nmranet/IfImpl.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
 
 namespace nmranet
