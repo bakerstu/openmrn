@@ -10,7 +10,7 @@ CXXSRCS += \
            NMRAnetWriteFlow.cxx \
            NMRAnetAsyncDefaultNode.cxx \
            NMRAnetNodeInitializeFlow.cxx \
-           AsyncAliasAllocator.cxx \
+           AliasAllocator.cxx \
            NMRAnetEventRegistry.cxx \
            GlobalEventHandler.cxx \
            EventHandlerTemplates.cxx \
