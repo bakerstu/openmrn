@@ -3,7 +3,8 @@ VPATH := $(SRCDIR)
 CSRCS += errno_exit.c \
          ieeehalfprecision.c
 
-CXXSRCS += BufferQueue.cxx \
+CXXSRCS += Buffer.cxx \
+           Queue.cxx \
            GridConnect.cxx \
            logging.cxx \
            GridConnectHub.cxx \

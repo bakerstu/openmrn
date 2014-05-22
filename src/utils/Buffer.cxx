@@ -31,18 +31,9 @@
  * @date 3 August 2013
  */
 
-#include <cstdio>
-
 #include "utils/BufferQueue.hxx"
 
-#if defined (__linux__)
-#define DEBUG_PRINTF printf
-#else
-#define DEBUG_PRINTF(_fmt...)
-#endif
-
 DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
-//DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
 
 /** Expand the buffer by allocating a buffer double the size, copying the
  * contents to the new buffer, and freeing the old buffer.  The "this" pointer
@@ -86,90 +77,6 @@ void Q::insert(QMember *item, unsigned index)
     }
     item->next = NULL;
     ++count;
-}
-
-/** Get an item from the front of the queue.
- * @return @ref Result structure with item retrieved from queue, NULL if
- *         no item available
- */
-Q::Result Q::next()
-{
-    AtomicHolder h(this);
-    if (head == NULL)
-    {
-        return Result();
-    }
-    --count;
-    QMember *qm = head;
-    if (head == tail)
-    {
-        tail = NULL;
-    }
-    head = (qm->next);
-    qm->next = NULL;
-
-    return Result(qm, 0);
-}
-
-/** Add an item to the back of the queue.
- * @param item to add to queue
- * @param index unused parameter
- */
-void QAsync::insert(QMember *item, unsigned index)
-{
-    Executable *executable = NULL;
-    {
-        AtomicHolder h(this);
-        if (waiting)
-        {
-            if (Q::empty())
-            {
-                waiting = false;
-                Q::insert(item);
-            }
-            else
-            {
-                executable = static_cast<Executable *>(Q::next().item);
-            }
-        }
-        else
-        {
-            Q::insert(item);
-        }
-    }
-    if (executable)
-    {
-        executable->alloc_result(item);
-    }
-}
-
-/** Get an item from the front of the queue.
- * @param flow Executable that will wait on the item
- * @return item retrieved from queue, NULL if no item available
- */
-void QAsync::next_async(Executable *flow)
-{
-    QMember *qm = NULL;
-    {
-        AtomicHolder h(this);
-        if (waiting)
-        {
-            Q::insert(flow);
-        }
-        else
-        {
-            qm = Q::next(0);
-            if (qm == NULL)
-            {
-                Q::insert(flow);
-                waiting = true;
-            }
-        }
-    }
-    if (qm)
-    {
-        flow->alloc_result(qm);
-    }
 }
 
 /** Number of free items in the pool.
