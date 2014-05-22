@@ -52,7 +52,9 @@ void print_errno_and_exit(const char *where);
     do                                                                         \
     {                                                                          \
         if ((x) < 0)                                                           \
+        {                                                                      \
             print_errno_and_exit(where);                                       \
+        }                                                                      \
     } while (0)
 
 #endif // _LOGGING_H_
