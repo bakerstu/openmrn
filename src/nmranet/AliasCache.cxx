@@ -31,7 +31,7 @@
  * @date 21 September 2013
  */
 
-#include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet/AliasCache.hxx"
 
 #include "os/OS.hxx"
 

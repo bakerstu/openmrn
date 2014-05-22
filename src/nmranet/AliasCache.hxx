@@ -31,8 +31,8 @@
  * @date 21 September 2013
  */
 
-#ifndef _NMRAnetAliasCache_hxx_
-#define _NMRAnetAliasCache_hxx_
+#ifndef _NMRANET_ALIASCACHE_HXX_
+#define _NMRANET_ALIASCACHE_HXX_
 
 #include "nmranet/Defs.hxx"
 #include "utils/macros.h"

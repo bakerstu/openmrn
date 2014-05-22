@@ -39,7 +39,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "nmranet/If.hxx"
-#include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet/AliasCache.hxx"
 #include "nmranet/Defs.hxx"
 #include "utils/CanIf.hxx"
 

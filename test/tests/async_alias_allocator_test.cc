@@ -2,7 +2,7 @@
 
 #include "utils/async_if_test_helper.hxx"
 #include "nmranet/AliasAllocator.hxx"
-#include "nmranet/NMRAnetAliasCache.hxx"
+#include "nmranet/AliasCache.hxx"
 
 namespace nmranet
 {
