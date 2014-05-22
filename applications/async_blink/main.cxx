@@ -45,7 +45,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "nmranet/AsyncIfCan.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
