@@ -70,21 +70,8 @@ struct NodeHandle
 
 /** The generic interface for NMRAnet network interfaces
  */
-class If
+struct Defs
 {
-public:
-    /** Constructor.
-     */
-    If()
-    {
-    }
-
-    /** Virtual default destructor.
-     */
-    virtual ~If()
-    {
-    }  
-
     /** Known Message type indicators.
      */
     enum MTI
@@ -161,15 +148,10 @@ public:
     /** Status of the pysical layer link */
     enum LinkStatus
     {
-        UP,  /**< link is up and ready for transmit */
-        DOWN /**< link is down and unable to transmit */
+        LINK_UP,  /**< link is up and ready for transmit */
+        LINK_DOWN /**< link is down and unable to transmit */
     };
     
-    /** Can be used by the application to determine if the link is up or down.
-     * @return current link status
-     */
-    virtual LinkStatus link_status() = 0;
-
     /** Get the MTI address present value field.
      * @param mti MTI to extract field value from
      * @return true if MTI is an addressed message, else false
