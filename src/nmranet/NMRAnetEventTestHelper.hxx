@@ -42,7 +42,7 @@
 
 namespace nmranet {
 
-class MockEventHandler : public NMRAnetEventHandler
+class MockEventHandler : public EventHandler
 {
 public:
 #define DEFPROXYFN(FN)                                                         \

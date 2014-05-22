@@ -37,7 +37,7 @@
 namespace nmranet
 {
 
-NMRAnetEventRegistry *NMRAnetEventRegistry::instance_ = nullptr;
+EventRegistry *EventRegistry::instance_ = nullptr;
 
 AsyncMutex event_handler_mutex;
 WriteHelper event_write_helper1;
@@ -46,20 +46,20 @@ WriteHelper event_write_helper3;
 WriteHelper event_write_helper4;
 BarrierNotifiable event_barrier;
 
-NMRAnetEventRegistry::NMRAnetEventRegistry()
+EventRegistry::NMRAnetEventRegistry()
 {
     HASSERT(instance_ == nullptr);
     instance_ = this;
 }
 
-NMRAnetEventRegistry::~NMRAnetEventRegistry()
+EventRegistry::~NMRAnetEventRegistry()
 {
     HASSERT(instance_ == this);
     instance_ = nullptr;
 }
 
 // static
-unsigned NMRAnetEventRegistry::align_mask(EventId *event, unsigned size)
+unsigned EventRegistry::align_mask(EventId *event, unsigned size)
 {
     // example: size = 140. highest bit set is bit 7
     // example2: size = 256. highest bit set is bit 8, but it is power-of-two.

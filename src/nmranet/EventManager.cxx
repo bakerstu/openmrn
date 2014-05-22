@@ -37,14 +37,14 @@
 namespace nmranet
 {
 
-void TreeEventHandlers::register_handlerr(NMRAnetEventHandler *handler,
+void TreeEventHandlers::register_handlerr(EventHandler *handler,
                                           EventId event, unsigned mask)
 {
     AtomicHolder h(this);
     handlers_[mask].insert(make_pair(event, handler));
 }
 
-void TreeEventHandlers::unregister_handlerr(NMRAnetEventHandler *handler,
+void TreeEventHandlers::unregister_handlerr(EventHandler *handler,
                                             EventId event, unsigned mask)
 {
     AtomicHolder h(this);
@@ -71,7 +71,7 @@ public:
         clear_iteration();
     }
 
-    NMRAnetEventHandler *next_entry() OVERRIDE
+    EventHandler *next_entry() OVERRIDE
     {
         AtomicHolder h(parent_);
         while (maskIterator_ != parent_->handlers_.end())
@@ -87,7 +87,7 @@ public:
             }
             else
             {
-                NMRAnetEventHandler *h = it_->second;
+                EventHandler *h = it_->second;
                 it_++;
                 return h;
             }

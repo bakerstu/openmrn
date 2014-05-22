@@ -48,14 +48,14 @@ namespace nmranet
 
 class IncomingEventFlow;
 class GlobalIdentifyFlow;
-class NMRAnetEventHandler;
+class EventHandler;
 
 struct EventHandlerCall
 {
     EventReport *rep;
-    NMRAnetEventHandler *handler;
+    EventHandler *handler;
     EventHandlerFunction fn;
-    void reset(EventReport *rep, NMRAnetEventHandler *handler,
+    void reset(EventReport *rep, EventHandler *handler,
                EventHandlerFunction fn)
     {
         this->rep = rep;

@@ -77,9 +77,9 @@ extern WriteHelper event_write_helper2;
 extern WriteHelper event_write_helper3;
 extern WriteHelper event_write_helper4;
 
-class NMRAnetEventHandler {
+class EventHandler {
 public:
-  virtual ~NMRAnetEventHandler() {}
+  virtual ~EventHandler() {}
 
   // Called on incoming EventReport messages. Filled: src_node, event. Mask is
   // always 1 (filled in). state is not filled in.
@@ -125,7 +125,7 @@ public:
                                       BarrierNotifiable* done) = 0;
 };
 
-typedef void (NMRAnetEventHandler::*EventHandlerFunction)(EventReport* event,
+typedef void (EventHandler::*EventHandlerFunction)(EventReport* event,
                                                           BarrierNotifiable* done);
 
 
@@ -143,7 +143,7 @@ public:
      * @returns the next entry or NULL if the iteration is done.
      * May be called many times after the iteratin is ended and should
      * consistently return NULL. */
-    virtual NMRAnetEventHandler* next_entry() = 0;
+    virtual EventHandler* next_entry() = 0;
 
     /** Starts the iteration. If the iteration is not done yet, call
      * clear_iteration first.
@@ -155,11 +155,11 @@ public:
     virtual void clear_iteration() = 0;
 };
 
-class NMRAnetEventRegistry {
+class EventRegistry {
 public:
-    virtual ~NMRAnetEventRegistry();
+    virtual ~EventRegistry();
 
-    static NMRAnetEventRegistry* instance() {
+    static EventRegistry* instance() {
         HASSERT(instance_);
         return instance_;
     }
@@ -176,19 +176,19 @@ public:
     /** mask = 0 means exact event only. Mask = 63 means this is a global
      * handler. Mask == 0 means we should be registered for one single
      * eventid. */
-  virtual void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) = 0;
+  virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
+  virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
   
     // Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator* create_iterator() = 0;
 
 protected:
-  NMRAnetEventRegistry();
+  EventRegistry();
 
 private:
-  static NMRAnetEventRegistry* instance_;
+  static EventRegistry* instance_;
 
-  DISALLOW_COPY_AND_ASSIGN(NMRAnetEventRegistry);
+  DISALLOW_COPY_AND_ASSIGN(EventRegistry);
 };
 
 }; /* namespace nmranet */

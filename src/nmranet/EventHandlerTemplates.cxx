@@ -60,14 +60,14 @@ BitRangeEventPC::BitRangeEventPC(Node *node,
                                  uint64_t event_base, uint32_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
-  unsigned mask = NMRAnetEventRegistry::align_mask(&event_base, size * 2);
-  NMRAnetEventRegistry::instance()->register_handlerr(this, event_base, mask);
+  unsigned mask = EventRegistry::align_mask(&event_base, size * 2);
+  EventRegistry::instance()->register_handlerr(this, event_base, mask);
 }
 
 BitRangeEventPC::~BitRangeEventPC() {
   uint64_t event = event_base_;
-  unsigned mask = NMRAnetEventRegistry::align_mask(&event, size_ * 2);
-  NMRAnetEventRegistry::instance()->unregister_handlerr(this, event, mask);
+  unsigned mask = EventRegistry::align_mask(&event, size_ * 2);
+  EventRegistry::instance()->unregister_handlerr(this, event, mask);
 }
 
 void BitRangeEventPC::GetBitAndMask(unsigned bit, uint32_t** data,
@@ -226,14 +226,14 @@ ByteRangeEventC::ByteRangeEventC(Node *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
-  unsigned mask = NMRAnetEventRegistry::align_mask(&event_base, size * 256);
-  NMRAnetEventRegistry::instance()->register_handlerr(this, event_base, mask);
+  unsigned mask = EventRegistry::align_mask(&event_base, size * 256);
+  EventRegistry::instance()->register_handlerr(this, event_base, mask);
 }
 
 ByteRangeEventC::~ByteRangeEventC() {
   uint64_t event_base = event_base_;
-  unsigned mask = NMRAnetEventRegistry::align_mask(&event_base, size_ * 256);
-  NMRAnetEventRegistry::instance()->unregister_handlerr(this, event_base, mask);
+  unsigned mask = EventRegistry::align_mask(&event_base, size_ * 256);
+  EventRegistry::instance()->unregister_handlerr(this, event_base, mask);
 }
 
 void ByteRangeEventC::HandleEventReport(EventReport* event, BarrierNotifiable* done) {
@@ -390,10 +390,10 @@ BitEventHandler::BitEventHandler(BitEventInterface* bit)
     if ((bit_->event_on() ^ bit_->event_off()) == 1ULL) {
         // Register once for two eventids.
         uint64_t id = bit_->event_on() & (~1ULL);
-        NMRAnetEventRegistry::instance()->register_handlerr(this, id, 1);
+        EventRegistry::instance()->register_handlerr(this, id, 1);
     } else {
-        NMRAnetEventRegistry::instance()->register_handlerr(this, bit_->event_on(), 0);
-        NMRAnetEventRegistry::instance()->register_handlerr(this, bit_->event_off(), 0);
+        EventRegistry::instance()->register_handlerr(this, bit_->event_on(), 0);
+        EventRegistry::instance()->register_handlerr(this, bit_->event_off(), 0);
     }
 }
 
@@ -401,10 +401,10 @@ BitEventHandler::~BitEventHandler() {
     if ((bit_->event_on() ^ bit_->event_off()) == 1ULL) {
         // Register once for two eventids.
         uint64_t id = bit_->event_on() & (~1ULL);
-        NMRAnetEventRegistry::instance()->unregister_handlerr(this, id, 1);
+        EventRegistry::instance()->unregister_handlerr(this, id, 1);
     } else {
-        NMRAnetEventRegistry::instance()->unregister_handlerr(this, bit_->event_on(), 0);
-        NMRAnetEventRegistry::instance()->unregister_handlerr(this, bit_->event_off(), 0);
+        EventRegistry::instance()->unregister_handlerr(this, bit_->event_on(), 0);
+        EventRegistry::instance()->unregister_handlerr(this, bit_->event_off(), 0);
     }
 }
 

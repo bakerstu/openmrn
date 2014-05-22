@@ -310,14 +310,14 @@ public:
     {
     }
 
-    vector<NMRAnetEventHandler *> get_all_matching(uint64_t event,
+    vector<EventHandler *> get_all_matching(uint64_t event,
                                                    uint64_t mask = 1)
     {
         report_.event = event;
         report_.mask = mask;
         iter_->init_iteration(&report_);
-        vector<NMRAnetEventHandler *> r;
-        while (NMRAnetEventHandler *h = iter_->next_entry())
+        vector<EventHandler *> r;
+        while (EventHandler *h = iter_->next_entry())
         {
             r.push_back(h);
         }
@@ -325,9 +325,9 @@ public:
         return r;
     }
 
-    NMRAnetEventHandler *h(int n)
+    EventHandler *h(int n)
     {
-        return reinterpret_cast<NMRAnetEventHandler *>(0x100 + n);
+        return reinterpret_cast<EventHandler *>(0x100 + n);
     }
 
     void add_handler(int n, uint64_t eventid, unsigned mask)

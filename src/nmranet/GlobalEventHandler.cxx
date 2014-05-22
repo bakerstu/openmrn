@@ -146,53 +146,53 @@ StateFlowBase::Action GlobalEventFlow::entry()
     switch (nmsg()->mti)
     {
         case Defs::MTI_EVENT_REPORT:
-            fn_ = &NMRAnetEventHandler::HandleEventReport;
+            fn_ = &EventHandler::HandleEventReport;
             break;
         case Defs::MTI_CONSUMER_IDENTIFY:
-            fn_ = &NMRAnetEventHandler::HandleIdentifyConsumer;
+            fn_ = &EventHandler::HandleIdentifyConsumer;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn_ = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
+            fn_ = &EventHandler::HandleConsumerRangeIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
-            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_VALID:
             rep->state = VALID;
-            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_INVALID:
             rep->state = INVALID;
-            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
-            fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFY:
-            fn_ = &NMRAnetEventHandler::HandleIdentifyProducer;
+            fn_ = &EventHandler::HandleIdentifyProducer;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn_ = &NMRAnetEventHandler::HandleProducerRangeIdentified;
+            fn_ = &EventHandler::HandleProducerRangeIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
-            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_VALID:
             rep->state = VALID;
-            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_INVALID:
             rep->state = INVALID;
-            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
-            fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_EVENTS_IDENTIFY_ADDRESSED:
             if (!rep->dst_node)
@@ -203,7 +203,7 @@ StateFlowBase::Action GlobalEventFlow::entry()
             }
         // fall through
         case Defs::MTI_EVENTS_IDENTIFY_GLOBAL:
-            fn_ = &NMRAnetEventHandler::HandleIdentifyGlobal;
+            fn_ = &EventHandler::HandleIdentifyGlobal;
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -217,7 +217,7 @@ StateFlowBase::Action GlobalEventFlow::entry()
 
 StateFlowBase::Action GlobalEventFlow::iterate_next()
 {
-    NMRAnetEventHandler *handler = iterator_->next_entry();
+    EventHandler *handler = iterator_->next_entry();
     if (!handler)
     {
         return exit();

@@ -27,9 +27,9 @@ public:
         : container_(container) {
         clear_iteration();
     }
-    NMRAnetEventHandler* next_entry() OVERRIDE {
+    EventHandler* next_entry() OVERRIDE {
         if (it_ == container_->end()) return nullptr;
-        NMRAnetEventHandler* h = *it_;
+        EventHandler* h = *it_;
         ++it_;
         return h;
     }
@@ -54,17 +54,17 @@ class VectorEventHandlers : public NMRAnetEventRegistry {
         return new FullContainerIterator<HandlersList>(&handlers_);
     }
 
-  virtual void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_front(handler);
   }
-  virtual void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) {
+  virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.remove(handler);
   }
 
  private:
-  typedef std::forward_list<NMRAnetEventHandler*> HandlersList;
+  typedef std::forward_list<EventHandler*> HandlersList;
   HandlersList handlers_;
 };
 
@@ -73,14 +73,14 @@ public:
     TreeEventHandlers();
 
     EventIterator* create_iterator() OVERRIDE;
-    void register_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) OVERRIDE;
-    void unregister_handlerr(NMRAnetEventHandler* handler, EventId event, unsigned mask) OVERRIDE;
+    void register_handlerr(EventHandler* handler, EventId event, unsigned mask) OVERRIDE;
+    void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) OVERRIDE;
 
 private:
     class Iterator;
     friend class Iterator;
 
-    typedef std::multimap<uint64_t, NMRAnetEventHandler*> OneMaskMap;
+    typedef std::multimap<uint64_t, EventHandler*> OneMaskMap;
     typedef std::map<uint8_t, OneMaskMap> MaskLookupMap;
     /** The registered handlers. The offset in the first map tell us how many
      * bits wide the registration is (it is the mask value in the register

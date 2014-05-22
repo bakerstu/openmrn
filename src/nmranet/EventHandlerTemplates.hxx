@@ -45,7 +45,7 @@ namespace nmranet
 // A proxy event handler has a single helper function that gets every event
 // handler call with an indication of which call it is. It is helpful to create
 // event containers that proxy calls to many event handler instances.
-class ProxyEventHandler : public NMRAnetEventHandler {
+class ProxyEventHandler : public EventHandler {
  public:
   virtual ~ProxyEventHandler() {}
 
@@ -73,7 +73,7 @@ class ProxyEventHandler : public NMRAnetEventHandler {
 };
 
 // SimpleEventHandler ignores all non-essential callbacks.
-class SimpleEventHandler : public NMRAnetEventHandler {
+class SimpleEventHandler : public EventHandler {
  public:
 #define IGNOREFN(FN) \
   virtual void FN(EventReport* event, BarrierNotifiable* done) { done->notify(); }

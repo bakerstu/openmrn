@@ -11,7 +11,7 @@ namespace nmranet {
 
 class SimpleEventProxy : public ProxyEventHandler {
  public:
-  SimpleEventProxy(NMRAnetEventHandler* handler)
+  SimpleEventProxy(EventHandler* handler)
       : handler_(handler) {}
 
   virtual void HandlerFn(EventHandlerFunction fn,
@@ -21,7 +21,7 @@ class SimpleEventProxy : public ProxyEventHandler {
   }
 
  private:
-  NMRAnetEventHandler* handler_;
+  EventHandler* handler_;
 };
 
 TEST(EventProxy, TestHandleEvent) {
