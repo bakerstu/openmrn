@@ -37,10 +37,10 @@
 
 #include <memory>
 
+#include "executor/StateFlow.hxx"
 #include "nmranet/AsyncIf.hxx"
-#include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
-#include "utils/BufferQueue.hxx"
+#include "nmranet/NMRAnetIf.hxx"
 #include "utils/CanIf.hxx"
 
 namespace NMRAnet

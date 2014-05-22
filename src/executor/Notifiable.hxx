@@ -3,7 +3,6 @@
 
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
-#include "utils/Queue.hxx"
 
 /// An object that can schedule itself on an executor to run.
 class Notifiable

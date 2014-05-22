@@ -31,8 +31,8 @@
  * @date 3 August 2013
  */
 
-#ifndef _BufferQueue_hxx_
-#define _BufferQueue_hxx_
+#ifndef _UTILS_BUFFER_HXX_
+#define _UTILS_BUFFER_HXX_
 
 // Enable this to collect the pointer of all buffers live.
 //#define DEBUG_BUFFER_MEMORY
@@ -43,10 +43,11 @@
 #include <cstdarg>
 
 #include "executor/Executable.hxx"
-#include "utils/Atomic.hxx"
 #include "executor/Notifiable.hxx"
 #include "os/OS.hxx"
+#include "utils/Atomic.hxx"
 #include "utils/MultiMap.hxx"
+#include "utils/QMember.hxx"
 #include "utils/Queue.hxx"
 #include "utils/macros.h"
 
@@ -606,4 +607,4 @@ template <class T> void Buffer<T>::unref()
     }
 }
 
-#endif /* _BufferQueue_hxx_ */
+#endif /* _UTILS_BUFFER_HXX_ */

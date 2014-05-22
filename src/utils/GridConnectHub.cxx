@@ -37,7 +37,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "nmranet_can.h"
-#include "utils/BufferQueue.hxx"
+#include "utils/Buffer.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/PipeFlow.hxx"
 #include "utils/gc_format.h"

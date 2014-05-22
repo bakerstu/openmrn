@@ -35,7 +35,7 @@
 #ifndef _UTILS_ASYNC_MUTEX_HXX_
 #define _UTILS_ASYNC_MUTEX_HXX_
 
-#include "utils/BufferQueue.hxx"
+#include "utils/Queue.hxx"
 
 /**
  *  Helper class that simulates a (non-reentrant) mutex using the Allocator

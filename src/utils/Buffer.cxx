@@ -31,7 +31,7 @@
  * @date 3 August 2013
  */
 
-#include "utils/BufferQueue.hxx"
+#include "utils/Buffer.hxx"
 
 DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
 

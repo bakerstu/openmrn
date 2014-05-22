@@ -39,7 +39,7 @@
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
 #include "executor/Timer.hxx"
-#include "utils/BufferQueue.hxx"
+#include "utils/Queue.hxx"
 #include "utils/logging.h"
 
 class ActiveTimers;

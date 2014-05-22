@@ -37,7 +37,7 @@
 
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/NMRAnetIf.hxx"
-#include "utils/BufferQueue.hxx"
+#include "executor/StateFlow.hxx"
 
 namespace NMRAnet
 {

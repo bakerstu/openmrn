@@ -39,7 +39,6 @@
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnet.hxx"
-#include "utils/BufferQueue.hxx"
 #include "utils/macros.h"
 
 namespace NMRAnet

@@ -39,18 +39,12 @@
 #include <cstdarg>
 
 #include "executor/Executable.hxx"
-#include "utils/Atomic.hxx"
 #include "executor/Notifiable.hxx"
 #include "os/OS.hxx"
+#include "utils/Atomic.hxx"
 #include "utils/MultiMap.hxx"
-#include "utils/Queue.hxx"
+#include "utils/QMember.hxx"
 #include "utils/macros.h"
-
-class DynamicPool;
-class FixedPool;
-class Pool;
-template <class T> class Buffer;
-class BufferBase;
 
 namespace NMRAnet
 {
@@ -636,98 +630,6 @@ public:
     }
 };
 
-/** Pool of previously allocated, but currently unused, items. */
-class Pool
-{
-public:
-    /** Get a free item out of the pool.
-     * @param result pointer to a pointer to the result
-     * @param flow if !NULL, then the alloc call is considered async and will
-     *        behave as if @ref alloc_async() was called.
-     */
-    template <class BufferType>
-    void alloc(Buffer<BufferType> **result, Executable *flow = NULL)
-    {
-#ifdef DEBUG_BUFFER_MEMORY
-        g_current_alloc = &&alloc;
-        alloc:
-#endif
-        *result = static_cast<Buffer<BufferType> *>(
-            alloc_untyped(sizeof(Buffer<BufferType>), flow));
-        if (*result && !flow)
-        {
-            new (*result) Buffer<BufferType>(this);
-        }
-    }
-
-    /** Get a free item out of the pool.
-     * @param flow Executable to notify upon allocation
-     */
-    template <class BufferType> void alloc_async(Executable *flow)
-    {
-        Buffer<BufferType> *buffer;
-        alloc(&buffer, flow);
-    }
-
-    /** Cast the result of an asynchronous allocation and perform a placement
-     * new on it.
-     * @param base untyped buffer
-     * @param result pointer to a pointer to the cast result
-     */
-    template <class BufferType>
-    static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
-    {
-        HASSERT(base);
-        HASSERT(sizeof(Buffer<BufferType>) == base->size());
-        *result = static_cast<Buffer<BufferType> *>(base);
-        new (*result) Buffer<BufferType>(base->pool());
-    }
-
-    /** Number of free items in the pool.
-     * @return number of free items in the pool
-     */
-    virtual size_t free_items() = 0;
-
-    /** Number of free items in the pool for a given allocation size.
-     * @param size size of interest
-     * @return number of free items in the pool for a given allocation size
-     */
-    virtual size_t free_items(size_t size) = 0;
-
-protected:
-    /** Default Constructor.
-     */
-    Pool()
-        : totalSize(0)
-    {
-    }
-
-    /** default destructor.
-     */
-    virtual ~Pool()
-    {
-    }
-
-    virtual BufferBase *alloc_untyped(size_t size, Executable *flow) = 0;
-
-    /** Release an item back to the free pool.
-     * @param item pointer to item to release
-     */
-    virtual void free(BufferBase *item) = 0;
-
-    /** keep track of total allocated size of memory */
-    size_t totalSize;
-
-private:
-    /** Allow BufferBase to access this class */
-    friend class BufferBase;
-
-    /** Allow Buffer to access this class */
-    template <class T> friend class Buffer;
-
-    DISALLOW_COPY_AND_ASSIGN(Pool);
-};
-
 #if 0
 /** A BufferQueue that adds the ability to wait on the next buffer.
  * Yes this uses multiple inheritance.
@@ -1030,17 +932,5 @@ public:
 private:
     DISALLOW_COPY_AND_ASSIGN(QListProtectedWait);
 };
-
-/** Decrement count.
- */
-template <class T> void Buffer<T>::unref()
-{
-    HASSERT(sizeof(Buffer<T>) <= size_);
-    if (--count_ == 0)
-    {
-        this->~Buffer();
-        pool_->free(this);
-    }
-}
 
 #endif /* _UTILS_QUEUE_HXX_ */

@@ -39,7 +39,6 @@
 
 #include "nmranet_config.h"
 
-#include "utils/BufferQueue.hxx"
 //#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/AsyncIf.hxx"
 

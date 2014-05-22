@@ -39,7 +39,8 @@
 
 #include "executor/Service.hxx"
 #include "executor/Timer.hxx"
-#include "utils/BufferQueue.hxx"
+#include "utils/Buffer.hxx"
+#include "utils/Queue.hxx"
 
 #define STATE(_fn)                                                             \
     (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)

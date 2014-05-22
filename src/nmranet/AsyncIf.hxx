@@ -43,7 +43,8 @@
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
 #include "executor/Executor.hxx"
-#include "utils/BufferQueue.hxx"
+#include "utils/Buffer.hxx"
+#include "utils/Queue.hxx"
 #include "utils/Map.hxx"
 
 namespace NMRAnet

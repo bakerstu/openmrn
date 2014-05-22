@@ -33,12 +33,6 @@
 
 #include "utils/Queue.hxx"
 
-#if defined (__linux__)
-#define DEBUG_PRINTF printf
-#else
-#define DEBUG_PRINTF(_fmt...)
-#endif
-
 /** Add an item to the back of the queue.
  * @param item to add to queue
  * @param index unused parameter

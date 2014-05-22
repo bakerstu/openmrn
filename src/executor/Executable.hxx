@@ -36,6 +36,7 @@
 #define _EXECUTOR_EXECUTABLE_HXX_
 
 #include "executor/Notifiable.hxx"
+#include "utils/QMember.hxx"
 
 /// An object that can be scheduled on an executor to run.
 class Executable : public Notifiable, public QMember

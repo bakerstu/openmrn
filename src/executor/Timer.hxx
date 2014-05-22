@@ -36,7 +36,8 @@
 #define _executor_Timer_hxx_
 
 #include "executor/Notifiable.hxx"
-#include "utils/BufferQueue.hxx"
+#include "utils/Buffer.hxx"
+#include "utils/QMember.hxx"
 #include "os/OS.hxx"
 
 class Timer;
