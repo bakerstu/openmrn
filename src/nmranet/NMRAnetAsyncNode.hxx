@@ -48,10 +48,10 @@ class If;
  * implementations might need to be very lightweight (e.g. a command station
  * might have hundreds of train nodes.)
  */
-class AsyncNode
+class Node
 {
 public:
-    virtual ~AsyncNode() {}
+    virtual ~Node() {}
     // @returns the 48-bit NMRAnet node id for this node.
     virtual NodeID node_id() = 0;
     // @returns the interface this virtual node is bound to.

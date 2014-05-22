@@ -50,7 +50,7 @@
 namespace nmranet
 {
 
-class AsyncNode;
+class Node;
 
 typedef string Payload;
 
@@ -120,7 +120,7 @@ struct NMRAnetMessage
     /// Destination node.
     NodeHandle dst;
     /// If the destination node is local, this value is non-NULL.
-    AsyncNode *dstNode;
+    Node *dstNode;
     /// Data content in the message body. Owned by the dispatcher.
     /// @todo(balazs.racz) figure out a better container.
     string payload;
@@ -260,7 +260,7 @@ public:
      *
      * @param node is the node to register.
      */
-    void add_local_node(AsyncNode *node)
+    void add_local_node(Node *node)
     {
         NodeID id = node->node_id();
         HASSERT(localNodes_.find(id) == localNodes_.end());
@@ -272,7 +272,7 @@ public:
      *
      * @param node is the node to delete.
      */
-    void delete_local_node(AsyncNode *node)
+    void delete_local_node(Node *node)
     {
         HASSERT(0);
         /*
@@ -287,7 +287,7 @@ public:
      * @param id is the 48-bit NMRAnet node ID to look up.
      * @returns the node pointer or NULL if the node is not registered.
      */
-    AsyncNode *lookup_local_node(NodeID id)
+    Node *lookup_local_node(NodeID id)
     {
         auto it = localNodes_.find(id);
         if (it == localNodes_.end())
@@ -307,7 +307,7 @@ private:
     /// Flow responsible for routing incoming messages to handlers.
     MessageDispatchFlow dispatcher_;
 
-    typedef Map<NodeID, AsyncNode *> VNodeMap;
+    typedef Map<NodeID, Node *> VNodeMap;
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;

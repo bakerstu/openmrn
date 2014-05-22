@@ -45,7 +45,7 @@ class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
     TractionResponseHandler(nmranet::If *interface,
-                            nmranet::AsyncNode *local_node)
+                            nmranet::Node *local_node)
         : IncomingMessageStateFlow(interface)
         , expectedDst_(local_node)
         , trigger_(nullptr)
@@ -159,7 +159,7 @@ private:
     }
 
     nmranet::NodeHandle expectedSrc_;
-    nmranet::AsyncNode *expectedDst_;
+    nmranet::Node *expectedDst_;
     // First byte of the response message.
     uint8_t expectedType_;
     ::Timer *trigger_;

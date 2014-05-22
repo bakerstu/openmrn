@@ -48,7 +48,7 @@ namespace nmranet
 class WriteHelper : public Executable
 {
 public:
-    typedef AsyncNode *node_type;
+    typedef Node *node_type;
     typedef string payload_type;
 
     static NodeHandle global()
@@ -75,7 +75,7 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void WriteAsync(AsyncNode *node, Defs::MTI mti, NodeHandle dst,
+    void WriteAsync(Node *node, Defs::MTI mti, NodeHandle dst,
                     const payload_type &buffer, Notifiable *done)
     {
         if (done)
@@ -161,7 +161,7 @@ private:
     unsigned waitForLocalLoopback_ : 1;
     NodeHandle dst_;
     Defs::MTI mti_;
-    AsyncNode *node_;
+    Node *node_;
     payload_type buffer_;
     BarrierNotifiable done_;
 };

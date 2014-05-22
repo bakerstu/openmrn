@@ -56,7 +56,7 @@ const string& GetNameForOffset(int) { static string empty; return empty; }
 namespace nmranet
 {
 
-BitRangeEventPC::BitRangeEventPC(AsyncNode *node,
+BitRangeEventPC::BitRangeEventPC(Node *node,
                                  uint64_t event_base, uint32_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
@@ -222,7 +222,7 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
   done->maybe_done();
 }
 
-ByteRangeEventC::ByteRangeEventC(AsyncNode *node,
+ByteRangeEventC::ByteRangeEventC(Node *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
     : event_base_(event_base), node_(node), data_(backing_store), size_(size) {
@@ -285,7 +285,7 @@ void ByteRangeEventC::HandleIdentifyGlobal(EventReport* event,
                                  done);
 }
 
-ByteRangeEventP::ByteRangeEventP(AsyncNode *node,
+ByteRangeEventP::ByteRangeEventP(Node *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
     : ByteRangeEventC(node, event_base, backing_store, size) {}

@@ -284,7 +284,7 @@ void TrainService::register_train(TrainNode *node)
     /** @TODO(balazs.racz) We should have a single flow for initializing all
      * trains in sequence instead of creating a new one for each in
      * parallel. */
-    extern void StartInitializationFlow(AsyncNode * node);
+    extern void StartInitializationFlow(Node * node);
     StartInitializationFlow(node);
     AtomicHolder h(this);
     nodes_.insert(node);

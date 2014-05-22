@@ -40,7 +40,7 @@
 namespace nmranet
 {
 
-class DefaultAsyncNode : public AsyncNode
+class DefaultAsyncNode : public Node
 {
 public:
     DefaultAsyncNode(If* interface, NodeID node_id);

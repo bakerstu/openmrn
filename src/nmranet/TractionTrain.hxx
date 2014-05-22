@@ -48,7 +48,7 @@ namespace nmranet
 
 class TrainService;
 
-class TrainNode : public AsyncNode
+class TrainNode : public Node
 {
 public:
     TrainNode(TrainService *service, TrainImpl *train);

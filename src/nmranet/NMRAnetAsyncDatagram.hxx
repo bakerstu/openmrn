@@ -53,7 +53,7 @@ extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 struct IncomingDatagram : public QueueMember
 {
     NodeHandle src;
-    AsyncNode* dst;
+    Node* dst;
     // Owned by the current IncomingDatagram object. Includes the datagram ID
     // as the first byte.
     Buffer* payload;
@@ -164,7 +164,7 @@ protected:
 class DatagramSupport
 {
 public:
-    typedef TypedNodeHandlerMap<AsyncNode, DatagramHandler> Registry;
+    typedef TypedNodeHandlerMap<Node, DatagramHandler> Registry;
 
     /** Creates a datagram dispatcher.
      *

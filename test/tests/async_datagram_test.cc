@@ -734,7 +734,7 @@ public:
         DATAGRAM_ID = 0x7A,
     };
 
-    PingPongHandler(DatagramSupport* if_dg, AsyncNode* node)
+    PingPongHandler(DatagramSupport* if_dg, Node* node)
         : DefaultDatagramHandler(if_dg), processCount_(0)
     {
         ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);

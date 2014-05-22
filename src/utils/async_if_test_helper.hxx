@@ -336,7 +336,7 @@ protected:
 
     GlobalEventService eventService_;
     std::unique_ptr<DefaultAsyncNode> ownedNode_;
-    AsyncNode *node_;
+    Node *node_;
 };
 
 class MockMessageHandler : public MessageHandler

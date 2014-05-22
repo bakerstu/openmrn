@@ -245,7 +245,7 @@ public:
 #endif // not simple node
 
 private:
-    AsyncNode *srcNode_;
+    Node *srcNode_;
 
 #ifndef SIMPLE_NODE_ONLY
     If::VNodeMap::Iterator it_;

@@ -521,7 +521,7 @@ public:
 private:
     // Buffer of the pending datagram. Filled when allocation is needed.
     Buffer* buf_;
-    AsyncNode* dstNode_;
+    Node* dstNode_;
 
     NodeHandle dst_;
     unsigned short srcAlias_ : 12;

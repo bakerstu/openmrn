@@ -19,7 +19,7 @@
 namespace nmranet
 {
 
-class AsyncNode;
+class Node;
 
 class GlobalEventFlow;
 

@@ -39,7 +39,7 @@
 namespace nmranet
 {
 
-extern void StartInitializationFlow(AsyncNode* node);
+extern void StartInitializationFlow(Node* node);
 
 DefaultAsyncNode::DefaultAsyncNode(If* interface, NodeID node_id)
     : nodeId_(node_id), isInitialized_(0), interface_(interface)

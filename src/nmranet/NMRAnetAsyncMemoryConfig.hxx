@@ -123,7 +123,7 @@ public:
         DATAGRAM_ID = 0x20,
     };
 
-    MemoryConfigHandler(DatagramSupport* if_dg, AsyncNode* node,
+    MemoryConfigHandler(DatagramSupport* if_dg, Node* node,
                         size_t registry_size)
         : DefaultDatagramHandler(if_dg),
           response_(nullptr),
@@ -138,7 +138,7 @@ public:
         /// @TODO(balazs.racz): unregister *this!
     }
 
-    typedef TypedNodeHandlerMap<AsyncNode, MemorySpace> Registry;
+    typedef TypedNodeHandlerMap<Node, MemorySpace> Registry;
 
     Registry* registry()
     {
@@ -415,7 +415,7 @@ private:
     NodeID lockNode_; //< Holds the node ID that locked us.
 
     Registry registry_;         //< holds the known memory spaces
-    AsyncNode* registeredNode_; //< we registered as a datagram handler for
+    Node* registeredNode_; //< we registered as a datagram handler for
                                 // this node. May be null.
 };
 
