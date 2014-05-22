@@ -24,20 +24,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetIf.hxx
- * This file provides the generic NMRAnet interface.
+ * \file Defs.hxx
+ * Static declarations, enums and helper functions for the NMRAnet interface.
  *
  * @author Stuart W. Baker
  * @date 18 September 2013
  */
 
-#ifndef _NMRAnetIf_hxx_
-#define _NMRAnetIf_hxx_
+#ifndef _NMRANET_DEFS_HXX_
+#define _NMRANET_DEFS_HXX_
 
 #include <cstdint>
 
-#include "executor/Service.hxx"
-#include "executor/StateFlow.hxx"
 #include "nmranet/NMRAnet.hxx"
 #include "utils/macros.h"
 
@@ -219,4 +217,4 @@ inline Defs::MTI& operator -- (Defs::MTI &value)
 
 }; /* namespace NMRAnet */
 
-#endif /* _NMRAnetIf_hxx_ */
+#endif /* _NMRANET_DEFS_HXX_ */
