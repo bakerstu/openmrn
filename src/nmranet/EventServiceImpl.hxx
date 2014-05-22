@@ -41,7 +41,7 @@
 #include <vector>
 
 #include "nmranet/EventService.hxx"
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 
 namespace nmranet
 {

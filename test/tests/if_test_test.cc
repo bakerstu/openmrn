@@ -2,7 +2,7 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 #include "nmranet/Defs.hxx"
 
 namespace nmranet {

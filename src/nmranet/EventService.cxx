@@ -8,7 +8,7 @@
 #include "nmranet/EventService.hxx"
 
 #include "nmranet/EventServiceImpl.hxx"
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventHandlerContainer.hxx"
 #include "nmranet/Defs.hxx"

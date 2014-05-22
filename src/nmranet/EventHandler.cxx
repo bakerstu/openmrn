@@ -31,7 +31,7 @@
  * @date 19 October 2013
  */
 
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 #include "nmranet/WriteHelper.hxx"
 
 namespace nmranet

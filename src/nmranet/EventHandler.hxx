@@ -31,8 +31,8 @@
  * @date 29 September 2013
  */
 
-#ifndef _NMRAnetEventRegistry_hxx_
-#define _NMRAnetEventRegistry_hxx_
+#ifndef _NMRANET_EVENTHANDLER_HXX_
+#define _NMRANET_EVENTHANDLER_HXX_
 
 #include <stdint.h>
 
@@ -193,4 +193,4 @@ private:
 
 }; /* namespace nmranet */
 
-#endif  // _NMRAnetEventRegistry_hxx_
+#endif  // _NMRANET_EVENTHANDLER_HXX_

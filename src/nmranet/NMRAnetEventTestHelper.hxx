@@ -38,7 +38,7 @@
 #define _NMRAnetEventTestHelper_hxx_
 
 #include "gmock/gmock.h"
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 
 namespace nmranet {
 

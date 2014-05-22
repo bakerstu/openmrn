@@ -13,7 +13,7 @@
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
 //#include "nmranet/EventService.hxx"
-#include "nmranet/NMRAnetEventRegistry.hxx"
+#include "nmranet/EventHandler.hxx"
 //#include "if/nmranet_if.h"
 //#include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
