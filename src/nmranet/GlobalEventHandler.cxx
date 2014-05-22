@@ -18,16 +18,16 @@ namespace nmranet
 {
 
 /*static*/
-GlobalEventService *GlobalEventService::instance = nullptr;
+EventService *EventService::instance = nullptr;
 
-GlobalEventService::GlobalEventService(ExecutorBase *e) : Service(e)
+EventService::EventService(ExecutorBase *e) : Service(e)
 {
     HASSERT(instance == nullptr);
     instance = this;
     impl_.reset(new Impl(this));
 }
 
-GlobalEventService::GlobalEventService(If *interface)
+EventService::EventService(If *interface)
     : Service(interface->executor())
 {
     HASSERT(instance == nullptr);
@@ -36,33 +36,33 @@ GlobalEventService::GlobalEventService(If *interface)
     register_interface(interface);
 }
 
-GlobalEventService::~GlobalEventService()
+EventService::~EventService()
 {
     HASSERT(instance == this);
     instance = nullptr;
 }
 
-void GlobalEventService::register_interface(If *interface)
+void EventService::register_interface(If *interface)
 {
-    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
-        interface, this, GlobalEventService::Impl::MTI_VALUE_EVENT,
-        GlobalEventService::Impl::MTI_MASK_EVENT));
-    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
-        interface, this, GlobalEventService::Impl::MTI_VALUE_GLOBAL,
-        GlobalEventService::Impl::MTI_MASK_GLOBAL));
-    impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
-        interface, this, GlobalEventService::Impl::MTI_VALUE_ADDRESSED_ALL,
-        GlobalEventService::Impl::MTI_MASK_ADDRESSED_ALL));
+    impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
+        interface, this, EventService::Impl::MTI_VALUE_EVENT,
+        EventService::Impl::MTI_MASK_EVENT));
+    impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
+        interface, this, EventService::Impl::MTI_VALUE_GLOBAL,
+        EventService::Impl::MTI_MASK_GLOBAL));
+    impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
+        interface, this, EventService::Impl::MTI_VALUE_ADDRESSED_ALL,
+        EventService::Impl::MTI_MASK_ADDRESSED_ALL));
 }
 
-GlobalEventService::Impl::Impl(GlobalEventService *service)
+EventService::Impl::Impl(EventService *service)
     : callerFlow_(service)
 {
     registry.reset(new TreeEventHandlers());
     //registry.reset(new VectorEventHandlers());
 }
 
-GlobalEventService::Impl::~Impl()
+EventService::Impl::~Impl()
 {
 }
 
@@ -79,8 +79,8 @@ StateFlowBase::Action EventCallerFlow::call_done()
     return release_and_exit();
 }
 
-GlobalEventFlow::GlobalEventFlow(If *async_if,
-                                 GlobalEventService *event_service,
+EventIteratorFlow::EventIteratorFlow(If *async_if,
+                                 EventService *event_service,
                                  unsigned mti_value, unsigned mti_mask)
     : IncomingMessageStateFlow(async_if)
     , eventService_(event_service)
@@ -89,14 +89,14 @@ GlobalEventFlow::GlobalEventFlow(If *async_if,
     interface()->dispatcher()->register_handler(this, mti_value, mti_mask);
 }
 
-GlobalEventFlow::~GlobalEventFlow()
+EventIteratorFlow::~EventIteratorFlow()
 {
     interface()->dispatcher()->unregister_handler_all(this);
     delete iterator_;
 }
 
 /// Returns true if there are outstanding events that are not yet handled.
-bool GlobalEventService::event_processing_pending()
+bool EventService::event_processing_pending()
 {
     for (auto &f : impl()->ownedFlows_)
     {
@@ -120,7 +120,7 @@ void DecodeRange(EventReport *r)
     r->event &= ~r->mask;
 }
 
-StateFlowBase::Action GlobalEventFlow::entry()
+StateFlowBase::Action EventIteratorFlow::entry()
 {
     // at this point: we have the mutex.
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
@@ -215,7 +215,7 @@ StateFlowBase::Action GlobalEventFlow::entry()
     return call_immediately(STATE(iterate_next));
 }
 
-StateFlowBase::Action GlobalEventFlow::iterate_next()
+StateFlowBase::Action EventIteratorFlow::iterate_next()
 {
     EventHandler *handler = iterator_->next_entry();
     if (!handler)
@@ -249,7 +249,7 @@ void nmranet_event_packet_addressed(Defs::MTI mti, NodeHandle src, Node* node,
       return;
       }*/
 
-    GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
+    GlobalEventMessage* m = EventIteratorFlow::instance->AllocateMessage();
     m->mti = mti;
     m->dst_node = node;
     m->src_node = src;
@@ -259,7 +259,7 @@ void nmranet_event_packet_addressed(Defs::MTI mti, NodeHandle src, Node* node,
         memcpy(&m->event, data, sizeof(uint64_t));
         m->event = be64toh(m->event);
     }
-    GlobalEventFlow::instance->PostEvent(m);
+    EventIteratorFlow::instance->PostEvent(m);
 
     /*  switch (mti) {
       default:
@@ -301,7 +301,7 @@ void nmranet_event_packet_addressed(Defs::MTI mti, NodeHandle src, Node* node,
  */
 void nmranet_event_packet_global(Defs::MTI mti, NodeHandle src, const void* data)
 {
-    GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
+    GlobalEventMessage* m = EventIteratorFlow::instance->AllocateMessage();
     m->mti = mti;
     m->dst_node = nullptr;
     m->src_node = src;
@@ -311,7 +311,7 @@ void nmranet_event_packet_global(Defs::MTI mti, NodeHandle src, const void* data
         memcpy(&m->event, data, sizeof(uint64_t));
         m->event = be64toh(m->event);
     }
-    GlobalEventFlow::instance->PostEvent(m);
+    EventIteratorFlow::instance->PostEvent(m);
 
     /*  switch (mti) {
       default:

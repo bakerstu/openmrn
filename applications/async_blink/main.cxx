@@ -87,7 +87,7 @@ const size_t main_stack_size = 900;
 nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static nmranet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
-nmranet::GlobalEventService g_event_service(&g_if_can);
+nmranet::EventService g_event_service(&g_if_can);
 
 static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 const int main_priority = 0;

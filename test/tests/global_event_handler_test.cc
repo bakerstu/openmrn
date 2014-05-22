@@ -197,7 +197,7 @@ protected:
         ifCan_->dispatcher()->send(b);
     }
 
-    GlobalEventService service_;
+    EventService service_;
     StrictMock<MockEventHandler> h1_;
     StrictMock<MockEventHandler> h2_;
     StrictMock<MockEventHandler> h3_;

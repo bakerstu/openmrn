@@ -120,7 +120,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
       // We wait for the sent-out event to come back. Otherwise there is a race
       // condition where the automata processing could have gone further, but
       // the "set" message will arrive.
-      while (GlobalEventService::instance->event_processing_pending()) {
+      while (EventService::instance->event_processing_pending()) {
         usleep(100);
       }
     }

@@ -77,10 +77,10 @@ private:
     BarrierNotifiable n_;
 };
 
-class GlobalEventService::Impl
+class EventService::Impl
 {
 public:
-    Impl(GlobalEventService *service);
+    Impl(EventService *service);
     ~Impl();
 
     /* The implementation of the event registry. */
@@ -109,20 +109,21 @@ public:
 
 /** Flow to receive incoming messages of event protocol, and dispatch them to
  * the global event handler. This flow runs on the executor of the event
- * service (and not necessarily the interface). */
-class GlobalEventFlow : public IncomingMessageStateFlow
+ * service (and not necessarily the interface). Its main job is to iterate
+ * through the matching event handler and call each of them for that report. */
+class EventIteratorFlow : public IncomingMessageStateFlow
 {
 public:
-    GlobalEventFlow(If *interface, GlobalEventService *event_service,
+    EventIteratorFlow(If *interface, EventService *event_service,
                     unsigned mti_value, unsigned mti_mask);
-    ~GlobalEventFlow();
+    ~EventIteratorFlow();
 
 protected:
     Action entry() OVERRIDE;
     Action iterate_next();
 
 private:
-    GlobalEventService *eventService_;
+    EventService *eventService_;
 
     // Statically allocated structure for calling the event handlers from the
     // main event queue.

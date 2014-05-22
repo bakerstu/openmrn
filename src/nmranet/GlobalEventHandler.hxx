@@ -21,27 +21,17 @@ namespace nmranet
 
 class Node;
 
-class GlobalEventFlow;
+class EventIteratorFlow;
 
-/*
-struct GlobalEventMessage {
-public:
-    uint64_t event;      ///< payload (event or range or zero)
-    NodeHandle src_node; ///< sender of the message
-    Defs::MTI mti;         ///< what message showed up
-    AsyncNode* dst_node; ///< for addressed messages or else nullptr.
-};
-*/
-
-class GlobalEventService : public Service
+class EventService : public Service
 {
 public:
     /** Creates a global event service with no interfaces registered. */
-    GlobalEventService(ExecutorBase *e);
+    EventService(ExecutorBase *e);
     /** Creates a global event service that runs on an interface's thread and
      * registers the interface. */
-    GlobalEventService(If *interface);
-    ~GlobalEventService();
+    EventService(If *interface);
+    ~EventService();
 
     /** Registers this global event handler with an interface. This operation
      * will be undone in the destructor. */
@@ -57,7 +47,7 @@ public:
      * handled. */
     bool event_processing_pending();
 
-    static GlobalEventService *instance;
+    static EventService *instance;
 
 private:
     std::unique_ptr<Impl> impl_;

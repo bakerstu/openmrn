@@ -327,14 +327,14 @@ protected:
 
     void wait_for_event_thread()
     {
-        while (GlobalEventService::instance->event_processing_pending())
+        while (EventService::instance->event_processing_pending())
         {
             usleep(100);
         }
         AsyncIfTest::wait();
     }
 
-    GlobalEventService eventService_;
+    EventService eventService_;
     std::unique_ptr<DefaultNode> ownedNode_;
     Node *node_;
 };
