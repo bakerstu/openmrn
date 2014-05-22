@@ -34,8 +34,11 @@
 #ifndef _NMRANET_CANDEFS_HXX_
 #define _NMRANET_CANDEFS_HXX_
 
-#include "nmranet_config.h"
+#include <cstdint>
+
+#include "nmranet/Defs.hxx"
 #include "nmranet_can.h"
+#include "nmranet_config.h"
 
 #define WRITE_BUFFER_TIMEOUT 3000000000LL
 
@@ -319,21 +322,21 @@ struct CanDefs {
                   (priority << PRIORITY_SHIFT      );
     }
     
-#if 0
 
     /** Get the NMRAnet MTI from a can identifier.
      * @param can_id CAN identifider
      * @return NMRAnet MTI
      */
-    static MTI nmranet_mti(uint32_t can_id);
+    static Defs::MTI nmranet_mti(uint32_t can_id);
 
     /** Get the CAN identifier from an NMRAnet mti and source alias.
      * @param mti NMRAnet MTI
      * @param src Source node alias
      * @return CAN identifier
      */
-    static uint32_t can_identifier(MTI mti, NodeAlias src);
+    static uint32_t can_identifier(Defs::MTI mti, NodeAlias src);
 
+#if 0
     /** Get the source field of the a can control frame.
      * @param can_id CAN ID of the control frame
      * @return value of the source field

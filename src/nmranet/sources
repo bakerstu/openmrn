@@ -17,6 +17,7 @@ CXXSRCS += \
 	   EventManager.cxx \
 	   TractionTrain.cxx \
 	   TractionDefs.cxx \
+	   CanDefs.cxx \
 
 
 DEAD_CXX +=  \

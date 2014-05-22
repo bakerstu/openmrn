@@ -24,35 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetIfCan.cxx
- * This file provides an NMRAnet interface specific to CAN.
+ * \file CanDefs.cxx
+ * Implementations of some static functions on NMRAnet CAN identifiers.
  *
  * @author Stuart W. Baker
  * @date 18 September 2013
  */
 
-#include "nmranet/NMRAnetIfCan.hxx"
-
-#if defined (__linux__) || defined (__MACH__)
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#elif defined (__FreeRTOS__)
-#include <stropts.h>
-#include <can_ioctl.h>
-#endif
-#include <endian.h>
-#include <unistd.h>
-
-#include "nmranet/NMRAnetDatagram.hxx"
-#include "nmranet/NMRAnetNode.hxx"
+#include "nmranet/CanDefs.hxx"
 
 namespace nmranet
 {
-
-
 
 /** Get the NMRAnet MTI from a can identifier.
  * @param can_id CAN identifider
@@ -63,9 +45,9 @@ Defs::MTI CanDefs::nmranet_mti(uint32_t can_id)
     switch (get_can_frame_type(can_id))
     {
         default:
-            return MTI_NONE;
+            return Defs::MTI_NONE;
         case GLOBAL_ADDRESSED:
-            return (MTI)get_mti(can_id);
+            return (Defs::MTI)get_mti(can_id);
         case DATAGRAM_ONE_FRAME:
             /* fall through */
         case DATAGRAM_FIRST_FRAME:
@@ -73,9 +55,9 @@ Defs::MTI CanDefs::nmranet_mti(uint32_t can_id)
         case DATAGRAM_MIDDLE_FRAME:
             /* fall through */
         case DATAGRAM_FINAL_FRAME:
-            return MTI_DATAGRAM;
+            return Defs::MTI_DATAGRAM;
         case STREAM_DATA:
-            return MTI_STREAM_DATA;
+            return Defs::MTI_STREAM_DATA;
     }
 }
 
@@ -84,7 +66,7 @@ Defs::MTI CanDefs::nmranet_mti(uint32_t can_id)
  * @param src Source node alias
  * @return CAN identifier
  */
-uint32_t CanDefs::can_identifier(MTI mti, NodeAlias src)
+uint32_t CanDefs::can_identifier(Defs::MTI mti, NodeAlias src)
 {
     return ((src << SRC_SHIFT           ) & SRC_MASK) +
            ((mti << MTI_SHIFT           ) & MTI_MASK) +
