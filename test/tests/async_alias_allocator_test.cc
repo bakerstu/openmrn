@@ -4,7 +4,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 class AsyncAliasAllocatorTest : public AsyncIfTest
 {
@@ -215,4 +215,4 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     // Makes sure 'other' disappears from the executor before destructing it.
     wait();
 }
-} // namespace NMRAnet
+} // namespace nmranet

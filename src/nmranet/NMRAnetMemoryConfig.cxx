@@ -34,7 +34,7 @@
 #include "nmranet/NMRAnetMemoryConfig.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class Node;

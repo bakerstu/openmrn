@@ -36,7 +36,7 @@
 #ifndef _NMRAnetAsyncEventHandler_hxx_
 #define _NMRAnetAsyncEventHandler_hxx_
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class If;
@@ -49,6 +49,6 @@ class If;
 void AddEventHandlerToIf(If* async_if);
 
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncEventHandler_hxx_

@@ -40,7 +40,7 @@
 #include "nmranet/CanDefs.hxx"
 #include "nmranet_can.h"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 size_t g_alias_use_conflicts = 0;
@@ -400,4 +400,4 @@ void IfCan::add_addressed_message_support()
     add_owned_flow(f);
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

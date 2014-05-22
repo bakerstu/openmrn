@@ -2,7 +2,7 @@
 
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** Mocks of this handler can be registered into the frame dispatcher. */
@@ -610,4 +610,4 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     // The expectation here is that no more can frames are generated.
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

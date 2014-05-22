@@ -38,14 +38,14 @@
 #include "nmranet/AsyncIf.hxx"
 #include "nmranet/Defs.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
-    TractionResponseHandler(NMRAnet::If *interface,
-                            NMRAnet::AsyncNode *local_node)
+    TractionResponseHandler(nmranet::If *interface,
+                            nmranet::AsyncNode *local_node)
         : IncomingMessageStateFlow(interface)
         , expectedDst_(local_node)
         , trigger_(nullptr)
@@ -89,15 +89,15 @@ private:
     void start_listening()
     {
         interface()->dispatcher()->register_handler(
-            this, NMRAnet::Defs::MTI_TRACTION_CONTROL_REPLY,
-            NMRAnet::Defs::MTI_EXACT);
+            this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
+            nmranet::Defs::MTI_EXACT);
     }
 
     void stop_listening()
     {
         interface()->dispatcher()->unregister_handler(
-            this, NMRAnet::Defs::MTI_TRACTION_CONTROL_REPLY,
-            NMRAnet::Defs::MTI_EXACT);
+            this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
+            nmranet::Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE
@@ -158,14 +158,14 @@ private:
         return exit();
     }
 
-    NMRAnet::NodeHandle expectedSrc_;
-    NMRAnet::AsyncNode *expectedDst_;
+    nmranet::NodeHandle expectedSrc_;
+    nmranet::AsyncNode *expectedDst_;
     // First byte of the response message.
     uint8_t expectedType_;
     ::Timer *trigger_;
     Buffer<NMRAnetMessage> *response_;
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRANET_TRACTIONCLIENT_HXX_

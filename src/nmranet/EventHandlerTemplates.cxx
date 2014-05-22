@@ -44,7 +44,7 @@
 
 #ifdef DESCRIBE_VAR
 #include <string>
-namespace NMRAnet
+namespace nmranet
 {
 extern const string& GetNameForOffset(int);
 
@@ -53,7 +53,7 @@ const string& GetNameForOffset(int) { static string empty; return empty; }
 }
 #endif
 
-namespace NMRAnet
+namespace nmranet
 {
 
 BitRangeEventPC::BitRangeEventPC(AsyncNode *node,
@@ -540,4 +540,4 @@ void BitEventPC::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* don
   done->maybe_done();
 }
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */

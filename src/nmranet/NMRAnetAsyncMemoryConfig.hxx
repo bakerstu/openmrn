@@ -38,7 +38,7 @@
 #include "nmranet/NMRAnetAsyncDatagramDefaultHandler.hxx"
 #include "nmranet/NMRAnetMemoryConfig.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class MemorySpace
@@ -419,6 +419,6 @@ private:
                                 // this node. May be null.
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncMemoryConfig_hxx_

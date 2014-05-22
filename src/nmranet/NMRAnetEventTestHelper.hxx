@@ -40,7 +40,7 @@
 #include "gmock/gmock.h"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 class MockEventHandler : public NMRAnetEventHandler
 {
@@ -60,7 +60,7 @@ public:
 #undef DEFPROXYFN
 };
 
-}  // namespace NMRAnet
+}  // namespace nmranet
 
 #endif // _NMRAnetEventHandlerTemplates_hxx_
 

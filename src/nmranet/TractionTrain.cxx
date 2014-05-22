@@ -39,7 +39,7 @@
 #include "utils/logging.h"
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 TrainNode::TrainNode(TrainService *service, TrainImpl *train)
@@ -292,4 +292,4 @@ void TrainService::register_train(TrainNode *node)
     HASSERT(nodes_.find(node) != nodes_.end());
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

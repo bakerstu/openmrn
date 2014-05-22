@@ -37,7 +37,7 @@
 #include <string.h>
 #include "utils/macros.h"
 
-namespace NMRAnet {
+namespace nmranet {
 
 SpeedType fp16_to_speed(const void *fp16) {
     Velocity speed;
@@ -60,4 +60,4 @@ void speed_to_fp16(SpeedType speed, void *fp16) {
     *o = output & 0xff;
 }
 
-}  // namespace NMRAnet
+}  // namespace nmranet

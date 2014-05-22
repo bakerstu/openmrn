@@ -4,7 +4,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TractionClient.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 TEST(Fp16Test, NanToSpeedIsNan)
@@ -228,4 +228,4 @@ TEST_F(TractionClientTest, SimpleResponse)
     handler_.response()->unref();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

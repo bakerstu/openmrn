@@ -35,7 +35,7 @@
 
 #include "nmranet/AsyncIfImpl.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 StateFlowBase::Action WriteFlowBase::addressed_entry()
@@ -73,4 +73,4 @@ StateFlowBase::Action WriteFlowBase::global_entry()
     return release_and_exit();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

@@ -41,7 +41,7 @@
 #include "utils/macros.h"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 typedef uint64_t EventId;
@@ -191,6 +191,6 @@ private:
   DISALLOW_COPY_AND_ASSIGN(NMRAnetEventRegistry);
 };
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif  // _NMRAnetEventRegistry_hxx_

@@ -43,7 +43,7 @@
 #include "nmranet/Defs.hxx"
 #include "utils/CanIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class IfCan;
@@ -148,6 +148,6 @@ public:
     }
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncIfCan_hxx_

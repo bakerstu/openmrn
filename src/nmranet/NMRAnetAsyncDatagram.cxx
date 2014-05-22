@@ -34,7 +34,7 @@
 
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 DatagramSupport::DatagramSupport(If* interface,
@@ -136,4 +136,4 @@ DatagramSupport::DatagramDispatcher::respond_rejection()
     return ReleaseAndExit(&lock_, this);
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

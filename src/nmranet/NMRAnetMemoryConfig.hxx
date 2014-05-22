@@ -37,7 +37,7 @@
 #include "utils/BufferQueue.hxx"
 #include "nmranet/NMRAnetIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class Node;

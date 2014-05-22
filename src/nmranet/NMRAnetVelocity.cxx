@@ -33,7 +33,7 @@
 
 #include "NMRAnetVelocity.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
     
 /** Get the speed in DCC 128 speed step format.
@@ -219,4 +219,4 @@ void Velocity::set_dcc_14(uint8_t value)
     }
 }
     
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */

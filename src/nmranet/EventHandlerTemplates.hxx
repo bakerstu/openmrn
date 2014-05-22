@@ -39,7 +39,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 // A proxy event handler has a single helper function that gets every event
@@ -318,6 +318,6 @@ class ByteRangeEventP : public ByteRangeEventC {
   uint64_t CurrentEventId(unsigned byte);
 };
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif  // _NMRAnet_EventHandlerTemplates_hxx_

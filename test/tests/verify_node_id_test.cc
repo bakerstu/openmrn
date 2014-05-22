@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 TEST_F(AsyncNodeTest, VerifyNodeIdGlobalSingleNode)
@@ -77,4 +77,4 @@ TEST_F(TwoNodeTest, VerifyNodeIdAddressed)
     send_packet(":X19488997N044C;");  // No response.
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

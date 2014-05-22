@@ -7,7 +7,7 @@ using ::testing::InSequence;
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
-namespace NMRAnet {
+namespace nmranet {
 
 class BitRangeEventTest : public AsyncNodeTest {
  protected:
@@ -294,4 +294,4 @@ TEST_F(AsyncNodeTest, ByteRangePCSync) {
 }
 
 
-}  // namespace NMRAnet
+}  // namespace nmranet

@@ -3,7 +3,7 @@
 #include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
@@ -57,4 +57,4 @@ TEST_F(AsyncIfTest, WriteHelperByMTI)
     n.wait_for_notification();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

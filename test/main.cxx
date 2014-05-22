@@ -265,7 +265,7 @@ const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
 
 const int main_priority = 0;
 
-using namespace NMRAnet;
+using namespace nmranet;
 
 const char *Node::MANUFACTURER = "Stuart W. Baker";
 const char *Node::HARDWARE_REV = "N/A";

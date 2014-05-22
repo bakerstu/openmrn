@@ -4,7 +4,7 @@
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class AsyncEventTest : public AsyncNodeTest
@@ -114,4 +114,4 @@ TEST_F(AsyncEventTest, ManyEvents)
     }
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

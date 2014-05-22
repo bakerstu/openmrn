@@ -35,7 +35,7 @@
 #include "utils/async_datagram_test_helper.hxx"
 #include "nmranet/NMRAnetAsyncDatagramDefaultHandler.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class AsyncRawDatagramTest : public AsyncNodeTest
@@ -992,4 +992,4 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
     wait();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

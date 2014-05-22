@@ -38,7 +38,7 @@
 #include "nmranet/NMRAnetMessageID.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** Timeout for datagram acknowledgement. */
@@ -547,5 +547,5 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
     return release_and_exit(msg);
 }
 
-} /* namespace NMRAnet */
+} /* namespace nmranet */
 

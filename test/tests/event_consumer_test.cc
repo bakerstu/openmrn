@@ -3,7 +3,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
@@ -122,4 +122,4 @@ TEST_F(BitEventConsumerTest, IdentifyConsumer) {
   send_packet_and_expect_response(":X198F4001N05010101FFFF0003;",
                               ":X194C422AN05010101FFFF0003;");
 }
-}  // namespace NMRAnet
+}  // namespace nmranet

@@ -69,7 +69,7 @@ void InvokeNotification(Notifiable *done)
     done->notify();
 }
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /*
@@ -415,6 +415,6 @@ MATCHER_P(IsBufferNodeValueString, id, "")
     return true;
 }
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _UTILS_ASYNC_IF_TEST_HELPER_HXX_

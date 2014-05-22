@@ -5,7 +5,7 @@
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
-namespace NMRAnet {
+namespace nmranet {
 
 class BitEventProducerTest : public AsyncNodeTest {
  protected:
@@ -74,4 +74,4 @@ TEST_F(BitEventProducerTest, IdentifyProducer) {
                               ":X1954422AN05010101FFFF0003;");
 }
 
-}  // namespace NMRAnet
+}  // namespace nmranet

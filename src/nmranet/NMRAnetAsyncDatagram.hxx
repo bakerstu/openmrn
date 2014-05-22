@@ -39,7 +39,7 @@
 #include "executor/allocator.hxx"
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 struct IncomingDatagram;
@@ -259,6 +259,6 @@ private:
     DatagramDispatcher dispatcher_;
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncDatagram_hxx_

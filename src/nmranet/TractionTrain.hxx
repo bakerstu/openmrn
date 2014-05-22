@@ -42,7 +42,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 
@@ -101,6 +101,6 @@ private:
     std::set<TrainNode *> nodes_;
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRANET_TRACTIONTRAIN_HXX_

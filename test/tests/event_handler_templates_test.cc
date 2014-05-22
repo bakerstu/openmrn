@@ -7,7 +7,7 @@ using ::testing::_;
 using ::testing::Mock;
 using ::testing::StrictMock;
 
-namespace NMRAnet {
+namespace nmranet {
 
 class SimpleEventProxy : public ProxyEventHandler {
  public:
@@ -38,4 +38,4 @@ TEST(EventProxy, ConsumerRange) {
   proxy.HandleConsumerRangeIdentified(NULL, NULL);
 }
 
-}  // namespace NMRAnet
+}  // namespace nmranet

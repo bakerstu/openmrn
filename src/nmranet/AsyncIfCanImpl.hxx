@@ -40,7 +40,7 @@
 #include "nmranet/AsyncIfImpl.hxx"
 #include "nmranet/AsyncAliasAllocator.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
@@ -461,6 +461,6 @@ protected:
 
     StateFlowTimer timer_;
 };
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif //_NMRANET_ASYNC_IF_CAN_IMPL_HXX_

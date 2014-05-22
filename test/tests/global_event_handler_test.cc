@@ -17,7 +17,7 @@ using testing::WithArg;
 using testing::_;
 using testing::ElementsAre;
 
-namespace NMRAnet
+namespace nmranet
 {
 
 extern void DecodeRange(EventReport *r);
@@ -391,4 +391,4 @@ TEST_F(TreeEventHandlerTest, MultiLookup)
     EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

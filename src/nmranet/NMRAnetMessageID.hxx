@@ -34,7 +34,7 @@
 #ifndef _NMRAnetMessageID_hxx_
 #define _NMRAnetMessageID_hxx_
 
-namespace NMRAnet
+namespace nmranet
 {
 
 enum

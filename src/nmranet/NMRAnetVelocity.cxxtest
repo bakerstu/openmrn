@@ -35,7 +35,7 @@
 #include "gtest/gtest.h"
 #include "nmranet/NMRAnetVelocity.hxx"
 
-using namespace NMRAnet;
+using namespace nmranet;
 
 TEST(NMRAnetVelocityTest, constructor_int)
 {

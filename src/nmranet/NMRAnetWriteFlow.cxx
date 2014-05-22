@@ -38,7 +38,7 @@
 #include "nmranet_config.h"
 #include "endian.h"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 string EventIdToBuffer(uint64_t eventid)
@@ -47,5 +47,5 @@ string EventIdToBuffer(uint64_t eventid)
     return string(reinterpret_cast<char*>(&eventid), 8);
 }
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 

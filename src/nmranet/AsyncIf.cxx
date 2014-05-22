@@ -34,7 +34,7 @@
 
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 string node_id_to_buffer(NodeID id)
@@ -93,4 +93,4 @@ If::If(ExecutorBase *executor, int local_nodes_count)
 {
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

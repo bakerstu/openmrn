@@ -42,7 +42,7 @@
 //#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class WriteHelper : public Executable
@@ -167,6 +167,6 @@ private:
 };
 string EventIdToBuffer(uint64_t eventid);
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif /* _NMRAnetWriteFlow_hxx_ */

@@ -35,7 +35,7 @@
 
 #include "os/OS.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */

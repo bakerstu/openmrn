@@ -47,7 +47,7 @@
 #include "utils/Queue.hxx"
 #include "utils/Map.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class AsyncNode;
@@ -341,6 +341,6 @@ public:
     }
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncIf_hxx_

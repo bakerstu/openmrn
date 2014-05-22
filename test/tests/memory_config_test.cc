@@ -35,7 +35,7 @@
 #include "utils/async_datagram_test_helper.hxx"
 #include "nmranet/NMRAnetAsyncMemoryConfig.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class MockMemorySpace : public MemorySpace

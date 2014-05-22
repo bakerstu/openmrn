@@ -49,7 +49,7 @@
 #include "nmranet/NMRAnetDatagram.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 
@@ -93,4 +93,4 @@ uint32_t CanDefs::can_identifier(MTI mti, NodeAlias src)
            ((1   << PRIORITY_SHIFT      )           );
 }
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */

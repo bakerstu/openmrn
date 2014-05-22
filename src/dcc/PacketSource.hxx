@@ -41,9 +41,9 @@
 namespace dcc {
 
 class Packet;
-typedef NMRAnet::SpeedType SpeedType;
+typedef nmranet::SpeedType SpeedType;
 
-class PacketSource : public NMRAnet::TrainImpl {
+class PacketSource : public nmranet::TrainImpl {
 public:
     /** Generates the next packet to send out to the track. 
      * @param code if 0, then the next background refresh packet shold be

@@ -3,7 +3,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
@@ -88,4 +88,4 @@ TEST_F(BitEventPcTest, IdentifyPc) {
                               ":X194C422AN05010101FFFF0003;");
 }
 
-}  // namespace NMRAnet
+}  // namespace nmranet

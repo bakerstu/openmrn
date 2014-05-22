@@ -7,7 +7,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "os/OS.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 Executor<1> g1_executor("g1_exec", 0, 2000);
@@ -232,4 +232,4 @@ TEST_F(AsyncIfStressTest, DISABLED_thousandnodes)
     n_.wait_for_notification();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

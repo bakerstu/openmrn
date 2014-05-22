@@ -16,7 +16,7 @@
 #include "nmranet/Defs.hxx"
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class AsyncNode;
@@ -63,6 +63,6 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif // _NMRANET_GLOBAL_EVENT_HANDLER_

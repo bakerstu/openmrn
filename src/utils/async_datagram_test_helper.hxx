@@ -39,7 +39,7 @@
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 #include "nmranet/NMRAnetAsyncDatagramCan.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 class AsyncDatagramTest : public AsyncNodeTest
 {

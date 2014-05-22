@@ -35,7 +35,7 @@
 #include "nmranet/NMRAnetAsyncDatagramCan.hxx"
 #include "nmranet/AsyncIfCanImpl.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
@@ -573,4 +573,4 @@ CanDatagramParser::~CanDatagramParser()
     ifCan_->frame_dispatcher()->unregister_handler(CAN_FILTER, CAN_MASK, this);
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

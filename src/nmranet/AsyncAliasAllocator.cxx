@@ -37,7 +37,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/CanDefs.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 size_t g_alias_test_conflicts = 0;
@@ -221,4 +221,4 @@ void AliasAllocator::TEST_finish_pending_allocation() {
     }
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

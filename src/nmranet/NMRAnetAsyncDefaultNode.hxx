@@ -37,7 +37,7 @@
 
 #include "nmranet/NMRAnetAsyncNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class DefaultAsyncNode : public AsyncNode
@@ -73,6 +73,6 @@ private:
     If* interface_;
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncDefaultNode_hxx_

@@ -43,7 +43,7 @@
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class IncomingEventFlow;
@@ -137,6 +137,6 @@ private:
     If *interface_;
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_

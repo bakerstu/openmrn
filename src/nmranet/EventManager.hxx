@@ -18,7 +18,7 @@
 //#include "core/nmranet_event.h"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 template<class C> class FullContainerIterator : public EventIterator {
@@ -88,6 +88,6 @@ private:
     MaskLookupMap handlers_;
 };
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif  // _NMRANET_EVENTMANAGER_HXX_

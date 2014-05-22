@@ -37,7 +37,7 @@
 
 #include "nmranet/TractionDefs.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 class TrainImpl
 {
@@ -84,7 +84,7 @@ public:
     virtual uint32_t legacy_address() = 0;
 };
 
-}  // namespace NMRAnet
+}  // namespace nmranet
 
 #endif // _NMRANET_TRAININTERFACE_HXX_
  

@@ -3,7 +3,7 @@
 #include "nmranet/TractionTrain.hxx"
 #include "nmranet/TractionDefs.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class MockTrain : public TrainImpl
@@ -32,4 +32,4 @@ protected:
 };
 
 
-} // namespace NMRAnet
+} // namespace nmranet

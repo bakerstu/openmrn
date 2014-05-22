@@ -35,8 +35,8 @@
 
 #include <string>
 
-namespace NMRAnet {
+namespace nmranet {
 
 typedef string Payload;
 
-} // namespace NMRAnet
+} // namespace nmranet

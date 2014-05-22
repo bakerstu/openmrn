@@ -37,7 +37,7 @@
 
 #include "nmranet/Defs.hxx"  // for NodeID
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class If;
@@ -67,6 +67,6 @@ public:
     virtual void set_initialized() {}
 };
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncNode_hxx_

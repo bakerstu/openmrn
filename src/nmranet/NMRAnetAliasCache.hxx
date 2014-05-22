@@ -39,7 +39,7 @@
 #include "utils/Map.hxx"
 #include "utils/RBTree.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** Cache of alias to node id mappings.  The cache is limited to a fixed number

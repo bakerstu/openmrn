@@ -5,7 +5,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/Defs.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 TEST_F(AsyncNodeTest, Setup) {}
 
@@ -35,4 +35,4 @@ TEST_F(AsyncNodeTest, DISABLED_ReadMessageAndReply) {
   send_packet(  ":X10702001N;");
 }
 
-}  // namespace NMRAnet
+}  // namespace nmranet

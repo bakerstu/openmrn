@@ -41,7 +41,7 @@
 #include "nmranet/NMRAnetMemoryConfig.hxx"
 #include "utils/RBTree.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** NMRAnet virtual node.

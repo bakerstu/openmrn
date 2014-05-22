@@ -39,7 +39,7 @@
 
 #define WRITE_BUFFER_TIMEOUT 3000000000LL
 
-namespace NMRAnet
+namespace nmranet
 {
 
 
@@ -398,7 +398,7 @@ private:
 };
 
 
-}  // namespace NMRAnet
+}  // namespace nmranet
 
 
 

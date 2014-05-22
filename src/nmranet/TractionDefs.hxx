@@ -42,7 +42,7 @@
 #include "nmranet/NMRAnetVelocity.hxx"
 #include "nmranet/Payload.hxx"
 
-namespace NMRAnet {
+namespace nmranet {
 
 typedef Velocity SpeedType;
 
@@ -176,6 +176,6 @@ struct TractionDefs {
 
 };
 
-}  // namespace NMRAnet
+}  // namespace nmranet
 
 #endif //_NMRANET_TRACTIONDEFS_HXX_

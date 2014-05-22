@@ -41,7 +41,7 @@
 #include "nmranet/NMRAnetIf.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 struct MtiParams
@@ -54,6 +54,6 @@ struct MtiParams
 
 typedef ParamHandler<MtiParams> MtiHandler;
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetReadDispatch_hxx_

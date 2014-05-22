@@ -39,7 +39,7 @@
 #include "nmranet/AsyncIfCan.hxx"
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class CanDatagramSupport : public DatagramSupport {
@@ -60,6 +60,6 @@ public:
 /// Creates a CAn datagram parser flow. Exposed for testing only.
 Executable* TEST_CreateCanDatagramParser(IfCan* if_can);
 
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncDatagramCan_hxx_

@@ -34,7 +34,7 @@
 
 #include "nmranet/EventManager.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 void TreeEventHandlers::register_handlerr(NMRAnetEventHandler *handler,
@@ -141,4 +141,4 @@ TreeEventHandlers::TreeEventHandlers()
 {
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

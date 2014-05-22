@@ -19,7 +19,7 @@
 #define EXTERNC extern "C" {
 #define EXTERNCEND }
 
-using namespace NMRAnet;
+using namespace nmranet;
 
 // ============== Global event registry ===============
 

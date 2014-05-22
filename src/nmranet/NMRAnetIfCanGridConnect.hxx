@@ -37,7 +37,7 @@
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "utils/GridConnect.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** Provide a Grid Connect encoded extension to the normal CAN messaging.

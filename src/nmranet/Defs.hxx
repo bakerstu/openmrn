@@ -38,7 +38,7 @@
 
 #include "utils/macros.h"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** 48-bit NMRAnet Node ID type */
@@ -214,6 +214,6 @@ inline Defs::MTI& operator -- (Defs::MTI &value)
     return value;
 }
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif /* _NMRANET_DEFS_HXX_ */

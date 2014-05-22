@@ -52,7 +52,7 @@ int halfp2singles(void *target, const void *source, int numel);
  */
 typedef uint16_t float16_t;
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** This class provides a mechanism for working with velocity in different
@@ -477,6 +477,6 @@ private:
 };
 
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */
 
 #endif /* _NMRAnetVelocity_hxx_ */

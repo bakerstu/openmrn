@@ -14,7 +14,7 @@
 #include "nmranet/Defs.hxx"
 #include "nmranet/EndianHelper.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /*static*/
@@ -388,4 +388,4 @@ void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
 
 #endif // if 0
 
-} /* namespace NMRAnet */
+} /* namespace nmranet */

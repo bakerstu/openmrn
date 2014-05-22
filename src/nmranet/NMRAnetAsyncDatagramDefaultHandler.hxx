@@ -37,7 +37,7 @@
 
 #include "nmranet/NMRAnetAsyncDatagram.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class DefaultDatagramHandler : public DatagramHandler, public ControlFlow
@@ -136,7 +136,7 @@ protected:
 
 private:
     uint16_t responseErrorCode_;
-    NMRAnet::Defs::MTI responseMti_;
+    nmranet::Defs::MTI responseMti_;
 };
 
 } // namespace

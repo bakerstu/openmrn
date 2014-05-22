@@ -38,7 +38,7 @@
 #include "nmranet/AsyncIf.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 class EventMessageHandler : public IncomingMessageHandler,
@@ -143,4 +143,4 @@ void AddEventHandlerToIf(If* async_if)
     async_if->add_owned_flow(new EventMessageHandler(async_if));
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

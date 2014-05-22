@@ -34,7 +34,7 @@
 #include "nmranet/NMRAnetNode.hxx"
 #include "utils/BufferQueue.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 // Temporary link to the event handler code

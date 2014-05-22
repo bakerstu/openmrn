@@ -34,7 +34,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/NMRAnetWriteFlow.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 NMRAnetEventRegistry *NMRAnetEventRegistry::instance_ = nullptr;
@@ -90,4 +90,4 @@ unsigned NMRAnetEventRegistry::align_mask(EventId *event, unsigned size)
     return log2;
 }
 
-}; /* namespace NMRAnet */
+}; /* namespace nmranet */

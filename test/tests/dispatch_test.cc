@@ -17,7 +17,7 @@ using testing::WithArg;
 using testing::Return;
 using testing::_;
 
-namespace NMRAnet
+namespace nmranet
 {
 
 struct CanMessagePayload : public can_frame
@@ -256,4 +256,4 @@ TEST_F(DispatcherTest, TestUnregister)
     wait();
 }
 
-} // namespace NMRAnet
+} // namespace nmranet

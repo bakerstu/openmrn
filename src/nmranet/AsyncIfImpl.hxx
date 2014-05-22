@@ -38,7 +38,7 @@
 
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 /** Implementation of the hardware-independent parts of the write flows. */
@@ -251,6 +251,6 @@ private:
     If::VNodeMap::Iterator it_;
 #endif
 };
-} // namespace NMRAnet
+} // namespace nmranet
 
 #endif // _NMRAnetAsyncIfImpl_hxx_

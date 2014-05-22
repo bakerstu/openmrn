@@ -36,7 +36,7 @@
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
 #include "nmranet/AsyncIf.hxx"
 
-namespace NMRAnet
+namespace nmranet
 {
 
 extern void StartInitializationFlow(AsyncNode* node);
@@ -52,4 +52,4 @@ DefaultAsyncNode::~DefaultAsyncNode()
 {
 }
 
-} // namespace NMRAnet
+} // namespace nmranet
