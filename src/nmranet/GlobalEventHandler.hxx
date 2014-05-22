@@ -14,7 +14,7 @@
 #include "utils/macros.h"
 #include "executor/StateFlow.hxx"
 #include "nmranet/Defs.hxx"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

@@ -37,7 +37,7 @@
 
 #include "utils/NodeHandlerMap.hxx"
 #include "executor/allocator.hxx"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

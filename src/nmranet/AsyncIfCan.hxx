@@ -38,7 +38,7 @@
 #include <memory>
 
 #include "executor/StateFlow.hxx"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 #include "nmranet/Defs.hxx"
 #include "utils/CanIf.hxx"

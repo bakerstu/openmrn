@@ -35,7 +35,7 @@
 #ifndef _NMRANET_TRACTIONCLIENT_HXX_
 #define _NMRANET_TRACTIONCLIENT_HXX_
 
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 #include "nmranet/Defs.hxx"
 
 namespace nmranet

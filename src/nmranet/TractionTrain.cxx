@@ -37,7 +37,7 @@
 #include "nmranet/TractionTrain.hxx"
 
 #include "utils/logging.h"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

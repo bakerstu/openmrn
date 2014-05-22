@@ -34,7 +34,7 @@
 
 #include "utils/logging.h"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

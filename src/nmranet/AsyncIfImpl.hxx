@@ -36,7 +36,7 @@
 #ifndef _NMRAnetAsyncIfImpl_hxx_
 #define _NMRAnetAsyncIfImpl_hxx_
 
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

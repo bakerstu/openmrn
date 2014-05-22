@@ -40,7 +40,7 @@
 #include "nmranet_config.h"
 
 //#include "nmranet/NMRAnetAsyncNode.hxx"
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {

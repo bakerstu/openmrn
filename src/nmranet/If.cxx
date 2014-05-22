@@ -32,7 +32,7 @@
  * @date 4 Dec 2013
  */
 
-#include "nmranet/AsyncIf.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {
