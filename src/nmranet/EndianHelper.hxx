@@ -36,7 +36,7 @@
 #define _NMRAnetEndianHelper_hxx_
 
 #include "endian.h"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 
 namespace NMRAnet {
 

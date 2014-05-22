@@ -13,7 +13,7 @@
 
 #include "utils/macros.h"
 #include "executor/StateFlow.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "nmranet/AsyncIf.hxx"
 
 namespace NMRAnet

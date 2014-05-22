@@ -37,8 +37,7 @@
 #include "nmranet/AsyncAliasAllocator.hxx"
 #include "nmranet/AsyncIfImpl.hxx"
 #include "nmranet/AsyncIfCanImpl.hxx"
-#include "nmranet/NMRAnetIfCan.hxx"
-//#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/CanDefs.hxx"
 #include "nmranet_can.h"
 
 namespace NMRAnet

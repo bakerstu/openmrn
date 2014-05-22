@@ -198,7 +198,7 @@ private:
         const string &data = nmsg()->payload;
         bool need_more_frames = false;
         // Sets the destination bytes if needed. Adds the payload.
-        if (If::get_mti_address(nmsg()->mti))
+        if (Defs::get_mti_address(nmsg()->mti))
         {
             f->data[0] = dstAlias_ >> 8;
             f->data[1] = dstAlias_ & 0xff;

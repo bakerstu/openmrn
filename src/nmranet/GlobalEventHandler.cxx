@@ -11,7 +11,7 @@
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventManager.hxx"
-#include "nmranet/NMRAnetIf.hxx"
+#include "nmranet/Defs.hxx"
 #include "nmranet/EndianHelper.hxx"
 
 namespace NMRAnet

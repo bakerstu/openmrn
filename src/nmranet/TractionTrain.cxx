@@ -66,8 +66,7 @@ struct TrainService::Impl
 {
     class TractionRequestFlow;
 
-    Impl(TrainService *parent)
-        : traction_(parent)
+    Impl(TrainService *parent) : traction_(parent)
     {
     }
 
@@ -252,9 +251,10 @@ struct TrainService::Impl
             auto *b = get_allocation_result(
                 trainService_->interface()->addressed_message_write_flow());
             // An alternative would be to send TERMINATE_DUE_TO_ERROR here.
-            b->data()->reset(Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
-                             nmsg()->dstNode->node_id(), nmsg()->src,
-                             error_to_buffer(If::ERROR_PERMANENT, nmsg()->mti));
+            b->data()->reset(
+                Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
+                nmsg()->dstNode->node_id(), nmsg()->src,
+                error_to_buffer(Defs::ERROR_PERMANENT, nmsg()->mti));
             trainService_->interface()->addressed_message_write_flow()->send(b);
             return release_and_exit();
         }

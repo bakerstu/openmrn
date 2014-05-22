@@ -98,7 +98,7 @@ struct CanDefs {
 
 
     // @TODO(balazs.racz) do we need this?
-    //typedef uint16_t CanMTI;
+    typedef uint16_t CanMTI;
 
     /** CAN Frame Types. */
     enum CanFrameType
@@ -136,7 +136,8 @@ struct CanDefs {
     };
     
 #if 0
-
+    ///@TODO(balazs.racz) i don't think this is used anywhere. Remove?
+    
     /** Enumerations having to deal with addressed frame types. */
     enum Addressed
     {
@@ -309,7 +310,7 @@ struct CanDefs {
      * @param type frame type field value
      * @param priority priority field value
      */
-    static void set_fields(uint32_t *can_id, NodeAlias src, MTI mti, CanFrameType can_type, FrameType type, Priority priority)
+    static void set_fields(uint32_t *can_id, NodeAlias src, Defs::MTI mti, CanFrameType can_type, FrameType type, Priority priority)
     {
         *can_id = (src      << SRC_SHIFT           ) +
                   (mti      << MTI_SHIFT           ) +
@@ -377,24 +378,6 @@ struct CanDefs {
                              ((0)      << CONTROL_TYPE_SHIFT    ) |
                              ((1)      << CONTROL_PRIORITY_SHIFT));
         frame.can_dlc = 0;
-    }
-
-    /** Get the frame field of addressed data.
-     * @param _address addressed data
-     * @return destination field value
-     */
-    static unsigned get_addressed_frame(uint16_t address)
-    {
-        return (address & FRAME_MASK) >> FRAME_SHIFT;
-    }
-
-    /** Get the destination field of addressed data.
-     * @param _address addressed data
-     * @return destination field value
-     */
-    static NodeAlias get_addressed_destination(uint16_t address)
-    {
-        return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
     }
 
 #if 0

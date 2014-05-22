@@ -35,7 +35,7 @@
 #define LOGLEVEL INFO
 
 #include "nmranet/AsyncAliasAllocator.hxx"
-#include "nmranet/NMRAnetIfCan.hxx"
+#include "nmranet/CanDefs.hxx"
 
 namespace NMRAnet
 {

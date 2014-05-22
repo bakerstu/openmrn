@@ -35,9 +35,10 @@
 #ifndef _NMRANET_TRACTIONTRAIN_HXX_
 #define _NMRANET_TRACTIONTRAIN_HXX_
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
-
 #include <set>
+
+#include "executor/Service.hxx"
+#include "nmranet/NMRAnetAsyncNode.hxx"
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 
