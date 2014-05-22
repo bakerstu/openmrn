@@ -1,1 +1,1 @@
-../../../../boards/ti-lm4f120xl-launchpad-ek/target.ld
+../../../../boards/ti-ek-lm4f120xl-launchpad/target.ld
