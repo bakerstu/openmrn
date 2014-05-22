@@ -360,6 +360,8 @@ struct CanDefs {
         return (can_id & CONTROL_SEQUENCE_MASK) >> CONTROL_SEQUENCE_SHIFT;
     }
 
+#endif
+
     /** Initialize a control frame CAN ID and set DLC to 0.
      * @param _frame control frame to initialize
      * @param _source source data
@@ -395,26 +397,7 @@ struct CanDefs {
         return (address & DESTINATION_MASK) >> DESTINATION_SHIFT;
     }
 
-
-    ssize_t (*read)(int, void*, size_t); /**< read method for device */
-    ssize_t (*write)(int, const void*, size_t); /**< write method for device */
-
-    /** Can be used by the application to determine if the link is up or down.
-     * @return current link status
-     */
-    LinkStatus link_status()
-    {
-        return linkStatus;
-    }
-    
-    /** Transition to link up state.
-     */
-    void link_up();
-    
-    /** Transition to link down state.
-     */
-    void link_down();
-    
+#if 0
     // These classes use the private enums for message field parsing.
     friend class AddressedCanMessageWriteFlow;
     friend class AliasConflictHandler;
@@ -424,46 +407,7 @@ struct CanDefs {
     friend class CanMessageWriteFlow;
     friend class FrameToAddressedMessageParser;
     friend class FrameToGlobalMessageParser;
-
-    /** Maximum number of multi-frame addressed messages we can track in flight */
-    static const size_t MAX_IN_FLIGHT_MULTI_FRAME;
-
-    /** file descriptor used for reading and writing data to and from physical
-     * interface
-     */
-    int fd;
-
-    /** Array of Pool entries for pre-allocated aliases */
-    Pool *pool;
-
-    /** Cache of Node ID to Alias mappings for downstream nodes */
-    AliasCache downstreamCache;
-    
-    /** Cache of Node ID to alias mappings for upstream nodes */
-    AliasCache upstreamCache;
-    
-    /** Mutual exclusion for an instance of this class */
-    OSMutex mutex;
-    
-    /** current link status */
-    LinkStatus linkStatus;
-
-    /** Short hand for the uint64_t/void* Map type */
-    typedef Map <uint64_t, BufferBase*> MultiFrameMap;
-
-    /** Mapping for tracking multi-frame addressed messages that are in flight */
-    MultiFrameMap multiFrameMap;
-    
-    /** number of multi-frame message in flight */
-    size_t multiFrameInFlight;
-
-    DISALLOW_COPY_AND_ASSIGN(IfCan);
-};
-
-}; /* namespace NMRAnet */
-  
-#endif // #if 0
-
+#endif
 
 private:
     /** This class should not be instantiated. */
