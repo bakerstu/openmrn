@@ -40,11 +40,13 @@
 namespace nmranet
 {
 
-class DefaultNodeblic Node
+class DefaultNode: public Node
 {
 public:
-    DefauDefaultNodeface, NodeID node_id);
-    virtual ~DefaultNodDefaultNodel NodeID node_id()
+    DefaultNode(If* interface, NodeID node_id);
+    virtual ~DefaultNode();
+
+    NodeID node_id() OVERRIDE
     {
         return nodeId_;
     }

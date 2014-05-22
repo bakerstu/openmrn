@@ -8,7 +8,7 @@ CXXSRCS += \
            If.cxx \
            IfImpl.cxx \
            NMRAnetWriteFlow.cxx \
-           NMRAnetAsyncDefaultNode.cxx \
+           DefaultNode.cxx \
            NMRAnetNodeInitializeFlow.cxx \
            AliasAllocator.cxx \
            NMRAnetEventRegistry.cxx \
