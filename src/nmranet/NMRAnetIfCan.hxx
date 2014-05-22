@@ -498,7 +498,7 @@ private:
     LinkStatus linkStatus;
 
     /** Short hand for the uint64_t/void* Map type */
-    typedef Map <uint64_t, Message*> MultiFrameMap;
+    typedef Map <uint64_t, BufferBase*> MultiFrameMap;
 
     /** Mapping for tracking multi-frame addressed messages that are in flight */
     MultiFrameMap multiFrameMap;

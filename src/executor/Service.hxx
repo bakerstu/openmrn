@@ -35,25 +35,7 @@
 #ifndef _Service_hxx_
 #define _Service_hxx_
 
-#include <type_traits>
-
 #include "executor/Executor.hxx"
-#include "executor/Message.hxx"
-
-/** Get a &Service::TimerCallback equivalent for a given function.
- * @param _fn class Service derived member function
- * @return &Service::TimerCallback equivalent pointer
- */
-#define TIMEOUT(_fn) (TimerCallback)(&std::remove_reference<decltype(*this)>::type::_fn)
-
-/** Get a &Service::TimerCallback equivalent for a given function.
- * @param _service pointer to a class derived from class Service
- * @param _fn class Service derived member function
- * @return &Service::TimerCallback equivalent pointer
- */
-#define TIMEOUT_FROM(_service, _fn) (TimerCallback)(&std::remove_reference<decltype(*(_service))>::type::_fn)
-
-class StateFlowBase;
 
 /** Collection of related state machines that pend on incoming messages.
  */
@@ -79,30 +61,7 @@ public:
         return executor_;
     }
 
-    /** State Flow callback prototype
-     */
-    typedef long long (Service::*TimerCallback)(void*);
-
-    
-    /** StateFlow timer callback.
-     * @param data "this" pointer to a StateFlow instance
-     * @return Timer::NONE
-     */
-    long long state_flow_timeout(void *data);
-
 private:
-    /** Process an incoming message.
-     * @param msg message to process
-     * @param priority priority of message
-     */
-    void process(Message *msg, unsigned priority);
-
-    /** Process the active timer.
-     * @param timer timer to process
-     * @return next timeout period in nanoseconds, 0 if we handled a timeout
-     */
-    long long process_timer(::Timer *timer);
-
     /** Executor to use */
     ExecutorBase *executor_;
 };

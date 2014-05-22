@@ -37,7 +37,6 @@
 
 #include <type_traits>
 
-#include "executor/Message.hxx"
 #include "executor/Service.hxx"
 #include "executor/Timer.hxx"
 #include "utils/BufferQueue.hxx"
@@ -459,13 +458,13 @@ protected:
     virtual bool queue_empty() = 0;
 
     /// @returns the current message we are processing.
-    Message *message()
+    BufferBase *message()
     {
         return currentMessage_;
     }
 
     /** Sets the current message being processed. */
-    void reset_message(Message* message, unsigned priority) {
+    void reset_message(BufferBase* message, unsigned priority) {
         HASSERT(!currentMessage_);
         currentMessage_ = message;
         currentPriority_ = priority;
@@ -486,7 +485,7 @@ private:
     unsigned queueSize_;
 
     /// Message we are currently processing.
-    Message *currentMessage_;
+    BufferBase *currentMessage_;
 
     /// Priority of the current message we are processing.
     unsigned currentPriority_ : 31;

@@ -36,7 +36,6 @@
 #ifndef _Executor_hxx_
 #define _Executor_hxx_
 
-#include "executor/Message.hxx"
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
 #include "executor/Timer.hxx"

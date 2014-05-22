@@ -34,18 +34,3 @@
 
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
-
-/** main message pool instance */
-DynamicPool *mainMessagePool = new DynamicPool(Bucket::init(4, 8, 16, 32, 0));
-
-/** ControlFlow timer callback.
- * @param data "this" pointer to a ControlFlow instance
- * @return Timer::NONE
-long long Service::state_flow_timeout(void *data)
-{
-    StateFlowBase *sf = static_cast<StateFlowBase*>(data);
-    sf->timeout();
-    return Timer::NONE;
-}
- */
-
