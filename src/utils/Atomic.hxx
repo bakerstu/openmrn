@@ -77,14 +77,6 @@ private:
 };
 
 /// See @OSMutexLock in os/OS.hxx
-#define LockHolder(l) int error_omitted_lock_holder_variable[-1]
-
-/// See @OSMutexLock in os/OS.hxx
 #define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
-
-
-/// @todo(balazs.racz) rename users of Lockable to Atomic and rename executor/lock.hxx to utils/Atomic.hxx.
-typedef Atomic Lockable;
-typedef AtomicHolder LockHolder;
 
 #endif // _UTILS_LOCK_HXX_

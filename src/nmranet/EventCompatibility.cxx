@@ -218,7 +218,7 @@ class CompatEventManager : public DualIteratorFlow {
 
 
 static EventCompatibilityLayer* g_compat_layer = nullptr;
-Lockable g_compat_layer_lock;
+Atomic g_compat_layer_lock;
 Executor* g_event_thread = nullptr;
 CompatEventManager* g_compat_event_manager = nullptr;
 
@@ -241,7 +241,7 @@ EventCompatibilityLayer::~EventCompatibilityLayer() {
 
 void EnsureCompatEventHandlerExists() {
   if (!g_compat_layer) {
-    LockHolder l(&g_compat_layer_lock);
+    AtomicHolder l(&g_compat_layer_lock);
     if (g_compat_layer) return;
     new EventCompatibilityLayer();
   }

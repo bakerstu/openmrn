@@ -90,7 +90,7 @@ void StateFlowBase::run()
 
 StateFlowBase::Action StateFlowWithQueue::wait_for_message()
 {
-    LockHolder h(this);
+    AtomicHolder h(this);
     unsigned priority;
     currentMessage_ = static_cast<BufferBase *>(queue_next(&priority));
     if (currentMessage_)

@@ -17,7 +17,7 @@ Notifiable* CrashNotifiable::DefaultInstance() {
 void CrashNotifiable::notify() { DIE("Called CrashNotifiable."); }
 
 BarrierNotifiable* BarrierNotifiable::new_child() {
-  LockHolder h(this);
+  AtomicHolder h(this);
   count_++;
   return this;
 }
@@ -25,7 +25,7 @@ BarrierNotifiable* BarrierNotifiable::new_child() {
 void BarrierNotifiable::notify() {
   unsigned new_value;
   {
-    LockHolder h(this);
+    AtomicHolder h(this);
     HASSERT(count_ && "barrier notifyable received too many notifys");
     new_value = --count_;
   }
@@ -38,7 +38,7 @@ void BarrierNotifiable::notify() {
 BarrierNotifiable::~BarrierNotifiable() { HASSERT(!count_); }
 
 BarrierNotifiable* BarrierNotifiable::reset(Notifiable* done) {
-  LockHolder h(this);
+  AtomicHolder h(this);
   HASSERT(!count_);
   count_ = 1;
   done_ = done;

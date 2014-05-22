@@ -70,7 +70,7 @@ CanPipeMember* g_tx_instance = nullptr;
 CanRxFlow* g_rx_instance = nullptr;
 Pipe* g_pipe = nullptr;
 
-class CanPipeMember : public PipeMember, public Executable, private Lockable
+class CanPipeMember : public PipeMember, public Executable, private Atomic
 {
 public:
     CanPipeMember()
@@ -99,7 +99,7 @@ public:
         HASSERT(count == sizeof(struct can_frame));
         HASSERT(!frameToWrite_);
         done_ = done;
-        LockHolder h(this);
+        AtomicHolder h(this);
         frameToWrite_ = static_cast<const struct can_frame*>(buf);
         g_executor.Add(this);
     }
@@ -111,7 +111,7 @@ public:
         Notifiable* done = nullptr;
         uint8_t buf_num = FIRST_TX_OBJ;
         {
-            LockHolder h(this);
+            AtomicHolder h(this);
 
             // Looks for a free tx buffer.
             while (buf_num < FIRST_RX_OBJ &&

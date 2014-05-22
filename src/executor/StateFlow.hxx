@@ -420,7 +420,7 @@ template <class T, class S> class StateFlow;
 
 /** A state flow that has an incoming message queue, pends on that queue, and
  * runs a flow for every message that comes in from that queue. */
-class StateFlowWithQueue : public StateFlowBase, protected Lockable
+class StateFlowWithQueue : public StateFlowBase, protected Atomic
 {
 public:
     ~StateFlowWithQueue();
@@ -491,7 +491,7 @@ private:
     unsigned currentPriority_ : 31;
 
     /** True if we are in the pending state, waiting for an entry to show up in
-     * the queue. Protected by Lockable *this. */
+     * the queue. Protected by Atomic *this. */
     unsigned isWaiting_ : 1;
 
     template <class T, class S> friend class StateFlow;
