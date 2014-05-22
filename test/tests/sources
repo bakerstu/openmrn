@@ -19,7 +19,6 @@ FULLPATHTESTSRCS = \
                  $(VPATH)/tests/macros_test.cc \
                  $(VPATH)/tests/node_handler_map_test.cc \
                  $(VPATH)/tests/notify_test.cc \
-                 $(VPATH)/tests/queue_test.cc \
                  $(VPATH)/tests/range_event_handler_test.cc \
                  $(VPATH)/tests/state_flow_test.cc \
                  $(VPATH)/tests/timer_test.cc \
@@ -30,7 +29,5 @@ FULLPATHTESTSRCS = \
 
 DISABLED_TESTS = \
                  $(VPATH)/tests/async_datagram_test.cc \
-                 $(VPATH)/tests/control_flow_test.cc \
-                 $(VPATH)/tests/executor_test.cc \
                  $(VPATH)/tests/memory_config_test.cc \
 
