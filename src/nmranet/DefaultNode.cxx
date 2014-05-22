@@ -33,7 +33,7 @@
  */
 
 #include "utils/logging.h"
-#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/DefaultNode.hxx"
 #include "nmranet/If.hxx"
 
 namespace nmranet

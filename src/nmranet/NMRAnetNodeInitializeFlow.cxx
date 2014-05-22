@@ -33,7 +33,7 @@
  */
 
 #include "nmranet/If.hxx"
-#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/DefaultNode.hxx"
 
 namespace nmranet
 {

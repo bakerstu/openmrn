@@ -10,7 +10,7 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
-#include "nmranet/NMRAnetAsyncDefaultNode.hxx"
+#include "nmranet/DefaultNode.hxx"
 //#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 //#include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet_config.h"

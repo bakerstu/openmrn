@@ -32,8 +32,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRAnetAsyncDefaultNode_hxx_
-#define _NMRAnetAsyncDefaultNode_hxx_
+#ifndef _NMRANET_DEFAULTNODE_HXX_
+#define _NMRANET_DEFAULTNODE_HXX_
 
 #include "nmranet/Node.hxx"
 
@@ -73,4 +73,4 @@ private:
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncDefaultNode_hxx_
+#endif // _NMRANET_DEFAULTNODE_HXX_
