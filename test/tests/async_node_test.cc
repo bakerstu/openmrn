@@ -13,7 +13,7 @@ TEST_F(AsyncIfTest, CreateNodeSendsInitializer)
     //create_allocated_alias();
     LOG(INFO, "before");
     BlockExecutor block(nullptr);
-    DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
+    DefaultNode node(ifCan_.get(), TEST_NODE_ID);
     // Technically there is a race condition here. The initialization could
     // happen before we get to this expectation.
     EXPECT_FALSE(node.is_initialized());
@@ -31,13 +31,13 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
     create_allocated_alias();
     LOG(INFO, "before");
-    DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
+    DefaultNode node(ifCan_.get(), TEST_NODE_ID);
     LOG(INFO, "after");
     wait();
     expect_packet(":X1070133AN02010d000004;"); // AMD frame
     expect_packet(":X1910033AN02010d000004;"); // initialization complete
     expect_next_alias_allocation();
-    DefaultAsyncNode node2(ifCan_.get(), TEST_NODE_ID + 1);
+    DefaultNode node2(ifCan_.get(), TEST_NODE_ID + 1);
     wait();
 }
 
@@ -45,7 +45,7 @@ TEST_F(AsyncIfTest, WriteHelperByMTI)
 {
     ifCan_->add_addressed_message_support();
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
-    DefaultAsyncNode node(ifCan_.get(), TEST_NODE_ID);
+    DefaultNode node(ifCan_.get(), TEST_NODE_ID);
     wait();  // for initialized
 
     WriteHelper helper;

@@ -41,14 +41,14 @@ namespace nmranet
 
 extern void StartInitializationFlow(Node* node);
 
-DefaultAsyncNode::DefaultAsyncNode(If* interface, NodeID node_id)
+DefaultNode::DefaultNode(If* interface, NodeID node_id)
     : nodeId_(node_id), isInitialized_(0), interface_(interface)
 {
     interface_->add_local_node(this);
     StartInitializationFlow(this);
 }
 
-DefaultAsyncNode::~DefaultAsyncNode()
+DefaultNode::~DefaultNode()
 {
 }
 

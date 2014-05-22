@@ -313,7 +313,7 @@ protected:
         : eventService_(ifCan_.get())
     {
         EXPECT_CALL(canBus_, mwrite(":X1910022AN02010D000003;")).Times(1);
-        ownedNode_.reset(new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID));
+        ownedNode_.reset(new DefaultNode(ifCan_.get(), TEST_NODE_ID));
         node_ = ownedNode_.get();
         ifCan_->add_addressed_message_support();
         wait();
@@ -335,7 +335,7 @@ protected:
     }
 
     GlobalEventService eventService_;
-    std::unique_ptr<DefaultAsyncNode> ownedNode_;
+    std::unique_ptr<DefaultNode> ownedNode_;
     Node *node_;
 };
 

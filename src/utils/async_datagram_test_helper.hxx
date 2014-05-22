@@ -81,7 +81,7 @@ protected:
         }
         otherNodeIf_->local_aliases()->add(OTHER_NODE_ID, OTHER_NODE_ALIAS);
         ExpectPacket(":X19100225N02010D000103;"); // node up
-        otherNode_.reset(new DefaultAsyncNode(otherNodeIf_, OTHER_NODE_ID));
+        otherNode_.reset(new DefaultNode(otherNodeIf_, OTHER_NODE_ID));
         Wait();
     }
 
@@ -92,7 +92,7 @@ protected:
         ExpectPacket(":X19170225N02010D000103;"); // node ID verified
     }
 
-    std::unique_ptr<DefaultAsyncNode> otherNode_;
+    std::unique_ptr<DefaultNode> otherNode_;
     // Second objects if we want a bus-traffic test.
     std::unique_ptr<IfCan> otherIfCan_;
     IfCan* otherNodeIf_;

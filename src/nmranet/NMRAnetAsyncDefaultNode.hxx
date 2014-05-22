@@ -40,13 +40,11 @@
 namespace nmranet
 {
 
-class DefaultAsyncNode : public Node
+class DefaultNodeblic Node
 {
 public:
-    DefaultAsyncNode(If* interface, NodeID node_id);
-    virtual ~DefaultAsyncNode();
-
-    virtual NodeID node_id()
+    DefauDefaultNodeface, NodeID node_id);
+    virtual ~DefaultNodDefaultNodel NodeID node_id()
     {
         return nodeId_;
     }

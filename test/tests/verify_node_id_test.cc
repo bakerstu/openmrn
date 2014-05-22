@@ -18,7 +18,7 @@ public:
         expect_packet(":X1070133AN02010D000004;");
         expect_packet(":X1910033AN02010D000004;");
         secondNode_.reset(
-            new DefaultAsyncNode(ifCan_.get(), TEST_NODE_ID + 1));
+            new DefaultNode(ifCan_.get(), TEST_NODE_ID + 1));
         wait();
     }
 
@@ -28,7 +28,7 @@ public:
     }
 
 protected:
-    std::unique_ptr<DefaultAsyncNode> secondNode_;
+    std::unique_ptr<DefaultNode> secondNode_;
 };
 
 TEST_F(TwoNodeTest, VerifyNodeIdGlobalTwoNodes)

@@ -290,7 +290,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
 {
     EXPECT_CALL(canBus_, mwrite(":X1910022BN02010D000004;")).Times(1);
     ifCan_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
-    DefaultAsyncNode other_node(ifCan_.get(), TEST_NODE_ID + 1);
+    DefaultNode other_node(ifCan_.get(), TEST_NODE_ID + 1);
 
     send_packet(":X1B22A555N3031323334353637;");
     send_packet(":X1C22A555N3131323334353637;");
