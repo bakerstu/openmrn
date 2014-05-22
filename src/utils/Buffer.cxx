@@ -57,28 +57,6 @@ BufferBase *BufferBase::expand()
     return expanded_buffer;
 }
 
-/** Add an item to the back of the queue.
- * @param item to add to queue
- * @param index unused parameter
- */
-void Q::insert(QMember *item, unsigned index)
-{
-    HASSERT(item->next == nullptr);
-    HASSERT(item != tail);
-    AtomicHolder h(this);
-    if (head == NULL)
-    {
-        head = tail = item;
-    }
-    else
-    {
-        tail->next = item;
-        tail = item;
-    }
-    item->next = NULL;
-    ++count;
-}
-
 /** Number of free items in the pool.
  * @return number of free items in the pool
  */

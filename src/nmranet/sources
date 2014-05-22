@@ -7,7 +7,7 @@ CXXSRCS += \
            IfCan.cxx \
            If.cxx \
            IfImpl.cxx \
-           WriteFlow.cxx \
+           WriteHelper.cxx \
            DefaultNode.cxx \
            NodeInitializeFlow.cxx \
            AliasAllocator.cxx \
