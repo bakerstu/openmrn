@@ -136,6 +136,10 @@ private:
     DISALLOW_COPY_AND_ASSIGN(ExecutorBase);
 };
 
+/* This is an empty struct. If you give it as an argument to the executor
+ * constructor, the executor will be created without a thread. The owner is
+ * responsible for "donating" a thread (typically the main thread) to that
+ * executor. See @ref Executor::thread_body() */
 class NO_THREAD {
 public:
     NO_THREAD() {}
