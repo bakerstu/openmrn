@@ -4,9 +4,9 @@ CSRCS +=
 
 CXXSRCS += \
         Executor.cxx \
-        StateFlow.cxx \
         Notifiable.cxx \
         Service.cxx \
+        StateFlow.cxx \
         Timer.cxx \
         
 
