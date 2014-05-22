@@ -128,32 +128,7 @@ public:
 typedef void (EventHandler::*EventHandlerFunction)(EventReport* event,
                                                           BarrierNotifiable* done);
 
-
-// Abstract class for representing iteration through a container for event
-// handlers.
-class EventIterator {
-protected:
-    /// Creates an EventIterator.
-    EventIterator() {}
-
-public:
-    virtual ~EventIterator() {}
-
-    /** Steps the iteration.
-     * @returns the next entry or NULL if the iteration is done.
-     * May be called many times after the iteratin is ended and should
-     * consistently return NULL. */
-    virtual EventHandler* next_entry() = 0;
-
-    /** Starts the iteration. If the iteration is not done yet, call
-     * clear_iteration first.
-     *
-     * @param event is the event report to reset the iteration for. */
-    virtual void init_iteration(EventReport* event) = 0;
-
-    /** Stops iteration and resets iteration variables. */
-    virtual void clear_iteration() = 0;
-};
+class EventIterator;
 
 class EventRegistry {
 public:
