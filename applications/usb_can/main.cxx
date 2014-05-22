@@ -41,7 +41,7 @@
 #include "os/os.h"
 #include "utils/gc_pipe.hxx"
 #include "executor/Executor.hxx"
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
 #include "nmranet_can.h"
 #include "nmranet_config.h"

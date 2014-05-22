@@ -6,7 +6,7 @@ using namespace std;
 
 #include "utils/test_main.hxx"
 #include "utils/GridConnectHub.hxx"
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 #include "nmranet_can.h"
 
 using testing::StrEq;

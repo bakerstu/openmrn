@@ -38,7 +38,7 @@
 #include <memory>
 
 #include "os/os.h"
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "executor/Executor.hxx"

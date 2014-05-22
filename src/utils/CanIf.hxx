@@ -38,7 +38,7 @@
 #define _UTILS_CANIF_HXX_
 
 #include "nmranet_can.h"
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 
 /** Thin wrapper around struct can_frame that will allow a dispatcher select
  * the frames by CAN ID and mask as desired by the handlers. */

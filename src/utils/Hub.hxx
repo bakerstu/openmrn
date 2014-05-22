@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file PipeFlow.hxx
+ * \file Hub.hxx
  * Implementation of the pipe dispatcher flow.
  *
  * @author Balazs Racz
  * @date 8 Dec 2013
  */
 
-#ifndef _utils_PipeFlow_hxx_
-#define _utils_PipeFlow_hxx_
+#ifndef _UTILS_HUB_HXX_
+#define _UTILS_HUB_HXX_
 
 #include <stdint.h>
 #include <string>
@@ -218,4 +218,4 @@ public:
 };
 #endif // if 0
 
-#endif // _utils_PipeFlow_hxx_
+#endif // _UTILS_HUB_HXX_

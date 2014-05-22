@@ -36,7 +36,7 @@
 
 #include <unistd.h>
 
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 
 template <class Data> class FdHubWriteFlow;
 

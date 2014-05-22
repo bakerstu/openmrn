@@ -1,5 +1,5 @@
 #include "mbed.h"
-#include "utils/PipeFlow.hxx"
+#include "utils/Hub.hxx"
 #include "can.h"
 
 #include "FreeRTOSConfig.h"
