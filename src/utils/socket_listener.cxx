@@ -95,7 +95,7 @@ void SocketListener::AcceptThreadBody() {
                     &namelen);
     if (connfd < 0) {
       if (errno == EINTR || errno == EAGAIN) continue;
-      PrintErrnoAndExit("accept");
+      print_errno_and_exit("accept");
       return;
     }
     int val = 1;

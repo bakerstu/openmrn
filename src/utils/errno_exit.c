@@ -27,6 +27,7 @@
  * \file errno_exit.c
  *
  * Expensive (in terms of code-size) function to print errno to stderr and exit.
+ * Due to the code size implications this is in a separate .c file.
  *
  * @author Balazs Racz
  * @date 3 Aug 2013
@@ -37,8 +38,6 @@
 
 #include "utils/logging.h"
 
-void PrintErrnoAndExit(const char* where) {
-  // NOTE(balazs.racz): If this code is ported to other operating systems, this
-  // should probably be replaced by logging.
+void print_errno_and_exit(const char* where) {
   LOG(FATAL, "%s: error (%d) %s\n", where, errno, strerror(errno));
 }

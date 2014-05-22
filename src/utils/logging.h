@@ -43,7 +43,7 @@ extern char logbuffer[256];
 extern "C" {
 #endif
 void log_output(char *buf, int size);
-void PrintErrnoAndExit(const char *where);
+void print_errno_and_exit(const char *where);
 #ifdef __cplusplus
 }
 #endif
@@ -52,7 +52,7 @@ void PrintErrnoAndExit(const char *where);
     do                                                                         \
     {                                                                          \
         if ((x) < 0)                                                           \
-            PrintErrnoAndExit(where);                                          \
+            print_errno_and_exit(where);                                       \
     } while (0)
 
 #endif // _LOGGING_H_
