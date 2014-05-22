@@ -46,13 +46,13 @@ WriteHelper event_write_helper3;
 WriteHelper event_write_helper4;
 BarrierNotifiable event_barrier;
 
-EventRegistry::NMRAnetEventRegistry()
+EventRegistry::EventRegistry()
 {
     HASSERT(instance_ == nullptr);
     instance_ = this;
 }
 
-EventRegistry::~NMRAnetEventRegistry()
+EventRegistry::~EventRegistry()
 {
     HASSERT(instance_ == this);
     instance_ = nullptr;
