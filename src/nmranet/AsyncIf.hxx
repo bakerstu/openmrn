@@ -210,7 +210,7 @@ public:
                                     Notifiable *done) = 0;
 };
 #endif
-class AsyncIf : public Service
+class If : public Service
 {
 public:
     /** Constructs an NMRAnet interface.
@@ -218,10 +218,10 @@ public:
      * this interface.
      * @param local_nodes_count is the maximum number of virtual nodes that
      * this interface will support. */
-    AsyncIf(ExecutorBase *executor, int local_nodes_count);
+    If(ExecutorBase *executor, int local_nodes_count);
 
     /** Destructor */
-    virtual ~AsyncIf()
+    virtual ~If()
     {
     }
 
@@ -314,7 +314,7 @@ private:
 
     friend class VerifyNodeIdHandler;
 
-    DISALLOW_COPY_AND_ASSIGN(AsyncIf);
+    DISALLOW_COPY_AND_ASSIGN(If);
 };
 
 typedef StateFlow<Buffer<NMRAnetMessage>, QList<4>> MessageStateFlowBase;
@@ -324,14 +324,14 @@ class IncomingMessageStateFlow
     : public MessageStateFlowBase
 {
 public:
-    IncomingMessageStateFlow(AsyncIf *interface)
+    IncomingMessageStateFlow(If *interface)
         : MessageStateFlowBase(interface)
     {
     }
 
-    AsyncIf *interface()
+    If *interface()
     {
-        return static_cast<AsyncIf *>(service());
+        return static_cast<If *>(service());
     }
 
     /// Returns the NMRAnet message we received.

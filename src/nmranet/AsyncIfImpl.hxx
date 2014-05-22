@@ -45,7 +45,7 @@ namespace NMRAnet
 class WriteFlowBase : public StateFlow<Buffer<NMRAnetMessage>, QList<4>>
 {
 public:
-    WriteFlowBase(AsyncIf *async_if)
+    WriteFlowBase(If *async_if)
         : StateFlow<Buffer<NMRAnetMessage>, QList<4>>(async_if)
     {
     }
@@ -68,9 +68,9 @@ protected:
     }
 
     /// @returns the interface that this flow is assigned to.
-    AsyncIf *async_if()
+    If *async_if()
     {
-        return static_cast<AsyncIf *>(service());
+        return static_cast<If *>(service());
     }
 
     /** Implementations shall call this function when they are done with
@@ -133,7 +133,7 @@ protected:
 class VerifyNodeIdHandler : public IncomingMessageStateFlow
 {
 public:
-    VerifyNodeIdHandler(AsyncIf *service) : IncomingMessageStateFlow(service)
+    VerifyNodeIdHandler(If *service) : IncomingMessageStateFlow(service)
     {
         interface()->dispatcher()->register_handler(
             this,
@@ -171,7 +171,7 @@ public:
 // Global message. Everyone should respond.
 #ifdef SIMPLE_NODE_ONLY
             // We assume there can be only one local node.
-            AsyncIf::VNodeMap::Iterator it = interface()->localNodes_.begin();
+            If::VNodeMap::Iterator it = interface()->localNodes_.begin();
             if (it == interface()->localNodes_.end())
             {
                 // No local nodes.
@@ -248,7 +248,7 @@ private:
     AsyncNode *srcNode_;
 
 #ifndef SIMPLE_NODE_ONLY
-    AsyncIf::VNodeMap::Iterator it_;
+    If::VNodeMap::Iterator it_;
 #endif
 };
 } // namespace NMRAnet

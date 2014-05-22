@@ -46,17 +46,17 @@
 namespace NMRAnet
 {
 
-class AsyncIfCan;
+class IfCan;
 
 /** Counts the number of alias conflicts that we see for aliases that we
  * already reserved. */
 extern size_t g_alias_use_conflicts;
 
-class AsyncAliasAllocator;
-class AsyncIfCan;
+class AliasAllocator;
+class IfCan;
 
 
-class AsyncIfCan : public AsyncIf, public CanIf
+class IfCan : public If, public CanIf
 {
 public:
     /**
@@ -77,11 +77,11 @@ public:
      *
      * @param local_nodes_count is the maximum number of virtual nodes that
      * this interface will support. */
-    AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
+    IfCan(ExecutorBase *executor, CanHubFlow *device,
                int local_alias_cache_size, int remote_alias_cache_size,
                int local_nodes_count);
 
-    ~AsyncIfCan();
+    ~IfCan();
 
     /** Adds support to this interface for addressed NMRAnet messages (both
      * sending and receiving). */
@@ -100,13 +100,13 @@ public:
     }
 
     /// @returns the alias cache for remote nodes on this IF
-    AsyncAliasAllocator *alias_allocator()
+    AliasAllocator *alias_allocator()
     {
         return aliasAllocator_.get();
     }
 
     /// Sets the alias allocator for this If. Takes ownership of pointer.
-    void set_alias_allocator(AsyncAliasAllocator *a);
+    void set_alias_allocator(AliasAllocator *a);
 
     virtual void add_owned_flow(Executable *e);
 
@@ -128,23 +128,23 @@ private:
     std::vector<std::unique_ptr<Executable>> ownedFlows_;
 
     /// Owns the alias allocator module.
-    std::unique_ptr<AsyncAliasAllocator> aliasAllocator_;
+    std::unique_ptr<AliasAllocator> aliasAllocator_;
 
-    DISALLOW_COPY_AND_ASSIGN(AsyncIfCan);
+    DISALLOW_COPY_AND_ASSIGN(IfCan);
 };
 
 /** Base class for incoming CAN frame handlers. */
 class CanFrameStateFlow : public StateFlow<Buffer<CanMessageData>, QList<1>>
 {
 public:
-    CanFrameStateFlow(AsyncIfCan *service)
+    CanFrameStateFlow(IfCan *service)
         : StateFlow<Buffer<CanMessageData>, QList<1>>(service)
     {
     }
 
-    AsyncIfCan *if_can()
+    IfCan *if_can()
     {
-        return static_cast<AsyncIfCan *>(service());
+        return static_cast<IfCan *>(service());
     }
 };
 

@@ -44,7 +44,7 @@ namespace NMRAnet
 class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
-    TractionResponseHandler(NMRAnet::AsyncIf *interface,
+    TractionResponseHandler(NMRAnet::If *interface,
                             NMRAnet::AsyncNode *local_node)
         : IncomingMessageStateFlow(interface)
         , expectedDst_(local_node)

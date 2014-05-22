@@ -47,18 +47,18 @@ public:
     /*
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)*/
-    CanDatagramSupport(AsyncIfCan* interface, int num_registry_entries,
+    CanDatagramSupport(IfCan* interface, int num_registry_entries,
                        int num_clients);
 
     ~CanDatagramSupport();
 
-    AsyncIfCan* if_can() {
-        return static_cast<AsyncIfCan*>(interface());
+    IfCan* if_can() {
+        return static_cast<IfCan*>(interface());
     }
 };
 
 /// Creates a CAn datagram parser flow. Exposed for testing only.
-Executable* TEST_CreateCanDatagramParser(AsyncIfCan* if_can);
+Executable* TEST_CreateCanDatagramParser(IfCan* if_can);
 
 } // namespace NMRAnet
 

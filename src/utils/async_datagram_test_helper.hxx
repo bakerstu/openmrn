@@ -67,7 +67,7 @@ protected:
         if (separate_if)
         {
             otherIfCan_.reset(
-                new AsyncIfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
+                new IfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
             otherNodeIf_ = otherIfCan_.get();
             otherNodeIf_->add_addressed_message_support(2);
             otherDatagramSupport_.reset(
@@ -94,8 +94,8 @@ protected:
 
     std::unique_ptr<DefaultAsyncNode> otherNode_;
     // Second objects if we want a bus-traffic test.
-    std::unique_ptr<AsyncIfCan> otherIfCan_;
-    AsyncIfCan* otherNodeIf_;
+    std::unique_ptr<IfCan> otherIfCan_;
+    IfCan* otherNodeIf_;
     std::unique_ptr<CanDatagramSupport> otherDatagramSupport_;
     CanDatagramSupport* otherNodeDatagram_;
 };

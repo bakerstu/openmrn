@@ -84,7 +84,7 @@ const size_t main_stack_size = 900;
 #endif
 }
 
-NMRAnet::AsyncIfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+NMRAnet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static NMRAnet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
 NMRAnet::DefaultAsyncNode g_node(&g_if_can, NODE_ID);
 NMRAnet::GlobalEventService g_event_service(&g_if_can);

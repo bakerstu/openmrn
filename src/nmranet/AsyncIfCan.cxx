@@ -65,7 +65,7 @@ namespace
 class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
-    GlobalCanMessageWriteFlow(AsyncIfCan *if_can) : CanMessageWriteFlow(if_can)
+    GlobalCanMessageWriteFlow(IfCan *if_can) : CanMessageWriteFlow(if_can)
     {
     }
 
@@ -98,7 +98,7 @@ protected:
 class AliasConflictHandler : public CanFrameStateFlow
 {
 public:
-    AliasConflictHandler(AsyncIfCan *service) : CanFrameStateFlow(service)
+    AliasConflictHandler(IfCan *service) : CanFrameStateFlow(service)
     {
         if_can()->frame_dispatcher()->register_handler(this, 0,
                                                        ~((1 << 30) - 1));
@@ -183,7 +183,7 @@ public:
                    (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
-    FrameToGlobalMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
+    FrameToGlobalMessageParser(IfCan *service) : CanFrameStateFlow(service)
     {
         if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER,
                                                        CAN_MASK);
@@ -260,7 +260,7 @@ public:
                    (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
-    FrameToAddressedMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
+    FrameToAddressedMessageParser(IfCan *service) : CanFrameStateFlow(service)
     {
         if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER, CAN_MASK);
     }
@@ -349,10 +349,10 @@ private:
     NodeHandle dstHandle_;
 };
 
-AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
+IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
                        int local_alias_cache_size, int remote_alias_cache_size,
                        int local_nodes_count)
-    : AsyncIf(executor, local_nodes_count)
+    : If(executor, local_nodes_count)
     , CanIf(this, device)
     , localAliases_(0, local_alias_cache_size)
     , remoteAliases_(0, remote_alias_cache_size)
@@ -378,21 +378,21 @@ AsyncIfCan::AsyncIfCan(ExecutorBase *executor, CanHubFlow *device,
             }*/
 }
 
-AsyncIfCan::~AsyncIfCan()
+IfCan::~IfCan()
 {
 }
 
-void AsyncIfCan::add_owned_flow(Executable *e)
+void IfCan::add_owned_flow(Executable *e)
 {
     ownedFlows_.push_back(std::unique_ptr<Executable>(e));
 }
 
-void AsyncIfCan::set_alias_allocator(AsyncAliasAllocator *a)
+void IfCan::set_alias_allocator(AliasAllocator *a)
 {
     aliasAllocator_.reset(a);
 }
 
-void AsyncIfCan::add_addressed_message_support()
+void IfCan::add_addressed_message_support()
 {
     add_owned_flow(new FrameToAddressedMessageParser(this));
     auto* f = new AddressedCanMessageWriteFlow(this);

@@ -37,7 +37,7 @@
 namespace NMRAnet
 {
 
-DatagramSupport::DatagramSupport(AsyncIf* interface,
+DatagramSupport::DatagramSupport(If* interface,
                                  size_t num_registry_entries)
     : interface_(interface), dispatcher_(interface_, num_registry_entries)
 {

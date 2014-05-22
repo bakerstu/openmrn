@@ -45,7 +45,7 @@ class EventMessageHandler : public IncomingMessageHandler,
                             public AllocationResult
 {
 public:
-    EventMessageHandler(AsyncIf* async_if) : if_(async_if)
+    EventMessageHandler(If* async_if) : if_(async_if)
     {
         if_->dispatcher()->register_handler(MTI_VALUE_1, MTI_MASK_1, this);
         if_->dispatcher()->register_handler(MTI_VALUE_2, MTI_MASK_2, this);
@@ -134,10 +134,10 @@ private:
     TypedAllocator<IncomingMessageHandler> lock_;
 
     /// Parent interface.
-    AsyncIf* if_;
+    If* if_;
 };
 
-void AddEventHandlerToIf(AsyncIf* async_if)
+void AddEventHandlerToIf(If* async_if)
 {
     HASSERT(GlobalEventFlow::instance);
     async_if->add_owned_flow(new EventMessageHandler(async_if));

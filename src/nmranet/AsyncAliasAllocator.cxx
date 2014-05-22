@@ -42,7 +42,7 @@ namespace NMRAnet
 
 size_t g_alias_test_conflicts = 0;
 
-AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can)
+AliasAllocator::AliasAllocator(NodeID if_id, IfCan *if_can)
     : StateFlow<Buffer<AliasInfo>, QList<1>>(if_can)
     , conflictHandler_(this)
     , timer_(this)
@@ -65,7 +65,7 @@ AsyncAliasAllocator::AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can)
  * @param pool is the pool from where we take the buffers for the aliases.
  * @param n is how many aliases we pre-allocate.
  */
-void seed_alias_allocator(AsyncAliasAllocator* aliases, Pool* pool, int n) {
+void seed_alias_allocator(AliasAllocator* aliases, Pool* pool, int n) {
     for (int i = 0; i < n; i++)
     {
         Buffer<AliasInfo> *b;
@@ -74,11 +74,11 @@ void seed_alias_allocator(AsyncAliasAllocator* aliases, Pool* pool, int n) {
     }
 }
 
-AsyncAliasAllocator::~AsyncAliasAllocator()
+AliasAllocator::~AliasAllocator()
 {
 }
 
-StateFlowBase::Action AsyncAliasAllocator::entry()
+StateFlowBase::Action AliasAllocator::entry()
 {
     cid_frame_sequence_ = 7;
     conflict_detected_ = 0;
@@ -98,7 +98,7 @@ StateFlowBase::Action AsyncAliasAllocator::entry()
     return call_immediately(STATE(handle_allocate_for_cid_frame));
 }
 
-void AsyncAliasAllocator::next_seed()
+void AliasAllocator::next_seed()
 {
     uint16_t offset;
     offset = if_id_ >> 36;
@@ -116,7 +116,7 @@ void AsyncAliasAllocator::next_seed()
     seed_ += offset;
 }
 
-StateFlowBase::Action AsyncAliasAllocator::handle_allocate_for_cid_frame()
+StateFlowBase::Action AliasAllocator::handle_allocate_for_cid_frame()
 {
     if (cid_frame_sequence_ >= 4)
     {
@@ -130,7 +130,7 @@ StateFlowBase::Action AsyncAliasAllocator::handle_allocate_for_cid_frame()
     }
 }
 
-StateFlowBase::Action AsyncAliasAllocator::send_cid_frame()
+StateFlowBase::Action AliasAllocator::send_cid_frame()
 {
     LOG(VERBOSE, "Sending CID frame %d for alias %03x", cid_frame_sequence_,
         pending_alias()->alias);
@@ -150,7 +150,7 @@ StateFlowBase::Action AsyncAliasAllocator::send_cid_frame()
     return wait_and_call(STATE(handle_allocate_for_cid_frame));
 }
 
-StateFlowBase::Action AsyncAliasAllocator::handle_alias_conflict()
+StateFlowBase::Action AliasAllocator::handle_alias_conflict()
 {
     // Marks that we are no longer interested in frames from this alias.
     if_can()->frame_dispatcher()->unregister_handler(
@@ -163,7 +163,7 @@ StateFlowBase::Action AsyncAliasAllocator::handle_alias_conflict()
     return call_immediately(STATE(entry));
 }
 
-StateFlowBase::Action AsyncAliasAllocator::wait_done()
+StateFlowBase::Action AliasAllocator::wait_done()
 {
     if (conflict_detected_)
     {
@@ -174,7 +174,7 @@ StateFlowBase::Action AsyncAliasAllocator::wait_done()
                              STATE(send_rid_frame));
 }
 
-StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
+StateFlowBase::Action AliasAllocator::send_rid_frame()
 {
     LOG(VERBOSE, "Sending RID frame for alias %03x", pending_alias()->alias);
     auto *b = get_allocation_result(if_can()->frame_write_flow());
@@ -196,7 +196,7 @@ StateFlowBase::Action AsyncAliasAllocator::send_rid_frame()
     return release_and_exit();
 }
 
-void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
+void AliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
                                                 unsigned priority)
 {
     if (parent_->conflict_detected_) {
@@ -205,7 +205,7 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
     }
     parent_->conflict_detected_ = 1;
     g_alias_test_conflicts++;
-    if (parent_->is_state(static_cast<StateFlowBase::Callback>(&AsyncAliasAllocator::wait_done))) {
+    if (parent_->is_state(static_cast<StateFlowBase::Callback>(&AliasAllocator::wait_done))) {
         /* Wakes up the actual flow to not have to wait all the 200 ms of
          * sleep. This will request the timer callback to be issued
          * immediately, which avoids race condition between the trigger and the
@@ -215,7 +215,7 @@ void AsyncAliasAllocator::ConflictHandler::send(Buffer<CanMessageData> *message,
     message->unref();
 }
 
-void AsyncAliasAllocator::TEST_finish_pending_allocation() {
+void AliasAllocator::TEST_finish_pending_allocation() {
     if (is_state(STATE(wait_done))) {
         timer_.trigger();
     }

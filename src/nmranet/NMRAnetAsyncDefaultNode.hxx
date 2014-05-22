@@ -43,14 +43,14 @@ namespace NMRAnet
 class DefaultAsyncNode : public AsyncNode
 {
 public:
-    DefaultAsyncNode(AsyncIf* interface, NodeID node_id);
+    DefaultAsyncNode(If* interface, NodeID node_id);
     virtual ~DefaultAsyncNode();
 
     virtual NodeID node_id()
     {
         return nodeId_;
     }
-    virtual AsyncIf* interface()
+    virtual If* interface()
     {
         return interface_;
     }
@@ -70,7 +70,7 @@ private:
     /** 1 if the node has reached initialized state. */
     unsigned isInitialized_ : 1;
     /** Interface this node is bound to. */
-    AsyncIf* interface_;
+    If* interface_;
 };
 
 } // namespace NMRAnet

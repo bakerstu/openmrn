@@ -32,7 +32,7 @@ public:
     void start(BarrierNotifiable* done)
     {
         ifCan_.add_addressed_message_support();
-        ifCan_.set_alias_allocator(new AsyncAliasAllocator(nodeId_, &ifCan_));
+        ifCan_.set_alias_allocator(new AliasAllocator(nodeId_, &ifCan_));
         {
             // Adds one alias buffer to the alias allocation flow.
             auto* b = ifCan_.alias_allocator()->alloc();
@@ -69,7 +69,7 @@ public:
 
 private:
     NodeID nodeId_;
-    AsyncIfCan ifCan_;
+    IfCan ifCan_;
 //    AliasInfo testAlias_;
 };
 

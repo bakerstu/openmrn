@@ -27,7 +27,7 @@ GlobalEventService::GlobalEventService(ExecutorBase *e) : Service(e)
     impl_.reset(new Impl(this));
 }
 
-GlobalEventService::GlobalEventService(AsyncIf *interface)
+GlobalEventService::GlobalEventService(If *interface)
     : Service(interface->executor())
 {
     HASSERT(instance == nullptr);
@@ -42,7 +42,7 @@ GlobalEventService::~GlobalEventService()
     instance = nullptr;
 }
 
-void GlobalEventService::register_interface(AsyncIf *interface)
+void GlobalEventService::register_interface(If *interface)
 {
     impl()->ownedFlows_.emplace_back(new GlobalEventFlow(
         interface, this, GlobalEventService::Impl::MTI_VALUE_EVENT,
@@ -79,7 +79,7 @@ StateFlowBase::Action EventCallerFlow::call_done()
     return release_and_exit();
 }
 
-GlobalEventFlow::GlobalEventFlow(AsyncIf *async_if,
+GlobalEventFlow::GlobalEventFlow(If *async_if,
                                  GlobalEventService *event_service,
                                  unsigned mti_value, unsigned mti_mask)
     : IncomingMessageStateFlow(async_if)

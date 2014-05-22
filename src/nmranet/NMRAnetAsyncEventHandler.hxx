@@ -39,14 +39,14 @@
 namespace NMRAnet
 {
 
-class AsyncIf;
+class If;
 
 /** Enables support for the event protocol on the given interface.
  *
  * Creates a handler object for the event protocol and adds it to the given
  * interface. Transfers ownership of the new object to the itnerface itself.
  */
-void AddEventHandlerToIf(AsyncIf* async_if);
+void AddEventHandlerToIf(If* async_if);
 
 
 } // namespace NMRAnet

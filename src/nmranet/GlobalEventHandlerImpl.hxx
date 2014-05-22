@@ -113,7 +113,7 @@ public:
 class GlobalEventFlow : public IncomingMessageStateFlow
 {
 public:
-    GlobalEventFlow(AsyncIf *interface, GlobalEventService *event_service,
+    GlobalEventFlow(If *interface, GlobalEventService *event_service,
                     unsigned mti_value, unsigned mti_mask);
     ~GlobalEventFlow();
 
@@ -134,7 +134,7 @@ private:
     BarrierNotifiable n_;
     EventHandlerFunction fn_;
 
-    AsyncIf *interface_;
+    If *interface_;
 };
 
 } // namespace NMRAnet

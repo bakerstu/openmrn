@@ -20,14 +20,14 @@ protected:
         wait();
     }
 
-    void set_seed(unsigned seed, AsyncAliasAllocator *alloc = nullptr)
+    void set_seed(unsigned seed, AliasAllocator *alloc = nullptr)
     {
         if (!alloc)
             alloc = &alias_allocator_;
         alloc->seed_ = seed;
     }
 
-    unsigned next_seed(AsyncAliasAllocator *alloc = nullptr)
+    unsigned next_seed(AliasAllocator *alloc = nullptr)
     {
         if (!alloc)
             alloc = &alias_allocator_;
@@ -48,7 +48,7 @@ protected:
     }
 
     Buffer<AliasInfo> *b_;
-    AsyncAliasAllocator alias_allocator_;
+    AliasAllocator alias_allocator_;
 };
 
 TEST_F(AsyncAliasAllocatorTest, SetupTeardown)
@@ -206,7 +206,7 @@ TEST_F(AsyncAliasAllocatorTest, GenerationCycleLength)
 TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
 {
     set_seed(0x555);
-    AsyncAliasAllocator other(TEST_NODE_ID + 13, ifCan_.get());
+    AliasAllocator other(TEST_NODE_ID + 13, ifCan_.get());
     set_seed(0x555, &other);
     // Checks that the two alias allocators generate different values after a
     // conflict.

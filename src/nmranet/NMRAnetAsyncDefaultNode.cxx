@@ -41,7 +41,7 @@ namespace NMRAnet
 
 extern void StartInitializationFlow(AsyncNode* node);
 
-DefaultAsyncNode::DefaultAsyncNode(AsyncIf* interface, NodeID node_id)
+DefaultAsyncNode::DefaultAsyncNode(If* interface, NodeID node_id)
     : nodeId_(node_id), isInitialized_(0), interface_(interface)
 {
     interface_->add_local_node(this);

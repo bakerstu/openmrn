@@ -45,7 +45,7 @@ class CanDatagramClient : public DatagramClient,
                           private IncomingMessageHandler
 {
 public:
-    CanDatagramClient(AsyncIfCan* interface)
+    CanDatagramClient(IfCan* interface)
         : AddressedCanMessageWriteFlow(interface)
     {
         StartFlowAt(STATE(Terminated));
@@ -313,16 +313,16 @@ class CanDatagramParser : public IncomingFrameHandler, public AllocationResult
 public:
     enum
     {
-        CAN_FILTER = AsyncIfCan::CAN_EXT_FRAME_FILTER |
+        CAN_FILTER = IfCan::CAN_EXT_FRAME_FILTER |
                      (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
                      (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
-        CAN_MASK = AsyncIfCan::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK |
+        CAN_MASK = IfCan::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK |
                    CanDefs::PRIORITY_MASK,
     };
 
     /** @param num_clients tells how many datagram write flows (aka client
      * flows) to put into the client allocator. */
-    CanDatagramParser(AsyncIfCan* interface);
+    CanDatagramParser(IfCan* interface);
     ~CanDatagramParser();
 
     /// Lock for the incoming CAN frames.
@@ -537,10 +537,10 @@ private:
     /// Lock for ourselves.
     TypedAllocator<IncomingFrameHandler> lock_;
     /// Parent interface.
-    AsyncIfCan* ifCan_;
+    IfCan* ifCan_;
 };
 
-CanDatagramSupport::CanDatagramSupport(AsyncIfCan* interface,
+CanDatagramSupport::CanDatagramSupport(IfCan* interface,
                                        int num_registry_entries,
                                        int num_clients)
     : DatagramSupport(interface, num_registry_entries)
@@ -554,7 +554,7 @@ CanDatagramSupport::CanDatagramSupport(AsyncIfCan* interface,
     }
 }
 
-Executable* TEST_CreateCanDatagramParser(AsyncIfCan* if_can) {
+Executable* TEST_CreateCanDatagramParser(IfCan* if_can) {
     return new CanDatagramParser(if_can);
 }
 
@@ -562,7 +562,7 @@ CanDatagramSupport::~CanDatagramSupport()
 {
 }
 
-CanDatagramParser::CanDatagramParser(AsyncIfCan* interface) : ifCan_(interface)
+CanDatagramParser::CanDatagramParser(IfCan* interface) : ifCan_(interface)
 {
     lock_.TypedRelease(this);
     ifCan_->frame_dispatcher()->register_handler(CAN_FILTER, CAN_MASK, this);

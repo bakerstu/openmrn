@@ -50,13 +50,13 @@ extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 class CanMessageWriteFlow : public WriteFlowBase
 {
 public:
-    CanMessageWriteFlow(AsyncIfCan *if_can) : WriteFlowBase(if_can)
+    CanMessageWriteFlow(IfCan *if_can) : WriteFlowBase(if_can)
     {
     }
 
-    AsyncIfCan *if_can()
+    IfCan *if_can()
     {
-        return static_cast<AsyncIfCan *>(async_if());
+        return static_cast<IfCan *>(async_if());
     }
 
 protected:
@@ -251,7 +251,7 @@ class AddressedCanMessageWriteFlow : public CanMessageWriteFlow,
                                      private IncomingFrameHandler
 {
 public:
-    AddressedCanMessageWriteFlow(AsyncIfCan *if_can)
+    AddressedCanMessageWriteFlow(IfCan *if_can)
         : CanMessageWriteFlow(if_can)
         , timer_(this)
     {

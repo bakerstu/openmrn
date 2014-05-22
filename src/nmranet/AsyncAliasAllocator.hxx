@@ -84,7 +84,7 @@ struct AliasInfo : public QMember
  * Users who need an allocated alias should get it from the queue in
  * reserved_aliases().
  */
-class AsyncAliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>>
+class AliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>>
 {
 public:
     /**
@@ -98,9 +98,9 @@ public:
        @param if_can is the interface to which this alias allocator should talk
        to.
      */
-    AsyncAliasAllocator(NodeID if_id, AsyncIfCan *if_can);
+    AliasAllocator(NodeID if_id, IfCan *if_can);
 
-    virtual ~AsyncAliasAllocator();
+    virtual ~AliasAllocator();
 
     /** "Allocate" a buffer from this pool (but without initialization) in
      * order to get a reserved alias. */
@@ -118,13 +118,13 @@ private:
     class ConflictHandler : public IncomingFrameHandler
     {
     public:
-        ConflictHandler(AsyncAliasAllocator *parent) : parent_(parent)
+        ConflictHandler(AliasAllocator *parent) : parent_(parent)
         {
         }
         virtual void send(Buffer<CanMessageData> *message, unsigned priority);
 
     private:
-        AsyncAliasAllocator *parent_;
+        AliasAllocator *parent_;
     } conflictHandler_;
 
     friend class ConflictHandler;
@@ -160,9 +160,9 @@ private:
 
     /** Physical interface for sending packets and assigning handlers to
      * received packets. */
-    AsyncIfCan *if_can()
+    IfCan *if_can()
     {
-        return static_cast<AsyncIfCan *>(service());
+        return static_cast<IfCan *>(service());
     }
 
     /// Which CID frame are we trying to send out. Valid values: 7..4
@@ -180,7 +180,7 @@ private:
     // SleepData sleep_helper_;
 };
 #if 0
-    class AsyncAliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>> {
+    class AliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>> {
     public:
         DynamicPool* reserved_aliases() { return mainBufferPool; }
     };
@@ -191,10 +191,10 @@ private:
 class AddAliasAllocator
 {
 public:
-    AddAliasAllocator(NodeID if_id, AsyncIfCan *interface)
+    AddAliasAllocator(NodeID if_id, IfCan *interface)
     {
         interface->set_alias_allocator(
-            new AsyncAliasAllocator(if_id, interface));
+            new AliasAllocator(if_id, interface));
     }
 };
 

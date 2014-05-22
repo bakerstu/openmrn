@@ -40,12 +40,12 @@ public:
     GlobalEventService(ExecutorBase *e);
     /** Creates a global event service that runs on an interface's thread and
      * registers the interface. */
-    GlobalEventService(AsyncIf *interface);
+    GlobalEventService(If *interface);
     ~GlobalEventService();
 
     /** Registers this global event handler with an interface. This operation
      * will be undone in the destructor. */
-    void register_interface(AsyncIf *interface);
+    void register_interface(If *interface);
 
     struct Impl;
     Impl *impl()

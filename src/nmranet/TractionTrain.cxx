@@ -57,7 +57,7 @@ NodeID TrainNode::node_id()
     return TractionDefs::NODE_ID_DCC | train_->legacy_address();
 }
 
-AsyncIf *TrainNode::interface()
+If *TrainNode::interface()
 {
     return service_->interface();
 }
@@ -266,7 +266,7 @@ struct TrainService::Impl
     TractionRequestFlow traction_;
 };
 
-TrainService::TrainService(AsyncIf *interface)
+TrainService::TrainService(If *interface)
     : Service(interface->executor())
     , interface_(interface)
 {

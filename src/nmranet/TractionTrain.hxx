@@ -54,7 +54,7 @@ public:
     TrainNode(TrainService *service, TrainImpl *train);
 
     NodeID node_id() OVERRIDE;
-    AsyncIf *interface() OVERRIDE;
+    If *interface() OVERRIDE;
     bool is_initialized() OVERRIDE
     {
         return isInitialized_;
@@ -79,10 +79,10 @@ private:
 class TrainService : public Service, private Atomic
 {
 public:
-    TrainService(AsyncIf *interface);
+    TrainService(If *interface);
     ~TrainService();
 
-    AsyncIf *interface()
+    If *interface()
     {
         return interface_;
     }
@@ -96,7 +96,7 @@ private:
     /** Implementation flows. */
     Impl *impl_;
 
-    AsyncIf *interface_;
+    If *interface_;
     /** List of train nodes managed by this Service. */
     std::set<TrainNode *> nodes_;
 };

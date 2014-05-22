@@ -84,7 +84,7 @@ NodeID buffer_to_node_id(Buffer *buf)
     }*/
 
 /// @TODO(balazs.racz): make the map size parametrizable.
-AsyncIf::AsyncIf(ExecutorBase *executor, int local_nodes_count)
+If::If(ExecutorBase *executor, int local_nodes_count)
     : Service(executor)
     , globalWriteFlow_(nullptr)
     , addressedWriteFlow_(nullptr)

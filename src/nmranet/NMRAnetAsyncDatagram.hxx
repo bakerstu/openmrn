@@ -172,7 +172,7 @@ public:
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)
      */
-    DatagramSupport(AsyncIf* interface, size_t num_registry_entries);
+    DatagramSupport(If* interface, size_t num_registry_entries);
     ~DatagramSupport();
 
     /// @returns the registry of datagram handlers.
@@ -192,7 +192,7 @@ public:
         return &clients_;
     }
 
-    AsyncIf* interface()
+    If* interface()
     {
         return interface_;
     }
@@ -203,7 +203,7 @@ private:
     {
     public:
         /// @TODO(balazs.racz) we have two QueueMember base classes in here.
-        DatagramDispatcher(AsyncIf* interface, size_t num_registry_entries)
+        DatagramDispatcher(If* interface, size_t num_registry_entries)
             : ControlFlow(interface->dispatcher()->executor(), nullptr),
               m_(nullptr),
               registry_(num_registry_entries),
@@ -246,11 +246,11 @@ private:
         Registry registry_;
 
         TypedAllocator<IncomingMessageHandler> lock_;
-        AsyncIf* interface_;
+        If* interface_;
     };
 
     /// Interface on which we are registered.
-    AsyncIf* interface_;
+    If* interface_;
 
     /// Datagram clients.
     TypedAllocator<DatagramClient> clients_;
