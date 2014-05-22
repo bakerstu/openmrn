@@ -68,10 +68,9 @@ CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) -fno-rtti -fno-exceptions \
-            -std=c++0x \
+            -std=gnu++0x \
            -mthumb  \
             -D__STDC_FORMAT_MACROS \
-           -D__STDC_VERSION__=199901  \
            $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \

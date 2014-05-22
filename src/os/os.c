@@ -676,7 +676,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     if (thread)
     {
         xTaskGenericCreate(os_thread_start,
-                           (const signed char *const)name,
+                           (const char *const)name,
                            stack_size/sizeof(portSTACK_TYPE),
                            priv,
                            priority,
@@ -690,7 +690,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         xTaskHandle task_handle;
         xTaskGenericCreate(os_thread_start,
-                           (const signed char *const)name,
+                           (const char *const)name,
                            stack_size/sizeof(portSTACK_TYPE),
                            priv,
                            priority,
@@ -865,6 +865,7 @@ extern char *heap_end;
 char *heap_end = 0;
 caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
+    /** @todo (Stuart Baker) change naming to remove "cs3" convention */
     extern char __cs3_heap_start;
     extern char __cs3_heap_end; /* Defined by the linker */
     char *prev_heap_end;
@@ -996,7 +997,7 @@ int main(int argc, char *argv[])
 
     /* start the main thread */
     xTaskGenericCreate(
-        main_thread, (signed char *)"thread.main",
+        main_thread, (char *)"thread.main",
         config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
         priority, &task_handle,
         (long unsigned int *)stack_malloc(config_main_thread_stack_size()),

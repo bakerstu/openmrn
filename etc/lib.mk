@@ -5,7 +5,7 @@ BASENAME = $(shell basename `pwd`)
 SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)
 VPATH = $(SRCDIR)
 
-INCLUDES += -I./ -I$(OPENMRNPATH)/src/ -I $(OPENMRNPATH)/include
+INCLUDES += -I./ -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 exist := $(wildcard $(SRCDIR)/sources)

@@ -47,7 +47,7 @@ ExecutorBase *ExecutorBase::list = NULL;
  * @param stack_size thread stack size
  */
 ExecutorBase::ExecutorBase()
-    : name(name)
+    : name(NULL) /** @todo (Stuart Baker) is "name" still in use? */
     , next(NULL)
     , activeTimers_(this)
     , done_(0)

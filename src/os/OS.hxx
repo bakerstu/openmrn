@@ -95,7 +95,8 @@ protected:
     /** User entry point for the created thread.
      * @return exit status
      */
-    virtual void *entry() {
+    virtual void *entry()
+    {
         HASSERT(0 && "forgot to overload OSThread entry point. This thread "
                      "would do nothing.");
         return NULL;

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,11 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StellarisUart.cxx
- * This file implements a USB CDC device driver layer specific to stellarisware.
+ * \file TivaUart.cxx
+ * This file implements a USB CDC device driver layer specific to Tivaware.
  *
  * @author Stuart W. Baker
- * @date 11 January 2013
+ * @date 6 May 2014
  */
 
 #include <algorithm>
@@ -43,19 +43,20 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 
-#include "StellarisDev.hxx"
+#include "TivaDev.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
-static StellarisUart *instances[8] = {NULL};
+static TivaUart *instances[8] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
+ * @param interrupt interrupt number of this device
  */
-StellarisUart::StellarisUart(const char *name, unsigned long base)
+TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
     : Serial(name),
       base(base),
-      interrupt(0),
+      interrupt(interrupt),
       txPending(false)
 {
     
@@ -65,42 +66,34 @@ StellarisUart::StellarisUart(const char *name, unsigned long base)
             HASSERT(0);
         case UART0_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
-            interrupt = INT_UART0;
             instances[0] = this;
             break;
         case UART1_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-            interrupt = INT_UART1;
             instances[1] = this;
             break;
         case UART2_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART2);
-            interrupt = INT_UART2;
             instances[2] = this;
             break;
         case UART3_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART3);
-            interrupt = INT_UART3;
             instances[3] = this;
             break;
         case UART4_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART4);
-            interrupt = INT_UART4;
             instances[4] = this;
             break;
         case UART5_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART5);
-            interrupt = INT_UART5;
             instances[5] = this;
             break;
         case UART6_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART6);
-            interrupt = INT_UART6;
             instances[6] = this;
             break;
         case UART7_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART7);
-            interrupt = INT_UART7;
             instances[7] = this;
             break;
     }
@@ -124,7 +117,7 @@ StellarisUart::StellarisUart(const char *name, unsigned long base)
 /** Enable use of the device.
  * @param dev device to enable
  */
-void StellarisUart::enable()
+void TivaUart::enable()
 {
     MAP_UARTConfigSetExpClk(base, MAP_SysCtlClockGet(), 115200,
                             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
@@ -135,7 +128,7 @@ void StellarisUart::enable()
 
 /** Disable use of the device.
  */
-void StellarisUart::disable()
+void TivaUart::disable()
 {
     MAP_IntDisable(interrupt);
     MAP_UARTDisable(base);
@@ -143,26 +136,27 @@ void StellarisUart::disable()
 
 /* Try and transmit a message.
  */
-void StellarisUart::tx_char()
+void TivaUart::tx_char()
 {
-    unsigned char data;
-    portENTER_CRITICAL();
-    if (MAP_UARTSpaceAvail(base) &&
-        os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
+    if (txPending == false)
     {
-        MAP_UARTCharPutNonBlocking(base, data);
-        if (txPending == false)
+        unsigned char data;
+
+        if (os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
         {
+            MAP_UARTCharPutNonBlocking(base, data);
+
+            MAP_IntDisable(interrupt);
             txPending = true;
             MAP_UARTIntEnable(base, UART_INT_TX);
+            MAP_IntEnable(interrupt);
         }
     }
-    portEXIT_CRITICAL();
 }
 
 /** Common interrupt handler for all UART devices.
  */
-void StellarisUart::interrupt_handler()
+void TivaUart::interrupt_handler()
 {
     int woken = false;
     /* get and clear the interrupt status */

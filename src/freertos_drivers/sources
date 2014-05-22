@@ -13,16 +13,16 @@ ifeq ($(TARGET),freertos.armv7m)
 CXXSRCS += c++_operators.cxx
 endif
 
-# Find StellarisWare
-ifdef STELLARISWAREPATH
+# Find TivaWare
+ifdef TIVAWAREPATH
 ifeq ($(TARGET),freertos.armv7m)
-include $(OPENMRNPATH)/etc/stellarisware.mk
+include $(OPENMRNPATH)/etc/tivaware.mk
 
-CXXSRCS += StellarisCan.cxx \
-           StellarisUart.cxx \
-           StellarisUsbCdcDevice.cxx
+CXXSRCS += TivaCan.cxx \
+           TivaUart.cxx \
+           TivaUsbCdcDevice.cxx
 
-VPATH += $(SRCDIR)/stellarisware
+VPATH += $(SRCDIR)/ti
 endif
 endif
 

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Stuart W Baker
+ * Copyright (c) 2014, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +24,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StellarisUsbCdcDevice.cxx
- * This file implements a USB CDC device driver layer specific to stellarisware.
+ * \file TivaUsbCdcDevice.cxx
+ * This file implements a USB CDC device driver layer specific to TivaWare.
  *
  * @author Stuart W. Baker
- * @date 3 January 2013
+ * @date 6 May 2014
  */
 
 #ifndef gcc
 #define gcc
 #endif
+
+#include <stdint.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -48,11 +50,11 @@
 #include "usblib/device/usbdevice.h"
 #include "usblib/device/usbdcdc.h"
 
-#include "StellarisDev.hxx"
+#include "TivaDev.hxx"
 
 /** The languages supported by this device.
  */
-const unsigned char langDescriptor[] =
+const uint8_t langDescriptor[] =
 {
     4,
     USB_DTYPE_STRING,
@@ -61,7 +63,7 @@ const unsigned char langDescriptor[] =
 
 /** The manufacturur string.
  */
-const unsigned char manufacturerString[] =
+const uint8_t manufacturerString[] =
 {
     2 + (7 * 2),
     USB_DTYPE_STRING,
@@ -70,7 +72,7 @@ const unsigned char manufacturerString[] =
 
 /** The product string.
  */
-const unsigned char productString[] =
+const uint8_t productString[] =
 {
     2 + (16 * 2),
     USB_DTYPE_STRING,
@@ -81,7 +83,7 @@ const unsigned char productString[] =
 
 /** The serial number string.
  */
-const unsigned char serialNumberString[] =
+const uint8_t serialNumberString[] =
 {
     2 + (8 * 2),
     USB_DTYPE_STRING,
@@ -90,7 +92,7 @@ const unsigned char serialNumberString[] =
 
 /** The configuration interface description string.
  */
-const unsigned char controlInterfaceString[] =
+const uint8_t controlInterfaceString[] =
 {
     2 + (21 * 2),
     USB_DTYPE_STRING,
@@ -101,7 +103,7 @@ const unsigned char controlInterfaceString[] =
 
 /** The configuration description string.
  */
-const unsigned char configString[] =
+const uint8_t configString[] =
 {
     2 + (26 * 2),
     USB_DTYPE_STRING,
@@ -113,7 +115,7 @@ const unsigned char configString[] =
 
 /** The descriptor string table.
  */
-const unsigned char *const stringDescriptors[] =
+const uint8_t *const stringDescriptors[] =
 {
     langDescriptor,
     manufacturerString,
@@ -123,50 +125,38 @@ const unsigned char *const stringDescriptors[] =
     configString
 };
 
-#define NUM_STRING_DESCRIPTORS (sizeof(stringDescriptors) / sizeof(unsigned char *))
+#define NUM_STRING_DESCRIPTORS (sizeof(stringDescriptors) / sizeof(uint8_t *))
 
 /** Instance pointers help us get context from the interrupt handler(s) */
-static StellarisCdc *instances[1] = {NULL};
+static TivaCdc *instances[1] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
- * @param base base address of this device
+ * @param interrupt interrupt number used by the device
  */
-StellarisCdc::StellarisCdc(const char *name)
-    : Serial(name),
-      connected(false),
-      enabled(false),
-      woken(false)
+TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
+    : Serial(name)
+    , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR, control_callback, this, rx_callback, this, tx_callback, this, stringDescriptors, NUM_STRING_DESCRIPTORS}
+    , interrupt(interrupt)
+    , connected(false)
+    , enabled(false)
+    , woken(false)
 {
-    usbdcdcDevice.usVID = USB_VID_STELLARIS;
-    usbdcdcDevice.usPID = USB_PID_SERIAL;
-    usbdcdcDevice.usMaxPowermA = 0;
-    usbdcdcDevice.ucPwrAttributes = USB_CONF_ATTR_SELF_PWR;
-    usbdcdcDevice.pfnControlCallback = control_callback;
-    usbdcdcDevice.pvControlCBData = this;
-    usbdcdcDevice.pfnRxCallback = rx_callback;
-    usbdcdcDevice.pvRxCBData = this;
-    usbdcdcDevice.pfnTxCallback = tx_callback;
-    usbdcdcDevice.pvTxCBData = this;
-    usbdcdcDevice.ppStringDescriptors = stringDescriptors;
-    usbdcdcDevice.ulNumStringDescriptors = NUM_STRING_DESCRIPTORS;
-    usbdcdcDevice.psPrivateCDCSerData = &serialInstance;
-    
-    USBStackModeSet(0, USB_MODE_DEVICE, 0);
+    USBStackModeSet(0, eUSBModeDevice, 0);
     USBDCDCInit(0, &usbdcdcDevice);
     instances[0] = this;
 }
 
 /** Enable use of the device interrupts.
  */
-void StellarisCdc::enable()
+void TivaCdc::enable()
 {
     enabled = true;
 }
 
 /** Disable use of the device interrupts.
  */
-void StellarisCdc::disable()
+void TivaCdc::disable()
 {
     enabled = false;
 }
@@ -174,12 +164,12 @@ void StellarisCdc::disable()
 /* Try and transmit a message.
  * @param dev device to transmit message on
  */
-void StellarisCdc::tx_char()
+void TivaCdc::tx_char()
 {
     #define CDC_SERIAL_STATE  USB_CDC_SERIAL_STATE_TXCARRIER | \
                               USB_CDC_SERIAL_STATE_RXCARRIER
     
-    MAP_IntDisable(INT_USB0);
+    MAP_IntDisable(interrupt);
     if (connected)
     {
         unsigned long available;
@@ -204,11 +194,11 @@ void StellarisCdc::tx_char()
             /* we have some data to send */
             USBDCDCPacketWrite(&usbdcdcDevice, txData, count, 1);
         }
-        MAP_IntEnable(INT_USB0);
+        MAP_IntEnable(interrupt);
     }
     else
     {
-        MAP_IntEnable(INT_USB0);
+        MAP_IntEnable(interrupt);
         /* we are not connected, flush away the data */
         int result;
         do
@@ -227,9 +217,9 @@ void StellarisCdc::tx_char()
  * @param msg_data event-specific data
  * @return return value is event specific
  */
-unsigned long StellarisCdc::control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+unsigned long TivaCdc::control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
-    StellarisCdc *serial = (StellarisCdc*)data;
+    TivaCdc *serial = (TivaCdc*)data;
 
     switch(event)
     {
@@ -259,9 +249,9 @@ unsigned long StellarisCdc::control_callback(void *data, unsigned long event, un
     return 0;
 }
 
-unsigned long StellarisCdc::rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
-    StellarisCdc *serial = (StellarisCdc*)data;
+    TivaCdc *serial = (TivaCdc*)data;
 
     switch (event)
     {
@@ -318,9 +308,9 @@ unsigned long StellarisCdc::rx_callback(void *data, unsigned long event, unsigne
     return 0;
 }
 
-unsigned long StellarisCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
-    StellarisCdc *serial = (StellarisCdc*)data;
+    TivaCdc *serial = (TivaCdc*)data;
     
     switch (event)
     {
@@ -355,7 +345,7 @@ unsigned long StellarisCdc::tx_callback(void *data, unsigned long event, unsigne
 
 /** Interrupt Handler in context.
  */
-void StellarisCdc::interrupt_handler(void)
+void TivaCdc::interrupt_handler(void)
 {
     woken = false;
     USB0DeviceIntHandler();

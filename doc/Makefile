@@ -8,10 +8,10 @@ SRCS = $(wildcard ../src/os/*.h) $(wildcard ../src/os/*.cxx) \
        $(wildcard ../src/freertos_drivers/common/*.c) \
        $(wildcard ../src/freertos_drivers/common/*.hxx) \
        $(wildcard ../src/freertos_drivers/common/*.cxx) \
-       $(wildcard ../src/freertos_drivers/stellarisware/*.h) \
-       $(wildcard ../src/freertos_drivers/stellarisware/*.c) \
-       $(wildcard ../src/freertos_drivers/stellarisware/*.hxx) \
-       $(wildcard ../src/freertos_drivers/stellarisware/*.cxx)
+       $(wildcard ../src/freertos_drivers/ti/*.h) \
+       $(wildcard ../src/freertos_drivers/ti/*.c) \
+       $(wildcard ../src/freertos_drivers/ti/*.hxx) \
+       $(wildcard ../src/freertos_drivers/ti/*.cxx)
        
 
 all:

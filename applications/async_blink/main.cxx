@@ -184,16 +184,16 @@ int appl_main(int argc, char* argv[])
 #endif  // default target
 #endif  // FreeRTOS
 
-    int fd = ::open("/dev/ser0", O_RDWR);
-    HASSERT(fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, fd);
+    //int fd = ::open("/dev/ser0", O_RDWR);
+    //HASSERT(fd >= 0);
+    //create_gc_port_for_can_hub(&can_hub0, fd);
 
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     NMRAnet::BitEventConsumer consumer(&logger);
-    //BlinkerFlow blinker(&g_node);
+    BlinkerFlow blinker(&g_node);
     // We don't need to support addressed messages.
     // g_if_can.add_addressed_message_support(1);
     while(1) {

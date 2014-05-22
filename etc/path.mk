@@ -27,18 +27,41 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 # endif
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
-################ stellarisware ##################
-ifndef STELLARISWAREPATH
+################ tivaware ##################
+ifndef TIVAWAREPATH
 SEARCHPATH := \
-  /opt/StellarisWare/default \
-  /opt/StellarisWare \
-  $(HOME)/StellarisWare
+  /opt/ti/TivaWare/default \
+  /opt/TivaWare/default \
+  /opt/TivaWare \
+  $(HOME)/TivaWare
 
 TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
-STELLARISWAREPATH:=$(TRYPATH)
+TIVAWAREPATH:=$(TRYPATH)
 endif
-endif #FREERTOSPATH
+endif #TIVAWAREPATH
+
+################ lpcopen_18xx_43xx ##################
+ifndef LPCOPENPATH_18XX_43XX
+SEARCHPATH := \
+  /opt/nxp/lpcopen_18xx_43xx/default 
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+LPCOPENPATH_18XX_43XX:=$(TRYPATH)
+endif
+endif #LPCOPENPATH_18XX_43XX
+
+################ nxpusblib ##################
+ifndef NXPUSBLIBPATH
+SEARCHPATH := \
+  /opt/nxp/nxpUSBlib/default 
+
+TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+NXPUSBLIBPATH:=$(TRYPATH)
+endif
+endif #NXPUSBLIBPATH
 
 ################# mbed library ##################
 
@@ -78,17 +101,6 @@ ifneq ($(TRYPATH),)
 LPCXPRESSOPATH:=$(TRYPATH)
 endif
 endif #LPCXPRESSOPATH
-
-################# cs3-arm ####################
-ifndef ARMCS3PATH
-SEARCHPATH := \
-  /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
-
-TRYPATH:=$(call findfirst,bin,$(SEARCHPATH))
-ifneq ($(TRYPATH),)
-ARMCS3PATH:=$(TRYPATH)
-endif
-endif #ARMCS3PATH
 
 ################## checksum #####################
 ifndef CHECKSUM
