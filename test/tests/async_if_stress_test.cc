@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/WriteHelper.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/AliasAllocator.hxx"
 #include "os/OS.hxx"

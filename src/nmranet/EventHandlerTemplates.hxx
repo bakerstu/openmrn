@@ -37,7 +37,7 @@
 #define _NMRAnet_EventHandlerTemplates_hxx_
 
 #include "nmranet/NMRAnetEventRegistry.hxx"
-#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/WriteHelper.hxx"
 
 namespace nmranet
 {

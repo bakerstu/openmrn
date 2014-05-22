@@ -12,7 +12,7 @@
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/DefaultNode.hxx"
 //#include "nmranet/NMRAnetAsyncEventHandler.hxx"
-//#include "nmranet/NMRAnetWriteFlow.hxx"
+//#include "nmranet/WriteHelper.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"

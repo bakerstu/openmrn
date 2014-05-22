@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/NMRAnetWriteFlow.hxx"
+#include "nmranet/WriteHelper.hxx"
 
 namespace nmranet
 {
