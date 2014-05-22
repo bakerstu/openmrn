@@ -1,7 +1,7 @@
 #include "utils/test_main.hxx"
 
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/NMRAnetEventTestHelper.hxx"
+#include "nmranet/EventHandlerMock.hxx"
 
 using ::testing::_;
 using ::testing::Mock;

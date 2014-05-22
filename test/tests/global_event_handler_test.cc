@@ -3,7 +3,7 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventServiceImpl.hxx"
 #include "nmranet/EventHandler.hxx"
-#include "nmranet/NMRAnetEventTestHelper.hxx"
+#include "nmranet/EventHandlerMock.hxx"
 #include "nmranet/EndianHelper.hxx"
 #include "gmock/gmock.h"
 

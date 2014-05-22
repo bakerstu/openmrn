@@ -34,8 +34,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRAnetEventTestHelper_hxx_
-#define _NMRAnetEventTestHelper_hxx_
+#ifndef _NMRANET_EVENTHANDLERMOCK_HXX_
+#define _NMRANET_EVENTHANDLERMOCK_HXX_
 
 #include "gmock/gmock.h"
 #include "nmranet/EventHandler.hxx"

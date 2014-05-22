@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/EventService.hxx"
-#include "nmranet/NMRAnetEventTestHelper.hxx"
+#include "nmranet/EventHandlerMock.hxx"
 
 namespace nmranet
 {
