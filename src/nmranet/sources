@@ -7,9 +7,9 @@ CXXSRCS += \
            IfCan.cxx \
            If.cxx \
            IfImpl.cxx \
-           NMRAnetWriteFlow.cxx \
+           WriteFlow.cxx \
            DefaultNode.cxx \
-           NMRAnetNodeInitializeFlow.cxx \
+           NodeInitializeFlow.cxx \
            AliasAllocator.cxx \
            NMRAnetEventRegistry.cxx \
            GlobalEventHandler.cxx \
