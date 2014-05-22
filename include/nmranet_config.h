@@ -51,9 +51,6 @@
 
 #include "utils/constants.hxx"
 
-/** Define this macro to use the new C++ event transport implementation. */
-#define CPP_EVENT_HANDLER
-
 #ifdef __cplusplus
 extern "C" {
 #endif
