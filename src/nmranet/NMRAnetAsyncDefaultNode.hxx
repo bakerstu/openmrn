@@ -35,7 +35,7 @@
 #ifndef _NMRAnetAsyncDefaultNode_hxx_
 #define _NMRAnetAsyncDefaultNode_hxx_
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "nmranet/Node.hxx"
 
 namespace nmranet
 {

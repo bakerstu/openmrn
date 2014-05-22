@@ -38,7 +38,7 @@
 #include <set>
 
 #include "executor/Service.hxx"
-#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "nmranet/Node.hxx"
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 

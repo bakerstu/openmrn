@@ -32,8 +32,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRAnetAsyncNode_hxx_
-#define _NMRAnetAsyncNode_hxx_
+#ifndef _NMRANET_NODE_HXX_
+#define _NMRANET_NODE_HXX_
 
 #include "nmranet/Defs.hxx"  // for NodeID
 
@@ -69,4 +69,4 @@ public:
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncNode_hxx_
+#endif // _NMRANET_NODE_HXX_

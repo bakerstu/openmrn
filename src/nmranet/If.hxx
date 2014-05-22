@@ -38,7 +38,7 @@
 /// @todo(balazs.racz) remove this dep
 #include <string>
 
-#include "nmranet/NMRAnetAsyncNode.hxx"
+#include "nmranet/Node.hxx"
 #include "nmranet/Defs.hxx"
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
