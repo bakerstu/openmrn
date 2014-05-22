@@ -39,7 +39,7 @@
 
 #include "os/os.h"
 #include "utils/PipeFlow.hxx"
-#include "utils/gc_pipe.hxx"
+#include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"

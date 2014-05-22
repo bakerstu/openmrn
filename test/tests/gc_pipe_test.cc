@@ -5,7 +5,7 @@
 using namespace std;
 
 #include "utils/test_main.hxx"
-#include "utils/gc_pipe.hxx"
+#include "utils/GridConnectHub.hxx"
 #include "utils/PipeFlow.hxx"
 #include "nmranet_can.h"
 

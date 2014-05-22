@@ -35,7 +35,7 @@
 
 #include "utils/GcTcpHub.hxx"
 
-#include "utils/gc_pipe.hxx"
+#include "utils/GridConnectHub.hxx"
 
 void GcTcpHub::OnNewConnection(int fd)
 {

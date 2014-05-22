@@ -37,7 +37,7 @@
 #include <unistd.h>
 
 #include "os/os.h"
-#include "utils/gc_pipe.hxx"
+#include "utils/GridConnectHub.hxx"
 #include "executor/Executor.hxx"
 #include "nmranet_can.h"
 #include "nmranet_config.h"

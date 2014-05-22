@@ -6,7 +6,7 @@ CSRCS += errno_exit.c \
 CXXSRCS += BufferQueue.cxx \
            GridConnect.cxx \
            logging.cxx \
-           gc_pipe.cxx \
+           GridConnectHub.cxx \
            gc_format.cxx \
            HubDevice.cxx \
            GcTcpHub.cxx \
