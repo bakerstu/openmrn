@@ -31,14 +31,9 @@
  * @date 18 September 2013
  */
 
-#ifndef _NMRAnetIfCan_hxx_
-#define _NMRAnetIfCan_hxx_
+#ifndef _NMRANET_CANDEFS_HXX_
+#define _NMRANET_CANDEFS_HXX_
 
-#include <fcntl.h>
-#include <new>
-
-#include "nmranet/NMRAnetAliasCache.hxx"
-#include "nmranet/NMRAnetIf.hxx"
 #include "nmranet_config.h"
 #include "nmranet_can.h"
 
@@ -47,40 +42,13 @@
 namespace NMRAnet
 {
 
-class IfCan;
+
+struct CanDefs {
+    
 
 
-/** The generic interface for NMRAnet network interfaces
- */
-class IfCan : public If
-{
-public:
-    /** Constructor.
-     * @param node_id node ID of interface
-     * @param device description for this instance
-     * @param read read method for this interface
-     * @param write write method for this interface
-     */
-    IfCan(NodeID node_id, const char *device,
-          ssize_t (*read)(int, void*, size_t),
-          ssize_t (*write)(int, const void*, size_t));
 
-    /** Message ID's that we can receive */
-    enum MessageId
-    {
-        READ_FRAME = NMRANET_IF_CAN_BASE,
-        CONTROL_FRAME,
-        WRITE_FRAME
-    };
 
-protected:
-    /** Default destructor.
-     */
-    ~IfCan()
-    {
-    }
-
-private:
 
     /** Status value for an alias pool item.
      */
@@ -91,33 +59,7 @@ private:
         CONFLICT,   /**< we discovered someone else already is using this alias */
         FREE        /**< the alias is free for another request */
     };
-    
-    /** Metadata for members of the alias pool.
-     */
-    class Pool
-    {
-    public:
-        /** Constructor.
-         */
-        Pool(IfCan *if_can)
-            : timer(timeout, if_can, this),
-              status(FREE),
-              alias(0)
-        {
-        }
-        
-        /** This is the timeout for claiming an alias.  At this point, the alias will
-         * either be claimed as a downstream node, or we can start using it.
-         * @param data1 a @ref IfCan instance typecast to a void*
-         * @param data2 a @ref Pool instance typecast to a void*
-         * @return OS_TIMER_NONE
-         */
-        static long long timeout(void *data1, void *data2);
-        
-        OSTimer timer;      /**< timer used for establishing the connection */
-        AliasStatus status; /**< status of node */
-        NodeAlias alias;    /**< alias */
-    };
+
 
     /** CAN ID bit fields for most CAN frames. */
     enum ID
@@ -153,7 +95,10 @@ private:
         CONTROL_PADDING_SHIFT  = 29  /**< pad out to a full 32-bit word */
     };
 
-    typedef uint16_t CanMTI;
+
+
+    // @TODO(balazs.racz) do we need this?
+    //typedef uint16_t CanMTI;
 
     /** CAN Frame Types. */
     enum CanFrameType
@@ -190,6 +135,8 @@ private:
         AMR_FRAME = 0x0703  /**< Alias Map Reset */
     };
     
+#if 0
+
     /** Enumerations having to deal with addressed frame types. */
     enum Addressed
     {
@@ -227,7 +174,9 @@ private:
         /** Middle frame in multi-frame message */
         FRAME_MIDDLE = 0x3
     };
-    
+
+#endif
+
     /** Get the source field value of the CAN ID.
      * @param can_id identifier to act upon
      * @return source field
@@ -369,6 +318,8 @@ private:
                   (priority << PRIORITY_SHIFT      );
     }
     
+#if 0
+
     /** Get the NMRAnet MTI from a can identifier.
      * @param can_id CAN identifider
      * @return NMRAnet MTI
@@ -510,5 +461,18 @@ private:
 };
 
 }; /* namespace NMRAnet */
+  
+#endif // #if 0
+
+
+private:
+    /** This class should not be instantiated. */
+    CanDefs();
+};
+
+
+}  // namespace NMRAnet
+
+
 
 #endif /* _NMRAnetIfCan_hxx_ */
