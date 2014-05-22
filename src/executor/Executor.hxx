@@ -37,6 +37,7 @@
 #define _Executor_hxx_
 
 #include "executor/Message.hxx"
+#include "executor/Executable.hxx"
 #include "executor/notifiable.hxx"
 #include "executor/Timer.hxx"
 #include "utils/BufferQueue.hxx"

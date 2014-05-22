@@ -12,30 +12,6 @@ public:
     virtual void notify() = 0;
 };
 
-/// An object that can be scheduled on an executor to run.
-class Executable : public Notifiable, public QMember
-{
-public:
-    virtual ~Executable()
-    {
-    }
-    /** Entry point. This funciton will be called when *this gets scheduled on
-     * the CPU. */
-    virtual void run() = 0;
-
-    virtual void notify() {
-        HASSERT(0 && "unexpected call to notify in Executable");
-    }
-
-    /** Return the result of an alloc_async() from a memory @ref Pool
-     * @param item result of the the allocation
-     */
-    virtual void alloc_result(QMember *item)
-    {
-        HASSERT(0 && "unexpected call to alloc_result");
-    }
-};
-
 // A Notifiable for synchronously waiting for a notification.
 // TODO(balazs.racz): We should make a syncnotifiable not need a semaphore
 // of itself, but rather use a thread-local semaphore.
