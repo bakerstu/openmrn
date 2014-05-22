@@ -33,7 +33,7 @@
  */
 
 #include "nmranet/NMRAnetAsyncDatagramCan.hxx"
-#include "nmranet/AsyncIfCanImpl.hxx"
+#include "nmranet/IfCanImpl.hxx"
 
 namespace nmranet
 {

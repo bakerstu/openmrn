@@ -32,8 +32,8 @@
  * @date 27 Jan 2013
  */
 
-#ifndef _NMRANET_ASYNC_IF_CAN_IMPL_HXX_
-#define _NMRANET_ASYNC_IF_CAN_IMPL_HXX_
+#ifndef _NMRANET_IFCANIMPL_HXX_
+#define _NMRANET_IFCANIMPL_HXX_
 
 #include "nmranet/CanDefs.hxx"
 #include "executor/StateFlow.hxx"
@@ -463,4 +463,4 @@ protected:
 };
 } // namespace nmranet
 
-#endif //_NMRANET_ASYNC_IF_CAN_IMPL_HXX_
+#endif //_NMRANET_IFCANIMPL_HXX_

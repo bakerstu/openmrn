@@ -11,7 +11,7 @@ CXXSRCS += \
            DefaultNode.cxx \
            NodeInitializeFlow.cxx \
            AliasAllocator.cxx \
-           NMRAnetEventRegistry.cxx \
+           EventHandler.cxx \
            EventService.cxx \
            EventHandlerTemplates.cxx \
 	   EventHandlerContainer.cxx \
