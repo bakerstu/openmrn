@@ -180,10 +180,7 @@ struct Defs
     }
 
     /** Maximum size of a static addressed message payload */
-    static const size_t MAX_ADDRESSED_SIZE;
-
-private:
-    DISALLOW_COPY_AND_ASSIGN(If);
+    static const size_t MAX_ADDRESSED_SIZE = 14;
 };
 
 /** Operator overload for post increment */
