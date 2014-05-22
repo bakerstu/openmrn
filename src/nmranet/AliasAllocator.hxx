@@ -32,8 +32,8 @@
  * @date 4 Dec 2013
  */
 
-#ifndef _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_
-#define _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_
+#ifndef _NMRANET_ALIASALLOCATOR_HXX_
+#define _NMRANET_ALIASALLOCATOR_HXX_
 
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Defs.hxx"
@@ -201,4 +201,4 @@ public:
 }  // namespace nmranet
 
 
-#endif // _NMRANET_ASYNC_ALIAS_ALLOCATOR_HXX_
+#endif // _NMRANET_ALIASALLOCATOR_HXX_

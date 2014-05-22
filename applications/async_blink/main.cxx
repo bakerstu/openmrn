@@ -46,7 +46,7 @@
 #include "utils/HubDevice.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Defs.hxx"
-#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AliasAllocator.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"

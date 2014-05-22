@@ -7,7 +7,7 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AliasAllocator.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetAsyncDefaultNode.hxx"

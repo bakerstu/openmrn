@@ -4,7 +4,7 @@
 
 #include "nmranet/NMRAnetWriteFlow.hxx"
 #include "nmranet/IfCan.hxx"
-#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AliasAllocator.hxx"
 #include "os/OS.hxx"
 
 namespace nmranet

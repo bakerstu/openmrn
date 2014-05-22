@@ -1,7 +1,7 @@
 #include <map>
 
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/AsyncAliasAllocator.hxx"
+#include "nmranet/AliasAllocator.hxx"
 #include "nmranet/NMRAnetAliasCache.hxx"
 
 namespace nmranet
