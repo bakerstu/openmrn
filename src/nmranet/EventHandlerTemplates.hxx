@@ -150,7 +150,7 @@ class BitEventHandler : public SimpleEventHandler {
   // Checks if the event in the report is something we are interested in, and
   // if so, sends off a {Producer|Consumer}Identify message. Uses
   // write_event_handler1.
-  void HandlePCIdentify(If::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
+  void HandlePCIdentify(Defs::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
 
   BitEventInterface* bit_;
 
@@ -243,7 +243,7 @@ class BitRangeEventPC : public SimpleEventHandler {
   virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
 
  private:
-  void HandleIdentifyBase(If::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
+  void HandleIdentifyBase(Defs::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
   void GetBitAndMask(unsigned bit, uint32_t** data, uint32_t* mask) const;
 
   uint64_t event_base_;

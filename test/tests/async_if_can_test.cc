@@ -100,7 +100,7 @@ protected:
 TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
     auto *b = ifCan_->global_message_write_flow()->alloc();
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
                      EventIdToBuffer(0x0102030405060708ULL));
     expect_packet(":X195B422AN0102030405060708;");
     ifCan_->global_message_write_flow()->send(b);
@@ -109,7 +109,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTI)
 TEST_F(AsyncMessageCanTests, WriteByMTIShort)
 {
     auto *b = ifCan_->global_message_write_flow()->alloc();
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID, "12345");
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID, "12345");
     expect_packet(":X195B422AN3132333435;");
     ifCan_->global_message_write_flow()->send(b);
 }
@@ -119,7 +119,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedShort)
     auto *b = ifCan_->global_message_write_flow()->alloc();
 
     expect_packet(":X1982822AN00003132333435;");
-    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID, "12345");
+    b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID, "12345");
     ifCan_->global_message_write_flow()->send(b);
 }
 
@@ -135,7 +135,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAddressedFragmented)
      * to send an addressed message. @TODO(balazs.racz): replace this with
      * addressed write flow once that is ready and working. Add checks for this
      * not to happen in production. */
-    b->data()->reset(If::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID,
+    b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, TEST_NODE_ID,
                      "01234567890123456789");
     ifCan_->global_message_write_flow()->send(b);
 }
@@ -146,7 +146,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
     for (int i = 0; i < 100; ++i)
     {
         auto *b = ifCan_->global_message_write_flow()->alloc();
-        b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+        b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
                          EventIdToBuffer(0x0102030405060708ULL));
         ifCan_->global_message_write_flow()->send(b);
     }
@@ -157,7 +157,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
     auto *b = ifCan_->global_message_write_flow()->alloc();
 
     EXPECT_CALL(canBus_, mwrite(_)).Times(0);
-    b->data()->reset(If::MTI_DATAGRAM, TEST_NODE_ID,
+    b->data()->reset(Defs::MTI_DATAGRAM, TEST_NODE_ID,
                      EventIdToBuffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
 }
@@ -167,7 +167,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
         h, handle_message(
-               Pointee(AllOf(Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+               Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
                              // Field(&NMRAnetMessage::payload, NotNull()),
                              Field(&NMRAnetMessage::payload,
                                    IsBufferValue(0x0102030405060708ULL)))),
@@ -176,7 +176,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
 
     auto *b = ifCan_->global_message_write_flow()->alloc();
     expect_packet(":X195B422AN0102030405060708;");
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
                      EventIdToBuffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
     wait();
@@ -190,7 +190,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, If::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                Field(&NMRAnetMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
                 //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValue(0x0102030405060708ULL)),
@@ -206,7 +206,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
     /** Here we are using a new source node ID number, which would normally
      * trigger an alias allocation. However, since the message never makes it
      * to the canbus (is looped back), that does not happen.*/
-    b->data()->reset(If::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
+    b->data()->reset(Defs::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
         {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL));
     b->set_done(get_notifiable());
     ifCan_->addressed_message_write_flow()->send(b);
@@ -222,7 +222,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                      EventIdToBuffer(0x0102030405060708ULL));
     b->set_done(get_notifiable());
     ifCan_->global_message_write_flow()->send(b);
@@ -277,7 +277,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;");
     expect_packet(":X195B433AN0102030405060708;");
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID,
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
                      EventIdToBuffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
     usleep(250000);
@@ -306,7 +306,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     expect_packet(":X1070144DN02010D000004;");
     expect_packet(":X195B444DN0102030405060709;");
     b = ifCan_->global_message_write_flow()->alloc();
-    b->data()->reset(If::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
+    b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
                      EventIdToBuffer(0x0102030405060709ULL));
     b->set_done(get_notifiable());
     ifCan_->global_message_write_flow()->send(b);
@@ -328,7 +328,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
                 Field(&NMRAnetMessage::dst, NodeHandle({0, 0})),
@@ -353,7 +353,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, If::MTI_EVENT_REPORT),
+                Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
                 Field(&NMRAnetMessage::dst, NodeHandle({0,0})),
@@ -378,7 +378,7 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&NMRAnetMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
@@ -406,7 +406,7 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, If::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&NMRAnetMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
@@ -435,7 +435,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
     expect_packet(":X1948822AN0210050101FFFFDD;");
 
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {0, alias},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -451,7 +451,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)
     expect_packet(":X1948822AN0210050101FFFFDD;");
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     ifCan_->remote_aliases()->add(id, alias);
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -469,7 +469,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithConflictingAlias)
     // Both the cache and the caller gives an alias. System should use the
     // cache.
     ifCan_->remote_aliases()->add(id, alias);
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0x111},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -484,7 +484,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMiss)
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // An AME frame should be sent out.
     expect_packet(":X1070222AN050101FFFFDD;");
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -505,7 +505,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissTimeout)
     expect_packet(":X1070222AN050101FFFFDD;");
     ScopedOverride o(&ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
                      MSEC_TO_NSEC(20));
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                                            TEST_NODE_ID, {id, 0},
                                            node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -524,7 +524,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissAMDTimeout)
     expect_packet(":X1070222AN050101FFFFDD;");
     ScopedOverride o(&ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
                      MSEC_TO_NSEC(20));
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -553,7 +553,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
     // And the frame goes out.
     expect_packet(":X1948833AN0210050101FFFFDD;");
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -574,7 +574,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
     expect_packet(":X1949033AN050101FFFFDD;");
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());
@@ -601,7 +601,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
     expect_packet(":X1949033AN050101FFFFDD;");
-    b->data()->reset(If::MTI_VERIFY_NODE_ID_ADDRESSED,
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
     b->set_done(get_notifiable());

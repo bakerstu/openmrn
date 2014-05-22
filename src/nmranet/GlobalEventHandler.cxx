@@ -127,7 +127,7 @@ StateFlowBase::Action GlobalEventFlow::entry()
     EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
-    if ((nmsg()->mti & If::MTI_EVENT_MASK) == If::MTI_EVENT_MASK) {
+    if ((nmsg()->mti & Defs::MTI_EVENT_MASK) == Defs::MTI_EVENT_MASK) {
         if (nmsg()->payload.size() != 8)
         {
             LOG(INFO, "Invalid input event message, payload length %d",
@@ -145,56 +145,56 @@ StateFlowBase::Action GlobalEventFlow::entry()
 
     switch (nmsg()->mti)
     {
-        case If::MTI_EVENT_REPORT:
+        case Defs::MTI_EVENT_REPORT:
             fn_ = &NMRAnetEventHandler::HandleEventReport;
             break;
-        case If::MTI_CONSUMER_IDENTIFY:
+        case Defs::MTI_CONSUMER_IDENTIFY:
             fn_ = &NMRAnetEventHandler::HandleIdentifyConsumer;
             break;
-        case If::MTI_CONSUMER_IDENTIFIED_RANGE:
+        case Defs::MTI_CONSUMER_IDENTIFIED_RANGE:
             DecodeRange(rep);
             fn_ = &NMRAnetEventHandler::HandleConsumerRangeIdentified;
             break;
-        case If::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
+        case Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
             fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case If::MTI_CONSUMER_IDENTIFIED_VALID:
+        case Defs::MTI_CONSUMER_IDENTIFIED_VALID:
             rep->state = VALID;
             fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case If::MTI_CONSUMER_IDENTIFIED_INVALID:
+        case Defs::MTI_CONSUMER_IDENTIFIED_INVALID:
             rep->state = INVALID;
             fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case If::MTI_CONSUMER_IDENTIFIED_RESERVED:
+        case Defs::MTI_CONSUMER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
             fn_ = &NMRAnetEventHandler::HandleConsumerIdentified;
             break;
-        case If::MTI_PRODUCER_IDENTIFY:
+        case Defs::MTI_PRODUCER_IDENTIFY:
             fn_ = &NMRAnetEventHandler::HandleIdentifyProducer;
             break;
-        case If::MTI_PRODUCER_IDENTIFIED_RANGE:
+        case Defs::MTI_PRODUCER_IDENTIFIED_RANGE:
             DecodeRange(rep);
             fn_ = &NMRAnetEventHandler::HandleProducerRangeIdentified;
             break;
-        case If::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
+        case Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             rep->state = UNKNOWN;
             fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case If::MTI_PRODUCER_IDENTIFIED_VALID:
+        case Defs::MTI_PRODUCER_IDENTIFIED_VALID:
             rep->state = VALID;
             fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case If::MTI_PRODUCER_IDENTIFIED_INVALID:
+        case Defs::MTI_PRODUCER_IDENTIFIED_INVALID:
             rep->state = INVALID;
             fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case If::MTI_PRODUCER_IDENTIFIED_RESERVED:
+        case Defs::MTI_PRODUCER_IDENTIFIED_RESERVED:
             rep->state = RESERVED;
             fn_ = &NMRAnetEventHandler::HandleProducerIdentified;
             break;
-        case If::MTI_EVENTS_IDENTIFY_ADDRESSED:
+        case Defs::MTI_EVENTS_IDENTIFY_ADDRESSED:
             if (!rep->dst_node)
             {
                 LOG(INFO, "Invalid addressed identify all message, destination "
@@ -202,7 +202,7 @@ StateFlowBase::Action GlobalEventFlow::entry()
                 return release_and_exit();
             }
         // fall through
-        case If::MTI_EVENTS_IDENTIFY_GLOBAL:
+        case Defs::MTI_EVENTS_IDENTIFY_GLOBAL:
             fn_ = &NMRAnetEventHandler::HandleIdentifyGlobal;
             break;
         default:
@@ -241,7 +241,7 @@ StateFlowBase::Action GlobalEventFlow::iterate_next()
  * @param node node that the packet is addressed to
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_addressed(If::MTI mti, NodeHandle src, Node* node,
+void nmranet_event_packet_addressed(Defs::MTI mti, NodeHandle src, Node* node,
                                     const void* data)
 {
     /*struct id_node* id_node = node;
@@ -299,7 +299,7 @@ void nmranet_event_packet_addressed(If::MTI mti, NodeHandle src, Node* node,
  * @param src source Node ID
  * @param data NMRAnet packet data
  */
-void nmranet_event_packet_global(If::MTI mti, NodeHandle src, const void* data)
+void nmranet_event_packet_global(Defs::MTI mti, NodeHandle src, const void* data)
 {
     GlobalEventMessage* m = GlobalEventFlow::instance->AllocateMessage();
     m->mti = mti;
@@ -383,7 +383,7 @@ void nmranet_identify_consumers(Node* node, uint64_t event, uint64_t mask)
 
 void nmranet_identify_producers(Node* node, uint64_t event, uint64_t mask)
 {
-    nmranet_event_packet_global(If::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
+    nmranet_event_packet_global(Defs::MTI_EVENTS_IDENTIFY_GLOBAL, {0, 0}, NULL);
 }
 
 #endif // if 0

@@ -181,7 +181,7 @@ public:
                      (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
                    IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
-                   (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
+                   (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
     };
 
     FrameToGlobalMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
@@ -219,7 +219,7 @@ public:
         auto *b = get_allocation_result(if_can()->dispatcher());
         NMRAnetMessage* m = b->data();
         m->mti =
-            static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+            static_cast<Defs::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
         m->dst = {0, 0};
         m->dstNode = nullptr;
@@ -255,10 +255,10 @@ public:
                      (IfCan::GLOBAL_ADDRESSED << IfCan::CAN_FRAME_TYPE_SHIFT) |
                      (IfCan::NMRANET_MSG << IfCan::FRAME_TYPE_SHIFT) |
                      (IfCan::NORMAL_PRIORITY << IfCan::PRIORITY_SHIFT) |
-                     (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
+                     (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | IfCan::CAN_FRAME_TYPE_MASK |
                    IfCan::FRAME_TYPE_MASK | IfCan::PRIORITY_MASK |
-                   (If::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
+                   (Defs::MTI_ADDRESS_MASK << IfCan::MTI_SHIFT)
     };
 
     FrameToAddressedMessageParser(AsyncIfCan *service) : CanFrameStateFlow(service)
@@ -327,7 +327,7 @@ public:
         auto *b = get_allocation_result(if_can()->dispatcher());
         NMRAnetMessage* m = b->data();
         m->mti =
-            static_cast<If::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
+            static_cast<Defs::MTI>((id_ & IfCan::MTI_MASK) >> IfCan::MTI_SHIFT);
         m->payload = buf_;
         m->dst = dstHandle_;
         // This might be NULL if dst is a proxied node in a router.

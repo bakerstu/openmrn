@@ -80,7 +80,7 @@ TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -95,7 +95,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -129,7 +129,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -197,7 +197,7 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -226,7 +226,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -237,7 +237,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&IncomingMessage::dst_node, node_),
                           Field(&IncomingMessage::payload, NotNull()),
                           Field(&IncomingMessage::payload,
@@ -260,7 +260,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&IncomingMessage::dst_node, node_),
                 Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x577)),
                 Field(&IncomingMessage::payload, NotNull()),
@@ -273,7 +273,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&IncomingMessage::dst_node, node_),
                 Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
                 Field(&IncomingMessage::payload, NotNull()),
@@ -299,7 +299,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&IncomingMessage::dst_node, &other_node),
                 Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
                 Field(&IncomingMessage::payload, NotNull()),
@@ -312,7 +312,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, If::MTI_DATAGRAM),
+                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&IncomingMessage::dst_node, node_),
                 Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
                 Field(&IncomingMessage::payload, NotNull()),

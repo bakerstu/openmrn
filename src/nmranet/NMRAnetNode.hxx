@@ -146,7 +146,7 @@ public:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    int write(If::MTI mti, NodeHandle dst, Buffer *data);
+    int write(Defs::MTI mti, NodeHandle dst, Buffer *data);
 
     /** Write a message from a node.  We should not have a mutex lock at
      * this at this point.
@@ -155,7 +155,7 @@ public:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    int write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data);
+    int write_unlocked(Defs::MTI mti, NodeHandle dst, Buffer *data);
 
     uint64_t protocols()
     {

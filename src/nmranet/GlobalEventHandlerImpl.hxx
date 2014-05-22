@@ -98,11 +98,11 @@ public:
     {
         // These address/mask should match all the messages carrying an event
         // id.
-        MTI_VALUE_EVENT = If::MTI_EVENT_MASK,
-        MTI_MASK_EVENT = If::MTI_EVENT_MASK,
-        MTI_VALUE_GLOBAL = If::MTI_EVENTS_IDENTIFY_GLOBAL,
+        MTI_VALUE_EVENT = Defs::MTI_EVENT_MASK,
+        MTI_MASK_EVENT = Defs::MTI_EVENT_MASK,
+        MTI_VALUE_GLOBAL = Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
         MTI_MASK_GLOBAL = 0xffff,
-        MTI_VALUE_ADDRESSED_ALL = If::MTI_EVENTS_IDENTIFY_ADDRESSED,
+        MTI_VALUE_ADDRESSED_ALL = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED,
         MTI_MASK_ADDRESSED_ALL = 0xffff,
     };
 };

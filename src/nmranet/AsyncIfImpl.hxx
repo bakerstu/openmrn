@@ -86,7 +86,7 @@ protected:
 
 protected:
     /*    /// Entry point for external callers.
-        virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle
+        virtual void WriteAddressedMessage(Defs::MTI mti, NodeID src, NodeHandle
        dst,
                                            Buffer* data, Notifiable* done)
         {
@@ -101,7 +101,7 @@ protected:
         }
 
         /// Entry point for external callers.
-        virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer* data,
+        virtual void WriteGlobalMessage(Defs::MTI mti, NodeID src, Buffer* data,
                                         Notifiable* done)
         {
             HASSERT(IsNotStarted());
@@ -137,18 +137,18 @@ public:
     {
         interface()->dispatcher()->register_handler(
             this,
-            If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
-            0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
-                       If::MTI_VERIFY_NODE_ID_ADDRESSED));
+            Defs::MTI_VERIFY_NODE_ID_GLOBAL & Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
+                       Defs::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
 
     ~VerifyNodeIdHandler()
     {
         interface()->dispatcher()->unregister_handler(
             this,
-            If::MTI_VERIFY_NODE_ID_GLOBAL & If::MTI_VERIFY_NODE_ID_ADDRESSED,
-            0xffff & ~(If::MTI_VERIFY_NODE_ID_GLOBAL ^
-                       If::MTI_VERIFY_NODE_ID_ADDRESSED));
+            Defs::MTI_VERIFY_NODE_ID_GLOBAL & Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
+                       Defs::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
 
     /// Handler callback for incoming messages.
@@ -209,7 +209,7 @@ public:
             get_allocation_result(interface()->global_message_write_flow());
         NMRAnetMessage *m = b->data();
         NodeID id = srcNode_->node_id();
-        m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
+        m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
         interface()->global_message_write_flow()->send(b);
         return exit();
     }
@@ -223,7 +223,7 @@ public:
         // allowed to access the local nodes cache.
         NodeID id = srcNode_->node_id();
         LOG(VERBOSE, "Sending verified reply from node %012llx", id);
-        m->reset(If::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
+        m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
         interface()->global_message_write_flow()->send(b);
 
         /** Continues the iteration over the nodes.

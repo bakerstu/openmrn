@@ -41,13 +41,13 @@ DatagramSupport::DatagramSupport(AsyncIf* interface,
                                  size_t num_registry_entries)
     : interface_(interface), dispatcher_(interface_, num_registry_entries)
 {
-    interface_->dispatcher()->register_handler(If::MTI_DATAGRAM, 0xffff,
+    interface_->dispatcher()->register_handler(Defs::MTI_DATAGRAM, 0xffff,
                                               &dispatcher_);
 }
 
 DatagramSupport::~DatagramSupport()
 {
-    interface_->dispatcher()->unregister_handler(If::MTI_DATAGRAM, 0xffff,
+    interface_->dispatcher()->unregister_handler(Defs::MTI_DATAGRAM, 0xffff,
                                                 &dispatcher_);
 }
 
@@ -129,7 +129,7 @@ DatagramSupport::DatagramDispatcher::respond_rejection()
     w[0] = (resultCode_ >> 8) & 0xff;
     w[1] = resultCode_ & 0xff;
     payload->advance(2);
-    f->WriteAddressedMessage(If::MTI_DATAGRAM_REJECTED, d_->dst->node_id(),
+    f->WriteAddressedMessage(Defs::MTI_DATAGRAM_REJECTED, d_->dst->node_id(),
                              d_->src, payload, nullptr);
     d_->free();
     d_ = nullptr;

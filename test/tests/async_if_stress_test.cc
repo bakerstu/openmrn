@@ -39,12 +39,12 @@ public:
             ifCan_.alias_allocator()->send(b);
         }
         auto* b = ifCan_.global_message_write_flow()->alloc();
-        b->data()->reset(If::MTI_EVENT_REPORT, nodeId_,
+        b->data()->reset(Defs::MTI_EVENT_REPORT, nodeId_,
                          EventIdToBuffer(nodeId_));
         b->set_done(done->new_child());
         ifCan_.global_message_write_flow()->send(b);
         b = ifCan_.global_message_write_flow()->alloc();
-        b->data()->reset(If::MTI_EVENT_REPORT, nodeId_ + 1,
+        b->data()->reset(Defs::MTI_EVENT_REPORT, nodeId_ + 1,
                          EventIdToBuffer(nodeId_ + 1));
         b->set_done(done->new_child());
         ifCan_.global_message_write_flow()->send(b);

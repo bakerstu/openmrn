@@ -247,7 +247,7 @@ int Datagram::produce(NodeHandle dst, Buffer *buffer, long long timeout)
     }
     txMessage = buffer;
 
-    write(If::MTI_DATAGRAM, dst, buffer);
+    write(Defs::MTI_DATAGRAM, dst, buffer);
     timer.start(DATAGRAM_TIMEOUT);
     Node::mutex.unlock();
 
@@ -349,7 +349,7 @@ void Datagram::received_okay(Buffer *buffer, uint8_t flags, bool free)
     }
     
     /* transmit message */
-    write_unlocked(If::MTI_DATAGRAM_OK, dst, b);
+    write_unlocked(Defs::MTI_DATAGRAM_OK, dst, b);
     
     /* free the buffer if we are done with it */
     if (free && buffer != b)
@@ -381,7 +381,7 @@ void Datagram::rejected(Buffer *buffer, uint16_t error, bool free)
     b->advance(2);
     
     /* transmit message */
-    write_unlocked(If::MTI_DATAGRAM_REJECTED, dst, b);
+    write_unlocked(Defs::MTI_DATAGRAM_REJECTED, dst, b);
 }
 
 /** Process the datagram automatically.
@@ -407,14 +407,14 @@ int Datagram::process(Buffer *data)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
+void Datagram::packet(Defs::MTI mti, NodeHandle src, Buffer *data)
 {
     switch (mti)
     {
         default:
             HASSERT(0);
             break;
-        case If::MTI_DATAGRAM_REJECTED:
+        case Defs::MTI_DATAGRAM_REJECTED:
         {
             Message *m = (Message*)data->start();
             uint16_t error = m->data[1] + (m->data[0] << 8);
@@ -426,7 +426,7 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
 
                 if (txMessage)
                 {
-                    write(If::MTI_DATAGRAM, src, txMessage);
+                    write(Defs::MTI_DATAGRAM, src, txMessage);
                     timer.start(DATAGRAM_TIMEOUT);
                 }
             }
@@ -446,7 +446,7 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
             data->free();
             break;
         }
-        case If::MTI_DATAGRAM_OK:
+        case Defs::MTI_DATAGRAM_OK:
             /* success! */
             HASSERT(data == NULL);
             timer.stop();
@@ -460,7 +460,7 @@ void Datagram::packet(If::MTI mti, NodeHandle src, Buffer *data)
                 data->free();
             }
             break;
-        case If::MTI_DATAGRAM:
+        case Defs::MTI_DATAGRAM:
             if (process(data) == 0)
             {
                 /* push this up for the application to process */
@@ -479,7 +479,7 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
     NodeID dst = in_message->dst;
     NodeHandle src = in_message->src;
     Buffer *data = in_message->data;
-    If::MTI mti = in_message->mti;
+    Defs::MTI mti = in_message->mti;
 
     switch (mti)
     {
@@ -487,7 +487,7 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
             HASSERT(0);
             break;
 #if 0
-        case If::MTI_DATAGRAM_REJECTED:
+        case Defs::MTI_DATAGRAM_REJECTED:
         {
             Datagram::Message *m = (Datagram::Message*)data->start();
             uint16_t error = m->data[1] + (m->data[0] << 8);
@@ -499,7 +499,7 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
 
                 if (txMessage)
                 {
-                    write(If::MTI_DATAGRAM, src, txMessage);
+                    write(Defs::MTI_DATAGRAM, src, txMessage);
                     timer.start(DATAGRAM_TIMEOUT);
                 }
             }
@@ -519,7 +519,7 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
             data->free();
             break;
         }
-        case If::MTI_DATAGRAM_OK:
+        case Defs::MTI_DATAGRAM_OK:
             /* success! */
             HASSERT(data == NULL);
             timer.stop();
@@ -533,7 +533,7 @@ StateFlowBase::Action DatagramService::Incoming::entry(Message *msg)
                 data->free();
             }
             break;
-        case If::MTI_DATAGRAM:
+        case Defs::MTI_DATAGRAM:
             if (process(data) == 0)
             {
                 /* push this up for the application to process */

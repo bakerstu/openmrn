@@ -68,7 +68,7 @@ public:
      * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
     Action respond_ok(uint8_t flags)
     {
-        responseMti_ = If::MTI_DATAGRAM_OK;
+        responseMti_ = Defs::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
         return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
                         ST(send_ok_response));
@@ -93,7 +93,7 @@ public:
      * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
     Action respond_reject(uint16_t error_code)
     {
-        responseMti_ = If::MTI_DATAGRAM_REJECTED;
+        responseMti_ = Defs::MTI_DATAGRAM_REJECTED;
         responseErrorCode_ = error_code;
         return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
                         ST(send_reject_response));
@@ -136,7 +136,7 @@ protected:
 
 private:
     uint16_t responseErrorCode_;
-    NMRAnet::If::MTI responseMti_;
+    NMRAnet::Defs::MTI responseMti_;
 };
 
 } // namespace

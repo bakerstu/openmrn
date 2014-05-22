@@ -272,7 +272,7 @@ protected:
      * @param src source Node ID
      * @param data datagram to post
      */
-    void packet(If::MTI mti, NodeHandle src, Buffer *data);
+    void packet(Defs::MTI mti, NodeHandle src, Buffer *data);
 
 private:
     /** Write a message from a node.  We should not have a mutex lock at
@@ -282,7 +282,7 @@ private:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    virtual int write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+    virtual int write_unlocked(Defs::MTI mti, NodeHandle dst, Buffer *data) = 0;
 
     /** Write a message from a node.  We should already have a mutex lock at this
      * at this point.
@@ -291,7 +291,7 @@ private:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    virtual int write(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+    virtual int write(Defs::MTI mti, NodeHandle dst, Buffer *data) = 0;
 
     /** The parent class needs to provide a method for getting NMRAnet ID.
      */

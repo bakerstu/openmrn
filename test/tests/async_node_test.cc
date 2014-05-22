@@ -51,7 +51,7 @@ TEST_F(AsyncIfTest, WriteHelperByMTI)
     WriteHelper helper;
     SyncNotifiable n;
     expect_packet(":X195B422AN0102030405060708;");
-    helper.WriteAsync(&node, If::MTI_EVENT_REPORT,
+    helper.WriteAsync(&node, Defs::MTI_EVENT_REPORT,
                       WriteHelper::global(),
                       EventIdToBuffer(0x0102030405060708ULL), &n);
     n.wait_for_notification();

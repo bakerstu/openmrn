@@ -28,7 +28,7 @@ struct GlobalEventMessage {
 public:
     uint64_t event;      ///< payload (event or range or zero)
     NodeHandle src_node; ///< sender of the message
-    If::MTI mti;         ///< what message showed up
+    Defs::MTI mti;         ///< what message showed up
     AsyncNode* dst_node; ///< for addressed messages or else nullptr.
 };
 */

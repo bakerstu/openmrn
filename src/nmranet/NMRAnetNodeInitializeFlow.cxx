@@ -64,7 +64,7 @@ private:
         auto* b = get_allocation_result(node_->interface()->global_message_write_flow());
         done_.reset(this);
         NodeID id = node_->node_id();
-        b->data()->reset(If::MTI_INITIALIZATION_COMPLETE, id,
+        b->data()->reset(Defs::MTI_INITIALIZATION_COMPLETE, id,
                          node_id_to_buffer(id));
         b->set_done(&done_);
         node_->interface()->global_message_write_flow()->send(b);
@@ -88,7 +88,7 @@ private:
     {
         auto* b = get_allocation_result(node_->interface()->dispatcher());
         NMRAnetMessage *m = b->data();
-        m->mti = If::MTI_EVENTS_IDENTIFY_ADDRESSED;
+        m->mti = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
         m->payload.clear();
         m->dst.id = node_->node_id();
         m->dstNode = node_;

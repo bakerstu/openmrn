@@ -91,7 +91,7 @@ struct NMRAnetMessage
     NMRAnetMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
-    void reset(If::MTI mti, NodeID src, NodeHandle dst, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, NodeHandle dst, const string &payload)
     {
         this->mti = mti;
         this->src = {src, 0};
@@ -102,7 +102,7 @@ struct NMRAnetMessage
         this->flagsDst = 0;
     }
 
-    void reset(If::MTI mti, NodeID src, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, const string &payload)
     {
         this->mti = mti;
         this->src = {src, 0};
@@ -114,7 +114,7 @@ struct NMRAnetMessage
     }
 
     /// OpenLCB MTI of the incoming message.
-    If::MTI mti;
+    Defs::MTI mti;
     /// Source node.
     NodeHandle src;
     /// Destination node.
@@ -193,7 +193,7 @@ public:
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
-    virtual void WriteAddressedMessage(If::MTI mti, NodeID src, NodeHandle dst,
+    virtual void WriteAddressedMessage(Defs::MTI mti, NodeID src, NodeHandle dst,
                                        Buffer *data, Notifiable *done) = 0;
 
     /** Initiates sending an unaddressed (global) message onto the NMRAnet bus.
@@ -206,7 +206,7 @@ public:
      * @param done will be notified when the message is enqueued for sending.
      *  May be set to nullptr.
      */
-    virtual void WriteGlobalMessage(If::MTI mti, NodeID src, Buffer *data,
+    virtual void WriteGlobalMessage(Defs::MTI mti, NodeID src, Buffer *data,
                                     Notifiable *done) = 0;
 };
 #endif

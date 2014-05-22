@@ -181,35 +181,39 @@ struct Defs
 
     /** Maximum size of a static addressed message payload */
     static const size_t MAX_ADDRESSED_SIZE = 14;
+
+private:
+    /** This struct should not be instantiated. */
+    Defs();
 };
 
 /** Operator overload for post increment */
-inline If::MTI operator ++ (If::MTI &value, int)
+inline Defs::MTI operator ++ (Defs::MTI &value, int)
 {
-    If::MTI result = value;
-    value = static_cast<If::MTI>(static_cast<int>(value) + 1);
+    Defs::MTI result = value;
+    value = static_cast<Defs::MTI>(static_cast<int>(value) + 1);
     return result;
 }
 
 /** Operator overload for pre increment */
-inline If::MTI& operator ++ (If::MTI &value)
+inline Defs::MTI& operator ++ (Defs::MTI &value)
 {
-    value = static_cast<If::MTI>(static_cast<int>(value) + 1);
+    value = static_cast<Defs::MTI>(static_cast<int>(value) + 1);
     return value;
 }
 
 /** Operator overload for post decrement */
-inline If::MTI operator -- (If::MTI &value, int)
+inline Defs::MTI operator -- (Defs::MTI &value, int)
 {
-    If::MTI result = value;
-    value = static_cast<If::MTI>(static_cast<int>(value) - 1);
+    Defs::MTI result = value;
+    value = static_cast<Defs::MTI>(static_cast<int>(value) - 1);
     return result;
 }
 
 /** Operator overload for pre decrement */
-inline If::MTI& operator -- (If::MTI &value)
+inline Defs::MTI& operator -- (Defs::MTI &value)
 {
-    value = static_cast<If::MTI>(static_cast<int>(value) - 1); 
+    value = static_cast<Defs::MTI>(static_cast<int>(value) - 1); 
     return value;
 }
 

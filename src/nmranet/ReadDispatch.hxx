@@ -46,7 +46,7 @@ namespace NMRAnet
 
 struct MtiParams
 {
-    If::MTI mti;          //< MTI of the incoming message.
+    Defs::MTI mti;          //< MTI of the incoming message.
     NodeHandle dst;       //< destination node, or {0,0} for global.
     Node* dst_node;       //< destination node pointer, or NULL for global.
     const Buffer* buffer; //< message payload.

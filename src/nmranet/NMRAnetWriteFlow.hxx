@@ -75,7 +75,7 @@ public:
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.
      */
-    void WriteAsync(AsyncNode *node, If::MTI mti, NodeHandle dst,
+    void WriteAsync(AsyncNode *node, Defs::MTI mti, NodeHandle dst,
                     const payload_type &buffer, Notifiable *done)
     {
         if (done)
@@ -88,7 +88,7 @@ public:
             HASSERT(0);
         }
         if (!node ||
-            (!node->is_initialized() && mti != If::MTI_INITIALIZATION_COMPLETE))
+            (!node->is_initialized() && mti != Defs::MTI_INITIALIZATION_COMPLETE))
         {
             done_.notify();
             return;
@@ -160,7 +160,7 @@ private:
 
     unsigned waitForLocalLoopback_ : 1;
     NodeHandle dst_;
-    If::MTI mti_;
+    Defs::MTI mti_;
     AsyncNode *node_;
     payload_type buffer_;
     BarrierNotifiable done_;

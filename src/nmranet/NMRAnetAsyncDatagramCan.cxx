@@ -59,7 +59,7 @@ public:
         result_ = OPERATION_PENDING;
         if_can_->dispatcher()->register_handler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->register_handler(MTI_2, MASK_2, this);
-        WriteAddressedMessage(If::MTI_DATAGRAM, src, dst, payload, done);
+        WriteAddressedMessage(Defs::MTI_DATAGRAM, src, dst, payload, done);
     }
 
     /** Requests cancelling the datagram send operation. Will notify the done
@@ -72,12 +72,12 @@ public:
 private:
     enum
     {
-        MTI_1a = If::MTI_TERMINATE_DUE_TO_ERROR,
-        MTI_1b = If::MTI_OPTIONAL_INTERACTION_REJECTED,
+        MTI_1a = Defs::MTI_TERMINATE_DUE_TO_ERROR,
+        MTI_1b = Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
         MASK_1 = !(MTI_1a ^ MTI_1b),
         MTI_1 = MTI_1a,
-        MTI_2a = If::MTI_DATAGRAM_OK,
-        MTI_2b = If::MTI_DATAGRAM_REJECTED,
+        MTI_2a = Defs::MTI_DATAGRAM_OK,
+        MTI_2b = Defs::MTI_DATAGRAM_REJECTED,
         MASK_2 = ~(MTI_2a ^ MTI_2b),
         MTI_2 = MTI_2a,
     };
@@ -99,7 +99,7 @@ private:
         CanFrameWriteFlow* write_flow;
         GetAllocationResult(&write_flow);
         struct can_frame* f = write_flow->mutable_frame();
-        HASSERT(mti_ == If::MTI_DATAGRAM);
+        HASSERT(mti_ == Defs::MTI_DATAGRAM);
 
         // Sets the CAN id.
         uint32_t can_id = 0x1A000000;
@@ -253,15 +253,15 @@ private:
 
         switch (message->mti)
         {
-            case If::MTI_TERMINATE_DUE_TO_ERROR:
-            case If::MTI_OPTIONAL_INTERACTION_REJECTED:
+            case Defs::MTI_TERMINATE_DUE_TO_ERROR:
+            case Defs::MTI_OPTIONAL_INTERACTION_REJECTED:
             {
                 if (payload_length >= 4)
                 {
                     uint16_t return_mti = payload[2];
                     return_mti <<= 8;
                     return_mti |= payload[3];
-                    if (return_mti != If::MTI_DATAGRAM)
+                    if (return_mti != Defs::MTI_DATAGRAM)
                     {
                         // This must be a rejection of some other
                         // message. Ignore.
@@ -270,7 +270,7 @@ private:
                     }
                 }
             } // fall through
-            case If::MTI_DATAGRAM_REJECTED:
+            case Defs::MTI_DATAGRAM_REJECTED:
             {
                 result_ &= ~0xffff;
                 result_ |= error_code;
@@ -281,7 +281,7 @@ private:
                 }
                 break;
             }
-            case If::MTI_DATAGRAM_OK:
+            case Defs::MTI_DATAGRAM_OK:
             {
                 if (payload_length)
                 {
@@ -479,7 +479,7 @@ public:
         w[0] = (errorCode_ >> 8) & 0xff;
         w[1] = errorCode_ & 0xff;
         payload->advance(2);
-        f->WriteAddressedMessage(If::MTI_DATAGRAM_REJECTED, dst_.id,
+        f->WriteAddressedMessage(Defs::MTI_DATAGRAM_REJECTED, dst_.id,
                                  {0, srcAlias_}, payload, nullptr);
         // Return ourselves to the pool.
         lock_.TypedRelease(this);
@@ -493,7 +493,7 @@ public:
         HASSERT(!errorCode_);
         auto* f = ifCan_->dispatcher()->allocator()->cast_result(entry);
         IncomingMessage* m = f->mutable_params();
-        m->mti = If::MTI_DATAGRAM;
+        m->mti = Defs::MTI_DATAGRAM;
         m->payload = buf_;
         m->dst = dst_;
         m->dst_node = dstNode_;

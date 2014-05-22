@@ -161,12 +161,12 @@ TEST_F(AlignMaskTest, Unaligned)
 
 static const uint64_t kExitEventId = 0x0808080804040404ULL;
 static const uint64_t kTestEventId = 0x0102030405060708ULL;
-static const If::MTI kEventReportMti = If::MTI_EVENT_REPORT;
-static const If::MTI kProducerIdentifiedResvdMti =
-    If::MTI_PRODUCER_IDENTIFIED_RESERVED;
-static const If::MTI kGlobalIdentifyEvents = If::MTI_EVENTS_IDENTIFY_GLOBAL;
-static const If::MTI kAddressedIdentifyEvents =
-    If::MTI_EVENTS_IDENTIFY_ADDRESSED;
+static const Defs::MTI kEventReportMti = Defs::MTI_EVENT_REPORT;
+static const Defs::MTI kProducerIdentifiedResvdMti =
+    Defs::MTI_PRODUCER_IDENTIFIED_RESERVED;
+static const Defs::MTI kGlobalIdentifyEvents = Defs::MTI_EVENTS_IDENTIFY_GLOBAL;
+static const Defs::MTI kAddressedIdentifyEvents =
+    Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
 
 class EventHandlerTests : public AsyncIfTest
 {
@@ -190,7 +190,7 @@ protected:
         AsyncIfTest::wait();
     }
 
-    void send_message(If::MTI mti, uint64_t event)
+    void send_message(Defs::MTI mti, uint64_t event)
     {
         auto *b = ifCan_->dispatcher()->alloc();
         b->data()->reset(mti, 0, {0, 0}, EventIDToPayload(event));

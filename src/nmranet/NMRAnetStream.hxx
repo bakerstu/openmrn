@@ -105,7 +105,7 @@ protected:
      * @param src source Node ID
      * @param data datagram to post
      */
-    void packet(If::MTI mti, NodeHandle src, Buffer *data);
+    void packet(Defs::MTI mti, NodeHandle src, Buffer *data);
 
 private:
     /** possible flag values.
@@ -167,7 +167,7 @@ private:
      * @param data NMRAnet packet data
      * @return 0 upon success
      */
-    virtual int write(If::MTI mti, NodeHandle dst, Buffer *data) = 0;
+    virtual int write(Defs::MTI mti, NodeHandle dst, Buffer *data) = 0;
 
      /** Get handle to the receive queue for incoming NMRAnet messages.
      * @return handle to queue

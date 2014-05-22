@@ -86,7 +86,7 @@ Stream::StreamHandle Stream::sopen(NodeHandle dst, long long timeout)
 
         outboundTree.insert(node);
         
-        write(If::MTI_STREAM_INITIATE_REQUEST, dst, buffer);
+        write(Defs::MTI_STREAM_INITIATE_REQUEST, dst, buffer);
         
         if (timeout)
         {
@@ -141,7 +141,7 @@ void Stream::sclose(StreamHandle handle)
         data[3] = 0;
         buffer->advance(4);
         
-        write(If::MTI_STREAM_COMPLETE, metadata->nodeHandle, buffer);
+        write(Defs::MTI_STREAM_COMPLETE, metadata->nodeHandle, buffer);
     
         /* no more data left in the buffer */
         RBTree<uint8_t, Metadata*>::Node *node = outboundTree.remove(metadata->srcID);
@@ -195,7 +195,7 @@ ssize_t Stream::swrite(StreamHandle handle, const void *buf, size_t size)
         data[buffer_size + 0] = metadata->srcID;
         data[buffer_size + 1] = metadata->dstID;
         buffer->advance(buffer_size + 2);
-        write(If::MTI_STREAM_DATA, metadata->nodeHandle, buffer);
+        write(Defs::MTI_STREAM_DATA, metadata->nodeHandle, buffer);
         
         result = buffer_size;
         size -= buffer_size;
@@ -240,7 +240,7 @@ ssize_t Stream::sread(StreamHandle handle, void *buf, size_t size)
         
         metadata->count = 0;
         
-        write(If::MTI_STREAM_PROCEED, metadata->nodeHandle, buffer);
+        write(Defs::MTI_STREAM_PROCEED, metadata->nodeHandle, buffer);
     }
     Node::mutex.unlock();
 
@@ -297,7 +297,7 @@ void Stream::initiate_request(NodeHandle src, Buffer *buffer)
 
         buffer->advance(6);
         
-        write(If::MTI_STREAM_INITIATE_REPLY, src, buffer);
+        write(Defs::MTI_STREAM_INITIATE_REPLY, src, buffer);
         
         RBTree<uint8_t, Metadata*>::Node *node =
             new RBTree<uint8_t, Metadata*>::Node(metadata->dstID, metadata);
@@ -429,7 +429,7 @@ void Stream::handle_data(NodeHandle src, Buffer *buffer)
         
         node->value->count = 0;
         
-        write(If::MTI_STREAM_PROCEED, src, buffer);
+        write(Defs::MTI_STREAM_PROCEED, src, buffer);
     }
 }
 
@@ -467,7 +467,7 @@ void Stream::proceed(NodeHandle src, Buffer *buffer)
         buffer->advance(segment_size + 2);
         node->value->count = segment_size;
 
-        write(If::MTI_STREAM_DATA, src, buffer);
+        write(Defs::MTI_STREAM_DATA, src, buffer);
     }
 }
 
@@ -501,26 +501,26 @@ void Stream::complete(NodeHandle src, Buffer *buffer)
  * @param src source Node ID
  * @param data datagram to post
  */
-void Stream::packet(If::MTI mti, NodeHandle src, Buffer *data)
+void Stream::packet(Defs::MTI mti, NodeHandle src, Buffer *data)
 {
     switch (mti)
     {
         default:
             HASSERT(0);
             break;
-        case If::MTI_STREAM_INITIATE_REQUEST:
+        case Defs::MTI_STREAM_INITIATE_REQUEST:
             initiate_request(src, data);
             break;
-        case If::MTI_STREAM_INITIATE_REPLY:
+        case Defs::MTI_STREAM_INITIATE_REPLY:
             initiate_reply(src, data);
             break;
-        case If::MTI_STREAM_DATA:
+        case Defs::MTI_STREAM_DATA:
             handle_data(src, data);
             break;
-        case If::MTI_STREAM_PROCEED:
+        case Defs::MTI_STREAM_PROCEED:
             proceed(src, data);
             break;
-        case If::MTI_STREAM_COMPLETE:
+        case Defs::MTI_STREAM_COMPLETE:
             complete(src, data);
             break;
     }

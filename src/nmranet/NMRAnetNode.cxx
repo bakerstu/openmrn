@@ -81,7 +81,7 @@ void Node::initialized()
         
         buffer->advance(6);
         
-        write(If::MTI_INITIALIZATION_COMPLETE, {0, 0}, buffer);
+        write(Defs::MTI_INITIALIZATION_COMPLETE, {0, 0}, buffer);
 
         /* identify all of the events this node produces and consumes */
         //nmranet_identify_consumers(this, 0, 0);
@@ -106,7 +106,7 @@ void Node::verify_id_number()
     
     buffer->advance(6);
     
-    write(If::MTI_VERIFIED_NODE_ID_NUMBER, {0, 0}, buffer);
+    write(Defs::MTI_VERIFIED_NODE_ID_NUMBER, {0, 0}, buffer);
 }
 
 /** Send an ident info reply message.
@@ -177,7 +177,7 @@ void Node::ident_info_reply(NodeHandle dst)
         Buffer *buffer = buffer_alloc(6);
         memcpy(buffer->start(), ident + index, segment_size);
         buffer->advance(segment_size);
-        write(If::MTI_IDENT_INFO_REPLY, dst, buffer);
+        write(Defs::MTI_IDENT_INFO_REPLY, dst, buffer);
         size -= segment_size;
         index += segment_size;
     }
@@ -210,7 +210,7 @@ void Node::protocol_support_reply(NodeHandle dst)
     
     buffer->advance(6);
 
-    write(If::MTI_PROTOCOL_SUPPORT_REPLY, dst, buffer);
+    write(Defs::MTI_PROTOCOL_SUPPORT_REPLY, dst, buffer);
 }
 
 /** Write a message from a node.  We should not have a mutex lock at
@@ -220,7 +220,7 @@ void Node::protocol_support_reply(NodeHandle dst)
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int Node::write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data)
+int Node::write_unlocked(Defs::MTI mti, NodeHandle dst, Buffer *data)
 {
     /* It is important to note that we unlock the mutex before sending
      * data to an interface.  This is required for local nodes such that
@@ -264,7 +264,7 @@ int Node::write_unlocked(If::MTI mti, NodeHandle dst, Buffer *data)
  * @param data NMRAnet packet data
  * @return 0 upon success
  */
-int Node::write(If::MTI mti, NodeHandle dst, Buffer *data)
+int Node::write(Defs::MTI mti, NodeHandle dst, Buffer *data)
 {
     /* It is important to note that we unlock the mutex before sending
      * data to an interface.  This is required for local nodes such that

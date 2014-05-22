@@ -79,13 +79,13 @@ struct TrainService::Impl
             , trainService_(service)
         {
             interface()->dispatcher()->register_handler(
-                this, If::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
+                this, Defs::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
         }
 
         ~TractionRequestFlow()
         {
             interface()->dispatcher()->unregister_handler(
-                this, If::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
+                this, Defs::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
         }
 
     protected:
@@ -214,7 +214,7 @@ struct TrainService::Impl
         {
             Buffer<NMRAnetMessage> *b = get_allocation_result(
                 interface()->addressed_message_write_flow());
-            b->data()->reset(If::MTI_TRACTION_CONTROL_REPLY,
+            b->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
                              train_node()->node_id(), nmsg()->src,
                              EMPTY_PAYLOAD);
             return b;
@@ -252,7 +252,7 @@ struct TrainService::Impl
             auto *b = get_allocation_result(
                 trainService_->interface()->addressed_message_write_flow());
             // An alternative would be to send TERMINATE_DUE_TO_ERROR here.
-            b->data()->reset(If::MTI_OPTIONAL_INTERACTION_REJECTED,
+            b->data()->reset(Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
                              nmsg()->dstNode->node_id(), nmsg()->src,
                              error_to_buffer(If::ERROR_PERMANENT, nmsg()->mti));
             trainService_->interface()->addressed_message_write_flow()->send(b);

@@ -114,7 +114,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
     uint64_t event = event_base_ + bit * 2;
     if (!new_value)
       event++;
-    writer->WriteAsync(node_, If::MTI_EVENT_REPORT, WriteHelper::global(),
+    writer->WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
                        EventIdToBuffer(event), done);
     if (!done) {
       // We wait for the sent-out event to come back. Otherwise there is a race
@@ -163,14 +163,14 @@ void BitRangeEventPC::HandleEventReport(EventReport* event, BarrierNotifiable* d
 
 void BitRangeEventPC::HandleIdentifyProducer(EventReport* event,
                                              BarrierNotifiable* done) {
-  HandleIdentifyBase(If::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
+  HandleIdentifyBase(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
 void BitRangeEventPC::HandleIdentifyConsumer(EventReport* event,
                                              BarrierNotifiable* done) {
-  HandleIdentifyBase(If::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
+  HandleIdentifyBase(Defs::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
 }
-void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
+void BitRangeEventPC::HandleIdentifyBase(Defs::MTI mti_valid, EventReport* event,
                                          BarrierNotifiable* done) {
   if (event->event < event_base_)
     return done->notify();
@@ -182,7 +182,7 @@ void BitRangeEventPC::HandleIdentifyBase(If::MTI mti_valid, EventReport* event,
   uint32_t* ofs = nullptr;
   uint32_t mask = 0;
   GetBitAndMask(d, &ofs, &mask);
-  If::MTI mti = mti_valid;
+  Defs::MTI mti = mti_valid;
   bool old_value = *ofs & mask;
   if (old_value != new_value) {
     mti++; // mti INVALID
@@ -213,10 +213,10 @@ uint64_t EncodeRange(uint64_t begin, unsigned size) {
 void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
                                            BarrierNotifiable* done) {
   uint64_t range = EncodeRange(event_base_, size_ * 2);
-  event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
+  event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  done->new_child());
-  event_write_helper2.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFIED_RANGE,
+  event_write_helper2.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  done->new_child());
   done->maybe_done();
@@ -269,7 +269,7 @@ void ByteRangeEventC::HandleIdentifyConsumer(EventReport* event,
   if (!DecodeEventId(event->event, &storage, &value)) {
     return done->notify();
   }
-  If::MTI mti = If::MTI_CONSUMER_IDENTIFIED_VALID;
+  Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
   if (*storage != value) {
     mti++; // mti INVALID
   }
@@ -280,7 +280,7 @@ void ByteRangeEventC::HandleIdentifyConsumer(EventReport* event,
 void ByteRangeEventC::HandleIdentifyGlobal(EventReport* event,
                                            BarrierNotifiable* done) {
   uint64_t range = EncodeRange(event_base_, size_ * 256);
-  event_write_helper1.WriteAsync(node_, If::MTI_CONSUMER_IDENTIFIED_RANGE,
+  event_write_helper1.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  done);
 }
@@ -309,7 +309,7 @@ void ByteRangeEventP::HandleIdentifyProducer(EventReport* event, BarrierNotifiab
     if (!DecodeEventId(event->event, &storage, &value)) {
         return done->notify();
     }
-    If::MTI mti = If::MTI_PRODUCER_IDENTIFIED_VALID;
+    Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID;
     if (*storage != value) {
         mti++; // mti INVALID
         // We also send off the currently valid value.
@@ -321,7 +321,7 @@ void ByteRangeEventP::HandleIdentifyProducer(EventReport* event, BarrierNotifiab
 }
 void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done) {
   uint64_t range = EncodeRange(event_base_, size_ * 256);
-  event_write_helper1.WriteAsync(node_, If::MTI_PRODUCER_IDENTIFIED_RANGE,
+  event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
                                  done);
 }
@@ -329,7 +329,7 @@ void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable
 void ByteRangeEventP::Update(unsigned byte, WriteHelper* writer, BarrierNotifiable* done) {
     // @TODO(balazs.racz): Should we use producer identified valid or event
     // report here?
-    writer->WriteAsync(node_, If::MTI_EVENT_REPORT, WriteHelper::global(),
+    writer->WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
                        EventIdToBuffer(CurrentEventId(byte)), done);
 }
 
@@ -410,7 +410,7 @@ BitEventHandler::~BitEventHandler() {
 
 void BitEventHandler::SendProducerIdentified(BarrierNotifiable* done) {
   bool value = bit_->GetCurrentState();
-  If::MTI mti = If::MTI_PRODUCER_IDENTIFIED_VALID;
+  Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID;
   if (!value)
     mti++; // INVALID
   event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
@@ -428,7 +428,7 @@ void BitEventHandler::SendProducerIdentified(BarrierNotifiable* done) {
 
 void BitEventHandler::SendConsumerIdentified(BarrierNotifiable* done) {
   bool value = bit_->GetCurrentState();
-  If::MTI mti = If::MTI_CONSUMER_IDENTIFIED_VALID;
+  Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
   if (!value)
     mti++; // INVALID
   event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::global(),
@@ -447,11 +447,11 @@ void BitEventHandler::SendConsumerIdentified(BarrierNotifiable* done) {
 void BitEventHandler::SendEventReport(WriteHelper* writer, BarrierNotifiable* done) {
   bool value = bit_->GetCurrentState();
   uint64_t event = value ? bit_->event_on() : bit_->event_off();
-  writer->WriteAsync(bit_->node(), If::MTI_EVENT_REPORT, WriteHelper::global(),
+  writer->WriteAsync(bit_->node(), Defs::MTI_EVENT_REPORT, WriteHelper::global(),
                      EventIdToBuffer(event), done);
 }
 
-void BitEventHandler::HandlePCIdentify(If::MTI mti, EventReport* event,
+void BitEventHandler::HandlePCIdentify(Defs::MTI mti, EventReport* event,
                                        BarrierNotifiable* done) {
   if (event->src_node.id == bit_->node()->node_id()) {
     // We don't respond to queries from our own node. This is not nice, but we
@@ -495,7 +495,7 @@ void BitEventConsumer::HandleProducerIdentified(EventReport* event, BarrierNotif
 }
 
 void BitEventConsumer::SendQuery(WriteHelper* writer, BarrierNotifiable* done) {
-  writer->WriteAsync(bit_->node(), If::MTI_PRODUCER_IDENTIFY, WriteHelper::global(),
+  writer->WriteAsync(bit_->node(), Defs::MTI_PRODUCER_IDENTIFY, WriteHelper::global(),
                      EventIdToBuffer(bit_->event_on()), done);
 }
 
@@ -516,16 +516,16 @@ void BitEventProducer::HandleIdentifyGlobal(EventReport* event,
 
 void BitEventProducer::HandleIdentifyProducer(EventReport* event,
                                               BarrierNotifiable* done) {
-  HandlePCIdentify(If::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
+  HandlePCIdentify(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
 void BitEventPC::HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done) {
-  HandlePCIdentify(If::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
+  HandlePCIdentify(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
 void BitEventConsumer::HandleIdentifyConsumer(EventReport* event,
                                               BarrierNotifiable* done) {
-  HandlePCIdentify(If::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
+  HandlePCIdentify(Defs::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
 }
 
 void BitEventConsumer::HandleIdentifyGlobal(EventReport* event,

@@ -89,15 +89,15 @@ private:
     void start_listening()
     {
         interface()->dispatcher()->register_handler(
-            this, NMRAnet::If::MTI_TRACTION_CONTROL_REPLY,
-            NMRAnet::If::MTI_EXACT);
+            this, NMRAnet::Defs::MTI_TRACTION_CONTROL_REPLY,
+            NMRAnet::Defs::MTI_EXACT);
     }
 
     void stop_listening()
     {
         interface()->dispatcher()->unregister_handler(
-            this, NMRAnet::If::MTI_TRACTION_CONTROL_REPLY,
-            NMRAnet::If::MTI_EXACT);
+            this, NMRAnet::Defs::MTI_TRACTION_CONTROL_REPLY,
+            NMRAnet::Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE

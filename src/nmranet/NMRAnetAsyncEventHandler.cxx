@@ -63,13 +63,13 @@ private:
     {
         // These address/mask should match all the messages carrying an event
         // id.
-        MTI_VALUE_1 = If::MTI_EVENT_MASK,
-        MTI_MASK_1 = If::MTI_EVENT_MASK,
+        MTI_VALUE_1 = Defs::MTI_EVENT_MASK,
+        MTI_MASK_1 = Defs::MTI_EVENT_MASK,
         // These match the two event messages without event id: Global and
         // addressed identify all events.
         MTI_VALUE_2 =
-            If::MTI_EVENTS_IDENTIFY_ADDRESSED & If::MTI_EVENTS_IDENTIFY_GLOBAL,
-        MTI_MASK_2 = (~If::MTI_SIMPLE_MASK) & (~If::MTI_ADDRESS_MASK),
+            Defs::MTI_EVENTS_IDENTIFY_ADDRESSED & Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
+        MTI_MASK_2 = (~Defs::MTI_SIMPLE_MASK) & (~Defs::MTI_ADDRESS_MASK),
     };
 
     virtual AllocatorBase* get_allocator()
@@ -80,7 +80,7 @@ private:
     /// Handler callback for incoming messages.
     virtual void handle_message(IncomingMessage* m, Notifiable* done)
     {
-        if (m->mti == If::MTI_LEARN_EVENT)
+        if (m->mti == Defs::MTI_LEARN_EVENT)
         {
             // The global event flow does not care about learn event messages.
             done->notify();

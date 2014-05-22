@@ -178,8 +178,8 @@ private:
         auto *b = get_allocation_result(if_can()->frame_write_flow());
         b->set_done(message()->new_child());
         struct can_frame *f = b->data()->mutable_frame();
-        if (nmsg()->mti & (If::MTI_DATAGRAM_MASK | If::MTI_SPECIAL_MASK |
-                           If::MTI_RESERVED_MASK))
+        if (nmsg()->mti & (Defs::MTI_DATAGRAM_MASK | Defs::MTI_SPECIAL_MASK |
+                           Defs::MTI_RESERVED_MASK))
         {
             // We don't know how to handle such an MTI in a generic way.
             b->unref();
@@ -359,7 +359,7 @@ protected:
     Action fill_verify_nodeid_global()
     {
         auto *b = get_allocation_result(if_can()->global_message_write_flow());
-        b->data()->reset(If::MTI_VERIFY_NODE_ID_GLOBAL,
+        b->data()->reset(Defs::MTI_VERIFY_NODE_ID_GLOBAL,
                          nmsg()->src.id,
                          node_id_to_buffer(nmsg()->dst.id));
         if_can()->global_message_write_flow()->send(b);

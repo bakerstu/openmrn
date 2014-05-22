@@ -207,7 +207,7 @@ void IfCan::link_down()
  * @param can_id CAN identifider
  * @return NMRAnet MTI
  */
-If::MTI IfCan::nmranet_mti(uint32_t can_id)
+Defs::MTI IfCan::nmranet_mti(uint32_t can_id)
 {
     switch (get_can_frame_type(can_id))
     {
@@ -582,7 +582,7 @@ int IfCan::if_write_locked(MTI mti, NodeID src, NodeHandle dst, Buffer *data)
 
                 /* Verify Node ID Number Global */
                 struct can_frame frame;
-                frame.can_id = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
+                frame.can_id = can_identifier(Defs::MTI_VERIFY_NODE_ID_GLOBAL, alias);
                 SET_CAN_FRAME_EFF(frame);
                 CLR_CAN_FRAME_RTR(frame);
                 CLR_CAN_FRAME_ERR(frame);
@@ -774,7 +774,7 @@ void IfCan::datagram_rejected(NodeAlias src, NodeAlias dst, int error_code)
 {
     /* no buffer available, let the sender know */
     struct can_frame frame;
-    frame.can_id = can_identifier(If::MTI_DATAGRAM_REJECTED, src);
+    frame.can_id = can_identifier(Defs::MTI_DATAGRAM_REJECTED, src);
     SET_CAN_FRAME_EFF(frame);
     CLR_CAN_FRAME_RTR(frame);
     CLR_CAN_FRAME_ERR(frame);
@@ -1151,7 +1151,7 @@ StateFlowBase::Action IfCan::SendFlow::entry(Message *msg)
     If::OutMessage *out_msg = static_cast<If::OutMessage*>(msg->start());
     NodeID src = out_msg->src;
     NodeHandle dst = out_msg->dst;
-    If::MTI mti = out_msg->mti;
+    Defs::MTI mti = out_msg->mti;
     uint8_t *payload = out_msg->data;
     size_t len = msg->size() - (msg->available() + sizeof(If::OutMessage));
 
@@ -1313,7 +1313,7 @@ StateFlowBase::Action IfCan::SendFlow::entry(Message *msg)
 
                 /* Verify Node ID Number Global */
                 struct can_frame frame;
-                frame.can_id = can_identifier(If::MTI_VERIFY_NODE_ID_GLOBAL, alias);
+                frame.can_id = can_identifier(Defs::MTI_VERIFY_NODE_ID_GLOBAL, alias);
                 SET_CAN_FRAME_EFF(frame);
                 CLR_CAN_FRAME_RTR(frame);
                 CLR_CAN_FRAME_ERR(frame);
