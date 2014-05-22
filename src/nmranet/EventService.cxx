@@ -5,12 +5,12 @@
 #include <vector>
 #include <endian.h>
 
-#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventService.hxx"
 
 #include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/EventManager.hxx"
+#include "nmranet/EventHandlerContainer.hxx"
 #include "nmranet/Defs.hxx"
 #include "nmranet/EndianHelper.hxx"
 

@@ -36,7 +36,7 @@
 
 #include "utils/logging.h"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventService.hxx"
 
 #ifdef __linux__
 //#define DESCRIBE_VAR

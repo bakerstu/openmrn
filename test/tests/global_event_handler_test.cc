@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/EventManager.hxx"
-#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventHandlerContainer.hxx"
+#include "nmranet/EventService.hxx"
 #include "nmranet/GlobalEventHandlerImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"

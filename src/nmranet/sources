@@ -14,7 +14,7 @@ CXXSRCS += \
            NMRAnetEventRegistry.cxx \
            GlobalEventHandler.cxx \
            EventHandlerTemplates.cxx \
-	   EventManager.cxx \
+	   EventHandlerContainer.cxx \
 	   TractionTrain.cxx \
 	   TractionDefs.cxx \
 	   CanDefs.cxx \

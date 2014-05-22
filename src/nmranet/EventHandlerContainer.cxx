@@ -32,7 +32,7 @@
  * @date 3 May 2014
  */
 
-#include "nmranet/EventManager.hxx"
+#include "nmranet/EventHandlerContainer.hxx"
 
 namespace nmranet
 {

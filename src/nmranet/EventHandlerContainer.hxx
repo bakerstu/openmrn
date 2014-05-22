@@ -1,5 +1,5 @@
-#ifndef _NMRANET_EVENTMANAGER_HXX_
-#define _NMRANET_EVENTMANAGER_HXX_
+#ifndef _NMRANET_EVENTHANDLERCONTAINER_HXX_
+#define _NMRANET_EVENTHANDLERCONTAINER_HXX_
 
 #include <algorithm>
 #include <vector>
@@ -12,7 +12,7 @@
 
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
-//#include "nmranet/GlobalEventHandler.hxx"
+//#include "nmranet/EventService.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 //#include "if/nmranet_if.h"
 //#include "core/nmranet_event.h"
@@ -90,4 +90,4 @@ private:
 
 }; /* namespace nmranet */
 
-#endif  // _NMRANET_EVENTMANAGER_HXX_
+#endif  // _NMRANET_EVENTHANDLERCONTAINER_HXX_

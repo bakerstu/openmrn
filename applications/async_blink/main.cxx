@@ -47,7 +47,7 @@
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Defs.hxx"
 #include "nmranet/AliasAllocator.hxx"
-#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/DefaultNode.hxx"

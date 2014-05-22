@@ -40,7 +40,7 @@
 #include <memory>
 #include <vector>
 
-#include "nmranet/GlobalEventHandler.hxx"
+#include "nmranet/EventService.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 
 namespace nmranet
