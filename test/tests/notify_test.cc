@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include "os/os.h"
 
-#include "executor/notifiable.hxx"
+#include "executor/Notifiable.hxx"
 
 class TestNotifiable : public Notifiable {
  public:
