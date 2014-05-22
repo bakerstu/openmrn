@@ -12,7 +12,7 @@ CXXSRCS += \
            NodeInitializeFlow.cxx \
            AliasAllocator.cxx \
            NMRAnetEventRegistry.cxx \
-           GlobalEventHandler.cxx \
+           EventService.cxx \
            EventHandlerTemplates.cxx \
 	   EventHandlerContainer.cxx \
 	   TractionTrain.cxx \
