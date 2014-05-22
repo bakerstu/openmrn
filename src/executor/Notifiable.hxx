@@ -2,7 +2,7 @@
 #define _EXECUTOR_NOTIFIABLE_HXX_
 
 #include "os/OS.hxx"
-#include "executor/lock.hxx"
+#include "utils/Atomic.hxx"
 #include "utils/Queue.hxx"
 
 /// An object that can schedule itself on an executor to run.

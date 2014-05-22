@@ -10,7 +10,7 @@
 #define LOGLEVEL VERBOSE
 #endif
 
-#include "executor/lock.hxx"
+#include "utils/Atomic.hxx"
 #include "utils/logging.h"
 //#include "nmranet/GlobalEventHandler.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"

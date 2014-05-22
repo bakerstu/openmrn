@@ -43,7 +43,7 @@
 #include <cstdarg>
 
 #include "executor/Executable.hxx"
-#include "executor/lock.hxx"
+#include "utils/Atomic.hxx"
 #include "executor/Notifiable.hxx"
 #include "os/OS.hxx"
 #include "utils/MultiMap.hxx"
