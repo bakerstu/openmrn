@@ -20,9 +20,9 @@ CXXFLAGSEXTRA += -DPART_TM4C1233H6PM
 
 TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
-include $(OPENMRNPATH)/etc/prog.mk
 
-all: $(EXECUTABLE).lst
+
+include $(OPENMRNPATH)/etc/prog.mk
 
 %.lst: %.elf
 	$(SIZE) $<
