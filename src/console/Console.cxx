@@ -316,7 +316,7 @@ void Console::decode(char c, Session *s)
     if (c == '\n')
     {
         /* parse the line input into individual arguments */
-        int argc = 0;
+        unsigned argc = 0;
         const char *args[MAX_ARGS];
         char last = '\0';
 
