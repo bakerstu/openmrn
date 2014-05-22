@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 #include "nmranet/EventHandlerContainer.hxx"
 #include "nmranet/EventService.hxx"
-#include "nmranet/GlobalEventHandlerImpl.hxx"
+#include "nmranet/EventServiceImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/NMRAnetEventTestHelper.hxx"
 #include "nmranet/EndianHelper.hxx"

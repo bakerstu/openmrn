@@ -7,7 +7,7 @@
 
 #include "nmranet/EventService.hxx"
 
-#include "nmranet/GlobalEventHandlerImpl.hxx"
+#include "nmranet/EventServiceImpl.hxx"
 #include "nmranet/NMRAnetEventRegistry.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/EventHandlerContainer.hxx"
