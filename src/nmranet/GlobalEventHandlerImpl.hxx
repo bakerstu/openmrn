@@ -84,7 +84,7 @@ public:
     ~Impl();
 
     /* The implementation of the event registry. */
-    std::unique_ptr<NMRAnetEventRegistry> registry;
+    std::unique_ptr<EventRegistry> registry;
 
     /** Flows that we own. There will be a few entries for each interface
      * registered. */

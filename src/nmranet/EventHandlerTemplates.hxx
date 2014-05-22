@@ -57,7 +57,7 @@ class ProxyEventHandler : public EventHandler {
 
 #define DEFPROXYFN(FN)                                    \
   virtual void FN(EventReport* event, BarrierNotifiable* done) { \
-    HandlerFn(&NMRAnetEventHandler::FN, event, done);     \
+    HandlerFn(&EventHandler::FN, event, done);     \
   }
 
   DEFPROXYFN(HandleEventReport);

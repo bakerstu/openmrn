@@ -45,7 +45,7 @@ private:
     C* container_;
 };
 
-class VectorEventHandlers : public NMRAnetEventRegistry {
+class VectorEventHandlers : public EventRegistry {
  public:
     VectorEventHandlers() {}
 
@@ -68,7 +68,7 @@ class VectorEventHandlers : public NMRAnetEventRegistry {
   HandlersList handlers_;
 };
 
-class TreeEventHandlers : public NMRAnetEventRegistry, private Atomic {
+class TreeEventHandlers : public EventRegistry, private Atomic {
 public:
     TreeEventHandlers();
 
