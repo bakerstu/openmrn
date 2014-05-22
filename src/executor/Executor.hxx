@@ -111,17 +111,11 @@ private:
      */
     virtual Executable *wait(unsigned *priority) = 0;
 
-    /** Typedef for Timer.  This is a cast of @ref ServiceTimer* */
-    typedef void *Timer;
-
     /** name of this Executor */
     const char *name;
 
     /** next executor in the lookup list */
     ExecutorBase *next;
-
-    /** First next timer in the list */
-    Timer active;
 
     /** executor list for lookup purposes */
     static ExecutorBase *list;
