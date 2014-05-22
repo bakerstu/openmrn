@@ -44,7 +44,7 @@
 
 #include "executor/Executable.hxx"
 #include "executor/lock.hxx"
-#include "executor/notifiable.hxx"
+#include "executor/Notifiable.hxx"
 #include "os/OS.hxx"
 #include "utils/MultiMap.hxx"
 #include "utils/Queue.hxx"

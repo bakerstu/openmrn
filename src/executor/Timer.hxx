@@ -35,7 +35,7 @@
 #ifndef _executor_Timer_hxx_
 #define _executor_Timer_hxx_
 
-#include "executor/notifiable.hxx"
+#include "executor/Notifiable.hxx"
 #include "utils/BufferQueue.hxx"
 #include "os/OS.hxx"
 

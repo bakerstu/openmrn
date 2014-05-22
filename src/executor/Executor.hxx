@@ -38,7 +38,7 @@
 
 #include "executor/Message.hxx"
 #include "executor/Executable.hxx"
-#include "executor/notifiable.hxx"
+#include "executor/Notifiable.hxx"
 #include "executor/Timer.hxx"
 #include "utils/BufferQueue.hxx"
 #include "utils/logging.h"

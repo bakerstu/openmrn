@@ -37,7 +37,7 @@
 
 #include <vector>
 
-#include "executor/notifiable.hxx"
+#include "executor/Notifiable.hxx"
 #include "executor/StateFlow.hxx"
 
 /**
