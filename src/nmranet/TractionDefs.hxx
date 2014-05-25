@@ -39,7 +39,7 @@
 #include <cmath>
 #include <stdint.h>
 
-#include "nmranet/NMRAnetVelocity.hxx"
+#include "nmranet/Velocity.hxx"
 #include "nmranet/Payload.hxx"
 
 namespace nmranet {

@@ -31,8 +31,8 @@
  * @date 2 August 2013
  */
 
-#ifndef _NMRAnetVelocity_hxx_
-#define _NMRAnetVelocity_hxx_
+#ifndef _NMRANET_VELOCITY_HXX_
+#define _NMRANET_VELOCITY_HXX_
 
 #include <cmath>
 #include <cstdint>
@@ -479,4 +479,4 @@ private:
 
 }; /* namespace nmranet */
 
-#endif /* _NMRAnetVelocity_hxx_ */
+#endif /* _NMRANET_VELOCITY_HXX_ */
