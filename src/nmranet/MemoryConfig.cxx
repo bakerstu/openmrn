@@ -32,4 +32,4 @@
  * @date 23 Feb 2014
  */
 
-#include "nmranet/NMRAnetAsyncMemoryConfig.hxx"
+#include "nmranet/MemoryConfig.hxx"

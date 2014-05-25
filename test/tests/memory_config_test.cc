@@ -33,7 +33,7 @@
  */
 
 #include "utils/async_datagram_test_helper.hxx"
-#include "nmranet/NMRAnetAsyncMemoryConfig.hxx"
+#include "nmranet/MemoryConfig.hxx"
 
 namespace nmranet
 {

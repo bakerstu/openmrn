@@ -32,8 +32,8 @@
  * @date 23 Feb 2014
  */
 
-#ifndef _NMRAnetAsyncMemoryConfig_hxx_
-#define _NMRAnetAsyncMemoryConfig_hxx_
+#ifndef _NMRANET_MEMORYCONFIG_HXX_
+#define _NMRANET_MEMORYCONFIG_HXX_
 
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/NMRAnetMemoryConfig.hxx"
@@ -506,4 +506,4 @@ private:
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncMemoryConfig_hxx_
+#endif // _NMRANET_MEMORYCONFIG_HXX_
