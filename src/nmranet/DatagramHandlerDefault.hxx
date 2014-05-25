@@ -32,10 +32,10 @@
  * @date 11 Feb 2014
  */
 
-#ifndef _NMRAnetAsyncDatagramDefaultHandler_hxx_
-#define _NMRAnetAsyncDatagramDefaultHandler_hxx_
+#ifndef _NMRANET_DATAGRAMHANDLERDEFAULT_HXX_
+#define _NMRANET_DATAGRAMHANDLERDEFAULT_HXX_
 
-#include "nmranet/NMRAnetAsyncDatagram.hxx"
+#include "nmranet/Datagram.hxx"
 
 namespace nmranet
 {
@@ -141,4 +141,4 @@ private:
 
 } // namespace
 
-#endif // _NMRAnetAsyncDatagramDefaultHandler_hxx_
+#endif // _NMRANET_DATAGRAMHANDLERDEFAULT_HXX_

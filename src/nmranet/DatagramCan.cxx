@@ -32,7 +32,7 @@
  * @date 27 Jan 2013
  */
 
-#include "nmranet/NMRAnetAsyncDatagramCan.hxx"
+#include "nmranet/DatagramCan.hxx"
 #include "nmranet/IfCanImpl.hxx"
 
 namespace nmranet

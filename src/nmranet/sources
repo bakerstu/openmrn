@@ -21,7 +21,9 @@ CXXSRCS += \
 
 
 DEAD_CXX +=  \
-           NMRAnetDatagram.cxx \
+           NMRAnetAsyncDatagram.cxx \
+           NMRAnetAsyncDatagramCan.cxx \
+           NMRAnetAsyncMemoryConfig.cxx \
            NMRAnetMemoryConfig.cxx \
            NMRAnetStream.cxx \
            NMRAnetVelocity.cxx

@@ -33,7 +33,7 @@
  */
 
 #include "utils/async_datagram_test_helper.hxx"
-#include "nmranet/NMRAnetAsyncDatagramDefaultHandler.hxx"
+#include "nmranet/DatagramHandlerDefault.hxx"
 
 namespace nmranet
 {

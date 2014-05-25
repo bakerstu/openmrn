@@ -32,12 +32,12 @@
  * @date 25 Jan 2014
  */
 
-#ifndef _NMRAnetAsyncDatagramCan_hxx_
-#define _NMRAnetAsyncDatagramCan_hxx_
+#ifndef _NMRANET_DATAGRAMCAN_HXX_
+#define _NMRANET_DATAGRAMCAN_HXX_
 
 #include "nmranet/NMRAnetIfCan.hxx"
 #include "nmranet/IfCan.hxx"
-#include "nmranet/NMRAnetAsyncDatagram.hxx"
+#include "nmranet/Datagram.hxx"
 
 namespace nmranet
 {
@@ -62,4 +62,4 @@ Executable* TEST_CreateCanDatagramParser(IfCan* if_can);
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncDatagramCan_hxx_
+#endif // _NMRANET_DATAGRAMCAN_HXX_

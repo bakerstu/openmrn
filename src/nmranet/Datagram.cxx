@@ -32,7 +32,7 @@
  * @date 25 Jan 2013
  */
 
-#include "nmranet/NMRAnetAsyncDatagram.hxx"
+#include "nmranet/Datagram.hxx"
 
 namespace nmranet
 {

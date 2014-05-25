@@ -32,8 +32,8 @@
  * @date 25 Jan 2014
  */
 
-#ifndef _NMRAnetAsyncDatagram_hxx_
-#define _NMRAnetAsyncDatagram_hxx_
+#ifndef _NMRANET_DATAGRAM_HXX_
+#define _NMRANET_DATAGRAM_HXX_
 
 #include "utils/NodeHandlerMap.hxx"
 #include "executor/allocator.hxx"
@@ -261,4 +261,4 @@ private:
 
 } // namespace nmranet
 
-#endif // _NMRAnetAsyncDatagram_hxx_
+#endif // _NMRANET_DATAGRAM_HXX_

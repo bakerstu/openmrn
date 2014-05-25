@@ -35,7 +35,7 @@
 #ifndef _NMRAnetAsyncMemoryConfig_hxx_
 #define _NMRAnetAsyncMemoryConfig_hxx_
 
-#include "nmranet/NMRAnetAsyncDatagramDefaultHandler.hxx"
+#include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/NMRAnetMemoryConfig.hxx"
 
 namespace nmranet

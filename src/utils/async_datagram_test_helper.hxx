@@ -36,8 +36,8 @@
 #define _utils_async_datagram_test_helper_hxx_
 
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/NMRAnetAsyncDatagram.hxx"
-#include "nmranet/NMRAnetAsyncDatagramCan.hxx"
+#include "nmranet/Datagram.hxx"
+#include "nmranet/DatagramCan.hxx"
 
 namespace nmranet {
 
