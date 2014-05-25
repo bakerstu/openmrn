@@ -31,8 +31,8 @@
  * @date 20 October 2013
  */
 
-#ifndef _NMRAnetStream_hxx_
-#define _NMRAnetStream_hxx_
+#ifndef _NMRANET_STREAM_HXX_
+#define _NMRANET_STREAM_HXX_
 
 #include "nmranet/NMRAnetIf.hxx"
 #include "utils/RBTree.hxx"
@@ -227,4 +227,4 @@ struct IdStreamType
 
 };
 
-#endif /* _NMRAnetStream_hxx_ */
+#endif /* _NMRANET_STREAM_HXX_ */

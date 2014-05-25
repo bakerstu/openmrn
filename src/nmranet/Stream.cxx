@@ -31,7 +31,7 @@
  * @date 20 October 2013
  */
 
-#include "nmranet/NMRAnetStream.hxx"
+#include "nmranet/Stream.hxx"
 #include "nmranet/NMRAnetNode.hxx"
 #include "nmranet/NMRAnetMessageID.hxx"
 #include "utils/macros.h"

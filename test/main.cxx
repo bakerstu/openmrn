@@ -227,7 +227,7 @@ int appl_main(int argc, char *argv[])
 
 #if 0
 #include "nmranet/NMRAnetNode.hxx"
-#include "nmranet/NMRAnetStream.hxx"
+#include "nmranet/Stream.hxx"
 #include "nmranet/NMRAnetIfCanGridConnect.hxx"
 #include "nmranet/NMRAnetMessageID.hxx"
 #include "nmranet_config.h"
