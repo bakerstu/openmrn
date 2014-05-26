@@ -21,22 +21,22 @@ MKSUBDIRSDIRS = $(SUBDIRS:%=mksubdirs-%)
 all: $(BUILDDIRS)
 $(SUBDIRS): $(BUILDDIRS)
 $(BUILDDIRS):
-	+[ -d $(@:build-%=%) ] || make mksubdirs
+	@[ -d $(@:build-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:build-%=%) all
 
 clean: $(CLEANDIRS)
 $(CLEANDIRS): 
-	+[ -d $(@:clean-%=%) ] || make mksubdirs
+	@[ -d $(@:clean-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:clean-%=%) clean
 
 veryclean: $(VERYCLEANDIRS)
 $(VERYCLEANDIRS): 
-	+[ -d $(@:veryclean-%=%) ] || make mksubdirs
+	@[ -d $(@:veryclean-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:veryclean-%=%) veryclean
 
 tests: $(TESTDIRS)
 $(TESTDIRS): 
-	+[ -d $(@:tests-%=%) ] || make mksubdirs
+	@[ -d $(@:tests-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:tests-%=%) tests
 
 mksubdirs: $(MKSUBDIRSDIRS)
@@ -53,7 +53,7 @@ endif
 # Fallback in case we didn't have a subdiretory create strategy.
 ifndef HAVE_MKSUBDIR
 $(MKSUBDIRSDIRS):
-	+$(MAKE) -C $(@:mksubdirs-%=%) mksubdirs
+	$(MAKE) -C $(@:mksubdirs-%=%) mksubdirs
 endif
 
 
