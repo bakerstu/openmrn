@@ -40,6 +40,10 @@ openmrnpath.mk
 *.gcno
 *.test
 *.otest
+*.testout
+*.testmd5
+*.covdir
+app.info
 *lcovdir/
 gmon.out
 
