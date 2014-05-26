@@ -1,6 +1,10 @@
 ifeq ($(strip $(TARGET)),)
 TARGET := $(shell basename `pwd`)
 endif
+ifndef OPENMRNPATH
+OPENMRNPATH:=$(realpath ../..)
+endif
+export OPENMRNPATH
 
 include $(OPENMRNPATH)/etc/config.mk
 
