@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include "os/os.h"
 
-#include "utils/singleton.hxx"
+#include "utils/Singleton.hxx"
 
 
 class MyClass : public Singleton<MyClass> {
@@ -55,6 +55,7 @@ TEST(SingletonTest, DieMultipleInstances) {
       MyClass obj2;
       p = MyClass::instance();
     }, "instance_ == nullptr");
+  EXPECT_NE(p, nullptr);
 }
 
 int appl_main(int argc, char* argv[]) {

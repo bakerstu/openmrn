@@ -17,6 +17,7 @@ CXXSRCS += \
            NodeInitializeFlow.cxx \
            TractionDefs.cxx \
            TractionTrain.cxx \
+           Velocity.cxx \
            WriteHelper.cxx \
 
 
@@ -25,4 +26,3 @@ DEAD_CXX +=  \
            DatagramCan.cxx \
            MemoryConfig.cxx \
            Stream.cxx \
-           Velocity.cxx

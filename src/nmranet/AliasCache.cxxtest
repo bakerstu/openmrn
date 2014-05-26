@@ -32,6 +32,7 @@
  * @date 5 December 2013
  */
 
+#include "os/os.h"
 #include "gtest/gtest.h"
 #include "nmranet/AliasCache.hxx"
 

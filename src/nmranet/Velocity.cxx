@@ -31,7 +31,7 @@
  * @date 2 August 2013
  */
 
-#include "NMRAnetVelocity.hxx"
+#include "nmranet/Velocity.hxx"
 
 namespace nmranet
 {

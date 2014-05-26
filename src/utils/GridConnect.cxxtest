@@ -31,6 +31,7 @@
  * @date 9 December 2013
  */
 
+#include "os/os.h"
 #include "gtest/gtest.h"
 #include "utils/GridConnect.hxx"
 #include <cstdio>
