@@ -32,6 +32,7 @@
  * @date 15 September 2013
  */
 
+#include "os/os.h"
 #include "gtest/gtest.h"
 #include "nmranet/Velocity.hxx"
 
@@ -169,7 +170,7 @@ TEST(NMRAnetVelocityTest, mph_positive)
 {
     Velocity *velocity = new Velocity(100.5F);
     
-    EXPECT_TRUE(velocity->mph() == (100.5F * 0.44704F));
+    EXPECT_FLOAT_EQ((100.5F / 0.44704F), velocity->mph());
 }
 
 TEST(NMRAnetVelocityTest, mph_negative)
@@ -177,7 +178,7 @@ TEST(NMRAnetVelocityTest, mph_negative)
     Velocity *velocity = new Velocity(-100.5F);
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(velocity->mph() == (-100.5F * 0.44704F));
+    EXPECT_FLOAT_EQ((100.5F / 0.44704F), velocity->mph());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_128_forward)
