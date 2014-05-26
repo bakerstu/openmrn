@@ -104,7 +104,7 @@ public:
     public:
         /** Default constructor. The iterator must not be used until a valid
          * iterator is assigned to it. */
-        Iterator() : index(-1), m(nullptr)
+        Iterator() : index(0), m(nullptr)
         {
         }
 
@@ -148,13 +148,9 @@ public:
         /** Overloaded pre-increement operator. */
         Iterator &operator ++ ()
         {
-            if (index >= 0)
+            if (index < m->used)
             {
-                if (++index >= (ssize_t)m->used)
-                {
-                    index = -1;
-                    m = NULL;
-                }
+                ++index;
             }
             return *this;
         }
@@ -162,18 +158,18 @@ public:
         /** Overloaded not equals operator. */
         bool operator != (const Iterator& it)
         {
-            return index != it.index;
+            return m != it.m || index != it.index;
         }
 
         /** Overloaded equals operator. */
         bool operator == (const Iterator& it)
         {
-            return index == it.index;
+            return m == it.m && index == it.index;
         }
 
     private:
         /** index this iteration is currently indexed to */
-        ssize_t index;
+        size_t index;
         
         /** Context this iteration lives in */
         LinearMap *m;
