@@ -80,13 +80,13 @@ $(ARM_OBJS): %.o : %.c
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
 $(LIBNAME): $(OBJS)
-	$(AR) cr $(LIBNAME) $(OBJS)
+	$(AR) Dcr $(LIBNAME) $(OBJS)
 	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
 	touch ../lib/timestamp
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.d *.a *.so *.dll
+	rm -rf *.o *.d *.a *.so *.dll *.otest *.dtest *.test *.gcda *.map *.gcno *.md5
 
 .PHONY: veryclean
 veryclean: clean
