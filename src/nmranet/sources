@@ -3,26 +3,26 @@ VPATH := $(SRCDIR)
 CSRCS += 
 
 CXXSRCS += \
-           NMRAnetAliasCache.cxx \
-           IfCan.cxx \
-           If.cxx \
-           IfImpl.cxx \
-           WriteHelper.cxx \
-           DefaultNode.cxx \
-           NodeInitializeFlow.cxx \
            AliasAllocator.cxx \
+           AliasCache.cxx \
+           CanDefs.cxx \
+           DefaultNode.cxx \
            EventHandler.cxx \
-           EventService.cxx \
+           EventHandlerContainer.cxx \
            EventHandlerTemplates.cxx \
-	   EventHandlerContainer.cxx \
-	   TractionTrain.cxx \
-	   TractionDefs.cxx \
-	   CanDefs.cxx \
+           EventService.cxx \
+           If.cxx \
+           IfCan.cxx \
+           IfImpl.cxx \
+           NodeInitializeFlow.cxx \
+           TractionDefs.cxx \
+           TractionTrain.cxx \
+           WriteHelper.cxx \
 
 
 DEAD_CXX +=  \
            Datagram.cxx \
            DatagramCan.cxx \
            MemoryConfig.cxx \
-           NMRAnetStream.cxx \
-           NMRAnetVelocity.cxx
+           Stream.cxx \
+           Velocity.cxx
