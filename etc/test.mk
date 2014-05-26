@@ -34,7 +34,8 @@ OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
 TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)
 TESTOBJSEXTRA = gtest-all.o gmock-all.o
 
-TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.test)
+TESTBINS = $(CXXTESTSRCS:.cxxtest=.test)
+TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.testout)
 
 LIBDIR = $(OPENMRNPATH)/targets/linux.x86/lib
 FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
@@ -54,14 +55,17 @@ LDFLAGS      += -L$(LIBDIR)
 .SUFFIXES:
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test
 
-all: $(TESTOUTPUTS)
+all: $(TESTBINS)
 
 -include $(OBJS:.o=.d) $(TESTOBJS:.otest=.dtest)
 
-$(TESTOUTPUTS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
+$(TESTBINS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
 	$(LD) -o $@ $*.otest $(TESTOBJSEXTRA) \
 	$(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
 	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+
+$(TESTOUTPUTS): %.testout : %.test
+	(cd lcovdir; ../$< --gtest_death_test_style=threadsafe && touch $@)
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
@@ -87,15 +91,17 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 #	$(LDFLAGS) $(SYSLIBRARIES)
 
 tests: all
-	echo $(foreach TESTOUTPUTS,$(TESTOUTPUTS),gcov $(VPATH)$(TESTOUTPUTS:.test=.cxxtest))
-	[ -z "$(TESTOUTPUTS)" ] || (mkdir -p lcovdir; cd lcovdir; \
-	lcov --directory ../ --no-recursion -z; \
-	$(foreach TESTOUTPUTS,$(TESTOUTPUTS),../$(TESTOUTPUTS) --gtest_death_test_style=threadsafe;) \
+	echo $(foreach TESTBINS,$(TESTBINS),gcov $(VPATH)$(TESTBINS:.test=.cxxtest))
+	[ -z "$(TESTBINS)" ] || (mkdir -p lcovdir; cd lcovdir; \
+	lcov --directory ../ --no-recursion -z; cd .. ; \
+	$(MAKE) run-tests ; cd lcovdir ; \
 	lcov --directory ../ --no-recursion --capture --output-file app.info; \
 	lcov -r app.info "/usr/include/*" -o app.info; \
 	lcov -r app.info "*.cxxtest" -o app.info; \
 	lcov -r app.info "*gtest*" -o app.info; \
 	genhtml -o . app.info )
+
+run-tests: $(TESTOUTPUTS)
 
 clean: clean-local
 
