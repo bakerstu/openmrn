@@ -112,19 +112,10 @@ private:
     // Callback from the allocator.
     virtual void alloc_result(QMember *entry)
     {
-
-        /*
-        x            e->WriteAddressedMessage(mti_, node_->node_id(), dst_,
-        buffer_,
-        -                                     done_);
-        +           e->WriteGlobalMessage(mti_, node_->node_id(), buffer_,
-        done_);
-        -
-        */
         /* NOTE(balazs.racz): We could choose not to pass on the done_
-           * callback. That will allow the current write flow to be released
-           * earlier for reuse, but breaks the assumption that done means that
-           * the current packet is enqueued on the physical layer. */
+         * callback. That will allow the current write flow to be released
+         * earlier for reuse, but breaks the assumption that done means that
+         * the current packet is enqueued on the physical layer. */
         if (dst_ == global())
         {
             auto *f = node_->interface()->global_message_write_flow();
