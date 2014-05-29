@@ -56,8 +56,12 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 	rm -f $*.covdir/app.info
 	lcov --directory $*.covdir/ -z
 	GCOV_PREFIX=$(abspath $*.covdir) GCOV_PREFIX_STRIP=$(shell echo $(realpath .) | tr -C -d '/' | wc -c) $(<:.testmd5=.test) --gtest_death_test_style=threadsafe
-	cd $*.covdir/ ; for i in $$(find . -name \*.gcda) ; do cp --remove-destination $(realpath .$)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; done && lcov --directory . --capture --output-file app.info
 	touch $@
+
+
+%.covdir/app.info : %.testout
+	cd $*.covdir/ ; for i in $$(find . -name \*.gcda) ; do cp --remove-destination $(realpath .$)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; done && lcov --directory . --capture --output-file app.info
+
 
 COVAGGRDIRS = $(dir $(TESTBINS))
 COVAGGRFILES_DUP = $(foreach DIR,$(dir $(TESTBINS)),$(DIR)cov.info)
