@@ -63,4 +63,4 @@ endif
 .PHONY: subdirs $(CLEANDIRS)
 .PHONY: subdirs $(VERYCLEANDIRS)
 .PHONY: subdirs $(TESTDIRS)
-.PHONY: all install clean veryclean test
+.PHONY: all install clean veryclean tests
