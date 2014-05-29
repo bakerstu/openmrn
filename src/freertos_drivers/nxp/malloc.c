@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
-//#include <avr/io.h>
 
 #include "LPC11xx.h"
 

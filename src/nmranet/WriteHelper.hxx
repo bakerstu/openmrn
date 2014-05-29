@@ -39,7 +39,6 @@
 
 #include "nmranet_config.h"
 
-//#include "nmranet/Node.hxx"
 #include "nmranet/If.hxx"
 
 namespace nmranet

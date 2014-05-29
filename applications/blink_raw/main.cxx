@@ -36,8 +36,6 @@
 #include <unistd.h>
 
 #include "os/os.h"
-//#include "utils/pipe.hxx"
-//#include "utils/socket_listener.hxx"
 
 #include "nmranet_config.h"
 

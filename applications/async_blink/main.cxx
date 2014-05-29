@@ -49,9 +49,7 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-//#include "nmranet/NMRAnetAsyncEventHandler.hxx"
 #include "nmranet/DefaultNode.hxx"
-//#include "freertos_drivers/nxp/11cxx_async_can.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
