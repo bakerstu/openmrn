@@ -15,6 +15,9 @@ build-applications: build-targets
 
 tests-applications: build-targets
 
-.PHONY: docs
+.PHONY: docs cov
 docs:
 	$(MAKE) -C doc docs || exit 1;
+
+cov:
+	$(MAKE) -C targets/cov cov
