@@ -665,6 +665,8 @@ OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout
     {
         return OS_MQ_TIMEDOUT;
     }
+#else
+    DIE("unimplemented.");
 #endif
     return OS_MQ_NONE;
 }
