@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Buffer.cxx
- * This file provides an implementation buffers and pools for buffers.
+ * Implementation of non-templated functions of buffers and pools.
  *
  * @author Stuart W. Baker
  * @date 3 August 2013

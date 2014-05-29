@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Queue.cxx
- * This file provides an implementation buffers and pools for buffers.
+ * This file provides implementation of non-templated queue methods.
  *
  * @author Stuart W. Baker
  * @date 3 August 2013

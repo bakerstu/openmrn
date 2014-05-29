@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file QMember.hxx
- * This file provides an implementation queues.
+ * Base class for objects that can be enqueued.
  *
  * @author Stuart W. Baker
  * @date 10 March 2014

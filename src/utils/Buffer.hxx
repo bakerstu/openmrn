@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Buffer.hxx
- * This file provides an implementation buffered queues.
+ * This file provides buffers with allocation and freelist/reuse mechanisms.
  *
  * @author Stuart W. Baker
  * @date 3 August 2013
