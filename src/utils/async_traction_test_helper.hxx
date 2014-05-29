@@ -1,3 +1,6 @@
+#ifndef _NMRA_PAY
+#define _NMRA_PAY
+
 #include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/TractionTrain.hxx"
@@ -33,3 +36,5 @@ protected:
 
 
 } // namespace nmranet
+
+#endif // _NMRA_PAY

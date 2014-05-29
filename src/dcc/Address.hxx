@@ -32,6 +32,9 @@
  * @date 10 May 2014
  */
 
+#ifndef _DCC_AD
+#define _DCC_AD
+
 #include <stdint.h>
 
 #include "utils/macros.h"
@@ -63,3 +66,5 @@ struct MMAddress {
 };
 
 }  // namespace dcc
+
+#endif // _DCC_AD

@@ -33,6 +33,9 @@
  * @date 18 May 2014
  */
 
+#ifndef _NMRA_PAY
+#define _NMRA_PAY
+
 #include <string>
 
 namespace nmranet {
@@ -40,3 +43,5 @@ namespace nmranet {
 typedef string Payload;
 
 } // namespace nmranet
+
+#endif // _NMRA_PAY

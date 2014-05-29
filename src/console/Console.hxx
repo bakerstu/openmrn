@@ -31,6 +31,9 @@
  * @date 10 May 2014
  */
 
+#ifndef _CONSOLE_CONSOLE_HXX_
+#define _CONSOLE_CONSOLE_HXX_
+
 #include <sys/select.h>
 #include <cstdio>
 
@@ -230,3 +233,4 @@ private:
     void *entry();
 };
 
+#endif // _CONSOLE_CONSOLE_HXX_
