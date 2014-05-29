@@ -90,4 +90,4 @@ unsigned EventRegistry::align_mask(EventId *event, unsigned size)
     return log2;
 }
 
-}; /* namespace nmranet */
+} /* namespace nmranet */
