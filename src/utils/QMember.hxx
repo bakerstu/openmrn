@@ -31,8 +31,8 @@
  * @date 10 March 2014
  */
 
-#ifndef _Queue_hxx_
-#define _Queue_hxx_
+#ifndef _UTILS_QMEMBER_HXX_
+#define _UTILS_QMEMBER_HXX_
 
 /** Essentially a "next" pointer container.
  */
@@ -71,4 +71,4 @@ protected:
     friend class TimerTest;
 };
 
-#endif /* _Queue_hxx_ */
+#endif /* _UTILS_QMEMBER_HXX_ */

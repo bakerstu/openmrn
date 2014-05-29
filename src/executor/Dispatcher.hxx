@@ -32,8 +32,8 @@
  * @date 2 Dec 2013
  */
 
-#ifndef _executor_Dispatcher_hxx_
-#define _executor_Dispatcher_hxx_
+#ifndef _EXECUTOR_DISPATCHER_HXX_
+#define _EXECUTOR_DISPATCHER_HXX_
 
 #include <vector>
 
@@ -303,4 +303,4 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iteration_done()
     return release_and_exit();
 }
 
-#endif // _executor_Dispatcher_hxx_
+#endif // _EXECUTOR_DISPATCHER_HXX_

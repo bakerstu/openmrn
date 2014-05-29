@@ -32,8 +32,8 @@
  * @date 15 March 2014
  */
 
-#ifndef _MultiMap_hxx_
-#define _MultiMap_hxx_
+#ifndef _UTILS_MULTIMAP_HXX_
+#define _UTILS_MULTIMAP_HXX_
 
 #if defined (__LINEAR_MULTIMAP__)
 #include "utils/LinearMultiMap.hxx"
@@ -85,4 +85,4 @@ private:
 
 #undef BASE_CLASS
 
-#endif /* _MultiMap_hxx_ */
+#endif /* _UTILS_MULTIMAP_HXX_ */

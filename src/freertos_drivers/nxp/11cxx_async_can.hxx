@@ -32,8 +32,8 @@
  * @date 14 Dec 2013
  */
 
-#ifndef _NXP_ASYNC_CAN_
-#define _NXP_ASYNC_CAN_
+#ifndef _FREERTOS_DRIVERS_NXP_11CXX_ASYNC_CAN_HXX_
+#define _FREERTOS_DRIVERS_NXP_11CXX_ASYNC_CAN_HXX_
 #ifdef TARGET_LPC11Cxx
 
 namespace lpc11cxx
@@ -45,4 +45,4 @@ void CreateCanDriver(Pipe* parent);
 } // namespace lpc11cxx
 
 #endif // TARGET_LPC11Cxx
-#endif // _NXP_ASYNC_CAN_
+#endif // _FREERTOS_DRIVERS_NXP_11CXX_ASYNC_CAN_HXX_

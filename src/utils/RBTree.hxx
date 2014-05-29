@@ -31,8 +31,8 @@
  * @date 21 September 2013
  */
 
-#ifndef _RBTree_hxx_
-#define _RBTree_hxx_
+#ifndef _UTILS_RBTREE_HXX_
+#define _UTILS_RBTREE_HXX_
 
 extern "C"
 {
@@ -274,4 +274,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(RBTree);
 };
 
-#endif /* _RBTree_hxx_ */
+#endif /* _UTILS_RBTREE_HXX_ */

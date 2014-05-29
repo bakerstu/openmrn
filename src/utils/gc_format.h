@@ -31,8 +31,8 @@
  * @date 20 May 2013
  */
 
-#ifndef _gc_format_h_
-#define _gc_format_h_
+#ifndef _UTILS_GC_FORMAT_H_
+#define _UTILS_GC_FORMAT_H_
 
 #include "utils/constants.hxx"
 
@@ -81,4 +81,4 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
 #endif
 
 
-#endif // _gc_format_h_
+#endif // _UTILS_GC_FORMAT_H_

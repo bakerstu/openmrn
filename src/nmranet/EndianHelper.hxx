@@ -32,8 +32,8 @@
  * @date 6 Mar 2014
  */
 
-#ifndef _NMRAnetEndianHelper_hxx_
-#define _NMRAnetEndianHelper_hxx_
+#ifndef _NMRANET_ENDIANHELPER_HXX_
+#define _NMRANET_ENDIANHELPER_HXX_
 
 #include "endian.h"
 #include "nmranet/Defs.hxx"
@@ -79,4 +79,4 @@ inline string EventIDToPayload(const uint64_t event_id) {
 
 }  // namespace NRMAnet
 
-#endif // _NMRAnetEndianHelper_hxx_
+#endif // _NMRANET_ENDIANHELPER_HXX_

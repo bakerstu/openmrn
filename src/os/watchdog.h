@@ -31,8 +31,8 @@
  * @date 25 May 2013
  */
 
-#ifndef _watchdog_h_
-#define _watchdog_h_
+#ifndef _OS_WATCHDOG_H_
+#define _OS_WATCHDOG_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,4 +55,4 @@ void add_watchdog_reset_timer(int period_msec);
 }
 #endif
 
-#endif // _watchdog_h_
+#endif // _OS_WATCHDOG_H_

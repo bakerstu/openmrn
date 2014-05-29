@@ -31,8 +31,8 @@
  * @date 28 December 2012
  */
 
-#ifndef _Can_hxx_
-#define _Can_hxx_
+#ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
+#define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 
 #include "Devtab.hxx"
 #include "can_frame.h"
@@ -135,4 +135,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
 
-#endif /* _Can_hxx_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_CAN_HXX_ */

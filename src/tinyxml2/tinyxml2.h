@@ -21,8 +21,8 @@ must not be misrepresented as being the original software.
 distribution.
 */
 
-#ifndef TINYXML2_INCLUDED
-#define TINYXML2_INCLUDED
+#ifndef _TINYXML2_TINYXML2_H_
+#define _TINYXML2_TINYXML2_H_
 
 #define __STDC_VERSION__ 199901
 
@@ -1910,4 +1910,4 @@ private:
 }	// tinyxml2
 
 
-#endif // TINYXML2_INCLUDED
+#endif // _TINYXML2_TINYXML2_H_

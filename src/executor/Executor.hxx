@@ -33,8 +33,8 @@
  * @date 26 October 2013
  */
 
-#ifndef _Executor_hxx_
-#define _Executor_hxx_
+#ifndef _EXECUTOR_EXECUTOR_HXX_
+#define _EXECUTOR_EXECUTOR_HXX_
 
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
@@ -263,4 +263,4 @@ Executor<NUM_PRIO>::~Executor()
     shutdown();
 }
 
-#endif /* _Executor_hxx_ */
+#endif /* _EXECUTOR_EXECUTOR_HXX_ */

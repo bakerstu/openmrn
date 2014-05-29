@@ -17,8 +17,8 @@
  * warranty that such application will be suitable for the specified
  * use without further testing or modification.
 ****************************************************************************/
-#ifndef __ROM_DRIVER_CAN_H__
-#define __ROM_DRIVER_CAN_H__
+#ifndef _FREERTOS_DRIVERS_NXP_11CXX_ROM_DRIVER_CAN_H_
+#define _FREERTOS_DRIVERS_NXP_11CXX_ROM_DRIVER_CAN_H_
 
 #include "LPC11xx.h"
 

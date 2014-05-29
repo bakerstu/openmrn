@@ -20,8 +20,8 @@
   THE SOFTWARE.
 */
 
-#ifndef cJSON__h
-#define cJSON__h
+#ifndef _CJSON_CJSON_H_
+#define _CJSON_CJSON_H_
 
 #ifdef __cplusplus
 extern "C"

@@ -1,6 +1,6 @@
 
-#ifndef _LOGGING_H_
-#define _LOGGING_H_
+#ifndef _UTILS_LOGGING_H_
+#define _UTILS_LOGGING_H_
 
 #ifndef __cplusplus
 #ifndef __STDC_VERSION__
@@ -57,4 +57,4 @@ void print_errno_and_exit(const char *where);
         }                                                                      \
     } while (0)
 
-#endif // _LOGGING_H_
+#endif // _UTILS_LOGGING_H_

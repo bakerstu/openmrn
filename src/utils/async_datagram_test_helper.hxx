@@ -32,8 +32,8 @@
  * @date 23 Feb 2014
  */
 
-#ifndef _utils_async_datagram_test_helper_hxx_
-#define _utils_async_datagram_test_helper_hxx_
+#ifndef _UTILS_ASYNC_DATAGRAM_TEST_HELPER_HXX_
+#define _UTILS_ASYNC_DATAGRAM_TEST_HELPER_HXX_
 
 #include "utils/async_if_test_helper.hxx"
 #include "nmranet/Datagram.hxx"
@@ -103,4 +103,4 @@ protected:
 } // namespace
 
 
-#endif // _utils_async_datagram_test_helper_hxx_
+#endif // _UTILS_ASYNC_DATAGRAM_TEST_HELPER_HXX_

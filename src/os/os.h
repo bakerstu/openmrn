@@ -32,8 +32,8 @@
  * @date 28 May 2012
  */
 
-#ifndef _os_h_
-#define _os_h_
+#ifndef _OS_OS_H_
+#define _OS_OS_H_
 
 #include <sys/time.h>
 #include <stdlib.h>
@@ -846,4 +846,4 @@ OS_INLINE unsigned sleep(unsigned seconds)
 }
 #endif
 
-#endif /* _os_h_ */
+#endif /* _OS_OS_H_ */

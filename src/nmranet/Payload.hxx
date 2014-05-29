@@ -33,8 +33,8 @@
  * @date 18 May 2014
  */
 
-#ifndef _NMRA_PAY
-#define _NMRA_PAY
+#ifndef _NMRANET_PAYLOAD_HXX_
+#define _NMRANET_PAYLOAD_HXX_
 
 #include <string>
 
@@ -44,4 +44,4 @@ typedef string Payload;
 
 } // namespace nmranet
 
-#endif // _NMRA_PAY
+#endif // _NMRANET_PAYLOAD_HXX_

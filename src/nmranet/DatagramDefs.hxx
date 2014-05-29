@@ -31,8 +31,8 @@
  * @date 5 October 2013
  */
 
-#ifndef _NRMANET_DATAGRAMDEFS_HXX_
-#define _NRMANET_DATAGRAMDEFS_HXX_
+#ifndef _NMRANET_DATAGRAMDEFS_HXX_
+#define _NMRANET_DATAGRAMDEFS_HXX_
 
 namespace nmranet
 {
@@ -151,5 +151,5 @@ private:
 }  // namespace nmranet
 
 
-#endif // _NRMANET_DATAGRAMDEFS_HXX_
+#endif // _NMRANET_DATAGRAMDEFS_HXX_
 

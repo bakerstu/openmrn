@@ -32,8 +32,8 @@
  * @date 21 September 2013
  */
 
-#ifndef _Map_hxx_
-#define _Map_hxx_
+#ifndef _UTILS_MAP_HXX_
+#define _UTILS_MAP_HXX_
 
 #if defined (__LINEAR_MAP__)
 #include "utils/LinearMap.hxx"
@@ -93,4 +93,4 @@ private:
 
 #undef BASE_CLASS
 
-#endif /* _Map_hxx_ */
+#endif /* _UTILS_MAP_HXX_ */

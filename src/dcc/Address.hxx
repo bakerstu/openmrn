@@ -32,8 +32,8 @@
  * @date 10 May 2014
  */
 
-#ifndef _DCC_AD
-#define _DCC_AD
+#ifndef _DCC_ADDRESS_HXX_
+#define _DCC_ADDRESS_HXX_
 
 #include <stdint.h>
 
@@ -67,4 +67,4 @@ struct MMAddress {
 
 }  // namespace dcc
 
-#endif // _DCC_AD
+#endif // _DCC_ADDRESS_HXX_

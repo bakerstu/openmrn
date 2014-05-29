@@ -32,8 +32,8 @@
  * @date 25 December 2013
  */
 
-#ifndef _StateFlow_hxx_
-#define _StateFlow_hxx_
+#ifndef _EXECUTOR_STATEFLOW_HXX_
+#define _EXECUTOR_STATEFLOW_HXX_
 
 #include <type_traits>
 
@@ -707,4 +707,4 @@ protected:
     StateFlowBase *parent_;
 };
 
-#endif /* _StateFlow_hxx_ */
+#endif /* _EXECUTOR_STATEFLOW_HXX_ */

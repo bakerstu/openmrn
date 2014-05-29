@@ -31,8 +31,8 @@
  * @date 2 December 2013
  */
 
-#ifndef _SysMap_hxx_
-#define _SysMap_hxx_
+#ifndef _UTILS_SYSMAP_HXX_
+#define _UTILS_SYSMAP_HXX_
 
 #include <sys/tree.hxx>
 #include <cstdint>
@@ -391,4 +391,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(SysMap);
 };
 
-#endif /* _SysMap_hxx_ */
+#endif /* _UTILS_SYSMAP_HXX_ */

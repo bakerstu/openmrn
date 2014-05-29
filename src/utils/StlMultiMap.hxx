@@ -31,8 +31,8 @@
  * @date 10 March 2014
  */
 
-#ifndef _StlMultiMap_hxx_
-#define _StlMultiMap_hxx_
+#ifndef _UTILS_STLMULTIMAP_HXX_
+#define _UTILS_STLMULTIMAP_HXX_
 
 #include <map>
 
@@ -208,4 +208,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StlMultiMap);
 };
 
-#endif /* _StlMultiMap_hxx_ */
+#endif /* _UTILS_STLMULTIMAP_HXX_ */

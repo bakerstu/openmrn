@@ -32,8 +32,8 @@
  * @date 20 December 2013
  */
 
-#ifndef _Service_hxx_
-#define _Service_hxx_
+#ifndef _EXECUTOR_SERVICE_HXX_
+#define _EXECUTOR_SERVICE_HXX_
 
 #include "executor/Executor.hxx"
 
@@ -66,4 +66,4 @@ private:
     ExecutorBase *executor_;
 };
 
-#endif /* _Service_hxx_ */
+#endif /* _EXECUTOR_SERVICE_HXX_ */

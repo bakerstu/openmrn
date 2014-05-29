@@ -33,8 +33,8 @@
  * @date 19 October 2013
  */
 
-#ifndef _NMRAnet_EventHandlerTemplates_hxx_
-#define _NMRAnet_EventHandlerTemplates_hxx_
+#ifndef _NMRANET_EVENTHANDLERTEMPLATES_HXX_
+#define _NMRANET_EVENTHANDLERTEMPLATES_HXX_
 
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/WriteHelper.hxx"
@@ -320,4 +320,4 @@ class ByteRangeEventP : public ByteRangeEventC {
 
 }; /* namespace nmranet */
 
-#endif  // _NMRAnet_EventHandlerTemplates_hxx_
+#endif  // _NMRANET_EVENTHANDLERTEMPLATES_HXX_

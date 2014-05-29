@@ -31,8 +31,8 @@
  * @date 2 November 2013
  */
 
-#ifndef _can_ioctl_h_
-#define _can_ioctl_h_
+#ifndef _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
+#define _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
 
 #if defined (__cplusplus)
 extern "C" {
@@ -59,4 +59,4 @@ typedef struct can_active_callback
 }
 #endif
 
-#endif /* _can_ioctl_h_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_ */

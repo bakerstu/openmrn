@@ -31,8 +31,8 @@
  * @date 27 December 2012
  */
 
-#ifndef _devtab_h_
-#define _devtab_h_
+#ifndef _FREERTOS_DRIVERS_COMMON_DEVTAB_H_
+#define _FREERTOS_DRIVERS_COMMON_DEVTAB_H_
 
 #include <sys/types.h>
 
@@ -131,4 +131,4 @@ extern devtab_t DEVTAB[], DEVTAB_END;
         _priv                                       \
     };
 
-#endif /* _devtab_h_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_DEVTAB_H_ */

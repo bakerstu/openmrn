@@ -31,8 +31,8 @@
  * @date 28 December 2012
  */
 
-#ifndef _can_h_
-#define _can_h_
+#ifndef _FREERTOS_DRIVERS_COMMON_CAN_H_
+#define _FREERTOS_DRIVERS_COMMON_CAN_H_
 
 #include "devtab.h"
 #include "os/os.h"
@@ -78,4 +78,4 @@ int can_init(devtab_t *dev);
 }
 #endif
 
-#endif /* _can_h_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_CAN_H_ */

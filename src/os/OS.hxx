@@ -32,8 +32,8 @@
  * @date 28 May 2012
  */
 
-#ifndef _os_hxx_
-#define _os_hxx_
+#ifndef _OS_OS_HXX_
+#define _OS_OS_HXX_
 
 #include <endian.h>
 
@@ -522,4 +522,4 @@ private:
     ~OSTime();
 };
 
-#endif /* _os_hxx_ */
+#endif /* _OS_OS_HXX_ */

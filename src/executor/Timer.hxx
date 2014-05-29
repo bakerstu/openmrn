@@ -32,8 +32,8 @@
  * @date 16 Mar 2014
  */
 
-#ifndef _executor_Timer_hxx_
-#define _executor_Timer_hxx_
+#ifndef _EXECUTOR_TIMER_HXX_
+#define _EXECUTOR_TIMER_HXX_
 
 #include "executor/Notifiable.hxx"
 #include "utils/Buffer.hxx"
@@ -250,4 +250,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Timer);
 };
 
-#endif // _executor_Timer_hxx_
+#endif // _EXECUTOR_TIMER_HXX_

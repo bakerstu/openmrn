@@ -31,8 +31,8 @@
  * @date 6 May 2014
  */
 
-#ifndef _TivaDev_hxx_
-#define _TivaDev_hxx_
+#ifndef _FREERTOS_DRIVERS_TI_TIVADEV_HXX_
+#define _FREERTOS_DRIVERS_TI_TIVADEV_HXX_
 
 #ifndef gcc
 #define gcc
@@ -182,5 +182,5 @@ private:
     DISALLOW_COPY_AND_ASSIGN(TivaCan);
 };
 
-#endif /* _TivaDev_hxx_ */
+#endif /* _FREERTOS_DRIVERS_TI_TIVADEV_HXX_ */
 

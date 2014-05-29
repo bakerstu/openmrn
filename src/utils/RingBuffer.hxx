@@ -31,8 +31,8 @@
  * @date 21 October 2013
  */
 
-#ifndef _RingBuffer_hxx_
-#define _RingBuffer_hxx_
+#ifndef _UTILS_RINGBUFFER_HXX_
+#define _UTILS_RINGBUFFER_HXX_
 
 #include <new>
 #include "utils/macros.h"
@@ -172,4 +172,4 @@ private:
     T data[];
 };
 
-#endif /* _RingBuffer_hxx_ */
+#endif /* _UTILS_RINGBUFFER_HXX_ */

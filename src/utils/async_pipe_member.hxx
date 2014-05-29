@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _executor_async_pipe_member_hxx_
-#define _executor_async_pipe_member_hxx_
+#ifndef _UTILS_ASYNC_PIPE_MEMBER_HXX_
+#define _UTILS_ASYNC_PIPE_MEMBER_HXX_
 
 #include <stdint.h>
 
@@ -76,4 +76,4 @@ private:
     Pipe* parent_; //< Parent pipe (kept for unregistering at destruction).
 };
 
-#endif //_executor_async_pipe_member_hxx_
+#endif //_UTILS_ASYNC_PIPE_MEMBER_HXX_

@@ -31,8 +31,8 @@
  * @date 27 December 2012
  */
 
-#ifndef _Devtab_hxx_
-#define _Devtab_hxx_
+#ifndef _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_
+#define _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_
 
 #include <stropts.h>
 #include <sys/types.h>
@@ -184,4 +184,4 @@ struct File
     char inuse; /**< is this file in use */
 };
 
-#endif /* _Devtab_hxx_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_ */

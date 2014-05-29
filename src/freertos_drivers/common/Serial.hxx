@@ -31,8 +31,8 @@
  * @date 3 January 2013
  */
 
-#ifndef _Serial_hxx_
-#define _Serial_hxx_
+#ifndef _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
+#define _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 
 #include "Devtab.hxx"
 #include "nmranet_config.h"
@@ -126,4 +126,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Serial);
 };
 
-#endif /* _Serial_hxx_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_ */

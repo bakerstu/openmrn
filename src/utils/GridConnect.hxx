@@ -32,8 +32,8 @@
  * @date 28 September 2013
  */
 
-#ifndef _GridConnect_hxx_
-#define _GridConnect_hxx_
+#ifndef _UTILS_GRIDCONNECT_HXX_
+#define _UTILS_GRIDCONNECT_HXX_
 
 #include <sys/types.h>
 #include <cstdint>
@@ -177,5 +177,5 @@ private:
     DISALLOW_COPY_AND_ASSIGN(GridConnect);
 };
 
-#endif /* _GridConnect_hxx_ */
+#endif /* _UTILS_GRIDCONNECT_HXX_ */
 

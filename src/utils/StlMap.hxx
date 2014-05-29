@@ -31,8 +31,8 @@
  * @date 2 December 2013
  */
 
-#ifndef _StlMap_hxx_
-#define _StlMap_hxx_
+#ifndef _UTILS_STLMAP_HXX_
+#define _UTILS_STLMAP_HXX_
 
 #include <map>
 
@@ -169,4 +169,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(StlMap);
 };
 
-#endif /* _StlMap_hxx_ */
+#endif /* _UTILS_STLMAP_HXX_ */

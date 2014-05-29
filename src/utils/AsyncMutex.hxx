@@ -32,8 +32,8 @@
  * @date 19 April 2014
  */
 
-#ifndef _UTILS_ASYNC_MUTEX_HXX_
-#define _UTILS_ASYNC_MUTEX_HXX_
+#ifndef _UTILS_ASYNCMUTEX_HXX_
+#define _UTILS_ASYNCMUTEX_HXX_
 
 #include "utils/Queue.hxx"
 
@@ -107,4 +107,4 @@ private:
     class Token : public QMember {} token_;
 };
 
-#endif // _UTILS_ASYNC_MUTEX_HXX_
+#endif // _UTILS_ASYNCMUTEX_HXX_

@@ -31,8 +31,8 @@
  * @date 20 May 2013
  */
 
-#ifndef _gc_pipe_hxx_
-#define _gc_pipe_hxx_
+#ifndef _UTILS_GRIDCONNECTHUB_HXX_
+#define _UTILS_GRIDCONNECTHUB_HXX_
 
 #include <memory>
 
@@ -98,4 +98,4 @@ private:
  * closedown would be helpful. */
 void create_gc_port_for_can_hub(CanHubFlow* can_hub, int fd);
 
-#endif //_gc_pipe_hxx_
+#endif //_UTILS_GRIDCONNECTHUB_HXX_

@@ -31,8 +31,8 @@
  * @date 3 January 2013
  */
 
-#ifndef _serial_h_
-#define _serial_h_
+#ifndef _FREERTOS_DRIVERS_COMMON_SERIAL_H_
+#define _FREERTOS_DRIVERS_COMMON_SERIAL_H_
 
 #include "devtab.h"
 #include "os/os.h"
@@ -79,4 +79,4 @@ int serial_init(devtab_t *dev);
 }
 #endif
 
-#endif /* _serial_h_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_SERIAL_H_ */

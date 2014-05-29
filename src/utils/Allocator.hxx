@@ -32,8 +32,8 @@
  * @date 10 March 2014
  */
 
-#ifndef _Allocator_hxx_
-#define _Allocator_hxx_
+#ifndef _UTILS_ALLOCATOR_HXX_
+#define _UTILS_ALLOCATOR_HXX_
 
 #include "utils/macros.h"
 
@@ -219,4 +219,4 @@ private:
     }
 };
 
-#endif /* _Allocator_hxx_ */
+#endif /* _UTILS_ALLOCATOR_HXX_ */

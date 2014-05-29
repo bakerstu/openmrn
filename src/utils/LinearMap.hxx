@@ -31,8 +31,8 @@
  * @date 2 December 2013
  */
 
-#ifndef _LinearMap_hxx_
-#define _LinearMap_hxx_
+#ifndef _UTILS_LINEARMAP_HXX_
+#define _UTILS_LINEARMAP_HXX_
 
 #include <stdio.h>  // for ssize_t
 #include <sys/tree.hxx>
@@ -300,4 +300,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(LinearMap);
 };
 
-#endif /* _LinearMap_hxx_ */
+#endif /* _UTILS_LINEARMAP_HXX_ */

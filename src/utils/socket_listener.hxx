@@ -34,8 +34,8 @@
  */
 
 
-#ifndef _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
-#define _OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#ifndef _UTILS_SOCKET_LISTENER_HXX_
+#define _UTILS_SOCKET_LISTENER_HXX_
 
 #include <functional>
 
@@ -59,4 +59,4 @@ class SocketListener {
 // unsuccessful; returns the fd is successful.
 int ConnectSocket(const char* host, int port);
 
-#endif //_OPENMRN_UTILS_SOCKET_LISTENER_HXX_
+#endif //_UTILS_SOCKET_LISTENER_HXX_

@@ -1,5 +1,5 @@
-#ifndef _NMRA_PAY
-#define _NMRA_PAY
+#ifndef _UTILS_ASYNC_TRACTION_TEST_HELPER_HXX_
+#define _UTILS_ASYNC_TRACTION_TEST_HELPER_HXX_
 
 #include "utils/async_if_test_helper.hxx"
 
@@ -37,4 +37,4 @@ protected:
 
 } // namespace nmranet
 
-#endif // _NMRA_PAY
+#endif // _UTILS_ASYNC_TRACTION_TEST_HELPER_HXX_
