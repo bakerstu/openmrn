@@ -35,13 +35,10 @@
 
 #include <stdint.h>
 #include "utils/logging.h"
+#include "utils/gc_format.h"
 #include "can_frame.h"
 
 extern "C" {
-
-extern int GC_GENERATE_NEWLINES;
-
-__attribute__((__weak__)) int GC_GENERATE_NEWLINES = 0;
 
 /** Build an ASCII character representation of a nibble value (uppercase hex).
  * @param value to convert
@@ -245,7 +242,7 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
         output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
     }
     output(buf, ';');
-    if (GC_GENERATE_NEWLINES) {
+    if (config_gc_generate_newlines()) {
         output(buf, '\n');
     }
     return buf;

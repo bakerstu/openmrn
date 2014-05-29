@@ -43,3 +43,5 @@ DEFAULT_CONST(can_rx_buffer_size, 16);
 
 DEFAULT_CONST(serial_tx_buffer_size, 16);
 DEFAULT_CONST(serial_rx_buffer_size, 16);
+
+DEFAULT_CONST(gc_generate_newlines, 0);

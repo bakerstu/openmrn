@@ -50,11 +50,7 @@ Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-extern "C" {
-extern int GC_GENERATE_NEWLINES;
-int GC_GENERATE_NEWLINES = 1;
-}
-
+OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(can_tx_buffer_size, 8);
 OVERRIDE_CONST(can_rx_buffer_size, 8);
 OVERRIDE_CONST(serial_tx_buffer_size, 64);

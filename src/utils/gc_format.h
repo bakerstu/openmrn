@@ -34,11 +34,15 @@
 #ifndef _gc_format_h_
 #define _gc_format_h_
 
+#include "utils/constants.hxx"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct can_frame;
+
+DECLARE_CONST(gc_generate_newlines);
 
 /** Parses a GridConnect packet.
     
