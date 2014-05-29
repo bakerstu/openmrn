@@ -55,23 +55,15 @@ extern int GC_GENERATE_NEWLINES;
 int GC_GENERATE_NEWLINES = 1;
 }
 
-extern "C" {
-extern const size_t CAN_TX_BUFFER_SIZE;
-extern const size_t CAN_RX_BUFFER_SIZE;
-const size_t CAN_RX_BUFFER_SIZE = 8;
-const size_t CAN_TX_BUFFER_SIZE = 8;
-extern const size_t SERIAL_RX_BUFFER_SIZE;
-extern const size_t SERIAL_TX_BUFFER_SIZE;
-const size_t SERIAL_RX_BUFFER_SIZE = 64;
-const size_t SERIAL_TX_BUFFER_SIZE = 64;
+OVERRIDE_CONST(can_tx_buffer_size, 8);
+OVERRIDE_CONST(can_rx_buffer_size, 8);
+OVERRIDE_CONST(serial_tx_buffer_size, 64);
+OVERRIDE_CONST(serial_rx_buffer_size, 64);
 #ifdef BOARD_LAUNCHPAD_EK
-const size_t main_stack_size = 2500;
+OVERRIDE_CONST(main_thread_stack_size, 2500);
 #else
-const size_t main_stack_size = 900;
+OVERRIDE_CONST(main_thread_stack_size, 900);
 #endif
-}
-
-const int main_priority = 0;
 
 extern "C" { void resetblink(uint32_t pattern); }
 
@@ -89,7 +81,8 @@ int appl_main(int argc, char* argv[])
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
 
-    FdHubPort<CanHubFlow> can_hub_port(&can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
+    FdHubPort<CanHubFlow> can_hub_port(
+        &can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
 
     while(1) {
         sleep(1);
