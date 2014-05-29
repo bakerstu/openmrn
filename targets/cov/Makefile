@@ -99,6 +99,6 @@ veryclean-cov:
 veryclean: veryclean-cov clean-cov
 
 clean-cov:
-	rm -rf $(TESTBINS) $(TESTOBJS) $(TESTOUTPUTS) $(TESTMD5) $(TESTDIRS) 
+	rm -rf $(TESTBINS) $(TESTOBJS) $(TESTOUTPUTS) $(TESTMD5) $(TESTDIRS) $(COVAGGRFILES)
 
 clean: clean-cov
