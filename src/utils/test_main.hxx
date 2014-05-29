@@ -49,7 +49,7 @@
 
 #include "os/os.h"
 //#include "utils/pipe.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 

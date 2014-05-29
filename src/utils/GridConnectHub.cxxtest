@@ -7,7 +7,7 @@ using namespace std;
 #include "utils/test_main.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Hub.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 using testing::StrEq;
 using testing::_;

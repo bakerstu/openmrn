@@ -4,7 +4,7 @@
 #include "os/os.h"
 
 #include "utils/gc_format.h"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 using namespace std;
 

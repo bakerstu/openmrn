@@ -38,7 +38,7 @@
 #include "nmranet/IfImpl.hxx"
 #include "nmranet/IfCanImpl.hxx"
 #include "nmranet/CanDefs.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 namespace nmranet
 {

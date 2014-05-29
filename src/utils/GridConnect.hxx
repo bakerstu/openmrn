@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #include <cstdint>
 
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "utils/macros.h"
 
 /** This class provides a means to write CAN data to an a file descriptor in

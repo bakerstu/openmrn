@@ -2,7 +2,7 @@
 
 #include "utils/test_main.hxx"
 
-#include "nmranet_can.h"
+#include "can_frame.h"
 //#include "nmranet/ReadDispatch.hxx"
 #include "executor/Dispatcher.hxx"
 

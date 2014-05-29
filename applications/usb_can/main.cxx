@@ -43,7 +43,7 @@
 #include "executor/Executor.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "nmranet_config.h"
 
 Executor<1> g_executor("g_executor", 0, 1024);

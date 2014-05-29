@@ -38,7 +38,7 @@
 #include <string>
 
 #include "executor/Dispatcher.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 class PipeBuffer;
 class PipeMember;

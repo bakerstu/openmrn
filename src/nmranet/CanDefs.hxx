@@ -37,7 +37,7 @@
 #include <cstdint>
 
 #include "nmranet/Defs.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "nmranet_config.h"
 
 #define WRITE_BUFFER_TIMEOUT 3000000000LL

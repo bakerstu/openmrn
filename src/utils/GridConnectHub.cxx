@@ -36,7 +36,7 @@
 #include "utils/GridConnectHub.hxx"
 
 #include "executor/StateFlow.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "utils/Buffer.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/Hub.hxx"

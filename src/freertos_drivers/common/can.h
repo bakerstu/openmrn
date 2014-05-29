@@ -36,7 +36,7 @@
 
 #include "devtab.h"
 #include "os/os.h"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 #ifdef __cplusplus
 extern "C" {

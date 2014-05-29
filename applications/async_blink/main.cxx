@@ -39,7 +39,7 @@
 #include "os/os.h"
 #include "utils/GridConnectHub.hxx"
 #include "executor/Executor.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "nmranet_config.h"
 
 #include "utils/GcTcpHub.hxx"

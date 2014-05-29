@@ -35,7 +35,7 @@
 
 #include <stdint.h>
 #include "utils/logging.h"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 extern "C" {
 

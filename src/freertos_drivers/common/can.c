@@ -35,7 +35,7 @@
 #include <fcntl.h>
 #include "devtab.h"
 #include "can.h"
-#include "nmranet_can.h"
+#include "can_frame.h"
 
 /* prototypes */
 int can_init(devtab_t *dev);

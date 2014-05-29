@@ -35,7 +35,7 @@
 #define _Can_hxx_
 
 #include "Devtab.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 

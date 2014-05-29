@@ -35,7 +35,7 @@
 #include <fcntl.h>
 #include "Devtab.hxx"
 #include "Can.hxx"
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "can_ioctl.h"
 
 Devops Can::ops = {Can::open, Can::close, Can::read, Can::write, Can::ioctl};

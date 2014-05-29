@@ -37,7 +37,7 @@
 #ifndef _UTILS_CANIF_HXX_
 #define _UTILS_CANIF_HXX_
 
-#include "nmranet_can.h"
+#include "can_frame.h"
 #include "utils/Hub.hxx"
 
 /** Thin wrapper around struct can_frame that will allow a dispatcher select
