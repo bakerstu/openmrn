@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.c
+ * \file interrupt.c
  * This file represents the interrupt vector table for TI Stellaris MCUs.
  *
  * @author Stuart W. Baker

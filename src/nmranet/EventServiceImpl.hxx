@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file GlobalEventHandlerImpl.hxx
+ * \file EventServiceImpl.hxx
  *
  * Implementation headers shared between components of the global event
  * handler's various flows. An end-user will typically not need to include this

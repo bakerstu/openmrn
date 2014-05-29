@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetEndianHelper.hxx
+ * \file EndianHelper.hxx
  *
  * Helper functions for dealing with network byte order and NMRAnet identifiers.
  *

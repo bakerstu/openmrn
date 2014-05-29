@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Queue.hxx
+ * \file QMember.hxx
  * This file provides an implementation queues.
  *
  * @author Stuart W. Baker

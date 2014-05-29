@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file CanIf.hxx
+ * \file CanIf.cxx
  *
  * Defines a service for interfacing with a CANbus. The interface receives
  * incoming frames from the bus device and proxies it to various handlers that

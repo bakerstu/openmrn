@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetAsyncMemoryConfig.hxx
+ * \file MemoryConfig.hxx
  *
  * Implementation of the Memory Config Protocol server
  *

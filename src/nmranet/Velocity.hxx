@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetVelocity.hxx
+ * \file Velocity.hxx
  * This file provides an implementation of velocity in NMRAnet terms.
  *
  * @author Stuart W. Baker

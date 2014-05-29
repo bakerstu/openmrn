@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file 11cxx_async_can.hx
+ * \file 11cxx_async_can.hxx
  * This file implements an asynchronous CAN driver for the LPC11Cxx
  * microcontrollers, using the builtin ROM drivers.
  *

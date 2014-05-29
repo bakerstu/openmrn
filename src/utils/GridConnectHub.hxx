@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file gc_pipe.hxx
+ * \file GridConnectHub.hxx
  * Interface for creating gridconnect parser/renderer pipe components.
  *
  * @author Balazs Racz

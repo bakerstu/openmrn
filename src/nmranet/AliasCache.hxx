@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetAliasCache.hxx
+ * \file AliasCache.hxx
  * This file provides an Alias Caching mechanism.
  *
  * @author Stuart W. Baker

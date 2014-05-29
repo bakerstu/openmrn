@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file NMRAnetEventRegistry.cxx
+ * \file EventHandler.cxx
  * Static declarations for handling NMRAnet events.
  *
  * @author Balazs Racz

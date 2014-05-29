@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file AsyncAliasAllocator.cxx
+ * \file AliasAllocator.cxx
  *
  * Asynchronous implementation of NMRAnet alias reservation algorithms.
  *

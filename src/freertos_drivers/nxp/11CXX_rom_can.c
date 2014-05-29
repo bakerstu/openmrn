@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file mbed_can.cpp
+ * \file 11CXX_rom_can.c
  * This file implements a CAN driver on top of the mbed library. Currently it
  * is tested on the LPC23xx processors.
  *

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file WriteFlow.hxx
+ * \file WriteHelper.hxx
  *
  * Class that allows enqueing an outgoing message.
  *

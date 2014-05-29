@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StlMap.hxx
+ * \file Allocator.hxx
  * This file provides an implementation of a C++ Allocator with onetime up
  * front allocation of memory.
  *

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file BufferQueue.cxxtest
+ * \file OS.cxxtest
  * This file contains a unit test for classes in BufferQueue.hxx and
  * BufferQueue.cxx.
  *

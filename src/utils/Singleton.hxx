@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file singleton.hxx
+ * \file Singleton.hxx
  *
  * Utility class to ensure a particular class has only a single object, and
  * access it via a static reference.
