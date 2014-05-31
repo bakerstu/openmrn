@@ -116,12 +116,15 @@ endif
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -C -d $< > $@
 
+$(EXECUTABLE).ndlst: $(EXECUTABLE)$(EXTENTION)
+	$(OBJDUMP) -d $< > $@
+
 ifndef CGMINSIZE
 CGMINSIZE=300
 endif
 
-cg.svg: $(EXECUTABLE).lst $(OPENMRNPATH)/bin/callgraph.py
-	$(OPENMRNPATH)/bin/callgraph.py --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).lst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
+cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
+	$(OPENMRNPATH)/bin/callgraph.py --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)
