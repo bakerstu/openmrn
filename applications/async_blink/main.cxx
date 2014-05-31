@@ -51,7 +51,8 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/DefaultNode.hxx"
 
-Executor<1> g_executor("g_executor", 0, 1024);
+NO_THREAD nt;
+Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 #ifdef __linux__
@@ -170,20 +171,13 @@ int appl_main(int argc, char* argv[])
 #endif  // default target
 #endif  // FreeRTOS
 
-    //int fd = ::open("/dev/ser0", O_RDWR);
-    //HASSERT(fd >= 0);
-    //create_gc_port_for_can_hub(&can_hub0, fd);
-
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
-    BlinkerFlow blinker(&g_node);
-    // We don't need to support addressed messages.
-    // g_if_can.add_addressed_message_support(1);
-    while(1) {
-        sleep(1);
-    }
+    //BlinkerFlow blinker(&g_node);
+
+    g_executor.thread_body();
     return 0;
 }
