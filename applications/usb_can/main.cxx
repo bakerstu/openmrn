@@ -43,6 +43,7 @@
 #include "executor/Executor.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
+#include "utils/blinker.h"
 #include "can_frame.h"
 #include "nmranet_config.h"
 
@@ -60,8 +61,6 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 #else
 OVERRIDE_CONST(main_thread_stack_size, 900);
 #endif
-
-extern "C" { void resetblink(uint32_t pattern); }
 
 /** Entry point to application.
  * @param argc number of command line arguments
