@@ -38,14 +38,14 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "os/os.h"
-#include "utils/gc_pipe.hxx"
+#include "can_frame.h"
 #include "executor/Executor.hxx"
+#include "nmranet_config.h"
+#include "os/os.h"
+#include "utils/GridConnectHub.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/blinker.h"
-#include "can_frame.h"
-#include "nmranet_config.h"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
