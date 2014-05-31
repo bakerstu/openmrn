@@ -4,11 +4,12 @@
 # that lock file to disappear before proceeding. After the lock file is created
 # successfully, the script returns.
 
-echo Looking for lock file in `pwd`
+echo Looking for lock file in `pwd` >&2
 
 function waitthread() {
     WATCHPID=$1
     MYLFILE=dirlock.$BASHPID    
+    while true ; do
     echo "LWATCHPID=$WATCHPID" > $MYLFILE
     echo "LWATCHERPID=$BASHPID" >> $MYLFILE
     while [ -f $MYLFILE ] ; do
@@ -24,6 +25,13 @@ function waitthread() {
         # while loop will still find our own lock file and go another trip of
         # waiting for the (now new) master lock.
         mv -n $MYLFILE dirlock
+    done
+    source dirlock 2>/dev/null
+    if [ "$LWATCHERPID" == "$BASHPID" ] ; then
+        break ;
+    else
+        echo FALSE LOCK ACQUIRED >&2
+    fi
     done
     # Now: we have the lock.
     echo acquired
@@ -42,4 +50,6 @@ NUM=${COPROC[0]}
 read dd <&$NUM
 if [ "$dd" != "acquired" ] ; then
     echo ERROR ACQUIRING LOCK >&2
+else
+    echo dirlock acquired
 fi
