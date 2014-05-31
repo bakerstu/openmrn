@@ -58,29 +58,18 @@ CanHubFlow can_hub0(&g_service);
 GcPacketPrinter packet_printer(&can_hub0);
 #endif
 
-static const nmranet::NodeID NODE_ID = 0x050101011441ULL;
+extern const nmranet::NodeID NODE_ID;
 
-extern "C" {
-extern int GC_GENERATE_NEWLINES;
-int GC_GENERATE_NEWLINES = 1;
-}
+OVERRIDE_CONST(gc_generate_newlines, 1);
 
-extern "C" {
-const size_t WRITE_FLOW_THREAD_STACK_SIZE = 900;
-extern const size_t CAN_TX_BUFFER_SIZE;
-extern const size_t CAN_RX_BUFFER_SIZE;
-const size_t CAN_RX_BUFFER_SIZE = 1;
-const size_t CAN_TX_BUFFER_SIZE = 2;
-extern const size_t SERIAL_RX_BUFFER_SIZE;
-extern const size_t SERIAL_TX_BUFFER_SIZE;
-const size_t SERIAL_RX_BUFFER_SIZE = 16;
-const size_t SERIAL_TX_BUFFER_SIZE = 16;
+//OVERRIDE_CONST(can_tx_buffer_size, 2);
+//OVERRIDE_CONST(can_rx_buffer_size, 1);
+
 #ifdef BOARD_LAUNCHPAD_EK
-const size_t main_stack_size = 2500;
-#else
-const size_t main_stack_size = 900;
+OVERRIDE_CONST(main_thread_stack_size, 2500);
+#elif defined(TARGET_LPC11Cxx)
+OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
-}
 
 nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static nmranet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
@@ -88,7 +77,6 @@ nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 nmranet::EventService g_event_service(&g_if_can);
 
 static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
-const int main_priority = 0;
 
 class BlinkerFlow : public StateFlowBase
 {
