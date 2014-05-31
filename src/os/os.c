@@ -931,6 +931,7 @@ void main_thread(void *arg)
     _impure_ptr = priv->reent;
 
     /* setup the monitoring entries for the timer and idle tasks */
+#if configUSE_TIMERS
     taskList.next = malloc(sizeof(TaskList)*2);
     taskList.next->task = xTimerGetTimerDaemonTaskHandle();
     taskList.next->unused = uxTaskGetStackHighWaterMark(taskList.next->task);
@@ -938,6 +939,12 @@ void main_thread(void *arg)
     taskList.next->next->task = xTaskGetIdleTaskHandle();
     taskList.next->next->unused = uxTaskGetStackHighWaterMark(taskList.next->next->task);
     taskList.next->next->next = NULL;
+#else
+    taskList.next = malloc(sizeof(TaskList));
+    taskList.next->task = xTaskGetIdleTaskHandle();
+    taskList.next->unused = uxTaskGetStackHighWaterMark(taskList.next->task);
+    taskList.next->next = NULL;
+#endif
 
     appl_main(1, argv);
     // If the main thread returns, FreeRTOS usually crashes the CPU in a
@@ -979,6 +986,7 @@ int main(int argc, char *argv[])
         priority = config_main_thread_priority();
     }
     
+#ifndef TARGET_LPC11Cxx
     /* stdin */
     if (open(STDIN_DEVICE, O_RDWR) < 0)
     {
@@ -994,6 +1002,7 @@ int main(int argc, char *argv[])
     {
         open("/dev/null", O_WRONLY);
     }
+#endif
 
     /* start the main thread */
     xTaskGenericCreate(

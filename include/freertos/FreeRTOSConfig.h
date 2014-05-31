@@ -262,7 +262,11 @@ extern unsigned long blinker_pattern;
 
 #define configUSE_APPLICATION_TASK_TAG 1
 
+#ifdef TARGET_LPC11Cxx
+#define configUSE_TIMERS               0
+#else
 #define configUSE_TIMERS               1
+#endif
 #define configTIMER_QUEUE_LENGTH       16
 #define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES/2)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1

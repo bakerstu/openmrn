@@ -161,8 +161,8 @@ int appl_main(int argc, char* argv[])
 #ifdef __linux__
     GcTcpHub hub(&can_hub0, 12021);
 #else
-#ifdef NNTARGET_LPC11Cxx
-    lpc11cxx::CreateCanDriver(&can_pipe);
+#ifdef TARGET_LPC11Cxx
+    //lpc11cxx::CreateCanDriver(&can_pipe);
 #else
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
