@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * An application which acts as an openlcb hub with the GC protocol.
+ * An application that blinks an LED.
  *
  * @author Balazs Racz
  * @date 3 Aug 2013
@@ -36,23 +36,7 @@
 #include <unistd.h>
 
 #include "os/os.h"
-
-#include "nmranet_config.h"
-
-const size_t main_stack_size = 2560;
-const int main_priority = 0;
-
-#include <p32xxxx.h>
-#include "peripheral/ports.h"
-
-//DEFINE_PIPE(gc_can_pipe, 1);
-
-
-/*void NewConnection(int fd) {
-  char thread_name[30];
-  sprintf(thread_name, "thread_fd_%d", fd);
-  gc_can_pipe.AddPhysicalDeviceToPipe(fd, fd, thread_name, 0);
-  }*/
+#include "utils/blinker.h"
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -61,14 +45,13 @@ const int main_priority = 0;
  */
 int appl_main(int argc, char *argv[])
 {
-  mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
-  mPORTBToggleBits(BIT_12  );
-
-  //SocketListener listener(8082, NewConnection);
-  while(1) {
-    //sleep(1);
-    mPORTBToggleBits(BIT_12 | BIT_15  );
-    usleep(500000);
-  }
-  return 0;
+    setblink(0);
+    while (1)
+    {
+        resetblink(1);
+        usleep(500000);
+        resetblink(0);
+        usleep(500000);
+    }
+    return 0;
 }
