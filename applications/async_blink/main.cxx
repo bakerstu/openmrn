@@ -171,12 +171,19 @@ int appl_main(int argc, char* argv[])
 #endif  // default target
 #endif  // FreeRTOS
 
+    // Enable this to add sniffing through the usb serial port.
+    /*
+    int serial_fd = ::open("/dev/serUSB0", O_RDWR); // or /dev/ser0
+    HASSERT(serial_fd >= 0);
+    create_gc_port_for_can_hub(&can_hub0, serial_fd);
+    */
+
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
-    //BlinkerFlow blinker(&g_node);
+    BlinkerFlow blinker(&g_node);
 
     g_executor.thread_body();
     return 0;
