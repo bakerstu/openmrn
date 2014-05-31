@@ -159,6 +159,7 @@ extern void pwm1_1_interrupt_handler(void);
 extern void pwm1_2_interrupt_handler(void);
 extern void pwm1_3_interrupt_handler(void);
 extern void pwm1_fault_interrupt_handler(void);
+extern void ignore_fn(void);
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))
@@ -319,6 +320,7 @@ void (* const __interrupt_vector[])(void) =
     pwm1_2_interrupt_handler,        /**< 152 PWM1 generator 2 */
     pwm1_2_interrupt_handler,        /**< 153 PWM1 generator 3 */
     pwm1_fault_interrupt_handler,    /**< 154 PWM1 fault */
+    ignore_fn                        /**< forces the linker to add this fn */
 };
 
 extern unsigned long __data_section_table;
