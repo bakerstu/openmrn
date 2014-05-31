@@ -38,7 +38,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 INCLUDES += -I$(PIC32MXLIBPATH)
 
 
-ARCHOPTIMIZATION = -fno-strict-aliasing
+ARCHOPTIMIZATION = -O3 -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32  -D__32MX795F512H__ \
@@ -49,7 +49,8 @@ ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-ide
 
 CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP \
              -fno-builtin -fno-stack-protector -DTARGET_PIC32MX \
-             -D_POSIX_C_SOURCE=200112 $(BASEDEFS) -D__LANGUAGE_C__
+             -D_POSIX_C_SOURCE=200112 $(BASEDEFS) -D__LANGUAGE_C__ \
+             -ffunction-sections -fdata-sections
 
 #             -march=armv7-m -mthumb -mfloat-abi=soft -mfix-cortex-m3-ldrd \
 #             -DINTERRUPT_ATTRIBUTE=   
