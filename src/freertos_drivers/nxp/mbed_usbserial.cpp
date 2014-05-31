@@ -177,10 +177,7 @@ private:
             txPending = false;
             return;
         }
-#ifdef TARGET_LPC1768
-        d2 = !d2;
-#endif
-        if ((!configured()) || (!terminal_connected))
+        if (!configured())
         {
             // An error occured, data was lost.
             txPending = false;
