@@ -173,43 +173,6 @@ struct NMRAnetMessage
 
 typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
 
-#if 0
-/** @todo(balazs.racz) delete this class */
-class WriteFlow : public ControlFlow
-{
-public:
-    WriteFlow(Executor *e, Notifiable *done) : ControlFlow(e, done)
-    {
-    }
-
-    /** Initiates sending an addressed message onto the NMRAnet bus.
-     *
-     * Must only be called if *this is an addressed flow.
-     *
-     * @param mti of the message to send
-     * @param src is the NodeID of the originating node
-     * @param dst is the destination node (cannot be 0,0)
-     * @param data is the message payload (may be null), takes ownership
-     * @param done will be notified when the message is enqueued for sending.
-     *  May be set to nullptr.
-     */
-    virtual void WriteAddressedMessage(Defs::MTI mti, NodeID src, NodeHandle dst,
-                                       Buffer *data, Notifiable *done) = 0;
-
-    /** Initiates sending an unaddressed (global) message onto the NMRAnet bus.
-     *
-     * Must only be called if *this is a global flow.
-     *
-     * @param mti of the message to send
-     * @param src is the NodeID of the originating node
-     * @param data is the message payload (may be null), takes ownership
-     * @param done will be notified when the message is enqueued for sending.
-     *  May be set to nullptr.
-     */
-    virtual void WriteGlobalMessage(Defs::MTI mti, NodeID src, Buffer *data,
-                                    Notifiable *done) = 0;
-};
-#endif
 class If : public Service
 {
 public:

@@ -185,6 +185,7 @@ TEST(BufferBaseTest, alloc_async)
 }
 
 #if 0
+///@TODO(stbaker): why is this disabled?
 ACTION(unref_buffer)
 {
     arg0->unref();

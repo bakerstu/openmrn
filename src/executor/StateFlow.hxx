@@ -260,17 +260,6 @@ protected:
         return wait();
     }
 
-#if 0
-    /** Terminate current StateFlow activity. after releasing the message.
-     * @param msg to release
-     * @return function pointer to terminated method
-     */
-    templateAction release_and_exit(Message *msg)
-    {
-        msg->unref();
-        return exit();
-    }
-#endif
     /** Imediately call the next state upon return.
      * @param c Callback "state" to move to
      * @return function pointer to be returned from state function

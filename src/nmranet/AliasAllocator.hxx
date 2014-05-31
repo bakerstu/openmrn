@@ -179,12 +179,6 @@ private:
     /// Timer needed for sleeping the control flow.
     // SleepData sleep_helper_;
 };
-#if 0
-    class AliasAllocator : public StateFlow<Buffer<AliasInfo>, QList<1>> {
-    public:
-        DynamicPool* reserved_aliases() { return mainBufferPool; }
-    };
-#endif
 
 /** Create this object statically to add an alias allocator to an already
  * statically allocated interface. */

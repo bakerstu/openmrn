@@ -137,49 +137,6 @@ struct CanDefs {
         AME_FRAME = 0x0702, /**< Alias Mapping Inquery */
         AMR_FRAME = 0x0703  /**< Alias Map Reset */
     };
-    
-#if 0
-    ///@TODO(balazs.racz) i don't think this is used anywhere. Remove?
-    
-    /** Enumerations having to deal with addressed frame types. */
-    enum Addressed
-    {
-        /** destination alias mask */
-        DESTINATION_MASK  = 0x0fff,
-
-        /** 0b00 = only frame, 0b01 = first frame,
-         *  0b10 = last frame, 0b11 = middle frame (mask)
-         */
-        FRAME_MASK        = 0x3000, 
-
-        /** reserved for future use */
-        RESERVED_MASK     = 0xc000,
-
-        /** destination alias shift */
-        DESTINATION_SHIFT = 0, /**< destination alias shift */
-
-        /** 0b00 = only frame, 0b01 = first frame,
-         *  0b10 = last frame, 0b11 = middle frame (shift)
-         */
-        FRAME_SHIFT       = 12, 
-
-        /** reserved for future use */
-        RESERVED_SHIFT    = 14,
-        
-        /** single frame message */
-        FRAME_ONLY = 0x0,
-
-        /** First frame in multi-frame message */
-        FRAME_FIRST = 0x1,
-         
-        /** Last frame in multi-frame message */
-        FRAME_LAST = 0x2,
-        
-        /** Middle frame in multi-frame message */
-        FRAME_MIDDLE = 0x3
-    };
-
-#endif
 
     /** Get the source field value of the CAN ID.
      * @param can_id identifier to act upon
@@ -382,18 +339,6 @@ struct CanDefs {
                              ((1)      << CONTROL_PRIORITY_SHIFT));
         frame.can_dlc = 0;
     }
-
-#if 0
-    // These classes use the private enums for message field parsing.
-    friend class AddressedCanMessageWriteFlow;
-    friend class AliasConflictHandler;
-    friend class AsyncAliasAllocator;
-    friend class CanDatagramClient;
-    friend class CanDatagramParser;
-    friend class CanMessageWriteFlow;
-    friend class FrameToAddressedMessageParser;
-    friend class FrameToGlobalMessageParser;
-#endif
 
 private:
     /** This class should not be instantiated. */
