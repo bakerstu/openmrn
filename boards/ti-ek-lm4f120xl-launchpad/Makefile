@@ -1,3 +1,7 @@
+APP_PATH ?= $(realpath ../..)
+-include $(APP_PATH)/config.mk
+-include $(APP_PATH)/openmrnpath.mk
+
 OPENMRNPATH ?= $(shell \
 sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
      elif [ -d /opt/openmrn/src ]; then echo /opt/openmrn; \
@@ -23,6 +27,8 @@ BOARD := BOARD_LAUNCHPAD_EK
 
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+all: $(EXECUTABLE).lst
 
 %.lst: %.elf
 	$(SIZE) $<

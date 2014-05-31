@@ -76,6 +76,11 @@ void resetblink(uint32_t pattern)
     /* make a timer event trigger immediately */
 }
 
+void setblink(uint32_t pattern)
+{
+    resetblink(pattern);
+}
+
 void timer5a_interrupt_handler(void)
 {
     //
