@@ -1,0 +1,1 @@
+../../../../boards/nxp-lpc11C24-lpcxpresso/target.ld
