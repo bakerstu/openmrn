@@ -87,7 +87,7 @@ all: $(EXECUTABLE)$(EXTENTION)
 
 # Makes sure the subdirectory builds are done before linking the binary.
 # The targets and variable BUILDDIRS are defined in recurse.mk.
-$(FULLPATHLIBS): $(BUILDDIRS)
+#$(FULLPATHLIBS): $(BUILDDIRS)
 
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
@@ -98,7 +98,7 @@ lib/timestamp : FORCE $(BUILDDIRS)
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
 $(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
-	make -C $(OPENMRNPATH)/targets/$(TARGET) all
+	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 # We cannot make lib/timestamp a phony target or else every test will always be
 # remade.
