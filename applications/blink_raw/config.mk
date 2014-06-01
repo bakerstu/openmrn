@@ -1,0 +1,1 @@
+-include $(APP_PATH)/openmrnpath.mk
