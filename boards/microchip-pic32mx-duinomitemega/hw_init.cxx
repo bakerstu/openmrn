@@ -33,9 +33,12 @@
 
 #include <stdint.h>
 
+#include "utils/macros.h"
 #include "FreeRTOSConfig.h"
+#include "portmacro.h"
 #include "plib.h"
 #include "peripheral/ports.h"
+#include "peripheral/timer.h"
 #include "utils/blinker.h"
 
 //DigitalIn startpin(P1_4);
@@ -57,29 +60,42 @@ void _cinit(void) {
 #define SET_LED2() mPORTBSetBits(BIT_15)
 #define CLR_LED2() mPORTBClearBits(BIT_15)
 
-
 void diewith(uint32_t pattern) {
-  uint32_t curr_pat = pattern;
-  while(1) {
-    if (curr_pat & 1) {
-      SET_LED1(); SET_LED2();
-    } else {
-      CLR_LED1(); CLR_LED2();
-    }
-    curr_pat>>=1;
-    if (!curr_pat) curr_pat = pattern;
-    // Some delay.
-    volatile int i;
-    for(i = 0; i < 80*1024; ++i);
-  }
+    resetblink(pattern);
+    // Adds a filter to not get interrupts at freertos priorities.
+    portDISABLE_INTERRUPTS();
+    // This will enable hardware interrupts.
+    INTEnableInterrupts();
+    portDISABLE_INTERRUPTS();
+    while(1);
 }
 
-void setblink(uint32_t pattern) {
-    if (pattern) {
+uint32_t blinker_pattern = 0;
+static uint32_t rest_pattern = 0;
+
+void __attribute__((interrupt)) tmr2_interrupt(void)
+{
+    // Set output LED.
+    if (rest_pattern & 1) {
         SET_LED2();
     } else {
         CLR_LED2();
     }
+    rest_pattern >>= 1;
+    if (!rest_pattern)
+    {
+        rest_pattern = blinker_pattern;
+    }
+    INTClearFlag(INT_T2);
+}
+
+asm("\n\t.section .vector_8,\"ax\",%progbits\n\tj "
+    "tmr2_interrupt\n\tnop\n.text\n");
+
+void setblink(uint32_t pattern) {
+    blinker_pattern = pattern;
+    // triggers an int right now.
+    WriteTimer2(ReadPeriod2() - 10);
 }
 
 void resetblink(uint32_t pattern) {
@@ -103,6 +119,10 @@ void _general_exception_context(void)
 void lowlevel_hw_init(void) {
   mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
 
+  // Sets the main clock ot 80 MHz through PLL.
+  OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  HASSERT(configCPU_CLOCK_HZ == 80000000);
+
   // Configure the device for maximum performance but do not change PBDIV
   // Set the flash wait states, RAM wait state and enable prefetch cache,
   // but do NOT change PBDIV.
@@ -111,14 +131,17 @@ void lowlevel_hw_init(void) {
 
   // Enable the cache for the best performance (assuming we're running in KSEG0)
   CheKseg0CacheOn();
+
+  // We want 8 ticks per second.
+  OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF | T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);
+  ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_6 | T2_INT_SUB_PRIOR_0);
+
 }
 
 /** Initializes the processor hardware.
  */
 void hw_init(void)
 {
-
-
     mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
     mPORTBSetBits(BIT_12 | BIT_15  );
 
