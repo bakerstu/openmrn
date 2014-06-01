@@ -1,0 +1,1 @@
+../../../../boards/microchip-pic32mx-duinomitemega/int_tbl_5xx_6xx_7xx_lib.h
