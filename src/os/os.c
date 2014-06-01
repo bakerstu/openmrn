@@ -846,7 +846,7 @@ int usleep(useconds_t usec)
 
 void abort(void)
 {
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3) 
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3) || defined(TARGET_PIC32MX)
     diewith(BLINK_DIE_ABORT);
 #endif
     for (;;)
@@ -863,7 +863,7 @@ int ignore_fn(void)
 
 extern char *heap_end;
 char *heap_end = 0;
-caddr_t _sbrk_r(struct _reent *reent, ptrdiff_t incr)
+void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
     extern char __cs3_heap_start;
