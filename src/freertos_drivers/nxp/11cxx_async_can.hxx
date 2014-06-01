@@ -36,11 +36,13 @@
 #define _FREERTOS_DRIVERS_NXP_11CXX_ASYNC_CAN_HXX_
 #ifdef TARGET_LPC11Cxx
 
+class CanHubFlow;
+
 namespace lpc11cxx
 {
 
 // Creates a CAN driver for the LPC11CXX, and adds it to the specified pipe.
-void CreateCanDriver(Pipe* parent);
+void CreateCanDriver(CanHubFlow* parent);
 
 } // namespace lpc11cxx
 

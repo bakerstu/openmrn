@@ -50,6 +50,9 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/DefaultNode.hxx"
+#ifdef TARGET_LPC11Cxx
+#include "freertos_drivers/nxp/11cxx_async_can.hxx"
+#endif
 
 NO_THREAD nt;
 Executor<1> g_executor(nt);
@@ -162,7 +165,7 @@ int appl_main(int argc, char* argv[])
     GcTcpHub hub(&can_hub0, 12021);
 #else
 #ifdef TARGET_LPC11Cxx
-    //lpc11cxx::CreateCanDriver(&can_pipe);
+    lpc11cxx::CreateCanDriver(&can_hub0);
 #else
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
