@@ -178,7 +178,9 @@ public:
         }
         if (!rxPending_)
         {
-            service()->executor()->add_from_isr(this);
+            rxPending_ = 1;
+            // highest priority
+            service()->executor()->add_from_isr(this, 0);
         }
     }
 
@@ -281,8 +283,8 @@ static const CAN_CALLBACKS callbacks = {CAN_rx, CAN_tx, CAN_error, NULL,
                                         NULL,   NULL,   NULL,      NULL, };
 
 /**  Clock initialization constants for 125 kbaud */
-const uint32_t ClkInitTable125[2] = {0x00000000UL, // CANCLKDIV
-                                     0x00001C57UL  // CAN_BTR
+static const uint32_t ClkInitTable125[2] = {0x00000000UL, // CANCLKDIV
+                                            0x00001C57UL  // CAN_BTR
 };
 
 /**  Clock initialization constants for 250 kbaud */
