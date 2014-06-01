@@ -28,7 +28,6 @@
 *.cxxout
 arpreproc
 ldpreproc
-delete_destructors
 timestamp
 set250k.c
 openmrnpath.mk
