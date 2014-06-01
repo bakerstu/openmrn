@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
+#include "reent.h"
 
 #if defined (__FreeRTOS__)
 #include <FreeRTOS.h>
@@ -839,6 +840,21 @@ OS_INLINE unsigned sleep(unsigned seconds)
 {
     usleep(seconds * 1000);
     return 0;
+}
+#endif
+
+#ifdef TARGET_PIC32MX
+OS_INLINE int open(const char* b, int flags, ...) {
+    return _open_r(_impure_ptr, b, flags, 0);
+}
+OS_INLINE int close(int fd) {
+    return _close_r(_impure_ptr, fd);
+}
+OS_INLINE ssize_t read(int fd, void* buf, size_t count) {
+    return _read_r(_impure_ptr, fd, buf, count);
+}
+OS_INLINE ssize_t write(int fd, const void* buf, size_t count) {
+    return _write_r(_impure_ptr, fd, buf, count);
 }
 #endif
 
