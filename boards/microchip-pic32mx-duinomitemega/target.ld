@@ -142,6 +142,7 @@ SECTIONS
 
     . = ALIGN(0x4);
     *(.gcc_except_table .gcc_except_table.*)
+    *(.gnu_extab .gnu_extab.*)
   } >PIC32MX_flash_user
   
   .eh_frame_hdr : ALIGN (4)
@@ -152,7 +153,7 @@ SECTIONS
   
   .eh_frame : ALIGN (4)
   {
-    KEEP (*(.eh_frame))
+    KEEP (*(.eh_frame .eh_frame.*))
   }  >PIC32MX_flash_user
   
   /* MDI semihosting uses a pointer in this section.  */
@@ -286,7 +287,8 @@ SECTIONS
   /*__cs3_region_end_ram = __cs3_region_start_ram + LENGTH(ram);*/
   __cs3_region_size_ram = LENGTH(ram);
   /* WRONG: load address is PHYSICAL, not logical address:  __cs3_region_init_ram = LOADADDR (.data);  WRONG */
-  __cs3_region_init_ram = _etext; /* DRN updated this; seems correct... */
+  /*  __cs3_region_init_ram = _etext; /* DRN updated this; seems correct... */
+  __cs3_region_init_ram = LOADADDR(.data);
   __cs3_region_init_size_ram = _edata - ADDR (.data);
   __cs3_region_zero_size_ram = _end - _edata;
 
