@@ -67,7 +67,7 @@ private:
     static int ioctl(File *file, Node*node, unsigned long int key, unsigned long data);
     
     /** device operations table */
-    static Devops ops;
+    static const Devops ops;
     
     /** device table entry */
     static Devtab devtab;
@@ -78,7 +78,7 @@ private:
 
 Null null;
 
-Devops Null::ops = {Null::open, Null::close, Null::read, Null::write, Null::ioctl};
+const Devops Null::ops = {Null::open, Null::close, Null::read, Null::write, Null::ioctl};
 Devtab Null::devtab("/dev/null", &Null::ops, NULL);
 
 /** default stdin */

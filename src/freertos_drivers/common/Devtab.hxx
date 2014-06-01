@@ -67,7 +67,7 @@ public:
      * @param devops reference to device operations
      * @param priv private data pointer for device to recall for later use
      */
-    Devtab(const char *name, Devops *devops, void *priv)
+    Devtab(const char *name, const Devops *devops, void *priv)
         : name(name),
           devops(devops),
           priv(priv)
@@ -132,7 +132,7 @@ public:
 
 private:
     const char *name; /**< device name */
-    Devops *devops; /**< device operations */
+    const Devops *devops; /**< device operations */
     void *priv; /**< device private data */
 
     /** first device in linked list */
