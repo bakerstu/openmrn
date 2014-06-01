@@ -46,7 +46,7 @@ endif
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
 
-CSRCS += pic32mx_can.c
+CXXSRCS += Pic32mxCan.cxx
 
 VPATH += $(SRCDIR)/pic32mx
 
