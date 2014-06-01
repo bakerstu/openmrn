@@ -3,6 +3,7 @@ SUBDIRS = linux.x86 \
 	freertos.armv7m.ek-tm4123gxl \
 	freertos.armv7m.mbed-1768 \
 	freertos.armv6m.lpc11cxx \
+	freertos.mips4k.pic32mx-duinomitemega \
 
 
 include $(OPENMRNPATH)/etc/recurse.mk

@@ -1,0 +1,1 @@
+../../../../boards/microchip-pic32mx-duinomitemega/hw_init.cxx
