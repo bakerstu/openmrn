@@ -1,13 +1,8 @@
-OPENMRNPATH ?= $(shell \
-sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
-     elif [ -d /opt/openmrn/src ]; then echo /opt/openmrn; \
-     elif [ -d ~/openmrn/src ]; then echo ~/openmrn; \
-     elif [ -d ../../../../src ]; then echo ../../../..; \
-     else echo OPENMRNPATH not found; fi" \
-)
-export OPENMRNPATH:=$(realpath $(OPENMRNPATH))
-TARGET := freertos.mips4k.pic32mx
+APP_PATH ?= $(realpath ../..)
+-include $(APP_PATH)/config.mk
+export TARGET := freertos.mips4k.pic32mx
 
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/Pic32mxCan.o \
 
 include $(OPENMRNPATH)/etc/prog.mk
 
@@ -20,7 +15,7 @@ all: $(EXECUTABLE).hex $(EXECUTABLE).lst
 	$(OBJDUMP) -d $< > $@
 
 %.delf: %.elf
-	$(OBJCOPY) $$($(OBJDUMP) -h blink_raw.elf | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ') $< $@
+	$(OBJCOPY) $$($(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ') $< $@
 #	$(OBJDUMP) -h $< | grep ' b[df]'
 #	cp -f $< $@
 
