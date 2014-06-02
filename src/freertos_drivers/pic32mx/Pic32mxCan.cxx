@@ -379,6 +379,15 @@ void Pic32mxCan::enable()
                              CAN_LOW_MEDIUM_PRIORITY);
     CANConfigureChannelForRx(hw_, CAN_CHANNEL1, config_can_rx_buffer_size(),
                              CAN_RX_FULL_RECEIVE);
+
+    // We create a catch-all filter for channel 1.
+    CANConfigureFilterMask(hw_, CAN_FILTER_MASK0, 0, CAN_EID, CAN_FILTER_MASK_ANY_TYPE);
+    CANEnableFilter(hw_, CAN_FILTER0, FALSE);
+    while(CANIsFilterDisabled(hw_, CAN_FILTER0) == FALSE);
+    CANConfigureFilter(hw_, CAN_FILTER0, 0, CAN_EID);
+    CANLinkFilterToChannel(hw_, CAN_FILTER0, CAN_FILTER_MASK0, CAN_CHANNEL1);
+    CANEnableFilter(hw_, CAN_FILTER0, TRUE);
+
     CANEnableModuleEvent(hw_, CAN_RX_EVENT, TRUE);
     CANEnableModuleEvent(hw_, CAN_TX_EVENT, TRUE);
 
