@@ -61,12 +61,7 @@ void _cinit(void) {
 #define CLR_LED2() mPORTBClearBits(BIT_15)
 
 void diewith(uint32_t pattern) {
-    resetblink(pattern);
-    // Adds a filter to not get interrupts at freertos priorities.
-    portDISABLE_INTERRUPTS();
-    // This will enable hardware interrupts.
-    INTEnableInterrupts();
-    portDISABLE_INTERRUPTS();
+    setblink(pattern);
     while(1);
 }
 
@@ -93,13 +88,18 @@ asm("\n\t.section .vector_8,\"ax\",%progbits\n\tj "
     "tmr2_interrupt\n\tnop\n.text\n");
 
 void setblink(uint32_t pattern) {
-    blinker_pattern = pattern;
-    // triggers an int right now.
-    WriteTimer2(ReadPeriod2() - 10);
+    // Adds a filter to not get interrupts at freertos priorities.
+    portDISABLE_INTERRUPTS();
+    // This will enable hardware interrupts.
+    INTEnableInterrupts();
+    portDISABLE_INTERRUPTS();
+    resetblink(pattern);
 }
 
 void resetblink(uint32_t pattern) {
-    setblink(pattern);
+    blinker_pattern = pattern;
+    // triggers an int right now.
+    WriteTimer2(ReadPeriod2() - 10);
 }
 
 static unsigned int _excep_code; 
@@ -119,8 +119,16 @@ void _general_exception_context(void)
 void lowlevel_hw_init(void) {
   mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
 
+
+  // We want 8 ticks per second.
+  OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF | T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);
+  ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_6 | T2_INT_SUB_PRIOR_0);
+  
+  setblink(0x8000CA);
+
   // Sets the main clock ot 80 MHz through PLL.
-  OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  //OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  OSCConfig(OSC_FRC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
   HASSERT(configCPU_CLOCK_HZ == 80000000);
 
   // Configure the device for maximum performance but do not change PBDIV
@@ -131,10 +139,6 @@ void lowlevel_hw_init(void) {
 
   // Enable the cache for the best performance (assuming we're running in KSEG0)
   CheKseg0CacheOn();
-
-  // We want 8 ticks per second.
-  OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF | T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);
-  ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_6 | T2_INT_SUB_PRIOR_0);
 
 }
 
