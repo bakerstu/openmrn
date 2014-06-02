@@ -40,7 +40,6 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
-#include "reent.h"
 
 #if defined (__FreeRTOS__)
 #include <FreeRTOS.h>
@@ -844,6 +843,8 @@ OS_INLINE unsigned sleep(unsigned seconds)
 #endif
 
 #ifdef TARGET_PIC32MX
+#include "reent.h"
+
 OS_INLINE int open(const char* b, int flags, ...) {
     return _open_r(_impure_ptr, b, flags, 0);
 }
