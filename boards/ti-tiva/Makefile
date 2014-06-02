@@ -21,9 +21,3 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaCan.o \
 TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
 include $(OPENMRNPATH)/etc/prog.mk
-
-all: $(EXECUTABLE).lst
-
-%.lst: %.elf
-	$(SIZE) $<
-	$(OBJDUMP) -d $< > $@

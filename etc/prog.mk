@@ -83,7 +83,7 @@ ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
 endif
 
-all: $(EXECUTABLE)$(EXTENTION)
+all: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 
 # Makes sure the subdirectory builds are done before linking the binary.
 # The targets and variable BUILDDIRS are defined in recurse.mk.

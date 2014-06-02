@@ -1,3 +1,6 @@
+APP_PATH ?= $(realpath ../..)
+-include $(APP_PATH)/config.mk
+
 OPENMRNPATH ?= $(shell \
 sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
      elif [ -d /opt/openmrn/src ]; then echo /opt/openmrn; \
@@ -20,10 +23,5 @@ CXXFLAGSEXTRA += -DPART_TM4C123GH6PM
 
 TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
+
 include $(OPENMRNPATH)/etc/prog.mk
-
-all: $(EXECUTABLE).lst
-
-%.lst: %.elf
-	$(SIZE) $<
-	$(OBJDUMP) -d $< > $@
