@@ -83,7 +83,7 @@ ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
 endif
 
-all: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
+all: $(EXECUTABLE)$(EXTENTION)
 
 # Makes sure the subdirectory builds are done before linking the binary.
 # The targets and variable BUILDDIRS are defined in recurse.mk.
@@ -113,11 +113,17 @@ ifdef OBJDUMP
 	$(OBJDUMP) -h $@
 endif
 
+ifdef OBJDUMP
+all:  $(EXECUTABLE).lst
+
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -C -d $< > $@
 
 $(EXECUTABLE).ndlst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
+
+endif
+
 
 ifndef CGMINSIZE
 CGMINSIZE=300
