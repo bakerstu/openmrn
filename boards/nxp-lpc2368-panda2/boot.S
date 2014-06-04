@@ -324,7 +324,7 @@ __dabt:
 	pop	{r0, lr}
 	b     .                         /* data abort
 */
-	subs	pc,lr,#0
+	subs	pc,lr,#8
 __fiq:
 	// First we set the output bit
 	ldr	r9,=(1<<26)
