@@ -10,6 +10,7 @@ CC = gcc
 CXX = g++
 AR = ar
 LD = g++
+OBJDUMP = objdump
 
 HOST_TARGET := 1
 
