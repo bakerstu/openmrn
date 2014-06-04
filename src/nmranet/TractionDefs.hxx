@@ -154,6 +154,24 @@ struct TractionDefs {
         return p;
     }
 
+    /** Parses the response payload of a GET_SPEED packet.
+     * @returns true if the last_set_speed value was present and non-NaN.
+     * @param p is the response payload.
+     * @param v is the velocity that will be set to the speed value. */
+    static bool speed_get_parse_last(const Payload &p, Velocity *v)
+    {
+        if (p.size() < 3)
+        {
+            return false;
+        }
+        *v = fp16_to_speed(p.data() + 1);
+        if (isnan(v->speed()))
+        {
+            return false;
+        }
+        return true;
+    }
+
     static Payload fn_set_payload(unsigned address, uint16_t value) {
         Payload p(6, 0);
         p[0] = REQ_SET_FN;
@@ -167,12 +185,27 @@ struct TractionDefs {
 
     static Payload fn_get_payload(unsigned address) {
         Payload p(4, 0);
-        p[0] = REQ_SET_FN;
+        p[0] = REQ_QUERY_FN;
         p[1] = (address >> 16) & 0xff;
         p[2] = (address >> 8) & 0xff;
         p[3] = address & 0xff;
         return p;
     }
+
+    /** Parses the response payload of a GET_FN packet.
+     * @returns true if there is a valid function value.
+     * @param p is the response payload.
+     * @param value will be set to the output value. */
+    static bool fn_get_parse(const Payload &p, uint16_t *value)
+    {
+        if (p.size() < 6)
+        {
+            return false;
+        }
+        *value = (((uint16_t)p[4]) << 8) | p[5];
+        return true;
+    }
+
 
 };
 
