@@ -45,7 +45,12 @@ StateFlowBase::Action WriteFlowBase::addressed_entry()
         nmsg()->dstNode = async_if()->lookup_local_node(nmsg()->dst.id);
         if (nmsg()->dstNode)
         {
-            async_if()->dispatcher()->send(transfer_message(), priority());
+            unsigned prio = priority();
+            if (prio >= (1 << 16))
+            {
+                prio = message()->data()->priority();
+            }
+            async_if()->dispatcher()->send(transfer_message(), prio);
             return call_immediately(STATE(send_finished));
         }
     }
@@ -69,7 +74,8 @@ StateFlowBase::Action WriteFlowBase::global_entry()
             message()->set_done(nullptr);
         }
     }
-    async_if()->dispatcher()->send(transfer_message());
+    unsigned loopback_prio = message()->data()->priority();
+    async_if()->dispatcher()->send(transfer_message(), loopback_prio);
     return release_and_exit();
 }
 
@@ -81,31 +87,31 @@ StateFlowBase::Action WriteFlowBase::global_entry()
 void Node::ident_info_reply(NodeHandle dst)
 {
     /* macro for condensing the size calculation code */
-    #define ADD_STRING_SIZE(_str, _max)          \
-    {                                            \
-        if ((_str))                              \
-        {                                        \
-            size_t len = strlen((_str));         \
-            size += len > (_max) ? (_max) : len; \
-        }                                        \
+#define ADD_STRING_SIZE(_str, _max)                                            \
+    {                                                                          \
+        if ((_str))                                                            \
+        {                                                                      \
+            size_t len = strlen((_str));                                       \
+            size += len > (_max) ? (_max) : len;                               \
+        }                                                                      \
     }
 
     /* macro for condensing the string insertion  code */
-    #define INSERT_STRING(_str, _max)              \
-    {                                              \
-        if ((_str))                                \
-        {                                          \
-            size_t len = strlen((_str));           \
-            len = len > (_max) ? (_max) : len;     \
-            memcpy(pos, (_str), len);              \
-            pos[len] = '\0';                       \
-            pos += len + 1;                        \
-        }                                          \
-        else                                       \
-        {                                          \
-            pos[0] = '\0';                         \
-            pos++;                                 \
-        }                                          \
+#define INSERT_STRING(_str, _max)                                              \
+    {                                                                          \
+        if ((_str))                                                            \
+        {                                                                      \
+            size_t len = strlen((_str));                                       \
+            len = len > (_max) ? (_max) : len;                                 \
+            memcpy(pos, (_str), len);                                          \
+            pos[len] = '\0';                                                   \
+            pos += len + 1;                                                    \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            pos[0] = '\0';                                                     \
+            pos++;                                                             \
+        }                                                                      \
     }
     
     /* we make this static so that it does not use up stack */
