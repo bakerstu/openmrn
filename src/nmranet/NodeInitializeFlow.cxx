@@ -35,79 +35,101 @@
 #include "nmranet/If.hxx"
 #include "nmranet/DefaultNode.hxx"
 
+extern Service g_service;
+
 namespace nmranet
 {
 
-namespace
+struct InitializeRequest
 {
-class InitializeFlow : public StateFlowBase
+    InitializeRequest()
+        : node(nullptr)
+    {
+    }
+    Node *node;
+};
+
+typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
+
+class InitializeFlow : public InitializeFlowBase
 {
 public:
-    InitializeFlow(Node *node)
-        : StateFlowBase(node->interface()->dispatcher()->service())
-        , node_(node)
+    InitializeFlow(Service *service)
+        : InitializeFlowBase(service)
     {
-        HASSERT(node);
-        start_flow(STATE(handle_start));
     }
 
 private:
-    Action handle_start()
+    Node *node()
     {
+        return message()->data()->node;
+    }
+
+    Action entry() OVERRIDE
+    {
+        HASSERT(message()->data()->node);
         return allocate_and_call(
-            node_->interface()->global_message_write_flow(),
+            node()->interface()->global_message_write_flow(),
             STATE(send_initialized));
     }
 
     Action send_initialized()
     {
-        auto* b = get_allocation_result(node_->interface()->global_message_write_flow());
+        auto *b = get_allocation_result(
+            node()->interface()->global_message_write_flow());
         done_.reset(this);
-        NodeID id = node_->node_id();
+        NodeID id = node()->node_id();
         b->data()->reset(Defs::MTI_INITIALIZATION_COMPLETE, id,
                          node_id_to_buffer(id));
+        b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(&done_);
-        node_->interface()->global_message_write_flow()->send(b);
+        node()->interface()->global_message_write_flow()->send(
+            b, b->data()->priority());
         return wait_and_call(STATE(initialization_complete));
     }
 
     Action initialization_complete()
     {
-        node_->set_initialized();
+        node()->set_initialized();
         return call_immediately(STATE(identify_events));
     }
 
     Action identify_events()
     {
         // Get the dispatch flow.
-        return allocate_and_call(node_->interface()->dispatcher(),
+        return allocate_and_call(node()->interface()->dispatcher(),
                                  STATE(initiate_local_identify));
     }
 
     Action initiate_local_identify()
     {
-        auto* b = get_allocation_result(node_->interface()->dispatcher());
+        auto *b = get_allocation_result(node()->interface()->dispatcher());
+        b->set_done(done_.reset(this));
         NMRAnetMessage *m = b->data();
         m->mti = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
         m->payload.clear();
-        m->dst.id = node_->node_id();
-        m->dstNode = node_;
+        m->dst.id = node()->node_id();
+        m->dstNode = node();
         m->src.alias = 0;
-        m->src.id = node_->node_id();
-        node_->interface()->dispatcher()->send(b);
-
-        return delete_this();
+        m->src.id = node()->node_id();
+        node()->interface()->dispatcher()->send(b, b->data()->priority());
+        return wait_and_call(STATE(wait_for_local_identify));
     }
 
-    Node *node_;
+    Action wait_for_local_identify()
+    {
+        return release_and_exit();
+    }
+
     BarrierNotifiable done_;
 };
 
-} // namespace
-
 void StartInitializationFlow(Node *node)
 {
-    new InitializeFlow(node);
+    static InitializeFlow g_initialize_flow(&g_service);
+    auto* b = g_initialize_flow.alloc();
+    b->data()->node = node;
+    g_initialize_flow.send(b);
 }
 
 } // namespace nmranet
