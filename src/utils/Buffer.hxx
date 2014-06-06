@@ -64,6 +64,12 @@ class AsyncIfTest;
 
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
+
+/** Initializes the main buffer pool. The first call is not thread safe, later
+ * calls are noops. It is recommended to call this one or more times from the
+ * static initialization. */
+void init_main_buffer_pool();
+
 /** THis pointer will be saved for debugging the current allocation source. */
 extern void* g_current_alloc;
 

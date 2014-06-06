@@ -45,11 +45,8 @@ public:
     /** Constructor.
      * @param e Executor to run this service from.
      */
-    Service(ExecutorBase *e)
-        : executor_(e)
-    {
-    }
-    
+    Service(ExecutorBase *e);
+
     /** Destructor. */
     ~Service()
     {
