@@ -47,7 +47,7 @@ void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
     auto *b = port()->hub_->alloc();
     b->data()->skipMember_ = &port()->writeFlow_;
     memcpy(b->data()->mutable_frame(), buf, size);
-    port()->hub_->send(b);
+    port()->hub_->send(b, 0);
 }
 
 template <> const int FdHubPort<HubFlow>::ReadThread::kUnit = 1;
