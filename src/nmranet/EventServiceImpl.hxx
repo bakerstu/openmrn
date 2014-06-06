@@ -64,11 +64,11 @@ struct EventHandlerCall
     }
 };
 
-class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<4>>
+class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<5>>
 {
 public:
     EventCallerFlow(Service *service)
-        : StateFlow<Buffer<EventHandlerCall>, QList<4>>(service) {};
+        : StateFlow<Buffer<EventHandlerCall>, QList<5>>(service) {};
 
 private:
     virtual Action entry() OVERRIDE;
