@@ -59,7 +59,7 @@ CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) -Wall -W
 CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
-           -fno-rtti -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901L $(CXXFLAGSENV)
+           -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) -U__STRICT_ANSI__ # -D__STDC_VERSION__=199902L
 
 LDFLAGS = -EL -g -T target.ld -Xlinker \
 	-Map="$(@:%.elf=%.map)"  \
