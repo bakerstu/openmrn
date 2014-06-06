@@ -466,6 +466,12 @@ protected:
         return currentPriority_;
     }
 
+    /// Overrides the current priority.
+    void set_priority(unsigned priority)
+    {
+        currentPriority_ = priority;
+    }
+
 private:
     STATE_FLOW_STATE(wait_for_message);
 
