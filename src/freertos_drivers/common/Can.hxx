@@ -121,13 +121,14 @@ protected:
             writableNotify_= nullptr;
         }
         portEXIT_CRITICAL();
-        if (n) n->notify();
         if (os_mq_timedreceive(txQ, f, 0) == OS_MQ_NONE)
         {
+            if (n) n->notify();
             return true;
         }
         else
         {
+            if (n) n->notify();
             return false;
         }
     }

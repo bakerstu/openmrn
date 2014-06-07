@@ -34,6 +34,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
 #define _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
 
+#include "freertos/stropts.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
