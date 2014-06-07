@@ -62,7 +62,7 @@ private:
     virtual void disable() {}; /**< function to disable device */
 
     void interrupt();
-    virtual void tx_msg();
+    void tx_msg() OVERRIDE;
 
     mbed::CAN mbedCan_;
     // Status register.
