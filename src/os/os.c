@@ -884,12 +884,17 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     return (caddr_t) prev_heap_end;
 }
 
+xTaskHandle volatile overflowed_task = 0;
+signed portCHAR * volatile overflowed_task_name = 0;
+
 /** This method is called if a stack overflows its boundries.
  * @param task task handle for violating task
  * @param name name of violating task
  */
 void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
 {
+    overflowed_task = task;
+    overflowed_task_name = name;
     diewith(BLINK_DIE_STACKOVERFLOW);
 }
 
