@@ -70,6 +70,10 @@ struct CanFrameContainer : public can_frame
         return &frame();
     }
 
+    void* data() {
+        return mutable_frame();
+    }
+
     size_t size() {
         return sizeof(struct can_frame);
     }
@@ -121,6 +125,7 @@ class HubFlow : public DispatchFlow<Buffer<HubData>, 1>
 public:
     typedef HubData value_type;
     typedef Buffer<HubData> buffer_type;
+    typedef HubPortInterface port_type;
 
     HubFlow(Service *s) : DispatchFlow<Buffer<HubData>, 1>(s)
     {
@@ -145,6 +150,7 @@ class CanHubFlow : public DispatchFlow<Buffer<CanHubData>, 1>
 public:
     typedef CanHubData value_type;
     typedef Buffer<CanHubData> buffer_type;
+    typedef CanHubPortInterface port_type;
 
     CanHubFlow(Service *s) : DispatchFlow<Buffer<CanHubData>, 1>(s)
     {
