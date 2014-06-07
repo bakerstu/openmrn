@@ -55,6 +55,23 @@ void Q::insert(QMember *item, unsigned index)
     ++count;
 }
 
+void Q::insert_locked(QMember *item, unsigned index)
+{
+    HASSERT(item->next == nullptr);
+    HASSERT(item != tail);
+    if (head == NULL)
+    {
+        head = tail = item;
+    }
+    else
+    {
+        tail->next = item;
+        tail = item;
+    }
+    item->next = NULL;
+    ++count;
+}
+
 /** Get an item from the front of the queue.
  * @return @ref Result structure with item retrieved from queue, NULL if
  *         no item available
