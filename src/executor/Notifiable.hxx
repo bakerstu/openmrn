@@ -42,6 +42,12 @@ class Notifiable
 {
 public:
     virtual void notify() = 0;
+#ifdef __FreeRTOS__
+    virtual void notify_from_isr()
+    {
+        DIE("Unexpected call to notify_from_isr.");
+    }
+#endif
 };
 
 // A Notifiable for synchronously waiting for a notification.
