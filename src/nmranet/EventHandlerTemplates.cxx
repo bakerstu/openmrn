@@ -212,13 +212,16 @@ uint64_t EncodeRange(uint64_t begin, unsigned size) {
 
 void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
                                            BarrierNotifiable* done) {
+  if (event->dst_node && event->dst_node != node_) {
+      return done->notify();
+  }
   uint64_t range = EncodeRange(event_base_, size_ * 2);
   event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
-                                 WriteHelper::global(), EventIdToBuffer(range),
-                                 done->new_child());
+                                 WriteHelper::global(),
+                                 EventIdToBuffer(range), done->new_child());
   event_write_helper2.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
-                                 WriteHelper::global(), EventIdToBuffer(range),
-                                 done->new_child());
+                                 WriteHelper::global(),
+                                 EventIdToBuffer(range), done->new_child());
   done->maybe_done();
 }
 
@@ -277,12 +280,17 @@ void ByteRangeEventC::HandleIdentifyConsumer(EventReport* event,
                                  EventIdToBuffer(event->event), done);
 }
 
-void ByteRangeEventC::HandleIdentifyGlobal(EventReport* event,
-                                           BarrierNotifiable* done) {
-  uint64_t range = EncodeRange(event_base_, size_ * 256);
-  event_write_helper1.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
-                                 WriteHelper::global(), EventIdToBuffer(range),
-                                 done);
+void ByteRangeEventC::HandleIdentifyGlobal(EventReport *event,
+                                           BarrierNotifiable *done)
+{
+    if (event->dst_node && event->dst_node != node_) {
+        return done->notify();
+    }
+    uint64_t range = EncodeRange(event_base_, size_ * 256);
+    event_write_helper1.WriteAsync(
+        node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
+        EventIdToBuffer(range), done);
+    done->maybe_done();
 }
 
 ByteRangeEventP::ByteRangeEventP(Node *node,
@@ -320,6 +328,9 @@ void ByteRangeEventP::HandleIdentifyProducer(EventReport* event, BarrierNotifiab
     done->maybe_done();
 }
 void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done) {
+  if (event->dst_node && event->dst_node != node_) {
+      return done->notify();
+  }
   uint64_t range = EncodeRange(event_base_, size_ * 256);
   event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), EventIdToBuffer(range),
@@ -510,6 +521,9 @@ void BitEventConsumer::HandleEventReport(EventReport* event, BarrierNotifiable* 
 
 void BitEventProducer::HandleIdentifyGlobal(EventReport* event,
                                             BarrierNotifiable* done) {
+  if (event->dst_node && event->dst_node != bit_->node()) {
+    return done->notify();
+  }
   SendProducerIdentified(done);
   done->maybe_done();
 }
@@ -530,11 +544,17 @@ void BitEventConsumer::HandleIdentifyConsumer(EventReport* event,
 
 void BitEventConsumer::HandleIdentifyGlobal(EventReport* event,
                                             BarrierNotifiable* done) {
+  if (event->dst_node && event->dst_node != bit_->node()) {
+    return done->notify();
+  }
   SendConsumerIdentified(done);
   done->maybe_done();
 }
 
 void BitEventPC::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done) {
+  if (event->dst_node && event->dst_node != bit_->node()) {
+    return done->notify();
+  }
   SendProducerIdentified(done);
   SendConsumerIdentified(done);
   done->maybe_done();
