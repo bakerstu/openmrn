@@ -131,6 +131,10 @@ private:
 
     /** Iterator for generating the event handlers from the registry. */
     EventIterator* iterator_;
+    /** This done notifiable holds a reference to the incoming message
+     * buffer. We must not release this notifiable until we have completed
+     * processing and freed all the buffers related to this iteration. */
+    Notifiable* incomingDone_;
 
     BarrierNotifiable n_;
     EventHandlerFunction fn_;

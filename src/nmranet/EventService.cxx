@@ -27,8 +27,7 @@ EventService::EventService(ExecutorBase *e) : Service(e)
     impl_.reset(new Impl(this));
 }
 
-EventService::EventService(If *interface)
-    : Service(interface->executor())
+EventService::EventService(If *interface) : Service(interface->executor())
 {
     HASSERT(instance == nullptr);
     instance = this;
@@ -55,8 +54,7 @@ void EventService::register_interface(If *interface)
         EventService::Impl::MTI_MASK_ADDRESSED_ALL));
 }
 
-EventService::Impl::Impl(EventService *service)
-    : callerFlow_(service)
+EventService::Impl::Impl(EventService *service) : callerFlow_(service)
 {
 #ifdef TARGET_LPC11Cxx
     registry.reset(new VectorEventHandlers());
@@ -82,9 +80,8 @@ StateFlowBase::Action EventCallerFlow::call_done()
     return release_and_exit();
 }
 
-EventIteratorFlow::EventIteratorFlow(If *async_if,
-                                 EventService *event_service,
-                                 unsigned mti_value, unsigned mti_mask)
+EventIteratorFlow::EventIteratorFlow(If *async_if, EventService *event_service,
+                                     unsigned mti_value, unsigned mti_mask)
     : IncomingMessageStateFlow(async_if)
     , eventService_(event_service)
     , iterator_(event_service->impl()->registry->create_iterator())
@@ -130,7 +127,8 @@ StateFlowBase::Action EventIteratorFlow::entry()
     EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
-    if ((nmsg()->mti & Defs::MTI_EVENT_MASK) == Defs::MTI_EVENT_MASK) {
+    if ((nmsg()->mti & Defs::MTI_EVENT_MASK) == Defs::MTI_EVENT_MASK)
+    {
         if (nmsg()->payload.size() != 8)
         {
             LOG(INFO, "Invalid input event message, payload length %d",
@@ -139,10 +137,12 @@ StateFlowBase::Action EventIteratorFlow::entry()
         }
         rep->event = NetworkToEventID(nmsg()->payload.data());
         rep->mask = 1;
-    } else {
+    }
+    else
+    {
         // Message without event payload.
         rep->event = 0;
-        /// @TODO(balazs.racz) refactor this into a 
+        /// @TODO(balazs.racz) refactor this into a
         rep->mask = 0xFFFFFFFFFFFFFFFFULL;
     }
 
@@ -212,6 +212,7 @@ StateFlowBase::Action EventIteratorFlow::entry()
             DIE("Unexpected message arrived at the global event handler.");
     } //    case
     // The incoming message is not needed anymore.
+    incomingDone_ = message()->new_child();
     release();
 
     iterator_->init_iteration(rep);
@@ -223,6 +224,11 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
     EventHandler *handler = iterator_->next_entry();
     if (!handler)
     {
+        if (incomingDone_)
+        {
+            incomingDone_->notify();
+            incomingDone_ = nullptr;
+        }
         return exit();
     }
     Buffer<EventHandlerCall> *b;
