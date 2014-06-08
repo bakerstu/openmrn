@@ -160,6 +160,12 @@ struct NMRAnetMessage
         return static_cast<uint32_t>(mti);
     }
 
+    /** Returns the NMRAnet-defined priority band, in the range of 0..3. */
+    unsigned priority()
+    {
+        return (mti & Defs::MTI_PRIORITY_MASK) >> Defs::MTI_PRIORITY_SHIFT;
+    }
+
     enum DstFlags {
         /** Specifies that the stack should wait for the local loopback
          * processing before invoking the done notifiable. */

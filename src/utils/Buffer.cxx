@@ -33,7 +33,15 @@
 
 #include "utils/Buffer.hxx"
 
-DynamicPool *mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
+DynamicPool *mainBufferPool = nullptr;
+
+void init_main_buffer_pool()
+{
+    if (!mainBufferPool)
+    {
+        mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
+    }
+}
 
 /** Expand the buffer by allocating a buffer double the size, copying the
  * contents to the new buffer, and freeing the old buffer.  The "this" pointer

@@ -62,7 +62,7 @@ private:
     virtual void disable() {}; /**< function to disable device */
 
     void interrupt();
-    virtual void tx_msg();
+    void tx_msg() OVERRIDE;
 
     mbed::CAN mbedCan_;
     // Status register.
@@ -86,8 +86,9 @@ void MbedCanDriver::tx_msg()
      critical section. The problem is that an ISR might decide to send off the
      next frame ahead of us. */
     taskENTER_CRITICAL();
-    if (os_mq_timedreceive(txQ, &can_frame, 0) != OS_MQ_NONE)
+    if (!get_tx_msg(&can_frame))
     {
+        taskEXIT_CRITICAL();
         return;
     }
     CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
@@ -120,19 +121,14 @@ void MbedCanDriver::interrupt()
         can_frame.can_err = 0;
         can_frame.can_dlc = msg.len;
         memcpy(can_frame.data, msg.data, msg.len);
-        int woken = 0;
-        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
-        {
-            overrunCount++;
-        }
+        put_rx_msg_from_isr(can_frame);
     }
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     if (*SR_ & 0x4)
     {
         // Transmit buffer 1 empty => transmit finished.
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) ==
-            OS_MQ_NONE)
+        if (get_tx_msg_from_isr(&can_frame))
         {
             CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
                            can_frame.can_dlc,

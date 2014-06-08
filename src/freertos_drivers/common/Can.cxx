@@ -32,6 +32,7 @@
  */
 
 #include <cstdint>
+#include <algorithm>
 #include <fcntl.h>
 #include "Devtab.hxx"
 #include "Can.hxx"
@@ -169,9 +170,13 @@ int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data
 
     /* sanity check to be sure we have a valid key for this devide */
     HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
-    HASSERT(IOC_SIZE(key) == sizeof(CanActiveCallback));
 
-    const CanActiveCallback *can_active_callback = (CanActiveCallback*)data;
+    // Will be called at the end if non-null.
+    Notifiable* n = nullptr;
+
+    if (IOC_SIZE(key) == NOTIFIABLE_TYPE) {
+        n = reinterpret_cast<Notifiable*>(data);
+    }
 
     switch (key)
     {
@@ -179,38 +184,24 @@ int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data
             return -EINVAL;
         case CAN_IOC_READ_ACTIVE:
             portENTER_CRITICAL();
-            /** @todo (Stuart Baker) there is a potential race condition here */
-#if 0
-            if (os_mq_num_pending(can->rxQ) > 0)
+            if (os_mq_num_pending(can->rxQ) == 0)
             {
-                can_active_callback->callback(can_active_callback->context);
-            }
-            else
-#endif
-            {
-                can->read_callback = can_active_callback->callback;
-                can->readContext = can_active_callback->context;
+                swap(n, can->readableNotify_);
             }
             portEXIT_CRITICAL();
             break;
         case CAN_IOC_WRITE_ACTIVE:
             portENTER_CRITICAL();
-            /** @todo (Stuart Baker) there is a potential race condition here */
-#if 0
-            if (os_mq_num_pending(can->txQ) == 0)
+            if (os_mq_num_pending(can->txQ) < config_can_tx_buffer_size())
             {
-                can_active_callback->callback(can_active_callback->context);
-            }
-            else
-#endif
-            {
-                can->write_callback = can_active_callback->callback;
-                can->writeContext = can_active_callback->context;
+                swap(n, can->writableNotify_);
             }
             portEXIT_CRITICAL();
             break;
     }
-
+    if (n)
+    {
+        n->notify();
+    }
     return 0;
 }
-

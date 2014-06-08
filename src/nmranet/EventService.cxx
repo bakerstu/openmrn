@@ -207,6 +207,10 @@ StateFlowBase::Action EventIteratorFlow::entry()
         // fall through
         case Defs::MTI_EVENTS_IDENTIFY_GLOBAL:
             fn_ = &EventHandler::HandleIdentifyGlobal;
+            // Reduces the priority so that we let the priority 3 event messages
+            // be processed before the global identify events makes any
+            // progress.
+            set_priority(4);
             break;
         default:
             DIE("Unexpected message arrived at the global event handler.");
@@ -216,7 +220,7 @@ StateFlowBase::Action EventIteratorFlow::entry()
     release();
 
     iterator_->init_iteration(rep);
-    return call_immediately(STATE(iterate_next));
+    return yield_and_call(STATE(iterate_next));
 }
 
 StateFlowBase::Action EventIteratorFlow::iterate_next()
@@ -239,7 +243,7 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
     b->data()->reset(&eventReport_, handler, fn_);
     n_.reset(this);
     b->set_done(&n_);
-    eventService_->impl()->callerFlow_.send(b);
+    eventService_->impl()->callerFlow_.send(b, priority());
     return wait();
 }
 

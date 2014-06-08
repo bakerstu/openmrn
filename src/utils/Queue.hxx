@@ -295,6 +295,12 @@ public:
      */
     void insert(QMember *item, unsigned index = 0);
 
+    /** Add an item to the back of the queue. Needs external locking.
+     * @param item to add to queue
+     * @param index unused parameter
+     */
+    void insert_locked(QMember *item, unsigned index = 0);
+
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
@@ -484,6 +490,19 @@ public:
         list[index].insert(item);
     }
 
+    /** Add an item to the back of the queue. Needs external locking.
+     * @param item to add to queue
+     * @param index in the list to operate on
+     */
+    void insert_locked(QMember *item, unsigned index)
+    {
+        if (index >= ITEMS)
+        {
+            index = ITEMS - 1;
+        }
+        list[index].insert_locked(item);
+    }
+
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
@@ -604,7 +623,7 @@ public:
      */
     void insert_locked(QMember *q, unsigned index = 0)
     {
-        QList<items>::insert(q, index);
+        QList<items>::insert_locked(q, index);
     }
 
     /** Get an item from the front of the queue.

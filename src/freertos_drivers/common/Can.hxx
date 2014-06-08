@@ -38,6 +38,7 @@
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
+#include "executor/Notifiable.hxx"
 
 /** Private data for a can device */
 class Can : public Node
@@ -53,10 +54,8 @@ protected:
         , rxQ(os_mq_create(config_can_rx_buffer_size(),
                            sizeof(struct can_frame)))
         , overrunCount(0)
-        , read_callback(NULL)
-        , write_callback(NULL)
-        , readContext(NULL)
-        , writeContext(NULL)
+        , readableNotify_(NULL)
+        , writableNotify_(NULL)
         , mutex()
         , devtab(name, &ops, this)
     {
@@ -75,15 +74,75 @@ protected:
     virtual void disable() = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
 
+    /** Sends an incoming frame to the receive buffer and notifies any waiting
+     * process. Drops the frame if there is no receive buffer available. */
+    void put_rx_msg_from_isr(const struct can_frame &f)
+    {
+        int woken;
+        if (os_mq_send_from_isr(rxQ, &f, &woken) == OS_MQ_FULL)
+        {
+            overrunCount++;
+        }
+        if (readableNotify_) {
+            readableNotify_->notify_from_isr();
+            readableNotify_ = nullptr;
+        }
+    }
+
+    /** Requests the next outgoing frame to be sent to the hardware.
+     * @returns true is a frame was found.
+     */
+    bool get_tx_msg_from_isr(struct can_frame *f)
+    {
+        int woken;
+        if (writableNotify_) {
+            writableNotify_->notify_from_isr();
+            writableNotify_= nullptr;
+        }
+        if (os_mq_receive_from_isr(txQ, f, &woken) == OS_MQ_NONE)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    /** Requests the next outgoing frame to be sent to the hardware.
+     * @returns true is a frame was found.
+     */
+    bool get_tx_msg(struct can_frame *f)
+    {
+        Notifiable* n = nullptr;
+        portENTER_CRITICAL();
+        if (writableNotify_) {
+            n = writableNotify_;
+            writableNotify_= nullptr;
+        }
+        portEXIT_CRITICAL();
+        if (os_mq_timedreceive(txQ, f, 0) == OS_MQ_NONE)
+        {
+            if (n) n->notify();
+            return true;
+        }
+        else
+        {
+            if (n) n->notify();
+            return false;
+        }
+    }
+
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
-    void (*read_callback)(void*, int*); /**< callback for read active notify */
-    void (*write_callback)(void*, int*); /**< callback for write active notify */
-    void *readContext; /**< callback argument for read active notify */
-    void *writeContext; /**< callback argument for write active notify */
 
-private:    
+    /** This will be notified if the device has data avilable for read. */
+    Notifiable* readableNotify_;
+    /** This will be notified if the device has buffer avilable for write. */
+    Notifiable* writableNotify_;
+
+private:
     /** Open a device.
     * @param file new file reference to this device
     * @param path file or device name

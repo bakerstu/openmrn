@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,3 +34,10 @@
 
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
+#include "utils/Buffer.hxx"
+
+Service::Service(ExecutorBase *e)
+    : executor_(e)
+{
+    init_main_buffer_pool();
+}

@@ -34,26 +34,22 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
 #define _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
 
+#include "freertos/stropts.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/** ioctl() structure to setup the RX/TX active callback.
- */
-typedef struct can_active_callback
-{
-    void (*callback)(void*, int*); /**< application callback to call */
-    void *context; /**< application callback argument to pass */
-} CanActiveCallback;
-
 /** Magic number for this driver's ioctl calls */
 #define CAN_IOC_MAGIC ('c')
 
-/** read active ioctl */
-#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, sizeof(CanActiveCallback))
+#define NOTIFIABLE_TYPE 13
 
-/** write active ioctl */
-#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, sizeof(CanActiveCallback))
+/** read active ioctl. Argument is a literal pointer to a Notifiable. */
+#define CAN_IOC_READ_ACTIVE IOW(CAN_IOC_MAGIC, 1, NOTIFIABLE_TYPE)
+
+/** write active ioctl. Argument is a literal pointer to a Notifiable. */
+#define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, NOTIFIABLE_TYPE)
 
 #if defined (__cplusplus)
 }

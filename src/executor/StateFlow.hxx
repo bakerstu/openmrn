@@ -43,7 +43,8 @@
 #include "utils/Queue.hxx"
 
 #define STATE(_fn)                                                             \
-    (Callback)(&std::remove_reference<decltype(*this)>::type::_fn)
+    (StateFlowBase::Callback)(                                                 \
+        &std::remove_reference<decltype(*this)>::type::_fn)
 
 /** Declare a state callback in a StateFlow.
  * @param _state the method name of the StateFlow state callback
@@ -464,6 +465,12 @@ protected:
     unsigned priority()
     {
         return currentPriority_;
+    }
+
+    /// Overrides the current priority.
+    void set_priority(unsigned priority)
+    {
+        currentPriority_ = priority;
     }
 
 private:

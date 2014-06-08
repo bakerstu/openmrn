@@ -230,7 +230,7 @@ public:
         {
             m->src.id = if_can()->local_aliases()->lookup(m->src.alias);
         }
-        if_can()->dispatcher()->send(b);
+        if_can()->dispatcher()->send(b, b->data()->priority());
         return exit();
     }
 
@@ -339,7 +339,7 @@ public:
         {
             m->src.id = if_can()->local_aliases()->lookup(m->src.alias);
         }
-        if_can()->dispatcher()->send(b);
+        if_can()->dispatcher()->send(b, b->data()->priority());
         return exit();
     }
 

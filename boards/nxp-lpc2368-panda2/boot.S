@@ -307,6 +307,7 @@ __undf:
 	str	r0, [lr]
 	pop	{r0, lr}
 	b     .                         /* undefined				*/
+	movs	pc,lr
 __pabt:
 	push {r0, lr}
 	bl	enable_fiq_only
@@ -315,6 +316,7 @@ __pabt:
 	str	r0, [lr]
 	pop	{r0, lr}
 	b     .                         /* program abort			*/
+	subs	pc,lr,#4
 __dabt:
 	push {r0, lr}
 	bl	enable_fiq_only

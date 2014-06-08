@@ -126,7 +126,7 @@ private:
                     NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
             }
             b->set_done(&done_);
-            f->send(b);
+            f->send(b, b->data()->priority());
         }
         else
         {
@@ -139,7 +139,7 @@ private:
                     NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
             }
             b->set_done(&done_);
-            f->send(b);
+            f->send(b, b->data()->priority());
         }
     }
 
