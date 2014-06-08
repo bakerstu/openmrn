@@ -130,13 +130,19 @@ template<class T> class MemoryBit : public BitEventInterface {
 class BitEventHandler : public SimpleEventHandler {
  public:
   BitEventHandler(BitEventInterface* bit);
-  ~BitEventHandler();
 
   // Sends an event report packet (unconditionally).
   void SendEventReport(WriteHelper* writer,
                        BarrierNotifiable* done);
 
  protected:
+  // Registers this event handler with the global event manager. Call this from
+  // the constructor of the derived class.
+  void register_handler();
+  // Removes this event handler with the global event manager. Call this from
+  // the destructor of the derived class.
+  void unregister_handler();
+
   // Sends off two packets using write_event_handler{1,2} of ProducerIdentified
   // for handling a global identify events message. Allocated children from
   // barrier done.
@@ -161,7 +167,12 @@ class BitEventHandler : public SimpleEventHandler {
 class BitEventProducer : public BitEventHandler {
  public:
   BitEventProducer(BitEventInterface* bit)
-      : BitEventHandler(bit) {}
+      : BitEventHandler(bit) {
+      register_handler();
+  }
+  ~BitEventProducer() {
+      unregister_handler();
+  }
 
   // Requests the event associated with the current value of the bit to be
   // produced (unconditionally).
@@ -185,7 +196,12 @@ class BitEventProducer : public BitEventHandler {
 class BitEventConsumer : public BitEventHandler {
  public:
   BitEventConsumer(BitEventInterface* bit)
-      : BitEventHandler(bit) {}
+      : BitEventHandler(bit) {
+      register_handler();
+  }
+  ~BitEventConsumer() {
+      unregister_handler();
+  }
 
     /// Queries producers and acquires the current state of the bit.
   void SendQuery(WriteHelper* writer, BarrierNotifiable* done);

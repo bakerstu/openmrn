@@ -398,6 +398,9 @@ void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport* event, BarrierN
 
 BitEventHandler::BitEventHandler(BitEventInterface* bit)
     : bit_(bit) {
+}
+
+void BitEventHandler::register_handler() {
     if ((bit_->event_on() ^ bit_->event_off()) == 1ULL) {
         // Register once for two eventids.
         uint64_t id = bit_->event_on() & (~1ULL);
@@ -408,7 +411,7 @@ BitEventHandler::BitEventHandler(BitEventInterface* bit)
     }
 }
 
-BitEventHandler::~BitEventHandler() {
+void BitEventHandler::unregister_handler() {
     if ((bit_->event_on() ^ bit_->event_off()) == 1ULL) {
         // Register once for two eventids.
         uint64_t id = bit_->event_on() & (~1ULL);
