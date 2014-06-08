@@ -66,8 +66,10 @@ ARM_CFLAGS = $(CORECFLAGS)
 
 CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99 
 
+EXCEPT_FLAG := -fno-rtti -fno-exceptions
+
 # -MT"$(@:%.o=%.d)"
-CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) -fno-rtti -fno-exceptions \
+CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) $(EXCEPT_FLAG) \
             -std=gnu++0x \
            -mthumb  \
             -D__STDC_FORMAT_MACROS \
@@ -76,7 +78,8 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) -fno-rtti -fno-exceptions \
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -T target.ld -mthumb -Xlinker --gc-sections -mcpu=arm7tdmi \
           -Xlinker -Map="$(@:%.elf=%.map)" -fmessage-length=0 -fno-builtin \
-          -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions \
+          -ffunction-sections -fdata-sections $(EXCEPT_FLAG) \
+          -Wl,--wrap=malloc   \
           -Wl,--wrap=__cxa_pure_virtual   \
           -Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
