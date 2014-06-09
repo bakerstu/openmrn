@@ -1,0 +1,24 @@
+
+SUBDIRS := \
+$(MBEDSRCPATH)/vendor/NXP/cmsis/LPC2368 \
+$(MBEDSRCPATH)/vendor/NXP/capi \
+$(MBEDSRCPATH)/rpc \
+$(MBEDSRCPATH)/cpp \
+$(MBEDSRCPATH)/capi \
+$(MBEDPATH)/USBDevice/USBSerial \
+$(MBEDPATH)/USBDevice/USBMSD \
+$(MBEDPATH)/USBDevice/USBMIDI \
+$(MBEDPATH)/USBDevice/USBHID \
+$(MBEDPATH)/USBDevice/USBDevice \
+$(MBEDPATH)/USBDevice/USBAudio \
+
+empty:=
+space:= $(empty) $(empty)
+VPATH=$(subst $(space),:,$(strip $(SUBDIRS)))
+
+CSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
+CXXSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
+CPPSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
+
+CXXFLAGS += -mno-thumb -Wno-strict-aliasing
+CFLAGS += -mno-thumb -Wno-strict-aliasing

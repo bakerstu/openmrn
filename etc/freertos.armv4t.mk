@@ -34,7 +34,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-ARCHOPTIMIZATION = -Os
+ARCHOPTIMIZATION = -Os -funwind-tables
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c  -x assembler-with-cpp -D__NEWLIB__ -DDEBUG -D__CODE_RED -g -MD -MP \
@@ -66,7 +66,7 @@ ARM_CFLAGS = $(CORECFLAGS)
 
 CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99 
 
-EXCEPT_FLAG := -fno-rtti # -fno-exceptions
+EXCEPT_FLAG := # -fno-rtti # -fno-exceptions
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) $(EXCEPT_FLAG) \
@@ -90,6 +90,10 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--defsym=__wrap_exit=abort \
           -Wl,--wrap=__cxa_throw   \
           -Wl,--defsym=__wrap___cxa_throw=abort \
+          $(LDFLAGSEXTRA) $(LDFLAGSENV)
+
+
+ifdef asdsajdflaskgd
           -Wl,--wrap=__gxx_personality_v0   \
           -Wl,--defsym=__wrap___gxx_personality_v0=abort \
           -Wl,--wrap=_ZSt19__throw_logic_errorPKc   \
@@ -110,15 +114,14 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr0=abort \
           -Wl,--wrap=__aeabi_unwind_cpp_pr1   \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
-          $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
-ifdef asdsajdflaskgd
           -Wl,--wrap=   \
           -Wl,--defsym=__wrap_=abort \
 
 endif
 
 SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)
+SYSLIB_SUBDIRS += mbed
 
 EXTENTION = .elf
 
