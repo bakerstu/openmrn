@@ -10,7 +10,7 @@ static int strace_len;
 _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
 {
     void *ip = (void *)_Unwind_GetIP(context);
-    if (strace_len > 0 && stacktrace[strace_len] == ip)
+    if (strace_len > 0 && stacktrace[strace_len - 1] == ip)
     {
         return _URC_END_OF_STACK;
     }
@@ -77,7 +77,7 @@ struct trace *add_new_trace(unsigned hash)
     t->len = strace_len;
     t->total_size = 0;
     t->next = all_traces;
-    all_traces = t->next;
+    all_traces = t;
     return t;
 }
 static Atomic* get_lock() {
@@ -90,14 +90,14 @@ void *__wrap_malloc(size_t size)
     {
         AtomicHolder holder(get_lock());
         strace_len = 0;
-        _Unwind_Backtrace(nullptr, nullptr);
+        _Unwind_Backtrace(&trace_func, nullptr);
         unsigned h = hash_trace(strace_len, (unsigned *)stacktrace);
         struct trace *t = find_current_trace(h);
         if (!t)
         {
             t = add_new_trace(h);
         }
-        t->len += size;
+        t->total_size += size;
     }
     return __real_malloc(size);
 }
