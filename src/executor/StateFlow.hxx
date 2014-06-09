@@ -500,6 +500,8 @@ private:
 template <class MessageType> class FlowInterface
 {
 public:
+    typedef MessageType message_type;
+
     virtual ~FlowInterface() {}
 
     /** @returns the buffer pool to use for sending messages to this flow. This
