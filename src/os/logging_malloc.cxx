@@ -4,22 +4,10 @@
 
 #define MAX_STRACE 20
 
-static void *stacktrace[MAX_STRACE];
-static int strace_len;
-
-_Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
-{
-    void *ip = (void *)_Unwind_GetIP(context);
-    if (strace_len > 0 && stacktrace[strace_len - 1] == ip)
-    {
-        return _URC_END_OF_STACK;
-    }
-    if (strace_len >= MAX_STRACE)
-    {
-        return _URC_END_OF_STACK;
-    }
-    stacktrace[strace_len++] = ip;
-    return _URC_NO_REASON;
+extern "C" {
+extern void *stacktrace[MAX_STRACE];
+extern int strace_len;
+void call_unwind(void);
 }
 
 struct trace
@@ -85,12 +73,37 @@ static Atomic* get_lock() {
     return &lock;
 }
 
+void *stacktrace[MAX_STRACE];
+int strace_len;
+
+_Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
+{
+    void *ip = (void *)_Unwind_GetIP(context);
+    if (strace_len > 0 && stacktrace[strace_len - 1] == ip)
+    {
+        return _URC_END_OF_STACK;
+    }
+    if (strace_len >= MAX_STRACE)
+    {
+        return _URC_END_OF_STACK;
+    }
+    stacktrace[strace_len++] = ip;
+    return _URC_NO_REASON;
+}
+
 void *__wrap_malloc(size_t size)
 {
+    unsigned saved_lr = 0;
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
+    asm volatile ("mov %0, lr \n" : "=r" (saved_lr));
+#endif
     {
         AtomicHolder holder(get_lock());
         strace_len = 0;
-        _Unwind_Backtrace(&trace_func, nullptr);
+        _Unwind_Backtrace(&trace_func, 0);
+        if (strace_len == 1) {
+            stacktrace[strace_len++] = (void*)saved_lr;
+        }
         unsigned h = hash_trace(strace_len, (unsigned *)stacktrace);
         struct trace *t = find_current_trace(h);
         if (!t)
