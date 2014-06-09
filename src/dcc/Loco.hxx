@@ -83,11 +83,11 @@ public:
         float f_speed = speed.mph();
         if (f_speed > 0)
         {
-            f_speed *= (p.get_speed_steps() / 128);
+            f_speed *= ((p.get_speed_steps() * 1.0) / 128);
             unsigned sp = f_speed;
             sp++; // makes sure it is at least speed step 1.
-            if (sp > 28)
-                sp = 28;
+            if (sp > p.get_speed_steps())
+                sp = p.get_speed_steps();
             LOG(VERBOSE, "set speed to step %u", sp);
             p.speed_ = sp;
         }
@@ -174,9 +174,9 @@ struct Dcc28Payload
     unsigned directionChanged_ : 1;
 
     /** @Returns the number of speed steps (in float). */
-    float get_speed_steps()
+    unsigned get_speed_steps()
     {
-        return 28.0f;
+        return 28;
     }
 
     /** @Returns the largest function number that is still valid. */
@@ -218,9 +218,9 @@ struct MMOldPayload
     unsigned speed_ : 4;
 
     /** @Returns the number of speed steps (in float). */
-    float get_speed_steps()
+    unsigned get_speed_steps()
     {
-        return 14.0f;
+        return 14;
     }
 
     /** @Returns the largest function number that is still valid. */
