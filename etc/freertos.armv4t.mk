@@ -66,7 +66,7 @@ ARM_CFLAGS = $(CORECFLAGS)
 
 CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99 
 
-EXCEPT_FLAG := -fno-rtti -fno-exceptions
+EXCEPT_FLAG := -fno-rtti # -fno-exceptions
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) $(EXCEPT_FLAG) \
