@@ -51,10 +51,19 @@ enum DccTrainUpdateCode
     FUNCTION9 = 4,
     FUNCTION13 = 5,
     FUNCTION21 = 6,
+
+    MM_F1 = 2,
+    MM_F2,
+    MM_F3,
+    MM_F4,
+
     MIN_REFRESH = SPEED,
     /** @TODO(balazs.racz) choose adaptive max-refresh based on how many
      * functions are actually in use for the loco. */
     MAX_REFRESH = FUNCTION9,
+
+    MM_MAX_REFRESH = MM_F4,
+
     ESTOP = 16,
 };
 
@@ -241,6 +250,57 @@ class MMOldTrain : public AbstractTrain<MMOldPayload>
 public:
     MMOldTrain(MMAddress a);
     ~MMOldTrain();
+
+    // Generates next outgoing packet.
+    void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
+};
+
+struct MMNewPayload
+{
+    MMNewPayload()
+    {
+        memset(this, 0, sizeof(*this));
+    }
+    // largest address allowed is 80, but we keep a few more bits around to
+    // allow for an extension to arbitrary MM address packets.
+    unsigned address_ : 8;
+    unsigned lastSetSpeed_ : 16;
+    unsigned fn_ : 5;
+    // 0: forward, 1: reverse
+    unsigned direction_ : 1;
+    unsigned directionChanged_ : 1;
+    unsigned resvd1_ : 1;
+    unsigned speed_ : 4;
+    unsigned nextRefresh_ : 3;
+
+    /** @Returns the number of speed steps (in float). */
+    unsigned get_speed_steps()
+    {
+        return 14;
+    }
+
+    /** @Returns the largest function number that is still valid. */
+    unsigned get_max_fn()
+    {
+        return 4;
+    }
+
+    /** @returns the update code to send ot the packet handler for a given
+     * function value change. */
+    unsigned get_fn_update_code(unsigned address) {
+        if (1 <= address && address <= 4) {
+            return MM_F1 + address - 1;
+        } else {
+            return SPEED;
+        }
+    }
+};
+
+class MMNewTrain : public AbstractTrain<MMNewPayload>
+{
+public:
+    MMNewTrain(MMAddress a);
+    ~MMNewTrain();
 
     // Generates next outgoing packet.
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;

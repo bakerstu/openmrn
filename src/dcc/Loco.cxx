@@ -177,7 +177,8 @@ void MMOldTrain::get_next_packet(unsigned code, Packet *packet)
 
     if (code == ESTOP)
     {
-        packet->add_mm_speed(Packet::EMERGENCY_STOP); // will change the direction.
+        packet->add_mm_speed(
+            Packet::EMERGENCY_STOP); // will change the direction.
         p.direction_ = !p.direction_;
         p.directionChanged_ = 0;
     }
@@ -189,9 +190,66 @@ void MMOldTrain::get_next_packet(unsigned code, Packet *packet)
     else
     {
         packet->add_mm_speed(p.speed_);
-        if (code != REFRESH) {
+        if (code != REFRESH)
+        {
             packet->packet_header.rept_count = 2;
         }
+    }
+}
+
+MMNewTrain::MMNewTrain(MMAddress a)
+{
+    p.address_ = a.value;
+    packet_processor_add_refresh_source(this);
+}
+
+MMNewTrain::~MMNewTrain()
+{
+    packet_processor_remove_refresh_source(this);
+}
+
+// Generates next outgoing packet.
+void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
+{
+    packet->start_mm_packet();
+    packet->add_mm_address(MMAddress(p.address_), p.fn_ & 1);
+
+    if (code == REFRESH)
+    {
+        code = MIN_REFRESH + p.nextRefresh_++;
+        if (p.nextRefresh_ > MM_MAX_REFRESH - MIN_REFRESH)
+        {
+            p.nextRefresh_ = 0;
+        }
+    }
+    else
+    {
+        packet->packet_header.rept_count = 2;
+    }
+    if (code == ESTOP)
+    {
+        packet->add_mm_new_speed(!p.direction_,
+            Packet::EMERGENCY_STOP); // will change the direction.
+        p.direction_ = !p.direction_;
+        p.directionChanged_ = 0;
+    }
+    else if (code == SPEED)
+    {
+        if (p.directionChanged_)
+        {
+            packet->add_mm_new_speed(!p.direction_, Packet::CHANGE_DIR);
+            p.directionChanged_ = 0;
+            p.nextRefresh_ = 0; // sends another speed packet
+        }
+        else
+        {
+            packet->add_mm_new_speed(!p.direction_, p.speed_);
+        }
+    }
+    else if (MM_F1 <= code && code <= MM_F4)
+    {
+        unsigned fnum = code + 1 - MM_F1;
+        packet->add_mm_new_fn(fnum, p.fn_ & (1 << fnum), p.speed_);
     }
 }
 
