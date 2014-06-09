@@ -40,21 +40,12 @@
 namespace dcc
 {
 
-Dcc28Train::Dcc28Train(DccShortAddress a)
+template <> DccTrain<Dcc28Payload>::~DccTrain()
 {
-    p.isShortAddress_ = 1;
-    p.address_ = a.value;
-    packet_processor_add_refresh_source(this);
+    packet_processor_remove_refresh_source(this);
 }
 
-Dcc28Train::Dcc28Train(DccLongAddress a)
-{
-    p.isShortAddress_ = 0;
-    p.address_ = a.value;
-    packet_processor_add_refresh_source(this);
-}
-
-Dcc28Train::~Dcc28Train()
+template <> DccTrain<Dcc128Payload>::~DccTrain()
 {
     packet_processor_remove_refresh_source(this);
 }
@@ -85,23 +76,24 @@ unsigned Dcc28Payload::get_fn_update_code(unsigned address)
 }
 
 // Generates next outgoing packet.
-void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
+template <class Payload>
+void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
 {
     packet->start_dcc_packet();
-    if (p.isShortAddress_)
+    if (this->p.isShortAddress_)
     {
-        packet->add_dcc_address(DccShortAddress(p.address_));
+        packet->add_dcc_address(DccShortAddress(this->p.address_));
     }
     else
     {
-        packet->add_dcc_address(DccLongAddress(p.address_));
+        packet->add_dcc_address(DccLongAddress(this->p.address_));
     }
     if (code == REFRESH)
     {
-        code = MIN_REFRESH + p.nextRefresh_++;
-        if (p.nextRefresh_ > MAX_REFRESH - MIN_REFRESH)
+        code = MIN_REFRESH + this->p.nextRefresh_++;
+        if (this->p.nextRefresh_ > MAX_REFRESH - MIN_REFRESH)
         {
-            p.nextRefresh_ = 0;
+            this->p.nextRefresh_ = 0;
         }
     }
     else
@@ -113,32 +105,32 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
     {
         case FUNCTION0:
         {
-            packet->add_dcc_function0_4(p.fn_ & 0x1F);
+            packet->add_dcc_function0_4(this->p.fn_ & 0x1F);
             return;
         }
         case FUNCTION5:
         {
-            packet->add_dcc_function5_8(p.fn_ >> 5);
+            packet->add_dcc_function5_8(this->p.fn_ >> 5);
             return;
         }
         case FUNCTION9:
         {
-            packet->add_dcc_function9_12(p.fn_ >> 9);
+            packet->add_dcc_function9_12(this->p.fn_ >> 9);
             return;
         }
         case FUNCTION13:
         {
-            packet->add_dcc_function13_20(p.fn_ >> 13);
+            packet->add_dcc_function13_20(this->p.fn_ >> 13);
             return;
         }
         case FUNCTION21:
         {
-            packet->add_dcc_function21_28(p.fn_ >> 21);
+            packet->add_dcc_function21_28(this->p.fn_ >> 21);
             return;
         }
         case ESTOP:
         {
-            packet->add_dcc_speed28(!p.direction_, Packet::EMERGENCY_STOP);
+            this->p.add_dcc_estop_to_packet(packet);
             // packet->packet_header.rept_count = 3;
             return;
         }
@@ -147,12 +139,12 @@ void Dcc28Train::get_next_packet(unsigned code, Packet *packet)
         // fall through
         case SPEED:
         {
-            if (p.directionChanged_)
+            if (this->p.directionChanged_)
             {
                 // packet->packet_header.rept_count = 2;
-                p.directionChanged_ = 0;
+                this->p.directionChanged_ = 0;
             }
-            packet->add_dcc_speed28(!p.direction_, p.speed_);
+            this->p.add_dcc_speed_to_packet(packet);
             return;
         }
     }
@@ -228,7 +220,8 @@ void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
     }
     if (code == ESTOP)
     {
-        packet->add_mm_new_speed(!p.direction_,
+        packet->add_mm_new_speed(
+            !p.direction_,
             Packet::EMERGENCY_STOP); // will change the direction.
         p.direction_ = !p.direction_;
         p.directionChanged_ = 0;
