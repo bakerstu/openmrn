@@ -145,7 +145,7 @@ extern unsigned long blinker_pattern;
 #define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 104 )
 #define configTOTAL_HEAP_SIZE           ( ( size_t ) ( 18 * 1024 ) )
 
-#define configTIMER_TASK_STACK_DEPTH   256
+#define configTIMER_TASK_STACK_DEPTH   800 //256
 
 #elif defined(TARGET_LPC1768)
 
