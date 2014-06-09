@@ -32,8 +32,11 @@
  * @date 10 May 2014
  */
 
+#define LOGLEVEL WARNING
+
 #include "dcc/Packet.hxx"
 
+#include "utils/logging.h"
 #include "utils/macros.h"
 
 namespace dcc
@@ -62,6 +65,10 @@ enum
     DCC_FUNCTION2_F9 = 0b10100000,
     DCC_FEATURE_EXP_F13 = 0b11011110,
     DCC_FEATURE_EXP_F21 = 0b11011111,
+
+    // Extended packet: 128-step speed.
+    DCC_EXT_SPEED = 0b00111111,
+    DCC_EXT_SPEED_FORWARD = 0x80,
 };
 
 void Packet::add_dcc_checksum()
@@ -154,6 +161,27 @@ void Packet::add_dcc_speed28(bool is_fwd, unsigned speed)
         b1 |= (speed >> 1) & 0xf;
     }
     payload[dlc++] = b1;
+    add_dcc_checksum();
+    LOG(WARNING, "sending dcc speed command %d %02x %02x", payload[0], payload[1], payload[2]);
+}
+
+void Packet::add_dcc_speed128(bool is_fwd, unsigned speed)
+{
+    payload[dlc++] = DCC_EXT_SPEED;
+    uint8_t b = 0;
+    if (is_fwd)
+        b |= DCC_EXT_SPEED_FORWARD;
+    if (speed == EMERGENCY_STOP)
+    {
+        b |= 1;
+    }
+    else if (speed > 0)
+    {
+        HASSERT(speed <= 126);
+        speed += 1; // avoids 00, 01 ([e]stop)
+        b |= speed & 0x7f;
+    }
+    payload[dlc++] = b;
     add_dcc_checksum();
 }
 
