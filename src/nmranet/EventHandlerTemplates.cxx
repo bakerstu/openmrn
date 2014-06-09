@@ -289,7 +289,7 @@ void ByteRangeEventC::HandleIdentifyGlobal(EventReport *event,
     uint64_t range = EncodeRange(event_base_, size_ * 256);
     event_write_helper1.WriteAsync(
         node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-        EventIdToBuffer(range), done);
+        EventIdToBuffer(range), done->new_child());
     done->maybe_done();
 }
 
