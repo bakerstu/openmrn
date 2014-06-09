@@ -20,5 +20,5 @@ CSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)),$(notdir $
 CXXSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
 CPPSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
 
-CXXFLAGS += -mno-thumb -Wno-strict-aliasing
-CFLAGS += -mno-thumb -Wno-strict-aliasing
+CXXFLAGS += -mno-thumb -fno-strict-aliasing -Wno-strict-aliasing
+CFLAGS += -mno-thumb -fno-strict-aliasing -Wno-strict-aliasing
