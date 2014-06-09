@@ -56,6 +56,8 @@ __SRAM_segment_start__  = ORIGIN( Ram );
 __SRAM_segment_end__    = ORIGIN( Ram ) + LENGTH( Ram );
 __ETHRAM_segment_start__  = ORIGIN( EthRam );
 __ETHRAM_segment_end__    = ORIGIN( EthRam ) + LENGTH( EthRam );
+__USBRAM_segment_start__  = ORIGIN( UsbRam );
+__USBRAM_segment_end__    = ORIGIN( UsbRam ) + LENGTH( UsbRam );
 
 
 
