@@ -145,6 +145,16 @@ struct Packet
         add_dcc_speed28(is_fwd, speed);
     }
 
+    /** Adds a speed-and-direction command (dcc extended command) for 128 speed
+     * steps to the packet. Speed is maximum 126. This shoudl be called after
+     * add_dcc_address. */
+    void add_dcc_speed128(bool is_fwd, unsigned speed);
+    template <class A> void set_dcc_speed128(A a, bool is_fwd, unsigned speed)
+    {
+        add_dcc_address(a);
+        add_dcc_speed128(is_fwd, speed);
+    }
+
     /** Adds a DCC function group command to the packet. The lowest numbered
      * function is always at bit zero. */
     void add_dcc_function0_4(unsigned values);

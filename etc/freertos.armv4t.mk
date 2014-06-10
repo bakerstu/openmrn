@@ -34,11 +34,11 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-ARCHOPTIMIZATION = -Os -funwind-tables
+ARCHOPTIMIZATION = -Os -funwind-tables #-D_REENT_SMALL
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
 ASFLAGS = -c  -x assembler-with-cpp -D__NEWLIB__ -DDEBUG -D__CODE_RED -g -MD -MP \
-           -mcpu=arm7tdmi -mfloat-abi=soft  -mthumb-interwork
+           -mcpu=arm7tdmi -mfloat-abi=soft  -mthumb-interwork -DTHUMB_INTERWORK
 
 ifeq ($(TOOLPATH),/usr/local/lpcxpresso_5.1.2_2065/lpcxpresso/tools)
 CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.6.2
@@ -76,7 +76,7 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) $(EXCEPT_FLAG) \
            $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
-          -T target.ld -mthumb -Xlinker --gc-sections -mcpu=arm7tdmi \
+          -T target.ld -mthumb -mthumb-interwork -Xlinker --gc-sections -mcpu=arm7tdmi \
           -Xlinker -Map="$(@:%.elf=%.map)" -fmessage-length=0 -fno-builtin \
           -ffunction-sections -fdata-sections $(EXCEPT_FLAG) \
           -Wl,--wrap=malloc   \
@@ -121,7 +121,7 @@ ifdef asdsajdflaskgd
 endif
 
 SYSLIBRARIES += -llibmbed_2387 $(SYSLIBRARIESEXTRA)
-SYSLIB_SUBDIRS += mbed
+#SYSLIB_SUBDIRS += mbed
 
 EXTENTION = .elf
 

@@ -131,7 +131,7 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
     if (!result)
     {
         /* big items are just malloc'd freely */
-        result = (BufferBase*)malloc(size);
+        result = (BufferBase*)alloc_large(size);
         new (result) BufferBase(size, this);
         {
             AtomicHolder h(this);
@@ -149,6 +149,14 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
         flow->alloc_result(result);
     }
     return result;
+}
+
+void* DynamicPool::alloc_large(size_t size) {
+    return malloc(size);
+}
+
+void DynamicPool::free_large(void* buffer) {
+    ::free(buffer);
 }
 
 /** Release an item back to the free pool.
@@ -176,7 +184,7 @@ void DynamicPool::free(BufferBase *item)
         AtomicHolder h(this);
         totalSize -= item->size();
     }
-    ::free(item);
+    free_large(item);
 }
 
 /** Get a free item out of the pool.

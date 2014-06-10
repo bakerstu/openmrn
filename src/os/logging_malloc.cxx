@@ -54,12 +54,17 @@ struct trace *find_current_trace(unsigned hash)
 extern "C" {
 extern void *__wrap_malloc(size_t size);
 extern void *__real_malloc(size_t size);
+void* usb_malloc(unsigned long length);
 }
 
 struct trace *add_new_trace(unsigned hash)
 {
     unsigned total_size = sizeof(struct trace) + strace_len * sizeof(stacktrace[0]);
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
+    struct trace* t = (struct trace*)usb_malloc(total_size);
+#else
     struct trace* t = (struct trace*)__real_malloc(total_size);
+#endif
     memcpy(t + 1, stacktrace, strace_len * sizeof(stacktrace[0]));
     t->hash = hash;
     t->len = strace_len;

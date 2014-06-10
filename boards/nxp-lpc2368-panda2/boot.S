@@ -355,8 +355,17 @@ __init_blinker:
 
 	bx lr
 	
+        .section        .text.enable_fiq,"ax",%progbits
+        .align  2
+
 	.global	enable_fiq
+	.type   enable_fiq, %function
 enable_fiq:
+	.cfi_startproc
+        @ Function supports interworking.
+        @ args = 0, pretend = 0, frame = 0
+        @ frame_needed = 0, uses_anonymous_args = 0
+
 	push	{r0}
 	mrs  r0, CPSR
 	bic  r0, r0, #0x40
@@ -364,7 +373,13 @@ enable_fiq:
 	pop	{r0}
 	bx	lr
 
+	.cfi_endproc
+
+	
+	.section .text.enable_fiq_only,"ax",%progbits
+	
 	.global	enable_fiq_only
+	.type enable_fiq_only, %function
 enable_fiq_only:
 	push	{r0, r1, lr}
 #if 0    // needs new library

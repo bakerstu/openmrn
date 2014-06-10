@@ -484,6 +484,11 @@ private:
      */
     BufferBase *alloc_untyped(size_t size, Executable *flow);
 
+    /** Allocates a large memory block directly from the heap. */
+    void* alloc_large(size_t size);
+    /** Frees a large memory block allocated by alloc_large. */
+    void free_large(void* block);
+
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free

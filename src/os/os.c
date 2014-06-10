@@ -592,6 +592,35 @@ const void* stack_malloc(unsigned long length)
     sstack_start = new_stack_start;
     return old_stack_start;
 }
+
+/** @todo (Stuart Baker) move this logic to application specific code with a 
+ * weak definintion of stack_malloc provided here
+ */
+extern const char __USBRAM_segment_start__;
+extern const char __USBRAM_segment_end__;
+static const char* ublock_start = &__USBRAM_segment_start__;
+
+/** Custom malloc function for USB space.
+ *  \param length the length of block to allocate
+ *  \returns a pointer to the newly allocated block.
+ *
+ *  There is currently no way to free blocks allocated with this function, so
+ *  only suitable for blocks that are running throughout the entire
+ *  life of the application.
+ */
+const void* usb_malloc(unsigned long length)
+{
+    // Aligns to 4 bytes.
+    length += 3; length &= ~3;
+    const char* old_ublock_start = ublock_start;
+    const char* new_ublock_start = ublock_start + length;
+    if (new_ublock_start > &__USBRAM_segment_end__)
+    {
+        diewith(BLINK_DIE_OUTOFMEMSTACK);
+    }
+    ublock_start = new_ublock_start;
+    return old_ublock_start;
+}
 #elif defined(TARGET_LPC11Cxx)
 __attribute__((noinline)) const void* stack_malloc(unsigned long length)
 {
