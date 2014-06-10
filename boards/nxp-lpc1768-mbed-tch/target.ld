@@ -26,6 +26,9 @@ __ETHRAM_segment_start__  = ORIGIN( ETH_RAM );
 /* This marks the highest allocatable stack space */
 __stacks_min__ = ORIGIN( ETH_RAM ) + LENGTH( ETH_RAM );
 
+__USBRAM_segment_start__  = ORIGIN( USB_RAM );
+__USBRAM_segment_end__    = ORIGIN( USB_RAM ) + LENGTH( USB_RAM );
+
 /* Linker script to place sections and symbol values. Should be used together
  * with other linker script that defines memory regions FLASH and RAM.
  * It references following symbols, which must be defined in code:
