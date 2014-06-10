@@ -113,7 +113,7 @@ void TivaCan::tx_msg()
     if (txPending == false)
     {
         struct can_frame can_frame;
-        if (os_mq_timedreceive(txQ, &can_frame, 0) == OS_MQ_NONE)
+        if (get_tx_msg(&can_frame))
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
@@ -131,7 +131,7 @@ void TivaCan::tx_msg()
             can_message.ui32MsgLen = can_frame.can_dlc;
             can_message.pui8MsgData = data;
             memcpy(data, can_frame.data, can_frame.can_dlc);
-            
+
             MAP_IntDisable(interrupt);
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             txPending = true;
@@ -145,6 +145,7 @@ void TivaCan::tx_msg()
 void TivaCan::interrupt_handler()
 {
     uint32_t status = MAP_CANIntStatus(base, CAN_INT_STS_CAUSE);
+    /// @todo(balazs.racz) make this a static variable in os.c
     int woken = false;
 
     if (status == CAN_INT_INTID_STATUS)
@@ -197,17 +198,7 @@ void TivaCan::interrupt_handler()
         can_frame.can_err = 0;
         can_frame.can_dlc = can_message.ui32MsgLen;
         memcpy(can_frame.data, data, can_message.ui32MsgLen);
-        if (os_mq_send_from_isr(rxQ, &can_frame, &woken) == OS_MQ_FULL)
-        {
-            overrunCount++;
-        }
-        /* wakeup anyone waiting for read active */
-        if (read_callback)
-        {
-            read_callback(readContext, &woken);
-            read_callback = NULL;
-            readContext = NULL;
-        }
+        put_rx_msg_from_isr(can_frame);
     }
     else if (status == 2)
     {
@@ -215,7 +206,7 @@ void TivaCan::interrupt_handler()
         MAP_CANIntClear(base, 2);
         HASSERT(txPending);
         struct can_frame can_frame;
-        if (os_mq_receive_from_isr(txQ, &can_frame, &woken) == OS_MQ_NONE)
+        if (get_tx_msg_from_isr(&can_frame))
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
@@ -235,13 +226,6 @@ void TivaCan::interrupt_handler()
             memcpy(data, can_frame.data, can_frame.can_dlc);
             
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
-            /* wakeup anyone waiting for write active */
-            if (write_callback)
-            {
-                write_callback(writeContext, &woken);
-                write_callback = NULL;
-                writeContext = NULL;
-            }
         }
         else
         {
@@ -264,11 +248,14 @@ void can0_interrupt_handler(void)
 }
 
 #if 0
-/** This is the interrupt handler for the can0 device.
+/** This is the interrupt handler for the can1 device.
  */
 void can1_interrupt_handler(void)
 {
-    can_interrupt_handler(&can1);
+    if (instances[1])
+    {
+        instances[1]->interrupt_handler();
+    }
 }
 #endif
 
