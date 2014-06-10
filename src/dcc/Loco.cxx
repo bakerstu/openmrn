@@ -144,6 +144,7 @@ void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
                 // packet->packet_header.rept_count = 2;
                 this->p.directionChanged_ = 0;
             }
+            packet->packet_header.rept_count = 1;
             this->p.add_dcc_speed_to_packet(packet);
             return;
         }

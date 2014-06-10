@@ -274,13 +274,13 @@ struct Dcc128Payload
     /** Adds the speed payload to a DCC packet. */
     void add_dcc_speed_to_packet(dcc::Packet *p)
     {
-        p->add_dcc_speed28(!direction_, speed_);
+        p->add_dcc_speed128(!direction_, speed_);
     }
 
     /** Adds the speed payload to a DCC packet with value == EMERGENCY_STOP */
     void add_dcc_estop_to_packet(dcc::Packet *p)
     {
-        p->add_dcc_speed28(!direction_, Packet::EMERGENCY_STOP);
+        p->add_dcc_speed128(!direction_, Packet::EMERGENCY_STOP);
     }
 };
 
