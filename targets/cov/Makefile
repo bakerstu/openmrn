@@ -23,7 +23,7 @@ LDFLAGS      += -L$(LIBDIR)
 
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test .testmd5 .testout
 
-$(TESTBINS): %.test : %.otest $(TESTOBJSEXTRA) $(wildcard $(LIBDIR)/*.a) | $(BUILDDIRS)
+$(TESTBINS): %.test : %.otest $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
 	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
 
 -include $(TESTOBJS:.otest=.dtest)
