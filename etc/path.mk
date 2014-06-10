@@ -196,6 +196,8 @@ endif #GTESTSRCPATH
 ifndef MIPSGCCPATH
 SEARCHPATH := \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
+  /opt/MentorGraphics/default_mips_elf
+  
 
 TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -207,6 +209,7 @@ endif #MIPSGCCPATH
 ifndef PIC32MXLIBPATH
 SEARCHPATH := \
   $(HOME)/train/git/pic32/includes \
+  /opt/microchip/xc32/default/pic32mx/include
 
 TRYPATH:=$(call findfirst,p32xxxx.h,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
