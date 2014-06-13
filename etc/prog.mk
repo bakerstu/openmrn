@@ -19,11 +19,11 @@ VPATH = $(abspath ../../)
 
 -include $(VPATH)/tests/sources
 
-FULLPATHASMSRCS  = $(wildcard $(VPATH)/*.S)
-FULLPATHCSRCS    = $(wildcard $(VPATH)/*.c)
-FULLPATHCXXSRCS  = $(wildcard $(VPATH)/*.cxx)
-FULLPATHCPPSRCS  = $(wildcard $(VPATH)/*.cpp)
-FULLPATHXMLSRCS  = $(wildcard $(VPATH)/*.xml)
+FULLPATHASMSRCS  := $(wildcard $(VPATH)/*.S)
+FULLPATHCSRCS    := $(wildcard $(VPATH)/*.c)
+FULLPATHCXXSRCS  := $(wildcard $(VPATH)/*.cxx)
+FULLPATHCPPSRCS  := $(wildcard $(VPATH)/*.cpp)
+FULLPATHXMLSRCS  := $(wildcard $(VPATH)/*.xml)
 FULLPATHTESTSRCS ?= $(wildcard $(VPATH)/tests/*_test.cc)
 
 ASMSRCS  = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
@@ -35,7 +35,7 @@ TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
 
 $(info fullptest=$(FULLPATHTESTSRCS) test=$(TESTSRCS))
 
-OBJS := $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
        $(XMLSRCS:.xml=.o)
 TESTOBJS := $(TESTSRCS:.cc=.o)
 
@@ -162,7 +162,7 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg
+	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg $(OBJS)
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local

@@ -78,6 +78,19 @@ MBEDPATH:=$(TRYPATH)
 endif
 endif #ifndef MBED_PATH
 
+########### libmaple library source #############
+ifndef LIBMAPLEPATH
+SEARCHPATH := \
+  $(HOME)/libmaple \
+  /opt/libmaple/default \
+
+TRYPATH:=$(call findfirst,support/ld/stm32/mem/sram_20k_flash_128k/mem-flash.inc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+LIBMAPLEPATH:=$(TRYPATH)
+endif
+endif #ifndef LIBMAPLEPATH
+
+
 ################### FreeRTOS ####################
 ifndef FREERTOSPATH
 SEARCHPATH := \
