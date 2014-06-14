@@ -104,7 +104,7 @@ $(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
 # remade.
 FORCE:
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) target.ld $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
 	$(SIZE) $@
