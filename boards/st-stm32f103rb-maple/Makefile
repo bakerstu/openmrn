@@ -31,6 +31,7 @@ ARCHFLAGS += -DBOARD_maple -DMCU_STM32F103RB -DERROR_LED_PORT=GPIOA -DERROR_LED_
 
 CFLAGS += -Wno-strict-prototypes
 
+ASFLAGS += $(INCLUDES)
 
 VPATH:=$(VPATH):$(LIBMAPLEPATH)
 
@@ -75,7 +76,22 @@ wirish:
 	mkdir -p wirish
 	mkdir -p wirish/stm32f1
 	mkdir -p libmaple/stm32f1
+	mkdir -p libmaple/stm32f1/performance
 	mkdir -p libmaple/usb/stm32f1
 	mkdir -p libmaple/usb/usb_lib
 
 $(info objs=$(OBJS) )
+
+# This is the usb ID that the maple bootloader presents to us. The production
+# device (after we switched to user code) has a different ID, so if we failed
+# to reset the chip we will not talk DFU.
+BOARD_USB_VENDOR_ID  := 1EAF
+BOARD_USB_PRODUCT_ID := 0003
+
+$(EXECUTABLE).bin: $(EXECUTABLE)$(EXTENTION)
+	$(OBJCOPY) -O binary $< $@
+
+flash: $(EXECUTABLE).bin all
+	$(LIBMAPLEPATH)/support/scripts/reset.py && \
+        sleep 1                  && \
+        dfu-util -a1 -d $(BOARD_USB_VENDOR_ID):$(BOARD_USB_PRODUCT_ID) -D $< -R

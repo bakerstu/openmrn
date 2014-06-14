@@ -22,6 +22,8 @@ REGION_ALIAS("REGION_DATA", ram);
 REGION_ALIAS("REGION_BSS", ram);
 REGION_ALIAS("REGION_RODATA", rom);
 
+EXTERN(ignore_fn);
+
 /* Let common.inc handle the real work. */
 INCLUDE common.inc
 
