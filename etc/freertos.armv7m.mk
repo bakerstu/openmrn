@@ -55,7 +55,7 @@ LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
           $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
-SYSLIBRARIES += $(SYSLIBRARIESEXTRA) -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit -Wl,--defsym=__wrap___cxa_pure_virtual=abort -Wl,--defsym=__wrap___cxa_atexit=ignore_fn
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA) -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit -Wl,--wrap=__aeabi_atexit -Wl,--defsym=__wrap___cxa_pure_virtual=abort -Wl,--defsym=__wrap___cxa_atexit=ignore_fn -Wl,--defsym=__wrap___aeabi_atexit=ignore_fn
 
 EXTENTION = .elf
 
