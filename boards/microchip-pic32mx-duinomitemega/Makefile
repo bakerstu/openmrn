@@ -8,11 +8,7 @@ include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(MISSING_DEPS),)
 
-all: $(EXECUTABLE).hex $(EXECUTABLE).lst 
-
-%.lst: %.elf
-	$(SIZE) $<
-	$(OBJDUMP) -d $< > $@
+all: $(EXECUTABLE).hex $(EXECUTABLE).delf
 
 %.delf: %.elf
 	$(OBJCOPY) $$($(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ') $< $@
