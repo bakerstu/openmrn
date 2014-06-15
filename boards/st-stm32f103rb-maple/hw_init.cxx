@@ -31,6 +31,8 @@ __attribute__((constructor)) void premain()
 
 }
 
+const unsigned long cm3_cpu_clock_hz = 72000000;
+
 void hw_init(void)
 {
     // This is needed for proper bootup of the FreeRTOS scheduler.

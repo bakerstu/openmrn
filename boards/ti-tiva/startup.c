@@ -161,6 +161,10 @@ extern void pwm1_3_interrupt_handler(void);
 extern void pwm1_fault_interrupt_handler(void);
 extern void ignore_fn(void);
 
+extern const unsigned long cm3_cpu_clock_hz;
+/** CPU clock speed. */
+const unsigned long cm3_cpu_clock_hz = 20000000;
+
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))
 void (* const __interrupt_vector[])(void) =

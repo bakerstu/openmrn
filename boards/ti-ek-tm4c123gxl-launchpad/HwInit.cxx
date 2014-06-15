@@ -65,8 +65,8 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
-/** Blink LED */
 extern "C" {
+/** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
 

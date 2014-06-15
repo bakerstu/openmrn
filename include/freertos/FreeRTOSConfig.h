@@ -83,7 +83,7 @@
 
 #ifdef GCC_ARMCM3
 
-#define configCPU_CLOCK_HZ             ( ( unsigned long ) 20000000 )
+#define configCPU_CLOCK_HZ             ( cm3_cpu_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 50 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
 #define configTIMER_TASK_STACK_DEPTH   256
@@ -100,6 +100,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #ifdef __cplusplus
 extern "C" {
 #endif
+extern const unsigned long cm3_cpu_clock_hz;
 extern void diewith(unsigned long);
 extern unsigned long blinker_pattern;
 #ifdef __cplusplus
