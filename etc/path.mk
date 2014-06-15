@@ -90,6 +90,16 @@ LIBMAPLEPATH:=$(TRYPATH)
 endif
 endif #ifndef LIBMAPLEPATH
 
+######## STM32 peripheral library source ########
+ifndef STM32PLIBPATH
+SEARCHPATH := \
+  /opt/st/stm32_plib/default \
+
+TRYPATH:=$(call findfirst,Libraries/STM32F10x_StdPeriph_Driver/inc/stm32f10x_can.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32PLIBPATH:=$(TRYPATH)
+endif
+endif #ifndef STM32PLIBPATH
 
 ################### FreeRTOS ####################
 ifndef FREERTOSPATH
