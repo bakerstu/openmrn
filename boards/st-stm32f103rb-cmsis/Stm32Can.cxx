@@ -46,10 +46,15 @@
 #define GPIO_Pin_CAN1_TX GPIO_Pin_9
 #endif
 
+extern "C" {
+void USB_HP_CAN1_TX_IRQHandler(void);
+void USB_LP_CAN1_RX0_IRQHandler(void);
+}
+
 class Stm32CanDriver : public Can
 {
 public:
-    Stm32CanDriver(CAN_TypeDef *instance, const char *dev, int frequency)
+    Stm32CanDriver(CAN_TypeDef *instance, const char *dev)
         : Can(dev)
         , instance_(instance)
     {
@@ -68,15 +73,15 @@ private:
         // Configures CAN RX pin
         GPIO_InitTypeDef gp;
         GPIO_StructInit(&gp);
-        gp.GPIO_Pin = GPIO_Pin_CAN_RX;
+        gp.GPIO_Pin = GPIO_Pin_CAN1_RX;
         gp.GPIO_Mode = GPIO_Mode_IPU;
-        GPIO_Init(GPIO_CAN, &gp);
+        GPIO_Init(GPIO_CAN1, &gp);
 
         // Configures CAN TX pin
-        gp.GPIO_Pin = GPIO_Pin_CAN_TX;
+        gp.GPIO_Pin = GPIO_Pin_CAN1_TX;
         gp.GPIO_Mode = GPIO_Mode_AF_PP;
         gp.GPIO_Speed = GPIO_Speed_50MHz;
-        GPIO_Init(GPIO_CAN, &gp);
+        GPIO_Init(GPIO_CAN1, &gp);
 
         GPIO_PinRemapConfig(GPIO_Remapping_CAN1, ENABLE);
 
@@ -123,33 +128,97 @@ private:
         CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0;
         CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
         CAN_FilterInit(&CAN_FilterInitStructure);
-
-
     }
 
-    void enable() OVERRIDE {
+    void enable() OVERRIDE
+    {
         init_can_filter();
         // Sets the CAN interrupt priorities to be compatible with FreeRTOS.
         NVIC_SetPriority(USB_LP_CAN1_RX0_IRQn, configKERNEL_INTERRUPT_PRIORITY);
         NVIC_SetPriority(USB_HP_CAN1_TX_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+        CAN_ITConfig(instance_, CAN_IT_TME, DISABLE);
         NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
         NVIC_EnableIRQ(USB_HP_CAN1_TX_IRQn);
         CAN_ITConfig(instance_, CAN_IT_FMP0, ENABLE);
     };
-    void disable() OVERRIDE {
+    void disable() OVERRIDE
+    {
         CAN_ITConfig(instance_, CAN_IT_FMP0, DISABLE);
+        CAN_ITConfig(instance_, CAN_IT_TME, DISABLE);
         NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
         NVIC_DisableIRQ(USB_HP_CAN1_TX_IRQn);
     };
 
-    void interrupt();
+    void tx_interrupt();
+    void rx_interrupt();
     void tx_msg() OVERRIDE;
 
+    friend void USB_HP_CAN1_TX_IRQHandler(void);
+    friend void USB_LP_CAN1_RX0_IRQHandler(void);
+
     CAN_TypeDef *instance_;
-    // Status register.
-    volatile uint32_t *SR_;
-    char txPending_;
+
+    static const uint32_t CAN_TSR_TME_ANY =
+        CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
+
+    /** Converts between our frame format and STM32 peripheral library's frame
+     * format. */
+    static void fill_tx_message(const struct can_frame &frame, CanTxMsg *msg);
+    /** Converts between our frame format and STM32 peripheral library's frame
+     * format. */
+    static void parse_rx_message(const CanRxMsg &msg, struct can_frame *frame);
 };
+
+// static
+void Stm32CanDriver::fill_tx_message(const struct can_frame &frame,
+                                     CanTxMsg *msg)
+{
+    if (IS_CAN_FRAME_EFF(frame))
+    {
+        msg->IDE = CAN_Id_Extended;
+    }
+    else
+    {
+        msg->IDE = CAN_Id_Standard;
+    }
+    if (IS_CAN_FRAME_RTR(frame))
+    {
+        msg->RTR = CAN_RTR_Remote;
+    }
+    else
+    {
+        msg->RTR = CAN_RTR_Data;
+    }
+    msg->DLC = frame.can_dlc;
+    memcpy(msg->Data, frame.data, frame.can_dlc);
+}
+
+// static
+void Stm32CanDriver::parse_rx_message(const CanRxMsg &msg,
+                                      struct can_frame *frame)
+{
+    if (msg.IDE == CAN_Id_Standard)
+    {
+        CLR_CAN_FRAME_EFF(*frame);
+        SET_CAN_FRAME_ID(*frame, msg.StdId);
+    }
+    else
+    {
+        SET_CAN_FRAME_EFF(*frame);
+        SET_CAN_FRAME_ID_EFF(*frame, msg.ExtId);
+    }
+    if (msg.RTR == CAN_RTR_Data)
+    {
+        CLR_CAN_FRAME_RTR(*frame);
+    }
+    else
+    {
+        SET_CAN_FRAME_RTR(*frame);
+    }
+    CLR_CAN_FRAME_ERR(*frame);
+    frame->can_dlc = msg.DLC;
+    memcpy(frame->data, msg.Data, msg.DLC);
+}
 
 /** Try and transmit a message. Does nothing if there is no message to transmit
  *  or no write buffers to transmit via.
@@ -157,103 +226,79 @@ private:
  */
 void Stm32CanDriver::tx_msg()
 {
-    if (txPending_)
+    if (instance_->IER & CAN_IT_TME)
+    {
+        // We are waiting for a transmit interrupt to come in. That interrupt
+        // will send off our frame.
         return;
-    if (!(*SR_ & 0x4))
-        return; // TX buffer is holding a packet
+    }
+    // Now: no transmit interrupt is pending. This means that there must be a
+    // transmit message buffer free.
+    HASSERT(instance_->TSR & CAN_TSR_TME_ANY);
 
     struct can_frame can_frame;
-    /** @todo (balazs.racz): think about how we could do with a shorter
-     critical section. The problem is that an ISR might decide to send off the
-     next frame ahead of us. */
-    taskENTER_CRITICAL();
     if (!get_tx_msg(&can_frame))
     {
-        taskEXIT_CRITICAL();
+        // No frame -- probably our frame was sent off by a racing ISR.
         return;
     }
-    CANMessage msg(can_frame.can_id, (const char *)can_frame.data,
-                   can_frame.can_dlc, can_frame.can_rtr ? CANRemote : CANData,
-                   can_frame.can_eff ? CANExtended : CANStandard);
-    if (!mbedCan_.write(msg))
+    CanTxMsg msg;
+    fill_tx_message(can_frame, &msg);
+    if (CAN_Transmit(instance_, &msg) == CAN_TxStatus_NoMailBox)
     {
-        // NOTE(balazs.racz): This means that the CAN layer didn't find an
-        // available TX buffer to send the CAN message. However, since
-        // txPending == 0 at this point, that can only happen if someone else
-        // was also writing frames to this CAN device. We won't handle that
-        // case now.
-        overrunCount++;
+        DIE("Internal inconsistency: no interrupt pending but no transmit "
+            "buffer free");
     }
-    txPending_ = 1;
-    taskEXIT_CRITICAL();
+    if ((instance_->TSR & CAN_TSR_TME_ANY) == 0)
+    {
+        // No more free buffers --> enable transmit IRQ.
+        instance_->IER |= CAN_IT_TME;
+    }
 }
 
-/** Handler for CAN device. Called from the mbed irq handler. */
-void Stm32CanDriver::interrupt()
+/** Handler for CAN device's transmit interrupt. */
+void Stm32CanDriver::tx_interrupt()
 {
-    int woken = 0;
-    CANMessage msg;
-    if (mbedCan_.read(msg))
+    struct can_frame can_frame;
+    while (instance_->TSR & CAN_TSR_TME_ANY)
     {
-        struct can_frame can_frame;
-        can_frame.can_id = msg.id;
-        can_frame.can_rtr = msg.type == CANRemote ? 1 : 0;
-        can_frame.can_eff = msg.format == CANStandard ? 0 : 1;
-        can_frame.can_err = 0;
-        can_frame.can_dlc = msg.len;
-        memcpy(can_frame.data, msg.data, msg.len);
-        put_rx_msg_from_isr(can_frame);
-    }
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
-    if (*SR_ & 0x4)
-    {
-        // Transmit buffer 1 empty => transmit finished.
-        struct can_frame can_frame;
-        if (get_tx_msg_from_isr(&can_frame))
+        if (!get_tx_msg_from_isr(&can_frame))
         {
-            CANMessage msg(can_frame.can_id, (const char *)can_frame.data,
-                           can_frame.can_dlc,
-                           can_frame.can_rtr ? CANRemote : CANData,
-                           can_frame.can_eff ? CANExtended : CANStandard);
-            if (mbedCan_.write(msg))
-            {
-                txPending_ = 1;
-            }
-            else
-            {
-                // NOTE(balazs.racz): This is an inconsistency -- if *SR&0x4
-                // then TX1 buffer is empty, so if write fails, then... a task
-                // switch occured while serving an interrupt handler?
-                overrunCount++;
-                txPending_ = 0;
-            }
+            // No new frame but we have a txbuffer -> disable tx interrupt.
+            instance_->IER &= ~CAN_IT_TME;
+            return;
         }
-        else
+        CanTxMsg msg;
+        fill_tx_message(can_frame, &msg);
+        if (CAN_Transmit(instance_, &msg) == CAN_TxStatus_NoMailBox)
         {
-            txPending_ = 0;
+            DIE("Internal inconsistency: free xmit buffer disappeared.");
         }
-    }
-#else
-#error you need to define how to figure out whether the transmit buffer is empty.
-#endif
-    /** @todo (balazs.racz): need to see what needs to be done for acking the
-        interrupt, depending on what the interrupt fnction attributes say. */
-    if (woken)
-    {
-#ifdef TARGET_LPC1768
-        portYIELD();
-#elif defined(TARGET_LPC2368)
-/** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
- * portYIELD_FROM_ISR assumes that we have entered the ISR with context
- * saving, which we didn't. */
-#else
-#error define how to yield on your CPU.
-#endif
     }
 }
 
-/** The TCH baseboard for the mbed has CAN1 and CAN2 mixed up. */
-Stm32CanDriver can0(Stm32CanDriver::CAN2, "/dev/can0",
-                    config_nmranet_can_bitrate());
-Stm32CanDriver can1(Stm32CanDriver::CAN1, "/dev/can1",
-                    config_nmranet_can_bitrate());
+void Stm32CanDriver::rx_interrupt()
+{
+    while (instance_->RF0R & 3) {
+        CanRxMsg msg;
+        CAN_Receive(instance_, 0, &msg);
+        struct can_frame frame;
+        parse_rx_message(msg, &frame);
+        put_rx_msg_from_isr(frame);
+    }
+}
+
+Stm32CanDriver can0(CAN1, "/dev/can0");
+
+extern "C" {
+
+void USB_HP_CAN1_TX_IRQHandler(void) {
+    can0.tx_interrupt();
+}
+
+void USB_LP_CAN1_RX0_IRQHandler(void) {
+    can0.rx_interrupt();
+}
+
+}
+

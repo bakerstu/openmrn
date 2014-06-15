@@ -58,6 +58,7 @@ CSRCS += \
 	misc.c \
 	stm32f10x_gpio.c \
 	stm32f10x_rcc.c \
+	stm32f10x_can.c \
 
 #maybe systick should not be there
 
