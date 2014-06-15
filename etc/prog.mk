@@ -104,13 +104,18 @@ $(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
 # remade.
 FORCE:
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) target.ld $(LIBDIR)/timestamp lib/timestamp
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
 	$(SIZE) $@
 endif
 ifdef OBJDUMP
 	$(OBJDUMP) -h $@
+endif
+
+# Makes the executable recompiled if the linker script has changed.
+ifneq ($(strip $(wildcard target.ld)),)
+$(EXECUTABLE)$(EXTENTION): target.ld
 endif
 
 ifdef OBJDUMP
