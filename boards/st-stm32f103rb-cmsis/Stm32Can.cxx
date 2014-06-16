@@ -176,10 +176,12 @@ void Stm32CanDriver::fill_tx_message(const struct can_frame &frame,
     if (IS_CAN_FRAME_EFF(frame))
     {
         msg->IDE = CAN_Id_Extended;
+        msg->ExtId = GET_CAN_FRAME_ID_EFF(frame);
     }
     else
     {
         msg->IDE = CAN_Id_Standard;
+        msg->StdId = GET_CAN_FRAME_ID(frame);
     }
     if (IS_CAN_FRAME_RTR(frame))
     {
@@ -279,9 +281,10 @@ void Stm32CanDriver::tx_interrupt()
 
 void Stm32CanDriver::rx_interrupt()
 {
+    HASSERT(instance_->RF0R & 3);
     while (instance_->RF0R & 3) {
         CanRxMsg msg;
-        CAN_Receive(instance_, 0, &msg);
+        CAN_Receive(instance_, CAN_FIFO0, &msg);
         struct can_frame frame;
         parse_rx_message(msg, &frame);
         put_rx_msg_from_isr(frame);
