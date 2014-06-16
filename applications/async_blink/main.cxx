@@ -44,6 +44,7 @@
 
 #include "utils/GcTcpHub.hxx"
 #include "utils/HubDevice.hxx"
+#include "utils/HubDeviceNonBlock.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Defs.hxx"
 #include "nmranet/AliasAllocator.hxx"
@@ -170,7 +171,7 @@ int appl_main(int argc, char* argv[])
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
 
-    FdHubPort<CanHubFlow> can_hub_port(&can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
+    HubDeviceNonBlock<CanHubFlow> can0_port(&can_hub0, "/dev/can0");
 #endif  // default target
 #endif  // FreeRTOS
 
