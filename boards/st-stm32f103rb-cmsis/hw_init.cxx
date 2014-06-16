@@ -140,7 +140,7 @@ void Default_Handler() {
  */
 void setblink(uint32_t pattern)
 {
-    GPIOA->BSRR = pattern ? (1<<17) : (1<<1);
+    GPIOA->BSRR = pattern ? (1<<1) : (1<<17);
     //gpio_write_bit(ERROR_LED_PORT, ERROR_LED_PIN, );
 /*    blinker_pattern = pattern;
     current_pattern = 0;
