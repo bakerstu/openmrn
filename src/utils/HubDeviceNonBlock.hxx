@@ -37,9 +37,9 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#include "utils/Hub.hxx"
 #include "executor/StateFlow.hxx"
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
+#include "utils/Hub.hxx"
 
 extern int ioctl(int fd, unsigned long int key, ...);
 
