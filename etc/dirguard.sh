@@ -10,28 +10,29 @@ function waitthread() {
     WATCHPID=$1
     MYLFILE=dirlock.$BASHPID    
     while true ; do
-    echo "LWATCHPID=$WATCHPID" > $MYLFILE
-    echo "LWATCHERPID=$BASHPID" >> $MYLFILE
-    while [ -f $MYLFILE ] ; do
-        while source dirlock 2>/dev/null ; do
-            if ps $LWATCHERPID > /dev/null ; then
-                sleep 0.1
-            else
-                echo DELETING LOST LOCK >&2
-                rm dirlock
-            fi
-        done
+        echo "LWATCHPID=$WATCHPID" > $MYLFILE
+        echo "LWATCHERPID=$BASHPID" >> $MYLFILE
+        while [ -f $MYLFILE ] ; do
+            while source dirlock 2>/dev/null ; do
+                if ps $LWATCHERPID > /dev/null ; then
+                    sleep 0.1
+                else
+                    echo DELETING LOST LOCK in `pwd` for pid $LWATCHERPID >&2
+                    rm dirlock
+                fi
+            done
         # mv is an atomic operation on the filesystem. if it fails, the outer
         # while loop will still find our own lock file and go another trip of
         # waiting for the (now new) master lock.
-        mv -n $MYLFILE dirlock
-    done
-    source dirlock 2>/dev/null
-    if [ "$LWATCHERPID" == "$BASHPID" ] ; then
-        break ;
-    else
-        echo FALSE LOCK ACQUIRED >&2
-    fi
+            mv -n $MYLFILE dirlock
+        done
+        sleep 0.1
+        source dirlock 2>/dev/null
+        if [ "$LWATCHERPID" == "$BASHPID" ] ; then
+            break ;
+        else
+            echo FALSE LOCK ACQUIRED for `pwd` me $BASHPID lock $LWATCHERPID >&2
+        fi
     done
     # Now: we have the lock.
     echo acquired
@@ -40,7 +41,7 @@ function waitthread() {
         sleep 0.1
     done
     # give back the lock
-    rm dirlock
+    rm dirlock 2>/dev/null || echo ERROR REMOVING LOCK FOR pid $BASHPID >&2
 }
 
 

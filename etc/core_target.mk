@@ -6,8 +6,8 @@ OPENMRNPATH:=$(realpath ../..)
 endif
 export OPENMRNPATH
 
-GRABDIRLOCK=$(shell $(OPENMRNPATH)/etc/dirguard.sh )
-$(info dirlock $(GRABDIRLOCK))
+#GRABDIRLOCK=$(shell $(OPENMRNPATH)/etc/dirguard.sh )
+#$(info dirlock $(GRABDIRLOCK))
 
 include $(OPENMRNPATH)/etc/config.mk
 
