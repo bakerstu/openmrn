@@ -31,8 +31,8 @@
  * @date 2 November 2013
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
-#define _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_
+#ifndef _FREERTOS_CAN_IOCTL_H_
+#define _FREERTOS_CAN_IOCTL_H_
 
 #include "freertos/stropts.h"
 
@@ -55,4 +55,4 @@ extern "C" {
 }
 #endif
 
-#endif /* _FREERTOS_DRIVERS_COMMON_CAN_IOCTL_H_ */
+#endif /* _FREERTOS_CAN_IOCTL_H_ */
