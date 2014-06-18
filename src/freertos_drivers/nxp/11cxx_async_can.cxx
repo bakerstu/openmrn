@@ -35,7 +35,6 @@
 #ifdef TARGET_LPC11Cxx
 
 #include "11CXX_rom_driver_CAN.h"
-#include "can.h"
 #include "nmranet_config.h"
 
 #include "executor/StateFlow.hxx"

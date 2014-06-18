@@ -1,6 +1,5 @@
 #include "mbed.h"
 #include "utils/Hub.hxx"
-#include "can.h"
 
 #include "FreeRTOSConfig.h"
 

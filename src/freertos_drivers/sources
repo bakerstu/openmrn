@@ -1,9 +1,7 @@
 VPATH := $(SRCDIR): \
          $(SRCDIR)/common \
 
-CSRCS += fileio.c \
-         can.c \
-         serial.c \
+CSRCS +=
 
 CXXSRCS += Fileio.cxx \
            Can.cxx \
@@ -38,7 +36,6 @@ endif
 # NOTE(balazs.racz): This is ugly, because we add a driver of a specific MCU
 # depending on the general CPU architecture.
 ifeq ($(TARGET),freertos.armv6m)
-CSRCS += 11CXX_rom_can.c # malloc.c
 CXXSRCS += 11cxx_async_can.cxx
 VPATH += $(SRCDIR)/nxp
 endif
