@@ -62,7 +62,7 @@ ifneq ($(MISSING_DEPS),)
 all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
-	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
+	@echo "*   Unable to build for $(TARGET)/$(REL_DIR), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
 
@@ -102,8 +102,8 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) Dcr $(LIBNAME) $(OBJS)
-	ln -sf -t ../lib $(TGTDIR)/$(LIBNAME)
-	touch ../lib/timestamp
+	ln -sf -t $(OPENMRNPATH)/targets/$(TARGET)/lib $(TGTDIR)/$(LIBNAME)
+	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 
 .PHONY: clean
 clean:
