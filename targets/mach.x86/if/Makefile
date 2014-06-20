@@ -1,3 +1,3 @@
 OPENMRNPATH = ../../../
-include $(OPENMRNPATH)etc/lib.mk
+include $(OPENMRNPATH)/etc/lib.mk
 
