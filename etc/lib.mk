@@ -1,9 +1,26 @@
 include $(OPENMRNPATH)/etc/path.mk
 
+ifndef TARGET
 TARGET := $(shell basename `cd ../; pwd`)
-BASENAME = $(shell basename `pwd`)
-SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)
+export TARGET
+endif
+$(info openmrnpath $(OPENMRNPATH))
+BASENAME := $(shell basename `pwd`)
+
+ifdef PARENTDIR
+LIBBASENAME := $(PARENTLIB)_$(BASENAME)
+REL_DIR := $(PARENTDIR)/$(BASENAME)
+else
+LIBBASENAME := $(BASENAME)
+REL_DIR := $(BASENAME)
+endif
+
+SRCDIR := $(OPENMRNPATH)/src/$(REL_DIR)
+TGTDIR := $(OPENMRNPATH)/target/$(TARGET)/$(REL_DIR)
+
 VPATH = $(SRCDIR)
+export PARENTDIR := $(REL_DIR)
+export PARENTLIB := $(LIBBASENAME)
 
 INCLUDES += -I./ -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 include $(OPENMRNPATH)/etc/$(TARGET).mk
@@ -28,7 +45,7 @@ endif
 endif
 
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ARM_CSRCS:.c=.o) $(ASMSRCS:.S=.o)
-LIBNAME = lib$(BASENAME).a
+LIBNAME = lib$(LIBBASENAME).a
 
 ARM_CSRCS ?=
 ARM_OBJS = $(ARM_CSRCS:.c=.o)
@@ -52,6 +69,10 @@ all docs clean veryclean tests mksubdirs:
 else
 .PHONY: all
 all: $(LIBNAME)
+
+ifneq ($(SUBDIRS),)
+include $(OPENMRNPATH)/etc/recurse.mk
+endif
 
 -include $(OBJS:.o=.d)
 
@@ -81,7 +102,7 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) Dcr $(LIBNAME) $(OBJS)
-	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
+	ln -sf -t ../lib $(TGTDIR)/$(LIBNAME)
 	touch ../lib/timestamp
 
 .PHONY: clean
