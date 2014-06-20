@@ -5,6 +5,7 @@
 
 #include "os/OS.hxx"
 
+const unsigned long cm3_cpu_clock_hz = 96000000;
 
 extern DigitalOut d2;
 
