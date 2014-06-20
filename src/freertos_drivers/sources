@@ -48,3 +48,11 @@ CXXSRCS += Pic32mxCan.cxx
 VPATH += $(SRCDIR)/pic32mx
 
 endif
+
+
+ifeq ($(TARGET),freertos.armv7m)
+
+SUBDIRS += mbed_lpc1768
+
+endif
+
