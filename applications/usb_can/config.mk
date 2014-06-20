@@ -1,1 +1,1 @@
--include $(APP_PATH)/openmrnpath.mk
+../default_config.mk
