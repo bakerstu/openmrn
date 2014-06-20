@@ -1,5 +1,5 @@
 
-SUBDIRS := \
+MBEDDIRS := \
 $(MBEDSRCPATH)/vendor/NXP/cmsis/LPC1768 \
 $(MBEDSRCPATH)/vendor/NXP/capi \
 $(MBEDSRCPATH)/rpc \
@@ -14,8 +14,8 @@ $(MBEDPATH)/USBDevice/USBAudio \
 
 empty:=
 space:= $(empty) $(empty)
-VPATH=$(subst $(space),:,$(strip $(SUBDIRS)))
+VPATH=$(subst $(space),:,$(strip $(MBEDDIRS)))
 
-CSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
-CXXSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
-CPPSRCS=$(foreach file,$(foreach dir,$(SUBDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
+CSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
+CXXSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
+CPPSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
