@@ -451,14 +451,10 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
 OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
 {
 #if defined (__FreeRTOS__)
-#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
     *sem = xSemaphoreCreateCounting(LONG_MAX, value);
     if (!*sem) {
       abort();
     }
-#else
-    #error Need to define your semaphore handling
-#endif
     return 0;
 #else
     pthread_cond_init(&sem->cond, NULL);
@@ -475,11 +471,7 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
 OS_INLINE int os_sem_destroy(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
-#if defined (GCC_ARMCM3) || defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(TARGET_PIC32MX)
     vSemaphoreDelete(*sem);
-#else
-    #error Need to define your semaphore handling
-#endif
     return 0;
 #else
     pthread_cond_destroy(&sem->cond);
@@ -842,6 +834,11 @@ OS_INLINE unsigned sleep(unsigned seconds)
 }
 #endif
 
+/* This section of code is required because CodeSourcery's mips-gcc
+ * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
+ * version) that does not forward these function calls to the implementations
+ * we have. We are thus forced to override their weak definition of these
+ * functions. */
 #ifdef TARGET_PIC32MX
 #include "reent.h"
 
