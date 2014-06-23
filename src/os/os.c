@@ -565,70 +565,10 @@ void os_timer_stop(os_timer_t timer)
 }
 
 #if defined (__FreeRTOS__)
-#if defined (TARGET_LPC2368) || defined(TARGET_LPC1768)
-/** @todo (Stuart Baker) move this logic to application specific code with a 
- * weak definintion of stack_malloc provided here
- */
-extern const char __ETHRAM_segment_start__;
-static const char* sstack_start = &__ETHRAM_segment_start__;
-extern const char __stacks_min__;
-
-/** Custom malloc function for stack spaces.
- *  \param length the length of block to allocate
- *  \returns a pointer to the newly allocated block.
- *
- *  There is currently no way to free blocks allocated with this function, so
- *  only suitable for stacks of threads that are running throughout the entire
- *  life of the application.
- */
-const void* stack_malloc(unsigned long length)
-{
-    const char* old_stack_start = sstack_start;
-    const char* new_stack_start = sstack_start + length;
-    if (new_stack_start > &__stacks_min__)
-    {
-        diewith(BLINK_DIE_OUTOFMEMSTACK);
-    }
-    sstack_start = new_stack_start;
-    return old_stack_start;
-}
-
-/** @todo (Stuart Baker) move this logic to application specific code with a 
- * weak definintion of stack_malloc provided here
- */
-extern const char __USBRAM_segment_start__;
-extern const char __USBRAM_segment_end__;
-static const char* ublock_start = &__USBRAM_segment_start__;
-
-/** Custom malloc function for USB space.
- *  \param length the length of block to allocate
- *  \returns a pointer to the newly allocated block.
- *
- *  There is currently no way to free blocks allocated with this function, so
- *  only suitable for blocks that are running throughout the entire
- *  life of the application.
- */
-const void* usb_malloc(unsigned long length)
-{
-    // Aligns to 4 bytes.
-    length += 3; length &= ~3;
-    const char* old_ublock_start = ublock_start;
-    const char* new_ublock_start = ublock_start + length;
-    if (new_ublock_start > &__USBRAM_segment_end__)
-    {
-        diewith(BLINK_DIE_OUTOFMEMSTACK);
-    }
-    ublock_start = new_ublock_start;
-    return old_ublock_start;
-}
-#elif defined(TARGET_LPC11Cxx)
-__attribute__((noinline)) const void* stack_malloc(unsigned long length)
+__attribute__((noinline, weak)) const void* stack_malloc(unsigned long length)
 {
     return malloc(length);
 }
-#else
-#define stack_malloc malloc
-#endif
 #endif  // FreeRTOS
 
 /** Entry point to a thread.
