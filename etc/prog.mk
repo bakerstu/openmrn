@@ -109,9 +109,6 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/times
 ifdef SIZE
 	$(SIZE) $@
 endif
-ifdef OBJDUMP
-	$(OBJDUMP) -h $@
-endif
 
 # Makes the executable recompiled if the linker script has changed.
 ifneq ($(strip $(wildcard target.ld)),)

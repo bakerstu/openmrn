@@ -14,4 +14,7 @@ endif
 ifndef HAVE_MBED
 $(error Mbed source not found under $(MBEDPATH))
 endif
+
+INCLUDES += -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi"
+
 endif #MBEDPATH

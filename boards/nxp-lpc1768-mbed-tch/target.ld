@@ -5,10 +5,10 @@ GROUP(
  libstdc++.a
  libm.a
  /*libcr_newlib_nohost.a*/
- crti.o
+ /*crti.o
  crtn.o
  crtbegin.o
- crtend.o
+ crtend.o*/
  )
 
 

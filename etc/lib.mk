@@ -1,9 +1,26 @@
 include $(OPENMRNPATH)/etc/path.mk
 
+ifndef TARGET
 TARGET := $(shell basename `cd ../; pwd`)
-BASENAME = $(shell basename `pwd`)
-SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)
+export TARGET
+endif
+$(info openmrnpath $(OPENMRNPATH))
+BASENAME := $(shell basename `pwd`)
+
+ifdef PARENTDIR
+LIBBASENAME := $(PARENTLIB)_$(BASENAME)
+REL_DIR := $(PARENTDIR)/$(BASENAME)
+else
+LIBBASENAME := $(BASENAME)
+REL_DIR := $(BASENAME)
+endif
+
+SRCDIR := $(OPENMRNPATH)/src/$(REL_DIR)
+TGTDIR := $(OPENMRNPATH)/targets/$(TARGET)/$(REL_DIR)
+
 VPATH = $(SRCDIR)
+export PARENTDIR := $(REL_DIR)
+export PARENTLIB := $(LIBBASENAME)
 
 INCLUDES += -I./ -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 include $(OPENMRNPATH)/etc/$(TARGET).mk
@@ -28,7 +45,7 @@ endif
 endif
 
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ARM_CSRCS:.c=.o) $(ASMSRCS:.S=.o)
-LIBNAME = lib$(BASENAME).a
+LIBNAME = lib$(LIBBASENAME).a
 
 ARM_CSRCS ?=
 ARM_OBJS = $(ARM_CSRCS:.c=.o)
@@ -45,13 +62,17 @@ ifneq ($(MISSING_DEPS),)
 all docs clean veryclean tests mksubdirs:
 	@echo "******************************************************************"
 	@echo "*"
-	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
+	@echo "*   Unable to build for $(TARGET)/$(REL_DIR), missing dependencies: $(MISSING_DEPS)"
 	@echo "*"
 	@echo "******************************************************************"
 
 else
 .PHONY: all
 all: $(LIBNAME)
+
+ifneq ($(SUBDIRS),)
+include $(OPENMRNPATH)/etc/recurse.mk
+endif
 
 -include $(OBJS:.o=.d)
 
@@ -81,8 +102,8 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) Dcr $(LIBNAME) $(OBJS)
-	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
-	touch ../lib/timestamp
+	ln -sf -t $(OPENMRNPATH)/targets/$(TARGET)/lib $(TGTDIR)/$(LIBNAME)
+	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 
 .PHONY: clean
 clean:

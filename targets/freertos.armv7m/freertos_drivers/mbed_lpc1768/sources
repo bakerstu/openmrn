@@ -1,3 +1,6 @@
+include $(OPENMRNPATH)/etc/mbed.mk
+
+DEPS += MBEDSRCPATH
 
 MBEDDIRS := \
 $(MBEDSRCPATH)/vendor/NXP/cmsis/LPC1768 \
@@ -14,8 +17,10 @@ $(MBEDPATH)/USBDevice/USBAudio \
 
 empty:=
 space:= $(empty) $(empty)
-VPATH=$(subst $(space),:,$(strip $(MBEDDIRS)))
+VPATH=$(subst $(space),:,$(strip $(MBEDDIRS))):$(OPENMRNPATH)/src/freertos_drivers/nxp
 
 CSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
 CXXSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
 CPPSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
+
+CPPSRCS += mbed_can.cpp mbed_usbserial.cpp

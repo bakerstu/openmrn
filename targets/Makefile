@@ -5,7 +5,9 @@ SUBDIRS = linux.x86 \
           freertos.armv4t \
           freertos.mips4k.pic32mx \
           mach.x86 mach.x86_64 \
-          test
+
+
+          #test
           #nuttx.armv7m \
           #mingw.x86
 
