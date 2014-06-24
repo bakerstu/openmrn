@@ -11,21 +11,6 @@ ifeq ($(TARGET),freertos.armv7m)
 CXXSRCS += c++_operators.cxx
 endif
 
-# Find TivaWare
-ifeq (1,0)
-ifdef TIVAWAREPATH
-ifeq ($(TARGET),freertos.armv7m)
-include $(OPENMRNPATH)/etc/tivaware.mk
-
-CXXSRCS += TivaCan.cxx \
-           TivaUart.cxx \
-           TivaUsbCdcDevice.cxx
-
-VPATH += $(SRCDIR)/ti
-endif
-endif
-endif
-
 ifdef HAVE_MBED
 ifneq ($(TARGET),freertos.armv6m)
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
