@@ -565,10 +565,8 @@ void os_timer_stop(os_timer_t timer)
 }
 
 #if defined (__FreeRTOS__)
-__attribute__((noinline, weak)) const void* stack_malloc(unsigned long length)
-{
-    return malloc(length);
-}
+extern const void* stack_malloc(unsigned long length);
+
 #endif  // FreeRTOS
 
 /** Entry point to a thread.
