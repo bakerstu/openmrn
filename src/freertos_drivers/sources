@@ -12,6 +12,7 @@ CXXSRCS += c++_operators.cxx
 endif
 
 # Find TivaWare
+ifeq (1,0)
 ifdef TIVAWAREPATH
 ifeq ($(TARGET),freertos.armv7m)
 include $(OPENMRNPATH)/etc/tivaware.mk
@@ -21,6 +22,7 @@ CXXSRCS += TivaCan.cxx \
            TivaUsbCdcDevice.cxx
 
 VPATH += $(SRCDIR)/ti
+endif
 endif
 endif
 
@@ -52,7 +54,7 @@ endif
 
 ifeq ($(TARGET),freertos.armv7m)
 
-SUBDIRS += mbed_lpc1768 drivers_lpc1768
+SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware
 
 endif
 

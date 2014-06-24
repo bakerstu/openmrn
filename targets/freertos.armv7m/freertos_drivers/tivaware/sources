@@ -1,0 +1,7 @@
+include $(OPENMRNPATH)/etc/tivaware.mk
+DEPS += TIVAWAREPATH
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
+
+CXXSRCS += TivaCan.cxx \
+           TivaUart.cxx \
+           TivaUsbCdcDevice.cxx
