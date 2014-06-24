@@ -1,0 +1,1 @@
+../../../../boards/nxp-lpc2368-panda2/hw_init.cxx
