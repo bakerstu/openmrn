@@ -7,41 +7,21 @@ CXXSRCS += Fileio.cxx \
            Can.cxx \
            Serial.cxx
 
-ifeq ($(TARGET),freertos.armv7m)
-CXXSRCS += c++_operators.cxx
-endif
-
-ifdef HAVE_MBED
-ifneq ($(TARGET),freertos.armv6m)
-CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
-endif
-ARM_CSRCS += i2c_irq.c  # mbed_i2c.c
-
-VPATH += $(SRCDIR)/nxp
-endif
-
-# NOTE(balazs.racz): This is ugly, because we add a driver of a specific MCU
-# depending on the general CPU architecture.
-ifeq ($(TARGET),freertos.armv6m)
-CXXSRCS += 11cxx_async_can.cxx
-VPATH += $(SRCDIR)/nxp
-endif
-
-
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
-
-CXXSRCS += Pic32mxCan.cxx
-
-VPATH += $(SRCDIR)/pic32mx
-
+SUBDIRS += drivers_pic32mx795
 endif
-
 
 ifeq ($(TARGET),freertos.armv7m)
 SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware
+# Avoids exception handling from operator new.
+CXXSRCS += c++_operators.cxx
 endif
 
 ifeq ($(TARGET),freertos.armv4t)
 SUBDIRS += drivers_lpc2368
+endif
+
+ifeq ($(TARGET),freertos.armv6m)
+SUBDIRS += drivers_lpc11cxx
 endif
 

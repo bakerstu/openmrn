@@ -1,0 +1,6 @@
+include $(OPENMRNPATH)/etc/mbed.mk
+DEPS += MBEDSRCPATH
+
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/nxp
+
+CXXSRCS += 11cxx_async_can.cxx

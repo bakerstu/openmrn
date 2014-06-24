@@ -13,9 +13,6 @@ endif
 
 DEPS+= MIPSGCCPATH PIC32MXLIBPATH
 
-# Get $(MBEDPATH)
-#include $(OPENMRNPATH)/etc/mbed.mk
-
 PREFIX = $(TOOLPATH)/bin/mips-sde-elf-
 
 AS = $(PREFIX)gcc
@@ -35,14 +32,16 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-INCLUDES += -I$(PIC32MXLIBPATH)
-
-
 ARCHOPTIMIZATION = -O3 -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
-BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32  -D__32MX795F512H__ \
-	-D__PIC32_FEATURE_SET__=795 -D__FreeRTOS__ 
+BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__FreeRTOS__
+
+# @TODO(balazs.racz) consider moving this to the drivers compile makefile.
+INCLUDES += -I$(PIC32MXLIBPATH)
+BASEDEFS += -DTARGET_PIC32MX -D__32MX795F512H__ \
+	-D__PIC32_FEATURE_SET__=795
+
 ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-identifiers -msoft-float -DTARGET_PIC32MX -march=mips32r2 $(INCLUDES)
 
 #           -march=armv7-m -mthumb -mfloat-abi=soft

@@ -1,0 +1,2 @@
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx
+CXXSRCS += Pic32mxCan.cxx

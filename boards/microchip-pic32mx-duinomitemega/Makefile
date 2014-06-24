@@ -2,7 +2,7 @@ APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
 export TARGET := freertos.mips4k.pic32mx
 
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/Pic32mxCan.o \
+OBJEXTRA = $(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/drivers_pic32mx795/Pic32mxCan.o \
 
 include $(OPENMRNPATH)/etc/prog.mk
 
