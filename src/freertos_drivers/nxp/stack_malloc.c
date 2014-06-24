@@ -32,6 +32,8 @@
  * @date 23 June 2014
  */
 
+#include "utils/blinker.h"
+
 /** @todo (Stuart Baker) move this logic to application specific code with a 
  * weak definintion of stack_malloc provided here
  */

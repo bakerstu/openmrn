@@ -69,6 +69,10 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+#ifndef __LANGUAGE_ASSEMBLY__
+#include "utils/blinker.h"
+#endif
+
 /*-----------------------------------------------------------
  * Application specific definitions.
  *
@@ -106,10 +110,6 @@ extern unsigned long blinker_pattern;
 #ifdef __cplusplus
 }
 #endif  // cplusplus
-
-#define BLINK_DIE_UNEXPIRQ 0x800002CA // 3-1-1
-#define BLINK_DIE_HARDFAULT 0x80000ACA // 3-1-2
-
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names - or at least those used in the unmodified vector table. */
@@ -302,20 +302,6 @@ typedef struct task_switched_in
     task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
     if (task_switched_in) _impure_ptr = task_switched_in->reent;         \
 }
-
-#endif
-
-#ifndef diewith
-
-#define BLINK_DIE_OUTOFMEM 0x80008CCA // 3-2-1
-#define BLINK_DIE_ASSERT 0x80028CCA  // 3-2-2
-#define BLINK_DIE_STACKOVERFLOW 0x800A8CCA  // 3-2-3
-#define BLINK_DIE_OUTOFMEMSTACK 0x802A8CCA  // 3-2-4
-#define BLINK_DIE_STACKCOLLIDE 0x80AA8CCA  // 3-2-5
-
-#define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
-#define BLINK_DIE_WATCHDOG 0x8002CCCA // 3-3-1
-#define BLINK_DIE_STARTUP 0x800ACCCA // 3-3-2
 
 #endif
 

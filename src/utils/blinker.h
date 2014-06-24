@@ -41,6 +41,23 @@
 extern "C" {
 #endif
 
+#define BLINK_DIE_UNEXPIRQ 0x800002CA // 3-1-1
+#define BLINK_DIE_HARDFAULT 0x80000ACA // 3-1-2
+#define BLINK_DIE_NMI 0x8002A0CA       /* 3-1-3 */
+#define BLINK_DIE_SVC 0x800AA0CA       /* 3-1-4 */
+#define BLINK_DIE_PENDSV 0x802AA0CA    /* 3-1-5 */
+#define BLINK_DIE_TICK 0x80AAA0CA      /* 3-1-6 */
+
+#define BLINK_DIE_OUTOFMEM 0x80008CCA // 3-2-1
+#define BLINK_DIE_ASSERT 0x80028CCA  // 3-2-2
+#define BLINK_DIE_STACKOVERFLOW 0x800A8CCA  // 3-2-3
+#define BLINK_DIE_OUTOFMEMSTACK 0x802A8CCA  // 3-2-4
+#define BLINK_DIE_STACKCOLLIDE 0x80AA8CCA  // 3-2-5
+
+#define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
+#define BLINK_DIE_WATCHDOG 0x8002CCCA // 3-3-1
+#define BLINK_DIE_STARTUP 0x800ACCCA // 3-3-2
+
 /** Initializes the blinker routine with a specific blinking pattern.
  *
  * @param pattern is the blinking pattern. */
