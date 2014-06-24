@@ -22,5 +22,3 @@ VPATH=$(subst $(space),:,$(strip $(MBEDDIRS))):$(OPENMRNPATH)/src/freertos_drive
 CSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
 CXXSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
 CPPSRCS=$(foreach file,$(foreach dir,$(MBEDDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
-
-CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
