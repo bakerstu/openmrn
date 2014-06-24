@@ -4,7 +4,6 @@ ifndef TARGET
 TARGET := $(shell basename `cd ../; pwd`)
 export TARGET
 endif
-$(info openmrnpath $(OPENMRNPATH))
 BASENAME := $(shell basename `pwd`)
 
 ifdef PARENTDIR
