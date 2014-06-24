@@ -38,8 +38,10 @@ endif
 
 
 ifeq ($(TARGET),freertos.armv7m)
-
 SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware
+endif
 
+ifeq ($(TARGET),freertos.armv4t)
+SUBDIRS += drivers_lpc2368
 endif
 
