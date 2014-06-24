@@ -5,10 +5,11 @@ export TARGET := freertos.armv7m
 include $(OPENMRNPATH)/etc/mbed.mk
 DEPS += HAVE_MBED
 
-SYSLIBRARIESEXTRA = -lfreertos_drivers_mbed_lpc1768 -lfreertos_drivers_drivers_lpc1768
+SYSLIBRARIESEXTRA = -lfreertos_drivers_mbed_lpc1768
 
 OBJEXTRA = $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/mbed_can.o \
            $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/mbed_usbserial.o \
+           $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/stack_malloc.o \
 
 CORECFLAGS += -DTARGET_LPC1768 -DINTERRUPT_ATTRIBUTE=
 INCLUDES += \
