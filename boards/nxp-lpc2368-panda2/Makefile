@@ -4,13 +4,20 @@ include $(APP_PATH)/config.mk
 
 export TARGET := freertos.armv4t
 
-DEPS += HAVE_MBED
+include $(OPENMRNPATH)/etc/mbed.mk
+DEPS += MBEDSRCPATH
 
-OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_can.o \
-	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_usbserial.o
+OBJEXTRA = $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/mbed_can.o \
+	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/mbed_usbserial.o \
+	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/stack_malloc.o \
 
 #	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_i2c.o \
 
+CORECFLAGS += -DTARGET_LPC2368
+INCLUDES += \
+	-I"$(MBEDPATH)/mbed/vendor/NXP/capi" \
+	-I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC2368" \
+	-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC2368"
 
 CGMINSIZE=2000
 
@@ -18,22 +25,10 @@ include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(MISSING_DEPS),)
 
-all: $(EXECUTABLE).bin $(EXECUTABLE).lst
-
-
-%.lst: %.elf
-	$(SIZE) $<
-	$(OBJDUMP) -d -C $< > $@
+all: $(EXECUTABLE).bin
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	$(CHECKSUM) -p LPC2362 -d $@
-
-$(EXECUTABLE)$(EXTENTION): depmake
-
-.PHONY: depmake
-
-#depmake:
-#	+$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
 
 endif  #missing deps

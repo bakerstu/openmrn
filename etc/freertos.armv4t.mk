@@ -11,10 +11,6 @@ ifneq ($(FREERTOSPATH),)
 include $(OPENMRNPATH)/etc/armgcc.mk
 endif
 
-# Get $(MBEDPATH)
-include $(OPENMRNPATH)/etc/mbed.mk
-
-
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
@@ -50,8 +46,7 @@ endif
 
 
 # -I"/home/bracz/lpc-workspace/libmbed_2387"
-INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC2368" -I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC2368" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi" 
-
+INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi 
 
 #-MT"$(@:%.o=%.d)" 
 CORECFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \

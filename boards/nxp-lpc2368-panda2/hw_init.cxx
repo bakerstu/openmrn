@@ -32,16 +32,14 @@
  */
 
 #include "utils/logging.h"
-#include "src/cs_config.h"
 
 #include "LPC23xx.h"
 #include "mbed.h"
-#include "can.h"
 #include "FreeRTOSConfig.h"
-#include "src/base.h"
-#include "src/automata_control.h"
+//#include "src/base.h"
+//#include "src/automata_control.h"
 
-#include "src/updater.hxx"
+//#include "src/updater.hxx"
 
 DigitalIn startpin(P1_4);
 
