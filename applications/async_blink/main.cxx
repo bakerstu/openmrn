@@ -164,16 +164,17 @@ int appl_main(int argc, char* argv[])
 {
 #ifdef __linux__
     GcTcpHub hub(&can_hub0, 12021);
-#else
-#ifdef TARGET_LPC11Cxx
+#elif defined(TARGET_LPC11Cxx)
     lpc11cxx::CreateCanDriver(&can_hub0);
-#else
+#elif defined(TARGET_PIC32MX)
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
-
+    FdHubPort<CanHubFlow> can0_port(&can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
+#elif defined(__FreeRTOS__)
     HubDeviceNonBlock<CanHubFlow> can0_port(&can_hub0, "/dev/can0");
+#else
+#error Define how to connect to your CAN hardware.
 #endif  // default target
-#endif  // FreeRTOS
 
     // Enable this to add sniffing through the usb serial port.
     /*
