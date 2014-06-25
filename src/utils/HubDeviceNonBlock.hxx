@@ -125,7 +125,7 @@ protected:
                 // We are blocked. There is no race condition here, because the
                 // contract of the ioctl is that if there is any data in the
                 // queuy, they will immediately call us.
-                ::ioctl(device()->fd(), CAN_IOC_READ_ACTIVE, this);
+                HASSERT(::ioctl(device()->fd(), CAN_IOC_READ_ACTIVE, this) == 0);
                 return this->wait();
             }
             else
@@ -180,7 +180,7 @@ protected:
                 // We are blocked. There is no race condition here, because the
                 // contract of the ioctl is that if there is any data in the
                 // queuy, they will immediately call us.
-                ::ioctl(device()->fd(), CAN_IOC_WRITE_ACTIVE, this);
+                HASSERT(::ioctl(device()->fd(), CAN_IOC_WRITE_ACTIVE, this) == 0);
                 return this->wait();
             }
             else if (ret > 0)
