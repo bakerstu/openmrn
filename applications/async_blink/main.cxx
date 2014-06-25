@@ -176,12 +176,17 @@ int appl_main(int argc, char* argv[])
 #error Define how to connect to your CAN hardware.
 #endif  // default target
 
-    // Enable this to add sniffing through the usb serial port.
-    /*
-    int serial_fd = ::open("/dev/serUSB0", O_RDWR); // or /dev/ser0
+    // Enable this to add sniffing through the usb or serial port.
+#if defined(SNIFF_ON_USB)
+    int usb_fd = ::open("/dev/serUSB0", O_RDWR);
+    HASSERT(usb_fd >= 0);
+    create_gc_port_for_can_hub(&can_hub0, usb_fd);
+#endif
+#if defined(SNIFF_ON_SERIAL)
+    int serial_fd = ::open("/dev/ser0", O_RDWR);
     HASSERT(serial_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, serial_fd);
-    */
+#endif
 
     // Bootstraps the alias allocation process.
     g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
