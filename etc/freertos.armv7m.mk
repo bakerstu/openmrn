@@ -53,7 +53,7 @@ CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
 LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
           -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-          $(LDFLAGSEXTRA) $(LDFLAGSENV) 
+          -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like
