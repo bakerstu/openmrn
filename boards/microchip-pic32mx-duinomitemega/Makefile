@@ -4,7 +4,12 @@ export TARGET := freertos.mips4k.pic32mx
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/drivers_pic32mx795/Pic32mxCan.o \
 
+SYSLIBRARIESEXTRA = -lfreertos_drivers_plib_pic32mx795
+
 include $(OPENMRNPATH)/etc/prog.mk
+
+CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
+CFLAGS += -fgnu89-inline
 
 ifeq ($(MISSING_DEPS),)
 

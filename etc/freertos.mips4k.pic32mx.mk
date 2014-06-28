@@ -37,17 +37,23 @@ ARCHOPTIMIZATION = -O3 -fno-strict-aliasing
 
 BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__FreeRTOS__
 
-# @TODO(balazs.racz) consider moving this to the drivers compile makefile.
-INCLUDES += -I$(PIC32MXLIBPATH)
+# @TODO(balazs.racz) consider moving this to the drivers compile makefile. It
+# is important to search this dir after the system include directories, because
+# it contains a full libc system header set that is incompatible with vanilla
+# GCC.
+INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32mx/include
 BASEDEFS += -DTARGET_PIC32MX -D__32MX795F512H__ \
 	-D__PIC32_FEATURE_SET__=795
+
+# This will create macros for the functions __builtin_mfc0 et al.
+INCLUDES += -include freertos_drivers/pic32mx/builtins.h
 
 ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-identifiers -msoft-float -DTARGET_PIC32MX -march=mips32r2 $(INCLUDES)
 
 #           -march=armv7-m -mthumb -mfloat-abi=soft
 
 CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP \
-             -fno-builtin -fno-stack-protector -DTARGET_PIC32MX \
+             -fno-stack-protector -DTARGET_PIC32MX \
              -D_POSIX_C_SOURCE=200112 $(BASEDEFS) -D__LANGUAGE_C__ \
              -ffunction-sections -fdata-sections
 

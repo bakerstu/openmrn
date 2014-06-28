@@ -1,2 +1,5 @@
 VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx
+INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32-libs/include
+CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
+CFLAGS += -fgnu89-inline
 CXXSRCS += Pic32mxCan.cxx

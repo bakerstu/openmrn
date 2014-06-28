@@ -8,7 +8,7 @@ CXXSRCS += Fileio.cxx \
            Serial.cxx
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
-SUBDIRS += drivers_pic32mx795
+SUBDIRS += drivers_pic32mx795 plib_pic32mx795
 endif
 
 ifeq ($(TARGET),freertos.armv7m)

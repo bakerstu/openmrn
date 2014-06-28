@@ -234,10 +234,10 @@ endif #MIPSGCCPATH
 ################### PIC32MXLIB #####################
 ifndef PIC32MXLIBPATH
 SEARCHPATH := \
+  /opt/microchip/xc32/default \
   $(HOME)/train/git/pic32/includes \
-  /opt/microchip/xc32/default/pic32mx/include
 
-TRYPATH:=$(call findfirst,p32xxxx.h,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,pic32mx/include/p32xxxx.h,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 PIC32MXLIBPATH:=$(TRYPATH)
 endif
