@@ -1,24 +1,31 @@
 DEPS += PIC32MXLIBPATH
 
-PLIBDIRS := \
-$(PIC32MXLIBPATH)/pic32-libs/peripheral/can/source \
-$(PIC32MXLIBPATH)/pic32-libs/peripheral/int/source \
-$(PIC32MXLIBPATH)/pic32-libs/peripheral/osc/source \
+PLIBS := can int osc pcache
+
+PLIBDIRS := $(foreach PNAME,$(PLIBS),$(PIC32MXLIBPATH)/pic32-libs/peripheral/$(PNAME)/source )
 
 #CSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
 #CXXSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
 #CPPSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
 
-include $(PIC32MXLIBPATH)/pic32-libs/peripheral/can/source/Makefile.inc
-include $(PIC32MXLIBPATH)/pic32-libs/peripheral/int/source/Makefile.inc
-include $(PIC32MXLIBPATH)/pic32-libs/peripheral/osc/source/Makefile.inc
+define PDIR_INCLUDE_template
+include $(PIC32MXLIBPATH)/pic32-libs/peripheral/$(1)/source/Makefile.inc
+endef
+
+$(foreach PNAME,$(PLIBS),$(eval $(call PDIR_INCLUDE_template,$(PNAME))))
+
+#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/can/source/Makefile.inc
+#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/int/source/Makefile.inc
+#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/osc/source/Makefile.inc
 
 CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
-CFLAGS += -fgnu89-inline
+CFLAGS += -fgnu89-inline -Wno-strict-prototypes
 
 empty:=
 space:= $(empty) $(empty)
 VPATH=$(subst $(space),:,$(strip $(PLIBDIRS)))
+
+$(info vpath $(VPATH))
 
 # These files don't compile with vanilla GCC because they use a special builtin.
 BLACKLIST = int_set_ebase_lib.o int_set_ebase_vs_lib.o int_set_vector_spacing_lib.o

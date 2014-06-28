@@ -1,5 +1,6 @@
-VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx:$(PIC32MXLIBPATH)/pic32-libs/proc/32MX795F512H
 INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32-libs/include
 CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
 CFLAGS += -fgnu89-inline
 CXXSRCS += Pic32mxCan.cxx
+ASMSRCS += p32mx795f512h.S
