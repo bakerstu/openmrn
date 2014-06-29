@@ -19,7 +19,7 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUsbCdcDevice.o
 
-CXXFLAGSEXTRA += -DPART_TM4C1233H6PM
+CXXFLAGSEXTRA += -DPART_TM4C1233H6PM -DSNIFF_ON_SERIAL
 
 TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
