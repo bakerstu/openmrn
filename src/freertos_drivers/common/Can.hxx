@@ -41,21 +41,19 @@
 #include "executor/Notifiable.hxx"
 
 /** Private data for a can device */
-class Can : public Node
+class Can : public NonBlockNode
 {
 protected:
     /** Constructor
      * @param name device name in file system
      */
     Can(const char *name)
-        : Node(name)
+        : NonBlockNode(name)
         , txQ(os_mq_create(config_can_tx_buffer_size(),
                            sizeof(struct can_frame)))
         , rxQ(os_mq_create(config_can_rx_buffer_size(),
                            sizeof(struct can_frame)))
         , overrunCount(0)
-        , readableNotify_(NULL)
-        , writableNotify_(NULL)
     {
     }    
 
@@ -71,6 +69,14 @@ protected:
     virtual void enable() = 0; /**< function to enable device */
     virtual void disable() = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
+
+    bool has_tx_buffer_space() OVERRIDE {
+        return os_mq_num_pending(txQ) < config_can_tx_buffer_size();        
+    }
+
+    bool has_rx_buffer_data() OVERRIDE {
+        return os_mq_num_pending(rxQ) != 0;
+    }
 
     void flush_buffers() OVERRIDE {}; /**< called after disable */
 
@@ -137,11 +143,6 @@ protected:
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
 
-    /** This will be notified if the device has data avilable for read. */
-    Notifiable* readableNotify_;
-    /** This will be notified if the device has buffer avilable for write. */
-    Notifiable* writableNotify_;
-
 private:
     /** Read from a file or device.
     * @param file file reference for this device
@@ -158,14 +159,6 @@ private:
     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
-
-    /** Request an ioctl transaction
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @param key ioctl key
-    * @param data key data
-    */
-    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
 
     DISALLOW_COPY_AND_ASSIGN(Can);
 };

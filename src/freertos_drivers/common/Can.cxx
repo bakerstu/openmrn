@@ -37,7 +37,6 @@
 #include "Devtab.hxx"
 #include "Can.hxx"
 #include "can_frame.h"
-#include "can_ioctl.h"
 
 /** Read from a file or device.
  * @param file file reference for this device
@@ -110,50 +109,4 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
     }
     
     return result;
-}
-
-/** Request an ioctl transaction
- * @param file file reference for this device
- * @param node node reference for this device
- * @param key ioctl key
- * @param data key data
- */
-int Can::ioctl(File *file, unsigned long int key, unsigned long data)
-{
-    /* sanity check to be sure we have a valid key for this devide */
-    HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
-
-    // Will be called at the end if non-null.
-    Notifiable* n = nullptr;
-
-    if (IOC_SIZE(key) == NOTIFIABLE_TYPE) {
-        n = reinterpret_cast<Notifiable*>(data);
-    }
-
-    switch (key)
-    {
-        default:
-            return -EINVAL;
-        case CAN_IOC_READ_ACTIVE:
-            portENTER_CRITICAL();
-            if (os_mq_num_pending(rxQ) == 0)
-            {
-                swap(n, readableNotify_);
-            }
-            portEXIT_CRITICAL();
-            break;
-        case CAN_IOC_WRITE_ACTIVE:
-            portENTER_CRITICAL();
-            if (os_mq_num_pending(txQ) < config_can_tx_buffer_size())
-            {
-                swap(n, writableNotify_);
-            }
-            portEXIT_CRITICAL();
-            break;
-    }
-    if (n)
-    {
-        n->notify();
-    }
-    return 0;
 }

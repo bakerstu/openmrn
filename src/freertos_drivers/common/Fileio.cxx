@@ -35,10 +35,13 @@
 #include <cstring>
 #include <cerrno>
 #include <cstdarg>
+#include <algorithm>
 #include <fcntl.h>
 #include "reent.h"
 #include "Devtab.hxx"
 #include "os/OS.hxx"
+#include "can_ioctl.h"
+#include "executor/Notifiable.hxx"
 
 Device *Device::first = NULL;
 OSMutex Device::mutex;
@@ -386,6 +389,54 @@ int Node::close(File *) OVERRIDE {
     if (--references_ <= 0) {
         disable();
         references_ = 0;
+    }
+    return 0;
+}
+
+
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param node node reference for this device
+ * @param key ioctl key
+ * @param data key data
+ */
+int NonBlockNode::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    /* sanity check to be sure we have a valid key for this device */
+    HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
+
+    // Will be called at the end if non-null.
+    Notifiable* n = nullptr;
+
+    if (IOC_SIZE(key) == NOTIFIABLE_TYPE) {
+        n = reinterpret_cast<Notifiable*>(data);
+    }
+
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case CAN_IOC_READ_ACTIVE:
+            portENTER_CRITICAL();
+            if (!has_rx_buffer_data())
+            {
+                swap(n, readableNotify_);
+            }
+            portEXIT_CRITICAL();
+            break;
+        case CAN_IOC_WRITE_ACTIVE:
+            portENTER_CRITICAL();
+            if (!has_tx_buffer_space())
+            {
+                swap(n, writableNotify_);
+            }
+            portEXIT_CRITICAL();
+            break;
+    }
+    if (n)
+    {
+        n->notify();
     }
     return 0;
 }

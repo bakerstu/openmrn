@@ -40,6 +40,7 @@
 
 struct File;
 struct Node;
+class Notifiable;
 
 /** Device tab structure.
  */
@@ -129,6 +130,38 @@ private:
     unsigned int references_; /**< number of open references */
 
     DISALLOW_COPY_AND_ASSIGN(Node);
+};
+
+
+/** Node information.
+ */
+class NonBlockNode : public Node
+{
+protected:
+    NonBlockNode(const char *name)
+        : Node(name)
+        , readableNotify_(NULL)
+        , writableNotify_(NULL) {}
+
+    /** Called under a critical section. @returns true if a read would not bloc
+     * right now. */
+    virtual bool has_rx_buffer_data() = 0;
+    /** Called under a critical section. @returns true if a write would not
+     * block right now. */
+    virtual bool has_tx_buffer_space() = 0;
+
+    /** Request an ioctl transaction
+    * @param file file reference for this device
+    * @param node node reference for this device
+    * @param key ioctl key
+    * @param data key data
+    */
+    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+
+    /** This will be notified if the device has data avilable for read. */
+    Notifiable* readableNotify_;
+    /** This will be notified if the device has buffer avilable for write. */
+    Notifiable* writableNotify_;
 };
 
 /** File information.
