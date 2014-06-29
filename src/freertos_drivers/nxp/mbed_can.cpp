@@ -60,6 +60,7 @@ public:
 private:
     virtual void enable() {}; /**< function to enable device */
     virtual void disable() {}; /**< function to disable device */
+    virtual void flush_buffers() {}; /**< called after disabling the dev */
 
     void interrupt();
     void tx_msg() OVERRIDE;

@@ -36,61 +36,19 @@
 #include "Devtab.hxx"
 #include "Serial.hxx"
 
-Devops Serial::ops = {Serial::open, Serial::close, Serial::read, Serial::write, Serial::ioctl};
-
-/** Open a device.
- * @param file new file reference to this device
- * @param path file or device name
- * @param flags open flags
- * @param mode open mode
- * @return 0 upon success, negative errno upon failure
- */
-int Serial::open(File* file, const char *path, int flags, int mode)
+void Serial::flush_buffers()
 {
-    Serial *serial = (Serial*)file->dev->get_priv();
-
-    serial->mutex.lock();
-    file->node = serial;
-    file->offset = 0;
-    if (serial->references++ == 0)
+    int result;
+    do
     {
-        serial->enable();
-    }
-    serial->mutex.unlock();
-    
-    return 0;
-}
-
-/** Close a device.
- * @param file file reference for this device
- * @param node node reference for this device
- * @return 0 upon success, negative errno upon failure
- */
-int Serial::close(File *file, Node *node)
-{
-    Serial *serial = (Serial*)file->dev->get_priv();
-
-    serial->mutex.lock();
-    if (--serial->references == 0)
+        unsigned char data;
+        result = os_mq_timedreceive(txQ, &data, 0);
+    } while (result == OS_MQ_NONE);
+    do
     {
-        /* no more open references */
-        serial->disable();
-        /* flush the queues */
-        int result;
-        do
-        {
-            unsigned char data;
-            result = os_mq_timedreceive(serial->txQ, &data, 0);
-        } while (result == OS_MQ_NONE);
-        do
-        {
-            unsigned char data;
-            result = os_mq_timedreceive(serial->rxQ, &data, 0);
-        } while (result == OS_MQ_NONE);
-    }
-    serial->mutex.unlock();
-    
-    return 0;
+        unsigned char data;
+        result = os_mq_timedreceive(rxQ, &data, 0);
+    } while (result == OS_MQ_NONE);
 }
 
 /** Read from a file or device.
@@ -101,13 +59,12 @@ int Serial::close(File *file, Node *node)
  */
 ssize_t Serial::read(File *file, void *buf, size_t count)
 {
-    Serial *serial = static_cast<Serial*>(file->node);
     unsigned char *data = (unsigned char*)buf;
     ssize_t result = 0;
     
     while (count)
     {
-        if (os_mq_timedreceive(serial->rxQ, data, 0) == OS_MQ_TIMEDOUT)
+        if (os_mq_timedreceive(rxQ, data, 0) == OS_MQ_TIMEDOUT)
         {
             /* no more data to receive */
             if ((file->flags & O_NONBLOCK) ||
@@ -118,7 +75,7 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
             else
             {
                 /* wait for data to come in */
-                os_mq_receive(serial->rxQ, data);
+                os_mq_receive(rxQ, data);
             }
         }
 
@@ -138,7 +95,6 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
  */
 ssize_t Serial::write(File *file, const void *buf, size_t count)
 {
-    Serial *serial = static_cast<Serial*>(file->node);
     const unsigned char *data = (const unsigned char*)buf;
     ssize_t result = 0;
     
@@ -146,7 +102,7 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
     {
         if (file->flags & O_NONBLOCK)
         {
-            if (os_mq_timedsend(serial->txQ, data, 0) == OS_MQ_TIMEDOUT)
+            if (os_mq_timedsend(txQ, data, 0) == OS_MQ_TIMEDOUT)
             {
                 /* no more room in the buffer */
                 break;
@@ -155,11 +111,11 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
         else
         {
             /* wait for room in the queue */
-            os_mq_send(serial->txQ, data);
+            os_mq_send(txQ, data);
         }
-        serial->mutex.lock();
-        serial->tx_char();
-        serial->mutex.unlock();
+        lock_.lock();
+        tx_char();
+        lock_.unlock();
 
         count--;
         result++;
@@ -175,7 +131,7 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param data key data
  */
-int Serial::ioctl(File *file, Node *node, unsigned long int key, unsigned long data)
+int Serial::ioctl(File *file, unsigned long int key, unsigned long data)
 {
-    return 0;
+    return -1;
 }

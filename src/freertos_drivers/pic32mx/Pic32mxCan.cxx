@@ -50,8 +50,7 @@ class Pic32mxCan : public Node
 {
 public:
     Pic32mxCan(CAN_MODULE module, const char *dev)
-        : Node()
-        , devtab_(dev, &ops, this)
+        : Node(dev)
         , hw_(module)
         , overrunCount_(0)
     {
@@ -70,64 +69,26 @@ public:
 private:
     void enable();  /**< function to enable device */
     void disable(); /**< function to disable device */
+    void flush_buffers() OVERRIDE {} /**< function to disable device */
 
-    static int open(File *file, const char *path, int flags, int mode);
-    static int close(File *file, Node *node);
-    static ssize_t read(File *file, void *buf, size_t count);
-    static ssize_t write(File *file, const void *buf, size_t count);
-    static int ioctl(File *file, Node *node, unsigned long int key,
+    ssize_t read(File *file, void *buf, size_t count);
+    ssize_t write(File *file, const void *buf, size_t count);
+    int ioctl(File *file, unsigned long int key,
                      unsigned long data);
-    static const Devops ops; /**< device operations for CAN */
 
-    Devtab devtab_; /**< device table entry for this instance */
     CAN_MODULE hw_;
     int overrunCount_;
     void *messageFifoArea_;
     OSSem txSem_;
     OSSem rxSem_;
-    OSMutex lock_;
 
     DISALLOW_COPY_AND_ASSIGN(Pic32mxCan);
 };
 
-const Devops Pic32mxCan::ops = {Pic32mxCan::open, Pic32mxCan::close,
-                                Pic32mxCan::read, Pic32mxCan::write,
-                                Pic32mxCan::ioctl};
-
-// static
-int Pic32mxCan::ioctl(File *file, Node *node, unsigned long int key,
+int Pic32mxCan::ioctl(File *file, unsigned long int key,
                       unsigned long data)
 {
     return -EINVAL;
-}
-
-// static
-int Pic32mxCan::open(File *file, const char *path, int flags, int mode)
-{
-    Pic32mxCan *can = (Pic32mxCan *)file->dev->get_priv();
-
-    OSMutexLock l(&can->lock_);
-    file->node = can;
-    file->offset = 0;
-    if (can->references++ == 0)
-    {
-        can->enable();
-    }
-
-    return 0;
-}
-
-int Pic32mxCan::close(File *file, Node *node)
-{
-    Pic32mxCan *can = (Pic32mxCan *)file->dev->get_priv();
-
-    OSMutexLock l(&can->lock_);
-    if (--can->references == 0)
-    {
-        can->disable();
-    }
-
-    return 0;
 }
 
 static void pic_buffer_to_frame(const CANRxMessageBuffer *message,
@@ -192,10 +153,8 @@ static void frame_to_pic_buffer(const struct can_frame *can_frame,
     memcpy(message->data, can_frame->data, can_frame->can_dlc);
 }
 
-// static
 ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
 {
-    Pic32mxCan *priv = static_cast<Pic32mxCan *>(file->dev->get_priv());
     struct can_frame *can_frame = static_cast<struct can_frame *>(buf);
     ssize_t result = 0;
 
@@ -213,10 +172,10 @@ ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
 
         taskENTER_CRITICAL();
         CANRxMessageBuffer *message =
-            (CANRxMessageBuffer *)CANGetRxMessage(priv->hw_, CAN_CHANNEL1);
+            (CANRxMessageBuffer *)CANGetRxMessage(hw_, CAN_CHANNEL1);
         if (message != NULL)
         {
-            CANUpdateChannel(priv->hw_, CAN_CHANNEL1);
+            CANUpdateChannel(hw_, CAN_CHANNEL1);
         }
         if (flags == -1)
         {
@@ -254,14 +213,14 @@ ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
            trigger the interrupt immediately.
         */
 
-        CANEnableChannelEvent(priv->hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
+        CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                               TRUE);
-        priv->rxSem_.wait();
+        rxSem_.wait();
     }
 
     /* As a good-bye we wake up the interrupt handler once more to post on the
      * semaphore in case there is another thread waiting. */
-    CANEnableChannelEvent(priv->hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
+    CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                           TRUE);
 
     return result;
@@ -270,7 +229,6 @@ ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
 // static
 ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
 {
-    Pic32mxCan *priv = static_cast<Pic32mxCan *>(file->dev->get_priv());
     const struct can_frame *can_frame =
         static_cast<const struct can_frame *>(buf);
     ssize_t result = 0;
@@ -281,14 +239,14 @@ ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
     {
         taskENTER_CRITICAL();
         CANTxMessageBuffer *message =
-            CANGetTxMessageBuffer(priv->hw_, CAN_CHANNEL0);
+            CANGetTxMessageBuffer(hw_, CAN_CHANNEL0);
         if (message != NULL)
         {
             /* Unfortunately we have to fill the buffer in the critical section
              * or else we risk that another thread will call the FlushTxChannel
              * while our buffer is not fully completed. */
             frame_to_pic_buffer(can_frame, message);
-            CANUpdateChannel(priv->hw_, CAN_CHANNEL0);
+            CANUpdateChannel(hw_, CAN_CHANNEL0);
         }
         if (flags == -1)
         {
@@ -299,7 +257,7 @@ ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
         /* Did we actually find a slot to transmit? */
         if (message != NULL)
         {
-            CANFlushTxChannel(priv->hw_, CAN_CHANNEL0);
+            CANFlushTxChannel(hw_, CAN_CHANNEL0);
 
             count -= sizeof(struct can_frame);
             result += sizeof(struct can_frame);
@@ -318,14 +276,14 @@ ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
          * not full interrupt is persistent, so if a buffer got free between
          * our check and now, the interrupt will trigger immediately and wake
          * us up. */
-        CANEnableChannelEvent(priv->hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
+        CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                               TRUE);
-        priv->txSem_.wait();
+        txSem_.wait();
     }
 
     /* As a good-bye we wake up the interrupt handler once more to post on the
      * semaphore in case there is another thread waiting. */
-    CANEnableChannelEvent(priv->hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
+    CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                           TRUE);
 
     return result;

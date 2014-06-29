@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -70,23 +70,22 @@ public:
      * @param mode open mode, ignored in this implementation
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
-    static int open(struct _reent *reent, const char *path, int flags, int mode)    
+    static int open(struct _reent *reent, const char *path, int flags,
+                    int mode);
+
 private:
     const char *name; /**< device name */
 
     /** first device in linked list */
-    static Devtab *first;
-    
+    static Device *first;
+
     /** mutual exclusion for fileio */
     static OSMutex mutex;
-    
+
     /** next device in linked list */
-    Devtab *next;
+    Device *next;
 
-    /** Default constructor */
-    Devtab();
-
-    DISALLOW_COPY_AND_ASSIGN(Devtab);
+    DISALLOW_COPY_AND_ASSIGN(Device);
 };
 
 /** Node information.
@@ -96,8 +95,9 @@ class Node : public Device
 protected:
     /** Constructor.
      */
-    Node()
-        : references(0)
+    Node(const char *name)
+        : Device(name)
+        , references_(0)
     {
     }
 
@@ -113,6 +113,10 @@ protected:
      * 0. Called with lock_ held. */
     virtual void disable() = 0;
 
+    /** Instructs the device driver to drop all TX and RX queues. This is
+     * called after disable() still under the device lock. */
+    virtual void flush_buffers() = 0;
+
     /** Open method */
     int open(File *, const char *, int, int) OVERRIDE;
     /** Close method */
@@ -121,7 +125,7 @@ protected:
 protected:
     OSMutex lock_;
 
-private:    
+private:
     unsigned int references_; /**< number of open references */
 
     DISALLOW_COPY_AND_ASSIGN(Node);
@@ -135,8 +139,8 @@ struct File
     /** Data that the device driver wants to store about this fd. */
     void *priv;
     off_t offset; /**< current offset within file */
-    int flags; /**< open flags */
-    char inuse; /**< non-zero if this is an open fd. */
+    int flags;    /**< open flags */
+    char inuse;   /**< non-zero if this is an open fd. */
 };
 
 #endif /* _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_ */

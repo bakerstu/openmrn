@@ -93,6 +93,10 @@ int fd_alloc(void)
         if (files[i].inuse == 0)
         {
             files[i].inuse = 1;
+            files[i].priv = nullptr;
+            files[i].dev = nullptr;
+            files[i].offset = 0;
+            files[i].flags = 0;
             return i;
         }
     }
@@ -136,7 +140,7 @@ File* fd_find(int fd) {
  */
 int _open_r(struct _reent *reent, const char *path, int flags, int mode)
 {
-    return Devtab::open(reent, path, flags, mode);
+    return Device::open(reent, path, flags, mode);
 }
 
 /** Close a file or device.
@@ -262,7 +266,7 @@ int ioctl(int fd, unsigned long int key, ...)
     va_list ap;
     va_start(ap, key);
 
-    int result = f->ioctl(f, key, va_arg(ap, unsigned long));
+    int result = f->dev->ioctl(f, key, va_arg(ap, unsigned long));
     
     va_end(ap);
     return result;
@@ -335,7 +339,7 @@ int Null::open(File* file, const char *path, int flags, int mode)
  * @param node node reference for this device
  * @return 0 upon success, negative errno upon failure
  */
-int Null::close(File *file, Node*node)
+int Null::close(File *file)
 {    
     return 0;
 }
@@ -373,6 +377,7 @@ int Node::open(File *, const char *, int, int) OVERRIDE {
     if (references_++ == 0) {
         enable();
     }
+    return 0;
 }
 
 /** Close method */
@@ -382,4 +387,5 @@ int Node::close(File *) OVERRIDE {
         disable();
         references_ = 0;
     }
+    return 0;
 }

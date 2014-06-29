@@ -46,14 +46,12 @@ protected:
      * @param name device name in file system
      */
     Serial(const char *name)
-        : Node()
+        : Node(name)
         , txQ(os_mq_create(config_serial_tx_buffer_size(),
                            sizeof(unsigned char)))
         , rxQ(os_mq_create(config_serial_rx_buffer_size(),
                            sizeof(unsigned char)))
         , overrunCount(0)
-        , mutex()
-        , devtab(name, &ops, this)
     {
     }    
 
@@ -64,10 +62,9 @@ protected:
         /** @todo (Stuart Baker) for completeness we should destroy the
          * txQ and rxQ here.
          */
+        HASSERT(0);
     }
     
-    virtual void enable() = 0; /**< function to enable device */
-    virtual void disable() = 0; /**< function to disable device */
     virtual void tx_char() = 0; /**< function to try and transmit a character */
 
     os_mq_t txQ; /**< transmit queue */
@@ -75,29 +72,13 @@ protected:
     unsigned int overrunCount; /**< overrun count */
 
 private:
-    /** Open a device.
-    * @param file new file reference to this device
-    * @param path file or device name
-    * @param flags open flags
-    * @param mode open mode
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int open(File* file, const char *path, int flags, int mode);
-
-    /** Close a device.
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int close(File *file, Node *node);
-
     /** Read from a file or device.
     * @param file file reference for this device
     * @param buf location to place read data
     * @param count number of bytes to read
     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
     */
-    static ssize_t read(File *file, void *buf, size_t count);
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
 
     /** Write to a file or device.
     * @param file file reference for this device
@@ -105,7 +86,7 @@ private:
     * @param count number of bytes to write
     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
     */
-    static ssize_t write(File *file, const void *buf, size_t count);
+    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
     /** Request an ioctl transaction
     * @param file file reference for this device
@@ -113,16 +94,11 @@ private:
     * @param key ioctl key
     * @param data key data
     */
-    static int ioctl(File *file, Node *node, unsigned long int key, unsigned long data);
+    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+    
+    /** Discards all pending buffers. Called after disable(). */
+    void flush_buffers() OVERRIDE;
 
-    OSMutex mutex; /**< mutual exclusion for the device */
-    Devtab devtab; /**< device tabel entry for this instance */
-    static Devops ops; /**< device operations for CAN */
-    
-    /** Default constructor.
-     */
-    Serial();
-    
     DISALLOW_COPY_AND_ASSIGN(Serial);
 };
 

@@ -39,50 +39,6 @@
 #include "can_frame.h"
 #include "can_ioctl.h"
 
-Devops Can::ops = {Can::open, Can::close, Can::read, Can::write, Can::ioctl};
-
-/** Open a device.
- * @param file new file reference to this device
- * @param path file or device name
- * @param flags open flags
- * @param mode open mode
- * @return 0 upon success, negative errno upon failure
- */
-int Can::open(File* file, const char *path, int flags, int mode)
-{
-    Can *can = (Can*)file->dev->get_priv();
-
-    can->mutex.lock();
-    file->node = can;
-    file->offset = 0;
-    if (can->references++ == 0)
-    {
-        can->enable();
-    }
-    can->mutex.unlock();
-    
-    return 0;
-}
-
-/** Close a device.
- * @param file file reference for this device
- * @param node node reference for this device
- * @return 0 upon success, negative errno upon failure
- */
-int Can::close(File *file, Node *node)
-{
-    Can *can = (Can*)file->dev->get_priv();
-
-    can->mutex.lock();
-    if (--can->references == 0)
-    {
-        can->disable();
-    }
-    can->mutex.unlock();
-    
-    return 0;
-}
-
 /** Read from a file or device.
  * @param file file reference for this device
  * @param buf location to place read data
@@ -91,7 +47,6 @@ int Can::close(File *file, Node *node)
  */
 ssize_t Can::read(File *file, void *buf, size_t count)
 {
-    Can *can = static_cast<Can*>(file->node);
     struct can_frame *can_frame = (struct can_frame*)buf;
     ssize_t result = 0;
     
@@ -99,7 +54,7 @@ ssize_t Can::read(File *file, void *buf, size_t count)
     {
         if (file->flags & O_NONBLOCK)
         {
-            if (os_mq_timedreceive(can->rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            if (os_mq_timedreceive(rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
             {
                 /* no more data to receive */
                 break;
@@ -108,7 +63,7 @@ ssize_t Can::read(File *file, void *buf, size_t count)
         else
         {
             /* wait for data to come in */
-            os_mq_receive(can->rxQ, can_frame);
+            os_mq_receive(rxQ, can_frame);
         }
 
         count -= sizeof(struct can_frame);
@@ -127,7 +82,6 @@ ssize_t Can::read(File *file, void *buf, size_t count)
  */
 ssize_t Can::write(File *file, const void *buf, size_t count)
 {
-    Can *can = static_cast<Can*>(file->node);
     const struct can_frame *can_frame = (const struct can_frame*)buf;
     ssize_t result = 0;
         
@@ -135,7 +89,7 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
     {
         if (file->flags & O_NONBLOCK)
         {
-            if (os_mq_timedsend(can->txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            if (os_mq_timedsend(txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
             {
                 /* no more room in the buffer */
                 break;
@@ -144,11 +98,11 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
         else
         {
             /* wait for room in the queue */
-            os_mq_send(can->txQ, can_frame);
+            os_mq_send(txQ, can_frame);
         }
-        can->mutex.lock();
-        can->tx_msg();
-        can->mutex.unlock();
+        lock_.lock();
+        tx_msg();
+        lock_.unlock();
 
         count -= sizeof(struct can_frame);
         result += sizeof(struct can_frame);
@@ -164,10 +118,8 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
  * @param key ioctl key
  * @param data key data
  */
-int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data)
+int Can::ioctl(File *file, unsigned long int key, unsigned long data)
 {
-    Can *can = static_cast<Can*>(file->node);
-
     /* sanity check to be sure we have a valid key for this devide */
     HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
 
@@ -184,17 +136,17 @@ int Can::ioctl(File *file, Node *node, unsigned long int key, unsigned long data
             return -EINVAL;
         case CAN_IOC_READ_ACTIVE:
             portENTER_CRITICAL();
-            if (os_mq_num_pending(can->rxQ) == 0)
+            if (os_mq_num_pending(rxQ) == 0)
             {
-                swap(n, can->readableNotify_);
+                swap(n, readableNotify_);
             }
             portEXIT_CRITICAL();
             break;
         case CAN_IOC_WRITE_ACTIVE:
             portENTER_CRITICAL();
-            if (os_mq_num_pending(can->txQ) < config_can_tx_buffer_size())
+            if (os_mq_num_pending(txQ) < config_can_tx_buffer_size())
             {
-                swap(n, can->writableNotify_);
+                swap(n, writableNotify_);
             }
             portEXIT_CRITICAL();
             break;

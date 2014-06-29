@@ -48,7 +48,7 @@ protected:
      * @param name device name in file system
      */
     Can(const char *name)
-        : Node()
+        : Node(name)
         , txQ(os_mq_create(config_can_tx_buffer_size(),
                            sizeof(struct can_frame)))
         , rxQ(os_mq_create(config_can_rx_buffer_size(),
@@ -56,8 +56,6 @@ protected:
         , overrunCount(0)
         , readableNotify_(NULL)
         , writableNotify_(NULL)
-        , mutex()
-        , devtab(name, &ops, this)
     {
     }    
 
@@ -73,6 +71,8 @@ protected:
     virtual void enable() = 0; /**< function to enable device */
     virtual void disable() = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
+
+    void flush_buffers() OVERRIDE {}; /**< called after disable */
 
     /** Sends an incoming frame to the receive buffer and notifies any waiting
      * process. Drops the frame if there is no receive buffer available. */
@@ -143,29 +143,13 @@ protected:
     Notifiable* writableNotify_;
 
 private:
-    /** Open a device.
-    * @param file new file reference to this device
-    * @param path file or device name
-    * @param flags open flags
-    * @param mode open mode
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int open(File* file, const char *path, int flags, int mode);
-
-    /** Close a device.
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @return 0 upon success, negative errno upon failure
-    */
-    static int close(File *file, Node *node);
-
     /** Read from a file or device.
     * @param file file reference for this device
     * @param buf location to place read data
     * @param count number of bytes to read
     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
     */
-    static ssize_t read(File *file, void *buf, size_t count);
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
 
     /** Write to a file or device.
     * @param file file reference for this device
@@ -173,7 +157,7 @@ private:
     * @param count number of bytes to write
     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
     */
-    static ssize_t write(File *file, const void *buf, size_t count);
+    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
     /** Request an ioctl transaction
     * @param file file reference for this device
@@ -181,15 +165,7 @@ private:
     * @param key ioctl key
     * @param data key data
     */
-    static int ioctl(File *file, Node *node, unsigned long int key, unsigned long data);
-
-    OSMutex mutex; /**< mutual exclusion for the device */
-    Devtab devtab; /**< device tabel entry for this instance */
-    static Devops ops; /**< device operations for CAN */
-    
-    /** Default constructor.
-     */
-    Can();
+    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
 
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
