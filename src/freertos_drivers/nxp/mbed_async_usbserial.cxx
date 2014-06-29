@@ -38,6 +38,8 @@
 #include "os/os.h"
 #include "utils/macros.h"
 #include "portmacro.h"
+#include "utils/Atomic.hxx"
+#include "executor/Notifiable.hxx"
 
 #ifdef TARGET_LPC2368
 #endif
@@ -62,6 +64,8 @@ extern "C" void __cxa_pure_virtual(void);
 
 extern DigitalOut d2;
 
+static Atomic critical_lock;
+
 /** This class is an empty wrapper around MBed's USB CDC class. The difference
     between this and mbed::USBSerial is that this class does not have any
     buffering and no interaction with stdio, whereas mbed::USBSerial has the
@@ -72,24 +76,25 @@ extern DigitalOut d2;
     * it requires mbed's custom glue code in the open(2) method, without which
       it crashes.
  */
-class MbedAsyncUSBSerial : public USBCDC, public ::Node
+class MbedAsyncUSBSerial : public USBCDC, public ::NonBlockNode
 {
 public:
-    MbedRawUSBSerial(const char *name, uint16_t vendor_id = 0x1f00,
-                     uint16_t product_id = 0x2012,
-                     uint16_t product_release = 0x0001)
+    MbedAsyncUSBSerial(const char *name, uint16_t vendor_id = 0x1f00,
+                       uint16_t product_id = 0x2012,
+                       uint16_t product_release = 0x0001)
         : USBCDC(vendor_id, product_id, product_release)
-        , Node(name)
-        , txPending(false)
+        , NonBlockNode(name)
+        , overrunCount_(0)
+        , txCount_(0)
+        , rxBegin_(0)
+        , rxEnd_(0)
+        , txPending_(false)
+        , rxPending_(false)
     {
-        os_sem_init(&rxSem, 0);
-        os_thread_t thread;
-        os_thread_create(&thread, "usbserial.rx", 3, 1024, &_RxThread, this);
     }
 
-    ~MbedRawUSBSerial()
+    ~MbedAsyncUSBSerial()
     {
-        os_sem_destroy(&rxSem);
     }
 
 protected:
@@ -97,36 +102,23 @@ protected:
     {
         // HASSERT(IsEpPending());
         // and wake up the RX thread.
-        os_sem_post_from_isr(&rxSem);
+        rxPending_ = 1;
+        if (readableNotify_)
+        {
+            readableNotify_->notify_from_isr();
+            readableNotify_ = nullptr;
+        }
         return false;
     }
 
     virtual bool EP2_IN_callback()
     {
-        int count;
-        int woken = 0;
-        configASSERT(txPending);
-        for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
+        configASSERT(txPending_);
+        TxHelper();
+        if (writableNotify_)
         {
-            if (os_mq_receive_from_isr(txQ, &txData[count], &woken) !=
-                OS_MQ_NONE)
-            {
-                /* no more data left to transmit */
-                break;
-            }
-        }
-        TxHelper(count);
-        if (woken)
-        {
-#ifdef TARGET_LPC1768
-            portYIELD();
-#elif defined(TARGET_LPC2368)
-/** @todo(balazs.racz): need to find a way to yield on ARM7. The builtin
- * portYIELD_FROM_ISR assumes that we have entered the ISR with context
- * saving, which we didn't. */
-#else
-#error define how to yield on your CPU.
-#endif
+            writableNotify_->notify_from_isr();
+            writableNotify_ = nullptr;
         }
         return true;
     }
@@ -142,98 +134,202 @@ private:
     {
     }
 
-    /** function to try and transmit a character */
-    void tx_char()
+    bool has_rx_buffer_data() OVERRIDE
     {
-        // Without this critical section there were cases when we deadlocked
-        // with txPending == true but no interrupt coming in to clear it.
-        taskENTER_CRITICAL();
-        if (txPending)
+        return (rxPending_ || rxBegin_ < rxEnd_);
+    }
+
+    bool has_tx_buffer_space() OVERRIDE
+    {
+        return (!txPending_ || txCount_ < sizeof(txData_));
+    }
+
+    /** Read from a file or device.
+    * @param file file reference for this device
+    * @param buf location to place read data
+    * @param count number of bytes to read
+    * @return number of bytes read upon success, -1 upon failure with errno
+    * containing the cause
+    */
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE
+    {
+        uint8_t *rbuf = static_cast<uint8_t *>(buf);
+        ssize_t result = 0;
+        while (true)
         {
-            taskEXIT_CRITICAL();
-            return;
-        }
-        txPending = true;
-        int count;
-        for (count = 0; count < TX_DATA_SIZE; count++)
-        {
-            if (os_mq_timedreceive(txQ, txData + count, 0) != OS_MQ_NONE)
             {
-                /* no more data left to transmit */
-                break;
+                OSMutexLock l(&lock_);
+                while (result < (int)count && rxBegin_ < rxEnd_)
+                {
+                    *rbuf++ = rxData_[rxBegin_++];
+                    ++result;
+                }
+                if (rxBegin_ >= rxEnd_ && rxPending_)
+                {
+                    bool result = true;
+                    {
+                        AtomicHolder h(&critical_lock);
+                        if (!rxPending_)
+                        {
+                            continue;
+                        }
+                        uint32_t rxSize = 0;
+                        // we read the packet received to our assembly buffer
+                        result = readEP_NB(rxData_, &rxSize);
+                        rxPending_ = 0;
+                        HASSERT(rxSize >= 0 && rxSize <= 255);
+                        rxEnd_ = rxSize;
+                        rxBegin_ = 0;
+                    }
+                    if (!result)
+                    {
+                        diewith(0x80000CCC);
+                    }
+                    continue;
+                }
+                if (result > 0)
+                {
+                    return result;
+                }
+            } // lock
+            // Now: we have no data to give back.
+            if (file->flags & O_NONBLOCK)
+            {
+                return result;
+            }
+            Notifiable *n = nullptr;
+            {
+                AtomicHolder h(&critical_lock);
+                if (rxPending_ || rxBegin_ < rxEnd_)
+                {
+                    continue;
+                }
+                // Will be called at the end if non-null.
+                n = readableNotify_;
+                if (n == &readSync_)
+                {
+                    DIE("This serial driver does not support having multiple "
+                        "threads execute blocking reads concurrently.");
+                }
+                readableNotify_ = &readSync_;
+            }
+            readSync_.wait_for_notification();
+            /** If we got a notification, we automatically notify the others in
+             * line. This handles the case if there are multiple threads
+             * blocked on the same input. */
+            if (n)
+            {
+                n->notify();
             }
         }
-        TxHelper(count);
-        taskEXIT_CRITICAL();
+    }
+
+    /** Write to a file or device.
+    * @param file file reference for this device
+    * @param buf location to find write data
+    * @param count number of bytes to write
+    * @return number of bytes written upon success, -1 upon failure with errno
+    * containing the cause
+    */
+    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE
+    {
+        const uint8_t *wbuf = static_cast<const uint8_t *>(buf);
+        ssize_t result = 0;
+        while (true)
+        {
+            {
+                OSMutexLock l(&lock_);
+                {
+                    AtomicHolder h(&critical_lock);
+                    while (result < (int)count && txCount_ < sizeof(txData_))
+                    {
+                        txData_[txCount_++] = *wbuf++;
+                        ++result;
+                    }
+                    if (txCount_ > 0 && !txPending_)
+                    {
+                        TxHelper();
+                        continue;
+                    }
+                } // end atomic
+            }     // end mutex
+            // Now: we have either result == count or tx buffer full and still
+            // having data to write.
+            if (result > 0)
+            {
+                return result;
+            }
+            // Now: we couldn't yet write anything.
+            if (file->flags & O_NONBLOCK)
+            {
+                return result;
+            }
+            // Now: let's wait for some space in the buffer to be available.
+            Notifiable *n = nullptr;
+            {
+                AtomicHolder h(&critical_lock);
+                if (txCount_ < sizeof(txData_) || !txPending_)
+                {
+                    continue;
+                }
+                Notifiable *n = writableNotify_;
+                if (n == &writeSync_)
+                {
+                    DIE("This serial driver does not support having multiple "
+                        "threads execute blocking writes concurrently.");
+                }
+                writableNotify_ = &writeSync_;
+            }
+            writeSync_.wait_for_notification();
+            /** If we got a notification, we automatically notify the others in
+             * line. This handles the case if there are multiple threads
+             * blocked on the same input. */
+            if (n)
+            {
+                n->notify();
+            }
+        } // while trying to write
     }
 
     static const int MAX_TX_PACKET_LENGTH = 64;
     static const int MAX_RX_PACKET_LENGTH = 64;
 
-    /** Transmits count bytes from the txData buffer. Sets txPending and
-        bytesLost as needed. */
-    void TxHelper(int count)
+    /** Transmits txCount_ bytes from the txData_ buffer. Sets txPending and
+        bytesLost as needed. Must be called from a critical section or ISR,
+        when the previous pending transmit operation has finished. */
+    void TxHelper()
     {
-        if (!count)
+        if (!txCount_)
         {
-            txPending = false;
+            txPending_ = false;
             return;
         }
         if (!configured())
         {
             // An error occured, data was lost.
-            txPending = false;
-            overrunCount += count;
+            txPending_ = false;
+            overrunCount_ += txCount_;
             return;
         }
-        txPending = true;
-        sendNB(txData, count);
+        txPending_ = true;
+        sendNB(txData_, txCount_);
+        txCount_ = 0;
     }
 
-    void RxThread()
-    {
-        while (1)
-        {
-            os_sem_wait(&rxSem);
-            portENTER_CRITICAL();
-            // we read the packet received to our assembly buffer
-            bool result = readEP_NB(rxData, &rxSize);
-            portEXIT_CRITICAL();
-            if (!result)
-            {
-                diewith(0x80000CCC);
-            }
-            for (uint32_t i = 0; i < rxSize; i++)
-            {
-                os_mq_send(rxQ, rxData + i);
-            }
-            rxSize = 0;
-            // We reactivate the endpoint to receive next characters
-            // readStart(EPBULK_OUT, MAX_PACKET_SIZE_EPBULK);
-        }
-    }
-
-    static void *_RxThread(void *arg)
-    {
-        ((MbedRawUSBSerial *)arg)->RxThread();
-        return NULL;
-    }
-
+    unsigned overrunCount_;
     /** packet assemby buffer to device */
     uint8_t txData_[MAX_TX_PACKET_LENGTH];
     /** number of valid characters in txData */
-    uint8_t txCount_;
     uint8_t rxData_[MAX_RX_PACKET_LENGTH];
+    uint8_t txCount_;
     /** First valid character in rxData */
     uint8_t rxBegin_;
     /** 1 + Last valid character in rxData. */
     uint8_t rxEnd_;
-    uint8_t txPending; /**< transmission currently pending */
-
-    /** This will be notified if the device has data avilable for read. */
-    Notifiable *readableNotify_;
-    /** This will be notified if the device has buffer avilable for write. */
-    Notifiable *writableNotify_;
+    uint8_t txPending_ : 1; /**< transmission currently pending */
+    uint8_t rxPending_ : 1; /**< there is a packet in the USB block waiting */
+    SyncNotifiable readSync_;
+    SyncNotifiable writeSync_;
 };
 
 void *operator new(size_t size)
@@ -249,12 +345,7 @@ operator delete(void *ptr)
 }
 
 void operator delete [](void *ptr)
-{ 
-    free(ptr);
-} 
-
-
-int __cxa_guard_acquire(__guard *g)
+{ free(ptr); } int __cxa_guard_acquire(__guard *g)
 {
     return !*(char *)(g);
 };
@@ -264,6 +355,9 @@ void __cxa_guard_release(__guard *g)
 };
 void __cxa_guard_abort(__guard *) {};
 
-void __cxa_pure_virtual(void) { configASSERT(0); };
+void __cxa_pure_virtual(void)
+{
+    configASSERT(0);
+};
 
-MbedRawUSBSerial g_mbed_usb_serial("/dev/serUSB0");
+MbedAsyncUSBSerial g_mbed_usb_serial("/dev/serUSB0");
