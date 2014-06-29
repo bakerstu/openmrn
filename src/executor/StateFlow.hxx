@@ -339,6 +339,15 @@ protected:
         return result;
     }
 
+    /** Takes the result of the asynchronous allocation without resetting the
+     * object. This should be the first statement in the state where the
+     * allocation transitioned. T must be descendant of QMember. */
+    template <class T>
+    void cast_allocation_result(T** member)
+    {
+        *member = static_cast<T*>(allocationResult_);
+    }
+
     /** Takes the result of the asynchronous allocation. This should be the
      * first statement in the state where the allocation transitioned.
      * @param target_flow is the StateFlow for which we allocated.
