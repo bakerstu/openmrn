@@ -74,6 +74,7 @@ LDFLAGS = -EL -g -T target.ld -Xlinker \
 ifdef TRACE_MALLOC
 LDFLAGS += \
           -Wl,--wrap=malloc   \
+
 endif
 
 SYSLIBRARIES +=  $(SYSLIBRARIESEXTRA)
