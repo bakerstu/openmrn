@@ -65,6 +65,13 @@ public:
         sem_.post();
     }
 
+#ifdef __FreeRTOS__
+    void notify_from_isr() OVERRIDE
+    {
+        sem_.post_from_isr();
+    }
+#endif
+
     /* Blocks the current thread until the notification is delivered. */
     void wait_for_notification()
     {
