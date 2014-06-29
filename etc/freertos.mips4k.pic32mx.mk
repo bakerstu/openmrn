@@ -71,6 +71,11 @@ LDFLAGS = -EL -g -T target.ld -Xlinker \
 	-msoft-float -Wl,--defsym,__cs3_mips_float_type=2 \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
+ifdef TRACE_MALLOC
+LDFLAGS += \
+          -Wl,--wrap=malloc   \
+endif
+
 SYSLIBRARIES +=  $(SYSLIBRARIESEXTRA)
 SYSLIB_SUBDIRS += 
 

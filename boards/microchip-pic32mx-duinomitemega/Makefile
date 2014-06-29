@@ -14,7 +14,7 @@ CFLAGS += -fgnu89-inline
 
 ifeq ($(MISSING_DEPS),)
 
-all: $(EXECUTABLE).hex $(EXECUTABLE).delf
+all: $(EXECUTABLE).hex $(EXECUTABLE).delf $(EXECUTABLE).lst
 
 %.delf: %.elf
 	$(OBJCOPY) $$($(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ') $< $@
