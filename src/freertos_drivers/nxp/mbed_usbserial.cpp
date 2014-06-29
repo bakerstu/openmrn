@@ -26,7 +26,7 @@
  *
  * \file mbed_usbserial.cpp
  * This file implements an USB-Serial driver on top of the mbed
- * library. Currently it is tested on the LPC23xx processors.
+ * library. Currently it is tested on the LPC23xx and LPC17xx processors.
  *
  * @author Balazs Racz
  * @date 4 May 2013
