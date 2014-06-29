@@ -41,46 +41,28 @@
 struct File;
 struct Node;
 
-/** Device operations pointer structure.
- */
-struct Devops
-{
-    /** Open method */
-    int (*open)(File *, const char *, int, int);
-    /** Close method */
-    int (*close)(File *, Node *);
-    /** Read method */
-    ssize_t (*read)(File *, void *, size_t);
-    /** Write method */
-    ssize_t (*write)(File *, const void *, size_t);
-    /** Ioctl method */
-    int (*ioctl)(File *, Node *, unsigned long int, unsigned long);
-};
-
 /** Device tab structure.
  */
-struct Devtab
+struct Device
 {
 public:
     /** Constructor.
-     * @param name name of device in file system
-     * @param devops reference to device operations
-     * @param priv private data pointer for device to recall for later use
+     * @param name name of device in file system. Pointer must be valid
+     * throughout the entire lifetime.
      */
-    Devtab(const char *name, const Devops *devops, void *priv)
-        : name(name),
-          devops(devops),
-          priv(priv)
-    {
-        next = first;
-        first = this;
-    }
+    Device(const char *name);
 
-    /** Destructor */
-    ~Devtab()
-    {
-    }
-    
+    /** Open method */
+    virtual int open(File *, const char *, int, int) = 0;
+    /** Close method */
+    virtual int close(File *) = 0;
+    /** Read method */
+    virtual ssize_t read(File *, void *, size_t) = 0;
+    /** Write method */
+    virtual ssize_t write(File *, const void *, size_t) = 0;
+    /** Ioctl method. Default implementation returns error. */
+    virtual int ioctl(File *, unsigned long int, unsigned long);
+
     /** Open a file or device.
      * @param reent thread save reentrant structure
      * @param path file or device name
@@ -88,52 +70,9 @@ public:
      * @param mode open mode, ignored in this implementation
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
-    static int open(struct _reent *reent, const char *path, int flags, int mode);
-
-    /** Close a file or device.
-     * @param reent thread save reentrant structure
-     * @param fd file descriptor to close
-     * @return 0 upon success, -1 upon failure with errno containing the cause
-     */
-    int close(struct _reent *reent, int fd);
-
-    /** Read from a file or device.
-     * @param reent thread save reentrant structure
-     * @param fd file descriptor to read
-     * @param buf location to place read data
-     * @param count number of bytes to read
-     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-     */
-    ssize_t read(struct _reent *reent, int fd, void *buf, size_t count);
-
-    /** Write to a file or device.
-     * @param reent thread save reentrant structure
-     * @param fd file descriptor to write
-     * @param buf location to find write data
-     * @param count number of bytes to write
-     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
-     */
-    ssize_t write(struct _reent *reent, int fd, const void *buf, size_t count);
-
-    /** Request and ioctl transaction
-     * @param fd file descriptor
-     * @param key ioctl key
-     * @param data key data
-     */
-    int ioctl(int fd, unsigned long int key, unsigned long data);
-    
-    /** Get the private data pointer.
-     * @return private data pointer
-     */
-    void *get_priv()
-    {
-        return priv;
-    }
-
+    static int open(struct _reent *reent, const char *path, int flags, int mode)    
 private:
     const char *name; /**< device name */
-    const Devops *devops; /**< device operations */
-    void *priv; /**< device private data */
 
     /** first device in linked list */
     static Devtab *first;
@@ -152,7 +91,7 @@ private:
 
 /** Node information.
  */
-class Node
+class Node : public Device
 {
 protected:
     /** Constructor.
@@ -167,9 +106,24 @@ protected:
     {
     }
 
-    unsigned int references; /**< number of open references */
+    /** This will be called once when reference-count goes from 0 to
+     * positive. Called with lock_ held. */
+    virtual void enable() = 0;
+    /** This will be called when reference count goes from non-zero to
+     * 0. Called with lock_ held. */
+    virtual void disable() = 0;
+
+    /** Open method */
+    int open(File *, const char *, int, int) OVERRIDE;
+    /** Close method */
+    int close(File *) OVERRIDE;
+
+protected:
+    OSMutex lock_;
 
 private:    
+    unsigned int references_; /**< number of open references */
+
     DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
@@ -177,11 +131,12 @@ private:
  */
 struct File
 {
-    Devtab *dev; /**< file operations */
-    Node *node; /**< node this file information refers to */
+    Device *dev; /**< file operations */
+    /** Data that the device driver wants to store about this fd. */
+    void *priv;
     off_t offset; /**< current offset within file */
     int flags; /**< open flags */
-    char inuse; /**< is this file in use */
+    char inuse; /**< non-zero if this is an open fd. */
 };
 
 #endif /* _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_ */
