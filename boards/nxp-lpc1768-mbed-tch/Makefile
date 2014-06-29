@@ -8,16 +8,17 @@ DEPS += HAVE_MBED
 SYSLIBRARIESEXTRA = -lfreertos_drivers_mbed_lpc1768
 
 OBJEXTRA = $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/mbed_can.o \
-           $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/mbed_usbserial.o \
+           $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/mbed_async_usbserial.o \
            $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc1768/stack_malloc.o \
 
-CORECFLAGS += -DTARGET_LPC1768 -DINTERRUPT_ATTRIBUTE=
 INCLUDES += \
 	-I"$(MBEDPATH)/mbed/vendor/NXP/capi" \
 	-I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC1768" \
 	-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC1768"
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+CORECFLAGS += -DTARGET_LPC1768 -DSNIFF_ON_USB -DINTERRUPT_ATTRIBUTE=  
 
 ifeq ($(MISSING_DEPS),)
 
