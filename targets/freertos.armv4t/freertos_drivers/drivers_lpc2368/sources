@@ -4,5 +4,6 @@ DEPS += MBEDSRCPATH
 VPATH=$(OPENMRNPATH)/src/freertos_drivers/nxp
 
 CPPSRCS += mbed_can.cpp mbed_usbserial.cpp
+CXXSRCS += mbed_async_usbserial.cxx
 CSRCS += stack_malloc.c
 ARM_CSRCS += i2c_irq.c  # mbed_i2c.c

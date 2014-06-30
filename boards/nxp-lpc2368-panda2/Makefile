@@ -8,7 +8,7 @@ include $(OPENMRNPATH)/etc/mbed.mk
 DEPS += MBEDSRCPATH
 
 OBJEXTRA = $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/mbed_can.o \
-	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/mbed_usbserial.o \
+	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/mbed_async_usbserial.o \
 	$(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/drivers_lpc2368/stack_malloc.o \
 
 #	$(OPENMRNPATH)/targets/freertos.armv4t/freertos_drivers/mbed_i2c.o \
