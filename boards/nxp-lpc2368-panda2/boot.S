@@ -382,11 +382,16 @@ enable_fiq:
 	.type enable_fiq_only, %function
 enable_fiq_only:
 	push	{r0, r1, lr}
-#if 0    // needs new library
-        .global	SIEdisconnect
-	ldr	r0, =SIEdisconnect
-        mov     LR, PC
-	bx	r0
+#if 1    // needs new library
+        //.global	SIEdisconnect
+        //mov     LR, PC
+	//bx	r0
+
+	// turns off the USB module
+	ldr	r0, =0xE01FC0C4 // PCONP
+	ldr	r1, [r0]
+	bic	r1, r1, #(1<<31)
+	str	r1, [r0]
 #endif
 	/*// Turns off the USB port.
 	ldr	r1, #0xE01FC0C4
