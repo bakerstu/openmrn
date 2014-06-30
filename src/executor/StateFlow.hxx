@@ -143,6 +143,12 @@ public:
      * priority. */
     virtual void notify();
 
+#ifdef __FreeRTOS__
+    /** Wakeup call arrived. Schedules *this on the executor. Does not know the
+     * priority. */
+    virtual void notify_from_isr() OVERRIDE;
+#endif
+
     /** Return a pointer to the service I am bound to.
      * @return pointer to service
      */
@@ -427,6 +433,11 @@ public:
 
     /// Wakeup call arrived. Schedules *this on the executor.
     virtual void notify();
+
+#ifdef __FreeRTOS__
+    /** Wakeup call arrived. Schedules *this on the executor. */
+    void notify_from_isr() OVERRIDE;
+#endif
 
     /// @returns true if the flow is waiting for work.
     bool is_waiting()
