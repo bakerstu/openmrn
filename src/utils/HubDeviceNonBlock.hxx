@@ -34,6 +34,9 @@
 #ifndef _UTILS_HUBDEVICENONBLOCK_HXX_
 #define _UTILS_HUBDEVICENONBLOCK_HXX_
 
+// Nonblocking hubdevice only works on FreeRTOS.
+#ifdef __FreeRTOS__
+
 #include <unistd.h>
 #include <stdio.h>
 
@@ -100,6 +103,7 @@ protected:
 
         void notify_from_isr() OVERRIDE
         {
+            // We override to priority zero.
             service()->executor()->add_from_isr(this, 0);
         }
 
@@ -216,4 +220,5 @@ protected:
     WriteFlow writeFlow_;
 };
 
+#endif // __FreeRTOS__
 #endif // _UTILS_HUBDEVICENONBLOCK_HXX_
