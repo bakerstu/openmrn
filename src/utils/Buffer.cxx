@@ -101,6 +101,10 @@ Atomic g_alloc_atomic;
 void* g_current_alloc;
 #endif
 
+extern "C" {
+extern void *buffer_malloc(size_t size);
+}
+
 /** Get a free item out of the pool.
  * @param result pointer to a pointer to the result
  * @param flow if !NULL, then the alloc call is considered async and will
@@ -117,9 +121,12 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
             result = static_cast<BufferBase*>(current->next().item);
             if (result == NULL)
             {
-                result = (BufferBase*)malloc(current->size());
+                result = (BufferBase*)buffer_malloc(current->size());
                 {
                     AtomicHolder h(this);
+                    if (0 && totalSize < 5000 && totalSize + current->size() >= 5000) {
+                        HASSERT(0);
+                    }
                     totalSize += current->size();
                 }
             }
