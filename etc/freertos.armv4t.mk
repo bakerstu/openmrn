@@ -74,7 +74,6 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -T target.ld -mthumb -mthumb-interwork -Xlinker --gc-sections -mcpu=arm7tdmi \
           -Xlinker -Map="$(@:%.elf=%.map)" -fmessage-length=0 -fno-builtin \
           -ffunction-sections -fdata-sections $(EXCEPT_FLAG) \
-          -Wl,--wrap=malloc   \
           -Wl,--wrap=__cxa_pure_virtual   \
           -Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
@@ -86,6 +85,12 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--wrap=__cxa_throw   \
           -Wl,--defsym=__wrap___cxa_throw=abort \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
+
+ifdef TRACE_MALLOC
+LDFLAGS += -Wl,--wrap=malloc   
+else 
+LDFLAGS += -Wl,--defsym=__real_malloc=malloc 
+endif
 
 
 ifdef asdsajdflaskgd
