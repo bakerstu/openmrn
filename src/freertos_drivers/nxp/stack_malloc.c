@@ -32,14 +32,12 @@
  * @date 23 June 2014
  */
 
+#include <stdlib.h>
 #include "utils/blinker.h"
 
-/** @todo (Stuart Baker) move this logic to application specific code with a 
- * weak definintion of stack_malloc provided here
- */
-extern const char __ETHRAM_segment_start__;
-static const char* sstack_start = &__ETHRAM_segment_start__;
-extern const char __stacks_min__;
+extern char __ETHRAM_segment_start__;
+static char* sstack_start = &__ETHRAM_segment_start__;
+extern char __stacks_min__;
 
 /** Custom malloc function for stack spaces.
  *  \param length the length of block to allocate
@@ -49,10 +47,10 @@ extern const char __stacks_min__;
  *  only suitable for stacks of threads that are running throughout the entire
  *  life of the application.
  */
-const void* stack_malloc(unsigned long length)
+void* stack_malloc(unsigned long length)
 {
-    const char* old_stack_start = sstack_start;
-    const char* new_stack_start = sstack_start + length;
+    char* old_stack_start = sstack_start;
+    char* new_stack_start = sstack_start + length;
     if (new_stack_start > &__stacks_min__)
     {
         diewith(BLINK_DIE_OUTOFMEMSTACK);
@@ -61,9 +59,9 @@ const void* stack_malloc(unsigned long length)
     return old_stack_start;
 }
 
-extern const char __USBRAM_segment_start__;
-extern const char __USBRAM_segment_end__;
-static const char* ublock_start = &__USBRAM_segment_start__;
+extern char __USBRAM_segment_start__;
+extern char __USBRAM_segment_end__;
+static char* ublock_start = &__USBRAM_segment_start__;
 
 /** Custom malloc function for USB space.
  *  \param length the length of block to allocate
@@ -73,16 +71,26 @@ static const char* ublock_start = &__USBRAM_segment_start__;
  *  only suitable for blocks that are running throughout the entire
  *  life of the application.
  */
-const void* usb_malloc(unsigned long length)
+void* usb_malloc(unsigned long length)
 {
     // Aligns to 4 bytes.
     length += 3; length &= ~3;
-    const char* old_ublock_start = ublock_start;
-    const char* new_ublock_start = ublock_start + length;
+    char* old_ublock_start = ublock_start;
+    char* new_ublock_start = ublock_start + length;
     if (new_ublock_start > &__USBRAM_segment_end__)
     {
         diewith(BLINK_DIE_OUTOFMEMSTACK);
     }
     ublock_start = new_ublock_start;
     return old_ublock_start;
+}
+
+void *buffer_malloc(size_t size)
+{
+    /* We do a trick here to ensure that the compiler will output a stack frame
+     * for this function. We want to avoid tail-chain optimization in this
+     * function or else it disappears from the stack traces done for memory
+     * tracing. */
+    void *volatile v = usb_malloc(size);
+    return v;
 }
