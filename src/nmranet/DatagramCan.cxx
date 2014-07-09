@@ -42,8 +42,6 @@ namespace nmranet
 
 long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
 
-#if 0
-
 class CanDatagramClient : public DatagramClient,
                           public AddressedCanMessageWriteFlow,
                           private IncomingMessageHandler
@@ -52,23 +50,27 @@ public:
     CanDatagramClient(IfCan* interface)
         : AddressedCanMessageWriteFlow(interface)
     {
-        StartFlowAt(STATE(Terminated));
+        /** This flow does not use the incoming queue that we inherited from
+         * AddressedCanMessageWriteFlow. We skip the wait state.
+         *
+         * @TODO(balazs.racz) consider skipping this flow into two parts: one
+         * client that waits for the responses and one flow that just renders
+         * the outgoing frames. */
+        set_terminated();
     }
 
-    virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload,
-                                Notifiable* done)
+    void write_datagram(Buffer<NMRAnetMessage>* b) OVERRIDE
     {
-        HASSERT(IsDone());
-        StartFlowAt(STATE(NotStarted));
+        HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
         if_can_->dispatcher()->register_handler(MTI_1, MASK_1, this);
         if_can_->dispatcher()->register_handler(MTI_2, MASK_2, this);
-        WriteAddressedMessage(Defs::MTI_DATAGRAM, src, dst, payload, done);
+        start_flow(STATE(addressed_entry));
     }
 
     /** Requests cancelling the datagram send operation. Will notify the done
      * callback when the canceling is completed. */
-    virtual void cancel()
+    void cancel() OVERRIDE
     {
         HASSERT(0);
     }
@@ -90,19 +92,11 @@ private:
     {
     }
 
-    virtual TypedAllocator<WriteFlow>* allocator() {
-        // A call to this funciton means we tried to release this flow as if it
-        // was an addressed message write flow instead of a datagram write
-        // flow.
-        HASSERT(0);
-    }
-
-    virtual Action fill_can_frame_buffer()
+    Action fill_can_frame_buffer() OVERRIDE
     {
         LOG(VERBOSE, "fill can frame buffer");
-        CanFrameWriteFlow* write_flow;
-        GetAllocationResult(&write_flow);
-        struct can_frame* f = write_flow->mutable_frame();
+        auto* b = get_allocation_result(if_can()->frame_write_flow());
+        struct can_frame* f = b->data()->mutable_frame();
         HASSERT(mti_ == Defs::MTI_DATAGRAM);
 
         // Sets the CAN id.
@@ -113,7 +107,7 @@ private:
 
         HASSERT(data_);
         bool need_more_frames = false;
-        unsigned len = data_->used() - data_offset_;
+        unsigned len = data_->size() - data_offset_;
         if (len > 8)
         {
             len = 8;
@@ -142,13 +136,12 @@ private:
             }
         }
 
-        uint8_t* b = static_cast<uint8_t*>(data_->start());
-        memcpy(f->data, b + data_offset_, len);
+        memcpy(f->data, &nmsg()->payload[data_offset_], len);
         data_offset_ += len;
         f->can_dlc = len;
 
         SET_CAN_FRAME_ID_EFF(*f, can_id);
-        write_flow->Send(nullptr);
+        if_can()->frame_write_flow()->send(b);
 
         if (need_more_frames)
         {
@@ -156,19 +149,17 @@ private:
         }
         else
         {
-            return Sleep(&sleep_data_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                         ST(timeout_waiting_for_dg_response));
+            return slep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
+                                 STATE(timeout_waiting_for_dg_response));
         }
     }
     
-    // override
-    virtual Action addressed_local_dispatcher_done() {
+    Action addressed_local_dispatcher_done() OVERRIDE {
         return Sleep(&sleep_data_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
                      ST(timeout_waiting_for_dg_response));
     }
 
-    // override.
-    virtual Action timeout_looking_for_dst()
+    Action timeout_looking_for_dst() OVERRIDE
     { 
         LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
@@ -178,6 +169,7 @@ private:
         return call_immediately(STATE(datagram_finalize));
     }
 
+    /// @TODO( balazs.racz): why is this virtual?
     virtual Action timeout_waiting_for_dg_response()
     {
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
@@ -309,8 +301,6 @@ private:
         StartFlowAt(STATE(datagram_finalize));
     } // handle_message
 };
-
-#endif // #if 0
 
 /** Frame handler that assembles incoming datagram fragments into a single
  * datagram message. */

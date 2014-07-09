@@ -219,6 +219,19 @@ TEST_F(AsyncRawDatagramTest, TooLongDatagram)
         ":X19A4822AN05551000;"); // Datagram rejected permanent error
 }
 
+TEST_F(AsyncRawDatagramTest, TooLongDatagram2)
+{
+    send_packet(":X1B22A555N3031323334353637;"); // 8
+    for (int i = 0; i < 8; i++)
+    {                                                                     // +8*
+        send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
+    }
+    send_packet_and_expect_response(
+        ":X1D22A555N3031323334353637;",
+        ":X19A4822AN05551000;"); // Datagram rejected permanent error
+}
+
+
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
 {
     EXPECT_CALL(
