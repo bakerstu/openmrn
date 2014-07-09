@@ -409,17 +409,17 @@ TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
     wait_for_notification();
 }
 
-#if 0
-
-
 TEST_F(AsyncDatagramTest, OutgoingTestBeginEnd)
 {
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1B77C22AN3031323334353637;");
     expect_packet(":X1D77C22AN3839303132333435;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
-                               string_to_buffer("0123456789012345")); c->write_datagram(b);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456789012345"));
+    c->write_datagram(b);
 
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
@@ -433,8 +433,11 @@ TEST_F(AsyncDatagramTest, OutgoingTestMiddle)
     expect_packet(":X1B77C22AN3031323334353637;");
     expect_packet(":X1C77C22AN3839303132333435;");
     expect_packet(":X1D77C22AN3031323334353637;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, 
-        node_->node_id(), h, string_to_buffer("012345678901234501234567")); c->write_datagram(b);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("012345678901234501234567"));
+    c->write_datagram(b);
 
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
@@ -446,13 +449,16 @@ TEST_F(AsyncDatagramTest, ResponseOK)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
-              a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
 }
 
 TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
@@ -461,13 +467,15 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
     NodeHandle h{TEST_NODE_ID + 3, 0};
     ifCan_->remote_aliases()->add(h.id, 0x77C);
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
-              a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
 }
 
 TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
@@ -475,15 +483,18 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0x050101FFFFDDULL, 0};
     expect_packet(":X1070222AN050101FFFFDD;"); // AME frame
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet_and_expect_response(":X10701210N050101FFFFDD;", // AMD frame
-                                ":X1A21022AN30313233343536;");
+                                    ":X1A21022AN30313233343536;");
     send_packet(":X19A28210N022A00;"); // Received OK
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS,
-              a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
     // Checks that the new lookup value got into the cache.
     EXPECT_EQ(0x210U, ifCan_->remote_aliases()->lookup(h.id));
 }
@@ -493,14 +504,18 @@ TEST_F(AsyncDatagramTest, ResponseOKWithCode)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X19A2877CN022AA5;"); // Received OK
     wait_for_notification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS |
                   (0xA5 << DatagramClient::RESPONSE_FLAGS_SHIFT),
-              a.result()->result());
+              c->result());
 }
 
 TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
@@ -508,12 +523,16 @@ TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X19A2877CN022A80;"); // Received OK
     wait_for_notification();
-    EXPECT_TRUE(a.result()->result() & (DatagramClient::OK_REPLY_PENDING));
+    EXPECT_TRUE(c->result() & (DatagramClient::OK_REPLY_PENDING));
 }
 
 TEST_F(AsyncDatagramTest, Rejected)
@@ -521,12 +540,16 @@ TEST_F(AsyncDatagramTest, Rejected)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X19A4877CN022A55AA;"); // Datagram rejected.
     wait_for_notification();
-    EXPECT_EQ(0x55AAU, a.result()->result());
+    EXPECT_EQ(0x55AAU, c->result());
 }
 
 TEST_F(AsyncDatagramTest, Timeout)
@@ -535,13 +558,17 @@ TEST_F(AsyncDatagramTest, Timeout)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     wait_for_notification();
     EXPECT_EQ(
         (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
-        a.result()->result());
+        c->result());
 }
 
 TEST_F(AsyncDatagramTest, RejectedNoData)
@@ -549,12 +576,16 @@ TEST_F(AsyncDatagramTest, RejectedNoData)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X19A4877CN022A;"); // Datagram rejected.
     wait_for_notification();
-    EXPECT_TRUE(DatagramClient::PERMANENT_ERROR & a.result()->result());
+    EXPECT_TRUE(DatagramClient::PERMANENT_ERROR & c->result());
 }
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
@@ -562,12 +593,16 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedNoPayload)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X1906877CN022A5A;"); // OIR, payload invalid
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, c->result());
 }
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
@@ -576,15 +611,20 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedWrongMTI)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
-    send_packet(":X1906877CN022A55AA0991;"); // OIR, payload with a different MTI
+    send_packet(
+        ":X1906877CN022A55AA0991;"); // OIR, payload with a different MTI
     wait_for_notification();
     // Timeout means the OIR was ignored.
     EXPECT_EQ(
         (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
-        a.result()->result());
+        c->result());
 }
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
@@ -593,12 +633,16 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedCorrectMTI)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X1906877CN022A55AA1C48;"); // OIR, payload with correct MTI
     wait_for_notification();
-    EXPECT_EQ(0x55AAU, a.result()->result());
+    EXPECT_EQ(0x55AAU, c->result());
 }
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
@@ -607,12 +651,16 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedMustHaveError)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X1906877CN022A00AA1C48;"); // OIR, payload with correct MTI
     wait_for_notification();
-    EXPECT_EQ(0x10AAU, a.result()->result()); // Added PERMANENT_ERROR
+    EXPECT_EQ(0x10AAU, c->result()); // Added PERMANENT_ERROR
 }
 
 TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
@@ -620,12 +668,16 @@ TEST_F(AsyncDatagramTest, OptionalInteractionRejectedTemporaryError)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X1906877CN022A2000;"); // OIR, temporary error
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, c->result());
 }
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
@@ -633,12 +685,16 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorNoPayload)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X190A877CN022A5A;"); // TDE, payload invalid
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, c->result());
 }
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
@@ -647,15 +703,20 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorWrongMTI)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
-    send_packet(":X190A877CN022A55AA0991;"); // TDE, payload with a different MTI
+    send_packet(
+        ":X190A877CN022A55AA0991;"); // TDE, payload with a different MTI
     wait_for_notification();
     // Timeout means the TDE was ignored.
     EXPECT_EQ(
         (unsigned)(DatagramClient::TIMEOUT | DatagramClient::PERMANENT_ERROR),
-        a.result()->result());
+        c->result());
 }
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
@@ -664,12 +725,16 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorCorrectMTI)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X190A877CN022A55AA1C48;"); // TDE, payload with correct MTI
     wait_for_notification();
-    EXPECT_EQ(0x55AAU, a.result()->result());
+    EXPECT_EQ(0x55AAU, c->result());
 }
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
@@ -678,12 +743,16 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorMustHaveError)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X190A877CN022A00AA1C48;"); // TDE, payload with correct MTI
     wait_for_notification();
-    EXPECT_EQ(0x10AAU, a.result()->result());
+    EXPECT_EQ(0x10AAU, c->result());
 }
 
 TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
@@ -691,13 +760,20 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->set_done(get_notifiable());
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    c->write_datagram(b);
+
     wait();
     send_packet(":X190A877CN022A2000;"); // TDE, temporary error
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, c->result());
 }
+
+#if 0
+
 
 /** Ping-pong is a fake datagram-based service. When it receives a datagram
  * from a particular node, it sends back the datagram to the originating node
@@ -855,8 +931,8 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne)
     wait_for_notification();
     EXPECT_EQ((unsigned)DatagramClient::OK_REPLY_PENDING |
                   DatagramClient::OPERATION_SUCCESS,
-              a.result()->result())
-        << StringPrintf("result: %x", a.result()->result());
+              c->result())
+        << StringPrintf("result: %x", c->result());
     wait();
     EXPECT_EQ(2, handler_two.process_count());
     EXPECT_EQ(1, handler_one.process_count());
@@ -884,8 +960,8 @@ TEST_F(TwoNodeDatagramTest, PingPongTestError)
     auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, payload); c->write_datagram(b);
 
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
-        << StringPrintf("result: %x", a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, c->result())
+        << StringPrintf("result: %x", c->result());
     wait();
     EXPECT_EQ(1, handler_two.process_count());
     EXPECT_EQ(0, handler_one.process_count());
@@ -916,8 +992,8 @@ TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
     wait_for_notification();
     EXPECT_EQ((unsigned)DatagramClient::OK_REPLY_PENDING |
                   DatagramClient::OPERATION_SUCCESS,
-              a.result()->result())
-        << StringPrintf("result: %x", a.result()->result());
+              c->result())
+        << StringPrintf("result: %x", c->result());
     wait();
     EXPECT_EQ(2, handler_two.process_count());
     EXPECT_EQ(1, handler_one.process_count());
@@ -942,8 +1018,8 @@ TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
     auto *b = ifCan_->dispatcher()->alloc();  b->set_done(get_notifiable()); b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, payload); c->write_datagram(b);
 
     wait_for_notification();
-    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, a.result()->result())
-        << StringPrintf("result: %x", a.result()->result());
+    EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR, c->result())
+        << StringPrintf("result: %x", c->result());
     wait();
     EXPECT_EQ(1, handler_two.process_count());
     EXPECT_EQ(0, handler_one.process_count());
@@ -972,8 +1048,8 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
 
     wait_for_notification();
     EXPECT_EQ((unsigned)DatagramClient::PERMANENT_ERROR,
-              a.result()->result())
-        << StringPrintf("result: %x", a.result()->result());
+              c->result())
+        << StringPrintf("result: %x", c->result());
     wait();
 }
 
