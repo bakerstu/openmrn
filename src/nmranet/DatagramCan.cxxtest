@@ -772,8 +772,6 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, c->result());
 }
 
-#if 0
-
 
 /** Ping-pong is a fake datagram-based service. When it receives a datagram
  * from a particular node, it sends back the datagram to the originating node
@@ -795,17 +793,17 @@ public:
         DATAGRAM_ID = 0x7A,
     };
 
-    PingPongHandler(DatagramSupport* if_dg, Node* node)
+    PingPongHandler(DatagramService* if_dg, Node* node)
         : DefaultDatagramHandler(if_dg), processCount_(0)
     {
-        ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);
+        dg_service()->registry()->insert(node, DATAGRAM_ID, this);
     }
 
     ~PingPongHandler()
     {
-        /// @TODO(balazs.racz) Remove handler entry from the registry. It would
-        /// be important to remember the node for that, and need a remove API
-        /// on the NodeHandlerMap.
+        /** @TODO(balazs.racz) Remove handler entry from the registry. It would
+         * be important to remember the node for that, and need a remove API
+         * on the NodeHandlerMap. */
     }
 
     /// Returns how many datagrams this handler has seen so far.
@@ -814,15 +812,15 @@ public:
         return processCount_;
     }
 
-    virtual Action datagram_arrived()
+    Action entry() OVERRIDE
     {
         processCount_++;
         const uint8_t* bytes =
-            static_cast<const uint8_t*>(datagram_->payload->start());
-        size_t len = datagram_->payload->used();
+            reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
+        size_t len = message()->data()->payload.size();
         HASSERT(len >= 1);
         HASSERT(bytes[0] == DATAGRAM_ID);
-        if (len < 2)
+        if (len <= 1)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
@@ -838,64 +836,69 @@ public:
 
     virtual Action ok_response_sent()
     {
-        uint8_t* bytes = static_cast<uint8_t*>(datagram_->payload->start());
-        size_t len = datagram_->payload->used();
+        const uint8_t* bytes =
+            reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
         if (!bytes[1])
         {
-            datagram_->free();
             // No response.
-            return call_immediately(STATE(wait_for_datagram));
+            return release_and_exit();
         }
 
         // We take over the buffer ownership.
-        Buffer* payload = datagram_->payload;
-        datagram_->payload = nullptr;
-        datagram_->free();
+        responsePayload_.swap(message()->data()->payload);
+        responsePayload_.resize(responsePayload_.size() - 1);
+        --responsePayload_[1];
 
-        // The response datagram should be the same id, one less bytes and one
-        // less in the second byte.
-        payload->zero();
-        payload->advance(len - 1);
-        bytes[1]--;
-        responsePayload_ = payload;
+        return allocate_and_call(
+            STATE(client_allocated),
+            dg_service()->client_allocator()
+                        );
+    }
 
-        return Allocate(ifDatagram_->client_allocator(),
-                        ST(send_response_datagram));
+    Action client_allocated()
+    {
+        clientFlow_ = full_allocation_result(dg_service()->client_allocator());
+        return allocate_and_call(dg_service()->interface()->dispatcher(),
+                                 STATE(send_response_datagram));
     }
 
     Action send_response_datagram()
     {
-        auto* client_flow =
-            GetTypedAllocationResult(ifDatagram_->client_allocator());
-        client_flow->write_datagram(datagram_->dst->node_id(), datagram_->src,
-                                    responsePayload_, this);
-        return WaitAndCall(STATE(wait_response_datagram));
+        auto* b = get_allocation_result(dg_service()->interface()->dispatcher());
+        b->set_done(b_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(), message()->data()->src, EMPTY_PAYLOAD);
+        b->data()->payload.swap(responsePayload_);
+        release();
+        clientFlow_->write_datagram(b);
+        return wait_and_call(STATE(wait_response_datagram));
     }
+
 
     Action wait_response_datagram()
     {
-        // NOTE: This is dangerous - there must be no other allocations
-        // happening in this flow between when we allocate the datagram flow
-        // and when this phase is called.
-        auto* client_flow =
-            GetTypedAllocationResult(ifDatagram_->client_allocator());
-        if (client_flow->result() & DatagramClient::OPERATION_PENDING)
+        if (clientFlow_->result() & DatagramClient::OPERATION_PENDING)
         {
-            return WaitForNotification();
+            DIE("Unexpected notification from the datagram client.");
         }
-        if (!client_flow->result() & DatagramClient::OPERATION_SUCCESS)
+        if (!clientFlow_->result() & DatagramClient::OPERATION_SUCCESS)
         {
             LOG(WARNING, "Error sending response datagram for PingPong: %x",
-                client_flow->result());
+                clientFlow_->result());
         }
-        ifDatagram_->client_allocator()->TypedRelease(client_flow);
-        return call_immediately(STATE(wait_for_datagram));
+        dg_service()->client_allocator()->typed_insert(clientFlow_);
+        return release_and_exit();
     }
 
 private:
     int processCount_; //< tracks the number of incoming datagrams
-    Buffer* responsePayload_;
+    DatagramPayload responsePayload_;
+    DatagramClient* clientFlow_;
+    BarrierNotifiable b_;
 };
+
+#if 0
+
+
 
 // @TODO(balazs.racz) add a test where a datagram is arriving without
 // payload. It should receive a rejection response.
