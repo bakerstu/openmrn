@@ -108,8 +108,6 @@ public:
         return release_and_exit();
     }
 
-    virtual Action datagram_arrived() = 0;
-
     /** This state is where the handling will end up after a respond_ok
      * call. The user is responsible to eventually doing release and exit(). */
     virtual Action ok_response_sent()
