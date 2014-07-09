@@ -80,21 +80,17 @@ public:
 
     /** Triggers sending a datagram.
      *
-     * @param src is the sending node.
-     * @param dst is the destination node.
-     * @param payload is the datagram content buffer. The first byte has to be
-     * the datagram ID.
-     * @param done will be notified when the datagram send is successful or
-     * failed.
+     * @param b is the datagra buffer.
+     * @param priority is the priority of the datagram client in the executor.
      *
-     * After `done' is notified, the caller must ensure that the datagram
-     * client is released back to the freelist.
+     * Callers should set the done closure of the Buffer.  After that closure
+     * is notified, the caller must ensure that the datagram client is released
+     * back to the freelist.
      *
-     * @TODO(balazs.racz): revisit the tpe of DatagramPayload and ensure that
+     * @TODO(balazs.racz): revisit the type of DatagramPayload and ensure that
      * there will be no extra copy of the data happening.
      */
-    virtual void write_datagram(NodeID src, NodeHandle dst, DatagramPayload payload,
-                                Notifiable* done) = 0;
+    virtual void write_datagram(Buffer<NMRAnetMessage>* b, unsigned priority = UINT_MAX) = 0;
 
     /** Requests cancelling the datagram send operation. Will notify the done
      * callback when the canceling is completed. */

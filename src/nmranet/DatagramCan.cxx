@@ -43,12 +43,11 @@ namespace nmranet
 long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
 
 class CanDatagramClient : public DatagramClient,
-                          public AddressedCanMessageWriteFlow,
-                          private IncomingMessageHandler
+                          public AddressedCanMessageWriteFlow
 {
 public:
     CanDatagramClient(IfCan* interface)
-        : AddressedCanMessageWriteFlow(interface)
+        : AddressedCanMessageWriteFlow(interface), listener_(this)
     {
         /** This flow does not use the incoming queue that we inherited from
          * AddressedCanMessageWriteFlow. We skip the wait state.
@@ -59,12 +58,15 @@ public:
         set_terminated();
     }
 
-    void write_datagram(Buffer<NMRAnetMessage>* b) OVERRIDE
+    void write_datagram(Buffer<NMRAnetMessage>* b, unsigned priority) OVERRIDE
     {
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
-        if_can_->dispatcher()->register_handler(MTI_1, MASK_1, this);
-        if_can_->dispatcher()->register_handler(MTI_2, MASK_2, this);
+        if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
+        if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
+        reset_message(b, priority);
+        /// @TODO(balazs.racz) this will not work for loopback messages because
+        /// it calls transfer_message().
         start_flow(STATE(addressed_entry));
     }
 
@@ -97,23 +99,22 @@ private:
         LOG(VERBOSE, "fill can frame buffer");
         auto* b = get_allocation_result(if_can()->frame_write_flow());
         struct can_frame* f = b->data()->mutable_frame();
-        HASSERT(mti_ == Defs::MTI_DATAGRAM);
+        HASSERT(nmsg()->mti == Defs::MTI_DATAGRAM);
 
         // Sets the CAN id.
         uint32_t can_id = 0x1A000000;
-        CanDefs::set_src(&can_id, src_alias_);
-        LOG(VERBOSE, "dst alias %x", dst_alias_);
-        CanDefs::set_dst(&can_id, dst_alias_);
+        CanDefs::set_src(&can_id, srcAlias_);
+        LOG(VERBOSE, "dst alias %x", dstAlias_);
+        CanDefs::set_dst(&can_id, dstAlias_);
 
-        HASSERT(data_);
         bool need_more_frames = false;
-        unsigned len = data_->size() - data_offset_;
+        unsigned len = nmsg()->payload.size() - dataOffset_;
         if (len > 8)
         {
             len = 8;
             // This is not the last frame.
             need_more_frames = true;
-            if (data_offset_)
+            if (dataOffset_)
             {
                 CanDefs::set_can_frame_type(&can_id,
                                           CanDefs::DATAGRAM_MIDDLE_FRAME);
@@ -126,7 +127,7 @@ private:
         else
         {
             // No more data after this frame.
-            if (data_offset_)
+            if (dataOffset_)
             {
                 CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_FINAL_FRAME);
             }
@@ -136,8 +137,8 @@ private:
             }
         }
 
-        memcpy(f->data, &nmsg()->payload[data_offset_], len);
-        data_offset_ += len;
+        memcpy(f->data, &nmsg()->payload[dataOffset_], len);
+        dataOffset_ += len;
         f->can_dlc = len;
 
         SET_CAN_FRAME_ID_EFF(*f, can_id);
@@ -149,21 +150,20 @@ private:
         }
         else
         {
-            return slep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                                 STATE(timeout_waiting_for_dg_response));
+            return call_immediately(STATE(send_finished));
         }
     }
     
-    Action addressed_local_dispatcher_done() OVERRIDE {
-        return Sleep(&sleep_data_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                     ST(timeout_waiting_for_dg_response));
+    Action send_finished() OVERRIDE {
+        return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
+                             STATE(timeout_waiting_for_dg_response));
     }
 
     Action timeout_looking_for_dst() OVERRIDE
     { 
         LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
-            dst_.id);
+            nmsg()->dst.id);
         UnregisterLocalHandler();
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
         return call_immediately(STATE(datagram_finalize));
@@ -174,38 +174,49 @@ private:
     {
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
                   "destination %012llx.",
-            dst_.id);
+            nmsg()->dst.id);
         result_ |= PERMANENT_ERROR | TIMEOUT;
         return call_immediately(STATE(datagram_finalize));
     }
 
     Action datagram_finalize()
     {
-        if_can_->dispatcher()->unregister_handler(MTI_1, MASK_1, this);
-        if_can_->dispatcher()->unregister_handler(MTI_2, MASK_2, this);
-        cleanup(); // will release the buffer.
+        if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
+        if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
-        // Will notify the done_ closure.
-        return Exit();
+        return release_and_exit();
     }
 
+    /** This object is registered to receive response messages at the interface
+     * level. Then it forwards the call to the parent CanDatagramClient. */
+    class ReplyListener : public MessageHandler {
+    public:
+        ReplyListener(CanDatagramClient* parent)
+            : parent_(parent) {}
+
+        void send(message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE {
+            parent_->handle_response(buffer->data());
+            buffer->unref();
+        }
+    private:
+        CanDatagramClient* parent_;
+    };
+
     // Callback when a matching response comes in on the bus.
-    virtual void handle_message(IncomingMessage* message, Notifiable* done)
+    void handle_response(NMRAnetMessage* message)
     {
         LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this, (int)message->mti, (int) message->src.alias);
-        // This will call done when the method returns.
-        AutoNotify n(done);
         // First we check that the response is for this source node.
         if (message->dst.id)
         {
-            if (message->dst.id != src_) 
+            if (message->dst.id != nmsg()->src.id) 
             {
                 LOG(VERBOSE, "wrong dst"); 
                 return;
             }
         }
-        else if (message->dst.alias != src_alias_)
+        else if (message->dst.alias != srcAlias_)
         {
             LOG(VERBOSE, "wrong dst alias"); 
             /* Here we hope that the source alias was not released by the time
@@ -213,18 +224,18 @@ private:
             return;
         }
         // We also check that the source of the response is our destination.
-        if (message->src.id && dst_.id)
+        if (message->src.id && nmsg()->dst.id)
         {
-            if (message->src.id != dst_.id) {
+            if (message->src.id != nmsg()->dst.id) {
                 LOG(VERBOSE, "wrong src"); 
                 return;
             }
         }
         else if (message->src.alias)
         {
-            // We hope the dst_alias_ has not changed yet.
-            if (message->src.alias != dst_alias_) {
-                LOG(VERBOSE, "wrong src alias %x %x",(int)message->src.alias, (int)dst_alias_); 
+            // We hope the dstAlias_ has not changed yet.
+            if (message->src.alias != dstAlias_) {
+                LOG(VERBOSE, "wrong src alias %x %x",(int)message->src.alias, (int)dstAlias_); 
                 return;
             }
         }
@@ -237,10 +248,10 @@ private:
         uint16_t error_code = 0;
         uint8_t payload_length = 0;
         const uint8_t* payload = nullptr;
-        if (message->payload)
+        if (!message->payload.empty())
         {
-            payload = static_cast<const uint8_t*>(message->payload->start());
-            payload_length = message->payload->used();
+            payload = reinterpret_cast<const uint8_t*>(message->payload.data());
+            payload_length = message->payload.size();
         }
         if (payload_length >= 2)
         {
@@ -294,12 +305,14 @@ private:
         } // switch response MTI
 
         // Stops waiting for response.
-        StopTimer(&sleep_data_);
+        timer_.trigger();
         /// @TODO(balazs.racz) Here we might want to decide whether to start a
         /// retry.
         LOG(VERBOSE, "restarting at datagram finalize");
-        StartFlowAt(STATE(datagram_finalize));
+        reset_flow(STATE(datagram_finalize));
     } // handle_message
+
+    ReplyListener listener_;
 };
 
 /** Frame handler that assembles incoming datagram fragments into a single
