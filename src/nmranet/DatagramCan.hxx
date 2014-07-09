@@ -35,29 +35,28 @@
 #ifndef _NMRANET_DATAGRAMCAN_HXX_
 #define _NMRANET_DATAGRAMCAN_HXX_
 
-#include "nmranet/NMRAnetIfCan.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Datagram.hxx"
 
 namespace nmranet
 {
 
-class CanDatagramSupport : public DatagramSupport {
+class CanDatagramService : public DatagramService {
 public:
     /*
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)*/
-    CanDatagramSupport(IfCan* interface, int num_registry_entries,
+    CanDatagramService(IfCan* interface, int num_registry_entries,
                        int num_clients);
 
-    ~CanDatagramSupport();
+    ~CanDatagramService();
 
     IfCan* if_can() {
         return static_cast<IfCan*>(interface());
     }
 };
 
-/// Creates a CAn datagram parser flow. Exposed for testing only.
+/// Creates a CAN datagram parser flow. Exposed for testing only.
 Executable* TEST_CreateCanDatagramParser(IfCan* if_can);
 
 } // namespace nmranet

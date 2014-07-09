@@ -20,9 +20,9 @@ CXXSRCS += \
            Velocity.cxx \
            WriteHelper.cxx \
            Datagram.cxx \
+           DatagramCan.cxx \
 
 
 DEAD_CXX +=  \
-           DatagramCan.cxx \
            MemoryConfig.cxx \
            Stream.cxx \
