@@ -44,14 +44,14 @@ namespace nmranet {
 class AsyncDatagramTest : public AsyncNodeTest
 {
 protected:
-    AsyncDatagramTest() : datagram_support_(if_can_.get(), 10, 2)
+    AsyncDatagramTest() : datagram_support_(ifCan_.get(), 10, 2)
     {
     }
 
-    CanDatagramSupport datagram_support_;
+    CanDatagramService datagram_support_;
 };
 
-InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator(10);
+Pool* const g_incoming_datagram_allocator = mainBufferPool;
 
 class TwoNodeDatagramTest : public AsyncDatagramTest
 {
@@ -67,37 +67,36 @@ protected:
         if (separate_if)
         {
             otherIfCan_.reset(
-                new IfCan(&g_executor, &can_pipe0, 10, 10, 1, 1, 5));
+                new IfCan(&g_executor, &can_hub0, 10, 10, 5));
             otherNodeIf_ = otherIfCan_.get();
-            otherNodeIf_->add_addressed_message_support(2);
             otherDatagramSupport_.reset(
-                new CanDatagramSupport(otherNodeIf_, 10, 2));
+                new CanDatagramService(otherNodeIf_, 10, 2));
             otherNodeDatagram_ = otherDatagramSupport_.get();
         }
         else
         {
-            otherNodeIf_ = if_can_.get();
+            otherNodeIf_ = ifCan_.get();
             otherNodeDatagram_ = &datagram_support_;
         }
         otherNodeIf_->local_aliases()->add(OTHER_NODE_ID, OTHER_NODE_ALIAS);
-        ExpectPacket(":X19100225N02010D000103;"); // node up
+        expect_packet(":X19100225N02010D000103;"); // node up
         otherNode_.reset(new DefaultNode(otherNodeIf_, OTHER_NODE_ID));
-        Wait();
+        wait();
     }
 
     void expect_other_node_lookup()
     {
-        ExpectPacket(":X1070222AN02010D000103;"); // looking for DST node
-        ExpectPacket(":X1949022AN02010D000103;"); // hard-looking for DST node
-        ExpectPacket(":X19170225N02010D000103;"); // node ID verified
+        expect_packet(":X1070222AN02010D000103;"); // looking for DST node
+        expect_packet(":X1949022AN02010D000103;"); // hard-looking for DST node
+        expect_packet(":X19170225N02010D000103;"); // node ID verified
     }
 
     std::unique_ptr<DefaultNode> otherNode_;
     // Second objects if we want a bus-traffic test.
     std::unique_ptr<IfCan> otherIfCan_;
     IfCan* otherNodeIf_;
-    std::unique_ptr<CanDatagramSupport> otherDatagramSupport_;
-    CanDatagramSupport* otherNodeDatagram_;
+    std::unique_ptr<CanDatagramService> otherDatagramSupport_;
+    CanDatagramService* otherNodeDatagram_;
 };
 
 } // namespace

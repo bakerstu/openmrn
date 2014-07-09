@@ -362,11 +362,7 @@ MATCHER_P(IsBufferValue, id, "")
 MATCHER_P(IsBufferValueString, expected, "")
 {
     string s(expected);
-    if (arg->used() != s.size())
-        return false;
-    if (memcmp(s.data(), arg->start(), arg->used()))
-        return false;
-    return true;
+    return arg == s;
 }
 
 MATCHER_P(IsBufferNodeValue, id, "")

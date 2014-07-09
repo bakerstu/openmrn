@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file async_datagram_test.cc
+ * \file DatagramCan.cxxtest
  *
  * Unit tests for the datagram parser and formatter flows.
  *
@@ -33,7 +33,7 @@
  */
 
 #include "utils/async_datagram_test_helper.hxx"
-#include "nmranet/DatagramHandlerDefault.hxx"
+//#include "nmranet/DatagramHandlerDefault.hxx"
 
 namespace nmranet
 {
@@ -43,16 +43,13 @@ class AsyncRawDatagramTest : public AsyncNodeTest
 protected:
     AsyncRawDatagramTest()
     {
-        ifCan_->dispatcher()->register_handler(0x1C48, 0xFFFF, &handler_);
-        EXPECT_CALL(handler_, get_allocator()).WillRepeatedly(Return(nullptr));
-        ON_CALL(handler_, handle_message(_, _))
-            .WillByDefault(WithArg<1>(Invoke(&InvokeNotification)));
+        ifCan_->dispatcher()->register_handler(&handler_, 0x1C48, 0xFFFF);
         ifCan_->add_owned_flow(TEST_CreateCanDatagramParser(ifCan_.get()));
     }
     ~AsyncRawDatagramTest()
     {
         wait();
-        ifCan_->dispatcher()->unregister_handler(0x1C48, 0xFFFF, &handler_);
+        ifCan_->dispatcher()->unregister_handler(&handler_, 0x1C48, 0xFFFF);
     }
 
     StrictMock<MockMessageHandler> handler_;
@@ -80,13 +77,13 @@ TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValue(0xFF01020304050607ULL)) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1A22A555NFF01020304050607;");
 }
 
@@ -95,14 +92,14 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1B22A555N3031323334353637;");
     send_packet(":X1C22A555N3131323334353637;");
     send_packet(":X1C22A555N3231323334353637;");
@@ -129,14 +126,14 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1B22A555N3031323334353637;");
     send_packet(":X1C22A555N3131323334353637;");
     send_packet(":X1C22A555N3231323334353637;");
@@ -152,6 +149,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
                                 ":X19A4822AN05552040;");
 }
 
+/*
 ::std::ostream& operator<<(::std::ostream& o, const Buffer* b)
 {
     o << "Buffer(";
@@ -170,7 +168,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
         o << ")";
     }
     return o;
-}
+    }*/
 
 ::std::ostream& operator<<(::std::ostream& o, const NodeHandle& h)
 {
@@ -178,11 +176,11 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     return o;
 }
 
-::std::ostream& operator<<(::std::ostream& o, const IncomingMessage& m)
+::std::ostream& operator<<(::std::ostream& o, const NMRAnetMessage& m)
 {
-    o << "an IncomingMessage"
+    o << "an NMRAnetMessage"
       << " of MTI " << StringPrintf("%04x", m.mti) << " from " << m.src
-      << " to " << m.dst << " to node " << m.dst_node << " with payload "
+      << " to " << m.dst << " to node " << m.dstNode << " with payload "
       << m.payload;
     return o;
 }
@@ -197,15 +195,15 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValueString("01234567112345672123456731"
                                                     "23456741234567512345676123"
                                                     "45677123456781234567")) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1D22A555N3831323334353637;"); // 8
 }
 
@@ -226,24 +224,24 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&IncomingMessage::dst_node, node_),
-                          Field(&IncomingMessage::payload, NotNull()),
-                          Field(&IncomingMessage::payload,
+            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&NMRAnetMessage::dstNode, node_),
+                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          Field(&NMRAnetMessage::payload,
                                 IsBufferValueString("01234")) //,
                           )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1B22A555N3031323334353637;");
     send_packet(":X1C22A555N3131323334353637;");
     send_packet(":X1A22A555N3031323334;"); // A single-frame datagram here.
@@ -260,28 +258,28 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&IncomingMessage::dst_node, node_),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x577)),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&NMRAnetMessage::dstNode, node_),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x577)),
+                //Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1B22A577N3031323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&IncomingMessage::dst_node, node_),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
-                Field(&IncomingMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&NMRAnetMessage::dstNode, node_),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
+                //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(
-                    &IncomingMessage::payload,
+                    &NMRAnetMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1D22A555N3331323334353637;");
     send_packet(":X1D22A577N3131323334353637;");
 }
@@ -299,61 +297,47 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&IncomingMessage::dst_node, &other_node),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
-                Field(&IncomingMessage::payload, NotNull()),
-                Field(&IncomingMessage::payload,
+                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&NMRAnetMessage::dstNode, &other_node),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
+                //Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1B22B555N3031323334353637;");
     EXPECT_CALL(
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&IncomingMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&IncomingMessage::dst_node, node_),
-                Field(&IncomingMessage::src, Field(&NodeHandle::alias, 0x555)),
-                Field(&IncomingMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&NMRAnetMessage::dstNode, node_),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
+                //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(
-                    &IncomingMessage::payload,
+                    &NMRAnetMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
-            _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
+            _));
     send_packet(":X1D22A555N3331323334353637;");
     send_packet(":X1D22B555N3131323334353637;");
     wait();
 }
 
-class MockDatagramHandlerBase : public DatagramHandler, public ControlFlow
+class MockDatagramHandler : public DatagramHandlerFlow
 {
 public:
-    MockDatagramHandlerBase() : ControlFlow(&g_executor, nullptr)
+    MockDatagramHandler() : DatagramHandlerFlow(&g_service)
     {
-        StartFlowAt(STATE(wait_for_datagram));
     }
 
-    virtual void handle_datagram(IncomingDatagram* d) = 0;
-
-    Action wait_for_datagram()
-    {
-        return Allocate(&queue_, ST(process_datagram));
-    }
-
-    Action process_datagram()
-    {
-        IncomingDatagram* d = GetTypedAllocationResult(&queue_);
-        handle_datagram(d);
-        d->free();
-        return call_immediately(STATE(wait_for_datagram));
-    }
-};
-
-class MockDatagramHandler : public MockDatagramHandlerBase
-{
-public:
     MOCK_METHOD1(handle_datagram, void(IncomingDatagram* d));
+
+    Action entry() OVERRIDE
+    {
+        handle_datagram(message()->data());
+        return release_and_exit();
+    }
 };
 
 TEST_F(AsyncDatagramTest, DispatchTest)
@@ -364,7 +348,7 @@ TEST_F(AsyncDatagramTest, DispatchTest)
         dg, handle_datagram(Pointee(AllOf(
                 Field(&IncomingDatagram::src, Field(&NodeHandle::alias, 0x555)),
                 Field(&IncomingDatagram::dst, node_),
-                Field(&IncomingDatagram::payload, NotNull()),
+                //Field(&IncomingDatagram::payload, NotNull()),
                 Field(&IncomingDatagram::payload,
                       IsBufferValueString("01234567")) //,
                 ))));
@@ -373,13 +357,12 @@ TEST_F(AsyncDatagramTest, DispatchTest)
     usleep(3000);
 }
 
-Buffer* string_to_buffer(const string& value)
+DatagramPayload string_to_buffer(const string& value)
 {
-    Buffer* b = buffer_alloc(value.size());
-    memcpy(b->start(), value.data(), value.size());
-    b->advance(value.size());
-    return b;
+    return value;
 }
+
+#if 0
 
 TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 {
@@ -991,5 +974,7 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
         << StringPrintf("result: %x", a.result()->result());
     wait();
 }
+
+#endif // if 0
 
 } // namespace nmranet
