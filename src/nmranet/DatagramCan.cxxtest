@@ -772,7 +772,6 @@ TEST_F(AsyncDatagramTest, TerminateDueToErrorTemporaryError)
     EXPECT_EQ((unsigned)DatagramClient::RESEND_OK, c->result());
 }
 
-
 /** Ping-pong is a fake datagram-based service. When it receives a datagram
  * from a particular node, it sends back the datagram to the originating node
  * with a slight difference: a TTL being decremented and the payload being
@@ -793,8 +792,9 @@ public:
         DATAGRAM_ID = 0x7A,
     };
 
-    PingPongHandler(DatagramService* if_dg, Node* node)
-        : DefaultDatagramHandler(if_dg), processCount_(0)
+    PingPongHandler(DatagramService *if_dg, Node *node)
+        : DefaultDatagramHandler(if_dg)
+        , processCount_(0)
     {
         dg_service()->registry()->insert(node, DATAGRAM_ID, this);
     }
@@ -815,8 +815,8 @@ public:
     Action entry() OVERRIDE
     {
         processCount_++;
-        const uint8_t* bytes =
-            reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
+        const uint8_t *bytes = reinterpret_cast<const uint8_t *>(
+            message()->data()->payload.data());
         size_t len = message()->data()->payload.size();
         HASSERT(len >= 1);
         HASSERT(bytes[0] == DATAGRAM_ID);
@@ -836,8 +836,8 @@ public:
 
     virtual Action ok_response_sent()
     {
-        const uint8_t* bytes =
-            reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
+        const uint8_t *bytes = reinterpret_cast<const uint8_t *>(
+            message()->data()->payload.data());
         if (!bytes[1])
         {
             // No response.
@@ -849,10 +849,8 @@ public:
         responsePayload_.resize(responsePayload_.size() - 1);
         --responsePayload_[1];
 
-        return allocate_and_call(
-            STATE(client_allocated),
-            dg_service()->client_allocator()
-                        );
+        return allocate_and_call(STATE(client_allocated),
+                                 dg_service()->client_allocator());
     }
 
     Action client_allocated()
@@ -864,15 +862,16 @@ public:
 
     Action send_response_datagram()
     {
-        auto* b = get_allocation_result(dg_service()->interface()->dispatcher());
+        auto *b =
+            get_allocation_result(dg_service()->interface()->dispatcher());
         b->set_done(b_.reset(this));
-        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(), message()->data()->src, EMPTY_PAYLOAD);
+        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
+                         message()->data()->src, EMPTY_PAYLOAD);
         b->data()->payload.swap(responsePayload_);
         release();
         clientFlow_->write_datagram(b);
         return wait_and_call(STATE(wait_response_datagram));
     }
-
 
     Action wait_response_datagram()
     {
@@ -892,7 +891,7 @@ public:
 private:
     int processCount_; //< tracks the number of incoming datagrams
     DatagramPayload responsePayload_;
-    DatagramClient* clientFlow_;
+    DatagramClient *clientFlow_;
     BarrierNotifiable b_;
 };
 
