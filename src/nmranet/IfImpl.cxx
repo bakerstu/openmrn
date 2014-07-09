@@ -46,6 +46,8 @@ StateFlowBase::Action WriteFlowBase::addressed_entry()
         if (nmsg()->dstNode)
         {
             unsigned prio = priority();
+            // We do not believe infinite priority and use the one from the MTI
+            // instead.
             if (prio >= (1 << 16))
             {
                 prio = message()->data()->priority();
