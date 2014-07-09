@@ -34,7 +34,7 @@ $(VERYCLEANDIRS):
 	@[ -d $(@:veryclean-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:veryclean-%=%) veryclean
 
-tests: $(TESTDIRS)
+# tests: $(TESTDIRS)
 $(TESTDIRS): 
 	@[ -d $(@:tests-%=%) ] || make mksubdirs
 	+$(MAKE) -C $(@:tests-%=%) tests

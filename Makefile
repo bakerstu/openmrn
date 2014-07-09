@@ -21,3 +21,6 @@ docs:
 
 cov:
 	$(MAKE) -C targets/cov cov
+
+tests:
+	$(MAKE) -C targets/cov tests
