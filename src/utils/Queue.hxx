@@ -455,8 +455,49 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QAsync);
 };
 
-template<class T> class TypedQAsync : public QAsync {};
+template <class T> class TypedQAsync : public QAsync
+{
+public:
+    /** Returns the next item from the queue. If the queu is currently empty,
+     * then blocks the current thread until an item is available. MUST NOT BE
+     * CALLED ON INTERFACE EXECUTORS. */
+    T *next_blocking()
+    {
+        return BlockingWait(this).result();
+    }
 
+private:
+    class BlockingWait : public Executable
+    {
+    public:
+        BlockingWait(TypedQAsync<T> *parent)
+        {
+            parent->next_async(this);
+            n_.wait_for_notification();
+        }
+
+        T *result()
+        {
+            return result_;
+        }
+
+    private:
+        void alloc_result(QMember *item) OVERRIDE
+        {
+            result_ = static_cast<T *>(item);
+            n_.notify();
+        }
+
+        void run() OVERRIDE
+        {
+            DIE("Unexpected call to Run() in BlockingWait");
+        }
+
+    private:
+        SyncNotifiable n_;
+        T *result_;
+    };
+};
 
 /** A list of queues.  Index 0 is the highest priority queue with increasingly
  * higher indexes having increasingly lower priority.
@@ -598,8 +639,7 @@ public:
     /** Default Constructor.
      * @param size number of queues in the list
      */
-    QListProtected()
-        : QList<items>()
+    QListProtected() : QList<items>()
     {
     }
 
