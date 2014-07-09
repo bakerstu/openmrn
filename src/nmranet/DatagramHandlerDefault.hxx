@@ -40,25 +40,21 @@
 namespace nmranet
 {
 
-class DefaultDatagramHandler : public DatagramHandler, public ControlFlow
+/** Base class with utility functionality that implements some common
+ * functionality. Implementations should override the entry() function to
+ * handle new incoming datagrams, then they must eventually call respond_ok or
+ * respond_reject. */
+class DefaultDatagramHandler : public DatagramHandlerFlow
 {
 public:
-    DefaultDatagramHandler(DatagramSupport* if_datagram)
-        : ControlFlow(if_datagram->interface()->dispatcher()->executor(), nullptr),
-          ifDatagram_(if_datagram)
+    DefaultDatagramHandler(DatagramService *if_datagram)
+        : DatagramHandlerFlow(if_datagram)
     {
-        StartFlowAt(STATE(wait_for_datagram));
     }
 
-    Action wait_for_datagram()
+    DatagramService *dg_service()
     {
-        return Allocate(&queue_, ST(datagram_arrived_stub));
-    }
-
-    Action datagram_arrived_stub()
-    {
-        datagram_ = GetTypedAllocationResult(&queue_);
-        return call_immediately(STATE(datagram_arrived));
+        return static_cast<DatagramService *>(service());
     }
 
     /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
@@ -70,69 +66,56 @@ public:
     {
         responseMti_ = Defs::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
-        return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
-                        ST(send_ok_response));
+        return allocate_and_call(
+            dg_service()->interface()->addressed_message_write_flow(),
+            STATE(send_ok_response));
     }
 
     Action send_ok_response()
     {
-        auto* flow = GetTypedAllocationResult(
-            ifDatagram_->interface()->addressed_write_allocator());
-        Buffer* payload = buffer_alloc(1);
-        uint8_t* data = static_cast<uint8_t*>(payload->start());
-        data[0] = responseErrorCode_ & 0xff;
-        payload->advance(1);
-        flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
-                                    datagram_->src, payload, nullptr);
+        auto *b = get_allocation_result(
+            dg_service()->interface()->addressed_message_write_flow());
+        b->data()->reset(responseMti_, message()->data()->dst->node_id(),
+                         message()->data()->src,
+                         Payload((char)(responseErrorCode_ & 0xff), 1));
+        dg_service()->interface()->addressed_message_write_flow()->send(b);
         return call_immediately(STATE(ok_response_sent));
     }
 
-    /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
-     * from the user handler. The flow will return to the
+    /** Sends a DATAGRAM_REJECT response to the datagram originator node. Call
+     * this from the user handler. The flow will not return to the caller, but
+     * release the incoming datagram and return to wait for a new datagram.
      *
-     * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
+     * @param error_code is the 2-byte error code in the DATAGRAM_REJECT
+     * message.*/
     Action respond_reject(uint16_t error_code)
     {
         responseMti_ = Defs::MTI_DATAGRAM_REJECTED;
         responseErrorCode_ = error_code;
-        return Allocate(ifDatagram_->interface()->addressed_write_allocator(),
-                        ST(send_reject_response));
+        return allocate_and_call(
+            dg_service()->interface()->addressed_message_write_flow(),
+            STATE(send_reject_response));
     }
 
     Action send_reject_response()
     {
-        auto* flow = GetTypedAllocationResult(
-            ifDatagram_->interface()->addressed_write_allocator());
-        Buffer* payload = buffer_alloc(2);
-        uint8_t* data = static_cast<uint8_t*>(payload->start());
-        data[0] = (responseErrorCode_ >> 8) & 0xff;
-        data[1] = responseErrorCode_ & 0xff;
-        payload->advance(2);
-        flow->WriteAddressedMessage(responseMti_, datagram_->dst->node_id(),
-                                    datagram_->src, payload, nullptr);
-        datagram_->free();
-        return call_immediately(STATE(wait_for_datagram));
+        auto *b = get_allocation_result(
+            dg_service()->interface()->addressed_message_write_flow());
+        b->data()->reset(responseMti_, message()->data()->dst->node_id(),
+                         message()->data()->src,
+                         error_to_buffer(responseErrorCode_));
+        dg_service()->interface()->addressed_message_write_flow()->send(b);
+        return release_and_exit();
     }
 
-    /** Handles a new incoming datagram. Implementation must eventually call
-     * respond_ok or respond_reject. */
     virtual Action datagram_arrived() = 0;
 
     /** This state is where the handling will end up after a respond_ok
-     * call. The user is responsible for free-ing the datagram object and
-     * returning to the wait_for_datagram state. */
+     * call. The user is responsible to eventually doing release and exit(). */
     virtual Action ok_response_sent()
     {
-        datagram_->free();
-        return call_immediately(STATE(wait_for_datagram));
+        return release_and_exit();
     }
-
-protected:
-    /// The current datagram being processed.
-    IncomingDatagram* datagram_;
-
-    /// The interface's datagram support code.
-    DatagramSupport* ifDatagram_;
 
 private:
     uint16_t responseErrorCode_;
