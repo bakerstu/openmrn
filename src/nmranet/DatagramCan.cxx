@@ -60,6 +60,9 @@ public:
 
     void write_datagram(Buffer<NMRAnetMessage>* b, unsigned priority) OVERRIDE
     {
+        if (!b->data()->mti) {
+            b->data()->mti = Defs::MTI_DATAGRAM;
+        }
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
         if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
@@ -534,10 +537,9 @@ CanDatagramService::CanDatagramService(IfCan* interface,
     if_can()->add_owned_flow(new CanDatagramParser(if_can()));
     for (int i = 0; i < num_clients; ++i)
     {
-        /// @TODO(balazs.racz) reenable
-        /*auto* client_flow = new CanDatagramClient(if_can());
+        auto* client_flow = new CanDatagramClient(if_can());
         if_can()->add_owned_flow(client_flow);
-        client_allocator()->insert(client_flow);*/
+        client_allocator()->insert(static_cast<DatagramClient*>(client_flow));
     }
 }
 

@@ -375,22 +375,26 @@ DatagramPayload string_to_buffer(const string& value)
     return value;
 }
 
-#if 0
-
 TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 {
     print_all_packets();
-    TypedSyncAllocation<DatagramClient> a(datagram_support_.client_allocator());
-    SyncNotifiable n;
+    DatagramClient* c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    a.result()->write_datagram(node_->node_id(), h, string_to_buffer("0123456"),
-                               &n);
+    auto* b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"));
+    b->set_done(get_notifiable());
+    c->write_datagram(b);
     wait();
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
-    n.WaitForNotification();
+    wait_for_notification();
+    // Releases client.
+    datagram_support_.client_allocator()->insert(c);
 }
+
+#if 0
+
 
 TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
 {
