@@ -36,7 +36,7 @@
 #define _NMRANET_DATAGRAM_HXX_
 
 #include "utils/NodeHandlerMap.hxx"
-#include "executor/allocator.hxx"
+#include "utils/Queue.hxx"
 #include "nmranet/If.hxx"
 
 namespace nmranet
@@ -44,50 +44,34 @@ namespace nmranet
 
 struct IncomingDatagram;
 
-/// Allocator for getting IncomingDatagram objects.
-extern InitializedAllocator<IncomingDatagram> g_incoming_datagram_allocator;
-
 /// Defines how long to wait for a Datagram_OK / Datagram_Rejected message.
 extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 
-struct IncomingDatagram : public QueueMember
+// cont
+typedef Payload DatagramPayload;
+
+struct IncomingDatagram
 {
     NodeHandle src;
     Node* dst;
     // Owned by the current IncomingDatagram object. Includes the datagram ID
     // as the first byte.
-    Buffer* payload;
-
-    void free()
-    {
-        if (payload)
-        {
-            payload->free();
-            payload = nullptr;
-        }
-        g_incoming_datagram_allocator.Release(this);
-    }
+    DatagramPayload payload;
 };
+
+/// Allocator to be used for Buffer<IncomingDatagram> objects.
+extern Pool* const g_incoming_datagram_allocator;
 
 /** Base class for datagram handlers.
  *
  * The datagram handler needs to listen to the incoming queue for arriving
- * datagrams. */
-class DatagramHandler
-{
-public:
-    /** Sends a datagram to this handler. Takes ownership of datagram. */
-    void datagram_arrived(IncomingDatagram* datagram)
-    {
-        queue_.ReleaseBack(datagram);
-    }
-
-protected:
-    TypedAllocator<IncomingDatagram> queue_;
-};
+ * datagrams. It is okay to derive a datagram handler from DatagramHandlerFlow
+ * as well (they ar ecompatible). */
+typedef FlowInterface<Buffer<IncomingDatagram>> DatagramHandler;
+typedef StateFlow<Buffer<IncomingDatagram>, QList<1> > DatagramHandlerFlow;
 
 /** Use this class to send datagrams */
-class DatagramClient : public QueueMember
+class DatagramClient : public QMember
 {
 public:
     virtual ~DatagramClient()
@@ -104,9 +88,12 @@ public:
      * failed.
      *
      * After `done' is notified, the caller must ensure that the datagram
-     * client is released back to the allocator.
+     * client is released back to the freelist.
+     *
+     * @TODO(balazs.racz): revisit the tpe of DatagramPayload and ensure that
+     * there will be no extra copy of the data happening.
      */
-    virtual void write_datagram(NodeID src, NodeHandle dst, Buffer* payload,
+    virtual void write_datagram(NodeID src, NodeHandle dst, DatagramPayload payload,
                                 Notifiable* done) = 0;
 
     /** Requests cancelling the datagram send operation. Will notify the done
@@ -160,8 +147,11 @@ protected:
  * There will be typically one instance of this for each interface with virtual
  * nodes. This class is responsible for maintaining the registered datagram
  * handlers, and taking the datagram MTI from the incoming messages and routing
- * them to the datagram handlers. */
-class DatagramSupport
+ * them to the datagra for datagram handlers.
+ *
+ * The datagram handler needs to listen to the incoming queue for arriving
+ * datagrams. */
+class DatagramService : public Service
 {
 public:
     typedef TypedNodeHandlerMap<Node, DatagramHandler> Registry;
@@ -172,8 +162,8 @@ public:
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)
      */
-    DatagramSupport(If* interface, size_t num_registry_entries);
-    ~DatagramSupport();
+    DatagramService(If* interface, size_t num_registry_entries);
+    ~DatagramService();
 
     /// @returns the registry of datagram handlers.
     Registry* registry()
@@ -187,7 +177,7 @@ public:
      * When the client flow completes, it is the caller's responsibility to
      * return it to this allocator, once the client is done examining the
      * result codes. */
-    TypedAllocator<DatagramClient>* client_allocator()
+    TypedQAsync<DatagramClient>* client_allocator()
     {
         return &clients_;
     }
@@ -198,18 +188,21 @@ public:
     }
 
 private:
-    class DatagramDispatcher : public IncomingMessageHandler,
-                               private ControlFlow
+    /** Class for routing incoming datagram messages to the datagram handlers.
+     *
+     * Keeps a registry of datagram handlers. Listens to incoming MTI_DATAGRAM
+     * messages coming from the If, and routes them to the appropriate datagram
+     * handlerflow.
+     *
+     * The dispatcher is a state flow that is using the If as the base service
+     * and not the DatagramService that owns it. */
+    class DatagramDispatcher : public IncomingMessageStateFlow
     {
     public:
-        /// @TODO(balazs.racz) we have two QueueMember base classes in here.
         DatagramDispatcher(If* interface, size_t num_registry_entries)
-            : ControlFlow(interface->dispatcher()->executor(), nullptr),
-              m_(nullptr),
-              registry_(num_registry_entries),
-              interface_(interface)
+            : IncomingMessageStateFlow(interface),
+              registry_(num_registry_entries)
         {
-            lock_.TypedRelease(this);
         }
 
         ~DatagramDispatcher()
@@ -223,37 +216,25 @@ private:
         }
 
     private:
-        /// Lock used for incoming messages.
-        virtual AllocatorBase* get_allocator()
-        {
-            return &lock_;
-        }
-
-        /// Callback from the message dispatcher.
-        virtual void handle_message(IncomingMessage* m, Notifiable* done);
+        virtual Action entry();
 
         Action incoming_datagram_allocated();
         Action respond_rejection();
 
-        union
-        {
-            IncomingMessage* m_;  //< Message called from the dispatcher.
-            IncomingDatagram* d_; //< Datagram to send to handler.
-        };
+        Buffer<IncomingDatagram>* d_; //< Datagram to send to handler.
         uint16_t resultCode_;   //< Rejection reason
 
         /// Maintains the registered datagram handlers.
         Registry registry_;
 
-        TypedAllocator<IncomingMessageHandler> lock_;
-        If* interface_;
+        //TypedAllocator<IncomingMessageHandler> lock_;
     };
 
     /// Interface on which we are registered.
     If* interface_;
 
     /// Datagram clients.
-    TypedAllocator<DatagramClient> clients_;
+    TypedQAsync<DatagramClient> clients_;
 
     /// Datagram dispatch handler.
     DatagramDispatcher dispatcher_;

@@ -74,7 +74,7 @@ private:
     {
         MTI_1a = Defs::MTI_TERMINATE_DUE_TO_ERROR,
         MTI_1b = Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
-        MASK_1 = !(MTI_1a ^ MTI_1b),
+        MASK_1 = ~(MTI_1a ^ MTI_1b),
         MTI_1 = MTI_1a,
         MTI_2a = Defs::MTI_DATAGRAM_OK,
         MTI_2b = Defs::MTI_DATAGRAM_REJECTED,
@@ -165,7 +165,7 @@ private:
 
     // override.
     virtual Action timeout_looking_for_dst()
-    {
+    { 
         LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
                   "address %012llx to an alias on the bus. Dropping packet.",
             dst_.id);

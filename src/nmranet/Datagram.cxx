@@ -37,70 +37,58 @@
 namespace nmranet
 {
 
-DatagramSupport::DatagramSupport(If* interface,
+DatagramService::DatagramService(If* interface,
                                  size_t num_registry_entries)
-    : interface_(interface), dispatcher_(interface_, num_registry_entries)
+    : Service(interface->executor()), interface_(interface), dispatcher_(interface_, num_registry_entries)
 {
-    interface_->dispatcher()->register_handler(Defs::MTI_DATAGRAM, 0xffff,
-                                              &dispatcher_);
+    interface_->dispatcher()->register_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
+                                              );
 }
 
-DatagramSupport::~DatagramSupport()
+DatagramService::~DatagramService()
 {
-    interface_->dispatcher()->unregister_handler(Defs::MTI_DATAGRAM, 0xffff,
-                                                &dispatcher_);
+    interface_->dispatcher()->unregister_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
+                                                );
 }
 
-void DatagramSupport::DatagramDispatcher::handle_message(IncomingMessage* m,
-                                                         Notifiable* done)
+StateFlowBase::Action DatagramService::DatagramDispatcher::entry()
 {
-    HASSERT(!m_);
-    HASSERT(IsNotStarted());
-    if (!m->dst_node)
+    if (!nmsg()->dstNode)
     {
-        // Destination is not a local virtal node.
-        lock_.TypedRelease(this);
-        done->notify();
-        return;
+        return release_and_exit();
     }
-    m_ = m;
-    Restart(done);
-    Allocate(&g_incoming_datagram_allocator, ST(incoming_datagram_allocated));
+    return allocate_and_call<IncomingDatagram>(nullptr, STATE(incoming_datagram_allocated), g_incoming_datagram_allocator);
 }
 
 StateFlowBase::Action
-DatagramSupport::DatagramDispatcher::incoming_datagram_allocated()
+DatagramService::DatagramDispatcher::incoming_datagram_allocated()
 {
-    IncomingDatagram* d =
-        GetTypedAllocationResult(&g_incoming_datagram_allocator);
-    d->src = m_->src;
-    d->dst = m_->dst_node;
-    d->payload = m_->payload;
+    Buffer<IncomingDatagram>* b =
+        get_allocation_result<IncomingDatagram>(nullptr);
+    IncomingDatagram* d = b->data();
+    d->src = nmsg()->src;
+    d->dst = nmsg()->dstNode;
+
     // Takes over ownership of payload.
     /// @TODO(balazs.racz) Implement buffer refcounting.
-    m_->payload = nullptr;
+    d->payload.swap(nmsg()->payload);
 
-    // The incoming message is no longer needed; call the done callback. Since
-    // we don't release ourselves to the lock yet, there will be no other
-    // incoming message to handle coming yet.
-    m_ = nullptr;
-    Exit();
+    release();
 
-    // Saves the datagram pointer -- note that this is unioned over m_ which was
-    // cleared above.
-    d_ = d;
+    // Saves the datagram buffer pointer.
+    d_ = b;
 
     unsigned datagram_id = -1;
-    if (!d->payload || !d->payload->used())
+    if (d->payload.empty())
     {
         LOG(WARNING, "Invalid arguments: incoming datagram from node %llx "
                      "alias %x has no payload.",
             d->src.id, d->src.alias);
         resultCode_ = DatagramClient::PERMANENT_ERROR;
-        return Allocate(interface_->addressed_write_allocator(),
-                        ST(respond_rejection));
+        return allocate_and_call(interface()->addressed_message_write_flow(),
+                                 STATE(respond_rejection));
     }
-    datagram_id = *static_cast<uint8_t*>(d->payload->start());
+    datagram_id = *reinterpret_cast<const uint8_t*>(d->payload.data());
 
     // Looks up the datagram handler.
     DatagramHandler* h = registry_.lookup(d->dst, datagram_id);
@@ -110,30 +98,32 @@ DatagramSupport::DatagramDispatcher::incoming_datagram_allocated()
         LOG(VERBOSE, "No datagram handler found for node %p id %x", d->dst,
             datagram_id);
         resultCode_ = DatagramClient::PERMANENT_ERROR;
-        return Allocate(interface_->addressed_write_allocator(),
-                        ST(respond_rejection));
+        return allocate_and_call(interface()->addressed_message_write_flow(),
+                                 STATE(respond_rejection));
     }
 
-    h->datagram_arrived(d_);
+    h->send(d_);
     d_ = nullptr;
-    return ReleaseAndExit(&lock_, this);
+    return exit();
 }
 
 StateFlowBase::Action
-DatagramSupport::DatagramDispatcher::respond_rejection()
+DatagramService::DatagramDispatcher::respond_rejection()
 {
-    auto* f = GetTypedAllocationResult(interface_->addressed_write_allocator());
+    auto* f = get_allocation_result(interface()->addressed_message_write_flow());
 
-    Buffer* payload = buffer_alloc(2);
-    uint8_t* w = static_cast<uint8_t*>(payload->start());
+    f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, d_->data()->dst->node_id(),
+                     d_->data()->src, EMPTY_PAYLOAD);
+    f->data()->payload.resize(2);
+    uint8_t* w = reinterpret_cast<uint8_t*>(&f->data()->payload[0]);
     w[0] = (resultCode_ >> 8) & 0xff;
     w[1] = resultCode_ & 0xff;
-    payload->advance(2);
-    f->WriteAddressedMessage(Defs::MTI_DATAGRAM_REJECTED, d_->dst->node_id(),
-                             d_->src, payload, nullptr);
-    d_->free();
+    
+    interface()->addressed_message_write_flow()->send(f);
+    
+    d_->unref();
     d_ = nullptr;
-    return ReleaseAndExit(&lock_, this);
+    return exit();
 }
 
 } // namespace nmranet

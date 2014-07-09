@@ -393,7 +393,6 @@ public:
      * @return item retrieved from queue, NULL if no item available
      */
     void next_async(Executable *flow);
-
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
@@ -456,6 +455,9 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QAsync);
 };
 
+template<class T> class TypedQAsync : public QAsync {};
+
+
 /** A list of queues.  Index 0 is the highest priority queue with increasingly
  * higher indexes having increasingly lower priority.
  */
@@ -463,7 +465,7 @@ template <unsigned ITEMS> class QList : public QInterface
 {
 public:
     /** Default Constructor.
-     * @param size number of queues in the list
+     * @pagram size number of queues in the list
      */
     QList()
         : QInterface()

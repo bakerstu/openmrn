@@ -19,10 +19,10 @@ CXXSRCS += \
            TractionTrain.cxx \
            Velocity.cxx \
            WriteHelper.cxx \
+           Datagram.cxx \
 
 
 DEAD_CXX +=  \
-           Datagram.cxx \
            DatagramCan.cxx \
            MemoryConfig.cxx \
            Stream.cxx \
