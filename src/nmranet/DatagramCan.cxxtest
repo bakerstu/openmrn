@@ -94,7 +94,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
         handle_message(
             Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&NMRAnetMessage::dstNode, node_),
-                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
                           Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
@@ -114,11 +114,11 @@ TEST_F(AsyncRawDatagramTest, OutOfOrderRestart)
 
     // Another start packet -> rejection.
     send_packet_and_expect_response(":X1B22A555N3031323334353637;",
-                                ":X19A4822AN05552040;");
+                                    ":X19A4822AN05552040;");
 
     // Now the finish packet will die as well.
     send_packet_and_expect_response(":X1D22A555N3331323334353637;",
-                                ":X19A4822AN05552040;");
+                                    ":X19A4822AN05552040;");
 }
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
@@ -128,7 +128,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
         handle_message(
             Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&NMRAnetMessage::dstNode, node_),
-                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
                           Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
@@ -142,11 +142,11 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
 
     // A finish packet out of the blue.
     send_packet_and_expect_response(":X1D22A555N3331323334353637;",
-                                ":X19A4822AN05552040;");
+                                    ":X19A4822AN05552040;");
 
     // A middle packet out of the blue.
     send_packet_and_expect_response(":X1C22A555N3331323334353637;",
-                                ":X19A4822AN05552040;");
+                                    ":X19A4822AN05552040;");
 }
 
 /*
@@ -170,13 +170,13 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     return o;
     }*/
 
-::std::ostream& operator<<(::std::ostream& o, const NodeHandle& h)
+::std::ostream &operator<<(::std::ostream &o, const NodeHandle &h)
 {
     o << StringPrintf("Handle(%012llx, %03x)", h.id, h.alias);
     return o;
 }
 
-::std::ostream& operator<<(::std::ostream& o, const NMRAnetMessage& m)
+::std::ostream &operator<<(::std::ostream &o, const NMRAnetMessage &m)
 {
     o << "an NMRAnetMessage"
       << " of MTI " << StringPrintf("%04x", m.mti) << " from " << m.src
@@ -189,7 +189,7 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
 {
     send_packet(":X1B22A555N3031323334353637;"); // 8
     for (int i = 0; i < 7; i++)
-    {                                                                     // +7*
+    { // +7*
         send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
     }
     EXPECT_CALL(
@@ -197,7 +197,7 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
         handle_message(
             Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&NMRAnetMessage::dstNode, node_),
-                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
                           Field(&NMRAnetMessage::payload,
                                 IsBufferValueString("01234567112345672123456731"
                                                     "23456741234567512345676123"
@@ -211,7 +211,7 @@ TEST_F(AsyncRawDatagramTest, TooLongDatagram)
 {
     send_packet(":X1B22A555N3031323334353637;"); // 8
     for (int i = 0; i < 8; i++)
-    {                                                                     // +8*
+    { // +8*
         send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
     }
     send_packet_and_expect_response(
@@ -223,14 +223,13 @@ TEST_F(AsyncRawDatagramTest, TooLongDatagram2)
 {
     send_packet(":X1B22A555N3031323334353637;"); // 8
     for (int i = 0; i < 8; i++)
-    {                                                                     // +8*
+    { // +8*
         send_packet(StringPrintf(":X1C22A555N3%d31323334353637;", i + 1)); // 8
     }
     send_packet_and_expect_response(
         ":X1D22A555N3031323334353637;",
         ":X19A4822AN05551000;"); // Datagram rejected permanent error
 }
-
 
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
 {
@@ -239,7 +238,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
         handle_message(
             Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&NMRAnetMessage::dstNode, node_),
-                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
                           Field(&NMRAnetMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
@@ -250,7 +249,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
         handle_message(
             Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                           Field(&NMRAnetMessage::dstNode, node_),
-                          //Field(&NMRAnetMessage::payload, NotNull()),
+                          // Field(&NMRAnetMessage::payload, NotNull()),
                           Field(&NMRAnetMessage::payload,
                                 IsBufferValueString("01234")) //,
                           )),
@@ -274,7 +273,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
                 Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&NMRAnetMessage::dstNode, node_),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x577)),
-                //Field(&NMRAnetMessage::payload, NotNull()),
+                // Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
@@ -287,7 +286,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
                 Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&NMRAnetMessage::dstNode, node_),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                //Field(&NMRAnetMessage::payload, NotNull()),
+                // Field(&NMRAnetMessage::payload, NotNull()),
                 Field(
                     &NMRAnetMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
@@ -313,7 +312,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
                 Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&NMRAnetMessage::dstNode, &other_node),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                //Field(&NMRAnetMessage::payload, NotNull()),
+                // Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
@@ -326,7 +325,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
                 Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
                 Field(&NMRAnetMessage::dstNode, node_),
                 Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                //Field(&NMRAnetMessage::payload, NotNull()),
+                // Field(&NMRAnetMessage::payload, NotNull()),
                 Field(
                     &NMRAnetMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
@@ -344,7 +343,7 @@ public:
     {
     }
 
-    MOCK_METHOD1(handle_datagram, void(IncomingDatagram* d));
+    MOCK_METHOD1(handle_datagram, void(IncomingDatagram *d));
 
     Action entry() OVERRIDE
     {
@@ -361,7 +360,7 @@ TEST_F(AsyncDatagramTest, DispatchTest)
         dg, handle_datagram(Pointee(AllOf(
                 Field(&IncomingDatagram::src, Field(&NodeHandle::alias, 0x555)),
                 Field(&IncomingDatagram::dst, node_),
-                //Field(&IncomingDatagram::payload, NotNull()),
+                // Field(&IncomingDatagram::payload, NotNull()),
                 Field(&IncomingDatagram::payload,
                       IsBufferValueString("01234567")) //,
                 ))));
@@ -370,7 +369,7 @@ TEST_F(AsyncDatagramTest, DispatchTest)
     usleep(3000);
 }
 
-DatagramPayload string_to_buffer(const string& value)
+DatagramPayload string_to_buffer(const string &value)
 {
     return value;
 }
@@ -378,11 +377,12 @@ DatagramPayload string_to_buffer(const string& value)
 TEST_F(AsyncDatagramTest, OutgoingTestSmall)
 {
     print_all_packets();
-    DatagramClient* c = datagram_support_.client_allocator()->next_blocking();
+    DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{0, 0x77C};
     expect_packet(":X1A77C22AN30313233343536;");
-    auto* b = ifCan_->dispatcher()->alloc();
-    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h, string_to_buffer("0123456"));
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
     b->set_done(get_notifiable());
     c->write_datagram(b);
     wait();
