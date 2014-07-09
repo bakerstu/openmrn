@@ -113,11 +113,7 @@ DatagramService::DatagramDispatcher::respond_rejection()
     auto* f = get_allocation_result(interface()->addressed_message_write_flow());
 
     f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, d_->data()->dst->node_id(),
-                     d_->data()->src, EMPTY_PAYLOAD);
-    f->data()->payload.resize(2);
-    uint8_t* w = reinterpret_cast<uint8_t*>(&f->data()->payload[0]);
-    w[0] = (resultCode_ >> 8) & 0xff;
-    w[1] = resultCode_ & 0xff;
+                     d_->data()->src, error_to_buffer(resultCode_));
     
     interface()->addressed_message_write_flow()->send(f);
     

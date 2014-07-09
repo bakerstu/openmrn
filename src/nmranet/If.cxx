@@ -62,6 +62,14 @@ string error_to_buffer(uint16_t error_code, uint16_t mti)
     return ret;
 }
 
+string error_to_buffer(uint16_t error_code)
+{
+    string ret(2, '\0');
+    ret[0] = error_code >> 8;
+    ret[1] = error_code & 0xff;
+    return ret;
+}
+
 string EMPTY_PAYLOAD;
 
 /*Buffer *node_id_to_buffer(NodeID id)

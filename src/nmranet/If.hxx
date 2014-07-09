@@ -75,6 +75,10 @@ extern NodeID buffer_to_node_id(const string& buf);
  * Interaction Rejected or Terminate Due To Error. */
 extern string error_to_buffer(uint16_t error_code, uint16_t mti);
 
+/** Formats a payload for response of error response messages such as Datagram
+ * Rejected. */
+extern string error_to_buffer(uint16_t error_code);
+
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 
