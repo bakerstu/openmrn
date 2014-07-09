@@ -466,6 +466,10 @@ public:
         return BlockingWait(this).result();
     }
 
+    void typed_insert(T* entry) {
+        insert(entry);
+    }
+
 private:
     class BlockingWait : public Executable
     {

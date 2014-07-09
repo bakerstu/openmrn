@@ -347,6 +347,19 @@ protected:
 
     /** Takes the result of the asynchronous allocation without resetting the
      * object. This should be the first statement in the state where the
+     * allocation transitioned. If you expect an empty object, use
+     * \ref get_allocation_result() instead.
+     * @param qasync is the typed queue which we allocated from.
+     * @return The object that the queue gave to us. */
+    template <class T>
+    T *full_allocation_result(TypedQAsync<T> *queue)
+    {
+        T *result = static_cast<T*>(allocationResult_);
+        return result;
+    }
+
+    /** Takes the result of the asynchronous allocation without resetting the
+     * object. This should be the first statement in the state where the
      * allocation transitioned. T must be descendant of QMember. */
     template <class T>
     void cast_allocation_result(T** member)
