@@ -32,6 +32,7 @@
  * @date 23 June 2014
  */
 
+#include <string.h>
 #include <stdlib.h>
 #include "utils/blinker.h"
 
@@ -93,4 +94,11 @@ void *buffer_malloc(size_t size)
      * tracing. */
     void *volatile v = usb_malloc(size);
     return v;
+}
+
+struct _reent* allocate_reent(void)
+{
+    struct _reent* data = usb_malloc(sizeof(struct _reent));
+    _REENT_INIT_PTR(data);
+    return data;
 }
