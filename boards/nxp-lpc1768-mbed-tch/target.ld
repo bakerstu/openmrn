@@ -23,8 +23,15 @@ MEMORY
 }
 
 __ETHRAM_segment_start__  = ORIGIN( ETH_RAM );
+
+/* Set stack top to end of RAM, and stack limit move down by      
+ * size of stack_dummy section */
+__cs3_heap_end = ORIGIN(RAM) + LENGTH(RAM);
+__StackTop = ORIGIN( ETH_RAM ) + LENGTH( ETH_RAM );
+__StackLimit = __StackTop - 0x200;
+PROVIDE(__stack = __StackTop);
 /* This marks the highest allocatable stack space */
-__stacks_min__ = ORIGIN( ETH_RAM ) + LENGTH( ETH_RAM );
+__stacks_min__ = __StackLimit ;
 
 __USBRAM_segment_start__  = ORIGIN( USB_RAM );
 __USBRAM_segment_end__    = ORIGIN( USB_RAM ) + LENGTH( USB_RAM );
@@ -166,12 +173,6 @@ SECTIONS
         *(.stack)
     } > RAM
 
-    /* Set stack top to end of RAM, and stack limit move down by
-     * size of stack_dummy section */
-    __StackTop = ORIGIN(RAM) + LENGTH(RAM);
-    __StackLimit = __StackTop - 0x200;
-    __cs3_heap_end = __StackLimit;
-    PROVIDE(__stack = __StackTop);
     
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
