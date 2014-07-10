@@ -70,6 +70,8 @@ extern const char *nmranet_software_rev;
 
 /** Defines the default bit-rate for CAN devices. */
 DECLARE_CONST(nmranet_can_bitrate);
+/** Defines the default bit-rate for the second CAN device (aka /dev/can1). */
+DECLARE_CONST(can2_bitrate);
 
 /** The priority of main thread. Used in FreeRTOS. 0 = default priority
  * (middle). Larger number gets the CPU over smaller number. The limit is

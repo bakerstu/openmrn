@@ -174,4 +174,4 @@ void MbedCanDriver::interrupt()
 
 /** The TCH baseboard for the mbed has CAN1 and CAN2 mixed up. */
 MbedCanDriver can0(MbedCanDriver::CAN2, "/dev/can0", config_nmranet_can_bitrate());
-MbedCanDriver can1(MbedCanDriver::CAN1, "/dev/can1", config_nmranet_can_bitrate());
+MbedCanDriver can1(MbedCanDriver::CAN1, "/dev/can1", config_can2_bitrate() ? config_can2_bitrate() : config_nmranet_can_bitrate());
