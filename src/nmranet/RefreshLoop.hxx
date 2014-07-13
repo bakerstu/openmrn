@@ -1,0 +1,96 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file RefreshLoop.hxx
+ * Flow that performs periodic polling.
+ *
+ * @author Balazs Racz
+ * @date 13 Jul 2014
+ */
+
+#ifndef _NMRANET_REFRESHLOOP_HXX_
+#define _NMRANET_REFRESHLOOP_HXX_
+
+#include <vector>
+
+#include "executor/StateFlow.hxx"
+#include "executor/Timer.hxx"
+#include "nmranet/WriteHelper.hxx"
+
+namespace nmranet
+{
+
+class Polling
+{
+public:
+    /** This function will be called approximately 10 times per second b the
+     * refresh loop. It must notify done when it is finished using the
+     * writehelper. */
+    virtual void poll_10hz(WriteHelper *helper, Notifiable *done) = 0;
+};
+
+class RefreshLoop : public StateFlowBase
+{
+public:
+    RefreshLoop(Node *node, const std::initializer_list<Polling *> &members)
+        : node_(node)
+        , timer_(this)
+        , lastTimeout_(os_get_time_monotonic())
+        , members_(members)
+    {
+        start_flow(STATE(wait_for_tick));
+    }
+
+    Action wait_for_tick()
+    {
+        long long next_timeout = lastTimeout_ + MSEC_TO_NSEC(100);
+        nextMember_ = 0;
+        // If we have overflowed our timer, this call will happen immediately.
+        return sleep_and_call(&timer_, next_timeout, STATE(call_members));
+    }
+
+    Action call_members()
+    {
+        if (nextMember_ >= members_.size())
+        {
+            return call_immediately(STATE(wait_for_tick));
+        }
+        members_[nextMember_++]->poll_10hz(&helper, this);
+        return wait();
+    }
+
+private:
+    Node *node_;
+    WriteHelper helper_;
+    StateFlowTimer timer_;
+    long long lastTimeout_;
+    std::initializer_list<Polling *> members_;
+    unsigned nextMember_;
+};
+
+} // namespace nmranet
+
+#endif // _NMRANET_REFRESHLOOP_HXX_
