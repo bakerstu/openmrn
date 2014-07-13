@@ -34,6 +34,9 @@ endif
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
 LIBNAME = lib$(BASENAME).a
 
+ifdef BOARD
+INCLUDES += -D$(BOARD)
+endif
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 
