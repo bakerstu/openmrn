@@ -87,9 +87,6 @@ void timer5a_interrupt_handler(void)
     // Set output LED.
     MAP_GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6,
                      (rest_pattern & 1) ? GPIO_PIN_6 : 0);
-
-    MAP_GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4,
-                     (rest_pattern & 1) ? GPIO_PIN_4 : 0);
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
