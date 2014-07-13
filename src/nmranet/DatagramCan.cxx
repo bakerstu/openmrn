@@ -164,10 +164,6 @@ private:
 
     Action timeout_looking_for_dst() OVERRIDE
     { 
-        LOG(INFO, "CanDatagramWriteFlow: Could not resolve destination "
-                  "address %012llx to an alias on the bus. Dropping packet.",
-            nmsg()->dst.id);
-        UnregisterLocalHandler();
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
         return call_immediately(STATE(datagram_finalize));
     }

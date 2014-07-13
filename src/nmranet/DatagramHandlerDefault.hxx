@@ -77,7 +77,7 @@ public:
             dg_service()->interface()->addressed_message_write_flow());
         b->data()->reset(responseMti_, message()->data()->dst->node_id(),
                          message()->data()->src,
-                         Payload((char)(responseErrorCode_ & 0xff), 1));
+                         Payload(1, (char)(responseErrorCode_ & 0xff)));
         dg_service()->interface()->addressed_message_write_flow()->send(b);
         return call_immediately(STATE(ok_response_sent));
     }

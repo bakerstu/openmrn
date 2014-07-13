@@ -364,10 +364,10 @@ protected:
                          node_id_to_buffer(nmsg()->dst.id));
         if_can()->global_message_write_flow()->send(b);
         return sleep_and_call(&timer_, ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC,
-                              STATE(timeout_looking_for_dst));
+                              STATE(wait_looking_for_dst));
     }
 
-    virtual Action timeout_looking_for_dst()
+    Action wait_looking_for_dst()
     {
         if (dstAlias_ && dstAlias_ <= 0xFFF)
         {
@@ -378,6 +378,11 @@ protected:
             nmsg()->dst.id);
         UnregisterLocalHandler();
         if_can()->remote_aliases()->add(nmsg()->dst.id, NOT_RESPONDING);
+        return call_immediately(STATE(timeout_looking_for_dst));
+    }
+
+    virtual Action timeout_looking_for_dst()
+    {
         return call_immediately(STATE(send_finished));
     }
 
