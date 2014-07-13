@@ -87,6 +87,9 @@ void timer5a_interrupt_handler(void)
     // Set output LED.
     MAP_GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6,
                      (rest_pattern & 1) ? GPIO_PIN_6 : 0);
+
+    MAP_GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4,
+                     (rest_pattern & 1) ? GPIO_PIN_4 : 0);
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
@@ -104,6 +107,37 @@ void diewith(uint32_t pattern)
 }
 }
 
+/** Configures a gpio pin for active-high output interfacing with the railroad
+ * (such as solenoids or relays). This output type is normally low and it is
+ * important not to keep it high or floating for too long even during boot. */
+void set_gpio_output(uint32_t port, uint32_t pin) {
+    MAP_GPIOPinWrite(port, pin, 0);
+    MAP_GPIOPinTypeGPIOOutput(port, pin); 
+    MAP_GPIOPinWrite(port, pin, 0);
+}
+
+/** Configures a gpio pin for input with external pullup. */
+void set_gpio_extinput(uint32_t port, uint32_t pin) {
+    MAP_GPIOPinWrite(port, pin, 0);
+    MAP_GPIOPinTypeGPIOInput(port, pin); 
+    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
+}
+
+/** Configures a gpio pin for a button/switch (input with pullup). */
+void set_gpio_switch(uint32_t port, uint32_t pin) {
+    MAP_GPIOPinWrite(port, pin, 0);
+    MAP_GPIOPinTypeGPIOInput(port, pin); 
+    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU); 
+}
+
+/** Configures a GPIO pin to directly drive a LED (with 8mA output drive). */
+void set_gpio_led(uint32_t port, uint32_t pin) {
+    MAP_GPIOPinWrite(port, pin, 0xff);
+    MAP_GPIOPinTypeGPIOOutput(port, pin); 
+    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD); 
+    MAP_GPIOPinWrite(port, pin, 0xff);
+}
+
 /** Initialize the processor hardware.
  */
 void hw_init(void)
@@ -111,15 +145,51 @@ void hw_init(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    /* We initialize the output pins to their default state before doing the
+     * clock switching to avoid floating pins that interface to the
+     * railroad. */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
+
+
+    set_gpio_led(GPIO_PORTD_BASE, GPIO_PIN_6); // Red led
+    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_0); // Yellow led
+    set_gpio_led(GPIO_PORTD_BASE, GPIO_PIN_5); // Green led
+    set_gpio_led(GPIO_PORTG_BASE, GPIO_PIN_1); // Blue led 1
+
+    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_6); // Blue led (for sw)
+    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_7); // Gold led (for sw)
+
+    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_4); // Rel0
+    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_5); // Rel1
+    set_gpio_output(GPIO_PORTG_BASE, GPIO_PIN_5); // Rel2
+    set_gpio_output(GPIO_PORTF_BASE, GPIO_PIN_3); // Rel3
+
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_4); // Out0
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_5); // Out1
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_0); // Out2
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_1); // Out3
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_2); // Out4
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_3); // Out5
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_2); // Out6
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_3); // Out7
+
+    set_gpio_extinput(GPIO_PORTA_BASE, 0xff);  // In0..7 -- all bits.
+    set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
+    set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_7);  // Gold button
+
     /* Setup the system clock. */
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                        SYSCTL_XTAL_20MHZ);
 
-    /* Red LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6, GPIO_PIN_6);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_6);
-    MAP_GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6, GPIO_PIN_6);
+    /*MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
+    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);*/
 
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
@@ -147,23 +217,4 @@ void hw_init(void)
     MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-    /* Blue LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
-    MAP_GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_1, GPIO_PIN_1);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_1);
-
-    /* Yellow LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    MAP_GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, GPIO_PIN_0);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0);
-
-    /* Green LED pin initialization */
-    /*MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);*/
-
-    /* Initialize timer0a interrupt */
-
-    //MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 }
