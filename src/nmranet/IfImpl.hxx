@@ -136,8 +136,8 @@ public:
     VerifyNodeIdHandler(If *service) : IncomingMessageStateFlow(service)
     {
         interface()->dispatcher()->register_handler(
-            this,
-            Defs::MTI_VERIFY_NODE_ID_GLOBAL & Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            this, Defs::MTI_VERIFY_NODE_ID_GLOBAL &
+                      Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
                        Defs::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
@@ -145,8 +145,8 @@ public:
     ~VerifyNodeIdHandler()
     {
         interface()->dispatcher()->unregister_handler(
-            this,
-            Defs::MTI_VERIFY_NODE_ID_GLOBAL & Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            this, Defs::MTI_VERIFY_NODE_ID_GLOBAL &
+                      Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
                        Defs::MTI_VERIFY_NODE_ID_ADDRESSED));
     }
@@ -165,6 +165,11 @@ public:
             // Global message with a node id included
             NodeID id = buffer_to_node_id(m->payload);
             srcNode_ = interface()->lookup_local_node(id);
+            if (!srcNode_)
+            {
+                // Someone looking for a node that's not on this interface.
+                return release_and_exit();
+            }
         }
         else
         {
