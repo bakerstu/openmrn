@@ -36,8 +36,11 @@
  *
  * A debouncer class has to have the following public methods:
  *
- * // move constructor, only for parameters
- * MyDebouncer(MyDebouncer&& d);
+ * // A structure that captures the parameters.
+ * typedef ... Options;
+ *
+ * // Constructor from the parameters.
+ * explicit Debouncer(const Options& opts);
  *
  *  // returns the last known state
  * bool current_state();
@@ -60,16 +63,11 @@
 class QuiesceDebouncer
 {
 public:
-    QuiesceDebouncer(uint8_t wait_count)
+    typedef uint8_t Options;
+
+    QuiesceDebouncer(const Options& wait_count)
         : count_(0)
         , waitCount_(wait_count)
-        , currentState_(0)
-    {
-    }
-
-    QuiesceDebouncer(const QuiesceDebouncer &o)
-        : count_(0)
-        , waitCount_(o.waitCount_)
         , currentState_(0)
     {
     }
