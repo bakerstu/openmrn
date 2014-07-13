@@ -1,0 +1,115 @@
+#include "utils/async_if_test_helper.hxx"
+#include "nmranet/EventBitProducer.hxx"
+#include "utils/Debouncer.hxx"
+
+namespace nmranet
+{
+namespace
+{
+
+static const uint64_t EVENT = 0x0501010114FE0000ULL;
+
+class PolledProducerTest : public AsyncNodeTest
+{
+protected:
+    class FakeBit : public BitEventInterface
+    {
+    public:
+        FakeBit(PolledProducerTest *parent, uint64_t event_on,
+                uint64_t event_off)
+            : BitEventInterface(event_on, event_off)
+            , parent_(parent)
+        {
+        }
+
+        virtual bool GetCurrentState()
+        {
+            return parent_->hwState_;
+        }
+
+        void SetState(bool new_value) OVERRIDE
+        {
+            DIE("setstate should not be implemented");
+        }
+
+        Node *node() OVERRIDE
+        {
+            return parent_->node_;
+        }
+
+    private:
+        PolledProducerTest *parent_;
+    };
+
+    PolledProducerTest()
+        : hwState_(false)
+        , p_(3, this, EVENT, EVENT + 1)
+        , l_(node_, {&p_})
+        
+    {
+    }
+
+    ~PolledProducerTest()
+    {
+        wait();
+        l_.stop();
+        wait();
+    }
+
+    bool hw_state()
+    {
+        return hwState_;
+    }
+
+    bool hwState_;
+    PolledProducer<QuiesceDebouncer, FakeBit> p_;
+    RefreshLoop l_;
+};
+
+TEST_F(PolledProducerTest, CreateDestroy)
+{
+}
+
+TEST_F(PolledProducerTest, NoFlip)
+{
+    usleep(500000);
+}
+
+TEST_F(PolledProducerTest, FlipOnce)
+{
+    wait();
+    hwState_ = true;
+    usleep(250000);
+    expect_packet(":X195B422AN0501010114FE0000;");
+    usleep(100000);
+}
+
+TEST_F(PolledProducerTest, FlipLate)
+{
+    wait();
+    usleep(150000);
+    hwState_ = true;
+    usleep(200000);
+    expect_packet(":X195B422AN0501010114FE0000;");
+    usleep(250000);
+    hwState_ = false;
+    usleep(250000);
+    expect_packet(":X195B422AN0501010114FE0001;");
+    usleep(100000);
+}
+
+TEST_F(PolledProducerTest, Transient)
+{
+    wait();
+    hwState_ = true;
+    usleep(250000);
+    hwState_ = false;
+    usleep(250000);
+    hwState_ = true;
+    usleep(250000);
+    hwState_ = false;
+    usleep(350000);
+}
+
+} // namespace
+} // namespace nmranet
