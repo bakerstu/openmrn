@@ -98,8 +98,9 @@ private:
     WriteHelper helper_;
     StateFlowTimer timer_;
     long long lastTimeout_;
-    std::initializer_list<Polling *> members_;
-    std::initializer_list<Polling *>::iterator nextMember_;
+    typedef vector<Polling*> members_type;
+    members_type members_;
+    members_type::iterator nextMember_;
 };
 
 } // namespace nmranet
