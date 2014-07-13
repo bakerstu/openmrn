@@ -56,7 +56,8 @@ class RefreshLoop : public StateFlowBase
 {
 public:
     RefreshLoop(Node *node, const std::initializer_list<Polling *> &members)
-        : node_(node)
+        : StateFlowBase(node->interface())
+        , node_(node)
         , timer_(this)
         , lastTimeout_(os_get_time_monotonic())
         , members_(members)
@@ -64,21 +65,31 @@ public:
         start_flow(STATE(wait_for_tick));
     }
 
+    /** Stops the refresh loop. If you call this funciton, then wait for the
+     * executor, then it is safe to delete *this. */
+    void stop()
+    {
+        set_terminated();
+        timer_.trigger();
+    }
+
     Action wait_for_tick()
     {
-        long long next_timeout = lastTimeout_ + MSEC_TO_NSEC(100);
-        nextMember_ = 0;
+        lastTimeout_ += MSEC_TO_NSEC(100);
+        nextMember_ = members_.begin();
         // If we have overflowed our timer, this call will happen immediately.
-        return sleep_and_call(&timer_, next_timeout, STATE(call_members));
+        return sleep_and_call(&timer_, lastTimeout_ - os_get_time_monotonic(),
+                              STATE(call_members));
     }
 
     Action call_members()
     {
-        if (nextMember_ >= members_.size())
+        if (nextMember_ == members_.end())
         {
             return call_immediately(STATE(wait_for_tick));
         }
-        members_[nextMember_++]->poll_10hz(&helper, this);
+        (*nextMember_)->poll_10hz(&helper_, this);
+        ++nextMember_;
         return wait();
     }
 
@@ -88,7 +99,7 @@ private:
     StateFlowTimer timer_;
     long long lastTimeout_;
     std::initializer_list<Polling *> members_;
-    unsigned nextMember_;
+    std::initializer_list<Polling *>::iterator nextMember_;
 };
 
 } // namespace nmranet
