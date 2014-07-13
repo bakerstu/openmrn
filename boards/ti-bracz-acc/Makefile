@@ -21,6 +21,9 @@ SYSLIBRARIESEXTRA = -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
 
-CXXFLAGSEXTRA += -DPART_TM4C123AE6PMI
+CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+flash: $(EXECUTABLE).elf
+	ti-flash.sh $<
