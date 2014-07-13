@@ -338,6 +338,10 @@ extern unsigned long _edata;
 extern unsigned long _bss;
 extern unsigned long _ebss;
 
+/** This hardware initialization code will be called before C++ global objects
+ * are initialized. */
+extern void hw_preinit(void);
+
 /** Startup the C/C++ runtime environment.
  */
 void reset_handler(void)
@@ -368,6 +372,8 @@ void reset_handler(void)
             *zero++ = 0;
         }
     }
+
+    hw_preinit();
 
     /* call static constructors */
     __libc_init_array();

@@ -102,7 +102,6 @@ void diewith(uint32_t pattern)
     while (1)
         ;
 }
-}
 
 /** Configures a gpio pin for active-high output interfacing with the railroad
  * (such as solenoids or relays). This output type is normally low and it is
@@ -137,7 +136,7 @@ void set_gpio_led(uint32_t port, uint32_t pin) {
 
 /** Initialize the processor hardware.
  */
-void hw_init(void)
+void hw_preinit(void)
 {
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
@@ -214,4 +213,5 @@ void hw_init(void)
     MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+}
 }

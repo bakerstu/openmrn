@@ -105,11 +105,11 @@ void diewith(uint32_t pattern)
     while (1)
         ;
 }
-}
+
 
 /** Initialize the processor hardware.
  */
-void hw_init(void)
+void hw_preinit(void)
 {
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
@@ -163,4 +163,6 @@ void hw_init(void)
     /* Initialize timer0a interrupt */
 
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
+}
+
 }
