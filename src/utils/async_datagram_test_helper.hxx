@@ -68,6 +68,7 @@ protected:
         {
             otherIfCan_.reset(
                 new IfCan(&g_executor, &can_hub0, 10, 10, 5));
+            otherIfCan_->add_addressed_message_support();
             otherNodeIf_ = otherIfCan_.get();
             otherDatagramSupport_.reset(
                 new CanDatagramService(otherNodeIf_, 10, 2));
