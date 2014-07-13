@@ -1,0 +1,58 @@
+#include "utils/test_main.hxx"
+#include "utils/Debouncer.hxx"
+
+namespace
+{
+
+TEST(QuiesceDebouncerTest, InitState0) {
+    QuiesceDebouncer d(3);
+    d.initialize(false);
+    EXPECT_FALSE(d.current_state());
+    EXPECT_FALSE(d.current_state());
+    EXPECT_FALSE(d.current_state());
+}
+
+TEST(QuiesceDebouncerTest, InitState1) {
+    QuiesceDebouncer d(3);
+    d.initialize(true);
+    EXPECT_TRUE(d.current_state());
+}
+
+TEST(QuiesceDebouncerTest, Switch10AndSame) {
+    QuiesceDebouncer d(3);
+    d.initialize(true);
+    EXPECT_TRUE(d.current_state());
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_TRUE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+    EXPECT_FALSE(d.update_state(false));
+}
+
+TEST(QuiesceDebouncerTest, Switch01AndSame) {
+    QuiesceDebouncer d(3);
+    d.initialize(false);
+    EXPECT_FALSE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_FALSE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_FALSE(d.current_state());
+    EXPECT_TRUE(d.update_state(true));
+    EXPECT_TRUE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_TRUE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_TRUE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_TRUE(d.current_state());
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_FALSE(d.update_state(true));
+    EXPECT_FALSE(d.update_state(true));
+}
+
+
+} // namespace
