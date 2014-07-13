@@ -133,7 +133,7 @@ class BitEventHandler : public SimpleEventHandler {
 
   // Sends an event report packet (unconditionally).
   void SendEventReport(WriteHelper* writer,
-                       BarrierNotifiable* done);
+                       Notifiable* done);
 
  protected:
   // Registers this event handler with the global event manager. Call this from
@@ -182,7 +182,7 @@ class BitEventProducer : public BitEventHandler {
   // @param done is the notification callback. If it is NULL, the writer will
   // be invoked inline and potentially block the calling thread.
   void Update(WriteHelper* writer,
-              BarrierNotifiable* done) {
+              Notifiable* done) {
     SendEventReport(writer, done);
   }
 

@@ -458,7 +458,7 @@ void BitEventHandler::SendConsumerIdentified(BarrierNotifiable* done) {
                                  done->new_child());
 }
 
-void BitEventHandler::SendEventReport(WriteHelper* writer, BarrierNotifiable* done) {
+void BitEventHandler::SendEventReport(WriteHelper* writer, Notifiable* done) {
   bool value = bit_->GetCurrentState();
   uint64_t event = value ? bit_->event_on() : bit_->event_off();
   writer->WriteAsync(bit_->node(), Defs::MTI_EVENT_REPORT, WriteHelper::global(),
