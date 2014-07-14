@@ -38,6 +38,7 @@
 #include <memory>
 
 #include "os/os.h"
+#include "utils/constants.hxx"
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
@@ -49,10 +50,7 @@ Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 GcPacketPrinter packet_printer(&can_hub0);
 
-extern "C" {
-extern int GC_GENERATE_NEWLINES;
-int GC_GENERATE_NEWLINES = 1;
-}
+OVERRIDE_CONST(gc_generate_newlines, 1);
 
 /** Entry point to application.
  * @param argc number of command line arguments
