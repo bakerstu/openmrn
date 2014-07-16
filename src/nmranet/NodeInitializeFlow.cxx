@@ -37,13 +37,14 @@
 
 extern Service g_service;
 
+DECLARE_CONST(node_init_identify);
+
 namespace nmranet
 {
 
 struct InitializeRequest
 {
-    InitializeRequest()
-        : node(nullptr)
+    InitializeRequest() : node(nullptr)
     {
     }
     Node *node;
@@ -54,8 +55,7 @@ typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
 class InitializeFlow : public InitializeFlowBase
 {
 public:
-    InitializeFlow(Service *service)
-        : InitializeFlowBase(service)
+    InitializeFlow(Service *service) : InitializeFlowBase(service)
     {
     }
 
@@ -96,6 +96,10 @@ private:
 
     Action identify_events()
     {
+        if (!config_node_init_identify())
+        {
+            return release_and_exit();
+        }
         // Get the dispatch flow.
         return allocate_and_call(node()->interface()->dispatcher(),
                                  STATE(initiate_local_identify));
@@ -127,7 +131,7 @@ private:
 void StartInitializationFlow(Node *node)
 {
     static InitializeFlow g_initialize_flow(&g_service);
-    auto* b = g_initialize_flow.alloc();
+    auto *b = g_initialize_flow.alloc();
     b->data()->node = node;
     g_initialize_flow.send(b);
 }
