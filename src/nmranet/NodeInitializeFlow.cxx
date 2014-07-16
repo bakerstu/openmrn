@@ -32,6 +32,7 @@
  * @date 7 December 2013
  */
 
+#include "utils/constants.hxx"
 #include "nmranet/If.hxx"
 #include "nmranet/DefaultNode.hxx"
 
