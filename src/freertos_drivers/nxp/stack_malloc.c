@@ -37,8 +37,11 @@
 #include "utils/blinker.h"
 
 extern char __ETHRAM_segment_start__;
-static char* sstack_start = &__ETHRAM_segment_start__;
+//static char* sstack_start = &__ETHRAM_segment_start__;
 extern char __stacks_min__;
+
+void* usb_malloc(unsigned long length);
+
 
 /** Custom malloc function for stack spaces.
  *  \param length the length of block to allocate
@@ -50,19 +53,23 @@ extern char __stacks_min__;
  */
 void* stack_malloc(unsigned long length)
 {
-    char* old_stack_start = sstack_start;
+    return usb_malloc(length);
+/*    char* old_stack_start = sstack_start;
     char* new_stack_start = sstack_start + length;
     if (new_stack_start > &__stacks_min__)
     {
         diewith(BLINK_DIE_OUTOFMEMSTACK);
     }
     sstack_start = new_stack_start;
-    return old_stack_start;
+    return old_stack_start;*/
 }
 
 extern char __USBRAM_segment_start__;
 extern char __USBRAM_segment_end__;
-static char* ublock_start = &__USBRAM_segment_start__;
+//static char* ublock_start = &__USBRAM_segment_start__;
+
+extern char __bss_end__;
+static char* ublock_start = &__bss_end__;
 
 /** Custom malloc function for USB space.
  *  \param length the length of block to allocate
@@ -92,7 +99,7 @@ void *buffer_malloc(size_t size)
      * for this function. We want to avoid tail-chain optimization in this
      * function or else it disappears from the stack traces done for memory
      * tracing. */
-    void *volatile v = usb_malloc(size);
+    void *volatile v = stack_malloc(size);
     return v;
 }
 

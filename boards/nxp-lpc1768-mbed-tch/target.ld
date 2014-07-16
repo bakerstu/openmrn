@@ -18,23 +18,23 @@ MEMORY
   FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 512K
   RAM (rwx) : ORIGIN = 0x100000C8, LENGTH = 0x7F38
 
-  USB_RAM(rwx) : ORIGIN = 0x2007C000, LENGTH = 16K
-  ETH_RAM(rwx) : ORIGIN = 0x20080000, LENGTH = 16K
+  /*ETH_RAM(rwx) : ORIGIN = 0x20080000, LENGTH = 16K*/
+  USB_RAM(rwx) : ORIGIN = 0x2007C000, LENGTH = 32K
 }
 
-__ETHRAM_segment_start__  = ORIGIN( ETH_RAM );
+/*  XX__ETHRAM_segment_start__  = ORIGIN( ETH_RAM );*/
 
 /* Set stack top to end of RAM, and stack limit move down by      
  * size of stack_dummy section */
 __cs3_heap_end = ORIGIN(RAM) + LENGTH(RAM);
-__StackTop = ORIGIN( ETH_RAM ) + LENGTH( ETH_RAM );
+__StackTop = ORIGIN( USB_RAM ) + LENGTH( USB_RAM );
 __StackLimit = __StackTop - 0x200;
 PROVIDE(__stack = __StackTop);
 /* This marks the highest allocatable stack space */
 __stacks_min__ = __StackLimit ;
 
 __USBRAM_segment_start__  = ORIGIN( USB_RAM );
-__USBRAM_segment_end__    = ORIGIN( USB_RAM ) + LENGTH( USB_RAM );
+__USBRAM_segment_end__    = __StackLimit; /*ORIGIN( USB_RAM ) + LENGTH( USB_RAM );*/
 
 /* Linker script to place sections and symbol values. Should be used together
  * with other linker script that defines memory regions FLASH and RAM.
@@ -142,7 +142,7 @@ SECTIONS
         /* All data end */
         __data_end__ = .;
 
-    } > RAM
+    } > USB_RAM
 
     __data_init_start__ = LOADADDR( .data ) ;
     ASSERT(__data_init_start__ == __etext, "Initialized data source inconsistent")
@@ -154,7 +154,7 @@ SECTIONS
         *(.bss*)
         *(COMMON)
         __bss_end__ = .;
-    } > RAM
+    } > USB_RAM
     
     .heap :
     {
