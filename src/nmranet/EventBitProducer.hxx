@@ -59,11 +59,16 @@ public:
         return debouncer_.current_state();
     }
 
+    void SetState(bool new_value) OVERRIDE
+    {
+        debouncer_.initialize(new_value);
+    }
+
     void poll_10hz(WriteHelper *helper, Notifiable *done) OVERRIDE
     {
         if (debouncer_.update_state(BaseBit::GetCurrentState()))
         {
-            producer_.Update(helper, done);
+            producer_.SendEventReport(helper, done);
         }
         else
         {
@@ -73,7 +78,7 @@ public:
 
 private:
     Debouncer debouncer_;
-    BitEventProducer producer_;
+    BitEventPC producer_;
 };
 
 } // namespace nmranet
