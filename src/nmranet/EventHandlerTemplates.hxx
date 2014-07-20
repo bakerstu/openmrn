@@ -281,6 +281,10 @@ class ByteRangeEventC : public SimpleEventHandler {
                   unsigned size);
   virtual ~ByteRangeEventC();
 
+  /** This function is called by the handler when a data value overwrite event
+   * arrives. */
+  virtual void notify_changed(unsigned offset) {}
+
   virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
   virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
   virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
