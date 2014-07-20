@@ -197,7 +197,8 @@ private:
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
-        return release_and_exit();
+        release();
+        return set_terminated();
     }
 
     /** This object is registered to receive response messages at the interface
