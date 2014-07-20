@@ -64,7 +64,7 @@ public:
         debouncer_.initialize(new_value);
     }
 
-    void poll_10hz(WriteHelper *helper, Notifiable *done) OVERRIDE
+    void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
     {
         if (debouncer_.update_state(BaseBit::GetCurrentState()))
         {
