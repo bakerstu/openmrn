@@ -75,7 +75,7 @@ TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
     }
 
     MAP_CANInit(base);
-    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), config_nmranet_can_bitrate());
+    MAP_CANBitRateSet(base, cm3_cpu_clock_hz, config_nmranet_can_bitrate());
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
     tCANMsgObject can_message;
@@ -90,7 +90,7 @@ TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
  */
 void TivaCan::enable()
 {
-    MAP_CANBitRateSet(base, MAP_SysCtlClockGet(), config_nmranet_can_bitrate());
+    MAP_CANBitRateSet(base, cm3_cpu_clock_hz, config_nmranet_can_bitrate());
     MAP_IntEnable(interrupt);
     // The priority of CAN interrupt is as high as possible while maintaining
     // FreeRTOS compatibility.

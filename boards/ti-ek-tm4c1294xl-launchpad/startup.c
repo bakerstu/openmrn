@@ -128,21 +128,17 @@ extern void timer4a_interrupt_handler(void);
 extern void timer4b_interrupt_handler(void);
 extern void timer5a_interrupt_handler(void);
 extern void timer5b_interrupt_handler(void);
-extern void wide_timer0a_interrupt_handler(void);
-extern void wide_timer0b_interrupt_handler(void);
-extern void wide_timer1a_interrupt_handler(void);
-extern void wide_timer1b_interrupt_handler(void);
-extern void wide_timer2a_interrupt_handler(void);
-extern void wide_timer2b_interrupt_handler(void);
-extern void wide_timer3a_interrupt_handler(void);
-extern void wide_timer3b_interrupt_handler(void);
-extern void wide_timer4a_interrupt_handler(void);
-extern void wide_timer4b_interrupt_handler(void);
-extern void wide_timer5a_interrupt_handler(void);
-extern void wide_timer5b_interrupt_handler(void);
+extern void timer6a_interrupt_handler(void);
+extern void timer6b_interrupt_handler(void);
+extern void timer7a_interrupt_handler(void);
+extern void timer7b_interrupt_handler(void);
 extern void system_except_interrupt_handler(void);
 extern void i2c4_interrupt_handler(void);
 extern void i2c5_interrupt_handler(void);
+extern void i2c6_interrupt_handler(void);
+extern void i2c7_interrupt_handler(void);
+extern void i2c8_interrupt_handler(void);
+extern void i2c9_interrupt_handler(void);
 extern void portm_interrupt_handler(void);
 extern void portn_interrupt_handler(void);
 extern void portp_interrupt_handler(void);
@@ -159,11 +155,13 @@ extern void pwm1_1_interrupt_handler(void);
 extern void pwm1_2_interrupt_handler(void);
 extern void pwm1_3_interrupt_handler(void);
 extern void pwm1_fault_interrupt_handler(void);
+extern void fp_interrupt_handler(void);
+extern void tamper_interrupt_handler(void);
 extern void ignore_fn(void);
 
 extern const unsigned long cm3_cpu_clock_hz;
 /** CPU clock speed. */
-const unsigned long cm3_cpu_clock_hz = 20000000;
+const unsigned long cm3_cpu_clock_hz = 120000000;
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))
@@ -223,107 +221,82 @@ void (* const __interrupt_vector[])(void) =
     timer3a_interrupt_handler,       /**<  51 timer 3A */
     timer3b_interrupt_handler,       /**<  52 timer 3B */
     i2c1_interrupt_handler,          /**<  53 I2C1 */
-    qei1_interrupt_handler,          /**<  54 QEI1 */
-    can0_interrupt_handler,          /**<  55 CAN0 */
-    can1_interrupt_handler,          /**<  56 CAN1 */
-    0,                               /**<  57 reserved */
-    ethernet_interrupt_handler,      /**<  58 ethernet controller */
-    hibernation_interrupt_handler,   /**<  59 hibernation module */
-    usb0_interrupt_handler,          /**<  60 USB */
-    pwm0_3_interrupt_handler,        /**<  61 PWM0 generator 3 */
-    dma_software_interrupt_handler,  /**<  62 uDMA software */
-    dma_error_interrupt_handler,     /**<  63 uDMA error */
-    adc1_seq0_interrupt_handler,     /**<  64 ADC1 Sequence 0 */
-    adc1_seq1_interrupt_handler,     /**<  65 ADC1 Sequence 1 */
-    adc1_seq2_interrupt_handler,     /**<  66 ADC1 Sequence 2 */
-    adc1_seq3_interrupt_handler,     /**<  67 ADC1 Sequence 3 */
-    i2s0_interrupt_handler,          /**<  68 I2S0 */
-    epi_interrupt_handler,           /**<  69 EPI */
-    portj_interrupt_handler,         /**<  70 GPIO port J */
-    portk_interrupt_handler,         /**<  71 GPIO port K */
-    portl_interrupt_handler,         /**<  72 GPIO port L */
-    ssi2_interrupt_handler,          /**<  73 SSI2 */
-    ssi3_interrupt_handler,          /**<  74 SSI3 */
-    uart3_interrupt_handler,         /**<  75 UART3 */
-    uart4_interrupt_handler,         /**<  76 UART4 */
-    uart5_interrupt_handler,         /**<  77 UART5 */
-    uart6_interrupt_handler,         /**<  78 UART6 */
-    uart7_interrupt_handler,         /**<  79 UART7 */
-    0,                               /**<  80 reserved */
-    0,                               /**<  81 reserved */
-    0,                               /**<  82 reserved */
-    0,                               /**<  83 reserved */
-    i2c2_interrupt_handler,          /**<  84 I2C2 */
-    i2c3_interrupt_handler,          /**<  85 I2C3 */
-    timer4a_interrupt_handler,       /**<  86 timer 4A */
-    timer4b_interrupt_handler,       /**<  87 timer 4B */
-    0,                               /**<  88 reserved */
-    0,                               /**<  89 reserved */
+    can0_interrupt_handler,          /**<  54 CAN0 */
+    can1_interrupt_handler,          /**<  55 CAN1 */
+    ethernet_interrupt_handler,      /**<  56 Ethernet MAC */
+    hibernation_interrupt_handler,   /**<  57 hibernation module */
+    usb0_interrupt_handler,          /**<  58 USB0 */
+    pwm0_3_interrupt_handler,        /**<  59 PWM0 generator 3 */
+    dma_software_interrupt_handler,  /**<  60 uDMA software */
+    dma_error_interrupt_handler,     /**<  61 uDMA error */
+    adc1_seq0_interrupt_handler,     /**<  62 ADC1 Sequence 0 */
+    adc1_seq1_interrupt_handler,     /**<  63 ADC1 Sequence 1 */
+    adc1_seq2_interrupt_handler,     /**<  64 ADC1 Sequence 2 */
+    adc1_seq3_interrupt_handler,     /**<  65 ADC1 Sequence 3 */
+    epi_interrupt_handler,           /**<  66 EPI */
+    portj_interrupt_handler,         /**<  67 GPIO port J */
+    portk_interrupt_handler,         /**<  68 GPIO port K */
+    portl_interrupt_handler,         /**<  69 GPIO port L */
+    ssi2_interrupt_handler,          /**<  70 SSI2 */
+    ssi3_interrupt_handler,          /**<  71 SSI3 */
+    uart3_interrupt_handler,         /**<  72 UART3 */
+    uart4_interrupt_handler,         /**<  73 UART4 */
+    uart5_interrupt_handler,         /**<  74 UART5 */
+    uart6_interrupt_handler,         /**<  75 UART6 */
+    uart7_interrupt_handler,         /**<  76 UART7 */
+    i2c2_interrupt_handler,          /**<  77 I2C2 */
+    i2c3_interrupt_handler,          /**<  78 I2C3 */
+    timer4a_interrupt_handler,       /**<  79 timer 4A */
+    timer4b_interrupt_handler,       /**<  80 timer 4B */
+    timer5a_interrupt_handler,       /**<  81 timer 5A */
+    timer5b_interrupt_handler,       /**<  82 timer 5B */
+    fp_interrupt_handler,            /**<  83 Floating-Point Exception */
+    0,                               /**<  84 reserved */
+    0,                               /**<  85 reserved */
+    i2c4_interrupt_handler,          /**<  86 I2C4 */
+    i2c5_interrupt_handler,          /**<  87 I2C5 */
+    portm_interrupt_handler,         /**<  88 GPIO port M */
+    portn_interrupt_handler,         /**<  89 GPIO port N */
     0,                               /**<  90 reserved */
-    0,                               /**<  91 reserved */
-    0,                               /**<  92 reserved */
-    0,                               /**<  93 reserved */
-    0,                               /**<  94 reserved */
-    0,                               /**<  95 reserved */
-    0,                               /**<  96 reserved */
-    0,                               /**<  97 reserved */
-    0,                               /**<  98 reserved */
-    0,                               /**<  99 reserved */
-    0,                               /**< 100 reserved */
-    0,                               /**< 101 reserved */
-    0,                               /**< 102 reserved */
-    0,                               /**< 103 reserved */
-    0,                               /**< 104 reserved */
-    0,                               /**< 105 reserved */
-    0,                               /**< 106 reserved */
-    0,                               /**< 107 reserved */
-    timer5a_interrupt_handler,       /**< 108 timer 5A */
-    timer5b_interrupt_handler,       /**< 109 timer 5B */
-    wide_timer0a_interrupt_handler,  /**< 110 wide timer 0A */
-    wide_timer0b_interrupt_handler,  /**< 111 wide timer 0B */
-    wide_timer1a_interrupt_handler,  /**< 112 wide timer 1A */
-    wide_timer1b_interrupt_handler,  /**< 113 wide timer 1B */
-    wide_timer2a_interrupt_handler,  /**< 114 wide timer 2A */
-    wide_timer2b_interrupt_handler,  /**< 115 wide timer 2B */
-    wide_timer3a_interrupt_handler,  /**< 116 wide timer 3A */
-    wide_timer3b_interrupt_handler,  /**< 117 wide timer 3B */
-    wide_timer4a_interrupt_handler,  /**< 118 wide timer 4A */
-    wide_timer4b_interrupt_handler,  /**< 119 wide timer 4B */
-    wide_timer5a_interrupt_handler,  /**< 120 wide timer 5A */
-    wide_timer5b_interrupt_handler,  /**< 121 wide timer 5B */
-    system_except_interrupt_handler, /**< 122 system exception (imprecise) */
+    tamper_interrupt_handler,        /**<  91 tamper */
+    portp_interrupt_handler,         /**<  92 GPIO port P (summary or P0) */
+    portp1_interrupt_handler,        /**<  93 GPIO port P1 */
+    portp2_interrupt_handler,        /**<  94 GPIO port P2 */
+    portp3_interrupt_handler,        /**<  95 GPIO port P3 */
+    portp4_interrupt_handler,        /**<  96 GPIO port P4 */
+    portp5_interrupt_handler,        /**<  97 GPIO port P5 */
+    portp6_interrupt_handler,        /**<  98 GPIO port P6 */
+    portp7_interrupt_handler,        /**<  99 GPIO port P7 */
+    portp_interrupt_handler,         /**< 100 GPIO port Q (summary or Q0) */
+    portp1_interrupt_handler,        /**< 101 GPIO port Q1 */
+    portp2_interrupt_handler,        /**< 102 GPIO port Q2 */
+    portp3_interrupt_handler,        /**< 103 GPIO port Q3 */
+    portp4_interrupt_handler,        /**< 104 GPIO port Q4 */
+    portp5_interrupt_handler,        /**< 105 GPIO port Q5 */
+    portp6_interrupt_handler,        /**< 106 GPIO port Q6 */
+    portp7_interrupt_handler,        /**< 107 GPIO port Q7 */
+    0,                               /**< 108 reserved */
+    0,                               /**< 109 reserved */
+    0,                               /**< 110 reserved */
+    0,                               /**< 111 reserved */
+    0,                               /**< 112  reserved */
+    0,                               /**< 113 reserved */
+    timer6a_interrupt_handler,       /**< 114 timer 5A */
+    timer6b_interrupt_handler,       /**< 115 timer 5B */
+    timer7a_interrupt_handler,       /**< 116 timer 5A */
+    timer7b_interrupt_handler,       /**< 117 timer 5B */
+    i2c6_interrupt_handler,          /**< 118 I2C6 */
+    i2c7_interrupt_handler,          /**< 119 I2C7 */
+    0,                               /**< 120 reserved */
+    0,                               /**< 121 reserved */
+    0,                               /**< 122 reserved */
     0,                               /**< 123 reserved */
     0,                               /**< 124 reserved */
-    i2c4_interrupt_handler,          /**< 125 I2C2 */
-    i2c5_interrupt_handler,          /**< 126 I2C3 */
-    portm_interrupt_handler,         /**< 127 GPIO port M */
-    portn_interrupt_handler,         /**< 128 GPIO port N */
+    i2c8_interrupt_handler,          /**< 125 I2C8 */
+    i2c9_interrupt_handler,          /**< 126 I2C9 */
+    0,                               /**< 127 reserved */
+    0,                               /**< 128 reserved */
     0,                               /**< 129 reserved */
-    0,                               /**< 130 reserved */
-    0,                               /**< 131 reserved */
-    portp_interrupt_handler,         /**< 132 GPIO port P (summary or P0) */
-    portp1_interrupt_handler,        /**< 133 GPIO port P1 */
-    portp2_interrupt_handler,        /**< 134 GPIO port P2 */
-    portp3_interrupt_handler,        /**< 135 GPIO port P3 */
-    portp4_interrupt_handler,        /**< 136 GPIO port P4 */
-    portp5_interrupt_handler,        /**< 137 GPIO port P5 */
-    portp6_interrupt_handler,        /**< 138 GPIO port P6 */
-    portp7_interrupt_handler,        /**< 139 GPIO port P7 */
-    0,                               /**< 140 reserved */
-    0,                               /**< 141 reserved */
-    0,                               /**< 142 reserved */
-    0,                               /**< 143 reserved */
-    0,                               /**< 144 reserved */
-    0,                               /**< 145 reserved */
-    0,                               /**< 146 reserved */
-    0,                               /**< 147 reserved */
-    0,                               /**< 148 reserved */
-    0,                               /**< 149 reserved */
-    pwm1_0_interrupt_handler,        /**< 150 PWM1 generator 0 */
-    pwm1_1_interrupt_handler,        /**< 151 PWM1 generator 1 */
-    pwm1_2_interrupt_handler,        /**< 152 PWM1 generator 2 */
-    pwm1_2_interrupt_handler,        /**< 153 PWM1 generator 3 */
-    pwm1_fault_interrupt_handler,    /**< 154 PWM1 fault */
     ignore_fn                        /**< forces the linker to add this fn */
 };
 
@@ -595,21 +568,17 @@ void timer4a_interrupt_handler(void) __attribute__ ((weak, alias ("default_inter
 void timer4b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer5a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer5b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer0a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer0b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer1a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer1b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer2a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer2b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer3a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer3b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer4a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer4b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer5a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void wide_timer5b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer6a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer6b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer7a_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer7b_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void system_except_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void i2c4_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void i2c5_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void i2c6_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void i2c7_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void i2c8_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void i2c9_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void portm_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void portn_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void portp_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
@@ -626,5 +595,8 @@ void pwm1_1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interr
 void pwm1_2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void pwm1_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void pwm1_fault_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void fp_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void tamper_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+
 
 

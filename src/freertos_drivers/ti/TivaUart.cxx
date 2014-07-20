@@ -101,7 +101,7 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
     /* We set the preliminary clock here, but it will be re-set when the device
      * gets enabled. The reason for re-setting is that the system clock is
      * switched in HwInit but that has not run yet at this point. */
-    MAP_UARTConfigSetExpClk(base, 16000000, 115200,
+    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
                             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
     MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
@@ -119,7 +119,7 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
  */
 void TivaUart::enable()
 {
-    MAP_UARTConfigSetExpClk(base, MAP_SysCtlClockGet(), 115200,
+    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
                             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
     MAP_IntEnable(interrupt);
     MAP_UARTEnable(base);

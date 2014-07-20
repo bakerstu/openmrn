@@ -1,0 +1,1 @@
+../ti-tiva/target.ld
