@@ -45,18 +45,23 @@ StateFlowBase::Action WriteFlowBase::addressed_entry()
         nmsg()->dstNode = async_if()->lookup_local_node(nmsg()->dst.id);
         if (nmsg()->dstNode)
         {
-            unsigned prio = priority();
-            // We do not believe infinite priority and use the one from the MTI
-            // instead.
-            if (prio >= (1 << 16))
-            {
-                prio = message()->data()->priority();
-            }
-            async_if()->dispatcher()->send(transfer_message(), prio);
-            return call_immediately(STATE(send_finished));
+            return call_immediately(STATE(send_to_local_node));
         }
     }
     return send_to_hardware();
+}
+
+StateFlowBase::Action WriteFlowBase::send_to_local_node()
+{
+    unsigned prio = priority();
+    // We do not believe infinite priority and use the one from the MTI
+    // instead.
+    if (prio >= (1 << 16))
+    {
+        prio = message()->data()->priority();
+    }
+    async_if()->dispatcher()->send(transfer_message(), prio);
+    return call_immediately(STATE(send_finished));
 }
 
 StateFlowBase::Action WriteFlowBase::global_entry()

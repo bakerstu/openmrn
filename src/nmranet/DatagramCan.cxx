@@ -73,11 +73,24 @@ public:
         start_flow(STATE(addressed_entry));
     }
 
+    Action send_to_local_node() OVERRIDE {
+        return allocate_and_call(async_if()->dispatcher(), STATE(local_copy_allocated));
+    }
+
+    Action local_copy_allocated() {
+        auto* b = get_allocation_result(async_if()->dispatcher());
+        b->data()->reset(nmsg()->mti, nmsg()->src.id, nmsg()->dst, Payload());
+        b->data()->payload.swap(nmsg()->payload);
+        b->data()->dstNode = nmsg()->dstNode;
+        async_if()->dispatcher()->send(b);
+        return call_immediately(STATE(send_finished));
+    }
+
     /** Requests cancelling the datagram send operation. Will notify the done
      * callback when the canceling is completed. */
     void cancel() OVERRIDE
     {
-        HASSERT(0);
+        DIE("Canceling datagram send operation is not yet implemented.");
     }
 
 private:

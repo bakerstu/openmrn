@@ -59,6 +59,12 @@ protected:
      * flow. */
     virtual Action send_to_hardware() = 0;
 
+    /** This state is called when an addressed message's destination is a node
+     * that is local to this interface. The dstNode will already be filled. The
+     * implementation should perform the send and then transition to the
+     * send_finished state. */
+    virtual Action send_to_local_node();
+
     /** Virtual method called after the send is completed, i.e., all the frames
      * are generated and sent to the hardware. Various flows might need to take
      * additional steps afterwards. */
