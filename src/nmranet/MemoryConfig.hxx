@@ -211,7 +211,6 @@ public:
     MemoryConfigHandler(DatagramService* if_dg, Node* node,
                         size_t registry_size)
         : DefaultDatagramHandler(if_dg),
-          response_(nullptr),
           responseFlow_(nullptr),
           registry_(registry_size)
     {
@@ -234,8 +233,9 @@ private:
     typedef MemorySpace::address_t address_t;
     typedef MemorySpace::errorcode_t errorcode_t;
 
-    Action datagram_arrived() OVERRIDE
+    Action entry() OVERRIDE
     {
+        response_.clear();
         const uint8_t* bytes = in_bytes();
         size_t len = message()->data()->payload.size();
         HASSERT(len >= 1);
@@ -342,8 +342,10 @@ private:
             ++response_data_offset;
         }
         size_t response_len = response_data_offset + read_len;
-        char c = 0;
-        response_.assign(c, response_len); /// @TODO: which order of arguments?
+        response_.clear();
+        response_.resize(response_len);
+        //char c = 0;
+        //response_.assign(c, response_len); /// @TODO: which order of arguments?
         uint8_t* response_bytes = out_bytes();
         errorcode_t error = 0;
         int byte_read = space->read(
@@ -362,6 +364,13 @@ private:
         {
             response_.resize(response_data_offset + byte_read);
         }
+        string db;
+        for (char c : response_) {
+            char x[10];
+            sprintf(x, "%02x", c);
+            db += x;
+        }
+        LOG(INFO, "datagram response: size %d %s", response_.size(), db.c_str());
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
