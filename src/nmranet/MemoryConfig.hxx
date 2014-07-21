@@ -36,7 +36,7 @@
 #define _NMRANET_MEMORYCONFIG_HXX_
 
 #include "nmranet/DatagramHandlerDefault.hxx"
-#include "nmranet/NMRAnetMemoryConfig.hxx"
+#include "nmranet/MemoryConfig.hxx"
 
 namespace nmranet
 {
@@ -176,13 +176,13 @@ public:
     {
     }
 
-    virtual address_t max_address()
+    address_t max_address() OVERRIDE
     {
         return len_ - 1;
     }
 
-    virtual size_t read(address_t source, uint8_t* dst, size_t len,
-                        errorcode_t* error)
+    size_t read(address_t source, uint8_t* dst, size_t len,
+                errorcode_t* error) OVERRIDE
     {
         if (source >= len_)
             return 0;
@@ -208,14 +208,14 @@ public:
         DATAGRAM_ID = 0x20,
     };
 
-    MemoryConfigHandler(DatagramSupport* if_dg, Node* node,
+    MemoryConfigHandler(DatagramService* if_dg, Node* node,
                         size_t registry_size)
         : DefaultDatagramHandler(if_dg),
           response_(nullptr),
           responseFlow_(nullptr),
           registry_(registry_size)
     {
-        ifDatagram_->registry()->insert(node, DATAGRAM_ID, this);
+        dg_service()->registry()->insert(node, DATAGRAM_ID, this);
     }
 
     ~MemoryConfigHandler()
@@ -234,12 +234,10 @@ private:
     typedef MemorySpace::address_t address_t;
     typedef MemorySpace::errorcode_t errorcode_t;
 
-    // override
-    virtual Action datagram_arrived()
+    Action datagram_arrived() OVERRIDE
     {
-        HASSERT(!response_);
         const uint8_t* bytes = in_bytes();
-        size_t len = datagram_->payload->used();
+        size_t len = message()->data()->payload.size();
         HASSERT(len >= 1);
         HASSERT(bytes[0] == DATAGRAM_ID);
         if (len < 2)
@@ -249,13 +247,13 @@ private:
 
         uint8_t cmd = bytes[1];
 
-        if ((cmd & MemoryConfig::COMMAND_MASK) == MemoryConfig::COMMAND_READ)
+        if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_READ)
         {
             return call_immediately(STATE(handle_read));
         }
         switch (cmd)
         {
-            case MemoryConfig::COMMAND_LOCK:
+            case MemoryConfigDefs::COMMAND_LOCK:
             {
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -271,31 +269,41 @@ private:
 
     virtual Action ok_response_sent()
     {
-        if (response_)
+        if (!response_.empty())
         {
-            return Allocate(ifDatagram_->client_allocator(),
-                            ST(send_response_datagram));
+            return allocate_and_call(STATE(client_allocated),
+                                     dg_service()->client_allocator());
         }
         else
         {
-            datagram_->free();
+            release();
             return call_immediately(STATE(cleanup));
         }
     }
 
     Action cleanup()
     {
-        return call_immediately(STATE(wait_for_datagram));
+        HASSERT(!message());
+        return exit();
     }
 
-    Action send_response_datagram()
+    Action client_allocated()
     {
-        responseFlow_ =
-            GetTypedAllocationResult(ifDatagram_->client_allocator());
-        responseFlow_->write_datagram(datagram_->dst->node_id(), datagram_->src,
-                                      response_, this);
-        datagram_->free();
-        return WaitAndCall(STATE(response_flow_complete));
+        responseFlow_ = full_allocation_result(dg_service()->client_allocator());
+        return allocate_and_call(dg_service()->interface()->dispatcher(),
+                                 STATE(send_response_datagram));
+    }
+
+    Action send_response_datagram() {
+        auto *b =
+            get_allocation_result(dg_service()->interface()->dispatcher());
+        b->set_done(b_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
+                         message()->data()->src, EMPTY_PAYLOAD);
+        b->data()->payload.swap(response_);
+        release(); /// @TODO(balazs.racz) Should this be here or elsewhere?
+        responseFlow_->write_datagram(b);
+        return wait_and_call(STATE(response_flow_complete));
     }
 
     Action response_flow_complete()
@@ -306,14 +314,13 @@ private:
                 "MemoryConfig: Failed to send response datagram. error code %x",
                 (unsigned)responseFlow_->result());
         }
-        ifDatagram_->client_allocator()->TypedRelease(responseFlow_);
-        response_ = nullptr;
+        dg_service()->client_allocator()->typed_insert(responseFlow_);
         return call_immediately(STATE(cleanup));
     }
 
     Action handle_read()
     {
-        size_t len = datagram_->payload->used();
+        size_t len = message()->data()->payload.size();
         if (len <= 6)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -335,24 +342,25 @@ private:
             ++response_data_offset;
         }
         size_t response_len = response_data_offset + read_len;
-        response_ = buffer_alloc(response_len);
+        char c = 0;
+        response_.assign(c, response_len); /// @TODO: which order of arguments?
         uint8_t* response_bytes = out_bytes();
         errorcode_t error = 0;
         int byte_read = space->read(
             address, response_bytes + response_data_offset, read_len, &error);
         response_bytes[0] = DATAGRAM_ID;
-        response_bytes[1] = error ? MemoryConfig::COMMAND_READ_FAILED
-                                  : MemoryConfig::COMMAND_READ_REPLY;
+        response_bytes[1] = error ? MemoryConfigDefs::COMMAND_READ_FAILED
+                                  : MemoryConfigDefs::COMMAND_READ_REPLY;
         set_address_and_space();
         if (error)
         {
             response_bytes[response_data_offset] = error >> 8;
             response_bytes[response_data_offset + 1] = error & 0xff;
-            response_->advance(response_data_offset + 2);
+            response_.resize(response_data_offset + 2);
         }
         else
         {
-            response_->advance(response_data_offset + byte_read);
+            response_.resize(response_data_offset + byte_read);
         }
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
@@ -360,7 +368,7 @@ private:
     /// @return true iff we have a custom space
     bool has_custom_space()
     {
-        return !(in_bytes()[1] & ~MemoryConfig::COMMAND_MASK);
+        return !(in_bytes()[1] & ~MemoryConfigDefs::COMMAND_MASK);
     }
 
     /** Returns the memory space number, or -1 if the incoming datagram is of
@@ -369,20 +377,20 @@ private:
     int get_space_number()
     {
         const uint8_t* bytes = in_bytes();
-        int len = datagram_->payload->used();
+        int len = message()->data()->payload.size();
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
         if (!has_custom_space())
         {
-            return MemoryConfig::COMMAND_MASK +
-                   (cmd & ~MemoryConfig::COMMAND_MASK);
+            return MemoryConfigDefs::COMMAND_MASK +
+                   (cmd & ~MemoryConfigDefs::COMMAND_MASK);
         }
         if (len <= 6)
         {
             LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
                          "space but datagram not long enough. command=0x%02x, "
                          "length=%d. Source {0x%012llx, %03x}",
-                cmd, len, datagram_->src.id, datagram_->src.alias);
+                cmd, len, message()->data()->src.id, message()->data()->src.alias);
             return -1;
         }
         return bytes[6];
@@ -395,13 +403,13 @@ private:
         int space_number = get_space_number();
         if (space_number < 0)
             return nullptr;
-        MemorySpace* space = registry_.lookup(datagram_->dst, space_number);
+        MemorySpace* space = registry_.lookup(message()->data()->dst, space_number);
         if (!space)
         {
             LOG(WARNING, "MemoryConfig: asked node 0x%012llx for unknown space "
                          "%d. Source {0x%012llx, %03x}",
-                datagram_->dst->node_id(), space_number, datagram_->src.id,
-                datagram_->src.alias);
+                message()->data()->dst->node_id(), space_number, message()->data()->src.id,
+                message()->data()->src.alias);
             return nullptr;
         }
         return space;
@@ -412,7 +420,7 @@ private:
     int get_length()
     {
         const uint8_t* bytes = in_bytes();
-        int len = datagram_->payload->used();
+        int len = message()->data()->payload.size();
         int ofs;
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
@@ -429,7 +437,7 @@ private:
             LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
                          "enough. command=0x%02x, length=%d. Source "
                          "{0x%012llx, %03x}",
-                cmd, len, datagram_->src.id, datagram_->src.alias);
+                cmd, len, message()->data()->src.id, message()->data()->src.alias);
             return -1;
         }
         return bytes[ofs];
@@ -465,7 +473,7 @@ private:
         }
         else
         {
-            resp_bytes[1] |= (bytes[1] & ~MemoryConfig::COMMAND_MASK);
+            resp_bytes[1] |= (bytes[1] & ~MemoryConfigDefs::COMMAND_MASK);
         }
     }
 
@@ -485,17 +493,18 @@ private:
     /// @Returns the response datagram payload buffer.
     uint8_t* out_bytes()
     {
-        return static_cast<uint8_t*>(response_->start());
+        return reinterpret_cast<uint8_t*>(&response_[0]);
     }
 
     /// @Returns the request datagram payload buffer.
     const uint8_t* in_bytes()
     {
-        return static_cast<const uint8_t*>(datagram_->payload->start());
+        return reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
     }
 
-    Buffer* response_; //< reply payload to send back.
+    DatagramPayload response_; //< reply payload to send back.
     DatagramClient* responseFlow_;
+    BarrierNotifiable b_;
 
     NodeID lockNode_; //< Holds the node ID that locked us.
 
