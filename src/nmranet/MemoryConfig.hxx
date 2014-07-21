@@ -342,10 +342,8 @@ private:
             ++response_data_offset;
         }
         size_t response_len = response_data_offset + read_len;
-        response_.clear();
-        response_.resize(response_len);
-        //char c = 0;
-        //response_.assign(c, response_len); /// @TODO: which order of arguments?
+        char c = 0;
+        response_.assign(response_len, c);
         uint8_t* response_bytes = out_bytes();
         errorcode_t error = 0;
         int byte_read = space->read(
@@ -364,13 +362,6 @@ private:
         {
             response_.resize(response_data_offset + byte_read);
         }
-        string db;
-        for (char c : response_) {
-            char x[10];
-            sprintf(x, "%02x", c);
-            db += x;
-        }
-        LOG(INFO, "datagram response: size %d %s", response_.size(), db.c_str());
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
