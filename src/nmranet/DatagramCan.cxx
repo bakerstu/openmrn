@@ -46,8 +46,9 @@ class CanDatagramClient : public DatagramClient,
                           public AddressedCanMessageWriteFlow
 {
 public:
-    CanDatagramClient(IfCan* interface)
-        : AddressedCanMessageWriteFlow(interface), listener_(this)
+    CanDatagramClient(IfCan *interface)
+        : AddressedCanMessageWriteFlow(interface)
+        , listener_(this)
     {
         /** This flow does not use the incoming queue that we inherited from
          * AddressedCanMessageWriteFlow. We skip the wait state.
@@ -58,9 +59,10 @@ public:
         set_terminated();
     }
 
-    void write_datagram(Buffer<NMRAnetMessage>* b, unsigned priority) OVERRIDE
+    void write_datagram(Buffer<NMRAnetMessage> *b, unsigned priority) OVERRIDE
     {
-        if (!b->data()->mti) {
+        if (!b->data()->mti)
+        {
             b->data()->mti = Defs::MTI_DATAGRAM;
         }
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
@@ -73,12 +75,15 @@ public:
         start_flow(STATE(addressed_entry));
     }
 
-    Action send_to_local_node() OVERRIDE {
-        return allocate_and_call(async_if()->dispatcher(), STATE(local_copy_allocated));
+    Action send_to_local_node() OVERRIDE
+    {
+        return allocate_and_call(async_if()->dispatcher(),
+                                 STATE(local_copy_allocated));
     }
 
-    Action local_copy_allocated() {
-        auto* b = get_allocation_result(async_if()->dispatcher());
+    Action local_copy_allocated()
+    {
+        auto *b = get_allocation_result(async_if()->dispatcher());
         b->data()->reset(nmsg()->mti, nmsg()->src.id, nmsg()->dst, Payload());
         b->data()->payload.swap(nmsg()->payload);
         b->data()->dstNode = nmsg()->dstNode;
@@ -113,8 +118,8 @@ private:
     Action fill_can_frame_buffer() OVERRIDE
     {
         LOG(VERBOSE, "fill can frame buffer");
-        auto* b = get_allocation_result(if_can()->frame_write_flow());
-        struct can_frame* f = b->data()->mutable_frame();
+        auto *b = get_allocation_result(if_can()->frame_write_flow());
+        struct can_frame *f = b->data()->mutable_frame();
         HASSERT(nmsg()->mti == Defs::MTI_DATAGRAM);
 
         // Sets the CAN id.
@@ -133,11 +138,12 @@ private:
             if (dataOffset_)
             {
                 CanDefs::set_can_frame_type(&can_id,
-                                          CanDefs::DATAGRAM_MIDDLE_FRAME);
+                                            CanDefs::DATAGRAM_MIDDLE_FRAME);
             }
             else
             {
-                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_FIRST_FRAME);
+                CanDefs::set_can_frame_type(&can_id,
+                                            CanDefs::DATAGRAM_FIRST_FRAME);
             }
         }
         else
@@ -145,11 +151,13 @@ private:
             // No more data after this frame.
             if (dataOffset_)
             {
-                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_FINAL_FRAME);
+                CanDefs::set_can_frame_type(&can_id,
+                                            CanDefs::DATAGRAM_FINAL_FRAME);
             }
             else
             {
-                CanDefs::set_can_frame_type(&can_id, CanDefs::DATAGRAM_ONE_FRAME);
+                CanDefs::set_can_frame_type(&can_id,
+                                            CanDefs::DATAGRAM_ONE_FRAME);
             }
         }
 
@@ -169,14 +177,15 @@ private:
             return call_immediately(STATE(send_finished));
         }
     }
-    
-    Action send_finished() OVERRIDE {
+
+    Action send_finished() OVERRIDE
+    {
         return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                             STATE(timeout_waiting_for_dg_response));
+                              STATE(timeout_waiting_for_dg_response));
     }
 
     Action timeout_looking_for_dst() OVERRIDE
-    { 
+    {
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
         return call_immediately(STATE(datagram_finalize));
     }
@@ -203,35 +212,40 @@ private:
 
     /** This object is registered to receive response messages at the interface
      * level. Then it forwards the call to the parent CanDatagramClient. */
-    class ReplyListener : public MessageHandler {
+    class ReplyListener : public MessageHandler
+    {
     public:
-        ReplyListener(CanDatagramClient* parent)
-            : parent_(parent) {}
+        ReplyListener(CanDatagramClient *parent) : parent_(parent)
+        {
+        }
 
-        void send(message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE {
+        void send(message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE
+        {
             parent_->handle_response(buffer->data());
             buffer->unref();
         }
+
     private:
-        CanDatagramClient* parent_;
+        CanDatagramClient *parent_;
     };
 
     // Callback when a matching response comes in on the bus.
-    void handle_response(NMRAnetMessage* message)
+    void handle_response(NMRAnetMessage *message)
     {
-        LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this, (int)message->mti, (int) message->src.alias);
+        LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
+            (int)message->mti, (int)message->src.alias);
         // First we check that the response is for this source node.
         if (message->dst.id)
         {
-            if (message->dst.id != nmsg()->src.id) 
+            if (message->dst.id != nmsg()->src.id)
             {
-                LOG(VERBOSE, "wrong dst"); 
+                LOG(VERBOSE, "wrong dst");
                 return;
             }
         }
         else if (message->dst.alias != srcAlias_)
         {
-            LOG(VERBOSE, "wrong dst alias"); 
+            LOG(VERBOSE, "wrong dst alias");
             /* Here we hope that the source alias was not released by the time
              * the response comes in. */
             return;
@@ -239,16 +253,19 @@ private:
         // We also check that the source of the response is our destination.
         if (message->src.id && nmsg()->dst.id)
         {
-            if (message->src.id != nmsg()->dst.id) {
-                LOG(VERBOSE, "wrong src"); 
+            if (message->src.id != nmsg()->dst.id)
+            {
+                LOG(VERBOSE, "wrong src");
                 return;
             }
         }
         else if (message->src.alias)
         {
             // We hope the dstAlias_ has not changed yet.
-            if (message->src.alias != dstAlias_) {
-                LOG(VERBOSE, "wrong src alias %x %x",(int)message->src.alias, (int)dstAlias_); 
+            if (message->src.alias != dstAlias_)
+            {
+                LOG(VERBOSE, "wrong src alias %x %x", (int)message->src.alias,
+                    (int)dstAlias_);
                 return;
             }
         }
@@ -260,10 +277,11 @@ private:
 
         uint16_t error_code = 0;
         uint8_t payload_length = 0;
-        const uint8_t* payload = nullptr;
+        const uint8_t *payload = nullptr;
         if (!message->payload.empty())
         {
-            payload = reinterpret_cast<const uint8_t*>(message->payload.data());
+            payload =
+                reinterpret_cast<const uint8_t *>(message->payload.data());
             payload_length = message->payload.size();
         }
         if (payload_length >= 2)
@@ -338,24 +356,24 @@ public:
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
                      (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
                      (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK |
-                   CanDefs::PRIORITY_MASK,
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
+                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK,
     };
 
     /** @param num_clients tells how many datagram write flows (aka client
      * flows) to put into the client allocator. */
-    CanDatagramParser(IfCan* interface);
+    CanDatagramParser(IfCan *interface);
     ~CanDatagramParser();
 
     /// Handler callback for incoming frames.
     virtual Action entry()
     {
         errorCode_ = 0;
-        const struct can_frame* f = &message()->data()->frame();
+        const struct can_frame *f = &message()->data()->frame();
 
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        unsigned can_frame_type =
-            (id & CanDefs::CAN_FRAME_TYPE_MASK) >> CanDefs::CAN_FRAME_TYPE_SHIFT;
+        unsigned can_frame_type = (id & CanDefs::CAN_FRAME_TYPE_MASK) >>
+                                  CanDefs::CAN_FRAME_TYPE_SHIFT;
 
         if (can_frame_type < 2 || can_frame_type > 5)
         {
@@ -380,7 +398,7 @@ public:
             return release_and_exit();
         }
 
-        DatagramPayload* buf = nullptr;
+        DatagramPayload *buf = nullptr;
         bool last_frame = true;
 
         switch (can_frame_type)
@@ -464,18 +482,22 @@ public:
         {
             release();
             // Gets the send flow to send rejection.
-            return allocate_and_call(if_can()->addressed_message_write_flow(), STATE(send_rejection));
+            return allocate_and_call(if_can()->addressed_message_write_flow(),
+                                     STATE(send_rejection));
         }
 
         // Copies new data into buf.
-        buf->append(reinterpret_cast<const char*>(&f->data[0]), f->can_dlc);
+        buf->append(reinterpret_cast<const char *>(&f->data[0]), f->can_dlc);
         release();
         if (last_frame)
         {
             HASSERT(buf == &localBuffer_);
             // Datagram is complete; let's send it to higher level If.
-            return allocate_and_call(if_can()->dispatcher(), STATE(datagram_complete));
-        } else {
+            return allocate_and_call(if_can()->dispatcher(),
+                                     STATE(datagram_complete));
+        }
+        else
+        {
             return exit();
         }
     }
@@ -486,21 +508,22 @@ public:
     {
         HASSERT(errorCode_);
         HASSERT(dstNode_);
-        auto* f = get_allocation_result(if_can()->addressed_message_write_flow());
-        f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, dst_.id,
-                         {0, srcAlias_}, error_to_buffer(errorCode_));
+        auto *f =
+            get_allocation_result(if_can()->addressed_message_write_flow());
+        f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, dst_.id, {0, srcAlias_},
+                         error_to_buffer(errorCode_));
         if_can()->addressed_message_write_flow()->send(f);
         return exit();
     }
-    
+
     /** Requests the datagram in buf_, dstNode_ etc... to be sent to the
      * AsyncIf for processing. The lock_ is held and must be released. entry is
      * the dispatcher. */
     Action datagram_complete()
     {
         HASSERT(!errorCode_);
-        auto* f = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage* m = f->data();
+        auto *f = get_allocation_result(if_can()->dispatcher());
+        NMRAnetMessage *m = f->data();
         m->mti = Defs::MTI_DATAGRAM;
         m->payload.swap(localBuffer_);
         m->dst = dst_;
@@ -519,13 +542,13 @@ public:
         if_can()->dispatcher()->send(f);
         return exit();
     }
-    
+
 private:
     // A local buffer that owns the datagram payload bytes after we took the
     // entry from the pending buffers map.
     DatagramPayload localBuffer_;
 
-    Node* dstNode_;
+    Node *dstNode_;
     NodeHandle dst_;
     unsigned short srcAlias_ : 12;
     // If non-zero, contains a Rejection error code and the datagram should not
@@ -539,7 +562,7 @@ private:
      * in here. */
     StlMap<uint64_t, DatagramPayload> pendingBuffers_;
 };
-CanDatagramService::CanDatagramService(IfCan* interface,
+CanDatagramService::CanDatagramService(IfCan *interface,
                                        int num_registry_entries,
                                        int num_clients)
     : DatagramService(interface, num_registry_entries)
@@ -547,13 +570,14 @@ CanDatagramService::CanDatagramService(IfCan* interface,
     if_can()->add_owned_flow(new CanDatagramParser(if_can()));
     for (int i = 0; i < num_clients; ++i)
     {
-        auto* client_flow = new CanDatagramClient(if_can());
+        auto *client_flow = new CanDatagramClient(if_can());
         if_can()->add_owned_flow(client_flow);
-        client_allocator()->insert(static_cast<DatagramClient*>(client_flow));
+        client_allocator()->insert(static_cast<DatagramClient *>(client_flow));
     }
 }
 
-Executable* TEST_CreateCanDatagramParser(IfCan* if_can) {
+Executable *TEST_CreateCanDatagramParser(IfCan *if_can)
+{
     return new CanDatagramParser(if_can);
 }
 
@@ -561,14 +585,16 @@ CanDatagramService::~CanDatagramService()
 {
 }
 
-CanDatagramParser::CanDatagramParser(IfCan* interface) : CanFrameStateFlow(interface)
+CanDatagramParser::CanDatagramParser(IfCan *interface)
+    : CanFrameStateFlow(interface)
 {
     if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER, CAN_MASK);
 }
 
 CanDatagramParser::~CanDatagramParser()
 {
-    if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER, CAN_MASK);
+    if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER,
+                                                     CAN_MASK);
 }
 
 } // namespace nmranet

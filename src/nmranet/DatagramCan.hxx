@@ -41,23 +41,25 @@
 namespace nmranet
 {
 
-class CanDatagramService : public DatagramService {
+class CanDatagramService : public DatagramService
+{
 public:
     /*
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)*/
-    CanDatagramService(IfCan* interface, int num_registry_entries,
+    CanDatagramService(IfCan *interface, int num_registry_entries,
                        int num_clients);
 
     ~CanDatagramService();
 
-    IfCan* if_can() {
-        return static_cast<IfCan*>(interface());
+    IfCan *if_can()
+    {
+        return static_cast<IfCan *>(interface());
     }
 };
 
 /// Creates a CAN datagram parser flow. Exposed for testing only.
-Executable* TEST_CreateCanDatagramParser(IfCan* if_can);
+Executable *TEST_CreateCanDatagramParser(IfCan *if_can);
 
 } // namespace nmranet
 
