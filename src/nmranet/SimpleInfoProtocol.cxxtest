@@ -1,0 +1,152 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file SimpleInfoProtocol.cxxtest
+ *
+ * Unit tests for simple info protocol handler.
+ *
+ * @author Balazs Racz
+ * @date 23 Jul 2013
+ */
+
+#include "utils/async_if_test_helper.hxx"
+
+#include "nmranet/SimpleInfoProtocol.hxx"
+#include "nmranet/If.hxx"
+
+namespace nmranet {
+namespace {
+
+class InfoResponseTest : public AsyncNodeTest {
+protected:
+    InfoResponseTest() {
+        init();
+    }
+
+    void init(unsigned max_bytes_per_message = 255,
+              bool use_continue_bits = true) {
+        flow_.reset(new SimpleInfoFlow(ifCan_.get(), max_bytes_per_message, use_continue_bits));
+    }
+
+    void send_response(const SimpleInfoDescriptor *descriptor,
+                       Defs::MTI mti = Defs::MTI_IDENT_INFO_REPLY,
+                       NodeHandle dst = NodeHandle{0, 0x3FB}) {
+        auto* b = flow_->alloc();
+        b->data()->src = node_;
+        b->data()->mti = mti;
+        b->data()->dst = dst;
+        b->data()->descriptor = descriptor;
+        flow_->send(b);
+        wait();
+    }
+    std::unique_ptr<SimpleInfoFlow> flow_;
+};
+
+static const uint8_t kFirstData[] = "5432";
+static const uint8_t kSecondData[] = "785";
+static const uint8_t kThirdData[] = "012345678901234567";
+
+TEST_F(InfoResponseTest, SendByte) {
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::LITERAL_BYTE, 0x5A, nullptr },
+        { SimpleInfoDescriptor::LITERAL_BYTE, 0xAA, nullptr },
+        { SimpleInfoDescriptor::LITERAL_BYTE, 0xA5, nullptr },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN03FB5AAAA5;");
+    send_response(descr);
+}
+
+
+TEST_F(InfoResponseTest, SendCString) {
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::C_STRING, 0, kFirstData },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN03FB3534333200;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendByteArr) {
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::CHAR_ARRAY, 2, kFirstData },
+        { SimpleInfoDescriptor::CHAR_ARRAY, 2, kFirstData },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN03FB35343534;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, ComplexExample) {
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::C_STRING, 0, kFirstData },
+        { SimpleInfoDescriptor::C_STRING, 0, kSecondData },
+        { SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr },
+        { SimpleInfoDescriptor::C_STRING, 0, kThirdData },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN13FB353433320037;");
+    expect_packet(":X19A0822AN33FB383500013031;");
+    expect_packet(":X19A0822AN33FB323334353637;");
+    expect_packet(":X19A0822AN33FB383930313233;");
+    expect_packet(":X19A0822AN23FB3435363700;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, LimitForCan) {
+    init(6, false);
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::C_STRING, 0, kFirstData },
+        { SimpleInfoDescriptor::C_STRING, 0, kSecondData },
+        { SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr },
+        { SimpleInfoDescriptor::C_STRING, 0, kThirdData },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN03FB353433320037;");
+    expect_packet(":X19A0822AN03FB383500013031;");
+    expect_packet(":X19A0822AN03FB323334353637;");
+    expect_packet(":X19A0822AN03FB383930313233;");
+    expect_packet(":X19A0822AN03FB3435363700;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, StrangeLimit) {
+    init(4, false);
+    static const SimpleInfoDescriptor descr[] = {
+        { SimpleInfoDescriptor::C_STRING, 0, kFirstData },
+        { SimpleInfoDescriptor::C_STRING, 0, kSecondData },
+        { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
+    };
+    expect_packet(":X19A0822AN03FB35343332;");
+    expect_packet(":X19A0822AN03FB00373835;");
+    expect_packet(":X19A0822AN03FB00;");
+    send_response(descr);
+}
+
+
+
+}  // anonymous namespace
+}  // namespace nmranet
