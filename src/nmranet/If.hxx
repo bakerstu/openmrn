@@ -174,7 +174,15 @@ struct NMRAnetMessage
         /** Specifies that the stack should wait for the local loopback
          * processing before invoking the done notifiable. */
         WAIT_FOR_LOCAL_LOOPBACK = 1,
-        // 2, 4, 8: free
+        /** Signals to the stack that we need to set the continuation bits in
+         * the outgoing message to indicate that this is not the first frame of
+         * a message. */
+        DSTFLAG_NOT_FIRST_MESSAGE = 2,
+        /** Signals to the stack that we need to set the continuation bits in
+         * the outgoing message to indicate that this is not the last frame of
+         * a message. */
+        DSTFLAG_NOT_LAST_MESSAGE  = 4,
+        // 8: free
     };
     enum SrcFlags {
         // 1, 2, 4, 8: free
