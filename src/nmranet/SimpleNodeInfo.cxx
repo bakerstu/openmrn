@@ -34,12 +34,10 @@
 
 #include "nmranet/SimpleNodeInfo.hxx"
 
-namespace nmranet {
+namespace nmranet
+{
 
 static const SimpleInfoDescriptor kSNIPResponse[] = {
+    {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
 
-    { SimpleInfoDescriptor::END_OF_DATA, 0, 0 }
-};
-
-
-}  // namespace nrmanet
+} // namespace nrmanet

@@ -35,7 +35,8 @@
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
 
-namespace nmranet {
+namespace nmranet
+{
 
 extern const uint8_t kManufacturer[];
 extern const uint8_t kModel[];
@@ -45,27 +46,30 @@ extern const uint8_t kSwVersion[];
 extern const uint8_t kUserNodeName[];
 extern const uint8_t kUserNodeDescription[];
 
-
-class SNIPHandler : public IncomingMessageStateFlow {
+class SNIPHandler : public IncomingMessageStateFlow
+{
 public:
-    SNIPHandler(If* interface, SimpleInfoFlow* response_flow)
-        : IncomingMessageStateFlow(interface),
-          responseFlow_(response_flow) {}
+    SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
+        : IncomingMessageStateFlow(interface)
+        , responseFlow_(response_flow)
+    {
+    }
 
-    Action entry() OVERRIDE {
+    Action entry() OVERRIDE
+    {
         return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
-    Action send_response_request() {
-        auto* b = get_allocation_result(responseFlow_);
-        b->data()->reset(nmsg(),kSNIPResponse);
+    Action send_response_request()
+    {
+        auto *b = get_allocation_result(responseFlow_);
+        b->data()->reset(nmsg(), kSNIPResponse);
         responseFlow_->send(b);
         return release_and_exit();
     }
 
 private:
-    SimpleInfoFlow* responseFlow_;
+    SimpleInfoFlow *responseFlow_;
 };
 
-
-}  // namespace nmranet
+} // namespace nmranet
