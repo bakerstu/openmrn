@@ -22,6 +22,7 @@ CXXSRCS += \
            Datagram.cxx \
            DatagramCan.cxx \
            MemoryConfig.cxx \
+           SimpleNodeInfo.cxx \
 
 
 DEAD_CXX +=  \

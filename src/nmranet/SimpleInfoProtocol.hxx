@@ -32,6 +32,9 @@
  * @date 22 Jul 2013
  */
 
+#ifndef _NMRANET_SIMPLEINFOPROTOCOL_HXX_
+#define _NMRANET_SIMPLEINFOPROTOCOL_HXX_
+
 #include "nmranet/If.hxx"
 #include "executor/StateFlow.hxx"
 
@@ -55,11 +58,14 @@ struct SimpleInfoResponse
      * message). The descriptor array must end with an EOF entry and must stay
      * alive so long as the message is not sent. */
     void reset(const NMRAnetMessage *msg_to_respond,
-               const SimpleInfoDescriptor *desc)
+               const SimpleInfoDescriptor *desc,
+               Defs::MTI response_mti)
     {
         HASSERT(msg_to_respond->dstNode);
         src = msg_to_respond->dstNode;
         dst = msg_to_respond->src;
+        descriptor = desc;
+        mti = response_mti;
     }
     /** Source node to send the response from. */
     Node *src;
@@ -120,6 +126,8 @@ public:
 private:
     Action entry() OVERRIDE
     {
+        HASSERT(message()->data()->src);
+        HASSERT(message()->data()->descriptor);
         entryOffset_ = 0;
         byteOffset_ = 0;
         isFirstMessage_ = 1;
@@ -138,6 +146,7 @@ private:
         return (current_descriptor().cmd == SimpleInfoDescriptor::END_OF_DATA);
     }
 
+    /** Call this function after updating entryOffset_. */
     void update_for_next_entry()
     {
         const SimpleInfoDescriptor &d = current_descriptor();
@@ -293,3 +302,5 @@ private:
 };
 
 } // namespace nmranet
+
+#endif // _NMRANET_SIMPLEINFOPROTOCOL_HXX_

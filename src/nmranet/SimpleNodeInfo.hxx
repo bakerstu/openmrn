@@ -38,13 +38,15 @@
 namespace nmranet
 {
 
-extern const uint8_t kManufacturer[];
-extern const uint8_t kModel[];
-extern const uint8_t kHwVersion[];
-extern const uint8_t kSwVersion[];
+extern const uint8_t SNIP_MANUFACTURER[];
+extern const uint8_t SNIP_MODEL[];
+extern const uint8_t SNIP_HW_VERSION[];
+extern const uint8_t SNIP_SW_VERSION[];
 
-extern const uint8_t kUserNodeName[];
-extern const uint8_t kUserNodeDescription[];
+extern const uint8_t SNIP_USER_NODE_NAME[];
+extern const uint8_t SNIP_USER_NODE_DESCRIPTION[];
+
+extern const SimpleInfoDescriptor SNIP_RESPONSE[];
 
 class SNIPHandler : public IncomingMessageStateFlow
 {
@@ -52,18 +54,24 @@ public:
     SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
         : IncomingMessageStateFlow(interface)
         , responseFlow_(response_flow)
-    {
+    {                                       
+        interface->dispatcher()->register_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
+    }
+
+    ~SNIPHandler() {
+        interface()->dispatcher()->unregister_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE
     {
+        if (!nmsg()->dstNode) return release_and_exit();
         return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
     Action send_response_request()
     {
         auto *b = get_allocation_result(responseFlow_);
-        b->data()->reset(nmsg(), kSNIPResponse);
+        b->data()->reset(nmsg(), SNIP_RESPONSE, Defs::MTI_IDENT_INFO_REPLY);
         responseFlow_->send(b);
         return release_and_exit();
     }

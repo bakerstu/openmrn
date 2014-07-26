@@ -24,42 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file SimpleNodeInfo.hxx
+ * \file SimpleNodeInfo.cxxtest
  *
- * Handler for the Simple Node Ident Info protocol.
+ * Unit tests for SNIP handler
  *
  * @author Balazs Racz
- * @date 24 Jul 2013
+ * @date 27 Jul 2013
  */
 
+#include "utils/async_if_test_helper.hxx"
+
+#include "nmranet/SimpleInfoProtocol.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet
 {
+namespace
+{
 
-extern const uint8_t __attribute__((weak)) SNIP_MANUFACTURER[];
-const uint8_t SNIP_MANUFACTURER[] = "OpenMRN";
-extern const uint8_t __attribute__((weak)) SNIP_MODEL[];
-const uint8_t SNIP_MODEL[] = "Undefined model";
-extern const uint8_t __attribute__((weak)) SNIP_HW_VERSION[];
-const uint8_t SNIP_HW_VERSION[] = "Undefined HW version";
-extern const uint8_t __attribute__((weak)) SNIP_SW_VERSION[];
-const uint8_t SNIP_SW_VERSION[] = "0.9";
+class SNIPTest : public AsyncNodeTest
+{
+protected:
+    SNIPTest()
+        : infoFlow_(ifCan_.get())
+        , handler_(ifCan_.get(), &infoFlow_) {}
 
-extern const uint8_t __attribute__((weak)) SNIP_USER_NODE_NAME[];
-const uint8_t SNIP_USER_NODE_NAME[] = "Undefined node name";
-extern const uint8_t __attribute__((weak)) SNIP_USER_NODE_DESCRIPTION[];
-const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "Undefined node descr";
+    
+    SimpleInfoFlow infoFlow_;
+    SNIPHandler handler_;
+};
 
-const SimpleInfoDescriptor SNIP_RESPONSE[] = {
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MANUFACTURER},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MODEL},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_HW_VERSION},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_SW_VERSION},
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_NAME},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_DESCRIPTION},
-    {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+TEST_F(SNIPTest, CreateDestroy) {}
 
-} // namespace nrmanet
+
+TEST_F(SNIPTest, Send) {
+    expect_any_packet();
+    send_packet(":X19DE8754N022A;");
+    wait();
+}
+
+} // anonymous namespace
+} // namespace nmranet
