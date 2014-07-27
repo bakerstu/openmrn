@@ -31,4 +31,7 @@ all: $(EXECUTABLE).bin
 	$(OBJCOPY) -O binary $< $@
 	$(CHECKSUM) -p LPC2362 -d $@
 
+flash: $(EXECUTABLE).bin
+	panda-flash.sh $<
+
 endif  #missing deps
