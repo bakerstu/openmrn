@@ -48,6 +48,7 @@ __irq_stack_top__ = __fiq_stack_top__ - FIQ_Stack_Size ;
 __svc_stack_top__ = __irq_stack_top__ - IRQ_Stack_Size ;
 __sys_stack_top__ = __svc_stack_top__ - SVC_Stack_Size ;
 __stacks_min__ = __sys_stack_top__ - SYS_Stack_Size;
+_sym_use_separate_stack_segment = 1;
 
 /* C-accessible symbols for memory address ranges: */
 __FLASH_segment_start__ = ORIGIN( Flash );

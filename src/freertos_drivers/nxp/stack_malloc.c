@@ -35,13 +35,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include "utils/blinker.h"
+#include "utils/constants.hxx"
 
 extern char __ETHRAM_segment_start__;
-//static char* sstack_start = &__ETHRAM_segment_start__;
+static char* sstack_start = &__ETHRAM_segment_start__;
 extern char __stacks_min__;
 
 void* usb_malloc(unsigned long length);
 
+DECLARE_CONST(use_separate_stack_segment);
 
 /** Custom malloc function for stack spaces.
  *  \param length the length of block to allocate
@@ -53,23 +55,23 @@ void* usb_malloc(unsigned long length);
  */
 void* stack_malloc(unsigned long length)
 {
-    return usb_malloc(length);
-/*    char* old_stack_start = sstack_start;
-    char* new_stack_start = sstack_start + length;
-    if (new_stack_start > &__stacks_min__)
-    {
-        diewith(BLINK_DIE_OUTOFMEMSTACK);
+    if (config_use_separate_stack_segment() == CONSTANT_TRUE) {
+        char* old_stack_start = sstack_start;
+        char* new_stack_start = sstack_start + length;
+        if (new_stack_start > &__stacks_min__)
+        {
+            diewith(BLINK_DIE_OUTOFMEMSTACK);
+        }
+        sstack_start = new_stack_start;
+        return old_stack_start;
+    } else {
+        return usb_malloc(length);
     }
-    sstack_start = new_stack_start;
-    return old_stack_start;*/
 }
 
 extern char __USBRAM_segment_start__;
 extern char __USBRAM_segment_end__;
-//static char* ublock_start = &__USBRAM_segment_start__;
-
-extern char __bss_end__;
-static char* ublock_start = &__bss_end__;
+static char* ublock_start = &__USBRAM_segment_start__;
 
 /** Custom malloc function for USB space.
  *  \param length the length of block to allocate

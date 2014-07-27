@@ -33,8 +33,11 @@ PROVIDE(__stack = __StackTop);
 /* This marks the highest allocatable stack space */
 __stacks_min__ = __StackLimit ;
 
-__USBRAM_segment_start__  = ORIGIN( USB_RAM );
+/*__USBRAM_segment_start__  = ORIGIN( USB_RAM );*/
+__USBRAM_segment_start__  = __bss_end__;
 __USBRAM_segment_end__    = __StackLimit; /*ORIGIN( USB_RAM ) + LENGTH( USB_RAM );*/
+_sym_use_separate_stack_segment = 2; /* false */
+
 
 /* Linker script to place sections and symbol values. Should be used together
  * with other linker script that defines memory regions FLASH and RAM.
