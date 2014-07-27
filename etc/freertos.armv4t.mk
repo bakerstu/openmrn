@@ -84,6 +84,16 @@ LDFLAGS = -g -nostdlib -L"/home/bracz/lpc-workspace/libmbed_2387/Debug" \
           -Wl,--defsym=__wrap_exit=abort \
           -Wl,--wrap=__cxa_throw   \
           -Wl,--defsym=__wrap___cxa_throw=abort \
+          -Wl,--wrap=_ZSt9terminatev   \
+          -Wl,--defsym=__wrap__ZSt9terminatev=abort \
+          -Wl,--wrap=__cxa_end_cleanup   \
+          -Wl,--defsym=__wrap___cxa_end_cleanup=abort \
+          -Wl,--wrap=_ZSt10unexpectedv   \
+          -Wl,--defsym=__wrap__ZSt10unexpectedv=abort \
+          -Wl,--wrap=__cxa_begin_catch   \
+          -Wl,--defsym=__wrap___cxa_begin_catch=abort \
+          -Wl,--wrap=__cxa_call_unexpected   \
+          -Wl,--defsym=__wrap___cxa_call_unexpected=abort \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 ifdef TRACE_MALLOC
