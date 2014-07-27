@@ -32,14 +32,21 @@
  * @date 27 Jul 2013
  */
 
+#include <functional>
+
 #include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/SimpleInfoProtocol.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
 #include "nmranet/If.hxx"
 
+using ::testing::StartsWith;
+
 namespace nmranet
 {
+
+extern const uint8_t SNIP_MANUFACTURER[] = "TestingTesting";
+
 namespace
 {
 
@@ -48,20 +55,50 @@ class SNIPTest : public AsyncNodeTest
 protected:
     SNIPTest()
         : infoFlow_(ifCan_.get())
-        , handler_(ifCan_.get(), &infoFlow_) {}
+        , handler_(ifCan_.get(), &infoFlow_)
+    {
+    }
 
-    
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
 };
 
-TEST_F(SNIPTest, CreateDestroy) {}
+TEST_F(SNIPTest, CreateDestroy)
+{
+}
 
+/** Records the payload of incoming addressed packet (in gridconnect format)
+ * into the string dest. */
+void record_packet(string *dest, const string &packet)
+{
+    size_t pos = packet.find('N');
+    if (pos == string::npos)
+        return;
+    pos += 5; // skips destination address
+    while (pos < packet.size() - 1 && packet[pos] != ';')
+    {
+        char c[5];
+        c[0] = packet[pos];
+        c[1] = packet[pos + 1];
+        c[2] = 0;
+        int d = strtol(c, nullptr, 16);
+        dest->push_back(d & 0xff);
+        pos += 2;
+    }
+}
 
-TEST_F(SNIPTest, Send) {
-    expect_any_packet();
+TEST_F(SNIPTest, Send)
+{
+    using std::placeholders::_1;
+    string payload;
+    EXPECT_CALL(canBus_, mwrite(StartsWith(":X19A0822AN"))).WillRepeatedly(
+        WithArg<0>(Invoke(std::bind(&record_packet, &payload, _1))));
     send_packet(":X19DE8754N022A;");
     wait();
+    const char kExpectedData[] =
+        "\x01TestingTesting\0Undefined model\0Undefined HW version\0" "0.9\0"
+        "\x01Undefined node name\0Undefined node descr"; // C adds another \0.
+    EXPECT_EQ(string(kExpectedData, sizeof(kExpectedData)), payload);
 }
 
 } // anonymous namespace
