@@ -64,4 +64,9 @@
     asm(".global _sym_" #name " \n");                                          \
     asm(".set _sym_" #name ", " #value " \n");
 
+// We cannot compare constants to zero, so we use 1 and 2 as constant values
+// for booleans.
+#define CONSTANT_TRUE 1
+#define CONSTANT_FALSE 2
+
 #endif // _UTILS_CONSTANTS_HXX_
