@@ -101,7 +101,7 @@ void *buffer_malloc(size_t size)
      * for this function. We want to avoid tail-chain optimization in this
      * function or else it disappears from the stack traces done for memory
      * tracing. */
-    void *volatile v = stack_malloc(size);
+    void *volatile v = usb_malloc(size);
     return v;
 }
 
