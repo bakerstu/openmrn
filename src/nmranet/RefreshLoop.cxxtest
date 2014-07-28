@@ -9,7 +9,7 @@ namespace
 class MockPolling : public Polling
 {
 public:
-    MOCK_METHOD2(poll_10hz, void(WriteHelper *helper, Notifiable *done));
+    MOCK_METHOD2(poll_33hz, void(WriteHelper *helper, Notifiable *done));
 };
 
 class RefreshLoopTest : public AsyncNodeTest
@@ -32,7 +32,7 @@ protected:
 
 TEST_F(RefreshLoopTest, Calls)
 {
-    EXPECT_CALL(mp1_, poll_10hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_}));
     usleep(350000);
@@ -40,9 +40,9 @@ TEST_F(RefreshLoopTest, Calls)
 
 TEST_F(RefreshLoopTest, CallsBoth)
 {
-    EXPECT_CALL(mp1_, poll_10hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(mp2_, poll_10hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+    EXPECT_CALL(mp2_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_, &mp2_}));
     usleep(310000);

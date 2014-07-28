@@ -24,63 +24,60 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventBitProducer.hxx
- * A complete class that acts as a producer for a bit event from a polled input
- * with debouncing.
+ * \file SimpleNodeInfo.hxx
+ *
+ * Handler for the Simple Node Ident Info protocol.
  *
  * @author Balazs Racz
- * @date 13 Jul 2014
+ * @date 24 Jul 2013
  */
 
-#ifndef _NMRANET_EVENTBITPRODUCER_HXX_
-#define _NMRANET_EVENTBITPRODUCER_HXX_
+#include "nmranet/If.hxx"
+#include "nmranet/SimpleInfoProtocol.hxx"
 
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/RefreshLoop.hxx"
+namespace nmranet
+{
 
-namespace nmranet {
+extern const uint8_t SNIP_MANUFACTURER[];
+extern const uint8_t SNIP_MODEL[];
+extern const uint8_t SNIP_HW_VERSION[];
+extern const uint8_t SNIP_SW_VERSION[];
 
-template <class Debouncer, class BaseBit>
-class PolledProducer : public BaseBit, public Polling
+extern const uint8_t SNIP_USER_NODE_NAME[];
+extern const uint8_t SNIP_USER_NODE_DESCRIPTION[];
+
+extern const SimpleInfoDescriptor SNIP_RESPONSE[];
+
+class SNIPHandler : public IncomingMessageStateFlow
 {
 public:
-    template <typename... Fields>
-    PolledProducer(const typename Debouncer::Options &debounce_args,
-                   Fields... bit_args)
-        : BaseBit(bit_args...)
-        , debouncer_(debounce_args)
-        , producer_(this)
-    {
-        debouncer_.initialize(BaseBit::GetCurrentState());
+    SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
+        : IncomingMessageStateFlow(interface)
+        , responseFlow_(response_flow)
+    {                                       
+        interface->dispatcher()->register_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
-    bool GetCurrentState() OVERRIDE
-    {
-        return debouncer_.current_state();
+    ~SNIPHandler() {
+        interface()->dispatcher()->unregister_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
-    void SetState(bool new_value) OVERRIDE
+    Action entry() OVERRIDE
     {
-        debouncer_.initialize(new_value);
+        if (!nmsg()->dstNode) return release_and_exit();
+        return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
-    void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
+    Action send_response_request()
     {
-        if (debouncer_.update_state(BaseBit::GetCurrentState()))
-        {
-            producer_.SendEventReport(helper, done);
-        }
-        else
-        {
-            done->notify();
-        }
+        auto *b = get_allocation_result(responseFlow_);
+        b->data()->reset(nmsg(), SNIP_RESPONSE, Defs::MTI_IDENT_INFO_REPLY);
+        responseFlow_->send(b);
+        return release_and_exit();
     }
 
 private:
-    Debouncer debouncer_;
-    BitEventPC producer_;
+    SimpleInfoFlow *responseFlow_;
 };
 
 } // namespace nmranet
-
-#endif // _NMRANET_EVENTBITPRODUCER_HXX_

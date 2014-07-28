@@ -251,6 +251,7 @@ void ByteRangeEventC::HandleEventReport(EventReport* event, BarrierNotifiable* d
   LOG(VERBOSE, "ByteRange: evt %x to %d", (unsigned)(storage - data_), value);
 #endif
   *storage = value;
+  notify_changed(storage - data_);
 }
 
 bool ByteRangeEventC::DecodeEventId(uint64_t event, uint8_t** storage, uint8_t*value) {

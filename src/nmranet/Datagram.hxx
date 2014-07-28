@@ -53,14 +53,14 @@ typedef Payload DatagramPayload;
 struct IncomingDatagram
 {
     NodeHandle src;
-    Node* dst;
+    Node *dst;
     // Owned by the current IncomingDatagram object. Includes the datagram ID
     // as the first byte.
     DatagramPayload payload;
 };
 
 /// Allocator to be used for Buffer<IncomingDatagram> objects.
-extern Pool* const g_incoming_datagram_allocator;
+extern Pool *const g_incoming_datagram_allocator;
 
 /** Base class for datagram handlers.
  *
@@ -68,7 +68,7 @@ extern Pool* const g_incoming_datagram_allocator;
  * datagrams. It is okay to derive a datagram handler from DatagramHandlerFlow
  * as well (they ar ecompatible). */
 typedef FlowInterface<Buffer<IncomingDatagram>> DatagramHandler;
-typedef StateFlow<Buffer<IncomingDatagram>, QList<1> > DatagramHandlerFlow;
+typedef StateFlow<Buffer<IncomingDatagram>, QList<1>> DatagramHandlerFlow;
 
 /** Use this class to send datagrams */
 class DatagramClient : public QMember
@@ -90,7 +90,8 @@ public:
      * @TODO(balazs.racz): revisit the type of DatagramPayload and ensure that
      * there will be no extra copy of the data happening.
      */
-    virtual void write_datagram(Buffer<NMRAnetMessage>* b, unsigned priority = UINT_MAX) = 0;
+    virtual void write_datagram(Buffer<NMRAnetMessage> *b,
+                                unsigned priority = UINT_MAX) = 0;
 
     /** Requests cancelling the datagram send operation. Will notify the done
      * callback when the canceling is completed. */
@@ -158,11 +159,11 @@ public:
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)
      */
-    DatagramService(If* interface, size_t num_registry_entries);
+    DatagramService(If *interface, size_t num_registry_entries);
     ~DatagramService();
 
     /// @returns the registry of datagram handlers.
-    Registry* registry()
+    Registry *registry()
     {
         return dispatcher_.registry();
     }
@@ -173,12 +174,12 @@ public:
      * When the client flow completes, it is the caller's responsibility to
      * return it to this allocator, once the client is done examining the
      * result codes. */
-    TypedQAsync<DatagramClient>* client_allocator()
+    TypedQAsync<DatagramClient> *client_allocator()
     {
         return &clients_;
     }
 
-    If* interface()
+    If *interface()
     {
         return interface_;
     }
@@ -195,9 +196,9 @@ private:
     class DatagramDispatcher : public IncomingMessageStateFlow
     {
     public:
-        DatagramDispatcher(If* interface, size_t num_registry_entries)
-            : IncomingMessageStateFlow(interface),
-              registry_(num_registry_entries)
+        DatagramDispatcher(If *interface, size_t num_registry_entries)
+            : IncomingMessageStateFlow(interface)
+            , registry_(num_registry_entries)
         {
         }
 
@@ -206,7 +207,7 @@ private:
         }
 
         /// @returns the registry of datagram handlers.
-        Registry* registry()
+        Registry *registry()
         {
             return &registry_;
         }
@@ -217,17 +218,17 @@ private:
         Action incoming_datagram_allocated();
         Action respond_rejection();
 
-        Buffer<IncomingDatagram>* d_; //< Datagram to send to handler.
-        uint16_t resultCode_;   //< Rejection reason
+        Buffer<IncomingDatagram> *d_; //< Datagram to send to handler.
+        uint16_t resultCode_;         //< Rejection reason
 
         /// Maintains the registered datagram handlers.
         Registry registry_;
 
-        //TypedAllocator<IncomingMessageHandler> lock_;
+        // TypedAllocator<IncomingMessageHandler> lock_;
     };
 
     /// Interface on which we are registered.
-    If* interface_;
+    If *interface_;
 
     /// Datagram clients.
     TypedQAsync<DatagramClient> clients_;

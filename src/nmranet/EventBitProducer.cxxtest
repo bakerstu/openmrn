@@ -70,45 +70,47 @@ TEST_F(PolledProducerTest, CreateDestroy)
 {
 }
 
+static const int POLL_USEC = 30000;
+
 TEST_F(PolledProducerTest, NoFlip)
 {
-    usleep(500000);
+    usleep(5 * POLL_USEC);
 }
 
 TEST_F(PolledProducerTest, FlipOnce)
 {
     wait();
     hwState_ = true;
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     expect_packet(":X195B422AN0501010114FE0000;");
-    usleep(100000);
+    usleep(POLL_USEC * 1.5);
 }
 
 TEST_F(PolledProducerTest, FlipLate)
 {
     wait();
-    usleep(150000);
+    usleep(POLL_USEC * 1.5);
     hwState_ = true;
-    usleep(200000);
+    usleep(POLL_USEC * 2);
     expect_packet(":X195B422AN0501010114FE0000;");
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     hwState_ = false;
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     expect_packet(":X195B422AN0501010114FE0001;");
-    usleep(100000);
+    usleep(POLL_USEC);
 }
 
 TEST_F(PolledProducerTest, Transient)
 {
     wait();
     hwState_ = true;
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     hwState_ = false;
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     hwState_ = true;
-    usleep(250000);
+    usleep(POLL_USEC * 2.5);
     hwState_ = false;
-    usleep(350000);
+    usleep(POLL_USEC * 3.5);
 }
 
 } // namespace

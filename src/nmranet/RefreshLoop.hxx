@@ -46,10 +46,10 @@ namespace nmranet
 class Polling
 {
 public:
-    /** This function will be called approximately 10 times per second b the
+    /** This function will be called approximately 33 times per second by the
      * refresh loop. It must notify done when it is finished using the
      * writehelper. */
-    virtual void poll_10hz(WriteHelper *helper, Notifiable *done) = 0;
+    virtual void poll_33hz(WriteHelper *helper, Notifiable *done) = 0;
 };
 
 class RefreshLoop : public StateFlowBase
@@ -75,7 +75,7 @@ public:
 
     Action wait_for_tick()
     {
-        lastTimeout_ += MSEC_TO_NSEC(100);
+        lastTimeout_ += MSEC_TO_NSEC(30);
         nextMember_ = members_.begin();
         // If we have overflowed our timer, this call will happen immediately.
         return sleep_and_call(&timer_, lastTimeout_ - os_get_time_monotonic(),
@@ -88,7 +88,7 @@ public:
         {
             return call_immediately(STATE(wait_for_tick));
         }
-        (*nextMember_)->poll_10hz(&helper_, this);
+        (*nextMember_)->poll_33hz(&helper_, this);
         ++nextMember_;
         return wait();
     }

@@ -21,8 +21,9 @@ CXXSRCS += \
            WriteHelper.cxx \
            Datagram.cxx \
            DatagramCan.cxx \
+           MemoryConfig.cxx \
+           SimpleNodeInfo.cxx \
 
 
 DEAD_CXX +=  \
-           MemoryConfig.cxx \
            Stream.cxx \

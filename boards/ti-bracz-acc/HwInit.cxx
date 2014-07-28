@@ -213,5 +213,9 @@ void hw_preinit(void)
     MAP_GPIOPinConfigure(GPIO_PB4_CAN0RX);
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
+    MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
+    MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
 }
 }

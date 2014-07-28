@@ -1,1 +1,0 @@
-../../../boards/ti-ek-lm4f120xl-launchpad/memory_map.ld
