@@ -73,27 +73,27 @@ protected:
 
 private:
     /** Read from a file or device.
-    * @param file file reference for this device
-    * @param buf location to place read data
-    * @param count number of bytes to read
-    * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-    */
+     * @param file file reference for this device
+     * @param buf location to place read data
+     * @param count number of bytes to read
+     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+     */
     ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
 
     /** Write to a file or device.
-    * @param file file reference for this device
-    * @param buf location to find write data
-    * @param count number of bytes to write
-    * @return number of bytes written upon success, -1 upon failure with errno containing the cause
-    */
+     * @param file file reference for this device
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
     /** Request an ioctl transaction
-    * @param file file reference for this device
-    * @param node node reference for this device
-    * @param key ioctl key
-    * @param data key data
-    */
+     * @param file file reference for this device
+     * @param node node reference for this device
+     * @param key ioctl key
+     * @param data key data
+     */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
     
     /** Discards all pending buffers. Called after disable(). */
