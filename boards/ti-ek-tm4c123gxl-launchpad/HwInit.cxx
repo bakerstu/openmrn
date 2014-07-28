@@ -33,8 +33,6 @@
 
 #include <new>
 #include <cstdint>
-#include <fcntl.h>
-#include <unistd.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
