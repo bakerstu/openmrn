@@ -3,5 +3,6 @@ DEPS += TIVAWAREPATH
 VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
 
 CXXSRCS += TivaCan.cxx \
+           TivaDCC.cxx \
            TivaUart.cxx \
            TivaUsbCdcDevice.cxx
