@@ -309,6 +309,7 @@ private:
 
 /** Handle an interrupt.
  */
+__attribute__((optimize("-O3")))
 inline void TivaDCC::interrupt_handler()
 {
     enum State

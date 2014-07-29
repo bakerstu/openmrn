@@ -118,20 +118,24 @@ ssize_t TivaDCC::read(File *file, void *buf, size_t count)
  * @param count number of bytes to write
  * @return number of bytes written upon success, -1 upon failure with errno containing the cause
  */
+__attribute__((optimize("-O3")))
 ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
 {
+    portENTER_CRITICAL();
     MAP_TimerIntDisable(intervalBase, TIMER_TIMA_TIMEOUT);
 
     if (q.count == Q_SIZE)
     {
         errno = ENOSPC;
         MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
+        portEXIT_CRITICAL();
         return -1;
     }
     if (count > MAX_PKT_SIZE)
     {
         errno = EINVAL;
         MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
+        portEXIT_CRITICAL();
         return -1;
     }
 
@@ -146,6 +150,7 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
     ++q.count;
 
     MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
+    portEXIT_CRITICAL();
     return count;
 }
 
