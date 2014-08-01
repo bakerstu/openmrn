@@ -39,6 +39,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
 #include "freertos/can_ioctl.h"
