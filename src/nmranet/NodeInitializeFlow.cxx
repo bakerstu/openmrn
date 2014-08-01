@@ -97,7 +97,7 @@ private:
 
     Action identify_events()
     {
-        if (!config_node_init_identify())
+        if (config_node_init_identify() != CONSTANT_TRUE)
         {
             return release_and_exit();
         }
