@@ -22,8 +22,6 @@ MEMORY
   USB_RAM(rwx) : ORIGIN = 0x2007C000, LENGTH = 32K
 }
 
-/*  XX__ETHRAM_segment_start__  = ORIGIN( ETH_RAM );*/
-
 /* Set stack top to end of RAM, and stack limit move down by      
  * size of stack_dummy section */
 __cs3_heap_end = ORIGIN(RAM) + LENGTH(RAM);
@@ -37,6 +35,8 @@ __stacks_min__ = __StackLimit ;
 __USBRAM_segment_start__  = __bss_end__;
 __USBRAM_segment_end__    = __StackLimit; /*ORIGIN( USB_RAM ) + LENGTH( USB_RAM );*/
 _sym_use_separate_stack_segment = 2; /* false */
+/* This should not be used on the mbed -- will crash immediately. */
+__ETHRAM_segment_start__  = 0xFFFF0000;
 
 
 /* Linker script to place sections and symbol values. Should be used together
