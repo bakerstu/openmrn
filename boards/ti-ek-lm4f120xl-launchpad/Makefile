@@ -16,6 +16,7 @@ LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
                -L$(TIVAWAREPATH)/usblib/gcc
 SYSLIBRARIESEXTRA = -lusb -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
+           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaDCC.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUsbCdcDevice.o
 

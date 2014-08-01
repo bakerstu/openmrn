@@ -31,8 +31,8 @@
  * @date 5 January 2013
  */
 
-#include <cstdint>
 #include <new>
+#include <cstdint>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -65,10 +65,20 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+#define ONE_BIT_HALF_PERIOD  4480
+#define ZERO_BIT_HALF_PERIOD 8000
+#define STARTUP_DELAY_CYCLES 2
+#define DEADBAND_ADJUST      80
+
+static TivaDCC tivaDCC("/dev/mainline", TIMER0_BASE, TIMER1_BASE, INT_TIMER1A,
+                       16, (4480 << 1), (8000 << 1), 2, 80);
+
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
+
+void dcc_generator_init(void);
 
 void resetblink(uint32_t pattern)
 {
@@ -115,7 +125,7 @@ void hw_preinit(void)
     asm("cpsid i\n");
 
     /* Setup the system clock. */
-    MAP_SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                        SYSCTL_XTAL_16MHZ);
 
     /* Red LED pin initialization */
@@ -129,6 +139,7 @@ void hw_preinit(void)
     MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
     MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, MAP_SysCtlClockGet() / 8);
     MAP_IntEnable(INT_TIMER5A);
+
     /* This interrupt should hit even during kernel operations. */
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
@@ -160,9 +171,23 @@ void hw_preinit(void)
     MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
     MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
 
-    /* Initialize timer0a interrupt */
-
+    /* USB interrupt priority */
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
+
+    /* Initialize the DCC Timers and GPIO outputs */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_GPIOPinConfigure(GPIO_PB6_T0CCP0);
+    MAP_GPIOPinConfigure(GPIO_PB7_T0CCP1);
+    MAP_GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+}
+
+/** Timer interrupt for DCC packet handling.
+ */
+void timer1a_interrupt_handler(void)
+{
+    tivaDCC.interrupt_handler();
 }
 
 }

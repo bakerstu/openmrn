@@ -163,7 +163,7 @@ extern void ignore_fn(void);
 
 extern const unsigned long cm3_cpu_clock_hz;
 /** CPU clock speed. */
-const unsigned long cm3_cpu_clock_hz = 20000000;
+const unsigned long cm3_cpu_clock_hz = 80000000;
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))

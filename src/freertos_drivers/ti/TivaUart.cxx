@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file TivaUart.cxx
- * This file implements a USB CDC device driver layer specific to Tivaware.
+ * This file implements a UART device driver layer specific to Tivaware.
  *
  * @author Stuart W. Baker
  * @date 6 May 2014
