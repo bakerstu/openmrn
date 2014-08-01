@@ -223,7 +223,7 @@ ifndef MIPSGCCPATH
 SEARCHPATH := \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
   /opt/MentorGraphics/default_mips_elf
-  
+
 
 TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -242,4 +242,31 @@ ifneq ($(TRYPATH),)
 PIC32MXLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLIBPATH
+
+##################### OPENOCD ######################
+ifndef OPENOCDPATH
+SEARCHPATH := \
+  /opt/openocd/default/openocd/src \
+  /usr/local/bin \
+  /usr/bin \
+
+TRYPATH:=$(call findfirst,openocd,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+OPENOCDPATH:=$(TRYPATH)
+endif
+endif #OPENOCDPATH
+
+##################### OPENOCDSCRIPTS ######################
+ifndef OPENOCDSCRIPTSPATH
+SEARCHPATH := \
+  /opt/openocd/default/openocd/tcl \
+  /usr/local/share/openocd/scripts \
+  /usr/share/openocd/scripts \
+
+
+TRYPATH:=$(call findfirst,target/stellaris_icdi.cfg,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+OPENOCDSCRIPTSPATH:=$(TRYPATH)
+endif
+endif #OPENOCDSCRIPTSPATH
 

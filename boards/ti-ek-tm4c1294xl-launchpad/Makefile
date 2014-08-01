@@ -25,3 +25,8 @@ TARGET := freertos.armv7m
 BOARD := BOARD_LAUNCHPAD_EK
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+ifeq ($(call find_missing_deps,OPENOCDSCRIPTSPATH OPENOCDPATH),)
+flash: $(EXECUTABLE)$(EXTENTION)
+	$(PREFIX)gdb $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor reset halt' -ex 'load' -ex 'monitor reset init' -ex 'monitor reset run' -ex 'detach' -ex 'quit'
+endif
