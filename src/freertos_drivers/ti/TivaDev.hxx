@@ -279,9 +279,9 @@ private:
      */
     struct Q
     {
-        int count; /**< number of items in the queue */
-        int rdIndex; /**< current read index */
-        int wrIndex; /**< current write index */
+        size_t count; /**< number of items in the queue */
+        size_t rdIndex; /**< current read index */
+        size_t wrIndex; /**< current write index */
         uint8_t data[Q_SIZE][MAX_PKT_SIZE + 1]; /**< queue data */
     };
 
