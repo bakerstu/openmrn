@@ -305,16 +305,18 @@ GcPacketPrinter::~GcPacketPrinter()
 {
 }
 
-struct GcHubPort : public Notifiable
+struct GcHubPort : public Executable
 {
     GcHubPort(CanHubFlow *can_hub, int fd)
         : gcHub_(can_hub->service())
-        , bridge_(GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub,
-                                                          false))
+        , bridge_(
+              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub, false))
         , gcWrite_(&gcHub_, fd, this)
     {
     }
-    virtual ~GcHubPort() {}
+    virtual ~GcHubPort()
+    {
+    }
 
     /** This hub seen the character-based representation of the packets. The
      * members of it are: the bridge and the physical device (fd). */
@@ -330,6 +332,17 @@ struct GcHubPort : public Notifiable
     /** Callback in case the connection is closed due to error. */
     void notify() OVERRIDE
     {
+        /* We would like to delete *this but we cannot do that in this
+         * callback, because we don't know what executor we are running
+         * on. Deleting on the write executor would cause a deadlock for
+         * example. */
+        gcHub_.service()->executor()->add(this);
+    }
+
+    void run() OVERRIDE
+    {
+        LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
+            gcWrite_.fd(), bridge_.get());
         /* We get this call when something is wrong with the FDs and we need to
          * close the connection. It is guaranteed that by the time we got this
          * call the device is unregistered from the char bridge, and the
@@ -338,6 +351,7 @@ struct GcHubPort : public Notifiable
     }
 };
 
-void create_gc_port_for_can_hub(CanHubFlow* can_hub, int fd) {
+void create_gc_port_for_can_hub(CanHubFlow *can_hub, int fd)
+{
     new GcHubPort(can_hub, fd);
 }
