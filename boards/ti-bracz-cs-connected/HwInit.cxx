@@ -138,6 +138,24 @@ void set_gpio_extinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
 }
 
+extern void enable_dcc();
+extern void disable_dcc();
+
+void enable_dcc() {
+    auto port = GPIO_PORTA_BASE;
+    auto pin = GPIO_PIN_2 | GPIO_PIN_3;
+    MAP_GPIOPinTypeTimer(port, pin); 
+    MAP_GPIOPinConfigure(GPIO_PA2_T1CCP0);
+    MAP_GPIOPinConfigure(GPIO_PA3_T1CCP1);
+    //MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
+}
+
+void disable_dcc() {
+    // Take A2/A3 and set them to drive high. This will turn off the gate
+    // driver.
+    set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+}
+
 /** Initialize the processor hardware.
  */
 void hw_preinit(void)
@@ -157,9 +175,7 @@ void hw_preinit(void)
     MAP_GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_2 | GPIO_PIN_3,
                          GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
 
-    // Take A2/A3 and set them to drive high. This will turn off the gate
-    // driver.
-    set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+    disable_dcc();
 
     // A4 controls the accessory bus, active high.
     set_gpio_drive_low(GPIO_PORTA_BASE, GPIO_PIN_4);
@@ -214,6 +230,12 @@ void hw_preinit(void)
     set_gpio_led(GPIO_PORTN_BASE, GPIO_PIN_0);  // onboard 2
     set_gpio_led(GPIO_PORTF_BASE, GPIO_PIN_4);  // onboard 3
     set_gpio_led(GPIO_PORTF_BASE, GPIO_PIN_0);  // onboard 4
+
+    /* Timer hardware for DCC signal generation */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 }
 
-}
+
+
+}  // extern C
