@@ -40,6 +40,7 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "utils/socket_listener.hxx"
 
@@ -54,9 +55,26 @@ static void* accept_thread_start(void* arg) {
 }
 
 SocketListener::SocketListener(int port, connection_callback_t callback)
-    : port_(port),
+    : startupComplete_(0),
+      shutdownRequested_(0),
+      shutdownComplete_(0),
+      port_(port),
       callback_(callback),
       accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {}
+
+SocketListener::~SocketListener() {
+    if (!shutdownComplete_) {
+        shutdown();
+    }
+}
+
+void SocketListener::shutdown()
+{
+    shutdownRequested_ = 1;
+    while (!shutdownComplete_) {
+        usleep(1000);
+    }
+}
 
 void SocketListener::AcceptThreadBody() {
   socklen_t namelen;
@@ -84,11 +102,22 @@ void SocketListener::AcceptThreadBody() {
 
   ERRNOCHECK("listen", listen(listenfd, 1));
 
-  LOG(INFO, "Listening on port %d, fd %d\n", ntohs(addr.sin_port), listenfd);
+  LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
+
+  {
+      struct timeval tm;
+      tm.tv_sec = 0;
+      tm.tv_usec = MSEC_TO_USEC(100);
+      ERRNOCHECK("setsockopt_timeout",
+                 setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tm, 
+                            sizeof(tm)));
+  }
 
   int connfd;
 
-  while (true) {
+  startupComplete_ = 1;
+
+  while (!shutdownRequested_) {
     namelen = sizeof(addr);
     connfd = accept(listenfd,
                     (struct sockaddr *)&addr,
@@ -103,10 +132,13 @@ void SocketListener::AcceptThreadBody() {
                setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
                           &val, sizeof(val)));
 
-    LOG(INFO, "Inoming connection from %s, fd %d.\n", inet_ntoa(addr.sin_addr),
+    LOG(INFO, "Incoming connection from %s, fd %d.", inet_ntoa(addr.sin_addr),
         connfd);
     callback_(connfd);
   }
+  close(listenfd);
+  LOG(INFO, "Shutdown listening socket %d.", port_);
+  shutdownComplete_ = 1;
 }
 
 

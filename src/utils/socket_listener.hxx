@@ -46,10 +46,24 @@ public:
     typedef std::function<void(int)> connection_callback_t;
 
     SocketListener(int port, connection_callback_t callback);
+    ~SocketListener();
 
     void AcceptThreadBody();
 
+    /** Shuts down the socket listener. Blocks until the accept thread is
+     * stopped. This call can take up to 100 msec as of now. It is safe to
+     * delete *this after this call is returned. */
+    void shutdown();
+
+    bool is_started()
+    {
+        return startupComplete_;
+    }
+
 private:
+    volatile unsigned startupComplete_ : 1;   //< 1 if we have completed bind.
+    volatile unsigned shutdownRequested_ : 1; //< 1 if shutting down.
+    volatile unsigned shutdownComplete_ : 1;  //< 1 if accept thread is exited.
     int port_;
     connection_callback_t callback_;
     OSThread accept_thread_;
