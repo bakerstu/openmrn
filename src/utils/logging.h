@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file logging.h
- * Facility to do debug printf's on a configurable loglevel. 
+ * Facility to do debug printf's on a configurable loglevel.
  *
  * @author Balazs Racz
  * @date 3 August 2013
@@ -42,6 +42,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include "os/os.h"
 
 static const int FATAL = 0;
 static const int ERROR = 1;
@@ -49,15 +50,30 @@ static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
 
+#ifdef __linux__
+#define LOCKED_LOGGING
+#endif
+
+#ifdef LOCKED_LOGGING
+extern os_mutex_t g_log_mutex;
+#define LOCK_LOG os_mutex_lock(&g_log_mutex)
+#define UNLOCK_LOG os_mutex_unlock(&g_log_mutex)
+#else
+#define LOCK_LOG
+#define UNLOCK_LOG
+#endif
+
 #define LOG(level, message...)                                                 \
     do                                                                         \
     {                                                                          \
         if (LOGLEVEL >= level)                                                 \
         {                                                                      \
+            LOCK_LOG;                                                          \
             int sret = snprintf(logbuffer, sizeof(logbuffer), message);        \
             if (sret > (int)sizeof(logbuffer))                                 \
                 sret = sizeof(logbuffer);                                      \
             log_output(logbuffer, sret);                                       \
+            UNLOCK_LOG;                                                        \
         }                                                                      \
     } while (0)
 

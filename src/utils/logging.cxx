@@ -35,6 +35,10 @@
 
 char logbuffer[256];
 
+#ifdef LOCKED_LOGGING
+os_mutex_t g_log_mutex = OS_MUTEX_INITIALIZER;
+#endif
+
 #ifdef MBED_USE_STDIO_LOGGING  // TARGET_LPC1768
 
 extern "C" { void send_stdio_serial_message(const char* data); }
