@@ -51,4 +51,5 @@ GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
 
 GcTcpHub::~GcTcpHub()
 {
+    tcpListener_.shutdown();
 }

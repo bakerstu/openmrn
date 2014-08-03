@@ -43,15 +43,21 @@ class CanHubFlow;
  * format. Any new incoming connection will be wired into the same virtual CAN
  * hub. All packets will be forwarded to every participant, without
  * loopback. */
-class GcTcpHub {
+class GcTcpHub
+{
 public:
-    GcTcpHub(CanHubFlow* can_hub, int port);
+    GcTcpHub(CanHubFlow *can_hub, int port);
     ~GcTcpHub();
+
+    bool is_started()
+    {
+        return tcpListener_.is_started();
+    }
 
 private:
     void OnNewConnection(int fd);
 
-    CanHubFlow* canHub_;
+    CanHubFlow *canHub_;
     SocketListener tcpListener_;
 };
 
