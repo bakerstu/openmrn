@@ -1,0 +1,175 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file GcTcpHub.cxxtest
+ * Unittests for gridconnect TCP hub.
+ *
+ * @author Balazs Racz
+ * @date 3 Aug 2014
+ */
+
+#include "utils/GcTcpHub.hxx"
+#include "utils/async_if_test_helper.hxx"
+#include "utils/socket_listener.hxx"
+
+class GcTcpHubTest : public AsyncCanTest
+{
+protected:
+    GcTcpHubTest() : tcpHub_(&can_hub0, 12023)
+    {
+        while (!tcpHub_.is_started())
+        {
+            usleep(1000);
+        }
+    }
+
+    ~GcTcpHubTest() {
+        while (can_hub0.size() > 1) {
+            /* If the test gets stuck here, that means that there is a bug in
+             * cleaning up the connections that are closed. That is very
+             * dangerous, because the hub will apparently work, but we will
+             * slowly leak resources, the hub getting slower and slower over
+             * time until it uses up all your CPU. */
+            fprintf(stderr, "waiting for exiting.\r");
+            usleep(100000);
+        }
+    }
+
+    struct Client
+    {
+        Client()
+        {
+            fd_ = ConnectSocket("localhost", 12023);
+            EXPECT_LE(0, fd_);
+        }
+        ~Client()
+        {
+            close(fd_);
+        }
+        int fd_;
+    };
+
+    string readline(int fd, char eol)
+    {
+        string ret;
+        char c;
+        while (true)
+        {
+            ssize_t nread = read(fd, &c, 1);
+            if (nread < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+                {
+                    continue;
+                }
+                else
+                {
+                    ERRNOCHECK("read", nread);
+                }
+            }
+            else if (nread == 0)
+            {
+                return ret;
+            }
+            else
+            {
+                ret += c;
+                if (c == eol)
+                {
+                    return ret;
+                }
+            }
+        }
+    }
+
+    void writeline(int fd, string l)
+    {
+        int ofs = 0;
+        while (ofs < (int)l.size())
+        {
+            ssize_t ret = write(fd, l.data() + ofs, l.size() - ofs);
+            if (ret < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+                {
+                    continue;
+                }
+                else
+                {
+                    ERRNOCHECK("write", ret);
+                }
+            }
+            else if (ret == 0)
+            {
+                FAIL() << "EOF writing line to fd " << fd << " line: " << l;
+            }
+            else
+            {
+                ofs += ret;
+            }
+        }
+    }
+
+    GcTcpHub tcpHub_;
+};
+
+TEST_F(GcTcpHubTest, CreateDestroy)
+{
+}
+
+TEST_F(GcTcpHubTest, TwoClientsPingPong)
+{
+    Client a;
+    Client b;
+    // Test writing from one client and arriving at another.
+    expect_packet(":S001N01;");
+    writeline(a.fd_, ":S001N01;");
+    EXPECT_EQ(":S001N01;", readline(b.fd_, ';'));
+    EXPECT_EQ(3U, can_hub0.size());
+    // Test writing outwards.
+    send_packet(":S002N0102;");
+    EXPECT_EQ(":S002N0102;", readline(a.fd_, ';'));
+    EXPECT_EQ(":S002N0102;", readline(b.fd_, ';'));
+}
+
+TEST_F(GcTcpHubTest, ClientCloseExpect)
+{
+    unsigned can_hub_size = can_hub0.size();
+    LOG(INFO, "can hub: %p ", &can_hub0);
+    EXPECT_EQ(1U, can_hub_size);
+    {
+        Client a;
+        Client b;
+        expect_packet(":S001N01;");
+        writeline(a.fd_, ":S001N01;");
+        EXPECT_EQ(":S001N01;", readline(b.fd_, ';'));
+        EXPECT_EQ(can_hub_size + 2, can_hub0.size());
+    }
+    // Test writing outwards.
+    send_packet(":S002N0102;");
+    wait();
+    EXPECT_EQ(1U, can_hub0.size());
+}
