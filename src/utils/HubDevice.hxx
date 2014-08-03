@@ -61,6 +61,11 @@ public:
         writeThread_.shutdown();
     }
 
+    int fd()
+    {
+        return fd_;
+    }
+
 protected:
     const char *fill_thread_name(char mode, int fd)
     {
