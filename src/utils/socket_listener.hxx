@@ -33,7 +33,6 @@
  * @date 3 Aug 2013
  */
 
-
 #ifndef _UTILS_SOCKET_LISTENER_HXX_
 #define _UTILS_SOCKET_LISTENER_HXX_
 
@@ -41,22 +40,23 @@
 
 #include "os/OS.hxx"
 
-class SocketListener {
- public:
-  typedef std::function<void(int)> connection_callback_t;
+class SocketListener
+{
+public:
+    typedef std::function<void(int)> connection_callback_t;
 
-  SocketListener(int port, connection_callback_t callback);
+    SocketListener(int port, connection_callback_t callback);
 
-  void AcceptThreadBody();
+    void AcceptThreadBody();
 
- private:
-  int port_;
-  connection_callback_t callback_;
-  OSThread accept_thread_;
+private:
+    int port_;
+    connection_callback_t callback_;
+    OSThread accept_thread_;
 };
 
 // Connects a tcp socket to the specified host:port. Returns -1 if
 // unsuccessful; returns the fd is successful.
-int ConnectSocket(const char* host, int port);
+int ConnectSocket(const char *host, int port);
 
 #endif //_UTILS_SOCKET_LISTENER_HXX_
