@@ -316,10 +316,18 @@ struct GcHubPort : public Notifiable
     }
     virtual ~GcHubPort() {}
 
+    /** This hub seen the character-based representation of the packets. The
+     * members of it are: the bridge and the physical device (fd). */
     HubFlow gcHub_;
+    /** Translates packets between the can-hub of the device and the char-hub
+     * of this port. */
     std::unique_ptr<GCAdapterBase> bridge_;
+    /** Reads the characters from the char-hub and sends them to the
+     * fd. Similarly, listens to the fd and sends the read charcters to the
+     * char-hub. */
     FdHubPort<HubFlow> gcWrite_;
 
+    /** Callback in case the connection is closed due to error. */
     void notify() OVERRIDE
     {
         /* We get this call when something is wrong with the FDs and we need to
