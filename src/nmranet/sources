@@ -23,6 +23,7 @@ CXXSRCS += \
            DatagramCan.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
+           TractionTestTrain.cxx \
 
 
 DEAD_CXX +=  \
