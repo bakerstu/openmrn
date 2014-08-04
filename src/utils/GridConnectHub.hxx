@@ -49,6 +49,11 @@ public:
     {
     }
 
+    /** Unregisters *this from the pipes. Returns true if it is safe to destroy
+     * *this. It is OK to call this multiple times. It should be called on the
+     * executor of the CAN side service. */
+    virtual bool shutdown() = 0;
+
     /**
        This function connects an ASCII (GridConnect-format) CAN adapter to a
        binary CAN adapter, performing the necessary format conversions

@@ -51,6 +51,7 @@ public:
     {
         gc_side->register_port(&parser_);
         can_side->register_port(&formatter_);
+        isRegistered_ = 1;
     }
 
     GCAdapter(HubFlow *gc_side_read, HubFlow *gc_side_write,
@@ -60,14 +61,31 @@ public:
     {
         gc_side_read->register_port(&parser_);
         can_side->register_port(&formatter_);
+        isRegistered_ = 1;
     }
 
     virtual ~GCAdapter()
     {
-        parser_.destination()->unregister_port(&formatter_);
-        /// @TODO(balazs.racz) This is incorrect if the 3-pipe constructor is
-        /// used.
-        formatter_.destination()->unregister_port(&parser_);
+        unregister();
+    }
+
+    void unregister()
+    {
+        if (isRegistered_)
+        {
+            parser_.destination()->unregister_port(&formatter_);
+            /// @TODO(balazs.racz) This is incorrect if the 3-pipe constructor
+            /// is
+            /// used.
+            formatter_.destination()->unregister_port(&parser_);
+            isRegistered_ = 0;
+        }
+    }
+
+    bool shutdown() OVERRIDE
+    {
+        unregister();
+        return parser_.is_waiting() && formatter_.is_waiting();
     }
 
     class BinaryToGCMember : public CanHubPort
@@ -256,6 +274,7 @@ private:
     GCToBinaryMember parser_;
     /// PipeMember doing the formatting.
     BinaryToGCMember formatter_;
+    unsigned isRegistered_ : 1; //< 1 if the flows are registered.
 };
 
 GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side,
@@ -313,16 +332,24 @@ struct GcHubPort : public Executable
               GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub, false))
         , gcWrite_(&gcHub_, fd, this)
     {
+        LOG(INFO, "gchub port %p", (Executable *)this);
     }
     virtual ~GcHubPort()
     {
     }
 
     /** This hub seen the character-based representation of the packets. The
-     * members of it are: the bridge and the physical device (fd). */
+     * members of it are: the bridge and the physical device (fd).
+     *
+     * Destruction requirement: HubFlow should be empty. This means after the
+     * disconnection of the bridge (write side) and the FdHubport (read side)
+     * we need to wait for the executor until this flow drains. */
     HubFlow gcHub_;
     /** Translates packets between the can-hub of the device and the char-hub
-     * of this port. */
+     * of this port.
+     *
+     * Destruction requirement: Call shutdown() on the can-side executor (and
+     * yield) until it returns true. */
     std::unique_ptr<GCAdapterBase> bridge_;
     /** Reads the characters from the char-hub and sends them to the
      * fd. Similarly, listens to the fd and sends the read charcters to the
@@ -341,6 +368,12 @@ struct GcHubPort : public Executable
 
     void run() OVERRIDE
     {
+        if (!bridge_->shutdown() || !gcHub_.is_waiting())
+        {
+            // Yield.
+            gcHub_.service()->executor()->add(this);
+            return;
+        }
         LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
             gcWrite_.fd(), bridge_.get());
         /* We get this call when something is wrong with the FDs and we need to
