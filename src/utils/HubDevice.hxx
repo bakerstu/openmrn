@@ -58,7 +58,6 @@ public:
 
     virtual ~FdHubPortBase()
     {
-        writeThread_.shutdown();
     }
 
     int fd()
@@ -138,8 +137,10 @@ protected:
                     {
                         LOG(ERROR, "EOF reading fd %d", port_->fd_);
                     }
-                    else
+                    else if (errno == EINTR || errno == EAGAIN)
                     {
+                        continue;
+                    } else {
                         LOG(ERROR, "Error reading fd %d: (%d) %s", port_->fd_,
                             errno, strerror(errno));
                     }
@@ -246,9 +247,17 @@ public:
         hub_->register_port(&writeFlow_);
     }
 
+    ~FdHubPort() OVERRIDE
+    {
+        writeThread_.shutdown();
+    }
+
     void unregister_write_port() OVERRIDE
     {
         hub_->unregister_port(&writeFlow_);
+        /* We put an empty message at the end of the queue. This will cause
+         * wait until all pending messages are dealt with, and then ping the
+         * barrier notifiable, commencing the shutdown. */
         auto *b = writeFlow_.alloc();
         b->set_done(&barrier_);
         writeFlow_.send(b);
