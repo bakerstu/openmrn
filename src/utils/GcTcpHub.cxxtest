@@ -146,8 +146,8 @@ TEST_F(GcTcpHubTest, TwoClientsPingPong)
     Client b;
     // Test writing from one client and arriving at another.
     expect_packet(":S001N01;");
-    writeline(a.fd_, ":S001N01;");
-    EXPECT_EQ(":S001N01;", readline(b.fd_, ';'));
+    writeline(b.fd_, ":S001N01;");
+    EXPECT_EQ(":S001N01;", readline(a.fd_, ';'));
     EXPECT_EQ(3U, can_hub0.size());
     // Test writing outwards.
     send_packet(":S002N0102;");
@@ -164,12 +164,11 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
         Client a;
         Client b;
         expect_packet(":S001N01;");
-        writeline(a.fd_, ":S001N01;");
-        EXPECT_EQ(":S001N01;", readline(b.fd_, ';'));
+        writeline(b.fd_, ":S001N01;");
+        EXPECT_EQ(":S001N01;", readline(a.fd_, ';'));
         EXPECT_EQ(can_hub_size + 2, can_hub0.size());
     }
     // Test writing outwards.
     send_packet(":S002N0102;");
-    wait();
-    EXPECT_EQ(1U, can_hub0.size());
+    // Destructor will expect client count == 1.
 }
