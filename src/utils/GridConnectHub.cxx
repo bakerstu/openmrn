@@ -332,7 +332,7 @@ struct GcHubPort : public Executable
               GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub, false))
         , gcWrite_(&gcHub_, fd, this)
     {
-        LOG(INFO, "gchub port %p", (Executable *)this);
+        LOG(VERBOSE, "gchub port %p", (Executable *)this);
     }
     virtual ~GcHubPort()
     {
@@ -374,7 +374,7 @@ struct GcHubPort : public Executable
             gcHub_.service()->executor()->add(this);
             return;
         }
-        LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
+        LOG(VERBOSE, "GCHubPort: Shutting down gridconnect port %d. (%p)",
             gcWrite_.fd(), bridge_.get());
         /* We get this call when something is wrong with the FDs and we need to
          * close the connection. It is guaranteed that by the time we got this
