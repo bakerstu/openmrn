@@ -41,43 +41,43 @@ namespace nmranet {
 LoggingTrain::LoggingTrain(uint32_t legacy_address)
     : legacyAddress_(legacy_address)
 {
-    LOG(INFO, "Created train %u.", legacyAddress_);
+    LOG(INFO, "Created train %" PRIu32 ".", legacyAddress_);
 }
 
 LoggingTrain::~LoggingTrain()
 {
-    LOG(INFO, "Destructed train %u.", legacyAddress_);
+    LOG(INFO, "Destructed train %" PRIu32 ".", legacyAddress_);
 }
 
 void LoggingTrain::set_speed(SpeedType speed)
 {
-    LOG(INFO, "train %u : set speed to %.0f mph.", legacyAddress_, speed.mph());
+    LOG(INFO, "train %" PRIu32 " : set speed to %.0f mph.", legacyAddress_, speed.mph());
     currentSpeed_ = speed;
 }
 
 SpeedType LoggingTrain::get_speed()
 {
-    LOG(INFO, "train %u : get speed -> returns %.0f mph.", legacyAddress_,
+    LOG(INFO, "train %" PRIu32 " : get speed -> returns %.0f mph.", legacyAddress_,
         currentSpeed_.mph());
     return currentSpeed_;
 }
 
 void LoggingTrain::set_emergencystop()
 {
-    LOG(INFO, "train %u : set emergency stop.", legacyAddress_);
+    LOG(INFO, "train %" PRIu32 " : set emergency stop.", legacyAddress_);
     currentSpeed_ = 0;
 }
 
 void LoggingTrain::set_fn(uint32_t address, uint16_t value)
 {
-    LOG(INFO, "train %u : set fn %u to %u.", legacyAddress_, address, value);
+    LOG(INFO, "train %" PRIu32 " : set fn %" PRIu32 " to %u.", legacyAddress_, address, value);
     fnValues_[address] = value;
 }
 
 uint16_t LoggingTrain::get_fn(uint32_t address)
 {
     uint16_t resp = fnValues_[address];
-    LOG(INFO, "train %u : get fn %u -> current value is %u.", legacyAddress_,
+    LOG(INFO, "train %" PRIu32 " : get fn %" PRIu32 " -> current value is %u.", legacyAddress_,
         address, resp);
     return resp;
 }

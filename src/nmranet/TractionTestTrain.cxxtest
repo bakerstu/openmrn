@@ -62,6 +62,9 @@ protected:
     std::unique_ptr<TrainNode> trainNode_;
 };
 
+/* There are no expectations in these tests; they are just for illustrating how
+ * to use the loggintrain and ensure that it compiles and does not crash. If
+ * you run the test, the actions should be printed to stderr. */
 TEST_F(LoggingTrainTest, CreateDestroy)
 {
 }
