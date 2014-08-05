@@ -68,6 +68,7 @@ inline SpeedType nan_to_speed() {
 struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
     static const uint64_t EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
+    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010100000000FFFEULL;
 
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
     static const uint64_t NODE_ID_DCC = 0x060100000000ULL;
