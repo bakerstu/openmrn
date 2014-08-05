@@ -60,4 +60,14 @@ void speed_to_fp16(SpeedType speed, void *fp16) {
     *o = output & 0xff;
 }
 
+const uint64_t TractionDefs::IS_TRAIN_EVENT = 0x0101000000000303ULL;
+const uint64_t TractionDefs::EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
+const uint64_t TractionDefs::CLEAR_EMERGENCY_STOP_EVENT = 0x010100000000FFFEULL;
+
+const uint64_t TractionDefs::NODE_ID_DC_BLOCK = 0x060000000000ULL;
+const uint64_t TractionDefs::NODE_ID_DCC = 0x060100000000ULL;
+const uint64_t TractionDefs::NODE_ID_TMCC = 0x060200000000ULL;
+const uint64_t TractionDefs::NODE_ID_MARKLIN_MOTOROLA = 0x060300000000ULL;
+const uint64_t TractionDefs::NODE_ID_MTH_DCS = 0x060400000000ULL;
+
 }  // namespace nmranet
