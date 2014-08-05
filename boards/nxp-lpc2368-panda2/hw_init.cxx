@@ -31,9 +31,9 @@
  * @date 13 April 2013
  */
 
+#include "LPC23xx.h"
 #include "utils/logging.h"
 
-#include "LPC23xx.h"
 #include "mbed.h"
 #include "FreeRTOSConfig.h"
 //#include "src/base.h"
