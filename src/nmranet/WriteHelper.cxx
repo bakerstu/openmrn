@@ -41,11 +41,5 @@
 namespace nmranet
 {
 
-string EventIdToBuffer(uint64_t eventid)
-{
-    eventid = htobe64(eventid);
-    return string(reinterpret_cast<char*>(&eventid), 8);
-}
-
-}; /* namespace nmranet */
+} /* namespace nmranet */
 

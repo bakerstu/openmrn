@@ -70,6 +70,8 @@ extern string node_id_to_buffer(NodeID id);
  */
 extern NodeID buffer_to_node_id(const string& buf);
 
+/** Converts an Event ID to a Payload suitable to be sent as an event report. */
+extern Payload eventid_to_buffer(uint64_t eventid);
 
 /** Formats a payload for response of error response messages such as OPtioanl
  * Interaction Rejected or Terminate Due To Error. */

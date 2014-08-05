@@ -155,7 +155,6 @@ private:
     payload_type buffer_;
     BarrierNotifiable done_;
 };
-string EventIdToBuffer(uint64_t eventid);
 
 }; /* namespace nmranet */
 

@@ -52,6 +52,12 @@ NodeID buffer_to_node_id(const string &buf)
     return be64toh(d);
 }
 
+Payload eventid_to_buffer(uint64_t eventid)
+{
+    eventid = htobe64(eventid);
+    return string(reinterpret_cast<char*>(&eventid), 8);
+}
+
 string error_to_buffer(uint16_t error_code, uint16_t mti)
 {
     string ret(4, '\0');
