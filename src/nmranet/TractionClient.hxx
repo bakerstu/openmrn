@@ -41,6 +41,57 @@
 namespace nmranet
 {
 
+/** This class helps waiting for traction responses.
+ *
+ * It listens for traction control response messages, matches them to an expected destination/responsetype pair, and triggers a timeout when the matching response arrives.
+ *
+ * Synchronous usage:
+ *   auto* b = ... // allocate and fill reuqest buffer.
+ *   SyncTimeout t(g_executor.active_timers());
+ *   t.start(MSEC_TO_NSEC(300));
+ *   response_handler.wait_for_response(b->data()->dst, b->data()->payload[0], &t);
+ *   interface->addressed_message_write_flow()->send(b);
+ *   t.wait_for_notification();
+ *   response_handler.wait_timeout();  // Stops listening.
+ *   if (response_handler.response())
+ *   {
+ *      // we have a response -- use it from response_handler->response()
+ *      response_handler.response()->unref();
+ *   } else {
+ *      // timeout
+ *   }
+ *
+ * Asynchronous usage:
+ *
+ * FlowClass : public StateFlow... { 
+ *
+ *   Action send_request()
+ *   {
+ *      auto* b = get_allocation_result(interface->addressed_message_write_flow());
+ *      // fill b
+ *      responseHandler_.wait_for_response(b->data()->dst, b->data()->payload[0], &t_);
+ *      interface->addressed_message_write_flow()->send(b);
+ *      return sleep_and_call(&t_, MSEC_TO_NSEC(), STATE(parse_response));
+ *   }
+ *
+ *   Action parse_response()
+ *   {
+ *     responseHandler_.wait_timeout();
+ *     if (response_handler.response())
+ *     {
+ *       // parse response  ... do useful stuff.
+ *       responseHandler_.response()->unref();
+ *     }
+ *     else
+ *     {
+ *       return gone_to_error();
+ *     }
+ *   }
+ *
+ *   TractionResponseHandler responseHandler_;
+ *   StateFlowTimer t_;
+ * };
+ */
 class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
