@@ -136,6 +136,13 @@ public:
     /** Destructor does nothing. */
     ~Velocity() {}
 
+    /** Checks whether the speed is unknown. (NaN).
+     * @return true if the speed value is NaN. */
+    bool isnan() const
+    {
+        return ::isnan(velocity);
+    }
+
     /** Return the speed independent of direction.
      * @return speed absolute value of velocity
      */

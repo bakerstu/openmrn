@@ -35,6 +35,7 @@
 #include "os/os.h"
 #include "gtest/gtest.h"
 #include "nmranet/Velocity.hxx"
+#include "nmranet/TractionDefs.hxx"
 
 using namespace nmranet;
 
@@ -96,6 +97,29 @@ TEST(NMRAnetVelocityTest, constructor_float_negative_zero)
     
     EXPECT_TRUE(*velocity == -0.0);
     EXPECT_TRUE(*velocity == 0.0);
+}
+
+TEST(NMRAnetVelocityTest, isnan)
+{
+    Velocity v(nan_to_speed());
+    EXPECT_TRUE(v.isnan());
+    EXPECT_TRUE(isnan(v.speed()));
+    EXPECT_TRUE(nan_to_speed().isnan());
+    Velocity w;
+    w.set_wire(0xFFFFu);
+    EXPECT_TRUE(w.isnan());
+    EXPECT_EQ(Velocity::REVERSE, w.direction());
+
+    w.set_wire(0x7FFFu);
+    EXPECT_TRUE(w.isnan());
+    EXPECT_EQ(Velocity::FORWARD, w.direction());
+}
+
+TEST(NMRAnetVelocityTest, notnan)
+{
+    Velocity v(13.5);
+    EXPECT_FALSE(v.isnan());
+    EXPECT_FALSE(isnan(v.speed()));
 }
 
 TEST(NMRAnetVelocityTest, speed_positive)
