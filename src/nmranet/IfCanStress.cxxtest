@@ -40,12 +40,12 @@ public:
         }
         auto* b = ifCan_.global_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_EVENT_REPORT, nodeId_,
-                         EventIdToBuffer(nodeId_));
+                         eventid_to_buffer(nodeId_));
         b->set_done(done->new_child());
         ifCan_.global_message_write_flow()->send(b);
         b = ifCan_.global_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_EVENT_REPORT, nodeId_ + 1,
-                         EventIdToBuffer(nodeId_ + 1));
+                         eventid_to_buffer(nodeId_ + 1));
         b->set_done(done->new_child());
         ifCan_.global_message_write_flow()->send(b);
     }

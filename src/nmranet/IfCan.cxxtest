@@ -101,7 +101,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTI)
 {
     auto *b = ifCan_->global_message_write_flow()->alloc();
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID, {0, 0},
-                     EventIdToBuffer(0x0102030405060708ULL));
+                     eventid_to_buffer(0x0102030405060708ULL));
     expect_packet(":X195B422AN0102030405060708;");
     ifCan_->global_message_write_flow()->send(b);
 }
@@ -147,7 +147,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIMultiple)
     {
         auto *b = ifCan_->global_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
-                         EventIdToBuffer(0x0102030405060708ULL));
+                         eventid_to_buffer(0x0102030405060708ULL));
         ifCan_->global_message_write_flow()->send(b);
     }
 }
@@ -158,7 +158,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIIgnoreDatagram)
 
     EXPECT_CALL(canBus_, mwrite(_)).Times(0);
     b->data()->reset(Defs::MTI_DATAGRAM, TEST_NODE_ID,
-                     EventIdToBuffer(0x0102030405060708ULL));
+                     eventid_to_buffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
 }
 
@@ -177,7 +177,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     auto *b = ifCan_->global_message_write_flow()->alloc();
     expect_packet(":X195B422AN0102030405060708;");
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
-                     EventIdToBuffer(0x0102030405060708ULL));
+                     eventid_to_buffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
     wait();
 }
@@ -207,7 +207,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
      * trigger an alias allocation. However, since the message never makes it
      * to the canbus (is looped back), that does not happen.*/
     b->data()->reset(Defs::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
-        {TEST_NODE_ID, 0x22A}, EventIdToBuffer(0x0102030405060708ULL));
+        {TEST_NODE_ID, 0x22A}, eventid_to_buffer(0x0102030405060708ULL));
     b->set_done(get_notifiable());
     ifCan_->addressed_message_write_flow()->send(b);
     wait_for_notification();
@@ -223,7 +223,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
-                     EventIdToBuffer(0x0102030405060708ULL));
+                     eventid_to_buffer(0x0102030405060708ULL));
     b->set_done(get_notifiable());
     ifCan_->global_message_write_flow()->send(b);
     wait_for_notification();
@@ -278,7 +278,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     expect_packet(":X1070133AN02010D000003;");
     expect_packet(":X195B433AN0102030405060708;");
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
-                     EventIdToBuffer(0x0102030405060708ULL));
+                     eventid_to_buffer(0x0102030405060708ULL));
     ifCan_->global_message_write_flow()->send(b);
     usleep(250000);
     wait();
@@ -307,7 +307,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     expect_packet(":X195B444DN0102030405060709;");
     b = ifCan_->global_message_write_flow()->alloc();
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
-                     EventIdToBuffer(0x0102030405060709ULL));
+                     eventid_to_buffer(0x0102030405060709ULL));
     b->set_done(get_notifiable());
     ifCan_->global_message_write_flow()->send(b);
     wait_for_notification();
