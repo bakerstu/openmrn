@@ -202,9 +202,17 @@ TEST_F(TimerTest, Wakeup)
     t1.trigger();
     wait_for_main_executor();
     EXPECT_EQ(1, t1.count());
+    EXPECT_TRUE(t1.is_triggered());
     EXPECT_EQ(0, t2.count());
     usleep(25000);
     EXPECT_EQ(1, t2.count());
+    EXPECT_FALSE(t2.is_triggered());
+
+    // Run another on t1, this time let it expire (immediately).
+    t1.start();
+    wait_for_main_executor();
+    EXPECT_EQ(2, t1.count());
+    EXPECT_FALSE(t1.is_triggered());
 }
 
 TEST_F(TimerTest, Restart)
@@ -252,4 +260,31 @@ TEST_F(TimerTest, NoRestartSkew)
     t1.trigger();
     wait_for_main_executor();
     EXPECT_FALSE(t1.is_active());
+}
+
+TEST(SyncTimerTest, RunOne)
+{
+    SyncTimeout t(g_executor.active_timers());
+    long long start_time = OSTime::get_monotonic();
+    t.start(MSEC_TO_NSEC(15));
+    t.wait_for_notification();
+    long long end_time = OSTime::get_monotonic();
+    EXPECT_LE(MSEC_TO_NSEC(15), end_time - start_time);
+    EXPECT_FALSE(t.is_triggered());
+}
+
+TEST(SyncTimerTest, QuickWakeup)
+{
+    SyncTimeout t(g_executor.active_timers());
+    long long start_time = OSTime::get_monotonic();
+    t.start(MSEC_TO_NSEC(1000));
+    t.trigger();
+    t.wait_for_notification();
+    long long end_time = OSTime::get_monotonic();
+    EXPECT_GE(MSEC_TO_NSEC(10), end_time - start_time);
+    EXPECT_TRUE(t.is_triggered());
+
+    t.start(MSEC_TO_NSEC(15));
+    t.wait_for_notification();
+    EXPECT_FALSE(t.is_triggered());
 }

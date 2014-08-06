@@ -132,7 +132,7 @@ public:
         , period_(0)
         , isActive_(0)
         , isExpired_(0)
-        , tcIsCancelled_(0)
+        , isCancelled_(0)
         , tcRequestStop_(0)
     {
     }
@@ -167,6 +167,7 @@ public:
         HASSERT(!isActive_);
         HASSERT(!isExpired_);
         isActive_ = 1;
+        isCancelled_ = 0;
         when_ = OSTime::get_monotonic() + period;
         period_ = period;
         activeTimers_->schedule_timer(this);
@@ -182,6 +183,7 @@ public:
         if (isExpired_)
             return;
         when_ = OSTime::get_monotonic() + period_;
+        isCancelled_ = 0;
         if (isActive_)
         {
             activeTimers_->update_timer(this);
@@ -204,6 +206,7 @@ public:
         if (isExpired_)
             return;
         HASSERT(isActive_);
+        isCancelled_ = 1;
         when_ = 2; // in the past
         activeTimers_->update_timer(this);
     }
@@ -219,9 +222,17 @@ public:
         when_ = INT64_MAX;  // This will ensure the we don't get from active to
                             // expired from now on.
         HASSERT(!isExpired_);
+        isCancelled_ = 1;
         if (isActive_) {
             activeTimers_->remove_timer(this);
         }
+    }
+
+    /** @returns true if the timer was triggered due to cancel() or trigger();
+     * false if it was timed out. */
+    bool is_triggered()
+    {
+        return isCancelled_;
     }
 
 private:
@@ -241,13 +252,48 @@ private:
     /** True when the timer is in the pending executables list of the
      * Executor. */
     unsigned isExpired_ : 1;
-    /** Storage for children: Was the timer cancelled or did the timer expire
-     * regularly? */
-    unsigned tcIsCancelled_ : 1;
+    /** Was the timer cancelled or did the timer expire regularly? 1 if
+     * cancelled or triggered. */
+    unsigned isCancelled_ : 1;
     /** For children: 1 if a repeated timer should stop sending wakeups. */
     unsigned tcRequestStop_ : 1;
 
     DISALLOW_COPY_AND_ASSIGN(Timer);
+};
+
+/** Class usable by synchronous code to utilize a timeout.
+ *
+ * usage:
+ * SyncTimeout t;
+ * t.start(MSEC_TO_NSEC(100));
+ * t.wait_for_notification();
+ * if (t.is_triggered())
+ * {  call was success -- response arrived } 
+ * else 
+ * {  failure -- timeout }
+ * */
+class SyncTimeout : public ::Timer {
+public:
+    SyncTimeout(ActiveTimers *timers) : Timer(timers)
+    {
+    }
+
+    /** Blocks the current thread's execution until the timeout is expired or
+     * triggered. */
+    void wait_for_notification() {
+        n_.wait_for_notification();
+    }
+
+private:
+    /** Clients of timer should override this function. It will be called on
+     * the executor of the timer.
+     * @returns the new timer period, or one of the above special values. */
+    long long timeout() OVERRIDE {
+        n_.notify();
+        return NONE;
+    }
+
+    SyncNotifiable n_;
 };
 
 #endif // _EXECUTOR_TIMER_HXX_
