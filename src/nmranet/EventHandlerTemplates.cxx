@@ -43,6 +43,8 @@
 #endif
 
 #ifdef DESCRIBE_VAR
+extern int debug_variables;
+int debug_variables = 0;
 #include <string>
 namespace nmranet
 {
@@ -101,8 +103,10 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
     old_value = (*ofs) & mask;
   if (old_value != new_value) {
 #ifdef DESCRIBE_VAR
-    fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit,
-            GetNameForOffset(bit).c_str(), new_value);
+      if (debug_variables) {
+          fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit,
+                  GetNameForOffset(bit).c_str(), new_value);
+      }
 #else
     LOG(VERBOSE, "BitRange: set bit %x to %d", bit, new_value);
 #endif
@@ -126,8 +130,10 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
     }
   } else {
 #ifdef DESCRIBE_VAR
-    fprintf(stderr, "BitRange: out bit %x (%s) to %d\n", bit,
-            GetNameForOffset(bit).c_str(), new_value);
+      if (debug_variables > 2) {
+          fprintf(stderr, "BitRange: out bit %x (%s) to %d\n", bit,
+                  GetNameForOffset(bit).c_str(), new_value);
+      }
 #endif
     if (done)
       done->notify();
@@ -145,8 +151,10 @@ void BitRangeEventPC::HandleEventReport(EventReport* event, BarrierNotifiable* d
     return;
   int bit = d;
 #ifdef DESCRIBE_VAR
-  fprintf(stderr, "BitRange: IN  bit %x (%s) to %d\n", bit,
-          GetNameForOffset(bit).c_str(), new_value);
+  if (debug_variables) {
+      fprintf(stderr, "BitRange: IN  bit %x (%s) to %d\n", bit,
+              GetNameForOffset(bit).c_str(), new_value);
+  }
 #else
   LOG(VERBOSE, "BitRange: evt bit %x to %d", bit, new_value);
 #endif
@@ -246,7 +254,10 @@ void ByteRangeEventC::HandleEventReport(EventReport* event, BarrierNotifiable* d
   if (!DecodeEventId(event->event, &storage, &value))
     return;
 #ifdef DESCRIBE_VAR
-  fprintf(stderr, "ByteRange: IN  byte %x to %d\n", storage - data_, value);
+  if (debug_variables) {
+    fprintf(stderr, "ByteRange: IN  byte %x to %d\n", storage - data_,
+            value);
+  }
 #else
   LOG(VERBOSE, "ByteRange: evt %x to %d", (unsigned)(storage - data_), value);
 #endif
