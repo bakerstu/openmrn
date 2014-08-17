@@ -31,6 +31,8 @@ using ::testing::StrictMock;
 using ::testing::WithArg;
 using ::testing::_;
 
+class TrainTestHelper;
+
 ///@todo(balazs.racz) remove
 // void (*g_invoke)(Notifiable *) = &InvokeNotification;
 
@@ -233,6 +235,8 @@ protected:
             wait();
         }
     }
+
+    friend class ::TrainTestHelper;
 
     /** Creates an alias allocator flow, and injects an already allocated
      *  alias. */
