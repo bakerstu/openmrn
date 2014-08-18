@@ -140,7 +140,7 @@ public:
      * @return true if the speed value is NaN. */
     bool isnan() const
     {
-        return ::isnan(velocity);
+        return std::isnan(velocity);
     }
 
     /** Return the speed independent of direction.
