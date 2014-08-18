@@ -301,6 +301,10 @@ class ByteRangeEventC : public SimpleEventHandler {
   unsigned size_;  //< number of bytes consumed.
 };
 
+/** TODO(balazs.racz): Add another class here, ByteRangeEventPC. It should be
+ * in the middle between C and P: it should already have the export
+ * functionality of P but not remove the import functionality of C yet. */
+
 class ByteRangeEventP : public ByteRangeEventC {
  public:
   // Creates a new byte range producer. backing store points to memory of at
