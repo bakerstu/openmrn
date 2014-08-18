@@ -162,7 +162,6 @@ void Packet::add_dcc_speed28(bool is_fwd, unsigned speed)
     }
     payload[dlc++] = b1;
     add_dcc_checksum();
-    LOG(WARNING, "sending dcc speed command %d %02x %02x", payload[0], payload[1], payload[2]);
 }
 
 void Packet::add_dcc_speed128(bool is_fwd, unsigned speed)
