@@ -949,7 +949,7 @@ int main(int argc, char *argv[])
     priv->entry = NULL;
     priv->arg = NULL;
     
-    if (config_main_thread_priority() == 0)
+    if (config_main_thread_priority() == 0xdefa01)
     {
         priority = configMAX_PRIORITIES / 2;
     }
