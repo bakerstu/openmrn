@@ -180,7 +180,7 @@ void hw_preinit(void)
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_7);  // Gold button
 
     /* Setup the system clock. */
-    MAP_SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                        SYSCTL_XTAL_20MHZ);
 
     /*MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
