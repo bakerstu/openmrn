@@ -47,6 +47,8 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 
+#include "dcc_control.hxx"
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -134,20 +136,17 @@ void set_gpio_drive_high(uint32_t port, uint32_t pin) {
 /** Configures a gpio pin for input with external pullup. */
 void set_gpio_extinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPinWrite(port, pin, 0);
-    MAP_GPIOPinTypeGPIOInput(port, pin); 
-    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
+    MAP_GPIOPinTypeGPIOInput(port, pin);
+    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
 }
-
-extern void enable_dcc();
-extern void disable_dcc();
 
 void enable_dcc() {
     auto port = GPIO_PORTA_BASE;
     auto pin = GPIO_PIN_2 | GPIO_PIN_3;
-    MAP_GPIOPinTypeTimer(port, pin); 
+    MAP_GPIOPinTypeTimer(port, pin);
     MAP_GPIOPinConfigure(GPIO_PA2_T1CCP0);
     MAP_GPIOPinConfigure(GPIO_PA3_T1CCP1);
-    //MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
+    //MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
 }
 
 void disable_dcc() {
