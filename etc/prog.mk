@@ -47,6 +47,8 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
+INCLUDES += -I.
+
 #we don't have to recurse into lib, because there are no sources there. We don't need a liblib.a
 #SUBDIRS += lib
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
@@ -62,7 +64,7 @@ CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
 LDFLAGS += -Llib -L$(LIBDIR)
 
-EXECUTABLE = $(shell basename `cd ../../; pwd`)
+EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
 
 DEPS += TOOLPATH
 MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
