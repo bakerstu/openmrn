@@ -82,7 +82,7 @@ TivaDCC::TivaDCC(const char *name,
                                     TIMER_CFG_B_PWM);
     MAP_TimerConfigure(intervalBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PERIODIC);
-    MAP_TimerControlLevel(ccpBase, TIMER_A, true);
+    MAP_TimerControlLevel(ccpBase, TIMER_B, true);
 
     MAP_TimerLoadSet(ccpBase, TIMER_A, oneBitPeriod);
     MAP_TimerLoadSet(ccpBase, TIMER_B, oneBitPeriod);
