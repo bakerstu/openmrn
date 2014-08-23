@@ -42,6 +42,12 @@
 namespace nmranet
 {
 
+/** Creates a single encoded event range from the beginning of the range and
+    the number fo events to cover. There is no restriction on begin and size
+    (e.g. need ot be power-of-two aligned etc.), the range will be expanded so
+    long as it covers begin + size - 1. */
+uint64_t EncodeRange(uint64_t begin, unsigned size);
+
 // A proxy event handler has a single helper function that gets every event
 // handler call with an indication of which call it is. It is helpful to create
 // event containers that proxy calls to many event handler instances.
@@ -253,6 +259,9 @@ class BitRangeEventPC : public SimpleEventHandler {
   /// @returns the value of a given bit. 0 <= bit < size_.
   bool Get(unsigned bit) const;
 
+  // Sends out a ProducerRangeIdentified.
+  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
+
   virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
   virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
   virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
@@ -280,6 +289,9 @@ class ByteRangeEventC : public SimpleEventHandler {
                   uint8_t* backing_store,
                   unsigned size);
   virtual ~ByteRangeEventC();
+
+  // Sends out a ConsumerRangeIdentified.
+  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
 
   /** This function is called by the handler when a data value overwrite event
    * arrives. */
@@ -326,6 +338,9 @@ class ByteRangeEventP : public ByteRangeEventC {
   //
   // @param done is the notification callback. Must not be NULL.
   void Update(unsigned byte, WriteHelper* writer, BarrierNotifiable* done);
+
+  // Sends out a ProducerRangeIdentified.
+  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
 
   // Need to override C behavior.
   virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);

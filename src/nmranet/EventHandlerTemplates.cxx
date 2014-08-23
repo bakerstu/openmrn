@@ -233,6 +233,15 @@ void BitRangeEventPC::HandleIdentifyGlobal(EventReport* event,
   done->maybe_done();
 }
 
+void BitRangeEventPC::SendIdentified(WriteHelper *writer,
+                                     BarrierNotifiable *done)
+{
+  uint64_t range = EncodeRange(event_base_, size_ * 2);
+  writer->WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
+                     WriteHelper::global(),
+                     eventid_to_buffer(range), done);
+}
+
 ByteRangeEventC::ByteRangeEventC(Node *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
@@ -305,6 +314,15 @@ void ByteRangeEventC::HandleIdentifyGlobal(EventReport *event,
     done->maybe_done();
 }
 
+void ByteRangeEventC::SendIdentified(WriteHelper *writer,
+                                     BarrierNotifiable *done)
+{
+  uint64_t range = EncodeRange(event_base_, size_ * 256);
+  writer->WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
+                     WriteHelper::global(),
+                     eventid_to_buffer(range), done);
+}
+
 ByteRangeEventP::ByteRangeEventP(Node *node,
                                  uint64_t event_base, uint8_t* backing_store,
                                  unsigned size)
@@ -347,6 +365,15 @@ void ByteRangeEventP::HandleIdentifyGlobal(EventReport* event, BarrierNotifiable
   event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                  WriteHelper::global(), eventid_to_buffer(range),
                                  done);
+}
+
+void ByteRangeEventP::SendIdentified(WriteHelper *writer,
+                                     BarrierNotifiable *done)
+{
+  uint64_t range = EncodeRange(event_base_, size_ * 256);
+  writer->WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
+                     WriteHelper::global(),
+                     eventid_to_buffer(range), done);
 }
 
 void ByteRangeEventP::Update(unsigned byte, WriteHelper* writer, BarrierNotifiable* done) {
