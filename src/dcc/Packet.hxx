@@ -58,6 +58,11 @@ struct Packet
 
     Packet()
     {
+        clear();
+    }
+
+    void clear()
+    {
         memset(this, 0, sizeof(*this));
     }
 
