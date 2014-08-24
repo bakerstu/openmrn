@@ -129,9 +129,9 @@ public:
     {
     }
 
-    virtual DynamicPool *pool();
-    virtual void send(Buffer<CanHubData> *message,
-                      unsigned priority = UINT_MAX);
+    Pool *pool() OVERRIDE;
+    void send(Buffer<CanHubData> *message,
+              unsigned priority = UINT_MAX) OVERRIDE;
 
 private:
     CanIf *ifCan_;
@@ -147,9 +147,9 @@ public:
     {
     }
 
-    virtual DynamicPool *pool();
-    virtual void send(Buffer<CanHubData> *message,
-                      unsigned priority = UINT_MAX);
+    Pool *pool() OVERRIDE;
+    void send(Buffer<CanHubData> *message,
+              unsigned priority = UINT_MAX) OVERRIDE;
 
 private:
     CanIf *ifCan_;

@@ -541,7 +541,7 @@ public:
      * is to be used as a hint, the caller is allowed to send buffers from
      * different source.
      * @todo(stbaker) change this to Pool* once it supports async alloc. */
-    virtual DynamicPool *pool()
+    virtual Pool *pool()
     {
         return mainBufferPool;
     }

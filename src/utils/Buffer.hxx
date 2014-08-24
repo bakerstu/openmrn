@@ -522,7 +522,8 @@ public:
     }
 
     /** Constructor for a fixed size pool.
-     * @param item_size size of each item in the pool
+     * @param item_size size of each item in the pool (including the Buffer
+     * wrapper).
      * @param items number of items in the pool
      */
     FixedPool(size_t item_size, size_t items)

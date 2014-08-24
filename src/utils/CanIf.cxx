@@ -36,7 +36,7 @@
 
 #include "utils/CanIf.hxx"
 
-DynamicPool *CanFrameWriteFlow::pool()
+Pool *CanFrameWriteFlow::pool()
 {
     return ifCan_->device()->pool();
 }
@@ -49,7 +49,7 @@ void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
     ifCan_->device()->send(message, priority);
 }
 
-DynamicPool *CanFrameReadFlow::pool()
+Pool *CanFrameReadFlow::pool()
 {
     /* NOTE(balazs.racz) This pool should rather be the application-level
      * buffer pool (for example nmranet::AsyncIf::dispatcher()::pool(), but
