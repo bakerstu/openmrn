@@ -42,6 +42,7 @@
 
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
+#include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
@@ -199,6 +200,17 @@ private:
  *  packet may be written per call to the write method.  If there is no space
  *  currently available in the write queue, the write method will return -1
  *  with errno set to ENOSPC.
+ *
+ *  Handling of write throttling:
+ *
+ *  The driver uses a second interrupt, used as a software interrupt at the
+ *  FreeRTOS priority level, to communicate back information on when the device
+ *  is writable. It is okay to use the interrupt for the second timer for this
+ *  purpose. This interrupt will be enabled in the IOCTL after the
+ *  writenotifiable is set, disabled in the interrupt itself when the
+ *  writenotifiable is cleared. It is set pending at startup and when the dcc
+ *  interrupt frees up a packet from the queue, and it is cleared pending when
+ *  a write realizes there is no space for a buffer.
  */
 class TivaDCC : public Node
 {
@@ -208,6 +220,7 @@ public:
      * @param ccp_base base address of a capture compare pwm timer pair
      * @param interval_base base address of an interval timer 
      * @param interrupt interrupt number of interval timer
+     * @param os_interrupt an otherwise unused interrupt number (cound be that of the capture compare pwm timer)
      * @param preamble_count number of preamble bits to send exclusive of 
      *        end of packet '1' bit
      * @param one_bit_period number of system clock cycles for a one bit
@@ -220,6 +233,7 @@ public:
             unsigned long ccp_base,
             unsigned long interval_base,
             uint32_t interrupt,
+            uint32_t os_interrupt,
             int preamble_count,
             int one_bit_period,
             int zero_bit_period,
@@ -236,6 +250,11 @@ public:
     /** Handle an interrupt.
      */
     inline void interrupt_handler();
+
+    /** Handles a software interrupt to FreeRTOS. This should be called on the
+     * interrupt number that is submitted as os_interrupt to the
+     * constructor. */
+    inline void os_interrupt_handler();
 
 private:
     /** Read from a file or device.
@@ -270,7 +289,7 @@ private:
     void flush_buffers(){};
 
     /** number of outgoing messages we can queue */
-    static const size_t Q_SIZE = 16;
+    static const size_t Q_SIZE = 4;
 
     /** maximum packet size we can support */
     static const size_t MAX_PKT_SIZE = 6;
@@ -294,6 +313,8 @@ private:
     int startupDelay; /**< startup offset */
     int deadbandAdjust; /**< deadband adjustment */
     bool railcomCuttout; /**< true if we should produce the RailCom cuttout */
+    uint32_t osInterrupt; /**< interrupt used to notify FreeRTOS. */
+    Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
 
     /** idle packet */
     static const uint8_t IDLE_PKT[3];
@@ -306,6 +327,16 @@ private:
     
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
+
+__attribute__((optimize("-O3")))
+inline void TivaDCC::os_interrupt_handler()
+{
+    HASSERT(writableNotifiable);
+    Notifiable* n = writableNotifiable;
+    writableNotifiable = nullptr;
+    MAP_IntDisable(osInterrupt);
+    n->notify_from_isr();
+}
 
 /** Handle an interrupt.
  */
@@ -383,6 +414,7 @@ inline void TivaDCC::interrupt_handler()
                     {
                         q.rdIndex = 0;
                     }
+                    MAP_IntPendSet(osInterrupt);
                 }
                 if (q.count)
                 {

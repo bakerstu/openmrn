@@ -33,28 +33,19 @@
 
 #include "TivaDev.hxx"
 
+#include <algorithm>
+
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
+#include "freertos/can_ioctl.h"
 
 const uint8_t TivaDCC::IDLE_PKT[3] = {0x02, 0xFF, 0x00};
 
-/** Constructor.
- * @param name name of this device instance in the file system
- * @param ccp_base base address of a capture compare pwm timer pair
- * @param interval_base base address of an interval timer 
- * @param interrupt interrupt number of interval timer
- * @param preamble_count number of preamble bits to send exclusive of 
- *        end of packet '1' bit
- * @param one_bit_period number of system clock cycles for a one bit
- * @param zero_bit_period number of system clock cycles for a one bit
- * @param startup_delay offset for introducing some deadband at startup
- * @param deadband_adjust ajustment factor for adding deadband
- * @param railcom_cuttout true to produce the RailCom cuttout, else false
- */
 TivaDCC::TivaDCC(const char *name,
                  unsigned long ccp_base,
                  unsigned long interval_base,
                  uint32_t interrupt,
+                 uint32_t os_interrupt,
                  int preamble_count,
                  int one_bit_period,
                  int zero_bit_period,
@@ -70,6 +61,8 @@ TivaDCC::TivaDCC(const char *name,
     , startupDelay(startup_delay)
     , deadbandAdjust(deadband_adjust >> 1)
     , railcomCuttout(railcom_cuttout)
+    , osInterrupt(os_interrupt)
+    , writableNotifiable(nullptr)
 {
     q.count = 0;
     q.rdIndex = 0;
@@ -98,6 +91,12 @@ TivaDCC::TivaDCC(const char *name,
     MAP_SysCtlDelay(startupDelay);
     MAP_TimerEnable(ccpBase, TIMER_B);
     MAP_TimerEnable(intervalBase, TIMER_A);
+
+    // We don't have a write notifiable at the moment.
+    MAP_IntDisable(osInterrupt);
+    MAP_IntPrioritySet(osInterrupt, configKERNEL_INTERRUPT_PRIORITY);
+    // but we have free space in the queue at boot time.
+    MAP_IntPendSet(osInterrupt);
 }
 
 /** Read from a file or device.
@@ -126,17 +125,16 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
 
     if (q.count == Q_SIZE)
     {
-        errno = ENOSPC;
+        MAP_IntPendClear(osInterrupt);
         MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
-        return -1;
+        return -ENOSPC;
     }
     if (count > MAX_PKT_SIZE)
     {
-        errno = EINVAL;
         MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
-        return -1;
+        return -EINVAL;
     }
 
     q.data[q.wrIndex][0] = count;
@@ -162,6 +160,23 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
  */
 int TivaDCC::ioctl(File *file, unsigned long int key, unsigned long data)
 {
+    if (IOC_TYPE(key) == CAN_IOC_MAGIC &&
+        IOC_SIZE(key) == NOTIFIABLE_TYPE &&
+        key == CAN_IOC_WRITE_ACTIVE) {
+        Notifiable* n = reinterpret_cast<Notifiable*>(data);
+        HASSERT(n);
+        if (q.count == Q_SIZE)
+        {
+            portENTER_CRITICAL();
+            swap(n, writableNotifiable);
+            MAP_IntEnable(osInterrupt);
+            portEXIT_CRITICAL();
+        }
+        if (n) {
+            n->notify();
+        }
+        return 0;
+    }
     errno = EINVAL;
     return -1;
 }
