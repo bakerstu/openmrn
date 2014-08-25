@@ -395,11 +395,11 @@ inline void TivaDCC::interrupt_handler()
         case DATA_7:
             if (count < packet[0])
             {
-                current_bit = (packet[count + 1] >> (state - DATA_0)) & 0x01;
+                current_bit = (packet[count + 1] >> (DATA_7 - state)) & 0x01;
             }
             else
             {
-                current_bit = (xor_byte >> (state - DATA_0)) & 0x01;
+                current_bit = (xor_byte >> (DATA_7 - state)) & 0x01;
             }
             state = static_cast<State>(static_cast<int>(state) + 1);
             break;
