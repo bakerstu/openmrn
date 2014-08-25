@@ -302,8 +302,6 @@ protected:
      * @param pool pool to allocate from; defaults to the pool of the target
      * flow.
      * @return function pointer to be returned from state function
-     *
-     * @TODO(balazs.racz) this hould be Pool* instead of DynamicPool*
      */
     template <class T>
     Action allocate_and_call(FlowInterface<Buffer<T>> *target_flow, Callback c,
