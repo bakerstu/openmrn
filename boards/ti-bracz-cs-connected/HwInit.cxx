@@ -64,6 +64,9 @@ static TivaUart uart2("/dev/ser0", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+// Bit storing whether our dcc output is enabled or not.
+static bool g_dcc_on = false;
+
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -141,6 +144,7 @@ void set_gpio_extinput(uint32_t port, uint32_t pin) {
 }
 
 void enable_dcc() {
+    g_dcc_on = true;
     auto port = GPIO_PORTA_BASE;
     auto pin = GPIO_PIN_2 | GPIO_PIN_3;
     MAP_GPIOPinTypeTimer(port, pin);
@@ -153,6 +157,11 @@ void disable_dcc() {
     // Take A2/A3 and set them to drive high. This will turn off the gate
     // driver.
     set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+    g_dcc_on = false;
+}
+
+bool query_dcc() {
+  return g_dcc_on;
 }
 
 /** Initialize the processor hardware.
