@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include "Devtab.hxx"
 #include "Serial.hxx"
+#include "can_ioctl.h"
 
 void Serial::flush_buffers()
 {
@@ -134,4 +135,146 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
 int Serial::ioctl(File *file, unsigned long int key, unsigned long data)
 {
     return -1;
+}
+
+ssize_t USBSerialNode::read(File *file, void *buf, size_t count)
+{
+    if (!count) return 0;
+    auto h = rxBlock_.holder();
+    ssize_t ret = 0;
+    uint8_t *dst = static_cast<uint8_t *>(buf);
+    while (true)
+    {
+        bool pass_on_notify = false;
+        // Checks if we have some RX job to do.
+        {
+            auto hh = h.critical();
+            if ((rxQBegin_ >= rxQEnd_) && (rxPending_))
+            {
+                rxQBegin_ = 0;
+                rxQEnd_ = rx_packet_irqlocked(rxQ_);
+                rxPending_ = 0;
+            }
+            // Tries to copy data from the buffer.
+            while (rxQBegin_ < rxQEnd_ && ret < (ssize_t)count)
+            {
+                *dst++ = rxQ_[rxQBegin_++];
+                ++ret;
+            }
+            if (rxQBegin_ < rxQEnd_)
+            {
+                pass_on_notify = true;
+            }
+        }
+        if (pass_on_notify)
+        {
+            // We have a partial read. Wake up someone else trying to read.
+            h.notify_next();
+            // We lost the lock at notify_next, so we return immediately.
+            return ret;
+        }
+        if (ret > 0 || file->flags & O_NONBLOCK)
+        {
+            return ret;
+        }
+        // No data received now, and no data in the queue. Blocks the current
+        // thread and tries the whole dance again.
+        h.wait_for_notification();
+    }
+}
+
+
+ssize_t USBSerialNode::write(File *file, const void *buf, size_t count)
+{
+    if (!count) return 0;
+    const uint8_t *data = static_cast<const uint8_t*>(buf);
+    ssize_t ret = 0;
+
+    auto h = txBlock_.holder();
+    bool pass_on_notify = false;
+    while (count)
+    {
+        {
+            auto hh = h.critical();
+            while (txQEnd_ < USB_SERIAL_PACKET_SIZE && count)
+            {
+                txQ_[txQEnd_++] = *data++;
+                --count;
+                ++ret;
+            }
+            if (!txPending_)
+            {
+                tx_packet_irqlocked(txQ_, txQEnd_);
+                txQEnd_ = 0;
+                txPending_ = 1;
+            }
+            pass_on_notify = (txQEnd_ < USB_SERIAL_PACKET_SIZE);
+        }
+        if (count && !(file->flags & O_NONBLOCK))
+        {
+            h.wait_for_notification();
+        }
+    }
+    if (pass_on_notify)
+    {
+        h.notify_next();
+        // must not use locked fields after this
+        return ret;
+    }
+    return ret;
+}
+
+int USBSerialNode::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    /* sanity check to be sure we have a valid key for this device */
+    HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
+
+    // Will be called at the end if non-null.
+    Notifiable *n = nullptr;
+
+    if (IOC_SIZE(key) == NOTIFIABLE_TYPE)
+    {
+        n = reinterpret_cast<Notifiable *>(data);
+    }
+
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case CAN_IOC_READ_ACTIVE:
+        {
+            auto h = rxBlock_.holder();
+            auto hh = h.critical();
+            n = rxBlock_.register_notifiable(n);
+            break;
+        }
+        case CAN_IOC_WRITE_ACTIVE:
+        {
+            auto h = txBlock_.holder();
+            auto hh = h.critical();
+            n = txBlock_.register_notifiable(n);
+            break;
+        }
+    }
+    if (n)
+        n->notify();
+    return 0;
+}
+
+void USBSerialNode::flush_buffers() OVERRIDE {
+    {
+        auto h = txBlock_.holder();
+        // Since this was called after disable() we don't need the critical
+        // section anymore.
+        txQEnd_ = 0;
+        txPending_ = 0; // is this dangerous?
+    }
+    {
+        auto h = rxBlock_.holder();
+        rxQBegin_ = rxQEnd_ = 0;
+        if (rxPending_) {
+            rx_packet_irqlocked(rxQ_);
+            rxPending_ = 0;
+        }
+    }
 }

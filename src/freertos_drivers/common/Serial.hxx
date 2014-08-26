@@ -34,6 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 
+#include "BlockOrWakeUp.hxx"
 #include "Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
@@ -101,5 +102,75 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Serial);
 };
+
+
+#define USB_SERIAL_PACKET_SIZE 64
+
+class USBSerialNode : public Node {
+public:
+    USBSerialNode(const char *name)
+        : Node(name),
+          txQEnd_(0),
+          rxQBegin_(0),
+          rxQEnd_(0),
+          txBlock_(Atomic()),
+          rxBlock_(Atomic()) {}
+
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
+    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
+    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+    void flush_buffers() OVERRIDE;
+
+protected:
+    /** Tells the driver that the tx of the previous packet has finished. The
+     * driver may call back tx_from_isr inline if there is more data to send. */
+    void tx_finished_from_isr();
+
+    /** Signals from an ISR context that a regular context thread should be
+     * woken up and call into the rx_packet_irqlocked function. */
+    void set_rx_pending_from_isr();
+
+    /** Checks if the RX packet buffer is empty from an ISR context. If it is
+     * empty, a non-null value is returned. The caller should then read the
+     * packet into this buffer and call set_rx_finished_from_isr(size). */
+    void* try_read_packet_from_isr();
+
+    /** Notifies the driver that the RX buffer was filled from an IRQ
+     * context. This shall only be called after try_read_packet_from_isr was
+     * called. Will wake up an RX thread.
+     * @param size is the number of bytes that were filled into the rx
+     * buffer.*/
+    void set_rx_finished_from_isr(uint8_t size);
+
+private:
+    /** Requests a packet to be sent from an ISR context. The buffer will be
+     * invalidated as soon as the call returns. */
+    virtual void tx_packet_from_isr(const void* data, size_t len) = 0;
+
+    /** Requests a packet to be sent from a regular context (but under a lock
+     * and TX interrupt disabled).  The buffer will be invalidated and
+     * overwritten as soon as the call returns. */
+    virtual void tx_packet_irqlocked(const void* data, size_t len) = 0;
+
+    /** Tries to receive a packet (from a regular context, locked and RX
+     * interrupt disabled). This is only ever called if the driver does
+     * set_rx_pending_from_isr().
+     * @returns the number of bytes read into the buffer. */
+    virtual size_t rx_packet_irqlocked(void *data)
+    {
+        DIE("Must implement rx_packet_irqlocked if you use "
+            "set_rx_pending_from_isr");
+    }
+
+    uint8_t txQEnd_, rxQBegin_, rxQEnd_;
+    uint8_t txPending_ : 1;
+    uint8_t rxPending_ : 1;
+    uint8_t txQ_[USB_SERIAL_PACKET_SIZE];
+    uint8_t rxQ_[USB_SERIAL_PACKET_SIZE];
+
+    BlockOrWakeUp<Atomic> txBlock_;
+    BlockOrWakeUp<Atomic> rxBlock_;
+};
+
 
 #endif /* _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_ */
