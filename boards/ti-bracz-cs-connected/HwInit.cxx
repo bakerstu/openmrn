@@ -37,6 +37,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
@@ -48,6 +49,8 @@
 #include "TivaDev.hxx"
 
 #include "dcc_control.hxx"
+#include "hardware.hxx"
+
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -57,6 +60,9 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
+
+/** USB Device CDC serial driver instance */
+static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));
 
 /** UART 0 serial driver instance */
 static TivaUart uart2("/dev/ser0", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
@@ -145,6 +151,7 @@ void set_gpio_extinput(uint32_t port, uint32_t pin) {
 
 void enable_dcc() {
     g_dcc_on = true;
+    MAP_GPIOPinWrite(LED_BLUE, 0xff);
     auto port = GPIO_PORTA_BASE;
     auto pin = GPIO_PIN_2 | GPIO_PIN_3;
     MAP_GPIOPinTypeTimer(port, pin);
@@ -158,6 +165,7 @@ void disable_dcc() {
     // driver.
     set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
     g_dcc_on = false;
+    MAP_GPIOPinWrite(LED_BLUE, 0);
 }
 
 bool query_dcc() {
@@ -183,6 +191,11 @@ void hw_preinit(void)
     MAP_GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_2 | GPIO_PIN_3,
                          GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
 
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOP);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
     disable_dcc();
 
     // A4 controls the accessory bus, active high.
@@ -193,7 +206,22 @@ void hw_preinit(void)
                            SYSCTL_OSC_MAIN | SYSCTL_CFG_VCO_480,
                            120000000);
 
-    /* Red LED pin initialization */
+    // USB pins initialization.
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
+
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0xff;
+    MAP_GPIOPinConfigure(GPIO_PD6_USB0EPEN);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    MAP_GPIOPinTypeUSBDigital(GPIO_PORTD_BASE, GPIO_PIN_6);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTL_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+    MAP_GPIOPinTypeGPIOInput(GPIO_PORTQ_BASE, GPIO_PIN_4);
+    MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
+
+    /* blinker LED pin initialization */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
     MAP_GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
     MAP_GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
@@ -222,22 +250,27 @@ void hw_preinit(void)
     MAP_GPIOPinConfigure(GPIO_PA1_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
+    /* USB0 pin initialization */
+    //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
+    //MAP_GPIOPinTypeUSBAnalog(GPIO_PORTL_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+    /* USB interrupt priority */
+
     /* Boosterpack LEDs */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOP);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    set_gpio_led(GPIO_PORTN_BASE, GPIO_PIN_4);  // red
-    set_gpio_led(GPIO_PORTQ_BASE, GPIO_PIN_0);  // yellow
+    set_gpio_led(LED_RED);  // red
+    set_gpio_led(LED_YELLOW);  // yellow
     // hardware bug set_gpio_led(GPIO_PORTP_BASE, GPIO_PIN_4);  // green
-    set_gpio_extinput(GPIO_PORTP_BASE, GPIO_PIN_4);  // green
-    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_4);  // blue
+    set_gpio_extinput(LED_GREEN);  // green
+    set_gpio_led(LED_BLUE);  // blue
 
-    set_gpio_led(GPIO_PORTN_BASE, GPIO_PIN_1);  // onboard 1
-    set_gpio_led(GPIO_PORTN_BASE, GPIO_PIN_0);  // onboard 2
-    set_gpio_led(GPIO_PORTF_BASE, GPIO_PIN_4);  // onboard 3
-    set_gpio_led(GPIO_PORTF_BASE, GPIO_PIN_0);  // onboard 4
+    set_gpio_led(LED_B1);  // onboard 1
+    set_gpio_led(LED_B2);  // onboard 2
+    set_gpio_led(LED_B3);  // onboard 3
+    set_gpio_led(LED_B4);  // onboard 4
 
     /* Timer hardware for DCC signal generation */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
