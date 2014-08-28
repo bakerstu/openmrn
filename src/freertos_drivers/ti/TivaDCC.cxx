@@ -31,7 +31,7 @@
  * @date 25 July 2014
  */
 
-#include "TivaDev.hxx"
+#include "TivaDCC.hxx"
 
 #include <algorithm>
 
@@ -180,4 +180,3 @@ int TivaDCC::ioctl(File *file, unsigned long int key, unsigned long data)
     errno = EINVAL;
     return -1;
 }
-
