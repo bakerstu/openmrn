@@ -86,8 +86,6 @@ public:
      * @param os_interrupt an otherwise unused interrupt number (cound be that of the capture compare pwm timer)
      * @param preamble_count number of preamble bits to send exclusive of
      *        end of packet '1' bit
-     * @param one_bit_period number of system clock cycles for a one bit
-     * @param zero_bit_period number of system clock cycles for a one bit
      * @param startup_delay offset for introducing some deadband at startup
      * @param deadband_adjust ajustment factor for adding deadband
      * @param railcom_cuttout true to produce the RailCom cuttout, else false
@@ -98,8 +96,6 @@ public:
             uint32_t interrupt,
             uint32_t os_interrupt,
             int preamble_count,
-            int one_bit_period,
-            int zero_bit_period,
             int startup_delay,
             int deadband_adjust,
             bool railcom_cuttout = false);
@@ -118,6 +114,11 @@ public:
      * interrupt number that is submitted as os_interrupt to the
      * constructor. */
     inline void os_interrupt_handler() __attribute__((always_inline));
+
+    struct Timing {
+        uint32_t period;
+        uint32_t transition;
+    };
 
 private:
     /** Read from a file or device.
@@ -182,6 +183,18 @@ private:
     /** idle packet */
     static dcc::Packet IDLE_PKT;
 
+    typedef enum {
+        DCC_ZERO,
+        DCC_ONE,
+        MM_PREAMBLE,
+        MM_ZERO,
+        MM_ONE,
+
+        NUM_TIMINGS
+    } BitEnum;
+
+    Timing timings[NUM_TIMINGS];
+
     Q q; /**< DCC packet queue */
 
     /** Default constructor.
@@ -219,14 +232,24 @@ inline void TivaDCC::interrupt_handler()
         DATA_6,
         DATA_7,
         FRAME,
+        ST_MM_PREAMBLE,
+        MM_DATA_0,
+        MM_DATA_1,
+        MM_DATA_2,
+        MM_DATA_3,
+        MM_DATA_4,
+        MM_DATA_5,
+        MM_DATA_6,
+        MM_DATA_7,
     };
 
     static State state = PREAMBLE;
     static int preamble_count = 0;
-    static int last_bit = 1;
+    static BitEnum last_bit = DCC_ONE;
     static int count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
-    int current_bit;
+    BitEnum current_bit;
+    bool get_next_packet = false;
 
     MAP_TimerIntClear(intervalBase, TIMER_TIMA_TIMEOUT);
 
@@ -234,7 +257,7 @@ inline void TivaDCC::interrupt_handler()
     {
         default:
         case PREAMBLE:
-            current_bit = 1;
+            current_bit = DCC_ONE;
             if (++preamble_count == preambleCount)
             {
                 state = START;
@@ -242,7 +265,7 @@ inline void TivaDCC::interrupt_handler()
             }
             break;
         case START:
-            current_bit = 0;
+            current_bit = DCC_ZERO;
             count = 0;
             state = DATA_0;
             break;
@@ -254,61 +277,109 @@ inline void TivaDCC::interrupt_handler()
         case DATA_5:
         case DATA_6:
         case DATA_7:
-            current_bit = (packet->payload[count] >> (DATA_7 - state)) & 0x01;
+            current_bit = static_cast<BitEnum>(DCC_ZERO + ((packet->payload[count] >> (DATA_7 - state)) & 0x01));
             state = static_cast<State>(static_cast<int>(state) + 1);
             break;
         case FRAME:
             if (++count >= packet->dlc)
             {
-                if (packet != &IDLE_PKT)
-                {
-                    --q.count;
-                    ++q.rdIndex;
-                    if (q.rdIndex == Q_SIZE)
-                    {
-                        q.rdIndex = 0;
-                    }
-                    // Notifies the OS that we can write to the buffer.
-                    MAP_IntPendSet(osInterrupt);
-                }
-                if (q.count)
-                {
-                    packet = &q.data[q.rdIndex];
-                }
-                else
-                {
-                    packet = &IDLE_PKT;
-                }
-                current_bit = 1;  // end-of-packet bit
-                state = PREAMBLE;
+                current_bit = DCC_ONE;  // end-of-packet bit
+                get_next_packet = true;
             }
             else
             {
-                current_bit = 0;  // end-of-byte bit
+                current_bit = DCC_ZERO;  // end-of-byte bit
                 state = DATA_0;
+            }
+            break;
+        case ST_MM_PREAMBLE:
+            current_bit = MM_PREAMBLE;
+            ++preamble_count;
+            if (preamble_count == 7 ||
+                preamble_count == 7 + 6 ||
+                preamble_count == 7 + 6 + 10 ||
+                preamble_count == 7 + 6 + 10 + 6)
+            {
+                // first byte contains two bits.
+                state = MM_DATA_6;
+                count = 0;
+            }
+            break;
+        case MM_DATA_0:
+        case MM_DATA_1:
+        case MM_DATA_2:
+        case MM_DATA_3:
+        case MM_DATA_4:
+        case MM_DATA_5:
+        case MM_DATA_6:
+            current_bit = static_cast<BitEnum>(
+                MM_ZERO +
+                ((packet->payload[count] >> (MM_DATA_7 - state)) & 0x01));
+            state = static_cast<State>(static_cast<int>(state) + 1);
+            break;
+        case MM_DATA_7:
+            current_bit = static_cast<BitEnum>(
+                MM_ZERO +
+                ((packet->payload[count] >> (MM_DATA_7 - state)) & 0x01));
+            if (++count >= packet->dlc) {
+                count = 0;
+                // see if we need retransmission
+                if (preamble_count >= 7 + 6 + 10 + 6) {
+                    get_next_packet = true;
+                } else {
+                    state = ST_MM_PREAMBLE;
+                }
             }
             break;
     }
 
     if (last_bit != current_bit)
     {
-        if (current_bit)
+        uint32_t period = timings[current_bit].period;
+        uint32_t transition = timings[current_bit].transition;
+        MAP_TimerLoadSet(intervalBase, TIMER_A, period);
+        MAP_TimerLoadSet(ccpBase, TIMER_A, period);
+        MAP_TimerLoadSet(ccpBase, TIMER_B, period);
+        if (transition >= period || transition == 0) {
+            MAP_TimerMatchSet(ccpBase, TIMER_A, transition);
+            MAP_TimerMatchSet(ccpBase, TIMER_B, transition);
+        } else {
+            MAP_TimerMatchSet(ccpBase, TIMER_A, transition - deadbandAdjust);
+            MAP_TimerMatchSet(ccpBase, TIMER_B, transition + deadbandAdjust);
+        }
+        last_bit = current_bit;
+    }
+
+    if (get_next_packet)
+    {
+        if (packet != &IDLE_PKT)
         {
-            MAP_TimerLoadSet(intervalBase, TIMER_A, oneBitPeriod);
-            MAP_TimerLoadSet(ccpBase, TIMER_A, oneBitPeriod);
-            MAP_TimerLoadSet(ccpBase, TIMER_B, oneBitPeriod);
-            MAP_TimerMatchSet(ccpBase, TIMER_A, (oneBitPeriod >> 1) - deadbandAdjust);
-            MAP_TimerMatchSet(ccpBase, TIMER_B, (oneBitPeriod >> 1) + deadbandAdjust);
+            --q.count;
+            ++q.rdIndex;
+            if (q.rdIndex == Q_SIZE)
+            {
+                q.rdIndex = 0;
+            }
+            // Notifies the OS that we can write to the buffer.
+            MAP_IntPendSet(osInterrupt);
+        }
+        if (q.count)
+        {
+            packet = &q.data[q.rdIndex];
         }
         else
         {
-            MAP_TimerLoadSet(intervalBase, TIMER_A, zeroBitPeriod);
-            MAP_TimerLoadSet(ccpBase, TIMER_A, zeroBitPeriod);
-            MAP_TimerLoadSet(ccpBase, TIMER_B, zeroBitPeriod);
-            MAP_TimerMatchSet(ccpBase, TIMER_A, (zeroBitPeriod >> 1) - deadbandAdjust);
-            MAP_TimerMatchSet(ccpBase, TIMER_B, (zeroBitPeriod >> 1) + deadbandAdjust);
+            packet = &IDLE_PKT;
         }
-        last_bit = current_bit;
+        preamble_count = 0;
+        if (packet->packet_header.is_marklin)
+        {
+            state = ST_MM_PREAMBLE;
+        }
+        else
+        {
+            state = PREAMBLE;
+        }
     }
 }
 

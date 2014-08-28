@@ -41,14 +41,21 @@
 
 dcc::Packet TivaDCC::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
+static uint32_t usec_to_clocks(uint32_t usec) {
+    return (configCPU_CLOCK_HZ / 1000000) * usec;
+}
+
+static void fill_timing(TivaDCC::Timing* timing, uint32_t period_usec, uint32_t transition_usec) {
+    timing->period = usec_to_clocks(period_usec);
+    timing->transition = usec_to_clocks(transition_usec);
+}
+
 TivaDCC::TivaDCC(const char *name,
                  unsigned long ccp_base,
                  unsigned long interval_base,
                  uint32_t interrupt,
                  uint32_t os_interrupt,
                  int preamble_count,
-                 int one_bit_period,
-                 int zero_bit_period,
                  int startup_delay,
                  int deadband_adjust,
                  bool railcom_cuttout)
@@ -56,8 +63,6 @@ TivaDCC::TivaDCC(const char *name,
     , ccpBase(ccp_base)
     , intervalBase(interval_base)
     , preambleCount(preamble_count)
-    , oneBitPeriod(one_bit_period)
-    , zeroBitPeriod(zero_bit_period)
     , startupDelay(startup_delay)
     , deadbandAdjust(deadband_adjust >> 1)
     , railcomCuttout(railcom_cuttout)
@@ -68,6 +73,13 @@ TivaDCC::TivaDCC(const char *name,
     q.rdIndex = 0;
     q.wrIndex = 0;
 
+    fill_timing(timings + DCC_ZERO, 100<<1, 100);
+    fill_timing(timings + DCC_ONE, 56<<1, 56);
+    fill_timing(timings + MM_ZERO, 208, 26);
+    fill_timing(timings + MM_ONE, 208, 182);
+    // Motorola preamble is negative DC signal.
+    fill_timing(timings + MM_PREAMBLE, 208, 208);
+
     MAP_TimerClockSourceSet(ccpBase, TIMER_CLOCK_SYSTEM);
     MAP_TimerClockSourceSet(intervalBase, TIMER_CLOCK_SYSTEM);
     MAP_TimerConfigure(ccpBase, TIMER_CFG_SPLIT_PAIR |
@@ -77,11 +89,13 @@ TivaDCC::TivaDCC(const char *name,
                                     TIMER_CFG_A_PERIODIC);
     MAP_TimerControlLevel(ccpBase, TIMER_B, true);
 
-    MAP_TimerLoadSet(ccpBase, TIMER_A, oneBitPeriod);
-    MAP_TimerLoadSet(ccpBase, TIMER_B, oneBitPeriod);
-    MAP_TimerLoadSet(intervalBase, TIMER_A, oneBitPeriod);
-    MAP_TimerMatchSet(ccpBase, TIMER_A, (oneBitPeriod >> 1) - deadbandAdjust);
-    MAP_TimerMatchSet(ccpBase, TIMER_B, (oneBitPeriod >> 1) + deadbandAdjust);
+    MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(ccpBase, TIMER_B, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerMatchSet(ccpBase, TIMER_A,
+                      (timings[DCC_ONE].transition) - deadbandAdjust);
+    MAP_TimerMatchSet(ccpBase, TIMER_B,
+                      (timings[DCC_ONE].transition) + deadbandAdjust);
 
     MAP_IntEnable(interrupt);
     MAP_IntPrioritySet(interrupt, 0);
