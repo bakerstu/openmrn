@@ -166,9 +166,18 @@ void TivaCdc::disable()
 bool TivaCdc::tx_packet_irqlocked(const void* data, size_t len)
 {
     if (connected) {
-        USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
+        uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
+        if (r == len) {
+            last_tx_irq_ = 0x30;
+        } else if (r > 0) {
+            last_tx_irq_ = 0x31;
+        } else {
+            prev_tx_irq_ = last_tx_irq_;
+            last_tx_irq_ = 0x32;
+        }
         return true;
     } else {
+        last_tx_irq_ = 0x38;
         return false;
     }
 }
@@ -183,6 +192,7 @@ bool TivaCdc::tx_packet_from_isr(const void* data, size_t len)
             last_tx_irq_ = 0x11;
         } else {
             last_tx_irq_ = 0x12;
+            return false;
         }
         return true;
     } else {

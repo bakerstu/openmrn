@@ -99,7 +99,8 @@ private:
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */
-    
+
+    uint8_t prev_tx_irq_;
     /** Default constructor.
      */
     TivaCdc();

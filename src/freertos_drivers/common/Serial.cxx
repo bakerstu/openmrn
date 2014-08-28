@@ -218,7 +218,7 @@ ssize_t USBSerialNode::write(File *file, const void *buf, size_t count)
         if (file->flags & O_NONBLOCK) {
             break;
         }
-        if (count)
+        if (count && !pass_on_notify)
         {
             h.wait_for_notification();
         }

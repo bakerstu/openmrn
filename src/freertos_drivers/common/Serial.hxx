@@ -171,9 +171,9 @@ private:
             "set_rx_pending_from_isr");
     }
 
-    uint8_t txQEnd_, rxQBegin_, rxQEnd_;
-    uint8_t txPending_ : 1;
-    uint8_t rxPending_ : 1;
+    volatile uint8_t txQEnd_, rxQBegin_, rxQEnd_;
+    volatile uint8_t txPending_ : 1;
+    volatile uint8_t rxPending_ : 1;
     uint8_t txQ_[USB_SERIAL_PACKET_SIZE];
     uint8_t rxQ_[USB_SERIAL_PACKET_SIZE];
 
