@@ -156,6 +156,8 @@ private:
     bool state_;
 };
 
+BlinkerFlow blinker_flow(&g_node);
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -194,7 +196,6 @@ int appl_main(int argc, char* argv[])
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
-    BlinkerFlow blinker(&g_node);
 
     g_executor.thread_body();
     return 0;
