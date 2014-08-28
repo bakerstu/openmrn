@@ -56,11 +56,10 @@
  *  and calling the inline method @ref interrupt_handler on behalf of this
  *  device driver.
  *
- *  Write calls work by sending the whole DCC packet excluding the X-OR linkage
- *  byte (which will be calculated automatically by the driver).  Only one DCC
- *  packet may be written per call to the write method.  If there is no space
- *  currently available in the write queue, the write method will return -1
- *  with errno set to ENOSPC.
+ *  Write calls work by sending the packet in the format of dcc::Packet
+ *  including the X-OR linkage byte.  Only one DCC packet may be written per
+ *  call to the write method.  If there is no space currently available in the
+ *  write queue, the write method will return -1 with errno set to ENOSPC.
  *
  *  Handling of write throttling:
  *
@@ -72,6 +71,9 @@
  *  writenotifiable is cleared. It is set pending at startup and when the dcc
  *  interrupt frees up a packet from the queue, and it is cleared pending when
  *  a write realizes there is no space for a buffer.
+ *
+ *  The user must ensure that the 'interrupt' has a very high priority, whereas
+ *  'os_interrupt' has a priority that's at or lower than the FreeRTOS kernel.
  */
 class TivaDCC : public Node
 {
