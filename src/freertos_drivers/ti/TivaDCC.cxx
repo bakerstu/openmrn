@@ -39,7 +39,7 @@
 #include "driverlib/sysctl.h"
 #include "freertos/can_ioctl.h"
 
-const uint8_t TivaDCC::IDLE_PKT[4] = {0x03, 0xFF, 0x00, 0xFF};
+dcc::Packet TivaDCC::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
 TivaDCC::TivaDCC(const char *name,
                  unsigned long ccp_base,
@@ -130,15 +130,15 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
         portEXIT_CRITICAL();
         return -ENOSPC;
     }
-    if (count > MAX_PKT_SIZE)
+    if (count > sizeof(dcc::Packet) || count < 2U ||
+        count != (((const dcc::Packet *)buf)->dlc + 2U))
     {
         MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
         return -EINVAL;
     }
 
-    q.data[q.wrIndex][0] = count;
-    memcpy(&q.data[q.wrIndex][1], buf, count);
+    memcpy(&q.data[q.wrIndex], buf, count);
 
     if (++q.wrIndex == Q_SIZE)
     {

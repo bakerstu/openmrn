@@ -61,6 +61,12 @@ struct Packet
         clear();
     }
 
+    struct DCC_IDLE {};
+    Packet(DCC_IDLE i) {
+        clear();
+        set_dcc_idle();
+    }
+
     void clear()
     {
         memset(this, 0, sizeof(*this));

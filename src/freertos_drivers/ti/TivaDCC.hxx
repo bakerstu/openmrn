@@ -47,6 +47,7 @@
 
 #include "Devtab.hxx"
 #include "executor/Notifiable.hxx"
+#include "dcc/Packet.hxx"
 
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
@@ -161,7 +162,7 @@ private:
         size_t count; /**< number of items in the queue */
         size_t rdIndex; /**< current read index */
         size_t wrIndex; /**< current write index */
-        uint8_t data[Q_SIZE][MAX_PKT_SIZE + 1]; /**< queue data */
+        dcc::Packet data[Q_SIZE]; /**< queue data */
     };
 
     unsigned long ccpBase; /**< capture compare pwm base address */
@@ -177,7 +178,7 @@ private:
     Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
 
     /** idle packet */
-    static const uint8_t IDLE_PKT[4];
+    static dcc::Packet IDLE_PKT;
 
     Q q; /**< DCC packet queue */
 
@@ -222,7 +223,7 @@ inline void TivaDCC::interrupt_handler()
     static int preamble_count = 0;
     static int last_bit = 1;
     static int count = 0;
-    static const uint8_t *packet = IDLE_PKT;
+    static const dcc::Packet *packet = &IDLE_PKT;
     int current_bit;
 
     MAP_TimerIntClear(intervalBase, TIMER_TIMA_TIMEOUT);
@@ -251,13 +252,13 @@ inline void TivaDCC::interrupt_handler()
         case DATA_5:
         case DATA_6:
         case DATA_7:
-            current_bit = (packet[count + 1] >> (DATA_7 - state)) & 0x01;
+            current_bit = (packet->payload[count] >> (DATA_7 - state)) & 0x01;
             state = static_cast<State>(static_cast<int>(state) + 1);
             break;
         case FRAME:
-            if (++count >= packet[0])
+            if (++count >= packet->dlc)
             {
-                if (packet != IDLE_PKT)
+                if (packet != &IDLE_PKT)
                 {
                     --q.count;
                     ++q.rdIndex;
@@ -270,18 +271,18 @@ inline void TivaDCC::interrupt_handler()
                 }
                 if (q.count)
                 {
-                    packet = &q.data[q.rdIndex][0];
+                    packet = &q.data[q.rdIndex];
                 }
                 else
                 {
-                    packet = IDLE_PKT;
+                    packet = &IDLE_PKT;
                 }
-                current_bit = 1;
+                current_bit = 1;  // end-of-packet bit
                 state = PREAMBLE;
             }
             else
             {
-                current_bit = 0;
+                current_bit = 0;  // end-of-byte bit
                 state = DATA_0;
             }
             break;

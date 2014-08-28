@@ -61,8 +61,7 @@ StateFlowBase::Action LocalTrackIf::entry()
     {
         return finish();
     }
-    int ret =
-        write(fd_, p->payload, p->dlc);
+    int ret = write(fd_, p, p->dlc + 2);
     if (ret < 0) {
         HASSERT(errno == ENOSPC);
         ::ioctl(fd_, CAN_IOC_WRITE_ACTIVE, this);
