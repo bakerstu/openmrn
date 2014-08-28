@@ -149,6 +149,13 @@ void set_gpio_extinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
 }
 
+/** Configures a gpio pin for input with external pullup. */
+void set_gpio_puinput(uint32_t port, uint32_t pin) {
+    MAP_GPIOPinWrite(port, pin, 0);
+    MAP_GPIOPinTypeGPIOInput(port, pin);
+    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+}
+
 void enable_dcc() {
     g_dcc_on = true;
     MAP_GPIOPinWrite(LED_BLUE, 0xff);
@@ -275,6 +282,20 @@ void hw_preinit(void)
     /* Timer hardware for DCC signal generation */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+
+
+    /* Temporary enable Irq for blinking. */
+    asm("cpsie i\n");
+
+    blinker_pattern = 0x80002;
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ);
+    set_gpio_puinput(GPIO_PORTJ_BASE, GPIO_PIN_0);
+    volatile uint8_t* mem = (uint8_t*)(GPIO_PORTJ_BASE + ((GPIO_PIN_0)<<2));
+    uint32_t counter = configCPU_CLOCK_HZ / 3;
+    while (*mem && --counter);
+
+    /* Globally disables interrupts until the FreeRTOS scheduler is up. */
+    asm("cpsid i\n");
 }
 
 
