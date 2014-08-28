@@ -202,15 +202,23 @@ ssize_t USBSerialNode::write(File *file, const void *buf, size_t count)
                 --count;
                 ++ret;
             }
+            if (txQEnd_ < USB_SERIAL_PACKET_SIZE) pass_on_notify = true;
             if (!txPending_)
             {
-                tx_packet_irqlocked(txQ_, txQEnd_);
-                txQEnd_ = 0;
-                txPending_ = 1;
+                if (tx_packet_irqlocked(txQ_, txQEnd_))
+                {
+                    txQEnd_ = 0;
+                    txPending_ = 1;
+                } else {
+                    // packet send failed -- we'll re-try in a next iteration
+                    pass_on_notify = true;
+                }
             }
-            pass_on_notify = (txQEnd_ < USB_SERIAL_PACKET_SIZE);
         }
-        if (count && !(file->flags & O_NONBLOCK))
+        if (file->flags & O_NONBLOCK) {
+            break;
+        }
+        if (count)
         {
             h.wait_for_notification();
         }
@@ -277,4 +285,48 @@ void USBSerialNode::flush_buffers() OVERRIDE {
             rxPending_ = 0;
         }
     }
+}
+
+void USBSerialNode::tx_finished_from_isr()
+{
+    if (txQEnd_) {
+        if (tx_packet_from_isr(txQ_, txQEnd_))
+        {
+            txQEnd_ = 0;
+            txPending_ = 1;
+        }
+        else
+        {
+            // We failed ot send the next packet. We'll wake up a writer
+            // (hopefully) that will re-try sending the packet. However, it is
+            // possible that there is no writer thread around and there will be
+            // data stuck in the queue here.
+            txPending_ = 0;
+        }
+    }
+    else
+    {
+        txPending_ = 0;
+        last_tx_irq_ = 0x20;
+    }
+    txBlock_.notify_from_isr();
+}
+
+void *USBSerialNode::try_read_packet_from_isr()
+{
+    if (rxQBegin_ >= rxQEnd_)
+    {
+        rxQBegin_ = rxQEnd_ = 0;
+        return rxQ_;
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+
+void USBSerialNode::set_rx_finished_from_isr(uint8_t size)
+{
+    rxQEnd_ = size;
+    rxBlock_.notify_from_isr();
 }

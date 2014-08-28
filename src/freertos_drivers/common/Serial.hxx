@@ -103,7 +103,9 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Serial);
 };
 
-
+/* This is fixed and equals the USB packet size that the CDC device will
+ * advertise to be able to receive. This is a performance parameter, 64 is the
+ * largest packet size permitted by USB for virtual serial ports. */
 #define USB_SERIAL_PACKET_SIZE 64
 
 class USBSerialNode : public Node {
@@ -142,15 +144,22 @@ protected:
      * buffer.*/
     void set_rx_finished_from_isr(uint8_t size);
 
+    void tx_discard_packet_locked() {
+        txPending_ = 0;
+        // TODO: notify
+    }
+
 private:
     /** Requests a packet to be sent from an ISR context. The buffer will be
-     * invalidated as soon as the call returns. */
-    virtual void tx_packet_from_isr(const void* data, size_t len) = 0;
+     * invalidated as soon as the call returns. Returns true if the packet was
+     * sent, false if there was an error and the packet should be discarded. */
+    virtual bool tx_packet_from_isr(const void* data, size_t len) = 0;
 
     /** Requests a packet to be sent from a regular context (but under a lock
      * and TX interrupt disabled).  The buffer will be invalidated and
-     * overwritten as soon as the call returns. */
-    virtual void tx_packet_irqlocked(const void* data, size_t len) = 0;
+     * overwritten as soon as the call returns. Returns true if the packet was
+     * sent, false if it should be discarded or re-tried.  */
+    virtual bool tx_packet_irqlocked(const void* data, size_t len) = 0;
 
     /** Tries to receive a packet (from a regular context, locked and RX
      * interrupt disabled). This is only ever called if the driver does
@@ -170,6 +179,8 @@ private:
 
     BlockOrWakeUp<Atomic> txBlock_;
     BlockOrWakeUp<Atomic> rxBlock_;
+protected:
+    uint8_t last_tx_irq_;
 };
 
 
