@@ -62,7 +62,7 @@ StateFlowBase::Action LocalTrackIf::entry()
         return finish();
     }
     int ret =
-        write(fd_, p->payload, p->dlc - 1 /*remove the xor byte for now*/);
+        write(fd_, p->payload, p->dlc);
     if (ret < 0) {
         HASSERT(errno == ENOSPC);
         ::ioctl(fd_, CAN_IOC_WRITE_ACTIVE, this);

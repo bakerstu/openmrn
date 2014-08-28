@@ -39,7 +39,7 @@
 #include "driverlib/sysctl.h"
 #include "freertos/can_ioctl.h"
 
-const uint8_t TivaDCC::IDLE_PKT[3] = {0x02, 0xFF, 0x00};
+const uint8_t TivaDCC::IDLE_PKT[4] = {0x03, 0xFF, 0x00, 0xFF};
 
 TivaDCC::TivaDCC(const char *name,
                  unsigned long ccp_base,

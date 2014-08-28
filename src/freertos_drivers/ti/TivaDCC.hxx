@@ -177,7 +177,7 @@ private:
     Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
 
     /** idle packet */
-    static const uint8_t IDLE_PKT[3];
+    static const uint8_t IDLE_PKT[4];
 
     Q q; /**< DCC packet queue */
 
@@ -222,7 +222,6 @@ inline void TivaDCC::interrupt_handler()
     static int preamble_count = 0;
     static int last_bit = 1;
     static int count = 0;
-    static uint8_t xor_byte;
     static const uint8_t *packet = IDLE_PKT;
     int current_bit;
 
@@ -242,7 +241,6 @@ inline void TivaDCC::interrupt_handler()
         case START:
             current_bit = 0;
             count = 0;
-            xor_byte = 0;
             state = DATA_0;
             break;
         case DATA_0:
@@ -253,18 +251,11 @@ inline void TivaDCC::interrupt_handler()
         case DATA_5:
         case DATA_6:
         case DATA_7:
-            if (count < packet[0])
-            {
-                current_bit = (packet[count + 1] >> (DATA_7 - state)) & 0x01;
-            }
-            else
-            {
-                current_bit = (xor_byte >> (DATA_7 - state)) & 0x01;
-            }
+            current_bit = (packet[count + 1] >> (DATA_7 - state)) & 0x01;
             state = static_cast<State>(static_cast<int>(state) + 1);
             break;
         case FRAME:
-            if (++count > packet[0])
+            if (++count >= packet[0])
             {
                 if (packet != IDLE_PKT)
                 {
@@ -274,6 +265,7 @@ inline void TivaDCC::interrupt_handler()
                     {
                         q.rdIndex = 0;
                     }
+                    // Notifies the OS that we can write to the buffer.
                     MAP_IntPendSet(osInterrupt);
                 }
                 if (q.count)
@@ -289,7 +281,6 @@ inline void TivaDCC::interrupt_handler()
             }
             else
             {
-                xor_byte ^= packet[count];
                 current_bit = 0;
                 state = DATA_0;
             }
