@@ -56,11 +56,6 @@ StateFlowBase::Action LocalTrackIf::entry()
 {
     HASSERT(fd_ >= 0);
     auto *p = message()->data();
-    // Marklin packets are not currently supported by tiva mainline.
-    if (p->packet_header.is_marklin)
-    {
-        return finish();
-    }
     int ret = write(fd_, p, p->dlc + 2);
     if (ret < 0) {
         HASSERT(errno == ENOSPC);
