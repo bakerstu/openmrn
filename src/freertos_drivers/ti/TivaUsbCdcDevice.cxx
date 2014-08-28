@@ -135,7 +135,7 @@ static TivaCdc *instances[1] = {NULL};
  * @param interrupt interrupt number used by the device
  */
 TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
-    : Serial(name)
+    : USBSerialNode(name)
     , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR, control_callback, this, rx_callback, this, tx_callback, this, stringDescriptors, NUM_STRING_DESCRIPTORS}
     , interrupt(interrupt)
     , connected(false)
@@ -162,50 +162,32 @@ void TivaCdc::disable()
 }
 
 /* Try and transmit a message.
- * @param dev device to transmit message on
  */
-void TivaCdc::tx_char()
+bool TivaCdc::tx_packet_irqlocked(const void* data, size_t len)
 {
-    #define CDC_SERIAL_STATE  USB_CDC_SERIAL_STATE_TXCARRIER | \
-                              USB_CDC_SERIAL_STATE_RXCARRIER
-    
-    MAP_IntDisable(interrupt);
-    if (connected)
-    {
-        unsigned long available;
-        unsigned long count;
-
-        /* we don't do handshakes, data is always available */
-        USBDCDCSerialStateChange(&usbdcdcDevice, CDC_SERIAL_STATE);
-
-        /* do this if we have data to send */
-        available = USBDCDCTxPacketAvailable(&usbdcdcDevice);
-        
-        for (count = 0; count < USB_CDC_TX_DATA_SIZE && count < available; count++)
-        {
-            if (os_mq_timedreceive(txQ, &txData[count], 0) != OS_MQ_NONE)
-            {
-                /* no more data left to transmit */
-                break;
-            }
-        }
-        if (count)
-        {
-            /* we have some data to send */
-            USBDCDCPacketWrite(&usbdcdcDevice, txData, count, 1);
-        }
-        MAP_IntEnable(interrupt);
+    if (connected) {
+        USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
+        return true;
+    } else {
+        return false;
     }
-    else
-    {
-        MAP_IntEnable(interrupt);
-        /* we are not connected, flush away the data */
-        int result;
-        do
-        {
-            unsigned char data;
-            result = os_mq_timedreceive(txQ, &data, 0);
-        } while (result == OS_MQ_NONE);
+}
+
+bool TivaCdc::tx_packet_from_isr(const void* data, size_t len)
+{
+    if (connected) {
+        uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
+        if (r == len) {
+            last_tx_irq_ = 0x10;
+        } else if (r > 0) {
+            last_tx_irq_ = 0x11;
+        } else {
+            last_tx_irq_ = 0x12;
+        }
+        return true;
+    } else {
+        last_tx_irq_ = 0x18;
+        return false;
     }
 }
 
@@ -225,6 +207,8 @@ unsigned long TivaCdc::control_callback(void *data, unsigned long event, unsigne
     {
         case USB_EVENT_CONNECTED:
             serial->connected = true;
+            // starts sending data.
+            serial->tx_finished_from_isr();
             break;
         case USB_EVENT_DISCONNECTED:
             serial->connected = false;
@@ -259,45 +243,15 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
             break;
         case USB_EVENT_RX_AVAILABLE:
         {
-            if (msg_data)
-            {
-                unsigned char *data = (unsigned char*)msg_data;
-                unsigned long count = 0;
-                if (serial->enabled)
-                {
-                    for (count = 0; count < msg_param; count++, data++)
-                    {
-                        if (os_mq_send_from_isr(serial->rxQ, data, &serial->woken) != OS_MQ_NONE)
-                        {
-                            /* no more room left */
-                            break;
-                        }
-                    }
-                }
+            void* b = serial->try_read_packet_from_isr();
+            if (b) {
+                uint8_t count = USBDCDCPacketRead(&serial->usbdcdcDevice,
+                                                  (uint8_t*)b,
+                                                  USB_SERIAL_PACKET_SIZE,
+                                                  true);
+                serial->set_rx_finished_from_isr(count);
                 return count;
-            }
-            else
-            {
-                //unsigned long available;
-                unsigned long space;
-                unsigned long count;
-                
-                //available = USBDCDCRxPacketAvailable(&serial->usbdcdcDevice);
-                space = config_serial_rx_buffer_size() - os_mq_num_pending_from_isr(serial->rxQ);
-
-                count = USBDCDCPacketRead(&serial->usbdcdcDevice,
-                                          serial->rxData,
-                                          space,
-                                          true);
-                if (serial->enabled)
-                {
-                    /* transfer data up */
-                    for (unsigned long i = 0; i < count; i++)
-                    {
-                        os_mq_send_from_isr(serial->rxQ, &serial->rxData[i], &serial->woken);
-                    }
-                }
-                
+            } else {
                 return 0;
             }
         }
@@ -318,26 +272,7 @@ unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned lon
             break;
         case USB_EVENT_TX_COMPLETE:
         {
-            unsigned long available;
-            unsigned long count;
-
-            /* do this if we have data to send */
-            available = USBDCDCTxPacketAvailable(&serial->usbdcdcDevice);
-            
-            for (count = 0; count < USB_CDC_TX_DATA_SIZE && count < available; count++)
-            {
-                if (os_mq_receive_from_isr(serial->txQ, &serial->txData[count], &serial->woken) != OS_MQ_NONE)
-                {
-                    /* no more data left to transmit */
-                    break;
-                }
-            }
-            if (count)
-            {
-                /* we have some data to send */
-                USBDCDCPacketWrite(&serial->usbdcdcDevice, serial->txData, count, 1);
-            }
-            break;
+            serial->tx_finished_from_isr();
         }
     }
     return 0;

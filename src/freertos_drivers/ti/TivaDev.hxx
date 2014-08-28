@@ -53,15 +53,9 @@
 #include "Serial.hxx"
 #include "Can.hxx"
 
-/* This is fixed and equals the USB packet size that the CDC device will
- * advertise to be able to receive. This is a performance parameter, 64 is the
- * largest packet size permitted by USB for virtual serial ports. */
-#define USB_CDC_TX_DATA_SIZE 64
-#define USB_CDC_RX_DATA_SIZE 64
-
 /** Private data for this implementation of serial.
  */
-class TivaCdc : public Serial
+class TivaCdc : public USBSerialNode
 {
 public:
     /** Constructor.
@@ -84,7 +78,15 @@ public:
 private:
     void enable(); /**< function to enable device */
     void disable(); /**< function to disable device */
-    void tx_char(); /**< function to try and transmit a character */
+
+    /** Requests a packet to be sent from an ISR context. The buffer will be
+     * invalidated as soon as the call returns. */
+    bool tx_packet_from_isr(const void* data, size_t len) OVERRIDE;
+
+    /** Requests a packet to be sent from a regular context (but under a lock
+     * and TX interrupt disabled).  The buffer will be invalidated and
+     * overwritten as soon as the call returns. */
+    bool tx_packet_irqlocked(const void* data, size_t len) OVERRIDE;
 
     static unsigned long control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
@@ -93,10 +95,6 @@ private:
     static unsigned long tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
     tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
-    /** buffer for pending tx data */
-    unsigned char txData[USB_CDC_TX_DATA_SIZE];
-    /** buffer for pending rx data */
-    unsigned char rxData[USB_CDC_RX_DATA_SIZE];
     uint32_t interrupt; /**< interrupt number for device */
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
@@ -459,4 +457,3 @@ inline void TivaDCC::interrupt_handler()
 }
 
 #endif /* _FREERTOS_DRIVERS_TI_TIVADEV_HXX_ */
-
