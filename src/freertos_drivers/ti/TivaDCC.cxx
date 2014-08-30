@@ -110,11 +110,11 @@ TivaDCC::TivaDCC(const char *name,
 
     MAP_TimerConfigure(intervalBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PERIODIC);
-    MAP_TimerControlLevel(ccpBase, TIMER_A, true);
+    MAP_TimerControlLevel(ccpBase, TIMER_A, /*true*/ false);
     MAP_TimerControlLevel(ccpBase, TIMER_B, false);
 
-    MAP_TimerLoadSet(ccpBase, TIMER_B, timings[DCC_ONE].period);
-    MAP_TimerLoadSet(ccpBase, TIMER_A, hDeadbandDelay);
+    MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(ccpBase, TIMER_B, hDeadbandDelay);
     MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay);
     MAP_TimerMatchSet(ccpBase, TIMER_A, timings[DCC_ONE].transition_a);
     MAP_TimerMatchSet(ccpBase, TIMER_B, timings[DCC_ONE].transition_b);
@@ -129,7 +129,7 @@ TivaDCC::TivaDCC(const char *name,
 
     MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
 
-    MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(ccpBase, TIMER_B, timings[DCC_ONE].period);
     MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(interrupt);
 
@@ -156,9 +156,9 @@ void TivaDCC::fill_timing(BitEnum ofs, uint32_t period_usec,
         int32_t nominal_transition =
             timing->period - usec_to_clocks(transition_usec);
         timing->transition_a =
-            nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
-        timing->transition_b =
             nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
+        timing->transition_b =
+            nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
     }
 }
 
