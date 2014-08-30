@@ -345,6 +345,9 @@ inline void TivaDCC::interrupt_handler()
                 } else {
                     state = ST_MM_PREAMBLE;
                 }
+            } else {
+                // TODO(bracz) reenable this
+                //state = MM_DATA_0;
             }
             break;
     }

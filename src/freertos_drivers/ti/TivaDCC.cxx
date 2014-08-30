@@ -85,7 +85,7 @@ TivaDCC::TivaDCC(const char *name,
     fill_timing(MM_ZERO, 208, 26);
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
-    fill_timing(MM_PREAMBLE, 208, 3);
+    fill_timing(MM_PREAMBLE, 208, 0);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(ccpBase, TIMER_A);
@@ -98,9 +98,15 @@ TivaDCC::TivaDCC(const char *name,
                                     TIMER_CFG_B_PWM);
 
     // This will cause reloading the timer values only at the next period
-    // instead of immediately.
-    HWREG(ccpBase + TIMER_O_TAMR) |= TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
-    HWREG(ccpBase + TIMER_O_TBMR) |= TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD;
+    // instead of immediately. The PLO bit needs to be set to allow for DC
+    // voltage output.
+    HWREG(ccpBase + TIMER_O_TAMR) |=
+        TIMER_TAMR_TAPLO | TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
+    HWREG(ccpBase + TIMER_O_TBMR) |=
+        TIMER_TBMR_TBPLO | TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD;
+
+    HWREG(intervalBase + TIMER_O_TAMR) |=
+        TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
 
     MAP_TimerConfigure(intervalBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PERIODIC);
@@ -109,7 +115,7 @@ TivaDCC::TivaDCC(const char *name,
 
     MAP_TimerLoadSet(ccpBase, TIMER_B, timings[DCC_ONE].period);
     MAP_TimerLoadSet(ccpBase, TIMER_A, hDeadbandDelay);
-    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay);
     MAP_TimerMatchSet(ccpBase, TIMER_A, timings[DCC_ONE].transition_a);
     MAP_TimerMatchSet(ccpBase, TIMER_B, timings[DCC_ONE].transition_b);
 
@@ -124,6 +130,7 @@ TivaDCC::TivaDCC(const char *name,
     MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
 
     MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(interrupt);
 
     // We don't have a write notifiable at the moment.
@@ -138,13 +145,16 @@ void TivaDCC::fill_timing(BitEnum ofs, uint32_t period_usec,
 {
     auto* timing = &timings[ofs];
     timing->period = usec_to_clocks(period_usec);
-    int32_t nominal_transition =
-        timing->period - usec_to_clocks(transition_usec);
-    if (transition_usec == 0 || transition_usec >= period_usec) {
-        // DC voltage -- no deadband delay needed.
-        timing->transition_a = timing->transition_b =
-            nominal_transition;
+    if (transition_usec == 0) {
+        // DC voltage negative.
+        timing->transition_a = timing->transition_b = timing->period;
+    } else if (transition_usec >= period_usec) {
+        // DC voltage positive.
+        // We use the PLO feature of the timer.
+        timing->transition_a = timing->transition_b = timing->period + 1;
     } else {
+        int32_t nominal_transition =
+            timing->period - usec_to_clocks(transition_usec);
         timing->transition_a =
             nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
         timing->transition_b =
