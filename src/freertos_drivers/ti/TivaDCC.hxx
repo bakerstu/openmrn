@@ -86,19 +86,22 @@ public:
      * @param os_interrupt an otherwise unused interrupt number (cound be that of the capture compare pwm timer)
      * @param preamble_count number of preamble bits to send exclusive of
      *        end of packet '1' bit
-     * @param startup_delay offset for introducing some deadband at startup
-     * @param deadband_adjust ajustment factor for adding deadband
-     * @param railcom_cuttout true to produce the RailCom cuttout, else false
+     * @param h_deadband_delay_nsec is the time (in nanoseconds) to wait
+     * between turning off the low driver and turning on the high driver.
+     * @param l_deadband_delay_nsec is the time (in nanoseconds) to wait
+     * between turning off the high driver and turning on the low driver.
+     * @param railcom_cutout true to produce the RailCom cuttout, else false
      */
     TivaDCC(const char *name,
             unsigned long ccp_base,
             unsigned long interval_base,
             uint32_t interrupt,
             uint32_t os_interrupt,
+            uint8_t* led_ptr,
             int preamble_count,
-            int startup_delay,
-            int deadband_adjust,
-            bool railcom_cuttout = false);
+            int h_deadband_delay_nsec,
+            int l_deadband_delay_nsec,
+            bool railcom_cutout = false);
 
     /** Destructor.
      */
@@ -117,7 +120,8 @@ public:
 
     struct Timing {
         uint32_t period;
-        uint32_t transition;
+        uint32_t transition_a;
+        uint32_t transition_b;
     };
 
 private:
@@ -174,11 +178,12 @@ private:
     int preambleCount; /**< number of preamble bits to send */
     int oneBitPeriod; /**< period of one bit */
     int zeroBitPeriod; /**< period of zero bit */
-    int startupDelay; /**< startup offset */
-    int deadbandAdjust; /**< deadband adjustment */
-    bool railcomCuttout; /**< true if we should produce the RailCom cuttout */
+    int hDeadbandDelay; /**< low->high deadband delay */
+    int lDeadbandDelay; /**< high->low deadband delay */
+    bool railcomCutout; /**< true if we should produce the RailCom cuttout */
     uint32_t osInterrupt; /**< interrupt used to notify FreeRTOS. */
     Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
+    uint8_t* ledPtr; /**< Will be toggled between 0 and 0xff as packets sent.*/
 
     /** idle packet */
     static dcc::Packet IDLE_PKT;
@@ -194,6 +199,17 @@ private:
     } BitEnum;
 
     Timing timings[NUM_TIMINGS];
+
+    /** Prepares a timing entry.
+     *
+     * @param ofs is the bit timing that we are defining.
+     * @param period_usec is the total length of the bit.
+     * @param transition_usec is the time of the transition inside the bit,
+     * counted from the beginning of the bit (i.e. the length of the HIGH part
+     * of the period). Can be zero for DC output LOW or can be == period_usec
+     * for DC output HIGH. */
+    void fill_timing(BitEnum ofs, uint32_t period_usec,
+                     uint32_t transition_usec);
 
     Q q; /**< DCC packet queue */
 
@@ -335,18 +351,12 @@ inline void TivaDCC::interrupt_handler()
 
     if (last_bit != current_bit)
     {
-        uint32_t period = timings[current_bit].period;
-        uint32_t transition = timings[current_bit].transition;
-        MAP_TimerLoadSet(intervalBase, TIMER_A, period);
-        MAP_TimerLoadSet(ccpBase, TIMER_A, period);
-        MAP_TimerLoadSet(ccpBase, TIMER_B, period);
-        if (transition >= period || transition == 0) {
-            MAP_TimerMatchSet(ccpBase, TIMER_A, transition);
-            MAP_TimerMatchSet(ccpBase, TIMER_B, transition);
-        } else {
-            MAP_TimerMatchSet(ccpBase, TIMER_A, transition - deadbandAdjust);
-            MAP_TimerMatchSet(ccpBase, TIMER_B, transition + deadbandAdjust);
-        }
+        auto* timing = &timings[current_bit];
+        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period);
+        MAP_TimerLoadSet(ccpBase, TIMER_A, timing->period);
+        MAP_TimerLoadSet(ccpBase, TIMER_B, timing->period);
+        MAP_TimerMatchSet(ccpBase, TIMER_A, timing->transition_a);
+        MAP_TimerMatchSet(ccpBase, TIMER_B, timing->transition_b);
         last_bit = current_bit;
     }
 

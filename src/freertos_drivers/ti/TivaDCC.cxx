@@ -39,15 +39,20 @@
 #include "driverlib/sysctl.h"
 #include "freertos/can_ioctl.h"
 
+#include "inc/hw_memmap.h"
+#include "inc/hw_timer.h"
+#include "inc/hw_types.h"
+
+
 dcc::Packet TivaDCC::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
 static uint32_t usec_to_clocks(uint32_t usec) {
     return (configCPU_CLOCK_HZ / 1000000) * usec;
 }
 
-static void fill_timing(TivaDCC::Timing* timing, uint32_t period_usec, uint32_t transition_usec) {
-    timing->period = usec_to_clocks(period_usec);
-    timing->transition = usec_to_clocks(transition_usec);
+static uint32_t nsec_to_clocks(uint32_t nsec) {
+    // We have to be careful here not to underflow or overflow.
+    return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;
 }
 
 TivaDCC::TivaDCC(const char *name,
@@ -55,62 +60,96 @@ TivaDCC::TivaDCC(const char *name,
                  unsigned long interval_base,
                  uint32_t interrupt,
                  uint32_t os_interrupt,
+                 uint8_t* led_ptr,
                  int preamble_count,
-                 int startup_delay,
-                 int deadband_adjust,
-                 bool railcom_cuttout)
+                 int h_deadband_delay_nsec,
+                 int l_deadband_delay_nsec,
+                 bool railcom_cutout)
     : Node(name)
     , ccpBase(ccp_base)
     , intervalBase(interval_base)
     , preambleCount(preamble_count)
-    , startupDelay(startup_delay)
-    , deadbandAdjust(deadband_adjust >> 1)
-    , railcomCuttout(railcom_cuttout)
+    , hDeadbandDelay(nsec_to_clocks(h_deadband_delay_nsec))
+    , lDeadbandDelay(nsec_to_clocks(l_deadband_delay_nsec))
+    , railcomCutout(railcom_cutout)
     , osInterrupt(os_interrupt)
     , writableNotifiable(nullptr)
+    , ledPtr(led_ptr)
 {
     q.count = 0;
     q.rdIndex = 0;
     q.wrIndex = 0;
 
-    fill_timing(timings + DCC_ZERO, 100<<1, 100);
-    fill_timing(timings + DCC_ONE, 56<<1, 56);
-    fill_timing(timings + MM_ZERO, 208, 26);
-    fill_timing(timings + MM_ONE, 208, 182);
+    fill_timing(DCC_ZERO, 100<<1, 100);
+    fill_timing(DCC_ONE, 56<<1, 56);
+    fill_timing(MM_ZERO, 208, 26);
+    fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
-    fill_timing(timings + MM_PREAMBLE, 208, 208);
+    fill_timing(MM_PREAMBLE, 208, 3);
+
+    // We need to disable the timers before making changes to the config.
+    MAP_TimerDisable(ccpBase, TIMER_A);
+    MAP_TimerDisable(ccpBase, TIMER_B);
 
     MAP_TimerClockSourceSet(ccpBase, TIMER_CLOCK_SYSTEM);
     MAP_TimerClockSourceSet(intervalBase, TIMER_CLOCK_SYSTEM);
     MAP_TimerConfigure(ccpBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PWM |
                                     TIMER_CFG_B_PWM);
+
+    // This will cause reloading the timer values only at the next period
+    // instead of immediately.
+    HWREG(ccpBase + TIMER_O_TAMR) |= TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
+    HWREG(ccpBase + TIMER_O_TBMR) |= TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD;
+
     MAP_TimerConfigure(intervalBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PERIODIC);
-    MAP_TimerControlLevel(ccpBase, TIMER_B, true);
+    MAP_TimerControlLevel(ccpBase, TIMER_A, true);
+    MAP_TimerControlLevel(ccpBase, TIMER_B, false);
 
-    MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
     MAP_TimerLoadSet(ccpBase, TIMER_B, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(ccpBase, TIMER_A, hDeadbandDelay);
     MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period);
-    MAP_TimerMatchSet(ccpBase, TIMER_A,
-                      (timings[DCC_ONE].transition) - deadbandAdjust);
-    MAP_TimerMatchSet(ccpBase, TIMER_B,
-                      (timings[DCC_ONE].transition) + deadbandAdjust);
+    MAP_TimerMatchSet(ccpBase, TIMER_A, timings[DCC_ONE].transition_a);
+    MAP_TimerMatchSet(ccpBase, TIMER_B, timings[DCC_ONE].transition_b);
 
-    MAP_IntEnable(interrupt);
+    MAP_IntDisable(interrupt);
     MAP_IntPrioritySet(interrupt, 0);
     MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
 
     MAP_TimerEnable(ccpBase, TIMER_A);
-    MAP_SysCtlDelay(startupDelay);
     MAP_TimerEnable(ccpBase, TIMER_B);
     MAP_TimerEnable(intervalBase, TIMER_A);
+
+    MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+
+    MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
+    MAP_IntEnable(interrupt);
 
     // We don't have a write notifiable at the moment.
     MAP_IntDisable(osInterrupt);
     MAP_IntPrioritySet(osInterrupt, configKERNEL_INTERRUPT_PRIORITY);
     // but we have free space in the queue at boot time.
     MAP_IntPendSet(osInterrupt);
+}
+
+void TivaDCC::fill_timing(BitEnum ofs, uint32_t period_usec,
+                          uint32_t transition_usec)
+{
+    auto* timing = &timings[ofs];
+    timing->period = usec_to_clocks(period_usec);
+    int32_t nominal_transition =
+        timing->period - usec_to_clocks(transition_usec);
+    if (transition_usec == 0 || transition_usec >= period_usec) {
+        // DC voltage -- no deadband delay needed.
+        timing->transition_a = timing->transition_b =
+            nominal_transition;
+    } else {
+        timing->transition_a =
+            nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
+        timing->transition_b =
+            nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
+    }
 }
 
 /** Read from a file or device.
@@ -157,10 +196,13 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
     if (++q.wrIndex == Q_SIZE)
     {
         q.wrIndex = 0;
+
+        static uint8_t flip = 0xff;
+        flip = ~flip;
+        *ledPtr = flip;
     }
 
     ++q.count;
-
     MAP_TimerIntEnable(intervalBase, TIMER_TIMA_TIMEOUT);
     portEXIT_CRITICAL();
     return count;
