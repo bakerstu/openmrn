@@ -160,10 +160,12 @@ void enable_dcc() {
     g_dcc_on = true;
     MAP_GPIOPinWrite(LED_BLUE, 0xff);
     auto port = GPIO_PORTA_BASE;
-    auto pin = GPIO_PIN_2 | GPIO_PIN_3;
+    auto pin = GPIO_PIN_2 ; //| GPIO_PIN_3;
     MAP_GPIOPinTypeTimer(port, pin);
+    MAP_GPIOPinTypeTimer(GPIO_PORTD_BASE, GPIO_PIN_3);
     MAP_GPIOPinConfigure(GPIO_PA2_T1CCP0);
-    MAP_GPIOPinConfigure(GPIO_PA3_T1CCP1);
+    MAP_GPIOPinConfigure(GPIO_PD3_T1CCP1);
+    //MAP_GPIOPinConfigure(GPIO_PA3_T1CCP1);
     //MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
 }
 
@@ -171,6 +173,7 @@ void disable_dcc() {
     // Take A2/A3 and set them to drive high. This will turn off the gate
     // driver.
     set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+    set_gpio_drive_low(GPIO_PORTD_BASE, GPIO_PIN_3);
     g_dcc_on = false;
     MAP_GPIOPinWrite(LED_BLUE, 0);
 }
@@ -190,6 +193,7 @@ void hw_preinit(void)
      * transistors */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
 
     // Q2/Q3 are wired together with A2-A3 on the timer output pins. Let's turn
     // them into high-impedance mode and turn off pullups.
