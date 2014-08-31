@@ -206,10 +206,12 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
     if (++q.wrIndex == Q_SIZE)
     {
         q.wrIndex = 0;
-
-        static uint8_t flip = 0xff;
-        flip = ~flip;
-        *ledPtr = flip;
+        if (ledPtr)
+        {
+            static uint8_t flip = 0xff;
+            flip = ~flip;
+            *ledPtr = flip;
+        }
     }
 
     ++q.count;
