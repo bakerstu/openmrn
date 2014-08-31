@@ -300,6 +300,12 @@ void hw_preinit(void)
 
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
+
+
+    MAP_GPIOPinWrite(LED_B1, 0);
+    MAP_GPIOPinWrite(LED_B2, 0);
+    MAP_GPIOPinWrite(LED_B3, 0);
+    MAP_GPIOPinWrite(LED_B4, 0);
 }
 
 
