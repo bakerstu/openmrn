@@ -44,6 +44,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
+#include "inc/hw_memmap.h"
 
 #include "Devtab.hxx"
 #include "executor/Notifiable.hxx"
@@ -264,6 +265,7 @@ inline void TivaDCC::interrupt_handler()
     static BitEnum last_bit = DCC_ONE;
     static int count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
+    static bool resync = true;
     BitEnum current_bit;
     bool get_next_packet = false;
 
@@ -351,7 +353,25 @@ inline void TivaDCC::interrupt_handler()
             break;
     }
 
-    if (last_bit != current_bit)
+    if (resync) {
+        resync = false;
+        auto* timing = &timings[current_bit];
+        MAP_TimerLoadSet(ccpBase, TIMER_A, timing->period);
+        MAP_TimerLoadSet(ccpBase, TIMER_B, hDeadbandDelay);
+        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period + hDeadbandDelay * 2);
+        // This is already final.
+        MAP_TimerMatchSet(ccpBase, TIMER_A, timing->transition_a);
+        // since timer B starts later, the deadband delay cycle we set to be constant off.
+        MAP_TimerMatchSet(ccpBase, TIMER_B, hDeadbandDelay);
+        // TODO: this should be parametrized by the timer numbers that we are
+        // using.
+        MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+        MAP_TimerLoadSet(ccpBase, TIMER_B, timing->period);
+        MAP_TimerMatchSet(ccpBase, TIMER_B, timing->transition_b);
+        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period);
+
+        last_bit = current_bit;
+    } else if (last_bit != current_bit)
     {
         auto* timing = &timings[current_bit];
         MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period);
@@ -364,6 +384,7 @@ inline void TivaDCC::interrupt_handler()
 
     if (get_next_packet)
     {
+        resync = true;
         if (packet != &IDLE_PKT)
         {
             --q.count;

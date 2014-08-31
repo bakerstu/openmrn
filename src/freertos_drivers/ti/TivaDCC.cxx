@@ -115,7 +115,7 @@ TivaDCC::TivaDCC(const char *name,
 
     MAP_TimerLoadSet(ccpBase, TIMER_A, timings[DCC_ONE].period);
     MAP_TimerLoadSet(ccpBase, TIMER_B, hDeadbandDelay);
-    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay);
+    MAP_TimerLoadSet(intervalBase, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay * 2);
     MAP_TimerMatchSet(ccpBase, TIMER_A, timings[DCC_ONE].transition_a);
     MAP_TimerMatchSet(ccpBase, TIMER_B, timings[DCC_ONE].transition_b);
 
