@@ -53,14 +53,18 @@ public:
      */
     Device(const char *name);
 
-    /** Open method */
+    /** Open method. Returns negative errno on failure. */
     virtual int open(File *, const char *, int, int) = 0;
-    /** Close method */
+    /** Close method. Returns negative errno on failure. */
     virtual int close(File *) = 0;
-    /** Read method */
+    /** Read method. Returns negative errno on failure. */
     virtual ssize_t read(File *, void *, size_t) = 0;
-    /** Write method */
+    /** Write method. Returns negative errno on failure. */
     virtual ssize_t write(File *, const void *, size_t) = 0;
+    /** Seek method. Errors shall be written into errno and returns -1 on
+     * error. The default implementation updates the offset in the File
+     * structure. */
+    virtual off_t lseek(File*, off_t offset, int whence);
     /** Ioctl method. Default implementation returns error. */
     virtual int ioctl(File *, unsigned long int, unsigned long);
 
@@ -143,7 +147,7 @@ protected:
         , readableNotify_(NULL)
         , writableNotify_(NULL) {}
 
-    /** Called under a critical section. @returns true if a read would not bloc
+    /** Called under a critical section. @returns true if a read would not block
      * right now. */
     virtual bool has_rx_buffer_data() = 0;
     /** Called under a critical section. @returns true if a write would not

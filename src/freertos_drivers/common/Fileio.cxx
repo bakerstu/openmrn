@@ -249,7 +249,12 @@ int _isatty_r(struct _reent *reent, int fd)
  */
 _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
 {
-    return 0;
+    File* f = fd_find(fd);
+    if (!f)
+    {
+        return (_off_t) -1;
+    }
+    return f->dev->lseek(f, offset, whence);
 }
 
 /** Request and ioctl transaction.
@@ -323,6 +328,20 @@ int Device::open(struct _reent *reent, const char *path, int flags, int mode)
     fd_free(fd);
     errno = ENODEV;
     return -1;
+}
+
+off_t Device::lseek(File* f, off_t offset, int whence)
+{
+    switch (whence) {
+    case SEEK_SET:
+        f->offset = offset;
+        return offset;
+    case SEEK_CUR:
+        f->offset += offset;
+        return f->offset;
+    }
+    errno = EINVAL;
+    return (off_t)-1;
 }
 
 /** Open a device.
