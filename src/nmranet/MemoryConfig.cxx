@@ -33,3 +33,133 @@
  */
 
 #include "nmranet/MemoryConfig.hxx"
+
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include "utils/logging.h"
+#ifdef __FreeRTOS__
+#include "can_ioctl.h"
+#endif
+
+namespace nmranet
+{
+
+FileMemorySpace::FileMemorySpace(int fd, address_t len)
+    : fileSize_(len)
+    , name_(nullptr)
+    , fd_(fd)
+{
+    HASSERT(fd_ >= 0);
+}
+
+FileMemorySpace::FileMemorySpace(const char *name, address_t len)
+    : fileSize_(len)
+    , name_(name)
+    , fd_(-1)
+{
+    HASSERT(name_);
+}
+
+void FileMemorySpace::ensure_file_open()
+{
+    if (fd_ < 0)
+    {
+        int opts = O_RDWR;
+#ifdef __FreeRTOS__
+        opts |= O_NONBLOCK;
+#endif
+        fd_ = open(name_, opts);
+        if (fd_ < 0)
+        {
+            LOG(WARNING, "Error opening file %s : %s", name_, strerror(errno));
+            return;
+        }
+        HASSERT(fd_ >= 0);
+    }
+    if (fileSize_ == AUTO_LEN)
+    {
+        struct stat buf;
+        HASSERT(fstat(fd_, &buf) >= 0);
+        fileSize_ = buf.st_size;
+    }
+}
+
+size_t FileMemorySpace::write(address_t destination, const uint8_t *data,
+                              size_t len, errorcode_t *error, Notifiable *again)
+{
+    ensure_file_open();
+    if (fd_ < 0)
+    {
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    off_t actual_position = lseek(fd_, destination, SEEK_SET);
+    if ((address_t)actual_position != destination)
+    {
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    ssize_t ret = ::write(fd_, data, len);
+    if (ret < 0)
+    {
+        LOG(INFO, "Error writing to fd %d: %s", fd_, strerror(errno));
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    else if ((size_t)ret < len)
+    {
+#ifdef __FreeRTOS__
+        *error = ERROR_AGAIN;
+        HASSERT(ioctl(fd_, CAN_IOC_WRITE_ACTIVE, again) == 0);
+#endif
+        return ret;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+size_t FileMemorySpace::read(address_t destination, uint8_t *dst, size_t len,
+                             errorcode_t *error, Notifiable *again)
+{
+    ensure_file_open();
+    if (fd_ < 0)
+    {
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    off_t actual_position = lseek(fd_, destination, SEEK_SET);
+    if ((address_t)actual_position != destination)
+    {
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    if (destination + len > fileSize_)
+    {
+        len = fileSize_ - destination;
+    }
+    ssize_t ret = ::read(fd_, dst, len);
+    if (ret < 0)
+    {
+        LOG(INFO, "Error reading from fd %d: %s", fd_, strerror(errno));
+        *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    else if ((size_t)ret < len)
+    {
+#ifdef __FreeRTOS__
+        *error = ERROR_AGAIN;
+        HASSERT(ioctl(fd_, CAN_IOC_READ_ACTIVE, again) == 0);
+#endif
+        return ret;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+} // namespace nmranet

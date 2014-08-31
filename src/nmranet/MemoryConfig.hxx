@@ -38,6 +38,8 @@
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
 
+class Notifiable;
+
 namespace nmranet
 {
 
@@ -131,6 +133,12 @@ class MemorySpace
 public:
     typedef uint32_t address_t;
     typedef uint16_t errorcode_t;
+
+    /** This error code signals that the operation was only partially
+     * completed, the again notify was used and will be notified when the
+     * operation can be re-tried). */
+    static const errorcode_t ERROR_AGAIN = 0x3FFF;
+
     /// @returns whether the memory space does not accept writes.
     virtual bool read_only()
     {
@@ -146,15 +154,19 @@ public:
      */
     virtual address_t max_address() = 0;
 
-    virtual void write(address_t destination, const uint8_t* data, size_t len,
-                       errorcode_t* error)
+    virtual size_t write(address_t destination, const uint8_t* data, size_t len,
+                         errorcode_t* error, Notifiable* again)
     {
         HASSERT(0);
     }
     /** @returns the number of bytes successfully read (before hitting end of
-     * space). If *error is set to non-null, then the operation has failed. */
+     * space). If *error is set to non-null, then the operation has failed. If
+     * the operation needs to be continued, then sets error to ERROR_AGAIN, and
+     * calls the Notifiable @param again when a re-try makes sense. The caller
+     * should call read once more, with the offset adjusted with the previously
+     * returned bytes. */
     virtual size_t read(address_t source, uint8_t* dst, size_t len,
-                        errorcode_t* error) = 0;
+                        errorcode_t* error, Notifiable* again) = 0;
 };
 
 class ReadOnlyMemoryBlock : public MemorySpace
@@ -182,7 +194,7 @@ public:
     }
 
     size_t read(address_t source, uint8_t* dst, size_t len,
-                errorcode_t* error) OVERRIDE
+                errorcode_t* error, Notifiable* again) OVERRIDE
     {
         if (source >= len_)
             return 0;
@@ -198,6 +210,57 @@ public:
 private:
     const uint8_t* data_; //< Data bytes to serve.
     const address_t len_; //< Length of block to serve.
+};
+
+class FileMemorySpace : public MemorySpace
+{
+public:
+    static const address_t AUTO_LEN = (address_t)-1;
+
+    /** Creates a memory space based on an fd.
+     *
+     * @param fd is an open file descriptor with the data.
+     * @param len tells how many bytes there are in the memory space. If
+     * specified as AUTO_LEN, then uses fstat to figure out the size of the
+     * file.
+     */
+    FileMemorySpace(int fd, address_t len = AUTO_LEN);
+
+    /** Creates a memory space based on a file name. Opens the file at the
+     * first use, and never closes it.
+     *
+     * @param name is the file name ot open. The pointer must stay alive so
+     * long as *this is around.
+     * @param len tells how many bytes there are in the memory space. If
+     * specified as AUTO_LEN, then uses fstat to figure out the size of the
+     * file.
+     */
+    FileMemorySpace(const char* name, address_t len = AUTO_LEN);
+
+    bool read_only() OVERRIDE
+    {
+        return false;
+    }
+
+    address_t max_address() OVERRIDE
+    {
+        ensure_file_open();
+        return fileSize_;
+    }
+
+    size_t write(address_t destination, const uint8_t* data, size_t len,
+                 errorcode_t* error, Notifiable* again) OVERRIDE;
+
+    size_t read(address_t source, uint8_t* dst, size_t len,
+                errorcode_t* error, Notifiable* again) OVERRIDE;
+
+private:
+    /** Makes fd a valid parameter, and ensures fileSize is filled in. */
+    void ensure_file_open();
+
+    address_t fileSize_;
+    const char* name_;
+    int fd_;
 };
 
 class MemoryConfigHandler : public DefaultDatagramHandler
@@ -346,8 +409,9 @@ private:
         response_.assign(response_len, c);
         uint8_t* response_bytes = out_bytes();
         errorcode_t error = 0;
-        int byte_read = space->read(
-            address, response_bytes + response_data_offset, read_len, &error);
+        int byte_read =
+            space->read(address, response_bytes + response_data_offset,
+                        read_len, &error, this);
         response_bytes[0] = DATAGRAM_ID;
         response_bytes[1] = error ? MemoryConfigDefs::COMMAND_READ_FAILED
                                   : MemoryConfigDefs::COMMAND_READ_REPLY;
