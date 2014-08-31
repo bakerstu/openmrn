@@ -46,6 +46,7 @@
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
+#include "TivaDCC.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -71,7 +72,7 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 #define DEADBAND_ADJUST      80
 
 static TivaDCC tivaDCC("/dev/mainline", TIMER0_BASE, TIMER1_BASE, INT_TIMER1A,
-                       16, (4480 << 1), (8000 << 1), 2, 80);
+                       INT_TIMER0A, nullptr, 16, 250, 250);
 
 extern "C" {
 /** Blink LED */
