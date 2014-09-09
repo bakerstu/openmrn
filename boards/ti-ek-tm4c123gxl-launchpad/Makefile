@@ -22,7 +22,15 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
 
 CXXFLAGSEXTRA += -DPART_TM4C123GH6PM
 
-TARGET := freertos.armv7m
-BOARD := BOARD_LAUNCHPAD_EK
+export TARGET := freertos.armv7m
+ifndef BOARD
+export BOARD := BOARD_LAUNCHPAD_EK
+endif
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
+	stellaris-flash.sh $<
+
+gdb:
+	stellaris-gdb.sh $(EXECUTABLE)$(EXTENTION)
