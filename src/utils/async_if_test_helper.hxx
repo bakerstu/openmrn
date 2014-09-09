@@ -319,6 +319,7 @@ protected:
         node_ = ownedNode_.get();
         ifCan_->add_addressed_message_support();
         wait();
+        Mock::VerifyAndClear(&canBus_);
         // AddEventHandlerToIf(ifCan_.get());
     }
 
