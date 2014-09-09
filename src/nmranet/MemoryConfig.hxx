@@ -313,6 +313,11 @@ private:
         if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_READ)
         {
             return call_immediately(STATE(handle_read));
+        } else if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_WRITE)
+        {
+            // Unknown/unsupported command, reject datagram.
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            //return call_immediately(STATE(handle_write));
         }
         switch (cmd)
         {
