@@ -149,7 +149,7 @@ void set_gpio_extinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
 }
 
-/** Configures a gpio pin for input with external pullup. */
+/** Configures a gpio pin for input with internal pullup. */
 void set_gpio_puinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPinWrite(port, pin, 0);
     MAP_GPIOPinTypeGPIOInput(port, pin);
