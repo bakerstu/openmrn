@@ -300,7 +300,7 @@ protected:
         fprintf(stderr, "re-setting temp file %s (fd %d).\n", tempName_, fd_);
         ASSERT_EQ(0, lseek(fd_, 0, SEEK_SET));
         ASSERT_EQ(0, ftruncate(fd_, 0)) << strerror(errno);
-        int len = strlen(MEMORY_BLOCK_DATA) - 1;
+        int len = strlen(MEMORY_BLOCK_DATA);
         ASSERT_EQ(len, write(fd_, MEMORY_BLOCK_DATA, len)) << strerror(errno);
     }
 
