@@ -4,8 +4,6 @@ include $(OPENMRNPATH)/etc/freertos.mk
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-include $(OPENMRNPATH)/etc/path.mk
-
 # Get the $(TOOLPATH)
 ifeq ($(TOOLPATH),)
 TOOLPATH=$(MIPSGCCPATH)

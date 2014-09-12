@@ -5,7 +5,7 @@ include $(OPENMRNPATH)/etc/freertos.mk
 include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
-ifneq ($(FREERTOSPATH),)
+ifeq ($(TOOLPATH),)
 include $(OPENMRNPATH)/etc/armgcc-s.mk
 endif
 
