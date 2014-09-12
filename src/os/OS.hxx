@@ -81,7 +81,7 @@ public:
     }
 
     /** Default destructor. */
-    ~OSThread()
+    virtual ~OSThread()
     {
     }
 
