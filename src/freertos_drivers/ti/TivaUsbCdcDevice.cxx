@@ -151,6 +151,7 @@ TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
  */
 void TivaCdc::enable()
 {
+    log_.log(0xD1);
     enabled = true;
 }
 
@@ -158,6 +159,7 @@ void TivaCdc::enable()
  */
 void TivaCdc::disable()
 {
+    log_.log(0xD0);
     enabled = false;
 }
 
@@ -168,16 +170,16 @@ bool TivaCdc::tx_packet_irqlocked(const void* data, size_t len)
     if (connected) {
         uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
         if (r == len) {
-            last_tx_irq_ = 0x30;
+            log_.log(0x30);
         } else if (r > 0) {
-            last_tx_irq_ = 0x31;
+            log_.log(0x31);
         } else {
-            prev_tx_irq_ = last_tx_irq_;
-            last_tx_irq_ = 0x32;
+            log_.log(0x32);
+            return false;
         }
         return true;
     } else {
-        last_tx_irq_ = 0x38;
+        log_.log(0x38);
         return false;
     }
 }
@@ -187,16 +189,16 @@ bool TivaCdc::tx_packet_from_isr(const void* data, size_t len)
     if (connected) {
         uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
         if (r == len) {
-            last_tx_irq_ = 0x10;
+            log_.log(0x10);
         } else if (r > 0) {
-            last_tx_irq_ = 0x11;
+            log_.log(0x11);
         } else {
-            last_tx_irq_ = 0x12;
+            log_.log(0x12);
             return false;
         }
         return true;
     } else {
-        last_tx_irq_ = 0x18;
+        log_.log(0x18);
         return false;
     }
 }
@@ -213,14 +215,17 @@ unsigned long TivaCdc::control_callback(void *data, unsigned long event, unsigne
 {
     TivaCdc *serial = (TivaCdc*)data;
 
+    serial->log_.log(0xC0);
     switch(event)
     {
         case USB_EVENT_CONNECTED:
+            serial->log_.log(0xC1);
             serial->connected = true;
             // starts sending data.
             serial->tx_finished_from_isr();
             break;
         case USB_EVENT_DISCONNECTED:
+            serial->log_.log(0xC2);
             serial->connected = false;
             break;
         case USBD_CDC_EVENT_GET_LINE_CODING:

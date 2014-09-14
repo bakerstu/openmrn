@@ -35,6 +35,7 @@
 #define _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 
 #include "BlockOrWakeUp.hxx"
+#include "SimpleLog.hxx"
 #include "Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
@@ -149,6 +150,23 @@ protected:
         // TODO: notify
     }
 
+    /** Returns true if a write() called now would have some space to put data
+     * into. */
+    bool has_tx_buffer_free() {
+        return txQEnd_ < USB_SERIAL_PACKET_SIZE;
+    }
+
+    /** Adds a byte to the tx buffer. */
+    void add_to_tx_buffer(uint8_t data) {
+        HASSERT(has_tx_buffer_free());
+        txQ_[txQEnd_++] = data;
+    }
+
+    /** Marks that the tx buffer has been handed over to the hardware. */
+    void mark_tx_buffer_sent() {
+        txQEnd_ = 0;
+    }
+
 private:
     /** Requests a packet to be sent from an ISR context. The buffer will be
      * invalidated as soon as the call returns. Returns true if the packet was
@@ -179,8 +197,9 @@ private:
 
     BlockOrWakeUp<Atomic> txBlock_;
     BlockOrWakeUp<Atomic> rxBlock_;
+
 protected:
-    uint8_t last_tx_irq_;
+    LogBuffer log_;
 };
 
 

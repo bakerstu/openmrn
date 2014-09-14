@@ -196,18 +196,18 @@ ssize_t USBSerialNode::write(File *file, const void *buf, size_t count)
     {
         {
             auto hh = h.critical();
-            while (txQEnd_ < USB_SERIAL_PACKET_SIZE && count)
+            while (has_tx_buffer_free() && count)
             {
-                txQ_[txQEnd_++] = *data++;
+                add_to_tx_buffer(*data++);
                 --count;
                 ++ret;
             }
-            if (txQEnd_ < USB_SERIAL_PACKET_SIZE) pass_on_notify = true;
+            if (has_tx_buffer_free()) pass_on_notify = true;
             if (!txPending_)
             {
                 if (tx_packet_irqlocked(txQ_, txQEnd_))
                 {
-                    txQEnd_ = 0;
+                    mark_tx_buffer_sent();
                     txPending_ = 1;
                 } else {
                     // packet send failed -- we'll re-try in a next iteration
@@ -253,14 +253,24 @@ int USBSerialNode::ioctl(File *file, unsigned long int key, unsigned long data)
         {
             auto h = rxBlock_.holder();
             auto hh = h.critical();
-            n = rxBlock_.register_notifiable(n);
+            if (rxQBegin_ >= rxQEnd_) {
+                n = rxBlock_.register_notifiable(n);
+                log_.log(0xC8);
+            } else {
+                log_.log(0xC8);
+            }
             break;
         }
         case CAN_IOC_WRITE_ACTIVE:
         {
             auto h = txBlock_.holder();
             auto hh = h.critical();
-            n = txBlock_.register_notifiable(n);
+            if (!has_tx_buffer_free()) {
+                n = txBlock_.register_notifiable(n);
+                log_.log(0xCA);
+            } else {
+                log_.log(0xCB);
+            }
             break;
         }
     }
@@ -307,7 +317,7 @@ void USBSerialNode::tx_finished_from_isr()
     else
     {
         txPending_ = 0;
-        last_tx_irq_ = 0x20;
+        log_.log(0x20);
     }
     txBlock_.notify_from_isr();
 }
