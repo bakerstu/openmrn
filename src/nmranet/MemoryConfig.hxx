@@ -154,6 +154,12 @@ public:
      */
     virtual address_t max_address() = 0;
 
+    /** @returns the number of bytes successfully written (before hitting end
+     * of space). If *error is set to non-null, then the operation has
+     * failed. If the operation needs to be continued, then sets error to
+     * MemorySpace::ERROR_AGAIN, and calls the Notifiable @param again when a
+     * re-try makes sense. The caller should call write once more, with the
+     * offset adjusted with the previously returned bytes. */
     virtual size_t write(address_t destination, const uint8_t* data, size_t len,
                          errorcode_t* error, Notifiable* again)
     {
@@ -315,9 +321,7 @@ private:
             return call_immediately(STATE(handle_read));
         } else if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_WRITE)
         {
-            // Unknown/unsupported command, reject datagram.
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
-            //return call_immediately(STATE(handle_write));
+            return call_immediately(STATE(handle_write));
         }
         switch (cmd)
         {
@@ -398,7 +402,7 @@ private:
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
-        int read_len = get_length();
+        int read_len = get_read_length();
         if (read_len < 0)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -431,6 +435,78 @@ private:
         {
             response_.resize(response_data_offset + byte_read);
         }
+        return respond_ok(DatagramClient::REPLY_PENDING);
+    }
+
+    Action handle_write()
+    {
+        size_t len = message()->data()->payload.size();
+        if (len <= 6)
+        {
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        MemorySpace* space = get_space();
+        if (!space)
+        {
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        if (space->read_only())
+        {
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        int write_len = get_write_length();
+        if (write_len <= 0)
+        {
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        currentOffset_ = 0;
+        return call_immediately(STATE(try_write));
+    }
+
+    Action try_write()
+    {
+        // TODO(balazs.racz): At this point we will not do a respond_reject
+        // anymore. Technically we should first send off the respond_ok() and
+        // only afterwards perform the actual try_write steps here. Any errors
+        // we encounter will be returned in a datagram in the other direction.
+        MemorySpace* space = get_space();
+        int write_len = get_write_length();
+        address_t address = get_address();
+        size_t data_offset = 6;
+        if (has_custom_space())
+        {
+            ++data_offset;
+        }
+        address += currentOffset_;
+        data_offset += currentOffset_;
+        write_len -= currentOffset_;
+        errorcode_t error = 0;
+        while (write_len > 0) {
+            size_t written =
+                space->write(address, in_bytes() + data_offset, write_len,
+                             &error, this);
+            currentOffset_ += written;
+            write_len -= written;
+            if (error == MemorySpace::ERROR_AGAIN) {
+                return wait();
+            } else if (error != 0) {
+                break;
+            }
+        }
+        char c = 0;
+        int response_len = 6;
+        if (has_custom_space()) response_len++;
+        if (error == 0) {
+            response_.assign(response_len, c);
+            out_bytes()[1] = MemoryConfigDefs::COMMAND_WRITE_REPLY;
+        } else {
+            response_.assign(response_len + 2, c);
+            out_bytes()[1] = MemoryConfigDefs::COMMAND_WRITE_FAILED;
+            out_bytes()[response_len] = error >> 8;
+            out_bytes()[response_len + 1] = error & 0xff;
+        }
+        out_bytes()[0] = DATAGRAM_ID;
+        set_address_and_space();    
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
@@ -486,7 +562,7 @@ private:
 
     /** Returns the read/write length from byte 6 or 7 of the incoming
      * datagram, or -1 if the incoming datagram is of incorrect format. */
-    int get_length()
+    int get_read_length()
     {
         const uint8_t* bytes = in_bytes();
         int len = message()->data()->payload.size();
@@ -509,7 +585,13 @@ private:
                 cmd, len, message()->data()->src.id, message()->data()->src.alias);
             return -1;
         }
-        return bytes[ofs];
+        return bytes[ofs] & 0x7F; // highest bit is reserved.
+    }
+
+    int get_write_length()
+    {
+        int len = message()->data()->payload.size();
+        return len - (has_custom_space() ? 7 : 6);
     }
 
     /** Returns the address from the incoming datagram. Assumes that length >=
@@ -580,6 +662,11 @@ private:
     Registry registry_;         //< holds the known memory spaces
     Node* registeredNode_; //< we registered as a datagram handler for
                                 // this node. May be null.
+
+    /** Offset withing the current write/read datagram. This does not include
+     * the offset from the incoming datagram. */
+    uint8_t currentOffset_;
+    
 };
 
 } // namespace nmranet
