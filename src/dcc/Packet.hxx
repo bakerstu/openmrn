@@ -87,7 +87,7 @@ struct Packet
         uint8_t send_long_preamble : 1;
         // 1: wait for service mode ack and report it back to the host.
         uint8_t sense_ack : 1;
-        // Repeat count of the packet will be 1 + 5*rept_count. default: 0.
+        // The packet will be sent 1 + rept_count times to the wire. default: 0.
         uint8_t rept_count : 2;
         uint8_t reserved : 1;
     };

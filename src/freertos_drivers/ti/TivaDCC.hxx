@@ -258,12 +258,16 @@ inline void TivaDCC::interrupt_handler()
         MM_DATA_5,
         MM_DATA_6,
         MM_DATA_7,
+        RESYNC,
+        DCC_LEADOUT,
+        MM_LEADOUT,
     };
 
     static State state = PREAMBLE;
     static int preamble_count = 0;
     static BitEnum last_bit = DCC_ONE;
     static int count = 0;
+    static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
     static bool resync = true;
     BitEnum current_bit;
@@ -274,6 +278,17 @@ inline void TivaDCC::interrupt_handler()
     switch (state)
     {
         default:
+        case RESYNC:
+            current_bit = DCC_ONE;
+            if (packet->packet_header.is_marklin)
+            {
+                state = ST_MM_PREAMBLE;
+            }
+            else
+            {
+                state = PREAMBLE;
+            }
+            break;
         case PREAMBLE:
             current_bit = DCC_ONE;
             if (++preamble_count == preambleCount)
@@ -302,12 +317,19 @@ inline void TivaDCC::interrupt_handler()
             if (++count >= packet->dlc)
             {
                 current_bit = DCC_ONE;  // end-of-packet bit
-                get_next_packet = true;
+                state = DCC_LEADOUT;
+                preamble_count = 0;
             }
             else
             {
                 current_bit = DCC_ZERO;  // end-of-byte bit
                 state = DATA_0;
+            }
+            break;
+        case DCC_LEADOUT:
+            current_bit = DCC_ONE;
+            if (++preamble_count >= 2) {
+                get_next_packet = true;
             }
             break;
         case ST_MM_PREAMBLE:
@@ -321,6 +343,12 @@ inline void TivaDCC::interrupt_handler()
                 // first byte contains two bits.
                 state = MM_DATA_6;
                 count = 0;
+            }
+            break;
+        case MM_LEADOUT:
+            current_bit = MM_PREAMBLE;
+            if (++preamble_count >= 2) {
+                get_next_packet = true;
             }
             break;
         case MM_DATA_0:
@@ -343,7 +371,8 @@ inline void TivaDCC::interrupt_handler()
                 count = 0;
                 // see if we need retransmission
                 if (preamble_count >= 7 + 6 + 10 + 6) {
-                    get_next_packet = true;
+                    state = MM_LEADOUT;
+                    preamble_count = 0;
                 } else {
                     state = ST_MM_PREAMBLE;
                 }
@@ -385,7 +414,10 @@ inline void TivaDCC::interrupt_handler()
     if (get_next_packet)
     {
         resync = true;
-        if (packet != &IDLE_PKT)
+        if (packet_repeat_count) {
+            --packet_repeat_count;
+        }
+        if (packet != &IDLE_PKT && packet_repeat_count == 0)
         {
             --q.count;
             ++q.rdIndex;
@@ -395,6 +427,7 @@ inline void TivaDCC::interrupt_handler()
             }
             // Notifies the OS that we can write to the buffer.
             MAP_IntPendSet(osInterrupt);
+        } else {
         }
         if (q.count)
         {
@@ -405,14 +438,10 @@ inline void TivaDCC::interrupt_handler()
             packet = &IDLE_PKT;
         }
         preamble_count = 0;
-        if (packet->packet_header.is_marklin)
-        {
-            state = ST_MM_PREAMBLE;
+        if (!packet_repeat_count) {
+            packet_repeat_count = packet->packet_header.rept_count + 1;
         }
-        else
-        {
-            state = PREAMBLE;
-        }
+        state = RESYNC;
     }
 }
 

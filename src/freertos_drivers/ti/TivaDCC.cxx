@@ -80,7 +80,7 @@ TivaDCC::TivaDCC(const char *name,
     q.rdIndex = 0;
     q.wrIndex = 0;
 
-    fill_timing(DCC_ZERO, 100<<1, 100);
+    fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
     fill_timing(MM_ZERO, 208, 26);
     fill_timing(MM_ONE, 208, 182);
