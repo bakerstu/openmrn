@@ -99,7 +99,7 @@ void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
     else
     {
         // User action. Up repeat count.
-        // packet->packet_header.rept_count = 1;
+        packet->packet_header.rept_count = 1;
     }
     switch (code)
     {
@@ -131,7 +131,7 @@ void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
         case ESTOP:
         {
             this->p.add_dcc_estop_to_packet(packet);
-            // packet->packet_header.rept_count = 3;
+            packet->packet_header.rept_count = 3;
             return;
         }
         default:
