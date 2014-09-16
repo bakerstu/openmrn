@@ -96,6 +96,8 @@ TivaDCC::TivaDCC(const char *name,
     MAP_TimerConfigure(ccpBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PWM |
                                     TIMER_CFG_B_PWM);
+    MAP_TimerControlStall(ccpBase, TIMER_BOTH, true);
+
 
     // This will cause reloading the timer values only at the next period
     // instead of immediately. The PLO bit needs to be set to allow for DC
@@ -110,6 +112,8 @@ TivaDCC::TivaDCC(const char *name,
 
     MAP_TimerConfigure(intervalBase, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PERIODIC);
+    MAP_TimerControlStall(intervalBase, TIMER_A, true);
+
     MAP_TimerControlLevel(ccpBase, TIMER_A, /*true*/ false);
     MAP_TimerControlLevel(ccpBase, TIMER_B, false);
 
