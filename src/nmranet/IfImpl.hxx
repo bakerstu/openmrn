@@ -176,6 +176,9 @@ public:
                 // Someone looking for a node that's not on this interface.
                 return release_and_exit();
             }
+#ifndef SIMPLE_NODE_ONLY
+            it_ = interface()->localNodes_.end();
+#endif
         }
         else
         {
