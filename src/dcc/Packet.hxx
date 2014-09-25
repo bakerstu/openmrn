@@ -49,7 +49,7 @@ namespace dcc
 struct Packet
 {
     /** Maximum number of payload bytes. */
-    static const unsigned MAX_PAYLOAD = 5;
+    static const unsigned MAX_PAYLOAD = 6;
     /** Send this speed step to emergency-stop the locomotive. */
     static const unsigned EMERGENCY_STOP = 0xFFFF;
     /** Send this speed step to switch direction of the locomotive. Only used
