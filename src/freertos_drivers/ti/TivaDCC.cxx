@@ -207,6 +207,19 @@ ssize_t TivaDCC::write(File *file, const void *buf, size_t count)
 
     memcpy(&q.data[q.wrIndex], buf, count);
 
+    dcc::Packet* packet = &q.data[q.wrIndex];
+    // Duplicates the marklin packet if it came single.
+    if (packet->packet_header.is_marklin) {
+        if (packet->dlc == 3) {
+            packet->dlc = 6;
+            packet->payload[3] = packet->payload[0];
+            packet->payload[4] = packet->payload[1];
+            packet->payload[5] = packet->payload[2];
+        } else {
+            HASSERT(packet->dlc == 6);
+        }
+    }
+
     if (++q.wrIndex == Q_SIZE)
     {
         q.wrIndex = 0;

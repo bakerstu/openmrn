@@ -342,7 +342,6 @@ inline void TivaDCC::interrupt_handler()
             {
                 // first byte contains two bits.
                 state = MM_DATA_6;
-                count = 0;
             }
             break;
         case MM_LEADOUT:
@@ -367,15 +366,11 @@ inline void TivaDCC::interrupt_handler()
             current_bit = static_cast<BitEnum>(
                 MM_ZERO +
                 ((packet->payload[count] >> (MM_DATA_7 - state)) & 0x01));
-            if (++count >= packet->dlc) {
-                count = 0;
-                // see if we need retransmission
-                if (preamble_count >= 7 + 6 + 10 + 6) {
-                    state = MM_LEADOUT;
-                    preamble_count = 0;
-                } else {
-                    state = ST_MM_PREAMBLE;
-                }
+            ++count;
+            if (count == 3) {
+                state = ST_MM_PREAMBLE;
+            } else if (count >= packet->dlc) {
+                state = MM_LEADOUT;
             } else {
                 state = MM_DATA_0;
             }
@@ -413,7 +408,6 @@ inline void TivaDCC::interrupt_handler()
 
     if (get_next_packet)
     {
-        resync = true;
         if (packet_repeat_count) {
             --packet_repeat_count;
         }
@@ -427,6 +421,7 @@ inline void TivaDCC::interrupt_handler()
             }
             // Notifies the OS that we can write to the buffer.
             MAP_IntPendSet(osInterrupt);
+            resync = true;
         } else {
         }
         if (q.count)
@@ -438,10 +433,17 @@ inline void TivaDCC::interrupt_handler()
             packet = &IDLE_PKT;
         }
         preamble_count = 0;
+        count = 0;
         if (!packet_repeat_count) {
             packet_repeat_count = packet->packet_header.rept_count + 1;
         }
-        state = RESYNC;
+        // If we are in the repeat loop for a marklin packet, we do not do a
+        // resync to not disturb the marklin preamble (which is DC_negative).
+        if (resync || !packet->packet_header.is_marklin) {
+            state = RESYNC;
+        } else {
+            state = ST_MM_PREAMBLE;
+        }
     }
 }
 
