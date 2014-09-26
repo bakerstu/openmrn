@@ -209,11 +209,14 @@ void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
 
     if (code == REFRESH)
     {
-        code = MIN_REFRESH + p.nextRefresh_++;
+        /*code = MIN_REFRESH + p.nextRefresh_++;
         if (p.nextRefresh_ > MM_MAX_REFRESH - MIN_REFRESH)
         {
             p.nextRefresh_ = 0;
-        }
+            }*/
+        // We don't refresh function packets for the moment, because they
+        // confuse the directional state of the engine.
+        code = SPEED;
     }
     else
     {
@@ -234,16 +237,20 @@ void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
             packet->add_mm_new_speed(!p.direction_, Packet::CHANGE_DIR);
             p.directionChanged_ = 0;
             p.nextRefresh_ = 0; // sends another speed packet
+            packet->mm_shift();
         }
         else
         {
             packet->add_mm_new_speed(!p.direction_, p.speed_);
+            packet->mm_shift();
         }
     }
     else if (MM_F1 <= code && code <= MM_F4)
     {
         unsigned fnum = code + 1 - MM_F1;
         packet->add_mm_new_fn(fnum, p.fn_ & (1 << fnum), p.speed_);
+        //packet->mm_shift();
+        //packet->add_mm_new_speed(!p.direction_, p.speed_);
     }
 }
 
