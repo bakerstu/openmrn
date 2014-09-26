@@ -209,6 +209,11 @@ struct Packet
      */
     void add_mm_new_fn(unsigned fn_num, bool value, unsigned speed);
 
+    /** Shifts a MM packet to the second half of the packet buffer. After this
+     * call another add_mm_speed call is valid, which will fill in the first
+     * half of the double packet. */
+    void mm_shift();
+
 private:
     /** Sets the speed bits of an MM packet. Clips speed to 15, avoids speed==1
      * and returns the final speed step number. */
