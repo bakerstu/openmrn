@@ -49,7 +49,7 @@ namespace dcc
 struct Packet
 {
     /** Maximum number of payload bytes. */
-    static const unsigned MAX_PAYLOAD = 5;
+    static const unsigned MAX_PAYLOAD = 6;
     /** Send this speed step to emergency-stop the locomotive. */
     static const unsigned EMERGENCY_STOP = 0xFFFF;
     /** Send this speed step to switch direction of the locomotive. Only used
@@ -208,6 +208,11 @@ struct Packet
      * then no function packet will be generated.
      */
     void add_mm_new_fn(unsigned fn_num, bool value, unsigned speed);
+
+    /** Shifts a MM packet to the second half of the packet buffer. After this
+     * call another add_mm_speed call is valid, which will fill in the first
+     * half of the double packet. */
+    void mm_shift();
 
 private:
     /** Sets the speed bits of an MM packet. Clips speed to 15, avoids speed==1

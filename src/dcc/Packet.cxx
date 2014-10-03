@@ -256,6 +256,7 @@ void Packet::add_mm_address(MMAddress a, bool light)
 
 unsigned Packet::set_mm_speed_bits(unsigned speed)
 {
+    payload[2] = 0;
     // avoids speed step 1.
     if (speed > 0)
         ++speed;
@@ -352,6 +353,14 @@ void Packet::add_mm_new_fn(unsigned fn_num, bool value, unsigned speed)
             payload[2] |= 0b01000100;
         }
     }
+}
+
+void Packet::mm_shift() {
+    HASSERT(dlc == 3);
+    dlc = 6;
+    payload[3] = payload[0];
+    payload[4] = payload[1];
+    payload[5] = payload[2];
 }
 
 } // namespace dcc
