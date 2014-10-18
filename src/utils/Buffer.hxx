@@ -178,7 +178,7 @@ public:
     typedef T value_type;
 
     /** Add another reference to the buffer.
-     * @return total number of references to this point
+     * @return the referenced buffer pointer.
      */
     Buffer<T> *ref()
     {
@@ -239,6 +239,10 @@ public:
         }
     }
 
+    /** Returns the held buffer pointer and relinquishes ownership. The buffer
+     * will not be unref-ed when *this goes out of scope.
+     *
+     * @returns the buffer pointer held. Transfers ownership to the caller. */
     Buffer<T> *release()
     {
         Buffer<T> *b = b_;
