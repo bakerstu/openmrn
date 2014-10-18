@@ -479,10 +479,42 @@ protected:
      * processing. */
     virtual bool queue_empty() = 0;
 
+    /** Releases the current message buffer back to the pool it came from. The
+     * state flow will continue running (and not get another message) until it
+     * reaches the state exit(). */
+    virtual void release() = 0;
+
+    /** Terminates the processing of this flow. Takes the next message and
+     * start processing agian from entry().*/
+    Action exit()
+    {
+        return call_immediately(STATE(wait_for_message));
+    }
+
+    /** Terminates the processing of the current message. Flows should end with
+     * this action. Frees the current message.
+     * @return the action for checking for new messages.
+     */
+    Action release_and_exit()
+    {
+        release();
+        return exit();
+    }
+
     /// @returns the current message we are processing.
     BufferBase *message()
     {
         return currentMessage_;
+    }
+
+    /** Releases ownership of the current message.
+     * @return the current message. Ownership transferred to the caller.
+     */
+    BufferBase *transfer_message()
+    {
+        BufferBase *m = message();
+        currentMessage_ = nullptr;
+        return m;
     }
 
     /** Sets the current message being processed. */
@@ -522,7 +554,8 @@ private:
      * the queue. Protected by Atomic *this. */
     unsigned isWaiting_ : 1;
 
-    template <class T, class S> friend class StateFlow;
+    template <class Q> friend class UntypedStateFlow;
+    template <class M, class Q> friend class StateFlow;
     friend class GlobalEventFlow;
 
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
@@ -585,15 +618,75 @@ StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
     return target_flow->cast_alloc(allocationResult_);
 }
 
+
+template<class QueueType>
+class UntypedStateFlow : public StateFlowWithQueue {
+public:
+    UntypedStateFlow(Service* service) : StateFlowWithQueue(service) {}
+
+    ~UntypedStateFlow()
+    {
+    }
+
+protected:
+    /** Sends a message to the state flow for processing. This function never
+     * blocks.
+     *
+     * @param msg Message to enqueue
+     * @param priority the priority at which to enqueue this message.
+     */
+    void send(BufferBase *msg, unsigned priority = UINT_MAX)
+    {
+        AtomicHolder h(this);
+        queue_.insert(msg, priority);
+        queueSize_ = queue_.size();
+        if (isWaiting_)
+        {
+            isWaiting_ = 0;
+            currentPriority_ = priority;
+            this->notify();
+        }
+    }
+
+    using StateFlowBase::call_immediately;
+    using StateFlowBase::Callback;
+
+    /** Takes the front entry in the queue.
+     *
+     * @returns NULL if the queue is empty.
+     * @param priority will be set to the priority of the queue member removed
+     fomr the queue. */
+    QMember *queue_next(unsigned *priority) OVERRIDE
+    {
+        typename QueueType::Result r = queue_.next();
+        if (r.item)
+        {
+            *priority = r.index;
+        }
+        return r.item;
+    }
+
+    bool queue_empty() OVERRIDE {
+        AtomicHolder h(this);
+        return queue_.empty();
+    }
+
+private:
+    /** Implementation of the queue. */
+    QueueType queue_;
+};
+
 template <class MessageType, class QueueType>
-class StateFlow : public StateFlowWithQueue, public FlowInterface<MessageType>
+class StateFlow : public UntypedStateFlow<QueueType>,
+                  public FlowInterface<MessageType>
 {
 public:
+    typedef typename UntypedStateFlow<QueueType>::Action Action;
+
     /** Constructor.
      * @param service Service that this state flow is part of
-     * @param size number of queues in the list
      */
-    StateFlow(Service *service) : StateFlowWithQueue(service)
+    StateFlow(Service *service) : UntypedStateFlow<QueueType>(service)
     {
     }
 
@@ -611,84 +704,7 @@ public:
      */
     void send(MessageType *msg, unsigned priority = UINT_MAX)
     {
-        AtomicHolder h(this);
-        queue_.insert(msg, priority);
-        queueSize_ = queue_.size();
-        if (isWaiting_)
-        {
-            isWaiting_ = 0;
-            currentPriority_ = priority;
-            this->notify();
-        }
-    }
-
-protected:
-    using StateFlowBase::call_immediately;
-    using StateFlowBase::Callback;
-
-    /** Takes the front entry in the queue.
-     *
-     * @returns NULL if the queue is empty.
-     * @param priority will be set to the priority of the queue member removed
-     fomr the queue. */
-    virtual QMember *queue_next(unsigned *priority)
-    {
-        typename QueueType::Result r = queue_.next();
-        if (r.item)
-        {
-            *priority = r.index;
-        }
-        return r.item;
-    }
-
-    bool queue_empty() {
-        AtomicHolder h(this);
-        return queue_.empty();
-    }
-
-    /** @returns the current message we are processing. */
-    MessageType *message()
-    {
-        return static_cast<MessageType *>(StateFlowWithQueue::message());
-    }
-
-    /** Releases the current message buffer back to the pool it came from. The
-     * state flow will continue running (and not get another message) until it
-     * reaches the state exit(). */
-    void release()
-    {
-        if (message())
-        {
-            message()->unref();
-        }
-        currentMessage_ = nullptr;
-    }
-
-    /** Terminates the processing of this flow. Takes the next message and
-     * start processing agian from entry().*/
-    Action exit()
-    {
-        return call_immediately(STATE(wait_for_message));
-    }
-
-    /** Terminates the processing of the current message. Flows should end with
-     * this action. Frees the current message.
-     * @return the action for checking for new messages.
-     */
-    Action release_and_exit()
-    {
-        release();
-        return exit();
-    }
-
-    /** Releases ownership of the current message.
-     * @return the current message.
-     */
-    MessageType *transfer_message()
-    {
-        MessageType *m = message();
-        currentMessage_ = nullptr;
-        return m;
+        UntypedStateFlow<QueueType>::send(msg);
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be
@@ -697,9 +713,30 @@ protected:
      */
     virtual Action entry() = 0;
 
-private:
-    /** Implementation of the queue. */
-    QueueType queue_;
+protected:
+    void release() OVERRIDE
+    {
+        if (message())
+        {
+            message()->unref();
+        }
+        this->currentMessage_ = nullptr;
+    }
+
+    /** @returns the current message we are processing. */
+    MessageType *message()
+    {
+        return static_cast<MessageType *>(StateFlowWithQueue::message());
+    }
+
+    /** Releases ownership of the current message.
+     * @return the current message. Ownership transferred to the caller.
+     */
+    MessageType *transfer_message()
+    {
+        return static_cast<MessageType *>(
+            StateFlowWithQueue::transfer_message());
+    }
 };
 
 /** Use this timer class to deliver the timeout notification to a stateflow.
