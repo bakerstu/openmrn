@@ -55,9 +55,6 @@ size_t g_alias_use_conflicts = 0;
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-namespace
-{
-
 /* This write flow inherits all the business logic from the parent, just
  * maintains a separate allocation queue. This allows global messages to go out
  * even if addressed messages are waiting for destination address
@@ -80,8 +77,6 @@ protected:
         return call_immediately(STATE(global_entry));
     }
 };
-
-} // namespace
 
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:

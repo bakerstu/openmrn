@@ -37,6 +37,9 @@ ldpreproc: delete.sym
 delete_destructors:
 	if [ ! -f $@ ] ; then touch $@ ; fi
 
+destructors: cg.svg
+	grep '~' cg.dot | sed s/^[/][/]// | sort > destructors 
+
 define TGTLIBSTRIP_template
 
 lib/$(notdir $(1)): $(LIBDIR)/$(notdir $(1)) arpreproc $(LIBDIR)/timestamp
