@@ -4,6 +4,7 @@
 16UntypedStateFlowI.*
 14TypedStateFlowI.*
 18StateFlowWithQueue
+13StateFlowBase
 20WatchDogEventHandler
 7nmranet15BitEventHandler
 ExecutorBase
@@ -12,7 +13,7 @@ AddressedCanMessageWriteFlow
 FrameToAddressedMessageParser
 GlobalCanMessageWriteFlow
 16CanFrameReadFlow
-CanHubFlow
+10CanHubFlow
 N8ExecutorI.*
 ActiveTimers
 VerifyNodeIdHandler
@@ -36,6 +37,7 @@ AsyncMutex
 12EventHandler
 16BitEventConsumer
 15BitRangeEventPC
+15ByteRangeEventC
 FullContainerIterator.*
 9StateFlow.*
 Timer
@@ -57,3 +59,6 @@ DynamicPool
 12EventService4Impl
 12EventService
 14AliasAllocator15ConflictHandler
+16I2cExtenderBoard
+9I2CDriver
+9TimerFlow
