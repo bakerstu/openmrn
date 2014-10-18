@@ -555,7 +555,7 @@ private:
     unsigned isWaiting_ : 1;
 
     template <class Q> friend class UntypedStateFlow;
-    template <class M, class Q> friend class StateFlow;
+    template <class M, class B> friend class TypedStateFlow;
     friend class GlobalEventFlow;
 
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
@@ -676,23 +676,20 @@ private:
     QueueType queue_;
 };
 
-template <class MessageType, class QueueType>
-class StateFlow : public UntypedStateFlow<QueueType>,
-                  public FlowInterface<MessageType>
+template <class MessageType, class Base>
+class TypedStateFlow : public Base, public FlowInterface<MessageType>
 {
 public:
-    typedef typename UntypedStateFlow<QueueType>::Action Action;
+    typedef typename Base::Action Action;
 
     /** Constructor.
      * @param service Service that this state flow is part of
      */
-    StateFlow(Service *service) : UntypedStateFlow<QueueType>(service)
-    {
-    }
+    TypedStateFlow(Service *service) : Base(service) {}
 
     /** Destructor.
      */
-    ~StateFlow()
+    ~TypedStateFlow()
     {
     }
 
@@ -704,7 +701,7 @@ public:
      */
     void send(MessageType *msg, unsigned priority = UINT_MAX)
     {
-        UntypedStateFlow<QueueType>::send(msg);
+        Base::send(msg);
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be
@@ -726,7 +723,7 @@ protected:
     /** @returns the current message we are processing. */
     MessageType *message()
     {
-        return static_cast<MessageType *>(StateFlowWithQueue::message());
+        return static_cast<MessageType *>(Base::message());
     }
 
     /** Releases ownership of the current message.
@@ -735,7 +732,17 @@ protected:
     MessageType *transfer_message()
     {
         return static_cast<MessageType *>(
-            StateFlowWithQueue::transfer_message());
+            Base::transfer_message());
+    }
+};
+
+
+template<class MessageType, class QueueType>
+class StateFlow : public TypedStateFlow<MessageType, UntypedStateFlow<QueueType> > {
+public:
+    StateFlow(Service *service)
+        : TypedStateFlow<MessageType, UntypedStateFlow<QueueType>>(service)
+    {
     }
 };
 
