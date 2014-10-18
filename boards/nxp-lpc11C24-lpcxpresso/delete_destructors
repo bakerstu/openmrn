@@ -1,6 +1,8 @@
 12DispatchFlowI6BufferI.*
+16DispatchFlowBaseI.*
 13FlowInterfaceI6BufferI.*
 16UntypedStateFlowI.*
+14TypedStateFlowI.*
 18StateFlowWithQueue
 20WatchDogEventHandler
 7nmranet15BitEventHandler
