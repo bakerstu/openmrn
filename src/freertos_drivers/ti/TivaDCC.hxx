@@ -38,17 +38,22 @@
 #define gcc
 #endif
 
+#include <algorithm>
 #include <cstdint>
 
+#include "driverlib/interrupt.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "freertos/can_ioctl.h"
 #include "inc/hw_memmap.h"
+#include "inc/hw_timer.h"
+#include "inc/hw_types.h"
 
 #include "Devtab.hxx"
-#include "executor/Notifiable.hxx"
 #include "dcc/Packet.hxx"
+#include "executor/Notifiable.hxx"
 
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
@@ -76,33 +81,14 @@
  *  The user must ensure that the 'interrupt' has a very high priority, whereas
  *  'os_interrupt' has a priority that's at or lower than the FreeRTOS kernel.
  */
+template<class HW>
 class TivaDCC : public Node
 {
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
-     * @param ccp_base base address of a capture compare pwm timer pair
-     * @param interval_base base address of an interval timer
-     * @param interrupt interrupt number of interval timer
-     * @param os_interrupt an otherwise unused interrupt number (cound be that of the capture compare pwm timer)
-     * @param preamble_count number of preamble bits to send exclusive of
-     *        end of packet '1' bit
-     * @param h_deadband_delay_nsec is the time (in nanoseconds) to wait
-     * between turning off the low driver and turning on the high driver.
-     * @param l_deadband_delay_nsec is the time (in nanoseconds) to wait
-     * between turning off the high driver and turning on the low driver.
-     * @param railcom_cutout true to produce the RailCom cuttout, else false
      */
-    TivaDCC(const char *name,
-            unsigned long ccp_base,
-            unsigned long interval_base,
-            uint32_t interrupt,
-            uint32_t os_interrupt,
-            uint8_t* led_ptr,
-            int preamble_count,
-            int h_deadband_delay_nsec,
-            int l_deadband_delay_nsec,
-            bool railcom_cutout = false);
+    TivaDCC(const char *name);
 
     /** Destructor.
      */
@@ -157,9 +143,6 @@ private:
      */
     void flush_buffers(){};
 
-    /** number of outgoing messages we can queue */
-    static const size_t Q_SIZE = 4;
-
     /** maximum packet size we can support */
     static const size_t MAX_PKT_SIZE = 6;
 
@@ -170,21 +153,14 @@ private:
         size_t count; /**< number of items in the queue */
         size_t rdIndex; /**< current read index */
         size_t wrIndex; /**< current write index */
-        dcc::Packet data[Q_SIZE]; /**< queue data */
+        dcc::Packet data[HW::Q_SIZE]; /**< queue data */
     };
 
-    unsigned long ccpBase; /**< capture compare pwm base address */
-    unsigned long intervalBase; /**< interval timer base address */
-    uint32_t interrupt; /**< interrupt number of interval timer */
-    int preambleCount; /**< number of preamble bits to send */
-    int oneBitPeriod; /**< period of one bit */
-    int zeroBitPeriod; /**< period of zero bit */
-    int hDeadbandDelay; /**< low->high deadband delay */
-    int lDeadbandDelay; /**< high->low deadband delay */
-    bool railcomCutout; /**< true if we should produce the RailCom cuttout */
-    uint32_t osInterrupt; /**< interrupt used to notify FreeRTOS. */
+    int oneBitPeriod; /**< period of one bit in clock count */
+    int zeroBitPeriod; /**< period of zero bit in clock count */
+    int hDeadbandDelay; /**< low->high deadband delay in clock count */
+    int lDeadbandDelay; /**< high->low deadband delay in clock count */
     Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
-    uint8_t* ledPtr; /**< Will be toggled between 0 and 0xff as packets sent.*/
 
     /** idle packet */
     static dcc::Packet IDLE_PKT;
@@ -221,20 +197,22 @@ private:
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
 
+template <class HW>
 __attribute__((optimize("-O3")))
-inline void TivaDCC::os_interrupt_handler()
+inline void TivaDCC<HW>::os_interrupt_handler()
 {
     HASSERT(writableNotifiable);
     Notifiable* n = writableNotifiable;
     writableNotifiable = nullptr;
-    MAP_IntDisable(osInterrupt);
+    MAP_IntDisable(HW::OS_INTERRUPT);
     n->notify_from_isr();
 }
 
 /** Handle an interrupt.
  */
+template <class HW>
 __attribute__((optimize("-O3")))
-inline void TivaDCC::interrupt_handler()
+inline void TivaDCC<HW>::interrupt_handler()
 {
     enum State
     {
@@ -273,7 +251,7 @@ inline void TivaDCC::interrupt_handler()
     BitEnum current_bit;
     bool get_next_packet = false;
 
-    MAP_TimerIntClear(intervalBase, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntClear(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     switch (state)
     {
@@ -291,7 +269,7 @@ inline void TivaDCC::interrupt_handler()
             break;
         case PREAMBLE:
             current_bit = DCC_ONE;
-            if (++preamble_count == preambleCount)
+            if (++preamble_count == HW::dcc_preamble_count())
             {
                 state = START;
                 preamble_count = 0;
@@ -380,29 +358,29 @@ inline void TivaDCC::interrupt_handler()
     if (resync) {
         resync = false;
         auto* timing = &timings[current_bit];
-        MAP_TimerLoadSet(ccpBase, TIMER_A, timing->period);
-        MAP_TimerLoadSet(ccpBase, TIMER_B, hDeadbandDelay);
-        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period + hDeadbandDelay * 2);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
+        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period + hDeadbandDelay * 2);
         // This is already final.
-        MAP_TimerMatchSet(ccpBase, TIMER_A, timing->transition_a);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
         // since timer B starts later, the deadband delay cycle we set to be constant off.
-        MAP_TimerMatchSet(ccpBase, TIMER_B, hDeadbandDelay);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
         // TODO: this should be parametrized by the timer numbers that we are
         // using.
         MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
-        MAP_TimerLoadSet(ccpBase, TIMER_B, timing->period);
-        MAP_TimerMatchSet(ccpBase, TIMER_B, timing->transition_b);
-        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
+        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
 
         last_bit = current_bit;
     } else if (last_bit != current_bit)
     {
         auto* timing = &timings[current_bit];
-        MAP_TimerLoadSet(intervalBase, TIMER_A, timing->period);
-        MAP_TimerLoadSet(ccpBase, TIMER_A, timing->period);
-        MAP_TimerLoadSet(ccpBase, TIMER_B, timing->period);
-        MAP_TimerMatchSet(ccpBase, TIMER_A, timing->transition_a);
-        MAP_TimerMatchSet(ccpBase, TIMER_B, timing->transition_b);
+        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
         last_bit = current_bit;
     }
 
@@ -415,12 +393,12 @@ inline void TivaDCC::interrupt_handler()
         {
             --q.count;
             ++q.rdIndex;
-            if (q.rdIndex == Q_SIZE)
+            if (q.rdIndex == HW::Q_SIZE)
             {
                 q.rdIndex = 0;
             }
             // Notifies the OS that we can write to the buffer.
-            MAP_IntPendSet(osInterrupt);
+            MAP_IntPendSet(HW::OS_INTERRUPT);
             resync = true;
         } else {
         }
@@ -446,5 +424,215 @@ inline void TivaDCC::interrupt_handler()
         }
     }
 }
+
+static uint32_t usec_to_clocks(uint32_t usec) {
+    return (configCPU_CLOCK_HZ / 1000000) * usec;
+}
+
+static uint32_t nsec_to_clocks(uint32_t nsec) {
+    // We have to be careful here not to underflow or overflow.
+    return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;
+}
+
+template<class HW>
+void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
+                          uint32_t transition_usec)
+{
+    auto* timing = &timings[ofs];
+    timing->period = usec_to_clocks(period_usec);
+    if (transition_usec == 0) {
+        // DC voltage negative.
+        timing->transition_a = timing->transition_b = timing->period;
+    } else if (transition_usec >= period_usec) {
+        // DC voltage positive.
+        // We use the PLO feature of the timer.
+        timing->transition_a = timing->transition_b = timing->period + 1;
+    } else {
+        int32_t nominal_transition =
+            timing->period - usec_to_clocks(transition_usec);
+        timing->transition_a =
+            nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
+        timing->transition_b =
+            nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
+    }
+}
+
+template<class HW>
+dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
+
+
+template<class HW>
+TivaDCC<HW>::TivaDCC(const char *name)
+    : Node(name)
+    , hDeadbandDelay(nsec_to_clocks(HW::H_DEADBAND_DELAY_NSEC))
+    , lDeadbandDelay(nsec_to_clocks(HW::L_DEADBAND_DELAY_NSEC))
+    , writableNotifiable(nullptr)
+{
+    q.count = 0;
+    q.rdIndex = 0;
+    q.wrIndex = 0;
+
+    fill_timing(DCC_ZERO, 105<<1, 105);
+    fill_timing(DCC_ONE, 56<<1, 56);
+    fill_timing(MM_ZERO, 208, 26);
+    fill_timing(MM_ONE, 208, 182);
+    // Motorola preamble is negative DC signal.
+    fill_timing(MM_PREAMBLE, 208, 0);
+
+    // We need to disable the timers before making changes to the config.
+    MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
+    MAP_TimerDisable(HW::CCP_BASE, TIMER_B);
+
+    MAP_TimerClockSourceSet(HW::CCP_BASE, TIMER_CLOCK_SYSTEM);
+    MAP_TimerClockSourceSet(HW::INTERVAL_BASE, TIMER_CLOCK_SYSTEM);
+    MAP_TimerConfigure(HW::CCP_BASE, TIMER_CFG_SPLIT_PAIR |
+                                    TIMER_CFG_A_PWM |
+                                    TIMER_CFG_B_PWM);
+    MAP_TimerControlStall(HW::CCP_BASE, TIMER_BOTH, true);
+
+
+    // This will cause reloading the timer values only at the next period
+    // instead of immediately. The PLO bit needs to be set to allow for DC
+    // voltage output.
+    HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
+        TIMER_TAMR_TAPLO | TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
+    HWREG(HW::CCP_BASE + TIMER_O_TBMR) |=
+        TIMER_TBMR_TBPLO | TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD;
+
+    HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) |=
+        TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD;
+
+    MAP_TimerConfigure(HW::INTERVAL_BASE, TIMER_CFG_SPLIT_PAIR |
+                                    TIMER_CFG_A_PERIODIC);
+    MAP_TimerControlStall(HW::INTERVAL_BASE, TIMER_A, true);
+
+    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_A, /*true*/ false);
+    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_B, false);
+
+    MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
+    MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay * 2);
+    MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timings[DCC_ONE].transition_a);
+    MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].transition_b);
+
+    MAP_IntDisable(HW::INTERVAL_INTERRUPT);
+    MAP_IntPrioritySet(HW::INTERVAL_INTERRUPT, 0);
+    MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+
+    MAP_TimerEnable(HW::CCP_BASE, TIMER_A);
+    MAP_TimerEnable(HW::CCP_BASE, TIMER_B);
+    MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
+
+    MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+
+    MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].period);
+    MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
+    MAP_IntEnable(HW::INTERVAL_INTERRUPT);
+
+    // We don't have a write notifiable at the moment.
+    MAP_IntDisable(HW::OS_INTERRUPT);
+    MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
+    // but we have free space in the queue at boot time.
+    MAP_IntPendSet(HW::OS_INTERRUPT);
+}
+
+/** Read from a file or device.
+ * @param file file reference for this device
+ * @param buf location to place read data
+ * @param count number of bytes to read
+ * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ */
+template<class HW>
+ssize_t TivaDCC<HW>::read(File *file, void *buf, size_t count)
+{
+    errno = EINVAL;
+    return -1;
+}
+
+/** Write to a file or device.
+ * @param file file reference for this device
+ * @param buf location to find write data
+ * @param count number of bytes to write
+ * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ */
+template<class HW>
+__attribute__((optimize("-O3")))
+ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
+{
+    portENTER_CRITICAL();
+    MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+
+    if (q.count == HW::Q_SIZE)
+    {
+        MAP_IntPendClear(HW::OS_INTERRUPT);
+        MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+        portEXIT_CRITICAL();
+        return -ENOSPC;
+    }
+    if (count > sizeof(dcc::Packet) || count < 2U ||
+        count != (((const dcc::Packet *)buf)->dlc + 2U))
+    {
+        MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+        portEXIT_CRITICAL();
+        return -EINVAL;
+    }
+
+    memcpy(&q.data[q.wrIndex], buf, count);
+
+    dcc::Packet* packet = &q.data[q.wrIndex];
+    // Duplicates the marklin packet if it came single.
+    if (packet->packet_header.is_marklin) {
+        if (packet->dlc == 3) {
+            packet->dlc = 6;
+            packet->payload[3] = packet->payload[0];
+            packet->payload[4] = packet->payload[1];
+            packet->payload[5] = packet->payload[2];
+        } else {
+            HASSERT(packet->dlc == 6);
+        }
+    }
+
+    if (++q.wrIndex == HW::Q_SIZE)
+    {
+        q.wrIndex = 0;
+        HW::flip_led();
+    }
+
+    ++q.count;
+    MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+    portEXIT_CRITICAL();
+    return count;
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param node node reference for this device
+ * @param key ioctl key
+ * @param data key data
+ */
+template<class HW>
+int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    if (IOC_TYPE(key) == CAN_IOC_MAGIC &&
+        IOC_SIZE(key) == NOTIFIABLE_TYPE &&
+        key == CAN_IOC_WRITE_ACTIVE) {
+        Notifiable* n = reinterpret_cast<Notifiable*>(data);
+        HASSERT(n);
+        if (q.count == HW::Q_SIZE)
+        {
+            portENTER_CRITICAL();
+            swap(n, writableNotifiable);
+            MAP_IntEnable(HW::OS_INTERRUPT);
+            portEXIT_CRITICAL();
+        }
+        if (n) {
+            n->notify();
+        }
+        return 0;
+    }
+    errno = EINVAL;
+    return -1;
+}
+
 
 #endif  // _FREERTOS_DRIVERS_TI_TIVADCC_HXX_

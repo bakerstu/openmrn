@@ -71,8 +71,37 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 #define STARTUP_DELAY_CYCLES 2
 #define DEADBAND_ADJUST      80
 
-static TivaDCC tivaDCC("/dev/mainline", TIMER0_BASE, TIMER1_BASE, INT_TIMER1A,
-                       INT_TIMER0A, nullptr, 16, 250, 250);
+struct DccHwDefs {
+  /// base address of a capture compare pwm timer pair
+  static const unsigned long CCP_BASE = TIMER0_BASE;
+  /// an otherwise unused interrupt number (could be that of the capture compare pwm timer)
+  static const unsigned long OS_INTERRUPT = INT_TIMER0A;
+  /// base address of an interval timer
+  static const unsigned long INTERVAL_BASE = TIMER1_BASE;
+  /// interrupt number of the interval timer
+  static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
+  
+  /** @returns the number of preamble bits to send exclusive of end of packet
+   *  '1' bit */
+  static int dcc_preamble_count() { return 16; }
+
+  static void flip_led() {}
+
+  /** the time (in nanoseconds) to wait between turning off the low driver and
+   * turning on the high driver. */
+  static const int H_DEADBAND_DELAY_NSEC = 250;
+  /** the time (in nanoseconds) to wait between turning off the high driver and
+   * turning on the low driver. */
+  static const int L_DEADBAND_DELAY_NSEC = 250;
+
+  /** @returns true to produce the RailCom cutout, else false */
+  static bool railcom_cutout() { return false; }
+
+  /** number of outgoing messages we can queue */
+  static const size_t Q_SIZE = 4;
+};
+
+static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline");
 
 extern "C" {
 /** Blink LED */
