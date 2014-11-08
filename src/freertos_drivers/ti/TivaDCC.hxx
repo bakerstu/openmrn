@@ -111,6 +111,44 @@ public:
         uint32_t transition_b;
     };
 
+    /* WARNING: these functions (hw_init, enable_output, disable_output) MUST
+     * be static, because they will be called from hw_preinit, which happens
+     * before the C++ constructors have run. This means that at the time of
+     * calling these functions the state of the object would be undefined /
+     * uninintialized. The only safe solution is to make them static. */
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(HW::CCP_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::PIN_H_GPIO_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::PIN_L_GPIO_PERIPH);
+        MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
+        MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
+        MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
+        MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+        disable_output();
+    }
+
+    static void enable_output() {
+        MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
+        MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+        MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
+        MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
+    }
+
+    static void disable_output()
+    {
+        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
+                         HW::PIN_H_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
+                         HW::PIN_H_INVERT ? 0xff : 0);
+        MAP_GPIOPinTypeGPIOOutput(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
+        MAP_GPIOPinTypeGPIOOutput(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
+                         HW::PIN_H_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
+                         HW::PIN_H_INVERT ? 0xff : 0);
+    }
+
 private:
     /** Read from a file or device.
      * @param file file reference for this device

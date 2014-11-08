@@ -80,6 +80,21 @@ struct DccHwDefs {
   static const unsigned long INTERVAL_BASE = TIMER1_BASE;
   /// interrupt number of the interval timer
   static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
+
+  // Peripherals to enable at boot.
+  static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
+  static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
+  static const auto PIN_H_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
+  static const auto PIN_L_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
+
+  static const auto PIN_H_GPIO_CONFIG = GPIO_PB6_T0CCP0;
+  static const auto PIN_L_GPIO_CONFIG = GPIO_PB7_T0CCP1;
+
+  static const auto PIN_H_GPIO_BASE = GPIO_PORTB_BASE;
+  static const auto PIN_L_GPIO_BASE = GPIO_PORTB_BASE;
+
+  static const auto PIN_H_GPIO_PIN = GPIO_PIN_6;
+  static const auto PIN_L_GPIO_PIN = GPIO_PIN_7;
   
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */
@@ -205,12 +220,7 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
     /* Initialize the DCC Timers and GPIO outputs */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    MAP_GPIOPinConfigure(GPIO_PB6_T0CCP0);
-    MAP_GPIOPinConfigure(GPIO_PB7_T0CCP1);
-    MAP_GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+    tivaDCC.hw_init();
 }
 
 /** Timer interrupt for DCC packet handling.
