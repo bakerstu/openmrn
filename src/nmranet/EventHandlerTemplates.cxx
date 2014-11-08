@@ -48,10 +48,10 @@ int debug_variables = 0;
 #include <string>
 namespace nmranet
 {
-extern const string& GetNameForOffset(int);
+extern const string& GetNameForEvent(uint64_t);
 
 __attribute__ ((weak))
-const string& GetNameForOffset(int) { static string empty; return empty; }
+const string& GetNameForEvent(uint64_t) { static string empty; return empty; }
 }
 #endif
 
@@ -105,7 +105,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
 #ifdef DESCRIBE_VAR
       if (debug_variables) {
           fprintf(stderr, "BitRange: OUT bit %x (%s) to %d\n", bit,
-                  GetNameForOffset(bit).c_str(), new_value);
+                  GetNameForEvent(event_base_ + (bit * 2)).c_str(), new_value);
       }
 #else
     LOG(VERBOSE, "BitRange: set bit %x to %d", bit, new_value);
@@ -132,7 +132,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
 #ifdef DESCRIBE_VAR
       if (debug_variables > 2) {
           fprintf(stderr, "BitRange: out bit %x (%s) to %d\n", bit,
-                  GetNameForOffset(bit).c_str(), new_value);
+                  GetNameForEvent(event_base_ + (bit*2)).c_str(), new_value);
       }
 #endif
     if (done)
@@ -153,7 +153,7 @@ void BitRangeEventPC::HandleEventReport(EventReport* event, BarrierNotifiable* d
 #ifdef DESCRIBE_VAR
   if (debug_variables) {
       fprintf(stderr, "BitRange: IN  bit %x (%s) to %d\n", bit,
-              GetNameForOffset(bit).c_str(), new_value);
+              GetNameForEvent(event_base_ + (2*bit)).c_str(), new_value);
   }
 #else
   LOG(VERBOSE, "BitRange: evt bit %x to %d", bit, new_value);
