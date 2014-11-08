@@ -228,7 +228,7 @@ protected:
 
     Action clone() {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
-        MessageType *copy = get_allocation_result(h);
+        MessageType *copy = this->get_allocation_result(h);
         copy->set_done(this->message()->new_child());
         *copy->data() = *this->message()->data();
         h->send(copy);
