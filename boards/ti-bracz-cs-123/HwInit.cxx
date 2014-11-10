@@ -47,6 +47,9 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "hardware.hxx"
+#include "DccHardware.hxx"
+#include "TivaDCC.hxx"
+
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -69,7 +72,20 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
 
+TivaDCC<DccHwDefs> dcc_hw("/dev/mainline");
+
 extern "C" {
+
+void timer1a_interrupt_handler(void)
+{
+    dcc_hw.interrupt_handler();
+}
+
+void timer0a_interrupt_handler(void)
+{
+  dcc_hw.os_interrupt_handler();
+}
+
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
@@ -151,17 +167,11 @@ void set_gpio_puinput(uint32_t port, uint32_t pin) {
 void enable_dcc() {
     g_dcc_on = true;
     MAP_GPIOPinWrite(LED_BLUE, 0xff);
-    MAP_GPIOPinConfigure(GPIO_PB6_T0CCP0);
-    MAP_GPIOPinConfigure(GPIO_PB7_T0CCP1);
-    MAP_GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+    dcc_hw.enable_output();
 }
 
 void disable_dcc() {
-    // Take A2/A3 and set them to drive high. This will turn off the gate
-    // driver.
-    set_gpio_drive_low(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);
-    // These pins are parallel-connected to the above.
-    set_gpio_extinput(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    dcc_hw.disable_output();
     g_dcc_on = false;
     MAP_GPIOPinWrite(LED_BLUE, 0);
 }
@@ -180,6 +190,12 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+    // Sets DCC hardware to safe state.
+    // These pins are parallel-connected to the outputs.
+    set_gpio_extinput(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    /* Initialize the DCC Timers and GPIO outputs */
+    dcc_hw.hw_init();
     disable_dcc();
 
     /* Setup the system clock. */
@@ -227,7 +243,7 @@ void hw_preinit(void)
     /* USB interrupt priority */
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
-    /* Initialize the DCC Timers and GPIO outputs */
+
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
 }

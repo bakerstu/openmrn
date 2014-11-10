@@ -51,7 +51,7 @@
 
 #include "dcc_control.hxx"
 #include "hardware.hxx"
-
+#include "DccHardware.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -73,83 +73,6 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
-
-
-struct DccHwDefs {
-  /// base address of a capture compare pwm timer pair
-  static const unsigned long CCP_BASE = TIMER1_BASE;
-  /// an otherwise unused interrupt number (could be that of the capture compare pwm timer)
-  static const unsigned long OS_INTERRUPT = INT_TIMER1A;
-  /// base address of an interval timer
-  static const unsigned long INTERVAL_BASE = TIMER0_BASE;
-  /// interrupt number of the interval timer
-  static const unsigned long INTERVAL_INTERRUPT = INT_TIMER0A;
-  
-  // Peripherals to enable at boot.
-  static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
-  static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
-  static const auto PIN_H_GPIO_PERIPH = GPIO_PORTA_BASE;
-  static const auto PIN_H_GPIO_CONFIG = GPIO_PA2_T1CCP0;
-  static const auto PIN_H_GPIO_BASE = GPIO_PORTA_BASE;
-  static const auto PIN_H_GPIO_PIN = GPIO_PIN_2;
-#ifdef BPACK_1_LOW
-  // set the output pin to be on boosterpack 1
-  static const auto PIN_L_GPIO_PERIPH = GPIO_PORTD_BASE;
-  static const auto PIN_L_GPIO_CONFIG = GPIO_PD3_T1CCP1;
-  static const auto PIN_L_GPIO_BASE = GPIO_PORTD_BASE;
-  static const auto PIN_L_GPIO_PIN = GPIO_PIN_3;
-  /** Defines whether the drive-low pin is inverted or not. A non-inverted pin
-   *  (value==false) will be driven high during the second half of the DCC bit
-   *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
-   *  non-inverted pin will be driven low as safe setting at startup. */
-  static const bool PIN_L_INVERT = true;
-#else
-  // original output pin
-  static const auto PIN_L_GPIO_PERIPH = GPIO_PORTA_BASE;
-  static const auto PIN_L_GPIO_CONFIG = GPIO_PA3_T1CCP1;
-  static const auto PIN_L_GPIO_BASE = GPIO_PORTA_BASE;
-  static const auto PIN_L_GPIO_PIN = GPIO_PIN_3;
-  /** Defines whether the drive-low pin is inverted or not. A non-inverted pin
-   *  (value==false) will be driven high during the second half of the DCC bit
-   *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
-   *  non-inverted pin will be driven low as safe setting at startup. */
-  static const bool PIN_L_INVERT = false;
-#endif
-
-
-
-  /** Defines whether the high driver pin is inverted or not. A non-inverted
-   *  (value==false) pin will be driven high during the first half of the DCC
-   *  bit (minus H_DEADBAND_DELAY_NSEC at the end), and low during the second
-   *  half.  A non-inverted pin will be driven low as safe setting at
-   *  startup. */
-  static const bool PIN_H_INVERT = true;
-
-  /** @returns the number of preamble bits to send (in addition to the end of
-   *  packet '1' bit) */
-  static int dcc_preamble_count() { return 16; }
-
-  static constexpr uint8_t* LED_PTR =
-      (uint8_t*)(GPIO_PORTQ_BASE + (GPIO_PIN_0 << 2));
-  static void flip_led() {
-    static uint8_t flip = 0xff;
-    flip = ~flip;
-    *LED_PTR = flip;
-  }
-
-  /** the time (in nanoseconds) to wait between turning off the low driver and
-   * turning on the high driver. */
-  static const int H_DEADBAND_DELAY_NSEC = 500;
-  /** the time (in nanoseconds) to wait between turning off the high driver and
-   * turning on the low driver. */
-  static const int L_DEADBAND_DELAY_NSEC = 2500;
-
-  /** @returns true to produce the RailCom cutout, else false */
-  static bool railcom_cutout() { return false; }
-
-  /** number of outgoing messages we can queue */
-  static const size_t Q_SIZE = 4;
-};
 
 TivaDCC<DccHwDefs> dcc_hw("/dev/mainline");
 
