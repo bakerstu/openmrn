@@ -81,6 +81,10 @@ struct DccHwDefs {
   /// interrupt number of the interval timer
   static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
 
+  /** These timer blocks will be synchronized once per packet, when the
+   *  deadband delay is set up. */
+  static const auto TIMER_SYNC = TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC;
+
   // Peripherals to enable at boot.
   static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
   static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
@@ -95,6 +99,19 @@ struct DccHwDefs {
 
   static const auto PIN_H_GPIO_PIN = GPIO_PIN_6;
   static const auto PIN_L_GPIO_PIN = GPIO_PIN_7;
+
+  /** Defines whether the high driver pin is inverted or not. A non-inverted
+   *  (value==false) pin will be driven high during the first half of the DCC
+   *  bit (minus H_DEADBAND_DELAY_NSEC at the end), and low during the second
+   *  half.  A non-inverted pin will be driven low as safe setting at
+   *  startup. */
+  static const bool PIN_H_INVERT = false;
+
+  /** Defines whether the drive-low pin is inverted or not. A non-inverted pin
+   *  (value==false) will be driven high during the second half of the DCC bit
+   *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
+   *  non-inverted pin will be driven low as safe setting at startup. */
+  static const bool PIN_L_INVERT = false;
   
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */

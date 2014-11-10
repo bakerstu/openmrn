@@ -396,16 +396,38 @@ inline void TivaDCC<HW>::interrupt_handler()
     if (resync) {
         resync = false;
         auto* timing = &timings[current_bit];
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
-        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period + hDeadbandDelay * 2);
+        // We are syncing -- cause timers to restart counting when these
+        // execute.
+        HWREG(HW::CCP_BASE + TIMER_O_TAMR) &=
+            ~(TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+        HWREG(HW::CCP_BASE + TIMER_O_TBMR) &=
+            ~(TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
+        HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) &=
+            ~(TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+        
+        // These have to happen very fast because syncing depends on it. We do
+        // direct register writes here instead of using the plib calls.
+        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = timing->period;
+        HWREG(HW::CCP_BASE + TIMER_O_TBILR) = hDeadbandDelay;
+        HWREG(HW::INTERVAL_BASE + TIMER_O_TAILR) = timing->period + hDeadbandDelay * 2;
+
         // This is already final.
         MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
         // since timer B starts later, the deadband delay cycle we set to be constant off.
         MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
         // TODO: this should be parametrized by the timer numbers that we are
         // using.
-        MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+        MAP_TimerSynchronize(TIMER0_BASE, HW::TIMER_SYNC);
+
+        // Switches back to asynch timer update.
+        HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
+            (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+        HWREG(HW::CCP_BASE + TIMER_O_TBMR) |=
+            (TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
+        HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) |=
+            (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+
+        // Sets final values for the cycle.
         MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
         MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
         MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
@@ -489,9 +511,9 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
         int32_t nominal_transition =
             timing->period - usec_to_clocks(transition_usec);
         timing->transition_a =
-            nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
-        timing->transition_b =
             nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
+        timing->transition_b =
+            nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
     }
 }
 
@@ -544,8 +566,8 @@ TivaDCC<HW>::TivaDCC(const char *name)
                                     TIMER_CFG_A_PERIODIC);
     MAP_TimerControlStall(HW::INTERVAL_BASE, TIMER_A, true);
 
-    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_A, /*true*/ false);
-    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_B, false);
+    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_A, HW::PIN_H_INVERT);
+    MAP_TimerControlLevel(HW::CCP_BASE, TIMER_B, !HW::PIN_L_INVERT);
 
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
@@ -567,7 +589,7 @@ TivaDCC<HW>::TivaDCC(const char *name)
     MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(HW::INTERVAL_INTERRUPT);
 
-    // We don't have a write notifiable at the moment.
+    // We don't have a write notifiable pointer at the moment.
     MAP_IntDisable(HW::OS_INTERRUPT);
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     // but we have free space in the queue at boot time.
