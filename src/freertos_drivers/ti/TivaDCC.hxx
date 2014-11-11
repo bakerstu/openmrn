@@ -121,32 +121,29 @@ public:
         MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::PIN_H_GPIO_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::PIN_L_GPIO_PERIPH);
-        MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
-        MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
-        MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
-        MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+        enable_output();
         disable_output();
     }
 
     static void enable_output() {
-        MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
-        MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
         MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
         MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
+        MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
+        MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
     }
 
     static void disable_output()
     {
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
-        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
-                         HW::PIN_H_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN,
+                         HW::PIN_L_INVERT ? 0xff : 0);
         MAP_GPIOPinTypeGPIOOutput(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
         MAP_GPIOPinTypeGPIOOutput(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
-        MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
-                         HW::PIN_H_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN,
+                         HW::PIN_L_INVERT ? 0xff : 0);
     }
 
 private:
@@ -404,20 +401,21 @@ inline void TivaDCC<HW>::interrupt_handler()
             ~(TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
         HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) &=
             ~(TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
-        
+
         // These have to happen very fast because syncing depends on it. We do
         // direct register writes here instead of using the plib calls.
-        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = timing->period;
-        HWREG(HW::CCP_BASE + TIMER_O_TBILR) = hDeadbandDelay;
-        HWREG(HW::INTERVAL_BASE + TIMER_O_TAILR) = timing->period + hDeadbandDelay * 2;
+        HWREG(HW::INTERVAL_BASE + TIMER_O_TAILR) =
+            timing->period + hDeadbandDelay * 2;
 
-        // This is already final.
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
-        // since timer B starts later, the deadband delay cycle we set to be constant off.
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
-        // TODO: this should be parametrized by the timer numbers that we are
-        // using.
-        MAP_TimerSynchronize(TIMER0_BASE, HW::TIMER_SYNC);
+        HWREG(HW::CCP_BASE + TIMER_O_TBMATCHR) = timing->transition_b;  // final
+        // since timer A starts later, the deadband delay cycle we set to be
+        // constant off (match == period)
+        HWREG(HW::CCP_BASE + TIMER_O_TAMATCHR) = hDeadbandDelay;  // tmp
+        HWREG(HW::CCP_BASE + TIMER_O_TBILR) = timing->period;  // final
+        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay;  // tmp
+
+        // timer synchronize (if it works...)
+        HWREG(TIMER0_BASE + TIMER_O_SYNC) = HW::TIMER_SYNC;
 
         // Switches back to asynch timer update.
         HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
@@ -428,8 +426,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
 
         // Sets final values for the cycle.
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
         MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
 
         last_bit = current_bit;
