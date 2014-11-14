@@ -76,6 +76,11 @@ TivaDCC<DccHwDefs> dcc_hw("/dev/mainline");
 
 extern "C" {
 
+void hw_set_to_safe(void)
+{
+    dcc_hw.disable_output();
+}
+
 void timer1a_interrupt_handler(void)
 {
     dcc_hw.interrupt_handler();
@@ -118,6 +123,7 @@ void timer5a_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
+    hw_set_to_safe();
     vPortClearInterruptMask(0x20);
     asm("cpsie i\n");
 
@@ -248,4 +254,4 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
 }
 
-}
+}  // extern "C"
