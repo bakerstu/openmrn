@@ -467,6 +467,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         else
         {
             packet = &IDLE_PKT;
+            resync = true;
         }
         preamble_count = 0;
         count = 0;
