@@ -46,13 +46,16 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/uart.h"
 #include "freertos/can_ioctl.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_timer.h"
 #include "inc/hw_types.h"
+#include "inc/hw_uart.h"
 
 #include "Devtab.hxx"
 #include "dcc/Packet.hxx"
+#include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 
 /** A device driver for sending DCC packets.  If the packet queue is empty,
@@ -111,6 +114,8 @@ public:
         uint32_t transition_b;
     };
 
+    static bool output_enabled;
+
     /* WARNING: these functions (hw_init, enable_output, disable_output) MUST
      * be static, because they will be called from hw_preinit, which happens
      * before the C++ constructors have run. This means that at the time of
@@ -121,11 +126,23 @@ public:
         MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::PIN_H_GPIO_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::PIN_L_GPIO_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::RAILCOM_TRIGGER_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::RAILCOM_UART_PERIPH);
+        MAP_SysCtlPeripheralEnable(HW::RAILCOM_UARTPIN_PERIPH);
         enable_output();
         disable_output();
+        MAP_GPIOPinConfigure(HW::RAILCOM_UARTPIN_CONFIG);
+        MAP_GPIOPinTypeUART(HW::RAILCOM_UARTPIN_BASE, HW::RAILCOM_UARTPIN_PIN);
+        MAP_UARTConfigSetExpClk(
+            HW::RAILCOM_UART_BASE, configCPU_CLOCK_HZ, 250000,
+            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
+        MAP_UARTFIFOEnable(HW::RAILCOM_UART_BASE);
+        // Disables the uart receive until the railcom cutout is here.
+        HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
     }
 
     static void enable_output() {
+        output_enabled = true;
         MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
         MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
         MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
@@ -134,17 +151,31 @@ public:
 
     static void disable_output()
     {
+        output_enabled = false;
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
         MAP_GPIOPinWrite(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN,
                          HW::PIN_L_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
+                         HW::RAILCOM_TRIGGER_PIN,
+                         HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
         MAP_GPIOPinTypeGPIOOutput(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
         MAP_GPIOPinTypeGPIOOutput(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+        MAP_GPIOPinTypeGPIOOutput(HW::RAILCOM_TRIGGER_BASE,
+                                  HW::RAILCOM_TRIGGER_PIN);
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
         MAP_GPIOPinWrite(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN,
                          HW::PIN_L_INVERT ? 0xff : 0);
+        MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
+                         HW::RAILCOM_TRIGGER_PIN,
+                         HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
     }
+
+    /// TODO(bracz) Define a better API for accessing railcom feedback data.
+    uint8_t railcom_buffer_[8];
+    uint8_t railcom_buffer_len_;
+    Notifiable* railcom_buffer_notify_{nullptr};
 
 private:
     /** Read from a file or device.
@@ -203,6 +234,9 @@ private:
     typedef enum {
         DCC_ZERO,
         DCC_ONE,
+        RAILCOM_CUTOUT_PRE,
+        RAILCOM_CUTOUT,
+        RAILCOM_CUTOUT_POST,
         MM_PREAMBLE,
         MM_ZERO,
         MM_ONE,
@@ -236,11 +270,16 @@ template <class HW>
 __attribute__((optimize("-O3")))
 inline void TivaDCC<HW>::os_interrupt_handler()
 {
-    HASSERT(writableNotifiable);
-    Notifiable* n = writableNotifiable;
-    writableNotifiable = nullptr;
-    MAP_IntDisable(HW::OS_INTERRUPT);
-    n->notify_from_isr();
+    if (HW::Q_SIZE > q.count) {
+        Notifiable* n = writableNotifiable;
+        writableNotifiable = nullptr;
+        if (n) n->notify_from_isr();
+    }
+    if (railcom_buffer_len_ > 0) {
+        Notifiable* n = railcom_buffer_notify_;
+        railcom_buffer_notify_ = nullptr;
+        if (n) n->notify_from_isr();
+    }
 }
 
 /** Handle an interrupt.
@@ -272,6 +311,11 @@ inline void TivaDCC<HW>::interrupt_handler()
         MM_DATA_6,
         MM_DATA_7,
         RESYNC,
+        DCC_MAYBE_RAILCOM,
+        DCC_CUTOUT_PRE,
+        DCC_START_RAILCOM_RECEIVE,
+        DCC_STOP_RAILCOM_RECEIVE,
+        DCC_ENABLE_AFTER_RAILCOM,
         DCC_LEADOUT,
         MM_LEADOUT,
     };
@@ -283,6 +327,7 @@ inline void TivaDCC<HW>::interrupt_handler()
     static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
     static bool resync = true;
+    static bool saved_output_enabled = true; // for railcom cutout
     BitEnum current_bit;
     bool get_next_packet = false;
 
@@ -330,7 +375,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             if (++count >= packet->dlc)
             {
                 current_bit = DCC_ONE;  // end-of-packet bit
-                state = DCC_LEADOUT;
+                state = DCC_MAYBE_RAILCOM;
                 preamble_count = 0;
             }
             else
@@ -339,11 +384,78 @@ inline void TivaDCC<HW>::interrupt_handler()
                 state = DATA_0;
             }
             break;
+        case DCC_MAYBE_RAILCOM:
+            if (HW::railcom_cutout() && output_enabled) {
+                //current_bit = RAILCOM_CUTOUT_PRE;
+                current_bit = DCC_ONE;
+                // We change the time of the next IRQ.
+                MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                                 timings[RAILCOM_CUTOUT_PRE].period);
+                state = DCC_CUTOUT_PRE;
+            } else {
+                current_bit = DCC_ONE;
+                state = DCC_LEADOUT;
+            }
+            break;
         case DCC_LEADOUT:
             current_bit = DCC_ONE;
             if (++preamble_count >= 2) {
                 get_next_packet = true;
             }
+            break;
+        case DCC_CUTOUT_PRE:
+            current_bit = DCC_ONE;
+            // We change the time of the next IRQ.
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                             timings[RAILCOM_CUTOUT].period);
+            state = DCC_START_RAILCOM_RECEIVE;
+            break;
+        case DCC_START_RAILCOM_RECEIVE:
+            saved_output_enabled = output_enabled;
+            disable_output();
+            current_bit = DCC_ONE;
+            // delay 1 usec
+            MAP_SysCtlDelay( lDeadbandDelay / 3 );
+            // current_bit = RAILCOM_CUTOUT_POST;
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                             timings[RAILCOM_CUTOUT_POST].period);
+            state = DCC_STOP_RAILCOM_RECEIVE;
+            MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
+                             HW::RAILCOM_TRIGGER_PIN,
+                             HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
+            // Waits for transient after the trigger to pass.
+            MAP_SysCtlDelay( configCPU_CLOCK_HZ / 1000000 );
+            // Enables UART RX.
+            HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) |= UART_CTL_RXE;
+            break;
+        case DCC_STOP_RAILCOM_RECEIVE:
+            HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
+            current_bit = DCC_ONE;
+            state = DCC_ENABLE_AFTER_RAILCOM;
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                             timings[DCC_ONE].period);
+            MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
+                             HW::RAILCOM_TRIGGER_PIN,
+                             HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
+            railcom_buffer_len_ = 0;
+            while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
+            {
+                long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
+                if (data < 0) continue;
+                if (railcom_buffer_len_ >= sizeof(railcom_buffer_)) continue;
+                railcom_buffer_[railcom_buffer_len_++] = data;
+            }
+            if (railcom_buffer_len_ && railcom_buffer_notify_) {
+                MAP_IntPendSet(HW::OS_INTERRUPT);
+            }
+            break;
+        case DCC_ENABLE_AFTER_RAILCOM:
+            if (saved_output_enabled) {
+                enable_output();
+            }
+            current_bit = DCC_ONE;
+            state = DCC_LEADOUT;
+            ++preamble_count;
             break;
         case ST_MM_PREAMBLE:
             current_bit = MM_PREAMBLE;
@@ -449,12 +561,12 @@ inline void TivaDCC<HW>::interrupt_handler()
         }
         if (packet != &IDLE_PKT && packet_repeat_count == 0)
         {
-            --q.count;
             ++q.rdIndex;
             if (q.rdIndex == HW::Q_SIZE)
             {
                 q.rdIndex = 0;
             }
+            --q.count;
             // Notifies the OS that we can write to the buffer.
             MAP_IntPendSet(HW::OS_INTERRUPT);
             resync = true;
@@ -492,6 +604,9 @@ static uint32_t nsec_to_clocks(uint32_t nsec) {
     // We have to be careful here not to underflow or overflow.
     return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;
 }
+
+template<class HW>
+bool TivaDCC<HW>::output_enabled = false;
 
 template<class HW>
 void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
@@ -537,6 +652,13 @@ TivaDCC<HW>::TivaDCC(const char *name)
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
     fill_timing(MM_PREAMBLE, 208, 0);
+
+    unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
+    unsigned pre_delay = 12;
+    fill_timing(RAILCOM_CUTOUT_PRE, pre_delay, 0);
+    fill_timing(RAILCOM_CUTOUT, 471 - pre_delay, 0);
+    // remaining time
+    fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - 471 + h_deadband, 0);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
@@ -588,11 +710,9 @@ TivaDCC<HW>::TivaDCC(const char *name)
     MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(HW::INTERVAL_INTERRUPT);
 
-    // We don't have a write notifiable pointer at the moment.
-    MAP_IntDisable(HW::OS_INTERRUPT);
+    // The OS interrupt comes under the freertos kernel.
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-    // but we have free space in the queue at boot time.
-    MAP_IntPendSet(HW::OS_INTERRUPT);
+    MAP_IntEnable(HW::OS_INTERRUPT);
 }
 
 /** Read from a file or device.
@@ -623,7 +743,6 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
 
     if (q.count == HW::Q_SIZE)
     {
-        MAP_IntPendClear(HW::OS_INTERRUPT);
         MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
         return -ENOSPC;
@@ -680,8 +799,16 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
         if (q.count == HW::Q_SIZE)
         {
             portENTER_CRITICAL();
-            swap(n, writableNotifiable);
-            MAP_IntEnable(HW::OS_INTERRUPT);
+            if (q.count == HW::Q_SIZE)
+            {
+                // We are in a critical section now. If we got into this
+                // branch, then the buffer was full at the beginning of the
+                // critical section. If the hardware interrupt kicks in now,
+                // and sets the os_interrupt to pending, the os interrupt will
+                // not happen until we leave the critical section, and thus the
+                // swap will be in effect by then.
+                swap(n, writableNotifiable);
+            }
             portEXIT_CRITICAL();
         }
         if (n) {
