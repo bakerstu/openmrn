@@ -71,6 +71,11 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 #define STARTUP_DELAY_CYCLES 2
 #define DEADBAND_ADJUST      80
 
+#define DECL_PIN(NAME, PORT, NUM)                \
+  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
+  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
+  static const auto NAME##_PIN = GPIO_PIN_##NUM
+
 struct DccHwDefs {
   /// base address of a capture compare pwm timer pair
   static const unsigned long CCP_BASE = TIMER0_BASE;
@@ -131,6 +136,17 @@ struct DccHwDefs {
 
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;
+
+
+  // Pins defined for railcom
+  //DECL_PIN(RAILCOM_TRIGGER, B, 4);
+  DECL_PIN(RAILCOM_TRIGGER, D, 6);
+  static const auto RAILCOM_TRIGGER_INVERT = true;
+
+  static const auto RAILCOM_UART_BASE = UART1_BASE;
+  static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
+  DECL_PIN(RAILCOM_UARTPIN, B, 0);
+  static const auto RAILCOM_UARTPIN_CONFIG = GPIO_PB0_U1RX;
 };
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline");
@@ -141,6 +157,11 @@ uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
 
 void dcc_generator_init(void);
+
+void hw_set_to_safe(void)
+{
+    tivaDCC.disable_output();
+}
 
 void resetblink(uint32_t pattern)
 {
