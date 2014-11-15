@@ -142,9 +142,10 @@ TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
     , enabled(false)
     , woken(false)
 {
-    USBStackModeSet(0, eUSBModeDevice, 0);
-    USBDCDCInit(0, &usbdcdcDevice);
     instances[0] = this;
+    log_.log(0x71);
+    USBStackModeSet(0, eUSBModeForceDevice, 0);
+    USBDCDCInit(0, &usbdcdcDevice);
 }
 
 /** Enable use of the device interrupts.
