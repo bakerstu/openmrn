@@ -222,8 +222,6 @@ private:
         dcc::Packet data[HW::Q_SIZE]; /**< queue data */
     };
 
-    int oneBitPeriod; /**< period of one bit in clock count */
-    int zeroBitPeriod; /**< period of zero bit in clock count */
     int hDeadbandDelay; /**< low->high deadband delay in clock count */
     int lDeadbandDelay; /**< high->low deadband delay in clock count */
     Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
