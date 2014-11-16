@@ -424,7 +424,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
             // Waits for transient after the trigger to pass.
-            MAP_SysCtlDelay( configCPU_CLOCK_HZ / 1000000 );
+            MAP_SysCtlDelay( lDeadbandDelay / 3 );
             // Enables UART RX.
             HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) |= UART_CTL_RXE;
             break;
