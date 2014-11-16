@@ -76,6 +76,7 @@ public:
 
     bool empty() { return count_ == 0; }
     bool full() { return count_ >= SIZE; }
+    size_t size() { return count_; }
 
     /// Returns the head of the FIFO (next element to read).
     T& front() {
@@ -124,10 +125,11 @@ struct Feedback {
  *  and calling the inline method @ref interrupt_handler on behalf of this
  *  device driver.
  *
- *  Write calls work by sending the packet in the format of dcc::Packet
- *  including the X-OR linkage byte.  Only one DCC packet may be written per
- *  call to the write method.  If there is no space currently available in the
- *  write queue, the write method will return -1 with errno set to ENOSPC.
+ *  Write calls work by sending the packet in the format of dcc::Packet.  The
+ *  payload should include the X-OR linkage byte.  Only one DCC packet may be
+ *  written per call to the write method.  If there is no space currently
+ *  available in the write queue, the write method will return -1 with errno
+ *  set to ENOSPC.
  *
  *  Handling of write throttling:
  *
@@ -142,6 +144,18 @@ struct Feedback {
  *
  *  The user must ensure that the 'interrupt' has a very high priority, whereas
  *  'os_interrupt' has a priority that's at or lower than the FreeRTOS kernel.
+ *
+ * 
+ *  Handling of feedback data:
+ *
+ *  The driver may generate return data for the application layer in the form
+ *  of dcc::Feedback messages.  These will be attributed to the incoming
+ *  packets by an opaque key that the application sets. For each packet that
+ *  has a non-zero feedback a dcc::Feedback message will be sent to the
+ *  application layer, which will be readable using the read method on the fd.
+ *
+ *  The application can request notification of readable and writable status
+ *  using the regular IOCTL method.
  */
 template<class HW>
 class TivaDCC : public Node
@@ -315,22 +329,6 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
-
-template <class HW>
-__attribute__((optimize("-O3")))
-inline void TivaDCC<HW>::os_interrupt_handler()
-{
-    if (!packetQueue_.full()) {
-        Notifiable* n = writableNotifiable_;
-        writableNotifiable_ = nullptr;
-        if (n) n->notify_from_isr();
-    }
-    if (railcom_buffer_len_ > 0) {
-        Notifiable* n = railcom_buffer_notify_;
-        railcom_buffer_notify_ = nullptr;
-        if (n) n->notify_from_isr();
-    }
-}
 
 /** Handle an interrupt.
  */
@@ -686,6 +684,7 @@ TivaDCC<HW>::TivaDCC(const char *name)
     , hDeadbandDelay_(nsec_to_clocks(HW::H_DEADBAND_DELAY_NSEC))
     , lDeadbandDelay_(nsec_to_clocks(HW::L_DEADBAND_DELAY_NSEC))
     , writableNotifiable_(nullptr)
+    , readableNotifiable_(nullptr)
 {
     fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
@@ -765,8 +764,20 @@ TivaDCC<HW>::TivaDCC(const char *name)
 template<class HW>
 ssize_t TivaDCC<HW>::read(File *file, void *buf, size_t count)
 {
-    errno = EINVAL;
-    return -1;
+    if (count != sizeof(dcc::Feedback))
+    {
+        return -EINVAL;
+    }
+
+    portENTER_CRITICAL();
+    if (packetQueue_.empty()) {
+        portEXIT_CRITICAL();
+        return -EAGAIN;
+    }
+    memcpy(buf, &packetQueue_.front(), count);
+    packetQueue_.increment_front();
+    portEXIT_CRITICAL();
+    return count;
 }
 
 /** Write to a file or device.
@@ -779,7 +790,15 @@ template<class HW>
 __attribute__((optimize("-O3")))
 ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
 {
+    if (count != sizeof(dcc::Packet))
+    {
+        return -EINVAL;
+    }
+
     portENTER_CRITICAL();
+    // TODO(balazs.racz) this interrupt disable is not actually needed. Writing
+    // to the back of the queue should be okay while the interrupt reads from
+    // the front of it.
     MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     if (packetQueue_.full())
@@ -787,13 +806,6 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
         MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
         return -ENOSPC;
-    }
-    if (count > sizeof(dcc::Packet) || count < 2U ||
-        count != (((const dcc::Packet *)buf)->dlc + 2U))
-    {
-        MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
-        portEXIT_CRITICAL();
-        return -EINVAL;
     }
 
     dcc::Packet* packet = &packetQueue_.back();
@@ -889,6 +901,22 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
     }
     errno = EINVAL;
     return -1;
+}
+
+template <class HW>
+__attribute__((optimize("-O3")))
+inline void TivaDCC<HW>::os_interrupt_handler()
+{
+    if (!packetQueue_.full()) {
+        Notifiable* n = writableNotifiable_;
+        writableNotifiable_ = nullptr;
+        if (n) n->notify_from_isr();
+    }
+    if (!feedbackQueue_.empty() > 0) {
+        Notifiable* n = readableNotifiable_;
+        readableNotifiable_ = nullptr;
+        if (n) n->notify_from_isr();
+    }
 }
 
 

@@ -111,6 +111,13 @@ struct Packet
     /** Packet payload bytes. */
     uint8_t payload[MAX_PAYLOAD];
 
+    /** An opaque key used by the hardware driver to attribute feedback
+     * information to the source of the packet. This key will be sent back in
+     * the dcc::Feedback structure. If the key is non-zero it is guaranteed
+     * that some feedback (maybe empty) will be sent back after the packet is
+     * transmitted to the track. */
+    size_t feedback_key;
+
     /** Returns true if this is a packet, false if it is a command to the
      * track processor. */
     bool IsPacket()
