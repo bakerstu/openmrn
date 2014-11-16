@@ -114,7 +114,26 @@ private:
 
 namespace dcc {
 struct Feedback {
-    uint8_t feedback_data[8];
+    void reset(size_t feedback_key) {
+        this->feedbackKey = feedback_key;
+        ch1Size = 0;
+        ch2Size = 0;
+    }
+    void add_ch1_data(uint8_t data) {
+        if (ch1Size < sizeof(ch1Data)) {
+            ch1Data[ch1Size++] = data;
+        }
+    }
+    void add_ch2_data(uint8_t data) {
+        if (ch2Size < sizeof(ch2Data)) {
+            ch2Data[ch2Size++] = data;
+        }
+    }
+    uint8_t ch1Size;
+    uint8_t ch1Data[2];
+    uint8_t ch2Size;
+    uint8_t ch2Data[6];
+    uint32_t feedbackKey;
 };
 }
 
@@ -245,11 +264,6 @@ public:
                          HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
     }
 
-    /// TODO(bracz) Define a better API for accessing railcom feedback data.
-    uint8_t railcom_buffer_[8];
-    uint8_t railcom_buffer_len_;
-    Notifiable* railcom_buffer_notify_{nullptr};
-
 private:
     /** Read from a file or device.
      * @param file file reference for this device
@@ -293,7 +307,8 @@ private:
         DCC_ZERO,
         DCC_ONE,
         RAILCOM_CUTOUT_PRE,
-        RAILCOM_CUTOUT,
+        RAILCOM_CUTOUT_FIRST,
+        RAILCOM_CUTOUT_SECOND,
         RAILCOM_CUTOUT_POST,
         MM_PREAMBLE,
         MM_ZERO,
@@ -362,6 +377,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         DCC_MAYBE_RAILCOM,
         DCC_CUTOUT_PRE,
         DCC_START_RAILCOM_RECEIVE,
+        DCC_MIDDLE_RAILCOM_CUTOUT,
         DCC_STOP_RAILCOM_RECEIVE,
         DCC_ENABLE_AFTER_RAILCOM,
         DCC_LEADOUT,
@@ -374,6 +390,7 @@ inline void TivaDCC<HW>::interrupt_handler()
     static int count = 0;
     static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
+    static dcc::Feedback *feedback = nullptr;
     static bool resync = true;
     static bool saved_output_enabled = true; // for railcom cutout
     BitEnum current_bit;
@@ -433,7 +450,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_MAYBE_RAILCOM:
-            if (HW::railcom_cutout() && output_enabled) {
+            if (HW::railcom_cutout() && output_enabled && feedback != nullptr) {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
                 // We change the time of the next IRQ.
@@ -455,7 +472,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             current_bit = DCC_ONE;
             // We change the time of the next IRQ.
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT].period);
+                             timings[RAILCOM_CUTOUT_FIRST].period);
             state = DCC_START_RAILCOM_RECEIVE;
             break;
         case DCC_START_RAILCOM_RECEIVE:
@@ -466,8 +483,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_SysCtlDelay( lDeadbandDelay_ / 3 );
             // current_bit = RAILCOM_CUTOUT_POST;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT_POST].period);
-            state = DCC_STOP_RAILCOM_RECEIVE;
+                             timings[RAILCOM_CUTOUT_SECOND].period);
+            state = DCC_MIDDLE_RAILCOM_CUTOUT;
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
@@ -475,6 +492,18 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_SysCtlDelay( lDeadbandDelay_ / 3 );
             // Enables UART RX.
             HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) |= UART_CTL_RXE;
+            break;
+        case DCC_MIDDLE_RAILCOM_CUTOUT:
+            while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
+            {
+                long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
+                if (data < 0) continue;
+                feedback->add_ch1_data(data);
+            }
+            current_bit = DCC_ONE;
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                             timings[RAILCOM_CUTOUT_POST].period);
+            state =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
             HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
@@ -485,17 +514,15 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
-            railcom_buffer_len_ = 0;
             while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
             {
                 long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
                 if (data < 0) continue;
-                if (railcom_buffer_len_ >= sizeof(railcom_buffer_)) continue;
-                railcom_buffer_[railcom_buffer_len_++] = data;
+                feedback->add_ch2_data(data);
             }
-            if (railcom_buffer_len_ && railcom_buffer_notify_) {
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
+            feedback = nullptr;
+            feedbackQueue_.increment_back();
+            MAP_IntPendSet(HW::OS_INTERRUPT);
             break;
         case DCC_ENABLE_AFTER_RAILCOM:
             if (saved_output_enabled) {
@@ -615,9 +642,10 @@ inline void TivaDCC<HW>::interrupt_handler()
             resync = true;
         } else {
         }
-        if (!packetQueue_.empty())
+        if (!packetQueue_.empty() && !feedbackQueue_.full())
         {
             packet = &packetQueue_.front();
+            feedback = &feedbackQueue_.back();
         }
         else
         {
@@ -694,11 +722,15 @@ TivaDCC<HW>::TivaDCC(const char *name)
     fill_timing(MM_PREAMBLE, 208, 0);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
-    unsigned pre_delay = 12;
-    fill_timing(RAILCOM_CUTOUT_PRE, pre_delay, 0);
-    fill_timing(RAILCOM_CUTOUT, 471 - pre_delay, 0);
+    unsigned railcom_part = 0;
+    fill_timing(RAILCOM_CUTOUT_PRE, 12 - railcom_part, 0);
+    railcom_part = 12;
+    fill_timing(RAILCOM_CUTOUT_FIRST, 185 - railcom_part, 0);
+    railcom_part = 185;
+    fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
+    railcom_part = 471;
     // remaining time
-    fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - 471 + h_deadband, 0);
+    fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - railcom_part + h_deadband, 0);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
