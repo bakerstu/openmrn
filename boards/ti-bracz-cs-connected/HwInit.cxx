@@ -89,6 +89,11 @@ void timer1a_interrupt_handler(void)
   dcc_hw.os_interrupt_handler();
 }
 
+void hw_set_to_safe(void)
+{
+    dcc_hw.disable_output();
+}
+
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
@@ -124,6 +129,7 @@ void timer5a_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
+    hw_set_to_safe();
     vPortClearInterruptMask(0x20);
     asm("cpsie i\n");
 

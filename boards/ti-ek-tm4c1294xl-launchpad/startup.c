@@ -315,6 +315,14 @@ extern unsigned long _ebss;
  * are initialized. */
 extern void hw_preinit(void);
 
+/** Sets the hardware outputs to a safe state. Called when the program crashes
+ * handler. */
+/*void hw_set_to_safe(void) __attribute__ ((weak));
+void hw_set_to_safe(void)
+{
+}*/
+extern void hw_set_to_safe(void);
+
 /** Startup the C/C++ runtime environment.
  */
 void reset_handler(void)
@@ -379,6 +387,7 @@ volatile uint32_t psr;/* Program status register. */
  */
 __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
+    hw_set_to_safe();
     /* These are volatile to try and prevent the compiler/linker optimising them
     away as the variables never actually get used.  If the debugger won't show the
     values of the variables, make them global my moving their declaration outside
@@ -597,6 +606,3 @@ void pwm1_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interr
 void pwm1_fault_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void fp_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void tamper_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-
-
-
