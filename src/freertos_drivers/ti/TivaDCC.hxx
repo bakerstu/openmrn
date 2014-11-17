@@ -58,6 +58,85 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 
+// This structure is safe to use from an interrupt context and a regular
+// context at the same time, provided that
+//
+// . one context uses only the front() and the other only the back() functions.
+//
+// . ++ and -- are compiled into atomic operations on the processor (on the
+//   count_ variable).
+template<class T, uint8_t SIZE> class FixedQueue {
+public:
+    FixedQueue()
+        : rdIndex_(0)
+        , wrIndex_(0)
+        , count_(0)
+    {
+    }
+
+    bool empty() { return count_ == 0; }
+    bool full() { return count_ >= SIZE; }
+    size_t size() { return count_; }
+
+    /// Returns the head of the FIFO (next element to read).
+    T& front() {
+        HASSERT(!empty());
+        return storage_[rdIndex_];
+    }
+
+    /// Removes the head of the FIFO from the queue.
+    void increment_front() {
+        HASSERT(!empty());
+        if (++rdIndex_ >= SIZE) rdIndex_ = 0;
+        count_--;
+    }
+
+    /// Returns the space to write the next element to.
+    T& back() {
+        HASSERT(!full());
+        return storage_[wrIndex_];
+    }
+
+    /// Commits the element at back() into the queue.
+    void increment_back() {
+        HASSERT(!full());
+        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
+        ++count_;
+    }
+
+private:
+    T storage_[SIZE];
+    uint8_t rdIndex_;
+    uint8_t wrIndex_;
+    uint8_t count_;
+};
+
+
+namespace dcc {
+struct Feedback {
+    void reset(size_t feedback_key) {
+        this->feedbackKey = feedback_key;
+        ch1Size = 0;
+        ch2Size = 0;
+    }
+    void add_ch1_data(uint8_t data) {
+        if (ch1Size < sizeof(ch1Data)) {
+            ch1Data[ch1Size++] = data;
+        }
+    }
+    void add_ch2_data(uint8_t data) {
+        if (ch2Size < sizeof(ch2Data)) {
+            ch2Data[ch2Size++] = data;
+        }
+    }
+    uint8_t ch1Size;
+    uint8_t ch1Data[2];
+    uint8_t ch2Size;
+    uint8_t ch2Data[6];
+    uint32_t feedbackKey;
+};
+}
+
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
  *  device driver uses two instances of the 16/32-bit timer pairs.  The user
@@ -65,10 +144,11 @@
  *  and calling the inline method @ref interrupt_handler on behalf of this
  *  device driver.
  *
- *  Write calls work by sending the packet in the format of dcc::Packet
- *  including the X-OR linkage byte.  Only one DCC packet may be written per
- *  call to the write method.  If there is no space currently available in the
- *  write queue, the write method will return -1 with errno set to ENOSPC.
+ *  Write calls work by sending the packet in the format of dcc::Packet.  The
+ *  payload should include the X-OR linkage byte.  Only one DCC packet may be
+ *  written per call to the write method.  If there is no space currently
+ *  available in the write queue, the write method will return -1 with errno
+ *  set to ENOSPC.
  *
  *  Handling of write throttling:
  *
@@ -83,6 +163,18 @@
  *
  *  The user must ensure that the 'interrupt' has a very high priority, whereas
  *  'os_interrupt' has a priority that's at or lower than the FreeRTOS kernel.
+ *
+ * 
+ *  Handling of feedback data:
+ *
+ *  The driver may generate return data for the application layer in the form
+ *  of dcc::Feedback messages.  These will be attributed to the incoming
+ *  packets by an opaque key that the application sets. For each packet that
+ *  has a non-zero feedback a dcc::Feedback message will be sent to the
+ *  application layer, which will be readable using the read method on the fd.
+ *
+ *  The application can request notification of readable and writable status
+ *  using the regular IOCTL method.
  */
 template<class HW>
 class TivaDCC : public Node
@@ -172,11 +264,6 @@ public:
                          HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
     }
 
-    /// TODO(bracz) Define a better API for accessing railcom feedback data.
-    uint8_t railcom_buffer_[8];
-    uint8_t railcom_buffer_len_;
-    Notifiable* railcom_buffer_notify_{nullptr};
-
 private:
     /** Read from a file or device.
      * @param file file reference for this device
@@ -212,21 +299,6 @@ private:
     /** maximum packet size we can support */
     static const size_t MAX_PKT_SIZE = 6;
 
-    /** Queue structure for holding outgoing DCC packets.
-     */
-    struct Q
-    {
-        size_t count; /**< number of items in the queue */
-        size_t rdIndex; /**< current read index */
-        size_t wrIndex; /**< current write index */
-        dcc::Packet data[HW::Q_SIZE]; /**< queue data */
-    };
-
-    int oneBitPeriod; /**< period of one bit in clock count */
-    int zeroBitPeriod; /**< period of zero bit in clock count */
-    int hDeadbandDelay; /**< low->high deadband delay in clock count */
-    int lDeadbandDelay; /**< high->low deadband delay in clock count */
-    Notifiable* writableNotifiable; /**< Notify this when we have free buffers. */
 
     /** idle packet */
     static dcc::Packet IDLE_PKT;
@@ -235,7 +307,8 @@ private:
         DCC_ZERO,
         DCC_ONE,
         RAILCOM_CUTOUT_PRE,
-        RAILCOM_CUTOUT,
+        RAILCOM_CUTOUT_FIRST,
+        RAILCOM_CUTOUT_SECOND,
         RAILCOM_CUTOUT_POST,
         MM_PREAMBLE,
         MM_ZERO,
@@ -243,6 +316,9 @@ private:
 
         NUM_TIMINGS
     } BitEnum;
+
+    int hDeadbandDelay_; /**< low->high deadband delay in clock count */
+    int lDeadbandDelay_; /**< high->low deadband delay in clock count */
 
     Timing timings[NUM_TIMINGS];
 
@@ -257,7 +333,10 @@ private:
     void fill_timing(BitEnum ofs, uint32_t period_usec,
                      uint32_t transition_usec);
 
-    Q q; /**< DCC packet queue */
+    FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
+    FixedQueue<dcc::Feedback, HW::Q_SIZE> feedbackQueue_;
+    Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
+    Notifiable* readableNotifiable_; /**< Notify this when we have free buffers. */
 
     /** Default constructor.
      */
@@ -265,22 +344,6 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
-
-template <class HW>
-__attribute__((optimize("-O3")))
-inline void TivaDCC<HW>::os_interrupt_handler()
-{
-    if (HW::Q_SIZE > q.count) {
-        Notifiable* n = writableNotifiable;
-        writableNotifiable = nullptr;
-        if (n) n->notify_from_isr();
-    }
-    if (railcom_buffer_len_ > 0) {
-        Notifiable* n = railcom_buffer_notify_;
-        railcom_buffer_notify_ = nullptr;
-        if (n) n->notify_from_isr();
-    }
-}
 
 /** Handle an interrupt.
  */
@@ -314,6 +377,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         DCC_MAYBE_RAILCOM,
         DCC_CUTOUT_PRE,
         DCC_START_RAILCOM_RECEIVE,
+        DCC_MIDDLE_RAILCOM_CUTOUT,
         DCC_STOP_RAILCOM_RECEIVE,
         DCC_ENABLE_AFTER_RAILCOM,
         DCC_LEADOUT,
@@ -326,6 +390,7 @@ inline void TivaDCC<HW>::interrupt_handler()
     static int count = 0;
     static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
+    static dcc::Feedback *feedback = nullptr;
     static bool resync = true;
     static bool saved_output_enabled = true; // for railcom cutout
     BitEnum current_bit;
@@ -385,7 +450,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_MAYBE_RAILCOM:
-            if (HW::railcom_cutout() && output_enabled) {
+            if (HW::railcom_cutout() && output_enabled && feedback != nullptr) {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
                 // We change the time of the next IRQ.
@@ -407,7 +472,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             current_bit = DCC_ONE;
             // We change the time of the next IRQ.
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT].period);
+                             timings[RAILCOM_CUTOUT_FIRST].period);
             state = DCC_START_RAILCOM_RECEIVE;
             break;
         case DCC_START_RAILCOM_RECEIVE:
@@ -415,18 +480,30 @@ inline void TivaDCC<HW>::interrupt_handler()
             disable_output();
             current_bit = DCC_ONE;
             // delay 1 usec
-            MAP_SysCtlDelay( lDeadbandDelay / 3 );
+            MAP_SysCtlDelay( lDeadbandDelay_ / 3 );
             // current_bit = RAILCOM_CUTOUT_POST;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT_POST].period);
-            state = DCC_STOP_RAILCOM_RECEIVE;
+                             timings[RAILCOM_CUTOUT_SECOND].period);
+            state = DCC_MIDDLE_RAILCOM_CUTOUT;
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
             // Waits for transient after the trigger to pass.
-            MAP_SysCtlDelay( lDeadbandDelay / 3 );
+            MAP_SysCtlDelay( lDeadbandDelay_ / 3 );
             // Enables UART RX.
             HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) |= UART_CTL_RXE;
+            break;
+        case DCC_MIDDLE_RAILCOM_CUTOUT:
+            while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
+            {
+                long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
+                if (data < 0) continue;
+                feedback->add_ch1_data(data);
+            }
+            current_bit = DCC_ONE;
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+                             timings[RAILCOM_CUTOUT_POST].period);
+            state =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
             HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
@@ -437,17 +514,15 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
-            railcom_buffer_len_ = 0;
             while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
             {
                 long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
                 if (data < 0) continue;
-                if (railcom_buffer_len_ >= sizeof(railcom_buffer_)) continue;
-                railcom_buffer_[railcom_buffer_len_++] = data;
+                feedback->add_ch2_data(data);
             }
-            if (railcom_buffer_len_ && railcom_buffer_notify_) {
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
+            feedback = nullptr;
+            feedbackQueue_.increment_back();
+            MAP_IntPendSet(HW::OS_INTERRUPT);
             break;
         case DCC_ENABLE_AFTER_RAILCOM:
             if (saved_output_enabled) {
@@ -517,14 +592,14 @@ inline void TivaDCC<HW>::interrupt_handler()
         // These have to happen very fast because syncing depends on it. We do
         // direct register writes here instead of using the plib calls.
         HWREG(HW::INTERVAL_BASE + TIMER_O_TAILR) =
-            timing->period + hDeadbandDelay * 2;
+            timing->period + hDeadbandDelay_ * 2;
 
         HWREG(HW::CCP_BASE + TIMER_O_TBMATCHR) = timing->transition_b;  // final
         // since timer A starts later, the deadband delay cycle we set to be
         // constant off (match == period)
-        HWREG(HW::CCP_BASE + TIMER_O_TAMATCHR) = hDeadbandDelay;  // tmp
+        HWREG(HW::CCP_BASE + TIMER_O_TAMATCHR) = hDeadbandDelay_;  // tmp
         HWREG(HW::CCP_BASE + TIMER_O_TBILR) = timing->period;  // final
-        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay;  // tmp
+        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay_;  // tmp
 
         // timer synchronize (if it works...)
         HWREG(TIMER0_BASE + TIMER_O_SYNC) = HW::TIMER_SYNC;
@@ -561,20 +636,16 @@ inline void TivaDCC<HW>::interrupt_handler()
         }
         if (packet != &IDLE_PKT && packet_repeat_count == 0)
         {
-            ++q.rdIndex;
-            if (q.rdIndex == HW::Q_SIZE)
-            {
-                q.rdIndex = 0;
-            }
-            --q.count;
+            packetQueue_.increment_front();
             // Notifies the OS that we can write to the buffer.
             MAP_IntPendSet(HW::OS_INTERRUPT);
             resync = true;
         } else {
         }
-        if (q.count)
+        if (!packetQueue_.empty() && !feedbackQueue_.full())
         {
-            packet = &q.data[q.rdIndex];
+            packet = &packetQueue_.front();
+            feedback = &feedbackQueue_.back();
         }
         else
         {
@@ -625,9 +696,9 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
         int32_t nominal_transition =
             timing->period - usec_to_clocks(transition_usec);
         timing->transition_a =
-            nominal_transition + (hDeadbandDelay + lDeadbandDelay) / 2;
+            nominal_transition + (hDeadbandDelay_ + lDeadbandDelay_) / 2;
         timing->transition_b =
-            nominal_transition - (hDeadbandDelay + lDeadbandDelay) / 2;
+            nominal_transition - (hDeadbandDelay_ + lDeadbandDelay_) / 2;
     }
 }
 
@@ -638,14 +709,11 @@ dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
 template<class HW>
 TivaDCC<HW>::TivaDCC(const char *name)
     : Node(name)
-    , hDeadbandDelay(nsec_to_clocks(HW::H_DEADBAND_DELAY_NSEC))
-    , lDeadbandDelay(nsec_to_clocks(HW::L_DEADBAND_DELAY_NSEC))
-    , writableNotifiable(nullptr)
+    , hDeadbandDelay_(nsec_to_clocks(HW::H_DEADBAND_DELAY_NSEC))
+    , lDeadbandDelay_(nsec_to_clocks(HW::L_DEADBAND_DELAY_NSEC))
+    , writableNotifiable_(nullptr)
+    , readableNotifiable_(nullptr)
 {
-    q.count = 0;
-    q.rdIndex = 0;
-    q.wrIndex = 0;
-
     fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
     fill_timing(MM_ZERO, 208, 26);
@@ -654,11 +722,15 @@ TivaDCC<HW>::TivaDCC(const char *name)
     fill_timing(MM_PREAMBLE, 208, 0);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
-    unsigned pre_delay = 12;
-    fill_timing(RAILCOM_CUTOUT_PRE, pre_delay, 0);
-    fill_timing(RAILCOM_CUTOUT, 471 - pre_delay, 0);
+    unsigned railcom_part = 0;
+    fill_timing(RAILCOM_CUTOUT_PRE, 12 - railcom_part, 0);
+    railcom_part = 12;
+    fill_timing(RAILCOM_CUTOUT_FIRST, 185 - railcom_part, 0);
+    railcom_part = 185;
+    fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
+    railcom_part = 471;
     // remaining time
-    fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - 471 + h_deadband, 0);
+    fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - railcom_part + h_deadband, 0);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
@@ -691,8 +763,8 @@ TivaDCC<HW>::TivaDCC(const char *name)
     MAP_TimerControlLevel(HW::CCP_BASE, TIMER_B, !HW::PIN_L_INVERT);
 
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timings[DCC_ONE].period);
-    MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay);
-    MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay * 2);
+    MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, hDeadbandDelay_);
+    MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period + hDeadbandDelay_ * 2);
     MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timings[DCC_ONE].transition_a);
     MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].transition_b);
 
@@ -724,8 +796,20 @@ TivaDCC<HW>::TivaDCC(const char *name)
 template<class HW>
 ssize_t TivaDCC<HW>::read(File *file, void *buf, size_t count)
 {
-    errno = EINVAL;
-    return -1;
+    if (count != sizeof(dcc::Feedback))
+    {
+        return -EINVAL;
+    }
+
+    portENTER_CRITICAL();
+    if (packetQueue_.empty()) {
+        portEXIT_CRITICAL();
+        return -EAGAIN;
+    }
+    memcpy(buf, &packetQueue_.front(), count);
+    packetQueue_.increment_front();
+    portEXIT_CRITICAL();
+    return count;
 }
 
 /** Write to a file or device.
@@ -738,26 +822,27 @@ template<class HW>
 __attribute__((optimize("-O3")))
 ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
 {
+    if (count != sizeof(dcc::Packet))
+    {
+        return -EINVAL;
+    }
+
     portENTER_CRITICAL();
+    // TODO(balazs.racz) this interrupt disable is not actually needed. Writing
+    // to the back of the queue should be okay while the interrupt reads from
+    // the front of it.
     MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
-    if (q.count == HW::Q_SIZE)
+    if (packetQueue_.full())
     {
         MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
         portEXIT_CRITICAL();
         return -ENOSPC;
     }
-    if (count > sizeof(dcc::Packet) || count < 2U ||
-        count != (((const dcc::Packet *)buf)->dlc + 2U))
-    {
-        MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
-        portEXIT_CRITICAL();
-        return -EINVAL;
-    }
 
-    memcpy(&q.data[q.wrIndex], buf, count);
+    dcc::Packet* packet = &packetQueue_.back();
+    memcpy(packet, buf, count);
 
-    dcc::Packet* packet = &q.data[q.wrIndex];
     // Duplicates the marklin packet if it came single.
     if (packet->packet_header.is_marklin) {
         if (packet->dlc == 3) {
@@ -770,13 +855,14 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
         }
     }
 
-    if (++q.wrIndex == HW::Q_SIZE)
+    packetQueue_.increment_back();
+    static uint8_t flip = 0;
+    if (++flip >= 4)
     {
-        q.wrIndex = 0;
+        flip = 0;
         HW::flip_led();
     }
 
-    ++q.count;
     MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
     portEXIT_CRITICAL();
     return count;
@@ -796,10 +882,12 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
         key == CAN_IOC_WRITE_ACTIVE) {
         Notifiable* n = reinterpret_cast<Notifiable*>(data);
         HASSERT(n);
-        if (q.count == HW::Q_SIZE)
+        // If there is no space for writing, we put the incomng notification
+        // into the holder. Otherwise we notify it immediately.
+        if (packetQueue_.full())
         {
             portENTER_CRITICAL();
-            if (q.count == HW::Q_SIZE)
+            if (packetQueue_.full())
             {
                 // We are in a critical section now. If we got into this
                 // branch, then the buffer was full at the beginning of the
@@ -807,7 +895,34 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
                 // and sets the os_interrupt to pending, the os interrupt will
                 // not happen until we leave the critical section, and thus the
                 // swap will be in effect by then.
-                swap(n, writableNotifiable);
+                swap(n, writableNotifiable_);
+            }
+            portEXIT_CRITICAL();
+        }
+        if (n) {
+            n->notify();
+        }
+        return 0;
+    }
+    if (IOC_TYPE(key) == CAN_IOC_MAGIC &&
+        IOC_SIZE(key) == NOTIFIABLE_TYPE &&
+        key == CAN_IOC_READ_ACTIVE) {
+        Notifiable* n = reinterpret_cast<Notifiable*>(data);
+        HASSERT(n);
+        // If there is no data for reading, we put the incoming notification
+        // into the holder. Otherwise we notify it immediately.
+        if (feedbackQueue_.empty())
+        {
+            portENTER_CRITICAL();
+            if (feedbackQueue_.empty())
+            {
+                // We are in a critical section now. If we got into this
+                // branch, then the buffer was full at the beginning of the
+                // critical section. If the hardware interrupt kicks in now,
+                // and sets the os_interrupt to pending, the os interrupt will
+                // not happen until we leave the critical section, and thus the
+                // swap will be in effect by then.
+                swap(n, readableNotifiable_);
             }
             portEXIT_CRITICAL();
         }
@@ -818,6 +933,22 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
     }
     errno = EINVAL;
     return -1;
+}
+
+template <class HW>
+__attribute__((optimize("-O3")))
+inline void TivaDCC<HW>::os_interrupt_handler()
+{
+    if (!packetQueue_.full()) {
+        Notifiable* n = writableNotifiable_;
+        writableNotifiable_ = nullptr;
+        if (n) n->notify_from_isr();
+    }
+    if (!feedbackQueue_.empty() > 0) {
+        Notifiable* n = readableNotifiable_;
+        readableNotifiable_ = nullptr;
+        if (n) n->notify_from_isr();
+    }
 }
 
 
