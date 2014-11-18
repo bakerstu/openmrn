@@ -385,7 +385,7 @@ volatile uint32_t psr;/* Program status register. */
  * inspired by FreeRTOS.
  * @param address address of the stack
  */
-__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
+__attribute__((optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
     hw_set_to_safe();
     /* These are volatile to try and prevent the compiler/linker optimising them
@@ -435,6 +435,8 @@ __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned 
     _MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
     // Bus Fault Address Register
     _BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
+
+    asm("mov r0, %[value]" : : [value] "r" (hardfault_args));
 
     __asm("BKPT #0\n") ; // Break into the debugger
 
