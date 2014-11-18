@@ -164,7 +164,7 @@ struct Feedback {
  *  The user must ensure that the 'interrupt' has a very high priority, whereas
  *  'os_interrupt' has a priority that's at or lower than the FreeRTOS kernel.
  *
- * 
+ *
  *  Handling of feedback data:
  *
  *  The driver may generate return data for the application layer in the form
@@ -497,7 +497,12 @@ inline void TivaDCC<HW>::interrupt_handler()
             while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
             {
                 long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
-                if (data < 0) continue;
+                MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
+                                 HW::RAILCOM_TRIGGER_PIN,
+                                 HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
+                if (data < 0) {
+                    continue;
+                }
                 feedback->add_ch1_data(data);
             }
             current_bit = DCC_ONE;
