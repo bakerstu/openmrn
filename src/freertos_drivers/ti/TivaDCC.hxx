@@ -497,12 +497,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
             {
                 long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
-                MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
-                                 HW::RAILCOM_TRIGGER_PIN,
-                                 HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
-                if (data < 0) {
-                    continue;
-                }
+                if (data < 0) continue;
                 feedback->add_ch1_data(data);
             }
             current_bit = DCC_ONE;
@@ -729,10 +724,10 @@ TivaDCC<HW>::TivaDCC(const char *name)
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
-    fill_timing(RAILCOM_CUTOUT_PRE, 12 - railcom_part, 0);
-    railcom_part = 12;
-    fill_timing(RAILCOM_CUTOUT_FIRST, 185 - railcom_part, 0);
-    railcom_part = 185;
+    fill_timing(RAILCOM_CUTOUT_PRE, 6 - railcom_part, 0);
+    railcom_part = 6;
+    fill_timing(RAILCOM_CUTOUT_FIRST, 210 - railcom_part, 0);
+    railcom_part = 210;
     fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
     railcom_part = 471;
     // remaining time
