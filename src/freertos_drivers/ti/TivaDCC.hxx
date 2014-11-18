@@ -646,6 +646,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         {
             packet = &packetQueue_.front();
             feedback = &feedbackQueue_.back();
+            feedback->reset(packet->feedback_key);
         }
         else
         {
@@ -800,14 +801,15 @@ ssize_t TivaDCC<HW>::read(File *file, void *buf, size_t count)
     {
         return -EINVAL;
     }
-
+    // We only need this critical section to prevent concurrent threads from
+    // reading at the same time.
     portENTER_CRITICAL();
-    if (packetQueue_.empty()) {
+    if (feedbackQueue_.empty()) {
         portEXIT_CRITICAL();
         return -EAGAIN;
     }
-    memcpy(buf, &packetQueue_.front(), count);
-    packetQueue_.increment_front();
+    memcpy(buf, &feedbackQueue_.front(), count);
+    feedbackQueue_.increment_front();
     portEXIT_CRITICAL();
     return count;
 }
