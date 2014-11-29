@@ -167,7 +167,7 @@ void TivaUart::interrupt_handler()
     while (MAP_UARTCharsAvail(base))
     {
         long data = MAP_UARTCharGetNonBlocking(base);
-        if (data >= 0)
+        if (data >= 0 && data <= 0xff)
         {
             unsigned char c = data;
             if (os_mq_send_from_isr(rxQ, &c, &woken) == OS_MQ_FULL)
@@ -211,7 +211,7 @@ void uart0_interrupt_handler(void)
 
 /** UART1 interrupt handler.
  */
-void uart1_interrupt_handler(void)
+void __attribute__((__weak__)) uart1_interrupt_handler(void)
 {
     if (instances[1])
     {
