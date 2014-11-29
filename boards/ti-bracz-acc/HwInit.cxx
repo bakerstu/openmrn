@@ -134,6 +134,25 @@ void set_gpio_led(uint32_t port, uint32_t pin) {
     MAP_GPIOPinWrite(port, pin, 0xff);
 }
 
+void hw_set_to_safe(void) {
+  
+    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_4); // Rel0
+    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_5); // Rel1
+    set_gpio_output(GPIO_PORTG_BASE, GPIO_PIN_5); // Rel2
+    set_gpio_output(GPIO_PORTF_BASE, GPIO_PIN_3); // Rel3
+
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_4); // Out0
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_5); // Out1
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_0); // Out2
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_1); // Out3
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_2); // Out4
+    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_3); // Out5
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_2); // Out6
+    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_3); // Out7
+
+
+}
+
 /** Initialize the processor hardware.
  */
 void hw_preinit(void)
@@ -161,19 +180,7 @@ void hw_preinit(void)
     set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_6); // Blue led (for sw)
     set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_7); // Gold led (for sw)
 
-    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_4); // Rel0
-    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_5); // Rel1
-    set_gpio_output(GPIO_PORTG_BASE, GPIO_PIN_5); // Rel2
-    set_gpio_output(GPIO_PORTF_BASE, GPIO_PIN_3); // Rel3
-
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_4); // Out0
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_5); // Out1
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_0); // Out2
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_1); // Out3
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_2); // Out4
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_3); // Out5
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_2); // Out6
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_3); // Out7
+    hw_set_to_safe(); // initializes all output pins.
 
     set_gpio_extinput(GPIO_PORTA_BASE, 0xff);  // In0..7 -- all bits.
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
