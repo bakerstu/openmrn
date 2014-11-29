@@ -58,6 +58,11 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 
+#define DECL_PIN(NAME, PORT, NUM)                \
+  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
+  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
+  static const auto NAME##_PIN = GPIO_PIN_##NUM
+
 // This structure is safe to use from an interrupt context and a regular
 // context at the same time, provided that
 //
@@ -108,7 +113,7 @@ private:
     T storage_[SIZE];
     uint8_t rdIndex_;
     uint8_t wrIndex_;
-    uint8_t count_;
+    volatile uint8_t count_;
 };
 
 
@@ -946,7 +951,7 @@ inline void TivaDCC<HW>::os_interrupt_handler()
         writableNotifiable_ = nullptr;
         if (n) n->notify_from_isr();
     }
-    if (!feedbackQueue_.empty() > 0) {
+    if (!feedbackQueue_.empty()) {
         Notifiable* n = readableNotifiable_;
         readableNotifiable_ = nullptr;
         if (n) n->notify_from_isr();
