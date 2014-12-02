@@ -93,16 +93,20 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+void hw_set_to_safe(void)
+{
+}
+
 void diewith(uint32_t pattern)
 {
     vPortClearInterruptMask(0x20);
+    hw_set_to_safe();
     asm("cpsie i\n");
 
     resetblink(pattern);
     while (1)
         ;
 }
-
 
 /** Initialize the processor hardware.
  */
