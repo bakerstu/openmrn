@@ -39,6 +39,7 @@
 
 #define SIGNAL_LEVEL_ONE 0x80000000UL
 
+/*
 struct DCCDecode
 {
     static const auto TIMER_BASE = WTIMER4_BASE;
@@ -60,6 +61,7 @@ struct DCCDecode
     static const int Q_SIZE = 16;
 
 };
+*/
 
 template <class HW> class TivaNRZ : public Node
 {
@@ -149,9 +151,7 @@ template <class HW> void TivaNRZ<HW>::enable()
     MAP_TimerControlStall(HW::TIMER_BASE, HW::TIMER, true);
     MAP_TimerControlEvent(HW::TIMER_BASE, HW::TIMER, TIMER_EVENT_BOTH_EDGES);
     MAP_TimerLoadSet(HW::TIMER_BASE, HW::TIMER, HW::TIMER_MAX_VALUE);
-    // We do not use the prescaler, so we want to get the timer wrap interrupt
-    // when the prescaler is still zero.
-    MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, 0);
+    MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, HW::PS_MAX);
 
     reloadCount_ = 0;
     lastTimerValue_ = 0;
