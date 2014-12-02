@@ -43,4 +43,9 @@ gdb:
 	if ps l -C openocd | grep -q openocd.*ek-tm4c129 ; then echo openocd already running. ; exit 1 ; fi
 	$(PREFIX)gdb $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor halt' 
 
+reboot:
+	if ps l -C openocd | grep -q openocd.*ek-tm4c129 ; then echo openocd already running. ; exit 1 ; fi
+	$(PREFIX)gdb $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor reset init' -ex 'monitor reset run' -ex 'detach' -ex 'quit' 
+
+
 endif
