@@ -47,6 +47,9 @@ class DccDecodeFlow : public StateFlowBase {
     start_flow(STATE(register_and_sleep));
     timings_[DCC_ONE].set(52, 64);
     timings_[DCC_ZERO].set(95, 9900);
+    timings_[MM_PREAMBLE].set(1000, -1);
+    timings_[MM_SHORT].set(20, 32);
+    timings_[MM_LONG].set(200, 216);
   }
 
  private:
@@ -62,8 +65,12 @@ class DccDecodeFlow : public StateFlowBase {
       if (ret != 4) {
         return call_immediately(STATE(register_and_sleep));
       }
-      MAP_GPIOPinWrite(LED_GREEN, 0xff);
+      MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
+      debug_data(value);
       process_data(value);
+      static uint8_t x = 0;
+      //MAP_GPIOPinWrite(LED_GREEN, 0);
+      x = ~x;
     }
   }
 
@@ -76,6 +83,12 @@ class DccDecodeFlow : public StateFlowBase {
           parseState_ = DCC_PREAMBLE;
           return;
         }
+        if (timings_[MM_PREAMBLE].match(value)) {
+            parseCount_ = 1<<2;
+            ofs_ = 0;
+            data_[ofs_] = 0;
+            parseState_ = MM_DATA;
+        }
         break;
       }
       case DCC_PREAMBLE: {
@@ -83,7 +96,7 @@ class DccDecodeFlow : public StateFlowBase {
           parseCount_++;
           return;
         }
-        if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 20)) {
+        if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 16)) {
           parseState_ = DCC_END_OF_PREAMBLE;
           return;
         }
@@ -120,7 +133,6 @@ class DccDecodeFlow : public StateFlowBase {
             return;
           } else {
             // end of packet 1 bit.
-            dcc_packet_finished();
             parseState_ = DCC_MAYBE_CUTOUT;
             return;
           }
@@ -146,32 +158,93 @@ class DccDecodeFlow : public StateFlowBase {
         break;
       }
       case DCC_MAYBE_CUTOUT: {
+          //MAP_GPIOPinWrite(LED_GREEN, 0);
         if (value < timings_[DCC_ZERO].min_value) {
+          MAP_GPIOPinWrite(LED_GREEN, 0xff);
           HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
         }
+        dcc_packet_finished();
+        break;
       }
+    case MM_DATA: {
+        if (timings_[MM_LONG].match(value)) {
+            parseState_ = MM_ZERO;
+            return;
+        }
+        if (timings_[MM_SHORT].match(value)) {
+            parseState_ = MM_ONE;
+            return;
+        }
+        break;
+    }
+    case MM_ZERO: {
+        if (timings_[MM_SHORT].match(value)) {
+            //data_[ofs_] |= 0;
+            parseCount_ >>= 1;
+            if (!parseCount_) {
+                if (ofs_ == 2) {
+                    mm_packet_finished();
+                    parseState_ = UNKNOWN;
+                    return;
+                } else {
+                    ofs_++;
+                    parseCount_ = 1<<7;
+                    data_[ofs_] = 0;
+                }
+            }
+            parseState_ = MM_DATA;
+            return;
+        }
+        break;
+    }
+    case MM_ONE: {
+        if (timings_[MM_LONG].match(value)) {
+            data_[ofs_] |= parseCount_;
+            parseCount_ >>= 1;
+            if (!parseCount_) {
+                if (ofs_ == 2) {
+                    dcc_packet_finished();
+                    parseState_ = UNKNOWN;
+                    return;
+                } else {
+                    ofs_++;
+                    parseCount_ = 1<<7;
+                    data_[ofs_] = 0;
+                }
+            }
+            parseState_ = MM_DATA;
+            return;
+        }
+        break;
+    }
     }
     parseState_ = UNKNOWN;
     return;
   }
 
   virtual void dcc_packet_finished() = 0;
+  virtual void mm_packet_finished() = 0;
+  virtual void debug_data(uint32_t value) {}
 
   int fd_;
   uint32_t lastValue_ = 0;
   enum State {
-    UNKNOWN,
-    DCC_PREAMBLE,
-    DCC_END_OF_PREAMBLE,
-    DCC_DATA,
-    DCC_DATA_ONE,
-    DCC_DATA_ZERO,
-    DCC_MAYBE_CUTOUT,
+      UNKNOWN,  // 0
+      DCC_PREAMBLE,  // 1
+      DCC_END_OF_PREAMBLE, // 2
+      DCC_DATA,  // 3
+      DCC_DATA_ONE, // 4
+      DCC_DATA_ZERO, // 5
+      DCC_MAYBE_CUTOUT, // 6
+      MM_DATA,
+      MM_ZERO,
+      MM_ONE,
   };
-  State parseState_ = UNKNOWN;
   uint32_t parseCount_ = 0;
 
 protected:
+    // TODO(balazs.racz) make to private
+  State parseState_ = UNKNOWN;
   uint8_t data_[6];
   uint8_t ofs_;  // offset inside data_;
 
@@ -205,6 +278,9 @@ private:
   enum TimingInfo {
     DCC_ONE = 0,
     DCC_ZERO,
+    MM_PREAMBLE,
+    MM_SHORT,
+    MM_LONG,
     MAX_TIMINGS
   };
   Timing timings_[MAX_TIMINGS];
