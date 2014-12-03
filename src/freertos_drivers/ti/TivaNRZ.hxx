@@ -125,6 +125,7 @@ private:
     uint32_t lastTimerValue_;
     uint32_t reloadCount_;
     unsigned lastLevel_;
+    bool overflowed_ = false;
 
     Notifiable *readableNotifiable_ = nullptr;
 
@@ -191,6 +192,7 @@ __attribute__((optimize("-O3"))) void TivaNRZ<HW>::interrupt_handler()
     if (status & HW::TIMER_CAP_EVENT)
     {
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
+        MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0);
         static uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
         static uint32_t new_value;
@@ -204,8 +206,11 @@ __attribute__((optimize("-O3"))) void TivaNRZ<HW>::interrupt_handler()
         new_value -= lastTimerValue_;
         if (!inputData_.full())
         {
-            inputData_.back() = new_value;
+            inputData_.back() = overflowed_ ? 3 : new_value;
+            overflowed_ = false;
             inputData_.increment_back();
+        } else {
+            overflowed_ = true;
         }
         lastTimerValue_ = raw_new_value;
         MAP_IntPendSet(HW::OS_INTERRUPT);
@@ -219,8 +224,10 @@ __attribute__((optimize("-O3"))) void TivaNRZ<HW>::os_interrupt_handler()
     {
         Notifiable *n = readableNotifiable_;
         readableNotifiable_ = nullptr;
-        if (n)
+        if (n) {
             n->notify_from_isr();
+            os_isr_exit_yield_test(true);
+        }
     }
 }
 
