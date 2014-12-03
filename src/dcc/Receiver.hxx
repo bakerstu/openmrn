@@ -35,255 +35,361 @@
 #ifndef _DCC_RECEIVER_HXX_
 #define _DCC_RECEIVER_HXX_
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "executor/StateFlow.hxx"
 
-namespace dcc {
+namespace dcc
+{
 
-class DccDecodeFlow : public StateFlowBase {
- public:
-  DccDecodeFlow(Service* s, const char* dev)
-      : StateFlowBase(s) {
-    fd_ = ::open(dev, O_RDONLY | O_NONBLOCK);
-    start_flow(STATE(register_and_sleep));
-    timings_[DCC_ONE].set(52, 64);
-    timings_[DCC_ZERO].set(95, 9900);
-    timings_[MM_PREAMBLE].set(1000, -1);
-    timings_[MM_SHORT].set(20, 32);
-    timings_[MM_LONG].set(200, 216);
-  }
-
- private:
-  Action register_and_sleep() {
-    ::ioctl(fd_, CAN_IOC_READ_ACTIVE, this);
-    return wait_and_call(STATE(data_arrived));
-  }
-
-  Action data_arrived() {
-    while (true) {
-      uint32_t value;
-      int ret = ::read(fd_, &value, sizeof(value));
-      if (ret != 4) {
-        return call_immediately(STATE(register_and_sleep));
-      }
-      MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
-      debug_data(value);
-      process_data(value);
-      static uint8_t x = 0;
-      //MAP_GPIOPinWrite(LED_GREEN, 0);
-      x = ~x;
-    }
-  }
-
-  void process_data(uint32_t value) {
-    switch (parseState_)
+class DccDecoder
+{
+public:
+    DccDecoder()
     {
-      case UNKNOWN: {
-        if (timings_[DCC_ONE].match(value)) {
-          parseCount_ = 0;
-          parseState_ = DCC_PREAMBLE;
-          return;
-        }
-        if (timings_[MM_PREAMBLE].match(value)) {
-            parseCount_ = 1<<2;
-            ofs_ = 0;
-            data_[ofs_] = 0;
-            parseState_ = MM_DATA;
-        }
-        break;
-      }
-      case DCC_PREAMBLE: {
-        if (timings_[DCC_ONE].match(value)) {
-          parseCount_++;
-          return;
-        }
-        if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 16)) {
-          parseState_ = DCC_END_OF_PREAMBLE;
-          return;
-        }
-        break;
-      }
-      case DCC_END_OF_PREAMBLE: {
-        MAP_GPIOPinWrite(LED_YELLOW, 0xff);
-        if (timings_[DCC_ZERO].match(value)) {
-          parseState_ = DCC_DATA;
-          parseCount_ = 1<<7;
-          ofs_ = 0;
-          data_[ofs_] = 0;
-          return;
-        }
-        break;
-      }
-      case DCC_DATA: {
-        if (timings_[DCC_ONE].match(value)) {
-          parseState_ = DCC_DATA_ONE;
-          return;
-        }
-        if (timings_[DCC_ZERO].match(value)) {
-          parseState_ = DCC_DATA_ZERO;
-          return;
-        }
-        break;
-      }
-      case DCC_DATA_ONE: {
-        if (timings_[DCC_ONE].match(value)) {
-          if (parseCount_) {
-            data_[ofs_] |= parseCount_;
-            parseCount_ >>= 1;
-            parseState_ = DCC_DATA;
-            return;
-          } else {
-            // end of packet 1 bit.
-            parseState_ = DCC_MAYBE_CUTOUT;
-            return;
-          }
-          return;
-        }
-        break;
-      }
-      case DCC_DATA_ZERO: {
-        if (timings_[DCC_ZERO].match(value)) {
-          if (parseCount_) {
-            // zero bit into data_.
-            parseCount_ >>= 1;
-          } else {
-            // end of byte zero bit. Packet is not finished yet.
-            ofs_++;
-            HASSERT(ofs_ < sizeof(data_));
-            data_[ofs_] = 0;
-            parseCount_ = 1<<7;
-          }
-          parseState_ = DCC_DATA;
-          return;
-        }
-        break;
-      }
-      case DCC_MAYBE_CUTOUT: {
-          //MAP_GPIOPinWrite(LED_GREEN, 0);
-        if (value < timings_[DCC_ZERO].min_value) {
-          MAP_GPIOPinWrite(LED_GREEN, 0xff);
-          HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
-        }
-        dcc_packet_finished();
-        break;
-      }
-    case MM_DATA: {
-        if (timings_[MM_LONG].match(value)) {
-            parseState_ = MM_ZERO;
-            return;
-        }
-        if (timings_[MM_SHORT].match(value)) {
-            parseState_ = MM_ONE;
-            return;
-        }
-        break;
+        timings_[DCC_ONE].set(52, 64);
+        timings_[DCC_ZERO].set(95, 9900);
+        timings_[MM_PREAMBLE].set(1000, -1);
+        timings_[MM_SHORT].set(20, 32);
+        timings_[MM_LONG].set(200, 216);
     }
-    case MM_ZERO: {
-        if (timings_[MM_SHORT].match(value)) {
-            //data_[ofs_] |= 0;
-            parseCount_ >>= 1;
-            if (!parseCount_) {
-                if (ofs_ == 2) {
-                    mm_packet_finished();
-                    parseState_ = UNKNOWN;
+
+    enum State
+    {
+        UNKNOWN,             // 0
+        DCC_PREAMBLE,        // 1
+        DCC_END_OF_PREAMBLE, // 2
+        DCC_DATA,            // 3
+        DCC_DATA_ONE,        // 4
+        DCC_DATA_ZERO,       // 5
+        DCC_MAYBE_CUTOUT,    // 6
+        DCC_PACKET_FINISHED, // 7
+        MM_DATA,
+        MM_ZERO,
+        MM_ONE,
+        MM_PACKET_FINISHED,
+    };
+
+    State state()
+    {
+        return parseState_;
+    }
+
+    void process_data(uint32_t value)
+    {
+        switch (parseState_)
+        {
+            case DCC_PACKET_FINISHED:
+            case MM_PACKET_FINISHED:
+            case UNKNOWN:
+            {
+                if (timings_[DCC_ONE].match(value))
+                {
+                    parseCount_ = 0;
+                    parseState_ = DCC_PREAMBLE;
                     return;
-                } else {
-                    ofs_++;
-                    parseCount_ = 1<<7;
-                    data_[ofs_] = 0;
                 }
+                if (timings_[MM_PREAMBLE].match(value))
+                {
+                    parseCount_ = 1 << 2;
+                    ofs_ = 0;
+                    data_[ofs_] = 0;
+                    parseState_ = MM_DATA;
+                }
+                break;
             }
-            parseState_ = MM_DATA;
-            return;
-        }
-        break;
-    }
-    case MM_ONE: {
-        if (timings_[MM_LONG].match(value)) {
-            data_[ofs_] |= parseCount_;
-            parseCount_ >>= 1;
-            if (!parseCount_) {
-                if (ofs_ == 2) {
-                    dcc_packet_finished();
-                    parseState_ = UNKNOWN;
+            case DCC_PREAMBLE:
+            {
+                if (timings_[DCC_ONE].match(value))
+                {
+                    parseCount_++;
                     return;
-                } else {
-                    ofs_++;
-                    parseCount_ = 1<<7;
-                    data_[ofs_] = 0;
                 }
+                if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 16))
+                {
+                    parseState_ = DCC_END_OF_PREAMBLE;
+                    return;
+                }
+                break;
             }
-            parseState_ = MM_DATA;
-            return;
+            case DCC_END_OF_PREAMBLE:
+            {
+                MAP_GPIOPinWrite(LED_YELLOW, 0xff);
+                if (timings_[DCC_ZERO].match(value))
+                {
+                    parseState_ = DCC_DATA;
+                    parseCount_ = 1 << 7;
+                    ofs_ = 0;
+                    data_[ofs_] = 0;
+                    return;
+                }
+                break;
+            }
+            case DCC_DATA:
+            {
+                if (timings_[DCC_ONE].match(value))
+                {
+                    parseState_ = DCC_DATA_ONE;
+                    return;
+                }
+                if (timings_[DCC_ZERO].match(value))
+                {
+                    parseState_ = DCC_DATA_ZERO;
+                    return;
+                }
+                break;
+            }
+            case DCC_DATA_ONE:
+            {
+                if (timings_[DCC_ONE].match(value))
+                {
+                    if (parseCount_)
+                    {
+                        data_[ofs_] |= parseCount_;
+                        parseCount_ >>= 1;
+                        parseState_ = DCC_DATA;
+                        return;
+                    }
+                    else
+                    {
+                        // end of packet 1 bit.
+                        parseState_ = DCC_MAYBE_CUTOUT;
+                        return;
+                    }
+                    return;
+                }
+                break;
+            }
+            case DCC_DATA_ZERO:
+            {
+                if (timings_[DCC_ZERO].match(value))
+                {
+                    if (parseCount_)
+                    {
+                        // zero bit into data_.
+                        parseCount_ >>= 1;
+                    }
+                    else
+                    {
+                        // end of byte zero bit. Packet is not finished yet.
+                        ofs_++;
+                        HASSERT(ofs_ < sizeof(data_));
+                        data_[ofs_] = 0;
+                        parseCount_ = 1 << 7;
+                    }
+                    parseState_ = DCC_DATA;
+                    return;
+                }
+                break;
+            }
+            case DCC_MAYBE_CUTOUT:
+            {
+                // MAP_GPIOPinWrite(LED_GREEN, 0);
+                if (value < timings_[DCC_ZERO].min_value)
+                {
+                    //MAP_GPIOPinWrite(LED_GREEN, 0xff);
+                    //HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
+                }
+                parseState_ = DCC_PACKET_FINISHED;
+                return;
+                break;
+            }
+            case MM_DATA:
+            {
+                if (timings_[MM_LONG].match(value))
+                {
+                    parseState_ = MM_ZERO;
+                    return;
+                }
+                if (timings_[MM_SHORT].match(value))
+                {
+                    parseState_ = MM_ONE;
+                    return;
+                }
+                break;
+            }
+            case MM_ZERO:
+            {
+                if (timings_[MM_SHORT].match(value))
+                {
+                    // data_[ofs_] |= 0;
+                    parseCount_ >>= 1;
+                    if (!parseCount_)
+                    {
+                        if (ofs_ == 2)
+                        {
+                            parseState_ = MM_PACKET_FINISHED;
+                            return;
+                        }
+                        else
+                        {
+                            ofs_++;
+                            parseCount_ = 1 << 7;
+                            data_[ofs_] = 0;
+                        }
+                    }
+                    parseState_ = MM_DATA;
+                    return;
+                }
+                break;
+            }
+            case MM_ONE:
+            {
+                if (timings_[MM_LONG].match(value))
+                {
+                    data_[ofs_] |= parseCount_;
+                    parseCount_ >>= 1;
+                    if (!parseCount_)
+                    {
+                        if (ofs_ == 2)
+                        {
+                            parseState_ = MM_PACKET_FINISHED;
+                            return;
+                        }
+                        else
+                        {
+                            ofs_++;
+                            parseCount_ = 1 << 7;
+                            data_[ofs_] = 0;
+                        }
+                    }
+                    parseState_ = MM_DATA;
+                    return;
+                }
+                break;
+            }
         }
-        break;
+        parseState_ = UNKNOWN;
+        return;
     }
+
+    /// Returns the number of payload bytes in the current packet.
+    uint8_t packet_length()
+    {
+        return ofs_ + 1;
     }
-    parseState_ = UNKNOWN;
-    return;
-  }
 
-  virtual void dcc_packet_finished() = 0;
-  virtual void mm_packet_finished() = 0;
-  virtual void debug_data(uint32_t value) {}
-
-  int fd_;
-  uint32_t lastValue_ = 0;
-  enum State {
-      UNKNOWN,  // 0
-      DCC_PREAMBLE,  // 1
-      DCC_END_OF_PREAMBLE, // 2
-      DCC_DATA,  // 3
-      DCC_DATA_ONE, // 4
-      DCC_DATA_ZERO, // 5
-      DCC_MAYBE_CUTOUT, // 6
-      MM_DATA,
-      MM_ZERO,
-      MM_ONE,
-  };
-  uint32_t parseCount_ = 0;
-
-protected:
-    // TODO(balazs.racz) make to private
-  State parseState_ = UNKNOWN;
-  uint8_t data_[6];
-  uint8_t ofs_;  // offset inside data_;
+    /// Returns the current packet payload buffer. The buffer gets invalidated
+    /// at the next call to process_data.
+    const uint8_t *packet_data()
+    {
+        return data_;
+    }
 
 private:
-  struct Timing {
-    void set(int min_usec, int max_usec) {
-      if (min_usec < 0) {
-        min_value = 0;
-      } else {
-        min_value = usec_to_clock(min_usec);
-      }
-      if (max_usec < 0) {
-        max_usec = UINT_MAX;
-      } else {
-        max_value = usec_to_clock(max_usec);
-      }
+    uint32_t parseCount_ = 0;
+    State parseState_ = UNKNOWN;
+    // Payload of current packet.
+    uint8_t data_[6];
+    uint8_t ofs_; // offset inside data_;
+
+    struct Timing
+    {
+        void set(int min_usec, int max_usec)
+        {
+            if (min_usec < 0)
+            {
+                min_value = 0;
+            }
+            else
+            {
+                min_value = usec_to_clock(min_usec);
+            }
+            if (max_usec < 0)
+            {
+                max_usec = UINT_MAX;
+            }
+            else
+            {
+                max_value = usec_to_clock(max_usec);
+            }
+        }
+
+        bool match(uint32_t value_clocks) const
+        {
+            return min_value <= value_clocks && value_clocks <= max_value;
+        }
+
+        static uint32_t usec_to_clock(int usec)
+        {
+            return (configCPU_CLOCK_HZ / 1000000) * usec;
+        }
+
+        uint32_t min_value;
+        uint32_t max_value;
+    };
+
+    enum TimingInfo
+    {
+        DCC_ONE = 0,
+        DCC_ZERO,
+        MM_PREAMBLE,
+        MM_SHORT,
+        MM_LONG,
+        MAX_TIMINGS
+    };
+    Timing timings_[MAX_TIMINGS];
+};
+
+class DccDecodeFlow : public StateFlowBase
+{
+public:
+    DccDecodeFlow(Service *s, const char *dev)
+        : StateFlowBase(s)
+    {
+        fd_ = ::open(dev, O_RDONLY | O_NONBLOCK);
+        start_flow(STATE(register_and_sleep));
     }
 
-    bool match(uint32_t value_clocks) const {
-      return min_value <= value_clocks && value_clocks <= max_value;
+private:
+    Action register_and_sleep()
+    {
+        ::ioctl(fd_, CAN_IOC_READ_ACTIVE, this);
+        return wait_and_call(STATE(data_arrived));
     }
 
-    static uint32_t usec_to_clock(int usec) {
-      return (configCPU_CLOCK_HZ / 1000000) * usec;
+    Action data_arrived()
+    {
+        while (true)
+        {
+            uint32_t value;
+            int ret = ::read(fd_, &value, sizeof(value));
+            if (ret != 4)
+            {
+                return call_immediately(STATE(register_and_sleep));
+            }
+            MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
+            debug_data(value);
+            decoder_.process_data(value);
+            if (decoder_.state() == DccDecoder::DCC_PACKET_FINISHED)
+            {
+                dcc_packet_finished(
+                    decoder_.packet_data(), decoder_.packet_length());
+            }
+            else if (decoder_.state() == DccDecoder::MM_PACKET_FINISHED)
+            {
+                mm_packet_finished(
+                    decoder_.packet_data(), decoder_.packet_length());
+            }
+
+            static uint8_t x = 0;
+            // MAP_GPIOPinWrite(LED_GREEN, 0);
+            x = ~x;
+        }
     }
 
-    uint32_t min_value;
-    uint32_t max_value;
-  };
+    virtual void dcc_packet_finished(const uint8_t* payload, size_t len) = 0;
+    virtual void mm_packet_finished(const uint8_t* payload, size_t len) = 0;
+    virtual void debug_data(uint32_t value)
+    {
+    }
 
-  enum TimingInfo {
-    DCC_ONE = 0,
-    DCC_ZERO,
-    MM_PREAMBLE,
-    MM_SHORT,
-    MM_LONG,
-    MAX_TIMINGS
-  };
-  Timing timings_[MAX_TIMINGS];
+    int fd_;
+    uint32_t lastValue_ = 0;
+
+protected:
+    DccDecoder decoder_;
 };
 
 } // namespace dcc
