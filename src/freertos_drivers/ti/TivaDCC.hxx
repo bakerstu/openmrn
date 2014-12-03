@@ -57,11 +57,7 @@
 #include "dcc/Packet.hxx"
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
-
-#define DECL_PIN(NAME, PORT, NUM)                \
-  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
-  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
-  static const auto NAME##_PIN = GPIO_PIN_##NUM
+#include "TivaGPIO.hxx"
 
 // This structure is safe to use from an interrupt context and a regular
 // context at the same time, provided that
