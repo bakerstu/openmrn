@@ -46,8 +46,8 @@
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
-#include "TivaNRZ.hxx"
 #include "hardware.hxx"
+#include "TivaDCCDecoder.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -65,7 +65,7 @@ static TivaUart uart2("/dev/ser2", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 /** The input pin for detecting the DCC signal. */
-static TivaNRZ<DCCDecode> nrz0("/dev/nrz0");
+static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0");
 
 extern "C" {
 /** Blink LED */
@@ -200,6 +200,8 @@ void hw_preinit(void)
     set_gpio_extinput(GPIO_PORTA_BASE, 0xff);  // In0..7 -- all bits.
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_7);  // Gold button
+
+    set_gpio_led(GPIO_PORTA_BASE, GPIO_PIN_0); // debug
 
     // Railcom pins
     set_gpio_extinput(GPIO_PORTF_BASE, GPIO_PIN_0);  // Shadow of rcom4
