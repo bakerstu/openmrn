@@ -1,0 +1,231 @@
+#include "utils/test_main.hxx"
+#include "freertos/bootloader_hal.h"
+
+#include "Bootloader.hxx"
+#include <string>
+#include <functional>
+
+using ::testing::Return;
+
+extern "C" {
+/** This calls into the bootloader main. */
+extern void bootloader_entry();
+}
+
+namespace nmranet
+{
+namespace
+{
+
+class MockBootloaderHAL
+{
+public:
+    MOCK_METHOD0(bootloader_hw_set_to_safe, void());
+    MOCK_METHOD0(bootloader_hw_init, void());
+    MOCK_METHOD0(request_bootloader, bool());
+    MOCK_METHOD0(application_entry, void());
+};
+
+static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
+
+#define FLASH_SIZE 13 * 1024
+static uint8_t virtual_flash[FLASH_SIZE];
+#define APP_HEADER_OFFSET 131 * 4
+
+extern "C" {
+void bootloader_hw_set_to_safe()
+{
+    g_mock_bootloader_hal->bootloader_hw_set_to_safe();
+}
+void bootloader_hw_init()
+{
+    g_mock_bootloader_hal->bootloader_hw_init();
+}
+
+bool request_bootloader()
+{
+    return g_mock_bootloader_hal->request_bootloader();
+}
+
+void application_entry()
+{
+    return g_mock_bootloader_hal->application_entry();
+}
+
+/** Checks if there is an incoming CAN frame from the hardware.
+ *
+ * @param frame will be loaded with the incoming frame.
+ *
+ * @returns true if a frame has arrived, false if no frame was loaded into
+ * frame. */
+extern bool read_can_frame(struct can_frame *frame);
+
+/** Tries to send a can frame.
+ *
+ * @param frame is the frame to send.
+ *
+ * @returns true if the frame was sent, false if the hardware buffer was busy
+ * and the operation should be re-tried later. */
+extern bool try_send_can_frame(const struct can_frame &frame);
+
+void get_flash_boundaries(const void **flash_min, const void **flash_max,
+    const struct app_header **app_header)
+{
+    *flash_min = virtual_flash;
+    *flash_max = virtual_flash + FLASH_SIZE;
+    *app_header = reinterpret_cast<const struct app_header *>(
+        &virtual_flash[APP_HEADER_OFFSET]);
+    fprintf(stderr, "%p %p %p\n", *flash_min, *flash_max, *app_header);
+}
+
+/** Rounds a flash address into a flash page.
+ *
+ * @param address is the address for which the page information is queried.
+ * @param page_start will be set to the first byte of that page.
+ * @param page_length_bytes is set to the number of bytes in that flash page.
+ *
+ * In other words, *page_start <= address < (*page_start + *page_length_bytes).
+ */
+extern void get_flash_page_info(
+    const void *address, const void **page_start, uint32_t *page_length_bytes);
+
+/** Erases the flash page at a specific address. Blocks the caller until the
+ * flash erase is successful. (Microcontrollers often cannot execute code while
+ * the flash is being written or erased, so a polling mechanism would not help
+ * here too much.)
+ *
+ * @param address is the start address of a valid page, as returned by
+ * get_flash_page_info.
+ *
+ * @returns zero if the erase is successful, an nmranet error code otherwise.
+ */
+extern uint16_t erase_flash_page(const void *address);
+
+/** Writes data to the flash.
+ *
+ * @param address is the location to write data to. Aligned to 4 bytes.
+ * @param data is the buffer to write data from.
+ * @param size_bytes is the total number of bytes to write. Has to be a
+ * multiple of 4.
+ */
+extern void write_flash(
+    const void *address, const void *data, uint32_t size_bytes);
+
+void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
+{
+    string data_copy(reinterpret_cast<const char *>(data), size);
+    hash<string> obj;
+    checksum[0] = obj("sd1" + data_copy);
+    checksum[1] = obj("xar" + data_copy);
+    checksum[2] = obj("o33" + data_copy);
+    checksum[3] = 0;
+    if (0)
+    {
+        fprintf(stderr, "Checksum %p-> %5d : %08x%08x%08x%08x\n", data, size,
+            checksum[0], checksum[1], checksum[2], checksum[3]);
+    }
+}
+
+/** This calls into the bootloader main. */
+extern void bootloader_entry();
+extern bool check_application_checksum();
+}
+
+class BootloaderTest : public ::testing::Test
+{
+protected:
+    BootloaderTest()
+    {
+        g_mock_bootloader_hal = &mock;
+        memset(virtual_flash, 0, FLASH_SIZE);
+    }
+
+    ~BootloaderTest()
+    {
+        g_mock_bootloader_hal = nullptr;
+        memset(virtual_flash, 0, FLASH_SIZE);
+    }
+
+    void create_correct_checksum(uint32_t total_size)
+    {
+        ASSERT_GE(total_size, APP_HEADER_OFFSET + sizeof(struct app_header));
+        ASSERT_GE(FLASH_SIZE, total_size);
+        struct app_header *hdr = reinterpret_cast<struct app_header *>(
+            &virtual_flash[APP_HEADER_OFFSET]);
+        checksum_data(virtual_flash, APP_HEADER_OFFSET, hdr->checksum_pre);
+        checksum_data(
+            virtual_flash + APP_HEADER_OFFSET + sizeof(struct app_header),
+            total_size - APP_HEADER_OFFSET - sizeof(struct app_header),
+            hdr->checksum_post);
+        hdr->app_size = total_size;
+    }
+
+    void expect_boot(bool request_bootloader)
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(mock, bootloader_hw_set_to_safe());
+        EXPECT_CALL(mock, bootloader_hw_init());
+        EXPECT_CALL(mock, request_bootloader())
+            .WillOnce(Return(request_bootloader));
+    }
+
+    void fill_flash_random(uint32_t size)
+    {
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            int rval = rand();
+            rval ^= rval >> 16;
+            rval ^= rval >> 8;
+            virtual_flash[i] = rval & 0xff;
+        }
+    }
+
+    ::testing::StrictMock<MockBootloaderHAL> mock;
+};
+
+TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
+{
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(mock, bootloader_hw_set_to_safe());
+        EXPECT_CALL(mock, bootloader_hw_init());
+        EXPECT_CALL(mock, request_bootloader()).WillOnce(Return(false));
+    }
+    // The checksum should fail, so no entry to the application!
+    EXPECT_CALL(mock, application_entry()).Times(0);
+    bootloader_entry();
+    EXPECT_FALSE(check_application_checksum());
+}
+
+TEST_F(BootloaderTest, StartAppIfChecksumOk)
+{
+    create_correct_checksum(3756);
+    EXPECT_TRUE(check_application_checksum());
+    expect_boot(false);
+    EXPECT_CALL(mock, application_entry()).Times(1);
+    bootloader_entry();
+}
+
+TEST_F(BootloaderTest, StartAppIfButtonPressed)
+{
+    create_correct_checksum(3756);
+    EXPECT_TRUE(check_application_checksum());
+    expect_boot(true);
+    EXPECT_CALL(mock, application_entry()).Times(0);
+    bootloader_entry();
+}
+
+TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
+{
+    fill_flash_random(3756);
+    create_correct_checksum(3756);
+    EXPECT_TRUE(check_application_checksum());
+    expect_boot(false);
+    virtual_flash[843] = 0xff;
+    EXPECT_FALSE(check_application_checksum());
+    EXPECT_CALL(mock, application_entry()).Times(0);
+    bootloader_entry();
+}
+
+} // namespace
+} // namespace nmranet

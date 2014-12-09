@@ -32,23 +32,55 @@
  * @date 8 Dec 2014
  */
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
- 
+
+// Number of 32-bit words in one checksum data.
+#define CHECKSUM_COUNT 4
+
+/** Static definitions of the application. These will be flashed with the
+ * application, and contain checksum on whether the application is valid or
+ * not. */
+struct app_header {
+    /** The total length of the application binary. The start of the
+     * application binary is always at flash_min of get_flash_info. This number
+     * tells how many bytes need to be checksummed. */
+    uint32_t app_size;
+    /** Checksum data for the application info. The checksumming algorithm is
+     * not fixed -- the HAL should provide it in case there is hardware CRC
+     * support. Unused entries should be filled with zeros.
+     *
+     * checksum_pre: is the checksum of the bytes between application_start and
+     * the app_header.
+     *
+     * checksum_post: is the checksum of the bytes between the checksum header
+     * and the application end. */
+    uint32_t checksum_pre[CHECKSUM_COUNT];
+    uint32_t checksum_post[CHECKSUM_COUNT];
+};
+
 /** Initializes the hardware to a safe state of the outputs. This function may
  *  not assume anything about previous hardware state. Also the memory layout
- *  is not yet initialized. */
-extern void hw_set_to_safe();
+ *  is not yet initialized. (Do not use any static objects, and the DATA
+ *  segment.)
+ *
+ *  This function should also disable interrupts. */
+extern void bootloader_hw_set_to_safe();
 
 /** Called after hw_set_to_safe and after the bss and data segments are
  *  initialized. Initializes the processor state, CAN hardware etc. */
-extern void hw_init();
+extern void bootloader_hw_init();
 
 /** @Returns true if the hardware state requests entry to the bootloader. This
  *  will typically read a GPIO pin for a bootloader switch. This function will
  *  run after hw_init. */
 extern bool request_bootloader();
+
+/** Enters the application. Never returns. */
+extern void application_entry();
 
 /** Checks if there is an incoming CAN frame from the hardware.
  *
@@ -56,7 +88,7 @@ extern bool request_bootloader();
  *
  * @returns true if a frame has arrived, false if no frame was loaded into
  * frame. */
-extern bool read_can_frame(struct can_frame* frame);
+extern bool read_can_frame(struct can_frame *frame);
 
 /** Tries to send a can frame.
  *
@@ -64,7 +96,58 @@ extern bool read_can_frame(struct can_frame* frame);
  *
  * @returns true if the frame was sent, false if the hardware buffer was busy
  * and the operation should be re-tried later. */
-extern bool try_send_can_frame(struct can_frame& frame);
+extern bool try_send_can_frame(const struct can_frame &frame);
+
+/** Returns the boundaries of the user flash.
+ *
+ * @param flash_min is set to the pointer of the first valid byte to be flashed.
+ * @param flash_max is set to the pointer of the last valid byte to be flashed.
+ * @param app_header is set to the pointer in the application flash where the
+ * application header is located.
+ */
+extern void get_flash_boundaries(const void **flash_min, const void **flash_max,
+    const struct app_header **app_header);
+
+/** Rounds a flash address into a flash page.
+ *
+ * @param address is the address for which the page information is queried.
+ * @param page_start will be set to the first byte of that page.
+ * @param page_length_bytes is set to the number of bytes in that flash page.
+ *
+ * In other words, *page_start <= address < (*page_start + *page_length_bytes).
+ */
+extern void get_flash_page_info(
+    const void *address, const void **page_start, uint32_t *page_length_bytes);
+
+/** Erases the flash page at a specific address. Blocks the caller until the
+ * flash erase is successful. (Microcontrollers often cannot execute code while
+ * the flash is being written or erased, so a polling mechanism would not help
+ * here too much.)
+ *
+ * @param address is the start address of a valid page, as returned by
+ * get_flash_page_info.
+ *
+ * @returns zero if the erase is successful, an nmranet error code otherwise.
+ */
+extern uint16_t erase_flash_page(const void *address);
+
+/** Writes data to the flash.
+ *
+ * @param address is the location to write data to. Aligned to 4 bytes.
+ * @param data is the buffer to write data from.
+ * @param size_bytes is the total number of bytes to write. Has to be a
+ * multiple of 4.
+ */
+extern void write_flash(
+    const void *address, const void *data, uint32_t size_bytes);
+
+/** Computes checksum over a block of data.
+ *
+ * @param data is the data to be checksummed.
+ * @param size is the number of bytes to checksum.
+ * @param checksum is a 16-byte array which will be filled with the checksum
+ * data. Unused entries have to be zeroed. */
+extern void checksum_data(const void* data, uint32_t size, uint32_t* checksum);
 
 #ifdef __cplusplus
 }

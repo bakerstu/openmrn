@@ -33,25 +33,62 @@
  * @date 8 Dec 2014
  */
 
+#include <string.h>
+
 #include "freertos/bootloader_hal.h"
 #include "nmranet/Defs.hxx"
+#include "can_frame.h"
 
-namespace nmranet {
+namespace nmranet
+{
 
-struct BootloaderState {
-  struct can_frame input_frame;
-  struct can_frame output_frame;
-  unsigned input_frame_full : 1;
-  unsigned output_frame_full : 1;
-};
-
+struct BootloaderState
+{
+    struct can_frame input_frame;
+    struct can_frame output_frame;
+    unsigned input_frame_full : 1;
+    unsigned output_frame_full : 1;
+} state_;
 }
 using namespace nmranet;
 
 extern "C" {
-void bootloader_main() {
-  
 
-}
+/** @returns true if the application checksum currently in flash is correct. */
+bool check_application_checksum()
+{
+    uint32_t checksum[CHECKSUM_COUNT];
+    const void *flash_min;
+    const void *flash_max;
+    const struct app_header *app_header;
+    get_flash_boundaries(&flash_min, &flash_max, &app_header);
+    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header) -
+                        static_cast<const uint8_t *>(flash_min);
+    checksum_data(flash_min, pre_size, checksum);
+    if (memcmp(app_header->checksum_pre, checksum, sizeof(checksum)))
+    {
+        return false;
+    }
+    uint32_t post_size =
+        app_header->app_size - (reinterpret_cast<const uint8_t *>(app_header) -
+                                static_cast<const uint8_t *>(flash_min)) -
+        sizeof(struct app_header);
+    checksum_data(app_header + 1, post_size, checksum);
+    if (memcmp(app_header->checksum_post, checksum, sizeof(checksum)))
+    {
+        return false;
+    }
+    return true;
 }
 
+void bootloader_entry()
+{
+    bootloader_hw_set_to_safe();
+    bootloader_hw_init();
+    if (!request_bootloader() && check_application_checksum())
+    {
+        return application_entry();
+    }
+}
+
+} // extern "C"
