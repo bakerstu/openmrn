@@ -34,6 +34,7 @@
  */
 
 #include <string.h>
+#include <unistd.h>
 
 #include "freertos/bootloader_hal.h"
 #include "nmranet/Defs.hxx"
@@ -89,6 +90,13 @@ void bootloader_entry()
     {
         return application_entry();
     }
+
+    while (!read_can_frame(&state_.input_frame)) {
+        usleep(10);
+    }
+    state_.output_frame = state_.input_frame;
+    state_.output_frame.data[state_.output_frame.can_dlc++] = 0x55;
+    try_send_can_frame(state_.output_frame);
 }
 
 } // extern "C"

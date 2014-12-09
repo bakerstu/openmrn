@@ -1,4 +1,4 @@
-#include "utils/test_main.hxx"
+#include "utils/async_if_test_helper.hxx"
 #include "freertos/bootloader_hal.h"
 
 #include "Bootloader.hxx"
@@ -32,6 +32,54 @@ static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 
+/** Proxy class for sending canbus traffic to the Bootloader HAL. */
+class BootloaderPort : public CanHubPort
+{
+public:
+    BootloaderPort()
+        : CanHubPort(&g_service)
+    {
+        is_waiting_ = false;
+    }
+
+    virtual Action entry()
+    {
+        AtomicHolder h(this);
+        is_waiting_ = true;
+        return wait_and_call(STATE(sent));
+    }
+
+    Action sent()
+    {
+        return release_and_exit();
+    }
+
+    bool read_can_frame(struct can_frame *frame)
+    {
+        {
+            AtomicHolder h(this);
+            if (is_waiting_)
+            {
+                *frame = *message()->data();
+                is_waiting_ = false;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        notify();
+        return true;
+    }
+
+private:
+    /** True if an incoming message is ready for dispatching and the current
+     * flow is waiting for a notify. */
+    bool is_waiting_ = false;
+};
+
+BootloaderPort *g_bootloader_port = nullptr;
+
 extern "C" {
 void bootloader_hw_set_to_safe()
 {
@@ -52,21 +100,19 @@ void application_entry()
     return g_mock_bootloader_hal->application_entry();
 }
 
-/** Checks if there is an incoming CAN frame from the hardware.
- *
- * @param frame will be loaded with the incoming frame.
- *
- * @returns true if a frame has arrived, false if no frame was loaded into
- * frame. */
-extern bool read_can_frame(struct can_frame *frame);
+bool read_can_frame(struct can_frame *frame)
+{
+    return g_bootloader_port->read_can_frame(frame);
+}
 
-/** Tries to send a can frame.
- *
- * @param frame is the frame to send.
- *
- * @returns true if the frame was sent, false if the hardware buffer was busy
- * and the operation should be re-tried later. */
-extern bool try_send_can_frame(const struct can_frame &frame);
+bool try_send_can_frame(const struct can_frame &frame)
+{
+    auto *b = can_hub0.alloc();
+    *b->data()->mutable_frame() = frame;
+    b->data()->skipMember_ = g_bootloader_port;
+    can_hub0.send(b);
+    return true;
+}
 
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
     const struct app_header **app_header)
@@ -75,7 +121,6 @@ void get_flash_boundaries(const void **flash_min, const void **flash_max,
     *flash_max = virtual_flash + FLASH_SIZE;
     *app_header = reinterpret_cast<const struct app_header *>(
         &virtual_flash[APP_HEADER_OFFSET]);
-    fprintf(stderr, "%p %p %p\n", *flash_min, *flash_max, *app_header);
 }
 
 /** Rounds a flash address into a flash page.
@@ -131,17 +176,22 @@ extern void bootloader_entry();
 extern bool check_application_checksum();
 }
 
-class BootloaderTest : public ::testing::Test
+class BootloaderTestBase
 {
 protected:
-    BootloaderTest()
+    BootloaderTestBase()
     {
         g_mock_bootloader_hal = &mock;
         memset(virtual_flash, 0, FLASH_SIZE);
+        can_hub0.register_port(&can_port_);
+        g_bootloader_port = &can_port_;
     }
 
-    ~BootloaderTest()
+    ~BootloaderTestBase()
     {
+        wait_for_main_executor();
+        g_bootloader_port = nullptr;
+        can_hub0.unregister_port(&can_port_);
         g_mock_bootloader_hal = nullptr;
         memset(virtual_flash, 0, FLASH_SIZE);
     }
@@ -181,6 +231,53 @@ protected:
     }
 
     ::testing::StrictMock<MockBootloaderHAL> mock;
+    BootloaderPort can_port_;
+};
+
+class BootloaderTest : public AsyncCanTest, protected BootloaderTestBase
+{
+protected:
+    ~BootloaderTest()
+    {
+        // wait_for_main_executor();
+        if (running_)
+        {
+            wait_for_bootloader();
+        }
+        usleep(100);
+        wait_for_main_executor();
+    }
+
+    void run_bootloader()
+    {
+        running_ = true;
+        os_thread_create(&bootloader_thread_, "bootloader", 0, 0,
+            &BootloaderTest::bootloader_thread, this);
+    }
+
+    void sync_run_bootloader()
+    {
+        run_bootloader();
+        wait_for_bootloader();
+    }
+
+    void wait_for_bootloader()
+    {
+        bootloader_exited_.wait_for_notification();
+    }
+
+    static void *bootloader_thread(void *arg)
+    {
+        BootloaderTest *t = static_cast<BootloaderTest *>(arg);
+        bootloader_entry();
+        t->running_ = false;
+        t->bootloader_exited_.notify();
+        return nullptr;
+    }
+
+    os_thread_t bootloader_thread_;
+    bool running_;
+    SyncNotifiable bootloader_exited_;
 };
 
 TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
@@ -193,8 +290,10 @@ TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
     }
     // The checksum should fail, so no entry to the application!
     EXPECT_CALL(mock, application_entry()).Times(0);
-    bootloader_entry();
     EXPECT_FALSE(check_application_checksum());
+    run_bootloader();
+    send_packet(":X194f0321N2A6C21;");
+    // bootloader_entry();
 }
 
 TEST_F(BootloaderTest, StartAppIfChecksumOk)
@@ -206,13 +305,15 @@ TEST_F(BootloaderTest, StartAppIfChecksumOk)
     bootloader_entry();
 }
 
-TEST_F(BootloaderTest, StartAppIfButtonPressed)
+TEST_F(BootloaderTest, NoStartAppIfButtonPressed)
 {
+    fill_flash_random(3756);
     create_correct_checksum(3756);
     EXPECT_TRUE(check_application_checksum());
     expect_boot(true);
     EXPECT_CALL(mock, application_entry()).Times(0);
-    bootloader_entry();
+    run_bootloader();
+    send_packet(":X194f0321N2A6C21;");
 }
 
 TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
@@ -224,7 +325,18 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
     virtual_flash[843] = 0xff;
     EXPECT_FALSE(check_application_checksum());
     EXPECT_CALL(mock, application_entry()).Times(0);
-    bootloader_entry();
+    run_bootloader();
+    send_packet(":X194f0321N2A6C21;");
+}
+
+TEST_F(BootloaderTest, WelcomeMessageArrives)
+{
+    print_all_packets();
+    expect_boot(true);
+    EXPECT_CALL(mock, application_entry()).Times(0);
+    run_bootloader();
+    expect_packet(":X194F0321N2A6C2155;");
+    send_packet(":X194f0321N2A6C21;");
 }
 
 } // namespace
