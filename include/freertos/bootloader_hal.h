@@ -82,6 +82,9 @@ extern bool request_bootloader();
 /** Enters the application. Never returns. */
 extern void application_entry();
 
+/** Resets the microcontroller. Never returns. */
+extern void bootloader_reboot();
+
 /** Checks if there is an incoming CAN frame from the hardware.
  *
  * @param frame will be loaded with the incoming frame.
@@ -148,6 +151,13 @@ extern void write_flash(
  * @param checksum is a 16-byte array which will be filled with the checksum
  * data. Unused entries have to be zeroed. */
 extern void checksum_data(const void* data, uint32_t size, uint32_t* checksum);
+
+/** Suggests an NMRAnet CAN alias for use. If the running application has saved
+ *  the last used alias, this function returns it. */
+extern uint16_t nmranet_alias();
+
+/** @returns the NMRAnet NodeID for this hardware node. */
+extern uint64_t nmranet_nodeid();
 
 #ifdef __cplusplus
 }

@@ -24,6 +24,9 @@ public:
     MOCK_METHOD0(bootloader_hw_init, void());
     MOCK_METHOD0(request_bootloader, bool());
     MOCK_METHOD0(application_entry, void());
+    MOCK_METHOD0(bootloader_reboot, void());
+    MOCK_METHOD0(nmranet_nodeid, uint64_t());
+    MOCK_METHOD0(nmranet_alias, uint16_t());
 };
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
@@ -100,6 +103,11 @@ void application_entry()
     return g_mock_bootloader_hal->application_entry();
 }
 
+void bootloader_reboot()
+{
+    return g_mock_bootloader_hal->bootloader_reboot();
+}
+
 bool read_can_frame(struct can_frame *frame)
 {
     return g_bootloader_port->read_can_frame(frame);
@@ -155,6 +163,15 @@ extern uint16_t erase_flash_page(const void *address);
  */
 extern void write_flash(
     const void *address, const void *data, uint32_t size_bytes);
+
+uint16_t nmranet_alias() {
+  return g_mock_bootloader_hal->nmranet_alias();
+}
+
+extern uint64_t nmranet_nodeid() {
+  return g_mock_bootloader_hal->nmranet_nodeid();
+}
+
 
 void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
 {
