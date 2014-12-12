@@ -198,7 +198,7 @@ class BootloaderTestBase
 protected:
     BootloaderTestBase()
     {
-        g_mock_bootloader_hal = &mock;
+        g_mock_bootloader_hal = &mock_;
         memset(virtual_flash, 0, FLASH_SIZE);
         can_hub0.register_port(&can_port_);
         g_bootloader_port = &can_port_;
@@ -230,9 +230,9 @@ protected:
     void expect_boot(bool request_bootloader)
     {
         ::testing::InSequence seq;
-        EXPECT_CALL(mock, bootloader_hw_set_to_safe());
-        EXPECT_CALL(mock, bootloader_hw_init());
-        EXPECT_CALL(mock, request_bootloader())
+        EXPECT_CALL(mock_, bootloader_hw_set_to_safe());
+        EXPECT_CALL(mock_, bootloader_hw_init());
+        EXPECT_CALL(mock_, request_bootloader())
             .WillOnce(Return(request_bootloader));
     }
 
@@ -247,13 +247,17 @@ protected:
         }
     }
 
-    ::testing::StrictMock<MockBootloaderHAL> mock;
+    ::testing::StrictMock<MockBootloaderHAL> mock_;
     BootloaderPort can_port_;
 };
 
 class BootloaderTest : public AsyncCanTest, protected BootloaderTestBase
 {
 protected:
+    BootloaderTest() {
+        EXPECT_CALL(mock_, nmranet_alias()).WillRepeatedly(Return(0x428));
+    }
+
     ~BootloaderTest()
     {
         // wait_for_main_executor();
@@ -280,7 +284,14 @@ protected:
 
     void wait_for_bootloader()
     {
+        wait();
         bootloader_exited_.wait_for_notification();
+    }
+
+    void exit_bootloader() {
+        EXPECT_CALL(mock_, bootloader_reboot());
+        expect_packet(":X19A28428N0321;");
+        send_packet(":X1A428321N20A9;");
     }
 
     static void *bootloader_thread(void *arg)
@@ -292,8 +303,8 @@ protected:
         return nullptr;
     }
 
-    os_thread_t bootloader_thread_;
-    bool running_;
+    os_thread_t bootloader_thread_ = 0;
+    bool running_ = false;
     SyncNotifiable bootloader_exited_;
 };
 
@@ -301,16 +312,15 @@ TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
 {
     {
         ::testing::InSequence seq;
-        EXPECT_CALL(mock, bootloader_hw_set_to_safe());
-        EXPECT_CALL(mock, bootloader_hw_init());
-        EXPECT_CALL(mock, request_bootloader()).WillOnce(Return(false));
+        EXPECT_CALL(mock_, bootloader_hw_set_to_safe());
+        EXPECT_CALL(mock_, bootloader_hw_init());
+        EXPECT_CALL(mock_, request_bootloader()).WillOnce(Return(false));
     }
     // The checksum should fail, so no entry to the application!
-    EXPECT_CALL(mock, application_entry()).Times(0);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
     EXPECT_FALSE(check_application_checksum());
     run_bootloader();
-    send_packet(":X194f0321N2A6C21;");
-    // bootloader_entry();
+    exit_bootloader();
 }
 
 TEST_F(BootloaderTest, StartAppIfChecksumOk)
@@ -318,7 +328,7 @@ TEST_F(BootloaderTest, StartAppIfChecksumOk)
     create_correct_checksum(3756);
     EXPECT_TRUE(check_application_checksum());
     expect_boot(false);
-    EXPECT_CALL(mock, application_entry()).Times(1);
+    EXPECT_CALL(mock_, application_entry()).Times(1);
     bootloader_entry();
 }
 
@@ -328,9 +338,9 @@ TEST_F(BootloaderTest, NoStartAppIfButtonPressed)
     create_correct_checksum(3756);
     EXPECT_TRUE(check_application_checksum());
     expect_boot(true);
-    EXPECT_CALL(mock, application_entry()).Times(0);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
     run_bootloader();
-    send_packet(":X194f0321N2A6C21;");
+    exit_bootloader();
 }
 
 TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
@@ -341,19 +351,18 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
     expect_boot(false);
     virtual_flash[843] = 0xff;
     EXPECT_FALSE(check_application_checksum());
-    EXPECT_CALL(mock, application_entry()).Times(0);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
     run_bootloader();
-    send_packet(":X194f0321N2A6C21;");
+    exit_bootloader();
 }
 
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
     print_all_packets();
     expect_boot(true);
-    EXPECT_CALL(mock, application_entry()).Times(0);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
     run_bootloader();
-    expect_packet(":X194F0321N2A6C2155;");
-    send_packet(":X194f0321N2A6C21;");
+    exit_bootloader();
 }
 
 } // namespace
