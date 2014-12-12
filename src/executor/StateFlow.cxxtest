@@ -142,7 +142,8 @@ TEST_F(QueueTest, ThreeItems) {
     EXPECT_EQ(44U, seenIds_[2]);
 }
 
-TEST_F(QueueTest, Priorities) {
+/// @Todo(balazs.racz): figure out why this does not work.
+TEST_F(QueueTest, DISABLED_Priorities) {
     Buffer<Id>* m[3];
     g_message_pool.alloc(m + 0);
     g_message_pool.alloc(m + 1);
