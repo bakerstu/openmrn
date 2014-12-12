@@ -4,3 +4,5 @@ MEMORY
   RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 32K
 }
 
+__flash_start = ORIGIN(FLASH);
+__flash_end = ORIGIN(FLASH) + LENGTH(FLASH);

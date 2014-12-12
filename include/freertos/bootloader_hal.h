@@ -33,9 +33,13 @@
  */
 
 #include <stdint.h>
+#include "can_frame.h"
+
 
 #ifdef __cplusplus
 extern "C" {
+#else
+typedef unsigned bool;
 #endif
 
 // Number of 32-bit words in one checksum data.
@@ -68,22 +72,22 @@ struct app_header {
  *  segment.)
  *
  *  This function should also disable interrupts. */
-extern void bootloader_hw_set_to_safe();
+extern void bootloader_hw_set_to_safe(void);
 
 /** Called after hw_set_to_safe and after the bss and data segments are
  *  initialized. Initializes the processor state, CAN hardware etc. */
-extern void bootloader_hw_init();
+extern void bootloader_hw_init(void);
 
 /** @Returns true if the hardware state requests entry to the bootloader. This
  *  will typically read a GPIO pin for a bootloader switch. This function will
  *  run after hw_init. */
-extern bool request_bootloader();
+extern bool request_bootloader(void);
 
 /** Enters the application. Never returns. */
-extern void application_entry();
+extern void application_entry(void);
 
 /** Resets the microcontroller. Never returns. */
-extern void bootloader_reboot();
+extern void bootloader_reboot(void);
 
 /** Checks if there is an incoming CAN frame from the hardware.
  *
@@ -93,6 +97,8 @@ extern void bootloader_reboot();
  * frame. */
 extern bool read_can_frame(struct can_frame *frame);
 
+#ifdef __cplusplus
+
 /** Tries to send a can frame.
  *
  * @param frame is the frame to send.
@@ -100,6 +106,9 @@ extern bool read_can_frame(struct can_frame *frame);
  * @returns true if the frame was sent, false if the hardware buffer was busy
  * and the operation should be re-tried later. */
 extern bool try_send_can_frame(const struct can_frame &frame);
+
+#endif
+
 
 /** Returns the boundaries of the user flash.
  *
@@ -154,10 +163,10 @@ extern void checksum_data(const void* data, uint32_t size, uint32_t* checksum);
 
 /** Suggests an NMRAnet CAN alias for use. If the running application has saved
  *  the last used alias, this function returns it. */
-extern uint16_t nmranet_alias();
+extern uint16_t nmranet_alias(void);
 
 /** @returns the NMRAnet NodeID for this hardware node. */
-extern uint64_t nmranet_nodeid();
+extern uint64_t nmranet_nodeid(void);
 
 #ifdef __cplusplus
 }
