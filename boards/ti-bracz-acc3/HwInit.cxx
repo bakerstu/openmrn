@@ -201,8 +201,6 @@ void hw_preinit(void)
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_7);  // Gold button
 
-    set_gpio_led(GPIO_PORTA_BASE, GPIO_PIN_0); // debug
-
     // Railcom pins
     set_gpio_extinput(GPIO_PORTF_BASE, GPIO_PIN_0);  // Shadow of rcom4
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
