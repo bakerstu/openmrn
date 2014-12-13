@@ -46,6 +46,12 @@
 namespace nmranet
 {
 
+enum InitState
+{
+    NEED_NMRANET_INIT = 0,
+    INITIALIZED,
+};
+
 struct BootloaderState
 {
     struct can_frame input_frame;
@@ -54,6 +60,7 @@ struct BootloaderState
     unsigned output_frame_full : 1;
     unsigned request_reset : 1;
     NodeAlias alias;
+    InitState init_state;
 } state_;
 }
 using namespace nmranet;
@@ -122,13 +129,15 @@ void set_can_frame_addressed(Defs::MTI mti)
 }
 
 /** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
-void set_error_code(uint16_t error_code) {
+void set_error_code(uint16_t error_code)
+{
     state_.output_frame.can_dlc = 4;
     state_.output_frame.data[2] = error_code >> 8;
     state_.output_frame.data[3] = error_code & 0xff;
 }
 
-void reject_datagram() {
+void reject_datagram()
+{
     set_can_frame_addressed(Defs::MTI_DATAGRAM_REJECTED);
     set_error_code(Defs::ERROR_PERMANENT);
     state_.input_frame_full = 0;
@@ -168,7 +177,8 @@ void handle_input_frame()
 
         // Datagrams always need an answer. If we cannot render the answer,
         // let's not even try to parse the message.
-        if (state_.output_frame_full) {
+        if (state_.output_frame_full)
+        {
             return; // re-try.
         }
         if (state_.input_frame.data[0] == DatagramDefs::CONFIGURATION)
@@ -190,6 +200,27 @@ void handle_input_frame()
     // NMRAnet message
     state_.input_frame_full = 0;
     return;
+}
+
+void handle_init()
+{
+    switch(state_.init_state) {
+    case NEED_NMRANET_INIT: {
+        set_can_frame_global(Defs::MTI_INITIALIZATION_COMPLETE);
+        uint64_t node_id = nmranet_nodeid();
+        for (int i = 5; i >= 0; --i) {
+            state_.output_frame.data[i] = node_id & 0xff;
+            node_id >>= 8;
+        }
+        state_.output_frame.can_dlc = 6;
+        break;
+    }
+    case INITIALIZED: {
+        // shouldn't get here.
+        return;
+    }
+    }
+    state_.init_state = static_cast<InitState>(state_.init_state + 1);
 }
 
 void bootloader_entry()
@@ -221,6 +252,10 @@ void bootloader_entry()
         if (state_.input_frame_full)
         {
             handle_input_frame();
+        }
+        if (state_.init_state != INITIALIZED && !state_.output_frame_full)
+        {
+            handle_init();
         }
 
 #ifdef __linux__
