@@ -61,6 +61,7 @@ struct BootloaderState
     unsigned request_reset : 1;
     unsigned stream_pending : 1;
     unsigned stream_open : 1;
+    unsigned stream_proceed_pending : 1;
     // 1 if the datagram buffer is busy
     unsigned datagram_output_pending : 1;
     // 1 if we are waiting for an incoming reply to a sent datagram
@@ -274,7 +275,8 @@ void handle_memory_config_frame()
             if (state_.write_buffer_offset >=
                 ((uint32_t)flash_max - (uint32_t)flash_min))
             {
-                add_memory_config_error_response(DatagramDefs::INVALID_ARGUMENTS);
+                add_memory_config_error_response(
+                    DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
             state_.write_buffer_offset += (uint32_t)flash_min;
@@ -286,6 +288,8 @@ void handle_memory_config_frame()
     set_error_code(DatagramDefs::UNIMPLEMENTED);
     return;
 }
+
+void handle_stream_complete();
 
 void handle_addressed_message(Defs::MTI mti)
 {
@@ -330,10 +334,15 @@ void handle_addressed_message(Defs::MTI mti)
             }
             else
             {
-                state_.stream_buffer_size =
-                    min((state_.input_frame.data[2] << 8) |
-                            state_.input_frame.data[3],
-                        WRITE_BUFFER_SIZE);
+                uint16_t proposed_size = (state_.input_frame.data[2] << 8) |
+                                         state_.input_frame.data[3];
+                uint16_t final_size = WRITE_BUFFER_SIZE;
+                while (final_size > proposed_size)
+                {
+                    final_size >>= 1;
+                }
+                state_.stream_buffer_size = final_size;
+                state_.stream_buffer_remaining = state_.stream_buffer_size;
                 state_.output_frame.data[2] = state_.stream_buffer_size >> 8;
                 state_.output_frame.data[3] = state_.stream_buffer_size & 0xff;
                 state_.output_frame.data[4] = 0x80; // accept, no type id.
@@ -343,6 +352,10 @@ void handle_addressed_message(Defs::MTI mti)
                 state_.stream_open = 1;
             }
             break;
+        }
+        case Defs::MTI_STREAM_COMPLETE:
+        {
+            return handle_stream_complete();
         }
         default:
         {
@@ -366,6 +379,94 @@ void handle_global_message(Defs::MTI mti)
     // Drop to the floor.
     state_.input_frame_full = 0;
     return;
+}
+
+void handle_stream_data()
+{
+    if (!state_.stream_open || state_.input_frame.data[0] != STREAM_ID)
+    {
+        // no or wrong stream -- reject.
+        if (state_.output_frame_full)
+        {
+            return; // re-try.
+        }
+        set_can_frame_addressed(Defs::MTI_TERMINATE_DUE_TO_ERROR);
+        set_error_code(Defs::ERROR_TEMPORARY);
+        state_.input_frame_full = 0;
+        return;
+    }
+    int len = state_.input_frame.can_dlc - 1;
+    if (WRITE_BUFFER_SIZE < state_.write_buffer_index + len)
+    {
+        if (state_.output_frame_full)
+        {
+            return; // re-try.
+        }
+        set_can_frame_addressed(Defs::MTI_TERMINATE_DUE_TO_ERROR);
+        set_error_code(Defs::ERROR_TEMPORARY);
+        state_.input_frame_full = 0;
+        return;
+    }
+    memcpy(&g_write_buffer[state_.write_buffer_index],
+           &state_.input_frame.data[1], len);
+    state_.write_buffer_index += len;
+    state_.stream_buffer_remaining -= len;
+    if (!state_.stream_buffer_remaining)
+    {
+        state_.stream_proceed_pending = 1;
+    }
+    if (state_.write_buffer_index >= WRITE_BUFFER_SIZE)
+    {
+        write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
+                    state_.write_buffer_index);
+        state_.write_buffer_offset += state_.write_buffer_index;
+        state_.write_buffer_index = 0;
+    }
+}
+
+void handle_stream_complete()
+{
+    if (!state_.stream_open ||
+        state_.input_frame.data[2] != state_.stream_src_id ||
+        state_.input_frame.data[3] != STREAM_ID ||
+        CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame)) !=
+            state_.stream_src_alias)
+    {
+        // no or wrong stream -- reject.
+        if (state_.output_frame_full)
+        {
+            return; // re-try.
+        }
+        set_can_frame_addressed(Defs::MTI_TERMINATE_DUE_TO_ERROR);
+        set_error_code(Defs::ERROR_TEMPORARY);
+        state_.input_frame_full = 0;
+        // We might be leaking the stream here. If the src id is actually
+        // correct, and we send this termination command, we might never get
+        // the stream close command ever again. The caller will have to reset
+        // the node to be able to start a new stream.  On the other hand if the
+        // message comes from an unexpected source, then this is a very valid
+        // thing to do and we might be getting more data from the original
+        // source.
+        return;
+    }
+    if (state_.write_buffer_index)
+    {
+        write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
+                    state_.write_buffer_index);
+    }
+    // Input frame is processed.
+    state_.input_frame_full = 0;
+
+    // Reset stream state.
+    state_.stream_open = 0;
+    state_.stream_pending = 0;
+    state_.stream_proceed_pending = 0;
+    state_.stream_src_id = 0;
+    state_.stream_src_alias = 0;
+    state_.stream_buffer_size = 0;
+    state_.stream_buffer_remaining = 0;
+    state_.write_buffer_index = 0;
+    state_.write_buffer_offset = 0;
 }
 
 void handle_input_frame()
@@ -400,7 +501,7 @@ void handle_input_frame()
     }
     else if ((can_id >> 12) == (0x1F000 | state_.alias) && dlc > 1)
     {
-        // handle stream data
+        return handle_stream_data();
     }
     else if ((can_id >> 24) == 0x19)
     {

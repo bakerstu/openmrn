@@ -172,6 +172,26 @@ void application_entry(void)
                  " bx  r0\n");
 }
 
+void erase_flash_page(const void *address)
+{
+    ROM_FlashErase((uint32_t)address);
+}
+
+void write_flash(const void *address, const void *data, uint32_t size_bytes)
+{
+    ROM_FlashProgram((uint32_t*)data, (uint32_t)address, (size_bytes + 3) & ~3);
+}
+
+void get_flash_page_info(const void *address, const void **page_start,
+                         uint32_t *page_length_bytes)
+{
+    // Tiva has 1 KB flash pages.
+    uint32_t value = (uint32_t)address;
+    value &= ~1023;
+    *page_start = (const void *)value;
+    *page_length_bytes = 1024;
+}
+
 void ignore_fn(void)
 {
 }
