@@ -96,7 +96,7 @@ struct DatagramDefs
         SRC_NOT_PERMITTED  = 0x1020, /**< Source not permitted error occurred. */
         NOT_ACCEPTED       = 0x1040, /**< Destination node does not accept datagrams of any kind. */
         UNIMPLEMENTED      = 0x1080, /**< NON_STANDARD The feature or command requested is not implemented by the target node. */
-        INVALID            = 0x1010, /**< NON_STANDARD Invalid or unparseable arguments. */
+        INVALID_ARGUMENTS  = 0x1010, /**< NON_STANDARD Invalid or unparseable arguments. */
     };
 
     /** We can try to resend the datagram.

@@ -424,12 +424,67 @@ TEST_F(BootloaderTest, StartWriteAtOffsetZero)
     // and expect response datagram
     expect_packet(":X1A321428N203000000000F0;").WillOnce(InvokeWithoutArgs([this]
     { send_packet(":X19A28321N0428;"); }));
-    send_packet(":X1A428321N202000000000F055;");
+    send_packet(":X1A428321N202000000000F01A;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    // Sends stream setup request.
+    expect_packet(":X19868428N0321008080001A5A;");
+    send_packet(":X19CC8321N0428008000001A;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 
     exit_bootloader();
 }
+
+TEST_F(BootloaderTest, RejectStreamOutOfTheBlue)
+{
+    print_all_packets();
+    expect_boot(true);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
+    expect_packet(":X19100428N05010101146C;");
+    run_bootloader();
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X19868428N0321000042201A5A;");
+    send_packet(":X19CC8321N0428008000001A;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+
+TEST_F(BootloaderTest, RejectStreamWithWrongId)
+{
+    print_all_packets();
+    expect_boot(true);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
+    expect_packet(":X19100428N05010101146C;");
+    run_bootloader();
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(mock_, erase_flash_page(&virtual_flash[0])).Times(1);
+    // expect datagram ok
+    expect_packet(":X19A28428N0321;");
+    // and expect response datagram
+    expect_packet(":X1A321428N203000000000F0;").WillOnce(InvokeWithoutArgs([this]
+    { send_packet(":X19A28321N0428;"); }));
+    send_packet(":X1A428321N202000000000F055;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    // Sends stream setup request with wrong id (1A vs 55).
+    expect_packet(":X19868428N0321000042201A5A;");
+    send_packet(":X19CC8321N0428008000001A;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
 
 } // namespace
 } // namespace nmranet

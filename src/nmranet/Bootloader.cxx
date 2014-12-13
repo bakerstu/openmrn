@@ -59,6 +59,7 @@ struct BootloaderState
     unsigned input_frame_full : 1;
     unsigned output_frame_full : 1;
     unsigned request_reset : 1;
+    unsigned stream_pending : 1;
     unsigned stream_open : 1;
     // 1 if the datagram buffer is busy
     unsigned datagram_output_pending : 1;
@@ -77,16 +78,25 @@ struct BootloaderState
     uint8_t stream_src_id;
     // Node that is sending us the stream of data.
     NodeAlias stream_src_alias;
+    // What's the total length of the negotiated stream buffer.
+    uint16_t stream_buffer_size;
+    // How many bytes are left of the strem buffer before a continue needs to
+    // be sent.
+    uint16_t stream_buffer_remaining;
+
     // Offset of the beginning of the write buffer.
     unsigned write_buffer_offset;
     // Offset inside the write buffer for the next incoming data.
     unsigned write_buffer_index;
+
 } state_;
 
 #define WRITE_BUFFER_SIZE 256
 uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 
 #define FLASH_SPACE 0xF0
+// local stream ID.
+#define STREAM_ID 0x5A
 }
 using namespace nmranet;
 
@@ -229,7 +239,7 @@ void handle_memory_config_frame()
             {
                 // Invalid request.
                 reject_datagram();
-                set_error_code(DatagramDefs::INVALID);
+                set_error_code(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
             // Replies OK.
@@ -251,7 +261,9 @@ void handle_memory_config_frame()
                 add_memory_config_error_response(DatagramDefs::UNIMPLEMENTED);
                 return;
             }
-            state_.stream_open = 1;
+            state_.stream_pending = 1;
+            state_.stream_src_alias = state_.datagram_dst;
+            state_.stream_src_id = state_.input_frame.data[7];
             state_.write_buffer_index = 0;
             state_.write_buffer_offset =
                 load_uint32_be(state_.input_frame.data + 2);
@@ -262,7 +274,7 @@ void handle_memory_config_frame()
             if (state_.write_buffer_offset >=
                 ((uint32_t)flash_max - (uint32_t)flash_min))
             {
-                add_memory_config_error_response(DatagramDefs::INVALID);
+                add_memory_config_error_response(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
             state_.write_buffer_offset += (uint32_t)flash_min;
@@ -285,6 +297,50 @@ void handle_addressed_message(Defs::MTI mti)
             {
                 state_.datagram_reply_waiting = 0;
                 state_.datagram_output_pending = 0;
+            }
+            break;
+        }
+        case Defs::MTI_STREAM_INITIATE_REQUEST:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            if (state_.input_frame.can_dlc < 7)
+            {
+                set_can_frame_addressed(Defs::MTI_TERMINATE_DUE_TO_ERROR);
+                set_error_code(DatagramDefs::INVALID_ARGUMENTS);
+                break;
+            }
+            set_can_frame_addressed(Defs::MTI_STREAM_INITIATE_REPLY);
+            state_.output_frame.can_dlc = 8;
+            state_.output_frame.data[6] = state_.input_frame.data[6];
+            state_.output_frame.data[7] = STREAM_ID;
+            if (!state_.stream_pending ||
+                state_.input_frame.data[6] != state_.stream_src_id)
+            {
+                // Request out of the blue. Reject.
+                state_.output_frame.data[2] = 0;
+                state_.output_frame.data[3] = 0;
+                state_.output_frame.data[4] =
+                    0b01000010; // permanent error, "should not happen"
+                // invalid stream request
+                state_.output_frame.data[5] = 0b00100000;
+            }
+            else
+            {
+                state_.stream_buffer_size =
+                    min((state_.input_frame.data[2] << 8) |
+                            state_.input_frame.data[3],
+                        WRITE_BUFFER_SIZE);
+                state_.output_frame.data[2] = state_.stream_buffer_size >> 8;
+                state_.output_frame.data[3] = state_.stream_buffer_size & 0xff;
+                state_.output_frame.data[4] = 0x80; // accept, no type id.
+                state_.output_frame.data[5] = 0x00;
+
+                state_.stream_pending = 0;
+                state_.stream_open = 1;
             }
             break;
         }
