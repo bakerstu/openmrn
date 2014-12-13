@@ -59,13 +59,44 @@ struct BootloaderState
     unsigned input_frame_full : 1;
     unsigned output_frame_full : 1;
     unsigned request_reset : 1;
+    unsigned stream_open : 1;
+    // 1 if the datagram buffer is busy
+    unsigned datagram_output_pending : 1;
+    // 1 if we are waiting for an incoming reply to a sent datagram
+    unsigned datagram_reply_waiting : 1;
     NodeAlias alias;
     InitState init_state;
+
+    // response datagram
+    NodeAlias datagram_dst;
+    uint8_t datagram_dlc;
+    uint8_t datagram_offset;
+    uint8_t datagram_payload[14];
+
+    // stream source ID of incoming data.
+    uint8_t stream_src_id;
+    // Node that is sending us the stream of data.
+    NodeAlias stream_src_alias;
+    // Offset of the beginning of the write buffer.
+    unsigned write_buffer_offset;
+    // Offset inside the write buffer for the next incoming data.
+    unsigned write_buffer_index;
 } state_;
+
+#define WRITE_BUFFER_SIZE 256
+uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
+
+#define FLASH_SPACE 0xF0
 }
 using namespace nmranet;
 
 extern "C" {
+
+extern unsigned g_bootloader_busy;
+unsigned g_bootloader_busy = 1;
+#ifdef __linux__
+Atomic g_bootloader_lock;
+#endif
 
 /** @returns true if the application checksum currently in flash is correct. */
 bool check_application_checksum()
@@ -143,6 +174,36 @@ void reject_datagram()
     state_.input_frame_full = 0;
 }
 
+/** Loads an unaligned 32-bit value that is network-endian. */
+uint32_t load_uint32_be(const uint8_t *ptr)
+{
+    return (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
+}
+
+void add_memory_config_error_response(uint16_t error_code)
+{
+    state_.datagram_payload[2] |= 0x08; // Turns success into error reply.
+    state_.datagram_payload[state_.datagram_dlc++] = error_code >> 8;
+    state_.datagram_payload[state_.datagram_dlc++] = error_code & 0xff;
+}
+
+/** Clears out the flash write buffer. Erases the flash page if the buffer is
+ * on flash page boundary. */
+void init_flash_write_buffer()
+{
+    memset(g_write_buffer, 0xff, WRITE_BUFFER_SIZE);
+    const void *address =
+        reinterpret_cast<const void *>(state_.write_buffer_offset);
+    const void *page_start = nullptr;
+    uint32_t page_length_bytes = 0;
+    get_flash_page_info(address, &page_start, &page_length_bytes);
+    if (page_start == address)
+    {
+        // Beginning of a page -- let's do an erase.
+        erase_flash_page(address);
+    }
+}
+
 void handle_memory_config_frame()
 {
     uint8_t command = state_.input_frame.data[1];
@@ -155,8 +216,62 @@ void handle_memory_config_frame()
             state_.input_frame_full = 0;
             return;
         }
+        case MemoryConfigDefs::COMMAND_WRITE_STREAM:
+        {
+            if (state_.datagram_output_pending || state_.stream_open)
+            {
+                // No buffer for response datagram or we are busy
+                reject_datagram();
+                set_error_code(DatagramDefs::BUFFER_UNAVAILABLE);
+                return;
+            }
+            if (state_.input_frame.can_dlc < 7)
+            {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(DatagramDefs::INVALID);
+                return;
+            }
+            // Replies OK.
+            set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+            state_.input_frame_full = 0;
+
+            // Composes write stream reply datagram.
+            state_.datagram_dlc = state_.input_frame.can_dlc - 1;
+            memcpy(state_.datagram_payload, state_.input_frame.data,
+                   state_.input_frame.can_dlc - 1);
+            state_.datagram_payload[1] |= MemoryConfigDefs::COMMAND_WRITE_REPLY;
+            state_.datagram_output_pending = 1;
+            state_.datagram_dst =
+                CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
+            state_.datagram_offset = 0;
+
+            if (state_.input_frame.data[6] != FLASH_SPACE)
+            {
+                add_memory_config_error_response(DatagramDefs::UNIMPLEMENTED);
+                return;
+            }
+            state_.stream_open = 1;
+            state_.write_buffer_index = 0;
+            state_.write_buffer_offset =
+                load_uint32_be(state_.input_frame.data + 2);
+            const void *flash_min;
+            const void *flash_max;
+            const struct app_header *app_header;
+            get_flash_boundaries(&flash_min, &flash_max, &app_header);
+            if (state_.write_buffer_offset >=
+                ((uint32_t)flash_max - (uint32_t)flash_min))
+            {
+                add_memory_config_error_response(DatagramDefs::INVALID);
+                return;
+            }
+            state_.write_buffer_offset += (uint32_t)flash_min;
+            init_flash_write_buffer();
+            return;
+        }
     } // switch
     reject_datagram();
+    set_error_code(DatagramDefs::UNIMPLEMENTED);
     return;
 }
 
@@ -187,8 +302,7 @@ void handle_input_frame()
         }
         else
         {
-            reject_datagram();
-            return;
+            return reject_datagram();
         }
     }
     if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
@@ -204,23 +318,65 @@ void handle_input_frame()
 
 void handle_init()
 {
-    switch(state_.init_state) {
-    case NEED_NMRANET_INIT: {
-        set_can_frame_global(Defs::MTI_INITIALIZATION_COMPLETE);
-        uint64_t node_id = nmranet_nodeid();
-        for (int i = 5; i >= 0; --i) {
-            state_.output_frame.data[i] = node_id & 0xff;
-            node_id >>= 8;
+    switch (state_.init_state)
+    {
+        case NEED_NMRANET_INIT:
+        {
+            set_can_frame_global(Defs::MTI_INITIALIZATION_COMPLETE);
+            uint64_t node_id = nmranet_nodeid();
+            for (int i = 5; i >= 0; --i)
+            {
+                state_.output_frame.data[i] = node_id & 0xff;
+                node_id >>= 8;
+            }
+            state_.output_frame.can_dlc = 6;
+            break;
         }
-        state_.output_frame.can_dlc = 6;
-        break;
-    }
-    case INITIALIZED: {
-        // shouldn't get here.
-        return;
-    }
+        case INITIALIZED:
+        {
+            // shouldn't get here.
+            return;
+        }
     }
     state_.init_state = static_cast<InitState>(state_.init_state + 1);
+}
+
+void handle_send_datagram()
+{
+    setup_can_frame();
+    uint32_t id;
+    CanDefs::CanFrameType frame_type;
+    if (!state_.datagram_offset)
+    {
+        if (state_.datagram_dlc <= 8)
+        {
+            frame_type = CanDefs::DATAGRAM_ONE_FRAME;
+        }
+        else
+        {
+            frame_type = CanDefs::DATAGRAM_FIRST_FRAME;
+        }
+    }
+    else if (state_.datagram_dlc - state_.datagram_offset <= 8)
+    {
+        frame_type = CanDefs::DATAGRAM_FINAL_FRAME;
+    }
+    else
+    {
+        frame_type = CanDefs::DATAGRAM_MIDDLE_FRAME;
+    }
+    CanDefs::set_datagram_fields(&id, state_.alias, state_.datagram_dst,
+                                 frame_type);
+    SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
+    int len = min(state_.datagram_dlc - state_.datagram_offset, 8);
+    memcpy(state_.output_frame.data,
+           &state_.datagram_payload[state_.datagram_offset], len);
+    state_.datagram_offset += len;
+    state_.output_frame.can_dlc = len;
+    if (state_.datagram_offset >= state_.datagram_dlc)
+    {
+        state_.datagram_reply_waiting = 1;
+    }
 }
 
 void bootloader_entry()
@@ -229,6 +385,7 @@ void bootloader_entry()
     bootloader_hw_init();
     if (!request_bootloader() && check_application_checksum())
     {
+        g_bootloader_busy = 0;
         return application_entry();
     }
 
@@ -237,9 +394,19 @@ void bootloader_entry()
 
     while (true)
     {
-        if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
         {
-            state_.input_frame_full = 1;
+#ifdef __linux__
+            AtomicHolder h(&g_bootloader_lock);
+#endif
+            if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
+            {
+                state_.input_frame_full = 1;
+            }
+            g_bootloader_busy =
+                (state_.input_frame_full || state_.output_frame_full ||
+                 state_.init_state != INITIALIZED ||
+                 (state_.datagram_output_pending &&
+                  !state_.datagram_reply_waiting));
         }
         if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
         {
@@ -247,6 +414,7 @@ void bootloader_entry()
         }
         if (state_.request_reset)
         {
+            g_bootloader_busy = 0;
             return bootloader_reboot();
         }
         if (state_.input_frame_full)
@@ -256,6 +424,11 @@ void bootloader_entry()
         if (state_.init_state != INITIALIZED && !state_.output_frame_full)
         {
             handle_init();
+        }
+        if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
+            !state_.output_frame_full)
+        {
+            handle_send_datagram();
         }
 
 #ifdef __linux__

@@ -6,10 +6,13 @@
 #include <functional>
 
 using ::testing::Return;
+using ::testing::InvokeWithoutArgs;
 
 extern "C" {
 /** This calls into the bootloader main. */
 extern void bootloader_entry();
+
+extern Atomic g_bootloader_lock;
 }
 
 namespace nmranet
@@ -27,6 +30,7 @@ public:
     MOCK_METHOD0(bootloader_reboot, void());
     MOCK_METHOD0(nmranet_nodeid, uint64_t());
     MOCK_METHOD0(nmranet_alias, uint16_t());
+    MOCK_METHOD1(erase_flash_page, void(const void *));
 };
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
@@ -42,6 +46,11 @@ public:
     BootloaderPort() : CanHubPort(&g_service)
     {
         is_waiting_ = false;
+    }
+
+    bool is_waiting()
+    {
+        return is_waiting_;
     }
 
     virtual Action entry()
@@ -83,6 +92,9 @@ private:
 BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
+
+extern unsigned g_bootloader_busy;
+
 void bootloader_hw_set_to_safe()
 {
     g_mock_bootloader_hal->bootloader_hw_set_to_safe();
@@ -138,8 +150,16 @@ void get_flash_boundaries(const void **flash_min, const void **flash_max,
  *
  * In other words, *page_start <= address < (*page_start + *page_length_bytes).
  */
-extern void get_flash_page_info(const void *address, const void **page_start,
-                                uint32_t *page_length_bytes);
+void get_flash_page_info(const void *address, const void **page_start,
+                         uint32_t *page_length_bytes)
+{
+    // Simulates a flat 1KB page structure.
+    uint32_t value = reinterpret_cast<uint32_t>(address);
+    value -= reinterpret_cast<uint32_t>(&virtual_flash[0]);
+    value &= ~1023;
+    *page_start = &virtual_flash[value];
+    *page_length_bytes = 1024;
+}
 
 /** Erases the flash page at a specific address. Blocks the caller until the
  * flash erase is successful. (Microcontrollers often cannot execute code while
@@ -148,10 +168,11 @@ extern void get_flash_page_info(const void *address, const void **page_start,
  *
  * @param address is the start address of a valid page, as returned by
  * get_flash_page_info.
- *
- * @returns zero if the erase is successful, an nmranet error code otherwise.
  */
-extern uint16_t erase_flash_page(const void *address);
+void erase_flash_page(const void *address)
+{
+    g_mock_bootloader_hal->erase_flash_page(address);
+}
 
 /** Writes data to the flash.
  *
@@ -266,15 +287,26 @@ protected:
         // wait_for_main_executor();
         if (running_)
         {
-            wait_for_bootloader();
+            wait_for_bootloader_exit();
         }
         usleep(100);
         wait_for_main_executor();
     }
 
+    void wait()
+    {
+        while (can_port_.is_waiting() || !g_executor.empty() ||
+               g_bootloader_busy)
+        {
+            usleep(100);
+            AtomicHolder h(&g_bootloader_lock);
+        }
+    }
+
     void run_bootloader()
     {
         running_ = true;
+        g_bootloader_busy = 1;
         os_thread_create(&bootloader_thread_, "bootloader", 0, 0,
                          &BootloaderTest::bootloader_thread, this);
     }
@@ -282,10 +314,10 @@ protected:
     void sync_run_bootloader()
     {
         run_bootloader();
-        wait_for_bootloader();
+        wait_for_bootloader_exit();
     }
 
-    void wait_for_bootloader()
+    void wait_for_bootloader_exit()
     {
         wait();
         bootloader_exited_.wait_for_notification();
@@ -294,8 +326,8 @@ protected:
     void exit_bootloader()
     {
         EXPECT_CALL(mock_, bootloader_reboot());
-        expect_packet(":X19A28428N0321;");
-        send_packet(":X1A428321N20A9;");
+        expect_packet(":X19A28428N0111;");
+        send_packet(":X1A428111N20A9;");
     }
 
     static void *bootloader_thread(void *arg)
@@ -370,6 +402,32 @@ TEST_F(BootloaderTest, WelcomeMessageArrives)
     EXPECT_CALL(mock_, application_entry()).Times(0);
     expect_packet(":X19100428N05010101146C;");
     run_bootloader();
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, StartWriteAtOffsetZero)
+{
+    print_all_packets();
+    expect_boot(true);
+    EXPECT_CALL(mock_, application_entry()).Times(0);
+    expect_packet(":X19100428N05010101146C;");
+    run_bootloader();
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(mock_, erase_flash_page(&virtual_flash[0])).Times(1);
+    // expect datagram ok
+    expect_packet(":X19A28428N0321;");
+    // and expect response datagram
+    expect_packet(":X1A321428N203000000000F0;").WillOnce(InvokeWithoutArgs([this]
+    { send_packet(":X19A28321N0428;"); }));
+    send_packet(":X1A428321N202000000000F055;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
     exit_bootloader();
 }
 
