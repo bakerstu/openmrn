@@ -278,7 +278,22 @@ struct CanDefs {
                   (type     << FRAME_TYPE_SHIFT    ) +
                   (priority << PRIORITY_SHIFT      );
     }
-    
+
+    /** Set all the CAN ID fields for datagram or stream message.
+     * @param can_id identifier to act upon
+     * @param source source alias
+     * @param dst desitnation alias
+     * @param can_type CAN frame type field value
+     */
+    static void set_datagram_fields(uint32_t *can_id, NodeAlias src,
+                                    NodeAlias dst, CanFrameType can_type)
+    {
+        *can_id = (src      << SRC_SHIFT           ) +
+                  (dst      << DST_SHIFT           ) +
+                  (can_type << CAN_FRAME_TYPE_SHIFT) +
+                  (NMRANET_MSG << FRAME_TYPE_SHIFT ) +
+                  (NORMAL_PRIORITY << PRIORITY_SHIFT);
+    }
 
     /** Get the NMRAnet MTI from a can identifier.
      * @param can_id CAN identifider
