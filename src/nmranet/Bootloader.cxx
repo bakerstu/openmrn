@@ -275,6 +275,43 @@ void handle_memory_config_frame()
     return;
 }
 
+void handle_addressed_message(Defs::MTI mti)
+{
+    switch (mti)
+    {
+        case Defs::MTI_DATAGRAM_OK:
+        {
+            if (state_.datagram_reply_waiting)
+            {
+                state_.datagram_reply_waiting = 0;
+                state_.datagram_output_pending = 0;
+            }
+            break;
+        }
+        default:
+        {
+            // Send reject.
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_addressed(Defs::MTI_OPTIONAL_INTERACTION_REJECTED);
+            set_error_code(DatagramDefs::UNIMPLEMENTED);
+            break;
+        }
+    }
+    state_.input_frame_full = 0;
+    return;
+}
+
+void handle_global_message(Defs::MTI mti)
+{
+    // Drop to the floor.
+    state_.input_frame_full = 0;
+    return;
+}
+
 void handle_input_frame()
 {
     if (IS_CAN_FRAME_ERR(state_.input_frame) ||
@@ -303,6 +340,25 @@ void handle_input_frame()
         else
         {
             return reject_datagram();
+        }
+    }
+    else if ((can_id >> 12) == (0x1F000 | state_.alias) && dlc > 1)
+    {
+        // handle stream data
+    }
+    else if ((can_id >> 24) == 0x19)
+    {
+        // global or addressed message
+        Defs::MTI mti = (Defs::MTI)CanDefs::get_mti(can_id);
+        if (Defs::get_mti_address(mti) && state_.input_frame.can_dlc >= 2 &&
+            (state_.input_frame.data[0] & 0xf) == ((state_.alias >> 8) & 0xf) &&
+            state_.input_frame.data[1] == (state_.alias & 0xff))
+        {
+            return handle_addressed_message(mti);
+        }
+        else if (!Defs::get_mti_address(mti))
+        {
+            return handle_global_message(mti);
         }
     }
     if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
@@ -405,8 +461,8 @@ void bootloader_entry()
             g_bootloader_busy =
                 (state_.input_frame_full || state_.output_frame_full ||
                  state_.init_state != INITIALIZED ||
-                 (state_.datagram_output_pending &&
-                  !state_.datagram_reply_waiting));
+                 (state_.datagram_output_pending /*&&
+                                                   !state_.datagram_reply_waiting*/));
         }
         if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
         {
