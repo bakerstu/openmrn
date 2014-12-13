@@ -38,6 +38,9 @@
 
 #include "freertos/bootloader_hal.h"
 #include "nmranet/Defs.hxx"
+#include "nmranet/CanDefs.hxx"
+#include "nmranet/DatagramDefs.hxx"
+#include "nmranet/MemoryConfig.hxx"
 #include "can_frame.h"
 
 namespace nmranet
@@ -49,6 +52,8 @@ struct BootloaderState
     struct can_frame output_frame;
     unsigned input_frame_full : 1;
     unsigned output_frame_full : 1;
+    unsigned request_reset : 1;
+    NodeAlias alias;
 } state_;
 }
 using namespace nmranet;
@@ -70,16 +75,121 @@ bool check_application_checksum()
     {
         return false;
     }
-    uint32_t post_size =
-        app_header->app_size - (reinterpret_cast<const uint8_t *>(app_header) -
-                                static_cast<const uint8_t *>(flash_min)) -
-        sizeof(struct app_header);
+    uint32_t post_size = app_header->app_size -
+                         (reinterpret_cast<const uint8_t *>(app_header) -
+                          static_cast<const uint8_t *>(flash_min)) -
+                         sizeof(struct app_header);
     checksum_data(app_header + 1, post_size, checksum);
     if (memcmp(app_header->checksum_post, checksum, sizeof(checksum)))
     {
         return false;
     }
     return true;
+}
+
+void setup_can_frame()
+{
+    CLR_CAN_FRAME_RTR(state_.output_frame);
+    CLR_CAN_FRAME_ERR(state_.output_frame);
+    SET_CAN_FRAME_EFF(state_.output_frame);
+    state_.output_frame.can_dlc = 0;
+    state_.output_frame_full = 1;
+}
+
+void set_can_frame_global(Defs::MTI mti)
+{
+    setup_can_frame();
+    uint32_t id;
+    CanDefs::set_fields(&id, state_.alias, mti, CanDefs::GLOBAL_ADDRESSED,
+                        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+    SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
+}
+
+/** Sets the outgoing CAN frame to addressed, destination taken from the source
+ * field of the incoming message. */
+void set_can_frame_addressed(Defs::MTI mti)
+{
+    setup_can_frame();
+    uint32_t id;
+    CanDefs::set_fields(&id, state_.alias, mti, CanDefs::GLOBAL_ADDRESSED,
+                        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+    SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
+    state_.output_frame.can_dlc = 2;
+    uint32_t incoming_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
+    NodeAlias incoming_alias = CanDefs::get_src(incoming_id);
+    state_.output_frame.data[0] = (incoming_alias >> 8) & 0xf;
+    state_.output_frame.data[1] = incoming_alias & 0xff;
+}
+
+/** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
+void set_error_code(uint16_t error_code) {
+    state_.output_frame.can_dlc = 4;
+    state_.output_frame.data[2] = error_code >> 8;
+    state_.output_frame.data[3] = error_code & 0xff;
+}
+
+void reject_datagram() {
+    set_can_frame_addressed(Defs::MTI_DATAGRAM_REJECTED);
+    set_error_code(Defs::ERROR_PERMANENT);
+    state_.input_frame_full = 0;
+}
+
+void handle_memory_config_frame()
+{
+    uint8_t command = state_.input_frame.data[1];
+    switch (command)
+    {
+        case MemoryConfigDefs::COMMAND_RESET:
+        {
+            set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+            state_.request_reset = 1;
+            state_.input_frame_full = 0;
+            return;
+        }
+    } // switch
+    reject_datagram();
+    return;
+}
+
+void handle_input_frame()
+{
+    if (IS_CAN_FRAME_ERR(state_.input_frame) ||
+        IS_CAN_FRAME_RTR(state_.input_frame) ||
+        !IS_CAN_FRAME_EFF(state_.input_frame))
+    {
+        state_.input_frame_full = 0;
+        return;
+    }
+    uint32_t can_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
+    int dlc = state_.input_frame.can_dlc;
+    if ((can_id >> 12) == (0x1A000 | state_.alias) && dlc > 1)
+    {
+        // Datagram one frame.
+
+        // Datagrams always need an answer. If we cannot render the answer,
+        // let's not even try to parse the message.
+        if (state_.output_frame_full) {
+            return; // re-try.
+        }
+        if (state_.input_frame.data[0] == DatagramDefs::CONFIGURATION)
+        {
+            return handle_memory_config_frame();
+        }
+        else
+        {
+            reject_datagram();
+            return;
+        }
+    }
+    if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
+    {
+        // CAN control message. Ignore.
+        state_.input_frame_full = 0;
+        return;
+    }
+    // NMRAnet message
+    state_.input_frame_full = 0;
+    return;
 }
 
 void bootloader_entry()
@@ -91,11 +201,32 @@ void bootloader_entry()
         return application_entry();
     }
 
-    while (!read_can_frame(&state_.input_frame)) {
+    memset(&state_, 0, sizeof(state_));
+    state_.alias = nmranet_alias();
+
+    while (true)
+    {
+        if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
+        {
+            state_.input_frame_full = 1;
+        }
+        if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
+        {
+            state_.output_frame_full = 0;
+        }
+        if (state_.request_reset)
+        {
+            return bootloader_reboot();
+        }
+        if (state_.input_frame_full)
+        {
+            handle_input_frame();
+        }
+
+#ifdef __linux__
         usleep(10);
-    }
-    state_.output_frame = state_.input_frame;
-    state_.output_frame.data[state_.output_frame.can_dlc++] = 0x55;
+#endif
+    } // while true
     try_send_can_frame(state_.output_frame);
 }
 

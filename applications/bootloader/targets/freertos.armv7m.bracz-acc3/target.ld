@@ -1,0 +1,1 @@
+../../../../boards/ti-bracz-acc3/target.ld
