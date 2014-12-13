@@ -138,10 +138,8 @@ extern void get_flash_page_info(
  *
  * @param address is the start address of a valid page, as returned by
  * get_flash_page_info.
- *
- * @returns zero if the erase is successful, an nmranet error code otherwise.
  */
-extern uint16_t erase_flash_page(const void *address);
+extern void erase_flash_page(const void *address);
 
 /** Writes data to the flash.
  *
