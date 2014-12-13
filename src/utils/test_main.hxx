@@ -87,7 +87,8 @@ int appl_main(int argc, char *argv[])
     return RUN_ALL_TESTS();
 }
 
-static Executor<1> g_executor("ex_thread", 0, 1024);
+extern Executor<1> g_executor;
+Executor<1> g_executor("ex_thread", 0, 1024);
 Service g_service(&g_executor);
 
 /** Blocks the current thread until the main executor has run out of work.
