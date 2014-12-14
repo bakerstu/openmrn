@@ -391,6 +391,15 @@ protected:
         Mock::VerifyAndClear(&canBus_);
     }
 
+    string create_stream_packet(const string& bytes) {
+        string packet = ":X1F428321N5A";
+        for (unsigned i = 0; i < bytes.size(); ++i) {
+            packet += StringPrintf("%02x", (uint8_t)bytes[i]);
+        }
+        packet += ";";
+        return packet;
+    }
+
     os_thread_t bootloader_thread_ = 0;
     bool running_ = false;
     SyncNotifiable bootloader_exited_;
@@ -488,6 +497,31 @@ TEST_F(BootloaderTest, RejectStreamWithWrongId)
     wait();
     Mock::VerifyAndClear(&canBus_);
 
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, WriteABlock)
+{
+    print_all_packets();
+    proper_startup();
+
+    initiate_stream_write("00000000");
+    setup_stream_request();
+
+    string data;
+    for (int i = 0; i < 256; i++) {
+        data.push_back(i & 0xff);
+    }
+    unsigned ofs = 0;
+    while (ofs + 7 < data.size()) {
+        send_packet(create_stream_packet(data.substr(ofs, 7)));
+        wait();
+        ofs += 7;
+    }
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, data, 256));
+    send_packet(create_stream_packet(data.substr(ofs, data.size() - ofs)));
+    wait();
     exit_bootloader();
 }
 

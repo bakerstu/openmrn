@@ -431,6 +431,7 @@ void handle_stream_data()
         state_.input_frame_full = 0;
         return;
     }
+    state_.input_frame_full = 0;
     memcpy(&g_write_buffer[state_.write_buffer_index],
            &state_.input_frame.data[1], len);
     state_.write_buffer_index += len;
