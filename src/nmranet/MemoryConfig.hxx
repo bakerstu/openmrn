@@ -35,6 +35,7 @@
 #ifndef _NMRANET_MEMORYCONFIG_HXX_
 #define _NMRANET_MEMORYCONFIG_HXX_
 
+#include "nmranet/DatagramDefs.hxx"
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
 
@@ -56,6 +57,8 @@ struct MemoryConfigDefs {
         COMMAND_WRITE_REPLY       = 0x10, /**< reply to write data to address space */
         COMMAND_WRITE_FAILED      = 0x18, /**< failed to write data to address space */
         COMMAND_WRITE_STREAM      = 0x20, /**< command to write data using a stream */
+        COMMAND_WRITE_STREAM_REPLY= 0x30, /**< reply to write data using a stream */
+        COMMAND_WRITE_STREAM_FAILED= 0x38, /**< failed to write data using a stream */
         COMMAND_READ              = 0x40, /**< command to read data from address space */
         COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
         COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
@@ -274,7 +277,7 @@ class MemoryConfigHandler : public DefaultDatagramHandler
 public:
     enum
     {
-        DATAGRAM_ID = 0x20,
+        DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
     MemoryConfigHandler(DatagramService* if_dg, Node* node,
