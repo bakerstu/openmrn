@@ -163,6 +163,14 @@ protected:
         gc_hub0.send(packet);
     }
 
+    void clear_expect(bool strict = false)
+    {
+        Mock::VerifyAndClear(&canBus_);
+        if (strict) {
+            EXPECT_CALL(canBus_, mwrite(_)).Times(0);
+        }
+    }
+
 /** Injects an incoming packet to the interface and expects that the node
     will send out a response packet for it.
 
