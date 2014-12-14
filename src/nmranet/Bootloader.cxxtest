@@ -629,5 +629,104 @@ TEST_F(BootloaderTest, WriteTwoPages)
     exit_bootloader();
 }
 
+TEST_F(BootloaderTest, FinishStream)
+{
+    proper_startup();
+    initiate_stream_write("00000000");
+    setup_stream_request();
+
+    string all_data;
+
+    expect_packet(":X19888428N03211A5A0000;").Times(12);
+    for (int i = 0; i < 6; ++i)
+    {
+        start_block(42*i, 256);
+        wait();
+        if (i == 0) {
+            EXPECT_CALL(mock_, erase_flash_page(0));
+        } else if (i == 4) {
+            EXPECT_CALL(mock_, erase_flash_page(1024));
+        }
+        EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
+        finish_block();
+        wait();
+        Mock::VerifyAndClear(&mock_);
+        all_data += current_block_;
+    }
+
+    // Partial block
+    expect_packet(":X19888428N03211A5A0000;").Times(1);
+    start_block(42*9, 178);
+    wait();
+    finish_block();
+    wait();
+    EXPECT_CALL(mock_, write_flash(6 * 256, current_block_, 178));
+    send_packet(":X198A8321N04281A5A0000;");
+    all_data += current_block_;
+    wait();
+
+    EXPECT_EQ(all_data, string((char *)virtual_flash, 6*256 + 178));
+    exit_bootloader();
+}
+
+
+TEST_F(BootloaderTest, MultiStream)
+{
+    proper_startup();
+    initiate_stream_write("00000000");
+    setup_stream_request();
+
+    string all_data;
+
+    expect_packet(":X19888428N03211A5A0000;").Times(16);
+    for (int i = 0; i < 8; ++i)
+    {
+        start_block(42*i, 256);
+        wait();
+        if (i == 0) {
+            EXPECT_CALL(mock_, erase_flash_page(0));
+        } else if (i == 4) {
+            EXPECT_CALL(mock_, erase_flash_page(1024));
+        }
+        EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
+        finish_block();
+        wait();
+        Mock::VerifyAndClear(&mock_);
+        all_data += current_block_;
+    }
+
+    // End of stream.
+    send_packet(":X198A8321N04281A5A0000;");
+    wait();
+
+    initiate_stream_write(StringPrintf("%08x", 2048));
+    setup_stream_request();
+
+    expect_packet(":X19888428N03211A5A0000;").Times(16);
+    for (int i = 0; i < 8; ++i)
+    {
+        start_block(45*i, 256);
+        wait();
+        if (i == 0) {
+            EXPECT_CALL(mock_, erase_flash_page(2048));
+        } else if (i == 4) {
+            EXPECT_CALL(mock_, erase_flash_page(3072));
+        }
+        EXPECT_CALL(mock_, write_flash(2048 + i * 256, current_block_, 256));
+        finish_block();
+        wait();
+        Mock::VerifyAndClear(&mock_);
+        all_data += current_block_;
+    }
+
+    // End of stream.
+    send_packet(":X198A8321N04281A5A0000;");
+    wait();
+
+    EXPECT_EQ(all_data, string((char *)virtual_flash, 4096));
+    exit_bootloader();
+}
+
+
 } // namespace
 } // namespace nmranet
