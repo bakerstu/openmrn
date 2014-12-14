@@ -600,20 +600,29 @@ TEST_F(BootloaderTest, WriteABlock)
 
 TEST_F(BootloaderTest, WriteTwoPages)
 {
-    print_all_packets();
     proper_startup();
     initiate_stream_write("00000000");
     setup_stream_request();
 
-    start_block(42, 256);
-    wait();
-    EXPECT_CALL(mock_, erase_flash_page(0));
-    EXPECT_CALL(mock_, write_flash(0, current_block_, 256));
-    finish_block();
-    wait();
-    Mock::VerifyAndClear(&mock_);
+    string all_data;
 
-    EXPECT_EQ(current_block_, string((char *)virtual_flash, 256));
+    for (int i = 0; i < 8; ++i)
+    {
+        start_block(42*i, 256);
+        wait();
+        if (i == 0) {
+            EXPECT_CALL(mock_, erase_flash_page(0));
+        } else if (i == 4) {
+            EXPECT_CALL(mock_, erase_flash_page(1024));
+        }
+        EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
+        finish_block();
+        wait();
+        Mock::VerifyAndClear(&mock_);
+        all_data += current_block_;
+    }
+
+    EXPECT_EQ(all_data, string((char *)virtual_flash, 2048));
     exit_bootloader();
 }
 
