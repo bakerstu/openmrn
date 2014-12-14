@@ -137,6 +137,7 @@ protected:
     */
     void print_all_packets()
     {
+        HASSERT(!printer_ && "cannot have more than one print_all_packets call");
         NiceMock<MockSend> *m = new NiceMock<MockSend>();
         EXPECT_CALL(*m, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(print_packet)));
