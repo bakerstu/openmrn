@@ -32,7 +32,8 @@ public:
     MOCK_METHOD0(nmranet_alias, uint16_t());
     // Argument is the offset from the beginning of virtual_flash.
     MOCK_METHOD1(erase_flash_page, void(uint32_t offset));
-    MOCK_METHOD3(write_flash, void(uint32_t offset, string payload, uint32_t size_bytes));
+    MOCK_METHOD3(write_flash,
+                 void(uint32_t offset, string payload, uint32_t size_bytes));
 };
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
@@ -173,7 +174,7 @@ void get_flash_page_info(const void *address, const void **page_start,
  */
 void erase_flash_page(const void *address)
 {
-    uint8_t* dest = (uint8_t*)address;
+    uint8_t *dest = (uint8_t *)address;
     g_mock_bootloader_hal->erase_flash_page(dest - virtual_flash);
     // Actually clears the page in the virtual flash.
     const void *page_start;
@@ -188,9 +189,10 @@ void erase_flash_page(const void *address)
 
 void write_flash(const void *address, const void *data, uint32_t size_bytes)
 {
-    uint8_t* dest = (uint8_t*)address;
-    string payload(static_cast<const char*>(data), size_bytes);
-    g_mock_bootloader_hal->write_flash(dest - virtual_flash, payload, size_bytes);
+    uint8_t *dest = (uint8_t *)address;
+    string payload(static_cast<const char *>(data), size_bytes);
+    g_mock_bootloader_hal->write_flash(dest - virtual_flash, payload,
+                                       size_bytes);
     ASSERT_LE(&virtual_flash[0], dest);
     ASSERT_GE(&virtual_flash[FLASH_SIZE], &dest[size_bytes]);
     memcpy(dest, data, size_bytes);
@@ -351,6 +353,44 @@ protected:
         return nullptr;
     }
 
+    void proper_startup()
+    {
+        expect_boot(true);
+        EXPECT_CALL(mock_, application_entry()).Times(0);
+        expect_packet(":X19100428N05010101146C;");
+        run_bootloader();
+        wait();
+        Mock::VerifyAndClear(&canBus_);
+    }
+
+    /** Sends a memory config write stream request fo rthe given offset, and
+     * puts in expectations on responses.
+     *
+     * @param offset is an 8-character string with the hex address in
+     * big-endian.*/
+    void initiate_stream_write(string offset)
+    {
+        // expect datagram ok
+        expect_packet(":X19A28428N0321;");
+        // and expect response datagram
+        expect_packet(StringPrintf(":X1A321428N2030%sF0;", offset.c_str()))
+            .WillOnce(InvokeWithoutArgs([this]
+        { send_packet(":X19A28321N0428;"); }));
+        send_packet(StringPrintf(":X1A428321N2020%sF01A;", offset.c_str()));
+        wait();
+        Mock::VerifyAndClear(&canBus_);
+    }
+
+    /** Sends a stream setup request and expects correct response. */
+    void setup_stream_request()
+    {
+        // Sends stream setup request.
+        expect_packet(":X19868428N0321008080001A5A;");
+        send_packet(":X19CC8321N0428008000001A;");
+        wait();
+        Mock::VerifyAndClear(&canBus_);
+    }
+
     os_thread_t bootloader_thread_ = 0;
     bool running_ = false;
     SyncNotifiable bootloader_exited_;
@@ -409,56 +449,24 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
 
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
-    print_all_packets();
-    expect_boot(true);
-    EXPECT_CALL(mock_, application_entry()).Times(0);
-    expect_packet(":X19100428N05010101146C;");
-    run_bootloader();
-    wait();
-    Mock::VerifyAndClear(&canBus_);
-
+    proper_startup();
     exit_bootloader();
 }
 
 TEST_F(BootloaderTest, StartWriteAtOffsetZero)
 {
     print_all_packets();
-    expect_boot(true);
-    EXPECT_CALL(mock_, application_entry()).Times(0);
-    expect_packet(":X19100428N05010101146C;");
-    run_bootloader();
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    proper_startup();
 
-    EXPECT_CALL(mock_, erase_flash_page(0)).Times(1);
-    // expect datagram ok
-    expect_packet(":X19A28428N0321;");
-    // and expect response datagram
-    expect_packet(":X1A321428N203000000000F0;")
-        .WillOnce(InvokeWithoutArgs([this]
-    { send_packet(":X19A28321N0428;"); }));
-    send_packet(":X1A428321N202000000000F01A;");
-    wait();
-    Mock::VerifyAndClear(&canBus_);
-
-    // Sends stream setup request.
-    expect_packet(":X19868428N0321008080001A5A;");
-    send_packet(":X19CC8321N0428008000001A;");
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    initiate_stream_write("00000000");
+    setup_stream_request();
 
     exit_bootloader();
 }
 
 TEST_F(BootloaderTest, RejectStreamOutOfTheBlue)
 {
-    print_all_packets();
-    expect_boot(true);
-    EXPECT_CALL(mock_, application_entry()).Times(0);
-    expect_packet(":X19100428N05010101146C;");
-    run_bootloader();
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    proper_startup();
 
     expect_packet(":X19868428N0321000042201A5A;");
     send_packet(":X19CC8321N0428008000001A;");
@@ -470,28 +478,13 @@ TEST_F(BootloaderTest, RejectStreamOutOfTheBlue)
 
 TEST_F(BootloaderTest, RejectStreamWithWrongId)
 {
-    print_all_packets();
-    expect_boot(true);
-    EXPECT_CALL(mock_, application_entry()).Times(0);
-    expect_packet(":X19100428N05010101146C;");
-    run_bootloader();
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    proper_startup();
 
-    EXPECT_CALL(mock_, erase_flash_page(0)).Times(1);
-    // expect datagram ok
-    expect_packet(":X19A28428N0321;");
-    // and expect response datagram
-    expect_packet(":X1A321428N203000000000F0;")
-        .WillOnce(InvokeWithoutArgs([this]
-    { send_packet(":X19A28321N0428;"); }));
-    send_packet(":X1A428321N202000000000F055;");
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    initiate_stream_write("00000000");
 
     // Sends stream setup request with wrong id (1A vs 55).
-    expect_packet(":X19868428N0321000042201A5A;");
-    send_packet(":X19CC8321N0428008000001A;");
+    expect_packet(":X19868428N032100004220555A;");
+    send_packet(":X19CC8321N04280080000055;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 

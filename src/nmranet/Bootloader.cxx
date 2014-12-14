@@ -109,6 +109,8 @@ unsigned g_bootloader_busy = 1;
 Atomic g_bootloader_lock;
 #endif
 
+void reset_stream_state();
+
 /** @returns true if the application checksum currently in flash is correct. */
 bool check_application_checksum()
 {
@@ -203,6 +205,10 @@ void add_memory_config_error_response(uint16_t error_code)
 void init_flash_write_buffer()
 {
     memset(g_write_buffer, 0xff, WRITE_BUFFER_SIZE);
+}
+
+void flush_flash_buffer()
+{
     const void *address =
         reinterpret_cast<const void *>(state_.write_buffer_offset);
     const void *page_start = nullptr;
@@ -213,6 +219,10 @@ void init_flash_write_buffer()
         // Beginning of a page -- let's do an erase.
         erase_flash_page(address);
     }
+    write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
+                state_.write_buffer_index);
+    state_.write_buffer_offset += state_.write_buffer_index;
+    state_.write_buffer_index = 0;
 }
 
 void handle_memory_config_frame()
@@ -277,7 +287,7 @@ void handle_memory_config_frame()
             {
                 add_memory_config_error_response(
                     DatagramDefs::INVALID_ARGUMENTS);
-                return;
+                return reset_stream_state();
             }
             state_.write_buffer_offset += (uint32_t)flash_min;
             init_flash_write_buffer();
@@ -381,6 +391,20 @@ void handle_global_message(Defs::MTI mti)
     return;
 }
 
+/** Clears out the stream state in state_. */
+void reset_stream_state()
+{
+    state_.stream_open = 0;
+    state_.stream_pending = 0;
+    state_.stream_proceed_pending = 0;
+    state_.stream_src_id = 0;
+    state_.stream_src_alias = 0;
+    state_.stream_buffer_size = 0;
+    state_.stream_buffer_remaining = 0;
+    state_.write_buffer_index = 0;
+    state_.write_buffer_offset = 0;
+}
+
 void handle_stream_data()
 {
     if (!state_.stream_open || state_.input_frame.data[0] != STREAM_ID)
@@ -417,10 +441,7 @@ void handle_stream_data()
     }
     if (state_.write_buffer_index >= WRITE_BUFFER_SIZE)
     {
-        write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
-                    state_.write_buffer_index);
-        state_.write_buffer_offset += state_.write_buffer_index;
-        state_.write_buffer_index = 0;
+        flush_flash_buffer();
     }
 }
 
@@ -451,22 +472,11 @@ void handle_stream_complete()
     }
     if (state_.write_buffer_index)
     {
-        write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
-                    state_.write_buffer_index);
+        flush_flash_buffer();
     }
     // Input frame is processed.
     state_.input_frame_full = 0;
-
-    // Reset stream state.
-    state_.stream_open = 0;
-    state_.stream_pending = 0;
-    state_.stream_proceed_pending = 0;
-    state_.stream_src_id = 0;
-    state_.stream_src_alias = 0;
-    state_.stream_buffer_size = 0;
-    state_.stream_buffer_remaining = 0;
-    state_.write_buffer_index = 0;
-    state_.write_buffer_offset = 0;
+    reset_stream_state();
 }
 
 void handle_input_frame()
