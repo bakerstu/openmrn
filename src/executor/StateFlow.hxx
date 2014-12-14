@@ -36,6 +36,7 @@
 #define _EXECUTOR_STATEFLOW_HXX_
 
 #include <type_traits>
+#include <functional>
 
 #include "executor/Service.hxx"
 #include "executor/Timer.hxx"
@@ -561,6 +562,8 @@ private:
     static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
 };
 
+template <class MessageType> class FlowInterface;
+
 template <class MessageType> class FlowInterface
 {
 public:
@@ -609,6 +612,28 @@ public:
         Pool::alloc_async_init(static_cast<BufferBase *>(entry), &result);
         return result;
     }
+
+    class GenericHandler;
+};
+
+template <class MessageType>
+class FlowInterface<MessageType>::GenericHandler
+    : public FlowInterface<MessageType>
+{
+public:
+    typedef std::function<void(message_type *)> HandlerFn;
+    GenericHandler(HandlerFn handler)
+        : handler_(handler)
+    {
+    }
+
+    void send(MessageType *message, unsigned priority) override
+    {
+        handler_(message);
+    }
+
+private:
+    HandlerFn handler_;
 };
 
 template <class T>
