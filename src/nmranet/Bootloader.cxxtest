@@ -2,6 +2,7 @@
 #include "freertos/bootloader_hal.h"
 
 #include "Bootloader.hxx"
+#include "nmranet/BootloaderClient.hxx"
 #include <string>
 #include <functional>
 
