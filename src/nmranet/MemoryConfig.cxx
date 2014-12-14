@@ -26,7 +26,7 @@
  *
  * \file MemoryConfig.cxx
  *
- * Implementaiton of the Memory Config Protocol server
+ * Implementation of the Memory Config Protocol server
  *
  * @author Balazs Racz
  * @date 23 Feb 2014
