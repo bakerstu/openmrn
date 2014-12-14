@@ -627,6 +627,10 @@ public:
     {
     }
 
+    template<class T>
+    GenericHandler(T* ptr, void (T::*fn)(message_type*))
+        : handler_(std::bind(fn, ptr, std::placeholders::_1)) {}
+
     void send(MessageType *message, unsigned priority) override
     {
         handler_(message);
