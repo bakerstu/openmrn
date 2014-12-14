@@ -55,7 +55,6 @@ extern size_t g_alias_use_conflicts;
 class AliasAllocator;
 class IfCan;
 
-
 class IfCan : public If, public CanIf
 {
 public:
@@ -78,8 +77,8 @@ public:
      * @param local_nodes_count is the maximum number of virtual nodes that
      * this interface will support. */
     IfCan(ExecutorBase *executor, CanHubFlow *device,
-               int local_alias_cache_size, int remote_alias_cache_size,
-               int local_nodes_count);
+          int local_alias_cache_size, int remote_alias_cache_size,
+          int local_nodes_count);
 
     ~IfCan();
 
@@ -110,7 +109,11 @@ public:
 
     virtual void add_owned_flow(Executable *e);
 
+    bool matching_node(NodeHandle expected, NodeHandle actual) override;
+
 private:
+    void canonicalize_handle(NodeHandle* h);
+
     friend class CanFrameWriteFlow; // accesses the device and the hubport.
 
     /** Aliases we know are owned by local (virtual or proxied) nodes.

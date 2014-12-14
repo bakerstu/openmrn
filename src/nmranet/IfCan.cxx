@@ -395,4 +395,38 @@ void IfCan::add_addressed_message_support()
     add_owned_flow(f);
 }
 
+void IfCan::canonicalize_handle(NodeHandle* h) {
+  if (!h->id & !h->alias) return;
+  if (!h->id) {
+    h->id = local_aliases()->lookup(h->alias);
+  }
+  if (!h->id) {
+    h->id = remote_aliases()->lookup(h->alias);
+  }
+  if (!h->alias) {
+    h->alias = local_aliases()->lookup(h->id);
+  }
+  if (!h->alias) {
+    h->alias = remote_aliases()->lookup(h->id);
+  }
+}
+
+bool IfCan::matching_node(NodeHandle expected, NodeHandle actual)
+{
+    canonicalize_handle(&expected);
+    canonicalize_handle(&actual);
+    if (expected.id && actual.id)
+    {
+        return expected.id == actual.id;
+    }
+    if (expected.alias && actual.alias)
+    {
+        return expected.alias == actual.alias;
+    }
+    // Cannot reconcile.
+    LOG(VERBOSE, "Cannot reconcile expected and actual NodeHandles for "
+                 "equality testing.");
+    return false;
+}
+
 } // namespace nmranet
