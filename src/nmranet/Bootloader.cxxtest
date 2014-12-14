@@ -407,7 +407,7 @@ protected:
         expect_packet(":X19100428N05010101146C;");
         run_bootloader();
         wait();
-        Mock::VerifyAndClear(&canBus_);
+        clear_expect(true);
     }
 
     /** Sends a memory config write stream request fo rthe given offset, and
@@ -425,7 +425,7 @@ protected:
         { send_packet(":X19A28321N0428;"); }));
         send_packet(StringPrintf(":X1A428321N2020%sF01A;", offset.c_str()));
         wait();
-        Mock::VerifyAndClear(&canBus_);
+        clear_expect(true);
     }
 
     /** Sends a stream setup request and expects correct response. */
@@ -435,7 +435,7 @@ protected:
         expect_packet(":X19868428N0321008080001A5A;");
         send_packet(":X19CC8321N0428008000001A;");
         wait();
-        Mock::VerifyAndClear(&canBus_);
+        clear_expect(true);
     }
 
     string create_stream_packet(const string &bytes)
@@ -457,7 +457,6 @@ protected:
         {
             send_packet(
                 create_stream_packet(current_block_.substr(block_ofs_, 7)));
-            wait();
             block_ofs_ += 7;
         }
     }
@@ -466,6 +465,7 @@ protected:
     {
         send_packet(create_stream_packet(current_block_.substr(
             block_ofs_, current_block_.size() - block_ofs_)));
+        //clear_expect(true);
     }
 
     string current_block_;
@@ -584,6 +584,7 @@ TEST_F(BootloaderTest, WriteABlock)
         data.push_back(i & 0xff);
     }
     unsigned ofs = 0;
+    expect_packet(":X19888428N03211A5A0000;");
     while (ofs + 7 < data.size())
     {
         send_packet(create_stream_packet(data.substr(ofs, 7)));
@@ -592,6 +593,7 @@ TEST_F(BootloaderTest, WriteABlock)
     }
     EXPECT_CALL(mock_, erase_flash_page(0));
     EXPECT_CALL(mock_, write_flash(0, data, 256));
+    expect_packet(":X19888428N03211A5A0000;");
     send_packet(create_stream_packet(data.substr(ofs, data.size() - ofs)));
     wait();
     EXPECT_EQ(data, string((char *)virtual_flash, 256));
@@ -606,6 +608,7 @@ TEST_F(BootloaderTest, WriteTwoPages)
 
     string all_data;
 
+    expect_packet(":X19888428N03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
         start_block(42*i, 256);

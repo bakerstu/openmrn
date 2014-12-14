@@ -83,7 +83,7 @@ struct BootloaderState
     uint16_t stream_buffer_size;
     // How many bytes are left of the strem buffer before a continue needs to
     // be sent.
-    uint16_t stream_buffer_remaining;
+    int stream_buffer_remaining;
 
     // Offset of the beginning of the write buffer.
     unsigned write_buffer_offset;
@@ -157,8 +157,10 @@ void set_can_frame_global(Defs::MTI mti)
 }
 
 /** Sets the outgoing CAN frame to addressed, destination taken from the source
- * field of the incoming message. */
-void set_can_frame_addressed(Defs::MTI mti)
+ * field of the incoming message or the given alias. */
+void set_can_frame_addressed(Defs::MTI mti,
+                             NodeAlias alias = CanDefs::get_src(
+                                 GET_CAN_FRAME_ID_EFF(state_.input_frame)))
 {
     setup_can_frame();
     uint32_t id;
@@ -166,10 +168,8 @@ void set_can_frame_addressed(Defs::MTI mti)
                         CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
     state_.output_frame.can_dlc = 2;
-    uint32_t incoming_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
-    NodeAlias incoming_alias = CanDefs::get_src(incoming_id);
-    state_.output_frame.data[0] = (incoming_alias >> 8) & 0xf;
-    state_.output_frame.data[1] = incoming_alias & 0xff;
+    state_.output_frame.data[0] = (alias >> 8) & 0xf;
+    state_.output_frame.data[1] = alias & 0xff;
 }
 
 /** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
@@ -435,9 +435,10 @@ void handle_stream_data()
            &state_.input_frame.data[1], len);
     state_.write_buffer_index += len;
     state_.stream_buffer_remaining -= len;
-    if (!state_.stream_buffer_remaining)
+    if (state_.stream_buffer_remaining <= 0)
     {
         state_.stream_proceed_pending = 1;
+        state_.stream_buffer_remaining += state_.stream_buffer_size;
     }
     if (state_.write_buffer_index >= WRITE_BUFFER_SIZE)
     {
@@ -647,6 +648,16 @@ void bootloader_entry()
         if (state_.init_state != INITIALIZED && !state_.output_frame_full)
         {
             handle_init();
+        }
+        if (state_.stream_proceed_pending && !state_.output_frame_full)
+        {
+            set_can_frame_addressed(Defs::MTI_STREAM_PROCEED,
+                                    state_.stream_src_alias);
+            state_.stream_proceed_pending = 0;
+            state_.output_frame.data[state_.output_frame.can_dlc++] = state_.stream_src_id;
+            state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
+            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
+            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
         }
         if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
             !state_.output_frame_full)
