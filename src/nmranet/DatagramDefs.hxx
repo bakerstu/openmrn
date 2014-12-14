@@ -34,6 +34,8 @@
 #ifndef _NMRANET_DATAGRAMDEFS_HXX_
 #define _NMRANET_DATAGRAMDEFS_HXX_
 
+#include <stdint.h>
+
 namespace nmranet
 {
 
