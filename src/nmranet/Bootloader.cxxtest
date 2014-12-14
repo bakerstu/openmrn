@@ -175,7 +175,6 @@ void get_flash_page_info(const void *address, const void **page_start,
 void erase_flash_page(const void *address)
 {
     uint8_t *dest = (uint8_t *)address;
-    g_mock_bootloader_hal->erase_flash_page(dest - virtual_flash);
     // Actually clears the page in the virtual flash.
     const void *page_start;
     uint32_t page_length;
@@ -185,17 +184,20 @@ void erase_flash_page(const void *address)
     ASSERT_LE(&virtual_flash[0], dest);
     ASSERT_GE(&virtual_flash[FLASH_SIZE], &dest[page_length]);
     memset(dest, 0xff, page_length);
+
+    g_mock_bootloader_hal->erase_flash_page(dest - virtual_flash);
 }
 
 void write_flash(const void *address, const void *data, uint32_t size_bytes)
 {
     uint8_t *dest = (uint8_t *)address;
-    string payload(static_cast<const char *>(data), size_bytes);
-    g_mock_bootloader_hal->write_flash(dest - virtual_flash, payload,
-                                       size_bytes);
     ASSERT_LE(&virtual_flash[0], dest);
     ASSERT_GE(&virtual_flash[FLASH_SIZE], &dest[size_bytes]);
     memcpy(dest, data, size_bytes);
+    string payload(static_cast<const char *>(data), size_bytes);
+
+    g_mock_bootloader_hal->write_flash(dest - virtual_flash, payload,
+                                       size_bytes);
 }
 
 uint16_t nmranet_alias()
@@ -282,6 +284,16 @@ protected:
         }
     }
 
+    string get_block(unsigned int seed, size_t length)
+    {
+        string ret;
+        for (size_t i = 0; i < length; ++i)
+        {
+            ret.push_back(rand_r(&seed) & 0xff);
+        }
+        return ret;
+    }
+
     ::testing::StrictMock<MockBootloaderHAL> mock_;
     BootloaderPort can_port_;
 };
@@ -307,14 +319,49 @@ protected:
         wait_for_main_executor();
     }
 
+    class Guard : private StateFlowBase
+    {
+    public:
+        Guard(BootloaderTest *parent)
+            : StateFlowBase(&g_service)
+            , timer_(this)
+            , parent_(parent)
+        {
+        }
+
+        Action test()
+        {
+            AtomicHolder h(&g_bootloader_lock);
+            if (!g_executor.empty() || g_bootloader_busy ||
+                parent_->can_port_.is_waiting())
+            {
+                return call_immediately(STATE(sleep_some));
+            }
+            set_terminated();
+            block_.notify();
+            return wait();
+        }
+
+        Action sleep_some()
+        {
+            return sleep_and_call(&timer_, USEC_TO_NSEC(100), STATE(test));
+        }
+
+        void wait_for_guard()
+        {
+            start_flow(STATE(test));
+            block_.wait_for_notification();
+        }
+
+    private:
+        StateFlowTimer timer_;
+        BootloaderTest *parent_;
+        SyncNotifiable block_;
+    } guard_{this};
+
     void wait()
     {
-        while (can_port_.is_waiting() || !g_executor.empty() ||
-               g_bootloader_busy)
-        {
-            usleep(100);
-            AtomicHolder h(&g_bootloader_lock);
-        }
+        guard_.wait_for_guard();
     }
 
     void run_bootloader()
@@ -391,15 +438,38 @@ protected:
         Mock::VerifyAndClear(&canBus_);
     }
 
-    string create_stream_packet(const string& bytes) {
+    string create_stream_packet(const string &bytes)
+    {
         string packet = ":X1F428321N5A";
-        for (unsigned i = 0; i < bytes.size(); ++i) {
+        for (unsigned i = 0; i < bytes.size(); ++i)
+        {
             packet += StringPrintf("%02x", (uint8_t)bytes[i]);
         }
         packet += ";";
         return packet;
     }
 
+    void start_block(unsigned int seed, size_t length)
+    {
+        current_block_ = get_block(seed, length);
+        block_ofs_ = 0;
+        while (block_ofs_ + 7 < current_block_.size())
+        {
+            send_packet(
+                create_stream_packet(current_block_.substr(block_ofs_, 7)));
+            wait();
+            block_ofs_ += 7;
+        }
+    }
+
+    void finish_block()
+    {
+        send_packet(create_stream_packet(current_block_.substr(
+            block_ofs_, current_block_.size() - block_ofs_)));
+    }
+
+    string current_block_;
+    unsigned block_ofs_;
     os_thread_t bootloader_thread_ = 0;
     bool running_ = false;
     SyncNotifiable bootloader_exited_;
@@ -509,11 +579,13 @@ TEST_F(BootloaderTest, WriteABlock)
     setup_stream_request();
 
     string data;
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         data.push_back(i & 0xff);
     }
     unsigned ofs = 0;
-    while (ofs + 7 < data.size()) {
+    while (ofs + 7 < data.size())
+    {
         send_packet(create_stream_packet(data.substr(ofs, 7)));
         wait();
         ofs += 7;
@@ -522,6 +594,26 @@ TEST_F(BootloaderTest, WriteABlock)
     EXPECT_CALL(mock_, write_flash(0, data, 256));
     send_packet(create_stream_packet(data.substr(ofs, data.size() - ofs)));
     wait();
+    EXPECT_EQ(data, string((char *)virtual_flash, 256));
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, WriteTwoPages)
+{
+    print_all_packets();
+    proper_startup();
+    initiate_stream_write("00000000");
+    setup_stream_request();
+
+    start_block(42, 256);
+    wait();
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, current_block_, 256));
+    finish_block();
+    wait();
+    Mock::VerifyAndClear(&mock_);
+
+    EXPECT_EQ(current_block_, string((char *)virtual_flash, 256));
     exit_bootloader();
 }
 

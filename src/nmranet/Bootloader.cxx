@@ -200,8 +200,6 @@ void add_memory_config_error_response(uint16_t error_code)
     state_.datagram_payload[state_.datagram_dlc++] = error_code & 0xff;
 }
 
-/** Clears out the flash write buffer. Erases the flash page if the buffer is
- * on flash page boundary. */
 void init_flash_write_buffer()
 {
     memset(g_write_buffer, 0xff, WRITE_BUFFER_SIZE);
@@ -223,6 +221,7 @@ void flush_flash_buffer()
                 state_.write_buffer_index);
     state_.write_buffer_offset += state_.write_buffer_index;
     state_.write_buffer_index = 0;
+    init_flash_write_buffer();
 }
 
 void handle_memory_config_frame()
