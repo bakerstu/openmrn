@@ -1,4 +1,4 @@
-#include "utils/async_if_test_helper.hxx"
+#include "utils/async_datagram_test_helper.hxx"
 #include "freertos/bootloader_hal.h"
 
 #include "Bootloader.hxx"
@@ -18,6 +18,9 @@ extern Atomic g_bootloader_lock;
 
 namespace nmranet
 {
+
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
+
 namespace
 {
 
@@ -34,7 +37,7 @@ public:
     // Argument is the offset from the beginning of virtual_flash.
     MOCK_METHOD1(erase_flash_page, void(uint32_t offset));
     MOCK_METHOD3(write_flash,
-                 void(uint32_t offset, string payload, uint32_t size_bytes));
+        void(uint32_t offset, string payload, uint32_t size_bytes));
 };
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
@@ -47,7 +50,8 @@ static uint8_t virtual_flash[FLASH_SIZE];
 class BootloaderPort : public CanHubPort
 {
 public:
-    BootloaderPort() : CanHubPort(&g_service)
+    BootloaderPort()
+        : CanHubPort(&g_service)
     {
         is_waiting_ = false;
     }
@@ -138,7 +142,7 @@ bool try_send_can_frame(const struct can_frame &frame)
 }
 
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
-                          const struct app_header **app_header)
+    const struct app_header **app_header)
 {
     *flash_min = virtual_flash;
     *flash_max = virtual_flash + FLASH_SIZE;
@@ -154,8 +158,8 @@ void get_flash_boundaries(const void **flash_min, const void **flash_max,
  *
  * In other words, *page_start <= address < (*page_start + *page_length_bytes).
  */
-void get_flash_page_info(const void *address, const void **page_start,
-                         uint32_t *page_length_bytes)
+void get_flash_page_info(
+    const void *address, const void **page_start, uint32_t *page_length_bytes)
 {
     // Simulates a flat 1KB page structure.
     uint32_t value = reinterpret_cast<uint32_t>(address);
@@ -197,8 +201,8 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
     memcpy(dest, data, size_bytes);
     string payload(static_cast<const char *>(data), size_bytes);
 
-    g_mock_bootloader_hal->write_flash(dest - virtual_flash, payload,
-                                       size_bytes);
+    g_mock_bootloader_hal->write_flash(
+        dest - virtual_flash, payload, size_bytes);
 }
 
 uint16_t nmranet_alias()
@@ -222,7 +226,7 @@ void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
     if (0)
     {
         fprintf(stderr, "Checksum %p-> %5d : %08x%08x%08x%08x\n", data, size,
-                checksum[0], checksum[1], checksum[2], checksum[3]);
+            checksum[0], checksum[1], checksum[2], checksum[3]);
     }
 }
 
@@ -240,6 +244,10 @@ protected:
         memset(virtual_flash, 0, FLASH_SIZE);
         can_hub0.register_port(&can_port_);
         g_bootloader_port = &can_port_;
+
+        EXPECT_CALL(mock_, nmranet_alias()).WillRepeatedly(Return(0x428));
+        EXPECT_CALL(mock_, nmranet_nodeid())
+            .WillRepeatedly(Return(0x05010101146CULL));
     }
 
     ~BootloaderTestBase()
@@ -295,6 +303,26 @@ protected:
         return ret;
     }
 
+    static void *bootloader_thread(void *arg)
+    {
+        BootloaderTestBase *t = static_cast<BootloaderTestBase *>(arg);
+        bootloader_entry();
+        t->running_ = false;
+        t->bootloader_exited_.notify();
+        return nullptr;
+    }
+
+    void run_bootloader()
+    {
+        running_ = true;
+        g_bootloader_busy = 1;
+        os_thread_create(&bootloader_thread_, "bootloader", 0, 0,
+            &BootloaderTestBase::bootloader_thread, this);
+    }
+
+    SyncNotifiable bootloader_exited_;
+    os_thread_t bootloader_thread_ = 0;
+    bool running_ = false;
     ::testing::StrictMock<MockBootloaderHAL> mock_;
     BootloaderPort can_port_;
 };
@@ -302,21 +330,14 @@ protected:
 class BootloaderTest : public AsyncCanTest, protected BootloaderTestBase
 {
 protected:
-    BootloaderTest()
-    {
-        EXPECT_CALL(mock_, nmranet_alias()).WillRepeatedly(Return(0x428));
-        EXPECT_CALL(mock_, nmranet_nodeid())
-            .WillRepeatedly(Return(0x05010101146CULL));
-    }
-
     ~BootloaderTest()
     {
         // wait_for_main_executor();
         if (running_)
         {
-            wait_for_bootloader_exit();
+            wait();
         }
-        usleep(100);
+        // usleep(
         wait_for_main_executor();
     }
 
@@ -365,14 +386,6 @@ protected:
         guard_.wait_for_guard();
     }
 
-    void run_bootloader()
-    {
-        running_ = true;
-        g_bootloader_busy = 1;
-        os_thread_create(&bootloader_thread_, "bootloader", 0, 0,
-                         &BootloaderTest::bootloader_thread, this);
-    }
-
     void sync_run_bootloader()
     {
         run_bootloader();
@@ -390,15 +403,6 @@ protected:
         EXPECT_CALL(mock_, bootloader_reboot());
         expect_packet(":X19A28428N0111;");
         send_packet(":X1A428111N20A9;");
-    }
-
-    static void *bootloader_thread(void *arg)
-    {
-        BootloaderTest *t = static_cast<BootloaderTest *>(arg);
-        bootloader_entry();
-        t->running_ = false;
-        t->bootloader_exited_.notify();
-        return nullptr;
     }
 
     void proper_startup()
@@ -423,7 +427,9 @@ protected:
         // and expect response datagram
         expect_packet(StringPrintf(":X1A321428N2030%sF0;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
-        { send_packet(":X19A28321N0428;"); }));
+                {
+                    send_packet(":X19A28321N0428;");
+                }));
         send_packet(StringPrintf(":X1A428321N2020%sF01A;", offset.c_str()));
         wait();
         clear_expect(true);
@@ -466,14 +472,11 @@ protected:
     {
         send_packet(create_stream_packet(current_block_.substr(
             block_ofs_, current_block_.size() - block_ofs_)));
-        //clear_expect(true);
+        // clear_expect(true);
     }
 
     string current_block_;
     unsigned block_ofs_;
-    os_thread_t bootloader_thread_ = 0;
-    bool running_ = false;
-    SyncNotifiable bootloader_exited_;
 };
 
 TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
@@ -612,11 +615,14 @@ TEST_F(BootloaderTest, WriteTwoPages)
     expect_packet(":X19888428N03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
-        start_block(42*i, 256);
+        start_block(42 * i, 256);
         wait();
-        if (i == 0) {
+        if (i == 0)
+        {
             EXPECT_CALL(mock_, erase_flash_page(0));
-        } else if (i == 4) {
+        }
+        else if (i == 4)
+        {
             EXPECT_CALL(mock_, erase_flash_page(1024));
         }
         EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
@@ -641,11 +647,14 @@ TEST_F(BootloaderTest, FinishStream)
     expect_packet(":X19888428N03211A5A0000;").Times(12);
     for (int i = 0; i < 6; ++i)
     {
-        start_block(42*i, 256);
+        start_block(42 * i, 256);
         wait();
-        if (i == 0) {
+        if (i == 0)
+        {
             EXPECT_CALL(mock_, erase_flash_page(0));
-        } else if (i == 4) {
+        }
+        else if (i == 4)
+        {
             EXPECT_CALL(mock_, erase_flash_page(1024));
         }
         EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
@@ -657,7 +666,7 @@ TEST_F(BootloaderTest, FinishStream)
 
     // Partial block
     expect_packet(":X19888428N03211A5A0000;").Times(1);
-    start_block(42*9, 178);
+    start_block(42 * 9, 178);
     wait();
     finish_block();
     wait();
@@ -666,10 +675,9 @@ TEST_F(BootloaderTest, FinishStream)
     all_data += current_block_;
     wait();
 
-    EXPECT_EQ(all_data, string((char *)virtual_flash, 6*256 + 178));
+    EXPECT_EQ(all_data, string((char *)virtual_flash, 6 * 256 + 178));
     exit_bootloader();
 }
-
 
 TEST_F(BootloaderTest, MultiStream)
 {
@@ -682,11 +690,14 @@ TEST_F(BootloaderTest, MultiStream)
     expect_packet(":X19888428N03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
-        start_block(42*i, 256);
+        start_block(42 * i, 256);
         wait();
-        if (i == 0) {
+        if (i == 0)
+        {
             EXPECT_CALL(mock_, erase_flash_page(0));
-        } else if (i == 4) {
+        }
+        else if (i == 4)
+        {
             EXPECT_CALL(mock_, erase_flash_page(1024));
         }
         EXPECT_CALL(mock_, write_flash(i * 256, current_block_, 256));
@@ -706,11 +717,14 @@ TEST_F(BootloaderTest, MultiStream)
     expect_packet(":X19888428N03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
-        start_block(45*i, 256);
+        start_block(45 * i, 256);
         wait();
-        if (i == 0) {
+        if (i == 0)
+        {
             EXPECT_CALL(mock_, erase_flash_page(2048));
-        } else if (i == 4) {
+        }
+        else if (i == 4)
+        {
             EXPECT_CALL(mock_, erase_flash_page(3072));
         }
         EXPECT_CALL(mock_, write_flash(2048 + i * 256, current_block_, 256));
@@ -728,6 +742,136 @@ TEST_F(BootloaderTest, MultiStream)
     exit_bootloader();
 }
 
+class BootloaderClientTest : public AsyncDatagramTest,
+                             protected BootloaderTestBase
+{
+protected:
+    BootloaderClientTest()
+        : client_(node_, &datagram_support_, ifCan_.get())
+    {
+        mainBufferPool->alloc(&request_);
+        request_->data()->response = &response_;
+    }
+
+    ~BootloaderClientTest()
+    {
+        if (request_)
+            request_->unref();
+        wait_for_main_executor();
+    }
+
+    void send()
+    {
+        request_->set_done(bn_.reset(&n_));
+        client_.send(request_);
+        request_ = nullptr;
+    }
+
+    void startup()
+    {
+        expect_boot(true);
+        EXPECT_CALL(mock_, application_entry()).Times(0);
+        expect_packet(":X19100428N05010101146C;");
+        run_bootloader();
+        while (g_bootloader_busy)
+            usleep(100);
+    }
+
+    void add_send_expectations(const string &s, unsigned offset = 0)
+    {
+        testing::InSequence seq;
+        for (unsigned i = 0; i < (s.size() + 255) / 256; i++)
+        {
+            if (i % 4 == 0)
+            {
+                EXPECT_CALL(mock_, erase_flash_page(i * 256 + offset));
+            }
+            string expected = s.substr(i * 256, 256);
+            EXPECT_CALL(mock_,
+                write_flash(i * 256 + offset, expected, expected.size()));
+        }
+        EXPECT_CALL(mock_, bootloader_reboot());
+    }
+
+    BootloaderClient client_;
+    Buffer<BootloaderRequest> *request_;
+    BootloaderResponse response_;
+};
+
+TEST_F(BootloaderClientTest, CreateDestroy)
+{
+}
+
+TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
+{
+    ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
+    print_all_packets();
+    request_->data()->dst.alias = 0x428;
+    request_->data()->memory_space = 0xF0;
+    request_->data()->offset = 0;
+    request_->data()->data = get_block(42, 3500);
+    send();
+    n_.wait_for_notification();
+    EXPECT_NE(0, response_.error_code);
+    EXPECT_NE("", response_.error_details);
+}
+
+TEST_F(BootloaderClientTest, WriteSmallData)
+{
+    // print_all_packets();
+    expect_any_packet();
+    startup();
+    request_->data()->dst.alias = 0x428;
+    request_->data()->memory_space = 0xF0;
+    request_->data()->offset = 0;
+    string s = get_block(42, 349);
+    request_->data()->data = s;
+    add_send_expectations(s);
+    send();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, response_.error_code);
+    EXPECT_EQ("", response_.error_details);
+
+    EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+}
+
+TEST_F(BootloaderClientTest, WriteSomeData)
+{
+    // print_all_packets();
+    expect_any_packet();
+    startup();
+    request_->data()->dst.alias = 0x428;
+    request_->data()->memory_space = 0xF0;
+    request_->data()->offset = 0;
+    string s = get_block(42, 3500);
+    request_->data()->data = s;
+    add_send_expectations(s);
+    send();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, response_.error_code);
+    EXPECT_EQ("", response_.error_details);
+
+    EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+}
+
+TEST_F(BootloaderClientTest, WriteAtOffset)
+{
+    // print_all_packets();
+    expect_any_packet();
+    startup();
+    request_->data()->dst.alias = 0x428;
+    request_->data()->memory_space = 0xF0;
+    request_->data()->offset = 3 * 1024;
+    string s = get_block(42, 3500);
+    request_->data()->data = s;
+    add_send_expectations(s, 3*1024);
+    send();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, response_.error_code);
+    EXPECT_EQ("", response_.error_details);
+
+    EXPECT_EQ(s, string((char*)&virtual_flash[3*1024], s.size()));
+}
 
 } // namespace
 } // namespace nmranet

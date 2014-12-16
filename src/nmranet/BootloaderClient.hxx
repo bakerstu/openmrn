@@ -70,8 +70,8 @@ int g_bootloader_timeout_sec = 3;
 class BootloaderClient : public StateFlow<Buffer<BootloaderRequest>, QList<1>>
 {
 public:
-    BootloaderClient(Node *node, DatagramService *if_datagram_service,
-                     IfCan *if_can)
+    BootloaderClient(
+        Node *node, DatagramService *if_datagram_service, IfCan *if_can)
         : StateFlow<Buffer<BootloaderRequest>, QList<1>>(node->interface())
         , node_(node)
         , datagramService_(if_datagram_service)
@@ -81,8 +81,8 @@ public:
 
     Action entry() override
     {
-        return allocate_and_call(STATE(got_dg_client),
-                                 datagramService_->client_allocator());
+        return allocate_and_call(
+            STATE(got_dg_client), datagramService_->client_allocator());
     }
 
     DatagramService *datagram_service()
@@ -133,7 +133,7 @@ private:
         localStreamId_ = allocate_local_stream_id();
         payload.push_back(localStreamId_);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
-                         message()->data()->dst, payload);
+            message()->data()->dst, payload);
         b->set_done(n_.reset(this));
         dgClient_->write_datagram(b);
 
@@ -157,12 +157,12 @@ private:
             IncomingDatagram *datagram = message()->data();
 
             if (datagram->dst != parent_->node() ||
-                !parent_->node()->interface()->matching_node(parent_->dst(),
-                                                             datagram->src) ||
+                !parent_->node()->interface()->matching_node(
+                    parent_->dst(), datagram->src) ||
                 datagram->payload.size() < 6 ||
                 datagram->payload[0] != DatagramDefs::CONFIGURATION ||
                 ((datagram->payload[1] & 0xF4) !=
-                 MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY))
+                    MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY))
             {
                 // Uninteresting datagram.
                 return respond_reject(DatagramDefs::PERMANENT_ERROR);
@@ -194,8 +194,8 @@ private:
         {
             sleeping_ = true;
             return sleep_and_call(&timer_,
-                                  SEC_TO_NSEC(g_bootloader_timeout_sec),
-                                  STATE(wait_for_response_dg));
+                SEC_TO_NSEC(g_bootloader_timeout_sec),
+                STATE(wait_for_response_dg));
         }
         else
         {
@@ -229,7 +229,7 @@ private:
         if (!responseDatagram_)
         {
             return return_error(DatagramClient::RESEND_OK,
-                                "Timed out waiting for response datagram.");
+                "Timed out waiting for response datagram.");
         }
         unregister_write_response_handler();
         const auto &payload = responseDatagram_->data()->payload;
@@ -245,11 +245,11 @@ private:
             }
             error_code = payload[error_ofs] << 8 | payload[error_ofs + 1];
             error_ofs += 2;
-            return return_error(error_code,
-                                "Write rejected " + payload.substr(error_ofs));
+            return return_error(
+                error_code, "Write rejected " + payload.substr(error_ofs));
         }
         else if ((payload[1] & 0xFC) ==
-                 MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY)
+            MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY)
         {
             // Write OK. proceed to stream acquisition.
             responseDatagram_->unref();
@@ -258,8 +258,8 @@ private:
         else
         {
             // don't know what happened.
-            return return_error(DatagramClient::PERMANENT_ERROR,
-                                "internal inconsistency.");
+            return return_error(
+                DatagramClient::PERMANENT_ERROR, "internal inconsistency.");
         }
     }
 
@@ -283,8 +283,8 @@ private:
 
     void register_write_response_handler()
     {
-        datagramService_->registry()->insert(node_, DatagramDefs::CONFIGURATION,
-                                             &writeResponseHandler_);
+        datagramService_->registry()->insert(
+            node_, DatagramDefs::CONFIGURATION, &writeResponseHandler_);
         writeResponseRegistered_ = true;
     }
 
@@ -310,8 +310,8 @@ private:
         auto *b = get_allocation_result(
             node_->interface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
-                         message()->data()->dst,
-                         StreamDefs::create_initiate_request(
+            message()->data()->dst,
+            StreamDefs::create_initiate_request(
                              StreamDefs::MAX_PAYLOAD, false, localStreamId_));
         node_->interface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
@@ -319,7 +319,7 @@ private:
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
         return sleep_and_call(&timer_, SEC_TO_NSEC(g_bootloader_timeout_sec),
-                              STATE(received_init_stream));
+            STATE(received_init_stream));
     }
 
     void stream_initiate_replied(Buffer<NMRAnetMessage> *message)
@@ -339,6 +339,7 @@ private:
         remoteStreamId_ = payload[5];
         streamFlags_ = payload[2];
         streamAdditionalFlags_ = payload[3];
+        maxBufferSize_ = (payload[0] << 8) | payload[1];
         // We save the remote alias here if we haven't got any yet.
         if (message->data()->src.alias)
         {
@@ -372,8 +373,8 @@ private:
         if (!maxBufferSize_)
         {
             return return_error(DatagramDefs::PERMANENT_ERROR,
-                                "Inconsistency: zero buffer length but "
-                                "accepted stream request.");
+                "Inconsistency: zero buffer length but "
+                "accepted stream request.");
         }
         availableBufferSize_ = maxBufferSize_;
         bufferOffset_ = 0;
@@ -388,8 +389,8 @@ private:
         {
             return call_immediately(STATE(close_stream));
         }
-        return allocate_and_call(ifCan_->frame_write_flow(),
-                                 STATE(fill_outgoing_stream_frame));
+        return allocate_and_call(
+            ifCan_->frame_write_flow(), STATE(fill_outgoing_stream_frame));
     }
 
     Action fill_outgoing_stream_frame()
@@ -399,11 +400,12 @@ private:
         NodeAlias local_alias =
             ifCan_->local_aliases()->lookup(node()->node_id());
         NodeAlias remote_alias = dst().alias;
-        CanDefs::set_datagram_fields(&can_id, local_alias, remote_alias,
-                                     CanDefs::STREAM_DATA);
+        CanDefs::set_datagram_fields(
+            &can_id, local_alias, remote_alias, CanDefs::STREAM_DATA);
         auto *frame = b->data()->mutable_frame();
         SET_CAN_FRAME_ID_EFF(*frame, can_id);
-        unsigned len = 7;
+        unsigned len =
+            std::min(7U, message()->data()->data.size() - bufferOffset_);
         if (availableBufferSize_ < len)
         {
             len = availableBufferSize_;
@@ -413,6 +415,7 @@ private:
         memcpy(&frame->data[1], &message()->data()->data[bufferOffset_], len);
         bufferOffset_ += len;
         availableBufferSize_ -= len;
+        LOG(INFO, "available buffer: %d", availableBufferSize_);
         b->set_done(n_.reset(this));
         ifCan_->frame_write_flow()->send(b);
 
@@ -428,9 +431,14 @@ private:
 
     Action wait_for_stream_proceed()
     {
+        if (availableBufferSize_)
+        {
+            // received early stream_proceed response
+            return call_immediately(STATE(stream_proceed_timeout));
+        }
         sleeping_ = true;
         return sleep_and_call(&timer_, SEC_TO_NSEC(g_bootloader_timeout_sec),
-                              STATE(stream_proceed_timeout));
+            STATE(stream_proceed_timeout));
     }
 
     void stream_proceed_received(Buffer<NMRAnetMessage> *message)
@@ -462,8 +470,7 @@ private:
         {
             ///@TODO(balazs.racz) somehow merge these two actions: remember
             /// that we timed out and close the stream.
-            return return_error(
-                Defs::ERROR_TEMPORARY,
+            return return_error(Defs::ERROR_TEMPORARY,
                 "Times out waiting for stream proceed message.");
             return call_immediately(STATE(close_stream));
         }
@@ -474,7 +481,50 @@ private:
     {
         node_->interface()->dispatcher()->unregister_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
-        return release_and_exit();
+        return allocate_and_call(
+            node_->interface()->addressed_message_write_flow(),
+            STATE(send_close_stream));
+    }
+
+    Action send_close_stream()
+    {
+        auto *b = get_allocation_result(
+            node_->interface()->addressed_message_write_flow());
+        b->data()->reset(Defs::MTI_STREAM_COMPLETE, node_->node_id(),
+            message()->data()->dst,
+            StreamDefs::create_close_request(localStreamId_, remoteStreamId_));
+        node_->interface()->addressed_message_write_flow()->send(b);
+        // wait some time before sending the reset command.
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(200), STATE(send_reboot_request));
+    }
+
+    Action send_reboot_request()
+    {
+        return allocate_and_call(
+            STATE(reboot_dg_client), datagramService_->client_allocator());
+    }
+
+    Action reboot_dg_client()
+    {
+        dgClient_ =
+            full_allocation_result(datagramService_->client_allocator());
+        Buffer<NMRAnetMessage> *b;
+        mainBufferPool->alloc(&b);
+        DatagramPayload payload;
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_RESET);
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
+            message()->data()->dst, payload);
+        b->set_done(n_.reset(this));
+        dgClient_->write_datagram(b);
+        return wait_and_call(STATE(finish));
+    }
+
+    Action finish()
+    {
+        datagramService_->client_allocator()->typed_insert(dgClient_);
+        return return_error(0, "");
     }
 
 private:
