@@ -62,12 +62,20 @@ struct StreamDefs
                                            bool has_ident,
                                            uint8_t src_stream_id)
     {
-        Payload p(0, 5);
+        Payload p(5, 0);
         p[0] = max_buffer_size >> 8;
         p[1] = max_buffer_size & 0xff;
         p[2] = has_ident ? FLAG_CARRIES_ID : 0;
         p[3] = 0;
         p[4] = src_stream_id;
+        return p;
+    }
+
+    static Payload create_close_request(uint8_t src_stream_id, uint8_t dst_stream_id)
+    {
+        Payload p(2, 0);
+        p[0] = src_stream_id;
+        p[1] = dst_stream_id;
         return p;
     }
 };
