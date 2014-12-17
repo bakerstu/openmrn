@@ -42,14 +42,18 @@ void get_flash_boundaries(const void **flash_min, const void **flash_max,
 {
     extern char __flash_start;
     extern char __flash_end;
+    extern struct app_header __app_header_offset;
     *flash_min = &__flash_start;
     *flash_max = &__flash_end;
-    uint32_t *resetptr = reinterpret_cast<uint32_t *>(&__flash_start);
-    *app_header = reinterpret_cast<const struct app_header *>(resetptr + 134);
+    *app_header = &__app_header_offset;
 }
 
 void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
 {
+    extern uint8_t __flash_start;
+    if (static_cast<const uint8_t*>(data) == &__flash_start) {
+        data = static_cast<const uint8_t*>(data) + 8; // ignores the reset vector for checksum calculations.
+    }
     memset(checksum, 0, 16);
     ROM_Crc16Array3(size / 4, (uint32_t *)data,
                     reinterpret_cast<uint16_t *>(checksum));
@@ -99,7 +103,7 @@ extern const nmranet::NodeID NODE_ID;
 
 uint64_t nmranet_nodeid()
 {
-    /// TODO(balazs.racz):  fix this
+    /// TODO(balazs.racz):  read some form of EEPROM instead.
     return NODE_ID;
 }
 
@@ -175,10 +179,27 @@ void application_entry(void)
 void erase_flash_page(const void *address)
 {
     ROM_FlashErase((uint32_t)address);
+    extern char __flash_start;
+    if (static_cast<const char*>(address) == &__flash_start) {
+        // If we erased page zero, we ensure to write back the reset pointer
+        // immiediately or we brick the bootloader.
+        extern unsigned long *__stack;
+        extern void reset_handler(void);
+        uint32_t bootdata[2];
+        bootdata[0] = reinterpret_cast<uint32_t>(&__stack);
+        bootdata[1] = reinterpret_cast<uint32_t>(&reset_handler);
+        ROM_FlashProgram(bootdata, (uint32_t)address, sizeof(bootdata));
+    }
 }
 
 void write_flash(const void *address, const void *data, uint32_t size_bytes)
 {
+    extern char __flash_start;
+    if (address == &__flash_start) {
+        address = static_cast<const uint8_t*>(address) + 8;
+        data = static_cast<const uint8_t*>(data) + 8;
+        size_bytes -= 8;
+    }
     ROM_FlashProgram((uint32_t*)data, (uint32_t)address, (size_bytes + 3) & ~3);
 }
 

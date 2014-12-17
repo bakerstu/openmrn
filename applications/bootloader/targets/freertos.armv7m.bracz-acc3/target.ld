@@ -1,1 +1,1 @@
-../../../../boards/ti-bracz-acc3/target.ld
+../../../../boards/ti-bracz-acc3/bootloader.ld
