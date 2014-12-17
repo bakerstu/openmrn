@@ -243,7 +243,9 @@ private:
             {
                 ++error_ofs;
             }
-            error_code = payload[error_ofs] << 8 | payload[error_ofs + 1];
+            LOG(WARNING, "payload length %d error offset %d data %02x %02x",
+                payload.size(), error_ofs, payload[error_ofs], payload[error_ofs + 1]);
+            error_code = (payload[error_ofs] << 8) | ((uint8_t)payload[error_ofs + 1]);
             error_ofs += 2;
             return return_error(
                 error_code, "Write rejected " + payload.substr(error_ofs));
@@ -415,7 +417,7 @@ private:
         memcpy(&frame->data[1], &message()->data()->data[bufferOffset_], len);
         bufferOffset_ += len;
         availableBufferSize_ -= len;
-        LOG(INFO, "available buffer: %d", availableBufferSize_);
+        //LOG(INFO, "available buffer: %d", availableBufferSize_);
         b->set_done(n_.reset(this));
         ifCan_->frame_write_flow()->send(b);
 
@@ -449,6 +451,7 @@ private:
             // Not for me.
             return message->unref();
         }
+        LOG(INFO, "stream offset: %d", bufferOffset_);
         const auto &payload = message->data()->payload;
         if (payload.size() < 2 || payload[0] != localStreamId_)
         {

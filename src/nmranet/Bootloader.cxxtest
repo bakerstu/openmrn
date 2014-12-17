@@ -793,6 +793,20 @@ protected:
         EXPECT_CALL(mock_, bootloader_reboot());
     }
 
+
+    void wait_for_bootloader_exit()
+    {
+        wait();
+        bootloader_exited_.wait_for_notification();
+    }
+
+    void exit_bootloader()
+    {
+        EXPECT_CALL(mock_, bootloader_reboot());
+        expect_packet(":X19A28428N0111;");
+        send_packet(":X1A428111N20A9;");
+    }
+
     BootloaderClient client_;
     Buffer<BootloaderRequest> *request_;
     BootloaderResponse response_;
@@ -871,6 +885,27 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     EXPECT_EQ("", response_.error_details);
 
     EXPECT_EQ(s, string((char*)&virtual_flash[3*1024], s.size()));
+}
+
+TEST_F(BootloaderClientTest, FailOnSpaceId)
+{
+    // print_all_packets();
+    expect_any_packet();
+    startup();
+    request_->data()->dst.alias = 0x428;
+    request_->data()->memory_space = 0xF1;
+    request_->data()->offset = 3 * 1024;
+    string s = get_block(42, 100);
+    request_->data()->data = s;
+    send();
+    n_.wait_for_notification();
+    EXPECT_NE(0, response_.error_code);
+    EXPECT_EQ(0x1080, response_.error_code);
+    EXPECT_EQ(DatagramDefs::PERMANENT_ERROR, response_.error_code & DatagramDefs::PERMANENT_ERROR);
+    EXPECT_THAT(response_.error_details, ::testing::HasSubstr("Write rejected"));
+
+    exit_bootloader();
+    wait_for_bootloader_exit();
 }
 
 } // namespace

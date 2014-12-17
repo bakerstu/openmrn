@@ -195,7 +195,7 @@ uint32_t load_uint32_be(const uint8_t *ptr)
 
 void add_memory_config_error_response(uint16_t error_code)
 {
-    state_.datagram_payload[2] |= 0x08; // Turns success into error reply.
+    state_.datagram_payload[1] |= 0x08; // Turns success into error reply.
     state_.datagram_payload[state_.datagram_dlc++] = error_code >> 8;
     state_.datagram_payload[state_.datagram_dlc++] = error_code & 0xff;
 }
