@@ -51,6 +51,7 @@ ExecutorBase::ExecutorBase()
     , next(NULL)
     , activeTimers_(this)
     , done_(0)
+    , started_(0)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -103,6 +104,7 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
  */
 void *ExecutorBase::entry()
 {
+    started_ = 1;
     Executable *msg;
 
     /* wait for messages to process */
@@ -130,6 +132,7 @@ void *ExecutorBase::entry()
 
 void ExecutorBase::shutdown()
 {
+    if (!started_) return;
     add(this);
     while (!done_)
     {
