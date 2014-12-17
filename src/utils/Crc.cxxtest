@@ -1,0 +1,18 @@
+#include "utils/test_main.hxx"
+#include "utils/Crc.hxx"
+
+extern uint8_t reverse(uint8_t data);
+
+
+TEST(Reverse, Test) {
+    EXPECT_EQ(0xf0, reverse(0x0f));
+    EXPECT_EQ(0xAA, reverse(0x55));
+    EXPECT_EQ(0x55, reverse(0xAA));
+}
+
+
+TEST(CrcIbmTest, Example) {
+    uint16_t data = crc_16_ibm("123456789", 9);
+    string actual = StringPrintf("%04x", data);
+    EXPECT_EQ("bb3d", actual);
+}
