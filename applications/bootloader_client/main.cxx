@@ -43,6 +43,7 @@
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/Crc.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -53,6 +54,8 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/DefaultNode.hxx"
 #include "utils/socket_listener.hxx"
+
+#include "freertos/bootloader_hal.h"
 
 NO_THREAD nt;
 Executor<1> g_executor(nt);
@@ -66,8 +69,9 @@ nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 
-namespace nmranet {
-Pool* const g_incoming_datagram_allocator = mainBufferPool;
+namespace nmranet
+{
+Pool *const g_incoming_datagram_allocator = mainBufferPool;
 }
 
 int port = 12021;
@@ -75,14 +79,15 @@ const char *host = "localhost";
 const char *filename = nullptr;
 uint64_t destination_nodeid = 0;
 uint64_t destination_alias = 0;
-int memory_space_id = 0xF1;
+int memory_space_id = 0xF0;
+const char *checksum_algorithm = nullptr;
 
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-d destination_host] [-p port] [-s "
-                    "memory_space_id] (-n nodeid | -a "
+                    "memory_space_id] [-c csum_algo] (-n nodeid | -a "
                     "alias) -f filename\n",
-        e);
+            e);
     fprintf(stderr, "Connects to destination_host:port with OpenLCB over TCP "
                     "(in GridConnect format) protocol, and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
@@ -92,13 +97,18 @@ void usage(const char *e)
                     "no separators, like '-b 0x05010101141F'\n");
     fprintf(stderr, "alias should be a 3-char hex string with 0x prefix and no "
                     "separators, like '-a 0x3F9'\n");
+    fprintf(stderr, "memory_space_if defines which memory space to write the "
+                    "data into. Default is '-s 0xF0'.\n");
+    fprintf(stderr, "csum_algo defines the checksum algorithm to use. If "
+                    "omitted, no checksumming is done before writing the "
+                    "data.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:c:")) >= 0)
     {
         switch (opt)
         {
@@ -123,6 +133,9 @@ void parse_args(int argc, char *argv[])
             case 's':
                 memory_space_id = strtol(optarg, nullptr, 16);
                 break;
+            case 'c':
+                checksum_algorithm = optarg;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -134,8 +147,37 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-nmranet::BootloaderClient bootloader_client(&g_node, &g_datagram_can, &g_if_can);
+nmranet::BootloaderClient bootloader_client(&g_node, &g_datagram_can,
+                                            &g_if_can);
 nmranet::BootloaderResponse response;
+
+void maybe_checksum(string* firmware) {
+  if (!checksum_algorithm) return;
+  string algo = checksum_algorithm;
+  if (algo == "tiva123") {
+    struct app_header hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    // magic constant that comes from the size of the interrupt table. The
+    // actual target has this in memory_map.ld.
+    uint32_t offset = 0x270;
+    if (firmware->size() < offset + sizeof(hdr)) {
+      fprintf(stderr, "Failed to checksum: firmware too small.\n");
+      exit(1);
+    }
+    if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr))) {
+      fprintf(stderr, "Failed to checksum: location of checksum is not empty.\n");
+      exit(1);
+    }
+    hdr.app_size = firmware->size();
+    crc3_crc16_ibm(&(*firmware)[8], (offset - 8) & ~3, (uint16_t*)hdr.checksum_pre);
+    crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)], (firmware->size() - offset - sizeof(hdr)) & ~3, (uint16_t*)hdr.checksum_post);
+    memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
+    printf("Checksummed firmware with algorithm tiva123\n");
+  } else {
+    fprintf(stderr, "Unknown checksumming algo %s. Known algorithms are: tiva123.\n", checksum_algorithm);
+    exit(1);
+  }
+}
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -169,22 +211,28 @@ int appl_main(int argc, char *argv[])
     b->data()->offset = 0;
     b->data()->response = &response;
 
-    FILE* f = fopen(filename, "rb");
-    if (!f) {
-        fprintf(stderr, "Could not open file %s: %s\n", filename, strerror(errno));
+    FILE *f = fopen(filename, "rb");
+    if (!f)
+    {
+        fprintf(stderr, "Could not open file %s: %s\n", filename,
+                strerror(errno));
         exit(1);
     }
     char buf[1024];
     size_t nr;
-    while ((nr = fread(buf, 1, sizeof(buf), f)) > 0) {
+    while ((nr = fread(buf, 1, sizeof(buf), f)) > 0)
+    {
         b->data()->data.append(buf, nr);
     }
     fclose(f);
-    printf("Read %d bytes from file %s. Writing to memory space 0x%02x\n", b->data()->data.size(), filename, memory_space_id);
+    printf("Read %d bytes from file %s. Writing to memory space 0x%02x\n",
+           b->data()->data.size(), filename, memory_space_id);
+    maybe_checksum(&b->data()->data);
 
     bootloader_client.send(b);
     n.wait_for_notification();
-    printf("Result: %04x  %s\n", response.error_code, response.error_details.c_str());
+    printf("Result: %04x  %s\n", response.error_code,
+           response.error_details.c_str());
 
     return 0;
 }
