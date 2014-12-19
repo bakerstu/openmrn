@@ -109,11 +109,17 @@ unsigned g_bootloader_busy = 1;
 Atomic g_bootloader_lock;
 #endif
 
+static const char TEST_PATTERN[] = "123456789";
+extern uint32_t g_test_pattern_checksum[CHECKSUM_COUNT];
+uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {0,};
+
 void reset_stream_state();
 
 /** @returns true if the application checksum currently in flash is correct. */
 bool check_application_checksum()
 {
+    checksum_data(TEST_PATTERN, 9, g_test_pattern_checksum);
+
     uint32_t checksum[CHECKSUM_COUNT];
     const void *flash_min;
     const void *flash_max;
