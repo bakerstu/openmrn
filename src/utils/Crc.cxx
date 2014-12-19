@@ -104,3 +104,23 @@ uint16_t crc_16_ibm(const void* data, size_t length) {
     }
     return crc_16_ibm_finish(state);
 }
+
+void crc3_crc16_ibm(const void* data, size_t length_bytes, uint16_t* checksum) {
+  const uint8_t *payload = static_cast<const uint8_t*>(data);
+  uint16_t state1 = crc_16_ibm_init_value;
+  uint16_t state2 = crc_16_ibm_init_value;
+  uint16_t state3 = crc_16_ibm_init_value;
+  for (size_t i = 1; i <= length_bytes; ++i) {
+    crc_16_ibm_add(state1, payload[i-1]);
+    if (i & 1) {
+      // odd byte
+      crc_16_ibm_add(state2, payload[i-1]);
+    } else {
+      // even byte
+      crc_16_ibm_add(state3, payload[i-1]);
+    }
+  }
+  checksum[0] = crc_16_ibm_finish(state1);
+  checksum[1] = crc_16_ibm_finish(state2);
+  checksum[2] = crc_16_ibm_finish(state3);
+}
