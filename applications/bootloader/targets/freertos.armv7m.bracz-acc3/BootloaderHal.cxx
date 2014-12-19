@@ -53,6 +53,7 @@ void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
     extern uint8_t __flash_start;
     if (static_cast<const uint8_t*>(data) == &__flash_start) {
         data = static_cast<const uint8_t*>(data) + 8; // ignores the reset vector for checksum calculations.
+        size -= 8;
     }
     memset(checksum, 0, 16);
     ROM_Crc16Array3(size / 4, (uint32_t *)data,
