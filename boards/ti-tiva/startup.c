@@ -182,7 +182,7 @@ void (* const __interrupt_vector[])(void) =
     0,                               /**<  10 reserved */
     SVC_Handler,                     /**<  11 SV call */
     debug_interrupt_handler,         /**<  12 debug monitor */
-    0,                               /**<  13 reserved */
+    reset_handler,                   /**<  13 reserved -- bootloader appentry */
     PendSV_Handler,                  /**<  14 pend SV */
     SysTick_Handler,                 /**<  15 system tick */
     porta_interrupt_handler,         /**<  16 GPIO port A */
