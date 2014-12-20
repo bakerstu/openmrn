@@ -380,6 +380,9 @@ private:
         }
         availableBufferSize_ = maxBufferSize_;
         bufferOffset_ = 0;
+        speed_ = 0;
+        lastMeasurementOffset_ = 0;
+        lastMeasurementTimeNsec_ = os_get_time_monotonic();
         node_->interface()->dispatcher()->register_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return call_immediately(STATE(send_stream_data));
@@ -439,6 +442,7 @@ private:
             return call_immediately(STATE(stream_proceed_timeout));
         }
         sleeping_ = true;
+        sleepStartTimeNsec_ = os_get_time_monotonic();
         return sleep_and_call(&timer_, SEC_TO_NSEC(g_bootloader_timeout_sec),
             STATE(stream_proceed_timeout));
     }
@@ -451,7 +455,18 @@ private:
             // Not for me.
             return message->unref();
         }
-        LOG(INFO, "stream offset: %d", bufferOffset_);
+        size_t bytes_sent = bufferOffset_ - lastMeasurementOffset_;
+        long long next_time = os_get_time_monotonic();
+        float new_speed = next_time - lastMeasurementTimeNsec_;
+        new_speed = float(bytes_sent) * 1e9 / new_speed;
+        if (!lastMeasurementOffset_) {
+            speed_ = new_speed;
+        } else {
+            speed_ = speed_ * 0.8 + new_speed * 0.2;
+        }
+        lastMeasurementOffset_ = bufferOffset_;
+        lastMeasurementTimeNsec_ = next_time;
+        LOG(INFO, "stream offset: %d slept %.0lld msec, speed=%.0f bytes/sec", bufferOffset_, (next_time - sleepStartTimeNsec_) / 1000, speed_);
         const auto &payload = message->data()->payload;
         if (payload.size() < 2 || payload[0] != localStreamId_)
         {
@@ -548,8 +563,18 @@ private:
     // How many bytes can we send before needing to wait for stream data
     // proceed message.
     uint32_t availableBufferSize_;
-    //
+    // The next byte we need to send from the input data.
     size_t bufferOffset_;
+
+    // The Average speed (ewma) in bytes/second.
+    float speed_;
+    // The offset at which the last speed measurement took place.
+    size_t lastMeasurementOffset_;
+    // The time in nsec at which the last speed measurement took place.
+    long long lastMeasurementTimeNsec_;
+    // Snapshots the time at which we start to sleep to wait for a stream
+    // proceed flag.
+    long long sleepStartTimeNsec_;
 
     WriteResponseHandler writeResponseHandler_{this};
     bool writeResponseRegistered_ = false;
