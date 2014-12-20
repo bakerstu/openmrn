@@ -198,6 +198,21 @@ void set_can_frame_nodeid()
     state_.output_frame.can_dlc = 6;
 }
 
+// Adds the node id ad the data payload of the outgoing can frame.
+bool is_can_frame_nodeid()
+{
+    if (state_.input_frame.can_dlc != 6)
+        return false;
+    uint64_t node_id = nmranet_nodeid();
+    for (int i = 5; i >= 0; --i)
+    {
+        if (state_.input_frame.data[i] != (node_id & 0xff))
+            return false;
+        node_id >>= 8;
+    }
+    return true;
+}
+
 /** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
 void set_error_code(uint16_t error_code)
 {
@@ -517,7 +532,54 @@ void handle_input_frame()
     }
     uint32_t can_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
     int dlc = state_.input_frame.can_dlc;
-    if ((can_id >> 12) == (0x1A000 | state_.alias) && dlc > 1)
+    if (CanDefs::get_priority(can_id) != CanDefs::NORMAL_PRIORITY)
+    {
+        // Non-OpenLCB frame. Ignore.
+        state_.input_frame_full = 0;
+        return;
+    }
+    else if ((can_id & 0xfff) == state_.alias)
+    {
+        // Alias conflict.
+        if (CanDefs::is_cid_frame(can_id))
+        {
+            // Someone is sending a CID for our alias. Reply with an RID.
+            if (state_.output_frame_full)
+            {
+                return; // re-try.
+            }
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  CanDefs::RID_FRAME, 0);
+        }
+        else
+        {
+            // The hard way. Reset to init state to pick a new
+            // alias.
+            state_.init_state = (InitState)0;
+        }
+        state_.input_frame_full = 0;
+        return;
+    }
+    else if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
+    {
+        if (CanDefs::get_control_field(can_id) == CanDefs::AME_FRAME &&
+            (dlc == 0 || is_can_frame_nodeid()))
+        {
+            if (state_.output_frame_full)
+            {
+                return; // re-try.
+            }
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  CanDefs::AMD_FRAME, 0);
+            set_can_frame_nodeid();
+        }
+        // All other control messages are ignored.
+        state_.input_frame_full = 0;
+        return;
+    }
+    else if ((can_id >> 12) == (0x1A000 | state_.alias) && dlc > 1)
     {
         // Datagram one frame.
 
@@ -555,12 +617,6 @@ void handle_input_frame()
             return handle_global_message(mti);
         }
     }
-    if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
-    {
-        // CAN control message. Ignore.
-        state_.input_frame_full = 0;
-        return;
-    }
     // NMRAnet message
     state_.input_frame_full = 0;
     return;
@@ -577,14 +633,12 @@ void handle_init()
             {
                 // No alias yet. Pick default.
                 state_.alias = nmranet_alias();
-                printf("default alias %03x\n", state_.alias);
                 // If no default, then generate from the node id.
                 if (!state_.alias)
                 {
                     state_.alias = (node & 0xfff) ^ ((node >> 12) & 0xfff) ^
                                    ((node >> 24) & 0xfff) ^
                                    ((node >> 36) & 0xfff);
-                    printf("nodeid alias %03x\n", state_.alias);
                 }
             }
             else
@@ -592,8 +646,8 @@ void handle_init()
                 do
                 {
                     state_.alias =
-                        (state_.alias + ((uint16_t(node)) & 0xffe) + 1759) & 0xfff;
-                    printf("increment alias %03x\n", state_.alias);
+                        (state_.alias + ((uint16_t(node)) & 0xffe) + 1759) &
+                        0xfff;
                 } while (!state_.alias);
             }
             break;
