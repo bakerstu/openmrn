@@ -8,3 +8,4 @@ include hardware.mk
 SYSLIBRARIES=
 SYSLIB_SUBDIRS=
 OBJEXTRA=
+LDFLAGSEXTRA+= --specs=nano.specs
