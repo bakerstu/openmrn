@@ -642,7 +642,7 @@ void bootloader_entry()
         {
             state_.output_frame_full = 0;
         }
-        if (state_.request_reset)
+        if (state_.request_reset && !g_bootloader_busy)
         {
             g_bootloader_busy = 0;
             return bootloader_reboot();
