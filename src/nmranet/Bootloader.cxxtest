@@ -409,6 +409,12 @@ protected:
     {
         expect_boot(true);
         EXPECT_CALL(mock_, application_entry()).Times(0);
+        expect_packet(":X17050428N;");
+        expect_packet(":X16101428N;");
+        expect_packet(":X15011428N;");
+        expect_packet(":X1446C428N;");
+        expect_packet(":X10700428N;");
+        expect_packet(":X10701428N05010101146C;");
         expect_packet(":X19100428N05010101146C;");
         run_bootloader();
         wait();

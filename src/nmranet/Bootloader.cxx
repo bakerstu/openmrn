@@ -48,7 +48,15 @@ namespace nmranet
 
 enum InitState
 {
-    NEED_NMRANET_INIT = 0,
+    PICK_ALIAS = 0,
+    SEND_CID_7,
+    SEND_CID_6,
+    SEND_CID_5,
+    SEND_CID_4,
+    WAIT_RID,
+    SEND_RID,
+    SEND_AMD,
+    SEND_NMRANET_INIT,
     INITIALIZED,
 };
 
@@ -111,7 +119,7 @@ Atomic g_bootloader_lock;
 
 static const char TEST_PATTERN[] = "123456789";
 extern uint32_t g_test_pattern_checksum[CHECKSUM_COUNT];
-uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {0,};
+uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {0, };
 
 void reset_stream_state();
 
@@ -176,6 +184,18 @@ void set_can_frame_addressed(Defs::MTI mti,
     state_.output_frame.can_dlc = 2;
     state_.output_frame.data[0] = (alias >> 8) & 0xf;
     state_.output_frame.data[1] = alias & 0xff;
+}
+
+// Adds the node id ad the data payload of the outgoing can frame.
+void set_can_frame_nodeid()
+{
+    uint64_t node_id = nmranet_nodeid();
+    for (int i = 5; i >= 0; --i)
+    {
+        state_.output_frame.data[i] = node_id & 0xff;
+        node_id >>= 8;
+    }
+    state_.output_frame.can_dlc = 6;
 }
 
 /** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
@@ -550,16 +570,85 @@ void handle_init()
 {
     switch (state_.init_state)
     {
-        case NEED_NMRANET_INIT:
+        case PICK_ALIAS:
+        {
+            auto node = nmranet_nodeid();
+            if (!state_.alias)
+            {
+                // No alias yet. Pick default.
+                state_.alias = nmranet_alias();
+                printf("default alias %03x\n", state_.alias);
+                // If no default, then generate from the node id.
+                if (!state_.alias)
+                {
+                    state_.alias = (node & 0xfff) ^ ((node >> 12) & 0xfff) ^
+                                   ((node >> 24) & 0xfff) ^
+                                   ((node >> 36) & 0xfff);
+                    printf("nodeid alias %03x\n", state_.alias);
+                }
+            }
+            else
+            {
+                do
+                {
+                    state_.alias =
+                        (state_.alias + ((uint16_t(node)) & 0xffe) + 1759) & 0xfff;
+                    printf("increment alias %03x\n", state_.alias);
+                } while (!state_.alias);
+            }
+            break;
+        }
+        case SEND_CID_7:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  nmranet_nodeid() >> 36, 7);
+            break;
+        }
+        case SEND_CID_6:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  (nmranet_nodeid() >> 24) & 0xfff, 6);
+            break;
+        }
+        case SEND_CID_5:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  (nmranet_nodeid() >> 12) & 0xfff, 5);
+            break;
+        }
+        case SEND_CID_4:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  nmranet_nodeid() & 0xfff, 4);
+            break;
+        }
+        case WAIT_RID:
+        {
+            break;
+        }
+        case SEND_RID:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  CanDefs::RID_FRAME, 0);
+            break;
+        }
+        case SEND_AMD:
+        {
+            setup_can_frame();
+            CanDefs::control_init(state_.output_frame, state_.alias,
+                                  CanDefs::AMD_FRAME, 0);
+            set_can_frame_nodeid();
+            break;
+        }
+        case SEND_NMRANET_INIT:
         {
             set_can_frame_global(Defs::MTI_INITIALIZATION_COMPLETE);
-            uint64_t node_id = nmranet_nodeid();
-            for (int i = 5; i >= 0; --i)
-            {
-                state_.output_frame.data[i] = node_id & 0xff;
-                node_id >>= 8;
-            }
-            state_.output_frame.can_dlc = 6;
+            set_can_frame_nodeid();
             break;
         }
         case INITIALIZED:
@@ -620,7 +709,6 @@ void bootloader_entry()
     }
 
     memset(&state_, 0, sizeof(state_));
-    state_.alias = nmranet_alias();
 
     while (true)
     {
@@ -660,7 +748,8 @@ void bootloader_entry()
             set_can_frame_addressed(Defs::MTI_STREAM_PROCEED,
                                     state_.stream_src_alias);
             state_.stream_proceed_pending = 0;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = state_.stream_src_id;
+            state_.output_frame.data[state_.output_frame.can_dlc++] =
+                state_.stream_src_id;
             state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
             state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
             state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
