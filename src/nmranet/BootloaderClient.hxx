@@ -464,9 +464,10 @@ private:
         } else {
             speed_ = speed_ * 0.8 + new_speed * 0.2;
         }
+        LOG(INFO, "stream offset: %d; wrote %.0lld msec slept %.0lld msec, speed=%.0f bytes/sec", bufferOffset_, (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000, (next_time - sleepStartTimeNsec_) / 1000, speed_);
         lastMeasurementOffset_ = bufferOffset_;
         lastMeasurementTimeNsec_ = next_time;
-        LOG(INFO, "stream offset: %d slept %.0lld msec, speed=%.0f bytes/sec", bufferOffset_, (next_time - sleepStartTimeNsec_) / 1000, speed_);
+
         const auto &payload = message->data()->payload;
         if (payload.size() < 2 || payload[0] != localStreamId_)
         {

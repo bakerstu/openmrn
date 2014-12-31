@@ -66,6 +66,12 @@ struct app_header {
     uint32_t checksum_post[CHECKSUM_COUNT];
 };
 
+enum BootloaderLed {
+  LED_ACTIVE = 1,
+  LED_WRITING = 2,
+  LED_IDENT = 4,
+};
+
 /** Initializes the hardware to a safe state of the outputs. This function may
  *  not assume anything about previous hardware state. Also the memory layout
  *  is not yet initialized. (Do not use any static objects, and the DATA
@@ -88,6 +94,10 @@ extern void application_entry(void);
 
 /** Resets the microcontroller. Never returns. */
 extern void bootloader_reboot(void);
+
+/** Sets the LEDs indicated by @param mask to the value indicated by @param
+ *  value. */
+extern void bootloader_led(uint32_t mask, uint32_t value);
 
 /** Checks if there is an incoming CAN frame from the hardware.
  *

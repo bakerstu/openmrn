@@ -32,9 +32,10 @@
  * @date 3 Aug 2013
  */
 
+#include <fcntl.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <getopt.h>
 
 #include <memory>
 
@@ -76,6 +77,7 @@ Pool *const g_incoming_datagram_allocator = mainBufferPool;
 
 int port = 12021;
 const char *host = "localhost";
+const char *device_path = nullptr;
 const char *filename = nullptr;
 uint64_t destination_nodeid = 0;
 uint64_t destination_alias = 0;
@@ -84,14 +86,21 @@ const char *checksum_algorithm = nullptr;
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-d destination_host] [-p port] [-s "
-                    "memory_space_id] [-c csum_algo] (-n nodeid | -a "
-                    "alias) -f filename\n",
-            e);
-    fprintf(stderr, "Connects to destination_host:port with OpenLCB over TCP "
-                    "(in GridConnect format) protocol, and performs the "
+    fprintf(
+        stderr,
+        "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
+        "memory_space_id] [-c csum_algo] (-n nodeid | -a "
+        "alias) -f filename\n",
+        e);
+    fprintf(stderr, "Connects to an openlcb bus and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
                     "the contents of a given file.\n");
+    fprintf(stderr,
+            "The bus connection will be through an OpenLCB HUB on "
+            "destination_host:port with OpenLCB over TCP "
+            "(in GridConnect format) protocol, or through the CAN-USB device "
+            "(also in GridConnect protocol) found at device_path. Device takes "
+            "precedence over TCP host:port specification.");
     fprintf(stderr, "The default target is localhost:12021.\n");
     fprintf(stderr, "nodeid should be a 12-char hex string with 0x prefix and "
                     "no separators, like '-b 0x05010101141F'\n");
@@ -118,8 +127,11 @@ void parse_args(int argc, char *argv[])
             case 'p':
                 port = atoi(optarg);
                 break;
-            case 'd':
+            case 'i':
                 host = optarg;
+                break;
+            case 'd':
+                device_path = optarg;
                 break;
             case 'f':
                 filename = optarg;
@@ -151,32 +163,46 @@ nmranet::BootloaderClient bootloader_client(&g_node, &g_datagram_can,
                                             &g_if_can);
 nmranet::BootloaderResponse response;
 
-void maybe_checksum(string* firmware) {
-  if (!checksum_algorithm) return;
-  string algo = checksum_algorithm;
-  if (algo == "tiva123") {
-    struct app_header hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    // magic constant that comes from the size of the interrupt table. The
-    // actual target has this in memory_map.ld.
-    uint32_t offset = 0x270;
-    if (firmware->size() < offset + sizeof(hdr)) {
-      fprintf(stderr, "Failed to checksum: firmware too small.\n");
-      exit(1);
+void maybe_checksum(string *firmware)
+{
+    if (!checksum_algorithm)
+        return;
+    string algo = checksum_algorithm;
+    if (algo == "tiva123")
+    {
+        struct app_header hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        // magic constant that comes from the size of the interrupt table. The
+        // actual target has this in memory_map.ld.
+        uint32_t offset = 0x270;
+        if (firmware->size() < offset + sizeof(hdr))
+        {
+            fprintf(stderr, "Failed to checksum: firmware too small.\n");
+            exit(1);
+        }
+        if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr)))
+        {
+            fprintf(stderr,
+                    "Failed to checksum: location of checksum is not empty.\n");
+            exit(1);
+        }
+        hdr.app_size = firmware->size();
+        crc3_crc16_ibm(&(*firmware)[8], (offset - 8) & ~3,
+                       (uint16_t *)hdr.checksum_pre);
+        crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
+                       (firmware->size() - offset - sizeof(hdr)) & ~3,
+                       (uint16_t *)hdr.checksum_post);
+        memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
+        printf("Checksummed firmware with algorithm tiva123\n");
     }
-    if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr))) {
-      fprintf(stderr, "Failed to checksum: location of checksum is not empty.\n");
-      exit(1);
+    else
+    {
+        fprintf(
+            stderr,
+            "Unknown checksumming algo %s. Known algorithms are: tiva123.\n",
+            checksum_algorithm);
+        exit(1);
     }
-    hdr.app_size = firmware->size();
-    crc3_crc16_ibm(&(*firmware)[8], (offset - 8) & ~3, (uint16_t*)hdr.checksum_pre);
-    crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)], (firmware->size() - offset - sizeof(hdr)) & ~3, (uint16_t*)hdr.checksum_post);
-    memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
-    printf("Checksummed firmware with algorithm tiva123\n");
-  } else {
-    fprintf(stderr, "Unknown checksumming algo %s. Known algorithms are: tiva123.\n", checksum_algorithm);
-    exit(1);
-  }
 }
 
 /** Entry point to application.
@@ -187,8 +213,15 @@ void maybe_checksum(string* firmware) {
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-
-    int conn_fd = ConnectSocket("localhost", 12021);
+    int conn_fd = 0;
+    if (device_path)
+    {
+        conn_fd = ::open(device_path, O_RDWR);
+    }
+    else
+    {
+        conn_fd = ConnectSocket("localhost", 12021);
+    }
     HASSERT(conn_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
