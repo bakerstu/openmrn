@@ -94,10 +94,12 @@ bool request_bootloader()
     return false;
 }
 
+extern const uint16_t DEFAULT_ALIAS;
+
 uint16_t nmranet_alias()
 {
     /// TODO(balazs.racz):  fix this
-    return 0x428;
+    return DEFAULT_ALIAS;
 }
 
 extern const nmranet::NodeID NODE_ID;
