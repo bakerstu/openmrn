@@ -41,6 +41,12 @@
 #include "driverlib/sysctl.h"
 #include "inc/hw_memmap.h"
 
+struct DummyPin {
+    static void hw_init() {}
+    static void hw_set_to_safe() {}
+    static void set(bool value) {}
+};
+
 #define DECL_PIN(NAME, PORT, NUM)                                              \
     static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT;                \
     static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE;                    \
@@ -49,5 +55,106 @@
 #define DECL_HWPIN(NAME, PORT, NUM, CONFIG)                                    \
     DECL_PIN(NAME, PORT, NUM);                                                 \
     static const auto NAME##_CONFIG = GPIO_P##PORT##NUM##_##CONFIG
+
+template<class Defs, bool SAFE_VALUE>
+struct GpioOutputPin : public Defs {
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        set(SAFE_VALUE);
+    }
+    static void hw_set_to_safe() {
+        hw_init();
+    }
+    static void set(bool value) {
+        //if (GPIO_INVERTED) value = !value;
+        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
+    }
+};
+
+template<class Defs>
+struct GpioOutputSafeLow : public GpioOutputPin<Defs, false> {};
+
+template<class Defs>
+struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
+
+template<class Defs>
+struct LedPin : public Defs {
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
+        set(false);
+    }
+    static void hw_set_to_safe() {
+        hw_init();
+    }
+    static void set(bool value) {
+        //if (GPIO_INVERTED) value = !value;
+        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
+    }
+};
+
+#define GPIO_PIN(NAME, BaseClass, PORT, NUM)                                   \
+    struct NAME##Defs                                                          \
+    {                                                                          \
+        DECL_PIN(GPIO, PORT, NUM);                                             \
+        static const bool GPIO_INVERTED = false;                               \
+    };                                                                         \
+    typedef BaseClass<NAME##Defs> NAME##_Pin
+
+template<class Defs, uint32_t GPIO_PULL>
+struct GpioInputPin : public Defs {
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PULL);
+    }
+    static void hw_set_to_safe() {
+        hw_init();
+    }
+    static bool get() {
+        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+};
+
+template<class Defs>
+struct GpioInputPU : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPU> {};
+
+template<class Defs>
+struct GpioInputPD : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPD> {};
+
+template<class Defs>
+struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD> {};
+
+template<class Defs>
+struct GpioHwPin : public Defs {
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    using Defs::GPIO_CONFIG;
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinConfigure(GPIO_CONFIG);
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+    }
+    static void hw_set_to_safe() {
+        hw_init();
+    }
+};
 
 #endif //_FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_
