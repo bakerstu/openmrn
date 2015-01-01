@@ -338,7 +338,7 @@ struct GcHubPort : public Executable
     {
     }
 
-    /** This hub seen the character-based representation of the packets. The
+    /** This hub sees the character-based representation of the packets. The
      * members of it are: the bridge and the physical device (fd).
      *
      * Destruction requirement: HubFlow should be empty. This means after the
