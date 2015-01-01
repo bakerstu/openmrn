@@ -43,6 +43,18 @@
 #include "can_ioctl.h"
 #endif
 
+extern "C" {
+void enter_bootloader() __attribute__ ((weak));
+void enter_bootloader()
+{
+}
+
+void reboot() __attribute__ ((weak));
+void reboot()
+{
+}
+}
+
 namespace nmranet
 {
 

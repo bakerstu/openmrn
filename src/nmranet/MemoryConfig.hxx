@@ -41,6 +41,11 @@
 
 class Notifiable;
 
+extern "C" {
+extern void enter_bootloader();
+extern void reboot();
+}
+
 namespace nmranet
 {
 
@@ -74,6 +79,7 @@ struct MemoryConfigDefs {
         COMMAND_UPDATE_COMPLETE   = 0xA8, /**< indicate that a sequence of commands is complete */
         COMMAND_RESET             = 0xA9, /**< reset node to its power on state */
         COMMAND_FACTORY_RESET     = 0xAA, /**< reset node to factory defaults */
+        COMMAND_ENTER_BOOTLOADER  = 0xAB, /**< reset node in bootloader mode */
         COMMAND_FREEZE            = 0xA1, /**< freeze operation of node */
         COMMAND_UNFREEZE          = 0xA0, /**< unfreeze operation of node */
 
@@ -335,6 +341,16 @@ private:
 
                 // if (
                 break;
+            }
+            case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
+            {
+                enter_bootloader();
+                return respond_reject(DatagramClient::PERMANENT_ERROR);
+            }
+            case MemoryConfigDefs::COMMAND_RESET:
+            {
+                reboot();
+                return respond_reject(DatagramClient::PERMANENT_ERROR);
             }
             default:
                 // Unknown/unsupported command, reject datagram.
