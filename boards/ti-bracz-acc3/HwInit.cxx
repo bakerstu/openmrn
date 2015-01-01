@@ -48,6 +48,7 @@
 #include "TivaDev.hxx"
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
+#include "bootloader_hal.h"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -68,6 +69,29 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0");
 
 extern "C" {
+
+void enter_bootloader()
+{
+    __bootloader_magic_ptr = REQUEST_BOOTLOADER;
+    /* Globally disables interrupts. */
+    asm("cpsid i\n");
+    extern char __flash_start;
+    asm volatile(" mov   r3, %[flash_addr] \n"
+                 :
+                 : [flash_addr] "r"(&__flash_start));
+    /* Loads SP and jumps to the reset vector. */
+    asm volatile(
+        " ldr r0, [r3]\n"
+        " mov sp, r0\n"
+        " ldr r0, [r3, #4]\n"
+        " bx  r0\n");
+}
+
+void reboot()
+{
+    MAP_SysCtlReset();
+}
+
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
