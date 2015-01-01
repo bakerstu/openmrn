@@ -168,6 +168,7 @@ public:
             notifiable_->notify_from_isr();
             notifiable_ = nullptr;
         }
+        os_isr_exit_yield_test(true);
     }
 
     Notifiable* register_notifiable(Notifiable *n)
