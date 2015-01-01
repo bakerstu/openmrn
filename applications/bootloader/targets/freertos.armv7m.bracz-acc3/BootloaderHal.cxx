@@ -13,11 +13,14 @@
 
 #include "nmranet_config.h"
 #include "nmranet/Defs.hxx"
+#include "TivaGPIO.hxx"
 
 extern "C" {
 
 #define LED_GOLD GPIO_PORTB_BASE, GPIO_PIN_6
 #define LED_BLUE GPIO_PORTB_BASE, GPIO_PIN_7
+
+GPIO_PIN(GOLD_SW, GpioInputPU, C, 7);
 
 void bootloader_hw_set_to_safe(void)
 {
@@ -38,6 +41,7 @@ void bootloader_hw_set_to_safe(void)
                      GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, 0);
     ROM_GPIOPinWrite(GPIO_PORTD_BASE,
                      GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3, 0);
+    GOLD_SW_Pin::hw_set_to_safe();
 }
 
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
@@ -92,17 +96,24 @@ void bootloader_hw_init()
     ROM_CANEnable(CAN0_BASE);
 
     // Sets up LEDs.
-    MAP_GPIOPinTypeGPIOOutput(LED_GOLD); 
-    MAP_GPIOPadConfigSet(LED_GOLD, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD); 
+    MAP_GPIOPinTypeGPIOOutput(LED_GOLD);
+    MAP_GPIOPadConfigSet(LED_GOLD, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
     MAP_GPIOPinWrite(LED_GOLD, 0);
-    MAP_GPIOPinTypeGPIOOutput(LED_BLUE); 
-    MAP_GPIOPadConfigSet(LED_BLUE, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD); 
+    MAP_GPIOPinTypeGPIOOutput(LED_BLUE);
+    MAP_GPIOPadConfigSet(LED_BLUE, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
     MAP_GPIOPinWrite(LED_BLUE, 0);
+
+    GOLD_SW_Pin::hw_init();
 }
 
 bool request_bootloader()
 {
-    return false;
+    extern uint32_t __bootloader_magic_ptr;
+    if (__bootloader_magic_ptr == REQUEST_BOOTLOADER) {
+        __bootloader_magic_ptr = 0;
+        return true;
+    }
+    return !GOLD_SW_Pin::get();
 }
 
 extern const uint16_t DEFAULT_ALIAS;
@@ -126,10 +137,12 @@ bool read_can_frame(struct can_frame *frame)
     uint32_t regbits = ROM_CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
     if (!(regbits & 1))
     {
-        MAP_GPIOPinWrite(LED_GOLD, 0);
+        //MAP_GPIOPinWrite(LED_GOLD, 0);
         return false;
     }
-    MAP_GPIOPinWrite(LED_GOLD, 0xff);
+    static uint8_t value = 0;
+    value = value ^ 0xff;
+    MAP_GPIOPinWrite(LED_GOLD, value);
 
     tCANMsgObject can_message;
     can_message.pui8MsgData = frame->data;

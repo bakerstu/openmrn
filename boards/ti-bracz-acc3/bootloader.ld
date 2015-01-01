@@ -113,14 +113,18 @@ SECTIONS
         
     
     /* MAIN DATA SECTION */
-    
 
     .uninit_RESERVED : ALIGN(4)
     {
+	__bootloader_magic_ptr_actual = .;
+	LONG( 0 );  /* The magic pointer is in the uninit part. */
         KEEP(*(.bss.$RESERVED*))
         . = ALIGN(4) ;
         _end_uninit_RESERVED = .;
     } > RAM
+
+    ASSERT(__bootloader_magic_ptr_actual == __bootloader_magic_ptr, "Bootloader magic ptr is not at the expected location.")
+
 
     /* It seems that in order for LPCXpresso to properly flash the data
     section, an alignment of 256 bytes is necessary. Otherwise the separate

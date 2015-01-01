@@ -72,6 +72,11 @@ enum BootloaderLed {
   LED_IDENT = 4,
 };
 
+/** Write this value to __bootloader_magic_ptr and jump to the bootloader entry
+ * point in order to explicitly call the bootloader. */
+static const uint32_t REQUEST_BOOTLOADER = 0x76b89b1eU;
+extern uint32_t __bootloader_magic_ptr;
+
 /** Initializes the hardware to a safe state of the outputs. This function may
  *  not assume anything about previous hardware state. Also the memory layout
  *  is not yet initialized. (Do not use any static objects, and the DATA
