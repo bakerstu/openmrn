@@ -52,6 +52,11 @@
 
 #include "TivaDev.hxx"
 
+#include "TivaGPIO.hxx"
+GPIO_PIN(LED_B4, LedPin, F, 0);
+GPIO_PIN(LED_B3, LedPin, F, 4);
+
+
 /** The languages supported by this device.
  */
 const uint8_t langDescriptor[] =
@@ -266,8 +271,10 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
                                                   USB_SERIAL_PACKET_SIZE,
                                                   true);
                 serial->set_rx_finished_from_isr(count);
+                LED_B4_Pin::set(false);
                 return count;
             } else {
+                LED_B4_Pin::set(true);
                 return 0;
             }
         }
@@ -298,7 +305,7 @@ unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned lon
  */
 void TivaCdc::interrupt_handler(void)
 {
-    woken = false;
+    woken = true;
     USB0DeviceIntHandler();
     os_isr_exit_yield_test(woken);
 }

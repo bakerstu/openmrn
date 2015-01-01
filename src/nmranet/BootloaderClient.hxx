@@ -33,6 +33,8 @@
  * @date 14 Dec 2014
  */
 
+#include <time.h>
+
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/StreamDefs.hxx"
 #include "nmranet/CanDefs.hxx"
@@ -464,7 +466,10 @@ private:
         } else {
             speed_ = speed_ * 0.8 + new_speed * 0.2;
         }
-        LOG(INFO, "stream offset: %d; wrote %.0lld msec slept %.0lld msec, speed=%.0f bytes/sec", bufferOffset_, (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000, (next_time - sleepStartTimeNsec_) / 1000, speed_);
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+
+        LOG(INFO, "%02ld.%06ld stream offset: %d; wrote %.0lld usec slept %.0lld usec, speed=%.0f bytes/sec", ts.tv_sec % 60, ts.tv_nsec / 1000, bufferOffset_, (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000, (next_time - sleepStartTimeNsec_) / 1000, speed_);
         lastMeasurementOffset_ = bufferOffset_;
         lastMeasurementTimeNsec_ = next_time;
 
