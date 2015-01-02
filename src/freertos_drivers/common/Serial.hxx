@@ -193,7 +193,7 @@ private:
     volatile uint8_t txPending_ : 1;
     volatile uint8_t rxPending_ : 1;
     uint8_t txQ_[USB_SERIAL_PACKET_SIZE];
-    uint8_t rxQ_[USB_SERIAL_PACKET_SIZE];
+    uint8_t rxQ_[USB_SERIAL_PACKET_SIZE * 3];
 
     BlockOrWakeUp<Atomic> txBlock_;
     BlockOrWakeUp<Atomic> rxBlock_;
