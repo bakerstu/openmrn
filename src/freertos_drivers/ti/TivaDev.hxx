@@ -88,6 +88,12 @@ private:
      * overwritten as soon as the call returns. */
     bool tx_packet_irqlocked(const void* data, size_t len) OVERRIDE;
 
+    /** Tries to receive a packet (from a regular context, locked and RX
+     * interrupt disabled). This is only ever called if the driver does
+     * set_rx_pending_from_isr().
+     * @returns the number of bytes read into the buffer. */
+    size_t rx_packet_irqlocked(void *data) OVERRIDE;
+
     static unsigned long control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
     static unsigned long rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);

@@ -275,6 +275,7 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
                 return count;
             } else {
                 LED_B4_Pin::set(true);
+                serial->set_rx_pending_from_isr();
                 return 0;
             }
         }
@@ -283,6 +284,15 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
             break;
     }
     return 0;
+}
+
+size_t TivaCdc::rx_packet_irqlocked(void *data) {
+  uint8_t count = USBDCDCPacketRead(&this->usbdcdcDevice,
+                                    (uint8_t*)data,
+                                    USB_SERIAL_PACKET_SIZE,
+                                    true);
+  LED_B4_Pin::set(false);
+  return count;
 }
 
 unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)

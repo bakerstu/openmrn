@@ -131,7 +131,10 @@ protected:
 
     /** Signals from an ISR context that a regular context thread should be
      * woken up and call into the rx_packet_irqlocked function. */
-    void set_rx_pending_from_isr();
+    void set_rx_pending_from_isr() {
+        /** TODO(balazs.racz): we should actually wake up someone here. */
+        rxPending_ = 1;
+    }
 
     /** Checks if the RX packet buffer is empty from an ISR context. If it is
      * empty, a non-null value is returned. The caller should then read the
