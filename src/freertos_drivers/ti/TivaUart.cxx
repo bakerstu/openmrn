@@ -221,7 +221,7 @@ void __attribute__((__weak__)) uart1_interrupt_handler(void)
 
 /** UART2 interrupt handler.
  */
-void uart2_interrupt_handler(void)
+void __attribute__((__weak__)) uart2_interrupt_handler(void)
 {
     if (instances[2])
     {
