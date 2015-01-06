@@ -32,8 +32,9 @@
  * @date 29 Nov 2014
  */
 
-#include "TivaDCC.hxx" // for FixedQueue
-#include "TivaGPIO.hxx" // for debug pins
+#include "TivaDCC.hxx"  // for FixedQueue
+#include "TivaGPIO.hxx" // for pin definitions
+#include "RailcomDriver.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
 
 typedef DummyPin PIN_RailcomCutout;
@@ -67,7 +68,7 @@ struct DCCDecode
 template <class HW> class TivaDccDecoder : public Node
 {
 public:
-    TivaDccDecoder(const char *name);
+    TivaDccDecoder(const char *name, RailcomDriver *railcom_driver);
 
     ~TivaDccDecoder()
     {
@@ -129,6 +130,7 @@ private:
     bool overflowed_ = false;
 
     Notifiable *readableNotifiable_ = nullptr;
+    RailcomDriver *railcomDriver_; //< notified for cutout events.
 
     dcc::DccDecoder decoder_;
 
@@ -136,8 +138,10 @@ private:
 };
 
 template <class HW>
-TivaDccDecoder<HW>::TivaDccDecoder(const char *name)
+TivaDccDecoder<HW>::TivaDccDecoder(const char *name,
+                                   RailcomDriver *railcom_driver)
     : Node(name)
+    , railcomDriver_(railcom_driver)
 {
     MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
     MAP_SysCtlPeripheralEnable(HW::NRZPIN_PERIPH);
@@ -204,7 +208,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             new_value += HW::TIMER_MAX_VALUE;
             reloadCount_--;
         }
-        //HASSERT(new_value > lastTimerValue_);
+        // HASSERT(new_value > lastTimerValue_);
         new_value -= lastTimerValue_;
         /*if (!inputData_.full())
         {
@@ -215,13 +219,14 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             overflowed_ = true;
             }*/
         decoder_.process_data(new_value);
-        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT) {
-            PIN_RailcomCutout::set(true);
-            for (unsigned i = 0; i < ARRAYSIZE(HW::RAILCOM_UART_BASE); ++i) {
-                HWREG(HW::RAILCOM_UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
-            }
-        } else if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE) {
-            PIN_RailcomCutout::set(false);
+        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT)
+        {
+            railcomDriver_->start_cutout();
+        }
+        /// TODO(balazs.racz) recognize middle cutout.
+        else if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE)
+        {
+            railcomDriver_->end_cutout();
         }
         lastTimerValue_ = raw_new_value;
         MAP_IntPendSet(HW::OS_INTERRUPT);
@@ -235,7 +240,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
     {
         Notifiable *n = readableNotifiable_;
         readableNotifiable_ = nullptr;
-        if (n) {
+        if (n)
+        {
             n->notify_from_isr();
             os_isr_exit_yield_test(true);
         }
@@ -243,7 +249,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
 }
 
 template <class HW>
-int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
+int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key,
+                              unsigned long data)
 {
     if (IOC_TYPE(key) == CAN_IOC_MAGIC && IOC_SIZE(key) == NOTIFIABLE_TYPE &&
         key == CAN_IOC_READ_ACTIVE)
@@ -281,9 +288,10 @@ int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key, unsigned long d
  * @param file file reference for this device
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
-template<class HW>
+template <class HW>
 ssize_t TivaDccDecoder<HW>::read(File *file, void *buf, size_t count)
 {
     if (count != 4)
@@ -293,13 +301,14 @@ ssize_t TivaDccDecoder<HW>::read(File *file, void *buf, size_t count)
     // We only need this critical section to prevent concurrent threads from
     // reading at the same time.
     portENTER_CRITICAL();
-    if (inputData_.empty()) {
+    if (inputData_.empty())
+    {
         portEXIT_CRITICAL();
         return -EAGAIN;
     }
     uint32_t v = reinterpret_cast<uint32_t>(buf);
     HASSERT((v & 3) == 0); // alignment check.
-    uint32_t* pv = static_cast<uint32_t*>(buf);
+    uint32_t *pv = static_cast<uint32_t *>(buf);
     *pv = inputData_.front();
     inputData_.increment_front();
     portEXIT_CRITICAL();
