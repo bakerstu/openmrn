@@ -105,6 +105,33 @@ public:
         __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
 
+    /** Increments the back pointer without committing the entry into the
+     * queue.
+     *
+     * This essentially reserves an entry in the queue for filling in, without
+     * making that entry available for reading. Must be followed by a
+     * commit_back call when filling in the entry is finished. An arbitrary
+     * number of such entries can be reserved (up to the number of free entries
+     * in the queue). */
+    void noncommit_back() {
+        HASSERT(has_noncommit_space());
+        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
+    }
+
+    /** @returns true if we can do a noncommit back. */
+    bool has_noncommit_space() {
+        if (full()) return false;
+        auto new_index = wrIndex_;
+        if (++new_index >= SIZE) new_index = 0;
+        return new_index != rdIndex_;
+    }
+
+    /** Commits the oldest entry reserved by noncommit_back. */
+    void commit_back() {
+        HASSERT(count_ <= SIZE);
+        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
+    }
+
 private:
     T storage_[SIZE];
     uint8_t rdIndex_;
