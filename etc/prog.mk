@@ -123,6 +123,9 @@ all:  $(EXECUTABLE).lst
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -C -d -h $< > $@
 
+$(EXECUTABLE).slst: $(EXECUTABLE)$(EXTENTION)
+	$(OBJDUMP) -C -d -S -h $< > $@
+
 $(EXECUTABLE).ndlst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
 
