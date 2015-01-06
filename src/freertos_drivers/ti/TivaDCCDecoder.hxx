@@ -26,17 +26,17 @@
  *
  * \file TivaNRZ.hxx
  *
- * Device driver for TivaWare to decode NRZ codes. (DCC, Marklin-Motorola, M4
- * are examples of NRC codes used in model railroading.)  The driver will time
- * rising and falling edges of the input signal and return the timing data to
- * userspace.
+ * Device driver for TivaWare to decode DCC track signal.
  *
  * @author Balazs Racz
  * @date 29 Nov 2014
  */
 
 #include "TivaDCC.hxx" // for FixedQueue
+#include "TivaGPIO.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
+
+typedef DummyPin PIN_RailcomCutout;
 
 #define SIGNAL_LEVEL_ONE 0x80000000UL
 
@@ -195,7 +195,6 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     if (status & HW::TIMER_CAP_EVENT)
     {
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0);
         static uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
         static uint32_t new_value;
@@ -217,10 +216,12 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             }*/
         decoder_.process_data(new_value);
         if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT) {
-            MAP_GPIOPinWrite(LED_GREEN, 0xff);
-            HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
+            PIN_RailcomCutout::set(true);
+            for (unsigned i = 0; i < ARRAYSIZE(HW::RAILCOM_UART_BASE); ++i) {
+                HWREG(HW::RAILCOM_UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+            }
         } else if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE) {
-            MAP_GPIOPinWrite(LED_GREEN, 0x0);
+            PIN_RailcomCutout::set(false);
         }
         lastTimerValue_ = raw_new_value;
         MAP_IntPendSet(HW::OS_INTERRUPT);
