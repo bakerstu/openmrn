@@ -112,32 +112,6 @@ private:
     volatile uint8_t count_;
 };
 
-
-namespace dcc {
-struct Feedback {
-    void reset(uint32_t feedback_key) {
-        this->feedbackKey = feedback_key;
-        ch1Size = 0;
-        ch2Size = 0;
-    }
-    void add_ch1_data(uint8_t data) {
-        if (ch1Size < sizeof(ch1Data)) {
-            ch1Data[ch1Size++] = data;
-        }
-    }
-    void add_ch2_data(uint8_t data) {
-        if (ch2Size < sizeof(ch2Data)) {
-            ch2Data[ch2Size++] = data;
-        }
-    }
-    uint8_t ch1Size;
-    uint8_t ch1Data[2];
-    uint8_t ch2Size;
-    uint8_t ch2Data[6];
-    uint32_t feedbackKey;
-};
-}
-
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
  *  device driver uses two instances of the 16/32-bit timer pairs.  The user
