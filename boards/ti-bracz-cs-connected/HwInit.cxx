@@ -287,8 +287,13 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     set_gpio_led(LED_RED);  // red
     set_gpio_led(LED_YELLOW);  // yellow
-    // hardware bug set_gpio_led(GPIO_PORTP_BASE, GPIO_PIN_4);  // green
-    set_gpio_extinput(LED_GREEN);  // green
+#ifdef HW_V1
+    set_gpio_extinput(LED_GREEN);
+#elif defined(HW_V2)
+    set_gpio_led(LED_GREEN);  // green
+#else
+#error define version with HWVER=HW_V1 or HWVER=HW_V2
+#endif
     set_gpio_led(LED_BLUE);  // blue
 
     set_gpio_led(LED_B1);  // onboard 1
