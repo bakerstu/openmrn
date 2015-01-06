@@ -48,6 +48,7 @@
 #include "TivaDev.hxx"
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
+#include "TivaRailcom.hxx"
 #include "bootloader_hal.h"
 
 /** override stdin */
@@ -65,8 +66,10 @@ static TivaUart uart2("/dev/ser2", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
+
 /** The input pin for detecting the DCC signal. */
-static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0");
+static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
 extern "C" {
 
@@ -130,6 +133,11 @@ void wide_timer4a_interrupt_handler(void)
 void wide_timer4b_interrupt_handler(void)
 {
   nrz0.os_interrupt_handler();
+}
+
+void uart2_interrupt_handler(void)
+{
+  railcom_driver.os_interrupt_handler();
 }
 
 void diewith(uint32_t pattern)
