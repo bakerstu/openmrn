@@ -115,7 +115,7 @@ private:
 
 namespace dcc {
 struct Feedback {
-    void reset(size_t feedback_key) {
+    void reset(uint32_t feedback_key) {
         this->feedbackKey = feedback_key;
         ch1Size = 0;
         ch2Size = 0;
@@ -290,8 +290,8 @@ private:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
 
-    void enable(){} /**< function to enable device */
-    void disable(){} /**< function to disable device */
+    void enable() OVERRIDE {} /**< function to enable device */
+    void disable() OVERRIDE {} /**< function to disable device */
 
     /** Discards all pending buffers.  Called after disable().
      */
@@ -337,7 +337,7 @@ private:
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     FixedQueue<dcc::Feedback, HW::Q_SIZE> feedbackQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
-    Notifiable* readableNotifiable_; /**< Notify this when we have free buffers. */
+    Notifiable* readableNotifiable_; /**< Notify this when we have data in our buffers. */
 
     /** Default constructor.
      */
@@ -706,7 +706,6 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
 
 template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
-
 
 template<class HW>
 TivaDCC<HW>::TivaDCC(const char *name)
