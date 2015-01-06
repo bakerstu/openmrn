@@ -75,9 +75,9 @@ public:
     {
     }
 
-    bool empty() { return count_ == 0; }
-    bool full() { return count_ >= SIZE; }
-    size_t size() { return count_; }
+    bool empty() { return size() == 0; }
+    bool full() { return size() >= SIZE; }
+    size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
 
     /// Returns the head of the FIFO (next element to read).
     T& front() {
@@ -89,7 +89,7 @@ public:
     void increment_front() {
         HASSERT(!empty());
         if (++rdIndex_ >= SIZE) rdIndex_ = 0;
-        count_--;
+        __atomic_fetch_add(&count_, -1, __ATOMIC_SEQ_CST);
     }
 
     /// Returns the space to write the next element to.
@@ -102,7 +102,7 @@ public:
     void increment_back() {
         HASSERT(!full());
         if (++wrIndex_ >= SIZE) wrIndex_ = 0;
-        ++count_;
+        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
 
 private:
