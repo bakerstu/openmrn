@@ -33,6 +33,9 @@
  * @date 6 Jan 2015
  */
 
+#ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
+#define _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
+
 class RailcomDriver {
 public:
   /** Instructs the driver that the railcom cutout is starting now. The driver
@@ -63,3 +66,5 @@ class NoRailcomDriver : public RailcomDriver {
   void end_cutout() OVERRIDE {}
   void set_feedback_key(uint32_t key) OVERRIDE {}
 };
+
+#endif // _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_

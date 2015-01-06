@@ -54,6 +54,10 @@
  * @date 6 Jan 2015
  */
 
+#ifndef _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
+#define _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
+
+
 #include "TivaDCC.hxx"  // for FixedQueue
 #include "TivaGPIO.hxx" // for pins
 
@@ -302,3 +306,5 @@ private:
         }
     }
 };
+
+#endif // _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
