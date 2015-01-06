@@ -157,4 +157,12 @@ struct GpioHwPin : public Defs {
     }
 };
 
+#define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG)                         \
+    struct NAME##Defs                                                          \
+    {                                                                          \
+        DECL_HWPIN(GPIO, PORT, NUM, CONFIG);                                   \
+        static const bool GPIO_INVERTED = false;                               \
+    };                                                                         \
+    typedef BaseClass<NAME##Defs> NAME##_Pin
+
 #endif //_FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_
