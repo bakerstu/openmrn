@@ -631,7 +631,7 @@ public:
     GenericHandler(T* ptr, void (T::*fn)(message_type*))
         : handler_(std::bind(fn, ptr, std::placeholders::_1)) {}
 
-    void send(MessageType *message, unsigned priority) override
+    void send(MessageType *message, unsigned priority) OVERRIDE
     {
         handler_(message);
     }
