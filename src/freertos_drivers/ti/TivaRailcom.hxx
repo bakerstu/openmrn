@@ -74,21 +74,34 @@ struct RailcomHw
     static const uint32_t Q_SIZE = 16;
 
     static const auto OS_INTERRUPT = INT_UART2;
+
+    GPIO_HWPIN(CH1, GpioHwPin, C, 4, U1RX);
+    GPIO_HWPIN(CH2, GpioHwPin, C, 6, U3RX);
+    GPIO_HWPIN(CH3, GpioHwPin, G, 4, U2RX);
+    GPIO_HWPIN(CH4, GpioHwPin, E, 0, U7RX);
+
+    static void hw_init() {
+         CH1_Pin::hw_init();
+         CH2_Pin::hw_init();
+         CH3_Pin::hw_init();
+         CH4_Pin::hw_init();
+    }
 };
 
 // The weak attribute is needed if the definition is put into a header file.
-const uint32_t RailcomHw::UART_BASE[] __attribute__((weak)) = {UART2_BASE};
+const uint32_t RailcomHw::UART_BASE[] __attribute__((weak)) = {UART1_BASE, UART3_BASE, UART2_BASE, UART7_BASE};
 const uint32_t RailcomHw::UART_PERIPH[]
-    __attribute__((weak)) = {SYSCTL_PERIPH_UART2};
+__attribute__((weak)) = {SYSCTL_PERIPH_UART1, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART7};
 
 template <class HW>
-class RailcomDriverBase : public RailcomDriver, private Node, private Atomic
+class RailcomDriverBase : public RailcomDriver, private Node
 {
 public:
     RailcomDriverBase(const char *name)
         : Node(name)
         , readableNotifiable_(nullptr)
     {
+        HW::hw_init();
         MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
         MAP_IntEnable(HW::OS_INTERRUPT);
     }
@@ -164,6 +177,7 @@ private:
         return -1;
     }
 
+public:
     void os_interrupt_handler() __attribute__((always_inline))
     {
         if (!feedbackQueue_.empty())
@@ -178,6 +192,7 @@ private:
         }
     }
 
+private:
     void set_feedback_key(uint32_t key) OVERRIDE
     {
         feedbackKey_ = key;
