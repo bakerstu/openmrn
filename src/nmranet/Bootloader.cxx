@@ -100,6 +100,7 @@ struct BootloaderState
 
 } state_;
 
+//#define WRITE_BUFFER_SIZE 1024
 #define WRITE_BUFFER_SIZE 256
 uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 
