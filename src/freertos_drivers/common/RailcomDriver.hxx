@@ -49,7 +49,7 @@ public:
   /** Instructs the driver that the railcom cutout is over now. The driver
    *  will use this information to disable the UART receiver. */
   virtual void end_cutout() = 0;
-  /** Specifies the feedbakc key to write into the received railcom data
+  /** Specifies the feedback key to write into the received railcom data
    *  packets. This feedback key is used by the application layer to correlate
    *  the stream of DCC packets to the stream of Railcom packets. This method
    *  shall be called before start_cutout. The feedback key set here is used
@@ -58,7 +58,7 @@ public:
 };
 
 
-/** Empty implementation of the railcom driver for board that have no railcom
+/** Empty implementation of the railcom driver for boards that have no railcom
  *  hardware. */
 class NoRailcomDriver : public RailcomDriver {
   void start_cutout() OVERRIDE {}
