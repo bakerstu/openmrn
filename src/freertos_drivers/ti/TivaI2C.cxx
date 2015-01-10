@@ -1,0 +1,400 @@
+/** \copyright
+ * Copyright (c) 2014, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file TivaI2C.cxx
+ * This file implements a UART device driver layer specific to Tivaware.
+ *
+ * @author Stuart W. Baker
+ * @date 6 May 2014
+ */
+
+#include <algorithm>
+
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_ints.h"
+#include "inc/hw_i2c.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/i2c.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
+
+#include "TivaDev.hxx"
+
+/** Instance pointers help us get context from the interrupt handler(s) */
+static TivaI2C *instances[10] = {NULL};
+
+/** Constructor.
+ * @param name name of this device instance in the file system
+ * @param base base address of this device
+ * @param interrupt interrupt number of this device
+ */
+TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt)
+    : I2C(name)
+    , base(base)
+    , interrupt(interrupt)
+    , trans(NULL)
+    , sem()
+{
+    
+    switch (base)
+    {
+        default:
+            HASSERT(0);
+        case I2C0_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+            instances[0] = this;
+            break;
+        case I2C1_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
+            instances[1] = this;
+            break;
+        case I2C2_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C2);
+            instances[2] = this;
+            break;
+        case I2C3_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C3);
+            instances[3] = this;
+            break;
+        case I2C4_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C4);
+            instances[4] = this;
+            break;
+        case I2C5_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C5);
+            instances[5] = this;
+            break;
+        case I2C6_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C6);
+            instances[6] = this;
+            break;
+        case I2C7_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C7);
+            instances[7] = this;
+            break;
+        case I2C8_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C8);
+            instances[8] = this;
+            break;
+        case I2C9_BASE:
+            MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C9);
+            instances[9] = this;
+            break;
+    }
+
+    /* default to 100 KHz mode */
+    MAP_I2CMasterInitExpClk(base, cm3_cpu_clock_hz, false);
+
+    /* We set the priority so that it is slightly lower than the highest needed
+     * for FreeRTOS compatibility. This will ensure that CAN interrupts take
+     * precedence over UART. */
+    MAP_IntPrioritySet(interrupt,
+                       std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
+    MAP_I2CMasterIntEnableEx(base, I2C_MASTER_INT_TIMEOUT |
+                                   I2C_MASTER_INT_DATA);
+}
+
+/** Method to transmit/receive the data.
+ * @param t transaction to take place
+ * @return 0 upon success or -1 with errno set
+ */
+int TivaI2C::transfer(Transaction *t)
+{
+    trans = t;
+
+    if (t->flags & FLAG_RD)
+    {
+        /* this is a read transfer */
+	    MAP_I2CMasterSlaveAddrSet(base, address, true);
+        if ((t->flags & FLAG_START) || (t->flags & FLAG_REPEAT_START))
+        {
+            /* generate start */
+            if ((t->flags & FLAG_STOP) && t->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_RECEIVE);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_START);
+            }
+        }
+        else
+        {
+            if ((t->flags & FLAG_STOP) && t->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_CONT);
+            }
+        }
+        --t->count;
+    }
+    else
+    {
+        /* this is a write transfer */
+	    MAP_I2CMasterSlaveAddrSet(base, address, false);
+        MAP_I2CMasterDataPut(base, *t->tx_data);
+        if ((t->flags & FLAG_START) || (t->flags & FLAG_REPEAT_START))
+        {
+            /* generate start */
+            if ((t->flags & FLAG_STOP) && t->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_SEND);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_START);
+            }
+        }
+        else
+        {
+            if ((t->flags & FLAG_STOP) && t->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_FINISH);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_CONT);
+            }
+        }
+        --t->count;
+        ++t->tx_data;
+    }
+
+    MAP_IntEnable(interrupt);
+    sem.wait();
+
+    if (t->flags < 0)
+    {
+        errno = t->flags;
+        return -1;
+    }
+    return 0;
+}
+
+/** Common interrupt handler for all I2C devices.
+ */
+void TivaI2C::interrupt_handler()
+{
+    int woken = 0;
+    uint32_t error;
+    uint32_t status;
+
+    error = I2CMasterErr(base);
+    if (error & I2C_MCS_ARBLST)
+    {
+        trans->flags = -EIO;
+        goto post;
+    }
+    else if (error & I2C_MCS_DATACK)
+    {
+        trans->flags = -EIO;
+        goto post;
+    }
+    else if (error & I2C_MCS_ADRACK)
+    {
+        trans->flags = -EIO;
+        goto post;
+    }
+
+    status = MAP_I2CMasterIntStatusEx(base, true);
+    if (status & I2C_MASTER_INT_TIMEOUT)
+    {
+        trans->flags = -ETIMEDOUT;
+        goto post;
+    }
+    else if (status & I2C_MASTER_INT_DATA)
+    {
+        if (trans->flags & FLAG_RD)
+        {
+            *trans->rx_data = I2CMasterDataGet(I2C0_BASE);
+            if (trans->count == 0)
+            {
+                /* transfer is complete */
+                goto post;
+            }
+            /* this is a read transfer */
+            if ((trans->flags & FLAG_STOP) && trans->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_CONT);
+            }
+            --trans->count;
+            ++trans->rx_data;
+        }
+        else
+        {
+            /* this is a write transfer */
+            if (trans->count == 0)
+            {
+                /* transfer is complete */
+                goto post;
+            }
+            MAP_I2CMasterDataPut(base, *trans->tx_data);
+            if ((trans->flags & FLAG_STOP) && trans->count == 1)
+            {
+                /* single byte transfer with stop */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_FINISH);
+            }
+            else
+            {
+                /* more than one byte to transfer */
+                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_CONT);
+            }
+            --trans->count;
+            ++trans->tx_data;
+        }
+        return;
+    }
+    else
+    {
+        /* should never get here */
+        HASSERT(0 && "I2C invalid status");
+    }
+post:
+    MAP_IntDisable(interrupt);
+    sem.post_from_isr(&woken);
+    os_isr_exit_yield_test(woken);
+}
+
+extern "C" {
+/** I2C0 interrupt handler.
+ */
+void i2c0_interrupt_handler(void)
+{
+    if (instances[0])
+    {
+        instances[0]->interrupt_handler();
+    }
+}
+
+/** I2C1 interrupt handler.
+ */
+void i2c1_interrupt_handler(void)
+{
+    if (instances[1])
+    {
+        instances[1]->interrupt_handler();
+    }
+}
+
+/** I2C2 interrupt handler.
+ */
+void i2c2_interrupt_handler(void)
+{
+    if (instances[2])
+    {
+        instances[2]->interrupt_handler();
+    }
+}
+
+/** I2C3 interrupt handler.
+ */
+void i2c3_interrupt_handler(void)
+{
+    if (instances[3])
+    {
+        instances[3]->interrupt_handler();
+    }
+}
+/** I2C4 interrupt handler.
+ */
+void i2c4_interrupt_handler(void)
+{
+    if (instances[4])
+    {
+        instances[4]->interrupt_handler();
+    }
+}
+
+/** I2C5 interrupt handler.
+ */
+void i2c5_interrupt_handler(void)
+{
+    if (instances[5])
+    {
+        instances[5]->interrupt_handler();
+    }
+}
+
+/** I2C6 interrupt handler.
+ */
+void i2c6_interrupt_handler(void)
+{
+    if (instances[6])
+    {
+        instances[6]->interrupt_handler();
+    }
+}
+
+/** I2C7 interrupt handler.
+ */
+void i2c7_interrupt_handler(void)
+{
+    if (instances[7])
+    {
+        instances[7]->interrupt_handler();
+    }
+}
+
+/** I2C8 interrupt handler.
+ */
+void i2c8_interrupt_handler(void)
+{
+    if (instances[8])
+    {
+        instances[8]->interrupt_handler();
+    }
+}
+
+/** I2C9 interrupt handler.
+ */
+void i2c9_interrupt_handler(void)
+{
+    if (instances[9])
+    {
+        instances[9]->interrupt_handler();
+    }
+}
+
+} // extern C

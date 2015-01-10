@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -52,6 +52,7 @@
 
 #include "Serial.hxx"
 #include "Can.hxx"
+#include "I2C.hxx"
 
 /** Private data for this implementation of serial.
  */
@@ -63,7 +64,7 @@ public:
      * @param interrupt interrupt number used by the device
      */
     TivaCdc(const char *name, uint32_t interrupt);
-    
+
     /** Destructor.
      */
     ~TivaCdc()
@@ -103,7 +104,7 @@ private:
     /** Default constructor.
      */
     TivaCdc();
-    
+
     DISALLOW_COPY_AND_ASSIGN(TivaCdc);
 };
 
@@ -118,7 +119,7 @@ public:
      * @param interrupt interrupt number of this device
      */
     TivaUart(const char *name, unsigned long base, uint32_t interrupt);
-    
+
     /** Destructor.
      */
     ~TivaUart()
@@ -142,7 +143,7 @@ private:
     /** Default constructor.
      */
     TivaUart();
-    
+
     DISALLOW_COPY_AND_ASSIGN(TivaUart);
 };
 
@@ -157,7 +158,7 @@ public:
      * @param interrupt interrupt number of this device
      */
     TivaCan(const char *name, unsigned long base, uint32_t interrupt);
-    
+
     /** Destructor.
      */
     ~TivaCan()
@@ -182,8 +183,55 @@ private:
     /** Default constructor.
      */
     TivaCan();
-    
+
     DISALLOW_COPY_AND_ASSIGN(TivaCan);
+};
+
+/** Specialization of Serial driver for Tiva UART.
+ */
+class TivaI2C : public I2C
+{
+public:
+    /** Constructor.
+     * @param name name of this device instance in the file system
+     * @param base base address of this device
+     * @param interrupt interrupt number of this device
+     */
+    TivaI2C(const char *name, unsigned long base, uint32_t interrupt);
+
+    /** Destructor.
+     */
+    ~TivaI2C()
+    {
+    }
+
+    /** @todo (Stuart Baker) this should be made private */
+    /** handle an interrupt.
+     */
+    void interrupt_handler();
+
+private:
+    void enable() OVERRIDE {} /**< function to enable device */
+    void disable() OVERRIDE {}; /**< function to disable device */
+
+    /** Method to transmit/receive the data.
+     * @param t transaction to take place
+     * @return 0 upon success or -1 with errno set
+     */
+    int transfer(Transaction *t) OVERRIDE;
+
+    unsigned long base; /**< base address of this device */
+    unsigned long interrupt; /**< interrupt of this device */
+    Transaction *trans;
+
+    /** Semaphore to wakeup task level from ISR */
+    OSSem sem;
+
+    /** Default constructor.
+     */
+    TivaI2C();
+
+    DISALLOW_COPY_AND_ASSIGN(TivaI2C);
 };
 
 #endif /* _FREERTOS_DRIVERS_TI_TIVADEV_HXX_ */

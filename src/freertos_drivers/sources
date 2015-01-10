@@ -5,7 +5,8 @@ CSRCS +=
 
 CXXSRCS += Fileio.cxx \
            Can.cxx \
-           Serial.cxx
+           Serial.cxx \
+           I2C.cxx
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
 SUBDIRS += drivers_pic32mx795 plib_pic32mx795
