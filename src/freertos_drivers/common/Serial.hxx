@@ -40,7 +40,7 @@
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 
-/** Private data for a can device */
+/** Private data for a serial device */
 class Serial : public Node
 {
 protected:
