@@ -20,6 +20,15 @@ SECTIONS
     {
         FILL(0xff)
         KEEP(*(.interrupt_vector))
+
+	/* Makes place for the app header to be filled in by the bootloader
+	checksum program. */
+	. = __app_header_offset;
+	QUAD(0); /* App header: checksum for vector table. */
+	QUAD(0);
+	LONG(0); /* App header: data size */
+	QUAD(0); /* App header: checksum for payload. */
+	QUAD(0);
         
         /* Global Section Table */
         . = ALIGN(4) ;

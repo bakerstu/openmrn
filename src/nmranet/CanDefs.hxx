@@ -84,7 +84,7 @@ struct CanDefs {
         PADDING_SHIFT        = 29, /**< shift for padding field of CAN ID */
         
         CONTROL_SRC_MASK      = 0x00000fff, /**< source alias mask */
-        CONTROL_FIELD_MASK    = 0x00fff000, /**< control field data mask */
+        CONTROL_FIELD_MASK    = 0x07fff000, /**< control field data mask */
         CONTROL_SEQUENCE_MASK = 0x07000000, /**< frame sequence number mask */
         CONTROL_TYPE_MASK     = 0x08000000, /**< value of '0' means control frame mask */
         CONTROL_PRIORITY_MASK = 0x10000000, /**< priority mask */
@@ -278,7 +278,22 @@ struct CanDefs {
                   (type     << FRAME_TYPE_SHIFT    ) +
                   (priority << PRIORITY_SHIFT      );
     }
-    
+
+    /** Set all the CAN ID fields for datagram or stream message.
+     * @param can_id identifier to act upon
+     * @param source source alias
+     * @param dst desitnation alias
+     * @param can_type CAN frame type field value
+     */
+    static void set_datagram_fields(uint32_t *can_id, NodeAlias src,
+                                    NodeAlias dst, CanFrameType can_type)
+    {
+        *can_id = (src      << SRC_SHIFT           ) +
+                  (dst      << DST_SHIFT           ) +
+                  (can_type << CAN_FRAME_TYPE_SHIFT) +
+                  (NMRANET_MSG << FRAME_TYPE_SHIFT ) +
+                  (NORMAL_PRIORITY << PRIORITY_SHIFT);
+    }
 
     /** Get the NMRAnet MTI from a can identifier.
      * @param can_id CAN identifider
@@ -293,6 +308,17 @@ struct CanDefs {
      */
     static uint32_t can_identifier(Defs::MTI mti, NodeAlias src);
 
+    /** Get the control field of a can control frame. This includes the
+     * sequence number and the variable field.
+
+     * @param can_id CAN ID of the control frame
+     * @return value of the control field
+     */
+    static ControlField get_control_field(uint32_t can_id)
+    {
+        return (ControlField)((can_id & CONTROL_FIELD_MASK) >> CONTROL_FIELD_SHIFT);
+    }
+
 #if 0
     /** Get the source field of the a can control frame.
      * @param can_id CAN ID of the control frame
@@ -301,15 +327,6 @@ struct CanDefs {
     static NodeAlias get_control_src(uint32_t can_id)
     {
         return (can_id & CONTROL_SRC_MASK) >> CONTROL_SRC_SHIFT;
-    }
-
-    /** Get the field field of the a can control frame.
-     * @param can_id CAN ID of the control frame
-     * @return value of the field field
-     */
-    static ControlField get_control_field(uint32_t can_id)
-    {
-        return (ControlField)((can_id & CONTROL_FIELD_MASK) >> CONTROL_FIELD_SHIFT);
     }
 
     /** Get the sequence field of the a can control frame.

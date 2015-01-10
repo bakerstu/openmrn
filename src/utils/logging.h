@@ -50,7 +50,7 @@ static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(GCC_ARMCM3)
 #define LOCKED_LOGGING
 #endif
 

@@ -137,6 +137,7 @@ protected:
     */
     void print_all_packets()
     {
+        HASSERT(!printer_ && "cannot have more than one print_all_packets call");
         NiceMock<MockSend> *m = new NiceMock<MockSend>();
         EXPECT_CALL(*m, mwrite(_)).Times(AtLeast(0)).WillRepeatedly(
             WithArg<0>(Invoke(print_packet)));
@@ -160,6 +161,14 @@ protected:
         packet->data()->assign(gc_packet);
         packet->data()->skipMember_ = &canBus_;
         gc_hub0.send(packet);
+    }
+
+    void clear_expect(bool strict = false)
+    {
+        Mock::VerifyAndClear(&canBus_);
+        if (strict) {
+            EXPECT_CALL(canBus_, mwrite(_)).Times(0);
+        }
     }
 
 /** Injects an incoming packet to the interface and expects that the node

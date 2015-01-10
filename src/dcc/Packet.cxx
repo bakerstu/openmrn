@@ -106,6 +106,7 @@ void Packet::add_dcc_address(DccShortAddress address)
 {
     start_dcc_packet();
     payload[dlc++] = address.value & 0x7F;
+    feedback_key = address.value;
 }
 
 void Packet::add_dcc_address(DccLongAddress address)
@@ -113,6 +114,7 @@ void Packet::add_dcc_address(DccLongAddress address)
     start_dcc_packet();
     payload[dlc++] = DCC_LONG_ADDRESS_FIRST | (address.value >> 8);
     payload[dlc++] = address.value & 0xff;
+    feedback_key = address.value;
 }
 
 void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed)

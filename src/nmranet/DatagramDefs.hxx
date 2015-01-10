@@ -34,6 +34,8 @@
 #ifndef _NMRANET_DATAGRAMDEFS_HXX_
 #define _NMRANET_DATAGRAMDEFS_HXX_
 
+#include <stdint.h>
+
 namespace nmranet
 {
 
@@ -95,6 +97,8 @@ struct DatagramDefs
         PERMANENT_ERROR    = 0x1000, /**< Permanent error occurred. */
         SRC_NOT_PERMITTED  = 0x1020, /**< Source not permitted error occurred. */
         NOT_ACCEPTED       = 0x1040, /**< Destination node does not accept datagrams of any kind. */
+        UNIMPLEMENTED      = 0x1080, /**< NON_STANDARD The feature or command requested is not implemented by the target node. */
+        INVALID_ARGUMENTS  = 0x1010, /**< NON_STANDARD Invalid or unparseable arguments. */
     };
 
     /** We can try to resend the datagram.

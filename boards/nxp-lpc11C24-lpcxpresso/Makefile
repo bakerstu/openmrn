@@ -37,6 +37,9 @@ ldpreproc: delete.sym
 delete_destructors:
 	if [ ! -f $@ ] ; then touch $@ ; fi
 
+destructors: cg.svg
+	grep '~' cg.dot | sed s/^[/][/]// | sort > destructors 
+
 define TGTLIBSTRIP_template
 
 lib/$(notdir $(1)): $(LIBDIR)/$(notdir $(1)) arpreproc $(LIBDIR)/timestamp
@@ -50,7 +53,7 @@ endef
 $(foreach lib,$(wildcard $(LIBDIR)/*.a),$(eval $(call TGTLIBSTRIP_template,$(lib))))
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp arpreproc ldpreproc strippedlibs
-	for f in $(SUBDIRS) ; do $(OBJCOPY) @arpreproc lib/$$f; done
+	for f in $(SUBDIRS) ; do $(OBJCOPY) @arpreproc lib/lib$$f.a; done
 	for f in $(OBJS) $(OBJEXTRA) ; do $(OBJCOPY) @arpreproc $$f ; done
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE

@@ -327,7 +327,10 @@ void *USBSerialNode::try_read_packet_from_isr()
     if (rxQBegin_ >= rxQEnd_)
     {
         rxQBegin_ = rxQEnd_ = 0;
-        return rxQ_;
+    }
+    if (static_cast<size_t>(rxQEnd_) + USB_SERIAL_PACKET_SIZE <= sizeof(rxQ_))
+    {
+        return &rxQ_[rxQEnd_];
     }
     else
     {
@@ -337,6 +340,6 @@ void *USBSerialNode::try_read_packet_from_isr()
 
 void USBSerialNode::set_rx_finished_from_isr(uint8_t size)
 {
-    rxQEnd_ = size;
+    rxQEnd_ += size;
     rxBlock_.notify_from_isr();
 }

@@ -55,9 +55,6 @@ size_t g_alias_use_conflicts = 0;
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
 long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 
-namespace
-{
-
 /* This write flow inherits all the business logic from the parent, just
  * maintains a separate allocation queue. This allows global messages to go out
  * even if addressed messages are waiting for destination address
@@ -80,8 +77,6 @@ protected:
         return call_immediately(STATE(global_entry));
     }
 };
-
-} // namespace
 
 /** This class listens for incoming CAN messages, and if it sees a local alias
  * conflict, then takes the appropriate action:
@@ -398,6 +393,40 @@ void IfCan::add_addressed_message_support()
     auto* f = new AddressedCanMessageWriteFlow(this);
     addressedWriteFlow_ = f;
     add_owned_flow(f);
+}
+
+void IfCan::canonicalize_handle(NodeHandle* h) {
+  if (!h->id & !h->alias) return;
+  if (!h->id) {
+    h->id = local_aliases()->lookup(h->alias);
+  }
+  if (!h->id) {
+    h->id = remote_aliases()->lookup(h->alias);
+  }
+  if (!h->alias) {
+    h->alias = local_aliases()->lookup(h->id);
+  }
+  if (!h->alias) {
+    h->alias = remote_aliases()->lookup(h->id);
+  }
+}
+
+bool IfCan::matching_node(NodeHandle expected, NodeHandle actual)
+{
+    canonicalize_handle(&expected);
+    canonicalize_handle(&actual);
+    if (expected.id && actual.id)
+    {
+        return expected.id == actual.id;
+    }
+    if (expected.alias && actual.alias)
+    {
+        return expected.alias == actual.alias;
+    }
+    // Cannot reconcile.
+    LOG(VERBOSE, "Cannot reconcile expected and actual NodeHandles for "
+                 "equality testing.");
+    return false;
 }
 
 } // namespace nmranet

@@ -5,6 +5,7 @@ CSRCS +=
 CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
+           Bootloader.cxx \
            CanDefs.cxx \
            DefaultNode.cxx \
            EventHandler.cxx \

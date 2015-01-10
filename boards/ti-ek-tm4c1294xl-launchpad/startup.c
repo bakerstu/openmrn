@@ -315,6 +315,14 @@ extern unsigned long _ebss;
  * are initialized. */
 extern void hw_preinit(void);
 
+/** Sets the hardware outputs to a safe state. Called when the program crashes
+ * handler. */
+/*void hw_set_to_safe(void) __attribute__ ((weak));
+void hw_set_to_safe(void)
+{
+}*/
+extern void hw_set_to_safe(void);
+
 /** Startup the C/C++ runtime environment.
  */
 void reset_handler(void)
@@ -377,8 +385,9 @@ volatile uint32_t psr;/* Program status register. */
  * inspired by FreeRTOS.
  * @param address address of the stack
  */
-__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
+__attribute__((optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
+    hw_set_to_safe();
     /* These are volatile to try and prevent the compiler/linker optimising them
     away as the variables never actually get used.  If the debugger won't show the
     values of the variables, make them global my moving their declaration outside
@@ -426,6 +435,8 @@ __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned 
     _MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
     // Bus Fault Address Register
     _BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
+
+    asm("mov r0, %[value]" : : [value] "r" (hardfault_args));
 
     __asm("BKPT #0\n") ; // Break into the debugger
 
@@ -597,6 +608,3 @@ void pwm1_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interr
 void pwm1_fault_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void fp_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void tamper_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-
-
-

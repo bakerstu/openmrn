@@ -52,6 +52,11 @@
 
 #include "TivaDev.hxx"
 
+#include "TivaGPIO.hxx"
+GPIO_PIN(LED_B4, LedPin, F, 0);
+GPIO_PIN(LED_B3, LedPin, F, 4);
+
+
 /** The languages supported by this device.
  */
 const uint8_t langDescriptor[] =
@@ -142,9 +147,10 @@ TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
     , enabled(false)
     , woken(false)
 {
-    USBStackModeSet(0, eUSBModeDevice, 0);
-    USBDCDCInit(0, &usbdcdcDevice);
     instances[0] = this;
+    log_.log(0x71);
+    USBStackModeSet(0, eUSBModeForceDevice, 0);
+    USBDCDCInit(0, &usbdcdcDevice);
 }
 
 /** Enable use of the device interrupts.
@@ -265,8 +271,11 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
                                                   USB_SERIAL_PACKET_SIZE,
                                                   true);
                 serial->set_rx_finished_from_isr(count);
+                LED_B4_Pin::set(false);
                 return count;
             } else {
+                LED_B4_Pin::set(true);
+                serial->set_rx_pending_from_isr();
                 return 0;
             }
         }
@@ -275,6 +284,15 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
             break;
     }
     return 0;
+}
+
+size_t TivaCdc::rx_packet_irqlocked(void *data) {
+  uint8_t count = USBDCDCPacketRead(&this->usbdcdcDevice,
+                                    (uint8_t*)data,
+                                    USB_SERIAL_PACKET_SIZE,
+                                    true);
+  LED_B4_Pin::set(false);
+  return count;
 }
 
 unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
@@ -297,7 +315,7 @@ unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned lon
  */
 void TivaCdc::interrupt_handler(void)
 {
-    woken = false;
+    woken = true;
     USB0DeviceIntHandler();
     os_isr_exit_yield_test(woken);
 }

@@ -79,6 +79,15 @@ public:
         entries_[make_key(node, id)] = value;
     }
 
+    void erase(void* node, uint32_t id, void* value)
+    {
+        auto it = entries_.find(make_key(node, id));
+        if (it == entries_.end()) return;
+        if (it->second == value) {
+            entries_.erase(it);
+        }
+    }
+
     /** Finds a handler for a particular node and particular messageID.
      * @returns a handler or nullptr if no node-specific and no globla handler
      * for that ID is found. */
@@ -132,6 +141,18 @@ public:
     void insert(Node* node, uint32_t id, Handler* handler)
     {
         NodeHandlerMapBase::insert(node, id, handler);
+    }
+
+    /** Removes a handler from the map. If the mapping does not currently point
+     * to that handler, does nothing.
+     *
+     * @param node is the node for which to unregister the handler.
+     * @param id is the message ID for which to unregister.
+     * @param value is the handler to unregister.
+     */
+    void erase(Node* node, uint32_t id, Handler* handler)
+    {
+        NodeHandlerMapBase::erase(node, id, handler);
     }
 
     /** Finds a handler for a particular node and particular messageID.

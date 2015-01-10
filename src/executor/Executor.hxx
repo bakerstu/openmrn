@@ -129,6 +129,7 @@ private:
     /** Set to 1 when the executor thread has exited and it is safe to delete
      * *this. */
     unsigned done_ : 1;
+    unsigned started_ : 1;
 
     /** provide access to Executor::send method. */
     friend class Service;
@@ -158,10 +159,15 @@ public:
      */
     Executor(const char *name, int priority, size_t stack_size)
     {
-        OSThread::start(name, priority, stack_size);
+        start_thread(name, priority, stack_size);
     }
 
     explicit Executor(const NO_THREAD& unused) {}
+
+    void start_thread(const char *name, int priority, size_t stack_size)
+    {
+        OSThread::start(name, priority, stack_size);
+    }
 
     /** Destructor.
      */

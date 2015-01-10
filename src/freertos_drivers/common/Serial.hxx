@@ -131,7 +131,10 @@ protected:
 
     /** Signals from an ISR context that a regular context thread should be
      * woken up and call into the rx_packet_irqlocked function. */
-    void set_rx_pending_from_isr();
+    void set_rx_pending_from_isr() {
+        /** TODO(balazs.racz): we should actually wake up someone here. */
+        rxPending_ = 1;
+    }
 
     /** Checks if the RX packet buffer is empty from an ISR context. If it is
      * empty, a non-null value is returned. The caller should then read the
@@ -193,7 +196,7 @@ private:
     volatile uint8_t txPending_ : 1;
     volatile uint8_t rxPending_ : 1;
     uint8_t txQ_[USB_SERIAL_PACKET_SIZE];
-    uint8_t rxQ_[USB_SERIAL_PACKET_SIZE];
+    uint8_t rxQ_[USB_SERIAL_PACKET_SIZE * 3];
 
     BlockOrWakeUp<Atomic> txBlock_;
     BlockOrWakeUp<Atomic> rxBlock_;

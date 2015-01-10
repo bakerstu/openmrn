@@ -76,7 +76,7 @@ CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
         -fno-rtti -fno-exceptions -std=c++0x \
         -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901 $(CXXFLAGSENV)
 
-LDFLAGS = -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
+LDFLAGS = -Os -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
         -Xlinker --gc-sections -mcpu=cortex-m0 -mthumb --specs=nano.specs \
         -Xlinker -Map="$(@:%.elf=%.map)" -Wl,--wrap=__cxa_pure_virtual   \
 	-Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \

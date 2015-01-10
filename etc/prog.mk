@@ -121,10 +121,13 @@ ifdef OBJDUMP
 all:  $(EXECUTABLE).lst
 
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
-	$(OBJDUMP) -C -d $< > $@
+	$(OBJDUMP) -C -d -h $< > $@
 
 $(EXECUTABLE).ndlst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
+
+$(EXECUTABLE).bin: $(EXECUTABLE)$(EXTENTION)
+	$(OBJCOPY) -O binary $< $@
 
 endif
 

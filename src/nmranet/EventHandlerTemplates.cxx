@@ -120,6 +120,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
       event++;
     writer->WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
                        eventid_to_buffer(event), done);
+#ifndef TARGET_LPC11Cxx
     if (!done) {
       // We wait for the sent-out event to come back. Otherwise there is a race
       // condition where the automata processing could have gone further, but
@@ -128,6 +129,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper* writer,
         usleep(100);
       }
     }
+#endif
   } else {
 #ifdef DESCRIBE_VAR
       if (debug_variables > 2) {

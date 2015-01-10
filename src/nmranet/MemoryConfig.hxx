@@ -35,10 +35,16 @@
 #ifndef _NMRANET_MEMORYCONFIG_HXX_
 #define _NMRANET_MEMORYCONFIG_HXX_
 
+#include "nmranet/DatagramDefs.hxx"
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
 
 class Notifiable;
+
+extern "C" {
+extern void enter_bootloader();
+extern void reboot();
+}
 
 namespace nmranet
 {
@@ -56,6 +62,8 @@ struct MemoryConfigDefs {
         COMMAND_WRITE_REPLY       = 0x10, /**< reply to write data to address space */
         COMMAND_WRITE_FAILED      = 0x18, /**< failed to write data to address space */
         COMMAND_WRITE_STREAM      = 0x20, /**< command to write data using a stream */
+        COMMAND_WRITE_STREAM_REPLY= 0x30, /**< reply to write data using a stream */
+        COMMAND_WRITE_STREAM_FAILED= 0x38, /**< failed to write data using a stream */
         COMMAND_READ              = 0x40, /**< command to read data from address space */
         COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
         COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
@@ -71,6 +79,7 @@ struct MemoryConfigDefs {
         COMMAND_UPDATE_COMPLETE   = 0xA8, /**< indicate that a sequence of commands is complete */
         COMMAND_RESET             = 0xA9, /**< reset node to its power on state */
         COMMAND_FACTORY_RESET     = 0xAA, /**< reset node to factory defaults */
+        COMMAND_ENTER_BOOTLOADER  = 0xAB, /**< reset node in bootloader mode */
         COMMAND_FREEZE            = 0xA1, /**< freeze operation of node */
         COMMAND_UNFREEZE          = 0xA0, /**< unfreeze operation of node */
 
@@ -274,7 +283,7 @@ class MemoryConfigHandler : public DefaultDatagramHandler
 public:
     enum
     {
-        DATAGRAM_ID = 0x20,
+        DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
     MemoryConfigHandler(DatagramService* if_dg, Node* node,
@@ -332,6 +341,16 @@ private:
 
                 // if (
                 break;
+            }
+            case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
+            {
+                enter_bootloader();
+                return respond_reject(DatagramClient::PERMANENT_ERROR);
+            }
+            case MemoryConfigDefs::COMMAND_RESET:
+            {
+                reboot();
+                return respond_reject(DatagramClient::PERMANENT_ERROR);
             }
             default:
                 // Unknown/unsupported command, reject datagram.

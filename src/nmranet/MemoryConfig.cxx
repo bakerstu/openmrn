@@ -26,7 +26,7 @@
  *
  * \file MemoryConfig.cxx
  *
- * Implementaiton of the Memory Config Protocol server
+ * Implementation of the Memory Config Protocol server
  *
  * @author Balazs Racz
  * @date 23 Feb 2014
@@ -42,6 +42,18 @@
 #ifdef __FreeRTOS__
 #include "can_ioctl.h"
 #endif
+
+extern "C" {
+void enter_bootloader() __attribute__ ((weak));
+void enter_bootloader()
+{
+}
+
+void reboot() __attribute__ ((weak));
+void reboot()
+{
+}
+}
 
 namespace nmranet
 {

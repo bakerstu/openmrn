@@ -69,7 +69,7 @@ public:
      *
      * @param node is the originating node.
      * @param mti is the message to send
-     * @param dst is the destination node to send to (may be Global())
+     * @param dst is the destination node to send to (may be global())
      * @param buffer is the message payload.
      * @param done will be notified when the packet has been enqueued to the
      * physical layer. If done == nullptr, the sending is invoked synchronously.

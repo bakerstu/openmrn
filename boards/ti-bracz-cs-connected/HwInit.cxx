@@ -47,10 +47,11 @@
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
+#include "TivaDCC.hxx"
 
 #include "dcc_control.hxx"
 #include "hardware.hxx"
-
+#include "DccHardware.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -73,7 +74,26 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
 
+TivaDCC<DccHwDefs> dcc_hw("/dev/mainline");
+
 extern "C" {
+/** Timer interrupt for DCC packet handling.
+ */
+void timer0a_interrupt_handler(void)
+{
+  dcc_hw.interrupt_handler();
+}
+
+void timer1a_interrupt_handler(void)
+{
+  dcc_hw.os_interrupt_handler();
+}
+
+void hw_set_to_safe(void)
+{
+    dcc_hw.disable_output();
+}
+
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
@@ -109,6 +129,7 @@ void timer5a_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
+    hw_set_to_safe();
     vPortClearInterruptMask(0x20);
     asm("cpsie i\n");
 
@@ -159,21 +180,11 @@ void set_gpio_puinput(uint32_t port, uint32_t pin) {
 void enable_dcc() {
     g_dcc_on = true;
     MAP_GPIOPinWrite(LED_BLUE, 0xff);
-    auto port = GPIO_PORTA_BASE;
-    auto pin = GPIO_PIN_2 ; //| GPIO_PIN_3;
-    MAP_GPIOPinTypeTimer(port, pin);
-    MAP_GPIOPinTypeTimer(GPIO_PORTD_BASE, GPIO_PIN_3);
-    MAP_GPIOPinConfigure(GPIO_PA2_T1CCP0);
-    MAP_GPIOPinConfigure(GPIO_PD3_T1CCP1);
-    //MAP_GPIOPinConfigure(GPIO_PA3_T1CCP1);
-    //MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    dcc_hw.enable_output();
 }
 
 void disable_dcc() {
-    // Take A2/A3 and set them to drive high. This will turn off the gate
-    // driver.
-    set_gpio_drive_high(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-    set_gpio_drive_low(GPIO_PORTD_BASE, GPIO_PIN_3);
+    dcc_hw.disable_output();
     g_dcc_on = false;
     MAP_GPIOPinWrite(LED_BLUE, 0);
 }
@@ -207,6 +218,7 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
+    dcc_hw.hw_init();
     disable_dcc();
 
     // A4 controls the accessory bus, active high.
@@ -298,8 +310,10 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ);
     set_gpio_puinput(GPIO_PORTJ_BASE, GPIO_PIN_0);
     volatile uint8_t* mem = (uint8_t*)(GPIO_PORTJ_BASE + ((GPIO_PIN_0)<<2));
-    uint32_t counter = configCPU_CLOCK_HZ / 3;
-    while (*mem && --counter);
+    uint32_t counter = (configCPU_CLOCK_HZ / 3);
+    while (!*mem || counter) {
+      if (counter) --counter;
+    }
 
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");

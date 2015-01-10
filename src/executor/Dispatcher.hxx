@@ -47,24 +47,26 @@
 
    Handlers are called in no particular order.
  */
-template <class MessageType, int NUM_PRIO>
-class DispatchFlow : public StateFlow<MessageType, QList<NUM_PRIO>>
+template <int NUM_PRIO>
+class DispatchFlowBase : public UntypedStateFlow<QList<NUM_PRIO>>
 {
 public:
     /** Construct a dispatchflow.
      *
      * @param service the Service this flow belongs to. */
-    DispatchFlow(Service *service);
+    DispatchFlowBase(Service *service);
 
     typedef StateFlowBase::Action Action;
 
-    ~DispatchFlow();
+
+    ~DispatchFlowBase();
 
     /** @returns the number of handlers registered. */
     size_t size();
 
-    typedef typename MessageType::value_type::id_type ID;
-    typedef FlowInterface<MessageType> HandlerType;
+protected:
+    typedef uint32_t ID;
+    typedef void UntypedHandler;
     /**
        Adds a new handler to this dispatcher.
 
@@ -78,23 +80,36 @@ public:
        @param handler is the flow to forward message to. It must stay alive so
        long as *this is alive or the handler is removed.
      */
-    void register_handler(HandlerType *handler, ID id, ID mask);
+    void register_handler(UntypedHandler *handler, ID id, ID mask);
 
     /// Removes a specific instance of a handler from this dispatcher.
-    void unregister_handler(HandlerType *handler, ID id, ID mask);
+    void unregister_handler(UntypedHandler *handler, ID id, ID mask);
 
     /// Removes all instances of a handler from this dispatcher.
-    void unregister_handler_all(HandlerType *handler);
+    void unregister_handler_all(UntypedHandler *handler);
 
-protected:
-    typedef typename StateFlow<MessageType, QList<NUM_PRIO>>::Callback Callback;
+    /// Returns the current message's ID.
+    virtual ID get_message_id() = 0;
+
+    /** Allocates an entry from lastHandlerToCall_, invoking clone() when done:
+     *  return allocate_and_call(lastHandlerToCall_, STATE(clone));
+     */
+    virtual Action allocate_and_clone() = 0;
+
+    /** Sends the current message to lastHandlerToCall, transferring ownership.
+     */
+    virtual void send_transfer() = 0;
+
+    /*typedef typename StateFlow<MessageType, QList<NUM_PRIO>>::Callback Callback;
     using StateFlow<MessageType, QList<NUM_PRIO>>::again;
     using StateFlow<MessageType, QList<NUM_PRIO>>::allocate_and_call;
-    using StateFlow<MessageType, QList<NUM_PRIO>>::call_immediately;
     using StateFlow<MessageType, QList<NUM_PRIO>>::get_allocation_result;
     using StateFlow<MessageType, QList<NUM_PRIO>>::message;
     using StateFlow<MessageType, QList<NUM_PRIO>>::release_and_exit;
-    using StateFlow<MessageType, QList<NUM_PRIO>>::transfer_message;
+    using StateFlow<MessageType, QList<NUM_PRIO>>::transfer_message;*/
+    using StateFlowBase::call_immediately;
+    using StateFlowBase::again;
+    using StateFlowWithQueue::release_and_exit;
 
     STATE_FLOW_STATE(entry);
 
@@ -106,7 +121,7 @@ protected:
             }*/
 
     STATE_FLOW_STATE(iterate);
-    STATE_FLOW_STATE(clone);
+    STATE_FLOW_STATE(clone_done);
     STATE_FLOW_STATE(iteration_done);
 
 private:
@@ -123,9 +138,9 @@ private:
         ID id;
         ID mask;
         // NULL if the handler has been removed.
-        HandlerType *handler;
+        UntypedHandler *handler;
 
-        bool Equals(ID id, ID mask, HandlerType *handler)
+        bool Equals(ID id, ID mask, UntypedHandler *handler)
         {
             return (this->id == id && this->mask == mask &&
                     this->handler == handler);
@@ -137,29 +152,113 @@ private:
     /// Index of the next handler to look at.
     size_t currentIndex_;
 
+protected:
     /// If non-NULL we still need to call this handler.
-    HandlerType *lastHandlerToCall_;
-
+    UntypedHandler *lastHandlerToCall_;
+private:
+    /// Protects handler add / remove against iteration.
     OSMutex lock_;
 };
 
-// ================== IMPLEMENTATION ==================
+
+// ==================== TEMPLATED =====================
+
+#ifdef TARGET_LPC11Cxx
+#define BASE_NUM_PRIO 4
+#else
+#define BASE_NUM_PRIO NUM_PRIO
+#endif
 
 template <class MessageType, int NUM_PRIO>
-DispatchFlow<MessageType, NUM_PRIO>::DispatchFlow(Service *service)
-    : StateFlow<MessageType, QList<NUM_PRIO>>(service)
+class DispatchFlow : public TypedStateFlow<MessageType, DispatchFlowBase<BASE_NUM_PRIO> > {
+public:
+    typedef TypedStateFlow<MessageType, DispatchFlowBase<BASE_NUM_PRIO> > Base;
+
+    DispatchFlow(Service *service)
+        :  Base(service) {}
+
+    typedef StateFlowBase::Action Action;
+    using StateFlowBase::call_immediately;
+    using StateFlowBase::allocate_and_call;
+    using StateFlowBase::get_allocation_result;
+
+    typedef FlowInterface<MessageType> HandlerType;
+    typedef typename MessageType::value_type::id_type ID;
+
+    Action entry() OVERRIDE {
+        return DispatchFlowBase<BASE_NUM_PRIO>::entry();
+    }
+
+    /**
+       Adds a new handler to this dispatcher.
+
+       A handler will be called if incoming_id & mask == id & mask.
+       If negateMatch_ then the handler will be called if incoming_id & mask !=
+       id & mask.
+
+       @param id is the identifier of the message to listen to.
+       @param mask is the mask of the ID matcher. 0=match all; 0xff...f=match
+       one
+       @param handler is the flow to forward message to. It must stay alive so
+       long as *this is alive or the handler is removed.
+     */
+    void register_handler(HandlerType *handler, ID id, ID mask) {
+        Base::register_handler(handler, id, mask);
+    }
+
+    /// Removes a specific instance of a handler from this dispatcher.
+    void unregister_handler(HandlerType *handler, ID id, ID mask) {
+        Base::unregister_handler(handler, id, mask);
+    }
+
+    /// Removes all instances of a handler from this dispatcher.
+    void unregister_handler_all(HandlerType *handler) {
+        Base::unregister_handler_all(handler);
+    }
+
+protected:
+    typename Base::ID get_message_id() OVERRIDE {
+        return this->message()->data()->id();
+    }
+
+    Action allocate_and_clone() OVERRIDE {
+        HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
+        return allocate_and_call(h, STATE(clone));
+    }
+
+    Action clone() {
+        HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
+        MessageType *copy = this->get_allocation_result(h);
+        copy->set_done(this->message()->new_child());
+        *copy->data() = *this->message()->data();
+        h->send(copy);
+        return call_immediately(STATE(clone_done));
+    }
+
+    void send_transfer() OVERRIDE {
+        HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
+        h->send(this->transfer_message());
+    }
+};
+
+
+// ================== IMPLEMENTATION ==================
+
+template <int NUM_PRIO>
+DispatchFlowBase<NUM_PRIO>::DispatchFlowBase(Service *service)
+    : UntypedStateFlow<QList<NUM_PRIO>>(service)
     , negateMatch_(false)
 {
 }
 
-template <class MessageType, int NUM_PRIO>
-DispatchFlow<MessageType, NUM_PRIO>::~DispatchFlow()
+template<int NUM_PRIO>
+DispatchFlowBase<NUM_PRIO>::~DispatchFlowBase()
 {
     HASSERT(this->is_waiting());
 }
 
-template <class MessageType, int NUM_PRIO>
-size_t DispatchFlow<MessageType, NUM_PRIO>::size()
+template<int NUM_PRIO>
+size_t DispatchFlowBase<NUM_PRIO>::size()
 {
     OSMutexLock h(&lock_);
     size_t ret = 0;
@@ -173,9 +272,9 @@ size_t DispatchFlow<MessageType, NUM_PRIO>::size()
     return ret;
 }
 
-template <class MessageType, int NUM_PRIO>
-void DispatchFlow<MessageType, NUM_PRIO>::register_handler(HandlerType *handler,
-                                                           ID id, ID mask)
+template<int NUM_PRIO>
+void DispatchFlowBase<NUM_PRIO>::register_handler(UntypedHandler *handler,
+                                                  ID id, ID mask)
 {
     OSMutexLock h(&lock_);
     size_t idx = 0;
@@ -192,10 +291,10 @@ void DispatchFlow<MessageType, NUM_PRIO>::register_handler(HandlerType *handler,
     handlers_[idx].mask = mask;
 }
 
-template <class MessageType, int NUM_PRIO>
+template<int NUM_PRIO>
 void
-DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(HandlerType *handler,
-                                                        ID id, ID mask)
+DispatchFlowBase<NUM_PRIO>::unregister_handler(UntypedHandler *handler,
+                                               ID id, ID mask)
 {
     OSMutexLock h(&lock_);
     /// @todo(balazs.racz) optimize by looking at the current index - 1.
@@ -214,9 +313,9 @@ DispatchFlow<MessageType, NUM_PRIO>::unregister_handler(HandlerType *handler,
     }
 }
 
-template <class MessageType, int NUM_PRIO>
-void DispatchFlow<MessageType, NUM_PRIO>::unregister_handler_all(
-    HandlerType *handler)
+template<int NUM_PRIO>
+void DispatchFlowBase<NUM_PRIO>::unregister_handler_all(
+    UntypedHandler *handler)
 {
     OSMutexLock h(&lock_);
     for (size_t i = 0; i < handlers_.size(); ++i)
@@ -232,18 +331,18 @@ void DispatchFlow<MessageType, NUM_PRIO>::unregister_handler_all(
     }
 }
 
-template <class MessageType, int NUM_PRIO>
-StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::entry()
+template<int NUM_PRIO>
+StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::entry()
 {
     currentIndex_ = 0;
     lastHandlerToCall_ = nullptr;
     return call_immediately(STATE(iterate));
 }
 
-template <class MessageType, int NUM_PRIO>
-StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
+template<int NUM_PRIO>
+StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iterate()
 {
-    ID id = message()->data()->id();
+    ID id = get_message_id();
     {
         OSMutexLock l(&lock_);
         for (; currentIndex_ < handlers_.size(); ++currentIndex_)
@@ -278,27 +377,23 @@ StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iterate()
     }
     // Now: we have at least two different handler. We need to clone the
     // message. We use the pool of the last handler to call by default.
-    return allocate_and_call(lastHandlerToCall_, STATE(clone));
+    return allocate_and_clone();
 }
 
-template <class MessageType, int NUM_PRIO>
-StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::clone()
+template<int NUM_PRIO>
+StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::clone_done()
 {
-    MessageType *copy = get_allocation_result(lastHandlerToCall_);
-    copy->set_done(message()->new_child());
-    *copy->data() = *message()->data();
-    lastHandlerToCall_->send(copy);
     lastHandlerToCall_ = handlers_[currentIndex_].handler;
     ++currentIndex_;
     return call_immediately(STATE(iterate));
 }
 
-template <class MessageType, int NUM_PRIO>
-StateFlowBase::Action DispatchFlow<MessageType, NUM_PRIO>::iteration_done()
+template<int NUM_PRIO>
+StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iteration_done()
 {
     if (lastHandlerToCall_)
     {
-        lastHandlerToCall_->send(transfer_message());
+        send_transfer();
     }
     return release_and_exit();
 }

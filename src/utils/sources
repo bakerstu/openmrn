@@ -8,6 +8,7 @@ CXXSRCS += Buffer.cxx \
            GridConnect.cxx \
            logging.cxx \
            GridConnectHub.cxx \
+	   Crc.cxx \
            gc_format.cxx \
            HubDevice.cxx \
            GcTcpHub.cxx \

@@ -280,6 +280,11 @@ public:
         return it->second;
     }
 
+    /** @Returns true if the two node handles match as far as we can tell
+     * without doing any network traffic. */
+    virtual bool matching_node(NodeHandle expected,
+                               NodeHandle actual) = 0;
+
 protected:
     /// Allocator containing the global write flows.
     MessageHandler *globalWriteFlow_;
