@@ -928,8 +928,9 @@ public:
      */
     void insert_from_isr(QMember *item, unsigned index)
     {
+        int woken = 0;
         QListProtected<items>::insert_locked(item, index);
-        this->post_from_isr();
+        this->post_from_isr(&woken);
     }
 #endif
 

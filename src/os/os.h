@@ -499,10 +499,16 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 }
 
 #if defined (__FreeRTOS__)
-OS_INLINE int os_sem_post_from_isr(os_sem_t *sem)
+/** Post a semaphore from the ISR context.
+ * @param sem address of semaphore to increment
+ * @param woken is the task woken up
+ * @return 0 upon success
+ */
+OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
 {
-    portBASE_TYPE woken;
-    xSemaphoreGiveFromISR(*sem, &woken);
+    portBASE_TYPE local_woken;
+    xSemaphoreGiveFromISR(*sem, &local_woken);
+    *woken |= local_woken;
     return 0;
 }
 #endif

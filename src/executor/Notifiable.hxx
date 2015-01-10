@@ -68,7 +68,8 @@ public:
 #ifdef __FreeRTOS__
     void notify_from_isr() OVERRIDE
     {
-        sem_.post_from_isr();
+        int woken = 0;
+        sem_.post_from_isr(&woken);
     }
 #endif
 

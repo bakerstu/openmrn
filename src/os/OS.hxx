@@ -39,6 +39,8 @@
 
 #include "utils/macros.h"
 #include "os/os.h"
+#include "i2c.h"
+#include "i2c-dev.h"
 
 /** This class provides a threading API.
  */
@@ -236,9 +238,12 @@ public:
 
 
 #if defined (__FreeRTOS__)
-    void post_from_isr()
+    /** Post (increment) a semaphore from ISR context.
+     * @param woken is the task woken up
+     */
+    void post_from_isr(int *woken)
     {
-        os_sem_post_from_isr(&handle);
+        os_sem_post_from_isr(&handle, woken);
     }
 #endif
 
