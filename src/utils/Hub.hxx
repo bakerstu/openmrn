@@ -43,7 +43,26 @@
 class PipeBuffer;
 class PipeMember;
 
-struct CanFrameContainer : public can_frame
+template<class S> class StructContainer : public S {
+public:
+    S& value() {
+        return *this;
+    }
+
+    const void* data() const {
+        return &value();
+    }
+
+    void* data() {
+        return &value();
+    }
+
+    size_t size() {
+        return sizeof(S);
+    }
+};
+
+struct CanFrameContainer : public StructContainer<can_frame>
 {
     /* Constructor. Sets up (outgoing) frames to be empty extended frames by
      * default. */
@@ -64,18 +83,6 @@ struct CanFrameContainer : public can_frame
     const struct can_frame &frame() const
     {
         return *this;
-    }
-
-    const void* data() const {
-        return &frame();
-    }
-
-    void* data() {
-        return mutable_frame();
-    }
-
-    size_t size() {
-        return sizeof(struct can_frame);
     }
 };
 
@@ -119,55 +126,35 @@ typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
 // This should work for both 32 and 64-bit architectures.
 static const uintptr_t POINTER_MASK = UINTPTR_MAX;
 
-/** A generic hub that proxies packets of untyped data. */
-class HubFlow : public DispatchFlow<Buffer<HubData>, 1>
+template<class D> class GenericHubFlow : public DispatchFlow<Buffer<D>, 1>
 {
 public:
-    typedef HubData value_type;
-    typedef Buffer<HubData> buffer_type;
-    typedef HubPortInterface port_type;
+    typedef D value_type;
+    typedef Buffer<value_type> buffer_type;
+    typedef FlowInterface<buffer_type> port_type;
 
-    HubFlow(Service *s) : DispatchFlow<Buffer<HubData>, 1>(s)
+    GenericHubFlow(Service *s) : DispatchFlow<Buffer<D>, 1>(s)
     {
-        negateMatch_ = true;
+        this->negateMatch_ = true;
     }
 
-    void register_port(HubPortInterface *port)
+    void register_port(port_type *port)
     {
-        register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
+        this->register_handler(port, reinterpret_cast<uintptr_t>(port),
+                               POINTER_MASK);
     }
 
-    void unregister_port(HubPortInterface *port)
+    void unregister_port(port_type *port)
     {
-        unregister_handler(port, reinterpret_cast<uintptr_t>(port),
-                           POINTER_MASK);
+        this->unregister_handler(port, reinterpret_cast<uintptr_t>(port),
+                                 POINTER_MASK);
     }
 };
 
+/** A generic hub that proxies packets of untyped (aka string) data. */
+typedef GenericHubFlow<HubData> HubFlow;
 /** A hub that proxies packets of CAN frames. */
-class CanHubFlow : public DispatchFlow<Buffer<CanHubData>, 1>
-{
-public:
-    typedef CanHubData value_type;
-    typedef Buffer<CanHubData> buffer_type;
-    typedef CanHubPortInterface port_type;
-
-    CanHubFlow(Service *s) : DispatchFlow<Buffer<CanHubData>, 1>(s)
-    {
-        negateMatch_ = true;
-    }
-
-    void register_port(CanHubPortInterface *port)
-    {
-        register_handler(port, reinterpret_cast<uintptr_t>(port), POINTER_MASK);
-    }
-
-    void unregister_port(CanHubPortInterface *port)
-    {
-        unregister_handler(port, reinterpret_cast<uintptr_t>(port),
-                           POINTER_MASK);
-    }
-};
+typedef GenericHubFlow<CanHubData> CanHubFlow;
 
 /** This port prints all traffic from a hub to stdout. */
 class DisplayPort : public HubPort

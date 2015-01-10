@@ -35,9 +35,9 @@
 #define _UTILS_GCTCPHUB_HXX_
 
 #include "utils/socket_listener.hxx"
+#include "utils/Hub.hxx"
 
 class ExecutorBase;
-class CanHubFlow;
 
 /** This class runs a CAN-bus HUB listening on TCP socket using the gridconnect
  * format. Any new incoming connection will be wired into the same virtual CAN

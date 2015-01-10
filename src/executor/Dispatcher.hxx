@@ -127,8 +127,8 @@ protected:
 private:
     // true if this flow should negate the match condition.
     bool negateMatch_;
-    friend class HubFlow;
-    friend class CanHubFlow;
+    template<class T>
+    friend class GenericHubFlow;
 
     struct HandlerInfo
     {
