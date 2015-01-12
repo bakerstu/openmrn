@@ -115,7 +115,6 @@ public:
             }
             case DCC_END_OF_PREAMBLE:
             {
-                MAP_GPIOPinWrite(LED_YELLOW, 0xff);
                 if (timings_[DCC_ZERO].match(value))
                 {
                     parseState_ = DCC_DATA;
