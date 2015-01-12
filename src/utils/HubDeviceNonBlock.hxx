@@ -125,7 +125,7 @@ protected:
             HASSERT(b_);
             int ret =
                 ::read(device()->fd(), b_->data()->data(), b_->data()->size());
-            if (!ret)
+            if (ret <= 0)
             {
                 // We are blocked. There is no race condition here, because the
                 // contract of the ioctl is that if there is any data in the
