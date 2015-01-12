@@ -45,6 +45,7 @@ struct DummyPin {
     static void hw_init() {}
     static void hw_set_to_safe() {}
     static void set(bool value) {}
+    static void toggle() {}
 };
 
 #define DECL_PIN(NAME, PORT, NUM)                                              \
@@ -72,7 +73,17 @@ public:
     }
     static void set(bool value) {
         //if (GPIO_INVERTED) value = !value;
-        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        *ptr = value ? 0xff : 0;
+    }
+    static bool get() {
+        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+    static void toggle() {
+        set(!get());
     }
 };
 
@@ -83,23 +94,14 @@ template<class Defs>
 struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
 
 template<class Defs>
-struct LedPin : public Defs {
+struct LedPin : public GpioOutputPin<Defs, false> {
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
     static void hw_init() {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        GpioOutputPin<Defs, false>::hw_init();
         MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
-        set(false);
-    }
-    static void hw_set_to_safe() {
-        hw_init();
-    }
-    static void set(bool value) {
-        //if (GPIO_INVERTED) value = !value;
-        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
     }
 };
 
@@ -150,6 +152,8 @@ struct GpioHwPin : public Defs {
     static void hw_init() {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinConfigure(GPIO_CONFIG);
+        /// TODO(balazs.racz) this is wrong, we have to define somehow which typ eto call.
+        MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
         /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
     }
     static void hw_set_to_safe() {
