@@ -198,6 +198,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     // will incorrectly add a full cycle to the event length.
     if (status & HW::TIMER_CAP_EVENT)
     {
+        Debug::DccDecodeInterrupts::toggle();
+
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         static uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
@@ -229,7 +231,10 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             railcomDriver_->end_cutout();
         }
         lastTimerValue_ = raw_new_value;
-        MAP_IntPendSet(HW::OS_INTERRUPT);
+        // We are not currently writing anything to the inputData_ queue, thus
+        // we don't need to send our OS interrupt either. Once we fix to start
+        // emitting the actual packets, we need to reenable this interrupt.
+        // MAP_IntPendSet(HW::OS_INTERRUPT);
     }
 }
 
