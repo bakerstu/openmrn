@@ -22,6 +22,10 @@ extern "C" {
 
 GPIO_PIN(GOLD_SW, GpioInputPU, C, 7);
 
+GPIO_PIN(GREEN, LedPin, D, 5);
+GPIO_PIN(YELLOW, LedPin, B, 0);
+GPIO_PIN(BLUE, LedPin, G, 1);
+
 void bootloader_hw_set_to_safe(void)
 {
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
@@ -104,6 +108,17 @@ void bootloader_hw_init()
     MAP_GPIOPinWrite(LED_BLUE, 0);
 
     GOLD_SW_Pin::hw_init();
+    GREEN_Pin::hw_init();
+    YELLOW_Pin::hw_init();
+    BLUE_Pin::hw_init();
+}
+
+void bootloader_led(enum BootloaderLed id, bool value) {
+  switch(id) {
+  case LED_CSUM_ERROR: BLUE_Pin::set(value); return;
+  case LED_REQUEST: YELLOW_Pin::set(value); return;
+  default: ; /* ignore */
+  }
 }
 
 bool request_bootloader()
@@ -111,8 +126,10 @@ bool request_bootloader()
     extern uint32_t __bootloader_magic_ptr;
     if (__bootloader_magic_ptr == REQUEST_BOOTLOADER) {
         __bootloader_magic_ptr = 0;
+        GREEN_Pin::set(true);
         return true;
     }
+    GREEN_Pin::set(GOLD_SW_Pin::get());
     return !GOLD_SW_Pin::get();
 }
 
