@@ -70,6 +70,8 @@ enum BootloaderLed {
   LED_ACTIVE = 1,
   LED_WRITING = 2,
   LED_IDENT = 4,
+  LED_CSUM_ERROR = 8,
+  LED_REQUEST = 16,
 };
 
 /** Write this value to __bootloader_magic_ptr and jump to the bootloader entry
@@ -102,7 +104,7 @@ extern void bootloader_reboot(void);
 
 /** Sets the LEDs indicated by @param mask to the value indicated by @param
  *  value. */
-extern void bootloader_led(uint32_t mask, uint32_t value);
+extern void bootloader_led(enum BootloaderLed led, bool value);
 
 /** Checks if there is an incoming CAN frame from the hardware.
  *
