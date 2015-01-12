@@ -128,6 +128,7 @@ private:
     uint32_t reloadCount_;
     unsigned lastLevel_;
     bool overflowed_ = false;
+    bool inCutout_ = false;
 
     Notifiable *readableNotifiable_ = nullptr;
     RailcomDriver *railcomDriver_; //< notified for cutout events.
@@ -221,14 +222,16 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             overflowed_ = true;
             }*/
         decoder_.process_data(new_value);
-        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT)
+        if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
         {
             railcomDriver_->start_cutout();
+            inCutout_ = true;
         }
         /// TODO(balazs.racz) recognize middle cutout.
-        else if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE)
+        else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED && inCutout_)
         {
             railcomDriver_->end_cutout();
+            inCutout_ = false;
         }
         lastTimerValue_ = raw_new_value;
         // We are not currently writing anything to the inputData_ queue, thus
