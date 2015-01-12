@@ -757,12 +757,18 @@ void bootloader_entry()
 {
     bootloader_hw_set_to_safe();
     bootloader_hw_init();
-    if (!request_bootloader() && check_application_checksum())
-    {
-        g_bootloader_busy = 0;
-        return application_entry();
-    }
 
+    {
+        bool request = request_bootloader();
+        bootloader_led(LED_REQUEST, request);
+        bool csum_ok = check_application_checksum();
+        bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        if (!request && csum_ok)
+        {
+            g_bootloader_busy = 0;
+            return application_entry();
+        }
+    }
     memset(&state_, 0, sizeof(state_));
 
     while (true)
