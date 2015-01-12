@@ -36,7 +36,7 @@
 #define _FREERTOS_DRIVERS_NXP_11CXX_ASYNC_CAN_HXX_
 #ifdef TARGET_LPC11Cxx
 
-class CanHubFlow;
+#include "utils/Hub.hxx"
 
 namespace lpc11cxx
 {
