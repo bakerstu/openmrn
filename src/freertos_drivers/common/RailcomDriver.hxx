@@ -38,6 +38,10 @@
 
 class RailcomDriver {
 public:
+  /** Informs the driver that we are in a preamble bit. The driver may use this
+   *  information to sample the current sensor. This will be called for each
+   *  preamble bit twice, shortly after both transitions. */
+  virtual void preamble_bit() = 0;
   /** Instructs the driver that the railcom cutout is starting now. The driver
    *  will use this information to enable the UART receiver. */
   virtual void start_cutout() = 0;
@@ -61,6 +65,7 @@ public:
 /** Empty implementation of the railcom driver for boards that have no railcom
  *  hardware. */
 class NoRailcomDriver : public RailcomDriver {
+  void preamble_bit() OVERRIDE {}
   void start_cutout() OVERRIDE {}
   void middle_cutout() OVERRIDE {}
   void end_cutout() OVERRIDE {}

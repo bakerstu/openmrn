@@ -86,6 +86,31 @@ struct RailcomHw
          CH3_Pin::hw_init();
          CH4_Pin::hw_init();
     }
+
+    static void set_input() {
+        CH1_Pin::set_input();
+        CH2_Pin::set_input();
+        CH3_Pin::set_input();
+        CH4_Pin::set_input();
+    }
+
+    static void set_hw() {
+        CH1_Pin::set_hw();
+        CH2_Pin::set_hw();
+        CH3_Pin::set_hw();
+        CH4_Pin::set_hw();
+    }
+
+    /** @returns a bitmask telling which pins are active. Bit 0 will be set if
+     * channel 0 is active (drawing current).*/
+    static uint8_t sample() {
+        uint8_t ret = 0;
+        if (!CH1_Pin::get()) ret |= 1;
+        if (!CH2_Pin::get()) ret |= 2;
+        if (!CH3_Pin::get()) ret |= 4;
+        if (!CH4_Pin::get()) ret |= 8;
+        return ret;
+    }
 };
 
 // The weak attribute is needed if the definition is put into a header file.
@@ -217,6 +242,34 @@ protected:
         return entry;
     }
 
+    // Adds a sample for a preamble bit.
+    void add_sample(uint8_t sample) {
+        if (totalHits_ >= 255) return;
+        ++totalHits_;
+        uint8_t mask = 1;
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i, mask<<=1) {
+            if (sample & mask) ++hitCount_[i];
+        }
+    }
+
+    void eval_samples() {
+        uint8_t mask = 1;
+        uint8_t result = 0;
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i, mask<<=1) {
+            if (hitCount_[i] > (totalHits_ >> 2)) {
+                result |= mask;
+            }
+            hitCount_[i] = 0;
+        }
+        totalHits_ = 0;
+        if (feedbackQueue_.full()) return;
+        feedbackQueue_.back().reset(feedbackKey_);
+        feedbackQueue_.back().channel = 0xff;
+        feedbackQueue_.back().add_ch1_data(result);
+        feedbackQueue_.increment_back();
+        MAP_IntPendSet(HW::OS_INTERRUPT);
+    }
+
     /**< Notify this when we have data in our buffers. */
     Notifiable *readableNotifiable_;
     /** The packets we have read so far. */
@@ -225,6 +278,13 @@ protected:
     /** Stores pointers to packets we are filling right now, one for each
      * channel. */
     dcc::Feedback *returnedPackets_[HW::CHANNEL_COUNT];
+
+    // Counts the number of preamble bits for which a given channel was active. 
+    uint8_t hitCount_[HW::CHANNEL_COUNT];
+    // Counts the total number of preamble bits.
+    uint8_t totalHits_;
+    // 1 if we have set the uart pins to input.
+    uint8_t isInput_ = 0;
 };
 
 template <class HW> class TivaRailcomDriver : public RailcomDriverBase<HW>
@@ -260,8 +320,21 @@ private:
     }
 
     // RailcomDriver interface
+    void preamble_bit() OVERRIDE {
+        if (!this->isInput_) {
+            HW::set_input();
+            this->isInput_ = 1;
+        }
+        this->add_sample(HW::sample());
+    }
+
     void start_cutout() OVERRIDE
     {
+        this->eval_samples();
+        if (this->isInput_) {
+            this->isInput_ = 0;
+            HW::set_hw();
+        }
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;

@@ -186,6 +186,7 @@ template <class HW> void TivaDccDecoder<HW>::disable()
 template <class HW>
 __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
 {
+    Debug::DccDecodeInterrupts::set(true);
     // get masked interrupt status
     auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
     if (status & HW::TIMER_TIM_TIMEOUT)
@@ -199,7 +200,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     // will incorrectly add a full cycle to the event length.
     if (status & HW::TIMER_CAP_EVENT)
     {
-        Debug::DccDecodeInterrupts::toggle();
+        //Debug::DccDecodeInterrupts::toggle();
 
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         static uint32_t raw_new_value;
@@ -222,7 +223,11 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             overflowed_ = true;
             }*/
         decoder_.process_data(new_value);
-        if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
+        if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE)
+        {
+            railcomDriver_->preamble_bit();
+        }
+        else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
         {
             railcomDriver_->start_cutout();
             inCutout_ = true;
@@ -239,6 +244,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         // emitting the actual packets, we need to reenable this interrupt.
         // MAP_IntPendSet(HW::OS_INTERRUPT);
     }
+    Debug::DccDecodeInterrupts::set(false);
 }
 
 template <class HW>
