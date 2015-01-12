@@ -152,13 +152,52 @@ struct GpioHwPin : public Defs {
     static void hw_init() {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinConfigure(GPIO_CONFIG);
-        /// TODO(balazs.racz) this is wrong, we have to define somehow which typ eto call.
-        MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
-        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+        set_hw();
     }
     static void hw_set_to_safe() {
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
         hw_init();
     }
+
+    /** Switches the GPIO pin to the hardware peripheral. */
+    static void set_hw() {
+        /// TODO(balazs.racz) this is wrong, we have to define somehow which
+        /// type to call.
+        MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
+    }
+    
+    /** Switches the GPIO pin to an output pin. Use the set() command to define
+     * the value. */
+    static void set_output() {
+        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    }
+
+    /** Switches the GPIO pin to an input pin. Use the get() command to
+     * retrieve the value.
+     *
+     * @param drive_type specifies whether there should be a weak pullup
+     * (GPIO_PIN_TYPE_STD_WPU), pull-down (GPIO_PIN_TYPE_STD_WPD) or standard
+     * pin (default, GPIO_PIN_TYPE_STD)*/
+    static void set_input(uint32_t drive_type = GPIO_PIN_TYPE_STD) {
+        MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, drive_type);
+    }
+
+    static void set(bool value) {
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        *ptr = value ? 0xff : 0;
+    }
+    static bool get() {
+        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+    static void toggle() {
+        set(!get());
+    }
+
 };
 
 #define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG)                         \
