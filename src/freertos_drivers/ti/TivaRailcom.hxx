@@ -75,7 +75,7 @@ struct RailcomHw
 
     static const auto OS_INTERRUPT = INT_UART2;
 
-    GPIO_HWPIN(CH1, GpioHwPin, C, 4, U1RX);
+    GPIO_HWPIN(CH1, GpioHwPin, C, 4, U4RX);
     GPIO_HWPIN(CH2, GpioHwPin, C, 6, U3RX);
     GPIO_HWPIN(CH3, GpioHwPin, G, 4, U2RX);
     GPIO_HWPIN(CH4, GpioHwPin, E, 0, U7RX);
@@ -89,9 +89,9 @@ struct RailcomHw
 };
 
 // The weak attribute is needed if the definition is put into a header file.
-const uint32_t RailcomHw::UART_BASE[] __attribute__((weak)) = {UART1_BASE, UART3_BASE, UART2_BASE, UART7_BASE};
+const uint32_t RailcomHw::UART_BASE[] __attribute__((weak)) = {UART4_BASE, UART3_BASE, UART2_BASE, UART7_BASE};
 const uint32_t RailcomHw::UART_PERIPH[]
-__attribute__((weak)) = {SYSCTL_PERIPH_UART1, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART7};
+__attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART7};
 
 template <class HW>
 class RailcomDriverBase : public RailcomDriver, private Node
@@ -264,10 +264,14 @@ private:
     {
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
-            HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
-                UART_CTL_RXE;
+            HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+            //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
+            //    UART_CTL_RXE;
+            // flush fifo
+            while (MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]) >= 0);
             returnedPackets_[i] = 0;
         }
+        Debug::RailcomDriverCutout::set(true);
     }
 
     void middle_cutout() OVERRIDE
@@ -285,7 +289,7 @@ private:
                     break;
                 }
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0)
+                if (data < 0 || data > 0xff)
                     continue;
                 returnedPackets_[i]->add_ch1_data(data);
             }
@@ -307,18 +311,24 @@ private:
                     break;
                 }
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0)
+                if (data < 0 || data > 0xff) {
+                    Debug::RailcomError::toggle();
                     continue;
+                }
+                if (data == 0xE0) {
+                    Debug::RailcomE0::toggle();
+                }
                 returnedPackets_[i]->add_ch2_data(data);
             }
-            HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
-                UART_CTL_RXE;
+            HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
+            //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
             if (returnedPackets_[i]) {
                 this->feedbackQueue_.commit_back();
                 returnedPackets_[i] = nullptr;
                 MAP_IntPendSet(HW::OS_INTERRUPT);
             }
         }
+        Debug::RailcomDriverCutout::set(false);
     }
 };
 
