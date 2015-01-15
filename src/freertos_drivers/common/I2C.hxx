@@ -46,34 +46,11 @@
 class I2C : public Node
 {
 protected:
-    /** Flags used to determine the kind of I2C transaction.
-     */
-    enum Flags
-    {
-        FLAG_START   = 0x01,
-        FLAG_REPEAT_START = 0x02,
-        FLAG_STOP    = 0x04,
-        FLAG_RD      = 0x08
-    };
-
-    /** Metadata for an I2C transaction */
-    struct Transaction
-    {
-        union
-        {
-            const unsigned char *tx_data;
-            unsigned char *rx_data;
-        };
-        size_t count;
-        int flags;
-    };
-
     /** Constructor
      * @param name device name in file system
      */
     I2C(const char *name)
         : Node(name)
-        , address(0)
     {
     }
 
@@ -85,20 +62,18 @@ protected:
     }
 
     /** Method to transmit/receive the data.
-     * @param t transaction to take place
-     * @return 0 upon success or -1 with errno set
+     * @param msg message to transact.
+     * @param stop produce a stop condition at the end of the transfer
+     * @return bytes transfered upon success or -1 with errno set
      */
-    virtual int transfer(Transaction *t) = 0;
-
-    /** Address of target I2C slave */
-    long address;
+    virtual int transfer(struct i2c_msg *msg, bool stop) = 0;
 
 private:
     /** Read from a file or device.
      * @param file file reference for this device
      * @param buf location to place read data
      * @param count number of bytes to read
-     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes read upon success, -errno upon failure
      */
     ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
 
@@ -106,17 +81,31 @@ private:
      * @param file file reference for this device
      * @param buf location to find write data
      * @param count number of bytes to write
-     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes written upon success, -errno upon failure
      */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
     /** Request an ioctl transaction.
      * @param file file reference for this device
-     * @param node node reference for this device
      * @param key ioctl key
      * @param data key data
+     * @return >= 0 upon success, -errno upon failure
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+
+    /** Conduct multiple message transfers with one stop at the end.
+     * @param msgs array of messages to transfer
+     * @param num number of messages to transfer
+     * @return total number of bytes transfered, -errno upon failure
+     */
+    int transfer_messages(struct i2c_msg *msgs, int num);
+
+    /** Request an smbus (ioctl) transaction.
+     * @param file file reference for this device
+     * @param data smbus data
+     * @return 0 upon success, -errno upon failure
+     */
+    int smbus(File *file, unsigned long data);    
 
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() OVERRIDE {}

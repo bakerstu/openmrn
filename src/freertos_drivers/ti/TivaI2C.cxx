@@ -57,7 +57,9 @@ TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt)
     : I2C(name)
     , base(base)
     , interrupt(interrupt)
-    , trans(NULL)
+    , msg_(NULL)
+    , stop_(false)
+    , count_(0)
     , sem()
 {
     
@@ -120,91 +122,58 @@ TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt)
 }
 
 /** Method to transmit/receive the data.
- * @param t transaction to take place
- * @return 0 upon success or -1 with errno set
+ * @param msg message to transact.
+ * @param stop produce a stop condition at the end of the transfer
+ * @return bytes transfered upon success or -1 with errno set
  */
-int TivaI2C::transfer(Transaction *t)
+int TivaI2C::transfer(struct i2c_msg *msg, bool stop)
 {
-    trans = t;
+    int bytes = msg->len;
 
-    if (t->flags & FLAG_RD)
+    if (msg->flags & I2C_M_RD)
     {
         /* this is a read transfer */
-	    MAP_I2CMasterSlaveAddrSet(base, address, true);
-        if ((t->flags & FLAG_START) || (t->flags & FLAG_REPEAT_START))
+	    MAP_I2CMasterSlaveAddrSet(base, msg->addr, true);
+
+        /* generate start */
+        if (stop && msg->len == 1)
         {
-            /* generate start */
-            if ((t->flags & FLAG_STOP) && t->count == 1)
-            {
-                /* single byte transfer with stop */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_RECEIVE);
-            }
-            else
-            {
-                /* more than one byte to transfer */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_START);
-            }
+            /* single byte transfer with stop */
+            MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_RECEIVE);
         }
         else
         {
-            if ((t->flags & FLAG_STOP) && t->count == 1)
-            {
-                /* single byte transfer with stop */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
-            }
-            else
-            {
-                /* more than one byte to transfer */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_CONT);
-            }
+            /* more than one byte to transfer */
+            MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_START);
         }
-        --t->count;
     }
     else
     {
         /* this is a write transfer */
-	    MAP_I2CMasterSlaveAddrSet(base, address, false);
-        MAP_I2CMasterDataPut(base, *t->tx_data);
-        if ((t->flags & FLAG_START) || (t->flags & FLAG_REPEAT_START))
+	    MAP_I2CMasterSlaveAddrSet(base, msg->addr, false);
+        MAP_I2CMasterDataPut(base, *msg->buf);
+
+        /* generate start */
+        if (stop && msg->len == 1)
         {
-            /* generate start */
-            if ((t->flags & FLAG_STOP) && t->count == 1)
-            {
-                /* single byte transfer with stop */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_SEND);
-            }
-            else
-            {
-                /* more than one byte to transfer */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_START);
-            }
+            /* single byte transfer with stop */
+            MAP_I2CMasterControl(base, I2C_MASTER_CMD_SINGLE_SEND);
         }
         else
         {
-            if ((t->flags & FLAG_STOP) && t->count == 1)
-            {
-                /* single byte transfer with stop */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_FINISH);
-            }
-            else
-            {
-                /* more than one byte to transfer */
-                MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_CONT);
-            }
+            /* more than one byte to transfer */
+            MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_START);
         }
-        --t->count;
-        ++t->tx_data;
     }
 
+    msg_ = msg;
+    count_ = 0;
+    stop_ = stop;
+    
     MAP_IntEnable(interrupt);
     sem.wait();
 
-    if (t->flags < 0)
-    {
-        errno = t->flags;
-        return -1;
-    }
-    return 0;
+    return count_ < 0 ? count_ : bytes;    
 }
 
 /** Common interrupt handler for all I2C devices.
@@ -216,73 +185,70 @@ void TivaI2C::interrupt_handler()
     uint32_t status;
 
     error = I2CMasterErr(base);
+    status = MAP_I2CMasterIntStatusEx(base, true);
+    MAP_I2CMasterIntClearEx(base, status);
+
     if (error & I2C_MCS_ARBLST)
     {
-        trans->flags = -EIO;
+        count_ = -EIO;
         goto post;
     }
     else if (error & I2C_MCS_DATACK)
     {
-        trans->flags = -EIO;
+        count_ = -EIO;
         goto post;
     }
     else if (error & I2C_MCS_ADRACK)
     {
-        trans->flags = -EIO;
+        count_ = -EIO;
         goto post;
     }
-
-    status = MAP_I2CMasterIntStatusEx(base, true);
-    if (status & I2C_MASTER_INT_TIMEOUT)
+    else if (status & I2C_MASTER_INT_TIMEOUT)
     {
-        trans->flags = -ETIMEDOUT;
+        count_ = -ETIMEDOUT;
         goto post;
     }
     else if (status & I2C_MASTER_INT_DATA)
     {
-        if (trans->flags & FLAG_RD)
+        if (msg_->flags & I2C_M_RD)
         {
-            *trans->rx_data = I2CMasterDataGet(I2C0_BASE);
-            if (trans->count == 0)
+            /* this is a read transfer */
+            msg_->buf[count_++] = I2CMasterDataGet(I2C0_BASE);
+            if (count_ == msg_->len)
             {
                 /* transfer is complete */
                 goto post;
             }
-            /* this is a read transfer */
-            if ((trans->flags & FLAG_STOP) && trans->count == 1)
+            if (stop_ && count_ == (msg_->len - 1))
             {
                 /* single byte transfer with stop */
                 MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
             }
             else
             {
-                /* more than one byte to transfer */
+                /* more than one byte left to transfer */
                 MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_RECEIVE_CONT);
             }
-            --trans->count;
-            ++trans->rx_data;
         }
         else
         {
             /* this is a write transfer */
-            if (trans->count == 0)
+            if (++count_ == msg_->len)
             {
                 /* transfer is complete */
                 goto post;
             }
-            MAP_I2CMasterDataPut(base, *trans->tx_data);
-            if ((trans->flags & FLAG_STOP) && trans->count == 1)
+            MAP_I2CMasterDataPut(base, msg_->buf[count_]);
+            if (stop_ && count_ == (msg_->len - 1))
             {
                 /* single byte transfer with stop */
                 MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_FINISH);
             }
             else
             {
-                /* more than one byte to transfer */
+                /* more than one byte left to transfer */
                 MAP_I2CMasterControl(base, I2C_MASTER_CMD_BURST_SEND_CONT);
             }
-            --trans->count;
-            ++trans->tx_data;
         }
         return;
     }

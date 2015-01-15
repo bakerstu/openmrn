@@ -37,6 +37,7 @@
 #if defined (__linux__)
     #include <linux/i2c-dev.h>
 #elif defined (__FreeRTOS__)
+    #include <stdint.h>
     /** magic number for this driver's ioctl calls */
     #define I2C_MAGIC ('i')
 
@@ -46,7 +47,19 @@
     #define I2C_SLAVE IOW(I2C_MAGIC, 1, sizeof(long))
 
     /** Combined R/W transfer, one stop only. */
-    #define I2C_RDWR  IOW(I2C_MAGIC, 2, sizeof(void*))
+    #define I2C_RDWR  IOWR(I2C_MAGIC, 2, sizeof(void*))
+
+    /** Combined R/W transfer, one stop only. */
+    #define I2C_SMBUS IOWR(I2C_MAGIC, 3, sizeof(void*))
+
+    /** This is the structure as used in the I2C_SMBUS ioctl call */
+    struct i2c_smbus_ioctl_data
+    {
+        uint8_t read_write;
+        uint8_t command;
+        uint32_t size;
+        union i2c_smbus_data *data;
+    };
 
     /** This is the structure as used in the I2C_RDWR ioctl call */
     struct i2c_rdwr_ioctl_data
@@ -56,7 +69,7 @@
     };
 
     /** maximum number of message segments in @ref i2c_rdwr_ioctl_data struct */
-    #define  I2C_RDRW_IOCTL_MAX_MSGS 2
+    #define  I2C_RDRW_IOCTL_MAX_MSGS 42
 #else
     #error I2C drivers not supported on this OS
 #endif

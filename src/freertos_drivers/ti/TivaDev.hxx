@@ -221,14 +221,17 @@ private:
     void disable() OVERRIDE {}; /**< function to disable device */
 
     /** Method to transmit/receive the data.
-     * @param t transaction to take place
-     * @return 0 upon success or -1 with errno set
+     * @param msg message to transact.
+     * @param stop produce a stop condition at the end of the transfer
+     * @return bytes transfered upon success or -1 with errno set
      */
-    int transfer(Transaction *t) OVERRIDE;
+    int transfer(struct i2c_msg *msg, bool stop) OVERRIDE;
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    Transaction *trans;
+    struct i2c_msg *msg_; /**< message for current transaction */
+    bool stop_; /**< current transaction ends in a stop if true */
+    int count_; /**< current count index within transaction */
 
     /** Semaphore to wakeup task level from ISR */
     OSSem sem;
