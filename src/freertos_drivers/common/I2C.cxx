@@ -46,6 +46,11 @@ ssize_t I2C::read(File *file, void *buf, size_t count)
 {
     int result;
 
+    if ((file->flags & O_ACCMODE) == O_WRONLY)
+    {
+        return -EBADF;
+    }
+
     struct i2c_msg msg;
     msg.addr = (uintptr_t)file->priv;
     msg.flags = I2C_M_RD;
@@ -68,6 +73,11 @@ ssize_t I2C::read(File *file, void *buf, size_t count)
 ssize_t I2C::write(File *file, const void *buf, size_t count)
 {
     int result;
+
+    if ((file->flags & O_ACCMODE) == O_RDONLY)
+    {
+        return -EBADF;
+    }
 
     struct i2c_msg msg;
     msg.addr = (uintptr_t)file->priv;
