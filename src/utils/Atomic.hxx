@@ -62,7 +62,7 @@ public:
 
 #endif
 
-/// See @OSMutexLock in os/OS.hxx
+/// See @ref OSMutexLock in os/OS.hxx
 class AtomicHolder {
 public:
   AtomicHolder(Atomic* parent)

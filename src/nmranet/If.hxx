@@ -280,7 +280,7 @@ public:
         return it->second;
     }
 
-    /** @Returns true if the two node handles match as far as we can tell
+    /** @returns true if the two node handles match as far as we can tell
      * without doing any network traffic. */
     virtual bool matching_node(NodeHandle expected,
                                NodeHandle actual) = 0;

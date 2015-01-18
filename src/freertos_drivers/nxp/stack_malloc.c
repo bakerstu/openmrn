@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file stack_malloc.c
+ * \file nxp/stack_malloc.c
  * Overrides the stack malloc function to allocate from ethernet memory on the
  * NXP LPCxx68 processors.
  *

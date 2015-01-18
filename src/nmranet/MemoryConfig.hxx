@@ -660,13 +660,13 @@ private:
         bytes[2] = address & 0xff;
     }
 
-    /// @Returns the response datagram payload buffer.
+    /// @returns the response datagram payload buffer.
     uint8_t* out_bytes()
     {
         return reinterpret_cast<uint8_t*>(&response_[0]);
     }
 
-    /// @Returns the request datagram payload buffer.
+    /// @returns the request datagram payload buffer.
     const uint8_t* in_bytes()
     {
         return reinterpret_cast<const uint8_t*>(message()->data()->payload.data());

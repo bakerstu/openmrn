@@ -190,7 +190,7 @@ private:
         return call_immediately(STATE(datagram_finalize));
     }
 
-    /// @TODO( balazs.racz): why is this virtual?
+    /// @todo( balazs.racz): why is this virtual?
     virtual Action timeout_waiting_for_dg_response()
     {
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "

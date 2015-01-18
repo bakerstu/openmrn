@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file mbed_async_usbserial.cpp
+ * \file mbed_async_usbserial.cxx
  * This file implements an USB-Serial driver on top of the mbed
  * library. Currently it is tested on the LPC23xx and LPC17xx processors.
  *

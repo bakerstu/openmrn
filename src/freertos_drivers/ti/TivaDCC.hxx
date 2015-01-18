@@ -201,6 +201,7 @@ public:
      * constructor. */
     inline void os_interrupt_handler() __attribute__((always_inline));
 
+    /** Structure for supporting bit timing. */
     struct Timing {
         uint32_t period;
         uint32_t transition_a;

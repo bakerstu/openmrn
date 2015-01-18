@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file pic32mx_can.c
+ * \file Pic32mxCan.cxx
  *
  * This file implements a can device driver layer for the pic32mx using the
  * Microschip plib CAN library.
