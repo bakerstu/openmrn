@@ -58,6 +58,7 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 #include "TivaGPIO.hxx"
+#include "RailcomDriver.hxx"
 
 // This structure is safe to use from an interrupt context and a regular
 // context at the same time, provided that
@@ -185,7 +186,7 @@ public:
     /** Constructor.
      * @param name name of this device instance in the file system
      */
-    TivaDCC(const char *name);
+  TivaDCC(const char *name, RailcomDriver *railcom);
 
     /** Destructor.
      */

@@ -46,7 +46,7 @@
  * }
  *
  * Then open /dev/railcom and read dcc::Feedback structures from it. Each read
- * much be exactly sizeof(dcc::Feedback) length. If there is no more packets to
+ * much be exactly sizeof(dcc::Feedback) length. If there are no more packets to
  * read, you'll get return=0, errno==EAGAIN. Add an ioctl CAN_READ_ACTIVE to
  * get a notification when there is something to read.
  *
