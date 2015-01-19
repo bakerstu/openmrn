@@ -45,6 +45,7 @@ struct DummyPin {
     static void hw_init() {}
     static void hw_set_to_safe() {}
     static void set(bool value) {}
+    static void toggle() {}
 };
 
 #define DECL_PIN(NAME, PORT, NUM)                                              \
@@ -72,7 +73,17 @@ public:
     }
     static void set(bool value) {
         //if (GPIO_INVERTED) value = !value;
-        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        *ptr = value ? 0xff : 0;
+    }
+    static bool get() {
+        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+    static void toggle() {
+        set(!get());
     }
 };
 
@@ -83,23 +94,14 @@ template<class Defs>
 struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
 
 template<class Defs>
-struct LedPin : public Defs {
+struct LedPin : public GpioOutputPin<Defs, false> {
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
     static void hw_init() {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        GpioOutputPin<Defs, false>::hw_init();
         MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
-        set(false);
-    }
-    static void hw_set_to_safe() {
-        hw_init();
-    }
-    static void set(bool value) {
-        //if (GPIO_INVERTED) value = !value;
-        MAP_GPIOPinWrite(GPIO_BASE, GPIO_PIN, value ? 0xff : 0);
     }
 };
 
@@ -150,11 +152,60 @@ struct GpioHwPin : public Defs {
     static void hw_init() {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinConfigure(GPIO_CONFIG);
-        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+        set_hw();
     }
     static void hw_set_to_safe() {
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
         hw_init();
     }
+
+    /** Switches the GPIO pin to the hardware peripheral. */
+    static void set_hw() {
+        /// TODO(balazs.racz) this is wrong, we have to define somehow which
+        /// type to call.
+        MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
+    }
+    
+    /** Switches the GPIO pin to an output pin. Use the set() command to define
+     * the value. */
+    static void set_output() {
+        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    }
+
+    /** Switches the GPIO pin to an input pin. Use the get() command to
+     * retrieve the value.
+     *
+     * @param drive_type specifies whether there should be a weak pullup
+     * (GPIO_PIN_TYPE_STD_WPU), pull-down (GPIO_PIN_TYPE_STD_WPD) or standard
+     * pin (default, GPIO_PIN_TYPE_STD)*/
+    static void set_input(uint32_t drive_type = GPIO_PIN_TYPE_STD) {
+        MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, drive_type);
+    }
+
+    static void set(bool value) {
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        *ptr = value ? 0xff : 0;
+    }
+    static bool get() {
+        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+    static void toggle() {
+        set(!get());
+    }
+
 };
+
+#define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG)                         \
+    struct NAME##Defs                                                          \
+    {                                                                          \
+        DECL_HWPIN(GPIO, PORT, NUM, CONFIG);                                   \
+        static const bool GPIO_INVERTED = false;                               \
+    };                                                                         \
+    typedef BaseClass<NAME##Defs> NAME##_Pin
 
 #endif //_FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_

@@ -26,17 +26,18 @@
  *
  * \file TivaNRZ.hxx
  *
- * Device driver for TivaWare to decode NRZ codes. (DCC, Marklin-Motorola, M4
- * are examples of NRC codes used in model railroading.)  The driver will time
- * rising and falling edges of the input signal and return the timing data to
- * userspace.
+ * Device driver for TivaWare to decode DCC track signal.
  *
  * @author Balazs Racz
  * @date 29 Nov 2014
  */
 
-#include "TivaDCC.hxx" // for FixedQueue
+#include "TivaDCC.hxx"  // for FixedQueue
+#include "TivaGPIO.hxx" // for pin definitions
+#include "RailcomDriver.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
+
+typedef DummyPin PIN_RailcomCutout;
 
 #define SIGNAL_LEVEL_ONE 0x80000000UL
 
@@ -67,7 +68,7 @@ struct DCCDecode
 template <class HW> class TivaDccDecoder : public Node
 {
 public:
-    TivaDccDecoder(const char *name);
+    TivaDccDecoder(const char *name, RailcomDriver *railcom_driver);
 
     ~TivaDccDecoder()
     {
@@ -127,8 +128,10 @@ private:
     uint32_t reloadCount_;
     unsigned lastLevel_;
     bool overflowed_ = false;
+    bool inCutout_ = false;
 
     Notifiable *readableNotifiable_ = nullptr;
+    RailcomDriver *railcomDriver_; //< notified for cutout events.
 
     dcc::DccDecoder decoder_;
 
@@ -136,8 +139,10 @@ private:
 };
 
 template <class HW>
-TivaDccDecoder<HW>::TivaDccDecoder(const char *name)
+TivaDccDecoder<HW>::TivaDccDecoder(const char *name,
+                                   RailcomDriver *railcom_driver)
     : Node(name)
+    , railcomDriver_(railcom_driver)
 {
     MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
     MAP_SysCtlPeripheralEnable(HW::NRZPIN_PERIPH);
@@ -181,6 +186,7 @@ template <class HW> void TivaDccDecoder<HW>::disable()
 template <class HW>
 __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
 {
+    Debug::DccDecodeInterrupts::set(true);
     // get masked interrupt status
     auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
     if (status & HW::TIMER_TIM_TIMEOUT)
@@ -194,8 +200,9 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     // will incorrectly add a full cycle to the event length.
     if (status & HW::TIMER_CAP_EVENT)
     {
+        //Debug::DccDecodeInterrupts::toggle();
+
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0);
         static uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
         static uint32_t new_value;
@@ -205,7 +212,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             new_value += HW::TIMER_MAX_VALUE;
             reloadCount_--;
         }
-        //HASSERT(new_value > lastTimerValue_);
+        // HASSERT(new_value > lastTimerValue_);
         new_value -= lastTimerValue_;
         /*if (!inputData_.full())
         {
@@ -216,15 +223,28 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             overflowed_ = true;
             }*/
         decoder_.process_data(new_value);
-        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT) {
-            MAP_GPIOPinWrite(LED_GREEN, 0xff);
-            HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
-        } else if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE) {
-            MAP_GPIOPinWrite(LED_GREEN, 0x0);
+        if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE)
+        {
+            railcomDriver_->preamble_bit();
+        }
+        else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
+        {
+            railcomDriver_->start_cutout();
+            inCutout_ = true;
+        }
+        /// TODO(balazs.racz) recognize middle cutout.
+        else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED && inCutout_)
+        {
+            railcomDriver_->end_cutout();
+            inCutout_ = false;
         }
         lastTimerValue_ = raw_new_value;
-        MAP_IntPendSet(HW::OS_INTERRUPT);
+        // We are not currently writing anything to the inputData_ queue, thus
+        // we don't need to send our OS interrupt either. Once we fix to start
+        // emitting the actual packets, we need to reenable this interrupt.
+        // MAP_IntPendSet(HW::OS_INTERRUPT);
     }
+    Debug::DccDecodeInterrupts::set(false);
 }
 
 template <class HW>
@@ -234,7 +254,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
     {
         Notifiable *n = readableNotifiable_;
         readableNotifiable_ = nullptr;
-        if (n) {
+        if (n)
+        {
             n->notify_from_isr();
             os_isr_exit_yield_test(true);
         }
@@ -242,7 +263,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
 }
 
 template <class HW>
-int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
+int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key,
+                              unsigned long data)
 {
     if (IOC_TYPE(key) == CAN_IOC_MAGIC && IOC_SIZE(key) == NOTIFIABLE_TYPE &&
         key == CAN_IOC_READ_ACTIVE)
@@ -280,9 +302,10 @@ int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key, unsigned long d
  * @param file file reference for this device
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
-template<class HW>
+template <class HW>
 ssize_t TivaDccDecoder<HW>::read(File *file, void *buf, size_t count)
 {
     if (count != 4)
@@ -292,13 +315,14 @@ ssize_t TivaDccDecoder<HW>::read(File *file, void *buf, size_t count)
     // We only need this critical section to prevent concurrent threads from
     // reading at the same time.
     portENTER_CRITICAL();
-    if (inputData_.empty()) {
+    if (inputData_.empty())
+    {
         portEXIT_CRITICAL();
         return -EAGAIN;
     }
     uint32_t v = reinterpret_cast<uint32_t>(buf);
     HASSERT((v & 3) == 0); // alignment check.
-    uint32_t* pv = static_cast<uint32_t*>(buf);
+    uint32_t *pv = static_cast<uint32_t *>(buf);
     *pv = inputData_.front();
     inputData_.increment_front();
     portEXIT_CRITICAL();

@@ -35,7 +35,13 @@
 #include "dcc/RailCom.hxx"
 
 namespace dcc {
-
+using RailcomDefs::INV;
+using RailcomDefs::ACK;
+using RailcomDefs::NACK;
+using RailcomDefs::BUSY;
+using RailcomDefs::RESVD1;
+using RailcomDefs::RESVD2;
+using RailcomDefs::RESVD3;
 const uint8_t railcom_decode[256] =
 {      INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
        INV,    INV,    INV,    INV,    INV,    INV,    INV,   NACK,

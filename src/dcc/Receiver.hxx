@@ -64,7 +64,8 @@ public:
         DCC_DATA_ONE,        // 4
         DCC_DATA_ZERO,       // 5
         DCC_MAYBE_CUTOUT,    // 6
-        DCC_PACKET_FINISHED, // 7
+        DCC_CUTOUT,          // 7
+        DCC_PACKET_FINISHED, // 8
         MM_DATA,
         MM_ZERO,
         MM_ONE,
@@ -115,7 +116,6 @@ public:
             }
             case DCC_END_OF_PREAMBLE:
             {
-                MAP_GPIOPinWrite(LED_YELLOW, 0xff);
                 if (timings_[DCC_ZERO].match(value))
                 {
                     parseState_ = DCC_DATA;
@@ -185,15 +185,18 @@ public:
             }
             case DCC_MAYBE_CUTOUT:
             {
-                // MAP_GPIOPinWrite(LED_GREEN, 0);
                 if (value < timings_[DCC_ZERO].min_value)
                 {
-                    //MAP_GPIOPinWrite(LED_GREEN, 0xff);
-                    //HWREG(UART2_BASE + UART_O_CTL) |= UART_CTL_RXE;
+                    parseState_ = DCC_CUTOUT;
+                    return;
                 }
                 parseState_ = DCC_PACKET_FINISHED;
                 return;
-                break;
+            }
+            case DCC_CUTOUT:
+            {
+                parseState_ = DCC_PACKET_FINISHED;
+                return;
             }
             case MM_DATA:
             {

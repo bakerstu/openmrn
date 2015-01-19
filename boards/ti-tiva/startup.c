@@ -409,13 +409,7 @@ volatile uint32_t lr; /* Link register. */
 volatile uint32_t pc; /* Program counter. */
 volatile uint32_t psr;/* Program status register. */
 
-/** Decode the stack state prior to an exception occuring.  This code is
- * inspired by FreeRTOS.
- * @param address address of the stack
- */
-__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
-{
-    hw_set_to_safe();
+
     /* These are volatile to try and prevent the compiler/linker optimising them
     away as the variables never actually get used.  If the debugger won't show the
     values of the variables, make them global my moving their declaration outside
@@ -434,6 +428,14 @@ __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned 
     volatile unsigned long _AFSR ;
     volatile unsigned long _BFAR ;
     volatile unsigned long _MMAR ;
+
+/** Decode the stack state prior to an exception occuring.  This code is
+ * inspired by FreeRTOS.
+ * @param address address of the stack
+ */
+__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
+{
+    hw_set_to_safe();
 
     stacked_r0 = ((unsigned long)hardfault_args[0]) ;
     stacked_r1 = ((unsigned long)hardfault_args[1]) ;

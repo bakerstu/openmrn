@@ -38,13 +38,43 @@
 #include <cstdint>
 
 namespace dcc {
-static const uint8_t INV = 0xff;
-static const uint8_t ACK = 0xfe;
-static const uint8_t NACK = 0xfd;
-static const uint8_t BUSY = 0xfc;
-static const uint8_t RESVD1 = 0xfb;
-static const uint8_t RESVD2 = 0xfa;
-static const uint8_t RESVD3 = 0xf8;
+
+/** Structure used for reading (railcom) feedback data from DCC / Railcom
+ *  device drivers. */
+struct Feedback {
+    void reset(uint32_t feedback_key) {
+        this->feedbackKey = feedback_key;
+        ch1Size = 0;
+        ch2Size = 0;
+        channel = 0;
+    }
+    void add_ch1_data(uint8_t data) {
+        if (ch1Size < sizeof(ch1Data)) {
+            ch1Data[ch1Size++] = data;
+        }
+    }
+    void add_ch2_data(uint8_t data) {
+        if (ch2Size < sizeof(ch2Data)) {
+            ch2Data[ch2Size++] = data;
+        }
+    }
+    uint8_t ch1Size;
+    uint8_t ch1Data[2];
+    uint8_t ch2Size;
+    uint8_t ch2Data[6];
+    uint8_t channel; //< Used by multi-channel railcom receiver drivers.
+    uint32_t feedbackKey;
+};
+
+namespace RailcomDefs {
+  static const uint8_t INV = 0xff;
+  static const uint8_t ACK = 0xfe;
+  static const uint8_t NACK = 0xfd;
+  static const uint8_t BUSY = 0xfc;
+  static const uint8_t RESVD1 = 0xfb;
+  static const uint8_t RESVD2 = 0xfa;
+  static const uint8_t RESVD3 = 0xf8;
+}
 
 /** Table for 8-to-6 decoding of railcom data. This table can be indexed by the
  * 8-bit value read from the railcom channel, and the return value will be
@@ -53,7 +83,7 @@ static const uint8_t RESVD3 = 0xf8;
 extern const uint8_t railcom_decode[256];
 
 // Packet identifiers from Mobile Decoders.
-enum RailComMobilePacketId {
+enum RailcomMobilePacketId {
     RMOB_POM = 0,
     RMOB_ADRHIGH = 1,
     RMOB_ADRLOW = 2,

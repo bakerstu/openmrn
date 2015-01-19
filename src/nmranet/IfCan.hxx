@@ -109,7 +109,7 @@ public:
 
     virtual void add_owned_flow(Executable *e);
 
-    bool matching_node(NodeHandle expected, NodeHandle actual) override;
+    bool matching_node(NodeHandle expected, NodeHandle actual) OVERRIDE;
 
 private:
     void canonicalize_handle(NodeHandle* h);

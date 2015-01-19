@@ -36,11 +36,11 @@
 
 #include <memory>
 
+#include "utils/Hub.hxx"
+
 class Pipe;
-class HubFlow;
 template <class T> class FlowInterface;
 template <class T, int N> class DispatchFlow;
-class CanHubFlow;
 
 class GCAdapterBase
 {

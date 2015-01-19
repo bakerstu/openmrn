@@ -102,5 +102,8 @@ using namespace std;
  * GCC >= 4.7, so currently empty */
 #define OVERRIDE 
 
+/** Returns the number of elements in a statically defined array (of static
+ *  size) */
+#define ARRAYSIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #endif // _UTILS_MACROS_H_

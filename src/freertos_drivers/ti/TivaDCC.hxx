@@ -75,9 +75,9 @@ public:
     {
     }
 
-    bool empty() { return count_ == 0; }
-    bool full() { return count_ >= SIZE; }
-    size_t size() { return count_; }
+    bool empty() { return size() == 0; }
+    bool full() { return size() >= SIZE; }
+    size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
 
     /// Returns the head of the FIFO (next element to read).
     T& front() {
@@ -89,7 +89,7 @@ public:
     void increment_front() {
         HASSERT(!empty());
         if (++rdIndex_ >= SIZE) rdIndex_ = 0;
-        count_--;
+        __atomic_fetch_add(&count_, -1, __ATOMIC_SEQ_CST);
     }
 
     /// Returns the space to write the next element to.
@@ -102,7 +102,34 @@ public:
     void increment_back() {
         HASSERT(!full());
         if (++wrIndex_ >= SIZE) wrIndex_ = 0;
-        ++count_;
+        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
+    }
+
+    /** Increments the back pointer without committing the entry into the
+     * queue.
+     *
+     * This essentially reserves an entry in the queue for filling in, without
+     * making that entry available for reading. Must be followed by a
+     * commit_back call when filling in the entry is finished. An arbitrary
+     * number of such entries can be reserved (up to the number of free entries
+     * in the queue). */
+    void noncommit_back() {
+        HASSERT(has_noncommit_space());
+        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
+    }
+
+    /** @returns true if we can do a noncommit back. */
+    bool has_noncommit_space() {
+        if (full()) return false;
+        auto new_index = wrIndex_;
+        if (++new_index >= SIZE) new_index = 0;
+        return new_index != rdIndex_;
+    }
+
+    /** Commits the oldest entry reserved by noncommit_back. */
+    void commit_back() {
+        HASSERT(count_ <= SIZE);
+        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
 
 private:
@@ -111,32 +138,6 @@ private:
     uint8_t wrIndex_;
     volatile uint8_t count_;
 };
-
-
-namespace dcc {
-struct Feedback {
-    void reset(size_t feedback_key) {
-        this->feedbackKey = feedback_key;
-        ch1Size = 0;
-        ch2Size = 0;
-    }
-    void add_ch1_data(uint8_t data) {
-        if (ch1Size < sizeof(ch1Data)) {
-            ch1Data[ch1Size++] = data;
-        }
-    }
-    void add_ch2_data(uint8_t data) {
-        if (ch2Size < sizeof(ch2Data)) {
-            ch2Data[ch2Size++] = data;
-        }
-    }
-    uint8_t ch1Size;
-    uint8_t ch1Data[2];
-    uint8_t ch2Size;
-    uint8_t ch2Data[6];
-    uint32_t feedbackKey;
-};
-}
 
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
@@ -291,8 +292,8 @@ private:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
 
-    void enable(){} /**< function to enable device */
-    void disable(){} /**< function to disable device */
+    void enable() OVERRIDE {} /**< function to enable device */
+    void disable() OVERRIDE {} /**< function to disable device */
 
     /** Discards all pending buffers.  Called after disable().
      */
@@ -338,7 +339,7 @@ private:
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     FixedQueue<dcc::Feedback, HW::Q_SIZE> feedbackQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
-    Notifiable* readableNotifiable_; /**< Notify this when we have free buffers. */
+    Notifiable* readableNotifiable_; /**< Notify this when we have data in our buffers. */
 
     /** Default constructor.
      */
@@ -707,7 +708,6 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
 
 template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
-
 
 template<class HW>
 TivaDCC<HW>::TivaDCC(const char *name)

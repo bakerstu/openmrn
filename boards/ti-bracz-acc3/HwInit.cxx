@@ -48,6 +48,7 @@
 #include "TivaDev.hxx"
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
+#include "TivaRailcom.hxx"
 #include "bootloader_hal.h"
 
 /** override stdin */
@@ -60,13 +61,15 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static TivaUart uart2("/dev/ser2", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
+//static TivaUart uart2("/dev/ser2", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
 
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
+
 /** The input pin for detecting the DCC signal. */
-static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0");
+static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
 extern "C" {
 
@@ -114,8 +117,7 @@ void timer5a_interrupt_handler(void)
     //
     MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     // Set output LED.
-    MAP_GPIOPinWrite(GPIO_PORTD_BASE, GPIO_PIN_6,
-                     (rest_pattern & 1) ? GPIO_PIN_6 : 0);
+    BlinkerLed::set((rest_pattern & 1));
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
@@ -130,6 +132,11 @@ void wide_timer4a_interrupt_handler(void)
 void wide_timer4b_interrupt_handler(void)
 {
   nrz0.os_interrupt_handler();
+}
+
+void uart2_interrupt_handler(void)
+{
+  railcom_driver.os_interrupt_handler();
 }
 
 void diewith(uint32_t pattern)
@@ -210,16 +217,15 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
 
-
-    set_gpio_led(GPIO_PORTD_BASE, GPIO_PIN_6); // Red led
-    set_gpio_led(LED_YELLOW); // Yellow led
-    set_gpio_led(LED_GREEN); // Green led
-    set_gpio_led(LED_BLUE); // Blue led 1
-
-    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_6); // Blue led (for sw)
-    set_gpio_led(GPIO_PORTB_BASE, GPIO_PIN_7); // Gold led (for sw)
-
     hw_set_to_safe(); // initializes all output pins.
+
+    LED_RED_Pin::hw_init();
+    LED_GREEN_Pin::hw_init();
+    LED_YELLOW_Pin::hw_init();
+    LED_BLUE_Pin::hw_init();
+
+    LED_BLUE_SW_Pin::hw_init();
+    LED_GOLD_SW_Pin::hw_init();
 
     set_gpio_extinput(GPIO_PORTA_BASE, 0xff);  // In0..7 -- all bits.
     set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
@@ -227,9 +233,6 @@ void hw_preinit(void)
 
     // Railcom pins
     set_gpio_extinput(GPIO_PORTF_BASE, GPIO_PIN_0);  // Shadow of rcom4
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
-    MAP_GPIOPinConfigure(GPIO_PG4_U2RX);
-    MAP_GPIOPinTypeUART(GPIO_PORTG_BASE, GPIO_PIN_4);
 
     /* Setup the system clock. */
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
@@ -266,8 +269,10 @@ void hw_preinit(void)
     MAP_GPIOPinConfigure(GPIO_PB5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-    MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
+    /// TODO(balazs.racz) reenable this for the TX of the signalbus.
+    //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
+    //MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
+    //MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
+    DBG_SIGNAL_Pin::hw_init();
 }
 }
