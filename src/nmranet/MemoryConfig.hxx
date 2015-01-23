@@ -244,7 +244,7 @@ public:
     /** Creates a memory space based on a file name. Opens the file at the
      * first use, and never closes it.
      *
-     * @param name is the file name ot open. The pointer must stay alive so
+     * @param name is the file name to open. The pointer must stay alive so
      * long as *this is around.
      * @param len tells how many bytes there are in the memory space. If
      * specified as AUTO_LEN, then uses fstat to figure out the size of the
