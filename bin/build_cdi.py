@@ -57,8 +57,9 @@ file_in = open(options.input, 'r')
 file_out = open(options.output, 'w')
 
 file_out.write('/* Generated code based off of ' + options.input + ' */\n\n')
-file_out.write('#include <stdint.h>\n\n')
-file_out.write('const uint8_t nmranetCdi[] =\n{\n')
+file_out.write('#include <cstdint>\n\n')
+file_out.write('extern const char nmranetCdi[];\n\n')
+file_out.write('const char nmranetCdi[] =\n{\n')
 
 bytesPerGroup = 15
 bytesPerLine = 70
