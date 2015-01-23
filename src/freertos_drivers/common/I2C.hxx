@@ -110,6 +110,10 @@ private:
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() OVERRIDE {}
 
+    /** Default constructor.
+     */
+    I2C();
+
     DISALLOW_COPY_AND_ASSIGN(I2C);
 };
 
