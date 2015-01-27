@@ -148,7 +148,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
         if (timeout)
         {
             long long now = OSTime::get_monotonic();
-            if (now > until)
+            if (now >= until)
             {
                 return 0;
             }
