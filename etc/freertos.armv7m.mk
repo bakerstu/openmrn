@@ -28,7 +28,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-ARCHOPTIMIZATION = -D__NEWLIB__
+#ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
@@ -54,6 +54,9 @@ LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
           -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
+
+SYSLIB_SUBDIRS += console
+SYSLIBRARIES += -lconsole
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like
