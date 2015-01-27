@@ -104,22 +104,25 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
         /* cycle through all the FD Sets */
         for (int mode = 0; mode < 3; ++mode)
         {
-            /* cycle through all the file descriptors */
-            for (int i = 0; i < nfds; ++i)
+            if (in_set[mode])
             {
-                if (FD_ISSET(i, in_set[mode]))
+                /* cycle through all the file descriptors */
+                for (int i = 0; i < nfds; ++i)
                 {
-                    File *file = fd_find(i);
-                    if (!file)
+                    if (FD_ISSET(i, in_set[mode]))
                     {
-                        errno = EBADF;
-                        return -1;
-                    }
-                    if (file->dev->select(file, mode_type[mode]))
-                    {
-                        /* active */
-                        FD_SET(i, out_set[mode]);
-                        ++number;
+                        File *file = fd_find(i);
+                        if (!file)
+                        {
+                            errno = EBADF;
+                            return -1;
+                        }
+                        if (file->dev->select(file, mode_type[mode]))
+                        {
+                            /* active */
+                            FD_SET(i, out_set[mode]);
+                            ++number;
+                        }
                     }
                 }
             }
@@ -127,9 +130,18 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
 
         if (number)
         {
-            *readfds = rd_result;
-            *writefds = wr_result;
-            *exceptfds = ex_result;
+            if (readfds)
+            {
+                *readfds = rd_result;
+            }
+            if (writefds)
+            {
+                *writefds = wr_result;
+            }
+            if (exceptfds)
+            {
+                *exceptfds = ex_result;
+            }
             return number;
         }
 
