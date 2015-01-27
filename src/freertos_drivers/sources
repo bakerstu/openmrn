@@ -4,6 +4,7 @@ VPATH := $(SRCDIR): \
 CSRCS +=
 
 CXXSRCS += Fileio.cxx \
+           Select.cxx \
            Can.cxx \
            Serial.cxx \
            I2C.cxx \

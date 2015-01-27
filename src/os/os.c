@@ -614,6 +614,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     
     priv->entry = start_routine;
+    priv->selectEventBit = 0;
     priv->arg = arg;
     priv->reent = allocate_reent();
     
@@ -946,6 +947,7 @@ int main(int argc, char *argv[])
     xTaskHandle task_handle;
     int priority;
     priv->reent = _impure_ptr;
+    priv->selectEventBit = 0;
     priv->entry = NULL;
     priv->arg = NULL;
     

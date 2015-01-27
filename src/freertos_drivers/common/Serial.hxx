@@ -54,6 +54,8 @@ protected:
         , rxQ(os_mq_create(config_serial_rx_buffer_size(),
                            sizeof(unsigned char)))
         , overrunCount(0)
+        , selInfoRd()
+        , selInfoWr()
     {
     }    
 
@@ -72,6 +74,9 @@ protected:
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
+
+    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
+    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 private:
     /** Read from a file or device.
@@ -98,6 +103,14 @@ private:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
     
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
+
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() OVERRIDE;
 

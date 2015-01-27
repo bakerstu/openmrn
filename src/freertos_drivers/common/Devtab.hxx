@@ -68,6 +68,14 @@ public:
     /** Ioctl method. Default implementation returns error. */
     virtual int ioctl(File *, unsigned long int, unsigned long);
 
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    virtual bool select(File* file, int mode);
+
     /** Open a file or device.
      * @param reent thread save reentrant structure
      * @param path file or device name
@@ -77,6 +85,38 @@ public:
      */
     static int open(struct _reent *reent, const char *path, int flags,
                     int mode);
+
+protected:
+    /** Select wakeup information.
+     */
+    struct SelectInfo
+    {
+        /** Default constructor.
+         */
+        SelectInfo()
+            : event(0)
+        {
+        }
+
+        /** bit mask of clients that need woken */
+        OSEventType event;
+    };
+
+    /** Add client to list of clients needing woken.
+     * @param info wakeup event instance
+     */
+    static void select_insert(SelectInfo *info);
+
+    /** Wakeup the list of clients needing woken.
+     * @param info wakeup event instance
+     */
+    static void select_wakeup(SelectInfo *info);
+
+    /** Wakeup the list of clients needing woken. from ISR context.
+     * @param info wakeup event instance
+     * @param woken is the task woken up
+     */
+    static void select_wakeup_from_isr(SelectInfo *info, int *woken);
 
 private:
     const char *name; /**< device name */

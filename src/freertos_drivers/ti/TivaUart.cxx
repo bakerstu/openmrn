@@ -174,6 +174,7 @@ void TivaUart::interrupt_handler()
             {
                 overrunCount++;
             }
+            select_wakeup_from_isr(&selInfoRd, &woken);
         }
     }
     /* tranmit a character if we have pending tx data */
@@ -185,6 +186,7 @@ void TivaUart::interrupt_handler()
             if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE)
             {
                 MAP_UARTCharPutNonBlocking(base, data);
+                select_wakeup_from_isr(&selInfoWr, &woken);
             }
             else
             {
