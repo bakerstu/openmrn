@@ -358,6 +358,14 @@ public:
         return os_mq_num_pending(handle);
     }
 
+    /** Return the number of spaces available.
+     * @return number of spaces available
+     */
+    int num_spaces()
+    {
+        return os_mq_num_spaces(handle);
+    }
+
     /** Return the number of messages pending in the queue from ISR context.
      * @return number of messages in the queue
      */
@@ -526,5 +534,151 @@ private:
     /** Default destructor. */
     ~OSTime();
 };
+
+#if defined (__FreeRTOS__)
+/** Event bit mask type */
+typedef EventBits_t OSEventType;
+/** Abstraction to a group of event bits that can support a masked pend.
+ */
+class OSEvent
+{
+public:
+    /** types of wait test
+     */
+    enum Test
+    {
+        WAIT_ANY = 0, /**< wait for any of the bits in the mask to be set */
+        WAIT_ALL, /**< wait for all of the bits in the mask to be set */
+    };
+
+    /** Constructor.
+     */
+    OSEvent()
+        : event(xEventGroupCreate())
+    {
+        HASSERT(event);
+    }
+
+    /** Destructor.
+     */
+    ~OSEvent()
+    {
+        vEventGroupDelete(event);
+    }
+
+    /** Get the number of event bits in an event group.
+     * @return number of event bits in an event group
+     */
+    static int number_of_bits()
+    {
+#if configUSE_16_BIT_TICKS
+        return 8;
+#else
+        return 24;
+#endif
+    }
+
+    /** Wait on (decrement) an event condition.
+     * @param mask bitwise mask of interesting bits
+     * @param value NULL if unused, else returns with the value of the event
+                    buts at the time the condition held true.  On a timout,
+                    value remains untouched.
+     * @param clear true if upon return the bits caled out in mask are to be
+     *              cleared.  If a timeout occurs, no bits will be cleared.
+     * @param test type of test on the mask bits
+     * @return 0 upon success, else -1 with errno set to indicate error
+     */
+    int wait(OSEventType mask, OSEventType *value, bool clear, Test test)
+    {
+        return timedwait(mask, value, clear, test, OS_WAIT_FOREVER);
+    }
+
+    /** Wait on (decrement) an event with timeout condition.
+     * @param mask bitwise mask of interesting bits
+     * @param value NULL if unused, else returns with the value of the event
+                    buts at the time the condition held true.  On a timout,
+                    value remains unchanged.
+     * @param clear true if upon return the bits caled out in mask are to be
+     *              cleared.  If a timeout occurs, no bits will be cleared.
+     * @param test type of test on the mask bits
+     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+     * @return 0 upon success, else -1 with errno set to indicate error
+     */
+    int timedwait(OSEventType mask, OSEventType *value, bool clear, Test test, long long timeout)
+    {
+        BaseType_t e_clear = clear ? pdTRUE : pdFALSE;
+        BaseType_t e_test = test ? pdTRUE : pdFALSE;
+        TickType_t e_timeout = timeout == OS_WAIT_FOREVER ? portMAX_DELAY : timeout >> NSEC_TO_TICK_SHIFT;
+
+        OSEventType bits = xEventGroupWaitBits(event, mask, e_clear, e_test, e_timeout);
+
+        if (((bits & mask) == mask && test == WAIT_ALL) ||
+            ((bits & mask) != 0    && test == WAIT_ANY))
+        {
+            // success
+            if (value)
+            {
+                *value = bits;
+            }
+            return 0;
+        }
+        else
+        {
+            // timeout
+            errno = ETIMEDOUT;
+            return -1;
+        }
+    }
+
+    /** Set event bits.
+     * @param mask bitwise mask of interesting bits
+     */
+    void set(OSEventType mask)
+    {
+        xEventGroupSetBits(event, mask);
+    }
+
+    /** Set event bits from ISR context.
+     * @param mask bitwise mask of interesting bits
+     * @param woken is the task woken up
+     */
+    void set_from_isr(OSEventType mask, int *woken)
+    {
+        portBASE_TYPE local_woken;
+        xEventGroupSetBitsFromISR(event, mask, &local_woken);
+        *woken |= local_woken;
+    }
+
+    /** clear event bits.
+     * @param mask bitwise mask of interesting bits
+     */
+    void clear(OSEventType mask)
+    {
+        xEventGroupClearBits(event, mask);
+    }
+
+    /** clear event bits from ISR context.
+     * @param mask bitwise mask of interesting bits
+     */
+    void clear_from_isr(OSEventType mask)
+    {
+        xEventGroupClearBitsFromISR(event, mask);
+    }
+
+    /** Get the current value of the event bits
+     * @return current value of the event bits
+     */
+    OSEventType peek()
+    {
+        return xEventGroupGetBits(event);
+    }
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(OSEvent);
+
+    /** handle to event object */
+    EventGroupHandle_t event;
+};
+#endif
 
 #endif /* _OS_OS_HXX_ */

@@ -46,6 +46,7 @@
 #include <task.h>
 #include <semphr.h>
 #include <timers.h>
+#include <event_groups.h>
 #else
 #include <pthread.h>
 #include <semaphore.h>
@@ -104,6 +105,7 @@ typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
 typedef struct thread_priv
 {
     struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
+    EventBits_t selectEventBit; /**< bit used for waking up from select */
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
@@ -801,7 +803,19 @@ OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
 #endif
 }
 
-
+/** Return the number of spaces available in the queue.
+ * @param queue queue to check
+ * @return number of spaces available
+ */
+OS_INLINE int os_mq_num_spaces(os_mq_t queue)
+{
+#if defined (__FreeRTOS__)
+    return uxQueueSpacesAvailable(queue);
+#else
+    HASSERT(0);
+    return 0;
+#endif
+}
 
 #if defined (__FreeRTOS__)
 /** Some of the older ports of FreeRTOS don't yet have this macro, so define it.
