@@ -286,7 +286,8 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil         1
 #define INCLUDE_vTaskDelay              1
 #define INCLUDE_xTaskGetIdleTaskHandle   1
-
+#define INCLUDE_xEventGroupSetBitFromISR 1
+#define INCLUDE_xTimerPendFunctionCall  1
 #ifndef __LANGUAGE_ASSEMBLY__
 
 typedef struct task_switched_in
