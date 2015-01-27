@@ -311,6 +311,40 @@ int USBSerialNode::ioctl(File *file, unsigned long int key, unsigned long data)
     return 0;
 }
 
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool USBSerialNode::select(File* file, int mode)
+{
+#if 0
+    switch (mode)
+    {
+        case FREAD:
+            if (os_mq_num_pending(rxQ) > 0)
+            {
+                return true;
+            }
+            select_insert(&selInfoRd);
+            break;
+        case FWRITE:
+            if (has_tx_buffer_free())
+            {
+                return true;
+            }
+            select_insert(&selInfoWr);
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+#endif
+    return false;
+}
+
 void USBSerialNode::flush_buffers() OVERRIDE {
     {
         auto h = txBlock_.holder();
