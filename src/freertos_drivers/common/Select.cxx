@@ -48,13 +48,13 @@ static OSEventType get_event()
 {
     static int thread_count = 0;
     portENTER_CRITICAL();
-    if(thread_count >= OSEvent::number_of_bits())
-    {
-        thread_count = 0;
-    }
     ThreadPriv *priv = (ThreadPriv*)xTaskGetApplicationTaskTag(NULL);
     if (priv->selectEventBit == 0)
     {
+        if(thread_count >= OSEvent::number_of_bits())
+        {
+            thread_count = 0;
+        }
         priv->selectEventBit = 0x1 << thread_count;
         ++thread_count;
     }
