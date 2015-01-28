@@ -145,28 +145,39 @@ int Serial::ioctl(File *file, unsigned long int key, unsigned long data)
  */
 bool Serial::select(File* file, int mode)
 {
+    bool retval = false;
     switch (mode)
     {
         case FREAD:
+            portENTER_CRITICAL();
             if (os_mq_num_pending(rxQ) > 0)
             {
-                return true;
+                retval = true;
             }
-            select_insert(&selInfoRd);
+            else
+            {
+                select_insert(&selInfoRd);
+            }
+            portEXIT_CRITICAL();
             break;
         case FWRITE:
+            portENTER_CRITICAL();
             if (os_mq_num_spaces(txQ) > 0)
             {
-                return true;
+                retval = true;
             }
-            select_insert(&selInfoWr);
+            else
+            {
+                select_insert(&selInfoWr);
+            }
+            portEXIT_CRITICAL();
             break;
         default:
         case 0:
             /* we don't support any exceptions */
             break;
     }
-    return false;
+    return retval;
 }
 
 ssize_t USBSerialNode::read(File *file, void *buf, size_t count)
