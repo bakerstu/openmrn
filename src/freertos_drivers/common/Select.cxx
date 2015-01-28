@@ -201,16 +201,11 @@ void Device::select_wakeup(SelectInfo *info)
  */
 void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
 {
-    /** @todo do we need the critical section lock since we are already in
-     * an ISR?
-     */
-    portENTER_CRITICAL();
     if (info->event != 0)
     {
         wakeup.set_from_isr(info->event, woken);
         info->event = 0;
     }
-    portEXIT_CRITICAL();
 }
 
 
