@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file endian.h
+ * \file nuttx/endian.h
  * This file represents endian swapping for the nuttx RTOS
  *
  * @author Stuart W. Baker

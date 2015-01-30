@@ -8,6 +8,7 @@ CSRCS += croutine.c \
          tasks.c \
          timers.c \
          port.c \
-         heap_3.c
+         heap_3.c \
+         event_groups.c
 
 CXXSRCS +=

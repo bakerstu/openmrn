@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,59 +24,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Atomic.hxx
+ * \file select.h
+ * This file imlements POSIX select() prototypes.
  *
- * Defines a lock base class for protecting small critical sections. The
- * implementation of the lock can be with recursive mutexes (on a large memory
- * system) or with critical sections on a small system.
- *
- * @author Balazs Racz
- * @date 5 Aug 2013
+ * @author Stuart W. Baker
+ * @date 26 January 2015
  */
 
-#ifndef _UTILS_ATOMIC_HXX_
-#define _UTILS_ATOMIC_HXX_
+#ifndef _SYS_SELECT_H_
+#define _SYS_SELECT_H_
 
-#ifdef __FreeRTOS__
+/* We can actually pull the FD Set macros from here */
+#include <sys/types.h>
 
-#include "portmacro.h"
+/** POSIX select().
+ * @param nfds highest numbered file descriptor in any of the three, sets plus 1
+ * @param readfds fd_set of file descritpors to pend on read active
+ * @param writefds fd_set of file descritpors to pend on write active
+ * @param exceptfds fd_set of file descritpors to pend on error active
+ * @param timeout timeout value to wait, if 0, return immediately, if NULL
+ *                wait forever
+ * @return on success, number of file descriptors in the three sets that are
+           active, 0 on timeout, -1 with errno set appropriately upon error.
+ */
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+           fd_set *exceptfds, struct timeval *timeout);
 
-class Atomic {
-public:
-  void lock() {
-    portENTER_CRITICAL();
-  }
-  void unlock() {
-    portEXIT_CRITICAL();
-  }
-};
-
-#else
-
-#include "os/OS.hxx"
-/// @todo make this a single global mutex
-class Atomic : public OSMutex {
-public:
-  Atomic() : OSMutex(true) {}
-};
-
-#endif
-
-/// See @ref OSMutexLock in os/OS.hxx
-class AtomicHolder {
-public:
-  AtomicHolder(Atomic* parent)
-    : parent_(parent) {
-    parent_->lock();
-  }
-  ~AtomicHolder() {
-    parent_->unlock();
-  }
-private:
-  Atomic* parent_;
-};
-
-/// See @OSMutexLock in os/OS.hxx
-#define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
-
-#endif // _UTILS_LOCK_HXX_
+#endif /* _SYS_SELECT_H_ */

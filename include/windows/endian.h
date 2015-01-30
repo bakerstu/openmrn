@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file endian.h
+ * \file windows/endian.h
  * This file represents endian swapping for the Windows Operating System
  *
  * @author Stuart W. Baker

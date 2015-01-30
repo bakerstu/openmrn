@@ -258,16 +258,12 @@ extern unsigned long blinker_pattern;
 #define configUSE_CO_ROUTINES          0
 #define configCHECK_FOR_STACK_OVERFLOW 2
 
-#define configMAX_PRIORITIES        ( ( unsigned portBASE_TYPE ) 5 )
+#define configMAX_PRIORITIES        ( 5 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
 #define configUSE_APPLICATION_TASK_TAG 1
 
-#ifdef TARGET_LPC11Cxx
-#define configUSE_TIMERS               0
-#else
 #define configUSE_TIMERS               1
-#endif
 #define configTIMER_QUEUE_LENGTH       16
 #define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES/2)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1
@@ -286,7 +282,8 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil         1
 #define INCLUDE_vTaskDelay              1
 #define INCLUDE_xTaskGetIdleTaskHandle   1
-
+#define INCLUDE_xEventGroupSetBitFromISR 1
+#define INCLUDE_xTimerPendFunctionCall  1
 #ifndef __LANGUAGE_ASSEMBLY__
 
 typedef struct task_switched_in

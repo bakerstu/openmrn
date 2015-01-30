@@ -40,7 +40,7 @@
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 
-/** Private data for a can device */
+/** Private data for a serial device */
 class Serial : public Node
 {
 protected:
@@ -54,6 +54,8 @@ protected:
         , rxQ(os_mq_create(config_serial_rx_buffer_size(),
                            sizeof(unsigned char)))
         , overrunCount(0)
+        , selInfoRd()
+        , selInfoWr()
     {
     }    
 
@@ -72,6 +74,9 @@ protected:
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
+
+    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
+    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 private:
     /** Read from a file or device.
@@ -98,6 +103,14 @@ private:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
     
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
+
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() OVERRIDE;
 
@@ -109,15 +122,20 @@ private:
  * largest packet size permitted by USB for virtual serial ports. */
 #define USB_SERIAL_PACKET_SIZE 64
 
-class USBSerialNode : public Node {
+class USBSerialNode : public Node
+{
 public:
     USBSerialNode(const char *name)
-        : Node(name),
-          txQEnd_(0),
-          rxQBegin_(0),
-          rxQEnd_(0),
-          txBlock_(Atomic()),
-          rxBlock_(Atomic()) {}
+        : Node(name)
+        , txQEnd_(0)
+        , rxQBegin_(0)
+        , rxQEnd_(0)
+        , txBlock_(Atomic())
+        , rxBlock_(Atomic())
+        , selInfoRd()
+        , selInfoWr()
+    {
+    }
 
     ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
@@ -131,7 +149,8 @@ protected:
 
     /** Signals from an ISR context that a regular context thread should be
      * woken up and call into the rx_packet_irqlocked function. */
-    void set_rx_pending_from_isr() {
+    void set_rx_pending_from_isr()
+    {
         /** TODO(balazs.racz): we should actually wake up someone here. */
         rxPending_ = 1;
     }
@@ -148,29 +167,41 @@ protected:
      * buffer.*/
     void set_rx_finished_from_isr(uint8_t size);
 
-    void tx_discard_packet_locked() {
+    void tx_discard_packet_locked()
+    {
         txPending_ = 0;
         // TODO: notify
     }
 
     /** Returns true if a write() called now would have some space to put data
      * into. */
-    bool has_tx_buffer_free() {
+    bool has_tx_buffer_free()
+    {
         return txQEnd_ < USB_SERIAL_PACKET_SIZE;
     }
 
     /** Adds a byte to the tx buffer. */
-    void add_to_tx_buffer(uint8_t data) {
+    void add_to_tx_buffer(uint8_t data)
+    {
         HASSERT(has_tx_buffer_free());
         txQ_[txQEnd_++] = data;
     }
 
     /** Marks that the tx buffer has been handed over to the hardware. */
-    void mark_tx_buffer_sent() {
+    void mark_tx_buffer_sent()
+    {
         txQEnd_ = 0;
     }
 
 private:
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
+
     /** Requests a packet to be sent from an ISR context. The buffer will be
      * invalidated as soon as the call returns. Returns true if the packet was
      * sent, false if there was an error and the packet should be discarded. */
@@ -200,6 +231,9 @@ private:
 
     BlockOrWakeUp<Atomic> txBlock_;
     BlockOrWakeUp<Atomic> rxBlock_;
+
+    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
+    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 protected:
     LogBuffer log_;

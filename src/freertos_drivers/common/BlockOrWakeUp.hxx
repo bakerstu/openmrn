@@ -163,7 +163,8 @@ public:
 
     void notify_from_isr()
     {
-        s_.post_from_isr();
+        int woken = 0;
+        s_.post_from_isr(&woken);
         if (notifiable_) {
             notifiable_->notify_from_isr();
             notifiable_ = nullptr;

@@ -199,6 +199,7 @@ void TivaCan::interrupt_handler()
         can_frame.can_dlc = can_message.ui32MsgLen;
         memcpy(can_frame.data, data, can_message.ui32MsgLen);
         put_rx_msg_from_isr(can_frame);
+        select_wakeup_from_isr(&selInfoRd, &woken);
     }
     else if (status == 2)
     {
@@ -226,6 +227,7 @@ void TivaCan::interrupt_handler()
             memcpy(data, can_frame.data, can_frame.can_dlc);
             
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
+            select_wakeup_from_isr(&selInfoWr, &woken);
         }
         else
         {

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file LocakTrackIf.hxx
+ * \file LocalTrackIf.hxx
  *
  * Control flow that acts as a trackInterface and sends all packets to a local
  * fd that represents the DCC mainline, such as TivaDCC.

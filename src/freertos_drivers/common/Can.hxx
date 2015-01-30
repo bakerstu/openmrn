@@ -54,6 +54,8 @@ protected:
         , rxQ(os_mq_create(config_can_rx_buffer_size(),
                            sizeof(struct can_frame)))
         , overrunCount(0)
+        , selInfoRd()
+        , selInfoWr()
     {
     }    
 
@@ -143,6 +145,9 @@ protected:
     os_mq_t rxQ; /**< receive queue */
     unsigned int overrunCount; /**< overrun count */
 
+    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
+    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
+
 private:
     /** Read from a file or device.
     * @param file file reference for this device
@@ -159,6 +164,14 @@ private:
     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
+
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
 
     DISALLOW_COPY_AND_ASSIGN(Can);
 };

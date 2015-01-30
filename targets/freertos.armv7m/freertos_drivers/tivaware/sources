@@ -4,5 +4,7 @@ VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
 
 CXXSRCS += TivaCan.cxx \
            TivaDCC.cxx \
+           TivaI2C.cxx \
            TivaUart.cxx \
-           TivaUsbCdcDevice.cxx
+           TivaUsbCdcDevice.cxx \
+           TivaEEPROMEmulation.cxx

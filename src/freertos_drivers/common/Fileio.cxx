@@ -332,13 +332,14 @@ int Device::open(struct _reent *reent, const char *path, int flags, int mode)
 
 off_t Device::lseek(File* f, off_t offset, int whence)
 {
-    switch (whence) {
-    case SEEK_SET:
-        f->offset = offset;
-        return offset;
-    case SEEK_CUR:
-        f->offset += offset;
-        return f->offset;
+    switch (whence)
+    {
+        case SEEK_SET:
+            f->offset = offset;
+            return offset;
+        case SEEK_CUR:
+            f->offset += offset;
+            return f->offset;
     }
     errno = EINVAL;
     return (off_t)-1;

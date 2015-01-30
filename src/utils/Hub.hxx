@@ -74,12 +74,12 @@ struct CanFrameContainer : public StructContainer<can_frame>
         can_dlc = 0;
     }
 
-    /** @Returns a mutable pointer to the embedded CAN frame. */
+    /** @returns a mutable pointer to the embedded CAN frame. */
     struct can_frame *mutable_frame()
     {
         return this;
     }
-    /** @Returns the embedded CAN frame. */
+    /** @returns the embedded CAN frame. */
     const struct can_frame &frame() const
     {
         return *this;

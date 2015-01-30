@@ -31,9 +31,13 @@
  * @date 10 May 2014
  */
 
+#if defined (__FreeRTOS__)
+#else
+#define CONSOLE_NETWORKING
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -42,7 +46,7 @@
 
 /** Constructor.
  * @param stdio start a Console connection instance on stdio if true
- * @param port TCP port number to open a telnet listen socket on, -1 mean
+ * @param port TCP port number to open a telnet listen socket on, -1 means
  *        do not open a listen port.
  */
 Console::Console(bool stdio, int port)
@@ -157,6 +161,7 @@ Console::Session *Console::get_session(int fd)
  */
 void Console::listen_create(int port)
 {
+#if defined (CONSOLE_NETWORKING)
     int                yes = 1;
     struct sockaddr_in sockaddr;
     int                result;
@@ -208,6 +213,7 @@ void Console::listen_create(int port)
     }
     FD_SET(fdListen, &readfds);
     fdHighest = fdListen;
+#endif
 }
 
 /** Add a new command to the console.
@@ -404,6 +410,7 @@ void *Console::entry()
             if (FD_ISSET(i, &rfds))
             {
                 --result;
+#if defined (CONSOLE_NETWORKING)
                 if (i == fdListen)
                 {
                     /* establish a new connection request for a new session */
@@ -426,6 +433,7 @@ void *Console::entry()
                     open_session(newfd);
                 }
                 else
+#endif
                 {
                     /* handle an existing connection */
                     char c;

@@ -110,3 +110,35 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
     
     return result;
 }
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool Can::select(File* file, int mode)
+{
+    switch (mode)
+    {
+        case FREAD:
+            if (os_mq_num_pending(rxQ) > 0)
+            {
+                return true;
+            }
+            select_insert(&selInfoRd);
+            break;
+        case FWRITE:
+            if (os_mq_num_spaces(txQ) > 0)
+            {
+                return true;
+            }
+            select_insert(&selInfoWr);
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    return false;
+}

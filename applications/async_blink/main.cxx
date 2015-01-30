@@ -55,6 +55,10 @@
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
 #endif
 
+#ifdef BOARD_LAUNCHPAD_EK
+#include "console/Console.hxx"
+#endif
+
 NO_THREAD nt;
 Executor<1> g_executor(nt);
 Service g_service(&g_executor);
@@ -165,6 +169,12 @@ BlinkerFlow blinker_flow(&g_node);
  */
 int appl_main(int argc, char* argv[])
 {
+#ifdef BOARD_LAUNCHPAD_EK
+    new Console(true, -1);
+#endif
+
+
+
 #ifdef __linux__
     GcTcpHub hub(&can_hub0, 12021);
 #elif defined(TARGET_LPC11Cxx)

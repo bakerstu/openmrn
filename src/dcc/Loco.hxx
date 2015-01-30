@@ -179,13 +179,13 @@ struct Dcc28Payload
     unsigned speed_ : 5;
     unsigned directionChanged_ : 1;
 
-    /** @Returns the number of speed steps (in float). */
+    /** @returns the number of speed steps (in float). */
     static unsigned get_speed_steps()
     {
         return 28;
     }
 
-    /** @Returns the largest function number that is still valid. */
+    /** @returns the largest function number that is still valid. */
     static unsigned get_max_fn()
     {
         return 28;
@@ -252,13 +252,13 @@ struct Dcc128Payload
     unsigned speed_ : 7;
     unsigned directionChanged_ : 1;
 
-    /** @Returns the number of speed steps (the largest valid speed step). */
+    /** @returns the number of speed steps (the largest valid speed step). */
     static unsigned get_speed_steps()
     {
         return 126;
     }
 
-    /** @Returns the largest function number that is still valid. */
+    /** @returns the largest function number that is still valid. */
     static unsigned get_max_fn()
     {
         return 28;
@@ -302,13 +302,13 @@ struct MMOldPayload
     unsigned directionChanged_ : 1;
     unsigned speed_ : 4;
 
-    /** @Returns the number of speed steps (in float). */
+    /** @returns the number of speed steps (in float). */
     unsigned get_speed_steps()
     {
         return 14;
     }
 
-    /** @Returns the largest function number that is still valid. */
+    /** @returns the largest function number that is still valid. */
     unsigned get_max_fn()
     {
         return 0;
@@ -350,13 +350,13 @@ struct MMNewPayload
     unsigned speed_ : 4;
     unsigned nextRefresh_ : 3;
 
-    /** @Returns the number of speed steps (in float). */
+    /** @returns the number of speed steps (in float). */
     unsigned get_speed_steps()
     {
         return 14;
     }
 
-    /** @Returns the largest function number that is still valid. */
+    /** @returns the largest function number that is still valid. */
     unsigned get_max_fn()
     {
         return 4;

@@ -137,6 +137,49 @@ int Serial::ioctl(File *file, unsigned long int key, unsigned long data)
     return -1;
 }
 
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool Serial::select(File* file, int mode)
+{
+    bool retval = false;
+    switch (mode)
+    {
+        case FREAD:
+            portENTER_CRITICAL();
+            if (os_mq_num_pending(rxQ) > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                select_insert(&selInfoRd);
+            }
+            portEXIT_CRITICAL();
+            break;
+        case FWRITE:
+            portENTER_CRITICAL();
+            if (os_mq_num_spaces(txQ) > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                select_insert(&selInfoWr);
+            }
+            portEXIT_CRITICAL();
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    return retval;
+}
+
 ssize_t USBSerialNode::read(File *file, void *buf, size_t count)
 {
     if (!count) return 0;
@@ -277,6 +320,40 @@ int USBSerialNode::ioctl(File *file, unsigned long int key, unsigned long data)
     if (n)
         n->notify();
     return 0;
+}
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool USBSerialNode::select(File* file, int mode)
+{
+#if 0
+    switch (mode)
+    {
+        case FREAD:
+            if (os_mq_num_pending(rxQ) > 0)
+            {
+                return true;
+            }
+            select_insert(&selInfoRd);
+            break;
+        case FWRITE:
+            if (has_tx_buffer_free())
+            {
+                return true;
+            }
+            select_insert(&selInfoWr);
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+#endif
+    return false;
 }
 
 void USBSerialNode::flush_buffers() OVERRIDE {

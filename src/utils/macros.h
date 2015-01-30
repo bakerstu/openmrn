@@ -91,7 +91,7 @@ using namespace std;
 
    This macro should be used in the private part of all classes that are not
    meant to be copied (which is almost all classes), to avoid bugs resulting
-   form unintended passing of the objects by value.
+   from unintended passing of the objects by value.
  */
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&);   \
