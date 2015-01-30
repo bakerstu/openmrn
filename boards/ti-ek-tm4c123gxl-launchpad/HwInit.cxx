@@ -241,6 +241,11 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+void uart1_interrupt_handler(void)
+{
+  railcom_driver.os_interrupt_handler();
+}
+
 void diewith(uint32_t pattern)
 {
     vPortClearInterruptMask(0x20);
