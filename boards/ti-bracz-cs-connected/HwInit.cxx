@@ -100,6 +100,11 @@ void timer1a_interrupt_handler(void)
   dcc_hw.os_interrupt_handler();
 }
 
+void uart6_interrupt_handler(void)
+{
+  railcom_driver.os_interrupt_handler();
+}
+
 void hw_set_to_safe(void)
 {
     dcc_hw.disable_output();
