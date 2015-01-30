@@ -54,8 +54,8 @@ struct Debug {
   typedef DummyPin RailcomDriverCutout;
   // Flips every time an uart byte is received error.
   typedef DummyPin RailcomError;
+  // Flips every time an 'E0' byte is received in the railcom driver.
   typedef DummyPin RailcomE0;
-
 };
 #include "TivaRailcom.hxx"
 
