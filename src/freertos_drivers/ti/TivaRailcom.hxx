@@ -64,6 +64,7 @@
 #include "RailcomDriver.hxx"
 #include "dcc/RailCom.hxx"
 
+/*
 struct RailcomHw
 {
     static const uint32_t CHANNEL_COUNT = 4;
@@ -101,8 +102,8 @@ struct RailcomHw
         CH4_Pin::set_hw();
     }
 
-    /** @returns a bitmask telling which pins are active. Bit 0 will be set if
-     * channel 0 is active (drawing current).*/
+    /// @returns a bitmask telling which pins are active. Bit 0 will be set if
+    /// channel 0 is active (drawing current).
     static uint8_t sample() {
         uint8_t ret = 0;
         if (!CH1_Pin::get()) ret |= 1;
@@ -111,12 +112,17 @@ struct RailcomHw
         if (!CH4_Pin::get()) ret |= 8;
         return ret;
     }
-};
+}; 
 
 // The weak attribute is needed if the definition is put into a header file.
 const uint32_t RailcomHw::UART_BASE[] __attribute__((weak)) = {UART4_BASE, UART3_BASE, UART2_BASE, UART7_BASE};
 const uint32_t RailcomHw::UART_PERIPH[]
 __attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART7};
+
+*/
+
+struct Debug;
+
 
 template <class HW>
 class RailcomDriverBase : public RailcomDriver, private Node
