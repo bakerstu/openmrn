@@ -119,7 +119,7 @@ private:
      * @ref index word within EEPROM address space to write
      * @ref data data to write
      */
-    void write_word(unsigned int index, const uint16_t *data);
+    void write_word(unsigned int index, const uint16_t data);
 
     /** Read from the EEPROM on a native word boundary.
      * @ref index word within EEPROM address space to read
