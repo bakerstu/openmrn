@@ -200,7 +200,7 @@ void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t data)
     if (available)
     {
         /* still have room in this block for at least one more write */
-        uint32_t slot_data = (index << 16) + *data;
+        uint32_t slot_data = (index << 16) | data;
         uint32_t *address = active() + slot_count() + 1 - available;
         flash_program(&slot_data, address, sizeof(slot_data));
         --available;
@@ -227,7 +227,7 @@ void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t data)
             if (i == index)
             {
                 /* this is our new data */
-                slot_data = *data;
+                slot_data = data;
             }
             else
             {
