@@ -32,6 +32,9 @@
  * @date 8 Dec 2014
  */
 
+#ifndef _INCLUDE_FREERTOS_BOOTLOADER_HAL_H_
+#define _INCLUDE_FREERTOS_BOOTLOADER_HAL_H_
+
 #include <stdint.h>
 #include "can_frame.h"
 
@@ -67,10 +70,16 @@ struct app_header {
 };
 
 enum BootloaderLed {
+  /* 1 when there is an incoming packet pending, an outgoing packet pending or
+     datagram being transmitted or deceived. */
   LED_ACTIVE = 1,
+  /* 1 for the duration of erase and write operations. */
   LED_WRITING = 2,
+  /* Not used currently. */
   LED_IDENT = 4,
+  /* 1 if the applicaiton checksum failed. */
   LED_CSUM_ERROR = 8,
+  /* 1 if the end-user requested entry to the bootloader. */
   LED_REQUEST = 16,
 };
 
@@ -186,3 +195,5 @@ extern uint64_t nmranet_nodeid(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif // _INCLUDE_FREERTOS_BOOTLOADER_HAL_H_
