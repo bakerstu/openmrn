@@ -73,8 +73,9 @@ CFLAGS = $(CORECFLAGS)
 ARM_CFLAGS = $(CFLAGS)
 
 CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-        -fno-rtti -fno-exceptions -std=c++0x \
-        -D__STDC_FORMAT_MACROS -D__STDC_VERSION__=199901 $(CXXFLAGSENV)
+        -fno-rtti -fno-exceptions -std=gnu++0x \
+	-D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
+	 $(CXXFLAGSENV)
 
 LDFLAGS = -Os -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
         -Xlinker --gc-sections -mcpu=cortex-m0 -mthumb --specs=nano.specs \

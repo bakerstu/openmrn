@@ -69,11 +69,23 @@ public:
         return train_;
     }
 
+    NodeID get_controller()
+    {
+        return controllerNodeId_;
+    }
+
+    void set_controller(NodeID id)
+    {
+        controllerNodeId_ = id;
+    }
+
 private:
     unsigned isInitialized_ : 1;
 
     TrainService *service_;
     TrainImpl *train_;
+    /// Controller node that is assigned to run this train. 0 if none.
+    NodeID controllerNodeId_;
 };
 
 class TrainService : public Service, private Atomic

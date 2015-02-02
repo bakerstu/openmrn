@@ -103,6 +103,10 @@ extern "C" {
 
 extern unsigned g_bootloader_busy;
 
+void bootloader_led(enum BootloaderLed led, bool value)
+{
+}
+
 void bootloader_hw_set_to_safe()
 {
     g_mock_bootloader_hal->bootloader_hw_set_to_safe();
@@ -400,6 +404,7 @@ protected:
 
     void exit_bootloader()
     {
+        wait();
         EXPECT_CALL(mock_, bootloader_reboot());
         expect_packet(":X19A28428N0111;");
         send_packet(":X1A428111N20A9;");
@@ -499,6 +504,7 @@ TEST_F(BootloaderTest, CallsHardwareSetupAndNoEntry)
     EXPECT_FALSE(check_application_checksum());
     run_bootloader();
     exit_bootloader();
+    wait_for_bootloader_exit();
 }
 
 TEST_F(BootloaderTest, StartAppIfChecksumOk)
@@ -853,6 +859,8 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     EXPECT_EQ("", response_.error_details);
 
     EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+
+    wait_for_bootloader_exit();
 }
 
 TEST_F(BootloaderClientTest, WriteSomeData)
@@ -872,6 +880,7 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     EXPECT_EQ("", response_.error_details);
 
     EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+    wait_for_bootloader_exit();
 }
 
 TEST_F(BootloaderClientTest, WriteAtOffset)
@@ -891,6 +900,7 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     EXPECT_EQ("", response_.error_details);
 
     EXPECT_EQ(s, string((char*)&virtual_flash[3*1024], s.size()));
+    wait_for_bootloader_exit();
 }
 
 TEST_F(BootloaderClientTest, FailOnSpaceId)
@@ -931,6 +941,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     EXPECT_EQ("", response_.error_details);
 
     EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+    wait_for_bootloader_exit();
 }
 
 } // namespace

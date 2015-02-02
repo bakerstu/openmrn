@@ -63,7 +63,7 @@ Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-static const nmranet::NodeID NODE_ID = 0x05010101141FULL;
+static const nmranet::NodeID NODE_ID = 0x05010101181FULL;
 
 nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);

@@ -24,51 +24,59 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TractionDefs.cxx
+ * \file SimpleUpdateLoop.cxx
  *
- * Implementations for static functions related to traction protocol.
+ * Control flow central to the command station: it round-robins between
+ * refreshing the individual trains.
  *
  * @author Balazs Racz
- * @date 5 May 2014
+ * @date 1 Feb 2015
  */
 
-#include "nmranet/TractionDefs.hxx"
+#include "dcc/SimpleUpdateLoop.hxx"
+#include "dcc/Packet.hxx"
+#include "dcc/PacketSource.hxx"
 
-#include <string.h>
-#include "utils/macros.h"
+namespace dcc
+{
 
-namespace nmranet {
-
-SpeedType fp16_to_speed(const void *fp16) {
-    Velocity speed;
-    DASSERT(sizeof(speed) == 4);
-    float16_t input;
-    const uint8_t* in_p = static_cast<const uint8_t*>(fp16);
-    // We assemble the input assuming it is big-endian.
-    input = *in_p++;
-    input <<= 8;
-    input |= *in_p;
-    speed.set_wire(input);
-    return speed;
+SimpleUpdateLoop::SimpleUpdateLoop(Service *service,
+                                   PacketFlowInterface *track_send)
+    : StateFlow(service)
+    , trackSend_(track_send)
+    , nextRefreshIndex_(0)
+    , lastCycleStart_(os_get_time_monotonic())
+{
 }
 
-void speed_to_fp16(SpeedType speed, void *fp16) {
-    DASSERT(sizeof(speed) == 4);
-    float16_t output = speed.get_wire();
-    uint8_t* o = static_cast<uint8_t*>(fp16);
-    *o++ = output >> 8;
-    *o = output & 0xff;
+SimpleUpdateLoop::~SimpleUpdateLoop()
+{
 }
 
-const uint64_t TractionDefs::IS_TRAIN_EVENT;
-const uint64_t TractionDefs::IS_PROXY_EVENT;
-const uint64_t TractionDefs::EMERGENCY_STOP_EVENT;
-const uint64_t TractionDefs::CLEAR_EMERGENCY_STOP_EVENT;
+StateFlowBase::Action SimpleUpdateLoop::entry()
+{
+    if (nextRefreshIndex_ > refreshSources_.size())
+    {
+        nextRefreshIndex_ = 0;
+    }
+    if (nextRefreshIndex_ == 0 &&
+        (os_get_time_monotonic() - lastCycleStart_ < MSEC_TO_NSEC(30) ||
+         refreshSources_.empty()))
+    {
+        // We do not want to send another packet to the same locomotive too
+        // quick. We send an idle packet instead. OR: We do not have any
+        // locomotives at all. We will keep sending idle packets.
+        message()->data()->set_dcc_idle();
+    }
+    else
+    {
+        // Send an update to the current loco.
+        refreshSources_[nextRefreshIndex_]
+            ->get_next_packet(0, message()->data());
+    }
+    // We pass on the filled packet to the track processor.
+    trackSend_->send(transfer_message());
+    return exit();
+}
 
-const uint64_t TractionDefs::NODE_ID_DC_BLOCK;
-const uint64_t TractionDefs::NODE_ID_DCC;
-const uint64_t TractionDefs::NODE_ID_TMCC;
-const uint64_t TractionDefs::NODE_ID_MARKLIN_MOTOROLA;
-const uint64_t TractionDefs::NODE_ID_MTH_DCS;
-
-}  // namespace nmranet
+} // namespace dcc

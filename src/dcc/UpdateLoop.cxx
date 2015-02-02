@@ -26,60 +26,33 @@
  *
  * \file UpdateLoop.hxx
  *
- * Interface to the global update loop.
+ * Proxy implementation to the global update loop.
  *
  * @author Balazs Racz
  * @date 10 May 2014
  */
 
-#ifndef _DCC_UPDATELOOP_HXX_
-#define _DCC_UPDATELOOP_HXX_
-
+#include "dcc/UpdateLoop.hxx"
 #include "utils/Singleton.hxx"
 
-template <class T> class FlowInterface;
-template <class T> class Buffer;
-namespace dcc
-{
-class Packet;
+namespace dcc {
+
+void packet_processor_notify_update(PacketSource* source, unsigned code) {
+  Singleton<UpdateLoopBase>::instance()->notify_update(source, code);
 }
-typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
-
-namespace dcc
-{
-
-class PacketSource;
-
-/** Notifies the update processor that a modification happened to one of the
- * packet sources. Update processors will typically prioritize this packet
- * source in the packet generation loop.
- * @param source is the packet source that experienced a change
- * @param code is a source-specific value that will be sent to the source in
- * the get_next_packet callback. It should not be zero.*/
-void packet_processor_notify_update(PacketSource *source, unsigned code);
 
 /** Adds a new refresh source to the background refresh loop. */
-void packet_processor_add_refresh_source(PacketSource *source);
+void packet_processor_add_refresh_source(PacketSource* source) {
+  Singleton<UpdateLoopBase>::instance()->add_refresh_source(source);
+}
 
 /** Removes a refresh source from the background refresh loop. */
-void packet_processor_remove_refresh_source(PacketSource *source);
+void packet_processor_remove_refresh_source(PacketSource* source) {
+  Singleton<UpdateLoopBase>::instance()->remove_refresh_source(source);
+}
 
-/** Base class for implementing update loops.
- *
- * Usage: make your update loop implementation private-derived from this base
- * class. Create an instance of your class in the main binary.
- *
- * Note: you may only ever have one live instance of all descendants of this
- * object in a process. */
-class UpdateLoopBase : public Singleton<UpdateLoopBase>
-{
-public:
-    virtual ~UpdateLoopBase();
-    virtual void notify_update(PacketSource *source, unsigned code) = 0;
-    virtual void add_refresh_source(PacketSource *source) = 0;
-    virtual void remove_refresh_source(PacketSource *source) = 0;
-};
+DEFINE_SINGLETON_INSTANCE(UpdateLoopBase);
 
-} // namespace dcc
+UpdateLoopBase::~UpdateLoopBase() {}
 
-#endif //_DCC_UPDATELOOP_HXX_
+}

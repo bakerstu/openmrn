@@ -46,6 +46,7 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
     : isInitialized_(0)
     , service_(service)
     , train_(train)
+    , controllerNodeId_(0)
 {
     service_->register_train(this);
 }
@@ -154,6 +155,10 @@ struct TrainService::Impl
                         interface()->addressed_message_write_flow(),
                         STATE(handle_query));
                 }
+                case TractionDefs::REQ_CONTROLLER_CONFIG:
+                {
+                    return call_immediately(STATE(handle_controller_config));
+                }
                 default:
                 {
                     LOG(VERBOSE, "Rejecting unknown traction message.");
@@ -203,6 +208,20 @@ struct TrainService::Impl
                 }
             }
             DIE("unexpected call to handle_query.");
+        }
+
+        Action handle_controller_config()
+        {
+            uint8_t subcmd = payload()[1];
+            switch (subcmd)
+            {
+            case TractionDefs::CTRLREQ_ASSIGN_CONTROLLER:
+            {
+                
+                }
+            }
+            LOG(VERBOSE, "Rejecting unknown traction message.");
+            return reject_permanent();
         }
 
         /** Takes the allocation result of a response buffer (addressed write

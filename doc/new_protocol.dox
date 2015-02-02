@@ -1,0 +1,401 @@
+/** 
+
+@page adding_a_protocol Adding suport for a new OpenLCB protocol
+
+
+@section introduction Introduction
+
+This page will guide you through the work needed to add support for a new
+OpenLCB protocol. We will take the example of the PIP protocol (Protocol
+Identification Protocol).
+
+
+
+@section overview Overview
+
+In order to add support for a new protocol the following work needs to be done:
+-# add a new .hxx file for the header and a .cxx file for the
+implementation
+-# define a new class for handling the protocol
+-# register your intent with the interface layer that you want to receive a certain type of message
+-# when the message arrives, handle it according to your protocol specification
+-# if you need to send replies, you need to 
+  -# allocate buffers
+  -# fill them with the appropriate response type
+  -# send it back to the originating node
+
+@section message_handlers Message Handlers
+
+The implementation class needs to be implemented using the asynchronous
+programming paradigm used in the low-level OpenMRN stack. More information can
+be found at @ref state_flows. // boilerplate for there: This allows many different operations to be in progress at the same time at tht stack level while sharing
+
+
+@todo (balazs.racz) move this into a preparation section.
+Make your protocol
+implementation be part of the namespace nmranet:
+
+@code
+namespace nmranet {
+
+// ... your code here...
+
+}  // namespace nmranet 
+@endcode
+
+@subsection class_decl Class Declaration
+
+There is a base class for writing NMRAnet message handlers, called
+IncomingMessageStateFlow. This will get high-level NMRAnet messages and is
+independent from the underlying interface implementation. So you won't be
+seeing CANbus messages and your code will work without modification on say a
+TCP/IP-connected node. You also won't have to bother about message
+fragmentation etc.
+
+Start your class by inheriting from IncomingMessageStateFlow.
+
+@code
+
+#include "nmranet/If.hxx"
+
+class ProtocolIdentificationHandler : public IncomingMessageStateFlow {
+...
+};
+@endcode
+
+A good naming convention is to call the state flows that handle incoming
+messages as SomethingHandler.
+
+@subsection class_decl Construction and destruction
+
+In order to construct your class you need to construct the base stateflow. The
+incoming message handler will bind to a particular @ref nmranet::If interface,
+so you need to pass it into its constructor. You will typically get this
+pointer from your constructor arguments.
+
+Since this protocol is node-specific, you want to ask to be provided a @ref
+nmranet::Node* on your constructor arguments, and then use the interface of that
+node to pass on to the IncomingMessageStateFlow, like this:
+
+@code
+
+public:
+    ProtocolIdentificationHandler(Node* node)
+      : IncomingMessageStateFlow(node->interface())
+    {
+        ...
+    }
+
+    ~ProtocolIdentificationHandler()
+    {
+        ...
+    }
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(ProtocolIdentificationHandler);
+
+@endcode
+
+The destructor should probably be trivial in most cases, and you want to add
+the DISALLOW_COPY_AND_ASSIGN to remove the unwanted default-generated copy
+constructors and assinments. Handler classes shoulnot be copyable, andthis
+macro will ensure that if somebody tries to accidentally pass a handler object
+by value to a function, the compiler will issue an error.
+
+@section Registering handlers
+
+The interface uses a @ref DispatchFlow to send the incoming messages to the
+handler flows. Tell the interface's dispatcher that you are interested in
+messages of a given MTI. You need to include @ref nmranet/Defs.hxx for the MTI
+constants. If your message is a standard MTI that is not listed in Defs.hxx,
+add the constant there like the others.
+
+@code 
+
+#include "nmranet/Defs.hxx"
+
+...
+
+    ProtocolIdentificationHandler(Node* node)
+      : IncomingMessageStateFlow(node->interface())
+      , node_(node)
+    {
+        node_->interface()->dispatcher()->register_handler(
+            this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
+    }
+
+    ~ProtocolIdentificationHandler()
+    {
+        node_->interface()->dispatcher()->unregister_handler(
+            this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
+    }
+@endcode
+
+If you need to listen to multiple MTI values, you have two options:
+- use the value+mask feature to match multiple MTIs. For this, replace the
+  MTI_EXACT (0xffff) value in the registration call with some bits masked out.
+- add multiple register_handler calls.
+
+@section receiving Receiving messages
+
+Incoming messages get routed to your handler class automatically. The stack
+will call the state handler `entry()` on your class, which is a pure virtual
+member of the base class, so you must provide it.
+
+@code 
+
+...
+
+private:
+    Action entry() OVERRIDE
+    {
+        if (nmsg()->dstNode != node_)
+        {
+            // not for me
+            return release_and_exit();
+        }
+        // handle message
+    }
+
+@endcode
+
+In this particular example since we are talking about an addressed message, we
+start by comparing the destination node to the node we got instantiated
+upon. If it does not match, then we stop processing this message and exit the
+state flow. The current message can be accessed with the function `nmsg()` of
+the base class, which returns a @ref NMRAnetMessage* pointer.
+
+Do not forget, that when you get called on entry(), you have ownership of a
+message object. You need to deallocate this buffer on all code paths, either by
+calling the function @ref release(), the function @ref transfer_message(), or
+performing the action `return release_and_exit()`.
+
+Note that there is sufficient optimization in the stack that your handler will
+not be called if the MTI does not match what you registered, or when an
+addressed message is destined to a node that is not local to the current
+interface.
+
+@section responses Sending responses
+
+@subsection allocate Allocating response buffers
+
+In order to send a response message, you need to allocate a message
+buffer. This operation can block if there is shortage of memory, so you have to
+perform an asynchronous action. The action for requesting a new buffer is
+called @ref allocate_and_call().
+
+@code
+
+    Action entry() OVERRIDE
+    {
+        //...
+
+        return allocate_and_call(
+               node_->interface()->addressed_message_write_flow(),
+               STATE(fill_response_buffer));
+    }
+
+    Action fill_response_buffer()
+    {
+        auto* b = get_allocation_result(
+              node_->interface()->addressed_message_write_flow());
+        // fill response and send it off
+    }
+
+@endcode
+
+The first argument to `allocate_and_call()` specifies where you want to send
+the message to. The compiler will automatically figure out what type of message
+(and what size) needs to be allocated, and the framework will automatically use
+the buffer pool assigned to that particular destination. This allows developers
+to fine-tune how much memory buffers they want to allocate to veraious purposes
+and allows a operation without dynamic heap.
+
+The second argument to `allocate_and_call()` tells the system where to continue
+your state flow once the allocation is successful. This has to be a state
+handler function on your state flow.
+
+Once you get the callback in the next state handler function, you need to
+retrieve the allocated object and cast it to the appropriate type. The easiest
+way to do this is with the @ref get_allocation_result function, which will
+auto-detect the buffer type used by the destination flow you intend to send it
+to, and make the necessary cast. Make sure to give the same argument as to
+`allocate_and_call` or else you risk memory corruption.
+
+@subsection filling Filling the response message
+
+The return type from `get_allocation_result` in the above example is formally a
+Buffer<nmranet::NMRAnetMessage>, which has some general entries in the
+structure (such as reference count and done callback), and a function `data()`
+to access the NMRAnetMessage* inside. That's where the response message will go
+for us. But let's make the messge payload first.
+
+@code 
+
+    Action fill_response_buffer()
+    {
+        auto* b = ...
+
+        Payload p;
+        p.push_back((value_ >> 40) & 0xff);
+        p.push_back((value_ >> 32) & 0xff);
+        p.push_back((value_ >> 24) & 0xff);
+        p.push_back((value_ >> 16) & 0xff);
+        p.push_back((value_ >> 8) & 0xff);
+        p.push_back(value_ & 0xff);
+
+        // fill message and send off
+    }
+
+@endcode
+
+There are helper functions for converting certain types of data into Payload
+(see @ref If.hxx for example @ref eventid_to_buffer), but filling in byte by
+byte always works.
+
+Once we are ready with the payload, we can call a convenience function on the
+outgoing message to set all fields at once.
+
+@code
+
+    Action fill_response_buffer()
+    {
+        auto* b = ...
+
+        Payload p;
+        // ...
+        b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(),
+                         nmsg()->src, p);
+        // send off
+    }
+
+@endcode
+
+Here we specify the MTI for the message, the source node's node id that we need
+to send the message as, the destination node (which in our case is whoever the
+source of our incoming message was), and the payload.
+
+@subsection sending Sending off the response message
+
+Once we are ready with the response message in the buffer, we can enqueue the
+message for the interface to send it.
+
+@code 
+
+    Action fill_response_buffer()
+    {
+        auto* b = ...
+        b->data()->reset(...);
+
+        node_->interface()->addressed_message_write_flow()->send(b);
+        return release_and_exit();
+    }
+
+@endcode
+
+Also remember to release the incoming message when you're done with the state
+flow. The action release_and_exit() will instruct the framework to free the
+current buffer and check the incoming queue if there is a new message waiting
+for you. If there is another message for you, the state flow will be started
+again at the state `entry()`.
+
+With this we are finished with the implementation of our protocol handler.
+
+@section instantiation Instantiation
+
+The new protocol handler needs to be added to the running stack of protocol
+handlers. This happens typically at static intialization time in the main.cxx
+of the application. So let's add an instance of our class there. The location
+does not matter too much so long as it is below all the other instantiations
+that our constructor arguments need.
+
+@code
+nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
+nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
+
+// new protocol here
+nmranet::ProtocolIdentificationHandler g_pip_handler(
+    &g_node,
+    nmranet::Defs::PROTOCOL_IDENTIFICATION |
+    nmranet::Defs::DATAGRAM |
+    nmranet::Defs::EVENT_EXCHANGE |
+    nmranet::Defs::MEMORY_CONFIGURATION |
+    nmranet::Defs::CDI |
+    nmranet::Defs::SIMPLE_NODE_INFORMATION);
+@endcode
+
+@section testing Testing
+
+All components in the OpenMRN stack should be covered by unittests. Create a
+file called `ProtocolIdentification.cxxtest` (use the same base name for the
+cxxtest as the .hxx and .cxx file). Start by pulling in one of the known test
+helper classes:
+
+@code
+#include "utils/async_if_test_helper.hxx"
+@endcode
+
+Options include `async_datagram_test_helper.hxx` or
+`async_traction_test_helper.hxx`. In this case we are not based on the datagram
+protocol, so pick the default of the async_if_test_helper.hxx.
+
+@subsection fixture Adding the test fixture class
+
+We need to instantiate the new components of the stack as part of a test
+fixture class. There will be one new object of this class instantiated for
+every single test we write. We will start from @ref AsyncNodeTest, which takes
+care ofr instantiating the stack, the executor, the interface and the node
+object.
+
+@code
+
+class ProtocolIdentificationTest : public AsyncNodeTest
+{
+protected:
+    ProtocolIdentificationTest()
+      : handler_(node_, 0x665544332211)
+    {
+    }
+
+    ProtocolIdentificationHandler handler_;
+};
+
+@endcode
+
+@subsection testmethod Adding test methods
+
+We can add an arbitrary number of test methods using the stack in this fixture
+class. We can inject packets to the CANbus and expect response packets to be
+generated from our test node.
+
+@code
+
+TEST_F(ProtocolIdentificationTest, WillRespond)
+{
+    expect_packet(":X1966822AN09FF665544332211;");
+    send_packet(":X198289FFN022A;");
+    wait();
+}
+
+TEST_F(ProtocolIdentificationTest, AnotherTest)
+{
+    send_packet_and_expect_response(
+        ":X198289FFN022A;",
+        ":X1966822AN09FF665544332211;");
+}
+
+@endcode
+
+Here we use the fact that the test node has a known alias `0x22A`. The querying
+node does not exist on the bus, so we just make up an alias for it -- in this
+case 0x9FF. We will use this alias to send the request to the test node in
+gridconnect format. Then we expect the response packet to be sent back to the
+same alias, originating from the test node.
+
+@subsection running Running the tests
+
+In the openmrn directory execute `make -j tests`
+
+*/
+
