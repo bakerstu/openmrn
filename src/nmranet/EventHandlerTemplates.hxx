@@ -93,6 +93,54 @@ class SimpleEventHandler : public EventHandler {
   IGNOREFN(HandleIdentifyProducer);
 };
 
+/** Class that advertises an event ID to be produced. It does not do
+ *  anythingelse. This feature is used by certain protocols to find nodes
+ *  supporting a given feature, such as IsTrain and IsCommandStation in the
+ *  traction protocol.
+ *
+ *  usage:
+ *
+ *  static const uint64_t IS_TRAIN_EVENT_ID = 0x0101000000000303ULL;
+ *  FixedEventProducer<IS_TRAIN_EVENT_ID> train_event_producer(&train_node);
+ *
+ *  The eventID constant must be available at compile time.
+ * */
+template <uint64_t EVENT_ID>
+class FixedEventProducer : public SimpleEventHandler
+{
+public:
+    FixedEventProducer(Node *node) : node_(node)
+    {
+        EventRegistry::instance()->register_handlerr(this, EVENT_ID, 0);
+    }
+
+    ~FixedEventProducer()
+    {
+        EventRegistry::instance()->unregister_handlerr(this, EVENT_ID, 0);
+    }
+
+    void HandleIdentifyGlobal(EventReport *event, BarrierNotifiable *done)
+        OVERRIDE
+    {
+        if (event->dst_node && event->dst_node != node_)
+        {
+            return done->notify();
+        }
+        event_write_helper1.WriteAsync(
+            node_, nmranet::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+            WriteHelper::global(), nmranet::eventid_to_buffer(EVENT_ID), done);
+    }
+
+    void HandleIdentifyProducer(EventReport *event, BarrierNotifiable *done)
+        OVERRIDE
+    {
+        return HandleIdentifyGlobal(event, done);
+    }
+
+private:
+    Node *node_;
+};
+
 class BitEventInterface {
  public:
   BitEventInterface(uint64_t event_on, uint64_t event_off)

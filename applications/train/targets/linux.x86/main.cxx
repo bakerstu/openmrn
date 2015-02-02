@@ -71,41 +71,6 @@ using nmranet::EventReport;
 using nmranet::event_write_helper1;
 using nmranet::WriteHelper;
 
-template <uint64_t EVENT_ID>
-class FixedEventProducer : public SimpleEventHandler
-{
-public:
-    FixedEventProducer(Node *node) : node_(node)
-    {
-        EventRegistry::instance()->register_handlerr(this, EVENT_ID, 0);
-    }
-
-    ~FixedEventProducer()
-    {
-        EventRegistry::instance()->unregister_handlerr(this, EVENT_ID, 0);
-    }
-
-    void HandleIdentifyGlobal(EventReport *event, BarrierNotifiable *done)
-        OVERRIDE
-    {
-        if (event->dst_node && event->dst_node != node_)
-        {
-            return done->notify();
-        }
-        event_write_helper1.WriteAsync(
-            node_, nmranet::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
-            WriteHelper::global(), nmranet::eventid_to_buffer(EVENT_ID), done);
-    }
-
-    void HandleIdentifyProducer(EventReport *event, BarrierNotifiable *done)
-        OVERRIDE
-    {
-        return HandleIdentifyGlobal(event, done);
-    }
-
-private:
-    Node *node_;
-};
 
 int port = 12021;
 const char *host = "localhost";
@@ -177,7 +142,7 @@ int appl_main(int argc, char *argv[])
 
     nmranet::LoggingTrain train_impl(1732);
     nmranet::TrainNode train_node(&traction_service, &train_impl);
-    FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT> is_train_event_handler(&train_node);
+    nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT> is_train_event_handler(&train_node);
 
     g_if_can.add_addressed_message_support();
     // Bootstraps the alias allocation process.
