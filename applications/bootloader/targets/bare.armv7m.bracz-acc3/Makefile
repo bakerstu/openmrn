@@ -4,7 +4,9 @@ APP_PATH ?= $(realpath ../..)
 -include $(OPENMRNPATH)/etc/config.mk
 LINKCORELIBS = -lnmranet -lutils
 
+TARGET := bare.armv7m
 include hardware.mk
+
 SYSLIBRARIES=
 SYSLIB_SUBDIRS=
 OBJEXTRA=
