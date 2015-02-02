@@ -25,6 +25,7 @@ CXXSRCS += \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
            TractionTestTrain.cxx \
+           TractionProxy.cxx \
 
 
 DEAD_CXX +=  \
