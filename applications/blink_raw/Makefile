@@ -1,4 +1,3 @@
--include openmrnpath.mk
 SUBDIRS = targets
-
+-include config.mk
 include $(OPENMRNPATH)/etc/recurse.mk
