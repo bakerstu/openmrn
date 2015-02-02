@@ -67,6 +67,7 @@ inline SpeedType nan_to_speed() {
 
 struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
+    static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
     static const uint64_t EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
     static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010100000000FFFEULL;
 
@@ -123,6 +124,32 @@ struct TractionDefs {
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
 
+
+        PROXYREQ_ALLOCATE = 0x01,
+        PROXYREQ_ATTACH = 0x02,
+        PROXYREQ_DETACH = 0x03,
+        PROXYREQ_MANAGE = 0x80,
+
+        PROXYRESP_ALLOCATE = PROXYREQ_ALLOCATE,
+        PROXYRESP_ATTACH = PROXYREQ_ATTACH,
+        PROXYRESP_MANAGE = PROXYREQ_MANAGE,
+
+        // byte 1 of PROXYREQ_MANAGE commands
+        PROXYREQ_MANAGE_RESERVE = 0x01,
+        PROXYREQ_MANAGE_RELEASE = 0x02,
+
+        PROXYRESP_MANAGE_RESERVE_REPLY = 0x01,
+
+        // Legacy Technology IDs from the GenTractionProxyWN.
+        PROXYTYPE_DCC = 1,
+        PROXYTYPE_DC = 2,
+        PROXYTYPE_MARKLIN_DIGITAL = 3,
+        PROXYTYPE_MARKLIN_DELTA = 4,
+        PROXYTYPE_MARKLIN_MFX = 5,
+        PROXYTYPE_SELECTRIX = 6,
+        PROXYTYPE_MTH_DCS = 7,
+        PROXYTYPE_LIONEL_TMCC = 8,
+        
 
         /** This is the memory space number for accessing an NMRA DCC
          * locomotive's functions via the memory config protocol. */
