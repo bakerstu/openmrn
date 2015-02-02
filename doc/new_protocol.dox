@@ -1,0 +1,98 @@
+/** 
+
+@page adding_a_protocol Adding suport for a new OpenLCB protocol
+
+
+@section introduction Introduction
+
+This page will guide you through the work needed to add support for a new
+OpenLCB protocol. We will take the example of the PIP protocol (Protocol
+Identification Protocol).
+
+
+
+@section overview Overview
+
+In order to add support for a new protocol the following work needs to be done:
+-# add a new .hxx file for the header and a .cxx file for the
+implementation
+-# define a new class for handling the protocol
+-# register your intent with the interface layer that you want to receive a certain type of message
+-# when the message arrives, handle it according to your protocol specification
+-# if you need to send replies, you need to 
+  -# allocate buffers
+  -# fill them with the appropriate response type
+  -# send it back to the originating node
+
+@section message_handlers Message Handlers
+
+The implementation class needs to be implemented using the asynchronous
+programming paradigm used in the low-level OpenMRN stack. More information can
+be found at @ref state_flows. // boilerplate for there: This allows many different operations to be in progress at the same time at tht stack level while sharing
+
+
+@todo (balazs.racz) move this into a preparation section.
+Make your protocol
+implementation be part of the namespace nmranet:
+
+@code
+namespace nmranet {
+
+// ... your code here...
+
+}  // namespace nmranet 
+@endcode
+
+@subsection class_decl Class Declaration
+
+There is a base class for writing NMRAnet message handlers, called IncomingMessageStateFlow. Start your class by inheriting from it.
+
+@code
+class ProtocolIdentificationHandler : public IncomingMessageStateFlow {
+...
+};
+@endcode
+
+A good naming convention is to call the state flows that handle incoming
+messages as SomethingHandler.
+
+@subsection class_decl Construction and destruction
+
+In order to construct your class you need to construct the base stateflow. The
+incoming message handler will bind to a particular @ref nmranet::If interface,
+so you need to pass it into its constructor. You will typically get this
+pointer from your constructor arguments.
+
+Since this protocol is node-specific, you can ask to be provided a @ref
+nmranet::Node* on the constructor arguments, and then use the interface of that
+node to pass on to the IncomingMessageStateFlow, like this:
+
+@code
+
+public:
+    ProtocolIdentificationHandler(Node* node)
+      : IncomingMessageStateFlow(node->interface())
+    {
+        ...
+    }
+
+    ~ProtocolIdentificationHandler()
+    {
+    }
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(ProtocolIdentificationHandler);
+
+@endcode
+
+The destructor should probably be trivial in most cases, and you want to add
+the DISALLOW_COPY_AND_ASSIGN to remove the unwanted default-generated copy
+constructors and assinments. Handler classes shoulnot be copyable, andthis
+macro will ensure that if somebody tries to accidentally pass a handler object
+by value to a function, the compiler will issue an error.
+
+
+
+
+*/
+
