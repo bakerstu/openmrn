@@ -69,54 +69,6 @@ public:
     {
     }
 
-    /** Open method. Returns negative errno on failure. */
-    virtual int open(File *, const char *, int, int) = 0;
-
-    /** Close method. Returns negative errno on failure.
-     * @param file reference to close
-     * @return 0 upon success or negative error number upon error.
-     */
-    virtual int close(File *file) = 0;
-
-    /** Read method. Returns negative errno on failure. */
-    virtual ssize_t read(File *, void *, size_t) = 0;
-    /** Write method. Returns negative errno on failure. */
-    virtual ssize_t write(File *, const void *, size_t) = 0;
-
-    /** Seek method.
-     * @param file file reference for this device
-     * @param offset offset in bytes from whence directive
-     * @param whence SEEK_SET if to set the file offset to an abosolute position,
-     *               SEEK_CUR if to set the file offset from current position
-     * @return current offest or negative error number upon error.
-     */
-    virtual off_t lseek(File* file, off_t offset, int whence);
-
-    /** Request an ioctl transaction
-     * @param file file reference for this device
-     * @param key ioctl key
-     * @param data key data
-     * @param return 0 upon success or negative error number upon error.
-     */
-    virtual int ioctl(File *file, unsigned long int key, unsigned long data);
-
-    /** Manipulate a file descriptor.
-     * @param file file reference for this device
-     * @param cmd operation to perform
-     * @param data parameter to the cmd operation
-     * @return dependent on the operation (POSIX compliant where applicable)
-     *         or negative error number upon error.
-     */
-    virtual int fcntl(File *file, int cmd, unsigned long data);
-
-    /** Device select method. Default impementation returns true.
-     * @param file reference to the file
-     * @param mode FREAD for read active, FWRITE for write active, 0 for
-     *        exceptions
-     * @return true if active, false if inactive
-     */
-    virtual bool select(File* file, int mode);
-
     /** Open a file or device.
      * @param reent thread save reentrant structure
      * @param path file or device name
@@ -195,7 +147,55 @@ public:
     static int fcntl(int fd, int cmd, unsigned long data);
 
 protected:
-    /** Select wakeup information.
+    /** Open method. Returns negative errno on failure. */
+    virtual int open(File *, const char *, int, int) = 0;
+
+    /** Close method. Returns negative errno on failure.
+     * @param file reference to close
+     * @return 0 upon success or negative error number upon error.
+     */
+    virtual int close(File *file) = 0;
+
+    /** Read method. Returns negative errno on failure. */
+    virtual ssize_t read(File *, void *, size_t) = 0;
+    /** Write method. Returns negative errno on failure. */
+    virtual ssize_t write(File *, const void *, size_t) = 0;
+
+    /** Seek method.
+     * @param file file reference for this device
+     * @param offset offset in bytes from whence directive
+     * @param whence SEEK_SET if to set the file offset to an abosolute position,
+     *               SEEK_CUR if to set the file offset from current position
+     * @return current offest or negative error number upon error.
+     */
+    virtual off_t lseek(File* file, off_t offset, int whence);
+
+    /** Request an ioctl transaction
+     * @param file file reference for this device
+     * @param key ioctl key
+     * @param data key data
+     * @param return 0 upon success or negative error number upon error.
+     */
+    virtual int ioctl(File *file, unsigned long int key, unsigned long data);
+
+    /** Manipulate a file descriptor.
+     * @param file file reference for this device
+     * @param cmd operation to perform
+     * @param data parameter to the cmd operation
+     * @return dependent on the operation (POSIX compliant where applicable)
+     *         or negative error number upon error.
+     */
+    virtual int fcntl(File *file, int cmd, unsigned long data);
+
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    virtual bool select(File* file, int mode);
+
+   /** Select wakeup information.
      */
     struct SelectInfo
     {
