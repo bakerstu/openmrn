@@ -31,108 +31,14 @@
  * @date 27 December 2012
  */
 
-#include <sys/stat.h>
-#include <cstring>
-#include <cerrno>
-#include <cstdarg>
-#include <algorithm>
-#include <fcntl.h>
-#include "reent.h"
 #include "Devtab.hxx"
-#include "os/OS.hxx"
-#include "can_ioctl.h"
-#include "executor/Notifiable.hxx"
 
-Device *Device::first = NULL;
-OSMutex Device::mutex;
+#include <cstdarg>
+#include <fcntl.h>
+#include <reent.h>
+#include <sys/select.h>
 
-#ifdef TARGET_LPC11Cxx
-#define NUM_OPEN_FILES     4
-#else
-#define NUM_OPEN_FILES     8
-#endif
-
-
-/** Null device instance */
-class Null : public Device
-{
-public:
-    /** Constructor */
-    Null(const char* path) : Device(path)
-    {
-    }
-
-    /** Open method */
-    int open(File *, const char *, int, int) OVERRIDE;
-    /** Close method */
-    int close(File *) OVERRIDE;
-    /** Read method */
-    ssize_t read(File *, void *, size_t) OVERRIDE;
-    /** Write method */
-    ssize_t write(File *, const void *, size_t) OVERRIDE;
-};
-
-Null null("/dev/null");
-
-/** default stdin */
-const char *STDIN_DEVICE __attribute__ ((weak)) = "/dev/null";
-
-/** default stdout */
-const char *STDOUT_DEVICE __attribute__ ((weak)) = "/dev/null";
-
-/** default stderr */
-const char *STDERR_DEVICE __attribute__ ((weak)) = "/dev/null";
-
-/** File descriptor array. */
-static File files[NUM_OPEN_FILES];
-
-/** Allocate a free file descriptor.
- * @return file number on success, else -1 on failure
- */
-int fd_alloc(void)
-{
-    for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
-    {
-        if (files[i].inuse == 0)
-        {
-            files[i].inuse = 1;
-            files[i].priv = nullptr;
-            files[i].dev = nullptr;
-            files[i].offset = 0;
-            files[i].flags = 0;
-            return i;
-        }
-    }
-    return -1;
-}
-
-/** Free up a file descriptor.
- * @param fd number to free up
- */
-void fd_free(int fd)
-{
-    files[fd].inuse = 0;
-}
-
-/** Looks up an fd.
- *
- * @param fd is a file descriptor as supplied to the read-write-close-ioctl
- * commands.
- * @returns NULL and sets errno if fd is invalid, otherwise the file structure
- * pointer. */
-File* fd_find(int fd) {
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
-    {
-        errno = EBADF;
-        return nullptr;
-    }
-    if (files[fd].inuse == 0)
-    {
-        errno = EBADF;
-        return nullptr;
-    }
-    return &files[fd];
-}
+extern "C" {
 
 /** Open a file or device.
  * @param reent thread save reentrant structure
@@ -153,24 +59,7 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
  */
 int _close_r(struct _reent *reent, int fd)
 {
-    File* f = fd_find(fd);
-    if (!f) 
-    {
-        return -1;
-    }
-    if (fd >=0 && fd <= 2)
-    {
-        // stdin, stdout, and stderr never get closed
-        return 0;
-    }
-    int result = f->dev->close(f);
-    if (result < 0)
-    {
-        errno = -result;
-        return -1;
-    }
-    fd_free(fd);
-    return 0;
+    return Device::close(reent, fd);
 }
 
 /** Read from a file or device.
@@ -182,18 +71,7 @@ int _close_r(struct _reent *reent, int fd)
  */
 ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
 {
-    File* f = fd_find(fd);
-    if (!f) 
-    {
-        return -1;
-    }
-    ssize_t result = f->dev->read(f, buf, count);
-    if (result < 0)
-    {
-        errno = -result;
-        return -1;
-    }
-    return result;
+    return Device::read(reent, fd, buf, count);
 }
 
 /** Write to a file or device.
@@ -205,18 +83,7 @@ ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
  */
 ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
 {
-    File* f = fd_find(fd);
-    if (!f) 
-    {
-        return -1;
-    }
-    ssize_t result = f->dev->write(f, buf, count);
-    if (result < 0)
-    {
-        errno = -result;
-        return -1;
-    }
-    return result;
+    return Device::write(reent, fd, buf, count);
 }
 
 /** Get the status information of a file or device.
@@ -249,12 +116,7 @@ int _isatty_r(struct _reent *reent, int fd)
  */
 _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
 {
-    File* f = fd_find(fd);
-    if (!f)
-    {
-        return (_off_t) -1;
-    }
-    return f->dev->lseek(f, offset, whence);
+    return Device::lseek(reent, fd, offset, whence);
 }
 
 /** Request and ioctl transaction.
@@ -265,198 +127,47 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
  */
 int ioctl(int fd, unsigned long int key, ...)
 {
-    File* f = fd_find(fd);
-    if (!f) 
-    {
-        return -1;
-    }
-
     va_list ap;
     va_start(ap, key);
 
-    int result = f->dev->ioctl(f, key, va_arg(ap, unsigned long));
+    int result = Device::ioctl(fd, key, va_arg(ap, unsigned long));
     
     va_end(ap);
     return result;
 }
 
-Device::Device(const char *name)
-    : name(name)
+/** POSIX select().
+ * @param nfds highest numbered file descriptor in any of the three, sets plus 1
+ * @param readfds fd_set of file descritpors to pend on read active
+ * @param writefds fd_set of file descritpors to pend on write active
+ * @param exceptfds fd_set of file descritpors to pend on error active
+ * @param timeout timeout value to wait, if 0, return immediately, if NULL
+ *                wait forever
+ * @return on success, number of file descriptors in the three sets that are
+ *         active, 0 on timeout, -1 with errno set appropriately upon error.
+ */
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+           fd_set *exceptfds, struct timeval *timeout)
 {
-    mutex.lock();
-    next = first;
-    first = this;
-    mutex.unlock();
+    return Device::select(nfds, readfds, writefds, exceptfds, timeout);
 }
 
-/** Open a file or device.
- * @param reent thread save reentrant structure
- * @param path file or device name
- * @param flags open flags
- * @param mode open mode, ignored in this implementation
- * @return 0 upon success, -1 upon failure with errno containing the cause
+/** Manipulate a file descriptor.
+ * @param fd file descriptor
+ * @param cmd operation to perform
+ * @param ... parameter to the cmd operation
+ * @return dependent on the operation (POSIX compliant where applicable) or
+ *         -1 on error with errno set appropriately
  */
-int Device::open(struct _reent *reent, const char *path, int flags, int mode)
+int fcntl(int fd, int cmd, ...)
 {
-    mutex.lock();
-    int fd = fd_alloc();
-    mutex.unlock();
-    if (fd < 0)
-    {
-        errno = EMFILE;
-        return -1;
-    }
-    // Sets the dev to a safe default in case we don't find the file later.
-    files[fd].dev = &null;
-    files[fd].flags = flags;
-    for (Device *dev = first; dev != NULL; dev = dev->next)
-    {
-        if (!strcmp(dev->name, path))
-        {
-            files[fd].dev = dev;
-            int result = dev->open(&files[fd], path, flags, mode);
-            if (result < 0)
-            {
-                fd_free(fd);
-                errno = -result;
-                return -1;
-            }
-            return fd;
-        }
-    }
-    // No device found.
-    fd_free(fd);
-    errno = ENODEV;
-    return -1;
+    va_list ap;
+    va_start(ap, cmd);
+
+    int result = Device::fcntl(fd, cmd, va_arg(ap, unsigned long));
+
+    va_end(ap);
+    return result;
 }
 
-off_t Device::lseek(File* f, off_t offset, int whence)
-{
-    switch (whence)
-    {
-        case SEEK_SET:
-            f->offset = offset;
-            return offset;
-        case SEEK_CUR:
-            f->offset += offset;
-            return f->offset;
-    }
-    errno = EINVAL;
-    return (off_t)-1;
-}
-
-/** Open a device.
- * @param file new file reference to this device
- * @param path file or device name
- * @param flags open flags
- * @param mode open mode
- * @return 0 upon success, negative errno upon failure
- */
-int Null::open(File* file, const char *path, int flags, int mode)
-{    
-    return 0;
-}
-
-/** Close a device.
- * @param file file reference for this device
- * @param node node reference for this device
- * @return 0 upon success, negative errno upon failure
- */
-int Null::close(File *file)
-{    
-    return 0;
-}
-
-/** Read from a file or device.
- * @param file file reference for this device
- * @param buf location to place read data
- * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
- */
-ssize_t Null::read(File *file, void *buf, size_t count)
-{
-    // /dev/null returns EOF when trying to read from it.
-    return 0;
-}
-
-/** Write to a file or device.
- * @param file file reference for this device
- * @param buf location to find write data
- * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
- */
-ssize_t Null::write(File *file, const void *buf, size_t count)
-{    
-    return count;
-}
-
-int Device::ioctl(File *, unsigned long int, unsigned long) {
-    return -EINVAL;
-}
-
-/** Open method */
-int Node::open(File *, const char *, int, int) OVERRIDE {
-    OSMutexLock l(&lock_);
-    if (references_++ == 0) {
-        enable();
-    }
-    return 0;
-}
-
-/** Close method */
-int Node::close(File *) OVERRIDE {
-    OSMutexLock l(&lock_);
-    if (--references_ <= 0) {
-        disable();
-        references_ = 0;
-    }
-    return 0;
-}
-
-
-
-/** Request an ioctl transaction
- * @param file file reference for this device
- * @param node node reference for this device
- * @param key ioctl key
- * @param data key data
- */
-int NonBlockNode::ioctl(File *file, unsigned long int key, unsigned long data)
-{
-    /* sanity check to be sure we have a valid key for this device */
-    HASSERT(IOC_TYPE(key) == CAN_IOC_MAGIC);
-
-    // Will be called at the end if non-null.
-    Notifiable* n = nullptr;
-
-    if (IOC_SIZE(key) == NOTIFIABLE_TYPE) {
-        n = reinterpret_cast<Notifiable*>(data);
-    }
-
-    switch (key)
-    {
-        default:
-            return -EINVAL;
-        case CAN_IOC_READ_ACTIVE:
-            portENTER_CRITICAL();
-            if (!has_rx_buffer_data())
-            {
-                swap(n, readableNotify_);
-            }
-            portEXIT_CRITICAL();
-            break;
-        case CAN_IOC_WRITE_ACTIVE:
-            portENTER_CRITICAL();
-            if (!has_tx_buffer_space())
-            {
-                swap(n, writableNotify_);
-            }
-            portEXIT_CRITICAL();
-            break;
-    }
-    if (n)
-    {
-        n->notify();
-    }
-    return 0;
 }

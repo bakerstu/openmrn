@@ -38,9 +38,20 @@
 #include <sys/types.h>
 #include "os/OS.hxx"
 
-struct File;
-struct Node;
+class Device;
 class Notifiable;
+
+/** File information.
+ */
+struct File
+{
+    Device *dev; /**< file operations */
+    /** Data that the device driver wants to store about this fd. */
+    void *priv;
+    off_t offset; /**< current offset within file */
+    int flags;    /**< open flags */
+    bool inuse;   /**< true if this is an open fd. */
+};
 
 /** Device tab structure.
  */
@@ -53,20 +64,50 @@ public:
      */
     Device(const char *name);
 
+    /** Destructor */
+    virtual ~Device()
+    {
+    }
+
     /** Open method. Returns negative errno on failure. */
     virtual int open(File *, const char *, int, int) = 0;
-    /** Close method. Returns negative errno on failure. */
-    virtual int close(File *) = 0;
+
+    /** Close method. Returns negative errno on failure.
+     * @param file reference to close
+     * @return 0 upon success or negative error number upon error.
+     */
+    virtual int close(File *file) = 0;
+
     /** Read method. Returns negative errno on failure. */
     virtual ssize_t read(File *, void *, size_t) = 0;
     /** Write method. Returns negative errno on failure. */
     virtual ssize_t write(File *, const void *, size_t) = 0;
-    /** Seek method. Errors shall be written into errno and returns -1 on
-     * error. The default implementation updates the offset in the File
-     * structure. */
-    virtual off_t lseek(File*, off_t offset, int whence);
-    /** Ioctl method. Default implementation returns error. */
-    virtual int ioctl(File *, unsigned long int, unsigned long);
+
+    /** Seek method.
+     * @param file file reference for this device
+     * @param offset offset in bytes from whence directive
+     * @param whence SEEK_SET if to set the file offset to an abosolute position,
+     *               SEEK_CUR if to set the file offset from current position
+     * @return current offest or negative error number upon error.
+     */
+    virtual off_t lseek(File* file, off_t offset, int whence);
+
+    /** Request an ioctl transaction
+     * @param file file reference for this device
+     * @param key ioctl key
+     * @param data key data
+     * @param return 0 upon success or negative error number upon error.
+     */
+    virtual int ioctl(File *file, unsigned long int key, unsigned long data);
+
+    /** Manipulate a file descriptor.
+     * @param file file reference for this device
+     * @param cmd operation to perform
+     * @param data parameter to the cmd operation
+     * @return dependent on the operation (POSIX compliant where applicable)
+     *         or negative error number upon error.
+     */
+    virtual int fcntl(File *file, int cmd, unsigned long data);
 
     /** Device select method. Default impementation returns true.
      * @param file reference to the file
@@ -85,6 +126,73 @@ public:
      */
     static int open(struct _reent *reent, const char *path, int flags,
                     int mode);
+
+    /** Close a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to close
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int close(struct _reent *reent, int fd);
+
+    /** Read from a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to read
+     * @param buf location to place read data
+     * @param count number of bytes to read
+     * @return number of bytes read upon success, -1 upon failure with errno
+     *         containing the cause
+     */
+    static ssize_t read(struct _reent *reent, int fd, void *buf, size_t count);
+
+    /** Write to a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to write
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno
+               containing the cause
+     */
+    static ssize_t write(struct _reent *reent, int fd, const void *buf, size_t count);
+
+    /** Change the offset index of a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to seek
+     * @param offset offset within file
+     * @param whence type of seek to complete
+     * @return resulting offset from beginning of file, -1 upon failure with
+               errno containing the cause
+     */
+    static _off_t lseek(struct _reent *reent, int fd, _off_t offset, int whence);
+
+    /** Request and ioctl transaction.
+     * @param fd file descriptor
+     * @param key ioctl key
+     * @param data key data
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int ioctl(int fd, unsigned long int key, unsigned long data);
+
+    /** POSIX select().
+     * @param nfds highest numbered file descriptor in any of the three, sets plus 1
+     * @param readfds fd_set of file descritpors to pend on read active
+     * @param writefds fd_set of file descritpors to pend on write active
+     * @param exceptfds fd_set of file descritpors to pend on error active
+     * @param timeout timeout value to wait, if 0, return immediately, if NULL
+     *                wait forever
+     * @return on success, number of file descriptors in the three sets that are
+     *         active, 0 on timeout, -1 with errno set appropriately upon error.
+     */
+    static int select(int nfds, fd_set *readfds, fd_set *writefds,
+                      fd_set *exceptfds, struct timeval *timeout);
+
+    /** Manipulate a file descriptor.
+     * @param fd file descriptor
+     * @param cmd operation to perform
+     * @param data parameter to the cmd operation
+     * @return dependent on the operation (POSIX compliant where applicable) or
+     *         -1 on error with errno set appropriately
+     */
+    static int fcntl(int fd, int cmd, unsigned long data);
 
 protected:
     /** Select wakeup information.
@@ -118,14 +226,42 @@ protected:
      */
     static void select_wakeup_from_isr(SelectInfo *info, int *woken);
 
+    /** Allocate a free file descriptor.  This call must be made with the
+     * static Device::mutex locked.
+     * @return file number on success, else -1 on failure
+     */
+    static int fd_alloc(void);
+
+    /** Free up a file descriptor.
+     * @param fd number to free up
+     */
+    static void fd_free(int fd);
+
+    /** Looks up a reference to a File corresponding to a given file descriptor.
+     * @param fd is a file descriptor as supplied to the read-write-close-ioctl
+     *        commands.
+     * @returns NULL and sets errno if fd is invalid, otherwise the File
+     *          reference.
+     */
+    static File* file_lookup(int fd);
+
+    /** Looks up a file descriptor corresponding to a given File reference.
+     * @param file is a reference to a File structure.
+     * @returns file descriptor (assert on error).
+     */
+    static int fd_lookup(File *file);
+
+    /** File descriptor pool */
+    static File files[];
+
+    /** mutual exclusion for fileio */
+    static OSMutex mutex;
+
 private:
     const char *name; /**< device name */
 
     /** first device in linked list */
     static Device *first;
-
-    /** mutual exclusion for fileio */
-    static OSMutex mutex;
 
     /** next device in linked list */
     Device *next;
@@ -147,7 +283,7 @@ protected:
     }
 
     /** Destructor */
-    ~Node()
+    virtual ~Node()
     {
     }
 
@@ -170,9 +306,9 @@ protected:
 protected:
     OSMutex lock_;
 
-private:
     unsigned int references_; /**< number of open references */
 
+private:
     DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
@@ -206,18 +342,6 @@ protected:
     Notifiable* readableNotify_;
     /** This will be notified if the device has buffer avilable for write. */
     Notifiable* writableNotify_;
-};
-
-/** File information.
- */
-struct File
-{
-    Device *dev; /**< file operations */
-    /** Data that the device driver wants to store about this fd. */
-    void *priv;
-    off_t offset; /**< current offset within file */
-    int flags;    /**< open flags */
-    char inuse;   /**< non-zero if this is an open fd. */
 };
 
 #endif /* _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_ */

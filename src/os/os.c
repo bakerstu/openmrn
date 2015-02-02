@@ -579,7 +579,24 @@ static void os_thread_start(void *arg)
     vTaskSetApplicationTaskTag(NULL, arg);
     _impure_ptr = priv->reent;
     (*priv->entry)(priv->arg);
+
+    TaskList *current = &taskList;
+    TaskList *last = &taskList;
+    vTaskSuspendAll();
+    while (current->task != xTaskGetCurrentTaskHandle())
+    {
+        last = current;
+        current = current->next;
+        HASSERT(current);
+    }
+
+    last->next = current->next;
+    free(current);
+    xTaskResumeAll();
+
+    free(priv->reent);
     free(priv);
+    vTaskDelete(NULL);
 }
 #endif
 

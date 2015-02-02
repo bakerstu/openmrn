@@ -93,6 +93,15 @@ public:
         return handle != 0;
     }
 
+    /** Return the current thread priority.
+     * @param thread handle to thread of interest
+     * @return current thread priority
+     */
+    static int getpriority(OSThread *thread)
+    {
+        return os_thread_getpriority(thread->handle);
+    }
+
 protected:
     /** User entry point for the created thread.
      * @return exit status

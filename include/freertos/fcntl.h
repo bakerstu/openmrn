@@ -24,38 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file select.h
- * This file imlements POSIX select() prototypes.
+ * \file fcntl.h
+ * This file extends the fcntl.h devines
  *
  * @author Stuart W. Baker
- * @date 26 January 2015
+ * @date 1 February 2015
  */
 
-#ifndef _SYS_SELECT_H_
-#define _SYS_SELECT_H_
+#ifndef _EXTENDED_FCNTL_H_
+#define _EXTENDED_FCNTL_H_
 
-/* We can actually pull the FD Set macros from here */
-#include <sys/types.h>
+#include <sys/fcntl.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** POSIX select().
- * @param nfds highest numbered file descriptor in any of the three, sets plus 1
- * @param readfds fd_set of file descritpors to pend on read active
- * @param writefds fd_set of file descritpors to pend on write active
- * @param exceptfds fd_set of file descritpors to pend on error active
- * @param timeout timeout value to wait, if 0, return immediately, if NULL
- *                wait forever
- * @return on success, number of file descriptors in the three sets that are
-           active, 0 on timeout, -1 with errno set appropriately upon error.
- */
-int select(int nfds, fd_set *readfds, fd_set *writefds,
-           fd_set *exceptfds, struct timeval *timeout);
+#define F_FREERTOS_SPECIFIC_BASE 1000
+
+#define F_SETPIPE_SZ (F_FREERTOS_SPECIFIC_BASE + 0)
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _SYS_SELECT_H_ */
+#endif /* _EXTENDED_FCNTL_H_ */

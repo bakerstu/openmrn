@@ -118,7 +118,7 @@ ssize_t EEPROM::read(File *file, void *buf, size_t count)
  */
 ssize_t EEPROM::write(File *file, const void *buf, size_t count)
 {
-    if ((file->flags & O_ACCMODE) == O_WRONLY)
+    if ((file->flags & O_ACCMODE) == O_RDONLY)
     {
         return -EBADF;
     }

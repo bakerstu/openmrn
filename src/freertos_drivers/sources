@@ -4,11 +4,15 @@ VPATH := $(SRCDIR): \
 CSRCS +=
 
 CXXSRCS += Fileio.cxx \
+           Device.cxx \
+           Node.cxx \
+           Null.cxx \
            Select.cxx \
            Can.cxx \
            Serial.cxx \
            I2C.cxx \
-           EEPROM.cxx
+           EEPROM.cxx \
+           Pipe.cxx
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
 SUBDIRS += drivers_pic32mx795 plib_pic32mx795
