@@ -1,0 +1,133 @@
+/**
+ * @page freertos_drivers FreeRTOS Drivers
+ * @section tableofcontents Table of Contents
+ * - @ref introduction
+ * - @ref device
+ * - @ref node
+ * - @ref file
+ * - @ref callgraph
+ *   - @ref opencallgraph
+ *   - @ref writecallgraph
+ * 
+ *
+ *
+ * @section introduction Introduction
+ * OpenMRN is designed to be easily portable between many different operating
+ * systems including FreeRTOS, Linux, MacOS, and Windows (MinGW).  The common
+ * theme with all of these OS ports, with the exception of FreeRTOS, is that
+ * they implement (partially or fully) a Unix like POSIX environment.
+ *
+ * A critical piece of the POSIX environment is the Unix %File I/O sub-system.
+ * FreeRTOS lacks this %File I/O sub-system natively, so it has been recreated
+ * in a simplified, but largely API compatible, form.  OpenMRN uses Newlib as
+ * the standard C library for the FreeRTOS/GCC build.  Newlib provides file
+ * I/O stubs which are also tied in with it's standard file I/O (stdio).
+ *
+ * These stubs include @ref _open_r(), @ref _close_r(), @ref _read_r(),
+ * @ref _write_r(),
+ * @ref _fstat_r(), @ref _isatty_r(), and @ref _lseek_r().  The FreeRTOS driver
+ * abstraction provides implementations for these stubs as well as
+ * the @ref ioctl(), @ref select(), and @ref fcntl() POSIX methods which Newlib
+ * does not directly provide.
+ *
+ *
+ *
+ *
+ * @section device Device
+ * The @ref Device object is the base object class that every device driver is
+ * ultimately descendant of.  @ref Device contains static methods that
+ * correspond to the sub methods provided Newlib such as:
+ * @ref Device::open(struct _reent *, const char *, int, int),
+ * @ref Device::close(struct _reent *, int), etc...
+ *
+ * @ref Device also contains default virtual methods (pure virtual when
+ * required to be implemented by the device driver or the @ref Node child
+ * object) that correspond with several of the stubs provided by Newlib.
+ * @ref Device::open(File *, const char *, int, int),
+ * @ref Device::close(File *), etc...
+ * For some of the virtual methods,
+ * @ref Device provides a default implementation that many device drivers can
+ * use by default, or override only when some custom logic is required.
+ *
+ * 
+ *
+ *
+ * @section node Node
+ * The @ref Node object class is a child of @ref Device.  @ref Node becomes
+ * the parent object for the device driver, or more typically, a generic
+ * device "class" driver (such as @ref Serial or @ref Can) which can be
+ * specialized further by a child of its own (such as @ref TivaUart or
+ * @ref TivaCan) to provide methods specific to a given target hardware.
+ *
+ *
+ *
+ *
+ * @section file File
+ * The @ref File object represents, as a 1-to-1 mapping, an application level
+ * POSIX file descriptor.  The @ref File object contains metadata that is
+ * unique the an open instance of a device and from another open instance of
+ * the same device. The @ref Device class contains the static methods @ref
+ * Device::file_lookup(int) and Device::fd_lookup(File*) for 
+ * converting between an @ref File reference and an integer file descriptor.
+ *
+ * The static Device::fd_alloc() and Device::fd_free(int) methods can be used
+ * to allocate a file descriptor from and free a file descriptor back to the
+ * file descriptor pool.  While Device::fd_alloc() must always be called while
+ * the caller holds the Device::mutex, fd_free(int) may be called without the
+ * caller holding the mutex.  In general, the Device::fd_alloc() and
+ * Device::fd_free(int) methods are only used within the provided Device::open()
+ * and Device::close() methods.  The occasional use of the Device::fd_alloc()
+ * and Device::fd_free(int) methods outside of
+ * the @ref Device class is the exception representing very special cases, and
+ * not the rule.
+ *
+ *
+ *
+ *
+ * @section callgraph Call Graph Examples
+ * For these examples, we will use the @ref TivaUart device driver as case
+ * study.
+ *
+ *     @subsection opencallgraph open(char *, int, ...) Call Graph
+ *     @dot
+ *     digraph filesystemopen
+ *     {
+ *       a [shape=box
+            label="open()\n[return file descriptor]"];
+ *       b [shape=box
+            label="_open_r()[return file descriptor]"
+            URL="@ref _open_r"];
+ *       c [shape=box
+            label="Device::open(struct _reent *, const char *, int, int)\n[allocate/return file descriptor]"
+            URL="@ref Device::open(struct _reent *, const char *, int, int)"];
+ *       d [shape=box
+            label="Node::open()\n[increment reference count]"
+            URL="@ref Node::open"];
+ *       a -> b -> c -> d;
+ *     }
+ *     @enddot
+ *
+ *
+ *     @subsection writecallgraph write(int, const void *, size_t) Call Graph
+ *     @dot
+ *     digraph filesystemwrite
+ *     {
+ *       a [shape=box
+ *          label="write()\n[return number of bytes written]"];
+ *       b [shape=box
+ *          label="_write_r()\n[return number of bytes written]"
+ *          URL="@ref _write_r"];
+ *       c [shape=box
+ *          label="Device::write(struct _reent *, int, const void *, size_t)\n[translate file descriptor into File object, return number of bytes written]"
+ *          URL="@ref Device::write(struct _reent *, int, const void *, size_t)"];
+ *       d [shape=box
+ *          label="Serial::write()\n[push write data to queue, return number of bytes written]"
+ *          URL="@ref Serial::write"];
+ *       e [shape=box
+ *          label="TivaUart::tx_char()\n[kick the hardware into transmission]"
+            URL="@ref TivaUart::tx_char"];
+ *       a -> b -> c -> d -> e;
+ *     }
+ *     @enddot
+ *
+ */
