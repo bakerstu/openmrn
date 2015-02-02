@@ -233,7 +233,7 @@ void __attribute__((__weak__)) uart2_interrupt_handler(void)
 
 /** UART3 interrupt handler.
  */
-void uart3_interrupt_handler(void)
+void __attribute__((__weak__)) uart3_interrupt_handler(void)
 {
     if (instances[3])
     {
@@ -242,7 +242,7 @@ void uart3_interrupt_handler(void)
 }
 /** UART4 interrupt handler.
  */
-void uart4_interrupt_handler(void)
+void __attribute__((__weak__)) uart4_interrupt_handler(void)
 {
     if (instances[4])
     {
@@ -252,7 +252,7 @@ void uart4_interrupt_handler(void)
 
 /** UART5 interrupt handler.
  */
-void uart5_interrupt_handler(void)
+void __attribute__((__weak__)) uart5_interrupt_handler(void)
 {
     if (instances[5])
     {
@@ -262,7 +262,7 @@ void uart5_interrupt_handler(void)
 
 /** UART6 interrupt handler.
  */
-void uart6_interrupt_handler(void)
+void __attribute__((__weak__)) uart6_interrupt_handler(void)
 {
     if (instances[6])
     {
@@ -272,7 +272,7 @@ void uart6_interrupt_handler(void)
 
 /** UART7 interrupt handler.
  */
-void uart7_interrupt_handler(void)
+void __attribute__((__weak__)) uart7_interrupt_handler(void)
 {
     if (instances[7])
     {

@@ -58,6 +58,7 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 #include "TivaGPIO.hxx"
+#include "RailcomDriver.hxx"
 
 // This structure is safe to use from an interrupt context and a regular
 // context at the same time, provided that
@@ -185,7 +186,7 @@ public:
     /** Constructor.
      * @param name name of this device instance in the file system
      */
-    TivaDCC(const char *name);
+  TivaDCC(const char *name, RailcomDriver *railcom);
 
     /** Destructor.
      */
@@ -337,9 +338,8 @@ private:
                      uint32_t transition_usec);
 
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
-    FixedQueue<dcc::Feedback, HW::Q_SIZE> feedbackQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
-    Notifiable* readableNotifiable_; /**< Notify this when we have data in our buffers. */
+    RailcomDriver* railcomDriver_; /**< Will be notified for railcom cutout events. */
 
     /** Default constructor.
      */
@@ -393,7 +393,6 @@ inline void TivaDCC<HW>::interrupt_handler()
     static int count = 0;
     static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
-    static dcc::Feedback *feedback = nullptr;
     static bool resync = true;
     static bool saved_output_enabled = true; // for railcom cutout
     BitEnum current_bit;
@@ -421,6 +420,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             {
                 state = START;
                 preamble_count = 0;
+            } else {
+                railcomDriver_->preamble_bit();
             }
             break;
         case START:
@@ -453,7 +454,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_MAYBE_RAILCOM:
-            if (HW::railcom_cutout() && output_enabled && feedback != nullptr) {
+            if (HW::railcom_cutout() && output_enabled) {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
                 // We change the time of the next IRQ.
@@ -494,38 +495,24 @@ inline void TivaDCC<HW>::interrupt_handler()
             // Waits for transient after the trigger to pass.
             MAP_SysCtlDelay( lDeadbandDelay_ * 2 );
             // Enables UART RX.
-            HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) |= UART_CTL_RXE;
+            railcomDriver_->start_cutout();
             break;
         case DCC_MIDDLE_RAILCOM_CUTOUT:
-            while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
-            {
-                long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
-                if (data < 0) continue;
-                feedback->add_ch1_data(data);
-            }
+            railcomDriver_->middle_cutout();
             current_bit = DCC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_POST].period);
             state =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
-            HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
             current_bit = DCC_ONE;
             state = DCC_ENABLE_AFTER_RAILCOM;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[DCC_ONE].period);
+            railcomDriver_->end_cutout();
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
-            while (MAP_UARTCharsAvail(HW::RAILCOM_UART_BASE))
-            {
-                long data = MAP_UARTCharGetNonBlocking(HW::RAILCOM_UART_BASE);
-                if (data < 0) continue;
-                feedback->add_ch2_data(data);
-            }
-            feedback = nullptr;
-            feedbackQueue_.increment_back();
-            MAP_IntPendSet(HW::OS_INTERRUPT);
             break;
         case DCC_ENABLE_AFTER_RAILCOM:
             if (saved_output_enabled) {
@@ -645,11 +632,10 @@ inline void TivaDCC<HW>::interrupt_handler()
             resync = true;
         } else {
         }
-        if (!packetQueue_.empty() && !feedbackQueue_.full())
+        if (!packetQueue_.empty())
         {
             packet = &packetQueue_.front();
-            feedback = &feedbackQueue_.back();
-            feedback->reset(packet->feedback_key);
+            railcomDriver_->set_feedback_key(packet->feedback_key);
         }
         else
         {
@@ -710,12 +696,12 @@ template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
 template<class HW>
-TivaDCC<HW>::TivaDCC(const char *name)
+TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     : Node(name)
     , hDeadbandDelay_(nsec_to_clocks(HW::H_DEADBAND_DELAY_NSEC))
     , lDeadbandDelay_(nsec_to_clocks(HW::L_DEADBAND_DELAY_NSEC))
     , writableNotifiable_(nullptr)
-    , readableNotifiable_(nullptr)
+    , railcomDriver_(railcom_driver)
 {
     fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
@@ -799,21 +785,7 @@ TivaDCC<HW>::TivaDCC(const char *name)
 template<class HW>
 ssize_t TivaDCC<HW>::read(File *file, void *buf, size_t count)
 {
-    if (count != sizeof(dcc::Feedback))
-    {
-        return -EINVAL;
-    }
-    // We only need this critical section to prevent concurrent threads from
-    // reading at the same time.
-    portENTER_CRITICAL();
-    if (feedbackQueue_.empty()) {
-        portEXIT_CRITICAL();
-        return -EAGAIN;
-    }
-    memcpy(buf, &feedbackQueue_.front(), count);
-    feedbackQueue_.increment_front();
-    portEXIT_CRITICAL();
-    return count;
+    return -EINVAL;
 }
 
 /** Write to a file or device.
@@ -831,7 +803,7 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
         return -EINVAL;
     }
 
-    portENTER_CRITICAL();
+    OSMutexLock l(&lock_);
     // TODO(balazs.racz) this interrupt disable is not actually needed. Writing
     // to the back of the queue should be okay while the interrupt reads from
     // the front of it.
@@ -840,7 +812,6 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
     if (packetQueue_.full())
     {
         MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
-        portEXIT_CRITICAL();
         return -ENOSPC;
     }
 
@@ -868,7 +839,6 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
     }
 
     MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
-    portEXIT_CRITICAL();
     return count;
 }
 
@@ -908,33 +878,6 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
         }
         return 0;
     }
-    if (IOC_TYPE(key) == CAN_IOC_MAGIC &&
-        IOC_SIZE(key) == NOTIFIABLE_TYPE &&
-        key == CAN_IOC_READ_ACTIVE) {
-        Notifiable* n = reinterpret_cast<Notifiable*>(data);
-        HASSERT(n);
-        // If there is no data for reading, we put the incoming notification
-        // into the holder. Otherwise we notify it immediately.
-        if (feedbackQueue_.empty())
-        {
-            portENTER_CRITICAL();
-            if (feedbackQueue_.empty())
-            {
-                // We are in a critical section now. If we got into this
-                // branch, then the buffer was full at the beginning of the
-                // critical section. If the hardware interrupt kicks in now,
-                // and sets the os_interrupt to pending, the os interrupt will
-                // not happen until we leave the critical section, and thus the
-                // swap will be in effect by then.
-                swap(n, readableNotifiable_);
-            }
-            portEXIT_CRITICAL();
-        }
-        if (n) {
-            n->notify();
-        }
-        return 0;
-    }
     errno = EINVAL;
     return -1;
 }
@@ -946,11 +889,6 @@ inline void TivaDCC<HW>::os_interrupt_handler()
     if (!packetQueue_.full()) {
         Notifiable* n = writableNotifiable_;
         writableNotifiable_ = nullptr;
-        if (n) n->notify_from_isr();
-    }
-    if (!feedbackQueue_.empty()) {
-        Notifiable* n = readableNotifiable_;
-        readableNotifiable_ = nullptr;
         if (n) n->notify_from_isr();
     }
 }

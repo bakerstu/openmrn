@@ -97,7 +97,8 @@ protected:
     {
         //HASSERT(IsEpPending());
         // and wake up the RX thread.
-        os_sem_post_from_isr(&rxSem);
+        int woken;
+        os_sem_post_from_isr(&rxSem, &woken);
         return false;
     }
 

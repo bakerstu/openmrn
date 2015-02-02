@@ -44,8 +44,8 @@ FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
 LIBDIRS := $(SUBDIRS)
 LIBS = $(STARTGROUP) \
        $(foreach lib,$(LIBDIRS),-l$(lib)) \
+       $(LINKCORELIBS) \
        $(ENDGROUP) \
-       $(LINKCORELIBS)
 
 INCLUDES += -I.
 

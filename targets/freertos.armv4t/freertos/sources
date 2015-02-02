@@ -6,7 +6,8 @@ CSRCS += list.c \
          queue.c \
          timers.c \
          port.c \
-         heap_3.c
+         heap_3.c \
+         event_groups.c
 
 ARM_CSRCS += croutine.c \
          tasks.c \

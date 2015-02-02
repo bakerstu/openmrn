@@ -781,11 +781,18 @@ void bootloader_entry()
             {
                 state_.input_frame_full = 1;
             }
-            g_bootloader_busy =
+            unsigned new_busy =
                 (state_.input_frame_full || state_.output_frame_full ||
                  state_.init_state != INITIALIZED ||
-                 (state_.datagram_output_pending /*&&
-                                                   !state_.datagram_reply_waiting*/));
+                 (state_.datagram_output_pending
+                  /*&& !state_.datagram_reply_waiting*/))
+                    ? 1
+                    : 0;
+            if (g_bootloader_busy != new_busy)
+            {
+                bootloader_led(LED_ACTIVE, new_busy);
+                g_bootloader_busy = new_busy;
+            }
         }
         if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
         {

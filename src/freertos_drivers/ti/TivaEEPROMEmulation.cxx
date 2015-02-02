@@ -61,10 +61,11 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
     , available(0)
 {
     /* make sure we have an appropriate sized region of memory for our device */
-    HASSERT((FLASH_SIZE % FAMILY) == 0);
-    HASSERT(FLASH_SIZE >= (2 * FAMILY));
-    HASSERT(FLASH_SIZE >= (4 * ADDRESS_SPACE));
-    HASSERT(ADDRESS_SPACE <= (1024 * 64));
+    HASSERT((FLASH_SIZE % FAMILY) == 0);  // must be whole blocks
+    HASSERT(FLASH_SIZE >= (2 * FAMILY));  // at least two of them
+    HASSERT(ADDRESS_SPACE <= (FAMILY >> 1));  // single block fit all the data
+    HASSERT(FLASH_SIZE >= (4 * ADDRESS_SPACE)); // fit two copies of the whole data, at 50% efficienct
+    HASSERT(ADDRESS_SPACE <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
 
     for (int i = 0; i < block_count(); ++i)
     {
@@ -106,7 +107,11 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
         shadow = new uint16_t[ADDRESS_SPACE/sizeof(uint16_t)];
 
         memset(shadow, 0xFF, ADDRESS_SPACE);
-
+        /// @TODO(stuart_w_baker) this is buggy, should be 'FAMILY /' instead
+        /// of 'FAMILY %'. There are other instances of this bug later on.
+        ///
+        /// @TODO(sturt_w_baker) there is a readability issue here, FAMILY is
+        /// actually something like page_size. It should be called like that.
         for (uint32_t *address = active() + (FAMILY % sizeof(uint32_t));
              address > active();
              --address)
@@ -114,6 +119,7 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
             uint16_t eeprom_index = *address >> 16;
             if (shadow[eeprom_index] != 0xFFFF)
             {
+              /// @TODO(stuart_w_baker): bounds check here on eeprom_index
                 shadow[eeprom_index] = (*address & 0xFFFF);
             }
         }
@@ -141,9 +147,11 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
  */
 void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
 {
-    HASSERT((index + len) < ADDRESS_SPACE);
+    HASSERT((index + len) <= ADDRESS_SPACE);
 
     uint8_t* byte_data = (uint8_t*)buf;
+
+    /// @TODO(stuart_w_baker) if shadow_in_ram then copy the whole buffer to the shadow.
 
     while (len)
     {
@@ -153,8 +161,8 @@ void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
             uint16_t data;
             read_word(index >> 1, &data);
             data &= 0x00FF;
-            data += (uint16_t)(*byte_data) << 8;
-            write_word(index >> 1, &data);
+            data |= (uint16_t)(*byte_data) << 8;
+            write_word(index >> 1, data);
             ++index;
             --len;
             ++byte_data;
@@ -165,8 +173,8 @@ void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
             uint16_t data;
             read_word(index >> 1, &data);
             data &= 0xFF00;
-            data += *byte_data;
-            write_word(index >> 1, &data);
+            data |= *byte_data;
+            write_word(index >> 1, data);
             ++index;
             --len;
             ++byte_data;
@@ -174,7 +182,8 @@ void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         else
         {
             /* aligned data */
-            write_word(index >> 1, (uint16_t*)byte_data);
+            write_word(index >> 1,
+                       byte_data[0] | (((uint16_t)byte_data[1]) << 8));
             index += 2;
             len -= 2;
             byte_data += 2;
@@ -186,12 +195,12 @@ void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
  * @ref index word within EEPROM address space to write
  * @ref data data to write
  */
-void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t *data)
+void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t data)
 {
     if (available)
     {
         /* still have room in this block for at least one more write */
-        uint32_t slot_data = (index << 16) + *data;
+        uint32_t slot_data = (index << 16) | data;
         uint32_t *address = active() + slot_count() + 1 - available;
         flash_program(&slot_data, address, sizeof(slot_data));
         --available;
@@ -218,7 +227,7 @@ void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t *data)
             if (i == index)
             {
                 /* this is our new data */
-                slot_data = *data;
+                slot_data = data;
             }
             else
             {
@@ -254,11 +263,11 @@ void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t *data)
  */
 void TivaEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
 {
-    HASSERT((index + len) < ADDRESS_SPACE);
+    HASSERT((index + len) <= ADDRESS_SPACE);
 
     if (SHADOW_IN_RAM)
     {
-        memcpy(buf, ((uint8_t*)shadow) + index, len);
+        memcpy(buf, ((const uint8_t*)shadow) + index, len);
     }
     else
     {
@@ -289,7 +298,10 @@ void TivaEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
             else
             {
                 /* aligned data */
-                read_word(index >> 1, (uint16_t*)byte_data);
+                uint16_t word_data;
+                read_word(index >> 1, &word_data);
+                byte_data[0] = word_data & 0xff;
+                byte_data[1] = word_data >> 8;
                 index += 2;
                 len -= 2;
                 byte_data += 2;

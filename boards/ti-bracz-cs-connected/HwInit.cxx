@@ -53,6 +53,16 @@
 #include "hardware.hxx"
 #include "DccHardware.hxx"
 
+struct Debug {
+  // High between start_cutout and end_cutout from the TivaRailcom driver.
+  typedef DummyPin RailcomDriverCutout;
+  // Flips every time an uart byte is received error.
+  typedef DummyPin RailcomError;
+  // Flips every time an 'E0' byte is received in the railcom driver.
+  typedef DummyPin RailcomE0;
+};
+#include "TivaRailcom.hxx"
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -74,7 +84,8 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
 
-TivaDCC<DccHwDefs> dcc_hw("/dev/mainline");
+TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
+TivaDCC<DccHwDefs> dcc_hw("/dev/mainline", &railcom_driver);
 
 extern "C" {
 /** Timer interrupt for DCC packet handling.
@@ -87,6 +98,11 @@ void timer0a_interrupt_handler(void)
 void timer1a_interrupt_handler(void)
 {
   dcc_hw.os_interrupt_handler();
+}
+
+void uart6_interrupt_handler(void)
+{
+  railcom_driver.os_interrupt_handler();
 }
 
 void hw_set_to_safe(void)

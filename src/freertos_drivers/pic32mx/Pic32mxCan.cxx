@@ -415,7 +415,8 @@ void Pic32mxCan::isr()
          * */
         CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                               FALSE);
-        rxSem_.post_from_isr();
+        int woken;
+        rxSem_.post_from_isr(&woken);
     }
     if ((CANGetModuleEvent(hw_) & CAN_TX_EVENT) != 0)
     //    if(CANGetPendingEventCode(hw_) == CAN_CHANNEL0_EVENT)
@@ -423,7 +424,8 @@ void Pic32mxCan::isr()
         /* Same with the TX event. */
         CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                               FALSE);
-        txSem_.post_from_isr();
+        int woken;
+        txSem_.post_from_isr(&woken);
     }
 }
 

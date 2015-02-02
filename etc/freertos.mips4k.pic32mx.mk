@@ -33,7 +33,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 ARCHOPTIMIZATION = -O3 -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 
-BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__FreeRTOS__
+BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__XC -D__FreeRTOS__
 
 # @TODO(balazs.racz) consider moving this to the drivers compile makefile. It
 # is important to search this dir after the system include directories, because
