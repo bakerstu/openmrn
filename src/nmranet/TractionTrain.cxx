@@ -109,6 +109,9 @@ struct TrainService::Impl
                 LOG(VERBOSE, "Traction message for node %p that is not "
                              "traction enabled.",
                     train_node());
+                /** @TODO(balazs.racz): This is probably not the good solution
+                 * here; since this is an addressed message we should rather
+                 * send a reject response. */
                 return release_and_exit();
             }
             // No command byte?
