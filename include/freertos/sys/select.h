@@ -37,6 +37,10 @@
 /* We can actually pull the FD Set macros from here */
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** POSIX select().
  * @param nfds highest numbered file descriptor in any of the three, sets plus 1
  * @param readfds fd_set of file descritpors to pend on read active
@@ -49,5 +53,9 @@
  */
 int select(int nfds, fd_set *readfds, fd_set *writefds,
            fd_set *exceptfds, struct timeval *timeout);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SYS_SELECT_H_ */

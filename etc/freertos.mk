@@ -1,5 +1,7 @@
 include $(OPENMRNPATH)/etc/path.mk
 
 SYSLIB_SUBDIRS += freertos freertos_drivers
-SYSLIBRARIES += -lfreertos -lfreertos_drivers $(OPENMRNPATH)/targets/$(TARGET)/freertos/event_groups.o
+SYSLIBRARIES += -lfreertos_drivers -lfreertos 
+LDFLAGSEXTRA += -Wl,--undefined=_open_r
+
 DEPS += FREERTOSPATH

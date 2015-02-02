@@ -12,7 +12,7 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 # Find TivaWare
 include $(OPENMRNPATH)/etc/tivaware.mk
 
-export TARGET := freertos.armv7m
+export TARGET ?= freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
 
 LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \

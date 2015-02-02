@@ -218,7 +218,7 @@ public:
 
 private:
     void enable() OVERRIDE {} /**< function to enable device */
-    void disable() OVERRIDE {}; /**< function to disable device */
+    void disable() OVERRIDE {} /**< function to disable device */
 
     /** Method to transmit/receive the data.
      * @param msg message to transact.

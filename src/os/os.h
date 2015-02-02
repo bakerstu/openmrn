@@ -281,6 +281,34 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
  */
 void os_thread_cancel(os_thread_t thread);
 
+/** Return a handle to the calling thread.
+ * @return a handle to the calling thread
+ */
+OS_INLINE os_thread_t os_thread_self(void)
+{
+#if defined (__FreeRTOS__)
+    return xTaskGetCurrentTaskHandle();
+#else
+    return pthread_self();
+#endif
+}
+
+/** Return the current thread priority.
+ * @param thread handle to thread of interest
+ * @return current thread priority
+ */
+OS_INLINE int os_thread_getpriority(os_thread_t thread)
+{
+#if defined (__FreeRTOS__)
+    return uxTaskPriorityGet(thread);
+#else
+    struct sched_param params;
+    int policy;
+    pthread_getschedparam(thread, &policy, &params);
+    return params.sched_priority;
+#endif
+}
+
 #if defined (__FreeRTOS__)
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {NULL, 0}

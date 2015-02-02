@@ -36,8 +36,6 @@
 
 #include "Devtab.hxx"
 
-extern File *fd_find(int);
-
 /** event used to wakeup select calls */
 static OSEvent wakeup;
 
@@ -47,8 +45,8 @@ static OSEvent wakeup;
 static OSEventType get_event()
 {
     static int thread_count = 0;
-    portENTER_CRITICAL();
     ThreadPriv *priv = (ThreadPriv*)xTaskGetApplicationTaskTag(NULL);
+
     if (priv->selectEventBit == 0)
     {
         if(thread_count >= OSEvent::number_of_bits())
@@ -58,7 +56,6 @@ static OSEventType get_event()
         priv->selectEventBit = 0x1 << thread_count;
         ++thread_count;
     }
-    portEXIT_CRITICAL();
 
     return priv->selectEventBit;
 }
@@ -71,10 +68,10 @@ static OSEventType get_event()
  * @param timeout timeout value to wait, if 0, return immediately, if NULL
  *                wait forever
  * @return on success, number of file descriptors in the three sets that are
-           active, 0 on timeout, -1 with errno set appropriately upon error.
+ *         active, 0 on timeout, -1 with errno set appropriately upon error.
  */
-int select(int nfds, fd_set *readfds, fd_set *writefds,
-           fd_set *exceptfds, struct timeval *timeout)
+int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
+                   fd_set *exceptfds, struct timeval *timeout)
 {
     long long until = 0;
     if (timeout)
@@ -96,7 +93,9 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
     FD_ZERO(&wr_result);
     FD_ZERO(&ex_result);
 
+    portENTER_CRITICAL();
     OSEventType event = get_event();
+    portEXIT_CRITICAL();
     wakeup.clear(event);
 
     for ( ; /* forever */ ; )
@@ -111,10 +110,10 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
                 {
                     if (FD_ISSET(i, in_set[mode]))
                     {
-                        File *file = fd_find(i);
+                        File *file = file_lookup(i);
                         if (!file)
                         {
-                            errno = EBADF;
+                            /* errno should already be set appropriately */
                             return -1;
                         }
                         if (file->dev->select(file, mode_type[mode]))
@@ -130,6 +129,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
 
         if (number)
         {
+            /* We have a read */
             if (readfds)
             {
                 *readfds = rd_result;
@@ -156,6 +156,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
         }
         else
         {
+            /* block forever until fd active */
             wakeup.wait(event, NULL, true, OSEvent::WAIT_ANY);
         }
     }

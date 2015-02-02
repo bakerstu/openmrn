@@ -63,7 +63,7 @@ public:
     }
 
     /** Insert a number of items to the buffer.
-     * @param data reference to the first item to insert
+     * @param buf reference to the first item to insert
      * @param items total number of items to insert
      * @return total number of items inserted
      */
@@ -87,9 +87,9 @@ public:
     }
     
     /** remove a number of items from the buffer.
-     * @param data reference to the first item to insert
-     * @param items total number of items to insert
-     * @return total number of items inserted
+     * @param buf reference to the data removed
+     * @param items total number of items to remove
+     * @return total number of items removed
      */
     size_t get(T *buf, size_t items)
     {
