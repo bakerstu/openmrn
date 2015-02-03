@@ -105,6 +105,18 @@ void wait_for_main_executor()
     guard.wait_for_notification();
 }
 
+/** Fixes race condition between test teardown and executor startup.
+ *
+ * Basically ensures that the main executor has started before trying to tear
+ * it down. */
+class ExecutorStartupFix {
+public:
+  ~ExecutorStartupFix() {
+    wait_for_main_executor();
+  }
+} unused_executor_startup_guard_instance;
+
+
 /* Utility class to block an executor for a while.
  *
  * Usage: add an instance of BlockExecutor to the executor you want to block,
