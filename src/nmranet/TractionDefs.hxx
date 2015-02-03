@@ -86,9 +86,9 @@ struct TractionDefs {
         REQ_QUERY_SPEED = 0x10,
         REQ_QUERY_FN = 0x11,
 
-        REQ_CONTROLLER_CONFIG = 0x12,
-        REQ_CONSIST_CONFIG = 0x13,
-        REQ_TRACTION_MGMT = 0x14,
+        REQ_CONTROLLER_CONFIG = 0x20,
+        REQ_CONSIST_CONFIG = 0x30,
+        REQ_TRACTION_MGMT = 0x40,
 
         // Byte 1 of REQ_CONTROLLER_CONFIG command
         CTRLREQ_ASSIGN_CONTROLLER = 0x01,
