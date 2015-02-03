@@ -50,7 +50,7 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo,
 
 Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo, TrainService* traction_service)
 {
-    TrainImpl *impl;
+    TrainImpl *impl = nullptr;
     if (system == TractionDefs::PROXYTYPE_MARKLIN_DIGITAL)
     {
         impl = new dcc::MMNewTrain(dcc::MMAddress(addr_lo));
@@ -68,6 +68,7 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo, Trai
                 (static_cast<uint16_t>(addr_hi) << 8) | addr_lo));
         }
     }
+    if (!impl) return nullptr;
     TrainNode *train_node = new TrainNode(traction_service, impl);
     return train_node;
 }
