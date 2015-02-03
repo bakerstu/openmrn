@@ -51,23 +51,6 @@
 
 #include "utils/constants.hxx"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/** Manufacture of the product. */
-extern const char *nmranet_manufacturer;
-
-/** Hardware revision of the product. */
-extern const char *nmranet_hardware_rev;
-
-/** Software revision of the product. */
-extern const char *nmranet_software_rev;
-
-#ifdef __cplusplus
-}
-#endif
-
 /** Defines the default bit-rate for CAN devices. */
 DECLARE_CONST(nmranet_can_bitrate);
 /** Defines the default bit-rate for the second CAN device (aka /dev/can1). */
