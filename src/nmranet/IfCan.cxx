@@ -359,6 +359,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new AliasConflictHandler(this));
     add_owned_flow(new FrameToGlobalMessageParser(this));
     add_owned_flow(new VerifyNodeIdHandler(this));
+    add_addressed_message_support();
     /*pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
     {
@@ -389,6 +390,7 @@ void IfCan::set_alias_allocator(AliasAllocator *a)
 
 void IfCan::add_addressed_message_support()
 {
+    if (addressedWriteFlow_) return;
     add_owned_flow(new FrameToAddressedMessageParser(this));
     auto* f = new AddressedCanMessageWriteFlow(this);
     addressedWriteFlow_ = f;
