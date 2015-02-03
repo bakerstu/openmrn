@@ -76,6 +76,7 @@ struct TrainService::Impl
     public:
         TractionRequestFlow(TrainService *service)
             : IncomingMessageStateFlow(service->interface())
+            , reserved_(0)
             , trainService_(service)
         {
             interface()->dispatcher()->register_handler(
@@ -162,6 +163,10 @@ struct TrainService::Impl
                 {
                     return call_immediately(STATE(handle_controller_config));
                 }
+                case TractionDefs::REQ_TRACTION_MGMT:
+                {
+                    return call_immediately(STATE(handle_traction_mgmt));
+                }
                 default:
                 {
                     LOG(VERBOSE, "Rejecting unknown traction message.");
@@ -218,13 +223,55 @@ struct TrainService::Impl
             uint8_t subcmd = payload()[1];
             switch (subcmd)
             {
-            case TractionDefs::CTRLREQ_ASSIGN_CONTROLLER:
-            {
-                
+                case TractionDefs::CTRLREQ_ASSIGN_CONTROLLER:
+                {
+                    
                 }
             }
             LOG(VERBOSE, "Rejecting unknown traction message.");
             return reject_permanent();
+        }
+
+        Action handle_traction_mgmt()
+        {
+            uint8_t cmd = payload()[1];
+            switch (cmd)
+            {
+                case TractionDefs::MGMTREQ_RESERVE:
+                {
+                    uint8_t code = 0xff;
+                    if (reserved_)
+                    {
+                        code = 0x1;
+                    }
+                    else
+                    {
+                        code = 0;
+                        reserved_ = 1;
+                    }
+                    Payload p;
+                    p.push_back(TractionDefs::RESP_TRACTION_MGMT);
+                    p.push_back(TractionDefs::MGMTRESP_RESERVE);
+                    p.push_back(code);
+                    /// @TODO (balazs.racz): make this asynchronous.
+                    auto *b =
+                        interface()->addressed_message_write_flow()->alloc();
+                    b->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
+                                     nmsg()->dstNode->node_id(), nmsg()->src,
+                                     p);
+                    interface()->addressed_message_write_flow()->send(b);
+                    return release_and_exit();
+                }
+                case TractionDefs::MGMTREQ_RELEASE:
+                {
+                    reserved_ = 0;
+                    return release_and_exit();
+                }
+                default:
+                    LOG(VERBOSE, "Unknown Traction proxy manage subcommand %x",
+                        cmd);
+                    return reject_permanent();
+            }
         }
 
         /** Takes the allocation result of a response buffer (addressed write
@@ -282,6 +329,7 @@ struct TrainService::Impl
         }
 
     private:
+        unsigned reserved_ : 1;
         TrainService *trainService_;
     };
 
