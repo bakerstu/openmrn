@@ -42,6 +42,8 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/ProtocolIdentification.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionTrain.hxx"
@@ -60,6 +62,7 @@ nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 // This nodeid is only used for seeding the alias allocation flow.
 static const nmranet::NodeID NODE_ID = 0x0501010100F5ULL;
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
+nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
 
 nmranet::EventService g_event_service(&g_if_can);
 nmranet::TrainService traction_service(&g_if_can);
@@ -71,11 +74,20 @@ using nmranet::EventReport;
 using nmranet::event_write_helper1;
 using nmranet::WriteHelper;
 
-
 int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;
 int address = 1726;
+
+namespace nmranet
+{
+const uint8_t SNIP_MODEL[] = "Logical train node";
+const uint8_t SNIP_HW_VERSION[] = "No hardware here";
+const uint8_t SNIP_SW_VERSION[] = "0.91";
+
+const uint8_t SNIP_USER_NODE_NAME[] = "User name";
+const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "User description";
+}
 
 void usage(const char *e)
 {
@@ -142,7 +154,13 @@ int appl_main(int argc, char *argv[])
 
     nmranet::LoggingTrain train_impl(1732);
     nmranet::TrainNode train_node(&traction_service, &train_impl);
-    nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT> is_train_event_handler(&train_node);
+    nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
+    is_train_event_handler(&train_node);
+    nmranet::ProtocolIdentificationHandler pip(
+        &train_node,
+        nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
+        nmranet::Defs::TRACTION_CONTROL);
+    nmranet::SNIPHandler snip(&g_if_can, &gInfoFlow);
 
     g_if_can.add_addressed_message_support();
     // Bootstraps the alias allocation process.

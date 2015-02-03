@@ -40,13 +40,15 @@
 #include <memory>
 
 #include "nmranet/AliasAllocator.hxx"
-#include "nmranet/EventService.hxx"
+#include "nmranet/DefaultNode.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
+#include "nmranet/EventService.hxx"
 #include "nmranet/IfCan.hxx"
+#include "nmranet/ProtocolIdentification.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/TractionProxy.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionTrain.hxx"
-#include "nmranet/TractionProxy.hxx"
-#include "nmranet/DefaultNode.hxx"
 #include "os/os.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Hub.hxx"
@@ -62,6 +64,13 @@ nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static const nmranet::NodeID NODE_ID = 0x050101011807ULL;
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
+nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
+nmranet::SNIPHandler snip(&g_if_can, &gInfoFlow);
+
+nmranet::ProtocolIdentificationHandler
+pip(&g_node, nmranet::Defs::EVENT_EXCHANGE |
+                 nmranet::Defs::SIMPLE_NODE_INFORMATION |
+                 nmranet::Defs::TRACTION_PROXY);
 
 nmranet::EventService g_event_service(&g_if_can);
 nmranet::TrainService traction_service(&g_if_can);
@@ -73,6 +82,16 @@ using nmranet::EventRegistry;
 using nmranet::EventReport;
 using nmranet::event_write_helper1;
 using nmranet::WriteHelper;
+
+namespace nmranet
+{
+const uint8_t SNIP_MODEL[] = "Virtual command station";
+const uint8_t SNIP_HW_VERSION[] = "No hardware here";
+const uint8_t SNIP_SW_VERSION[] = "0.92";
+
+const uint8_t SNIP_USER_NODE_NAME[] = "User name";
+const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "User description";
+}
 
 int port = 12021;
 const char *host = "localhost";
@@ -135,6 +154,7 @@ struct TrainNodeImpl
     std::unique_ptr<nmranet::TrainImpl> impl;
     std::unique_ptr<nmranet::TrainNode> node;
     std::unique_ptr<EventHandler> is_train_event;
+    std::unique_ptr<nmranet::IncomingMessageStateFlow> pip_handler;
 };
 
 map<uint16_t, TrainNodeImpl> trains;
@@ -153,6 +173,9 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo,
         n.node.reset(new nmranet::TrainNode(traction_service, n.impl.get()));
         n.is_train_event.reset(new nmranet::FixedEventProducer<
             nmranet::TractionDefs::IS_TRAIN_EVENT>(n.node.get()));
+        n.pip_handler.reset(new nmranet::ProtocolIdentificationHandler(
+            n.node.get(),
+            nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::TRACTION_CONTROL));
     }
     return n.node.get();
 }
