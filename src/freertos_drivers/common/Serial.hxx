@@ -124,7 +124,7 @@ private:
 
 class USBSerialNode : public Node
 {
-public:
+protected:
     USBSerialNode(const char *name)
         : Node(name)
         , txQEnd_(0)
@@ -137,12 +137,12 @@ public:
     {
     }
 
+    /* Node API */
     ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
     void flush_buffers() OVERRIDE;
 
-protected:
     /** Tells the driver that the tx of the previous packet has finished. The
      * driver may call back tx_from_isr inline if there is more data to send. */
     void tx_finished_from_isr();
