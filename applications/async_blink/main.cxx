@@ -51,6 +51,7 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/ProtocolIdentification.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
 #endif
@@ -84,6 +85,7 @@ nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static nmranet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 nmranet::EventService g_event_service(&g_if_can);
+nmranet::ProtocolIdentificationHandler g_pip(&g_node, nmranet::Defs::EVENT_EXCHANGE);
 
 //static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 static const uint64_t EVENT_ID = 0x0502010202000000ULL;
