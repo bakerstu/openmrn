@@ -93,16 +93,16 @@
  *     digraph filesystemopen
  *     {
  *       a [shape=box
-            label="open()\n[return file descriptor]"];
+ *          label="open()\n[return file descriptor]"];
  *       b [shape=box
-            label="_open_r()[return file descriptor]"
-            URL="@ref _open_r"];
+ *          label="_open_r()[return file descriptor]"
+ *          URL="@ref _open_r"];
  *       c [shape=box
-            label="Device::open(struct _reent *, const char *, int, int)\n[allocate/return file descriptor]"
-            URL="@ref Device::open(struct _reent *, const char *, int, int)"];
+ *          label="Device::open(struct _reent *, const char *, int, int)\n[allocate/return file descriptor]"
+ *          URL="@ref Device::open(struct _reent *, const char *, int, int)"];
  *       d [shape=box
-            label="Node::open()\n[increment reference count]"
-            URL="@ref Node::open"];
+ *          label="Node::open()\n[increment reference count]"
+ *          URL="@ref Node::open"];
  *       a -> b -> c -> d;
  *     }
  *     @enddot
@@ -125,7 +125,7 @@
  *          URL="@ref Serial::write"];
  *       e [shape=box
  *          label="TivaUart::tx_char()\n[kick the hardware into transmission]"
-            URL="@ref TivaUart::tx_char"];
+ *          URL="@ref TivaUart::tx_char"];
  *       a -> b -> c -> d -> e;
  *     }
  *     @enddot
