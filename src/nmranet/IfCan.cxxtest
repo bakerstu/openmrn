@@ -424,6 +424,49 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfMultiFrameOK)
     wait();
 }
 
+TEST_F(AsyncNodeTest, PassAddressedMessageToIfMultiFrameConcurrentReassembly)
+{
+    print_all_packets();
+    StrictMock<MockMessageHandler> h;
+    ifCan_->dispatcher()->register_handler(&h, 0x5E8, 0xffff);
+
+    send_packet(":X195E8210N122A313233343536;");
+    send_packet(":X195E8211N122A616263646566;");
+    send_packet(":X195E8210N322A373839303132;");
+    send_packet(":X195E8211N322A6768696a6162;");
+    wait();
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&NMRAnetMessage::mti, (Defs::MTI)0x5E8),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x210)),
+                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&NMRAnetMessage::dstNode, node_),
+                Field(&NMRAnetMessage::payload,
+                      IsBufferValueString("123456789012345678")))),
+            _));
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&NMRAnetMessage::mti, (Defs::MTI)0x5E8),
+                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x211)),
+                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&NMRAnetMessage::dstNode, node_),
+                Field(&NMRAnetMessage::payload,
+                      IsBufferValueString("abcdefghijabcdef")))),
+            _));
+
+    send_packet(":X195E8210N222A333435363738;");
+    send_packet(":X195E8211N222A63646566;");
+    wait();
+}
+
 TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
 {
     static const NodeAlias alias = 0x210U;
