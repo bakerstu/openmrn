@@ -55,12 +55,15 @@ SimpleUpdateLoop::~SimpleUpdateLoop()
 
 StateFlowBase::Action SimpleUpdateLoop::entry()
 {
-    if (nextRefreshIndex_ > refreshSources_.size())
+    long long current_time = os_get_time_monotonic();
+    long long prev_cycle_start = lastCycleStart_;
+    if (nextRefreshIndex_ >= refreshSources_.size())
     {
         nextRefreshIndex_ = 0;
+        lastCycleStart_ = current_time;
     }
     if (nextRefreshIndex_ == 0 &&
-        (os_get_time_monotonic() - lastCycleStart_ < MSEC_TO_NSEC(30) ||
+        (current_time - prev_cycle_start < MSEC_TO_NSEC(5) ||
          refreshSources_.empty()))
     {
         // We do not want to send another packet to the same locomotive too
@@ -73,6 +76,7 @@ StateFlowBase::Action SimpleUpdateLoop::entry()
         // Send an update to the current loco.
         refreshSources_[nextRefreshIndex_]
             ->get_next_packet(0, message()->data());
+        nextRefreshIndex_++;
     }
     // We pass on the filled packet to the track processor.
     trackSend_->send(transfer_message());
