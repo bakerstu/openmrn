@@ -300,11 +300,10 @@ public:
             buffer_key <<= 12;
             buffer_key |= CanDefs::get_mti(id_);
 
-            Payload* mapped_buffer = nullptr;
+            Payload* mapped_buffer = &pendingBuffers_[buffer_key];
             if ((f->data[0] & CanDefs::NOT_FIRST_FRAME) == 0)
             {
-                // First frame. Add a new entry to the pending buffers.
-                mapped_buffer = &pendingBuffers_[buffer_key];
+                // First frame. Make sure the pending buffer is empty.
                 if (!mapped_buffer->empty())
                 {
                     LOG(WARNING, "Received multi-frame message when a previous "
@@ -355,7 +354,7 @@ public:
         NMRAnetMessage* m = b->data();
         m->mti =
             static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
-        m->payload = buf_;
+        m->payload.swap(buf_);
         m->dst = dstHandle_;
         // This might be NULL if dst is a proxied node in a router.
         m->dstNode = if_can()->lookup_local_node(dstHandle_.id);
