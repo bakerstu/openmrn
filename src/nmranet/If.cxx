@@ -44,12 +44,24 @@ string node_id_to_buffer(NodeID id)
     return string(src + 2, 6);
 }
 
+void node_id_to_data(NodeID id, void* buf)
+{
+    id = htobe64(id);
+    const char *src = reinterpret_cast<const char *>(&id);
+    memcpy(buf, src + 2, 6);
+}
+
+NodeID data_to_node_id(const void* buf)
+{
+    uint64_t d = 0;
+    memcpy(reinterpret_cast<uint8_t *>(&d) + 2, buf, 6);
+    return be64toh(d);
+}
+
 NodeID buffer_to_node_id(const string &buf)
 {
     HASSERT(buf.size() == 6);
-    uint64_t d = 0;
-    memcpy(reinterpret_cast<uint8_t *>(&d) + 2, buf.data(), 6);
-    return be64toh(d);
+    return data_to_node_id(buf.data());
 }
 
 Payload eventid_to_buffer(uint64_t eventid)
