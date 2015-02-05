@@ -46,7 +46,7 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
     : isInitialized_(0)
     , service_(service)
     , train_(train)
-    , controllerNodeId_(0)
+    , controllerNodeId_({0,0})
 {
     service_->register_train(this);
 }
@@ -78,6 +78,7 @@ struct TrainService::Impl
             : IncomingMessageStateFlow(service->interface())
             , reserved_(0)
             , trainService_(service)
+            , response_(nullptr)
         {
             interface()->dispatcher()->register_handler(
                 this, Defs::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
@@ -93,6 +94,28 @@ struct TrainService::Impl
         TrainNode *train_node()
         {
             return static_cast<TrainNode *>(nmsg()->dstNode);
+        }
+
+        Action maybe_alloc_response(Callback c)
+        {
+            if (response_)
+            {
+                return call_immediately(c);
+            }
+            else
+            {
+                return allocate_and_call(
+                    interface()->addressed_message_write_flow(), c);
+            }
+        }
+
+        void ensure_response_exists()
+        {
+            if (!response_)
+            {
+                response_ = get_allocation_result(
+                    interface()->addressed_message_write_flow());
+            }
         }
 
         Action entry() OVERRIDE
@@ -155,17 +178,16 @@ struct TrainService::Impl
                 case TractionDefs::REQ_QUERY_FN:
                 {
                     // Need a response message first.
-                    return allocate_and_call(
-                        interface()->addressed_message_write_flow(),
-                        STATE(handle_query));
+                    return maybe_alloc_response(STATE(handle_query));
                 }
                 case TractionDefs::REQ_CONTROLLER_CONFIG:
                 {
-                    return call_immediately(STATE(handle_controller_config));
+                    return maybe_alloc_response(
+                        STATE(handle_controller_config));
                 }
                 case TractionDefs::REQ_TRACTION_MGMT:
                 {
-                    return call_immediately(STATE(handle_traction_mgmt));
+                    return maybe_alloc_response(STATE(handle_traction_mgmt));
                 }
                 default:
                 {
@@ -177,15 +199,14 @@ struct TrainService::Impl
 
         Action handle_query()
         {
-            auto *b = initialize_response();
+            Payload* p = initialize_response();
             uint8_t cmd = payload()[0];
             switch (cmd)
             {
                 case TractionDefs::REQ_QUERY_SPEED:
                 {
-                    b->data()->payload.resize(8);
-                    uint8_t *d =
-                        reinterpret_cast<uint8_t *>(&b->data()->payload[0]);
+                    p->resize(8);
+                    uint8_t *d = reinterpret_cast<uint8_t *>(&(*p)[0]);
                     d[0] = TractionDefs::RESP_QUERY_SPEED;
                     speed_to_fp16(train_node()->train()->get_speed(), d + 1);
                     d[3] = 0; // status byte: reserved.
@@ -193,13 +214,12 @@ struct TrainService::Impl
                                   d + 4);
                     speed_to_fp16(train_node()->train()->get_actual_speed(),
                                   d + 6);
-                    return send_response(b);
+                    return send_response();
                 }
                 case TractionDefs::REQ_QUERY_FN:
                 {
-                    b->data()->payload.resize(6);
-                    uint8_t *d =
-                        reinterpret_cast<uint8_t *>(&b->data()->payload[0]);
+                    p->resize(6);
+                    uint8_t *d = reinterpret_cast<uint8_t *>(&(*p)[0]);
                     d[0] = TractionDefs::RESP_QUERY_FN;
                     d[1] = payload()[1];
                     d[2] = payload()[2];
@@ -212,7 +232,7 @@ struct TrainService::Impl
                     uint16_t fn_value = train_node()->train()->get_fn(address);
                     d[4] = fn_value >> 8;
                     d[5] = fn_value & 0xff;
-                    return send_response(b);
+                    return send_response();
                 }
             }
             DIE("unexpected call to handle_query.");
@@ -220,12 +240,53 @@ struct TrainService::Impl
 
         Action handle_controller_config()
         {
+            Payload &p = *initialize_response();
             uint8_t subcmd = payload()[1];
             switch (subcmd)
             {
                 case TractionDefs::CTRLREQ_ASSIGN_CONTROLLER:
                 {
-                    
+                    p.resize(3);
+                    p[0] = TractionDefs::RESP_CONTROLLER_CONFIG;
+                    p[1] = TractionDefs::CTRLRESP_ASSIGN_CONTROLLER;
+                    if (train_node()->get_controller().id)
+                    {
+                        /** @TODO (balazs.racz): we need to implement stealing
+                         * a train from the existing controller. */
+                        p[2] = TractionDefs::CTRLRESP_ASSIGN_ERROR_CONTROLLER;
+                        return send_response();
+                    }
+                    NodeHandle new_controller = {0, 0};
+                    // New controller node id missing.
+                    if (size() < 9)
+                        return reject_permanent();
+                    new_controller.id = data_to_node_id(payload() + 3);
+                    if (size() >= 11 && (payload()[2] & 0x01))
+                    {
+                        uint16_t alias = payload()[9];
+                        alias <<= 8;
+                        alias |= payload()[10];
+                        new_controller.alias = alias;
+                    }
+                    train_node()->set_controller(new_controller);
+                    p[2] = 0;
+                    return send_response();
+                }
+                case TractionDefs::CTRLREQ_QUERY_CONTROLLER:
+                {
+                    NodeHandle h = train_node()->get_controller();
+                    p.reserve(11);
+                    p.resize(9);
+                    p[0] = TractionDefs::RESP_CONTROLLER_CONFIG;
+                    p[1] = TractionDefs::CTRLRESP_QUERY_CONTROLLER;
+                    p[2] = 0;
+                    node_id_to_data(h.id, &p[3]);
+                    if (h.alias) {
+                        p[2] |= 1;
+                        p.push_back(h.alias >> 8);
+                        p.push_back(h.alias & 0xff);
+                    }
+                    return send_response();
                 }
             }
             LOG(VERBOSE, "Rejecting unknown traction message.");
@@ -234,6 +295,7 @@ struct TrainService::Impl
 
         Action handle_traction_mgmt()
         {
+            Payload& p = *initialize_response();
             uint8_t cmd = payload()[1];
             switch (cmd)
             {
@@ -249,18 +311,10 @@ struct TrainService::Impl
                         code = 0;
                         reserved_ = 1;
                     }
-                    Payload p;
                     p.push_back(TractionDefs::RESP_TRACTION_MGMT);
                     p.push_back(TractionDefs::MGMTRESP_RESERVE);
                     p.push_back(code);
-                    /// @TODO (balazs.racz): make this asynchronous.
-                    auto *b =
-                        interface()->addressed_message_write_flow()->alloc();
-                    b->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
-                                     nmsg()->dstNode->node_id(), nmsg()->src,
-                                     p);
-                    interface()->addressed_message_write_flow()->send(b);
-                    return release_and_exit();
+                    return send_response();
                 }
                 case TractionDefs::MGMTREQ_RELEASE:
                 {
@@ -275,23 +329,23 @@ struct TrainService::Impl
         }
 
         /** Takes the allocation result of a response buffer (addressed write
-         * flow)
-         * and fills in src, dest as a response message for traction protocol.
+         * flow) and fills in src, dest as a response message for traction
+         * protocol. The caller only needs to provide the payload.
          */
-        Buffer<NMRAnetMessage> *initialize_response()
+        Payload* initialize_response()
         {
-            Buffer<NMRAnetMessage> *b = get_allocation_result(
-                interface()->addressed_message_write_flow());
-            b->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
-                             train_node()->node_id(), nmsg()->src,
-                             EMPTY_PAYLOAD);
-            return b;
+            ensure_response_exists();
+            response_->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
+                                     train_node()->node_id(), nmsg()->src,
+                                     EMPTY_PAYLOAD);
+            return &response_->data()->payload;
         }
 
         /** Sends off the response buffer to the client. */
-        Action send_response(Buffer<NMRAnetMessage> *b)
+        Action send_response()
         {
-            interface()->addressed_message_write_flow()->send(b);
+            interface()->addressed_message_write_flow()->send(response_);
+            response_ = nullptr;
             return release_and_exit();
         }
 
@@ -310,27 +364,24 @@ struct TrainService::Impl
         /** Rejects the incoming message with a permanent error. */
         Action reject_permanent()
         {
-            return allocate_and_call(
-                trainService_->interface()->addressed_message_write_flow(),
-                STATE(send_reject_permanent));
+            return maybe_alloc_response(STATE(send_reject_permanent));
         }
 
         Action send_reject_permanent()
         {
-            auto *b = get_allocation_result(
-                trainService_->interface()->addressed_message_write_flow());
+            ensure_response_exists();
             // An alternative would be to send TERMINATE_DUE_TO_ERROR here.
-            b->data()->reset(
+            response_->data()->reset(
                 Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
                 nmsg()->dstNode->node_id(), nmsg()->src,
                 error_to_buffer(Defs::ERROR_PERMANENT, nmsg()->mti));
-            trainService_->interface()->addressed_message_write_flow()->send(b);
-            return release_and_exit();
+            return send_response();
         }
 
     private:
         unsigned reserved_ : 1;
         TrainService *trainService_;
+        Buffer<NMRAnetMessage>* response_;
     };
 
     TractionRequestFlow traction_;

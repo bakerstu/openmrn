@@ -151,6 +151,82 @@ TEST_F(TractionSingleMockTest, GetFn)
                                     ":X195E833AN0551113322446622;");
 }
 
+TEST_F(TractionSingleMockTest, ReserveRelease)
+{
+    // First reserve succeeds.
+    send_packet_and_expect_response(":X195EA551N033A4001;",
+                                    ":X195E833AN0551400100;");
+    // Second reserve fails.
+    send_packet_and_expect_response(":X195EA551N033A4001;",
+                                    ":X195E833AN0551400101;");
+    // Reserve from another node fails.
+    send_packet_and_expect_response(":X195EA557N033A4001;",
+                                    ":X195E833AN0557400101;");
+    // Send a release. No response.
+    send_packet_and_flush_expect(":X195EA551N033A4002;");
+
+    // Now I can reserve from another node.
+    send_packet_and_expect_response(":X195EA557N033A4001;",
+                                    ":X195E833AN0557400100;");
+
+    // Reserve-release is a voluntary protocol. Source is not checked, so
+    // another source can release.
+    send_packet_and_flush_expect(":X195EA551N033A4002;");
+
+    // Another reserve succeeds.
+    send_packet_and_expect_response(":X195EA551N033A4001;",
+                                    ":X195E833AN0551400100;");
+
+    // Release at the end of the interaction.
+    send_packet_and_flush_expect(":X195EA567N033A4002;");
+}
+
+TEST_F(TractionSingleMockTest, AssignController)
+{
+    // Assign controller 050101011827
+    send_packet(":X195EA551N133A200100050101;");
+    send_packet_and_expect_response(":X195EA551N233A011827;",
+                                    ":X195E833AN0551200100;");
+
+    NodeHandle h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011827ULL, h.id);
+    EXPECT_EQ(0, h.alias);
+}
+
+TEST_F(TractionSingleMockTest, QueryController)
+{
+    expect_packet(":X195E833AN1551200300000000;");
+    send_packet_and_expect_response(":X195EA551N033A2003;",
+                                    ":X195E833AN2551000000;");
+
+    NodeHandle h{0,0};
+    h.id = 0x112233445566ULL;
+    trainNode_->set_controller(h);
+    expect_packet(":X195E833AN1551200300112233;");
+    send_packet_and_expect_response(":X195EA551N033A2003;",
+                                    ":X195E833AN2551445566;");
+}
+
+TEST_F(TractionSingleMockTest, AssignAndQueryController)
+{
+    // Query controller
+    expect_packet(":X195E833AN1551200300000000;");
+    send_packet_and_expect_response(":X195EA551N033A2003;",
+                                    ":X195E833AN2551000000;");
+    LOG(WARNING, "one");
+
+    // Assign controller 050101011827
+    send_packet(":X195EA551N133A200100050101;");
+    send_packet_and_expect_response(":X195EA551N233A011827;",
+                                    ":X195E833AN0551200100;");
+    LOG(WARNING, "two");
+
+    // Query controller
+    expect_packet(":X195E833AN1551200300050101;");
+    send_packet_and_expect_response(":X195EA551N033A2003;",
+                                    ":X195E833AN2551011827;");
+}
+
 class ClientFlow : public StateFlowBase
 {
 public:
