@@ -299,7 +299,8 @@ public:
             buffer_key |= CanDefs::get_src(id_);
             buffer_key <<= 12;
             buffer_key |= CanDefs::get_mti(id_);
-
+            /** @todo (balazs.racz): handle the error cases here, like when we
+             * get a middle frame out of the blue etc. */
             Payload* mapped_buffer = &pendingBuffers_[buffer_key];
             if ((f->data[0] & CanDefs::NOT_FIRST_FRAME) == 0)
             {
