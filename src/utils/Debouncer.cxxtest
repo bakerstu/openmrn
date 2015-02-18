@@ -4,7 +4,8 @@
 namespace
 {
 
-TEST(QuiesceDebouncerTest, InitState0) {
+TEST(QuiesceDebouncerTest, InitState0)
+{
     QuiesceDebouncer d(3);
     d.initialize(false);
     EXPECT_FALSE(d.current_state());
@@ -12,13 +13,15 @@ TEST(QuiesceDebouncerTest, InitState0) {
     EXPECT_FALSE(d.current_state());
 }
 
-TEST(QuiesceDebouncerTest, InitState1) {
+TEST(QuiesceDebouncerTest, InitState1)
+{
     QuiesceDebouncer d(3);
     d.initialize(true);
     EXPECT_TRUE(d.current_state());
 }
 
-TEST(QuiesceDebouncerTest, Switch10AndSame) {
+TEST(QuiesceDebouncerTest, Switch10AndSame)
+{
     QuiesceDebouncer d(3);
     d.initialize(true);
     EXPECT_TRUE(d.current_state());
@@ -33,7 +36,8 @@ TEST(QuiesceDebouncerTest, Switch10AndSame) {
     EXPECT_FALSE(d.update_state(false));
 }
 
-TEST(QuiesceDebouncerTest, Switch01AndSame) {
+TEST(QuiesceDebouncerTest, Switch01AndSame)
+{
     QuiesceDebouncer d(3);
     d.initialize(false);
     EXPECT_FALSE(d.current_state());
@@ -54,5 +58,60 @@ TEST(QuiesceDebouncerTest, Switch01AndSame) {
     EXPECT_FALSE(d.update_state(true));
 }
 
+TEST(ToggleDebouncerTest, StartFalseAndToggleTwice)
+{
+    ToggleDebouncer<QuiesceDebouncer> d(2);
+    d.initialize(false);
+    EXPECT_FALSE(d.current_state());
+
+    for (int k = 0; k < 10; ++k)
+    {
+        EXPECT_FALSE(d.current_state());
+
+        EXPECT_FALSE(d.update_state(true));
+        EXPECT_FALSE(d.current_state());
+        // bit of bouncing here
+        EXPECT_FALSE(d.update_state(false));
+        EXPECT_FALSE(d.current_state());
+        EXPECT_FALSE(d.update_state(true));
+        EXPECT_FALSE(d.current_state());
+        EXPECT_TRUE(d.update_state(true));
+        EXPECT_TRUE(d.current_state());
+
+        // While the button is pressed, we are still all true
+        for (int i = 0; i < 10; ++i)
+        {
+            EXPECT_FALSE(d.update_state(true));
+            EXPECT_TRUE(d.current_state());
+        }
+
+        // The button is released but state is still true
+        for (int i = 0; i < 10; ++i)
+        {
+            EXPECT_FALSE(d.update_state(false));
+            EXPECT_TRUE(d.current_state());
+        }
+
+        // Then we press again, and get a flip to false
+        EXPECT_FALSE(d.update_state(true));
+        EXPECT_TRUE(d.current_state());
+        EXPECT_TRUE(d.update_state(true));
+        EXPECT_FALSE(d.current_state());
+
+        // While the button is pressed, we are still all false
+        for (int i = 0; i < 10; ++i)
+        {
+            EXPECT_FALSE(d.update_state(true));
+            EXPECT_FALSE(d.current_state());
+        }
+
+        // The button is released but state is still true
+        for (int i = 0; i < 10; ++i)
+        {
+            EXPECT_FALSE(d.update_state(false));
+            EXPECT_FALSE(d.current_state());
+        }
+    }
+}
 
 } // namespace

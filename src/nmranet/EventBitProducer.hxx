@@ -61,7 +61,7 @@ public:
 
     void SetState(bool new_value) OVERRIDE
     {
-        debouncer_.initialize(new_value);
+        debouncer_.override(new_value);
     }
 
     void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
