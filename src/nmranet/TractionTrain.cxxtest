@@ -193,6 +193,26 @@ TEST_F(TractionSingleMockTest, AssignController)
     EXPECT_EQ(0, h.alias);
 }
 
+TEST_F(TractionSingleMockTest, DoubleAssignController)
+{
+    // Assign controller 050101011827
+    send_packet(":X195EA551N133A200100050101;");
+    send_packet_and_expect_response(":X195EA551N233A011827;",
+                                    ":X195E833AN0551200100;");
+
+    NodeHandle h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011827ULL, h.id);
+    EXPECT_EQ(0, h.alias);
+
+    wait();
+
+    // Again: should succeed.
+    // Assign controller 050101011827
+    send_packet(":X195EA551N133A200100050101;");
+    send_packet_and_expect_response(":X195EA551N233A011827;",
+                                    ":X195E833AN0551200100;");
+}
+
 TEST_F(TractionSingleMockTest, QueryController)
 {
     expect_packet(":X195E833AN1551200300000000;");
@@ -213,18 +233,46 @@ TEST_F(TractionSingleMockTest, AssignAndQueryController)
     expect_packet(":X195E833AN1551200300000000;");
     send_packet_and_expect_response(":X195EA551N033A2003;",
                                     ":X195E833AN2551000000;");
-    LOG(WARNING, "one");
 
     // Assign controller 050101011827
     send_packet(":X195EA551N133A200100050101;");
     send_packet_and_expect_response(":X195EA551N233A011827;",
                                     ":X195E833AN0551200100;");
-    LOG(WARNING, "two");
 
     // Query controller
     expect_packet(":X195E833AN1551200300050101;");
     send_packet_and_expect_response(":X195EA551N033A2003;",
                                     ":X195E833AN2551011827;");
+}
+
+TEST_F(TractionSingleMockTest, ReleaseControllerOK)
+{
+    NodeHandle h = {0x050101011827, 0x123};
+    trainNode_->set_controller(h);
+
+    // Release controller
+    send_packet(":X195EA551N133A200200050101;");
+    send_packet(":X195EA551N233A011827;");
+    wait();
+    
+    h = trainNode_->get_controller();
+    EXPECT_EQ(0ULL, h.id);
+    EXPECT_EQ(0U, h.alias);
+}
+
+TEST_F(TractionSingleMockTest, ReleaseControllerFailed)
+{
+    NodeHandle h = {0x050101011837, 0x123};
+    trainNode_->set_controller(h);
+
+    // Release controller
+    send_packet(":X195EA551N133A200200050101;");
+    send_packet(":X195EA551N233A011827;");
+    wait();
+    
+    h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011837ULL, h.id);
+    EXPECT_EQ(0x123U, h.alias);
 }
 
 class ClientFlow : public StateFlowBase

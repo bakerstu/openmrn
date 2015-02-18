@@ -46,7 +46,7 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
     : isInitialized_(0)
     , service_(service)
     , train_(train)
-    , controllerNodeId_({0,0})
+    , controllerNodeId_({0, 0})
 {
     service_->register_train(this);
 }
@@ -199,7 +199,7 @@ struct TrainService::Impl
 
         Action handle_query()
         {
-            Payload* p = initialize_response();
+            Payload *p = initialize_response();
             uint8_t cmd = payload()[0];
             switch (cmd)
             {
@@ -249,26 +249,29 @@ struct TrainService::Impl
                     p.resize(3);
                     p[0] = TractionDefs::RESP_CONTROLLER_CONFIG;
                     p[1] = TractionDefs::CTRLRESP_ASSIGN_CONTROLLER;
-                    if (train_node()->get_controller().id)
+                    NodeHandle supplied_controller = {0, 0};
+                    if (size() < 9)
+                        return reject_permanent();
+                    supplied_controller.id = data_to_node_id(payload() + 3);
+                    if (size() >= 11 && (payload()[2] & 0x01))
+                    {
+                        uint16_t alias = payload()[9];
+                        alias <<= 8;
+                        alias |= payload()[10];
+                        supplied_controller.alias = alias;
+                    }
+                    NodeHandle existing_controller =
+                        train_node()->get_controller();
+                    if (existing_controller.id &&
+                        !interface()->matching_node(existing_controller,
+                                                    supplied_controller))
                     {
                         /** @TODO (balazs.racz): we need to implement stealing
                          * a train from the existing controller. */
                         p[2] = TractionDefs::CTRLRESP_ASSIGN_ERROR_CONTROLLER;
                         return send_response();
                     }
-                    NodeHandle new_controller = {0, 0};
-                    // New controller node id missing.
-                    if (size() < 9)
-                        return reject_permanent();
-                    new_controller.id = data_to_node_id(payload() + 3);
-                    if (size() >= 11 && (payload()[2] & 0x01))
-                    {
-                        uint16_t alias = payload()[9];
-                        alias <<= 8;
-                        alias |= payload()[10];
-                        new_controller.alias = alias;
-                    }
-                    train_node()->set_controller(new_controller);
+                    train_node()->set_controller(supplied_controller);
                     p[2] = 0;
                     return send_response();
                 }
@@ -281,12 +284,42 @@ struct TrainService::Impl
                     p[1] = TractionDefs::CTRLRESP_QUERY_CONTROLLER;
                     p[2] = 0;
                     node_id_to_data(h.id, &p[3]);
-                    if (h.alias) {
+                    if (h.alias)
+                    {
                         p[2] |= 1;
                         p.push_back(h.alias >> 8);
                         p.push_back(h.alias & 0xff);
                     }
                     return send_response();
+                }
+                case TractionDefs::CTRLREQ_RELEASE_CONTROLLER:
+                {
+                    NodeHandle supplied_controller = {0, 0};
+                    if (size() < 9)
+                        return reject_permanent();
+                    supplied_controller.id = data_to_node_id(payload() + 3);
+                    if (size() >= 11 && (payload()[2] & 0x01))
+                    {
+                        uint16_t alias = payload()[9];
+                        alias <<= 8;
+                        alias |= payload()[10];
+                        supplied_controller.alias = alias;
+                    }
+                    NodeHandle existing_controller =
+                        train_node()->get_controller();
+                    if (!interface()->matching_node(existing_controller,
+                                                    supplied_controller))
+                    {
+                        LOG(WARNING,
+                            "Tried to release a train that was not held: "
+                            "train's controller %012" PRIx64
+                            ", release command's controller %012" PRIx64,
+                            existing_controller.id, supplied_controller.id);
+                        return release_and_exit();
+                    }
+                    existing_controller = {0, 0};
+                    train_node()->set_controller(existing_controller);
+                    return release_and_exit();
                 }
             }
             LOG(VERBOSE, "Rejecting unknown traction message.");
@@ -295,7 +328,7 @@ struct TrainService::Impl
 
         Action handle_traction_mgmt()
         {
-            Payload& p = *initialize_response();
+            Payload &p = *initialize_response();
             uint8_t cmd = payload()[1];
             switch (cmd)
             {
@@ -332,7 +365,7 @@ struct TrainService::Impl
          * flow) and fills in src, dest as a response message for traction
          * protocol. The caller only needs to provide the payload.
          */
-        Payload* initialize_response()
+        Payload *initialize_response()
         {
             ensure_response_exists();
             response_->data()->reset(Defs::MTI_TRACTION_CONTROL_REPLY,
@@ -381,7 +414,7 @@ struct TrainService::Impl
     private:
         unsigned reserved_ : 1;
         TrainService *trainService_;
-        Buffer<NMRAnetMessage>* response_;
+        Buffer<NMRAnetMessage> *response_;
     };
 
     TractionRequestFlow traction_;
