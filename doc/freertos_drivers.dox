@@ -72,8 +72,8 @@
  *
  * The static Device::fd_alloc() and Device::fd_free(int) methods can be used
  * to allocate a file descriptor from and free a file descriptor back to the
- * file descriptor pool.  While Device::fd_alloc() must always be called while
- * the caller holds the Device::mutex, fd_free(int) may be called without the
+ * file descriptor pool.  While Device::fd_alloc() must always be called with
+ * the caller holding the Device::mutex, fd_free(int) may be called without the
  * caller holding the mutex.  In general, the Device::fd_alloc() and
  * Device::fd_free(int) methods are only used within the provided Device::open()
  * and Device::close() methods.  The occasional use of the Device::fd_alloc()
