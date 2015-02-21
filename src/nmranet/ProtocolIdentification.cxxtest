@@ -62,3 +62,15 @@ TEST_F(ProtocolIdentificationTest, AnotherTest)
     send_packet_and_expect_response(":X198289FFN022A;", ":X1966822AN09FFE65544332211;");
 }
 
+TEST_F(ProtocolIdentificationTest, DoNotHandleTest)
+{
+    expect_packet(":X1070133AN02010d000004;"); // AMD frame
+    expect_packet(":X1910033AN02010d000004;"); // initialization complete
+    create_allocated_alias();
+    expect_next_alias_allocation();
+    DefaultNode node2(ifCan_.get(), TEST_NODE_ID + 1);
+    wait();
+    send_packet(":X198289FFN033A;");
+    wait();
+}
+
