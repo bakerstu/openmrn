@@ -359,6 +359,8 @@ private:
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
             {
+                Debug::RailcomDataReceived::toggle();
+                Debug::RailcomAnyData::set(true);
                 if (!returnedPackets_[i])
                 {
                     returnedPackets_[i] = this->alloc_new_packet(i);
@@ -368,8 +370,10 @@ private:
                     break;
                 }
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0 || data > 0xff)
+                if (data < 0 || data > 0xff) {
+                    Debug::RailcomError::toggle();
                     continue;
+                }
                 returnedPackets_[i]->add_ch1_data(data);
             }
         }
@@ -381,6 +385,8 @@ private:
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
             {
+                Debug::RailcomDataReceived::toggle();
+                Debug::RailcomAnyData::set(true);
                 if (!returnedPackets_[i])
                 {
                     returnedPackets_[i] = this->alloc_new_packet(i);
@@ -403,6 +409,7 @@ private:
             //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
             if (returnedPackets_[i]) {
                 this->feedbackQueue_.commit_back();
+                Debug::RailcomPackets::toggle();
                 returnedPackets_[i] = nullptr;
                 MAP_IntPendSet(HW::OS_INTERRUPT);
             }

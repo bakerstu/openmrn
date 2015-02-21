@@ -159,7 +159,12 @@ struct Defs
         DISPLAY                 = 0x002000000000,
         SIMPLE_NODE_INFORMATION = 0x001000000000,
         CDI                     = 0x000800000000,
-        RESERVED_MASK           = 0x0007FFFFFFFF
+        TRACTION_CONTROL        = 0x000400000000,
+        TRACTION_FDI            = 0x000200000000,
+        TRACTION_PROXY          = 0x000100000000,
+        TRACTION_SIMPLE_TRAIN_INFO
+                                = 0x000080000000,
+        RESERVED_MASK           = 0x00007FFFFFFF
     };
 
     /** Status of the pysical layer link */

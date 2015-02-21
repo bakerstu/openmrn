@@ -49,13 +49,19 @@
 #include "TivaDCC.hxx"
 
 struct Debug {
-
   // High between start_cutout and end_cutout from the TivaRailcom driver.
   typedef DummyPin RailcomDriverCutout;
   // Flips every time an uart byte is received error.
   typedef DummyPin RailcomError;
   // Flips every time an 'E0' byte is received in the railcom driver.
   typedef DummyPin RailcomE0;
+  // Sets to 1 if we have seen any data from the railcom uart.
+  typedef DummyPin RailcomAnyData;
+  // Flips for every byte from the railcom uart.
+  typedef DummyPin RailcomDataReceived;
+  // Flipped for every packet that is sent from the railcom layer to the
+  // application.
+  typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
 

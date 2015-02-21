@@ -138,6 +138,12 @@ struct CanDefs {
         AMR_FRAME = 0x0703  /**< Alias Map Reset */
     };
 
+    enum AddressedPayloadFlags
+    {
+        NOT_FIRST_FRAME = 0x20,
+        NOT_LAST_FRAME = 0x10,
+    };
+
     /** Get the source field value of the CAN ID.
      * @param can_id identifier to act upon
      * @return source field

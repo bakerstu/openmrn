@@ -34,6 +34,7 @@
 
 #include "nmranet/IfCan.hxx"
 
+#include "utils/StlMap.hxx"
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/IfImpl.hxx"
 #include "nmranet/IfCanImpl.hxx"
@@ -237,7 +238,7 @@ private:
 };
 
 /** This class listens for incoming CAN frames of regular addressed OpenLCB
- * messages detined for local nodes, then translates them in a generic way into
+ * messages destined for local nodes, then translates them in a generic way into
  * a message, computing its MTI. The resulting message is then passed to the
  * generic If for dispatching. */
 class FrameToAddressedMessageParser : public CanFrameStateFlow
@@ -291,24 +292,56 @@ public:
             return release_and_exit();
         }
         // Checks the continuation bits.
-        if (f->data[0] & 0b00110000)
+        if (f->data[0] & (CanDefs::NOT_FIRST_FRAME | CanDefs::NOT_LAST_FRAME))
         {
-            /// @TODO: If this is not an only frame, we are in trouble here.
-            LOG(WARNING, "Received an addressed message with multiple frames. "
-                         "OpenMRN does not support generic reassembly yet. "
-                         "frame ID=%08x, fddd=%02x%02x",
-                (unsigned)id_, f->data[0], f->data[1]);
-            // Drop the frame.
-            return release_and_exit();
-        }
-        // Saves the payload.
-        if (f->can_dlc > 2)
-        {
-            buf_.assign((const char*)(f->data + 2), f->can_dlc - 2);
+            uint64_t buffer_key = dstHandle_.alias;
+            buffer_key <<= 12;
+            buffer_key |= CanDefs::get_src(id_);
+            buffer_key <<= 12;
+            buffer_key |= CanDefs::get_mti(id_);
+            /** @todo (balazs.racz): handle the error cases here, like when we
+             * get a middle frame out of the blue etc. */
+            Payload* mapped_buffer = &pendingBuffers_[buffer_key];
+            if ((f->data[0] & CanDefs::NOT_FIRST_FRAME) == 0)
+            {
+                // First frame. Make sure the pending buffer is empty.
+                if (!mapped_buffer->empty())
+                {
+                    LOG(WARNING, "Received multi-frame message when a previous "
+                                 "multi-frame message has not been flushed "
+                                 "yet. frame ID=%08x, fddd=%02x%02x",
+                        (unsigned)id_, f->data[0], f->data[1]);
+                }
+                mapped_buffer->clear();
+            }
+            if (f->can_dlc > 2)
+            {
+                mapped_buffer->append((const char *)(f->data + 2),
+                                      f->can_dlc - 2);
+            }
+            if (f->data[0] & CanDefs::NOT_LAST_FRAME)
+            {
+                // We are done for now
+                return release_and_exit();
+            }
+            else
+            {
+                // Frame complete.
+                mapped_buffer->swap(buf_);
+                pendingBuffers_.erase(buffer_key);
+            }
         }
         else
         {
-            buf_.clear();
+            // Saves the payload.
+            if (f->can_dlc > 2)
+            {
+                buf_.assign((const char *)(f->data + 2), f->can_dlc - 2);
+            }
+            else
+            {
+                buf_.clear();
+            }
         }
         /** Frame not needed anymore. If we want to save the reserved bits from
          *  the first octet, we need to revise this. */
@@ -322,7 +355,7 @@ public:
         NMRAnetMessage* m = b->data();
         m->mti =
             static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
-        m->payload = buf_;
+        m->payload.swap(buf_);
         m->dst = dstHandle_;
         // This might be NULL if dst is a proxied node in a router.
         m->dstNode = if_can()->lookup_local_node(dstHandle_.id);
@@ -342,6 +375,8 @@ private:
     uint32_t id_;
     string buf_;
     NodeHandle dstHandle_;
+    /// Reassembly buffers for multi-frame messages.
+    StlMap<uint32_t, Payload> pendingBuffers_;
 };
 
 IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,

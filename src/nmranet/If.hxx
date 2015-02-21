@@ -61,6 +61,14 @@ typedef string Payload;
  * big-endian representation of the node ID.
  */
 extern string node_id_to_buffer(NodeID id);
+/** Convenience function to render a 48-bit NMRAnet node ID into an existing
+ * buffer.
+ *
+ * @param id is the 48-bit ID to render.
+ * @param data is the memory space to write the rendered ID into. There must be
+ * at least 6 bytes available at this address.
+ */
+extern void node_id_to_data(NodeID id, void* data);
 
 /** Converts a 6-byte-long buffer to a node ID.
  *
@@ -69,6 +77,12 @@ extern string node_id_to_buffer(NodeID id);
  * @returns the node id (in host endian).
  */
 extern NodeID buffer_to_node_id(const string& buf);
+/** Converts 6 bytes of big-endian data to a node ID.
+ *
+ * @param d is a pointer to at least 6 valid bytes.
+ * @returns the node ID represented by the first 6 bytes of d.
+ */
+extern NodeID data_to_node_id(const void* d);
 
 /** Converts an Event ID to a Payload suitable to be sent as an event report. */
 extern Payload eventid_to_buffer(uint64_t eventid);

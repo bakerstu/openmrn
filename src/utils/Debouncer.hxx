@@ -48,6 +48,9 @@
  * // called once after construction
  * void initialize(bool state);
  *
+ * // called when an on-network event comes to change the state
+ * void override(bool new_state);
+ *
  * // returns true if measurement should be published as the new state.
  * bool update_state(bool measurement);
  *
@@ -65,7 +68,7 @@ class QuiesceDebouncer
 public:
     typedef uint8_t Options;
 
-    QuiesceDebouncer(const Options& wait_count)
+    QuiesceDebouncer(const Options &wait_count)
         : count_(0)
         , waitCount_(wait_count)
         , currentState_(0)
@@ -78,7 +81,13 @@ public:
         count_ = 0;
     }
 
-    bool current_state() {
+    void override(bool new_state)
+    {
+        initialize(new_state);
+    }
+
+    bool current_state()
+    {
         return currentState_;
     }
 
@@ -103,6 +112,53 @@ private:
     unsigned count_ : 8;
     unsigned waitCount_ : 8;
     unsigned currentState_ : 1;
+};
+
+/** This class acts as a debouncer that uses one momentary input button, and
+ * switches the event state at every rising edge of that input button. 
+ Internally it uses another debouncer to smooth the input button. */
+template <class Debouncer> class ToggleDebouncer
+{
+public:
+    typedef typename Debouncer::Options Options;
+
+    ToggleDebouncer(const Options &options) : impl_(options), eventState_(0)
+    {
+    }
+
+    void initialize(bool state)
+    {
+        // comes from the hardware
+        impl_.initialize(state);
+    }
+
+    void override(bool state)
+    {
+        eventState_ = state ? 1 : 0;
+    }
+
+    bool current_state()
+    {
+        // We ignore the local state and just publish the network state.
+        return eventState_;
+    }
+
+    bool update_state(bool state)
+    {
+        bool press_changed = impl_.update_state(state);
+        // Look for rising edge
+        if (press_changed && impl_.current_state())
+        {
+            // flip desired state and report update
+            eventState_ ^= 1;
+            return true;
+        }
+        return false;
+    }
+
+private:
+    Debouncer impl_;
+    unsigned eventState_ : 1; // what the world thinks about the event
 };
 
 #endif // _UTILS_DEBOUNCER_HXX_

@@ -207,7 +207,7 @@ private:
                 if (dataOffset_)
                 {
                     // This is not the first frame.
-                    f->data[0] |= 0x20;
+                    f->data[0] |= CanDefs::NOT_FIRST_FRAME;
                 }
                 const char *b = data.data();
                 unsigned len = data.size() - dataOffset_;
@@ -216,7 +216,7 @@ private:
                     len = 6;
                     // This is not the last frame.
                     need_more_frames = true;
-                    f->data[0] |= 0x10;
+                    f->data[0] |= CanDefs::NOT_LAST_FRAME;
                 }
                 memcpy(f->data + 2, b + dataOffset_, len);
                 dataOffset_ += len;
