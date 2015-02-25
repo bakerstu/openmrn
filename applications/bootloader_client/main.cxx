@@ -83,24 +83,24 @@ uint64_t destination_nodeid = 0;
 uint64_t destination_alias = 0;
 int memory_space_id = 0xF0;
 const char *checksum_algorithm = nullptr;
+bool request_reboot = false;
 
 void usage(const char *e)
 {
-    fprintf(
-        stderr,
+    fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] (-n nodeid | -a "
+        "memory_space_id] [-c csum_algo] [-r] (-n nodeid | -a "
         "alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
                     "the contents of a given file.\n");
     fprintf(stderr,
-            "The bus connection will be through an OpenLCB HUB on "
-            "destination_host:port with OpenLCB over TCP "
-            "(in GridConnect format) protocol, or through the CAN-USB device "
-            "(also in GridConnect protocol) found at device_path. Device takes "
-            "precedence over TCP host:port specification.");
+        "The bus connection will be through an OpenLCB HUB on "
+        "destination_host:port with OpenLCB over TCP "
+        "(in GridConnect format) protocol, or through the CAN-USB device "
+        "(also in GridConnect protocol) found at device_path. Device takes "
+        "precedence over TCP host:port specification.");
     fprintf(stderr, "The default target is localhost:12021.\n");
     fprintf(stderr, "nodeid should be a 12-char hex string with 0x prefix and "
                     "no separators, like '-b 0x05010101141F'\n");
@@ -111,13 +111,15 @@ void usage(const char *e)
     fprintf(stderr, "csum_algo defines the checksum algorithm to use. If "
                     "omitted, no checksumming is done before writing the "
                     "data.\n");
+    fprintf(stderr,
+        "-r request the target to enter bootloader mode before sending data\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:c:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:rd:n:a:s:f:c:")) >= 0)
     {
         switch (opt)
         {
@@ -148,6 +150,9 @@ void parse_args(int argc, char *argv[])
             case 'c':
                 checksum_algorithm = optarg;
                 break;
+            case 'r':
+                request_reboot = true;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -159,8 +164,8 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-nmranet::BootloaderClient bootloader_client(&g_node, &g_datagram_can,
-                                            &g_if_can);
+nmranet::BootloaderClient bootloader_client(
+    &g_node, &g_datagram_can, &g_if_can);
 nmranet::BootloaderResponse response;
 
 void maybe_checksum(string *firmware)
@@ -183,22 +188,21 @@ void maybe_checksum(string *firmware)
         if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr)))
         {
             fprintf(stderr,
-                    "Failed to checksum: location of checksum is not empty.\n");
+                "Failed to checksum: location of checksum is not empty.\n");
             exit(1);
         }
         hdr.app_size = firmware->size();
-        crc3_crc16_ibm(&(*firmware)[8], (offset - 8) & ~3,
-                       (uint16_t *)hdr.checksum_pre);
+        crc3_crc16_ibm(
+            &(*firmware)[8], (offset - 8) & ~3, (uint16_t *)hdr.checksum_pre);
         crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
-                       (firmware->size() - offset - sizeof(hdr)) & ~3,
-                       (uint16_t *)hdr.checksum_post);
+            (firmware->size() - offset - sizeof(hdr)) & ~3,
+            (uint16_t *)hdr.checksum_post);
         memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
         printf("Checksummed firmware with algorithm tiva123\n");
     }
     else
     {
-        fprintf(
-            stderr,
+        fprintf(stderr,
             "Unknown checksumming algo %s. Known algorithms are: tiva123.\n",
             checksum_algorithm);
         exit(1);
@@ -243,12 +247,13 @@ int appl_main(int argc, char *argv[])
     b->data()->memory_space = memory_space_id;
     b->data()->offset = 0;
     b->data()->response = &response;
+    b->data()->request_reboot = request_reboot ? 1 : 0;
 
     FILE *f = fopen(filename, "rb");
     if (!f)
     {
-        fprintf(stderr, "Could not open file %s: %s\n", filename,
-                strerror(errno));
+        fprintf(
+            stderr, "Could not open file %s: %s\n", filename, strerror(errno));
         exit(1);
     }
     char buf[1024];
@@ -259,13 +264,13 @@ int appl_main(int argc, char *argv[])
     }
     fclose(f);
     printf("Read %d bytes from file %s. Writing to memory space 0x%02x\n",
-           b->data()->data.size(), filename, memory_space_id);
+        b->data()->data.size(), filename, memory_space_id);
     maybe_checksum(&b->data()->data);
 
     bootloader_client.send(b);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
-           response.error_details.c_str());
+        response.error_details.c_str());
 
     return 0;
 }
