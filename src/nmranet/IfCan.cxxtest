@@ -87,6 +87,30 @@ TEST_F(AsyncIfTest, WriteMultipleFrames)
     }
 }
 
+TEST_F(AsyncIfTest, RemoteAliasLearned)
+{
+    send_packet(":X10701782N010203040506;");
+    wait();
+    EXPECT_EQ(0x782U, ifCan_->remote_aliases()->lookup(0x010203040506ULL));
+    EXPECT_EQ(
+        0x010203040506ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+
+    // let's re-learn it.
+    send_packet(":X10701782N010203040507;");
+    wait();
+    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(0x010203040506ULL));
+    EXPECT_EQ(
+        0x010203040507ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    EXPECT_EQ(0x782U, ifCan_->remote_aliases()->lookup(0x010203040507ULL));
+
+    // then forget
+    send_packet(":X10703782N010203040507;");
+    wait();
+    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(0x010203040506ULL));
+    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(0x010203040507ULL));
+    EXPECT_EQ(0ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+}
+
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:

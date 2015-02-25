@@ -63,7 +63,8 @@ long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC = SEC_TO_NSEC(1);
 class GlobalCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
-    GlobalCanMessageWriteFlow(IfCan *if_can) : CanMessageWriteFlow(if_can)
+    GlobalCanMessageWriteFlow(IfCan *if_can)
+        : CanMessageWriteFlow(if_can)
     {
     }
 
@@ -94,16 +95,17 @@ protected:
 class AliasConflictHandler : public CanFrameStateFlow
 {
 public:
-    AliasConflictHandler(IfCan *service) : CanFrameStateFlow(service)
+    AliasConflictHandler(IfCan *service)
+        : CanFrameStateFlow(service)
     {
-        if_can()->frame_dispatcher()->register_handler(this, 0,
-                                                       ~((1 << 30) - 1));
+        if_can()->frame_dispatcher()->register_handler(
+            this, 0, ~((1 << 30) - 1));
     }
 
     ~AliasConflictHandler()
     {
-        if_can()->frame_dispatcher()->unregister_handler(this, 0,
-                                                         ~((1 << 30) - 1));
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, 0, ~((1 << 30) - 1));
     }
 
     /// Handler callback for incoming messages.
@@ -114,6 +116,7 @@ public:
         if (CanDefs::get_priority(id) != CanDefs::NORMAL_PRIORITY)
         {
             // Probably not an OpenLCB frame.
+            /// @TODO(balazs.racz) this is wrong. it IS an openlcb frame.
             return exit();
         }
         NodeAlias alias = CanDefs::get_src(id);
@@ -128,8 +131,8 @@ public:
         {
             // This is a CID frame. We own the alias, let them know.
             alias_ = alias;
-            return allocate_and_call(if_can()->frame_write_flow(),
-                                     STATE(send_reserved_alias));
+            return allocate_and_call(
+                if_can()->frame_write_flow(), STATE(send_reserved_alias));
         }
         /* Removes the alias from the local alias cache.  If it was assigned to
          * a node, the node will grab a new alias next time it tries to send
@@ -161,6 +164,93 @@ private:
     unsigned alias_ : 12;
 };
 
+/** This class listens for alias mapping frames and updates the remote alias
+ * cache with the incoming information. */
+class RemoteAliasCacheUpdater : public CanFrameStateFlow
+{
+public:
+    enum
+    {
+        CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
+            (CanDefs::CONTROL_MSG << CanDefs::FRAME_TYPE_SHIFT),
+        CAN_MASK =
+            CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK,
+    };
+
+    RemoteAliasCacheUpdater(IfCan *service)
+        : CanFrameStateFlow(service)
+    {
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    ~RemoteAliasCacheUpdater()
+    {
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    Action entry() OVERRIDE
+    {
+        struct can_frame *f = message()->data();
+        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
+        if (CanDefs::get_frame_type(id) != CanDefs::CONTROL_MSG)
+            return release_and_exit();
+        auto control_field = CanDefs::get_control_field(id);
+        NodeAlias alias = CanDefs::get_src(id);
+        if (!alias)
+        {
+            return release_and_exit();
+        }
+        NodeID node_id = 0;
+        if (f->can_dlc == 6)
+        {
+            node_id = data_to_node_id(f->data);
+        }
+        switch (control_field)
+        {
+            case CanDefs::AMD_FRAME:
+            {
+                if (!node_id)
+                {
+                    return release_and_exit();
+                }
+                NodeAlias old_alias =
+                    if_can()->remote_aliases()->lookup(node_id);
+                if (old_alias == alias)
+                {
+                    // No change.
+                    return release_and_exit();
+                }
+                if (old_alias)
+                {
+                    if_can()->remote_aliases()->remove(old_alias);
+                }
+                if_can()->remote_aliases()->add(node_id, alias);
+                return release_and_exit();
+            }
+            case CanDefs::AMR_FRAME:
+            {
+                if (node_id)
+                {
+                    NodeAlias old_alias =
+                        if_can()->remote_aliases()->lookup(node_id);
+                    if (old_alias && old_alias != alias)
+                    {
+                        if_can()->remote_aliases()->remove(old_alias);
+                    }
+                }
+                if_can()->remote_aliases()->remove(alias);
+                return release_and_exit();
+            }
+            default: // ignore
+                ;
+        }
+
+        return release_and_exit();
+    }
+};
+
 /** This class listens for incoming CAN frames of regular unaddressed global
  * OpenLCB messages, then translates it in a generic way into a message,
  * computing its MTI. The resulting message is then passed to the generic If
@@ -171,34 +261,36 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-                     (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
-                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
-                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
-                   (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
+            (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::CAN_FRAME_TYPE_MASK | CanDefs::FRAME_TYPE_MASK |
+            CanDefs::PRIORITY_MASK |
+            (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
-    FrameToGlobalMessageParser(IfCan *service) : CanFrameStateFlow(service)
+    FrameToGlobalMessageParser(IfCan *service)
+        : CanFrameStateFlow(service)
     {
-        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER,
-                                                       CAN_MASK);
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER, CAN_MASK);
     }
 
     ~FrameToGlobalMessageParser()
     {
-        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER,
-                                                         CAN_MASK);
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER, CAN_MASK);
     }
 
     /// Handler entry for incoming messages.
-    virtual Action entry()
+    Action entry() OVERRIDE
     {
         struct can_frame *f = message()->data();
         id_ = GET_CAN_FRAME_ID_EFF(*f);
         if (f->can_dlc)
         {
-            buf_.assign((const char*)(&f->data[0]), f->can_dlc);
+            buf_.assign((const char *)(&f->data[0]), f->can_dlc);
         }
         else
         {
@@ -212,9 +304,9 @@ public:
     Action send_to_if()
     {
         auto *b = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage* m = b->data();
-        m->mti =
-            static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
+        NMRAnetMessage *m = b->data();
+        m->mti = static_cast<Defs::MTI>(
+            (id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload = buf_;
         m->dst = {0, 0};
         m->dstNode = nullptr;
@@ -247,23 +339,27 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-                     (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
-                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
-                     (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
-                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
-                   (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
+            (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
+            (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::CAN_FRAME_TYPE_MASK | CanDefs::FRAME_TYPE_MASK |
+            CanDefs::PRIORITY_MASK |
+            (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
-    FrameToAddressedMessageParser(IfCan *service) : CanFrameStateFlow(service)
+    FrameToAddressedMessageParser(IfCan *service)
+        : CanFrameStateFlow(service)
     {
-        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER, CAN_MASK);
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER, CAN_MASK);
     }
 
     ~FrameToAddressedMessageParser()
     {
-        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER, CAN_MASK);
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER, CAN_MASK);
     }
 
     /// Handler entry for incoming messages.
@@ -301,7 +397,7 @@ public:
             buffer_key |= CanDefs::get_mti(id_);
             /** @todo (balazs.racz): handle the error cases here, like when we
              * get a middle frame out of the blue etc. */
-            Payload* mapped_buffer = &pendingBuffers_[buffer_key];
+            Payload *mapped_buffer = &pendingBuffers_[buffer_key];
             if ((f->data[0] & CanDefs::NOT_FIRST_FRAME) == 0)
             {
                 // First frame. Make sure the pending buffer is empty.
@@ -316,8 +412,8 @@ public:
             }
             if (f->can_dlc > 2)
             {
-                mapped_buffer->append((const char *)(f->data + 2),
-                                      f->can_dlc - 2);
+                mapped_buffer->append(
+                    (const char *)(f->data + 2), f->can_dlc - 2);
             }
             if (f->data[0] & CanDefs::NOT_LAST_FRAME)
             {
@@ -352,9 +448,9 @@ public:
     Action send_to_if()
     {
         auto *b = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage* m = b->data();
-        m->mti =
-            static_cast<Defs::MTI>((id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
+        NMRAnetMessage *m = b->data();
+        m->mti = static_cast<Defs::MTI>(
+            (id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload.swap(buf_);
         m->dst = dstHandle_;
         // This might be NULL if dst is a proxied node in a router.
@@ -380,8 +476,8 @@ private:
 };
 
 IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
-                       int local_alias_cache_size, int remote_alias_cache_size,
-                       int local_nodes_count)
+    int local_alias_cache_size, int remote_alias_cache_size,
+    int local_nodes_count)
     : If(executor, local_nodes_count)
     , CanIf(this, device)
     , localAliases_(0, local_alias_cache_size)
@@ -394,6 +490,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new AliasConflictHandler(this));
     add_owned_flow(new FrameToGlobalMessageParser(this));
     add_owned_flow(new VerifyNodeIdHandler(this));
+    add_owned_flow(new RemoteAliasCacheUpdater(this));
     add_addressed_message_support();
     /*pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)
@@ -425,27 +522,34 @@ void IfCan::set_alias_allocator(AliasAllocator *a)
 
 void IfCan::add_addressed_message_support()
 {
-    if (addressedWriteFlow_) return;
+    if (addressedWriteFlow_)
+        return;
     add_owned_flow(new FrameToAddressedMessageParser(this));
-    auto* f = new AddressedCanMessageWriteFlow(this);
+    auto *f = new AddressedCanMessageWriteFlow(this);
     addressedWriteFlow_ = f;
     add_owned_flow(f);
 }
 
-void IfCan::canonicalize_handle(NodeHandle* h) {
-  if (!h->id & !h->alias) return;
-  if (!h->id) {
-    h->id = local_aliases()->lookup(h->alias);
-  }
-  if (!h->id) {
-    h->id = remote_aliases()->lookup(h->alias);
-  }
-  if (!h->alias) {
-    h->alias = local_aliases()->lookup(h->id);
-  }
-  if (!h->alias) {
-    h->alias = remote_aliases()->lookup(h->id);
-  }
+void IfCan::canonicalize_handle(NodeHandle *h)
+{
+    if (!h->id & !h->alias)
+        return;
+    if (!h->id)
+    {
+        h->id = local_aliases()->lookup(h->alias);
+    }
+    if (!h->id)
+    {
+        h->id = remote_aliases()->lookup(h->alias);
+    }
+    if (!h->alias)
+    {
+        h->alias = local_aliases()->lookup(h->id);
+    }
+    if (!h->alias)
+    {
+        h->alias = remote_aliases()->lookup(h->id);
+    }
 }
 
 bool IfCan::matching_node(NodeHandle expected, NodeHandle actual)
