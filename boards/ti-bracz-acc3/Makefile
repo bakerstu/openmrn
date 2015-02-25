@@ -35,8 +35,10 @@ flash: $(EXECUTABLE).elf
 	ti-flash.sh $<
 
 rflash: $(EXECUTABLE).bin
-	train enter-bootloader 354
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<
+
+#	train enter-bootloader 354
+
 
 
 gdb:
