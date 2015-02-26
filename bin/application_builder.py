@@ -113,6 +113,8 @@ def createToolImage(widget, image):
 
 # The main application window
 class App:
+        
+
     #initialize main window
     def __init__(self, master):
         master.title("OpenMRN Application Builder")
@@ -132,52 +134,43 @@ class App:
         #frame.rowconfigure(2, weight=1)
 
         # OpenMRN Path
-        self.OpenmrnLabel = Label(frame, text="OpenMRN Path",
-                                  font="Arial 12 bold")
-        self.OpenmrnLabel.grid(row=ROW, column=0, columnspan=2, sticky=S+W, padx=10)
-        self.OpenmrnTip = ('This is the file system path which points to\nthe '
-                           'location of the OpenMRN project tree.')
-        self.OpenmrnPath = Entry(frame, width=64)
-        self.OpenmrnPath.grid(row=ROW+1, column=0, columnspan=2, sticky=E+W, padx=5, pady=(0,20))
-        self.OpenmrnPath.insert(0, os.path.abspath(os.getcwd() + '/../'))
-        createToolTip(self.OpenmrnPath, self.OpenmrnTip, 3)
+        self.OpenmrnPath = None
+        self.path_entry(frame, self.OpenmrnPath, 'OpenMRN Path',
+                        os.path.abspath(os.getcwd() + '/../'),
+                        'This is the file system path which points to\nthe '
+                        'location of the OpenMRN project tree.',
+                        0, 0)
 
         # Application Path
-        self.ApplLabel = Label(frame, text="New Application Path",
-                               font="Arial 12 bold")
-        self.ApplLabel.grid(row=ROW, column=2, columnspan=2, sticky=S+W, padx=10)
-        self.ApplPath = Entry(frame, width=64)
-        self.ApplPath.grid(row=ROW+1, column=2, columnspan=1, sticky=E+W, padx=5, pady=(0,20))
-        self.ApplTip = ('This is the file system path which points to\nthe '
-                        'location of the generated application.')
-        createToolTip(self.ApplPath, self.ApplTip, 3)
-        Button(frame, text='Browse...', command=partial(self.browse, self.ApplPath)).grid(row=ROW+1, column=3, sticky=E+W, padx=5, pady=(0,20))
+        self.ApplPath = None
+        self.path_entry(frame, self.ApplPath, 'Application Path', None,
+                        'This is the file system path which points to\nthe '
+                        'location of the generated application.',
+                        0, 2)
 
         ROW +=2
 
         # Application Sub-directories
-        self.SubdirLabel = Label(frame, text="Application Subdirectory List [space separated]",
-                                 font="Arial 12 bold")
-        self.SubdirLabel.grid(row=ROW, column=0, columnspan=2, sticky=S+W, padx=10)
-        self.SubdirEntry = Entry(frame, width=64)
-        self.SubdirEntry.grid(row=ROW+1, column=0, columnspan=2, sticky=E+W, padx=5, pady=(0,20))
-        self.SubdirTip = ('Often it is usefull to add sub-directories\nto '
-                          'better organize a large project.  The\nprovided '
-                          'list of sub-directories will be\nadded to the '
-                          'build rules for the\napplication.  Additional sub-'
-                          'directories\ncan be added later by using the\n'
-                          '"SubdirAdder" program.')
-        createToolTip(self.SubdirEntry, self.SubdirTip, 3)
+        self.SubdirEntries = None
+        self.path_entry(frame, self.SubdirEntries,
+                        'Application Subdirectory List [space separated]',
+                        None,
+                        'Often it is usefull to add sub-directories\nto '
+                        'better organize a large project.  The\nprovided '
+                        'list of sub-directories will be\nadded to the '
+                        'build rules for the\napplication.  Additional sub-'
+                        'directories\ncan be added later by using the\n'
+                        '"SubdirAdder" program.',
+                        ROW, 0, False)
 
         # Template
         self.TemplateLabel = Label(frame, text="Template",
                                    font="Arial 12 bold")
         self.TemplateLabel.grid(row=ROW, column=2, sticky=S+W, padx=10)
         self.Template = Combobox(frame, textvariable=StringVar(), state="readonly")
-        #self.Template.bind('<<ComboboxSelected>>', self.template_select)
         self.Template['values'] = ('empty', 'blink', 'train', 'traction proxy', 'hub')
         self.Template.current(0)
-        self.Template.grid(row=ROW+1, column=2, sticky=W+E, padx=5, pady=(0,20))
+        self.Template.grid(row=ROW+1, column=2, sticky=W, padx=5, pady=(0,20))
         self.TemplateTip = ('The template is a starting point for\nthe ' +
                             'application.  It will provide the\nbasic ' +
                             'framework from which custom\napplication ' +
@@ -188,7 +181,7 @@ class App:
         self.EclipseVal = IntVar()
         self.Eclipse = Checkbutton(frame, text="Generate Eclipse Project",
                                    variable=self.EclipseVal, state=NORMAL)
-        self.Eclipse.grid(row=ROW, rowspan=2, column=3, sticky=W, padx=5)
+        self.Eclipse.grid(row=ROW, rowspan=2, column=2, sticky=E, padx=5)
         self.EclipseVal.set(True)
         self.EclipseTip = ('Generate an Eclipse IDE project\n'
                            'for the application.')
@@ -213,11 +206,25 @@ class App:
 
         # Quit Button
         self.Exit = Button(frame, text="Quit", command=frame.quit)
-        self.Exit.grid(row=ROW-2, column=3, rowspan=3, sticky=S+E, padx=5, pady=5)
+        self.Exit.grid(row=ROW-2, column=2, rowspan=3, columnspan=2, sticky=S+E, padx=5, pady=5)
 
         # Generate Button
         self.Generate = Button(frame, text="Generate", command=frame.quit)
-        self.Generate.grid(row=ROW-2, column=3, rowspan=3, sticky=S, padx=(0,15), pady=5)
+        self.Generate.grid(row=ROW-2, column=2, rowspan=3, columnspan=2, sticky=S+E, padx=(0,95), pady=5)
+
+    # create a path entry box
+    def path_entry(self, frame, item, label, value, tip, row, column, browse=True):
+        label = Label(frame, text=label, font="Arial 12 bold")
+        label.grid(row=row, column=column, sticky=S+W, padx=10)
+        item = Entry(frame, width=50)
+        item.grid(row=row+1, column=column, sticky=E+W, padx=5, pady=(0,20))
+        if value != None:
+            item.insert(0, value)
+        if tip != None:
+            createToolTip(item, tip, 3)
+        if browse == True:
+            button = Button(frame, text='Browse...', command=partial(self.browse, item))
+            button.grid(row=row+1, column=column+1, sticky=W, padx=5, pady=(0,20))
 
     # create a target
     def add_target(self, target, frame, row, target_list):
