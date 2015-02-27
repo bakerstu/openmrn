@@ -10,11 +10,11 @@ from tkFileDialog import *
 import Image
 from functools import partial
 
-FreertosArmv7mList = [['ek-lm4f120xl (legacy)', None, None, None],
-                      ['ek-tm4c123gxl', None, None, None],
-                      ['ek-tm4c1294xl', None, None, None],
-                      ['Generic Tiva TM4C123', None, None, None],
-                      ['Generic Tiva TM4C129', None, None, None],
+FreertosArmv7mList = [['ek-lm4f120xl-launchpad (legacy)', None, None, None],
+                      ['ek-tm4c123gxl-launchpad', None, None, None],
+                      ['ek-tm4c1294xl-launchpad', None, None, None],
+                      ['ti-tm4c123-generic', None, None, None],
+                      ['ti-tm4c129-generic', None, None, None],
                       ['Custom', None, None, None]]
 
 # display help information in form of text
@@ -188,6 +188,24 @@ class App:
         createToolTip(self.Eclipse, self.EclipseTip, 20)
 
         ROW += 2
+
+        # Linkage
+        self.LinkageLabel = Label(frame, text="Linkage",
+                                   font="Arial 12 bold")
+        self.LinkageLabel.grid(row=ROW, column=2, sticky=S+W, padx=10)
+        self.Linkage = Combobox(frame, textvariable=StringVar(), state="readonly")
+        self.Linkage['values'] = ('copy', 'symbolic-link/shortcut')
+        self.Linkage.current(0)
+        self.Linkage.grid(row=ROW+1, column=2, rowspan=2, sticky=W, padx=5, pady=(0,20))
+        self.LinkageTip = ('Each target supported by this tool ' +
+                           'uses\ntemplates in the openmrn/boards directory\n' +
+                           'as a starting point for Make Rules, ' +
+                           'startup\ncode, and initialization routines.  ' +
+                           'These\ncan be created as copies or as links to ' +
+                           'the\noriginal templates.  As links, updates in ' +
+                           'the\nopenmrn platform tree would be reflected\n' +
+                           'in realtime in the generated application\ntree(s).')
+        createToolTip(self.Linkage, self.LinkageTip, 3)
 
         # Targets
         self.TargetLabel = Label(frame, text="Targets", font="Arial 12 bold")
