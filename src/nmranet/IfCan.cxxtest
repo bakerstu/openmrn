@@ -111,6 +111,16 @@ TEST_F(AsyncIfTest, RemoteAliasLearned)
     EXPECT_EQ(0ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
 }
 
+TEST_F(AsyncIfTest, AMESupport)
+{
+    ifCan_->local_aliases()->add(0x050101011877ULL, 0x729U);
+    send_packet_and_expect_response(":X10702643N050101011877;",
+                                    ":X10701729N050101011877;");
+    wait();
+    send_packet(":X10702643N050101011878;");
+    wait();
+}
+
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:
