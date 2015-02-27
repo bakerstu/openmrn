@@ -57,6 +57,8 @@ struct BootloaderRequest
     NodeHandle dst;
     /// Memory space ID to write into.
     uint8_t memory_space;
+    // Nonzero: request the target to reboot into bootloader mode.
+    uint8_t request_reboot;
     /// Offset at which to start writing.
     uint32_t offset;
     /// Payload to write.
@@ -122,6 +124,34 @@ private:
     {
         dgClient_ =
             full_allocation_result(datagramService_->client_allocator());
+        if (!message()->data()->request_reboot)
+        {
+            return call_immediately(STATE(send_write_dg));
+        }
+        Buffer<NMRAnetMessage> *b;
+        mainBufferPool->alloc(&b);
+        DatagramPayload payload;
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER);
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
+            message()->data()->dst, payload);
+        b->set_done(n_.reset(this));
+        dgClient_->write_datagram(b);
+        /// @TODO (balazs.racz): register a message handler that will wait for
+        /// a node initialization complete message to come in and cancel the
+        /// datagram send timeout.
+        return wait_and_call(STATE(reboot_dg_done));
+    }
+
+    Action reboot_dg_done()
+    {
+        uint32_t dg_result = dgClient_->result();
+        LOG(INFO, "Reboot command result: %04x", dg_result);
+        return call_immediately(STATE(send_write_dg));
+    }
+
+    Action send_write_dg()
+    {
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
@@ -246,8 +276,10 @@ private:
                 ++error_ofs;
             }
             LOG(WARNING, "payload length %d error offset %d data %02x %02x",
-                payload.size(), error_ofs, payload[error_ofs], payload[error_ofs + 1]);
-            error_code = (payload[error_ofs] << 8) | ((uint8_t)payload[error_ofs + 1]);
+                payload.size(), error_ofs, payload[error_ofs],
+                payload[error_ofs + 1]);
+            error_code =
+                (payload[error_ofs] << 8) | ((uint8_t)payload[error_ofs + 1]);
             error_ofs += 2;
             return return_error(
                 error_code, "Write rejected " + payload.substr(error_ofs));
@@ -422,7 +454,7 @@ private:
         memcpy(&frame->data[1], &message()->data()->data[bufferOffset_], len);
         bufferOffset_ += len;
         availableBufferSize_ -= len;
-        //LOG(INFO, "available buffer: %d", availableBufferSize_);
+        // LOG(INFO, "available buffer: %d", availableBufferSize_);
         b->set_done(n_.reset(this));
         ifCan_->frame_write_flow()->send(b);
 
@@ -461,15 +493,22 @@ private:
         long long next_time = os_get_time_monotonic();
         float new_speed = next_time - lastMeasurementTimeNsec_;
         new_speed = float(bytes_sent) * 1e9 / new_speed;
-        if (!lastMeasurementOffset_) {
+        if (!lastMeasurementOffset_)
+        {
             speed_ = new_speed;
-        } else {
+        }
+        else
+        {
             speed_ = speed_ * 0.8 + new_speed * 0.2;
         }
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
 
-        LOG(INFO, "%02ld.%06ld stream offset: %d; wrote %.0lld usec slept %.0lld usec, speed=%.0f bytes/sec", ts.tv_sec % 60, ts.tv_nsec / 1000, bufferOffset_, (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000, (next_time - sleepStartTimeNsec_) / 1000, speed_);
+        LOG(INFO, "%02ld.%06ld stream offset: %d; wrote %.0lld usec slept "
+                  "%.0lld usec, speed=%.0f bytes/sec",
+            ts.tv_sec % 60, ts.tv_nsec / 1000, bufferOffset_,
+            (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000,
+            (next_time - sleepStartTimeNsec_) / 1000, speed_);
         lastMeasurementOffset_ = bufferOffset_;
         lastMeasurementTimeNsec_ = next_time;
 

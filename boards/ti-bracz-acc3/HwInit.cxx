@@ -271,8 +271,8 @@ void hw_preinit(void)
 
     /// TODO(balazs.racz) reenable this for the TX of the signalbus.
     //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-    //MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
-    //MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
-    DBG_SIGNAL_Pin::hw_init();
+    MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
+    MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
+    //DBG_SIGNAL_Pin::hw_init();
 }
 }

@@ -48,6 +48,7 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
+#include "TivaGPIO.hxx"
 
 #include "dcc_control.hxx"
 #include "hardware.hxx"
@@ -60,6 +61,10 @@ struct Debug {
   typedef DummyPin RailcomError;
   // Flips every time an 'E0' byte is received in the railcom driver.
   typedef DummyPin RailcomE0;
+
+    typedef DummyPin RailcomDataReceived;
+    typedef DummyPin RailcomAnyData;
+    typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
 
@@ -105,6 +110,12 @@ void uart6_interrupt_handler(void)
   railcom_driver.os_interrupt_handler();
 }
 
+void uart2_interrupt_handler(void)
+{
+  uart2.interrupt_handler();
+}
+
+
 void hw_set_to_safe(void)
 {
     dcc_hw.disable_output();
@@ -125,9 +136,6 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
-#define BLINKER_PORT GPIO_PORTN_BASE
-#define BLINKER_PIN GPIO_PIN_1
-
 void timer5a_interrupt_handler(void)
 {
     //
@@ -135,8 +143,7 @@ void timer5a_interrupt_handler(void)
     //
     MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     // Set output LED.
-    MAP_GPIOPinWrite(BLINKER_PORT, BLINKER_PIN,
-                     (rest_pattern & 1) ? BLINKER_PIN : 0);
+    io::BlinkerLed::set(rest_pattern & 1);
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
@@ -195,14 +202,14 @@ void set_gpio_puinput(uint32_t port, uint32_t pin) {
 
 void enable_dcc() {
     g_dcc_on = true;
-    MAP_GPIOPinWrite(LED_BLUE, 0xff);
+    io::TrackOnLed::set(true);
     dcc_hw.enable_output();
 }
 
 void disable_dcc() {
     dcc_hw.disable_output();
     g_dcc_on = false;
-    MAP_GPIOPinWrite(LED_BLUE, 0);
+    io::TrackOnLed::set(false);
 }
 
 bool query_dcc() {
@@ -261,10 +268,7 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
     /* blinker LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-    MAP_GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
-    MAP_GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
+    io::BlinkerLed::hw_init();
 
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
@@ -301,21 +305,25 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOP);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    set_gpio_led(LED_RED);  // red
-    set_gpio_led(LED_YELLOW);  // yellow
+    LED_RED_Pin::hw_init();
+    LED_YELLOW_Pin::hw_init();
+    LED_BLUE_Pin::hw_init();
 #ifdef HW_V1
-    set_gpio_extinput(LED_GREEN);
+    set_gpio_extinput(LED_GREEN_Pin::GPIO_BASE, LED_GREEN_Pin::GPIO_PIN);
 #elif defined(HW_V2)
-    set_gpio_led(LED_GREEN);  // green
+    LED_GREEN_Pin::hw_init();
 #else
 #error define version with HWVER=HW_V1 or HWVER=HW_V2
 #endif
-    set_gpio_led(LED_BLUE);  // blue
+    // onboard LEDs.
+    LED_B1_Pin::hw_init(); LED_B1_Pin::set(true);
+    LED_B2_Pin::hw_init(); LED_B2_Pin::set(true);
+    LED_B3_Pin::hw_init(); LED_B3_Pin::set(true);
+    LED_B4_Pin::hw_init(); LED_B4_Pin::set(true);
 
-    set_gpio_led(LED_B1);  // onboard 1
-    set_gpio_led(LED_B2);  // onboard 2
-    set_gpio_led(LED_B3);  // onboard 3
-    set_gpio_led(LED_B4);  // onboard 4
+    // Switches
+    USR_SW1_Pin::hw_init();
+    USR_SW2_Pin::hw_init();
 
     /* Timer hardware for DCC signal generation */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
@@ -325,25 +333,22 @@ void hw_preinit(void)
     /* Temporary enable Irq for blinking. */
     asm("cpsie i\n");
 
-    MAP_GPIOPinWrite(LED_BLUE, 0xFF);
+    io::TrackOnLed::set(true);
 
     blinker_pattern = 0x80002;
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ);
-    set_gpio_puinput(GPIO_PORTJ_BASE, GPIO_PIN_0);
-    volatile uint8_t* mem = (uint8_t*)(GPIO_PORTJ_BASE + ((GPIO_PIN_0)<<2));
     uint32_t counter = (configCPU_CLOCK_HZ / 3);
-    while (!*mem || counter) {
+    while (!USR_SW1_Pin::get() || counter) {
       if (counter) --counter;
     }
 
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    LED_B1_Pin::set(false);
+    LED_B2_Pin::set(false);
+    LED_B3_Pin::set(false);
+    LED_B4_Pin::set(false);
 
-    MAP_GPIOPinWrite(LED_B1, 0);
-    MAP_GPIOPinWrite(LED_B2, 0);
-    MAP_GPIOPinWrite(LED_B3, 0);
-    MAP_GPIOPinWrite(LED_B4, 0);
 }
 
 

@@ -115,6 +115,20 @@ public:
         return release_and_exit();
     }
 
+    /** @returns the size of the incoming datagram payload. */
+    size_t size()
+    {
+        return message()->data()->payload.size();
+    }
+
+    /** @returns the incoming datagram payload. Byte zero will be the datagram
+     * ID. */
+    const uint8_t *payload()
+    {
+        return reinterpret_cast<const uint8_t *>(
+            message()->data()->payload.data());
+    }
+
 private:
     uint16_t responseErrorCode_;
     nmranet::Defs::MTI responseMti_;

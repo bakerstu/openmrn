@@ -835,6 +835,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xF0;
     request_->data()->offset = 0;
+    request_->data()->request_reboot = 0;
     request_->data()->data = get_block(42, 3500);
     send();
     n_.wait_for_notification();
@@ -850,6 +851,7 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xF0;
     request_->data()->offset = 0;
+    request_->data()->request_reboot = 0;
     string s = get_block(42, 349);
     request_->data()->data = s;
     add_send_expectations(s);
@@ -871,6 +873,7 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xF0;
     request_->data()->offset = 0;
+    request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
     request_->data()->data = s;
     add_send_expectations(s);
@@ -891,6 +894,7 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xF0;
     request_->data()->offset = 3 * 1024;
+    request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
     request_->data()->data = s;
     add_send_expectations(s, 3*1024);
@@ -911,6 +915,7 @@ TEST_F(BootloaderClientTest, FailOnSpaceId)
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xF1;
     request_->data()->offset = 3 * 1024;
+    request_->data()->request_reboot = 0;
     string s = get_block(42, 100);
     request_->data()->data = s;
     send();
@@ -932,6 +937,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     request_->data()->dst.id = 0x05010101146C;
     request_->data()->memory_space = 0xF0;
     request_->data()->offset = 0;
+    request_->data()->request_reboot = 0;
     string s = get_block(42, 349);
     request_->data()->data = s;
     add_send_expectations(s);
