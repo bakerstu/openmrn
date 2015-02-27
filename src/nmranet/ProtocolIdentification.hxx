@@ -80,12 +80,14 @@ private:
      */
     Action entry() OVERRIDE
     {
+        LOG(INFO, "PIP Entry");
         if (nmsg()->dstNode != node_)
         {
             /* not for me */
             return release_and_exit();
         }
         /* hanlde messager */
+        LOG(INFO, "PIP Handle");
         return allocate_and_call(
             node_->interface()->addressed_message_write_flow(),
             STATE(fill_response_buffer));
@@ -104,7 +106,8 @@ private:
 
         /* pass the response to the addressed message write flow */
         node_->interface()->addressed_message_write_flow()->send(b);
-        
+
+        LOG(INFO, "PIP Reply");
         return release_and_exit();
     }
 
