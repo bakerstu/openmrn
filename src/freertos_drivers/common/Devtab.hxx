@@ -65,9 +65,7 @@ public:
     Device(const char *name);
 
     /** Destructor */
-    virtual ~Device()
-    {
-    }
+    virtual ~Device();
 
     /** Open a file or device.
      * @param reent thread save reentrant structure
@@ -265,6 +263,9 @@ private:
 
     /** next device in linked list */
     Device *next;
+
+    /** previous device in linked list */
+    Device *prev;
 
     DISALLOW_COPY_AND_ASSIGN(Device);
 };
