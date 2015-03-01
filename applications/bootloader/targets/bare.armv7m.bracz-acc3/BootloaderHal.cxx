@@ -2,7 +2,7 @@
 
 #define TARGET_IS_TM4C123_RB1
 
-#include "../boards/ti-tiva/BootloaderHal.hxx"
+#include "../boards/ti-tm4c123-generic/BootloaderHal.hxx"
 #include "bootloader_hal.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
