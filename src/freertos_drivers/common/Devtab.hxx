@@ -40,6 +40,7 @@
 
 class Device;
 class Notifiable;
+template <typename T> class DeviceBuffer;
 
 /** File information.
  */
@@ -193,7 +194,7 @@ protected:
      */
     virtual bool select(File* file, int mode);
 
-   /** Select wakeup information.
+    /** Select wakeup information.
      */
     struct SelectInfo
     {
@@ -254,6 +255,9 @@ protected:
 
     /** mutual exclusion for fileio */
     static OSMutex mutex;
+
+    /** allow class DeviceBuffer access to select() related members. */
+    template <typename T> friend class DeviceBuffer;
 
 private:
     const char *name; /**< device name */

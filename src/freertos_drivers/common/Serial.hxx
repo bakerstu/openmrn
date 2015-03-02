@@ -39,6 +39,7 @@
 #include "Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
+#include "DeviceBuffer.hxx"
 
 /** Private data for a serial device */
 class Serial : public Node
