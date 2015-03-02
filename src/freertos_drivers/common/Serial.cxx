@@ -37,19 +37,12 @@
 #include "Serial.hxx"
 #include "can_ioctl.h"
 
+/** Flush the receive and transmit buffers for this device.
+ */
 void Serial::flush_buffers()
 {
-    int result;
-    do
-    {
-        unsigned char data;
-        result = os_mq_timedreceive(txQ, &data, 0);
-    } while (result == OS_MQ_NONE);
-    do
-    {
-        unsigned char data;
-        result = os_mq_timedreceive(rxQ, &data, 0);
-    } while (result == OS_MQ_NONE);
+    txBuf->flush();
+    rxBuf->flush();
 }
 
 /** Read from a file or device.
@@ -65,26 +58,34 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
     
     while (count)
     {
-        if (os_mq_timedreceive(rxQ, data, 0) == OS_MQ_TIMEDOUT)
+        /* We limit the amount of bytes we read with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        portENTER_CRITICAL();
+        size_t bytes_read = rxBuf->get(data, count < 64 ? count : 64);
+
+        if (bytes_read == 0)
         {
             /* no more data to receive */
-            if ((file->flags & O_NONBLOCK) ||
-                result > 0)
+            if ((file->flags & O_NONBLOCK) || result > 0)
             {
+                portEXIT_CRITICAL();
                 break;
             }
             else
             {
                 /* wait for data to come in */
-                os_mq_receive(rxQ, data);
+                rxBuf->block_until_condition();
             }
         }
+        portEXIT_CRITICAL();
 
-        count--;
-        result++;
-        data++;
+        count -= bytes_read;
+        result += bytes_read;
+        data += bytes_read;
     }
-    
+
     return result;
 }
 
@@ -101,26 +102,33 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
     
     while (count)
     {
-        if (file->flags & O_NONBLOCK)
+        /* We limit the amount of bytes we write with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        portENTER_CRITICAL();
+        size_t bytes_written = txBuf->put(data, count < 64 ? count : 64);
+
+        if (bytes_written == 0)
         {
-            if (os_mq_timedsend(txQ, data, 0) == OS_MQ_TIMEDOUT)
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) || result > 0)
             {
-                /* no more room in the buffer */
+                portEXIT_CRITICAL();
                 break;
             }
+            else
+            {
+                /* wait for data to come in */
+                txBuf->block_until_condition();
+            }
         }
-        else
-        {
-            /* wait for room in the queue */
-            os_mq_send(txQ, data);
-        }
-        lock_.lock();
         tx_char();
-        lock_.unlock();
+        portEXIT_CRITICAL();
 
-        count--;
-        result++;
-        data++;
+        count -= bytes_written;
+        result += bytes_written;
+        data += bytes_written;
     }
     
     return result;
@@ -150,25 +158,25 @@ bool Serial::select(File* file, int mode)
     {
         case FREAD:
             portENTER_CRITICAL();
-            if (os_mq_num_pending(rxQ) > 0)
+            if (rxBuf->pending() > 0)
             {
                 retval = true;
             }
             else
             {
-                select_insert(&selInfoRd);
+                rxBuf->select_insert();
             }
             portEXIT_CRITICAL();
             break;
         case FWRITE:
             portENTER_CRITICAL();
-            if (os_mq_num_spaces(txQ) > 0)
+            if (txBuf->space() > 0)
             {
                 retval = true;
             }
             else
             {
-                select_insert(&selInfoWr);
+                txBuf->select_insert();
             }
             portEXIT_CRITICAL();
             break;

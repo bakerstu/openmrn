@@ -105,28 +105,24 @@ public:
      */
     void block_until_condition()
     {
-        portENTER_CRITICAL(); // lock out interrupts
         for ( ; /* forever */ ; )
         {
             waiting = true;
             portEXIT_CRITICAL(); // release lock
-            unlock(); // release lock
 
             sem->wait(); // wait for condition to become true.
 
-            lock(); // lock out other threads
-            portENTER_CRITICAL(); // lock out interrupts
+            portENTER_CRITICAL(); // lock out interrupts and context switch
             if (!waiting)
             {
                 waiting = false;
-                portEXIT_CRITICAL(); // release lock
                 break;
             }
             /* another thread beat us, we need to continue waiting */
         }
     }
 
-    /** Signal the wakeup condition.
+    /** Signal the wakeup condition.  This will also wakeup select.
      */
     void signal_condition()
     {
@@ -136,17 +132,58 @@ public:
             sem->post();
         }
         portEXIT_CRITICAL();
+        Device::select_wakeup(&selectInfo);
     }
 
-    /** Signal the wakeup condition from an ISR context.
+    /** Signal the wakeup condition from an ISR context.  This will also
+     * wakeup select.
      */
     void signal_condition_from_isr()
     {
+        int woken = 0;
         if (waiting)
         {
             int woken = 0;
             sem->post_from_isr(&woken);
         }
+        Device::select_wakeup_from_isr(&selectInfo, &woken);
+    }
+
+    /** flush all the data out of the buffer and reset the buffer.  It is
+     * assumed that an interrupt cannot occur which would access the buffer
+     * asynchronous to the execution of this method and any thread level
+     * mutual exclusion is handled by the caller.
+     */
+    void flush()
+    {
+        sem->timedwait(0);
+        waiting = false;
+        count = 0;
+        readIndex = 0;
+        writeIndex = 0;
+    }
+
+    /** Return the number of items in the queue.
+     * @return number of bytes in the queue
+     */
+    size_t pending()
+    {
+        return count;
+    }
+
+    /** Return the number of items for which space is availabe.
+     * @return number of items for which space is availabe
+     */
+    size_t space()
+    {
+        return size - count;
+    }
+
+    /** Add client to list of clients needing woken.
+     */
+    void select_insert()
+    {
+        return Device::select_insert(&selectInfo);
     }
 
 private:

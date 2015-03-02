@@ -134,15 +134,15 @@ void TivaUart::disable()
     MAP_UARTDisable(base);
 }
 
-/* Try and transmit a message.
+/** Try and transmit a message.
  */
 void TivaUart::tx_char()
 {
     if (txPending == false)
     {
-        unsigned char data;
+        uint8_t data = 0;
 
-        if (os_mq_timedreceive(txQ, &data, 0) == OS_MQ_NONE)
+        if (txBuf->get(&data, 1))
         {
             MAP_UARTCharPutNonBlocking(base, data);
 
@@ -170,11 +170,11 @@ void TivaUart::interrupt_handler()
         if (data >= 0 && data <= 0xff)
         {
             unsigned char c = data;
-            if (os_mq_send_from_isr(rxQ, &c, &woken) == OS_MQ_FULL)
+            if (rxBuf->put(&c, 1) == 0)
             {
                 overrunCount++;
             }
-            select_wakeup_from_isr(&selInfoRd, &woken);
+            rxBuf->signal_condition_from_isr();
         }
     }
     /* tranmit a character if we have pending tx data */
@@ -183,10 +183,10 @@ void TivaUart::interrupt_handler()
         while (MAP_UARTSpaceAvail(base))
         {
             unsigned char data;
-            if (os_mq_receive_from_isr(txQ, &data, &woken) == OS_MQ_NONE)
+            if (txBuf->get(&data, 1) != 0)
             {
                 MAP_UARTCharPutNonBlocking(base, data);
-                select_wakeup_from_isr(&selInfoWr, &woken);
+                txBuf->signal_condition_from_isr();
             }
             else
             {

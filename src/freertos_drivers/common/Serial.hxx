@@ -50,13 +50,9 @@ protected:
      */
     Serial(const char *name)
         : Node(name)
-        , txQ(os_mq_create(config_serial_tx_buffer_size(),
-                           sizeof(unsigned char)))
-        , rxQ(os_mq_create(config_serial_rx_buffer_size(),
-                           sizeof(unsigned char)))
+        , txBuf(DeviceBuffer<uint8_t>::create(config_serial_tx_buffer_size()))
+        , rxBuf(DeviceBuffer<uint8_t>::create(config_serial_rx_buffer_size()))
         , overrunCount(0)
-        , selInfoRd()
-        , selInfoWr()
     {
     }    
 
@@ -69,15 +65,14 @@ protected:
          */
         HASSERT(0);
     }
-    
-    virtual void tx_char() = 0; /**< function to try and transmit a character */
 
-    os_mq_t txQ; /**< transmit queue */
-    os_mq_t rxQ; /**< receive queue */
+    /** Function to try and transmit a character.
+     */
+    virtual void tx_char() = 0;
+
+    DeviceBuffer<uint8_t> *txBuf; /**< transmit buffer */
+    DeviceBuffer<uint8_t> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
-
-    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
-    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 private:
     /** Read from a file or device.
