@@ -81,13 +81,13 @@ const char *device_path = nullptr;
 const char *filename = nullptr;
 uint64_t destination_nodeid = 0;
 unsigned destination_alias = 0;
-string payload_string;
+vector<string> payload_strings;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) "
-        "(-n nodeid | -a alias) -g payload_hex\n",
+        "(-n nodeid | -a alias) (-g payload_hex)...\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and sends a datagram to a "
                     "specific node on the bus.\n");
@@ -104,8 +104,10 @@ void usage(const char *e)
                     "no separators, like '-a 0x3F9'\n");
     fprintf(stderr, "\npayload is a string of hex digits that define the "
                     "datagram payload. This payload usually starts with the "
-                    "datagram type byte. Required. Example: '-d 20A9' to send "
-                    "a memory config datagram with reboot request.\n");
+                    "datagram type byte. Required. Example: '-g 20A9' to send "
+                    "a memory config datagram with reboot request. "
+                    "You can supply multiple -g arguments to send multiple "
+                    "datagrams\n");
     exit(1);
 }
 
@@ -135,14 +137,14 @@ void parse_args(int argc, char *argv[])
                 destination_alias = strtoul(optarg, nullptr, 16);
                 break;
             case 'g':
-                payload_string = optarg;
+                payload_strings.push_back(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
         }
     }
-    if (payload_string.empty() || (!destination_nodeid && !destination_alias))
+    if (payload_strings.empty() || (!destination_nodeid && !destination_alias))
     {
         usage(argv[0]);
     }
@@ -180,36 +182,43 @@ int appl_main(int argc, char *argv[])
     g_executor.start_thread("g_executor", 0, 1024);
 
     // Waits for stack to be up.
-    while (!g_node.is_initialized()) usleep(10000);
+    while (!g_node.is_initialized())
+        usleep(10000);
+    LOG(INFO, "Node initialized.");
 
     // Parses datagram into a payload.
-    DatagramPayload payload;
-    unsigned ofs = 0;
-    while (ofs + 2 <= payload_string.size()) {
-        payload.push_back(
-            strtoul(payload_string.substr(ofs, 2).c_str(), nullptr, 16));
-        ofs += 2;
+    SyncNotifiable n;
+    BarrierNotifiable bn;
+
+    DatagramClient *client = g_datagram_can.client_allocator()->next_blocking();
+
+    for (const auto &payload_string : payload_strings)
+    {
+        LOG(INFO, "Sending datagram %s", payload_string.c_str());
+        DatagramPayload payload;
+        unsigned ofs = 0;
+        while (ofs + 2 <= payload_string.size())
+        {
+            payload.push_back(
+                strtoul(payload_string.substr(ofs, 2).c_str(), nullptr, 16));
+            ofs += 2;
+        }
+        Buffer<nmranet::NMRAnetMessage> *b;
+        mainBufferPool->alloc(&b);
+
+        NodeHandle dst;
+        dst.alias = destination_alias;
+        dst.id = destination_nodeid;
+        b->data()->reset(Defs::MTI_DATAGRAM, g_node.node_id(), dst, payload);
+        b->set_done(bn.reset(&n));
+
+        client->write_datagram(b);
+        n.wait_for_notification();
+
+        fprintf(stderr, "Datagram send result: %04x\n", client->result());
     }
 
-    SyncNotifiable n;
-    BarrierNotifiable bn(&n);
-
-    DatagramClient* client = g_datagram_can.client_allocator()->next_blocking();
-    Buffer<nmranet::NMRAnetMessage> *b;
-    mainBufferPool->alloc(&b);
-
-    NodeHandle dst;
-    dst.alias = destination_alias;
-    dst.id = destination_nodeid;
-    b->data()->reset(Defs::MTI_DATAGRAM, g_node.node_id(),
-                     dst, payload);
-    b->set_done(&bn);
-
-    client->write_datagram(b);
-    n.wait_for_notification();
-
-    fprintf(stderr, "Datagram send result: %04x\n", client->result());
-
     g_datagram_can.client_allocator()->typed_insert(client);
+    exit(0); // do not call destructors.
     return 0;
 }
