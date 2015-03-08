@@ -40,7 +40,7 @@
 
 class Device;
 class Notifiable;
-template <typename T> class DeviceBuffer;
+class DeviceBufferBase;
 
 /** File information.
  */
@@ -257,7 +257,7 @@ protected:
     static OSMutex mutex;
 
     /** allow class DeviceBuffer access to select() related members. */
-    template <typename T> friend class DeviceBuffer;
+    friend class DeviceBufferBase;
 
 private:
     const char *name; /**< device name */

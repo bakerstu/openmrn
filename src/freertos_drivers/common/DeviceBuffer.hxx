@@ -1,30 +1,173 @@
-#ifndef _DEVICE_BUFFER_HXX_
-#define _DEVICE_BUFFER_HXX_
+/** \copyright
+ * Copyright (c) 2015, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file DeviceBuffer.hxx
+ * This file provides a buffer class that is useful in the construction of
+ * FreeRTOS device drivers.
+ *
+ * @author Stuart W. Baker
+ * @date 2 March 2015
+ */
+
+#ifndef _FREERTOS_DRIVERS_COMMON_DEVICE_BUFFER_HXX_
+#define _FREERTOS_DRIVERS_COMMON_DEVICE_BUFFER_HXX_
 
 #include <new>
 
 #include "Devtab.hxx"
 
+/** Helper for Device Buffer which allows for methods to not be inlined.
+ */
+class DeviceBufferBase
+{
+public:
+    /** Wait for blocking condition to become true.
+     * @param file file to wait on
+     * @param read true if this is a read operation, false for write operation
+     */
+    void block_until_condition(File *file, bool read);
 
-/** Implements a smart buffer specifically desinged for character
+    /** Signal the wakeup condition.  This will also wakeup select.
+     */
+    void signal_condition()
+    {
+        Device::select_wakeup(&selectInfo);
+    }
+
+    /** Signal the wakeup condition from an ISR context.  This will also
+     * wakeup select.
+     */
+    void signal_condition_from_isr()
+    {
+        int woken = 0;
+        Device::select_wakeup_from_isr(&selectInfo, &woken);
+    }
+
+    /** flush all the data out of the buffer and reset the buffer.  It is
+     * assumed that an interrupt cannot occur which would access the buffer
+     * asynchronous to the execution of this method and any thread level
+     * mutual exclusion is handled by the caller.
+     */
+    void flush()
+    {
+        count = 0;
+        readIndex = 0;
+        writeIndex = 0;
+    }
+
+    /** Return the number of items in the queue.
+     * @return number of bytes in the queue
+     */
+    size_t pending()
+    {
+        return count;
+    }
+
+    /** Return the number of items for which space is available.
+     * @return number of items for which space is available
+     */
+    size_t space()
+    {
+        return size - count;
+    }
+
+    /** Add client to list of clients needing woken.
+     */
+    void select_insert()
+    {
+        return Device::select_insert(&selectInfo);
+    }
+
+protected:
+    /** Constructor.
+     * @param size size in items for the buffer.
+     * @param level minimum amount of space required in buffer to restart
+     *        transmitting, unused for receive.
+     */
+    DeviceBufferBase(size_t size, size_t level)
+        : selectInfo()
+        , level(level)
+        , size(size)
+        , count(0)
+        , readIndex(0)
+        , writeIndex(0)
+    {
+    }
+
+    /** Destructor.
+     */
+    ~DeviceBufferBase()
+    {
+    }
+
+    /** Metadata for select() logic */
+    Device::SelectInfo selectInfo;
+
+    /** level of space required in buffer in order to wakeup, 0 if unused */
+    uint16_t level;
+    
+    /** size in items of buffer */
+    uint16_t size;
+    
+    /** total number of items in buffer */
+    uint16_t count;
+    
+    /** read index */
+    uint16_t readIndex;
+    
+    /** write index */
+    uint16_t writeIndex;
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(DeviceBufferBase);
+};
+
+/** Implements a smart buffer specifically designed for character
  * device drivers.  Technically, the private metadata for the size and index
- * counters should more properly be implemenented as size_t types.  The choice
+ * counters should more properly be implemented as size_t types.  The choice
  * of uint16_t types is simply to same memory as 2^16 is normally a reasonable
  * maximum size for this type of metadata.
  */
-template <typename T> class DeviceBuffer
+template <typename T> class DeviceBuffer : public DeviceBufferBase
 {
 public:
     /** Create a DeviceBuffer instance.
      * @param size size in items for the DeviceBuffer
+     * @param level minimum amount of space required in buffer to restart
+     *        transmitting, unused for receive.
+     * @return newly created DeviceBuffer instance
      */
-    static DeviceBuffer *create(size_t size)
+    static DeviceBuffer *create(size_t size, size_t level = 0)
     {
         HASSERT(size <= UINT16_MAX);
+        HASSERT(level <= size);
         DeviceBuffer *device_buffer =
             (DeviceBuffer*)malloc(sizeof(DeviceBuffer) + (size * sizeof(T)));
         /* placement new allows for runtime ring buffer size */
-        new (device_buffer) DeviceBuffer(size);
+        new (device_buffer) DeviceBuffer(size, level);
         
         return device_buffer;
     }
@@ -82,122 +225,14 @@ public:
         return last_count - count;
     }
 
-    /** lock access to the buffer.
-     */
-    void lock()
-    {
-        Device::mutex.lock();
-    }
-
-    /** unlock access to the buffer.
-     */
-    void unlock()
-    {
-        Device::mutex.lock();
-    }
-
-    /** Block until the wait condition is true.  The condition is defined by
-     * the user of the buffer and could be that their is data in the buffer or
-     * it could be that there is room in the buffer.  In any case, this method
-     * should be called only when the buffer is locked with the @ref lock
-     * method.  Internally the lock is released before blocking to prevent
-     * deadlock.  the lock is grabbed once again before the method returns.
-     */
-    void block_until_condition()
-    {
-        for ( ; /* forever */ ; )
-        {
-            waiting = true;
-            portEXIT_CRITICAL(); // release lock
-
-            sem->wait(); // wait for condition to become true.
-
-            portENTER_CRITICAL(); // lock out interrupts and context switch
-            if (!waiting)
-            {
-                waiting = false;
-                break;
-            }
-            /* another thread beat us, we need to continue waiting */
-        }
-    }
-
-    /** Signal the wakeup condition.  This will also wakeup select.
-     */
-    void signal_condition()
-    {
-        portENTER_CRITICAL();
-        if (waiting)
-        {
-            sem->post();
-        }
-        portEXIT_CRITICAL();
-        Device::select_wakeup(&selectInfo);
-    }
-
-    /** Signal the wakeup condition from an ISR context.  This will also
-     * wakeup select.
-     */
-    void signal_condition_from_isr()
-    {
-        int woken = 0;
-        if (waiting)
-        {
-            int woken = 0;
-            sem->post_from_isr(&woken);
-        }
-        Device::select_wakeup_from_isr(&selectInfo, &woken);
-    }
-
-    /** flush all the data out of the buffer and reset the buffer.  It is
-     * assumed that an interrupt cannot occur which would access the buffer
-     * asynchronous to the execution of this method and any thread level
-     * mutual exclusion is handled by the caller.
-     */
-    void flush()
-    {
-        sem->timedwait(0);
-        waiting = false;
-        count = 0;
-        readIndex = 0;
-        writeIndex = 0;
-    }
-
-    /** Return the number of items in the queue.
-     * @return number of bytes in the queue
-     */
-    size_t pending()
-    {
-        return count;
-    }
-
-    /** Return the number of items for which space is availabe.
-     * @return number of items for which space is availabe
-     */
-    size_t space()
-    {
-        return size - count;
-    }
-
-    /** Add client to list of clients needing woken.
-     */
-    void select_insert()
-    {
-        return Device::select_insert(&selectInfo);
-    }
-
 private:
     /** Constructor.
      * @param size size in items for the buffer.
+     * @param level minimum amount of space required in buffer to restart
+     *        transmitting, unused for receive.
      */
-    DeviceBuffer(size_t size)
-        : selectInfo()
-        , sem(0)
-        , waiting(false)
-        , size(size)
-        , count(0)
-        , readIndex(0)
-        , writeIndex(0)
+    DeviceBuffer(size_t size, size_t level)
+        : DeviceBufferBase(size, level)
     {
     }
 
@@ -209,29 +244,8 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(DeviceBuffer);
 
-    /** Metadata for select() logic */
-    Device::SelectInfo selectInfo;
-
-    /** Semaphore that will be used for asynchonous wait/wakeup */
-    OSSem *sem;
-
-    /** is the buffer currently waiting */
-    bool waiting;
-    
-    /** size in items of buffer */
-    uint16_t size;
-    
-    /** total number of items in buffer */
-    uint16_t count;
-    
-    /** read index */
-    uint16_t readIndex;
-    
-    /** write index */
-    uint16_t writeIndex;
-
     /** buffer data */
     T data[];
 };
 
-#endif /* _DEVICE_BUFFER_HXX_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_DEVICE_BUFFER_HXX_ */
