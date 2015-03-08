@@ -168,9 +168,8 @@ ssize_t Pipe::read(File *file, void *buf, size_t count)
         if (count)
         {
             /* no more data to receive */
-            if (file->flags & O_NONBLOCK)
+            if (file->flags & O_NONBLOCK || result > 0)
             {
-                /* nonblocking mode, return */
                 break;
             }
             else
@@ -228,9 +227,8 @@ ssize_t Pipe::write(File *file, const void *buf, size_t count)
         if (count)
         {
             /* no more room left */
-            if (file->flags & O_NONBLOCK)
+            if (file->flags & O_NONBLOCK || result > 0)
             {
-                /* nonblocking mode, return */
                 break;
             }
             else
@@ -257,9 +255,13 @@ int Pipe::close(File *file)
     mutex.lock();
     if (--references_ == 0)
     {
+        mutex.unlock();
         delete file->dev;
     }
-    mutex.unlock();
+    else
+    {
+        mutex.unlock();
+    }
 
     return 0;
 }
