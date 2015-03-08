@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * An application tests the Tiva/FreeRTOS implementation of the USB CDC driver.
+ * An application tests the Tiva/FreeRTOS implementation of the UART driver.
  *
  * @author Stuart Baker
  * @date 1 March 2015
@@ -36,6 +36,10 @@
 #include <fcntl.h>
 #include <os/OS.hxx>
 
+#include "nmranet_config.h"
+
+OVERRIDE_CONST(main_thread_stack_size, 2500);
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -43,7 +47,7 @@
  */
 int appl_main(int argc, char *argv[])
 {
-    int fd = open("/dev/serUSB0", O_RDWR);
+    int fd = open("/dev/ser0", O_RDWR);
 
     for (unsigned int i = 0 ; /* forever */ ; ++i)
     {
@@ -58,7 +62,7 @@ int appl_main(int argc, char *argv[])
             } while (bytes_read);
         }
         if (i % 64)
-            usleep(2000);
+        usleep(10000);
     }
 
     return 0;

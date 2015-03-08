@@ -85,7 +85,6 @@ int appl_main(int argc, char *argv[])
     OSSem sem(0);
     int fds[2];
 
-    open("/dev/ser0", O_RDWR);
     /* blocking mode test */
     for (int i = 0; i <10000; ++i)
     {

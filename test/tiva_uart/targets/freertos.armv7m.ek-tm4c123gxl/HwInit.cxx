@@ -288,7 +288,7 @@ void hw_preinit(void)
 
     /* This interrupt should hit even during kernel operations. */
     MAP_IntPrioritySet(INT_TIMER5A, 0);
-    MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
+    //MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     //MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
     /* UART0 pin initialization */
