@@ -54,9 +54,16 @@
 #include "Can.hxx"
 #include "I2C.hxx"
 
+/* This is fixed and equals the USB packet size that the CDC device will
+ * advertise to be able to receive. This is a performance parameter, 64 is the
+ * largest packet size permitted by USB for virtual serial ports. */
+#define TIVA_USB_PACKET_SIZE 64
+
+#define TIVA_USB_BUFFER_SIZE (64 * 4)
+
 /** Private data for this implementation of serial.
  */
-class TivaCdc : public USBSerialNode
+class TivaCdc : public USBSerial
 {
 public:
     /** Constructor.
@@ -77,35 +84,55 @@ public:
     void interrupt_handler();
 
 private:
+    /** Read from a file or device.
+     * @param file file reference for this device
+     * @param buf location to place read data
+     * @param count number of bytes to read
+     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+     */
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
+
+    /** Write to a file or device.
+     * @param file file reference for this device
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     */
+    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
+
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
+
     void enable(); /**< function to enable device */
     void disable(); /**< function to disable device */
 
-    /** Requests a packet to be sent from an ISR context. The buffer will be
-     * invalidated as soon as the call returns. */
-    bool tx_packet_from_isr(const void* data, size_t len) OVERRIDE;
+    static uint32_t control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
-    /** Requests a packet to be sent from a regular context (but under a lock
-     * and TX interrupt disabled).  The buffer will be invalidated and
-     * overwritten as soon as the call returns. */
-    bool tx_packet_irqlocked(const void* data, size_t len) OVERRIDE;
+    static uint32_t rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
-    /** Tries to receive a packet (from a regular context, locked and RX
-     * interrupt disabled). This is only ever called if the driver does
-     * set_rx_pending_from_isr().
-     * @returns the number of bytes read into the buffer. */
-    size_t rx_packet_irqlocked(void *data) OVERRIDE;
-
-    static unsigned long control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
-
-    static unsigned long rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
-
-    static unsigned long tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    static uint32_t tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
     tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
     uint32_t interrupt; /**< interrupt number for device */
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */
+    int waiting;
+
+    tUSBBuffer rxBuffer;
+    tUSBBuffer txBuffer;
+
+    tLineCoding lineCoding;
+
+    uint8_t receiveBuffer[TIVA_USB_BUFFER_SIZE];
+    uint8_t transmitBuffer[TIVA_USB_BUFFER_SIZE];
+    uint8_t receiveBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
+    uint8_t transmitBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
 
     /** Default constructor.
      */

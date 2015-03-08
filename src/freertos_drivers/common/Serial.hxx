@@ -51,7 +51,8 @@ protected:
     Serial(const char *name)
         : Node(name)
         , txBuf(DeviceBuffer<uint8_t>::create(config_serial_tx_buffer_size()))
-        , rxBuf(DeviceBuffer<uint8_t>::create(config_serial_rx_buffer_size()))
+        , rxBuf(DeviceBuffer<uint8_t>::create(config_serial_rx_buffer_size(),
+                                              config_serial_rx_buffer_size()/2))
         , overrunCount(0)
     {
     }    
@@ -60,10 +61,8 @@ protected:
      */
     ~Serial()
     {
-        /** @todo (Stuart Baker) for completeness we should destroy the
-         * txQ and rxQ here.
-         */
-        HASSERT(0);
+        txBuf->destroy();
+        rxBuf->destroy();
     }
 
     /** Function to try and transmit a character.
@@ -111,6 +110,44 @@ private:
     void flush_buffers() OVERRIDE;
 
     DISALLOW_COPY_AND_ASSIGN(Serial);
+};
+
+class USBSerial : public Node
+{
+public:
+    /** Constructor
+     * @param name device name in file system
+     */
+    USBSerial(const char *name)
+        : Node(name)
+        , selInfoRd()
+        , selInfoWr()
+    {
+    }    
+
+    /** Destructor.
+     */
+    ~USBSerial()
+    {
+    }
+
+protected:
+    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
+    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
+
+private:
+    /** Request an ioctl transaction
+     * @param file file reference for this device
+     * @param node node reference for this device
+     * @param key ioctl key
+     * @param data key data
+     */
+    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+    
+    /** Discards all pending buffers. Called after disable(). */
+    void flush_buffers() OVERRIDE;
+
+    DISALLOW_COPY_AND_ASSIGN(USBSerial);
 };
 
 /* This is fixed and equals the USB packet size that the CDC device will

@@ -5,6 +5,7 @@ CSRCS +=
 
 CXXSRCS += Fileio.cxx \
            Device.cxx \
+           DeviceBuffer.cxx \
            Node.cxx \
            Null.cxx \
            Select.cxx \

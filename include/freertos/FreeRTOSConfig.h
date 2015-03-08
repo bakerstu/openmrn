@@ -88,7 +88,7 @@
 #ifdef GCC_ARMCM3
 
 #define configCPU_CLOCK_HZ             ( cm3_cpu_clock_hz )
-#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 50 )
+#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 256 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
 #define configTIMER_TASK_STACK_DEPTH   256
 
@@ -265,7 +265,7 @@ extern unsigned long blinker_pattern;
 
 #define configUSE_TIMERS               1
 #define configTIMER_QUEUE_LENGTH       16
-#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES/2)
+#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 1)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1
 
 #define INCLUDE_uxTaskGetStackHighWaterMark 1

@@ -35,7 +35,10 @@
 #define gcc
 #endif
 
-#include <stdint.h>
+#include <algorithm>
+#include <cstdint>
+#include <fcntl.h>
+#include <sys/select.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -55,6 +58,7 @@
 #include "TivaGPIO.hxx"
 GPIO_PIN(LED_B4, LedPin, F, 0);
 GPIO_PIN(LED_B3, LedPin, F, 4);
+
 
 
 /** The languages supported by this device.
@@ -140,24 +144,185 @@ static TivaCdc *instances[1] = {NULL};
  * @param interrupt interrupt number used by the device
  */
 TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
-    : USBSerialNode(name)
-    , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR, control_callback, this, rx_callback, this, tx_callback, this, stringDescriptors, NUM_STRING_DESCRIPTORS}
+    : USBSerial(name)
+    , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR,
+                    control_callback, this, USBBufferEventCallback, &rxBuffer,
+                    USBBufferEventCallback, &txBuffer, stringDescriptors,
+                    NUM_STRING_DESCRIPTORS}
     , interrupt(interrupt)
     , connected(false)
     , enabled(false)
     , woken(false)
+    , waiting(0)
+    , rxBuffer{false, rx_callback, this, USBDCDCPacketRead,
+               USBDCDCRxPacketAvailable, &usbdcdcDevice, receiveBuffer,
+               TIVA_USB_BUFFER_SIZE, receiveBufferWorkspace}
+    , txBuffer{true, tx_callback, this, USBDCDCPacketWrite,
+               USBDCDCTxPacketAvailable, &usbdcdcDevice, transmitBuffer,
+               TIVA_USB_BUFFER_SIZE, transmitBufferWorkspace}
+    , lineCoding{115200, 1, 0, 8}
 {
     instances[0] = this;
-    log_.log(0x71);
+
+    USBBufferInit(&rxBuffer);
+    USBBufferInit(&txBuffer);
     USBStackModeSet(0, eUSBModeForceDevice, 0);
+    //MAP_IntPrioritySet(interrupt,
+    //                   std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
     USBDCDCInit(0, &usbdcdcDevice);
+}
+
+/** Read from a file or device.
+ * @param file file reference for this device
+ * @param buf location to place read data
+ * @param count number of bytes to read
+ * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ */
+ssize_t TivaCdc::read(File *file, void *buf, size_t count)
+{
+    unsigned char *data = (unsigned char*)buf;
+    ssize_t result = 0;
+
+    MAP_IntDisable(interrupt);
+    //if (connected)
+    {
+        while (count)
+        {
+            size_t bytes_read = 0;
+            if (USBBufferDataAvailable(&rxBuffer))
+            {
+                bytes_read = USBBufferRead(&rxBuffer, data, count);
+            }
+
+            if (bytes_read == 0)
+            {
+                /* no more data to receive */
+                if ((file->flags & O_NONBLOCK) || result > 0)
+                {
+                    break;
+                }
+                else
+                {
+                    /* wait for space to be available. */
+                    ++waiting;
+                    MAP_IntEnable(interrupt);
+                    fd_set rdfds;
+                    FD_ZERO(&rdfds);
+                    int fd = fd_lookup(file);
+                    FD_SET(fd, &rdfds);
+                    ::select(fd + 1, &rdfds, NULL, NULL, NULL);
+                    MAP_IntDisable(interrupt);
+                    --waiting;
+                }
+            }
+
+            count -= bytes_read;
+            result += bytes_read;
+            data += bytes_read;
+        }
+    }
+    MAP_IntEnable(interrupt);
+
+    return result;
+}
+
+/** Write to a file or device.
+ * @param file file reference for this device
+ * @param buf location to find write data
+ * @param count number of bytes to write
+ * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ */
+ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
+{
+    const unsigned char *data = (const unsigned char*)buf;
+    ssize_t result = 0;
+    
+    MAP_IntDisable(interrupt);
+    //if (connected)
+    {
+        while (count)
+        {
+            size_t bytes_written = 0;
+            if (USBBufferSpaceAvailable(&txBuffer))
+            {
+                bytes_written = USBBufferWrite(&txBuffer, data, count);
+            }
+            if (bytes_written == 0)
+            {
+                /* no more data to receive */
+                if ((file->flags & O_NONBLOCK) || result > 0)
+                {
+                    break;
+                }
+                else
+                {
+                    /* wait for space to be available. */
+                    MAP_IntEnable(interrupt);
+                    fd_set wrfds;
+                    FD_ZERO(&wrfds);
+                    int fd = fd_lookup(file);
+                    FD_SET(fd, &wrfds);
+                    ::select(fd + 1, NULL, &wrfds, NULL, NULL);
+                    MAP_IntDisable(interrupt);
+                }
+            }
+
+            count -= bytes_written;
+            result += bytes_written;
+            data += bytes_written;
+        }
+    }
+    MAP_IntEnable(interrupt);
+    
+    return result;
+}
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool TivaCdc::select(File* file, int mode)
+{
+    bool retval = false;
+    MAP_IntDisable(interrupt);
+    switch (mode)
+    {
+        case FREAD:
+            if (USBBufferDataAvailable(&rxBuffer) > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                select_insert(&selInfoRd);
+            }
+            break;
+        case FWRITE:
+            if (USBBufferSpaceAvailable(&txBuffer) > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                select_insert(&selInfoWr);
+            }
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    MAP_IntEnable(interrupt);
+
+    return retval;
 }
 
 /** Enable use of the device interrupts.
  */
 void TivaCdc::enable()
 {
-    log_.log(0xD1);
     enabled = true;
 }
 
@@ -165,48 +330,7 @@ void TivaCdc::enable()
  */
 void TivaCdc::disable()
 {
-    log_.log(0xD0);
     enabled = false;
-}
-
-/* Try and transmit a message.
- */
-bool TivaCdc::tx_packet_irqlocked(const void* data, size_t len)
-{
-    if (connected) {
-        uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
-        if (r == len) {
-            log_.log(0x30);
-        } else if (r > 0) {
-            log_.log(0x31);
-        } else {
-            log_.log(0x32);
-            return false;
-        }
-        return true;
-    } else {
-        log_.log(0x38);
-        return false;
-    }
-}
-
-bool TivaCdc::tx_packet_from_isr(const void* data, size_t len)
-{
-    if (connected) {
-        uint32_t r = USBDCDCPacketWrite(&usbdcdcDevice, (uint8_t*)data, len, 1);
-        if (r == len) {
-            log_.log(0x10);
-        } else if (r > 0) {
-            log_.log(0x11);
-        } else {
-            log_.log(0x12);
-            return false;
-        }
-        return true;
-    } else {
-        log_.log(0x18);
-        return false;
-    }
 }
 
 /** Handles CDC driver notifications related to control and setup of the device.
@@ -217,27 +341,32 @@ bool TivaCdc::tx_packet_from_isr(const void* data, size_t len)
  * @param msg_data event-specific data
  * @return return value is event specific
  */
-unsigned long TivaCdc::control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+uint32_t TivaCdc::control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
 
-    serial->log_.log(0xC0);
     switch(event)
     {
         case USB_EVENT_CONNECTED:
-            serial->log_.log(0xC1);
             serial->connected = true;
             // starts sending data.
-            serial->tx_finished_from_isr();
+            select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
             break;
         case USB_EVENT_DISCONNECTED:
-            serial->log_.log(0xC2);
             serial->connected = false;
             break;
         case USBD_CDC_EVENT_GET_LINE_CODING:
+        {
+            tLineCoding *line_coding = (tLineCoding*)msg_data;
+            *line_coding = serial->lineCoding;
             break;
+        }
         case USBD_CDC_EVENT_SET_LINE_CODING:
+        {
+            tLineCoding *line_coding = (tLineCoding*)msg_data;
+            serial->lineCoding = *line_coding;
             break;
+        }
         case USBD_CDC_EVENT_SET_CONTROL_LINE_STATE:
             break;
         case USBD_CDC_EVENT_SEND_BREAK:
@@ -254,7 +383,7 @@ unsigned long TivaCdc::control_callback(void *data, unsigned long event, unsigne
     return 0;
 }
 
-unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+uint32_t TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
 
@@ -263,39 +392,17 @@ unsigned long TivaCdc::rx_callback(void *data, unsigned long event, unsigned lon
         default:
             break;
         case USB_EVENT_RX_AVAILABLE:
-        {
-            void* b = serial->try_read_packet_from_isr();
-            if (b) {
-                uint8_t count = USBDCDCPacketRead(&serial->usbdcdcDevice,
-                                                  (uint8_t*)b,
-                                                  USB_SERIAL_PACKET_SIZE,
-                                                  true);
-                serial->set_rx_finished_from_isr(count);
-                LED_B4_Pin::set(false);
-                return count;
-            } else {
-                LED_B4_Pin::set(true);
-                serial->set_rx_pending_from_isr();
-                return 0;
-            }
-        }
+            select_wakeup_from_isr(&serial->selInfoRd, &serial->woken);
+            break;
         case USB_EVENT_DATA_REMAINING:
+            return serial->waiting ? 0 : 1;
         case USB_EVENT_ERROR:
             break;
     }
     return 0;
 }
 
-size_t TivaCdc::rx_packet_irqlocked(void *data) {
-  uint8_t count = USBDCDCPacketRead(&this->usbdcdcDevice,
-                                    (uint8_t*)data,
-                                    USB_SERIAL_PACKET_SIZE,
-                                    true);
-  LED_B4_Pin::set(false);
-  return count;
-}
-
-unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+uint32_t TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
     
@@ -304,9 +411,8 @@ unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned lon
         default:
             break;
         case USB_EVENT_TX_COMPLETE:
-        {
-            serial->tx_finished_from_isr();
-        }
+            select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
+            break;
     }
     return 0;
 }
@@ -315,7 +421,7 @@ unsigned long TivaCdc::tx_callback(void *data, unsigned long event, unsigned lon
  */
 void TivaCdc::interrupt_handler(void)
 {
-    woken = true;
+    woken = 0;
     USB0DeviceIntHandler();
     os_isr_exit_yield_test(woken);
 }

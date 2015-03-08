@@ -58,28 +58,29 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
     
     while (count)
     {
+        portENTER_CRITICAL();
         /* We limit the amount of bytes we read with each iteration in order
          * to limit the amount of time that interrupts are disabled and
          * preserve our real-time performance.
          */
-        portENTER_CRITICAL();
         size_t bytes_read = rxBuf->get(data, count < 64 ? count : 64);
+        portEXIT_CRITICAL();
 
         if (bytes_read == 0)
         {
             /* no more data to receive */
             if ((file->flags & O_NONBLOCK) || result > 0)
             {
-                portEXIT_CRITICAL();
                 break;
             }
             else
             {
-                /* wait for data to come in */
-                rxBuf->block_until_condition();
+                /* wait for data to come in, this call will release the
+                 * critical section lock.
+                 */
+                rxBuf->block_until_condition(file, true);
             }
         }
-        portEXIT_CRITICAL();
 
         count -= bytes_read;
         result += bytes_read;
@@ -102,29 +103,30 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
     
     while (count)
     {
+        portENTER_CRITICAL();
         /* We limit the amount of bytes we write with each iteration in order
          * to limit the amount of time that interrupts are disabled and
          * preserve our real-time performance.
          */
-        portENTER_CRITICAL();
         size_t bytes_written = txBuf->put(data, count < 64 ? count : 64);
+        portEXIT_CRITICAL();
 
         if (bytes_written == 0)
         {
             /* no more data to receive */
             if ((file->flags & O_NONBLOCK) || result > 0)
             {
-                portEXIT_CRITICAL();
                 break;
             }
             else
             {
-                /* wait for data to come in */
-                txBuf->block_until_condition();
+                /* wait for space to be available, this call will release the
+                 * critical section lock.
+                 */
+                txBuf->block_until_condition(file, false);
             }
         }
         tx_char();
-        portEXIT_CRITICAL();
 
         count -= bytes_written;
         result += bytes_written;
@@ -186,6 +188,23 @@ bool Serial::select(File* file, int mode)
             break;
     }
     return retval;
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param node node reference for this device
+ * @param key ioctl key
+ * @param data key data
+ */
+int USBSerial::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    return -1;
+}
+
+/** Flush the receive and transmit buffers for this device.
+ */
+void USBSerial::flush_buffers()
+{
 }
 
 ssize_t USBSerialNode::read(File *file, void *buf, size_t count)
