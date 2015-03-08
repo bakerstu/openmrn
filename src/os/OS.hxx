@@ -592,7 +592,7 @@ public:
      * @param value NULL if unused, else returns with the value of the event
                     buts at the time the condition held true.  On a timout,
                     value remains untouched.
-     * @param clear true if upon return the bits caled out in mask are to be
+     * @param clear true if upon return the bits called out in mask are to be
      *              cleared.  If a timeout occurs, no bits will be cleared.
      * @param test type of test on the mask bits
      * @return 0 upon success, else -1 with errno set to indicate error
