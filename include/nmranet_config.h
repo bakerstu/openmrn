@@ -75,4 +75,14 @@ DECLARE_CONST(serial_tx_buffer_size);
 /** Number of bytes to queue in the serial driver for receive. */
 DECLARE_CONST(serial_rx_buffer_size);
 
+/** Number of entries in the remote alias cache */
+DECLARE_CONST(remote_alias_cache_size);
+
+/** Number of entries in the local alias cache */
+DECLARE_CONST(local_alias_cache_size);
+
+/** Maximum number of local nodes */
+DECLARE_CONST(local_nodes_count);
+
+
 #endif /* _nmranet_config_h_ */
