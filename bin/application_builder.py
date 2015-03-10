@@ -6,8 +6,18 @@ import serial
 import glob
 from Tkinter import *
 from ttk import *
+from tkFileDialog import *
 import Image
+from functools import partial
 
+FreertosArmv7mList = [['ek-lm4f120xl-launchpad (legacy)', None, None, 'images/ek-tm4c123gxl.gif'],
+                      ['ek-tm4c123gxl-launchpad', None, None, 'images/ek-tm4c123gxl.gif'],
+                      ['ek-tm4c1294xl-launchpad', None, None, 'images/ek-tm4c1294xl.gif'],
+                      ['ti-tm4c123-generic', None, None, None],
+                      ['ti-tm4c129-generic', None, None, None],
+                      ['Custom', None, None, None]]
+
+# display help information in form of text
 class ToolTip(object):
 
     def __init__(self, widget):
@@ -54,6 +64,7 @@ def createToolTip(widget, text, y):
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
 
+# display help information in form of an image
 class ToolImage(object):
 
     def __init__(self, widget):
@@ -102,11 +113,18 @@ def createToolImage(widget, image):
 
 # The main application window
 class App:
+        
+
     #initialize main window
     def __init__(self, master):
         master.title("OpenMRN Application Builder")
         frame = Frame(master)
         frame.pack(fill=BOTH, expand=1)
+        self.dir_opt = options = {}
+        options['initialdir'] = 'C:\\'
+        options['mustexist'] = False
+        options['parent'] = root
+        options['title'] = 'This is a title'
         ROW = 0
 
         #frame.columnconfigure(1, weight=1)
@@ -116,51 +134,43 @@ class App:
         #frame.rowconfigure(2, weight=1)
 
         # OpenMRN Path
-        self.OpenmrnLabel = Label(frame, text="OpenMRN Path",
-                                  font="Arial 12 bold")
-        self.OpenmrnLabel.grid(row=ROW, column=0, columnspan=2, sticky=S+W, padx=10)
-        self.OpenmrnTip = ('This is the file system path which points to\nthe '
-                           'location of the OpenMRN project tree.')
-        self.OpenmrnPath = Entry(frame, width=64)
-        self.OpenmrnPath.grid(row=ROW+1, column=0, columnspan=2, sticky=E+W, padx=5, pady=(0,20))
-        self.OpenmrnPath.insert(0, os.path.abspath(os.getcwd() + '/../'))
-        createToolTip(self.OpenmrnPath, self.OpenmrnTip, 3)
+        self.OpenmrnPath = None
+        self.path_entry(frame, self.OpenmrnPath, 'OpenMRN Path',
+                        os.path.abspath(os.getcwd() + '/../'),
+                        'This is the file system path which points to\nthe '
+                        'location of the OpenMRN project tree.',
+                        0, 0)
 
         # Application Path
-        self.ApplLabel = Label(frame, text="New Application Path",
-                               font="Arial 12 bold")
-        self.ApplLabel.grid(row=ROW, column=2, columnspan=2, sticky=S+W, padx=10)
-        self.ApplPath = Entry(frame, width=64)
-        self.ApplPath.grid(row=ROW+1, column=2, columnspan=2, sticky=E+W, padx=5, pady=(0,20))
-        self.ApplTip = ('This is the file system path which points to\nthe '
-                        'location of the generated application.')
-        createToolTip(self.ApplPath, self.ApplTip, 3)
+        self.ApplPath = None
+        self.path_entry(frame, self.ApplPath, 'Application Path', None,
+                        'This is the file system path which points to\nthe '
+                        'location of the generated application.',
+                        0, 2)
 
         ROW +=2
 
         # Application Sub-directories
-        self.SubdirLabel = Label(frame, text="Application Subdirectory List [space separated]",
-                                 font="Arial 12 bold")
-        self.SubdirLabel.grid(row=ROW, column=0, columnspan=2, sticky=S+W, padx=10)
-        self.SubdirEntry = Entry(frame, width=64)
-        self.SubdirEntry.grid(row=ROW+1, column=0, columnspan=2, sticky=E+W, padx=5, pady=(0,20))
-        self.SubdirTip = ('Often it is usefull to add sub-directories\nto '
-                          'better organize a large project.  The\nprovided '
-                          'list of sub-directories will be\nadded to the '
-                          'build rules for the\napplication.  Additional sub-'
-                          'directories\ncan be added later by using the\n'
-                          '"SubdirAdder" program.')
-        createToolTip(self.SubdirEntry, self.SubdirTip, 3)
+        self.SubdirEntries = None
+        self.path_entry(frame, self.SubdirEntries,
+                        'Application Subdirectory List [space separated]',
+                        None,
+                        'Often it is usefull to add sub-directories\nto '
+                        'better organize a large project.  The\nprovided '
+                        'list of sub-directories will be\nadded to the '
+                        'build rules for the\napplication.  Additional sub-'
+                        'directories\ncan be added later by using the\n'
+                        '"SubdirAdder" program.',
+                        ROW, 0, False)
 
         # Template
         self.TemplateLabel = Label(frame, text="Template",
                                    font="Arial 12 bold")
         self.TemplateLabel.grid(row=ROW, column=2, sticky=S+W, padx=10)
         self.Template = Combobox(frame, textvariable=StringVar(), state="readonly")
-        #self.Template.bind('<<ComboboxSelected>>', self.template_select)
         self.Template['values'] = ('empty', 'blink', 'train', 'traction proxy', 'hub')
         self.Template.current(0)
-        self.Template.grid(row=ROW+1, column=2, sticky=W+E, padx=5, pady=(0,20))
+        self.Template.grid(row=ROW+1, column=2, sticky=W, padx=5, pady=(0,20))
         self.TemplateTip = ('The template is a starting point for\nthe ' +
                             'application.  It will provide the\nbasic ' +
                             'framework from which custom\napplication ' +
@@ -171,7 +181,7 @@ class App:
         self.EclipseVal = IntVar()
         self.Eclipse = Checkbutton(frame, text="Generate Eclipse Project",
                                    variable=self.EclipseVal, state=NORMAL)
-        self.Eclipse.grid(row=ROW, rowspan=2, column=3, sticky=W, padx=5)
+        self.Eclipse.grid(row=ROW, rowspan=2, column=2, sticky=E, padx=5)
         self.EclipseVal.set(True)
         self.EclipseTip = ('Generate an Eclipse IDE project\n'
                            'for the application.')
@@ -179,57 +189,94 @@ class App:
 
         ROW += 2
 
+        # Linkage
+        self.LinkageLabel = Label(frame, text="Linkage",
+                                   font="Arial 12 bold")
+        self.LinkageLabel.grid(row=ROW, column=2, sticky=S+W, padx=10)
+        self.Linkage = Combobox(frame, textvariable=StringVar(), state="readonly")
+        self.Linkage['values'] = ('copy', 'symbolic-link/shortcut')
+        self.Linkage.current(0)
+        self.Linkage.grid(row=ROW+1, column=2, rowspan=2, sticky=W, padx=5, pady=(0,20))
+        self.LinkageTip = ('Each target supported by this tool ' +
+                           'uses\ntemplates in the openmrn/boards directory\n' +
+                           'as a starting point for Make Rules, ' +
+                           'startup\ncode, and initialization routines.  ' +
+                           'These\ncan be created as copies or as links to ' +
+                           'the\noriginal templates.  As links, updates in ' +
+                           'the\nopenmrn platform tree would be reflected\n' +
+                           'in realtime in the generated application\ntree(s).')
+        createToolTip(self.Linkage, self.LinkageTip, 3)
+
         # Targets
         self.TargetLabel = Label(frame, text="Targets", font="Arial 12 bold")
         self.TargetLabel.grid(row=ROW, column=0, sticky=S+W, padx=10)
-        self.LinuxX86Val = IntVar()
-        self.LinuxX86 = Checkbutton(frame, text="linux.x86",
-                                    variable=self.LinuxX86Val,
-                                    state=NORMAL)
-        self.LinuxX86.grid(row=ROW, column=0, sticky=W, padx=5)
-        ROW += 1
-        self.MachX86_64Val = IntVar()
-        self.MachX86_64 = Checkbutton(frame, text="mach.x86_64",
-                                       variable=self.MachX86_64Val,
-                                       state=NORMAL)
-        self.MachX86_64.grid(row=ROW, column=0, sticky=W, padx=5)
-        ROW += 1
-        self.FreertosArmv7mVal = IntVar()
-        self.FreertosArmv7m = Checkbutton(frame, text="freertos.armv7m",
-                                          variable=self.FreertosArmv7mVal,
-                                          state=['!selected'])
-        self.FreertosArmv7m.grid(row=ROW, column=0, sticky=W, padx=5)
-        ROW += 1
-        self.Eklm4f120xlVal = IntVar()
-        self.Eklm4f120xl = Checkbutton(frame, text="ek-lm4f120xl (legacy)",
-                                       variable=self.Eklm4f120xlVal,
-                                       state=DISABLED)
-        self.Eklm4f120xl.grid(row=ROW+1, column=0, sticky=W, padx=25)
-        createToolImage(self.Eklm4f120xl, "images/ek-tm4c123gxl.gif")
-        self.Ektm4c123gxlVal = IntVar()
-        self.Ektm4c123gxl = Checkbutton(frame, text="ek-tm4c123gxl",
-                                        variable=self.Ektm4c123gxlVal,
-                                        state=DISABLED)
-        self.Ektm4c123gxl.grid(row=ROW+2, column=0, sticky=W, padx=25)
-        createToolImage(self.Ektm4c123gxl, "images/ek-tm4c123gxl.gif")
-        self.Ektm4c1294xlVal = IntVar()
-        self.Ektm4c1294xl = Checkbutton(frame, text="ek-tm4c1294xl",
-                                        variable=self.Ektm4c1294xlVal,
-                                        state=DISABLED)
-        self.Ektm4c1294xl.grid(row=ROW+3, column=0, sticky=W, padx=25)
-        createToolImage(self.Ektm4c1294xl, "images/ek-tm4c1294xl.gif")
 
-        ROW += 4
+        self.LinuxX86 = ['linux.x86', IntVar(), None]
+        self.add_target(self.LinuxX86, frame, ROW+1, None)
+
+        self.MachX86_64 = ['mach.x86_64', IntVar(), None]
+        self.add_target(self.MachX86_64, frame, ROW+2, None)
+
+        self.FreertosArmv7m = ['freertos.armv7m (Cortex-M3/M4)', IntVar(), None]
+        self.add_subtargets(self.FreertosArmv7m, frame, ROW+3, FreertosArmv7mList)
+
+        ROW += 11
 
         # Quit Button
         self.Exit = Button(frame, text="Quit", command=frame.quit)
-        #self.Exit.pack(side=RIGHT)
-        self.Exit.grid(row=ROW-2, column=3, rowspan=3, sticky=S+E, padx=5, pady=5)
+        self.Exit.grid(row=ROW-2, column=2, rowspan=3, columnspan=2, sticky=S+E, padx=5, pady=5)
 
         # Generate Button
         self.Generate = Button(frame, text="Generate", command=frame.quit)
-        #self.Generate.pack(side=RIGHT)
-        self.Generate.grid(row=ROW-2, column=3, rowspan=3, sticky=S, padx=(0,15), pady=5)
+        self.Generate.grid(row=ROW-2, column=2, rowspan=3, columnspan=2, sticky=S+E, padx=(0,95), pady=5)
+
+    # create a path entry box
+    def path_entry(self, frame, item, label, value, tip, row, column, browse=True):
+        label = Label(frame, text=label, font="Arial 12 bold")
+        label.grid(row=row, column=column, sticky=S+W, padx=10)
+        item = Entry(frame, width=50)
+        item.grid(row=row+1, column=column, sticky=E+W, padx=5, pady=(0,20))
+        if value != None:
+            item.insert(0, value)
+        if tip != None:
+            createToolTip(item, tip, 3)
+        if browse == True:
+            button = Button(frame, text='Browse...', command=partial(self.browse, item))
+            button.grid(row=row+1, column=column+1, sticky=W, padx=5, pady=(0,20))
+
+    # create a target
+    def add_target(self, target, frame, row, target_list):
+        target[2] = Checkbutton(frame, text=target[0],
+                                variable=target[1], state=NORMAL,
+                                command=partial(self.target_select, target, target_list))
+        target[2].grid(row=row, column=0, sticky=W, padx=5)
+
+    # create a sub-target list
+    def add_subtargets(self, target, frame, row, target_list):
+        self.add_target(target, frame, row, target_list)
+        row += 1
+        for item in target_list:
+            item[1] = IntVar()
+            item[2] = Checkbutton(frame, text=item[0],
+                                  variable=item[1], state=DISABLED)
+            item[2].grid(row=row, column=0, sticky=W, padx=25)
+            row += 1
+            if item[3] != None:
+                createToolImage(item[2], item[3])
+
+    def target_select(self, target, target_list):
+        if target_list == None:
+            return
+        if target[1].get():
+            for item in target_list:
+                item[2].configure(state=NORMAL)
+        else:
+            for item in target_list:
+                item[2].configure(state=DISABLED)
+                item[1].set(False)
+
+    def browse(self, box):
+        box.insert(0, askdirectory(**self.dir_opt))
 
 # Start of the application
 root = Tk()

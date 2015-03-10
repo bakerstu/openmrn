@@ -1,1 +1,1 @@
-../ti-tiva/target.ld
+../ti-tm4c129-generic/target.ld

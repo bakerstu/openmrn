@@ -1,1 +1,1 @@
-../ti-tiva/startup.c
+../ti-tm4c123-generic/startup.c

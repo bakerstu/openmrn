@@ -56,6 +56,31 @@ Device::Device(const char *name)
     mutex.lock();
     next = first;
     first = this;
+    prev = NULL;
+    if (next)
+    {
+        next->prev = this;
+    }
+    mutex.unlock();
+}
+
+/** Destructor.
+ */
+Device::~Device()
+{
+    mutex.lock();
+    if (first == this)
+    {
+        first = next;
+    }
+    else
+    {
+        prev->next = next;
+    }
+    if (next)
+    {
+        next->prev = prev;
+    }
     mutex.unlock();
 }
 
