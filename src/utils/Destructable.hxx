@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2013-2014, Stuart W Baker and Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,43 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Executable.hxx
+ * \file Destructable.hxx
  *
- * Base class for work that can be scheduled on an Executor.
+ * A base class with a virtual destructor.
  *
- * @author Stuart W Baker and Balazs Racz
- * @date 22 May 2014
+ * @author Balazs Racz
+ * @date 11 Mar 2015
  */
 
-#ifndef _EXECUTOR_EXECUTABLE_HXX_
-#define _EXECUTOR_EXECUTABLE_HXX_
+#ifndef _UTILS_DESTRUCTABLE_HXX_
+#define _UTILS_DESTRUCTABLE_HXX_
 
-#include "executor/Notifiable.hxx"
-#include "utils/QMember.hxx"
-#include "utils/Destructable.hxx"
-
-/// An object that can be scheduled on an executor to run.
-class Executable : public Destructable, public Notifiable, public QMember
-{
+class Destructable {
 public:
-    virtual ~Executable()
-    {
-    }
-    /** Entry point. This funciton will be called when *this gets scheduled on
-     * the CPU. */
-    virtual void run() = 0;
-
-    virtual void notify() {
-        HASSERT(0 && "unexpected call to notify in Executable");
-    }
-
-    /** Return the result of an alloc_async() from a memory @ref Pool
-     * @param item result of the the allocation
-     */
-    virtual void alloc_result(QMember *item)
-    {
-        HASSERT(0 && "unexpected call to alloc_result");
-    }
+    virtual ~Destructable() {}
 };
 
-#endif // _EXECUTOR_EXECUTABLE_HXX_
+#endif

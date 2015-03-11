@@ -40,7 +40,7 @@
 
 template <class Data> class FdHubWriteFlow;
 
-class FdHubPortBase : Atomic
+class FdHubPortBase : public Destructable, private Atomic
 {
 public:
     static const int kWriteThreadStackSize = 1000;
