@@ -37,10 +37,9 @@
 
 #include "executor/Notifiable.hxx"
 #include "utils/QMember.hxx"
-#include "utils/Destructable.hxx"
 
 /// An object that can be scheduled on an executor to run.
-class Executable : public Destructable, public Notifiable, public QMember
+class Executable : public Notifiable, public QMember
 {
 public:
     virtual ~Executable()
