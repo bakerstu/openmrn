@@ -131,7 +131,8 @@ private:
 
 void StartInitializationFlow(Node *node)
 {
-    static InitializeFlow g_initialize_flow(&g_service);
+    static InitializeFlow g_initialize_flow(
+        node->interface()->dispatcher()->service());
     auto *b = g_initialize_flow.alloc();
     b->data()->node = node;
     g_initialize_flow.send(b);
