@@ -147,7 +147,7 @@ public:
     }
 
     /** Donates the current thread to the executor. Never returns. */
-    void loop_executor() __attribute__((__noreturn__))
+    void loop_executor()
     {
         start_stack();
         executor_.thread_body();
@@ -196,7 +196,7 @@ private:
     std::unique_ptr<GCAdapterBase> gcAdapter_;
 
     /// Stores and keeps ownership of optional components.
-    std::vector<std::unique_ptr<Executable>> additionalComponents_;
+    std::vector<std::unique_ptr<Destructable>> additionalComponents_;
 };
 
 } // namespace nmranet

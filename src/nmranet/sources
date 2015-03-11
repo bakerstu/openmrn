@@ -26,6 +26,7 @@ CXXSRCS += \
            SimpleNodeInfo.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
+           nmranet_constants.cxx \
 
 
 DEAD_CXX +=  \
