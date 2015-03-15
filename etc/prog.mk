@@ -162,7 +162,7 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) $(realpath $<) -o $@
+	$(CXX) $(CXXFLAGS) $< -o $@
 	$(CXX) -MM $(CXXFLAGS) $< > $*.d
 
 .c.o:
