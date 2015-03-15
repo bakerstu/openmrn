@@ -28,3 +28,6 @@ include $(OPENMRNPATH)/etc/prog.mk
 
 flash: $(EXECUTABLE).elf
 	ti-flash.sh $<
+
+rflash: $(EXECUTABLE).bin
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x05010101144A -f $<
