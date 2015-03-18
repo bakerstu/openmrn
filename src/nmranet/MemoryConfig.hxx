@@ -38,6 +38,7 @@
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
+#include "utils/Destructable.hxx"
 
 class Notifiable;
 
@@ -137,7 +138,7 @@ private:
     MemoryConfigDefs();
 };
 
-class MemorySpace
+class MemorySpace : public Destructable
 {
 public:
     typedef uint32_t address_t;

@@ -54,10 +54,7 @@ class SimpleCanStack
 public:
     static const unsigned EXECUTOR_PRIORITIES = 5;
 
-    SimpleCanStack(const nmranet::NodeID node_id) : node_(&ifCan_, node_id)
-    {
-        AddAliasAllocator(node_id, &ifCan_);
-    }
+    SimpleCanStack(const nmranet::NodeID node_id);
 
     Executor<EXECUTOR_PRIORITIES> *executor()
     {
@@ -166,10 +163,7 @@ private:
 
     /** Call this function once after the actual IO ports are set up. Calling
      * before the executor starts looping is okay. */
-    void start_stack() {
-        // Bootstraps the alias allocation process.
-        ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
-    }
+    void start_stack();
 
     /// This executor's threads will be handled
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
@@ -189,6 +183,12 @@ private:
     EventService eventService_{&ifCan_};
     /// Handles PIP requests.
     ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
+
+    CanDatagramService datagramService_{&ifCan_,
+        config_num_datagram_registry_entries(), config_num_datagram_clients()};
+    MemoryConfigHandler memoryConfigHandler_{&datagramService_,
+            &node_, config_num_memory_spaces()};
+
     /** All packets are forwarded to this hub in gridconnect format, if
      * needed. Will be initialized upon first use. */
     std::unique_ptr<HubFlow> gcHub_;

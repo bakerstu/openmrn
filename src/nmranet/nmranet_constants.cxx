@@ -42,4 +42,19 @@ DEFAULT_CONST(local_alias_cache_size, 3);
 /** Maximum number of local nodes */
 DEFAULT_CONST(local_nodes_count, 2);
 
+/** Number of datagram registry entries. This is how many datagram handlers can
+ * be registered (e.g. memory config protocol is one). */
+DEFAULT_CONST(num_datagram_registry_entries, 2);
 
+/** Number of datagram clients. This is how many datagram send operations can
+ * happen concurrently. */
+DEFAULT_CONST(num_datagram_clients, 2);
+
+/** Maximum number of memory spaces that can be registered for the MemoryConfig
+ * datagram handler. */
+DEFAULT_CONST(num_memory_spaces, 1);
+
+/** Set to CONSTANT_TRUE if you want to export an "all memory" memory space
+ * from the SimpleStack. Note that this should not be enabled in production,
+ * because there is no protection against segfaults in it. */
+DEFAULT_CONST(enable_all_memory_space, CONSTANT_FALSE);

@@ -84,5 +84,20 @@ DECLARE_CONST(local_alias_cache_size);
 /** Maximum number of local nodes */
 DECLARE_CONST(local_nodes_count);
 
+/** Number of datagram registry entries. This is how many datagram handlers can
+ * be registered (e.g. memory config protocol is one). */
+DECLARE_CONST(num_datagram_registry_entries);
+
+/** Number of datagram clients. This is how many datagram send operations can
+ * happen concurrently. */
+DECLARE_CONST(num_datagram_clients);
+
+/** Maximum number of memory spaces that can be registered for the MemoryConfig
+ * datagram handler. */
+DECLARE_CONST(num_memory_spaces);
+
+/** Set to CONSTANT_TRUE if you want to export an "all memory" memory space
+ * from the SimpleStack. */
+DECLARE_CONST(enable_all_memory_space);
 
 #endif /* _nmranet_config_h_ */
