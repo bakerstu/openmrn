@@ -46,6 +46,3 @@ DEFAULT_CONST(serial_tx_buffer_size, 16);
 DEFAULT_CONST(serial_rx_buffer_size, 16);
 
 DEFAULT_CONST(gc_generate_newlines, 0);
-/** If non-zero, nodes will do a producer-consumer identify enumeration upon
- * startup. */
-DEFAULT_CONST(node_init_identify, 1);

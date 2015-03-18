@@ -100,4 +100,10 @@ DECLARE_CONST(num_memory_spaces);
  * from the SimpleStack. */
 DECLARE_CONST(enable_all_memory_space);
 
+/** Set to CONSTANT_TRUE if you want the nodes to send out producer / consumer
+ * identified messages at boot time. This is required by the OpenLCB
+ * standard. */
+DECLARE_CONST(node_init_identify);
+
+
 #endif /* _nmranet_config_h_ */

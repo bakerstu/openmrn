@@ -57,4 +57,9 @@ DEFAULT_CONST(num_memory_spaces, 1);
 /** Set to CONSTANT_TRUE if you want to export an "all memory" memory space
  * from the SimpleStack. Note that this should not be enabled in production,
  * because there is no protection against segfaults in it. */
-DEFAULT_CONST(enable_all_memory_space, CONSTANT_FALSE);
+DEFAULT_CONST_FALSE(enable_all_memory_space);
+
+/** Set to CONSTANT_TRUE if you want the nodes to send out producer / consumer
+ * identified messages at boot time. This is required by the OpenLCB
+ * standard. */
+DEFAULT_CONST_TRUE(node_init_identify);
