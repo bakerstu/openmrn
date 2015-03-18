@@ -54,17 +54,21 @@ public:
     SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
         : IncomingMessageStateFlow(interface)
         , responseFlow_(response_flow)
-    {                                       
-        interface->dispatcher()->register_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
+    {
+        interface->dispatcher()->register_handler(
+            this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
-    ~SNIPHandler() {
-        interface()->dispatcher()->unregister_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
+    ~SNIPHandler()
+    {
+        interface()->dispatcher()->unregister_handler(
+            this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE
     {
-        if (!nmsg()->dstNode) return release_and_exit();
+        if (!nmsg()->dstNode)
+            return release_and_exit();
         return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
