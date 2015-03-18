@@ -69,4 +69,7 @@
 #define CONSTANT_TRUE 1
 #define CONSTANT_FALSE 2
 
+#define DEFAULT_CONST_TRUE(name) DEFAULT_CONST(name, 1)
+#define DEFAULT_CONST_FALSE(name) DEFAULT_CONST(name, 2)
+
 #endif // _UTILS_CONSTANTS_HXX_
