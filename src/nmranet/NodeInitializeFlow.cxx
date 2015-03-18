@@ -32,9 +32,10 @@
  * @date 7 December 2013
  */
 
-#include "utils/constants.hxx"
-#include "nmranet/If.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/If.hxx"
+#include "utils/Singleton.hxx"
+#include "utils/constants.hxx"
 
 extern Service g_service;
 
@@ -53,7 +54,7 @@ struct InitializeRequest
 
 typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
 
-class InitializeFlow : public InitializeFlowBase
+class InitializeFlow : public InitializeFlowBase, public Singleton<InitializeFlow>
 {
 public:
     InitializeFlow(Service *service) : InitializeFlowBase(service)
@@ -129,13 +130,14 @@ private:
     BarrierNotifiable done_;
 };
 
+DEFINE_SINGLETON_INSTANCE(InitializeFlow);
+
 void StartInitializationFlow(Node *node)
 {
-    static InitializeFlow g_initialize_flow(
-        node->interface()->dispatcher()->service());
-    auto *b = g_initialize_flow.alloc();
+    auto* g_initialize_flow = Singleton<InitializeFlow>::get();
+    auto *b = g_initialize_flow->alloc();
     b->data()->node = node;
-    g_initialize_flow.send(b);
+    g_initialize_flow->send(b);
 }
 
 } // namespace nmranet
