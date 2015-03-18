@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventBitProducer.hxx
+ * \file PolledProducer.hxx
  * A complete class that acts as a producer for a bit event from a polled input
  * with debouncing.
  *
@@ -32,8 +32,8 @@
  * @date 13 Jul 2014
  */
 
-#ifndef _NMRANET_EVENTBITPRODUCER_HXX_
-#define _NMRANET_EVENTBITPRODUCER_HXX_
+#ifndef _NMRANET_POLLEDPRODUCER_HXX_
+#define _NMRANET_POLLEDPRODUCER_HXX_
 
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/RefreshLoop.hxx"
@@ -83,4 +83,4 @@ private:
 
 } // namespace nmranet
 
-#endif // _NMRANET_EVENTBITPRODUCER_HXX_
+#endif // _NMRANET_POLLEDPRODUCER_HXX_
