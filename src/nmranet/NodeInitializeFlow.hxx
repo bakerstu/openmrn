@@ -32,21 +32,21 @@
  * @date 7 December 2013
  */
 
+#ifndef _NMRANET_NODEINITIALIZEFLOW_HXX_
+#define _NMRANET_NODEINITIALIZEFLOW_HXX_
+
 #include "nmranet/DefaultNode.hxx"
 #include "nmranet/If.hxx"
+#include "nmranet_config.h"
 #include "utils/Singleton.hxx"
-#include "utils/constants.hxx"
-
-extern Service g_service;
-
-DECLARE_CONST(node_init_identify);
 
 namespace nmranet
 {
 
 struct InitializeRequest
 {
-    InitializeRequest() : node(nullptr)
+    InitializeRequest()
+        : node(nullptr)
     {
     }
     Node *node;
@@ -54,12 +54,16 @@ struct InitializeRequest
 
 typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
 
-class InitializeFlow : public InitializeFlowBase, public Singleton<InitializeFlow>
+class InitializeFlow : public InitializeFlowBase,
+                       public Singleton<InitializeFlow>
 {
 public:
-    InitializeFlow(Service *service) : InitializeFlowBase(service)
+    InitializeFlow(Service *service)
+        : InitializeFlowBase(service)
     {
     }
+
+    ~InitializeFlow();
 
 private:
     Node *node()
@@ -81,8 +85,8 @@ private:
             node()->interface()->global_message_write_flow());
         done_.reset(this);
         NodeID id = node()->node_id();
-        b->data()->reset(Defs::MTI_INITIALIZATION_COMPLETE, id,
-                         node_id_to_buffer(id));
+        b->data()->reset(
+            Defs::MTI_INITIALIZATION_COMPLETE, id, node_id_to_buffer(id));
         b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(&done_);
         node()->interface()->global_message_write_flow()->send(
@@ -103,8 +107,8 @@ private:
             return release_and_exit();
         }
         // Get the dispatch flow.
-        return allocate_and_call(node()->interface()->dispatcher(),
-                                 STATE(initiate_local_identify));
+        return allocate_and_call(
+            node()->interface()->dispatcher(), STATE(initiate_local_identify));
     }
 
     Action initiate_local_identify()
@@ -130,14 +134,8 @@ private:
     BarrierNotifiable done_;
 };
 
-DEFINE_SINGLETON_INSTANCE(InitializeFlow);
-
-void StartInitializationFlow(Node *node)
-{
-    auto* g_initialize_flow = Singleton<InitializeFlow>::get();
-    auto *b = g_initialize_flow->alloc();
-    b->data()->node = node;
-    g_initialize_flow->send(b);
-}
+void StartInitializationFlow(Node *node);
 
 } // namespace nmranet
+
+#endif // _NMRANET_NODEINITIALIZEFLOW_HXX_

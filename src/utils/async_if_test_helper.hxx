@@ -11,6 +11,7 @@
 #include "nmranet/IfCan.hxx"
 #include "nmranet/EventService.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"
@@ -43,6 +44,8 @@ GCAdapterBase *g_gc_adapter = nullptr;
 HubFlow gc_hub1(&g_service);
 CanHubFlow can_hub1(&g_service);
 GCAdapterBase *g_gc_adapter1 = nullptr;
+
+nmranet::InitializeFlow g_init_flow(&g_service);
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
