@@ -93,6 +93,7 @@ struct SimpleInfoDescriptor
 
     uint8_t cmd; //< Command. See enum Cmd.
     uint8_t arg; //< Argument to the command.
+    uint16_t arg2; //< Additional argument.
     /** Points to a string if the command requires so. */
     const uint8_t *data;
 };

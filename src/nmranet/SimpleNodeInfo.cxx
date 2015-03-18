@@ -52,14 +52,14 @@ extern const uint8_t __attribute__((weak)) SNIP_USER_NODE_DESCRIPTION[];
 const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "Undefined node descr";
 
 const SimpleInfoDescriptor SNIP_RESPONSE[] = {
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MANUFACTURER},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MODEL},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_HW_VERSION},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_SW_VERSION},
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_NAME},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_DESCRIPTION},
-    {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+    {SimpleInfoDescriptor::LITERAL_BYTE, 1, 0, nullptr},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_MANUFACTURER},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_MODEL},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_HW_VERSION},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_SW_VERSION},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 1, 0, nullptr},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_USER_NODE_NAME},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_USER_NODE_DESCRIPTION},
+    {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
 } // namespace nrmanet
