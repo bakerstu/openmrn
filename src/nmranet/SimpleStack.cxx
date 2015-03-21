@@ -33,6 +33,7 @@
  */
 
 #include "nmranet/SimpleStack.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
 
 namespace nmranet
 {
@@ -57,7 +58,12 @@ void SimpleCanStack::start_stack()
         additionalComponents_.emplace_back(space);
     }
     {
-        auto *space =
+        auto *space = new ReadOnlyMemoryBlock(
+            reinterpret_cast<const uint8_t *>(&SNIP_STATIC_DATA),
+            sizeof(SNIP_STATIC_DATA));
+        memoryConfigHandler_.registry()->insert(
+            &node_, MemoryConfigDefs::SPACE_ACDI_SYS, space);
+        additionalComponents_.emplace_back(space);
     }
 }
 

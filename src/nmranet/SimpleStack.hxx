@@ -35,16 +35,21 @@
 #ifndef _NMRANET_SIMPLESTACK_HXX_
 #define _NMRANET_SIMPLESTACK_HXX_
 
+#include <fcntl.h>
+
 #include "executor/Executor.hxx"
 #include "nmranet/AliasAllocator.hxx"
+#include "nmranet/DatagramCan.hxx"
 #include "nmranet/DefaultNode.hxx"
 #include "nmranet/EventService.hxx"
 #include "nmranet/IfCan.hxx"
+#include "nmranet/MemoryConfig.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
-#include "utils/GridConnectHub.hxx"
+#include "nmranet_config.h"
 
 namespace nmranet
 {

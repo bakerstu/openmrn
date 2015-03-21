@@ -37,7 +37,6 @@
 namespace nmranet
 {
 
-
 extern const SimpleNodeStaticValues __attribute__((weak)) SNIP_STATIC_DATA = {
   4,
   "OpenMRN",
