@@ -45,7 +45,20 @@ using ::testing::StartsWith;
 namespace nmranet
 {
 
-extern const uint8_t SNIP_MANUFACTURER[] = "TestingTesting";
+char snip_file_test[128];
+
+const char* const SNIP_DYNAMIC_FILENAME = snip_file_test;
+
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+  4,
+  "TestingTesting",
+  "Undefined model",
+  "Undefined HW version",
+  "0.9"
+};
+
+static const char test_node_name[] = "Undefined node name";
+static const char test_node_description[] = "Undefined node descr";
 
 namespace
 {
@@ -57,8 +70,21 @@ protected:
         : infoFlow_(ifCan_.get())
         , handler_(ifCan_.get(), &infoFlow_)
     {
+        // Copies the user file name to the location that will be used for it.
+        strncpy(snip_file_test, userFile_.name().c_str(),
+                sizeof(snip_file_test));
+        // Assembles the user file contents.
+        string s;
+        s.push_back(2);
+        s += test_node_name;
+        s.resize(64);
+        s += test_node_description;
+        s.resize(128);
+        userFile_.write(s);
     }
 
+    TempDir dir_;
+    TempFile userFile_{dir_, "userinfo"};
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
 };
@@ -96,8 +122,8 @@ TEST_F(SNIPTest, Send)
     send_packet(":X19DE8754N022A;");
     wait();
     const char kExpectedData[] =
-        "\x01TestingTesting\0Undefined model\0Undefined HW version\0" "0.9\0"
-        "\x01Undefined node name\0Undefined node descr"; // C adds another \0.
+        "\x04TestingTesting\0Undefined model\0Undefined HW version\0" "0.9\0"
+        "\x02Undefined node name\0Undefined node descr"; // C adds another \0.
     EXPECT_EQ(string(kExpectedData, sizeof(kExpectedData)), payload);
 }
 

@@ -35,6 +35,9 @@
 #ifndef _NMRANET_SIMPLEINFOPROTOCOL_HXX_
 #define _NMRANET_SIMPLEINFOPROTOCOL_HXX_
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "nmranet/If.hxx"
 #include "executor/StateFlow.hxx"
 
@@ -86,16 +89,19 @@ struct SimpleInfoDescriptor
     enum Cmd
     {
         END_OF_DATA = 0,  //< End of the data sequence
-        C_STRING = 1,     //< pointer points to a C-string with NULL term
-        LITERAL_BYTE = 2, //< transfer argument as byte (e.g. version)
-        CHAR_ARRAY = 3,   //< len = argument, pointer in data
+        C_STRING = 1,     //< pointer points to a C-string with NULL term. arg, if non-zero, specifies max length including the 0 byte.
+        LITERAL_BYTE = 2, //< transfer argument as byte (e.g. version). Pointer, if not null, will be checked to match the transferred value.
+        CHAR_ARRAY = 3,   //< len = argument, pointer in data. No null termination.
+        FILE_C_STRING = 4,//< pointer is filename, offset is used for file offset. arg is the maximum length including nul termination.
+        FILE_LITERAL_BYTE = 5,//< transfer argument as byte (e.g. version). pointer is filename, offset is used for file offset, used to check against the expected value.
+        FILE_CHAR_ARRAY = 6,//< pointer is filename, offset is used for file offset, arg is length of value, no null termination.
     };
 
     uint8_t cmd; //< Command. See enum Cmd.
     uint8_t arg; //< Argument to the command.
     uint16_t arg2; //< Additional argument.
     /** Points to a string if the command requires so. */
-    const uint8_t *data;
+    const char *data;
 };
 
 typedef StateFlow<Buffer<SimpleInfoResponse>, QList<1>> SimpleInfoFlowBase;
@@ -124,6 +130,15 @@ public:
     {
     }
 
+    ~SimpleInfoFlow()
+    {
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
+            fileName_ = nullptr;
+        }
+    }
+
 private:
     Action entry() OVERRIDE
     {
@@ -147,24 +162,76 @@ private:
         return (current_descriptor().cmd == SimpleInfoDescriptor::END_OF_DATA);
     }
 
+    /** Assumes that the current descriptor is a file argument. Opens the
+     * filename in the argument, seeks it to the offset. */
+    void open_and_seek_next_file()
+    {
+        const SimpleInfoDescriptor &d = current_descriptor();
+        const char* new_file_name = reinterpret_cast<const char*>(d.data);
+        HASSERT(new_file_name);
+        if (!(fileName_ == new_file_name ||
+              (fileName_ && d.data && !strcmp(fileName_, new_file_name)))) {
+            fileName_ = new_file_name;
+            if (fd_ >= 0) {
+                ::close(fd_);
+            }
+            fd_ = ::open(fileName_, O_RDONLY);
+            HASSERT(fd_ >= 0);
+        }
+        int ret = lseek(fd_, d.arg2, SEEK_SET);
+        HASSERT(ret != -1);
+    }
+
     /** Call this function after updating entryOffset_. */
     void update_for_next_entry()
     {
         const SimpleInfoDescriptor &d = current_descriptor();
-        if (d.cmd == SimpleInfoDescriptor::C_STRING)
-        {
-            byteOffset_ = 0;
-            currentLength_ = strlen((const char *)d.data);
+        switch (d.cmd) {
+            case SimpleInfoDescriptor::C_STRING:
+            {
+                byteOffset_ = 0;
+                currentLength_ = strlen((const char *)d.data) + 1;
+                if (d.arg && d.arg < currentLength_) {
+                    // Clips too long messages.
+                    currentLength_ = d.arg;
+                    LOG(INFO, "message clipped to length %d", currentLength_);
+                }
+                break;
+            }
+            case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
+                open_and_seek_next_file();
+                // fall through
+            case SimpleInfoDescriptor::CHAR_ARRAY:
+                byteOffset_ = 0;
+                currentLength_ = d.arg;
+                HASSERT(currentLength_);
+                break;
+            case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
+            {
+                open_and_seek_next_file();
+                break;
+            }
+            case SimpleInfoDescriptor::FILE_C_STRING:
+            {
+                open_and_seek_next_file();
+                currentLength_ = d.arg;
+                byteOffset_ = 0;
+                break;
+            } 
+            default:
+                currentLength_ = 0;
         }
-        else if (d.cmd == SimpleInfoDescriptor::CHAR_ARRAY)
-        {
-            byteOffset_ = 0;
-            currentLength_ = d.arg;
-        }
-        else
-        {
-            currentLength_ = 0;
-        }
+    }
+
+    /** Returns the next byte from the file data, advancing the file offset. */
+    uint8_t file_read_current_byte()
+    {
+        HASSERT(fd_ >= 0);
+        uint8_t ret;
+        int result = ::read(fd_, &ret, 1);
+        HASSERT(result >= 0);
+        if (result == 0) ret = 0;
+        return ret;
     }
 
     /** Returns the current byte in the stream of data. */
@@ -175,9 +242,21 @@ private:
         {
             case SimpleInfoDescriptor::END_OF_DATA:
                 return 0;
-            case SimpleInfoDescriptor::LITERAL_BYTE:
+            case SimpleInfoDescriptor::LITERAL_BYTE: {
+                if (d.data) {
+                    HASSERT(d.arg == *d.data);
+                }
                 return d.arg;
+            }
             case SimpleInfoDescriptor::C_STRING:
+                if (byteOffset_ >= currentLength_ - 1)
+                {
+                    return 0;
+                }
+                else
+                {
+                    return d.data[byteOffset_];
+                }
             case SimpleInfoDescriptor::CHAR_ARRAY:
                 if (byteOffset_ >= currentLength_)
                 {
@@ -187,6 +266,28 @@ private:
                 {
                     return d.data[byteOffset_];
                 }
+            case SimpleInfoDescriptor::FILE_C_STRING:
+            {
+                uint8_t fdata = file_read_current_byte();
+                if (!fdata) {
+                    currentLength_ = byteOffset_;
+                }
+                if (byteOffset_ >= currentLength_ - 1)
+                {
+                    fdata = 0;
+                }
+                return fdata;
+            }
+            case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
+            {
+                uint8_t fdata = file_read_current_byte();
+                HASSERT(d.arg == fdata);
+                return d.arg;
+            }
+            case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
+            {
+                return file_read_current_byte();
+            }
             default:
                 DIE("Unexpected descriptor type.");
         }
@@ -201,20 +302,13 @@ private:
             case SimpleInfoDescriptor::END_OF_DATA:
                 return;
             case SimpleInfoDescriptor::LITERAL_BYTE:
+            case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
                 break;
             case SimpleInfoDescriptor::C_STRING:
-                // We include the terminating zero.
-                if (++byteOffset_ > currentLength_)
-                {
-                    break;
-                }
-                else
-                {
-                    return;
-                }
+            case SimpleInfoDescriptor::FILE_C_STRING:
             case SimpleInfoDescriptor::CHAR_ARRAY:
-                // There is no extra terminating zero here.
-                if (++byteOffset_ >= currentLength_)
+            case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
+                if (++byteOffset_ >= currentLength_ && currentLength_)
                 {
                     break;
                 }
@@ -295,9 +389,14 @@ private:
 
     /** Byte offset within a descriptor entry. */
     unsigned byteOffset_ : 8;
-    /** Total length of the current block. This is typically strlen() (not
-     * including the zero). */
+    /** Total / max length of the current block. This is typically strlen() + 1
+     * (including the terminating zero, if any). */
     unsigned currentLength_ : 8;
+
+    /// Last file name we opened.
+    const char* fileName_{nullptr};
+    /// fd of the last file we opened.
+    int fd_{-1};
 
     BarrierNotifiable n_;
 };

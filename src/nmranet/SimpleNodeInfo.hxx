@@ -38,13 +38,26 @@
 namespace nmranet
 {
 
-extern const uint8_t SNIP_MANUFACTURER[];
-extern const uint8_t SNIP_MODEL[];
-extern const uint8_t SNIP_HW_VERSION[];
-extern const uint8_t SNIP_SW_VERSION[];
+struct SimpleNodeStaticValues {
+  const uint8_t version;
+  const char manufacturer_name[41];
+  const char model_name[41];
+  const char hardware_version[21];
+  const char software_version[21];
+};
 
-extern const uint8_t SNIP_USER_NODE_NAME[];
-extern const uint8_t SNIP_USER_NODE_DESCRIPTION[];
+struct SimpleNodeDynamicValues {
+  const uint8_t version;
+  const char user_name[63];
+  const char user_description[64];
+};
+
+/** This static data will be exported as the first block of SNIP. The version
+ *  field must contain "4". */
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
+/** The SNIP dynamic data will be read from this file. It should be 128 bytes
+ *  long, and include the version number of "2" at the beginning. */
+extern const char* const SNIP_DYNAMIC_FILENAME;
 
 extern const SimpleInfoDescriptor SNIP_RESPONSE[];
 
@@ -55,6 +68,8 @@ public:
         : IncomingMessageStateFlow(interface)
         , responseFlow_(response_flow)
     {
+        HASSERT(SNIP_STATIC_DATA.version == 4);
+        HASSERT(sizeof(SNIP_STATIC_DATA) == 125);
         interface->dispatcher()->register_handler(
             this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
