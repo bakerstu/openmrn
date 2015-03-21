@@ -219,6 +219,74 @@ private:
     std::unique_ptr<HolderBase> holder_;
 };
 
+/** This class creates a temporary directory for the test, and removes it when
+ * the test is done.  The caller is responsible for creating and removing the
+ * files in this directory. 
+ *
+ * The temporary directory will be under the current working directory (usually
+ * wherever the test is running). */
+class TempDir {
+public:
+  TempDir() {
+    dirName_ = "./testtmpdirXXXXXX";
+    dirName_.c_str();
+    mkdtemp(&dirName_[0]);
+  }
+
+  ~TempDir() {
+    if (rmdir(dirName_.c_str()) != 0) {
+      LOG(WARNING, "Error deleting temporary directory %s: %s",
+          dirName_.c_str(), strerror(errno));
+    }
+  }
+
+  const string& name() const {
+    return dirName_;
+  }
+
+private:
+  string dirName_;
+};
+
+class TempFile {
+public:
+  TempFile(const TempDir& dir, const string& basename) {
+    fileName_ = dir.name() + "/" + basename + ".XXXXXX";
+    fileName_.c_str();
+    fd_ = mkstemp(&fileName_[0]);
+  }
+
+  ~TempFile() {
+    ::close(fd_);
+    ::unlink(fileName_.c_str());
+  }
+
+  const string& name() const {
+    return fileName_;
+  }
+
+  void write(const uint8_t byte) {
+    string s;
+    s.push_back(byte);
+    write(s);
+  }
+
+  void write(const string& s) {
+    size_t ofs = 0;
+    while (ofs < s.size()) {
+      int ret = ::write(fd_, s.data() + ofs, s.size() - ofs);
+      HASSERT(ret >= 0);
+      ofs += ret;
+    }
+    fsync(fd_);
+  }
+
+private:
+  string fileName_;
+  int fd_;
+};
+
+
 extern "C" {
 
 const char *nmranet_manufacturer = "Stuart W. Baker";
