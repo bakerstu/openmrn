@@ -99,6 +99,8 @@ struct MemoryConfigDefs {
         SPACE_CDI        = 0xFF, /**< CDI space */
         SPACE_ALL_MEMORY = 0xFE, /**< all memory space */
         SPACE_CONFIG     = 0xFD, /**< config memory space */
+        SPACE_ACDI_SYS   = 0xFC, /**< read-only ACDI space */
+        SPACE_ACDI_USR   = 0xFB, /**< read-only ACDI space */
     };
 
     /** Possible available options.
@@ -288,7 +290,7 @@ public:
     };
 
     MemoryConfigHandler(DatagramService* if_dg, Node* node,
-                        size_t registry_size)
+                        int registry_size)
         : DefaultDatagramHandler(if_dg),
           responseFlow_(nullptr),
           registry_(registry_size)
