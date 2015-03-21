@@ -51,6 +51,12 @@ protected:
         s.push_back(2);
         s += "5432\0";
         file_.write(s);
+
+        s.clear();
+        s.push_back(1);
+        s += "1234\0";
+        otherFile_.write(s);
+
         init();
     }
 
@@ -76,6 +82,7 @@ protected:
     std::unique_ptr<SimpleInfoFlow> flow_;
     TempDir dir_;
     TempFile file_{dir_, "testfile"};
+    TempFile otherFile_{dir_, "otherfile"};
 };
 
 static const char kFirstData[] = "5432";
@@ -163,6 +170,22 @@ TEST_F(InfoResponseTest, SendFileCStringWithShortLength)
     send_response(descr);
 }
 
+TEST_F(InfoResponseTest, TwoFiles)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 4, 1, file_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3534330055;");
+    send_response(descr);
+    wait();
+    static const SimpleInfoDescriptor other_descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 4, 1, otherFile_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3132330055;");
+    send_response(other_descr);
+}
 
 TEST_F(InfoResponseTest, SendByteArr)
 {
