@@ -228,7 +228,11 @@ private:
 class TempDir {
 public:
   TempDir() {
-    dirName_ = "./testtmpdirXXXXXX";
+#ifdef __linux__
+    dirName_ = "/tmp/openmrntmpdirXXXXXX";
+#else
+    dirName_ = "./openmrntmpdirXXXXXX";
+#endif
     dirName_.c_str();
     mkdtemp(&dirName_[0]);
   }
