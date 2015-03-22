@@ -76,18 +76,4 @@ void init_snip_user_file(int fd, const char *user_name,
     }
 }
 
-MockSNIPUserFile::MockSNIPUserFile(const TempDir &dir, const char *user_name,
-                                   const char *user_description)
-    : userFile_(dir, "snip_user_file")
-{
-    init_snip_user_file(userFile_.fd(), user_name, user_description);
-    HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
-    strncpy(snip_user_file_path, userFile_.name().c_str(),
-            sizeof(snip_user_file_path));
-}
-
-MockSNIPUserFile::~MockSNIPUserFile() {}
-
-char MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
-
 } // namespace nrmanet

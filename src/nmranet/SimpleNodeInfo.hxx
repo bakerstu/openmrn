@@ -32,6 +32,9 @@
  * @date 24 Jul 2013
  */
 
+#ifndef _NRMANET_SIMPLENODEINFO_HXX_
+#define _NRMANET_SIMPLENODEINFO_HXX_
+
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
 #include "os/TempFile.hxx"
@@ -70,8 +73,8 @@ extern const char *const SNIP_DYNAMIC_FILENAME;
 
 /** Helper function for test nodes. Fills a file with the given SNIP user
  * values. */
-void init_snip_user_file(int fd, const string &user_name,
-                         const string &user_description);
+void init_snip_user_file(int fd, const char *user_name,
+                         const char *user_description);
 
 class SNIPHandler : public IncomingMessageStateFlow
 {
@@ -81,7 +84,6 @@ public:
         , responseFlow_(response_flow)
     {
         HASSERT(SNIP_STATIC_DATA.version == 4);
-        HASSERT(sizeof(SNIP_STATIC_DATA) == 125);
         interface->dispatcher()->register_handler(
             this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
@@ -114,28 +116,6 @@ private:
     SimpleInfoFlow *responseFlow_;
 };
 
-/** Helper class for mock implementations. Creates a mock file with the SNIP
- * user-modifiable data inside that can be used as SNIP_DYNAMIC_FILENAME.
- *
- * Usage:
- * static TempDir g_dir;
- * static const char SNIP_USER_NAME[] = "Default user name";
- * static const char SNIP_USER_DESCRIPTION[] = "Default user description";
- * static MockSNIPUserFile g_snip_file(g_dir, SNIP_USER_NAME, SNIP_USER_DESCRIPTION);
- * const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
- */
-class MockSNIPUserFile
-{
-public:
-    static char snip_user_file_path[128];
-
-    MockSNIPUserFile(const TempDir &dir, const char *user_name,
-                     const char *user_description);
-
-    ~MockSNIPUserFile();
-
-private:
-    TempFile userFile_;
-};
-
 } // namespace nmranet
+
+#endif // _NRMANET_SIMPLENODEINFO_HXX_

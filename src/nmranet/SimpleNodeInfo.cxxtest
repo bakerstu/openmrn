@@ -51,9 +51,6 @@ const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
 
-static const char test_node_name[] = "Undefined node name";
-static const char test_node_description[] = "Undefined node descr";
-
 namespace
 {
 
@@ -66,7 +63,8 @@ protected:
     {
     }
 
-    MockSNIPUserFile userFile_{g_dir, test_node_name, test_node_description};
+    MockSNIPUserFile userFile_{g_dir, "Undefined node name",
+                               "Undefined node descr"};
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
 };
