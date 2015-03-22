@@ -66,6 +66,11 @@ public:
     }
   }
 
+  static TempDir* instance() {
+    static TempDir me;
+    return &me;
+  }
+
   const string& name() const {
     return dirName_;
   }
