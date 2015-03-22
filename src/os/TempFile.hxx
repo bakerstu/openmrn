@@ -33,6 +33,9 @@
  * @date 22 Mar 2015
  */
 
+#ifndef _OS_TEMPFILE_HXX_
+#define _OS_TEMPFILE_HXX_
+
 /** This class creates a temporary directory for the test, and removes it when
  * the test is done.  The caller is responsible for creating and removing the
  * files in this directory. 
@@ -108,3 +111,5 @@ private:
   string fileName_;
   int fd_;
 };
+
+#endif

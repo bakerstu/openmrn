@@ -51,15 +51,15 @@ const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::FILE_C_STRING, 64, 64, SNIP_DYNAMIC_FILENAME},
     {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
-void init_snip_user_file(int fd, const string &user_name,
-                         const string &user_description)
+void init_snip_user_file(int fd, const char *user_name,
+                         const char *user_description)
 {
     ::lseek(fd, 0, SEEK_SET);
     SimpleNodeDynamicValues data;
     memset(&data, 0, sizeof(data));
     data.version = 2;
-    strncpy(data.user_name, user_name.c_str(), sizeof(data.user_name));
-    strncpy(data.user_description, user_description.c_str(),
+    strncpy(data.user_name, user_name, sizeof(data.user_name));
+    strncpy(data.user_description, user_description,
             sizeof(data.user_description));
     int ofs = 0;
     auto *p = (const uint8_t *)&data;
@@ -75,5 +75,19 @@ void init_snip_user_file(int fd, const string &user_name,
         ofs += ret;
     }
 }
+
+MockSNIPUserFile::MockSNIPUserFile(const TempDir &dir, const char *user_name,
+                                   const char *user_description)
+    : userFile_(dir, "snip_user_file")
+{
+    init_snip_user_file(userFile_.fd(), user_name, user_description);
+    HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
+    strncpy(snip_user_file_path, userFile_.name().c_str(),
+            sizeof(snip_user_file_path));
+}
+
+MockSNIPUserFile::~MockSNIPUserFile() {}
+
+char MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
 
 } // namespace nrmanet

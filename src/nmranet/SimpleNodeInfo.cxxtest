@@ -45,10 +45,9 @@ using ::testing::StartsWith;
 namespace nmranet
 {
 
-char snip_file_test[128];
-
-const char *const SNIP_DYNAMIC_FILENAME = snip_file_test;
-
+TempDir g_dir;
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
+ 
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
 
@@ -65,16 +64,9 @@ protected:
         : infoFlow_(ifCan_.get())
         , handler_(ifCan_.get(), &infoFlow_)
     {
-        // Copies the user file name to the location that will be used for it.
-        strncpy(snip_file_test, userFile_.name().c_str(),
-                sizeof(snip_file_test));
-        // Assembles the user file contents.
-        init_snip_user_file(userFile_.fd(), test_node_name,
-                            test_node_description);
     }
 
-    TempDir dir_;
-    TempFile userFile_{dir_, "userinfo"};
+    MockSNIPUserFile userFile_{g_dir, test_node_name, test_node_description};
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
 };

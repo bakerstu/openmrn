@@ -34,6 +34,7 @@
 
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
+#include "os/TempFile.hxx"
 
 namespace nmranet
 {
@@ -111,6 +112,30 @@ private:
     static const SimpleInfoDescriptor SNIP_RESPONSE[];
 
     SimpleInfoFlow *responseFlow_;
+};
+
+/** Helper class for mock implementations. Creates a mock file with the SNIP
+ * user-modifiable data inside that can be used as SNIP_DYNAMIC_FILENAME.
+ *
+ * Usage:
+ * static TempDir g_dir;
+ * static const char SNIP_USER_NAME[] = "Default user name";
+ * static const char SNIP_USER_DESCRIPTION[] = "Default user description";
+ * static MockSNIPUserFile g_snip_file(g_dir, SNIP_USER_NAME, SNIP_USER_DESCRIPTION);
+ * const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
+ */
+class MockSNIPUserFile
+{
+public:
+    static char snip_user_file_path[128];
+
+    MockSNIPUserFile(const TempDir &dir, const char *user_name,
+                     const char *user_description);
+
+    ~MockSNIPUserFile();
+
+private:
+    TempFile userFile_;
 };
 
 } // namespace nmranet
