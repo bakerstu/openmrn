@@ -36,6 +36,11 @@
 #ifndef _OS_TEMPFILE_HXX_
 #define _OS_TEMPFILE_HXX_
 
+#include <string>
+
+#include <fcntl.h>
+#include "utils/logging.h"
+
 /** This class creates a temporary directory for the test, and removes it when
  * the test is done.  The caller is responsible for creating and removing the
  * files in this directory. 
