@@ -45,7 +45,7 @@ extern const SimpleNodeStaticValues __attribute__((weak)) SNIP_STATIC_DATA = {
   "0.9"
 };
 
-const SimpleInfoDescriptor SNIP_RESPONSE[] = {
+const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::LITERAL_BYTE, 4, 0, nullptr},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.manufacturer_name},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.model_name},
@@ -55,5 +55,25 @@ const SimpleInfoDescriptor SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::FILE_C_STRING, 63, 1, SNIP_DYNAMIC_FILENAME},
     {SimpleInfoDescriptor::FILE_C_STRING, 64, 64, SNIP_DYNAMIC_FILENAME},
     {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
+
+void init_snip_user_file(int fd, const string &user_name,
+                         const string &user_description) {
+  ::lseek(fd, 0, SEEK_SET);
+  SimpleNodeDynamicValues data;
+  memset(&data, 0, sizeof(data));
+  data.version = 2;
+  strncpy(data.user_name, user_name.c_str(), sizeof(data.user_name));
+  strncpy(data.user_description, user_description.c_str(), sizeof(data.user_description));
+  int ofs = 0;
+  auto* p = (const uint8_t*)data;
+  const int len = sizeof(data);
+  while (ofs < len) {
+    int ret = ::write(fd, p, len - ofs);
+    if (ret < 0) {
+      LOG(FATAL, "Init SNIP file: Could not write to fd %d: %s", fd, strerror(errno));
+    }
+    ofs += ret;
+  }
+}
 
 } // namespace nrmanet

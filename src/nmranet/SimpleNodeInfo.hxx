@@ -59,7 +59,10 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
  *  long, and include the version number of "2" at the beginning. */
 extern const char* const SNIP_DYNAMIC_FILENAME;
 
-extern const SimpleInfoDescriptor SNIP_RESPONSE[];
+/** Helper function for test nodes. Fills a file with the given SNIP user
+ * values. */
+void init_snip_user_file(int fd, const string &user_name,
+                         const string &user_description);
 
 class SNIPHandler : public IncomingMessageStateFlow
 {
@@ -96,6 +99,9 @@ public:
     }
 
 private:
+    /** Defines the SNIP response fields. */
+    static const SimpleInfoDescriptor SNIP_RESPONSE[];
+
     SimpleInfoFlow *responseFlow_;
 };
 
