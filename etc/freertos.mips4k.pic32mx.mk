@@ -64,9 +64,10 @@ CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
            -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) -U__STRICT_ANSI__ # -D__STDC_VERSION__=199902L
 
-LDFLAGS = -EL -g -T target.ld -Xlinker \
+LDFLAGS = -EL -g -T target.ld -fdata-sections -ffunction-sections  -Xlinker \
 	-Map="$(@:%.elf=%.map)"  \
 	-msoft-float -Wl,--defsym,__cs3_mips_float_type=2 \
+	-Wl,--gc-sections -Wl,--undefined=ignore_fn \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 ifdef TRACE_MALLOC
