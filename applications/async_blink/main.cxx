@@ -42,7 +42,7 @@
 
 #include "os/TempFile.hxx"
 #include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
@@ -67,29 +67,9 @@ OVERRIDE_CONST(main_thread_stack_size, 1200);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-#ifdef __FreeRTOS__
-#include "freertos_drivers/common/RamDisk.hxx"
-
-namespace nmranet
-{
-SimpleNodeDynamicValues snip_data{2, "Default user name",
-                                  "Default user description"};
-const char *const SNIP_DYNAMIC_FILENAME = "/etc/snip_user_data";
-RamDisk g_snip_file(SNIP_DYNAMIC_FILENAME, &snip_data, false);
-}
-
-#else
-
-static TempDir g_dir;
-static const char SNIP_USER_NAME[] = "Default user name";
-static const char SNIP_USER_DESCRIPTION[] = "Default user description";
-namespace nmranet
-{
-static MockSNIPUserFile g_snip_file(g_dir, SNIP_USER_NAME,
-                                    SNIP_USER_DESCRIPTION);
-const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
-}
-#endif
+nmranet::MockSNIPUserFile snip_user_file("Default user name",
+                                         "Default user description");
+const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
 
 //static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 static const uint64_t EVENT_ID = 0x0502010202000000ULL;
