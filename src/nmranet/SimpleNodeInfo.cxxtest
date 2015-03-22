@@ -38,6 +38,7 @@
 
 #include "nmranet/SimpleInfoProtocol.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/If.hxx"
 
 using ::testing::StartsWith;
@@ -45,7 +46,6 @@ using ::testing::StartsWith;
 namespace nmranet
 {
 
-TempDir g_dir;
 const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
  
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
@@ -63,7 +63,7 @@ protected:
     {
     }
 
-    MockSNIPUserFile userFile_{g_dir, "Undefined node name",
+    MockSNIPUserFile userFile_{"Undefined node name",
                                "Undefined node descr"};
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
