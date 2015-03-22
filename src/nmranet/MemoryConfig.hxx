@@ -135,6 +135,13 @@ struct MemoryConfigDefs {
         FLAG_NZLA = 0x02, /**< space has a nonzero low address */
     };
 
+    enum errors
+    {
+        ERROR_SPACE_NOT_KNOWN = Defs::ERROR_INVALID_ARGS | 0x0001,
+        ERROR_OUT_OF_BOUNDS = Defs::ERROR_INVALID_ARGS | 0x0002,
+        ERROR_WRITE_TO_RO = Defs::ERROR_INVALID_ARGS | 0x0003,
+    };
+
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
@@ -363,6 +370,10 @@ private:
             {
                 return call_immediately(STATE(handle_options));
             }
+            case MemoryConfigDefs::COMMAND_INFORMATION:
+            {
+                return call_immediately(STATE(handle_get_space_info));
+            }
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -470,6 +481,46 @@ private:
         response_.push_back(max_space);
         response_.push_back(min_space);
         return respond_ok(DatagramClient::REPLY_PENDING);
+    }
+
+    Action handle_get_space_info()
+    {
+        if (message()->data()->payload.size() < 3) {
+            // Incoming message too short.
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        uint8_t space_number = in_bytes()[2];
+        MemorySpace* space = registry_.lookup(message()->data()->dst, space_number);
+        response_.reserve(8);
+        response_.push_back(DATAGRAM_ID);
+        response_.push_back(MemoryConfigDefs::COMMAND_INFORMATION_REPLY);
+        response_.push_back(space_number);
+        if (!space) {
+            return respond_ok(DatagramDefs::REPLY_PENDING);
+        } else {
+            response_[1]++;
+        }
+        MemorySpace::address_t address = space->max_address();
+        response_.push_back((address >> 24) & 0xff);
+        response_.push_back((address >> 16) & 0xff);
+        response_.push_back((address >> 8) & 0xff);
+        response_.push_back(address & 0xff);
+        uint8_t flags = 0;
+        address = space->min_address();
+        if (address) {
+            flags |= MemoryConfigDefs::FLAG_NZLA;
+        }
+        if (space->read_only()) {
+            flags |= MemoryConfigDefs::FLAG_RO;
+        }
+        response_.push_back(flags);
+        if (address) {
+            response_.push_back((address >> 24) & 0xff);
+            response_.push_back((address >> 16) & 0xff);
+            response_.push_back((address >> 8) & 0xff);
+            response_.push_back(address & 0xff);
+        }
+        return respond_ok(DatagramDefs::REPLY_PENDING);
     }
 
     Action handle_read()
