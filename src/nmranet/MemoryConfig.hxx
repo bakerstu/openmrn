@@ -100,7 +100,7 @@ struct MemoryConfigDefs {
         SPACE_ALL_MEMORY = 0xFE, /**< all memory space */
         SPACE_CONFIG     = 0xFD, /**< config memory space */
         SPACE_ACDI_SYS   = 0xFC, /**< read-only ACDI space */
-        SPACE_ACDI_USR   = 0xFB, /**< read-only ACDI space */
+        SPACE_ACDI_USR   = 0xFB, /**< read-write ACDI space */
     };
 
     /** Possible available options.
@@ -359,6 +359,10 @@ private:
                 reboot();
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
             }
+            case MemoryConfigDefs::COMMAND_OPTIONS:
+            {
+                return call_immediately(STATE(handle_options));
+            }
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -416,6 +420,56 @@ private:
         }
         dg_service()->client_allocator()->typed_insert(responseFlow_);
         return call_immediately(STATE(cleanup));
+    }
+
+    Action handle_options()
+    {
+        response_.reserve(7);
+        response_.push_back(DATAGRAM_ID);
+        response_.push_back(MemoryConfigDefs::COMMAND_OPTIONS_REPLY);
+        uint16_t available_commands =
+            MemoryConfigDefs::AVAIL_UR | MemoryConfigDefs::AVAIL_UW;
+        // Figure out about ACDI spaces
+        MemorySpace* memspace = registry_.lookup(message()->data()->dst, 0xFC);
+        if (memspace) {
+            available_commands |= MemoryConfigDefs::AVAIL_R0xFC;
+        }
+        memspace = registry_.lookup(message()->data()->dst, 0xFB);
+        if (memspace) {
+            available_commands |= MemoryConfigDefs::AVAIL_R0xFB;
+            if (!memspace->read_only()) {
+                available_commands |= MemoryConfigDefs::AVAIL_W0xFB;
+            }
+        }
+        response_.push_back(available_commands >> 8);
+        response_.push_back(available_commands & 0xff);
+        // Write lengths
+        response_.push_back(
+            MemoryConfigDefs::LENGTH_1 | MemoryConfigDefs::LENGTH_2 |
+            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY);
+
+        uint8_t min_space = 0xFF;
+        uint8_t max_space = 0;
+        // Walks the spaces.
+        for (auto it = registry_.begin(); it != registry_.end(); ++it) {
+            auto h = *it;
+            uint8_t space = h.first.second;
+            Node* node = h.first.first;
+            //MemorySpace* space_impl = h.second;
+            if (node && node != message()->data()->dst) {
+                continue;
+            }
+            if (space >= 0xFD) continue;
+            if (space > max_space) max_space = space;
+            if (space < min_space) min_space = space;
+        }
+        if (max_space < min_space) {
+            max_space = 0xff;
+            min_space = 0xfd;
+        }
+        response_.push_back(max_space);
+        response_.push_back(min_space);
+        return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
     Action handle_read()
