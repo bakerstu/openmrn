@@ -44,12 +44,14 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/MemoryConfig.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet_config.h"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
-#include "nmranet_config.h"
 
 namespace nmranet
 {
@@ -182,12 +184,18 @@ private:
         &executor_,                      &canHub0_,
         config_local_alias_cache_size(), config_remote_alias_cache_size(),
         config_local_nodes_count()};
+    /// The initialization flow takes care for node startup duties.
+    InitializeFlow initFlow_{&service_};
     /// The actual node.
     DefaultNode node_;
     /// Dispatches event protocol requests to the event handlers.
     EventService eventService_{&ifCan_};
     /// Handles PIP requests.
     ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
+    /// General flow for simple info requests.
+    SimpleInfoFlow infoFlow_{&ifCan_};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_{&ifCan_, &infoFlow_};
 
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};
