@@ -83,6 +83,11 @@ public:
     return fileName_;
   }
 
+  int fd()
+  {
+      return fd_;
+  }
+
   void write(const uint8_t byte) {
     string s;
     s.push_back(byte);

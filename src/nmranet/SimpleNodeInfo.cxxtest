@@ -74,13 +74,8 @@ protected:
         strncpy(snip_file_test, userFile_.name().c_str(),
                 sizeof(snip_file_test));
         // Assembles the user file contents.
-        string s;
-        s.push_back(2);
-        s += test_node_name;
-        s.resize(64);
-        s += test_node_description;
-        s.resize(128);
-        userFile_.write(s);
+        init_snip_user_file(userFile_.fd(), test_node_name,
+                            test_node_description);
     }
 
     TempDir dir_;
