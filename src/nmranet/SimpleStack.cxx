@@ -67,4 +67,7 @@ void SimpleCanStack::start_stack()
     }
 }
 
+extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
+    mainBufferPool;
+
 } // namespace nmranet
