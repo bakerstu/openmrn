@@ -47,9 +47,9 @@ struct SimpleNodeStaticValues {
 };
 
 struct SimpleNodeDynamicValues {
-  const uint8_t version;
-  const char user_name[63];
-  const char user_description[64];
+  uint8_t version;
+  char user_name[63];
+  char user_description[64];
 };
 
 /** This static data will be exported as the first block of SNIP. The version

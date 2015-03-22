@@ -65,7 +65,7 @@ void init_snip_user_file(int fd, const string &user_name,
   strncpy(data.user_name, user_name.c_str(), sizeof(data.user_name));
   strncpy(data.user_description, user_description.c_str(), sizeof(data.user_description));
   int ofs = 0;
-  auto* p = (const uint8_t*)data;
+  auto* p = (const uint8_t*)&data;
   const int len = sizeof(data);
   while (ofs < len) {
     int ret = ::write(fd, p, len - ofs);
