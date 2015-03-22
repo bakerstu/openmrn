@@ -38,18 +38,20 @@
 namespace nmranet
 {
 
-struct SimpleNodeStaticValues {
-  const uint8_t version;
-  const char manufacturer_name[41];
-  const char model_name[41];
-  const char hardware_version[21];
-  const char software_version[21];
+struct SimpleNodeStaticValues
+{
+    const uint8_t version;
+    const char manufacturer_name[41];
+    const char model_name[41];
+    const char hardware_version[21];
+    const char software_version[21];
 };
 
-struct SimpleNodeDynamicValues {
-  uint8_t version;
-  char user_name[63];
-  char user_description[64];
+struct SimpleNodeDynamicValues
+{
+    uint8_t version;
+    char user_name[63];
+    char user_description[64];
 };
 
 static_assert(sizeof(struct SimpleNodeDynamicValues) == 128,
@@ -63,7 +65,7 @@ static_assert(sizeof(struct SimpleNodeStaticValues) == 125,
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
 /** The SNIP dynamic data will be read from this file. It should be 128 bytes
  *  long, and include the version number of "2" at the beginning. */
-extern const char* const SNIP_DYNAMIC_FILENAME;
+extern const char *const SNIP_DYNAMIC_FILENAME;
 
 /** Helper function for test nodes. Fills a file with the given SNIP user
  * values. */

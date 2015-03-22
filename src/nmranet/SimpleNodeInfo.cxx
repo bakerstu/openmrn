@@ -38,12 +38,7 @@ namespace nmranet
 {
 
 extern const SimpleNodeStaticValues __attribute__((weak)) SNIP_STATIC_DATA = {
-  4,
-  "OpenMRN",
-  "Undefined model",
-  "Undefined HW version",
-  "0.9"
-};
+    4, "OpenMRN", "Undefined model", "Undefined HW version", "0.9"};
 
 const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::LITERAL_BYTE, 4, 0, nullptr},
@@ -57,23 +52,28 @@ const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
 void init_snip_user_file(int fd, const string &user_name,
-                         const string &user_description) {
-  ::lseek(fd, 0, SEEK_SET);
-  SimpleNodeDynamicValues data;
-  memset(&data, 0, sizeof(data));
-  data.version = 2;
-  strncpy(data.user_name, user_name.c_str(), sizeof(data.user_name));
-  strncpy(data.user_description, user_description.c_str(), sizeof(data.user_description));
-  int ofs = 0;
-  auto* p = (const uint8_t*)&data;
-  const int len = sizeof(data);
-  while (ofs < len) {
-    int ret = ::write(fd, p, len - ofs);
-    if (ret < 0) {
-      LOG(FATAL, "Init SNIP file: Could not write to fd %d: %s", fd, strerror(errno));
+                         const string &user_description)
+{
+    ::lseek(fd, 0, SEEK_SET);
+    SimpleNodeDynamicValues data;
+    memset(&data, 0, sizeof(data));
+    data.version = 2;
+    strncpy(data.user_name, user_name.c_str(), sizeof(data.user_name));
+    strncpy(data.user_description, user_description.c_str(),
+            sizeof(data.user_description));
+    int ofs = 0;
+    auto *p = (const uint8_t *)&data;
+    const int len = sizeof(data);
+    while (ofs < len)
+    {
+        int ret = ::write(fd, p, len - ofs);
+        if (ret < 0)
+        {
+            LOG(FATAL, "Init SNIP file: Could not write to fd %d: %s", fd,
+                strerror(errno));
+        }
+        ofs += ret;
     }
-    ofs += ret;
-  }
 }
 
 } // namespace nrmanet
