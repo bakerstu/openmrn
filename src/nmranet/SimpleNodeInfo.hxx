@@ -52,6 +52,12 @@ struct SimpleNodeDynamicValues {
   char user_description[64];
 };
 
+static_assert(sizeof(struct SimpleNodeDynamicValues) == 128,
+              "SNIP dynamic file is not of the right size in your compiler");
+
+static_assert(sizeof(struct SimpleNodeStaticValues) == 125,
+              "SNIP static file is not of the right size in your compiler");
+
 /** This static data will be exported as the first block of SNIP. The version
  *  field must contain "4". */
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
