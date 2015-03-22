@@ -143,10 +143,10 @@ endif
 ################### ARM-GCC #####################
 ifndef ARMGCCPATH
 SEARCHPATH := \
+  /opt/armgcc/default \
   /opt/lpcxpresso/default/lpcxpresso/tools \
   /usr/local/lpcxpresso_*/lpcxpresso/tools \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI \
-  /opt/armgcc/default \
 
 TRYPATH:=$(call findfirst,bin/arm-none-eabi-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
