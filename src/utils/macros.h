@@ -43,6 +43,13 @@ using namespace std;
 
 #include <stdlib.h>   // for abort
 
+#if defined(__EMSCRIPTEN__) 
+#if defined(EXPECT_DEATH)
+#undef EXPECT_DEATH
+#endif
+#define EXPECT_DEATH(x...) 
+#endif
+
 #ifdef __FreeRTOS__
 
 /**
