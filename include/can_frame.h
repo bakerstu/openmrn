@@ -60,7 +60,7 @@
         (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__)
+#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__) || defined(__EMSCRIPTEN__)
 #include <stdint.h>
 
     struct can_frame
@@ -90,7 +90,7 @@
     #define SET_CAN_FRAME_ID(_frame, _value)     (_frame).can_id = ((_value) & 0x7ffU)
 
 #else
-#error
+#error No CAN frame representation for your OS
 #endif
 
 #endif /* _nmranet_can_h_ */
