@@ -32,7 +32,7 @@ $(TESTBINS): %.test : %.otest $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS
 -include $(TESTOBJSEXTRA:.o=.d)
 
 $(TESTOBJS): %.otest : $(SRCDIR)/%.cxxtest
-	$(CXX) $(CXXFLAGS) -MF $*.dtest -x c++ $< -o $@
+	$(CXX) $(CXXFLAGS) -MD -MF $*.dtest -x c++ $< -o $@
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
@@ -107,4 +107,7 @@ veryclean: veryclean-cov clean-cov
 clean-cov:
 	rm -rf $(TESTBINS) $(TESTOBJS) $(TESTOUTPUTS) $(TESTMD5) $(TESTDIRS) $(COVAGGRFILES)
 
-clean: clean-cov
+clean-gtest:
+	rm -f {gtest-all,gmock-all}.{d,o,gcno}
+
+clean: clean-cov clean-gtest
