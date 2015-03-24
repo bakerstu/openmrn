@@ -65,9 +65,71 @@ void SimpleCanStack::start_stack()
             &node_, MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
+    {
+        auto *space = new FileMemorySpace(SNIP_DYNAMIC_FILENAME,
+                                          sizeof(SimpleNodeDynamicValues));
+        memoryConfigHandler_.registry()->insert(
+            &node_, MemoryConfigDefs::SPACE_ACDI_USR, space);
+        additionalComponents_.emplace_back(space);
+    }
+    {
+        auto *space = new ReadOnlyMemoryBlock(
+            reinterpret_cast<const uint8_t *>(&CDI_DATA),
+            CDI_SIZE);
+        memoryConfigHandler_.registry()->insert(
+            &node_, MemoryConfigDefs::SPACE_CDI, space);
+        additionalComponents_.emplace_back(space);
+    }
 }
 
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
     mainBufferPool;
+
+
+extern const char __attribute__((weak)) CDI_DATA[] = 
+R"cdi(<?xml version="1.0"?>
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<identification/>
+<acdi/>
+<segment origin='0' space='252'>
+ <group>
+ <name>Manufacturer Information</name>
+ <description>Manufacturer-provided fixed node description</description>
+ <int size='1'>
+ <name>Version</name>
+ </int>
+ <string size='41'>
+ <name>Manufacturer Name</name>
+ </string>
+ <string size='41'>
+ <name>Node Type</name>
+ </string>
+ <string size='21'>
+ <name>Hardware Version</name>
+ </string>
+ <string size='21'>
+ <name>Software Version</name>
+ </string>
+ </group>
+</segment>
+<segment origin='0' space='251'>
+ <group>
+ <name>User Identification</name>
+ <description>Lets the user add his own description</description>
+ <int size='1'>
+ <name>Version</name>
+ </int>
+ <string size='63'>
+ <name>Node Name</name>
+ </string>
+ <string size='64'>
+ <name>Node Description</name>
+ </string>
+ </group>
+</segment>
+</cdi>
+)cdi";
+extern const size_t __attribute__((weak)) CDI_SIZE = sizeof(CDI_DATA);
+
 
 } // namespace nmranet

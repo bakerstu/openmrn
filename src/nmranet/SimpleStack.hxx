@@ -56,6 +56,9 @@
 namespace nmranet
 {
 
+extern const char CDI_DATA[];
+extern const size_t CDI_SIZE;
+
 class SimpleCanStack
 {
 public:
@@ -169,7 +172,7 @@ private:
     static const auto PIP_RESPONSE =
         Defs::EVENT_EXCHANGE | Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM |
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
-        Defs::SIMPLE_NODE_INFORMATION;
+        Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 
     /** Call this function once after the actual IO ports are set up. Calling
      * before the executor starts looping is okay. */
