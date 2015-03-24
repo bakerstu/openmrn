@@ -36,6 +36,8 @@
 #define _UTILS_MACROS_H_
 
 #ifdef __cplusplus
+#include <vector>
+
 using namespace std;
 #endif
 

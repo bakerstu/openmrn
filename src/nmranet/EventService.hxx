@@ -72,7 +72,7 @@ public:
      * will be undone in the destructor. */
     void register_interface(If *interface);
 
-    struct Impl;
+    class Impl;
     Impl *impl()
     {
         return impl_.get();

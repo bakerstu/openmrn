@@ -46,7 +46,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread, private Executable
+class ExecutorBase : protected OSThread, protected Executable
 {
 public:
     /** Constructor.

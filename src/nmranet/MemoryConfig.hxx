@@ -679,11 +679,10 @@ private:
     DatagramClient* responseFlow_;
     BarrierNotifiable b_;
 
-    NodeID lockNode_; //< Holds the node ID that locked us.
+    ///@TODO (balazs.racz) implement lock/unlock.
+    //NodeID lockNode_; //< Holds the node ID that locked us.
 
     Registry registry_;         //< holds the known memory spaces
-    Node* registeredNode_; //< we registered as a datagram handler for
-                                // this node. May be null.
 
     /** Offset withing the current write/read datagram. This does not include
      * the offset from the incoming datagram. */

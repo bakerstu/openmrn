@@ -75,7 +75,7 @@ BitRangeEventPC::~BitRangeEventPC() {
 void BitRangeEventPC::GetBitAndMask(unsigned bit, uint32_t** data,
                                     uint32_t* mask) const {
   *data = nullptr;
-  if ((bit >= size_) || (bit < 0))
+  if (bit >= size_)
     return;
   *data = data_ + (bit >> 5);
   *mask = 1 << (bit & 31);

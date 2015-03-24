@@ -138,8 +138,6 @@ private:
 
     BarrierNotifiable n_;
     EventHandlerFunction fn_;
-
-    If *interface_;
 };
 
 } // namespace nmranet

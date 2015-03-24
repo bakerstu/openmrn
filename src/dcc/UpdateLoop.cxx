@@ -51,8 +51,8 @@ void packet_processor_remove_refresh_source(PacketSource* source) {
   Singleton<UpdateLoopBase>::instance()->remove_refresh_source(source);
 }
 
-DEFINE_SINGLETON_INSTANCE(UpdateLoopBase);
-
 UpdateLoopBase::~UpdateLoopBase() {}
 
 }
+
+DEFINE_SINGLETON_INSTANCE(dcc::UpdateLoopBase);
