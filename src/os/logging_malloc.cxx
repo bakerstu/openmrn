@@ -1,3 +1,5 @@
+#ifndef __EMSCRIPTEN__
+
 #include <unwind.h>
 #include "os/os.h"
 #include "utils/Atomic.hxx"
@@ -119,3 +121,5 @@ void *__wrap_malloc(size_t size)
     }
     return __real_malloc(size);
 }
+
+#endif // __EMSCRIPTEN__
