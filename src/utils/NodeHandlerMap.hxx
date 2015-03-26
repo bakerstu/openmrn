@@ -56,6 +56,7 @@ class NodeHandlerMapBase
 private:
     typedef uint64_t key_type;
     typedef void* value_type;
+    typedef StlMap<key_type, value_type> map_type;
 
 public:
     NodeHandlerMapBase()
@@ -108,6 +109,24 @@ public:
         }
     }
 
+    typedef typename map_type::Iterator iterator;
+    iterator begin()
+    {
+        return entries_.begin();
+    }
+
+    iterator end()
+    {
+        return entries_.end();
+    }
+
+    static pair<void *, uint32_t> read_key(key_type key)
+    {
+        uint32_t id = key & 0xFFFFFFFFU;
+        uint32_t n = key >> 32;
+        return make_pair(reinterpret_cast<void *>(n), id);
+    }
+
 private:
     /// Combines the node pointer and the message ID into a lookup key.
     key_type make_key(void* node, uint32_t id)
@@ -118,7 +137,7 @@ private:
         return key;
     }
 
-    StlMap<key_type, value_type> entries_;
+    map_type entries_;
 };
 
 template <class Node, class Handler>
@@ -162,6 +181,38 @@ public:
     {
         return static_cast<Handler*>(NodeHandlerMapBase::lookup(node, id));
     }
+
+    class iterator {
+    public:
+        iterator(NodeHandlerMapBase::iterator i)
+            : impl_(i) {}
+
+        void operator++() {
+            ++impl_;
+        }
+
+        bool operator!=(const iterator& o) {
+            return impl_ != o.impl_;
+        }
+
+        std::pair<std::pair<Node*, uint32_t>, Handler*> operator*() {
+            auto p = NodeHandlerMapBase::read_key(impl_->first);
+            return make_pair(make_pair((Node*) p.first, p.second),
+                             (Handler*)impl_->second);
+        }
+
+    private:
+        NodeHandlerMapBase::iterator impl_;
+    };
+
+    iterator begin() {
+        return iterator(NodeHandlerMapBase::begin());
+    }
+
+    iterator end() {
+        return iterator(NodeHandlerMapBase::end());
+    }
+
 };
 
 #endif // _UTILS_NODEHANDLERMAP_HXX_

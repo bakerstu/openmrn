@@ -205,6 +205,119 @@ TEST_F(MemoryConfigTest, MockMemoryConfigWrite)
     wait();
 }
 
+TEST_F(MemoryConfigTest, Options)
+{
+    // First run a query on an empty registry.
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826000E2FFFD;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds a couple of memory spaces and checks the boundary information.
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+    memoryOne_.registry()->insert(nullptr, 0x35, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0x42, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0xFB, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0xFC, &space);
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826000E23527;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds a read-only ACDI space for 0xFB
+    memoryOne_.registry()->insert(node_, 0xFB, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826400E2FB27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Makes ACDI space read-write.
+    memoryOne_.registry()->insert(node_, 0xFB, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826600E2FB27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds the other ACDI space.
+    memoryOne_.registry()->insert(nullptr, 0xFC, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826E00E2FC27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoUnknown)
+{
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN208621;").WillOnce(InvokeWithoutArgs(
+        this, &MemoryConfigTest::AckResponse)); // space not existent
+    send_packet(":X1A22A77CN208421;"); // query space 0x21
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoZLA)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN2087211122334400;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoRO)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN2087211122334401;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoRO_NZLA)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0x55443322));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2087211122334403;");
+    expect_packet(":X1D77C22AN55443322;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
 static const char MEMORY_BLOCK_DATA[] = "abrakadabra12345678xxxxyyyyzzzzwww.";
 
 class StaticBlockTest : public MemoryConfigTest

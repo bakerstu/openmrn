@@ -64,6 +64,7 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 #elif defined(TARGET_LPC11Cxx)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
+OVERRIDE_CONST(num_memory_spaces, 4);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
