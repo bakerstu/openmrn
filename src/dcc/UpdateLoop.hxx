@@ -41,7 +41,7 @@ template <class T> class FlowInterface;
 template <class T> class Buffer;
 namespace dcc
 {
-class Packet;
+struct Packet;
 }
 typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
 

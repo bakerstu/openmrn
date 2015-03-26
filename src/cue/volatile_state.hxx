@@ -80,7 +80,7 @@ public:
   }
 
 private:
-  friend class VolatileStateRef;
+  friend struct VolatileStateRef;
 
   vector<uint8_t> values_;
 

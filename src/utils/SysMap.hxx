@@ -93,7 +93,7 @@ public:
 
 private:
     /** The metadata for a tree node. */
-    class Node
+    struct Node
     {
     public:
         RB_ENTRY(Node) entry;

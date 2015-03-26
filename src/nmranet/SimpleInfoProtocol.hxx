@@ -385,6 +385,7 @@ private:
     unsigned isFirstMessage_ : 1;
     /** Tells which descriptor entry we are processing. */
     unsigned entryOffset_ : 5;
+#pragma clang diagnostic ignored "-Wunused-private-field"
     unsigned reserved_ : 1; // for alignment
 
     /** Byte offset within a descriptor entry. */

@@ -41,8 +41,6 @@ InitializeFlow::~InitializeFlow()
 {
 }
 
-DEFINE_SINGLETON_INSTANCE(InitializeFlow);
-
 void StartInitializationFlow(Node *node)
 {
     auto *g_initialize_flow = Singleton<InitializeFlow>::instance();
@@ -52,3 +50,5 @@ void StartInitializationFlow(Node *node)
 }
 
 } // namespace nmranet
+
+DEFINE_SINGLETON_INSTANCE(nmranet::InitializeFlow);

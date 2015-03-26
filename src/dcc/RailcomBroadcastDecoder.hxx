@@ -40,7 +40,7 @@
 namespace dcc
 {
 
-class Feedback;
+struct Feedback;
 
 class RailcomBroadcastDecoder
 {
