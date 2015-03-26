@@ -110,4 +110,4 @@ clean-cov:
 clean-gtest:
 	rm -f {gtest-all,gmock-all}.{d,o,gcno}
 
-clean: clean-cov clean-gtest
+clean veryclean: clean-cov clean-gtest
