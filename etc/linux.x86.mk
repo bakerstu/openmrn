@@ -19,7 +19,7 @@ ENDGROUP := -Wl,--end-group
 
 ARCHOPTIMIZATION = -g -O0 -m32
 
-CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-error=unknown-pragmas -MD -MP -m32 -fno-stack-protector -D_GNU_SOURCE
+CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -m32 -fno-stack-protector -D_GNU_SOURCE
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 

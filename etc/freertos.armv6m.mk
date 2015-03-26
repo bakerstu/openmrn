@@ -54,7 +54,7 @@ INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(
 
 SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
         -D__USE_CMSIS=CMSISv2p00_LPC11xx -D__CODE_RED -D__FreeRTOS__  \
-        -g3 -Wall -Werror -c -fmessage-length=0  \
+        -g3 -Wall -Werror -Wno-unknown-pragmas -c -fmessage-length=0  \
         -ffunction-sections -fdata-sections -fno-stack-protector \
         -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
         -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
