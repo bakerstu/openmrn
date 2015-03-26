@@ -1,55 +1,14 @@
 include ../../etc/core_target.mk
 
-include $(OPENMRNPATH)/etc/cov.mk
-include $(OPENMRNPATH)/etc/path.mk
+#include $(OPENMRNPATH)/etc/core_target.mk
 
 SRCDIR = $(OPENMRNPATH)/src
-FULLPATHCXXTESTSRCS := $(foreach DIR,$(SUBDIRS),$(wildcard $(SRCDIR)/$(DIR)/*.cxxtest))
 
-TESTOBJSEXTRA = gtest-all.o gmock-all.o
+CUSTOM_EXEC=1
 
-TESTSRCS ?= $(patsubst $(SRCDIR)/%,%,$(FULLPATHCXXTESTSRCS))
-TESTBINS = $(TESTSRCS:.cxxtest=.test)
-TESTOBJS = $(TESTSRCS:.cxxtest=.otest)
-TESTOUTPUTS = $(TESTSRCS:.cxxtest=.testout)
-TESTMD5 = $(TESTSRCS:.cxxtest=.testmd5)
+include $(OPENMRNPATH)/etc/core_test.mk
+
 TESTDIRS = $(TESTSRCS:.cxxtest=.covdir)
-
-INCLUDES     += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
-                -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-LIBDIR = lib
-LDFLAGS      += -L$(LIBDIR)
-
-
-.SUFFIXES: .o .otest .c .cxx .cxxtest .test .testmd5 .testout
-
-$(LIBDIR)/timestamp: $(BUILDDIRS)
-
-$(TESTBINS): %.test : %.otest $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
-	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
-
--include $(TESTOBJS:.otest=.dtest)
--include $(TESTOBJSEXTRA:.o=.d)
-
-$(TESTOBJS): %.otest : $(SRCDIR)/%.cxxtest
-	$(CXX) $(CXXFLAGS) -MD -MF $*.dtest -x c++ $< -o $@
-
-gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
-
-gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
-
-# This target takes the test binary output and compares the md5sum against the
-# md5sum of the previous run. If the md5sum of the test binary didn't change,
-# we do not re-run the test. We tell this to make by not updating the timestmap
-# of the .md5sum even though these commands run. Make will then not run the
-# dependent commands (the actual test run) and assumes that the .testout is
-# also up-to-date.
-%.testmd5 : %.test
-	SM="$$(md5sum $<)" ; if [ ! -f $@ ] || [ "$$SM" != "$$(<$@)" ] ; then echo replacing md5 file. old: $$(<$@) new $$SM ; echo "$$SM" > $@ ; else echo not replacing md5 file $@ ; fi
 
 # This target actually runs the test. We jump through some hoops to collect the
 # coverage files into a separate directory. Since they are in a separate directory, we need to put the original .gcno files there as well.
@@ -95,19 +54,12 @@ lcovdir/index.html: $(TESTOUTPUTS) $(TESTMD5) $(COVAGGRFILES)
 	lcov -r app.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info; \
 	genhtml -o . app.info
 
-run-tests: $(TESTOUTPUTS) $(TESTMD5)
-
-tests: run-tests
-
 veryclean-cov:
 	rm -rf lcovdir/
 
 veryclean: veryclean-cov clean-cov
 
 clean-cov:
-	rm -rf $(TESTBINS) $(TESTOBJS) $(TESTOUTPUTS) $(TESTMD5) $(TESTDIRS) $(COVAGGRFILES)
-
-clean-gtest:
-	rm -f {gtest-all,gmock-all}.{d,o,gcno}
+	rm -rf $(TESTDIRS) $(COVAGGRFILES)
 
 clean veryclean: clean-cov clean-gtest
