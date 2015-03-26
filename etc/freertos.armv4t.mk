@@ -22,6 +22,8 @@ SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
+AROPTS=D
+
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 

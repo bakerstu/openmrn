@@ -100,7 +100,7 @@ $(ARM_OBJS): %.o : %.c
 	$(CC) -MM $(CFLAGS) $< > $*.d
 
 $(LIBNAME): $(OBJS)
-	$(AR) Dcrs $(LIBNAME) $(OBJS)
+	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
 	ln -sf -t $(OPENMRNPATH)/targets/$(TARGET)/lib $(TGTDIR)/$(LIBNAME)
 	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 

@@ -23,6 +23,8 @@ SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
+AROPTS=D
+
 ifeq ($(TOOLPATH),/usr/local/lpcxpresso_5.1.2_2065/lpcxpresso/tools)
 CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.6.2
 CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2

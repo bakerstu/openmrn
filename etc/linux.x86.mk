@@ -12,6 +12,8 @@ AR = ar
 LD = g++
 OBJDUMP = objdump
 
+AROPTS=D
+
 HOST_TARGET := 1
 
 STARTGROUP := -Wl,--start-group
