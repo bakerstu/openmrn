@@ -45,6 +45,7 @@
 #include "nmranet/SimpleNodeInfo.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
 #include "nmranet/IfCan.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionTrain.hxx"
 #include "os/os.h"
@@ -67,6 +68,10 @@ nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
 nmranet::EventService g_event_service(&g_if_can);
 nmranet::TrainService traction_service(&g_if_can);
 
+nmranet::MockSNIPUserFile snip_user_file("Train name",
+                                         "Train description");
+const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
+
 using nmranet::Node;
 using nmranet::SimpleEventHandler;
 using nmranet::EventRegistry;
@@ -81,12 +86,8 @@ int address = 1726;
 
 namespace nmranet
 {
-const uint8_t SNIP_MODEL[] = "Logical train node";
-const uint8_t SNIP_HW_VERSION[] = "No hardware here";
-const uint8_t SNIP_SW_VERSION[] = "0.91";
-
-const uint8_t SNIP_USER_NODE_NAME[] = "User name";
-const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "User description";
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "OpenMRN", "Logical train node", "No hardware here", "0.91"};
 }
 
 void usage(const char *e)
