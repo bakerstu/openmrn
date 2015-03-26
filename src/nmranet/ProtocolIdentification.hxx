@@ -32,6 +32,9 @@
  * @date 2 February 2015
  */
 
+#ifndef _NMRANET_PROTOCOLIDENTIFICATION_HXX_
+#define _NMRANET_PROTOCOLIDENTIFICATION_HXX_
+
 #include "nmranet/Defs.hxx"
 //#include "nmranet/
 
@@ -121,3 +124,5 @@ private:
 };
 
 } /* namespace nmranet */
+
+#endif // _NMRANET_PROTOCOLIDENTIFICATION_HXX_
