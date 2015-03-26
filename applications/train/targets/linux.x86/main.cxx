@@ -39,34 +39,21 @@
 
 #include <memory>
 
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
-#include "nmranet/IfCan.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
+#include "nmranet/SimpleStack.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionTrain.hxx"
 #include "os/os.h"
-#include "utils/GridConnectHub.hxx"
-#include "utils/Hub.hxx"
 #include "utils/constants.hxx"
-#include "utils/socket_listener.hxx"
 
-NO_THREAD nt;
-Executor<1> g_executor(nt);
-Service g_service(&g_executor);
-CanHubFlow can_hub0(&g_service);
-
-nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-// This nodeid is only used for seeding the alias allocation flow.
 static const nmranet::NodeID NODE_ID = 0x0501010100F5ULL;
-static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
-nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
 
-nmranet::EventService g_event_service(&g_if_can);
-nmranet::TrainService traction_service(&g_if_can);
+nmranet::SimpleCanStack stack(NODE_ID);
+
+nmranet::TrainService traction_service(stack.interface());
 
 nmranet::MockSNIPUserFile snip_user_file("Train name",
                                          "Train description");
@@ -83,6 +70,7 @@ int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;
 int address = 1726;
+OVERRIDE_CONST(num_memory_spaces, 4);
 
 namespace nmranet
 {
@@ -141,17 +129,14 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    int conn_fd = 0;
     if (device_path)
     {
-        conn_fd = ::open(device_path, O_RDWR);
+        stack.add_gridconnect_port(device_path);
     }
     else
     {
-        conn_fd = ConnectSocket("localhost", 12021);
+        stack.connect_tcp_gridconnect_hub(host, port);
     }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
     nmranet::LoggingTrain train_impl(1732);
     nmranet::TrainNode train_node(&traction_service, &train_impl);
@@ -161,12 +146,7 @@ int appl_main(int argc, char *argv[])
         &train_node,
         nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
         nmranet::Defs::TRACTION_CONTROL);
-    nmranet::SNIPHandler snip(&g_if_can, &gInfoFlow);
 
-    g_if_can.add_addressed_message_support();
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
-
-    g_executor.thread_body();
+    stack.loop_executor();
     return 0;
 }
