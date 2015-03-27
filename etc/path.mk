@@ -284,4 +284,18 @@ EMSDKPATH:=$(TRYPATH)
 endif
 endif #EMSDKPATH
 
+##################### EMLLVM ######################
+ifndef EMLLVMPATH
+SEARCHPATH := \
+  /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
+  /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,llvm-ar,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMLLVMPATH:=$(TRYPATH)
+endif
+endif #EMLLVMPATH
+
 
