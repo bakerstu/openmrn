@@ -10,10 +10,17 @@
 namespace nmranet
 {
 
+#ifdef __EMSCRIPTEN__
+Executor<1> &g1_executor(g_executor);
+Executor<1> &g2_executor(g_executor);
+Executor<1> &g3_executor(g_executor);
+Executor<1> &g4_executor(g_executor);
+#else
 Executor<1> g1_executor("g1_exec", 0, 2000);
 Executor<1> g2_executor("g2_exec", 0, 2000);
 Executor<1> g3_executor("g3_exec", 0, 2000);
 Executor<1> g4_executor("g4_exec", 0, 2000);
+#endif
 
 Executor<1>* round_execs[] = {&g1_executor, &g2_executor,
                               &g3_executor, &g4_executor};

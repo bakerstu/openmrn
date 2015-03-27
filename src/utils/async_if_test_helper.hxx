@@ -113,6 +113,17 @@ protected:
         wait_for_main_executor();
     }
 
+#ifdef __EMSCRIPTEN__
+    void usleep(unsigned long usecs) {
+        long long deadline = usecs;
+        deadline *= 1000;
+        deadline += os_get_time_monotonic();
+        while (os_get_time_monotonic() < deadline) {
+            os_emscripten_yield();
+        }
+    }
+#endif
+
 /** Adds an expectation that the code will send a packet to the CANbus.
 
     Example:
