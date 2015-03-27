@@ -181,7 +181,9 @@ public:
     virtual void run()
     {
         n_.notify();
+#ifndef __EMSCRIPTEN__
         m_.wait_for_notification();
+#endif
     }
 
     /** Blocks the current thread until the BlockExecutor manages to block the
@@ -194,7 +196,9 @@ public:
     /** Releases the executor that was blocked. */
     void release_block()
     {
+#ifndef __EMSCRIPTEN__
         m_.notify();
+#endif
     }
 
 private:
