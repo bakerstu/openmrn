@@ -80,6 +80,10 @@ public:
                               unsigned priority = UINT_MAX) = 0;
 #endif
 
+    /** Performs one loop of the execution on the calling thread. Returns true
+     * if there is more scheduled work to do. */
+    bool loop_once();
+
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }
 

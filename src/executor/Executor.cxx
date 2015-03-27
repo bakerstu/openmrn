@@ -99,6 +99,27 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     }
 }
 
+bool ExecutorBase::loop_once()
+{
+    unsigned priority;
+    activeTimers_.get_next_timeout();
+    Executable* msg = timedwait(1, &priority);
+    if (!msg)
+    {
+        return false;
+    }
+    if (msg == this)
+    {
+        // exit closure
+        done_ = 1;
+        return false;
+    }
+    current = msg;
+    msg->run();
+    current = nullptr;
+    return true;
+}
+
 /** Thread entry point.
  * @return Should never return
  */
