@@ -788,6 +788,23 @@ long long os_get_time_monotonic(void)
     return last;
 }
 
+#if defined(__EMSCRIPTEN__)
+int os_thread_once(os_thread_once_t *once, void (*routine)(void))
+{
+    if (once->state == OS_THREAD_ONCE_NEVER)
+    {
+        once->state = OS_THREAD_ONCE_INPROGRESS;
+        routine();
+        once->state = OS_THREAD_ONCE_DONE;
+    }
+    else if (once->state == OS_THREAD_ONCE_INPROGRESS)
+    {
+        DIE("Recursive call to os_thread_once.");
+    }
+    return 0;
+}
+#endif
+
 #if defined (__FreeRTOS__)
 /* standard C library hooks for multi-threading */
 

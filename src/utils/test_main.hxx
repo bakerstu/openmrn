@@ -89,11 +89,18 @@ int appl_main(int argc, char *argv[])
 }
 
 extern Executor<1> g_executor;
+
 #ifdef __EMSCRIPTEN__
 Executor<1> g_executor{NO_THREAD()};
+
+void os_emscripten_yield() {
+    g_executor.loop_once();
+}
 #else
 Executor<1> g_executor("ex_thread", 0, 1024);
 #endif
+
+
 Service g_service(&g_executor);
 
 /** Blocks the current thread until the main executor has run out of work.

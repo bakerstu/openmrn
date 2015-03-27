@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
+#include <stdint.h>
 
 #if defined (__FreeRTOS__)
 #include <FreeRTOS.h>
@@ -109,6 +110,23 @@ typedef struct thread_priv
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
+#elif defined(__EMSCRIPTEN__)
+typedef struct {
+    int locked;
+    uint8_t recursive;
+} os_mutex_t;
+typedef struct
+{
+    unsigned char state; /**< keep track if already executed */
+} os_thread_once_t; /**< one time initialization type */
+typedef struct {
+    unsigned counter;
+} os_sem_t;
+
+typedef unsigned os_thread_t;
+typedef void* os_timer_t;
+typedef void *os_mq_t; /**< message queue handle */
+
 #else
 typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
@@ -138,7 +156,12 @@ typedef struct
 })
 #endif
 
-#if defined (__FreeRTOS__)
+/** Get the monotonic time since the system started.
+ * @return time in nanoseconds since system start
+ */
+extern long long os_get_time_monotonic(void);
+
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__)
 /** @ref os_thread_once states.
  */
 enum
@@ -154,7 +177,7 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__)
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -288,6 +311,8 @@ OS_INLINE os_thread_t os_thread_self(void)
 {
 #if defined (__FreeRTOS__)
     return xTaskGetCurrentTaskHandle();
+#elif defined(__EMSCRIPTEN__)
+    return 0xdeadbeef;
 #else
     return pthread_self();
 #endif
@@ -301,6 +326,8 @@ OS_INLINE int os_thread_getpriority(os_thread_t thread)
 {
 #if defined (__FreeRTOS__)
     return uxTaskPriorityGet(thread);
+#elif defined(__EMSCRIPTEN__)
+    return 2;
 #else
     struct sched_param params;
     int policy;
@@ -314,6 +341,11 @@ OS_INLINE int os_thread_getpriority(os_thread_t thread)
 #define OS_MUTEX_INITIALIZER {NULL, 0}
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 1}
+#elif defined(__EMSCRIPTEN__)
+/** Static initializer for mutexes */
+#define OS_MUTEX_INITIALIZER {0, 0}
+/** Static initializer for recursive mutexes */
+#define OS_RECURSIVE_MUTEX_INITIALIZER {0, 1}
 #else
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
@@ -355,6 +387,10 @@ void os_timer_start(os_timer_t timer, long long period);
  */
 void os_timer_stop(os_timer_t timer);
 
+#ifdef __EMSCRIPTEN__
+extern void os_emscripten_yield();
+#endif
+
 /** Initialize mutex.
  * @param mutex address of mutex handle to initialize
  * @return 0 upon succes or error number upon failure
@@ -366,6 +402,10 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
     mutex->sem = xSemaphoreCreateMutex();
 
     return 0;    
+#elif defined(__EMSCRIPTEN__)
+    mutex->locked = 0;
+    mutex->recursive = 0;
+    return 0;
 #else
     return pthread_mutex_init(mutex, NULL);
 #endif
@@ -382,6 +422,10 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
     return 0;    
+#elif defined(__EMSCRIPTEN__)
+    mutex->locked = 0;
+    mutex->recursive = 1;
+    return 0;
 #else
     pthread_mutexattr_t attr;
     int result;
@@ -412,6 +456,9 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
     vSemaphoreDelete(mutex->sem);
 
     return 0;    
+#elif defined(__EMSCRIPTEN__)
+    mutex->locked = 0;
+    return 0;
 #else
     return pthread_mutex_destroy(mutex);
 #endif
@@ -447,6 +494,13 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
         xSemaphoreTake(mutex->sem, portMAX_DELAY);
     }
     return 0;
+#elif defined(__EMSCRIPTEN__)
+    if (mutex->locked && !mutex->recursive)
+    {
+        DIE("Mutex deadlock.");
+    }
+    mutex->locked++;
+    return 0;
 #else
     return pthread_mutex_lock(mutex);
 #endif
@@ -468,6 +522,13 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
         xSemaphoreGive(mutex->sem);
     }
     return 0;
+#elif defined(__EMSCRIPTEN__)
+    if (mutex->locked <= 0)
+    {
+        DIE("Unlocking a not locked mutex");
+    }
+    --mutex->locked;
+    return 0;
 #else
     return pthread_mutex_unlock(mutex);
 #endif
@@ -486,6 +547,9 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
       abort();
     }
     return 0;
+#elif defined(__EMSCRIPTEN__)
+    sem->counter = value;
+    return 0;
 #else
     pthread_cond_init(&sem->cond, NULL);
     pthread_mutex_init(&sem->mutex, NULL);
@@ -503,6 +567,8 @@ OS_INLINE int os_sem_destroy(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(*sem);
     return 0;
+#elif defined(__EMSCRIPTEN__)
+    return 0;
 #else
     pthread_cond_destroy(&sem->cond);
     pthread_mutex_destroy(&sem->mutex);
@@ -518,6 +584,9 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 {
 #if defined (__FreeRTOS__)
     xSemaphoreGive(*sem);
+    return 0;
+#elif defined(__EMSCRIPTEN__)
+    sem->counter++;
     return 0;
 #else
     pthread_mutex_lock(&sem->mutex);
@@ -552,6 +621,13 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     xSemaphoreTake(*sem, portMAX_DELAY);
     return 0;
+#elif defined(__EMSCRIPTEN__)
+    while (!sem->counter)
+    {
+        os_emscripten_yield();
+    }
+    --sem->counter;
+    return 0;
 #else
     pthread_mutex_lock(&sem->mutex);
     while (sem->counter == 0)
@@ -585,6 +661,26 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
         errno = ETIMEDOUT;
         return -1;
     }
+#elif defined(__EMSCRIPTEN__)
+    long long end_time = 0;
+    do
+    {
+        if (sem->counter)
+        {
+            --sem->counter;
+            return 0;
+        }
+        else if (end_time)
+        {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+        end_time = os_get_time_monotonic() + timeout;
+        while (!sem->counter && os_get_time_monotonic() < end_time)
+        {
+            os_emscripten_yield();
+        }
+    } while(1);
 #else
     struct timeval tv;
     struct timespec ts;
