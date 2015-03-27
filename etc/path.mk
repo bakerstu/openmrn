@@ -270,3 +270,18 @@ OPENOCDSCRIPTSPATH:=$(TRYPATH)
 endif
 endif #OPENOCDSCRIPTSPATH
 
+##################### EMSDK ######################
+ifndef EMSDKPATH
+SEARCHPATH := \
+  /opt/emscripten/default/emscripten/master \
+  /opt/emscripten/emsdk_portable/emscripten/master \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,emcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMSDKPATH:=$(TRYPATH)
+endif
+endif #EMSDKPATH
+
+

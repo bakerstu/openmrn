@@ -1,25 +1,28 @@
-TOOLPATH ?= $(shell \
-sh -c "if [ -d /usr/include/linux ]; then echo /usr/bin; \
-      else echo; fi" \
-)
+ifneq ($(strip $(EMSDKPATH)),)
+HAVE_EMSCRIPTEN = 1
+TOOLPATH:=$(EMSDKPATH)
+else
+TOOLPATH=
+endif
+
 
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-CC = emcc
-CXX = em++
-AR = llvm-ar
-LD = em++
-OBJDUMP = llvm-objdump
+CC = $(EMSDKPATH)/emcc
+CXX = $(EMSDKPATH)/em++
+AR = $(EMSDKPATH)/llvm-ar
+LD = $(EMSDKPATH)/em++
+OBJDUMP = $(EMSDKPATH)/llvm-objdump
 
-HOST_TARGET := 1
+EMU := nodejs
 
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
 ARCHOPTIMIZATION = -g -O0 -m32
 
-CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MP -m32 -fno-stack-protector -D_GNU_SOURCE
+CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MP -m32 -fno-stack-protector -D_GNU_SOURCE -Wno-warn-absolute-paths --em-config $(EMSDKPATH)/../../.emscripten
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 
@@ -28,7 +31,7 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
 
 LDFLAGS = -g -m32 -pg -Wl,-Map="$(@:%=%.map)"
 SYSLIB_SUBDIRS += console
-SYSLIBRARIES = -lrt -lpthread -lconsole
+SYSLIBRARIES = -lconsole
 
-EXTENTION =
+EXTENTION = .js
 
