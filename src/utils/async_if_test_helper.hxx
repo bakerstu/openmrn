@@ -344,7 +344,11 @@ protected:
     {
         while (EventService::instance->event_processing_pending())
         {
+#ifdef __EMSCRIPTEN__
+            os_emscripten_yield();
+#else
             usleep(100);
+#endif
         }
         AsyncIfTest::wait();
     }

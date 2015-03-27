@@ -117,6 +117,7 @@ void wait_for_main_executor()
     guard.wait_for_notification();
 }
 
+
 /** Fixes race condition between test teardown and executor startup.
  *
  * Basically ensures that the main executor has started before trying to tear
@@ -127,6 +128,27 @@ public:
     wait_for_main_executor();
   }
 } unused_executor_startup_guard_instance;
+
+/** Utility class to help running a "pthread"-like thread in the main
+ * executor. Helpful for emscripten compatibility. */
+class ExecuteOnMainExecutor : public Executable {
+public:
+    typedef void* thread_fn_t(void*);
+    /** Schedules the function fn with argument arg on the main executor. Takes
+     * ownership of *this. */
+    ExecuteOnMainExecutor(thread_fn_t *fn, void* arg)
+        : fn_(fn), arg_(arg) {
+        g_executor.add(this);
+    }
+
+    void run() OVERRIDE {
+        (*fn_)(arg_);
+        delete this;
+    }
+private:
+    thread_fn_t *fn_;
+    void* arg_;
+};
 
 
 /* Utility class to block an executor for a while.
