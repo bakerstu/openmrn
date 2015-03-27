@@ -12,8 +12,8 @@ FULLPATHCXXTESTSRCS := $(foreach DIR,$(SUBDIRS),$(wildcard $(SRCDIR)/$(DIR)/*.cx
 TESTOBJSEXTRA = gtest-all.o gmock-all.o
 
 TESTSRCS ?= $(patsubst $(SRCDIR)/%,%,$(FULLPATHCXXTESTSRCS))
-TESTBINS = $(TESTSRCS:.cxxtest=.test)
-TESTOBJS = $(TESTSRCS:.cxxtest=.otest)
+TESTBINS = $(TESTSRCS:.cxxtest=.test$(EXTENTION))
+TESTOBJS = $(TESTSRCS:.cxxtest=.test.o)
 TESTOUTPUTS = $(TESTSRCS:.cxxtest=.testout)
 TESTMD5 = $(TESTSRCS:.cxxtest=.testmd5)
 
@@ -30,13 +30,13 @@ LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
 
-$(TESTBINS): %.test : %.otest $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
+$(TESTBINS): %.test : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
 	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
 
--include $(TESTOBJS:.otest=.dtest)
+-include $(TESTOBJS:.test.o=.dtest)
 -include $(TESTOBJSEXTRA:.o=.d)
 
-$(TESTOBJS): %.otest : $(SRCDIR)/%.cxxtest
+$(TESTOBJS): %.test.o : $(SRCDIR)/%.cxxtest
 	$(CXX) $(CXXFLAGS) -MD -MF $*.dtest -x c++ $< -o $@
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
@@ -60,7 +60,7 @@ ifndef CUSTOM_EXEC
 # This target actually runs the test. We jump through some hoops to collect the
 # coverage files into a separate directory. Since they are in a separate directory, we need to put the original .gcno files there as well.
 %.testout : %.testmd5
-	$(EMU) $(<:.testmd5=.test) --gtest_death_test_style=threadsafe
+	$(EMU) $(<:.testmd5=.test$(EXTENTION)) --gtest_death_test_style=threadsafe
 	touch $@
 
 endif

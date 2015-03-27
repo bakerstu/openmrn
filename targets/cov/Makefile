@@ -16,7 +16,7 @@ TESTDIRS = $(TESTSRCS:.cxxtest=.covdir)
 	mkdir -p $*.covdir
 	rm -f $*.covdir/app.info
 	lcov --directory $*.covdir/ -z
-	GCOV_PREFIX=$(abspath $*.covdir) GCOV_PREFIX_STRIP=$(shell echo $(realpath .) | tr -C -d '/' | wc -c) $(<:.testmd5=.test) --gtest_death_test_style=threadsafe
+	GCOV_PREFIX=$(abspath $*.covdir) GCOV_PREFIX_STRIP=$(shell echo $(realpath .) | tr -C -d '/' | wc -c) $(<:.testmd5=.test$(EXTENTION)) --gtest_death_test_style=threadsafe
 	touch $@
 
 
