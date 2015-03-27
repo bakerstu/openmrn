@@ -60,7 +60,7 @@ private:
             return 0;
         }
         size_t left = size_ - file->offset;
-        count = min(count, left);
+        count = std::min(count, left);
         memcpy(buf, data_ + file->offset, count);
         file->offset += count;
         return count;
@@ -77,7 +77,7 @@ private:
             return 0;
         }
         size_t left = size_ - file->offset;
-        count = min(count, left);
+        count = std::min(count, left);
         memcpy(data_ + file->offset, buf, count);
         file->offset += count;
         return count;

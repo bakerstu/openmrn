@@ -37,8 +37,14 @@
 
 #ifdef __cplusplus
 #include <vector>
+#include <map>
+#include <string>
+#include <utility>
 
-using namespace std;
+using std::vector;
+using std::map;
+using std::string;
+using std::pair;
 #endif
 
 #include <stdlib.h>   // for abort

@@ -222,7 +222,7 @@ extern uint64_t nmranet_nodeid()
 void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
 {
     string data_copy(reinterpret_cast<const char *>(data), size);
-    hash<string> obj;
+    std::hash<string> obj;
     checksum[0] = obj("sd1" + data_copy);
     checksum[1] = obj("xar" + data_copy);
     checksum[2] = obj("o33" + data_copy);

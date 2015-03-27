@@ -38,6 +38,8 @@
 
 #include <stdint.h>
 
+#include <utility>
+
 #include "utils/StlMap.hxx"
 #include "utils/LinearMap.hxx"
 #include "utils/SysMap.hxx"
@@ -124,7 +126,7 @@ public:
     {
         uint32_t id = key & 0xFFFFFFFFU;
         uint32_t n = key >> 32;
-        return make_pair(reinterpret_cast<void *>(n), id);
+        return std::make_pair(reinterpret_cast<void *>(n), id);
     }
 
 private:
@@ -197,8 +199,8 @@ public:
 
         std::pair<std::pair<Node*, uint32_t>, Handler*> operator*() {
             auto p = NodeHandlerMapBase::read_key(impl_->first);
-            return make_pair(make_pair((Node*) p.first, p.second),
-                             (Handler*)impl_->second);
+            return std::make_pair(std::make_pair((Node*) p.first, p.second),
+                                  (Handler*)impl_->second);
         }
 
     private:

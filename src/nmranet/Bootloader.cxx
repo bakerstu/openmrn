@@ -742,7 +742,7 @@ void handle_send_datagram()
     CanDefs::set_datagram_fields(&id, state_.alias, state_.datagram_dst,
                                  frame_type);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
-    int len = min(state_.datagram_dlc - state_.datagram_offset, 8);
+    int len = std::min(state_.datagram_dlc - state_.datagram_offset, 8);
     memcpy(state_.output_frame.data,
            &state_.datagram_payload[state_.datagram_offset], len);
     state_.datagram_offset += len;

@@ -34,11 +34,15 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_I2C_HXX_
 #define _FREERTOS_DRIVERS_COMMON_I2C_HXX_
 
+
+
 #include "BlockOrWakeUp.hxx"
 #include "SimpleLog.hxx"
 #include "Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
+#include "i2c.h"
+#include "i2c-dev.h"
 
 /** Private data for an I2C device.  This device only supports blocking mode
  * transfers.

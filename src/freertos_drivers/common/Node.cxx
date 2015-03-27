@@ -87,7 +87,7 @@ int NonBlockNode::ioctl(File *file, unsigned long int key, unsigned long data)
             portENTER_CRITICAL();
             if (!has_rx_buffer_data())
             {
-                swap(n, readableNotify_);
+                std::swap(n, readableNotify_);
             }
             portEXIT_CRITICAL();
             break;
@@ -95,7 +95,7 @@ int NonBlockNode::ioctl(File *file, unsigned long int key, unsigned long data)
             portENTER_CRITICAL();
             if (!has_tx_buffer_space())
             {
-                swap(n, writableNotify_);
+                std::swap(n, writableNotify_);
             }
             portEXIT_CRITICAL();
             break;
