@@ -30,7 +30,7 @@ LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
 
-$(TESTBINS): %.test : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
+$(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS)
 	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
 
 -include $(TESTOBJS:.test.o=.dtest)
@@ -53,7 +53,7 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 # of the .md5sum even though these commands run. Make will then not run the
 # dependent commands (the actual test run) and assumes that the .testout is
 # also up-to-date.
-%.testmd5 : %.test
+%.testmd5 : %.test$(EXTENTION)
 	@SM="$$(md5sum $<)" ; if [ ! -f $@ ] || [ "$$SM" != "$$(<$@)" ] ; then echo replacing md5 file. old: $$(<$@) new $$SM ; echo "$$SM" > $@ ; else echo test output up-to-date for $(TARGET):$@ ; fi
 
 ifndef CUSTOM_EXEC
