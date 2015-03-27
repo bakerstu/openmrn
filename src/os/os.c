@@ -600,6 +600,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
+#ifndef __EMSCRIPTEN__
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -687,7 +688,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     }
 
     return 0;
-#else
+#else // not freertos
     pthread_attr_t attr;
 
     int result = pthread_attr_init(&attr);
@@ -727,7 +728,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         return result;
     }
-#endif
+#endif // not linux and not mac
     result = pthread_create(thread, &attr, start_routine, arg);
 
 #if !defined (__MINGW32__)
@@ -735,8 +736,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 #endif
 
     return result;
-#endif
+#endif // freertos or not
 }
+#endif // __EMSCRIPTEN__
 
 long long os_get_time_monotonic(void)
 {
