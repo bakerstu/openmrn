@@ -39,8 +39,6 @@
 
 #include "utils/macros.h"
 #include "os/os.h"
-#include "i2c.h"
-#include "i2c-dev.h"
 
 /** This class provides a threading API.
  */
