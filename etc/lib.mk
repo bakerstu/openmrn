@@ -79,25 +79,20 @@ endif
 .SUFFIXES: .o .c .cxx .cpp .S
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
 
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
 
 .S.o:
-	$(AS) $(ASFLAGS) $< -o $@
-	$(AS) -MM $(ASFLAGS) $< > $*.d
+	$(AS) $(ASFLAGS) -MD -MF $*.d $< -o $@
 
 $(ARM_OBJS): %.o : %.c
-	$(CC) $(ARM_CFLAGS) $< -o $@
-	$(CC) -MM $(ARM_CFLAGS) $< > $*.d
+	$(CC) $(ARM_CFLAGS) -MD -MF $*.d $< -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) $< -o $@
-	$(CC) -MM $(CFLAGS) $< > $*.d
+	$(CC) $(CFLAGS) -MD -MF $*.d $< -o $@
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)

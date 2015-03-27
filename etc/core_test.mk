@@ -40,12 +40,10 @@ $(TESTOBJS): %.test.o : $(SRCDIR)/%.cxxtest
 	$(CXX) $(CXXFLAGS) -MD -MF $*.dtest -x c++ $< -o $@
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
+	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) -MD -MF $*.d   $< -o $@
 
 gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
+	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) -MD -MF $*.d  $< -o $@
 
 # This target takes the test binary output and compares the md5sum against the
 # md5sum of the previous run. If the md5sum of the test binary didn't change,
