@@ -54,7 +54,7 @@ gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 # dependent commands (the actual test run) and assumes that the .testout is
 # also up-to-date.
 %.testmd5 : %.test
-	SM="$$(md5sum $<)" ; if [ ! -f $@ ] || [ "$$SM" != "$$(<$@)" ] ; then echo replacing md5 file. old: $$(<$@) new $$SM ; echo "$$SM" > $@ ; else echo not replacing md5 file $@ ; fi
+	@SM="$$(md5sum $<)" ; if [ ! -f $@ ] || [ "$$SM" != "$$(<$@)" ] ; then echo replacing md5 file. old: $$(<$@) new $$SM ; echo "$$SM" > $@ ; else echo test output up-to-date for $(TARGET):$@ ; fi
 
 ifndef CUSTOM_EXEC
 # This target actually runs the test. We jump through some hoops to collect the
