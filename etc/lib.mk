@@ -81,18 +81,18 @@ endif
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
 
-
 .cxx.o:
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
 
 .S.o:
 	$(AS) $(ASFLAGS) -MD -MF $*.d $< -o $@
 
+.c.o:
+	$(CC) $(CFLAGS) -MD -MF $*.d $< -o $@
+
 $(ARM_OBJS): %.o : %.c
 	$(CC) $(ARM_CFLAGS) -MD -MF $*.d $< -o $@
 
-.c.o:
-	$(CC) $(CFLAGS) -MD -MF $*.d $< -o $@
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
