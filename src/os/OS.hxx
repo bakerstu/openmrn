@@ -182,14 +182,14 @@ public:
      */
     OSTimer(long long (*callback)(void*, void*), void *data1, void *data2)
     {
-        handle = os_timer_create(callback, data1, data2);
+        handle_ = os_timer_create(callback, data1, data2);
     }
 
     /** Delete a timer.
      */
     ~OSTimer()
     {
-        os_timer_delete(handle);
+        os_timer_delete(handle_);
     }
 
     /** Start a timer.
@@ -197,14 +197,14 @@ public:
      */
     void start(long long period)
     {
-        os_timer_start(handle, period);
+        os_timer_start(handle_, period);
     }
 
     /** Delete a timer.
      */
     void stop()
     {
-        os_timer_stop(handle);
+        os_timer_stop(handle_);
     }
 
 private:
@@ -215,7 +215,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(OSTimer);
 
     /** Private timer handle. */
-    os_timer_t handle;
+    os_timer_t handle_;
 };
 
 /** This class provides a counting semaphore API.
