@@ -130,7 +130,7 @@ public:
     {
         state_ = new_value;
         //HASSERT(0);
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
         LOG(INFO, "bit %s set to %d", name_, state_);
 #else
         resetblink(state_ ? 1 : 0);
@@ -169,6 +169,8 @@ int appl_main(int argc, char* argv[])
     stack.add_can_port_blocking("/dev/can0");
 #elif defined(__FreeRTOS__)
     stack.add_can_port_async("/dev/can0");
+#elif defined(__EMSCRIPTEN__)
+    // No hardware connection for the moment.
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target

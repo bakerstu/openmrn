@@ -1,3 +1,5 @@
+include $(OPENMRNPATH)/etc/path.mk
+
 ifneq ($(strip $(EMSDKPATH)),)
 HAVE_EMSCRIPTEN = 1
 TOOLPATH:=$(EMSDKPATH)
@@ -13,7 +15,7 @@ CC = $(EMSDKPATH)/emcc
 CXX = $(EMSDKPATH)/em++
 AR = $(EMLLVMPATH)/llvm-ar
 LD = $(EMSDKPATH)/em++
-OBJDUMP = $(EMLLVMPATH)/llvm-objdump
+OBJDUMP = echo $(EMLLVMPATH)/llvm-objdump
 
 EMU := nodejs
 

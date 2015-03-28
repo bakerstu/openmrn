@@ -153,21 +153,17 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
 	$(CXX) -MM $(CXXFLAGS) -x c++ $*.cxxout > $*.d
 
-.S.o:
-	$(AS) $(ASFLAGS) $< -o $@
-	$(AS) -MM $(ASFLAGS) $< > $*.d
-
 .cpp.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
+
+.S.o:
+	$(AS) $(ASFLAGS) -MD -MF $*.d $< -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) $< -o $@
-	$(CC) -MM $(CFLAGS) $< > $*.d
+	$(CC) $(CFLAGS) -MD -MF $*.d $< -o $@
 
 clean: clean-local
 
