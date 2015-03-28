@@ -171,6 +171,7 @@ int appl_main(int argc, char* argv[])
     stack.add_can_port_async("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
     // No hardware connection for the moment.
+    stack.print_all_packets();
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target

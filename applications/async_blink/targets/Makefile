@@ -7,6 +7,7 @@ SUBDIRS = linux.x86 \
 	freertos.armv6m.lpc11cxx \
 	freertos.armv4t.panda2 \
 	freertos.mips4k.pic32mx-duinomitemega \
+	js.emscripten \
 
 
 include $(OPENMRNPATH)/etc/recurse.mk

@@ -35,5 +35,5 @@ LDFLAGS = -g -m32 -pg -Wl,-Map="$(@:%=%.map)" --em-config $(EMSDKPATH)/../../.em
 SYSLIB_SUBDIRS += console
 SYSLIBRARIES = -lconsole
 
-EXTENTION = .js
+EXTENTION ?= .js
 
