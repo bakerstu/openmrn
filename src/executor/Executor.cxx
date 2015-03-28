@@ -36,6 +36,9 @@
 #include "executor/Executor.hxx"
 
 #include <unistd.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "executor/Service.hxx"
 
@@ -103,7 +106,7 @@ bool ExecutorBase::loop_once()
 {
     unsigned priority;
     activeTimers_.get_next_timeout();
-    Executable* msg = this->next(&priority);
+    Executable* msg = next(&priority);
     if (!msg)
     {
         return false;
@@ -131,9 +134,9 @@ void executor_loop_some(void* arg)
 void *ExecutorBase::entry()
 {
     started_ = 1;
-    Executable *msg;
     ExecutorBase* b = this;
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
+    return nullptr;
 }
 
 #else
