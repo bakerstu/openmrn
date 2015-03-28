@@ -54,18 +54,20 @@ void *test_thread(void *arg)
 
 TEST(OSThreadTest, constructor)
 {
-    int value = 0;
-    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    int* value = new int(0);
+    OSThread *thread =
+        new OSThread("test thread", 0, 1024, test_thread, value);
     EXPECT_TRUE(thread != NULL);
     sleep(1);
-    
-    EXPECT_EQ(value, 1);
+
+    EXPECT_EQ(1, *value);
 }
 
 TEST(OSThreadTest, destructor)
 {
-    int value = 0;
-    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    int* value = new int(0);
+    OSThread *thread =
+        new OSThread("test thread", 0, 1024, test_thread, value);
     EXPECT_TRUE(thread != NULL);
     sleep(1);
     delete thread;
@@ -73,7 +75,7 @@ TEST(OSThreadTest, destructor)
     void *result;
     pthread_join(threadHandle, &result); 
     EXPECT_EQ((void*)0xDEADBEEF, result);*/
-    EXPECT_NE(value, 0);
+    EXPECT_NE(0, *value);
 }
 #endif
 
@@ -173,9 +175,9 @@ TEST(OSTimerTest, delete)
     timer->start(700000000);
     sleep(2);
 
-    EXPECT_TRUE((timestamp - start) > 690000000);
-    EXPECT_TRUE((timestamp - start) < 710000000);
-    EXPECT_EQ(timer_count, 1);
+    EXPECT_LT(690000000, timestamp - start);
+    EXPECT_GT(710000000, timestamp - start);
+    EXPECT_EQ(1, timer_count);
 }
 
 long long timeout_value(void *arg1, void *arg2)
@@ -197,9 +199,9 @@ TEST(OSTimerTest, value)
     sleep(2);
     timer->stop();
 
-    EXPECT_TRUE((timestamp - start) > 1490000000);
-    EXPECT_TRUE((timestamp - start) < 1510000000);
-    EXPECT_EQ(timer_count, 2);
+    EXPECT_LT(1490000000, timestamp - start);
+    EXPECT_GT(1510000000, timestamp - start);
+    EXPECT_EQ(2, timer_count);
 }
 #endif
 
