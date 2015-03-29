@@ -96,26 +96,51 @@ private:
     void enable(); /**< function to enable device */
     void disable(); /**< function to disable device */
 
-    /** Function to try and transmit a character.
+    /** Function to try and transmit a character.  Unused by this device driver.
      */
     void tx_char() OVERRIDE {}
 
-    static uint32_t control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    /** Handles CDC driver notifications related to control and setup of the device.
+     * This is called from within interrupt context.
+     * @param data private data
+     * @param event identifies the event we are being notified about
+     * @param msg_value event-specific value
+     * @param msg_data event-specific data
+     * @return return value is event specific
+     */
+    static uint32_t control_callback(void *data, unsigned long event,
+                                     unsigned long msg_param, void *msg_data);
 
-    static uint32_t rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    /** Handles CDC driver notifications related to reception.
+     * This is called from within interrupt context.
+     * @param data private data
+     * @param event identifies the event we are being notified about
+     * @param msg_value event-specific value
+     * @param msg_data event-specific data
+     * @return return value is event specific
+     */
+    static uint32_t rx_callback(void *data, unsigned long event,
+                                unsigned long msg_param, void *msg_data);
 
-    static uint32_t tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
+    /** Handles CDC driver notifications related to transmission.
+     * This is called from within interrupt context.
+     * @param data private data
+     * @param event identifies the event we are being notified about
+     * @param msg_value event-specific value
+     * @param msg_data event-specific data
+     * @return return value is event specific
+     */
+    static uint32_t tx_callback(void *data, unsigned long event,
+                                unsigned long msg_param, void *msg_data);
 
     tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
     uint32_t interrupt; /**< interrupt number for device */
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */
-    bool txPending;
-
-    tLineCoding lineCoding;
-
-    SelectInfo selInfoWr;
+    bool txPending; /**< true if a transmission is in progress or pending */
+    tLineCoding lineCoding; /**< line encoding for the device */
+    SelectInfo selInfoWr; /**< Metadata for select() logic */
 
     /** Default constructor.
      */

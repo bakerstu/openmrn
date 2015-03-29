@@ -45,8 +45,6 @@
 #include "inc/hw_ints.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/interrupt.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
 #include "usblib/usb-ids.h"
@@ -55,15 +53,15 @@
 
 #include "TivaDev.hxx"
 
-#include "TivaGPIO.hxx"
-GPIO_PIN(LED_B4, LedPin, F, 0);
-GPIO_PIN(LED_B3, LedPin, F, 4);
-
-/* This is fixed and equals the USB packet size that the CDC device will
+/** This is fixed and equals the USB packet size that the CDC device will
  * advertise to be able to receive. This is a performance parameter, 64 is the
- * largest packet size permitted by USB for virtual serial ports. */
+ * largest packet size permitted by USB for virtual serial ports.
+ */
 #define TIVA_USB_PACKET_SIZE 64
 
+/** This is the size of the RX buffer in bytes.  This is a performance
+ * parameter and larger values will result in higher max throughput.
+ */
 #define TIVA_USB_BUFFER_SIZE (TIVA_USB_PACKET_SIZE * 4)
 
 /** The languages supported by this device.
@@ -139,6 +137,7 @@ const uint8_t *const stringDescriptors[] =
     configString
 };
 
+/** number of string descriptors */
 #define NUM_STRING_DESCRIPTORS (sizeof(stringDescriptors) / sizeof(uint8_t *))
 
 /** Instance pointers help us get context from the interrupt handler(s) */
@@ -149,11 +148,10 @@ static TivaCdc *instances[1] = {NULL};
  * @param interrupt interrupt number used by the device
  */
 TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
-    : Serial(name, 64, 256) //TIVA_USB_BUFFER_SIZE, TIVA_USB_BUFFER_SIZE)
+    : Serial(name, 0, TIVA_USB_BUFFER_SIZE)
     , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR,
-                    control_callback, this, rx_callback, this,
-                    tx_callback, this, stringDescriptors,
-                    NUM_STRING_DESCRIPTORS}
+                    control_callback, this, rx_callback, this, tx_callback,
+                    this, stringDescriptors, NUM_STRING_DESCRIPTORS}
     , interrupt(interrupt)
     , connected(false)
     , enabled(false)
@@ -290,7 +288,8 @@ bool TivaCdc::select(File* file, int mode)
  * @param msg_data event-specific data
  * @return return value is event specific
  */
-uint32_t TivaCdc::control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+uint32_t TivaCdc::control_callback(void *data, unsigned long event,
+                                   unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
 
@@ -299,7 +298,6 @@ uint32_t TivaCdc::control_callback(void *data, unsigned long event, unsigned lon
         case USB_EVENT_CONNECTED:
             serial->connected = true;
             // starts sending data.
-            serial->txBuf->signal_condition_from_isr();
             serial->select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
             break;
         case USB_EVENT_DISCONNECTED:
@@ -333,7 +331,16 @@ uint32_t TivaCdc::control_callback(void *data, unsigned long event, unsigned lon
     return 0;
 }
 
-uint32_t TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+/** Handles CDC driver notifications related to reception.
+ * This is called from within interrupt context.
+ * @param data private data
+ * @param event identifies the event we are being notified about
+ * @param msg_value event-specific value
+ * @param msg_data event-specific data
+ * @return return value is event specific
+ */
+uint32_t TivaCdc::rx_callback(void *data, unsigned long event,
+                              unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
 
@@ -342,56 +349,20 @@ uint32_t TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg
         default:
             break;
         case USB_EVENT_RX_AVAILABLE:
-            if (msg_data)
+        {
+            HASSERT(msg_data == NULL);
+            uint8_t *data;
+            size_t space = serial->rxBuf->data_write_pointer(&data);
+            uint32_t count = USBDCDCPacketRead(&serial->usbdcdcDevice,
+                                               data, space, true);
+            if (serial->enabled && count)
             {
-                if (serial->enabled)
-                {
-                    uint32_t buffered = serial->rxBuf->put((uint8_t*)msg_data,
-                                                           msg_param);
-                    if (buffered)
-                    {
-                        serial->rxBuf->signal_condition_from_isr();
-                    }
-                    return buffered;
-                }
-                else
-                {
-                    /* no open listener, throw away the data */
-                    return msg_param;
-                }
+                /* we only commit the data if the device is open */
+                serial->rxBuf->advance(count);
+                serial->rxBuf->signal_condition_from_isr();
             }
-            else
-            {
-                if (serial->enabled /*&& available*/)
-                {
-                    uint32_t count = 0;
-                    uint32_t received;
-                    uint8_t *data;
-                    size_t space = serial->rxBuf->data_write_pointer(&data);
-                    //if (space >= TIVA_USB_PACKET_SIZE)
-                    {
-                        //if (space > available)
-                       // {
-                       //     space = available;
-                       // }
-                        received = USBDCDCPacketRead(&serial->usbdcdcDevice,
-                                                     data, space, true);
-                        serial->rxBuf->advance(received);
-                        count += received;
-                        //space = serial->rxBuf->data_write_pointer(&data);
-                    }
-                    //if (count)
-                    {
-                        serial->rxBuf->signal_condition_from_isr();
-                    }
-                    return count;
-                }
-                else
-                {
-                    return 0; //available;
-                }
-            }
-            break;
+            return count;
+        }
         case USB_EVENT_DATA_REMAINING:
             return serial->rxBuf->pending();
         case USB_EVENT_ERROR:
@@ -400,7 +371,16 @@ uint32_t TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg
     return 0;
 }
 
-uint32_t TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data)
+/** Handles CDC driver notifications related to transmission.
+ * This is called from within interrupt context.
+ * @param data private data
+ * @param event identifies the event we are being notified about
+ * @param msg_value event-specific value
+ * @param msg_data event-specific data
+ * @return return value is event specific
+ */
+uint32_t TivaCdc::tx_callback(void *data, unsigned long event,
+                              unsigned long msg_param, void *msg_data)
 {
     TivaCdc *serial = (TivaCdc*)data;
     
@@ -409,30 +389,6 @@ uint32_t TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg
         default:
             break;
         case USB_EVENT_TX_COMPLETE:
-#if 0
-            uint32_t space = USBDCDCTxPacketAvailable(&serial->usbdcdcDevice);
-            if (space)
-            {
-                uint8_t *data;
-                uint32_t count = serial->txBuf->data_read_pointer(&data);
-                if (count)
-                {
-                    if (count > space)
-                    {
-                        count = space;
-                    }
-                    /* we have some data to send */
-                    uint32_t sent = USBDCDCPacketWrite(&serial->usbdcdcDevice,
-                                                       data, count, true);
-                    serial->txBuf->consume(sent);
-                }
-                else
-                {
-                    serial->txPending = false;
-                    break;
-                }
-            }
-#endif
             serial->txPending = false;
             serial->select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
             break;
