@@ -54,8 +54,8 @@ protected:
            size_t tx_buffer_size = config_serial_tx_buffer_size(),
            size_t rx_buffer_size = config_serial_rx_buffer_size())
         : Node(name)
-        , txBuf(DeviceBuffer<uint8_t>::create(tx_buffer_size))
-        , rxBuf(DeviceBuffer<uint8_t>::create(rx_buffer_size, rx_buffer_size/2))
+        , txBuf(tx_buffer_size ? DeviceBuffer<uint8_t>::create(tx_buffer_size) : NULL)
+        , rxBuf(rx_buffer_size ? DeviceBuffer<uint8_t>::create(rx_buffer_size, rx_buffer_size/2) : NULL)
         , overrunCount(0)
     {
     }    

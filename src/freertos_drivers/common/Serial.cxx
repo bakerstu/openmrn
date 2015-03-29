@@ -41,8 +41,14 @@
  */
 void Serial::flush_buffers()
 {
-    txBuf->flush();
-    rxBuf->flush();
+    if (txBuf)
+    {
+        txBuf->flush();
+    }
+    if (rxBuf)
+    {
+        rxBuf->flush();
+    }
 }
 
 /** Read from a file or device.
