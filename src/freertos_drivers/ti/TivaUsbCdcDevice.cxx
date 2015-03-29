@@ -59,7 +59,12 @@
 GPIO_PIN(LED_B4, LedPin, F, 0);
 GPIO_PIN(LED_B3, LedPin, F, 4);
 
+/* This is fixed and equals the USB packet size that the CDC device will
+ * advertise to be able to receive. This is a performance parameter, 64 is the
+ * largest packet size permitted by USB for virtual serial ports. */
+#define TIVA_USB_PACKET_SIZE 64
 
+#define TIVA_USB_BUFFER_SIZE (TIVA_USB_PACKET_SIZE * 4)
 
 /** The languages supported by this device.
  */
@@ -144,179 +149,23 @@ static TivaCdc *instances[1] = {NULL};
  * @param interrupt interrupt number used by the device
  */
 TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
-    : USBSerial(name)
+    : Serial(name, 64, 256) //TIVA_USB_BUFFER_SIZE, TIVA_USB_BUFFER_SIZE)
     , usbdcdcDevice{USB_VID_TI_1CBE, USB_PID_SERIAL, 0, USB_CONF_ATTR_SELF_PWR,
-                    control_callback, this, USBBufferEventCallback, &rxBuffer,
-                    USBBufferEventCallback, &txBuffer, stringDescriptors,
+                    control_callback, this, rx_callback, this,
+                    tx_callback, this, stringDescriptors,
                     NUM_STRING_DESCRIPTORS}
     , interrupt(interrupt)
     , connected(false)
     , enabled(false)
     , woken(false)
-    , waiting(0)
-    , rxBuffer{false, rx_callback, this, USBDCDCPacketRead,
-               USBDCDCRxPacketAvailable, &usbdcdcDevice, receiveBuffer,
-               TIVA_USB_BUFFER_SIZE, receiveBufferWorkspace}
-    , txBuffer{true, tx_callback, this, USBDCDCPacketWrite,
-               USBDCDCTxPacketAvailable, &usbdcdcDevice, transmitBuffer,
-               TIVA_USB_BUFFER_SIZE, transmitBufferWorkspace}
-    , lineCoding{115200, 1, 0, 8}
+    , txPending(false)
+    , lineCoding{115200, USB_CDC_STOP_BITS_1, USB_CDC_PARITY_NONE, 8}
+    , selInfoWr()
 {
     instances[0] = this;
 
-    USBBufferInit(&rxBuffer);
-    USBBufferInit(&txBuffer);
     USBStackModeSet(0, eUSBModeForceDevice, 0);
-    //MAP_IntPrioritySet(interrupt,
-    //                   std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
     USBDCDCInit(0, &usbdcdcDevice);
-}
-
-/** Read from a file or device.
- * @param file file reference for this device
- * @param buf location to place read data
- * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
- */
-ssize_t TivaCdc::read(File *file, void *buf, size_t count)
-{
-    unsigned char *data = (unsigned char*)buf;
-    ssize_t result = 0;
-
-    MAP_IntDisable(interrupt);
-    //if (connected)
-    {
-        while (count)
-        {
-            size_t bytes_read = 0;
-            if (USBBufferDataAvailable(&rxBuffer))
-            {
-                bytes_read = USBBufferRead(&rxBuffer, data, count);
-            }
-
-            if (bytes_read == 0)
-            {
-                /* no more data to receive */
-                if ((file->flags & O_NONBLOCK) || result > 0)
-                {
-                    break;
-                }
-                else
-                {
-                    /* wait for space to be available. */
-                    ++waiting;
-                    MAP_IntEnable(interrupt);
-                    fd_set rdfds;
-                    FD_ZERO(&rdfds);
-                    int fd = fd_lookup(file);
-                    FD_SET(fd, &rdfds);
-                    ::select(fd + 1, &rdfds, NULL, NULL, NULL);
-                    MAP_IntDisable(interrupt);
-                    --waiting;
-                }
-            }
-
-            count -= bytes_read;
-            result += bytes_read;
-            data += bytes_read;
-        }
-    }
-    MAP_IntEnable(interrupt);
-
-    return result;
-}
-
-/** Write to a file or device.
- * @param file file reference for this device
- * @param buf location to find write data
- * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
- */
-ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
-{
-    const unsigned char *data = (const unsigned char*)buf;
-    ssize_t result = 0;
-    
-    MAP_IntDisable(interrupt);
-    //if (connected)
-    {
-        while (count)
-        {
-            size_t bytes_written = 0;
-            if (USBBufferSpaceAvailable(&txBuffer))
-            {
-                bytes_written = USBBufferWrite(&txBuffer, data, count);
-            }
-            if (bytes_written == 0)
-            {
-                /* no more data to receive */
-                if ((file->flags & O_NONBLOCK) || result > 0)
-                {
-                    break;
-                }
-                else
-                {
-                    /* wait for space to be available. */
-                    MAP_IntEnable(interrupt);
-                    fd_set wrfds;
-                    FD_ZERO(&wrfds);
-                    int fd = fd_lookup(file);
-                    FD_SET(fd, &wrfds);
-                    ::select(fd + 1, NULL, &wrfds, NULL, NULL);
-                    MAP_IntDisable(interrupt);
-                }
-            }
-
-            count -= bytes_written;
-            result += bytes_written;
-            data += bytes_written;
-        }
-    }
-    MAP_IntEnable(interrupt);
-    
-    return result;
-}
-
-/** Device select method. Default impementation returns true.
- * @param file reference to the file
- * @param mode FREAD for read active, FWRITE for write active, 0 for
- *        exceptions
- * @return true if active, false if inactive
- */
-bool TivaCdc::select(File* file, int mode)
-{
-    bool retval = false;
-    MAP_IntDisable(interrupt);
-    switch (mode)
-    {
-        case FREAD:
-            if (USBBufferDataAvailable(&rxBuffer) > 0)
-            {
-                retval = true;
-            }
-            else
-            {
-                select_insert(&selInfoRd);
-            }
-            break;
-        case FWRITE:
-            if (USBBufferSpaceAvailable(&txBuffer) > 0)
-            {
-                retval = true;
-            }
-            else
-            {
-                select_insert(&selInfoWr);
-            }
-            break;
-        default:
-        case 0:
-            /* we don't support any exceptions */
-            break;
-    }
-    MAP_IntEnable(interrupt);
-
-    return retval;
 }
 
 /** Enable use of the device interrupts.
@@ -331,6 +180,106 @@ void TivaCdc::enable()
 void TivaCdc::disable()
 {
     enabled = false;
+}
+
+/** Write to a file or device.
+ * @param file file reference for this device
+ * @param buf location to find write data
+ * @param count number of bytes to write
+ * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ */
+ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
+{
+    unsigned char *data = (unsigned char*)buf;
+    ssize_t result = 0;
+    
+    while (count)
+    {
+        if (!connected)
+        {
+            fd_set fds;
+            FD_ZERO(&fds);
+            int fd = Device::fd_lookup(file);
+            FD_SET(fd, &fds);
+
+            ::select(fd + 1, NULL, &fds, NULL, NULL);
+        }
+        portENTER_CRITICAL();
+        size_t size = std::min((size_t)TIVA_USB_PACKET_SIZE, count);
+        uint32_t sent = USBDCDCPacketWrite(&usbdcdcDevice, data,
+                                           size, true);
+        if (sent == 0)
+        {
+            portEXIT_CRITICAL();
+            if ((file->flags & O_NONBLOCK) || result > 0)
+            {
+                break;
+            }
+            else
+            {
+                fd_set fds;
+                FD_ZERO(&fds);
+                int fd = Device::fd_lookup(file);
+                FD_SET(fd, &fds);
+
+                ::select(fd + 1, NULL, &fds, NULL, NULL);
+            }
+        }
+        else
+        {
+            txPending = true;
+            portEXIT_CRITICAL();
+            count -= sent;
+            result += sent;
+            data += sent;
+        }
+    }
+
+    return result;
+}
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool TivaCdc::select(File* file, int mode)
+{
+    bool retval = false;
+
+    portENTER_CRITICAL();
+    switch (mode)
+    {
+        case FREAD:
+            if (rxBuf->pending() > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                rxBuf->select_insert();
+            }
+            break;
+        case FWRITE:
+            if (connected)
+            {
+                if (txPending == false)
+                {
+                    retval = true;
+                    break;
+                }
+            }
+            select_insert(&selInfoWr);
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    portEXIT_CRITICAL();
+
+    return retval;
 }
 
 /** Handles CDC driver notifications related to control and setup of the device.
@@ -350,7 +299,8 @@ uint32_t TivaCdc::control_callback(void *data, unsigned long event, unsigned lon
         case USB_EVENT_CONNECTED:
             serial->connected = true;
             // starts sending data.
-            select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
+            serial->txBuf->signal_condition_from_isr();
+            serial->select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
             break;
         case USB_EVENT_DISCONNECTED:
             serial->connected = false;
@@ -392,10 +342,58 @@ uint32_t TivaCdc::rx_callback(void *data, unsigned long event, unsigned long msg
         default:
             break;
         case USB_EVENT_RX_AVAILABLE:
-            select_wakeup_from_isr(&serial->selInfoRd, &serial->woken);
+            if (msg_data)
+            {
+                if (serial->enabled)
+                {
+                    uint32_t buffered = serial->rxBuf->put((uint8_t*)msg_data,
+                                                           msg_param);
+                    if (buffered)
+                    {
+                        serial->rxBuf->signal_condition_from_isr();
+                    }
+                    return buffered;
+                }
+                else
+                {
+                    /* no open listener, throw away the data */
+                    return msg_param;
+                }
+            }
+            else
+            {
+                if (serial->enabled /*&& available*/)
+                {
+                    uint32_t count = 0;
+                    uint32_t received;
+                    uint8_t *data;
+                    size_t space = serial->rxBuf->data_write_pointer(&data);
+                    //if (space >= TIVA_USB_PACKET_SIZE)
+                    {
+                        //if (space > available)
+                       // {
+                       //     space = available;
+                       // }
+                        received = USBDCDCPacketRead(&serial->usbdcdcDevice,
+                                                     data, space, true);
+                        serial->rxBuf->advance(received);
+                        count += received;
+                        //space = serial->rxBuf->data_write_pointer(&data);
+                    }
+                    //if (count)
+                    {
+                        serial->rxBuf->signal_condition_from_isr();
+                    }
+                    return count;
+                }
+                else
+                {
+                    return 0; //available;
+                }
+            }
             break;
         case USB_EVENT_DATA_REMAINING:
-            return serial->waiting ? 0 : 1;
+            return serial->rxBuf->pending();
         case USB_EVENT_ERROR:
             break;
     }
@@ -411,7 +409,32 @@ uint32_t TivaCdc::tx_callback(void *data, unsigned long event, unsigned long msg
         default:
             break;
         case USB_EVENT_TX_COMPLETE:
-            select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
+#if 0
+            uint32_t space = USBDCDCTxPacketAvailable(&serial->usbdcdcDevice);
+            if (space)
+            {
+                uint8_t *data;
+                uint32_t count = serial->txBuf->data_read_pointer(&data);
+                if (count)
+                {
+                    if (count > space)
+                    {
+                        count = space;
+                    }
+                    /* we have some data to send */
+                    uint32_t sent = USBDCDCPacketWrite(&serial->usbdcdcDevice,
+                                                       data, count, true);
+                    serial->txBuf->consume(sent);
+                }
+                else
+                {
+                    serial->txPending = false;
+                    break;
+                }
+            }
+#endif
+            serial->txPending = false;
+            serial->select_wakeup_from_isr(&serial->selInfoWr, &serial->woken);
             break;
     }
     return 0;

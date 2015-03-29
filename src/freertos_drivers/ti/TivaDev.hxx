@@ -54,16 +54,9 @@
 #include "Can.hxx"
 #include "I2C.hxx"
 
-/* This is fixed and equals the USB packet size that the CDC device will
- * advertise to be able to receive. This is a performance parameter, 64 is the
- * largest packet size permitted by USB for virtual serial ports. */
-#define TIVA_USB_PACKET_SIZE 64
-
-#define TIVA_USB_BUFFER_SIZE (64 * 4)
-
 /** Private data for this implementation of serial.
  */
-class TivaCdc : public USBSerial
+class TivaCdc : public Serial
 {
 public:
     /** Constructor.
@@ -84,14 +77,6 @@ public:
     void interrupt_handler();
 
 private:
-    /** Read from a file or device.
-     * @param file file reference for this device
-     * @param buf location to place read data
-     * @param count number of bytes to read
-     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-     */
-    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
-
     /** Write to a file or device.
      * @param file file reference for this device
      * @param buf location to find write data
@@ -111,6 +96,10 @@ private:
     void enable(); /**< function to enable device */
     void disable(); /**< function to disable device */
 
+    /** Function to try and transmit a character.
+     */
+    void tx_char() OVERRIDE {}
+
     static uint32_t control_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
 
     static uint32_t rx_callback(void *data, unsigned long event, unsigned long msg_param, void *msg_data);
@@ -122,17 +111,11 @@ private:
     bool connected; /**< connection status */
     bool enabled; /**< enabled status */
     int woken; /**< task woken metadata for ISR */
-    int waiting;
-
-    tUSBBuffer rxBuffer;
-    tUSBBuffer txBuffer;
+    bool txPending;
 
     tLineCoding lineCoding;
 
-    uint8_t receiveBuffer[TIVA_USB_BUFFER_SIZE];
-    uint8_t transmitBuffer[TIVA_USB_BUFFER_SIZE];
-    uint8_t receiveBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
-    uint8_t transmitBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
+    SelectInfo selInfoWr;
 
     /** Default constructor.
      */
@@ -167,7 +150,10 @@ public:
 private:
     void enable(); /**< function to enable device */
     void disable(); /**< function to disable device */
-    void tx_char(); /**< function to try and transmit a character */
+
+    /** Try and transmit a message.
+     */
+    void tx_char();
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
