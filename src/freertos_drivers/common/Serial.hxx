@@ -47,12 +47,15 @@ class Serial : public Node
 protected:
     /** Constructor
      * @param name device name in file system
+     * @param tx_buffer_size transmit buffer size in bytes
+     * @param rx_buffer_size receive buffer size in bytes
      */
-    Serial(const char *name)
+    Serial(const char *name,
+           size_t tx_buffer_size = config_serial_tx_buffer_size(),
+           size_t rx_buffer_size = config_serial_rx_buffer_size())
         : Node(name)
-        , txBuf(DeviceBuffer<uint8_t>::create(config_serial_tx_buffer_size()))
-        , rxBuf(DeviceBuffer<uint8_t>::create(config_serial_rx_buffer_size(),
-                                              config_serial_rx_buffer_size()/2))
+        , txBuf(DeviceBuffer<uint8_t>::create(tx_buffer_size))
+        , rxBuf(DeviceBuffer<uint8_t>::create(rx_buffer_size, rx_buffer_size/2))
         , overrunCount(0)
     {
     }    
@@ -73,7 +76,6 @@ protected:
     DeviceBuffer<uint8_t> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
 
-private:
     /** Read from a file or device.
      * @param file file reference for this device
      * @param buf location to place read data
@@ -109,6 +111,7 @@ private:
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() OVERRIDE;
 
+private:
     DISALLOW_COPY_AND_ASSIGN(Serial);
 };
 
