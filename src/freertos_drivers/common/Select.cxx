@@ -178,6 +178,9 @@ bool Device::select(File* file, int mode)
  */
 void Device::select_insert(SelectInfo *info)
 {
+    /** @todo do we need the critical lock here, or are we always already
+     * locked?
+     */
     portENTER_CRITICAL();
     info->event |= get_event();
     portEXIT_CRITICAL();
