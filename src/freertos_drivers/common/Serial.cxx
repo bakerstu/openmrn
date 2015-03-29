@@ -109,10 +109,10 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
          * preserve our real-time performance.
          */
         size_t bytes_written = txBuf->put(data, count < 64 ? count : 64);
-        portEXIT_CRITICAL();
 
         if (bytes_written == 0)
         {
+            portEXIT_CRITICAL();
             /* no more data to receive */
             if ((file->flags & O_NONBLOCK) || result > 0)
             {
@@ -126,11 +126,14 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
                 txBuf->block_until_condition(file, false);
             }
         }
-        tx_char();
-
-        count -= bytes_written;
-        result += bytes_written;
-        data += bytes_written;
+        else
+        {
+            tx_char();
+            portEXIT_CRITICAL();
+            count -= bytes_written;
+            result += bytes_written;
+            data += bytes_written;
+        }
     }
     
     return result;
