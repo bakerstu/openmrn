@@ -64,8 +64,14 @@ protected:
      */
     ~Serial()
     {
-        txBuf->destroy();
-        rxBuf->destroy();
+        if (txBuf)
+        {
+            txBuf->destroy();
+        }
+        if (rxBuf)
+        {
+            rxBuf->destroy();
+        }
     }
 
     /** Function to try and transmit a character.
