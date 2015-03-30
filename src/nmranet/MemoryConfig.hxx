@@ -44,7 +44,10 @@ class Notifiable;
 
 extern "C" {
 extern void enter_bootloader();
+/** @todo need to find an alternative for reboot() for MacOS */
+#if !defined (__MACH__)
 extern void reboot();
+#endif
 }
 
 namespace nmranet
@@ -363,7 +366,9 @@ private:
             }
             case MemoryConfigDefs::COMMAND_RESET:
             {
+#if !defined (__MACH__)
                 reboot();
+#endif
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
             }
             case MemoryConfigDefs::COMMAND_OPTIONS:

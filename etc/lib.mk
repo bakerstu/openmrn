@@ -96,7 +96,7 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
-	ln -sf -t $(OPENMRNPATH)/targets/$(TARGET)/lib $(TGTDIR)/$(LIBNAME)
+	ln -sf $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
 	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 
 .PHONY: clean

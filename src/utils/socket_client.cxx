@@ -32,7 +32,8 @@
  * @date 28 Dec 2013
  */
 
-#ifdef __linux__
+/** @todo need an equivalent to gethostbyname_n on MacOS */
+#if defined (__linux__) //|| defined (__MACH__)
 
 #include <unistd.h>
 #include <arpa/inet.h>

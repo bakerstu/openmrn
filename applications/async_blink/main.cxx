@@ -130,7 +130,7 @@ public:
     {
         state_ = new_value;
         //HASSERT(0);
-#if defined(__linux__) || defined(__EMSCRIPTEN__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__MACH__)
         LOG(INFO, "bit %s set to %d", name_, state_);
 #else
         resetblink(state_ ? 1 : 0);
@@ -160,7 +160,7 @@ int appl_main(int argc, char* argv[])
     new Console(true, -1);
 #endif
 
-#ifdef __linux__
+#if defined (__linux__) || defined (__MACH__)
     stack.print_all_packets();
     stack.start_tcp_hub_server(12021);
 #elif defined(TARGET_LPC11Cxx)

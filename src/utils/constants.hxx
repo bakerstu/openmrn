@@ -44,7 +44,7 @@
 #define EXTERNCEND
 #endif
 
-#ifdef __EMSCRIPTEN__
+#if defined (__EMSCRIPTEN__) || defined (__MACH__)
 #define NEED_SIMPLE_CONST
 #endif
 
