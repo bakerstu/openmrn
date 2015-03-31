@@ -39,6 +39,7 @@
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 #include "executor/Notifiable.hxx"
+#include "DeviceBuffer.hxx"
 
 /** Private data for a can device */
 class Can : public NonBlockNode
@@ -53,6 +54,9 @@ protected:
                            sizeof(struct can_frame)))
         , rxQ(os_mq_create(config_can_rx_buffer_size(),
                            sizeof(struct can_frame)))
+        , txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
+                                                       config_can_tx_buffer_size()/2))
+        , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
         , overrunCount(0)
         , selInfoRd()
         , selInfoWr()
@@ -80,7 +84,7 @@ protected:
         return os_mq_num_pending(rxQ) != 0;
     }
 
-    void flush_buffers() OVERRIDE {}; /**< called after disable */
+    void flush_buffers() OVERRIDE; /**< called after disable */
 
     /** Sends an incoming frame to the receive buffer and notifies any waiting
      * process. Drops the frame if there is no receive buffer available. */
@@ -143,6 +147,8 @@ protected:
 
     os_mq_t txQ; /**< transmit queue */
     os_mq_t rxQ; /**< receive queue */
+    DeviceBuffer<struct can_frame> *txBuf; /**< transmit buffer */
+    DeviceBuffer<struct can_frame> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
 
     SelectInfo selInfoRd; /**< select wakeup metadata for read active */

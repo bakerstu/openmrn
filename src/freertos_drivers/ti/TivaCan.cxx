@@ -112,30 +112,31 @@ void TivaCan::tx_msg()
 {
     if (txPending == false)
     {
-        struct can_frame can_frame;
-        if (get_tx_msg(&can_frame))
+        struct can_frame *can_frame;
+
+        if (txBuf->data_read_pointer(&can_frame))
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
-            can_message.ui32MsgID = can_frame.can_id;
+            can_message.ui32MsgID = can_frame->can_id;
             can_message.ui32MsgIDMask = 0;
             can_message.ui32Flags = MSG_OBJ_TX_INT_ENABLE;
-            if (can_frame.can_eff)
+            if (can_frame->can_eff)
             {
                 can_message.ui32Flags |= MSG_OBJ_EXTENDED_ID;
             }
-            if (can_frame.can_rtr)
+            if (can_frame->can_rtr)
             {
                 can_message.ui32Flags |= MSG_OBJ_REMOTE_FRAME;
             }
-            can_message.ui32MsgLen = can_frame.can_dlc;
-            can_message.pui8MsgData = data;
-            memcpy(data, can_frame.data, can_frame.can_dlc);
+            can_message.ui32MsgLen = can_frame->can_dlc;
+            /* zero copy data */
+            can_message.pui8MsgData = can_frame->data;
 
-            MAP_IntDisable(interrupt);
+            //MAP_IntDisable(interrupt);
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             txPending = true;
-            MAP_IntEnable(interrupt);
+            //MAP_IntEnable(interrupt);
         }
     }
 }
@@ -184,50 +185,77 @@ void TivaCan::interrupt_handler()
     else if (status == 1)
     {
         /* rx data received */
-        tCANMsgObject can_message;
-        uint8_t data[8];
-        can_message.pui8MsgData = data;
+        struct can_frame *can_frame;
+        if (rxBuf->data_write_pointer(&can_frame))
+        {
+            /* we have space remaining to buffer up this incoming message */
+            tCANMsgObject can_message;
+            can_message.pui8MsgData = can_frame->data;
+            /* Read a message from CAN and clear the interrupt source */
+            MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
 
-        /* Read a message from CAN and clear the interrupt source */
-        MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
-        
-        struct can_frame can_frame;
-        can_frame.can_id = can_message.ui32MsgID;
-        can_frame.can_rtr = (can_message.ui32Flags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
-        can_frame.can_eff = (can_message.ui32Flags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
-        can_frame.can_err = 0;
-        can_frame.can_dlc = can_message.ui32MsgLen;
-        memcpy(can_frame.data, data, can_message.ui32MsgLen);
-        put_rx_msg_from_isr(can_frame);
-        select_wakeup_from_isr(&selInfoRd, &woken);
+            can_frame->can_id = can_message.ui32MsgID;
+            can_frame->can_rtr = (can_message.ui32Flags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
+            can_frame->can_eff = (can_message.ui32Flags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
+            can_frame->can_err = 0;
+            can_frame->can_dlc = can_message.ui32MsgLen;
+            rxBuf->advance(1);
+            rxBuf->signal_condition_from_isr();
+
+            /** @todo remove notify logic once we switch over to select() */
+            if (readableNotify_)
+            {
+                readableNotify_->notify_from_isr();
+                readableNotify_ = nullptr;
+            }
+        }
+        else
+        {
+            /* ran out of space to buffer, flush incoming message */
+            ++overrunCount;
+            tCANMsgObject can_message;
+            can_message.pui8MsgData = can_frame->data;
+            /* Read a message from CAN and clear the interrupt source */
+            MAP_CANMessageGet(base, 1, &can_message, 1 /* clear interrupt */);
+        }
     }
     else if (status == 2)
     {
         /* tx complete */
-        MAP_CANIntClear(base, 2);
         HASSERT(txPending);
-        struct can_frame can_frame;
-        if (get_tx_msg_from_isr(&can_frame))
+        MAP_CANIntClear(base, 2);
+        /* previous (zero copy) message from buffer no longer needed */
+        txBuf->consume(1);
+        txBuf->signal_condition_from_isr();
+
+        /** @todo remove notify logic once we switch over to select() */
+        if (writableNotify_) {
+            writableNotify_->notify_from_isr();
+            writableNotify_= nullptr;
+        }
+
+        struct can_frame *can_frame;
+
+        if (txBuf->data_read_pointer(&can_frame))
         {
             /* load the next message to transmit */
             tCANMsgObject can_message;
-            can_message.ui32MsgID = can_frame.can_id;
+            can_message.ui32MsgID = can_frame->can_id;
             can_message.ui32MsgIDMask = 0;
             can_message.ui32Flags = MSG_OBJ_TX_INT_ENABLE;
-            if (can_frame.can_eff)
+            if (can_frame->can_eff)
             {
                 can_message.ui32Flags |= MSG_OBJ_EXTENDED_ID;
             }
-            if (can_frame.can_rtr)
+            if (can_frame->can_rtr)
             {
                 can_message.ui32Flags |= MSG_OBJ_REMOTE_FRAME;
             }
-            can_message.ui32MsgLen = can_frame.can_dlc;
-            can_message.pui8MsgData = data;
-            memcpy(data, can_frame.data, can_frame.can_dlc);
-            
+            can_message.ui32MsgLen = can_frame->can_dlc;
+            /* zero copy data */
+            can_message.pui8MsgData = can_frame->data;
+
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
-            select_wakeup_from_isr(&selInfoWr, &woken);
         }
         else
         {
@@ -249,7 +277,6 @@ void can0_interrupt_handler(void)
     }
 }
 
-#if 0
 /** This is the interrupt handler for the can1 device.
  */
 void can1_interrupt_handler(void)
@@ -259,6 +286,5 @@ void can1_interrupt_handler(void)
         instances[1]->interrupt_handler();
     }
 }
-#endif
 
 } // extern "C"

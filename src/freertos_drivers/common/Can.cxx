@@ -38,6 +38,14 @@
 #include "Can.hxx"
 #include "can_frame.h"
 
+/** Flush the receive and transmit buffers for this device.
+ */
+void Can::flush_buffers()
+{
+    txBuf->flush();
+    rxBuf->flush();
+}
+
 /** Read from a file or device.
  * @param file file reference for this device
  * @param buf location to place read data
@@ -46,28 +54,40 @@
  */
 ssize_t Can::read(File *file, void *buf, size_t count)
 {
-    struct can_frame *can_frame = (struct can_frame*)buf;
+    HASSERT((count % sizeof(struct can_frame)) == 0);
+
+    struct can_frame *data = (struct can_frame*)buf;
     ssize_t result = 0;
     
-    while (count >= sizeof(struct can_frame))
+    while (count)
     {
-        if (file->flags & O_NONBLOCK)
+        portENTER_CRITICAL();
+        /* We limit the amount of bytes we read with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        size_t frames_read = rxBuf->get(data, count < 8 ? count : 8);
+        portEXIT_CRITICAL();
+
+        if (frames_read == 0)
         {
-            if (os_mq_timedreceive(rxQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) || result > 0)
             {
-                /* no more data to receive */
                 break;
             }
-        }
-        else
-        {
-            /* wait for data to come in */
-            os_mq_receive(rxQ, can_frame);
+            else
+            {
+                /* wait for data to come in, this call will release the
+                 * critical section lock.
+                 */
+                rxBuf->block_until_condition(file, true);
+            }
         }
 
-        count -= sizeof(struct can_frame);
-        result += sizeof(struct can_frame);
-        can_frame++;
+        count -= frames_read * sizeof(struct can_frame);
+        result += frames_read * sizeof(struct can_frame);
+        data += frames_read;
     }
     
     return result;
@@ -81,31 +101,44 @@ ssize_t Can::read(File *file, void *buf, size_t count)
  */
 ssize_t Can::write(File *file, const void *buf, size_t count)
 {
-    const struct can_frame *can_frame = (const struct can_frame*)buf;
+    HASSERT((count % sizeof(struct can_frame)) == 0);
+
+    const struct can_frame *data = (const struct can_frame*)buf;
     ssize_t result = 0;
         
-    while (count >= sizeof(struct can_frame))
+    while (count)
     {
-        if (file->flags & O_NONBLOCK)
+        portENTER_CRITICAL();
+        /* We limit the amount of bytes we write with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        size_t frames_written = txBuf->put(data, count < 8 ? count : 8);
+
+        if (frames_written == 0)
         {
-            if (os_mq_timedsend(txQ, can_frame, 0) == OS_MQ_TIMEDOUT)
+            portEXIT_CRITICAL();
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) || result > 0)
             {
-                /* no more room in the buffer */
                 break;
+            }
+            else
+            {
+                /* wait for space to be available, this call will release the
+                 * critical section lock.
+                 */
+                txBuf->block_until_condition(file, false);
             }
         }
         else
         {
-            /* wait for room in the queue */
-            os_mq_send(txQ, can_frame);
+            tx_msg();
+            portEXIT_CRITICAL();
+            count -= frames_written * sizeof(struct can_frame);
+            result += frames_written * sizeof(struct can_frame);
+            data += frames_written;
         }
-        lock_.lock();
-        tx_msg();
-        lock_.unlock();
-
-        count -= sizeof(struct can_frame);
-        result += sizeof(struct can_frame);
-        can_frame++;
     }
     
     return result;
@@ -119,26 +152,36 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
  */
 bool Can::select(File* file, int mode)
 {
+    portENTER_CRITICAL();
+    bool retval = false;
     switch (mode)
     {
         case FREAD:
-            if (os_mq_num_pending(rxQ) > 0)
+            if (rxBuf->pending() > 0)
             {
-                return true;
+                retval = true;
             }
-            select_insert(&selInfoRd);
+            else
+            {
+                rxBuf->select_insert();
+            }
             break;
         case FWRITE:
-            if (os_mq_num_spaces(txQ) > 0)
+            if (txBuf->space() > 0)
             {
-                return true;
+                retval = true;
             }
-            select_insert(&selInfoWr);
+            else
+            {
+                txBuf->select_insert();
+            }
             break;
         default:
         case 0:
             /* we don't support any exceptions */
             break;
     }
-    return false;
+    portEXIT_CRITICAL();
+
+    return retval;
 }
