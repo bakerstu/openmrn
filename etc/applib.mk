@@ -80,7 +80,7 @@ $(LIBNAME): $(OBJS)
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.d *.a *.so *.dll
+	rm -rf *.o *.d *.a *.so *.dll timestamp
 
 .PHONY: veryclean
 veryclean: clean
