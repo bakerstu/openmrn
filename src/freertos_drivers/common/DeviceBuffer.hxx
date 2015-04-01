@@ -232,7 +232,7 @@ public:
     {
         size_t last_count = count;
         
-        while (items && count < size)
+        while (items && (count < size))
         {
             data[writeIndex++] = *buf++;
             if (writeIndex == size)
@@ -255,7 +255,7 @@ public:
     {
         size_t last_count = count;
         
-        while (items && count > 0)
+        while (items && (count > 0))
         {
             *buf++ = data[readIndex++];            
             if (readIndex == size)
