@@ -137,6 +137,16 @@ void TivaCan::tx_msg()
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             txPending = true;
             //MAP_IntEnable(interrupt);
+            txBuf->signal_condition();
+
+            /** @todo (Stuart Baker) remove notify logic once we switch over to
+             * select()
+             */
+            if (writableNotify_)
+            {
+                writableNotify_->notify_from_isr();
+                writableNotify_= nullptr;
+            }
         }
     }
 }
@@ -202,7 +212,9 @@ void TivaCan::interrupt_handler()
             rxBuf->advance(1);
             rxBuf->signal_condition_from_isr();
 
-            /** @todo remove notify logic once we switch over to select() */
+            /** @todo (Stuart Baker) remove notify logic once we switch over to
+             * select()
+             */
             if (readableNotify_)
             {
                 readableNotify_->notify_from_isr();
@@ -228,8 +240,11 @@ void TivaCan::interrupt_handler()
         txBuf->consume(1);
         txBuf->signal_condition_from_isr();
 
-        /** @todo remove notify logic once we switch over to select() */
-        if (writableNotify_) {
+        /** @todo (Stuart Baker) remove notify logic once we switch over to
+         * select()
+         */
+        if (writableNotify_)
+        {
             writableNotify_->notify_from_isr();
             writableNotify_= nullptr;
         }
