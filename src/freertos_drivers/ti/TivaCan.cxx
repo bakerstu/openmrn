@@ -166,10 +166,17 @@ void TivaCan::interrupt_handler()
         if (status & CAN_STATUS_BUS_OFF)
         {
             /* bus off error condition */
+            ++busOffCount;
         }
         if (status & CAN_STATUS_EWARN)
         {
             /* One of the error counters has exceded a value of 96 */
+            ++softErrorCount;
+            /* flush and data in the tx pipeline */
+            MAP_CANMessageClear(base, 2);
+            txBuf->flush();
+            txPending = false;
+            txBuf->signal_condition_from_isr();
         }
         if (status & CAN_STATUS_EPASS)
         {
@@ -234,7 +241,6 @@ void TivaCan::interrupt_handler()
     else if (status == 2)
     {
         /* tx complete */
-        HASSERT(txPending);
         MAP_CANIntClear(base, 2);
         /* previous (zero copy) message from buffer no longer needed */
         txBuf->consume(1);
