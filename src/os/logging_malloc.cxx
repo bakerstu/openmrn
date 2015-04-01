@@ -1,4 +1,4 @@
-#ifndef __EMSCRIPTEN__
+#if !defined (__EMSCRIPTEN__) && !defined (__MACH__)
 
 #include <unwind.h>
 #include "os/os.h"
