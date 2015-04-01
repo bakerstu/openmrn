@@ -54,6 +54,8 @@ protected:
                                                        config_can_tx_buffer_size()/2))
         , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
         , overrunCount(0)
+        , busOffCount(0)
+        , softErrorCount(0)
     {
     }    
 
@@ -86,6 +88,8 @@ protected:
     DeviceBuffer<struct can_frame> *txBuf; /**< transmit buffer */
     DeviceBuffer<struct can_frame> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
+    unsigned int busOffCount; /**< bus-off count */
+    unsigned int softErrorCount; /**< soff error count */
 
 private:
     /** Read from a file or device.
