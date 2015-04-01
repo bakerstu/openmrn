@@ -50,16 +50,10 @@ protected:
      */
     Can(const char *name)
         : NonBlockNode(name)
-        , txQ(os_mq_create(config_can_tx_buffer_size(),
-                           sizeof(struct can_frame)))
-        , rxQ(os_mq_create(config_can_rx_buffer_size(),
-                           sizeof(struct can_frame)))
         , txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
                                                        config_can_tx_buffer_size()/2))
         , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
         , overrunCount(0)
-        , selInfoRd()
-        , selInfoWr()
     {
     }    
 
@@ -67,92 +61,31 @@ protected:
      */
     ~Can()
     {
-        /** @todo (Stuart Baker) for completeness we should destroy the
-         * txQ and rxQ here.
-         */
+        txBuf->destroy();
+        rxBuf->destroy();
     }
 
     virtual void enable() = 0; /**< function to enable device */
     virtual void disable() = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
 
+    /** @todo (Stuart Baker) remove once we switch over to select().
+     */
     bool has_tx_buffer_space() OVERRIDE {
-        return os_mq_num_pending(txQ) < config_can_tx_buffer_size();        
+        return txBuf->space();        
     }
 
+    /** @todo (Stuart Baker) remove once we switch over to select().
+     */
     bool has_rx_buffer_data() OVERRIDE {
-        return os_mq_num_pending(rxQ) != 0;
+        return rxBuf->pending();
     }
 
     void flush_buffers() OVERRIDE; /**< called after disable */
 
-    /** Sends an incoming frame to the receive buffer and notifies any waiting
-     * process. Drops the frame if there is no receive buffer available. */
-    void put_rx_msg_from_isr(const struct can_frame &f)
-    {
-        int woken;
-        if (os_mq_send_from_isr(rxQ, &f, &woken) == OS_MQ_FULL)
-        {
-            overrunCount++;
-        }
-        if (readableNotify_) {
-            readableNotify_->notify_from_isr();
-            readableNotify_ = nullptr;
-        }
-    }
-
-    /** Requests the next outgoing frame to be sent to the hardware.
-     * @returns true is a frame was found.
-     */
-    bool get_tx_msg_from_isr(struct can_frame *f)
-    {
-        int woken;
-        if (writableNotify_) {
-            writableNotify_->notify_from_isr();
-            writableNotify_= nullptr;
-        }
-        if (os_mq_receive_from_isr(txQ, f, &woken) == OS_MQ_NONE)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    /** Requests the next outgoing frame to be sent to the hardware.
-     * @returns true is a frame was found.
-     */
-    bool get_tx_msg(struct can_frame *f)
-    {
-        Notifiable* n = nullptr;
-        portENTER_CRITICAL();
-        if (writableNotify_) {
-            n = writableNotify_;
-            writableNotify_= nullptr;
-        }
-        portEXIT_CRITICAL();
-        if (os_mq_timedreceive(txQ, f, 0) == OS_MQ_NONE)
-        {
-            if (n) n->notify();
-            return true;
-        }
-        else
-        {
-            if (n) n->notify();
-            return false;
-        }
-    }
-
-    os_mq_t txQ; /**< transmit queue */
-    os_mq_t rxQ; /**< receive queue */
     DeviceBuffer<struct can_frame> *txBuf; /**< transmit buffer */
     DeviceBuffer<struct can_frame> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
-
-    SelectInfo selInfoRd; /**< select wakeup metadata for read active */
-    SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 private:
     /** Read from a file or device.
