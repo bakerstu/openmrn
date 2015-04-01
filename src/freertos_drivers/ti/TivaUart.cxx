@@ -150,6 +150,7 @@ void TivaUart::tx_char()
             txPending = true;
             MAP_UARTIntEnable(base, UART_INT_TX);
             MAP_IntEnable(interrupt);
+            txBuf->signal_condition();
         }
     }
 }
@@ -163,6 +164,9 @@ void TivaUart::interrupt_handler()
     unsigned long status = MAP_UARTIntStatus(base, true);    
     MAP_UARTIntClear(base, status);
 
+    /** @todo (Stuart Baker) optimization opportunity by getting a write
+     * pointer to fill the fifo and then advance the buffer when finished
+     */
     /* receive charaters as long as we can */
     while (MAP_UARTCharsAvail(base))
     {
@@ -180,6 +184,9 @@ void TivaUart::interrupt_handler()
     /* tranmit a character if we have pending tx data */
     if (txPending)
     {
+        /** @todo (Stuart Baker) optimization opportunity by getting a read
+         * pointer to fill the fifo and then consume the buffer when finished.
+         */
         while (MAP_UARTSpaceAvail(base))
         {
             unsigned char data;
