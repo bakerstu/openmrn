@@ -59,6 +59,8 @@ ssize_t Can::read(File *file, void *buf, size_t count)
     struct can_frame *data = (struct can_frame*)buf;
     ssize_t result = 0;
     
+    count /= sizeof(struct can_frame);
+
     while (count)
     {
         portENTER_CRITICAL();
@@ -85,12 +87,12 @@ ssize_t Can::read(File *file, void *buf, size_t count)
             }
         }
 
-        count -= frames_read * sizeof(struct can_frame);
-        result += frames_read * sizeof(struct can_frame);
+        count -= frames_read;
+        result += frames_read;
         data += frames_read;
     }
     
-    return result;
+    return result * sizeof(struct can_frame);
 }
 
 /** Write to a file or device.
@@ -105,7 +107,9 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
 
     const struct can_frame *data = (const struct can_frame*)buf;
     ssize_t result = 0;
-        
+
+    count /= sizeof(struct can_frame);
+
     while (count)
     {
         portENTER_CRITICAL();
@@ -135,13 +139,13 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
         {
             tx_msg();
             portEXIT_CRITICAL();
-            count -= frames_written * sizeof(struct can_frame);
-            result += frames_written * sizeof(struct can_frame);
+            result += frames_written;
+            count -= frames_written;
             data += frames_written;
         }
     }
     
-    return result;
+    return result * sizeof(struct can_frame);
 }
 
 /** Device select method. Default impementation returns true.
