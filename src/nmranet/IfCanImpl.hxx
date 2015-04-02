@@ -126,7 +126,7 @@ private:
             new_alias->data()->reset();
             if_can()->alias_allocator()->send(new_alias);
         }
-        LOG(INFO, "Allocating new alias %03X for node %012llx", alias,
+        LOG(INFO, "Allocating new alias %03X for node %012" PRIx64, alias,
             nmsg()->src.id);
 
         // Checks that there was no conflict on this alias.
@@ -285,7 +285,8 @@ protected:
             if (dstAlias_ == NOT_RESPONDING)
             {
                 LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
-                    "address %012llx to an alias on the bus. Dropping packet.",
+                          "address %012" PRIx64
+                          " to an alias on the bus. Dropping packet.",
                     nmsg()->dst.id);
                 return call_immediately(STATE(send_finished));
             }
@@ -295,7 +296,7 @@ protected:
             /** @TODO(balazs.racz) what should we do here? The caller said
              * something different than the cache. */
             LOG(INFO, "AddressedWriteFlow: Caller supplied outdated alias. "
-                      "Node id %012llx, Result from cache %03x, "
+                      "Node id %012" PRIx64 ", Result from cache %03x, "
                       "alias from caller %03x.",
                 dst_.id, dstAlias_, dst_.alias);
         }
@@ -373,7 +374,7 @@ protected:
             return call_immediately(STATE(remote_alias_found));
         }
         LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
-                  "address %012llx to an alias on the bus. Dropping packet.",
+                  "address %012" PRIx64 " to an alias on the bus. Dropping packet.",
             nmsg()->dst.id);
         aliasListener_.UnregisterLocalHandler();
         if_can()->remote_aliases()->add(nmsg()->dst.id, NOT_RESPONDING);

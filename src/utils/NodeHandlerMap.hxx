@@ -37,12 +37,17 @@
 #define _UTILS_NODEHANDLERMAP_HXX_
 
 #include <stdint.h>
-
 #include <utility>
 
 #include "utils/StlMap.hxx"
 #include "utils/LinearMap.hxx"
 #include "utils/SysMap.hxx"
+
+
+#if UINTPTR_MAX > UINT_MAX
+#define NODEHANDLER_USE_PAIR
+#endif
+
 
 /** A map that allows registration and lookup or per-node handler of a
  *  particular message ID.
@@ -56,20 +61,22 @@
 class NodeHandlerMapBase
 {
 private:
+#ifdef NODEHANDLER_USE_PAIR
+    typedef std::pair<void*, uint32_t> key_type;
+#else
     typedef uint64_t key_type;
+#endif
     typedef void* value_type;
     typedef StlMap<key_type, value_type> map_type;
 
 public:
     NodeHandlerMapBase()
     {
-        HASSERT(sizeof(void*) == 4);
     }
-    
+
     /// Creates a map with @param entries capacity.
     NodeHandlerMapBase(size_t entries) : entries_(entries)
     {
-        HASSERT(sizeof(void*) == 4);
     }
 
     /** Inserts a handler into the map.
@@ -124,19 +131,27 @@ public:
 
     static pair<void *, uint32_t> read_key(key_type key)
     {
+#ifdef NODEHANDLER_USE_PAIR
+        return key;
+#else
         uint32_t id = key & 0xFFFFFFFFU;
         uint32_t n = key >> 32;
         return std::make_pair(reinterpret_cast<void *>(n), id);
+#endif
     }
 
 private:
     /// Combines the node pointer and the message ID into a lookup key.
     key_type make_key(void* node, uint32_t id)
     {
+#ifdef NODEHANDLER_USE_PAIR
+        return std::make_pair(node, id);
+#else
         uint64_t key = reinterpret_cast<uint32_t>(node);
         key <<= 32;
         key |= id;
         return key;
+#endif
     }
 
     map_type entries_;

@@ -679,7 +679,7 @@ private:
         {
             LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
                          "space but datagram not long enough. command=0x%02x, "
-                         "length=%d. Source {0x%012llx, %03x}",
+                         "length=%d. Source {0x%012" PRIx64 ", %03x}",
                 cmd, len, message()->data()->src.id,
                 message()->data()->src.alias);
             return -1;
@@ -698,8 +698,8 @@ private:
             registry_.lookup(message()->data()->dst, space_number);
         if (!space)
         {
-            LOG(WARNING, "MemoryConfig: asked node 0x%012llx for unknown space "
-                         "%d. Source {0x%012llx, %03x}",
+            LOG(WARNING, "MemoryConfig: asked node 0x%012" PRIx64 " for unknown space "
+                         "%d. Source {0x%012" PRIx64 ", %03x}",
                 message()->data()->dst->node_id(), space_number,
                 message()->data()->src.id, message()->data()->src.alias);
             return nullptr;
@@ -728,7 +728,7 @@ private:
         {
             LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
                          "enough. command=0x%02x, length=%d. Source "
-                         "{0x%012llx, %03x}",
+                         "{0x%012" PRIx64 ", %03x}",
                 cmd, len, message()->data()->src.id,
                 message()->data()->src.alias);
             return -1;
