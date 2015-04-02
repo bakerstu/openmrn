@@ -44,7 +44,7 @@
 #include "utils/SysMap.hxx"
 
 
-#if UINTPTR_MAX > UINT_MAX
+#if UINTPTR_MAX > UINT32_MAX
 #define NODEHANDLER_USE_PAIR
 #endif
 
