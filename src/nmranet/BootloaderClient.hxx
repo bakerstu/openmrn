@@ -289,6 +289,7 @@ private:
         {
             // Write OK. proceed to stream acquisition.
             responseDatagram_->unref();
+            responseDatagram_ = nullptr;
             return call_immediately(STATE(initiate_stream));
         }
         else
