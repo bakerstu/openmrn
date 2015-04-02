@@ -146,8 +146,10 @@ public:
     void print_stats()
     {
         OSMutexLock h(&lock_);
-        LOG(INFO, "%d aliases (%u/%u cnf), %d frame: %d CID, %d RID, "
-                  "%d AMD, %d event.",
+        LOG(INFO,
+            "%" PRIuPTR " aliases (%" PRIuPTR "/%" PRIuPTR " cnf), %" PRIuPTR
+            " frame: %" PRIuPTR " CID, %" PRIuPTR " RID, "
+            "%" PRIuPTR " AMD, %" PRIuPTR " event.",
             seenAliases_.size(), g_alias_test_conflicts, g_alias_use_conflicts,
             numFrames_, cidFrames_, ridFrames_, amdFrames_, eventFrames_);
     }

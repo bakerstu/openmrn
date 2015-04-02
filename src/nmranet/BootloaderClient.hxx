@@ -275,7 +275,7 @@ private:
             {
                 ++error_ofs;
             }
-            LOG(WARNING, "payload length %d error offset %d data %02x %02x",
+            LOG(WARNING, "payload length %" PRIdPTR " error offset %u data %02x %02x",
                 payload.size(), error_ofs, payload[error_ofs],
                 payload[error_ofs + 1]);
             error_code =
@@ -444,8 +444,8 @@ private:
             &can_id, local_alias, remote_alias, CanDefs::STREAM_DATA);
         auto *frame = b->data()->mutable_frame();
         SET_CAN_FRAME_ID_EFF(*frame, can_id);
-        unsigned len =
-            std::min(7U, message()->data()->data.size() - bufferOffset_);
+        size_t len =
+            std::min(size_t(7), message()->data()->data.size() - bufferOffset_);
         if (availableBufferSize_ < len)
         {
             len = availableBufferSize_;
@@ -505,7 +505,7 @@ private:
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
 
-        LOG(INFO, "%02ld.%06ld stream offset: %d; wrote %.0lld usec slept "
+        LOG(INFO, "%02ld.%06ld stream offset: %" PRIdPTR "; wrote %.0lld usec slept "
                   "%.0lld usec, speed=%.0f bytes/sec",
             ts.tv_sec % 60, ts.tv_nsec / 1000, bufferOffset_,
             (sleepStartTimeNsec_ - lastMeasurementTimeNsec_) / 1000,

@@ -39,6 +39,12 @@
 
 using namespace nmranet;
 
+TEST(NMRAnetVelocityTest, size)
+{
+    EXPECT_EQ(4, sizeof(Velocity));
+    EXPECT_EQ(2, sizeof(float16_t));
+}
+
 TEST(NMRAnetVelocityTest, constructor_int)
 {
     Velocity velocity = 0.0F;
@@ -75,7 +81,8 @@ TEST(NMRAnetVelocityTest, constructor_float16)
 {
     Velocity *velocity = new Velocity((float16_t)0);
     
-    EXPECT_TRUE(*velocity == 0.0);
+    EXPECT_TRUE(*velocity == 0.0f);
+    EXPECT_NEAR(velocity->speed(), 0.0f, 1e-6);
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);
 }
 
@@ -502,4 +509,3 @@ int appl_main(int argc, char* argv[])
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
