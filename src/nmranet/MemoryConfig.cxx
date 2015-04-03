@@ -49,10 +49,12 @@ void enter_bootloader()
 {
 }
 
+#if !defined (__MACH__)
 void reboot() __attribute__ ((weak));
 void reboot()
 {
 }
+#endif
 }
 
 namespace nmranet

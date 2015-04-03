@@ -1,7 +1,9 @@
-TOOLPATH ?= $(shell \
+ifndef TOOLPATH
+TOOLPATH := $(shell \
 sh -c "if [ -d /usr/include/linux ]; then echo /usr/bin; \
       else echo; fi" \
 )
+endif
 
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk

@@ -1,4 +1,4 @@
-#ifndef __EMSCRIPTEN__
+#if !defined (__EMSCRIPTEN__) && !defined (__MACH__)
 
 #include <unwind.h>
 #include "os/os.h"
@@ -100,7 +100,7 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
 
 void *__wrap_malloc(size_t size)
 {
-    unsigned saved_lr = 0;
+    uintptr_t saved_lr = 0;
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     asm volatile ("mov %0, lr \n" : "=r" (saved_lr));
 #endif

@@ -166,8 +166,8 @@ void get_flash_page_info(
     const void *address, const void **page_start, uint32_t *page_length_bytes)
 {
     // Simulates a flat 1KB page structure.
-    uint32_t value = reinterpret_cast<uint32_t>(address);
-    value -= reinterpret_cast<uint32_t>(&virtual_flash[0]);
+    uintptr_t value = reinterpret_cast<uintptr_t>(address);
+    value -= reinterpret_cast<uintptr_t>(&virtual_flash[0]);
     value &= ~1023;
     *page_start = &virtual_flash[value];
     *page_length_bytes = 1024;

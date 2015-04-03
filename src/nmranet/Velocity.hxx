@@ -294,49 +294,49 @@ public:
     }
 
     /** Overloaded addition operator. */
-    Velocity operator + (const Velocity& v)
+    Velocity operator + (const Velocity& v) const
     {
         return Velocity(zero_adjust(velocity + v.velocity,velocity));
     }
 
     /** Overloaded addition operator. */
-    Velocity operator + (const float& v)
+    Velocity operator + (const float& v) const
     {
         return Velocity(zero_adjust(velocity + v,velocity));
     }
 
     /** Overloaded subtraction operator. */
-    Velocity operator - (const Velocity& v)
+    Velocity operator - (const Velocity& v) const
     {
         return Velocity(zero_adjust(velocity - v.velocity,velocity));
     }
 
     /** Overloaded subtraction operator. */
-    Velocity operator - (const float& v)
+    Velocity operator - (const float& v) const
     {
         return Velocity(zero_adjust(velocity - v,velocity));
     }
 
     /** Overloaded multiplication operator. */
-    Velocity operator * (const Velocity& v)
+    Velocity operator * (const Velocity& v) const
     {
         return Velocity(zero_adjust(velocity * v.velocity,velocity));
     }
 
     /** Overloaded multiplication operator. */
-    Velocity operator * (const float& v)
+    Velocity operator * (const float& v) const
     {
         return Velocity(zero_adjust(velocity * v,velocity));
     }
 
     /** Overloaded division operator. */
-    Velocity operator / (const Velocity& v)
+    Velocity operator / (const Velocity& v) const
     {
         return Velocity(zero_adjust(velocity / v.velocity,velocity));
     }
 
     /** Overloaded division operator. */
-    Velocity operator / (const float& v)
+    Velocity operator / (const float& v) const
     {
         return Velocity(zero_adjust(velocity / v,velocity));
     }
@@ -442,25 +442,25 @@ public:
     }
 
     /** Overloaded equals equals operator */
-    bool operator == (const Velocity& v)
+    bool operator == (const Velocity& v) const
     {
         return (v.velocity == velocity);
     }
     
     /** Overloaded equals equals operator */
-    bool operator == (const float& v)
+    bool operator == (const float& v) const
     {
         return (v == velocity);
     }
     
     /** Overloaded not equals operator */
-    bool operator != (const Velocity& v)
+    bool operator != (const Velocity& v) const
     {
         return (v.velocity != velocity);
     }
     
     /** Overloaded not equals operator */
-    bool operator != (const float& v)
+    bool operator != (const float& v) const
     {
         return (v != velocity);
     }
@@ -473,7 +473,7 @@ private:
      * @param value value of math result
      * @param old original value before expression
      */
-    float zero_adjust(float value, float old)
+    static float zero_adjust(float value, float old)
     {
         if (value == 0)
         {

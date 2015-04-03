@@ -11,10 +11,15 @@ MBEDSRCPATH=$(MBEDPATH)/mbed/src
 HAVE_MBED = 1
 endif
 
+ifneq ($(wildcard $(MBEDPATH)/mbed/api/mbed.h),)
+MBEDSRCPATH=$(MBEDPATH)/mbed
+HAVE_MBED = 1
+endif
+
 ifndef HAVE_MBED
 $(error Mbed source not found under $(MBEDPATH))
 endif
 
-INCLUDES += -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi"
+INCLUDES +=-I"$(MBEDSRCPATH)/api"  -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDSRCPATH)/common" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi"
 
 endif #MBEDPATH

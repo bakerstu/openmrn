@@ -44,7 +44,7 @@
 #define EXTERNCEND
 #endif
 
-#ifdef __EMSCRIPTEN__
+#if defined (__EMSCRIPTEN__) || defined (__MACH__) || defined(__linux__)
 #define NEED_SIMPLE_CONST
 #endif
 
@@ -66,7 +66,8 @@
     EXTERNCEND
 
 #define OVERRIDE_CONST(name, value)                                            \
-    EXTERNC extern const int _sym_##name = value;                              \
+    EXTERNC extern const int _sym_##name;                                      \
+    const int _sym_##name = value;                                             \
     EXTERNCEND
 
 #else  // native C

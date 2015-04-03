@@ -4,7 +4,7 @@ LIBRARIES = os if core
 all:
 
 clean::
-	rm -rf *.a *.so *.dll
+	rm -rf *.a *.so *.dll timestamp
 
 veryclean:: clean
 

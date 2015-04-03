@@ -731,7 +731,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 #endif // not linux and not mac
     result = pthread_create(thread, &attr, start_routine, arg);
 
-#if !defined (__MINGW32__)
+#if !defined (__MINGW32__) && !defined (__MACH__)
     if (!result) pthread_setname_np(*thread, name);
 #endif
 
