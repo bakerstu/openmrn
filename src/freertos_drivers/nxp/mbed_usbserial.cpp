@@ -32,6 +32,8 @@
  * @date 4 May 2013
  */
 
+#include <algorithm>
+
 #include "mbed.h"
 #include "USBSerial.h"
 #include "Serial.hxx"
@@ -104,19 +106,11 @@ protected:
 
     virtual bool EP2_IN_callback()
     {
-        int count;
-        int woken = 0;
         configASSERT(txPending);
-        for (count = 0; count < MAX_TX_PACKET_LENGTH; count++)
-        {
-            if (os_mq_receive_from_isr(txQ, &txData[count],
-                                       &woken) != OS_MQ_NONE)
-            {
-                /* no more data left to transmit */
-                break;
-            }
+        int woken = 0;
+        if (TxHelper()) {
+          txBuf->signal_condition_from_isr();
         }
-        TxHelper(count);
         if (woken)
         {
 #ifdef TARGET_LPC1768
@@ -152,17 +146,9 @@ private:
             return;
         }
         txPending = true;
-        int count;
-        for (count = 0; count < TX_DATA_SIZE; count++)
-        {
-            if (os_mq_timedreceive(txQ, txData + count, 0) !=
-                OS_MQ_NONE)
-            {
-                /* no more data left to transmit */
-                break;
-            }
+        if (TxHelper()) {
+            txBuf->signal_condition();
         }
-        TxHelper(count);
         taskEXIT_CRITICAL();
     }
 
@@ -171,22 +157,42 @@ private:
 
     /** Transmits count bytes from the txData buffer. Sets txPending and
         bytesLost as needed. */
-    void TxHelper(int count)
+    bool TxHelper()
     {
+        size_t count;
+        bool signal = false;
+        for (count = 0; count < MAX_TX_PACKET_LENGTH;)
+        {
+            uint8_t *data;
+            size_t max_count = std::min(txBuf->data_read_pointer(&data),
+                                        MAX_TX_PACKET_LENGTH - count);
+            if (max_count)
+            {
+                memcpy(&txData[count], data, max_count);
+                count += max_count;
+                txBuf->consume(max_count);
+                signal = true;
+            }
+            else
+            {
+                break;
+            }
+        }
         if (!count)
         {
             txPending = false;
-            return;
+            return signal;
         }
         if (!configured())
         {
             // An error occured, data was lost.
             txPending = false;
             overrunCount += count;
-            return;
+            return signal;
         }
         txPending = true;
         sendNB(txData, count);
+        return signal;
     }
 
     void RxThread()
@@ -204,7 +210,8 @@ private:
             }
             for (uint32_t i = 0; i < rxSize; i++)
             {
-                os_mq_send(rxQ, rxData + i);
+              /// @TODO (balazs.racz) this needs to be replaced with something that works in the new select based model.
+              //os_mq_send(rxQ, rxData + i);
             }
             rxSize = 0;
             // We reactivate the endpoint to receive next characters
