@@ -82,19 +82,19 @@ void MbedCanDriver::tx_msg()
     if (!(*SR_ & 0x4))
         return; // TX buffer is holding a packet
 
-    struct can_frame can_frame;
+    struct can_frame *can_frame;
     /** @todo (balazs.racz): think about how we could do with a shorter
      critical section. The problem is that an ISR might decide to send off the
      next frame ahead of us. */
     taskENTER_CRITICAL();
-    if (!get_tx_msg(&can_frame))
+    if (!txBuf->data_read_pointer(&can_frame))
     {
         taskEXIT_CRITICAL();
         return;
     }
-    CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
-                   can_frame.can_dlc, can_frame.can_rtr ? CANRemote : CANData,
-                   can_frame.can_eff ? CANExtended : CANStandard);
+    CANMessage msg(can_frame->can_id, (const char*)can_frame->data,
+                   can_frame->can_dlc, can_frame->can_rtr ? CANRemote : CANData,
+                   can_frame->can_eff ? CANExtended : CANStandard);
     if (!mbedCan_.write(msg))
     {
         // NOTE(balazs.racz): This means that the CAN layer didn't find an
@@ -103,6 +103,11 @@ void MbedCanDriver::tx_msg()
         // was also writing frames to this CAN device. We won't handle that
         // case now.
         overrunCount++;
+    }
+    else
+    {
+        txBuf->consume(1);
+        txBuf->signal_condition();
     }
     txPending_ = 1;
     taskEXIT_CRITICAL();
@@ -115,29 +120,39 @@ void MbedCanDriver::interrupt()
     CANMessage msg;
     if (mbedCan_.read(msg))
     {
-        struct can_frame can_frame;
-        can_frame.can_id = msg.id;
-        can_frame.can_rtr = msg.type == CANRemote ? 1 : 0;
-        can_frame.can_eff = msg.format == CANStandard ? 0 : 1;
-        can_frame.can_err = 0;
-        can_frame.can_dlc = msg.len;
-        memcpy(can_frame.data, msg.data, msg.len);
-        put_rx_msg_from_isr(can_frame);
+        struct can_frame* can_frame;
+        if (rxBuf->data_write_pointer(&can_frame))
+        {
+            can_frame->can_id = msg.id;
+            can_frame->can_rtr = msg.type == CANRemote ? 1 : 0;
+            can_frame->can_eff = msg.format == CANStandard ? 0 : 1;
+            can_frame->can_err = 0;
+            can_frame->can_dlc = msg.len;
+            memcpy(can_frame->data, msg.data, msg.len);
+            rxBuf->advance(1);
+            rxBuf->signal_condition_from_isr();
+        }
+        else
+        {
+            ++overrunCount;
+        }
     }
 #if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
     if (*SR_ & 0x4)
     {
         // Transmit buffer 1 empty => transmit finished.
-        struct can_frame can_frame;
-        if (get_tx_msg_from_isr(&can_frame))
+        struct can_frame *can_frame;
+        if (txBuf->data_read_pointer(&can_frame))
         {
-            CANMessage msg(can_frame.can_id, (const char*)can_frame.data,
-                           can_frame.can_dlc,
-                           can_frame.can_rtr ? CANRemote : CANData,
-                           can_frame.can_eff ? CANExtended : CANStandard);
+            CANMessage msg(can_frame->can_id, (const char*)can_frame->data,
+                           can_frame->can_dlc,
+                           can_frame->can_rtr ? CANRemote : CANData,
+                           can_frame->can_eff ? CANExtended : CANStandard);
             if (mbedCan_.write(msg))
             {
                 txPending_ = 1;
+                txBuf->consume(1);
+                txBuf->signal_condition_from_isr();
             }
             else
             {
