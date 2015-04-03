@@ -32,109 +32,23 @@
  * @date 7 December 2013
  */
 
-#include "utils/constants.hxx"
-#include "nmranet/If.hxx"
-#include "nmranet/DefaultNode.hxx"
-
-extern Service g_service;
-
-DECLARE_CONST(node_init_identify);
+#include "nmranet/NodeInitializeFlow.hxx"
 
 namespace nmranet
 {
 
-struct InitializeRequest
+InitializeFlow::~InitializeFlow()
 {
-    InitializeRequest() : node(nullptr)
-    {
-    }
-    Node *node;
-};
-
-typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
-
-class InitializeFlow : public InitializeFlowBase
-{
-public:
-    InitializeFlow(Service *service) : InitializeFlowBase(service)
-    {
-    }
-
-private:
-    Node *node()
-    {
-        return message()->data()->node;
-    }
-
-    Action entry() OVERRIDE
-    {
-        HASSERT(message()->data()->node);
-        return allocate_and_call(
-            node()->interface()->global_message_write_flow(),
-            STATE(send_initialized));
-    }
-
-    Action send_initialized()
-    {
-        auto *b = get_allocation_result(
-            node()->interface()->global_message_write_flow());
-        done_.reset(this);
-        NodeID id = node()->node_id();
-        b->data()->reset(Defs::MTI_INITIALIZATION_COMPLETE, id,
-                         node_id_to_buffer(id));
-        b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
-        b->set_done(&done_);
-        node()->interface()->global_message_write_flow()->send(
-            b, b->data()->priority());
-        return wait_and_call(STATE(initialization_complete));
-    }
-
-    Action initialization_complete()
-    {
-        node()->set_initialized();
-        return call_immediately(STATE(identify_events));
-    }
-
-    Action identify_events()
-    {
-        if (config_node_init_identify() != CONSTANT_TRUE)
-        {
-            return release_and_exit();
-        }
-        // Get the dispatch flow.
-        return allocate_and_call(node()->interface()->dispatcher(),
-                                 STATE(initiate_local_identify));
-    }
-
-    Action initiate_local_identify()
-    {
-        auto *b = get_allocation_result(node()->interface()->dispatcher());
-        b->set_done(done_.reset(this));
-        NMRAnetMessage *m = b->data();
-        m->mti = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
-        m->payload.clear();
-        m->dst.id = node()->node_id();
-        m->dstNode = node();
-        m->src.alias = 0;
-        m->src.id = node()->node_id();
-        node()->interface()->dispatcher()->send(b, b->data()->priority());
-        return wait_and_call(STATE(wait_for_local_identify));
-    }
-
-    Action wait_for_local_identify()
-    {
-        return release_and_exit();
-    }
-
-    BarrierNotifiable done_;
-};
+}
 
 void StartInitializationFlow(Node *node)
 {
-    static InitializeFlow g_initialize_flow(&g_service);
-    auto *b = g_initialize_flow.alloc();
+    auto *g_initialize_flow = Singleton<InitializeFlow>::instance();
+    auto *b = g_initialize_flow->alloc();
     b->data()->node = node;
-    g_initialize_flow.send(b);
+    g_initialize_flow->send(b);
 }
 
 } // namespace nmranet
+
+DEFINE_SINGLETON_INSTANCE(nmranet::InitializeFlow);

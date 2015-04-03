@@ -23,6 +23,8 @@ SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
+AROPTS=D
+
 ifeq ($(TOOLPATH),/usr/local/lpcxpresso_5.1.2_2065/lpcxpresso/tools)
 CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.6.2
 CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2
@@ -48,7 +50,8 @@ ARCHOPTIMIZATION = -Os -D__NEWLIB__ -fno-strict-aliasing
 ASFLAGS = -c -g -MD -MP \
            -march=armv7-m -mthumb -mfloat-abi=soft
 
-CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -D__FreeRTOS__ \
+CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas \
+	     -MD -MP -D__FreeRTOS__ \
              -fno-builtin -fno-stack-protector -DTARGET_LPC1768 \
              -march=armv7-m -mthumb -mfloat-abi=soft -mfix-cortex-m3-ldrd \
              -DINTERRUPT_ATTRIBUTE=   -D_POSIX_C_SOURCE=200112

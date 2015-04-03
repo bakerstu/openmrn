@@ -166,8 +166,8 @@ void get_flash_page_info(
     const void *address, const void **page_start, uint32_t *page_length_bytes)
 {
     // Simulates a flat 1KB page structure.
-    uint32_t value = reinterpret_cast<uint32_t>(address);
-    value -= reinterpret_cast<uint32_t>(&virtual_flash[0]);
+    uintptr_t value = reinterpret_cast<uintptr_t>(address);
+    value -= reinterpret_cast<uintptr_t>(&virtual_flash[0]);
     value &= ~1023;
     *page_start = &virtual_flash[value];
     *page_length_bytes = 1024;
@@ -222,7 +222,7 @@ extern uint64_t nmranet_nodeid()
 void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
 {
     string data_copy(reinterpret_cast<const char *>(data), size);
-    hash<string> obj;
+    std::hash<string> obj;
     checksum[0] = obj("sd1" + data_copy);
     checksum[1] = obj("xar" + data_copy);
     checksum[2] = obj("o33" + data_copy);

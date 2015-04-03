@@ -26,7 +26,8 @@
  *
  * \file main.cxx
  *
- * A simple application to demonstrate a train node.
+ * A simple application to demonstrate a traction proxy node (aka command
+ * station).
  *
  * @author Balazs Racz
  * @date 1 Feb 2015
@@ -46,6 +47,7 @@
 #include "nmranet/IfCan.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/TractionProxy.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionTrain.hxx"
@@ -85,12 +87,12 @@ using nmranet::WriteHelper;
 
 namespace nmranet
 {
-const uint8_t SNIP_MODEL[] = "Virtual command station";
-const uint8_t SNIP_HW_VERSION[] = "No hardware here";
-const uint8_t SNIP_SW_VERSION[] = "0.92";
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "OpenMRN", "Virtual command station", "No hardware here", "0.92"};
 
-const uint8_t SNIP_USER_NODE_NAME[] = "User name";
-const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "User description";
+MockSNIPUserFile snip_user_file("User name (CS)", "User description (CS)");
+
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
 }
 
 int port = 12021;

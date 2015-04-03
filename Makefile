@@ -24,3 +24,11 @@ cov:
 
 tests:
 	$(MAKE) -C targets/cov tests
+
+llvm-tests:
+	$(MAKE) -C targets/linux.llvm run-tests
+
+js-tests:
+	$(MAKE) -C targets/js.emscripten run-tests
+
+alltests: tests llvm-tests

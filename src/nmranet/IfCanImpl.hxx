@@ -126,7 +126,7 @@ private:
             new_alias->data()->reset();
             if_can()->alias_allocator()->send(new_alias);
         }
-        LOG(INFO, "Allocating new alias %03X for node %012llx", alias,
+        LOG(INFO, "Allocating new alias %03X for node %012" PRIx64, alias,
             nmsg()->src.id);
 
         // Checks that there was no conflict on this alias.
@@ -247,8 +247,7 @@ private:
 /* The addressed write flow is responsible for sending addressed messages to
  * the CANbus. It uses some shared states from the generic CAN write flow base
  * class, and extends it with destination alias lookup states.  */
-class AddressedCanMessageWriteFlow : public CanMessageWriteFlow,
-                                     private IncomingFrameHandler
+class AddressedCanMessageWriteFlow : public CanMessageWriteFlow
 {
 public:
     AddressedCanMessageWriteFlow(IfCan *if_can)
@@ -286,7 +285,8 @@ protected:
             if (dstAlias_ == NOT_RESPONDING)
             {
                 LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
-                    "address %012llx to an alias on the bus. Dropping packet.",
+                          "address %012" PRIx64
+                          " to an alias on the bus. Dropping packet.",
                     nmsg()->dst.id);
                 return call_immediately(STATE(send_finished));
             }
@@ -296,7 +296,7 @@ protected:
             /** @TODO(balazs.racz) what should we do here? The caller said
              * something different than the cache. */
             LOG(INFO, "AddressedWriteFlow: Caller supplied outdated alias. "
-                      "Node id %012llx, Result from cache %03x, "
+                      "Node id %012" PRIx64 ", Result from cache %03x, "
                       "alias from caller %03x.",
                 dst_.id, dstAlias_, dst_.alias);
         }
@@ -316,7 +316,7 @@ protected:
 
     Action find_remote_alias()
     {
-        RegisterLocalHandler();
+        aliasListener_.RegisterLocalHandler();
         srcAlias_ =
             if_can()->local_aliases()->lookup(nmsg()->src.id);
         if (srcAlias_)
@@ -374,9 +374,9 @@ protected:
             return call_immediately(STATE(remote_alias_found));
         }
         LOG(INFO, "AddressedWriteFlow: Could not resolve destination "
-                  "address %012llx to an alias on the bus. Dropping packet.",
+                  "address %012" PRIx64 " to an alias on the bus. Dropping packet.",
             nmsg()->dst.id);
-        UnregisterLocalHandler();
+        aliasListener_.UnregisterLocalHandler();
         if_can()->remote_aliases()->add(nmsg()->dst.id, NOT_RESPONDING);
         return call_immediately(STATE(timeout_looking_for_dst));
     }
@@ -392,77 +392,92 @@ protected:
         return call_immediately(STATE(find_local_alias));
     }
 
-    enum
+    /** This helper class listend for incoming CAN frames looking for alias
+     * mapping definitions. */
+    class AliasDefListener : public IncomingFrameHandler
     {
-        // AMD frames
-        CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
-        CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
-        // Initialization complete
-        CAN_FILTER2 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19100000,
-        CAN_MASK2 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
-        // Verified node ID number
-        CAN_FILTER3 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19170000,
-        CAN_MASK3 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
-    };
+    public:
+        AliasDefListener(AddressedCanMessageWriteFlow* parent)
+            : parent_(parent) {}
 
-    // Registers *this to the ifcan to receive alias resolution messages.
-    void RegisterLocalHandler()
-    {
-        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER1,
-                                                       CAN_MASK1);
-        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER2,
-                                                       CAN_MASK2);
-        if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER3,
-                                                       CAN_MASK3);
-    }
+        enum
+        {
+            // AMD frames
+            CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
+            CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+            // Initialization complete
+            CAN_FILTER2 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19100000,
+            CAN_MASK2 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+            // Verified node ID number
+            CAN_FILTER3 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19170000,
+            CAN_MASK3 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        };
 
-    // Unregisters *this from the ifcan to not receive alias resolution
-    // messages.
-    void UnregisterLocalHandler()
-    {
-        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER1,
-                                                         CAN_MASK1);
-        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER2,
-                                                         CAN_MASK2);
-        if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER3,
-                                                         CAN_MASK3);
-    }
+        IfCan* if_can() { return parent_->if_can(); }
 
-    /// Handler callback for incoming messages.
-    virtual void send(Buffer<CanMessageData> *message, unsigned priority)
-    {
-        struct can_frame *f = message->data();
-        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        if (f->can_dlc != 6)
+        // Registers *this to the ifcan to receive alias resolution messages.
+        void RegisterLocalHandler()
         {
-            // Not sending a node ID.
-            message->unref();
-            return;
+            if_can()->frame_dispatcher()->register_handler(
+                this, CAN_FILTER1, CAN_MASK1);
+            if_can()->frame_dispatcher()->register_handler(
+                this, CAN_FILTER2, CAN_MASK2);
+            if_can()->frame_dispatcher()->register_handler(
+                this, CAN_FILTER3, CAN_MASK3);
         }
-        uint64_t nodeid_be = htobe64(this->nmsg()->dst.id);
-        uint8_t *nodeid_start = reinterpret_cast<uint8_t *>(&nodeid_be) + 2;
-        if (memcmp(nodeid_start, f->data, 6))
+
+        // Unregisters *this from the ifcan to not receive alias resolution
+        // messages.
+        void UnregisterLocalHandler()
         {
-            // Node id does not match.
-            message->unref();
-            return;
+            if_can()->frame_dispatcher()->unregister_handler(
+                this, CAN_FILTER1, CAN_MASK1);
+            if_can()->frame_dispatcher()->unregister_handler(
+                this, CAN_FILTER2, CAN_MASK2);
+            if_can()->frame_dispatcher()->unregister_handler(
+                this, CAN_FILTER3, CAN_MASK3);
         }
-        // Now: we have an alias.
-        dstAlias_ = id & CanDefs::SRC_MASK;
-        if (!dstAlias_)
+
+        /// Handler callback for incoming messages.
+        void send(Buffer<CanMessageData> *message, unsigned priority) OVERRIDE
         {
-            LOG(ERROR, "Incoming alias definition message with zero alias. "
-                       "CAN frame id %08x",
-                (unsigned)id);
+            struct can_frame *f = message->data();
+            uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
+            if (f->can_dlc != 6)
+            {
+                // Not sending a node ID.
+                message->unref();
+                return;
+            }
+            uint64_t nodeid_be = htobe64(parent_->nmsg()->dst.id);
+            uint8_t *nodeid_start = reinterpret_cast<uint8_t *>(&nodeid_be) + 2;
+            if (memcmp(nodeid_start, f->data, 6))
+            {
+                // Node id does not match.
+                message->unref();
+                return;
+            }
+            // Now: we have an alias.
+            parent_->dstAlias_ = id & CanDefs::SRC_MASK;
+            if (!parent_->dstAlias_)
+            {
+                LOG(ERROR, "Incoming alias definition message with zero alias. "
+                           "CAN frame id %08x",
+                    (unsigned)id);
+                message->unref();
+                return;
+            }
+            UnregisterLocalHandler();
+            if_can()->remote_aliases()->add(parent_->nmsg()->dst.id, parent_->dstAlias_);
+            parent_->timer_.trigger();
             message->unref();
-            return;
         }
-        UnregisterLocalHandler();
-        if_can()->remote_aliases()->add(this->nmsg()->dst.id,
-                                        dstAlias_);
-        timer_.trigger();
-        message->unref();
-    }
+
+    private:
+        AddressedCanMessageWriteFlow* parent_;
+    } aliasListener_{this};
+
+    friend class AliasDefListener;
 
     StateFlowTimer timer_;
 };

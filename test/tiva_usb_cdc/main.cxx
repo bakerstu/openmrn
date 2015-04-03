@@ -57,8 +57,10 @@ int appl_main(int argc, char *argv[])
                 bytes_read -= bytes_written;
             } while (bytes_read);
         }
-        if (i % 64)
-            usleep(2000);
+        if ((i % 64) == 0)
+        {
+            usleep(10000);
+        }
     }
 
     return 0;

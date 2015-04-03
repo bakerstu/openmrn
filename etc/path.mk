@@ -143,10 +143,10 @@ endif
 ################### ARM-GCC #####################
 ifndef ARMGCCPATH
 SEARCHPATH := \
+  /opt/armgcc/default \
   /opt/lpcxpresso/default/lpcxpresso/tools \
   /usr/local/lpcxpresso_*/lpcxpresso/tools \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI \
-  /opt/armgcc/default \
 
 TRYPATH:=$(call findfirst,bin/arm-none-eabi-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -269,4 +269,33 @@ ifneq ($(TRYPATH),)
 OPENOCDSCRIPTSPATH:=$(TRYPATH)
 endif
 endif #OPENOCDSCRIPTSPATH
+
+##################### EMSDK ######################
+ifndef EMSDKPATH
+SEARCHPATH := \
+  /opt/emscripten/default/emscripten/master \
+  /opt/emscripten/emsdk_portable/emscripten/master \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,emcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMSDKPATH:=$(TRYPATH)
+endif
+endif #EMSDKPATH
+
+##################### EMLLVM ######################
+ifndef EMLLVMPATH
+SEARCHPATH := \
+  /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
+  /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,llvm-ar,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMLLVMPATH:=$(TRYPATH)
+endif
+endif #EMLLVMPATH
+
 

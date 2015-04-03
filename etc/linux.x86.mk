@@ -1,7 +1,11 @@
-TOOLPATH ?= $(shell \
+ifndef TOOLPATH
+TOOLPATH := $(shell \
 sh -c "if [ -d /usr/include/linux ]; then echo /usr/bin; \
       else echo; fi" \
 )
+endif
+
+$(info mach toolpath '$(TOOLPATH)')
 
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
@@ -12,6 +16,8 @@ AR = ar
 LD = g++
 OBJDUMP = objdump
 
+AROPTS=D
+
 HOST_TARGET := 1
 
 STARTGROUP := -Wl,--start-group
@@ -19,7 +25,7 @@ ENDGROUP := -Wl,--end-group
 
 ARCHOPTIMIZATION = -g -O0 -m32
 
-CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP -m32 -fno-stack-protector -D_GNU_SOURCE
+CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -m32 -fno-stack-protector -D_GNU_SOURCE
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 

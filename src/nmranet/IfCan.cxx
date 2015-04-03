@@ -251,6 +251,59 @@ public:
     }
 };
 
+/** This class listens for alias mapping enquiry frames targeted for local
+ * nodes, and replies with AMD frames. */
+class AMEQueryHandler : public CanFrameStateFlow
+{
+public:
+    enum
+    {
+        CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
+            (CanDefs::CONTROL_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::AME_FRAME << CanDefs::CONTROL_FIELD_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CONTROL_FIELD_MASK,
+    };
+
+    AMEQueryHandler(IfCan *service)
+        : CanFrameStateFlow(service)
+    {
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    ~AMEQueryHandler()
+    {
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    Action entry() OVERRIDE
+    {
+        struct can_frame *f = message()->data();
+        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
+        if (CanDefs::get_frame_type(id) != CanDefs::CONTROL_MSG) {
+            return release_and_exit();}
+        if (CanDefs::get_control_field(id) != CanDefs::AME_FRAME) {
+            return release_and_exit();}
+        NodeID node_id = 0;
+        if (f->can_dlc == 6)
+        {
+            node_id = data_to_node_id(f->data);
+        }
+        NodeAlias local_alias = if_can()->local_aliases()->lookup(node_id);
+        if (!node_id || !local_alias)
+        {
+            return release_and_exit();
+        }
+        auto* b = reinterpret_cast<Buffer<CanHubData>*>(transfer_message());
+        id = CanDefs::set_control_fields(local_alias, CanDefs::AMD_FRAME, 0);
+        SET_CAN_FRAME_ID_EFF(*b->data()->mutable_frame(), id);
+        if_can()->frame_write_flow()->send(b);
+        return exit();
+    }
+};
+
 /** This class listens for incoming CAN frames of regular unaddressed global
  * OpenLCB messages, then translates it in a generic way into a message,
  * computing its MTI. The resulting message is then passed to the generic If
@@ -491,6 +544,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new FrameToGlobalMessageParser(this));
     add_owned_flow(new VerifyNodeIdHandler(this));
     add_owned_flow(new RemoteAliasCacheUpdater(this));
+    add_owned_flow(new AMEQueryHandler(this));
     add_addressed_message_support();
     /*pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)

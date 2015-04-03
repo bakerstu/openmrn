@@ -18,6 +18,17 @@ protected:
         }
         return t;
     }
+
+#ifdef __EMSCRIPTEN__
+    void usleep(unsigned long usecs) {
+        long long deadline = usecs;
+        deadline *= 1000;
+        deadline += os_get_time_monotonic();
+        while (os_get_time_monotonic() < deadline) {
+            os_emscripten_yield();
+        }
+    }
+#endif
 };
 
 class CountingTimer : public Timer
@@ -154,6 +165,9 @@ TEST_F(TimerTest, TwoTimers)
     EXPECT_EQ(2, t2.count());
 }
 
+#ifndef __EMSCRIPTEN__
+/** @TODO (Balazs.Racz): the block executor does not work well in this use
+    case. */
 TEST_F(TimerTest, ExpireTogether)
 {
     // In this test we create two timers that will expire roughly at the same
@@ -190,6 +204,7 @@ TEST_F(TimerTest, ExpireTogether)
     EXPECT_EQ(1, t2.count());
     EXPECT_EQ(1, t3.count());
 }
+#endif
 
 TEST_F(TimerTest, Wakeup)
 {
@@ -232,6 +247,7 @@ TEST_F(TimerTest, Restart)
     EXPECT_FALSE(t1.is_active());
 }
 
+#ifndef __EMSCRIPTEN__
 TEST_F(TimerTest, NoRestartSkew)
 {
     RestartingTimer t1(g_executor.active_timers());
@@ -261,6 +277,7 @@ TEST_F(TimerTest, NoRestartSkew)
     wait_for_main_executor();
     EXPECT_FALSE(t1.is_active());
 }
+#endif
 
 TEST(SyncTimerTest, RunOne)
 {

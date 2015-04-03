@@ -57,7 +57,7 @@ class RefreshLoop : public StateFlowBase
 public:
     RefreshLoop(Node *node, const std::initializer_list<Polling *> &members)
         : StateFlowBase(node->interface())
-        , node_(node)
+//        , node_(node)
         , timer_(this)
         , lastTimeout_(os_get_time_monotonic())
         , members_(members)
@@ -94,7 +94,7 @@ public:
     }
 
 private:
-    Node *node_;
+//    Node *node_;
     WriteHelper helper_;
     StateFlowTimer timer_;
     long long lastTimeout_;

@@ -40,7 +40,7 @@
 
 namespace dcc {
 
-class Packet;
+struct Packet;
 typedef nmranet::SpeedType SpeedType;
 
 class PacketSource : public nmranet::TrainImpl {

@@ -35,6 +35,7 @@
 #include "gtest/gtest.h"
 #include "os/OS.hxx"
 
+#ifndef __EMSCRIPTEN__
 /* this is a parlor trick to get at what is otherwise private in OSThread */
 pthread_t threadHandle;
 
@@ -53,18 +54,20 @@ void *test_thread(void *arg)
 
 TEST(OSThreadTest, constructor)
 {
-    int value = 0;
-    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    int* value = new int(0);
+    OSThread *thread =
+        new OSThread("test thread", 0, 1024, test_thread, value);
     EXPECT_TRUE(thread != NULL);
     sleep(1);
-    
-    EXPECT_EQ(value, 1);
+
+    EXPECT_EQ(1, *value);
 }
 
 TEST(OSThreadTest, destructor)
 {
-    int value = 0;
-    OSThread *thread = new OSThread("test thread", 0, 1024, test_thread, &value);
+    int* value = new int(0);
+    OSThread *thread =
+        new OSThread("test thread", 0, 1024, test_thread, value);
     EXPECT_TRUE(thread != NULL);
     sleep(1);
     delete thread;
@@ -72,8 +75,9 @@ TEST(OSThreadTest, destructor)
     void *result;
     pthread_join(threadHandle, &result); 
     EXPECT_EQ((void*)0xDEADBEEF, result);*/
-    EXPECT_NE(value, 0);
+    EXPECT_NE(0, *value);
 }
+#endif
 
 int count = 0;
 
@@ -94,6 +98,7 @@ TEST(OSThreadOnceTest, all)
     EXPECT_EQ(count, 1);
 }
 
+#ifndef __EMSCRIPTEN__
 void *args[2] = {NULL, NULL};
 
 long long timeout_none(void *arg1, void *arg2)
@@ -170,9 +175,9 @@ TEST(OSTimerTest, delete)
     timer->start(700000000);
     sleep(2);
 
-    EXPECT_TRUE((timestamp - start) > 690000000);
-    EXPECT_TRUE((timestamp - start) < 710000000);
-    EXPECT_EQ(timer_count, 1);
+    EXPECT_LT(690000000, timestamp - start);
+    EXPECT_GT(710000000, timestamp - start);
+    EXPECT_EQ(1, timer_count);
 }
 
 long long timeout_value(void *arg1, void *arg2)
@@ -194,10 +199,11 @@ TEST(OSTimerTest, value)
     sleep(2);
     timer->stop();
 
-    EXPECT_TRUE((timestamp - start) > 1490000000);
-    EXPECT_TRUE((timestamp - start) < 1510000000);
-    EXPECT_EQ(timer_count, 2);
+    EXPECT_LT(1490000000, timestamp - start);
+    EXPECT_GT(1510000000, timestamp - start);
+    EXPECT_EQ(2, timer_count);
 }
+#endif
 
 TEST(OSSemTest, zero)
 {
@@ -227,6 +233,9 @@ TEST(OSSemTest, one)
     EXPECT_TRUE((stop - start) < 1010000000);
     delete sem;
 }
+
+#ifndef __EMSCRIPTEN__
+///@TODO (balazs.racz) rewrite this test using the main executor
 
 int mutex_test;
 
@@ -314,16 +323,17 @@ TEST(OSMutexLockTest, c)
     {
         OSMutexLock locker(&mutex);
         mutex_test = 0;
-        thread = new OSThread("test", 0, 1024, mutex_thread, &mutex); 
+        thread = new OSThread("test", 0, 1024, mutex_thread, &mutex);
         sleep(1);
         EXPECT_EQ(mutex_test, 0);
     }
     sleep(1);
-    EXPECT_EQ(mutex_test, 1);   
-    
+    EXPECT_EQ(mutex_test, 1);
+
     delete thread;
     os_mutex_destroy(&mutex);
 }
+#endif  // emscripten
 
 TEST(OSTimeTest, all)
 {
@@ -335,9 +345,12 @@ TEST(OSTimeTest, all)
     EXPECT_TRUE((stop - start) < 1010000000);
 }
 
+#ifdef __EMSCRIPTEN__
+#include "utils/test_main.hxx"
+#else
 int appl_main(int argc, char* argv[])
 {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-
+#endif

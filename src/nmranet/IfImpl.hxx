@@ -236,7 +236,7 @@ public:
         // This is called on the main executor of the interface, this we are
         // allowed to access the local nodes cache.
         NodeID id = srcNode_->node_id();
-        LOG(VERBOSE, "Sending verified reply from node %012llx", id);
+        LOG(VERBOSE, "Sending verified reply from node %012" PRIx64, id);
         m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
         interface()->global_message_write_flow()->send(b);
 

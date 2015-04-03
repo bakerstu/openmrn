@@ -24,8 +24,11 @@ CXXSRCS += \
            DatagramCan.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
+           SimpleNodeInfoMockUserFile.cxx \
+           SimpleStack.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
+           nmranet_constants.cxx \
 
 
 DEAD_CXX +=  \

@@ -75,4 +75,35 @@ DECLARE_CONST(serial_tx_buffer_size);
 /** Number of bytes to queue in the serial driver for receive. */
 DECLARE_CONST(serial_rx_buffer_size);
 
+/** Number of entries in the remote alias cache */
+DECLARE_CONST(remote_alias_cache_size);
+
+/** Number of entries in the local alias cache */
+DECLARE_CONST(local_alias_cache_size);
+
+/** Maximum number of local nodes */
+DECLARE_CONST(local_nodes_count);
+
+/** Number of datagram registry entries. This is how many datagram handlers can
+ * be registered (e.g. memory config protocol is one). */
+DECLARE_CONST(num_datagram_registry_entries);
+
+/** Number of datagram clients. This is how many datagram send operations can
+ * happen concurrently. */
+DECLARE_CONST(num_datagram_clients);
+
+/** Maximum number of memory spaces that can be registered for the MemoryConfig
+ * datagram handler. */
+DECLARE_CONST(num_memory_spaces);
+
+/** Set to CONSTANT_TRUE if you want to export an "all memory" memory space
+ * from the SimpleStack. */
+DECLARE_CONST(enable_all_memory_space);
+
+/** Set to CONSTANT_TRUE if you want the nodes to send out producer / consumer
+ * identified messages at boot time. This is required by the OpenLCB
+ * standard. */
+DECLARE_CONST(node_init_identify);
+
+
 #endif /* _nmranet_config_h_ */

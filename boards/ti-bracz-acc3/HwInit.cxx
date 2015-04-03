@@ -66,10 +66,12 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+#ifdef HAVE_RAILCOM
 TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
 
 /** The input pin for detecting the DCC signal. */
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
+#endif
 
 extern "C" {
 
@@ -124,6 +126,7 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+#ifdef HAVE_RAILCOM
 void wide_timer4a_interrupt_handler(void)
 {
   nrz0.interrupt_handler();
@@ -138,6 +141,7 @@ void uart2_interrupt_handler(void)
 {
   railcom_driver.os_interrupt_handler();
 }
+#endif
 
 void diewith(uint32_t pattern)
 {
@@ -149,54 +153,20 @@ void diewith(uint32_t pattern)
         ;
 }
 
-/** Configures a gpio pin for active-high output interfacing with the railroad
- * (such as solenoids or relays). This output type is normally low and it is
- * important not to keep it high or floating for too long even during boot. */
-void set_gpio_output(uint32_t port, uint32_t pin) {
-    MAP_GPIOPinWrite(port, pin, 0);
-    MAP_GPIOPinTypeGPIOOutput(port, pin); 
-    MAP_GPIOPinWrite(port, pin, 0);
-}
-
-/** Configures a gpio pin for input with external pullup. */
-void set_gpio_extinput(uint32_t port, uint32_t pin) {
-    MAP_GPIOPinWrite(port, pin, 0);
-    MAP_GPIOPinTypeGPIOInput(port, pin); 
-    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD); 
-}
-
-/** Configures a gpio pin for a button/switch (input with pullup). */
-void set_gpio_switch(uint32_t port, uint32_t pin) {
-    MAP_GPIOPinWrite(port, pin, 0);
-    MAP_GPIOPinTypeGPIOInput(port, pin); 
-    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU); 
-}
-
-/** Configures a GPIO pin to directly drive a LED (with 8mA output drive). */
-void set_gpio_led(uint32_t port, uint32_t pin) {
-    MAP_GPIOPinWrite(port, pin, 0xff);
-    MAP_GPIOPinTypeGPIOOutput(port, pin); 
-    MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD); 
-    MAP_GPIOPinWrite(port, pin, 0xff);
-}
-
 void hw_set_to_safe(void) {
-  
-    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_4); // Rel0
-    set_gpio_output(GPIO_PORTC_BASE, GPIO_PIN_5); // Rel1
-    set_gpio_output(GPIO_PORTG_BASE, GPIO_PIN_5); // Rel2
-    set_gpio_output(GPIO_PORTF_BASE, GPIO_PIN_3); // Rel3
+    OUT0_Pin::hw_set_to_safe();
+    OUT1_Pin::hw_set_to_safe();
+    OUT2_Pin::hw_set_to_safe();
+    OUT3_Pin::hw_set_to_safe();
+    OUT4_Pin::hw_set_to_safe();
+    OUT5_Pin::hw_set_to_safe();
+    OUT6_Pin::hw_set_to_safe();
+    OUT7_Pin::hw_set_to_safe();
 
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_4); // Out0
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_5); // Out1
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_0); // Out2
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_1); // Out3
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_2); // Out4
-    set_gpio_output(GPIO_PORTD_BASE, GPIO_PIN_3); // Out5
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_2); // Out6
-    set_gpio_output(GPIO_PORTE_BASE, GPIO_PIN_3); // Out7
-
-
+    REL0_Pin::hw_set_to_safe();
+    REL1_Pin::hw_set_to_safe();
+    REL2_Pin::hw_set_to_safe();
+    REL3_Pin::hw_set_to_safe();
 }
 
 /** Initialize the processor hardware.
@@ -227,20 +197,26 @@ void hw_preinit(void)
     LED_BLUE_SW_Pin::hw_init();
     LED_GOLD_SW_Pin::hw_init();
 
-    set_gpio_extinput(GPIO_PORTA_BASE, 0xff);  // In0..7 -- all bits.
-    set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_6);  // Blue button
-    set_gpio_switch(GPIO_PORTC_BASE, GPIO_PIN_7);  // Gold button
+    IN0_Pin::hw_init();
+    IN1_Pin::hw_init();
+    IN2_Pin::hw_init();
+    IN3_Pin::hw_init();
+    IN4_Pin::hw_init();
+    IN5_Pin::hw_init();
+    IN6_Pin::hw_init();
+    IN7_Pin::hw_init();
 
+    BUT_BLUE_Pin::hw_init();
+    BUT_GOLD_Pin::hw_init();
+
+#ifdef HAVE_RAILCOM
     // Railcom pins
-    set_gpio_extinput(GPIO_PORTF_BASE, GPIO_PIN_0);  // Shadow of rcom4
+    RC4_SHADOW_Pin::hw_init();
+#endif
 
     /* Setup the system clock. */
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                        SYSCTL_XTAL_20MHZ);
-
-    /*MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);*/
 
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);

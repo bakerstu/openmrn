@@ -10,9 +10,9 @@ from tkFileDialog import *
 import Image
 from functools import partial
 
-FreertosArmv7mList = [['ek-lm4f120xl-launchpad (legacy)', None, None, None],
-                      ['ek-tm4c123gxl-launchpad', None, None, None],
-                      ['ek-tm4c1294xl-launchpad', None, None, None],
+FreertosArmv7mList = [['ek-lm4f120xl-launchpad (legacy)', None, None, 'images/ek-tm4c123gxl.gif'],
+                      ['ek-tm4c123gxl-launchpad', None, None, 'images/ek-tm4c123gxl.gif'],
+                      ['ek-tm4c1294xl-launchpad', None, None, 'images/ek-tm4c1294xl.gif'],
                       ['ti-tm4c123-generic', None, None, None],
                       ['ti-tm4c129-generic', None, None, None],
                       ['Custom', None, None, None]]
@@ -261,6 +261,8 @@ class App:
                                   variable=item[1], state=DISABLED)
             item[2].grid(row=row, column=0, sticky=W, padx=25)
             row += 1
+            if item[3] != None:
+                createToolImage(item[2], item[3])
 
     def target_select(self, target, target_list):
         if target_list == None:

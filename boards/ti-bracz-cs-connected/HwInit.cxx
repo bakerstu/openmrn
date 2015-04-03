@@ -119,6 +119,7 @@ void uart2_interrupt_handler(void)
 void hw_set_to_safe(void)
 {
     dcc_hw.disable_output();
+    AccHwDefs::ACC_ENABLE_Pin::hw_set_to_safe();
 }
 
 /** Blink LED */
@@ -244,8 +245,8 @@ void hw_preinit(void)
     dcc_hw.hw_init();
     disable_dcc();
 
-    // A4 controls the accessory bus, active high.
-    set_gpio_drive_low(GPIO_PORTA_BASE, GPIO_PIN_4);
+    // controls the accessory bus.
+    AccHwDefs::ACC_ENABLE_Pin::hw_set_to_safe();
 
     /* Setup the system clock. */
     MAP_SysCtlClockFreqSet(SYSCTL_XTAL_25MHZ | SYSCTL_USE_PLL |

@@ -40,6 +40,8 @@
 namespace dcc
 {
 
+extern void createtrains();
+
 template <> DccTrain<Dcc28Payload>::~DccTrain()
 {
     packet_processor_remove_refresh_source(this);
@@ -144,7 +146,7 @@ void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
                 // packet->packet_header.rept_count = 2;
                 this->p.directionChanged_ = 0;
             }
-            //packet->packet_header.rept_count = 1;
+            // packet->packet_header.rept_count = 1;
             this->p.add_dcc_speed_to_packet(packet);
             return;
         }
@@ -252,6 +254,13 @@ void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
         //packet->mm_shift();
         //packet->add_mm_new_speed(!p.direction_, p.speed_);
     }
+}
+
+void createtrains() {
+    Dcc28Train train1(DccShortAddress(1));
+    Dcc128Train train2(DccShortAddress(1));
+    MMNewTrain train3(MMAddress(1));
+    MMOldTrain train4(MMAddress(1));
 }
 
 } // namespace dcc

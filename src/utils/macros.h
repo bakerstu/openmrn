@@ -36,10 +36,25 @@
 #define _UTILS_MACROS_H_
 
 #ifdef __cplusplus
-using namespace std;
+#include <vector>
+#include <map>
+#include <string>
+#include <utility>
+
+using std::vector;
+using std::map;
+using std::string;
+using std::pair;
 #endif
 
 #include <stdlib.h>   // for abort
+
+#if defined(__EMSCRIPTEN__) 
+#if defined(EXPECT_DEATH)
+#undef EXPECT_DEATH
+#endif
+#define EXPECT_DEATH(x...) 
+#endif
 
 #ifdef __FreeRTOS__
 

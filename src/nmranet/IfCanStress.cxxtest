@@ -10,10 +10,17 @@
 namespace nmranet
 {
 
+#ifdef __EMSCRIPTEN__
+Executor<1> &g1_executor(g_executor);
+Executor<1> &g2_executor(g_executor);
+Executor<1> &g3_executor(g_executor);
+Executor<1> &g4_executor(g_executor);
+#else
 Executor<1> g1_executor("g1_exec", 0, 2000);
 Executor<1> g2_executor("g2_exec", 0, 2000);
 Executor<1> g3_executor("g3_exec", 0, 2000);
 Executor<1> g4_executor("g4_exec", 0, 2000);
+#endif
 
 Executor<1>* round_execs[] = {&g1_executor, &g2_executor,
                               &g3_executor, &g4_executor};
@@ -139,8 +146,10 @@ public:
     void print_stats()
     {
         OSMutexLock h(&lock_);
-        LOG(INFO, "%d aliases (%u/%u cnf), %d frame: %d CID, %d RID, "
-                  "%d AMD, %d event.",
+        LOG(INFO,
+            "%" PRIuPTR " aliases (%" PRIuPTR "/%" PRIuPTR " cnf), %" PRIuPTR
+            " frame: %" PRIuPTR " CID, %" PRIuPTR " RID, "
+            "%" PRIuPTR " AMD, %" PRIuPTR " event.",
             seenAliases_.size(), g_alias_test_conflicts, g_alias_use_conflicts,
             numFrames_, cidFrames_, ridFrames_, amdFrames_, eventFrames_);
     }
