@@ -56,7 +56,6 @@
 
 extern "C" {
 
-
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
                           const struct app_header **app_header)
 {
@@ -110,7 +109,10 @@ bool read_can_frame(struct can_frame *frame)
 
     /* Read a message from CAN and clear the interrupt source */
     MAP_CANMessageGet(CAN0_BASE, 1, &can_message, 1 /* clear interrupt */);
-
+    if (can_message.ui32Flags & MSG_OBJ_DATA_LOST)
+    {
+        bootloader_led(LED_FRAME_LOST, 1);
+    }
     frame->can_id = can_message.ui32MsgID;
     frame->can_rtr = (can_message.ui32Flags & MSG_OBJ_REMOTE_FRAME) ? 1 : 0;
     frame->can_eff = (can_message.ui32Flags & MSG_OBJ_EXTENDED_ID) ? 1 : 0;
