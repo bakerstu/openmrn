@@ -600,6 +600,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
+#ifndef __EMSCRIPTEN__
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -687,7 +688,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     }
 
     return 0;
-#else
+#else // not freertos
     pthread_attr_t attr;
 
     int result = pthread_attr_init(&attr);
@@ -727,16 +728,17 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         return result;
     }
-#endif
+#endif // not linux and not mac
     result = pthread_create(thread, &attr, start_routine, arg);
 
-#if !defined (__MINGW32__)
+#if !defined (__MINGW32__) && !defined (__MACH__)
     if (!result) pthread_setname_np(*thread, name);
 #endif
 
     return result;
-#endif
+#endif // freertos or not
 }
+#endif // __EMSCRIPTEN__
 
 long long os_get_time_monotonic(void)
 {
@@ -785,6 +787,23 @@ long long os_get_time_monotonic(void)
 
     return last;
 }
+
+#if defined(__EMSCRIPTEN__)
+int os_thread_once(os_thread_once_t *once, void (*routine)(void))
+{
+    if (once->state == OS_THREAD_ONCE_NEVER)
+    {
+        once->state = OS_THREAD_ONCE_INPROGRESS;
+        routine();
+        once->state = OS_THREAD_ONCE_DONE;
+    }
+    else if (once->state == OS_THREAD_ONCE_INPROGRESS)
+    {
+        DIE("Recursive call to os_thread_once.");
+    }
+    return 0;
+}
+#endif
 
 #if defined (__FreeRTOS__)
 /* standard C library hooks for multi-threading */

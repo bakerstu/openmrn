@@ -11,6 +11,7 @@
 #include "nmranet/IfCan.hxx"
 #include "nmranet/EventService.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"
@@ -43,6 +44,8 @@ GCAdapterBase *g_gc_adapter = nullptr;
 HubFlow gc_hub1(&g_service);
 CanHubFlow can_hub1(&g_service);
 GCAdapterBase *g_gc_adapter1 = nullptr;
+
+nmranet::InitializeFlow g_init_flow(&g_service);
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
@@ -109,6 +112,17 @@ protected:
     {
         wait_for_main_executor();
     }
+
+#ifdef __EMSCRIPTEN__
+    void usleep(unsigned long usecs) {
+        long long deadline = usecs;
+        deadline *= 1000;
+        deadline += os_get_time_monotonic();
+        while (os_get_time_monotonic() < deadline) {
+            os_emscripten_yield();
+        }
+    }
+#endif
 
 /** Adds an expectation that the code will send a packet to the CANbus.
 
@@ -341,7 +355,11 @@ protected:
     {
         while (EventService::instance->event_processing_pending())
         {
+#ifdef __EMSCRIPTEN__
+            os_emscripten_yield();
+#else
             usleep(100);
+#endif
         }
         AsyncIfTest::wait();
     }

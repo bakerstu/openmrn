@@ -347,6 +347,19 @@ struct CanDefs {
 #endif
 
     /** Initialize a control frame CAN ID and set DLC to 0.
+     * @param src source node alias
+     * @param field control field data (e.g. AME_FRAME)
+     * @param sequence sequence number or zero if not CID frame
+     */
+    static uint32_t set_control_fields(
+        NodeAlias src, uint16_t field, int sequence)
+    {
+        return (src << CONTROL_SRC_SHIFT) | (field << CONTROL_FIELD_SHIFT) |
+            (sequence << CONTROL_SEQUENCE_SHIFT) | ((0) << CONTROL_TYPE_SHIFT) |
+            ((1) << CONTROL_PRIORITY_SHIFT);
+    }
+
+    /** Initialize a control frame CAN ID and set DLC to 0.
      * @param _frame control frame to initialize
      * @param _source source data
      * @param _field field data
@@ -354,12 +367,7 @@ struct CanDefs {
      */
     static void control_init(struct can_frame &frame, NodeAlias src, uint16_t field, int sequence)
     {
-        SET_CAN_FRAME_ID_EFF(frame,
-                             (src      << CONTROL_SRC_SHIFT     ) |
-                             (field    << CONTROL_FIELD_SHIFT   ) |
-                             (sequence << CONTROL_SEQUENCE_SHIFT) |
-                             ((0)      << CONTROL_TYPE_SHIFT    ) |
-                             ((1)      << CONTROL_PRIORITY_SHIFT));
+        SET_CAN_FRAME_ID_EFF(frame, set_control_fields(src, field, sequence));
         frame.can_dlc = 0;
     }
 

@@ -22,6 +22,8 @@ SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
+AROPTS=D
+
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
@@ -50,7 +52,8 @@ ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-ide
 
 #           -march=armv7-m -mthumb -mfloat-abi=soft
 
-CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) -Wall -Werror -MD -MP \
+CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) \
+	     -Wall -Werror -Wno-unknown-pragmas -MD -MP \
              -fno-stack-protector -DTARGET_PIC32MX \
              -D_POSIX_C_SOURCE=200112 $(BASEDEFS) -D__LANGUAGE_C__ \
              -ffunction-sections -fdata-sections
@@ -64,9 +67,10 @@ CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
 CXXFLAGS = $(CORECFLAGS)  -std=c++0x  -D_ISOC99_SOURCE -fno-exceptions  \
            -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV) -U__STRICT_ANSI__ # -D__STDC_VERSION__=199902L
 
-LDFLAGS = -EL -g -T target.ld -Xlinker \
+LDFLAGS = -EL -g -T target.ld -fdata-sections -ffunction-sections  -Xlinker \
 	-Map="$(@:%.elf=%.map)"  \
 	-msoft-float -Wl,--defsym,__cs3_mips_float_type=2 \
+	-Wl,--gc-sections -Wl,--undefined=ignore_fn \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 ifdef TRACE_MALLOC

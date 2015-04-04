@@ -52,6 +52,17 @@ LPCOPENPATH_18XX_43XX:=$(TRYPATH)
 endif
 endif #LPCOPENPATH_18XX_43XX
 
+################ lpc_chip_17xx_40xx ##################
+ifndef LPCCHIPPATH_17XX_40XX
+SEARCHPATH := \
+  /opt/nxp/lpc_chip/lpc_chip_17xx_40xx 
+
+TRYPATH:=$(call findfirst,inc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+LPCCHIPPATH_17XX_40XX:=$(TRYPATH)
+endif
+endif #LPCCHIPPATH_17XX_40XX
+
 ################ nxpusblib ##################
 ifndef NXPUSBLIBPATH
 SEARCHPATH := \
@@ -143,10 +154,10 @@ endif
 ################### ARM-GCC #####################
 ifndef ARMGCCPATH
 SEARCHPATH := \
+  /opt/armgcc/default \
   /opt/lpcxpresso/default/lpcxpresso/tools \
   /usr/local/lpcxpresso_*/lpcxpresso/tools \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI \
-  /opt/armgcc/default \
 
 TRYPATH:=$(call findfirst,bin/arm-none-eabi-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -269,4 +280,33 @@ ifneq ($(TRYPATH),)
 OPENOCDSCRIPTSPATH:=$(TRYPATH)
 endif
 endif #OPENOCDSCRIPTSPATH
+
+##################### EMSDK ######################
+ifndef EMSDKPATH
+SEARCHPATH := \
+  /opt/emscripten/default/emscripten/master \
+  /opt/emscripten/emsdk_portable/emscripten/master \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,emcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMSDKPATH:=$(TRYPATH)
+endif
+endif #EMSDKPATH
+
+##################### EMLLVM ######################
+ifndef EMLLVMPATH
+SEARCHPATH := \
+  /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
+  /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,llvm-ar,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+EMLLVMPATH:=$(TRYPATH)
+endif
+endif #EMLLVMPATH
+
 

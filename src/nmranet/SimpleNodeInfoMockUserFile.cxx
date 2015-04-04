@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,63 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventBitProducer.hxx
- * A complete class that acts as a producer for a bit event from a polled input
- * with debouncing.
+ * \file SimpleNodeInfoMockUserFile.hxx
+ *
+ * Mock file implementation for the SNIP user-modifiable data. Use this in
+ * tests and when there is no storage available.
  *
  * @author Balazs Racz
- * @date 13 Jul 2014
+ * @date 22 Mar 2015
  */
 
-#ifndef _NMRANET_EVENTBITPRODUCER_HXX_
-#define _NMRANET_EVENTBITPRODUCER_HXX_
+#include "SimpleNodeInfoMockUserFile.hxx"
 
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/RefreshLoop.hxx"
-
-namespace nmranet {
-
-template <class Debouncer, class BaseBit>
-class PolledProducer : public BaseBit, public Polling
+#ifdef __FreeRTOS__
+nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
+                                            const char *user_description)
+    : snipData_{2}
+    , userFile_(MockSNIPUserFile::snip_user_file_path, &snipData_, false)
 {
-public:
-    template <typename... Fields>
-    PolledProducer(const typename Debouncer::Options &debounce_args,
-                   Fields... bit_args)
-        : BaseBit(bit_args...)
-        , debouncer_(debounce_args)
-        , producer_(this)
-    {
-        debouncer_.initialize(BaseBit::GetCurrentState());
-    }
+    strncpy(snipData_.user_name, user_name, sizeof(snipData_.user_name));
+    strncpy(snipData_.user_description, user_description,
+            sizeof(snipData_.user_description));
+}
 
-    bool GetCurrentState() OVERRIDE
-    {
-        return debouncer_.current_state();
-    }
+#else
+#include "os/TempFile.hxx"
 
-    void SetState(bool new_value) OVERRIDE
-    {
-        debouncer_.override(new_value);
-    }
+nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
+                                            const char *user_description)
+  : userFile_(*TempDir::instance(), "snip_user_file")
+{
+    init_snip_user_file(userFile_.fd(), user_name, user_description);
+    HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
+    strncpy(snip_user_file_path, userFile_.name().c_str(),
+            sizeof(snip_user_file_path));
+}
 
-    void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
-    {
-        if (debouncer_.update_state(BaseBit::GetCurrentState()))
-        {
-            producer_.SendEventReport(helper, done);
-        }
-        else
-        {
-            done->notify();
-        }
-    }
+char nmranet::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
 
-private:
-    Debouncer debouncer_;
-    BitEventPC producer_;
-};
+#endif
 
-} // namespace nmranet
-
-#endif // _NMRANET_EVENTBITPRODUCER_HXX_
+nmranet::MockSNIPUserFile::~MockSNIPUserFile()
+{
+}

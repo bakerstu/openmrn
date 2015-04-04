@@ -81,8 +81,9 @@ DatagramService::DatagramDispatcher::incoming_datagram_allocated()
     unsigned datagram_id = -1;
     if (d->payload.empty())
     {
-        LOG(WARNING, "Invalid arguments: incoming datagram from node %llx "
-                     "alias %x has no payload.",
+        LOG(WARNING,
+            "Invalid arguments: incoming datagram from node %012" PRIx64
+            " alias %x has no payload.",
             d->src.id, d->src.alias);
         resultCode_ = DatagramClient::PERMANENT_ERROR;
         return allocate_and_call(interface()->addressed_message_write_flow(),

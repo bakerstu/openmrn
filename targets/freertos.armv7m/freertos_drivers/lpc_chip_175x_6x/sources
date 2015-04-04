@@ -1,0 +1,42 @@
+include $(OPENMRNPATH)/etc/lpc_chip_17xx_40xx.mk
+VPATH = $(OPENMRNPATH)/src/freertos_drivers/nxp \
+        $(LPCCHIPPATH_17XX_40XX)/src
+
+CFLAGS += -DCHIP_LPC175X_6X
+          
+CXXFLAGS += -DCHIP_LPC175X_6X
+
+CSRCS += adc_17xx_40xx.c \
+         can_17xx_40xx.c \
+         chip_17xx_40xx.c \
+         clock_17xx_40xx.c \
+         cmp_17xx_40xx.c \
+         crc_17xx_40xx.c \
+         dac_17xx_40xx.c \
+         eeprom_17xx_40xx.c \
+         emc_17xx_40xx.c \
+         enet_17xx_40xx.c \
+         gpdma_17xx_40xx.c \
+         gpio_17xx_40xx.c \
+         gpioint_17xx_40xx.c \
+         i2c_17xx_40xx.c \
+         i2s_17xx_40xx.c \
+         iap.c \
+         iocon_17xx_40xx.c \
+         lcd_17xx_40xx.c \
+         pmu_17xx_40xx.c \
+         ring_buffer.c \
+         ritimer_17xx_40xx.c \
+         rtc_17xx_40xx.c \
+         sdc_17xx_40xx.c \
+         sdmmc_17xx_40xx.c \
+         spi_17xx_40xx.c \
+         ssp_17xx_40xx.c \
+         stopwatch_17xx_40xx.c \
+         sysctl_17xx_40xx.c \
+         sysinit_17xx_40xx.c \
+         timer_17xx_40xx.c \
+         uart_17xx_40xx.c \
+         wwdt_17xx_40xx.c
+
+CXXSRCS +=

@@ -144,6 +144,23 @@ template<class Defs>
 struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD> {};
 
 template<class Defs>
+struct GpioADCPin : public Defs {
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init() {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_HW);
+        MAP_GPIOPadConfigSet(
+            GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_ANALOG);
+    }
+    static void hw_set_to_safe() {
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+        hw_init();
+    }
+};
+
+template<class Defs>
 struct GpioHwPin : public Defs {
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
@@ -207,5 +224,8 @@ struct GpioHwPin : public Defs {
         static const bool GPIO_INVERTED = false;                               \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
+
+
+
 
 #endif //_FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_

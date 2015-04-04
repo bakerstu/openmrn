@@ -57,6 +57,9 @@ struct Debug {
   typedef DummyPin RailcomError;
   // Flips every time an 'E0' byte is received in the railcom driver.
   typedef DummyPin RailcomE0;
+  typedef DummyPin RailcomDataReceived;
+  typedef DummyPin RailcomAnyData;
+  typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
 

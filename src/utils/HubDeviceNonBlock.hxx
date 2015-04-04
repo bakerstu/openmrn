@@ -47,7 +47,7 @@
 
 extern int ioctl(int fd, unsigned long int key, ...);
 
-template <class HFlow> class HubDeviceNonBlock : private Atomic, public Service
+template <class HFlow> class HubDeviceNonBlock : public Destructable, private Atomic, public Service
 {
 public:
     HubDeviceNonBlock(HFlow *hub, const char *path)

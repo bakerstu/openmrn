@@ -88,8 +88,9 @@ protected:
     void expect_other_node_lookup()
     {
         expect_packet(":X1070222AN02010D000103;"); // looking for DST node
-        expect_packet(":X1949022AN02010D000103;"); // hard-looking for DST node
-        expect_packet(":X19170225N02010D000103;"); // node ID verified
+        expect_packet(":X10701225N02010D000103;"); // found dst node
+        // expect_packet(":X1949022AN02010D000103;"); // hard-looking for DST node
+        // expect_packet(":X19170225N02010D000103;"); // node ID verified
     }
 
     std::unique_ptr<DefaultNode> otherNode_;

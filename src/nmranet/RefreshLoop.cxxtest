@@ -17,6 +17,7 @@ class RefreshLoopTest : public AsyncNodeTest
 protected:
     ~RefreshLoopTest()
     {
+        wait();
         if (loop_.get())
         {
             loop_->stop();
@@ -35,7 +36,7 @@ TEST_F(RefreshLoopTest, Calls)
     EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_}));
-    usleep(350000);
+    usleep(150000);
 }
 
 TEST_F(RefreshLoopTest, CallsBoth)
@@ -45,7 +46,7 @@ TEST_F(RefreshLoopTest, CallsBoth)
     EXPECT_CALL(mp2_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_, &mp2_}));
-    usleep(310000);
+    usleep(120000);
 }
 
 } // namespace

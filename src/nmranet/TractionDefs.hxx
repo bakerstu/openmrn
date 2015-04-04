@@ -196,7 +196,7 @@ struct TractionDefs {
             return false;
         }
         *v = fp16_to_speed(p.data() + 1);
-        if (isnan(v->speed()))
+        if (std::isnan(v->speed()))
         {
             return false;
         }

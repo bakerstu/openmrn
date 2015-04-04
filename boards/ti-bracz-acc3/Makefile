@@ -31,10 +31,10 @@ else
 $(error Must define address with ADDRESS=0x4c)
 endif
 
-flash: $(EXECUTABLE).elf
+flash: $(EXECUTABLE).elf $(EXECUTABLE).lst
 	ti-flash.sh $<
 
-rflash: $(EXECUTABLE).bin
+rflash: $(EXECUTABLE).bin $(EXECUTABLE).lst
 	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<
 
 #	train enter-bootloader 354

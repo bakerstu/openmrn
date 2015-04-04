@@ -37,35 +37,19 @@
 #include <unistd.h>
 
 #include "os/os.h"
-#include "utils/GridConnectHub.hxx"
-#include "executor/Executor.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 
-#include "utils/GcTcpHub.hxx"
-#include "utils/HubDevice.hxx"
-#include "utils/HubDeviceNonBlock.hxx"
-#include "nmranet/IfCan.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/EventService.hxx"
+#include "os/TempFile.hxx"
+#include "nmranet/SimpleStack.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/ProtocolIdentification.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
 #endif
 
 #ifdef BOARD_LAUNCHPAD_EK
 #include "console/Console.hxx"
-#endif
-
-NO_THREAD nt;
-Executor<1> g_executor(nt);
-Service g_service(&g_executor);
-CanHubFlow can_hub0(&g_service);
-#ifdef __linux__
-GcPacketPrinter packet_printer(&can_hub0);
 #endif
 
 extern const nmranet::NodeID NODE_ID;
@@ -80,12 +64,13 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 #elif defined(TARGET_LPC11Cxx)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
+OVERRIDE_CONST(num_memory_spaces, 4);
 
-nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-static nmranet::AddAliasAllocator _alias_allocator(NODE_ID, &g_if_can);
-nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
-nmranet::EventService g_event_service(&g_if_can);
-nmranet::ProtocolIdentificationHandler g_pip(&g_node, nmranet::Defs::EVENT_EXCHANGE);
+nmranet::SimpleCanStack stack(NODE_ID);
+
+nmranet::MockSNIPUserFile snip_user_file("Default user name",
+                                         "Default user description");
+const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
 
 //static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 static const uint64_t EVENT_ID = 0x0502010202000000ULL;
@@ -129,7 +114,7 @@ private:
 
 extern "C" { void resetblink(uint32_t pattern); }
 
-class LoggingBit : public nmranet::BitEventInterface
+class LoggingBit: public nmranet::BitEventInterface
 {
 public:
     LoggingBit(uint64_t event_on, uint64_t event_off, const char* name)
@@ -145,7 +130,7 @@ public:
     {
         state_ = new_value;
         //HASSERT(0);
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__MACH__)
         LOG(INFO, "bit %s set to %d", name_, state_);
 #else
         resetblink(state_ ? 1 : 0);
@@ -154,7 +139,7 @@ public:
 
     virtual nmranet::Node* node()
     {
-        return &g_node;
+        return stack.node();
     }
 
 private:
@@ -162,7 +147,7 @@ private:
     bool state_;
 };
 
-BlinkerFlow blinker_flow(&g_node);
+BlinkerFlow blinker_flow(stack.node());
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -175,40 +160,34 @@ int appl_main(int argc, char* argv[])
     new Console(true, -1);
 #endif
 
-
-
-#ifdef __linux__
-    GcTcpHub hub(&can_hub0, 12021);
+#if defined (__linux__) || defined (__MACH__)
+    stack.print_all_packets();
+    stack.start_tcp_hub_server(12021);
 #elif defined(TARGET_LPC11Cxx)
-    lpc11cxx::CreateCanDriver(&can_hub0);
+    lpc11cxx::CreateCanDriver(stack.can_hub());
 #elif defined(TARGET_PIC32MX)
-    int can_fd = ::open("/dev/can0", O_RDWR);
-    HASSERT(can_fd >= 0);
-    FdHubPort<CanHubFlow> can0_port(&can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
+    stack.add_can_port_blocking("/dev/can0");
 #elif defined(__FreeRTOS__)
-    HubDeviceNonBlock<CanHubFlow> can0_port(&can_hub0, "/dev/can0");
+    stack.add_can_port_async("/dev/can0");
+#elif defined(__EMSCRIPTEN__)
+    // No hardware connection for the moment.
+    stack.print_all_packets();
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target
 
     // Enable this to add sniffing through the usb or serial port.
 #if defined(SNIFF_ON_USB)
-    int usb_fd = ::open("/dev/serUSB0", O_RDWR);
-    HASSERT(usb_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, usb_fd);
+    stack.add_gridconnect_port("/dev/serUSB0");
 #endif
 #if defined(SNIFF_ON_SERIAL)
-    int serial_fd = ::open("/dev/ser0", O_RDWR);
-    HASSERT(serial_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, serial_fd);
+    stack.add_gridconnect_port("/dev/ser0");
 #endif
 
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
 
-    g_executor.thread_body();
+    stack.loop_executor();
     return 0;
 }

@@ -46,7 +46,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread, private Executable
+class ExecutorBase : protected OSThread, protected Executable
 {
 public:
     /** Constructor.
@@ -80,6 +80,10 @@ public:
                               unsigned priority = UINT_MAX) = 0;
 #endif
 
+    /** Performs one loop of the execution on the calling thread. Returns true
+     * if there is more scheduled work to do. */
+    bool loop_once();
+
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }
 
@@ -111,17 +115,23 @@ private:
      */
     virtual Executable *wait(unsigned *priority) = 0;
 
+    /** Retrieve an item from the front of the queue.
+     * @param priority pass back the priority of the queue pulled from
+     * @return item retrieved from queue, else NULL if queue is empty.
+     */
+    virtual Executable *next(unsigned *priority) = 0;
+
     /** name of this Executor */
-    const char *name;
+    const char *name_;
 
     /** next executor in the lookup list */
-    ExecutorBase *next;
+    ExecutorBase *next_;
 
     /** executor list for lookup purposes */
     static ExecutorBase *list;
 
     /** Currently executing closure. USeful for debugging crashes. */
-    Executable* current;
+    Executable* current_;
 
     /** List of active timers. */
     ActiveTimers activeTimers_;
@@ -147,8 +157,7 @@ public:
 };
 
 template <unsigned NUM_PRIO>
-class Executor : public ExecutorBase,
-                 public QListProtectedWait<NUM_PRIO>
+class Executor : public ExecutorBase
 {
 public:
 
@@ -179,7 +188,7 @@ public:
      */
     void add(Executable *msg, unsigned priority = UINT_MAX)
     {
-        QListProtectedWait<NUM_PRIO>::insert(
+        queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
     }
 
@@ -191,7 +200,7 @@ public:
      */
     void add_from_isr(Executable *msg, unsigned priority = UINT_MAX)
     {
-        QListProtectedWait<NUM_PRIO>::insert_from_isr(
+        queue_.insert_from_isr(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
     }
 #endif
@@ -204,6 +213,11 @@ public:
         entry();
     }
 
+    bool empty()
+    {
+        return queue_.empty();
+    }
+
 private:
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
@@ -211,10 +225,9 @@ private:
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
-    Executable *timedwait(long long timeout, unsigned *priority)
+    Executable *timedwait(long long timeout, unsigned *priority) OVERRIDE
     {
-        typename QListProtectedWait<NUM_PRIO>::Result result =
-            QListProtectedWait<NUM_PRIO>::timedwait(timeout);
+        auto result = queue_.timedwait(timeout);
         *priority = result.index;
         return static_cast<Executable*>(result.item);
     }
@@ -224,10 +237,20 @@ private:
      * @return item retrieved from queue, else NULL with errno set:
      *         EINTR - woken up asynchronously
      */
-    Executable *wait(unsigned *priority)
+    Executable *wait(unsigned *priority) OVERRIDE
     {
-        typename QListProtectedWait<NUM_PRIO>::Result result =
-            QListProtectedWait<NUM_PRIO>::wait();
+        auto result = queue_.wait();
+        *priority = result.index;
+        return static_cast<Executable*>(result.item);
+    }
+
+    /** Retrieve an item from the front of the queue.
+     * @param priority pass back the priority of the queue pulled from
+     * @return item retrieved from queue, else NULL if none waiting.
+     */
+    Executable *next(unsigned *priority) OVERRIDE
+    {
+        auto result = queue_.next();
         *priority = result.index;
         return static_cast<Executable*>(result.item);
     }
@@ -237,6 +260,8 @@ private:
     Executor();
 
     DISALLOW_COPY_AND_ASSIGN(Executor);
+
+    QListProtectedWait<NUM_PRIO> queue_;
 };
 
 template<class Executor>

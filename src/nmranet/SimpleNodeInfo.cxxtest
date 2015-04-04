@@ -38,6 +38,7 @@
 
 #include "nmranet/SimpleInfoProtocol.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/If.hxx"
 
 using ::testing::StartsWith;
@@ -45,7 +46,10 @@ using ::testing::StartsWith;
 namespace nmranet
 {
 
-extern const uint8_t SNIP_MANUFACTURER[] = "TestingTesting";
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
+ 
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
 
 namespace
 {
@@ -59,6 +63,8 @@ protected:
     {
     }
 
+    MockSNIPUserFile userFile_{"Undefined node name",
+                               "Undefined node descr"};
     SimpleInfoFlow infoFlow_;
     SNIPHandler handler_;
 };
@@ -96,8 +102,9 @@ TEST_F(SNIPTest, Send)
     send_packet(":X19DE8754N022A;");
     wait();
     const char kExpectedData[] =
-        "\x01TestingTesting\0Undefined model\0Undefined HW version\0" "0.9\0"
-        "\x01Undefined node name\0Undefined node descr"; // C adds another \0.
+        "\x04TestingTesting\0Undefined model\0Undefined HW version\0"
+        "0.9\0"
+        "\x02Undefined node name\0Undefined node descr"; // C adds another \0.
     EXPECT_EQ(string(kExpectedData, sizeof(kExpectedData)), payload);
 }
 

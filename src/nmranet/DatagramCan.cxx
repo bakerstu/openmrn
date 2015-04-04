@@ -194,7 +194,7 @@ private:
     virtual Action timeout_waiting_for_dg_response()
     {
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
-                  "destination %012llx.",
+                  "destination %012" PRIx64 ".",
             nmsg()->dst.id);
         result_ |= PERMANENT_ERROR | TIMEOUT;
         return call_immediately(STATE(datagram_finalize));

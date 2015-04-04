@@ -47,19 +47,29 @@ class InfoResponseTest : public AsyncNodeTest
 protected:
     InfoResponseTest()
     {
+        string s;
+        s.push_back(2);
+        s += "5432\0";
+        file_.write(s);
+
+        s.clear();
+        s.push_back(1);
+        s += "1234\0";
+        otherFile_.write(s);
+
         init();
     }
 
-    void init(unsigned max_bytes_per_message = 255,
-              bool use_continue_bits = true)
+    void init(
+        unsigned max_bytes_per_message = 255, bool use_continue_bits = true)
     {
-        flow_.reset(new SimpleInfoFlow(ifCan_.get(), max_bytes_per_message,
-                                       use_continue_bits));
+        flow_.reset(new SimpleInfoFlow(
+            ifCan_.get(), max_bytes_per_message, use_continue_bits));
     }
 
     void send_response(const SimpleInfoDescriptor *descriptor,
-                       Defs::MTI mti = Defs::MTI_IDENT_INFO_REPLY,
-                       NodeHandle dst = NodeHandle{0, 0x3FB})
+        Defs::MTI mti = Defs::MTI_IDENT_INFO_REPLY,
+        NodeHandle dst = NodeHandle{0, 0x3FB})
     {
         auto *b = flow_->alloc();
         b->data()->src = node_;
@@ -70,19 +80,22 @@ protected:
         wait();
     }
     std::unique_ptr<SimpleInfoFlow> flow_;
+    TempDir dir_;
+    TempFile file_{dir_, "testfile"};
+    TempFile otherFile_{dir_, "otherfile"};
 };
 
-static const uint8_t kFirstData[] = "5432";
-static const uint8_t kSecondData[] = "785";
-static const uint8_t kThirdData[] = "012345678901234567";
+static const char kFirstData[] = "5432";
+static const char kSecondData[] = "785";
+static const char kThirdData[] = "012345678901234567";
 
 TEST_F(InfoResponseTest, SendByte)
 {
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::LITERAL_BYTE, 0x5A, nullptr},
-        {SimpleInfoDescriptor::LITERAL_BYTE, 0xAA, nullptr},
-        {SimpleInfoDescriptor::LITERAL_BYTE, 0xA5, nullptr},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x5A, 0, nullptr},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0xAA, 0, nullptr},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0xA5, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
     expect_packet(":X19A0822AN03FB5AAAA5;");
     send_response(descr);
 }
@@ -90,18 +103,96 @@ TEST_F(InfoResponseTest, SendByte)
 TEST_F(InfoResponseTest, SendCString)
 {
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::C_STRING, 0, kFirstData},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kFirstData},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
     expect_packet(":X19A0822AN03FB3534333200;");
     send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendCStringWithLongLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::C_STRING, 6, 0, kFirstData},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB353433320055;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendCStringWithExactLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::C_STRING, 5, 0, kFirstData},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB353433320055;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendCStringWithShortLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::C_STRING, 4, 0, kFirstData},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3534330055;");
+    send_response(descr);
+}
+
+
+TEST_F(InfoResponseTest, SendFileCStringWithLongLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 6, 1, file_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB353433320055;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendFileCStringWithExactLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 5, 1, file_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB353433320055;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, SendFileCStringWithShortLength)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 4, 1, file_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3534330055;");
+    send_response(descr);
+}
+
+TEST_F(InfoResponseTest, TwoFiles)
+{
+    static const SimpleInfoDescriptor descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 4, 1, file_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3534330055;");
+    send_response(descr);
+    wait();
+    static const SimpleInfoDescriptor other_descr[] = {
+        {SimpleInfoDescriptor::FILE_C_STRING, 4, 1, otherFile_.name().c_str()},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 0x55, 0, nullptr},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, nullptr}};
+    expect_packet(":X19A0822AN03FB3132330055;");
+    send_response(other_descr);
 }
 
 TEST_F(InfoResponseTest, SendByteArr)
 {
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::CHAR_ARRAY, 2, kFirstData},
-        {SimpleInfoDescriptor::CHAR_ARRAY, 2, kFirstData},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::CHAR_ARRAY, 2, 0, kFirstData},
+        {SimpleInfoDescriptor::CHAR_ARRAY, 2, 0, kFirstData},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
     expect_packet(":X19A0822AN03FB35343534;");
     send_response(descr);
 }
@@ -109,11 +200,11 @@ TEST_F(InfoResponseTest, SendByteArr)
 TEST_F(InfoResponseTest, ComplexExample)
 {
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::C_STRING, 0, kFirstData},
-        {SimpleInfoDescriptor::C_STRING, 0, kSecondData},
-        {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-        {SimpleInfoDescriptor::C_STRING, 0, kThirdData},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kFirstData},
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kSecondData},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 1, 0, nullptr},
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kThirdData},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
     expect_packet(":X19A0822AN13FB353433320037;");
     expect_packet(":X19A0822AN33FB383500013031;");
     expect_packet(":X19A0822AN33FB323334353637;");
@@ -126,11 +217,11 @@ TEST_F(InfoResponseTest, LimitForCan)
 {
     init(6, false);
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::C_STRING, 0, kFirstData},
-        {SimpleInfoDescriptor::C_STRING, 0, kSecondData},
-        {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-        {SimpleInfoDescriptor::C_STRING, 0, kThirdData},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kFirstData},
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kSecondData},
+        {SimpleInfoDescriptor::LITERAL_BYTE, 1, 0, nullptr},
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kThirdData},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
     expect_packet(":X19A0822AN03FB353433320037;");
     expect_packet(":X19A0822AN03FB383500013031;");
     expect_packet(":X19A0822AN03FB323334353637;");
@@ -145,9 +236,9 @@ TEST_F(InfoResponseTest, StrangeLimit)
     // everything should be fine.
     init(4, false);
     static const SimpleInfoDescriptor descr[] = {
-        {SimpleInfoDescriptor::C_STRING, 0, kFirstData},
-        {SimpleInfoDescriptor::C_STRING, 0, kSecondData},
-        {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kFirstData},
+        {SimpleInfoDescriptor::C_STRING, 0, 0, kSecondData},
+        {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
     expect_packet(":X19A0822AN03FB35343332;");
     expect_packet(":X19A0822AN03FB00373835;");
     expect_packet(":X19A0822AN03FB00;");

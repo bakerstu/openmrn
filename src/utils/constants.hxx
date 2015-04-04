@@ -44,6 +44,34 @@
 #define EXTERNCEND
 #endif
 
+#if defined (__EMSCRIPTEN__) || defined (__MACH__) || defined(__linux__)
+#define NEED_SIMPLE_CONST
+#endif
+
+#ifdef NEED_SIMPLE_CONST
+
+#define DECLARE_CONST(name)                                                    \
+    EXTERNC extern const int _sym_##name;                                      \
+    EXTERNCEND typedef unsigned char                                           \
+        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;     \
+    static inline int config_##name(void)                                      \
+    {                                                                          \
+        return _sym_##name;                                                    \
+    }
+
+#define DEFAULT_CONST(name, value)                                             \
+    typedef signed char                                                        \
+        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;     \
+    EXTERNC extern const int __attribute__((__weak__)) _sym_##name = value;    \
+    EXTERNCEND
+
+#define OVERRIDE_CONST(name, value)                                            \
+    EXTERNC extern const int _sym_##name;                                      \
+    const int _sym_##name = value;                                             \
+    EXTERNCEND
+
+#else  // native C
+
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern void _sym_##name(void);                                     \
     EXTERNCEND typedef unsigned char                                           \
@@ -64,9 +92,15 @@
     asm(".global _sym_" #name " \n");                                          \
     asm(".set _sym_" #name ", " #value " \n");
 
+#endif // native C
+
 // We cannot compare constants to zero, so we use 1 and 2 as constant values
 // for booleans.
 #define CONSTANT_TRUE 1
 #define CONSTANT_FALSE 2
+
+#define DEFAULT_CONST_TRUE(name) DEFAULT_CONST(name, 1)
+#define DEFAULT_CONST_FALSE(name) DEFAULT_CONST(name, 2)
+
 
 #endif // _UTILS_CONSTANTS_HXX_

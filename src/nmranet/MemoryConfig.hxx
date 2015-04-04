@@ -38,12 +38,16 @@
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
+#include "utils/Destructable.hxx"
 
 class Notifiable;
 
 extern "C" {
 extern void enter_bootloader();
+/** @todo need to find an alternative for reboot() for MacOS */
+#if !defined (__MACH__)
 extern void reboot();
+#endif
 }
 
 namespace nmranet
@@ -98,6 +102,8 @@ struct MemoryConfigDefs {
         SPACE_CDI        = 0xFF, /**< CDI space */
         SPACE_ALL_MEMORY = 0xFE, /**< all memory space */
         SPACE_CONFIG     = 0xFD, /**< config memory space */
+        SPACE_ACDI_SYS   = 0xFC, /**< read-only ACDI space */
+        SPACE_ACDI_USR   = 0xFB, /**< read-write ACDI space */
     };
 
     /** Possible available options.
@@ -132,12 +138,19 @@ struct MemoryConfigDefs {
         FLAG_NZLA = 0x02, /**< space has a nonzero low address */
     };
 
+    enum errors
+    {
+        ERROR_SPACE_NOT_KNOWN = Defs::ERROR_INVALID_ARGS | 0x0001,
+        ERROR_OUT_OF_BOUNDS = Defs::ERROR_INVALID_ARGS | 0x0002,
+        ERROR_WRITE_TO_RO = Defs::ERROR_INVALID_ARGS | 0x0003,
+    };
+
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
 };
 
-class MemorySpace
+class MemorySpace : public Destructable
 {
 public:
     typedef uint32_t address_t;
@@ -169,8 +182,8 @@ public:
      * MemorySpace::ERROR_AGAIN, and calls the Notifiable @param again when a
      * re-try makes sense. The caller should call write once more, with the
      * offset adjusted with the previously returned bytes. */
-    virtual size_t write(address_t destination, const uint8_t* data, size_t len,
-                         errorcode_t* error, Notifiable* again)
+    virtual size_t write(address_t destination, const uint8_t *data, size_t len,
+                         errorcode_t *error, Notifiable *again)
     {
         HASSERT(0);
     }
@@ -180,8 +193,8 @@ public:
      * calls the Notifiable @param again when a re-try makes sense. The caller
      * should call read once more, with the offset adjusted with the previously
      * returned bytes. */
-    virtual size_t read(address_t source, uint8_t* dst, size_t len,
-                        errorcode_t* error, Notifiable* again) = 0;
+    virtual size_t read(address_t source, uint8_t *dst, size_t len,
+                        errorcode_t *error, Notifiable *again) = 0;
 };
 
 class ReadOnlyMemoryBlock : public MemorySpace
@@ -190,16 +203,18 @@ public:
     /** Creates a memory block for a given pointer of data. The pointer must
      * stay alive so long as this object is alive.  @param data is a
      * null-terminated string, which may point into read-only memory. */
-    ReadOnlyMemoryBlock(const char* data)
-        : data_(reinterpret_cast<const uint8_t*>(data)), len_(strlen(data))
+    ReadOnlyMemoryBlock(const char *data)
+        : data_(reinterpret_cast<const uint8_t *>(data))
+        , len_(strlen(data))
     {
     }
 
     /** Initializes a memory block with a given block of memory. The address
      * range [data, data+len) must be dereferenceable for read so long as this
      * object is alive. It may point into read-only memory. */
-    ReadOnlyMemoryBlock(const uint8_t* data, address_t len)
-        : data_(data), len_(len)
+    ReadOnlyMemoryBlock(const uint8_t *data, address_t len)
+        : data_(data)
+        , len_(len)
     {
     }
 
@@ -208,8 +223,8 @@ public:
         return len_ - 1;
     }
 
-    size_t read(address_t source, uint8_t* dst, size_t len,
-                errorcode_t* error, Notifiable* again) OVERRIDE
+    size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
+                Notifiable *again) OVERRIDE
     {
         if (source >= len_)
             return 0;
@@ -223,14 +238,14 @@ public:
     }
 
 private:
-    const uint8_t* data_; //< Data bytes to serve.
+    const uint8_t *data_; //< Data bytes to serve.
     const address_t len_; //< Length of block to serve.
 };
 
 class FileMemorySpace : public MemorySpace
 {
 public:
-    static const address_t AUTO_LEN = (address_t)-1;
+    static const address_t AUTO_LEN = (address_t) - 1;
 
     /** Creates a memory space based on an fd.
      *
@@ -250,7 +265,7 @@ public:
      * specified as AUTO_LEN, then uses fstat to figure out the size of the
      * file.
      */
-    FileMemorySpace(const char* name, address_t len = AUTO_LEN);
+    FileMemorySpace(const char *name, address_t len = AUTO_LEN);
 
     bool read_only() OVERRIDE
     {
@@ -263,18 +278,18 @@ public:
         return fileSize_;
     }
 
-    size_t write(address_t destination, const uint8_t* data, size_t len,
-                 errorcode_t* error, Notifiable* again) OVERRIDE;
+    size_t write(address_t destination, const uint8_t *data, size_t len,
+                 errorcode_t *error, Notifiable *again) OVERRIDE;
 
-    size_t read(address_t source, uint8_t* dst, size_t len,
-                errorcode_t* error, Notifiable* again) OVERRIDE;
+    size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
+                Notifiable *again) OVERRIDE;
 
 private:
     /** Makes fd a valid parameter, and ensures fileSize is filled in. */
     void ensure_file_open();
 
     address_t fileSize_;
-    const char* name_;
+    const char *name_;
     int fd_;
 };
 
@@ -286,11 +301,10 @@ public:
         DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
-    MemoryConfigHandler(DatagramService* if_dg, Node* node,
-                        size_t registry_size)
-        : DefaultDatagramHandler(if_dg),
-          responseFlow_(nullptr),
-          registry_(registry_size)
+    MemoryConfigHandler(DatagramService *if_dg, Node *node, int registry_size)
+        : DefaultDatagramHandler(if_dg)
+        , responseFlow_(nullptr)
+        , registry_(registry_size)
     {
         dg_service()->registry()->insert(node, DATAGRAM_ID, this);
     }
@@ -302,7 +316,7 @@ public:
 
     typedef TypedNodeHandlerMap<Node, MemorySpace> Registry;
 
-    Registry* registry()
+    Registry *registry()
     {
         return &registry_;
     }
@@ -314,7 +328,7 @@ private:
     Action entry() OVERRIDE
     {
         response_.clear();
-        const uint8_t* bytes = in_bytes();
+        const uint8_t *bytes = in_bytes();
         size_t len = message()->data()->payload.size();
         HASSERT(len >= 1);
         HASSERT(bytes[0] == DATAGRAM_ID);
@@ -325,10 +339,13 @@ private:
 
         uint8_t cmd = bytes[1];
 
-        if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_READ)
+        if ((cmd & MemoryConfigDefs::COMMAND_MASK) ==
+            MemoryConfigDefs::COMMAND_READ)
         {
             return call_immediately(STATE(handle_read));
-        } else if ((cmd & MemoryConfigDefs::COMMAND_MASK) == MemoryConfigDefs::COMMAND_WRITE)
+        }
+        else if ((cmd & MemoryConfigDefs::COMMAND_MASK) ==
+                 MemoryConfigDefs::COMMAND_WRITE)
         {
             return call_immediately(STATE(handle_write));
         }
@@ -349,8 +366,18 @@ private:
             }
             case MemoryConfigDefs::COMMAND_RESET:
             {
+#if !defined (__MACH__)
                 reboot();
+#endif
                 return respond_reject(DatagramClient::PERMANENT_ERROR);
+            }
+            case MemoryConfigDefs::COMMAND_OPTIONS:
+            {
+                return call_immediately(STATE(handle_options));
+            }
+            case MemoryConfigDefs::COMMAND_INFORMATION:
+            {
+                return call_immediately(STATE(handle_get_space_info));
             }
             default:
                 // Unknown/unsupported command, reject datagram.
@@ -380,12 +407,14 @@ private:
 
     Action client_allocated()
     {
-        responseFlow_ = full_allocation_result(dg_service()->client_allocator());
+        responseFlow_ =
+            full_allocation_result(dg_service()->client_allocator());
         return allocate_and_call(dg_service()->interface()->dispatcher(),
                                  STATE(send_response_datagram));
     }
 
-    Action send_response_datagram() {
+    Action send_response_datagram()
+    {
         auto *b =
             get_allocation_result(dg_service()->interface()->dispatcher());
         b->set_done(b_.reset(this));
@@ -409,6 +438,96 @@ private:
         return call_immediately(STATE(cleanup));
     }
 
+    Action handle_options()
+    {
+        response_.reserve(7);
+        response_.push_back(DATAGRAM_ID);
+        response_.push_back(MemoryConfigDefs::COMMAND_OPTIONS_REPLY);
+        uint16_t available_commands =
+            MemoryConfigDefs::AVAIL_UR | MemoryConfigDefs::AVAIL_UW;
+        // Figure out about ACDI spaces
+        MemorySpace* memspace = registry_.lookup(message()->data()->dst, 0xFC);
+        if (memspace) {
+            available_commands |= MemoryConfigDefs::AVAIL_R0xFC;
+        }
+        memspace = registry_.lookup(message()->data()->dst, 0xFB);
+        if (memspace) {
+            available_commands |= MemoryConfigDefs::AVAIL_R0xFB;
+            if (!memspace->read_only()) {
+                available_commands |= MemoryConfigDefs::AVAIL_W0xFB;
+            }
+        }
+        response_.push_back(available_commands >> 8);
+        response_.push_back(available_commands & 0xff);
+        // Write lengths
+        response_.push_back(
+            MemoryConfigDefs::LENGTH_1 | MemoryConfigDefs::LENGTH_2 |
+            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY);
+
+        uint8_t min_space = 0xFF;
+        uint8_t max_space = 0;
+        // Walks the spaces.
+        for (auto it = registry_.begin(); it != registry_.end(); ++it) {
+            auto h = *it;
+            uint8_t space = h.first.second;
+            Node* node = h.first.first;
+            //MemorySpace* space_impl = h.second;
+            if (node && node != message()->data()->dst) {
+                continue;
+            }
+            if (space >= 0xFD) continue;
+            if (space > max_space) max_space = space;
+            if (space < min_space) min_space = space;
+        }
+        if (max_space < min_space) {
+            max_space = 0xff;
+            min_space = 0xfd;
+        }
+        response_.push_back(max_space);
+        response_.push_back(min_space);
+        return respond_ok(DatagramClient::REPLY_PENDING);
+    }
+
+    Action handle_get_space_info()
+    {
+        if (message()->data()->payload.size() < 3) {
+            // Incoming message too short.
+            return respond_reject(DatagramClient::PERMANENT_ERROR);
+        }
+        uint8_t space_number = in_bytes()[2];
+        MemorySpace* space = registry_.lookup(message()->data()->dst, space_number);
+        response_.reserve(8);
+        response_.push_back(DATAGRAM_ID);
+        response_.push_back(MemoryConfigDefs::COMMAND_INFORMATION_REPLY);
+        response_.push_back(space_number);
+        if (!space) {
+            return respond_ok(DatagramDefs::REPLY_PENDING);
+        } else {
+            response_[1]++;
+        }
+        MemorySpace::address_t address = space->max_address();
+        response_.push_back((address >> 24) & 0xff);
+        response_.push_back((address >> 16) & 0xff);
+        response_.push_back((address >> 8) & 0xff);
+        response_.push_back(address & 0xff);
+        uint8_t flags = 0;
+        address = space->min_address();
+        if (address) {
+            flags |= MemoryConfigDefs::FLAG_NZLA;
+        }
+        if (space->read_only()) {
+            flags |= MemoryConfigDefs::FLAG_RO;
+        }
+        response_.push_back(flags);
+        if (address) {
+            response_.push_back((address >> 24) & 0xff);
+            response_.push_back((address >> 16) & 0xff);
+            response_.push_back((address >> 8) & 0xff);
+            response_.push_back(address & 0xff);
+        }
+        return respond_ok(DatagramDefs::REPLY_PENDING);
+    }
+
     Action handle_read()
     {
         size_t len = message()->data()->payload.size();
@@ -416,7 +535,7 @@ private:
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
-        MemorySpace* space = get_space();
+        MemorySpace *space = get_space();
         if (!space)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -435,7 +554,7 @@ private:
         size_t response_len = response_data_offset + read_len;
         char c = 0;
         response_.assign(response_len, c);
-        uint8_t* response_bytes = out_bytes();
+        uint8_t *response_bytes = out_bytes();
         errorcode_t error = 0;
         int byte_read =
             space->read(address, response_bytes + response_data_offset,
@@ -464,7 +583,7 @@ private:
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
-        MemorySpace* space = get_space();
+        MemorySpace *space = get_space();
         if (!space)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
@@ -488,7 +607,7 @@ private:
         // anymore. Technically we should first send off the respond_ok() and
         // only afterwards perform the actual try_write steps here. Any errors
         // we encounter will be returned in a datagram in the other direction.
-        MemorySpace* space = get_space();
+        MemorySpace *space = get_space();
         int write_len = get_write_length();
         address_t address = get_address();
         size_t data_offset = 6;
@@ -500,32 +619,39 @@ private:
         data_offset += currentOffset_;
         write_len -= currentOffset_;
         errorcode_t error = 0;
-        while (write_len > 0) {
-            size_t written =
-                space->write(address, in_bytes() + data_offset, write_len,
-                             &error, this);
+        while (write_len > 0)
+        {
+            size_t written = space->write(address, in_bytes() + data_offset,
+                                          write_len, &error, this);
             currentOffset_ += written;
             write_len -= written;
-            if (error == MemorySpace::ERROR_AGAIN) {
+            if (error == MemorySpace::ERROR_AGAIN)
+            {
                 return wait();
-            } else if (error != 0) {
+            }
+            else if (error != 0)
+            {
                 break;
             }
         }
         char c = 0;
         int response_len = 6;
-        if (has_custom_space()) response_len++;
-        if (error == 0) {
+        if (has_custom_space())
+            response_len++;
+        if (error == 0)
+        {
             response_.assign(response_len, c);
             out_bytes()[1] = MemoryConfigDefs::COMMAND_WRITE_REPLY;
-        } else {
+        }
+        else
+        {
             response_.assign(response_len + 2, c);
             out_bytes()[1] = MemoryConfigDefs::COMMAND_WRITE_FAILED;
             out_bytes()[response_len] = error >> 8;
             out_bytes()[response_len + 1] = error & 0xff;
         }
         out_bytes()[0] = DATAGRAM_ID;
-        set_address_and_space();    
+        set_address_and_space();
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
@@ -540,7 +666,7 @@ private:
      * 2 (i.e., there is a command byte).*/
     int get_space_number()
     {
-        const uint8_t* bytes = in_bytes();
+        const uint8_t *bytes = in_bytes();
         int len = message()->data()->payload.size();
         uint8_t cmd = bytes[1];
         // Handles special memory spaces FD, FE, FF.
@@ -553,8 +679,9 @@ private:
         {
             LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
                          "space but datagram not long enough. command=0x%02x, "
-                         "length=%d. Source {0x%012llx, %03x}",
-                cmd, len, message()->data()->src.id, message()->data()->src.alias);
+                         "length=%d. Source {0x%012" PRIx64 ", %03x}",
+                cmd, len, message()->data()->src.id,
+                message()->data()->src.alias);
             return -1;
         }
         return bytes[6];
@@ -562,18 +689,19 @@ private:
 
     /** Looks up the memory space for the current datagram. Returns NULL if no
      * space was registered (for neither the current node, nor global). */
-    MemorySpace* get_space()
+    MemorySpace *get_space()
     {
         int space_number = get_space_number();
         if (space_number < 0)
             return nullptr;
-        MemorySpace* space = registry_.lookup(message()->data()->dst, space_number);
+        MemorySpace *space =
+            registry_.lookup(message()->data()->dst, space_number);
         if (!space)
         {
-            LOG(WARNING, "MemoryConfig: asked node 0x%012llx for unknown space "
-                         "%d. Source {0x%012llx, %03x}",
-                message()->data()->dst->node_id(), space_number, message()->data()->src.id,
-                message()->data()->src.alias);
+            LOG(WARNING, "MemoryConfig: asked node 0x%012" PRIx64 " for unknown space "
+                         "%d. Source {0x%012" PRIx64 ", %03x}",
+                message()->data()->dst->node_id(), space_number,
+                message()->data()->src.id, message()->data()->src.alias);
             return nullptr;
         }
         return space;
@@ -583,7 +711,7 @@ private:
      * datagram, or -1 if the incoming datagram is of incorrect format. */
     int get_read_length()
     {
-        const uint8_t* bytes = in_bytes();
+        const uint8_t *bytes = in_bytes();
         int len = message()->data()->payload.size();
         int ofs;
         uint8_t cmd = bytes[1];
@@ -600,8 +728,9 @@ private:
         {
             LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
                          "enough. command=0x%02x, length=%d. Source "
-                         "{0x%012llx, %03x}",
-                cmd, len, message()->data()->src.id, message()->data()->src.alias);
+                         "{0x%012" PRIx64 ", %03x}",
+                cmd, len, message()->data()->src.id,
+                message()->data()->src.alias);
             return -1;
         }
         return bytes[ofs] & 0x7F; // highest bit is reserved.
@@ -617,7 +746,7 @@ private:
      * 6*/
     address_t get_address()
     {
-        const uint8_t* bytes = in_bytes();
+        const uint8_t *bytes = in_bytes();
         address_t a = bytes[2];
         a <<= 8;
         a |= bytes[3];
@@ -634,8 +763,8 @@ private:
      * command value before calling this function. */
     void set_address_and_space()
     {
-        uint8_t* resp_bytes = out_bytes();
-        const uint8_t* bytes = in_bytes();
+        uint8_t *resp_bytes = out_bytes();
+        const uint8_t *bytes = in_bytes();
         memcpy(resp_bytes + 2, bytes + 2, 4);
         if (has_custom_space())
         {
@@ -650,7 +779,7 @@ private:
     /// Sets the address in the response payload buffer.
     void set_address(address_t address)
     {
-        uint8_t* bytes = out_bytes();
+        uint8_t *bytes = out_bytes();
         bytes[5] = address & 0xff;
         address >>= 8;
         bytes[4] = address & 0xff;
@@ -661,31 +790,30 @@ private:
     }
 
     /// @returns the response datagram payload buffer.
-    uint8_t* out_bytes()
+    uint8_t *out_bytes()
     {
-        return reinterpret_cast<uint8_t*>(&response_[0]);
+        return reinterpret_cast<uint8_t *>(&response_[0]);
     }
 
     /// @returns the request datagram payload buffer.
-    const uint8_t* in_bytes()
+    const uint8_t *in_bytes()
     {
-        return reinterpret_cast<const uint8_t*>(message()->data()->payload.data());
+        return reinterpret_cast<const uint8_t *>(
+            message()->data()->payload.data());
     }
 
     DatagramPayload response_; //< reply payload to send back.
-    DatagramClient* responseFlow_;
+    DatagramClient *responseFlow_;
     BarrierNotifiable b_;
 
-    NodeID lockNode_; //< Holds the node ID that locked us.
+    ///@TODO (balazs.racz) implement lock/unlock.
+    //NodeID lockNode_; //< Holds the node ID that locked us.
 
     Registry registry_;         //< holds the known memory spaces
-    Node* registeredNode_; //< we registered as a datagram handler for
-                                // this node. May be null.
 
     /** Offset withing the current write/read datagram. This does not include
      * the offset from the incoming datagram. */
     uint8_t currentOffset_;
-    
 };
 
 } // namespace nmranet

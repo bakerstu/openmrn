@@ -36,9 +36,10 @@
 
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
+#include "utils/Destructable.hxx"
 
 /// An object that can schedule itself on an executor to run.
-class Notifiable
+class Notifiable : public Destructable
 {
 public:
     virtual void notify() = 0;

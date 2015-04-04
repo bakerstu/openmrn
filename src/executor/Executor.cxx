@@ -36,6 +36,9 @@
 #include "executor/Executor.hxx"
 
 #include <unistd.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "executor/Service.hxx"
 
@@ -47,8 +50,8 @@ ExecutorBase *ExecutorBase::list = NULL;
  * @param stack_size thread stack size
  */
 ExecutorBase::ExecutorBase()
-    : name(NULL) /** @todo (Stuart Baker) is "name" still in use? */
-    , next(NULL)
+    : name_(NULL) /** @todo (Stuart Baker) is "name" still in use? */
+    , next_(NULL)
     , activeTimers_(this)
     , done_(0)
     , started_(0)
@@ -59,11 +62,11 @@ ExecutorBase::ExecutorBase()
     if (list == NULL)
     {
         list = this;
-        next = NULL;
+        next_ = NULL;
     }
     else
     {
-        next = list;
+        next_ = list;
         list = this;
     }
 }
@@ -82,11 +85,11 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
         ExecutorBase *current = list;
         while (current)
         {
-            if (!strcmp(name, current->name))
+            if (!strcmp(name, current->name_))
             {
                 return current;
             }
-            current = current->next;
+            current = current->next_;
         }
         if (wait)
         {
@@ -99,6 +102,44 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     }
 }
 
+bool ExecutorBase::loop_once()
+{
+    unsigned priority;
+    activeTimers_.get_next_timeout();
+    Executable* msg = next(&priority);
+    if (!msg)
+    {
+        return false;
+    }
+    if (msg == this)
+    {
+        // exit closure
+        done_ = 1;
+        return false;
+    }
+    current_ = msg;
+    msg->run();
+    current_ = nullptr;
+    return true;
+}
+
+#ifdef __EMSCRIPTEN__
+
+void executor_loop_some(void* arg)
+{
+  ExecutorBase* b = static_cast<ExecutorBase*>(arg);
+  while (b->loop_once());
+}
+
+void *ExecutorBase::entry()
+{
+    started_ = 1;
+    ExecutorBase* b = this;
+    emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
+    return nullptr;
+}
+
+#else
 /** Thread entry point.
  * @return Should never return
  */
@@ -121,14 +162,15 @@ void *ExecutorBase::entry()
         }
         if (msg != NULL)
         {
-            current = msg;
+            current_ = msg;
             msg->run();
-            current = nullptr;
+            current_ = nullptr;
         }
     }
 
     return NULL;
 }
+#endif
 
 void ExecutorBase::shutdown()
 {

@@ -32,21 +32,49 @@
  * @date 24 Jul 2013
  */
 
+#ifndef _NRMANET_SIMPLENODEINFO_HXX_
+#define _NRMANET_SIMPLENODEINFO_HXX_
+
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
+#include "os/TempFile.hxx"
 
 namespace nmranet
 {
 
-extern const uint8_t SNIP_MANUFACTURER[];
-extern const uint8_t SNIP_MODEL[];
-extern const uint8_t SNIP_HW_VERSION[];
-extern const uint8_t SNIP_SW_VERSION[];
+struct SimpleNodeStaticValues
+{
+    const uint8_t version;
+    const char manufacturer_name[41];
+    const char model_name[41];
+    const char hardware_version[21];
+    const char software_version[21];
+};
 
-extern const uint8_t SNIP_USER_NODE_NAME[];
-extern const uint8_t SNIP_USER_NODE_DESCRIPTION[];
+struct SimpleNodeDynamicValues
+{
+    uint8_t version;
+    char user_name[63];
+    char user_description[64];
+};
 
-extern const SimpleInfoDescriptor SNIP_RESPONSE[];
+static_assert(sizeof(struct SimpleNodeDynamicValues) == 128,
+              "SNIP dynamic file is not of the right size in your compiler");
+
+static_assert(sizeof(struct SimpleNodeStaticValues) == 125,
+              "SNIP static file is not of the right size in your compiler");
+
+/** This static data will be exported as the first block of SNIP. The version
+ *  field must contain "4". */
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
+/** The SNIP dynamic data will be read from this file. It should be 128 bytes
+ *  long, and include the version number of "2" at the beginning. */
+extern const char *const SNIP_DYNAMIC_FILENAME;
+
+/** Helper function for test nodes. Fills a file with the given SNIP user
+ * values. */
+void init_snip_user_file(int fd, const char *user_name,
+                         const char *user_description);
 
 class SNIPHandler : public IncomingMessageStateFlow
 {
@@ -54,17 +82,22 @@ public:
     SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
         : IncomingMessageStateFlow(interface)
         , responseFlow_(response_flow)
-    {                                       
-        interface->dispatcher()->register_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
+    {
+        HASSERT(SNIP_STATIC_DATA.version == 4);
+        interface->dispatcher()->register_handler(
+            this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
-    ~SNIPHandler() {
-        interface()->dispatcher()->unregister_handler(this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
+    ~SNIPHandler()
+    {
+        interface()->dispatcher()->unregister_handler(
+            this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE
     {
-        if (!nmsg()->dstNode) return release_and_exit();
+        if (!nmsg()->dstNode)
+            return release_and_exit();
         return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
@@ -77,7 +110,12 @@ public:
     }
 
 private:
+    /** Defines the SNIP response fields. */
+    static const SimpleInfoDescriptor SNIP_RESPONSE[];
+
     SimpleInfoFlow *responseFlow_;
 };
 
 } // namespace nmranet
+
+#endif // _NRMANET_SIMPLENODEINFO_HXX_

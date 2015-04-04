@@ -869,7 +869,7 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
                 // and sets the os_interrupt to pending, the os interrupt will
                 // not happen until we leave the critical section, and thus the
                 // swap will be in effect by then.
-                swap(n, writableNotifiable_);
+                std::swap(n, writableNotifiable_);
             }
             portEXIT_CRITICAL();
         }

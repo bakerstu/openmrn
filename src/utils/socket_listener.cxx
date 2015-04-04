@@ -32,7 +32,7 @@
  * @date 3 Aug 2013
  */
 
-#ifdef __linux__
+#if defined (__linux__) || defined (__MACH__)
 
 #include <arpa/inet.h>
 #include <netdb.h>

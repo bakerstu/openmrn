@@ -639,24 +639,23 @@ TEST(QListProtectedWait, all)
 
     result = q.next();
     EXPECT_TRUE(result.item == NULL);
-    
-    pthread_t thread;
-    pthread_create(&thread, NULL, QListProtectedWait_thread, &q);
+
+    new ExecuteOnMainExecutor(QListProtectedWait_thread, &q);
     result = q.wait();
     EXPECT_TRUE(result.item == &global);
     EXPECT_TRUE(result.index == 0);
 
-    pthread_create(&thread, NULL, QListProtectedWait_signal_thread, &q);
+    new ExecuteOnMainExecutor(QListProtectedWait_signal_thread, &q);
     result = q.wait();
     EXPECT_TRUE(result.item == NULL);
     EXPECT_TRUE(errno == EINTR);
 
-    pthread_create(&thread, NULL, QListProtectedWait_thread_timed, &q);
+    new ExecuteOnMainExecutor(QListProtectedWait_thread_timed, &q);
     result = q.timedwait(500000000);
     EXPECT_TRUE(result.item == &global);
     EXPECT_TRUE(result.index == 0);
 
-    pthread_create(&thread, NULL, QListProtectedWait_signal_thread_timed, &q);
+    new ExecuteOnMainExecutor(QListProtectedWait_signal_thread_timed, &q);
     result = q.timedwait(500000000);
     EXPECT_TRUE(result.item == NULL);
     EXPECT_TRUE(errno == EINTR);

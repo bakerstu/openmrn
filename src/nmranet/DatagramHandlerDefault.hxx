@@ -46,7 +46,7 @@ namespace nmranet
  * respond_reject. */
 class DefaultDatagramHandler : public DatagramHandlerFlow
 {
-public:
+protected:
     DefaultDatagramHandler(DatagramService *if_datagram)
         : DatagramHandlerFlow(if_datagram)
     {
@@ -71,6 +71,7 @@ public:
             STATE(send_ok_response));
     }
 
+private:
     Action send_ok_response()
     {
         auto *b = get_allocation_result(
@@ -82,6 +83,7 @@ public:
         return call_immediately(STATE(ok_response_sent));
     }
 
+protected:
     /** Sends a DATAGRAM_REJECT response to the datagram originator node. Call
      * this from the user handler. The flow will not return to the caller, but
      * release the incoming datagram and return to wait for a new datagram.
@@ -97,6 +99,7 @@ public:
             STATE(send_reject_response));
     }
 
+private:
     Action send_reject_response()
     {
         auto *b = get_allocation_result(
@@ -108,6 +111,7 @@ public:
         return release_and_exit();
     }
 
+protected:
     /** This state is where the handling will end up after a respond_ok
      * call. The user is responsible to eventually doing release and exit(). */
     virtual Action ok_response_sent()

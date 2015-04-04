@@ -37,29 +37,43 @@
 namespace nmranet
 {
 
-extern const uint8_t __attribute__((weak)) SNIP_MANUFACTURER[];
-const uint8_t SNIP_MANUFACTURER[] = "OpenMRN";
-extern const uint8_t __attribute__((weak)) SNIP_MODEL[];
-const uint8_t SNIP_MODEL[] = "Undefined model";
-extern const uint8_t __attribute__((weak)) SNIP_HW_VERSION[];
-const uint8_t SNIP_HW_VERSION[] = "Undefined HW version";
-extern const uint8_t __attribute__((weak)) SNIP_SW_VERSION[];
-const uint8_t SNIP_SW_VERSION[] = "0.9";
+extern const SimpleNodeStaticValues __attribute__((weak)) SNIP_STATIC_DATA = {
+    4, "OpenMRN", "Undefined model", "Undefined HW version", "0.9"};
 
-extern const uint8_t __attribute__((weak)) SNIP_USER_NODE_NAME[];
-const uint8_t SNIP_USER_NODE_NAME[] = "Undefined node name";
-extern const uint8_t __attribute__((weak)) SNIP_USER_NODE_DESCRIPTION[];
-const uint8_t SNIP_USER_NODE_DESCRIPTION[] = "Undefined node descr";
+const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
+    {SimpleInfoDescriptor::LITERAL_BYTE, 4, 0, nullptr},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.manufacturer_name},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.model_name},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.hardware_version},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.software_version},
+    {SimpleInfoDescriptor::FILE_LITERAL_BYTE, 2, 0, SNIP_DYNAMIC_FILENAME},
+    {SimpleInfoDescriptor::FILE_C_STRING, 63, 1, SNIP_DYNAMIC_FILENAME},
+    {SimpleInfoDescriptor::FILE_C_STRING, 64, 64, SNIP_DYNAMIC_FILENAME},
+    {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
-const SimpleInfoDescriptor SNIP_RESPONSE[] = {
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MANUFACTURER},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_MODEL},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_HW_VERSION},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_SW_VERSION},
-    {SimpleInfoDescriptor::LITERAL_BYTE, 1, nullptr},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_NAME},
-    {SimpleInfoDescriptor::C_STRING, 0, SNIP_USER_NODE_DESCRIPTION},
-    {SimpleInfoDescriptor::END_OF_DATA, 0, 0}};
+void init_snip_user_file(int fd, const char *user_name,
+                         const char *user_description)
+{
+    ::lseek(fd, 0, SEEK_SET);
+    SimpleNodeDynamicValues data;
+    memset(&data, 0, sizeof(data));
+    data.version = 2;
+    strncpy(data.user_name, user_name, sizeof(data.user_name));
+    strncpy(data.user_description, user_description,
+            sizeof(data.user_description));
+    int ofs = 0;
+    auto *p = (const uint8_t *)&data;
+    const int len = sizeof(data);
+    while (ofs < len)
+    {
+        int ret = ::write(fd, p, len - ofs);
+        if (ret < 0)
+        {
+            LOG(FATAL, "Init SNIP file: Could not write to fd %d: %s", fd,
+                strerror(errno));
+        }
+        ofs += ret;
+    }
+}
 
 } // namespace nrmanet

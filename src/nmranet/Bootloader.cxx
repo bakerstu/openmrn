@@ -94,7 +94,7 @@ struct BootloaderState
     int stream_buffer_remaining;
 
     // Offset of the beginning of the write buffer.
-    unsigned write_buffer_offset;
+    uintptr_t write_buffer_offset;
     // Offset inside the write buffer for the next incoming data.
     unsigned write_buffer_index;
 
@@ -329,13 +329,13 @@ void handle_memory_config_frame()
             const struct app_header *app_header;
             get_flash_boundaries(&flash_min, &flash_max, &app_header);
             if (state_.write_buffer_offset >=
-                ((uint32_t)flash_max - (uint32_t)flash_min))
+                ((uintptr_t)flash_max - (uintptr_t)flash_min))
             {
                 add_memory_config_error_response(
                     DatagramDefs::INVALID_ARGUMENTS);
                 return reset_stream_state();
             }
-            state_.write_buffer_offset += (uint32_t)flash_min;
+            state_.write_buffer_offset += (uintptr_t)flash_min;
             init_flash_write_buffer();
             return;
         }
@@ -747,7 +747,7 @@ void handle_send_datagram()
     CanDefs::set_datagram_fields(&id, state_.alias, state_.datagram_dst,
                                  frame_type);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
-    int len = min(state_.datagram_dlc - state_.datagram_offset, 8);
+    int len = std::min(state_.datagram_dlc - state_.datagram_offset, 8);
     memcpy(state_.output_frame.data,
            &state_.datagram_payload[state_.datagram_offset], len);
     state_.datagram_offset += len;
