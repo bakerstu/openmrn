@@ -52,6 +52,17 @@ LPCOPENPATH_18XX_43XX:=$(TRYPATH)
 endif
 endif #LPCOPENPATH_18XX_43XX
 
+################ lpc_chip_17xx_40xx ##################
+ifndef LPCCHIPPATH_17XX_40XX
+SEARCHPATH := \
+  /opt/nxp/lpc_chip/lpc_chip_17xx_40xx 
+
+TRYPATH:=$(call findfirst,inc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+LPCCHIPPATH_17XX_40XX:=$(TRYPATH)
+endif
+endif #LPCCHIPPATH_17XX_40XX
+
 ################ nxpusblib ##################
 ifndef NXPUSBLIBPATH
 SEARCHPATH := \
