@@ -81,6 +81,8 @@ enum BootloaderLed {
   LED_CSUM_ERROR = 8,
   /* 1 if the end-user requested entry to the bootloader. */
   LED_REQUEST = 16,
+  /* 1 if a buffer overrun occurred. */
+  LED_FRAME_LOST = 32,
 };
 
 /** Write this value to __bootloader_magic_ptr and jump to the bootloader entry
