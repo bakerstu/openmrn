@@ -27,3 +27,9 @@ BOARD := BOARD_LAUNCHPAD_EK
 
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
+	stellaris-flash.sh $<
+
+gdb:
+	stellaris-gdb.sh $(EXECUTABLE)$(EXTENTION)

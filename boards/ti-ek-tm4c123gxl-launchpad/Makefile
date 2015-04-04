@@ -12,6 +12,11 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 # Find TivaWare
 include $(OPENMRNPATH)/etc/tivaware.mk
 
+export TARGET ?= freertos.armv7m
+ifndef BOARD
+export BOARD := BOARD_LAUNCHPAD_EK
+endif
+
 LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
                -L$(TIVAWAREPATH)/usblib/gcc
 SYSLIBRARIESEXTRA = -lusb -ldriver
@@ -22,11 +27,6 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
 
 CXXFLAGSEXTRA += -DPART_TM4C123GH6PM
 
-export TARGET := freertos.armv7m
-ifndef BOARD
-export BOARD := BOARD_LAUNCHPAD_EK
-endif
-
 include $(OPENMRNPATH)/etc/prog.mk
 
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
@@ -34,3 +34,10 @@ flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 
 gdb:
 	stellaris-gdb.sh $(EXECUTABLE)$(EXTENTION)
+
+ifndef ADDRESS
+ADDRESS=0x04
+endif
+
+rflash: $(EXECUTABLE).bin
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x050101011F$$(printf %02x $(ADDRESS)) -f $<
