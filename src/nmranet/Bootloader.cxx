@@ -271,6 +271,11 @@ void handle_memory_config_frame()
     uint8_t command = state_.input_frame.data[1];
     switch (command)
     {
+        case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
+        {  
+            memset(&state_, 0, sizeof(state_));
+            return;
+        }
         case MemoryConfigDefs::COMMAND_RESET:
         {
             set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
