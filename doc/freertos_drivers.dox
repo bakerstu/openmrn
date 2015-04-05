@@ -8,6 +8,10 @@
  * - @ref callgraph
  *   - @ref opencallgraph
  *   - @ref writecallgraph
+ * - @ref devicebuffer
+ * - @ref tutorial
+ *   - @ref uartexample
+ *   - @ref canexample
  * 
  *
  *
@@ -65,20 +69,20 @@
  * @section file File
  * The @ref File object represents, as a 1-to-1 mapping, an application level
  * POSIX file descriptor.  The @ref File object contains metadata that is
- * unique the an open instance of a device and from another open instance of
+ * unique to an open instance of a device, and from another open instance of
  * the same device. The @ref Device class contains the static methods @ref
  * Device::file_lookup(int) and Device::fd_lookup(File*) for 
  * converting between an @ref File reference and an integer file descriptor.
  *
  * The static Device::fd_alloc() and Device::fd_free(int) methods can be used
- * to allocate a file descriptor from and free a file descriptor back to the
+ * to allocate a file descriptor from, and free a file descriptor back to, the
  * file descriptor pool.  While Device::fd_alloc() must always be called with
  * the caller holding the Device::mutex, fd_free(int) may be called without the
  * caller holding the mutex.  In general, the Device::fd_alloc() and
  * Device::fd_free(int) methods are only used within the provided Device::open()
  * and Device::close() methods.  The occasional use of the Device::fd_alloc()
  * and Device::fd_free(int) methods outside of
- * the @ref Device class is the exception representing very special cases, and
+ * the @ref Device class is the exception, representing very special cases, and
  * not the rule.
  *
  *
@@ -95,7 +99,7 @@
  *       a [shape=box
  *          label="open()\n[return file descriptor]"];
  *       b [shape=box
- *          label="_open_r()[return file descriptor]"
+ *          label="_open_r()\n[return file descriptor]"
  *          URL="@ref _open_r"];
  *       c [shape=box
  *          label="Device::open(struct _reent *, const char *, int, int)\n[allocate/return file descriptor]"
@@ -130,4 +134,234 @@
  *     }
  *     @enddot
  *
+ *
+ *
+ *
+ * @section devicebuffer DeviceBuffer
+ * The DeviceBuffer object class implements a circular buffer with both a copy
+ * and zero copy interface.  What makes the DeviceBuffer unique versus a
+ * generic ring buffer implementation is that is contains the logic required
+ * in order to simplify implementation of asynchronous notification through the
+ * select() infrastructure.  Use of the DeviceBuffer class when implementing
+ * a device driver is not strictly required. However, it can often simplify the
+ * implementation of a device driver, and its use should typically be
+ * considered.
+ *
+ *
+ *
+ *
+ *
+ * @section tutorial Tutorial
+ * For the purposes of demonstration, the TivaUart and TivaCan device drivers
+ * will be used to demonstrate the writing of a new device driver.
+ *
+ *   @subsection uartexample UART Example
+ *   This example is meant to be read along side the source of the TivaUart
+ *   device driver object class.  This is effectively a detailed explanation
+ *   of the inner workings of the TivaUart device driver.
+ *
+ *     @subsubsection serialbaseexample Serial Base Class
+ *     The Serial object class is provided as a generic starting point for all
+ *     character device drivers, such as those that would provide access to a
+ *     UART.  Our TivaUart driver will be a child of the Serial base class, and
+ *     the Serial base class will perform most of the heavy lifting for us.
+ *     TivaUart will only implement operations that are typically
+ *     hardware specific.
+ *
+ *     @subsubsection uartconstructor TivaUart::TivaUart() Constructor
+ *     TivaUart::TivaUart() will take in 3 important parameters:
+ *      -# name of the device as it will appear in a standard open() call
+ *      -# address that will tell us where in the MCU's memory space the UART
+ *         hardware instance is located
+ *      -# interrupt number which will correspond to the interrupt vector of the
+ *         UART hardware instance in the MCU's interrupt vector table
+ *
+ *     The constructor serves to store the base address and interrupt vector in
+ *     the object instance's private data to be referenced later.  The
+ *     constructor will also perform any one-time initialization for the
+ *     hardware to be ready for operation once an open() call is made, as well
+ *     as pass the device name onto the Serial base class.
+ *
+ *
+ *     @subsubsection uartenabledisable TivaUart::enable() and TivaUart::disable()
+ *     The TivaUart::enable() method will be called when the device is opened
+ *     through the standard open() method for the first time.
+ *     TivaUart::enable() will take the final steps in order to make the
+ *     hardware able to start receiving and transmitting characters.  Typically
+ *     this includes enabling the hardware and appropriate interrupt(s).
+ *
+ *     TivaUart::disable() will be called when the last open reference to the
+ *     device is closed with the standard close() method.  TivaUart::disable()
+ *     will return hardware to a disabled state, as it would have been before
+ *     TivaUart::enable() was called.  Typically this includes  disabling the
+ *     the hardware and appropriate interrupt(s).
+ *
+ *
+ *     @subsubsection uarttx_char TivaUart::tx_char()
+ *     Normally, when the UART transmitter is idle, and there is no active
+ *     transmission taking place, transmit interrupts are disabled.
+ *     TivaUart::tx_char() is called whenever transmit data is placed in the
+ *     Serial::txBuf in order to enabled the transmit interrupt, if required.
+ *
+ *     The TivaUart::txPending flag is used internal to the driver in order to
+ *     track whether transmission is currently in process, or in other words,
+ *     the enable status of the transmit interrupt.  If there is no
+ *     transmission currently taking place, we can grab the next character out
+ *     of Serial::txBuf and place it into the transmit register of the hardware.
+ *     Next, we should enable transmit interrupts and set our
+ *     TivaUart::txPending state to true.  If there is already a transmission
+ *     in progress, transmit interrupts are already enabled, and we can
+ *     proceed by doing nothing.
+ *
+ *
+ *     @subsubsection uartinterrupt_handler TivaUart::interrupt_handler()
+ *     The TivaUart driver has two possible interrupt sources:
+ *      -# receive interrupt
+ *      -# transmit interrupt
+ *
+ *     The receive interrupt is delivered when there is a character in the
+ *     receive buffer that should be transferred into Serial::rxBuf.  Whenever
+ *     data is received, we must pull it out of the hardware.  We are not
+ *     guaranteed that Seral::rxBuf contains space for the incoming data.
+ *     In this case, since an interrupt handler cannot block on space becoming
+ *     available, we must throw the data away.  It is the responsibility of the
+ *     application to periodically read data out of the Serial::rxBuf in order
+ *     for space to be available for additional incoming characters.
+ *
+ *     The transmit interrupt is delivered when both transmit interrupts are
+ *     enabled and there is space in the hardware for additional characters.
+ *     data is transfered from Serial::txBuf to the hardware as long as there
+ *     is both space available in the hardware and data left to transmit.  When
+ *     there is no longer any data left to transmit, transmit interrupts are
+ *     disabled.
+ *
+ *     Because TivaUart::interrupt_handler is part of a "C++" instance called
+ *     from a global "C" style method in the MCU's interrupt vector table, we
+ *     must translate the "C" call without an implicit "this" pointer to a C++
+ *     call with the implicit "this" pointer.  The uart0_interrupt_handler()
+ *     etc... methods perform this translation with the help of a static global
+ *     instances array containing the instance pointers for each of 8
+ *     possible hardware instances.
+ *
+ *
+ *     @subsubsection uartasyncnotification Asynchronous Notification
+ *     Device drivers use the POSIX select() infrastructure in order to provide
+ *     asynchronous notification to the application that there is either data
+ *     waiting to be read (read active) or there is space for data to be written
+ *     (write active).  POSIX select() is well documented elsewhere.  Most of
+ *     the infrastructure required for delivering asynchronous notification is
+ *     provided in the Serial base class.  The rest of the infrastructure is
+ *     built into the DeviceBuffer instances of Serial::rxBuf and Serial::txBuf
+ *     It is the responsibility of the TivaUart driver to call the
+ *     DeviceBuffer::signal_condition_from_isr() whenever data is put into
+ *     Serial::rxBuf or pulled out of Serial::txBuf.  An example of this can
+ *     be found in TivaUart::tx_char() and TivaUart::interrupt_handler().
+ *
+ *   @subsection canexample CAN Example
+ *   This example is meant to be read along side the source of the TivaCan
+ *   device driver object class.  This is effectively a detailed explanation
+ *   of the inner workings of the TivaCan device driver.
+ *
+ *     @subsubsection canbaseexample Can Base Class
+ *     The Can object class is provided as a generic starting point for all
+ *     CAN device drivers.  Our TivaCan driver will be a child of the Can base
+ *     class, and the Can base class will perform most of the heavy lifting for
+ *     us.  TivaCan will only implement operations that are typically
+ *     hardware specific.
+ *
+ *     @subsubsection canconstructor TivaCan::TivaCan() Constructor
+ *     TivaCan::TivaCan() will take in 3 important parameters:
+ *      -# name of the device as it will appear in a standard open() call
+ *      -# address that will tell us where in the MCU's memory space the CAN
+ *         hardware instance is located
+ *      -# interrupt number which will correspond to the interrupt vector of the
+ *         CAN hardware instance in the MCU's interrupt vector table
+ *
+ *     The constructor serves to store the base address and interrupt vector in
+ *     the object instance's private data to be referenced later.  The
+ *     constructor will also perform any one-time initialization for the
+ *     hardware to be ready for operation once an open() call is made, as well
+ *     as pass the device name onto the CAN base class.
+ *
+ *
+ *     @subsubsection canenabledisable TivaCan::enable() and TivaCan::disable()
+ *     The TivaCan::enable() method will be called when the device is opened
+ *     through the standard open() method for the first time.
+ *     TivaCan::enable() will take the final steps in order to make the
+ *     hardware able to start receiving and transmitting frames.  Typically
+ *     this includes enabling the hardware and appropriate interrupt(s).
+ *
+ *     TivaCan::disable() will be called when the last open reference to the
+ *     device is closed with the standard close() method.  TivaCan::disable()
+ *     will return hardware to a disabled state, as it would have been before
+ *     TivaCan::enable() was called.  Typically this includes  disabling the
+ *     the hardware and appropriate interrupt(s).
+ *
+ *
+ *     @subsubsection cantx_msg TivaUart::tx_msg()
+ *     Normally, when the CAN transmitter is idle, and there is no active
+ *     transmission taking place, transmit interrupts are disabled.
+ *     TivaCan::tx_msg() is called whenever transmit data is placed in the
+ *     Can::txBuf in order to enabled the transmit interrupt, if required.
+ *
+ *     The TivaCan::txPending flag is used internal to the driver in order to
+ *     track whether transmission is currently in process, or in other words,
+ *     the enable status of the transmit interrupt.  If there is no
+ *     transmission currently taking place, we can grab the next character out
+ *     of Can::txBuf and place it into a transmit object of the hardware.
+ *     Next, we should enable transmit interrupts and set our
+ *     TivaCan::txPending state to true.  If there is already a transmission
+ *     in progress, transmit interrupts are already enabled, and we can
+ *     proceed by doing nothing.
+ *
+ *
+ *     @subsubsection caninterrupt_handler TivaCan::interrupt_handler()
+ *     The TivaCan driver has three possible interrupt sources:
+ *      -# error
+ *      -# receive interrupt
+ *      -# transmit interrupt
+ *
+ *     If an error occurred that could be persistent, we flush all the transmit
+ *     data and clear any transmitting message object.  This is considered a
+ *     normal case if the device is the only node on the CAN bus.  This is
+ *     because all CAN frames must be acknowledged by another CAN node in order
+ *     for transmission to be successful.
+ *
+ *     The receive interrupt is delivered when there is a frame in the
+ *     receive object that should be transferred into Can::rxBuf.  Whenever
+ *     data is received, we must pull it out of the hardware.  We are not
+ *     guaranteed that Can::rxBuf contains space for the incoming data.
+ *     In this case, since an interrupt handler cannot block on space becoming
+ *     available, we must throw the data away.  It is the responsibility of the
+ *     application to periodically read data out of the Can::rxBuf in order
+ *     for space to be available for additional incoming characters.
+ *
+ *     The transmit interrupt is delivered when both transmit interrupts are
+ *     enabled and there is space in the hardware for additional frames.
+ *     data is transfered from Can::txBuf to the hardware as long as there
+ *     is both space available in the hardware and data left to transmit.  When
+ *     there is no longer any data left to transmit, transmit interrupts are
+ *     disabled.
+ *
+ *     Because TivaCan::interrupt_handler is part of a "C++" instance called
+ *     from a global "C" style method in the MCU's interrupt vector table, we
+ *     must translate the "C" call without an implicit "this" pointer to a C++
+ *     call with the implicit "this" pointer.  The can0_interrupt_handler()
+ *     etc... methods perform this translation with the help of a static global
+ *     instances array containing the instance pointers for each of 2
+ *     possible hardware instances.
+ *
+ *
+ *     @subsubsection canasyncnotification Asynchronous Notification
+ *     Device drivers use the POSIX select() infrastructure in order to provide
+ *     asynchronous notification to the application that there is either data
+ *     waiting to be read (read active) or there is space for data to be written
+ *     (write active).  POSIX select() is well documented elsewhere.  Most of
+ *     the infrastructure required for delivering asynchronous notification is
+ *     provided in the Can base class.  The rest of the infrastructure is
+ *     built into the DeviceBuffer instances of Can::rxBuf and Can::txBuf
+ *     It is the responsibility of the TivaCan driver to call the
+ *     DeviceBuffer::signal_condition_from_isr() whenever data is put into
+ *     Can::rxBuf or pulled out of Can::txBuf.  An example of this can
+ *     be found in TivaCan::tx_msg() and TivaCan::interrupt_handler().
  */
