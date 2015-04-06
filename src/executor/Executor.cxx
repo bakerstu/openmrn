@@ -170,6 +170,52 @@ void *ExecutorBase::entry()
 
     return NULL;
 }
+
+void ExecutorBase::select(Selectable *job)
+{
+    fd_set *s = get_select_set(job->type());
+    int fd = job->fd_;
+    if (FD_ISSET(fd, s))
+    {
+        LOG(FATAL,
+            "Multiple Selectables are waiting for the same fd %d type %u", fd,
+            job->selectType_);
+    }
+    FD_SET(fd, s);
+    if (fd >= selectNFds_)
+    {
+        selectNFds_ = fd + 1;
+    }
+    HASSERT(!job->next);
+    // Inserts the job into the select queue.
+    selectables_.push_front(job);
+}
+
+void ExecutorBase::unselect(Selectable *job)
+{
+    fd_set *s = get_select_set(job->type());
+    int fd = job->fd_;
+    if (!FD_ISSET(fd, s))
+    {
+        LOG(FATAL, "Tried to remove a non-active selectable: fd %d type %u", fd,
+            job->selectType_);
+    }
+    FD_CLR(fd, s);
+    auto it = selectables_.begin();
+    unsigned max_fd = 0;
+    while (it != selectables_.end())
+    {
+        if (&*it == job)
+        {
+            selectables_.erase(it);
+            continue;
+        }
+        max_fd = std::max(max_fd, it->fd_ + 1U);
+        ++it;
+    }
+    selectNFds_ = max_fd;
+}
+
 #endif
 
 void ExecutorBase::shutdown()

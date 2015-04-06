@@ -38,8 +38,10 @@
 
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
+#include "executor/Selectable.hxx"
 #include "executor/Timer.hxx"
 #include "utils/Queue.hxx"
+#include "utils/SimpleQueue.hxx"
 #include "utils/logging.h"
 
 class ActiveTimers;
@@ -80,8 +82,27 @@ public:
                               unsigned priority = UINT_MAX) = 0;
 #endif
 
+    /** Adds a file descriptor to be watched to the select loop.
+     * @param job Selectable structure that describes the descriptor to watch.
+     * The pointer must stay alive until it is activated, or is unselected.
+     *
+     * Must be called on the executor thread.
+     */
+    void select(Selectable* job);
+    /** Removes a job from the select loop.
+     *
+     * This stops watching the given file descriptor. The job must have been
+     * previously inserted into the Executor and must be not yet activated.
+     *
+     * Must be called on the executor thread.
+     *
+     * @param job is a Selectable pointer that was previously inserted.
+     */
+    void unselect(Selectable* job);
+
     /** Performs one loop of the execution on the calling thread. Returns true
-     * if there is more scheduled work to do. */
+     * if there is more scheduled work to do. Returns false if the executor
+     * loop would block right now. */
     bool loop_once();
 
     /** @returns the list of active timers. */
@@ -121,6 +142,17 @@ private:
      */
     virtual Executable *next(unsigned *priority) = 0;
 
+
+    fd_set* get_select_set(Selectable::SelectType type) {
+        switch(type) {
+        case Selectable::READ: return &selectRead_;
+        case Selectable::WRITE: return &selectWrite_;
+        case Selectable::EXCEPT: return &selectExcept_;
+        }
+        LOG(FATAL, "Unexpected select type %d", type);
+        return nullptr;
+    }
+
     /** name of this Executor */
     const char *name_;
 
@@ -136,6 +168,17 @@ private:
     /** List of active timers. */
     ActiveTimers activeTimers_;
 
+    /** fd to select for read. */
+    fd_set selectRead_;
+    /** fd to select for write. */
+    fd_set selectWrite_;
+    /** fd to select for except. */
+    fd_set selectExcept_;
+    /** maximum fd to select for + 1 */
+    int selectNFds_;
+    /** Head of the linked list for the select calls. */
+    TypedQueue<Selectable> selectables_;
+
     /** Set to 1 when the executor thread has exited and it is safe to delete
      * *this. */
     unsigned done_ : 1;
@@ -147,7 +190,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(ExecutorBase);
 };
 
-/* This is an empty struct. If you give it as an argument to the executor
+/** This is an empty struct. If you give it as an argument to the executor
  * constructor, the executor will be created without a thread. The owner is
  * responsible for "donating" a thread (typically the main thread) to that
  * executor. See @ref Executor::thread_body() */
