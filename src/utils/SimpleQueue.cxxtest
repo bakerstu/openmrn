@@ -1,0 +1,188 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file SimpleQueue.cxxtest
+ * Unit tests for the simple queue.
+ *
+ * @author Balazs Racz
+ * @date 6 Apr 2015
+ */
+
+#include "utils/SimpleQueue.hxx"
+#include "utils/test_main.hxx"
+
+using ::testing::ElementsAre;
+
+struct TestQMember : public QMember {
+    TestQMember() {}
+    ~TestQMember() {}
+};
+
+struct ValueQMember : public QMember {
+    ValueQMember(int v) : value_(v) {}
+    ~ValueQMember() {}
+    int value_;
+};
+
+template<class QT>
+struct QTHelper;
+
+
+template<>
+struct QTHelper<SimpleQueue> {
+    typedef QMember member_type;
+
+    ~QTHelper() {
+        for (auto it : queueEntries_) {
+            delete static_cast<TestQMember*>(it.first);
+        }
+    }
+
+    member_type* get_q_entry(int value) {
+        QMember* m = new TestQMember();
+        queueEntries_[m] = value;
+        return m;
+    }
+
+    int get_value(QMember* entry) {
+        return queueEntries_[entry];
+    }
+
+    std::map<QMember*, int> queueEntries_;
+};
+
+template<>
+struct QTHelper<TypedQueue<ValueQMember> > {
+    typedef ValueQMember member_type;
+
+    ~QTHelper() {
+        for (auto m : entries_) {
+            delete m;
+        }
+    }
+
+    member_type* get_q_entry(int value) {
+        auto* m = new ValueQMember(value);
+        entries_.push_back(m);
+        return m;
+    }
+
+    int get_value(member_type* entry) {
+        return entry->value_;
+    }
+
+    vector<ValueQMember*> entries_;
+};
+
+template<class QT>
+class SimpleQueueTest : public ::testing::Test {
+protected:
+    typename QTHelper<QT>::member_type* get_q_entry(int value) {
+        return helper_.get_q_entry(value);
+    }
+
+    vector<int> list_queue(QT* q) {
+        vector<int> values;
+        auto it = q->begin();
+        while (it != q->end()) {
+            values.push_back(get_value(&*it));
+            ++it;
+        }
+        return values;
+    }
+
+    int get_value(typename QTHelper<QT>::member_type* entry) {
+        return helper_.get_value(entry);
+    }
+
+    QT q_;
+    QTHelper<QT> helper_;
+};
+
+TYPED_TEST_CASE_P(SimpleQueueTest);
+
+TYPED_TEST_P(SimpleQueueTest, empty) {
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre());
+    EXPECT_TRUE(this->q_.empty());
+}
+
+TYPED_TEST_P(SimpleQueueTest, push_front) {
+    this->q_.push_front(this->get_q_entry(23));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23));
+    EXPECT_FALSE(this->q_.empty());
+    EXPECT_EQ(23, this->get_value(this->q_.front()));
+    this->q_.push_front(this->get_q_entry(24));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(24, 23));
+    this->q_.insert(this->q_.begin(), this->get_q_entry(17));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(17, 24, 23));
+    EXPECT_EQ(17, this->get_value(this->q_.front()));
+}
+
+TYPED_TEST_P(SimpleQueueTest, pop_front) {
+    this->q_.push_front(this->get_q_entry(25));
+    this->q_.push_front(this->get_q_entry(24));
+    this->q_.push_front(this->get_q_entry(23));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 24, 25));
+    EXPECT_EQ(23, this->get_value(this->q_.pop_front()));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(24, 25));
+    EXPECT_EQ(24, this->get_value(this->q_.pop_front()));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(25));
+    EXPECT_FALSE(this->q_.empty());
+    EXPECT_EQ(25, this->get_value(this->q_.pop_front()));
+    EXPECT_TRUE(this->q_.empty());
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre());
+}
+
+TYPED_TEST_P(SimpleQueueTest, insert) {
+    this->q_.push_front(this->get_q_entry(25));
+    this->q_.push_front(this->get_q_entry(24));
+    this->q_.push_front(this->get_q_entry(23));
+    auto it = this->q_.begin();
+    ++it;
+    EXPECT_EQ(24, this->get_value(&*it));
+    this->q_.insert(it, this->get_q_entry(42));
+    EXPECT_EQ(42, this->get_value(&*it));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 42, 24, 25));
+}
+
+TYPED_TEST_P(SimpleQueueTest, erase) {
+    this->q_.push_front(this->get_q_entry(25));
+    this->q_.push_front(this->get_q_entry(24));
+    this->q_.push_front(this->get_q_entry(23));
+    auto it = this->q_.begin();
+    ++it;
+    EXPECT_EQ(24, this->get_value(&*it));
+    EXPECT_EQ(24, this->get_value(it.operator->()));
+    this->q_.erase(it);
+    EXPECT_EQ(25, this->get_value(&*it));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 25));
+}
+
+REGISTER_TYPED_TEST_CASE_P(SimpleQueueTest, empty, push_front, pop_front, insert, erase);
+
+INSTANTIATE_TYPED_TEST_CASE_P(Simple, SimpleQueueTest, SimpleQueue);
+
+INSTANTIATE_TYPED_TEST_CASE_P(Typed, SimpleQueueTest, TypedQueue<ValueQMember>);

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Stuart W Baker
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,57 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file QMember.hxx
- * Base class for objects that can be enqueued.
+ * \file SimpleQueue.cxx
+ * A simple fast single-linked queue class with non-virtual methods.
  *
- * @author Stuart W. Baker
- * @date 10 March 2014
+ * @author Balazs Racz
+ * @date 6 Apr 2015
  */
 
-#ifndef _UTILS_QMEMBER_HXX_
-#define _UTILS_QMEMBER_HXX_
+#include "utils/SimpleQueue.hxx"
 
-#include "utils/macros.h"
-
-/** Essentially a "next" pointer container.
- */
-class QMember
-{
-public:
-    /** Initiailize a QMember, in place of a public placement construction.
-     * @param item QMemember to init
-     */
-    void init()
-    {
-        HASSERT(this);
-        next = NULL;
-    }
-
-protected:
-    /** Constructor.
-     */
-    QMember() : next(NULL)
-    {
-    }
-
-    /** Destructor.
-     */
-    ~QMember()
-    {
-    }
-
-    /** pointer to the next member in the queue */
-    QMember *next;
-
-    /** This class is a helper of Q */
-    friend class Q;
-    /** This class is a helper of SimpleQueue */
-    friend class SimpleQueue;
-    /** ActiveTimers needs to iterate through the queue. */
-    friend class ActiveTimers;
-    /** ActiveTimers needs to iterate through the queue. */
-    friend class ExecutorBase;
-    friend class TimerTest;
-};
-
-#endif /* _UTILS_QMEMBER_HXX_ */
+QMember* const SimpleQueue::PTR_END = nullptr;
