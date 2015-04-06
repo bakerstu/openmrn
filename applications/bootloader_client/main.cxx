@@ -263,7 +263,8 @@ int appl_main(int argc, char *argv[])
         b->data()->data.append(buf, nr);
     }
     fclose(f);
-    printf("Read %d bytes from file %s. Writing to memory space 0x%02x\n",
+    printf("Read %" PRIdPTR
+           " bytes from file %s. Writing to memory space 0x%02x\n",
         b->data()->data.size(), filename, memory_space_id);
     maybe_checksum(&b->data()->data);
 
