@@ -181,7 +181,28 @@ TYPED_TEST_P(SimpleQueueTest, erase) {
     EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 25));
 }
 
-REGISTER_TYPED_TEST_CASE_P(SimpleQueueTest, empty, push_front, pop_front, insert, erase);
+TYPED_TEST_P(SimpleQueueTest, reuse) {
+    this->q_.push_front(this->get_q_entry(25));
+    this->q_.push_front(this->get_q_entry(24));
+    this->q_.push_front(this->get_q_entry(23));
+    auto it = this->q_.begin();
+    ++it;
+    EXPECT_EQ(24, this->get_value(&*it));
+    auto* m = &*it;
+    this->q_.erase(it);
+    EXPECT_EQ(25, this->get_value(&*it));
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 25));
+    this->q_.insert(it, m);
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(23, 24, 25));
+    this->q_.erase(it);
+    auto* n = this->q_.pop_front();
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(25));
+    this->q_.push_front(n); // 23
+    this->q_.push_front(m); // 24
+    EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(24, 23, 25));
+}
+
+REGISTER_TYPED_TEST_CASE_P(SimpleQueueTest, empty, push_front, pop_front, insert, erase, reuse);
 
 INSTANTIATE_TYPED_TEST_CASE_P(Simple, SimpleQueueTest, SimpleQueue);
 

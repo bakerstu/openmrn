@@ -53,7 +53,8 @@ public:
     QMember* pop_front() {
         HASSERT(head_);
         QMember* f = head_;
-        head_ = head_->next;
+        head_ = f->next;
+        f->next = nullptr;
         return f;
     }
 
@@ -138,8 +139,10 @@ public:
 
     /** Removes the entry pointed to by the iterator. */
     void erase(const iterator& position) {
-        HASSERT(*position.link_);
-        *position.link_ = (*position.link_)->next;
+        QMember* m = *position.link_;
+        HASSERT(m);
+        *position.link_ = m->next;
+        m->next = nullptr;
     }
 
 protected:
