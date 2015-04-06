@@ -41,6 +41,7 @@
 #endif
 
 #include "executor/Service.hxx"
+#include "nmranet_config.h"
 
 ExecutorBase *ExecutorBase::list = NULL;
 
@@ -55,6 +56,7 @@ ExecutorBase::ExecutorBase()
     , activeTimers_(this)
     , done_(0)
     , started_(0)
+    , selectPrescaler_(0)
 {
     /** @todo (Stuart Baker) we need a locking mechanism here to protect
      *  the list.
@@ -69,6 +71,10 @@ ExecutorBase::ExecutorBase()
         next_ = list;
         list = this;
     }
+    FD_ZERO(&selectRead_);
+    FD_ZERO(&selectWrite_);
+    FD_ZERO(&selectExcept_);
+    selectNFds_ = 0;
 }
 
 /** Lookup an executor by its name.
@@ -146,14 +152,20 @@ void *ExecutorBase::entry()
 void *ExecutorBase::entry()
 {
     started_ = 1;
-    Executable *msg;
-
     /* wait for messages to process */
     for (; /* forever */;)
     {
-        unsigned priority;
+        Executable *msg = nullptr;
+        unsigned priority = UINT_MAX;
         long long wait_length = activeTimers_.get_next_timeout();
-        msg = timedwait(wait_length, &priority);
+        if (!selectPrescaler_ || empty()) {
+            wait_with_select(wait_length);
+            selectPrescaler_ = config_executor_select_prescaler();
+            msg = next(&priority);
+        } else {
+            --selectPrescaler_;
+            msg = next(&priority);
+        }
         if (msg == this)
         {
             // exit closure
@@ -207,6 +219,45 @@ void ExecutorBase::unselect(Selectable *job)
     {
         if (&*it == job)
         {
+            selectables_.erase(it);
+            continue;
+        }
+        max_fd = std::max(max_fd, it->fd_ + 1U);
+        ++it;
+    }
+    selectNFds_ = max_fd;
+}
+
+void ExecutorBase::wait_with_select(long long wait_length)
+{
+    fd_set fd_r(selectRead_);
+    fd_set fd_w(selectWrite_);
+    fd_set fd_x(selectExcept_);
+    if (!empty()) {
+        wait_length = 0;
+    }
+    long long max_sleep = MSEC_TO_NSEC(config_executor_max_sleep_msec());
+    if (wait_length > max_sleep)
+    {
+        wait_length = max_sleep;
+    }
+    struct timeval select_time;
+    select_time.tv_sec = wait_length / 1000000000;
+    select_time.tv_usec = (wait_length % 1000000000) / 1000;
+    int ret = ::select(selectNFds_, &fd_r, &fd_w, &fd_x, &select_time);
+    if (ret <= 0) {
+        return; // nothing to do
+    }
+    unsigned max_fd = 0;
+    for (auto it = selectables_.begin(); it != selectables_.end();) {
+        fd_set* s = nullptr;
+        switch(it->type()) {
+        case Selectable::READ: s = &fd_r; break;
+        case Selectable::WRITE: s = &fd_w; break;
+        case Selectable::EXCEPT: s = &fd_x; break;
+        }
+        if (FD_ISSET(it->fd_, s)) {
+            add(it->wakeup_, it->priority_);
             selectables_.erase(it);
             continue;
         }

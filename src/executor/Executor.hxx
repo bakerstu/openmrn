@@ -87,6 +87,8 @@ public:
      * The pointer must stay alive until it is activated, or is unselected.
      *
      * Must be called on the executor thread.
+     *
+     * @param job is a Selectable pointer that is not currently watched.
      */
     void select(Selectable* job);
     /** Removes a job from the select loop.
@@ -111,6 +113,8 @@ public:
     /** Terminates the executor thread. Waits until it is safe to delete the
      * executor. */
     void shutdown();
+
+    virtual bool empty() = 0;
 
 protected:
     /** Thread entry point.
@@ -142,6 +146,12 @@ private:
      */
     virtual Executable *next(unsigned *priority) = 0;
 
+    /** Executes a select call, and schedules any necessary executables based
+     * on the return. Will not sleep at all if not empty, otherwise sleeps at
+     * most next_timer_nsec nanoseconds (from now).
+     *
+     * @param next_timer is the maximum time to sleep in nanoseconds. */
+    void wait_with_select(long long next_timer_nsec);
 
     fd_set* get_select_set(Selectable::SelectType type) {
         switch(type) {
@@ -183,6 +193,7 @@ private:
      * *this. */
     unsigned done_ : 1;
     unsigned started_ : 1;
+    unsigned selectPrescaler_ : 5;
 
     /** provide access to Executor::send method. */
     friend class Service;
@@ -256,7 +267,7 @@ public:
         entry();
     }
 
-    bool empty()
+    bool empty() OVERRIDE
     {
         return queue_.empty();
     }
