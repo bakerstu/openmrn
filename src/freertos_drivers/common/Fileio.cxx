@@ -149,7 +149,40 @@ int ioctl(int fd, unsigned long int key, ...)
 int select(int nfds, fd_set *readfds, fd_set *writefds,
            fd_set *exceptfds, struct timeval *timeout)
 {
-    return Device::select(nfds, readfds, writefds, exceptfds, timeout);
+    long long time_value = -1;
+    if (timeout) {
+        time_value = timeout->tv_sec;
+        time_value *= 1000000;
+        time_value += timeout->tv_usec;
+        time_value *= 1000;
+    }
+    Device::select_clear();
+    return Device::select(nfds, readfds, writefds, exceptfds, time_value);
+}
+
+/** POSIX pselect().
+ * @param nfds highest numbered file descriptor in any of the three, sets plus 1
+ * @param readfds fd_set of file descritpors to pend on read active
+ * @param writefds fd_set of file descritpors to pend on write active
+ * @param exceptfds fd_set of file descritpors to pend on error active
+ * @param timeout timeout value to wait, if 0, return immediately, if NULL
+ *                wait forever
+ * @return on success, number of file descriptors in the three sets that are
+ *         active, 0 on timeout, -1 with errno set appropriately upon error.
+ */
+int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+            struct timespec *timeout, const sigset_t *sigmask)
+{
+    long long time_value = -1;
+    if (timeout) {
+        time_value = timeout->tv_sec;
+        time_value *= 1000000000;
+        time_value += timeout->tv_nsec;
+    }
+    Device::select_clear();
+    ThreadPriv *priv = (ThreadPriv*)xTaskGetApplicationTaskTag(NULL);
+    /// @TODO (balazs.racz) **** finish this
+    return Device::select(nfds, readfds, writefds, exceptfds, time_value);
 }
 
 /** Manipulate a file descriptor.
