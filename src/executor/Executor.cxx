@@ -152,6 +152,7 @@ void *ExecutorBase::entry()
 void *ExecutorBase::entry()
 {
     started_ = 1;
+    selectHelper_.lock_to_thread();
     /* wait for messages to process */
     for (; /* forever */;)
     {
@@ -241,10 +242,7 @@ void ExecutorBase::wait_with_select(long long wait_length)
     {
         wait_length = max_sleep;
     }
-    struct timeval select_time;
-    select_time.tv_sec = wait_length / 1000000000;
-    select_time.tv_usec = (wait_length % 1000000000) / 1000;
-    int ret = ::select(selectNFds_, &fd_r, &fd_w, &fd_x, &select_time);
+    int ret = selectHelper_.select(selectNFds_, &fd_r, &fd_w, &fd_x, wait_length);
     if (ret <= 0) {
         return; // nothing to do
     }

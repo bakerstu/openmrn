@@ -125,6 +125,9 @@ protected:
 
     virtual void run() {}
 
+    /** Helper object for interruptible select calls. */
+    OSSelectWakeup selectHelper_;
+
 private:
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
@@ -245,6 +248,7 @@ public:
     {
         queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+        selectHelper_.wakeup();
     }
 
 #ifdef __FreeRTOS__
@@ -257,6 +261,7 @@ public:
     {
         queue_.insert_from_isr(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+        selectHelper_.wakeup_from_isr();
     }
 #endif
 
