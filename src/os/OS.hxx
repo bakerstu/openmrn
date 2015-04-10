@@ -686,64 +686,6 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
-#endif
-
-/** Helper class that allows a select to be asynchronously woken up. */
-class OSWakeupSelect
-{
-public:
-    OSWakeupSelect()
-        : pendingWakeup_(0), inSelect_(0) {}
-
-    /** Prepares the current thread for asynchronous wakeups. Can be called
-     * only once. */
-    void lock_to_thread();
-
-    void wakeup() {
-        pendingWakeup_ = 1;
-        if (inSelect_) {
-#ifdef __FreeRTOS__
-            Device::select_wakeup(&selectInfo_);
-#else
-            pthread_kill(thread_, WAKEUP_SIG);
-#endif
-        }
-    }
-
-    void clear_wakeup() {
-        pendingWakeup_ = 0;
-    }
-
-#ifdef __FreeRTOS__
-    void wakeup_from_isr() {
-        pendingWakeup_ = 1;
-        int woken;
-        Device::select_wakeup_from_isr(&selectInfo_, &woken);
-    }
-#endif
-
-    void select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, long long deadline_nsec) {
-        inSelect_ = 1;
-        struct timespec timeout;
-        if (pendingWakeup_) {
-            deadline = 0;
-        }
-        timeout.tv_sec = deadline_nsec / 1000000000;
-        timeout.tv_nsec = deadline_nsec % 1000000000;
-        pselect(nfds, readfds, writefds, exceptfds, &timeout, );
-        pendingWakeup_ = 0;
-        inSelect_ = 0;
-    }
-
-private:
-    static const int WAKEUP_SIG = SIGUSR1;
-    unsigned pendingWakeup_ : 1;
-#ifdef __FreeRTOS__
-    Device::SelectInfo selectInfo_;
-#else
-    os_thread_t thread_;
-#endif
-};
-
+#endif  // freertos
 
 #endif /* _OS_OS_HXX_ */
