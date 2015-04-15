@@ -55,7 +55,12 @@ public:
     {
     }
 
-    void reset(SelectType type, int fd, unsigned priority);
+    void reset(SelectType type, int fd, unsigned priority) {
+        selectType_ = type;
+        HASSERT(fd <= MAX_FD);
+        fd_ = fd;
+        priority_ = std::min((unsigned)priority, (unsigned)MAX_PRIO);
+    }
 
     unsigned priority()
     {
