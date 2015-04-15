@@ -36,6 +36,7 @@
 #include "executor/Executor.hxx"
 
 #include <unistd.h>
+#include <sys/select.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
