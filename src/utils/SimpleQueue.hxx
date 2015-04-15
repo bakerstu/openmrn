@@ -108,7 +108,7 @@ public:
 
     template<class T> class typed_iterator : public iterator {
     public:
-        using iterator::iterator;
+        typed_iterator(QMember** link): iterator(link) {}
         T* operator->() {
             return static_cast<T*>(*link_);
         }
