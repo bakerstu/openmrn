@@ -250,7 +250,6 @@ void ExecutorBase::wait_with_select(long long wait_length)
     unsigned max_fd = 0;
     for (auto it = selectables_.begin(); it != selectables_.end();) {
         fd_set* s = nullptr;
-        fd_set* os = get_select_set(it->type());
         switch(it->type()) {
         case Selectable::READ: s = &fd_r; break;
         case Selectable::WRITE: s = &fd_w; break;
@@ -258,7 +257,6 @@ void ExecutorBase::wait_with_select(long long wait_length)
         }
         if (FD_ISSET(it->fd_, s)) {
             add(it->wakeup_, it->priority_);
-            FD_CLR(it->fd_, os);
             selectables_.erase(it);
             continue;
         }

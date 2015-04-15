@@ -324,14 +324,13 @@ private:
     QListProtectedWait<NUM_PRIO> queue_;
 };
 
-template<class Executor>
 /** This class can be given an executor, and will notify itself when that
  *   executor is out of work. Callers can pend on the sync notifiable to wait
  *   for that. */
 class ExecutorGuard : private Executable, public SyncNotifiable
 {
 public:
-    ExecutorGuard(Executor* e)
+    ExecutorGuard(ExecutorBase* e)
         : executor_(e) {
         executor_->add(this);  // lowest priority
     }
@@ -344,7 +343,7 @@ public:
         }
     }
 private:
-    Executor* executor_;
+    ExecutorBase* executor_;
 };
 
 template <unsigned NUM_PRIO>

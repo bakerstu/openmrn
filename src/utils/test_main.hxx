@@ -113,7 +113,7 @@ Service g_service(&g_executor);
  * the last command in a TEST_F. */
 void wait_for_main_executor()
 {
-    ExecutorGuard<decltype(g_executor)> guard(&g_executor);
+    ExecutorGuard guard(&g_executor);
     guard.wait_for_notification();
 }
 
