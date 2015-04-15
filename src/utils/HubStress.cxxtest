@@ -180,22 +180,27 @@ protected:
         }
     }
 
-    void add_endpoints(int num_rounds)
+void add_endpoints(int num_rounds, int offset = 0, int m = 0)
     {
-        endpoints_.clear();
-        endpoints_.emplace_back(
-            new TestEndpoint(hubs_[0], 1, hubs_.size(), num_rounds));
+        injectEndpoints_.emplace_back(new TestEndpoint(
+            hubs_[offset % hubs_.size()], m + 1, m + hubs_.size(), num_rounds));
         for (unsigned i = 1; i < hubs_.size(); ++i)
         {
+            int h = (i + offset) % hubs_.size();
             endpoints_.emplace_back(
-                new TestEndpoint(hubs_[i], i + 1, i, num_rounds + 1));
+                new TestEndpoint(hubs_[h], m + i + 1, m + i, num_rounds + 1));
         }
     }
 
     void run()
     {
-        endpoints_[0]->inject();
-        endpoints_[0]->wait_for_notification();
+        usleep(10000);
+        for (auto& a : injectEndpoints_) {
+            a->inject();
+        }
+        for (auto& a : injectEndpoints_) {
+            a->wait_for_notification();
+        }
     }
 
     void start_tcp_hub()
@@ -245,9 +250,11 @@ protected:
     std::unique_ptr<TestTcpHub> tcpHub_;
     vector<TestHubFlow *> hubs_;
     vector<std::unique_ptr<Destructable>> components_;
+    vector<std::unique_ptr<TestEndpoint>> injectEndpoints_;
     vector<std::unique_ptr<TestEndpoint>> endpoints_;
 };
 
+// A bunch of additional threads.
 Executor<1> g_executor1("ex1", 0, 0), g_executor2("ex2", 0, 0),
     g_executor3("ex3", 0, 0), g_executor4("ex4", 0, 0);
 
@@ -264,7 +271,7 @@ TEST_F(HubStressTest, SingleHub)
 
 TEST_F(HubStressTest, SingleTcp)
 {
-    //print_all();
+    // print_all();
     add_start_hub(1);
     start_tcp_hub();
     add_tcp_connections(1);
@@ -277,7 +284,7 @@ TEST_F(HubStressTest, SingleTcp)
 
 TEST_F(HubStressTest, ManyTcp)
 {
-    //print_all();
+    // print_all();
     add_start_hub(1);
     start_tcp_hub();
     add_tcp_connections(6);
@@ -292,7 +299,7 @@ TEST_F(HubStressTest, ManyTcp)
 
 TEST_F(HubStressTest, MultiThreaded)
 {
-    //print_all();
+    // print_all();
     add_start_hub(1);
     start_tcp_hub();
     tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
@@ -309,6 +316,37 @@ TEST_F(HubStressTest, MultiThreaded)
     add_start_hub(1);
     use_tcp_hubs(8);
     add_endpoints(50);
+    run();
+    while (!g_executor4.empty() || !g_executor3.empty() ||
+        !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
+        usleep(1000);
+}
+
+TEST_F(HubStressTest, Parallel)
+{
+    // print_all();
+    add_start_hub(1);
+    start_tcp_hub();
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(8);
+    add_endpoints(20, 0, 0);
+    add_endpoints(20, 7, 1000);
+    add_endpoints(20, 12, 2000);
+    add_endpoints(20, 33, 3000);
+    add_endpoints(20, 91, 4000);
+    add_endpoints(20, 47, 5000);
+    add_endpoints(20, 27, 6000);
     run();
     while (!g_executor4.empty() || !g_executor3.empty() ||
         !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
