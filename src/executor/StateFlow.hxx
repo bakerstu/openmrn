@@ -402,6 +402,19 @@ protected:
         return wait_and_call(c);
     }
 
+    Action read_repeated(::StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, ) {
+        helper->reset(Selectable::READ, fd, priority);
+        helper->rbuf = static_cast<uint8_t*>(buf);
+        helper->remaining_ = size;
+        helper->nextState_ = c;
+        allocationResult_ = helper;
+        return call_immediately(
+    }
+
+    Action select_internal(::Selectable* s, Selectable::SelectType type, int fd, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+        
+    }
+
 private:
     /** Service this StateFlow belongs to */
     Service *service_;
@@ -807,6 +820,28 @@ public:
 protected:
     /// The timer will deliver notifications to this flow.
     StateFlowBase *parent_;
+};
+
+/** Use this class to read from an fd using select() in a state flow. */
+struct StateFlowSelectHelper : public Selectable
+{
+    StateFlowSelectHelper(StateFlowBase *parent) : Selectable(parent)
+    {
+    }
+
+    union
+    {
+        const uint8_t *wbuf;
+        uint8_t *rbuf;
+    };
+
+    /** Number of bytes still outstanding to read. */
+    size_t remaining_;
+    /** State to transition to after the read is complete. */
+    Callback nextState_;
+    /** 1 if we need to read until all remaining_ is consumed. 0 if we want to
+     * return as soon as we have read something. */
+    unsigned readFully_ : 1;
 };
 
 #endif /* _EXECUTOR_STATEFLOW_HXX_ */

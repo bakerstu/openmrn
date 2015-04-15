@@ -45,13 +45,13 @@ public:
         EXCEPT = 3,
     };
 
-    enum Limits {
-        MAX_FD = (1<<14) - 1,
-        MAX_PRIO = (1<<16) - 1,
+    enum Limits
+    {
+        MAX_FD = (1 << 14) - 1,
+        MAX_PRIO = (1 << 16) - 1,
     };
 
-    Selectable(Executable *parent)
-        : wakeup_(parent)
+    Selectable(Executable *parent) : wakeup_(parent)
     {
     }
 
@@ -65,6 +65,16 @@ public:
     SelectType type()
     {
         return static_cast<SelectType>(selectType_);
+    }
+
+    Executable *parent()
+    {
+        return wakeup_;
+    }
+
+    int fd()
+    {
+        return fd_;
     }
 
 private:
