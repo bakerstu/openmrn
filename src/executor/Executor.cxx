@@ -109,6 +109,39 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     }
 }
 
+class SyncExecutable : public Executable
+{
+public:
+    SyncExecutable(ExecutorBase *e, std::function<void()>&& fn)
+        : fn_(std::move(fn))
+    {
+        e->add(this);
+        n_.wait_for_notification();
+    }
+
+    void run() OVERRIDE
+    {
+        fn_();
+        n_.notify();
+    }
+    std::function<void()> fn_;
+    SyncNotifiable n_;
+};
+
+void ExecutorBase::sync_run(std::function<void()> fn)
+{
+    if (os_thread_self() == selectHelper_.main_thread())
+    {
+        // run inline.
+        fn();
+    }
+    else
+    {
+        // run externally and block.
+        SyncExecutable(this, std::move(fn));
+    }
+}
+
 bool ExecutorBase::loop_once()
 {
     unsigned priority;
@@ -250,6 +283,7 @@ void ExecutorBase::wait_with_select(long long wait_length)
     unsigned max_fd = 0;
     for (auto it = selectables_.begin(); it != selectables_.end();) {
         fd_set* s = nullptr;
+        fd_set* os = get_select_set(it->type());
         switch(it->type()) {
         case Selectable::READ: s = &fd_r; break;
         case Selectable::WRITE: s = &fd_w; break;
@@ -257,6 +291,7 @@ void ExecutorBase::wait_with_select(long long wait_length)
         }
         if (FD_ISSET(it->fd_, s)) {
             add(it->wakeup_, it->priority_);
+            FD_CLR(it->fd_, os);
             selectables_.erase(it);
             continue;
         }

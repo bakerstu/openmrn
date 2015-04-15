@@ -36,6 +36,8 @@
 #ifndef _EXECUTOR_EXECUTOR_HXX_
 #define _EXECUTOR_EXECUTOR_HXX_
 
+#include <functional>
+
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
 #include "executor/Selectable.hxx"
@@ -72,6 +74,10 @@ public:
      * @param priority priority of execution
      */
     virtual void add(Executable *action, unsigned priority = UINT_MAX) = 0;
+
+    /** Synchronously runs a closure on this executor. Does not return until
+     * the execution is completed. */
+    void sync_run(std::function<void()> fn);
 
 #ifdef __FreeRTOS__
     /** Send a message to this Executor's queue. Callable from interrupt

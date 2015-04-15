@@ -53,15 +53,19 @@ public:
     {
     }
 
+    os_thread_t main_thread() {
+        return thread_;
+    }
+
     /** Prepares the current thread for asynchronous wakeups. Can be called
      * only once. */
     void lock_to_thread()
     {
+        // Gets the current thread.
+        thread_ = os_thread_self();
 #ifdef __FreeRTOS__
         Device::select_insert(&selectInfo_);
 #else
-        // Gets the current thread.
-        thread_ = os_thread_self();
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
         HASSERT(!sigemptyset(&usrmask));
@@ -173,10 +177,10 @@ private:
     bool pendingWakeup_;
     /** True during the duration of a select operation. */
     bool inSelect_;
+    os_thread_t thread_;
 #ifdef __FreeRTOS__
     Device::SelectInfo selectInfo_;
 #else
-    os_thread_t thread_;
     sigset_t origMask_;
 #endif
 };
