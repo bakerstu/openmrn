@@ -35,6 +35,7 @@
 #ifndef _EXECUTOR_STATEFLOW_HXX_
 #define _EXECUTOR_STATEFLOW_HXX_
 
+#include <unistd.h>
 #include <type_traits>
 #include <functional>
 
@@ -402,18 +403,135 @@ protected:
         return wait_and_call(c);
     }
 
-    Action read_repeated(::StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, ) {
+    struct StateFlowSelectHelper;
+
+    Action read_repeated(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
-        helper->rbuf = static_cast<uint8_t*>(buf);
+        helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
+        helper->readFully_ = 1;
         helper->nextState_ = c;
         allocationResult_ = helper;
-        return call_immediately(
+        return call_immediately(STATE(try_read));
     }
 
-    Action select_internal(::Selectable* s, Selectable::SelectType type, int fd, Callback c, unsigned priority = Selectable::MAX_PRIO) {
-        
+    Action read_single(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+        helper->reset(Selectable::READ, fd, priority);
+        helper->rbuf_ = static_cast<uint8_t*>(buf);
+        helper->remaining_ = size;
+        helper->readFully_ = 0;
+        helper->nextState_ = c;
+        allocationResult_ = helper;
+        return call_immediately(STATE(try_read));
     }
+
+    Action try_read()
+    {
+        StateFlowSelectHelper *h =
+            static_cast<StateFlowSelectHelper *>(allocationResult_);
+        int count = ::read(h->fd(), h->rbuf_, h->remaining_);
+        if (count > 0)
+        {
+            h->remaining_ -= count;
+            h->rbuf_ += count;
+            if (h->remaining_ && h->readFully_)
+            {
+                return again();
+            }
+            else
+            {
+                return call_immediately(h->nextState_);
+            }
+        }
+        if (count < 0 &&
+            (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+        {
+            // Blocked.
+            service()->executor()->select(h);
+            return wait();
+        }
+        // Now: we are at an unknown error or EOF.
+        return call_immediately(h->nextState_);
+    }
+
+    Action write_repeated(StateFlowSelectHelper* helper, int fd, const void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+        helper->reset(Selectable::WRITE, fd, priority);
+        helper->wbuf_ = static_cast<const uint8_t*>(buf);
+        helper->remaining_ = size;
+        helper->readFully_ = 1;
+        helper->nextState_ = c;
+        allocationResult_ = helper;
+        return call_immediately(STATE(try_write));
+    }
+
+    Action try_write()
+    {
+        StateFlowSelectHelper *h =
+            static_cast<StateFlowSelectHelper *>(allocationResult_);
+        int count = ::write(h->fd(), h->wbuf_, h->remaining_);
+        if (count > 0)
+        {
+            h->remaining_ -= count;
+            h->wbuf_ += count;
+            if (h->remaining_)
+            {
+                return again();
+            }
+            else
+            {
+                return call_immediately(h->nextState_);
+            }
+        }
+        if (count < 0 &&
+            (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+        {
+            // Blocked.
+            service()->executor()->select(h);
+            return wait();
+        }
+        // Now: we are at an unknown error or EOF.
+        return call_immediately(h->nextState_);
+    }
+
+    /** Use this class to read from an fd using select() in a state flow.
+     *
+     * Usage:
+     *
+     * class FooFlow : public StateFlow(may use any variant)
+     * {
+     *   Action do_read()
+     *   {
+     *      return read_repeated(&readHelper_, fd_, buf_, 32, STATE(read_done));
+     *   }
+     *   ...
+     *   private:
+     *    StateFlowSelectHelper readHelper_;
+     *    int fd_;
+     *    char buf_[32];
+     * }
+    */
+    struct StateFlowSelectHelper : public Selectable
+    {
+        StateFlowSelectHelper(StateFlowBase *parent)
+            : Selectable(parent)
+        {
+        }
+
+        union
+        {
+            const uint8_t *wbuf_;
+            uint8_t *rbuf_;
+        };
+
+        /** State to transition to after the read is complete. */
+        Callback nextState_;
+        /** 1 if we need to read until all remaining_ is consumed. 0 if we want
+         * to
+         * return as soon as we have read something. */
+        unsigned readFully_ : 1;
+        /** Number of bytes still outstanding to read. */
+        unsigned remaining_ : 31;
+    };
 
 private:
     /** Service this StateFlow belongs to */
@@ -820,28 +938,6 @@ public:
 protected:
     /// The timer will deliver notifications to this flow.
     StateFlowBase *parent_;
-};
-
-/** Use this class to read from an fd using select() in a state flow. */
-struct StateFlowSelectHelper : public Selectable
-{
-    StateFlowSelectHelper(StateFlowBase *parent) : Selectable(parent)
-    {
-    }
-
-    union
-    {
-        const uint8_t *wbuf;
-        uint8_t *rbuf;
-    };
-
-    /** Number of bytes still outstanding to read. */
-    size_t remaining_;
-    /** State to transition to after the read is complete. */
-    Callback nextState_;
-    /** 1 if we need to read until all remaining_ is consumed. 0 if we want to
-     * return as soon as we have read something. */
-    unsigned readFully_ : 1;
 };
 
 #endif /* _EXECUTOR_STATEFLOW_HXX_ */
