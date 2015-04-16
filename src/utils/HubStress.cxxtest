@@ -124,6 +124,7 @@ private:
     SyncNotifiable n_;
 };
 
+/** Prints every packet received to stderr. */
 class DumpEndpoint : public TestHubPort
 {
 public:
@@ -180,7 +181,7 @@ protected:
         }
     }
 
-void add_endpoints(int num_rounds, int offset = 0, int m = 0)
+    void add_endpoints(int num_rounds, int offset = 0, int m = 0)
     {
         injectEndpoints_.emplace_back(new TestEndpoint(
             hubs_[offset % hubs_.size()], m + 1, m + hubs_.size(), num_rounds));
@@ -194,11 +195,13 @@ void add_endpoints(int num_rounds, int offset = 0, int m = 0)
 
     void run()
     {
-        usleep(10000);
-        for (auto& a : injectEndpoints_) {
+        usleep(10000);  // Waits for tcp connections to be established.
+        for (auto &a : injectEndpoints_)
+        {
             a->inject();
         }
-        for (auto& a : injectEndpoints_) {
+        for (auto &a : injectEndpoints_)
+        {
             a->wait_for_notification();
         }
     }
