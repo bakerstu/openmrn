@@ -152,8 +152,8 @@ private:
         taskEXIT_CRITICAL();
     }
 
-    static const int MAX_TX_PACKET_LENGTH = 64;
-    static const int MAX_RX_PACKET_LENGTH = 64;
+    static const unsigned MAX_TX_PACKET_LENGTH = 64;
+    static const unsigned MAX_RX_PACKET_LENGTH = 64;
 
     /** Transmits count bytes from the txData buffer. Sets txPending and
         bytesLost as needed. */
