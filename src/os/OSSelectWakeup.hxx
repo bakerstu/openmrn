@@ -37,7 +37,9 @@
 #include "utils/Atomic.hxx"
 #include "os/os.h"
 
-#ifndef __FreeRTOS__
+#ifdef __FreeRTOS__
+#include "Devtab.hxx"
+#else
 #include <signal.h>
 #endif
 
@@ -171,8 +173,10 @@ public:
     }
 
 private:
+#ifndef __FreeRTOS__
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
+#endif
     /** True if there was a wakeup call since the previous select finished. */
     bool pendingWakeup_;
     /** True during the duration of a select operation. */

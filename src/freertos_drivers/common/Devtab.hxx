@@ -262,6 +262,7 @@ protected:
 
     /** allow class DeviceBuffer access to select() related members. */
     friend class DeviceBufferBase;
+    friend class OSSelectWakeup;
 
 private:
     const char *name; /**< device name */
