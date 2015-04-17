@@ -100,7 +100,6 @@ void timer3_interrupt_handler(void)
     rest_pattern >>= 1;
     if (!rest_pattern)
         rest_pattern = blinker_pattern;
-    rest_pattern >>= 1;
 }
 
 /** Fault handler for assert.
@@ -137,6 +136,10 @@ void hw_preinit(void)
     /* setup pinmuxing */
     Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing,
                             sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
+
+    /* Setup LED as an output */
+    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 0, 22);
+    setblink(0xFFFF0000);
 
     /* Blinker timer initialization */
     Chip_TIMER_Init(LPC_TIMER3);
