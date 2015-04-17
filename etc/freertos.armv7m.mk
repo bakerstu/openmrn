@@ -43,20 +43,20 @@ CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
 	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
 	-D__FreeRTOS__ -DGCC_ARMCM3  
 
-CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
+CFLAGS += -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes \
           $(CFLAGSENV) $(CFLAGSEXTRA)
 
-CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
-           -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
-           -fno-exceptions -fno-rtti \
+CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
+            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
+            -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
-           -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
+            -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
 
-LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
-          -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
-          -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-          -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
+LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
+           -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
+           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
+           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
 SYSLIB_SUBDIRS += console
 SYSLIBRARIES += -lconsole

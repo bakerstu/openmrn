@@ -39,4 +39,4 @@ CSRCS += adc_17xx_40xx.c \
          uart_17xx_40xx.c \
          wwdt_17xx_40xx.c
 
-CXXSRCS +=
+CXXSRCS += Lpc17xx40xxUart.cxx
