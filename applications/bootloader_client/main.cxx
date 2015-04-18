@@ -54,6 +54,7 @@
 #include "nmranet/If.hxx"
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
 #include "utils/socket_listener.hxx"
 
 #include "freertos/bootloader_hal.h"
@@ -66,6 +67,7 @@ CanHubFlow can_hub0(&g_service);
 static const nmranet::NodeID NODE_ID = 0x05010101181FULL;
 
 nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+nmranet::InitializeFlow g_init_flow{&g_service};
 nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
