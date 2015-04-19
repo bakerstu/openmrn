@@ -36,7 +36,6 @@
 
 #include <algorithm>
 
-/** Instance pointers help us get context from the interrupt handler(s) */
 #if  defined (CHIP_LPC177X_8X) || defined (CHIP_LPC407X_8X)
 LpcUart *LpcUart::instances[5] = {NULL};
 #else
