@@ -162,6 +162,12 @@ TivaCdc::TivaCdc(const char *name, uint32_t interrupt)
 {
     instances[0] = this;
 
+    /* USB interrupt low priority.  We make this a low priority because
+     * USB interrupts perform a decent amount of processing and we want
+     * to maintain the overall determinism of our system.
+     */
+    MAP_IntPrioritySet(interrupt, 0xff);
+
     USBStackModeSet(0, eUSBModeForceDevice, 0);
     USBDCDCInit(0, &usbdcdcDevice);
 }
