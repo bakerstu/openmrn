@@ -133,20 +133,8 @@ void TivaCan::tx_msg()
             /* zero copy data */
             can_message.pui8MsgData = can_frame->data;
 
-            //MAP_IntDisable(interrupt);
             MAP_CANMessageSet(base, 2, &can_message, MSG_OBJ_TYPE_TX);
             txPending = true;
-            //MAP_IntEnable(interrupt);
-            txBuf->signal_condition();
-
-            /** @todo (Stuart Baker) remove notify logic once we switch over to
-             * select()
-             */
-            if (writableNotify_)
-            {
-                writableNotify_->notify_from_isr();
-                writableNotify_= nullptr;
-            }
         }
     }
 }
