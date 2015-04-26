@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Stuart W Baker
+ * Copyright (c) 2015, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file startup.c
- * This file sets up the runtime environment for TI Stellaris/Tiva MCUs.
+ * This file sets up the runtime environment for NXP LPC175x and LPC176x MCUs.
  *
  * @author Stuart W. Baker
- * @date 4 May 2014
+ * @date 16 April 2015
  */
 
 #include <stdint.h>
@@ -124,7 +124,7 @@ void (* const __interrupt_vector[])(void) =
     uart1_interrupt_handler,         /**<  22 UART1 */
     uart2_interrupt_handler,         /**<  23 UART2 */
     uart3_interrupt_handler,         /**<  24 UART3 */
-    pwm1_interrupt_handler,           /**<  25 PWM generator */
+    pwm1_interrupt_handler,          /**<  25 PWM generator */
     i2c0_interrupt_handler,          /**<  26 I2C0 */
     i2c1_interrupt_handler,          /**<  27 I2C1 */
     i2c2_interrupt_handler,          /**<  28 I2C2 */
