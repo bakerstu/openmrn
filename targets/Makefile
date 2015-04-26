@@ -1,5 +1,6 @@
 SUBDIRS = linux.x86 \
           linux.llvm \
+          linux.armv7a \
           freertos.armv7m \
           freertos.armv7m.mbed-lpc1768 \
           freertos.armv6m \
