@@ -213,7 +213,7 @@ void TivaI2C::interrupt_handler()
         if (msg_->flags & I2C_M_RD)
         {
             /* this is a read transfer */
-            msg_->buf[count_++] = I2CMasterDataGet(I2C0_BASE);
+            msg_->buf[count_++] = I2CMasterDataGet(base);
             if (count_ == msg_->len)
             {
                 /* transfer is complete */
