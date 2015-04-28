@@ -82,6 +82,8 @@ private:
   static T* instance_;
 };
 
+template<class T> T* Singleton<T>::instance_ = nullptr;
+
 #define DEFINE_SINGLETON_INSTANCE(T) template<> T* Singleton<T>::instance_ = nullptr
 
 #endif // _UTILS_SINGLETON_HXX_

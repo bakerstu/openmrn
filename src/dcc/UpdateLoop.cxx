@@ -55,4 +55,4 @@ UpdateLoopBase::~UpdateLoopBase() {}
 
 }
 
-DEFINE_SINGLETON_INSTANCE(dcc::UpdateLoopBase);
+//DEFINE_SINGLETON_INSTANCE(dcc::UpdateLoopBase);
