@@ -20,6 +20,7 @@ LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
 SYSLIBRARIESEXTRA = -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
+           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaI2C.o \
 
 CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 

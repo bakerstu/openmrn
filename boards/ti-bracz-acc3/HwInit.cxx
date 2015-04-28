@@ -66,6 +66,8 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+static TivaI2C i2c3("/dev/i2c3", I2C3_BASE, INT_I2C3); 
+
 #ifdef HAVE_RAILCOM
 TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
 
