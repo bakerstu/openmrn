@@ -176,6 +176,9 @@ int TivaI2C::transfer(struct i2c_msg *msg, bool stop)
     return count_ < 0 ? count_ : bytes;    
 }
 
+volatile uint32_t g_error;
+volatile uint32_t g_status;
+
 /** Common interrupt handler for all I2C devices.
  */
 void TivaI2C::interrupt_handler()
@@ -184,8 +187,8 @@ void TivaI2C::interrupt_handler()
     uint32_t error;
     uint32_t status;
 
-    error = I2CMasterErr(base);
-    status = MAP_I2CMasterIntStatusEx(base, true);
+    g_error = error = I2CMasterErr(base);
+    g_status = status = MAP_I2CMasterIntStatusEx(base, true);
     MAP_I2CMasterIntClearEx(base, status);
 
     if (error & I2C_MCS_ARBLST)
@@ -252,11 +255,16 @@ void TivaI2C::interrupt_handler()
         }
         return;
     }
-    else
+    else// if (error)
     {
-        /* should never get here */
-        HASSERT(0 && "I2C invalid status");
+        count_ = -EIO;
+        goto post;
     }
+/*    else
+    {
+        // should never get here
+        HASSERT(0 && "I2C invalid status");
+        }*/
 post:
     MAP_IntDisable(interrupt);
     sem.post_from_isr(&woken);
