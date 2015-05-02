@@ -34,6 +34,8 @@
 #ifndef _EXECUTOR_NOTIFIABLE_HXX_
 #define _EXECUTOR_NOTIFIABLE_HXX_
 
+#include <functional>
+
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
 #include "utils/Destructable.hxx"
@@ -247,5 +249,24 @@ private:
 
 #define AutoNotify(l) int error_omitted_autonotify_holder_variable[-1]
 
+/** A notifiable object that calls a particular function object once when it is
+ * invoked, then deletes itself. */
+class TempNotifiable : public Notifiable
+{
+public:
+    TempNotifiable(std::function<void()> body)
+        : body_(std::move(body))
+    {
+    }
+
+    void notify() OVERRIDE
+    {
+        body_();
+        delete this;
+    }
+
+private:
+    std::function<void()> body_;
+};
 
 #endif // _EXECUTOR_NOTIFIABLE_HXX_
