@@ -81,6 +81,10 @@ public:
         return &ifCan_;
     }
 
+    DatagramService* dg_service() {
+        return &datagramService_;
+    }
+
     Node *node()
     {
         return &node_;
@@ -89,6 +93,10 @@ public:
     CanHubFlow *can_hub()
     {
         return &canHub0_;
+    }
+
+    MemoryConfigHandler* memory_config_handler() {
+        return &memoryConfigHandler_;
     }
 
     /** Adds a CAN bus port with synchronous driver API. */
