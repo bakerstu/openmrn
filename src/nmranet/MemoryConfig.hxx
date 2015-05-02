@@ -145,6 +145,27 @@ struct MemoryConfigDefs {
         ERROR_WRITE_TO_RO = Defs::ERROR_INVALID_ARGS | 0x0003,
     };
 
+    static bool is_special_space(uint8_t space) {
+        return space > SPACE_SPECIAL;
+    }
+
+    static DatagramPayload write_datagram(uint8_t space, uint32_t offset) {
+        DatagramPayload p;
+        p.reserve(7);
+        p.push_back(DatagramDefs::CONFIGURATION);
+        p.push_back(COMMAND_WRITE);
+        p.push_back(0xff & (offset >> 24));
+        p.push_back(0xff & (offset >> 16));
+        p.push_back(0xff & (offset >> 8));
+        p.push_back(0xff & (offset));
+        if (is_special_space(space)) {
+            p[1] |= space & ~SPACE_SPECIAL;
+        } else {
+            p.push_back(space);
+        }
+        return p;
+    }
+
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
@@ -334,7 +355,7 @@ private:
         HASSERT(bytes[0] == DATAGRAM_ID);
         if (len < 2)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
 
         uint8_t cmd = bytes[1];
@@ -354,7 +375,7 @@ private:
             case MemoryConfigDefs::COMMAND_LOCK:
             {
                 // Unknown/unsupported command, reject datagram.
-                return respond_reject(DatagramClient::PERMANENT_ERROR);
+                return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
 
                 // if (
                 break;
@@ -362,14 +383,14 @@ private:
             case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
             {
                 enter_bootloader();
-                return respond_reject(DatagramClient::PERMANENT_ERROR);
+                return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
             }
             case MemoryConfigDefs::COMMAND_RESET:
             {
 #if !defined (__MACH__)
                 reboot();
 #endif
-                return respond_reject(DatagramClient::PERMANENT_ERROR);
+                return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
             }
             case MemoryConfigDefs::COMMAND_OPTIONS:
             {
@@ -381,7 +402,7 @@ private:
             }
             default:
                 // Unknown/unsupported command, reject datagram.
-                return respond_reject(DatagramClient::PERMANENT_ERROR);
+                return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
         }
     }
 
@@ -581,21 +602,21 @@ private:
         size_t len = message()->data()->payload.size();
         if (len <= 6)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
         MemorySpace *space = get_space();
         if (!space)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
         }
         if (space->read_only())
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(MemoryConfigDefs::ERROR_WRITE_TO_RO);
         }
         int write_len = get_write_length();
         if (write_len <= 0)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         currentOffset_ = 0;
         return call_immediately(STATE(try_write));

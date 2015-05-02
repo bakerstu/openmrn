@@ -112,7 +112,7 @@ size_t FileMemorySpace::write(address_t destination, const uint8_t *data,
     off_t actual_position = lseek(fd_, destination, SEEK_SET);
     if ((address_t)actual_position != destination)
     {
-        *error = Defs::ERROR_PERMANENT;
+        *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
         return 0;
     }
     ssize_t ret = ::write(fd_, data, len);
