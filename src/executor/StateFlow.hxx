@@ -482,7 +482,7 @@ protected:
                 return call_immediately(h->nextState_);
             }
         }
-        if (count < 0 &&
+        if (count <= 0 &&
             (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
         {
             // Blocked.
