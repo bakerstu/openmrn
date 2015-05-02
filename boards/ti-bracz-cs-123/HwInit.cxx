@@ -82,7 +82,7 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
-/** CAN 0 CAN driver instance */
+/** I2C driver */
 static TivaI2C i2c1("/dev/i2c1", I2C1_BASE, INT_I2C1);
 
 // Bit storing whether our dcc output is enabled or not.
