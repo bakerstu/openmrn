@@ -49,6 +49,7 @@
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaGPIO.hxx"
+#include "TivaFlash.hxx"
 
 #include "dcc_control.hxx"
 #include "hardware.hxx"
@@ -76,6 +77,12 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
+
+extern char __automata_start[];
+extern char __automata_end[];
+extern char __flash_page_size;
+
+static TivaFlash flash0("/etc/automata", __automata_start, __automata_end - __automata_start, reinterpret_cast<uint32_t>(&__flash_page_size));
 
 /** USB Device CDC serial driver instance */
 static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));
