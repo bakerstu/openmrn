@@ -39,11 +39,11 @@ ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 ASFLAGS = -c $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
-	-fdata-sections -ffunction-sections \
-	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
-	-D__FreeRTOS__ -DGCC_ARMCM3  
+             -fdata-sections -ffunction-sections \
+             -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
+             -D__FreeRTOS__ -DGCC_ARMCM3  
 
-CFLAGS += -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
+CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes \
           $(CFLAGSENV) $(CFLAGSEXTRA)
 
