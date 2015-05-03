@@ -1,0 +1,1 @@
+../../../../boards/st-stm32f072b-discovery/HwInit.cxx

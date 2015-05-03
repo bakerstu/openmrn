@@ -85,7 +85,10 @@
  * See http://www.freertos.org/a00110.html.
  *----------------------------------------------------------*/
 
-#ifdef GCC_ARMCM3
+/* ***************************************************************************
+ * Cortex-M3 specific defines
+ *************************************************************************** */
+#if defined(GCC_ARMCM3)
 
 #define configCPU_CLOCK_HZ             ( cm3_cpu_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 256 )
@@ -117,6 +120,31 @@ standard names - or at least those used in the unmodified vector table. */
 #define xPortPendSVHandler PendSV_Handler
 #define xPortSysTickHandler SysTick_Handler
 
+/* ***************************************************************************
+ * Cortex-M0 specific defines
+ *************************************************************************** */
+#elif defined (GCC_ARMCM0)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern const unsigned long cpu_clock_hz;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+
+#define configCPU_CLOCK_HZ             ( cpu_clock_hz )
+#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 64 )
+#define configTIMER_TASK_STACK_DEPTH   128
+
+#define vPortSVCHandler SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
+
+
+/* ***************************************************************************
+ * LPC2368 specific defines
+ *************************************************************************** */
 #elif defined(TARGET_LPC2368)
 
 #include "lpc23xx.h"
@@ -242,6 +270,9 @@ extern unsigned long blinker_pattern;
 #endif // Switch target
 
 
+/* ***************************************************************************
+ * Common defines used foer all targets
+ *************************************************************************** */
 #define configTICK_RATE_HZ             ( ( portTickType ) 953 )
 #define NSEC_TO_TICK_SHIFT             20
 #define configUSE_PREEMPTION           1

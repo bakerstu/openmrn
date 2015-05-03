@@ -34,62 +34,69 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/include/freertos \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
-ARCHOPTIMIZATION = 
-ARCHOPTIMIZATION += -D_REENT_SMALL
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce \
+                    -fomit-frame-pointer -fdata-sections -ffunction-sections
 
-ASFLAGS = -c  -x assembler-with-cpp -D__NEWLIB__ -DDEBUG -D__CODE_RED -g -MD -MP \
-           -mcpu=cortex-m0 -mthumb -mfloat-abi=soft
+# Uncomment following line for debugging without optimization
+#ARCHOPTIMIZATION += -O0
 
-ifeq ($(TOOLPATH),/usr/local/lpcxpresso_5.1.2_2065/lpcxpresso/tools)
-CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.6.2
-CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.6.2
-else
-CLIBPATH=$(TOOLPATH)/lib/gcc/arm-none-eabi/4.7.3
-CPPLIBPATH=$(TOOLPATH)/arm-none-eabi/include/c++/4.7.3
-endif
+ARCHFLAGS = -g -MD -MP -march=armv6-m -mthumb -mfloat-abi=soft
 
-DEPS += CMSIS_LPC11_PATH
+ASFLAGS = -c $(ARCHFLAGS)
 
-INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I$(CMSIS_LPC11_PATH)/inc -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC11U24" -I"$(MBEDSRCPATH)/capi"  #-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC11U24"
+CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
+             -Wno-unknown-pragmas -fdata-sections -ffunction-sections \
+             -fno-builtin -fno-stack-protector -D__FreeRTOS__ -DGCC_ARMCM0
 
+CFLAGS += -c $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  \
+          $(CFLAGSENV) $(CFLAGSEXTRA)
 
-SHAREDCFLAGS = -DTARGET_LPC11Cxx -D__NEWLIB__ -DDEBUG \
-        -D__USE_CMSIS=CMSISv2p00_LPC11xx -D__CODE_RED -D__FreeRTOS__  \
-        -g3 -Wall -Werror -Wno-unknown-pragmas -c -fmessage-length=0  \
-        -ffunction-sections -fdata-sections -fno-stack-protector \
-        -mcpu=cortex-m0 -mthumb -mfloat-abi=soft \
-        -MMD -MP -MF"$(@:%.o=%.d)" -D_GLIBCXX_DEQUE_BUF_SIZE=32  \
-	-D__LINEAR_MAP__ -DSIMPLE_NODE_ONLY \
-        $(CFLAGSENV)
+CXXFLAGS += -c $(CORECFLAGS) -std=gnu++0x -D_ISOC99_SOURCE \
+            -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
+            -fno-exceptions -fno-rtti $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
-#	-D__USE_LIBSTDCPP__ \
+LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
+           -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
+           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
+           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
-
-#-MT"$(@:%.o=%.d)" 
-
-CORECFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-        -std=gnu99 -Wstrict-prototypes
-
-CFLAGS = $(CORECFLAGS)
-ARM_CFLAGS = $(CFLAGS)
-
-CXXFLAGS = $(ARCHOPTIMIZATION) $(SHAREDCFLAGS) \
-        -fno-rtti -fno-exceptions -std=gnu++0x \
-	-D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
-	 $(CXXFLAGSENV)
-
-LDFLAGS = -Os -g -nostdlib -L"$(CMSIS_LPC11_PATH)/Debug" -T target.ld \
-        -Xlinker --gc-sections -mcpu=cortex-m0 -mthumb --specs=nano.specs \
-        -Xlinker -Map="$(@:%.elf=%.map)" -Wl,--wrap=__cxa_pure_virtual   \
-	-Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit \
-          $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-
-#use this only if armgcc == arm gcc 4.7
-#LDFLAGS += --specs=nano.specs
-
-SYSLIB_SUBDIRS += mbed
-SYSLIBRARIES += -lCMSISv2p00_LPC11xx -lmbed  $(SYSLIBRARIESEXTRA)
+# We disable linking against certain components from libc that we don't need
+# and pull in a lot of code dependencies (typically 50-100 kbytes), like
+# exception unwinding, or global destructor handling. On any exception
+# triggering call we just crash. This way we simulate as if newlib had been
+# compiled with -fno-exception. Most of these can be removed once we remove
+# usage of std::string.
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
+          -Wl,--wrap=__cxa_pure_virtual \
+          -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
+          -Wl,--wrap=__cxa_atexit \
+          -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
+          -Wl,--wrap=__aeabi_atexit \
+          -Wl,--defsym=__wrap___aeabi_atexit=ignore_fn \
+          -Wl,--wrap=_ZSt20__throw_length_errorPKc \
+          -Wl,--defsym=__wrap__ZSt20__throw_length_errorPKc=abort \
+          -Wl,--wrap=__cxa_throw   \
+          -Wl,--defsym=__wrap___cxa_throw=abort \
+          -Wl,--wrap=_ZSt19__throw_logic_errorPKc   \
+          -Wl,--defsym=__wrap__ZSt19__throw_logic_errorPKc=abort \
+          -Wl,--wrap=__cxa_allocate_exception   \
+          -Wl,--defsym=__wrap___cxa_allocate_exception=abort \
+          -Wl,--wrap=__gxx_personality_v0   \
+          -Wl,--defsym=__wrap___gxx_personality_v0=abort \
+          -Wl,--wrap=__cxa_begin_catch   \
+          -Wl,--defsym=__wrap___cxa_begin_catch=abort \
+          -Wl,--wrap=__cxa_end_cleanup   \
+          -Wl,--defsym=__wrap___cxa_end_cleanup=abort \
+          -Wl,--wrap=__cxa_end_catch   \
+          -Wl,--defsym=__wrap___cxa_end_catch=abort \
+          -Wl,--wrap=__cxa_free_exception   \
+          -Wl,--defsym=__wrap___cxa_free_exception=abort \
+          -Wl,--wrap=__cxa_call_unexpected   \
+          -Wl,--defsym=__wrap___cxa_call_unexpected=abort \
+          -Wl,--wrap=__aeabi_unwind_cpp_pr0   \
+          -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr0=abort \
+          -Wl,--wrap=__aeabi_unwind_cpp_pr1   \
+          -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
 
 EXTENTION = .elf
 

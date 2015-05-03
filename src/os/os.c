@@ -850,7 +850,7 @@ int usleep(useconds_t usec)
 
 void abort(void)
 {
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3) || defined(TARGET_PIC32MX)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3) || defined (GCC_ARMCM0) || defined(TARGET_PIC32MX)
     diewith(BLINK_DIE_ABORT);
 #endif
     for (;;)

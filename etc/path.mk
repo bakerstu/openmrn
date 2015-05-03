@@ -41,6 +41,17 @@ TIVAWAREPATH:=$(TRYPATH)
 endif
 endif #TIVAWAREPATH
 
+################ STM32Cube_F0 ##################
+ifndef STM32CUBEF0PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F0/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF0PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF0PATH
+
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
