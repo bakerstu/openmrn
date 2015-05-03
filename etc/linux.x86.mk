@@ -23,7 +23,7 @@ HOST_TARGET := 1
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-ARCHOPTIMIZATION = -g -O0 -m64
+ARCHOPTIMIZATION = -g -O0 -m32
 
 CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
 
