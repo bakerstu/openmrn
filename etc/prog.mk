@@ -186,6 +186,7 @@ SRCDIR=$(abspath ../../)
 #$(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
 #TESTOBJSEXTRA += $(TEST_EXTRA_OBJS)
 SYSLIBRARIES += $(LIBS)
+TESTEXTRADEPS += lib/timestamp
 include $(OPENMRNPATH)/etc/core_test.mk
 
 else
