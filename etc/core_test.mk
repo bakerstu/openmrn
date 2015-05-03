@@ -7,15 +7,15 @@
 
 ifneq ($(HOST_TARGET)$(EMU),0)
 
-FULLPATHCXXTESTSRCS := $(foreach DIR,$(SUBDIRS),$(wildcard $(SRCDIR)/$(DIR)/*.cxxtest))
+FULLPATHCXXTESTSRCS := $(foreach DIR,$(SUBDIRS) tests,$(wildcard $(SRCDIR)/$(DIR)/*.cxxtest))
 
-TESTOBJSEXTRA = gtest-all.o gmock-all.o
+TESTOBJSEXTRA += gtest-all.o gmock-all.o
 TESTSRCS ?= $(patsubst $(SRCDIR)/%,%,$(FULLPATHCXXTESTSRCS))
 ifdef TESTBLACKLIST
 TESTSRCS := $(filter-out $(TESTBLACKLIST),$(TESTSRCS))
 endif
-TESTBINS = $(TESTSRCS:.cxxtest=.test$(EXTENTION))
 TESTOBJS = $(TESTSRCS:.cxxtest=.test.o)
+TESTBINS = $(TESTSRCS:.cxxtest=.test$(EXTENTION))
 TESTOUTPUTS = $(TESTSRCS:.cxxtest=.testout)
 TESTMD5 = $(TESTSRCS:.cxxtest=.testmd5)
 
@@ -27,7 +27,7 @@ CXXFLAGS += $(INCLUDES)
 
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test .testmd5 .testout
 
-LIBDIR = lib
+LIBDIR ?= lib
 LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
