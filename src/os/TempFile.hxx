@@ -56,7 +56,7 @@ public:
     dirName_ = "./openmrntmpdirXXXXXX";
 #endif
     dirName_.c_str();
-    mkdtemp(&dirName_[0]);
+    HASSERT(mkdtemp(&dirName_[0]));
   }
 
   ~TempDir() {
