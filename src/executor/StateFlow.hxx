@@ -429,6 +429,10 @@ protected:
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
+        if (!h->remaining_) 
+        {
+            return call_immediately(h->nextState_);
+        }
         int count = ::read(h->fd(), h->rbuf_, h->remaining_);
         if (count > 0)
         {
@@ -468,19 +472,16 @@ protected:
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
+        if (!h->remaining_) 
+        {
+            return call_immediately(h->nextState_);
+        }
         int count = ::write(h->fd(), h->wbuf_, h->remaining_);
         if (count > 0)
         {
             h->remaining_ -= count;
             h->wbuf_ += count;
-            if (h->remaining_)
-            {
-                return again();
-            }
-            else
-            {
-                return call_immediately(h->nextState_);
-            }
+            return again();
         }
         if (count <= 0 &&
             (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
