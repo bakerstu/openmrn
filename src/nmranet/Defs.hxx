@@ -55,6 +55,11 @@ struct NodeHandle
     NodeID id; /**< 48-bit NMRAnet Node ID */
     NodeAlias alias; /**< alias to NMRAnet Node ID */
 
+    explicit NodeHandle(NodeID _id) : id(_id), alias(0) {}
+    explicit NodeHandle(NodeAlias _alias) : id(0), alias(_alias) {}
+    NodeHandle(NodeID _id, NodeAlias _alias) : id(_id), alias(_alias) {}
+    NodeHandle() : id(0), alias(0) {}
+
     /** Compare to NodeHandle instances.
      * @param o object to compare to
      * @return boolean result of compare
