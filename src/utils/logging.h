@@ -63,6 +63,12 @@ extern os_mutex_t g_log_mutex;
 #define UNLOCK_LOG
 #endif
 
+#ifdef __cplusplus
+#define GLOBAL_LOG_OUTPUT ::log_output
+#else
+#define GLOBAL_LOG_OUTPUT log_output
+#endif
+
 #define LOG(level, message...)                                                 \
     do                                                                         \
     {                                                                          \
@@ -72,7 +78,7 @@ extern os_mutex_t g_log_mutex;
             int sret = snprintf(logbuffer, sizeof(logbuffer), message);        \
             if (sret > (int)sizeof(logbuffer))                                 \
                 sret = sizeof(logbuffer);                                      \
-            log_output(logbuffer, sret);                                       \
+            GLOBAL_LOG_OUTPUT(logbuffer, sret);                                \
             UNLOCK_LOG;                                                        \
         }                                                                      \
     } while (0)
