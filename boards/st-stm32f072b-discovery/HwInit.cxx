@@ -41,6 +41,7 @@
 
 #include "os/OS.hxx"
 #include "Stm32F0xxUart.hxx"
+#include "Stm32F0xxCan.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -55,7 +56,7 @@ const char *STDERR_DEVICE = "/dev/ser0";
 static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
-//static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
+static Stm32Can can0("/dev/can0");
 
 extern "C" {
 
@@ -136,6 +137,9 @@ static void clock_setup(void)
  */
 void hw_preinit(void)
 {
+    /* Globally disables interrupts until the FreeRTOS scheduler is up. */
+    asm("cpsid i\n");
+
     /* these FLASH settings enable opertion at 48 MHz */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
     __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_1);
@@ -145,7 +149,9 @@ void hw_preinit(void)
 
     /* enable peripheral clocks */
     __GPIOA_CLK_ENABLE();
+    __GPIOB_CLK_ENABLE();
     __USART1_CLK_ENABLE();
+    __CAN_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
@@ -160,63 +166,15 @@ void hw_preinit(void)
     gpio_init.Pin       = GPIO_PIN_10;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
-#if 0
-    /* Globally disables interrupts until the FreeRTOS scheduler is up. */
-    asm("cpsid i\n");
-
-    /* Setup the system clock. */
-    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-                       SYSCTL_XTAL_16MHZ);
-
-    /* Red LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
-
-    /* Blinker timer initialization. */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
-    MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
-    MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, MAP_SysCtlClockGet() / 8);
-    MAP_IntEnable(INT_TIMER5A);
-
-    /* This interrupt should hit even during kernel operations. */
-    MAP_IntPrioritySet(INT_TIMER5A, 0);
-    MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
-    MAP_TimerEnable(TIMER5_BASE, TIMER_A);
-
-    /* UART0 pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
-    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-
-    /* USB0 pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-
-    /* CAN pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    MAP_GPIOPinConfigure(GPIO_PE4_CAN0RX);
-    MAP_GPIOPinConfigure(GPIO_PE5_CAN0TX);
-    MAP_GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-    /* Blue LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
-
-    /* Green LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
-
-    /* USB interrupt priority */
-    MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
-
-    /* Initialize the DCC Timers and GPIO outputs */
-    tivaDCC.hw_init();
-#endif
+    /* CAN pinmux on PB8 and PB9 */
+    gpio_init.Mode      = GPIO_MODE_AF_PP;
+    gpio_init.Pull      = GPIO_PULLUP;
+    gpio_init.Speed     = GPIO_SPEED_HIGH;
+    gpio_init.Alternate = GPIO_AF4_CAN;
+    gpio_init.Pin       = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin       = GPIO_PIN_9;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
 }
 
 }
