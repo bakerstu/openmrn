@@ -44,7 +44,6 @@ unsigned int LpcCan::intCount = 0;
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
- * @param interrupt interrupt number of this device
  */
 LpcCan::LpcCan(const char *name, LPC_CAN_T *base)
     : Can(name)

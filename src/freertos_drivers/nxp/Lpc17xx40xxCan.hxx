@@ -24,6 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ * @file Lpc17xx40xxCan.hxx
  * This file implements a can device driver layer specific to LPC17xx and
  * LPC40xx devices.
  *
