@@ -31,9 +31,8 @@
  * @date 26 April 2015
  */
 
-#include <algorithm>
-
 #include "Stm32F0xxUart.hxx"
+
 #include "stm32f0xx_hal_cortex.h"
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
@@ -113,6 +112,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
         HASSERT(0);
     }
 
+    HAL_NVIC_DisableIRQ(interrupt);
     HAL_NVIC_SetPriority(interrupt, 3, 0);
 }
 

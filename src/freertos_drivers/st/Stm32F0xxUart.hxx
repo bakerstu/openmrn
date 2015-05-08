@@ -78,6 +78,8 @@ private:
     void tx_char();
 
     IRQn_Type interrupt; /**< interrupt of this device */
+
+    /** Handle to the UART setup */
     UART_HandleTypeDef uartHandle;
 
     /** number of times interrupts have been enabled on these UART channels */
