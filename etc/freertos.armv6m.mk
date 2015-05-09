@@ -46,7 +46,8 @@ ASFLAGS = -c $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -Wno-unknown-pragmas -fdata-sections -ffunction-sections \
-             -fno-builtin -fno-stack-protector -D__FreeRTOS__ -DGCC_ARMCM0
+             -fno-builtin -fno-stack-protector -D__FreeRTOS__ -DGCC_ARMCM0 \
+             -D_REENT_SMALL
 
 CFLAGS += -c $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  \
           $(CFLAGSENV) $(CFLAGSEXTRA)
@@ -58,7 +59,8 @@ CXXFLAGS += -c $(CORECFLAGS) -std=gnu++0x -D_ISOC99_SOURCE \
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
+           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like

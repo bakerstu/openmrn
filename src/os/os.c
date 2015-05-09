@@ -828,6 +828,34 @@ void __malloc_unlock(void)
     }
 }
 
+#if defined (_REENT_SMALL)
+void *__real__malloc_r(size_t size);
+void __real__free_r(void *address);
+
+/** malloc() wrapper for newlib-nano
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__malloc_r(size_t size)
+{
+    void *result;
+    __malloc_lock();
+    result = __real__malloc_r(size);
+    __malloc_unlock();
+    return result;
+}
+
+/** free() wrapper for newlib-nano
+ * @param address pointer to previously malloc'd address
+ */
+void __wrap__free_r(void *address)
+{
+    __malloc_lock();
+    __real__free_r(address);
+    __malloc_unlock();
+}
+#endif
+
 /** Implementation of standard sleep().
  * @param seconds number of seconds to sleep
  */
