@@ -3,7 +3,7 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
 ifeq ($(TOOLPATH),)
-include $(OPENMRNPATH)/etc/armgcc-s.mk
+include $(OPENMRNPATH)/etc/armgcc.mk
 endif
 
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-

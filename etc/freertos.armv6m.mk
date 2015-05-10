@@ -6,7 +6,7 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Get the $(TOOLPATH)
 ifneq ($(FREERTOSPATH),)
-include $(OPENMRNPATH)/etc/armgcc-s.mk
+include $(OPENMRNPATH)/etc/armgcc.mk
 endif
 
 # Get $(MBEDPATH)
