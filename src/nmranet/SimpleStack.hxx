@@ -119,11 +119,11 @@ public:
 #endif
 
     /** Adds a gridconnect port to the CAN bus. */
-    void add_gridconnect_port(const char* device) {
-        int fd = ::open(device, O_RDWR);
-        HASSERT(fd >= 0);
-        create_gc_port_for_can_hub(&canHub0_, fd);
-    }
+    void add_gridconnect_port(const char* path);
+
+    /** Adds a gridconnect port to the CAN bus with setting the TTY
+     * options. Suitablefor linux /dev/ttyACMxx devices. */
+    void add_gridconnect_tty(const char* device);
 
     /** Starts a TCP server on the specified port in listening mode. Each
      * incoming connection will be assumed to be in gridconnect protocol and
