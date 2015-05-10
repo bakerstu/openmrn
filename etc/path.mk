@@ -28,7 +28,7 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
 ifeq ($(OS),Windows_NT)
-include path_windows.mk
+include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
 ################ tivaware ##################
