@@ -71,23 +71,6 @@ extern const char *STDOUT_DEVICE;
 /** default stderr */
 extern const char *STDERR_DEVICE;
 
-#if !defined (__FreeRTOS__)
-/* forward prototype */
-static void os_timer_delete_locked(os_timer_t timer);
-#endif
-
-/** Timer structure */
-typedef struct timer
-{
-#if !defined (__FreeRTOS__)
-    struct timer *next; /**< next timer in the list */
-#endif
-    long long (*callback)(void*, void*); /**< timer's callback */
-    void *data1; /**< timer's callback data */
-    void *data2; /**< timer's callback data */
-    long long when; /**< when in nanoseconds timer should expire */
-    long long period; /**< period in nanoseconds for timer */
-} Timer;
 
 #if defined (__FreeRTOS__)
 /** Task list entriy */
@@ -120,8 +103,6 @@ struct _reent* allocate_reent(void)
     _REENT_INIT_PTR(data);
     return data;
 }
-
-struct _reent* timerReent = NULL;
 
 /** One time intialization routine
  * @param once one time instance
@@ -165,42 +146,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
     return 0;
 }
-
-/** Callback function for handling of FreeRTOS timers.
- * @param timer timer to handle
- */
-static void timer_callback(xTimerHandle timer)
-{
-    /* we must handle our struct _reent here at its first oportunity */
-    _impure_ptr = timerReent;
-
-    portTickType ticks;
-    Timer *t = pvTimerGetTimerID(timer);
-    do
-    {
-        long long next_period = (*t->callback)(t->data1, t->data2);
-        switch (next_period)
-        {
-            case OS_TIMER_NONE:
-                /* no need to restart timer */
-                return;
-            default:
-                t->period = next_period;
-                /* fall through */
-            case OS_TIMER_RESTART:
-                t->when += t->period;
-                break;
-        }
-        long long now = os_get_time_monotonic();
-        long long delay = t->when - now;
-        if (delay < 0) delay = 0;
-        ticks = (delay >> NSEC_TO_TICK_SHIFT);
-    } while (ticks == 0);
-    xTimerChangePeriod(timer, ticks, portMAX_DELAY);
-}
-#else
-
-#if defined (__WIN32__)
+#elif defined (__WIN32__)
 /** Windows does not support pipes, so we made our own with a pseudo socketpair.
  * @param fildes fildes[0] is open for reading, filedes[1] is open for writing
  * @return 0 upon success, else -1 with errno set to indicate error
@@ -289,281 +235,6 @@ int pipe(int fildes[2])
 }
 #endif
 
-static Timer *active = NULL; /**< list of active timers */
-static int timerfds[2]; /**< pipe used for refreshing the timer list */
-
-/** One time initialization for timers. */
-static os_thread_once_t timer_once = OS_THREAD_ONCE_INIT;
-
-/** Mutex for timers. */
-static os_mutex_t timerMutex = OS_MUTEX_INITIALIZER;
-
-/** Insert a timer into the active timer list.
- * @param timer timer to put in the list
- */
-static void insert_timer(Timer *timer)
-{
-    Timer *tp = active;
-    Timer *last = NULL;
-    while (tp)
-    {
-        if (timer->when <= tp->when)
-        {
-            break;
-        }
-        last = tp;
-        tp = tp->next;
-    }
-    if (last)
-    {
-        timer->next = last->next;
-        last->next = timer;
-    }
-    else
-    {
-        timer->next = active;
-        active = timer;
-        /* wakeup and refresh timer list */
-        char data = 1;
-        int result = write(timerfds[1], &data, 1);
-        HASSERT(result == 1);
-    }
-}
-
-/** Remove a timer from the active timer list.
- * @param timer timer to remove from the list
- */
-static void remove_timer(Timer *timer)
-{
-    /* Search the active list for this timer */
-    Timer *tp = active;
-    Timer *last = NULL;
-    while (tp)
-    {
-        if (tp == timer)
-        {
-            /* Found the timer */
-            break;
-        }
-
-        last = tp;
-        tp = tp->next;
-    }
-
-    if (tp)
-    {
-        /* Remove the timer from the active list */
-        if (last) {
-            last->next = tp->next;
-        } else {
-            active = tp->next;
-        }
-    }
-}
-
-/** Thread for handling timer callbacks.
- * @param arg unused argument
- * @return never return
- */
-static void *timer_thread(void* arg)
-{
-    struct timeval tv;
-
-    for ( ; /* forever */ ; )
-    {
-        fd_set rfds;
-        FD_ZERO(&rfds);
-        FD_SET(timerfds[0], &rfds);
-
-        /* flush the pipe */
-        ssize_t bytes_read;
-        do
-        {
-            char buf[16];
-            bytes_read = read(timerfds[0], buf, 16);
-        } while (bytes_read > 0);
-
-        long long now = os_get_time_monotonic();
-        
-        os_mutex_lock(&timerMutex);
-        if (active)
-        {
-            if (active->when <= now)
-            {
-                /* remove timer from head of list */
-                Timer *t = active;
-                active = t->next;
-
-                long long next_period = (*t->callback)(t->data1, t->data2);
-
-                switch (next_period)
-                {
-                    case OS_TIMER_NONE:
-                        break;
-                    default:
-                        t->period = next_period;
-                        /* fall through */
-                    case OS_TIMER_RESTART:
-                        t->when += t->period;
-                        insert_timer(t);
-                        break;
-                    case OS_TIMER_DELETE:
-                        os_timer_delete_locked(t);
-                        break;
-                }
-                os_mutex_unlock(&timerMutex);
-                continue;
-            }
-            long long wait = active->when - now;
-            os_mutex_unlock(&timerMutex);
-
-            tv.tv_sec = wait / 1000000000LL;
-            tv.tv_usec = (wait % 1000000000LL) / 1000LL;
-
-            select(timerfds[0] + 1, &rfds, NULL, NULL, &tv);
-        }
-        else
-        {
-            os_mutex_unlock(&timerMutex);
-            /* no active timers as of yet */
-            select(timerfds[0] + 1, &rfds, NULL, NULL, NULL);
-        }
-    }
-    return NULL;
-}
-
-/** Startup the timer thread.
- */
-static void os_timer_init(void)
-{
-    os_thread_t thread_handle;
-
-    int result = pipe(timerfds);
-    HASSERT(result == 0);
-#if defined (__WIN32__)
-    u_long arg = 1;
-    ioctlsocket(timerfds[0], FIONBIO, &arg);
-#else
-    fcntl(timerfds[0], F_SETFL, O_NONBLOCK);
-#endif
-    os_thread_create(&thread_handle, "thread.timer", 0, 4096, timer_thread, NULL);
-}
-#endif
-
-/** Create a new timer.
- * @param callback callback associated with timer
- * @param data1 data to pass along with callback
- * @param data2 data to pass along with callback
- * @return timer handle on success, else NULL
- */
-os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, void* data2)
-{
-    HASSERT(callback != NULL);
-    Timer *timer = malloc(sizeof(Timer));
-
-    timer->callback = callback;
-    timer->data1 = data1;
-    timer->data2 = data2;
-    timer->period = 0;
-#if defined (__FreeRTOS__)
-    return xTimerCreate(NULL, portMAX_DELAY, pdFALSE, timer, timer_callback);
-#else
-    os_thread_once(&timer_once, os_timer_init);
-    return timer;
-#endif
-}
-
-/** Delete a timer.
- * @param timer timer to delete
- */
-void os_timer_delete(os_timer_t timer)
-{
-    HASSERT(timer != NULL);
-
-#if defined (__FreeRTOS__)
-    Timer *t = pvTimerGetTimerID(timer);
-    xTimerDelete(timer, portMAX_DELAY);
-#else
-    Timer *t = timer;
-    os_mutex_lock(&timerMutex);
-    remove_timer(t);
-    os_mutex_unlock(&timerMutex);
-#endif
-    free(t);
-}
-
-#if !defined (__FreeRTOS__)
-/** Delete a timer with the mutex already locked.
- * @param timer timer to delete
- */
-static void os_timer_delete_locked(os_timer_t timer)
-{
-    HASSERT(timer != NULL);
-
-    Timer *t = timer;
-    remove_timer(t);
-    free(t);
-}
-#endif
-
-/** Start a timer.
- * @param timer timer to start
- * @param period period in nanoseconds before expiration
- *        use OS_TIMER_RESTART to use the same period as last time started
- */
-void os_timer_start(os_timer_t timer, long long period)
-{
-    HASSERT(timer != NULL);
-
-#if defined (__FreeRTOS__)
-    Timer          *t = pvTimerGetTimerID(timer);
-    if (period == OS_TIMER_RESTART)
-    {
-        period = t->period;
-    }
-    long long now = os_get_time_monotonic();
-    t->when = now + period;
-    t->period = period;
-    portTickType ticks = (period >> NSEC_TO_TICK_SHIFT);
-    if (!ticks) ticks = 1;
-    xTimerChangePeriod(timer, ticks, portMAX_DELAY);
-#else
-    Timer          *t = timer;
-    if (period == OS_TIMER_RESTART)
-    {
-        period = t->period;
-    }
-    long long timeout = os_get_time_monotonic() + period;
-
-    os_mutex_lock(&timerMutex);
-    /* Remove timer from the active list */
-    remove_timer(t);
-
-    t->when = timeout;
-    t->period = period;
-    /* insert the timer in the list */
-    insert_timer(t);
-    os_mutex_unlock(&timerMutex);
-#endif
-}
-
-/** Stop a timer.
- * @param timer timer to stop
- */
-void os_timer_stop(os_timer_t timer)
-{
-    HASSERT(timer != NULL);
-#if defined (__FreeRTOS__)
-    xTimerStop(timer, portMAX_DELAY);
-#else
-    Timer *t = timer;
-
-    os_mutex_lock(&timerMutex);
-    remove_timer(t);
-    os_mutex_unlock(&timerMutex);
-#endif
-}
-
 #if defined (__FreeRTOS__)
 extern const void* stack_malloc(unsigned long length);
 
@@ -600,7 +271,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
-#ifndef __EMSCRIPTEN__
+#if !defined (__EMSCRIPTEN__)
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -1004,8 +675,6 @@ int main(int argc, char *argv[])
 #if defined (__FreeRTOS__)
     /* initialize the processor hardware */
     hw_init();
-
-    timerReent = allocate_reent();
 
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     xTaskHandle task_handle;
