@@ -129,6 +129,7 @@ SEARCHPATH := \
   /opt/FreeRTOS \
   /opt/FreeRTOS/default \
   $(HOME)/FreeRTOS \
+  /d/FreeRTOS/default
 
 TRYPATH:=$(call findfirst,Source,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
