@@ -2,7 +2,7 @@
 
 
 ################### FreeRTOS #####################
-ARMGCC ?= $(shell \
+FREERTOSPATH ?= $(shell \
 sh -c "if [ -d /a/openmrn/FreeRTOS/default/Source ]; then echo /a/openmrn/FreeRTOS/default; \
      elif [ -d /b/openmrn/FreeRTOS/default/Source ]; then echo /b/openmrn/FreeRTOS/default; \
      elif [ -d /c/openmrn/FreeRTOS/default/Source ]; then echo /c/openmrn/FreeRTOS/default; \
@@ -14,7 +14,7 @@ sh -c "if [ -d /a/openmrn/FreeRTOS/default/Source ]; then echo /a/openmrn/FreeRT
 )
 
 ################### ARM-GCC #####################
-ARMGCC ?= $(shell \
+ARMGCCPATH ?= $(shell \
 sh -c "if [ -d /a/openmrn/windows/armgcc/default/bin ]; then echo /a/openmrn/windows/armgcc/default; \
      elif [ -d /b/openmrn/windows/armgcc/default/bin ]; then echo /b/openmrn/windows/armgcc/default; \
      elif [ -d /c/openmrn/windows/armgcc/default/bin ]; then echo /c/openmrn/windows/armgcc/default; \
