@@ -429,6 +429,10 @@ protected:
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
+        if (!h->remaining_) 
+        {
+            return call_immediately(h->nextState_);
+        }
         int count = ::read(h->fd(), h->rbuf_, h->remaining_);
         if (count > 0)
         {
@@ -468,19 +472,16 @@ protected:
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
+        if (!h->remaining_) 
+        {
+            return call_immediately(h->nextState_);
+        }
         int count = ::write(h->fd(), h->wbuf_, h->remaining_);
         if (count > 0)
         {
             h->remaining_ -= count;
             h->wbuf_ += count;
-            if (h->remaining_)
-            {
-                return again();
-            }
-            else
-            {
-                return call_immediately(h->nextState_);
-            }
+            return again();
         }
         if (count <= 0 &&
             (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
@@ -661,7 +662,7 @@ protected:
     void reset_message(BufferBase* message, unsigned priority) {
         HASSERT(!currentMessage_);
         currentMessage_ = message;
-        currentPriority_ = priority;
+        set_priority(priority);
     }
 
     /// @returns the priority of the message currently being processed.
@@ -673,7 +674,17 @@ protected:
     /// Overrides the current priority.
     void set_priority(unsigned priority)
     {
-        currentPriority_ = priority;
+        currentPriority_ = std::min(priority, MAX_PRIORITY);
+    }
+
+    /** Call this from the constructor of the child class to do some work
+     * before the main queue processing loop begins. When the initialization
+     * states are done, call 'return exit()' to start the main loop. */
+    void start_flow_at_init(Callback c)
+    {
+        reset_flow(c);
+        notify();
+        isWaiting_ = 0;
     }
 
 private:
@@ -811,7 +822,7 @@ protected:
         if (isWaiting_)
         {
             isWaiting_ = 0;
-            currentPriority_ = priority;
+            set_priority(priority);
             this->notify();
         }
     }

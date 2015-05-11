@@ -52,35 +52,7 @@
 #include "executor/Service.hxx"
 #include "os/TempFile.hxx"
 #include "os/os.h"
-
-namespace testing
-{
-/** Conveninence utility to do a printf directly into a C++ string. */
-string StringPrintf(const char *format, ...)
-{
-    static const int kBufSize = 1000;
-    char buffer[kBufSize];
-    va_list ap;
-
-    va_start(ap, format);
-    int n = vsnprintf(buffer, kBufSize, format, ap);
-    va_end(ap);
-    HASSERT(n >= 0);
-    if (n < kBufSize)
-    {
-        return string(buffer, n);
-    }
-    string ret(n + 1, 0);
-    va_start(ap, format);
-    n = vsnprintf(&ret[0], ret.size(), format, ap);
-    va_end(ap);
-    HASSERT(n >= 0);
-    ret.resize(n);
-    return ret;
-}
-}
-
-using testing::StringPrintf;
+#include "utils/StringPrintf.hxx"
 
 int appl_main(int argc, char *argv[])
 {

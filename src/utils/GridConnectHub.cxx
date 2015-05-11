@@ -326,11 +326,12 @@ GcPacketPrinter::~GcPacketPrinter()
 
 struct GcHubPort : public Executable
 {
-    GcHubPort(CanHubFlow *can_hub, int fd)
+    GcHubPort(CanHubFlow *can_hub, int fd, Notifiable *on_exit)
         : gcHub_(can_hub->service())
         , bridge_(
               GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub, false))
         , gcWrite_(&gcHub_, fd, this)
+        , onExit_(on_exit)
     {
         LOG(VERBOSE, "gchub port %p", (Executable *)this);
     }
@@ -355,6 +356,9 @@ struct GcHubPort : public Executable
      * fd. Similarly, listens to the fd and sends the read charcters to the
      * char-hub. */
     FdHubPort<HubFlow> gcWrite_;
+    /** If not null, this notifiable will be called when the device is
+     * closed. */
+    Notifiable* onExit_;
 
     /** Callback in case the connection is closed due to error. */
     void notify() OVERRIDE
@@ -374,8 +378,10 @@ struct GcHubPort : public Executable
             gcHub_.service()->executor()->add(this);
             return;
         }
-        LOG(VERBOSE, "GCHubPort: Shutting down gridconnect port %d. (%p)",
+        LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
             gcWrite_.fd(), bridge_.get());
+        onExit_->notify();
+        onExit_ = nullptr;
         /* We get this call when something is wrong with the FDs and we need to
          * close the connection. It is guaranteed that by the time we got this
          * call the device is unregistered from the char bridge, and the
@@ -384,7 +390,7 @@ struct GcHubPort : public Executable
     }
 };
 
-void create_gc_port_for_can_hub(CanHubFlow *can_hub, int fd)
+void create_gc_port_for_can_hub(CanHubFlow *can_hub, int fd, Notifiable* on_exit)
 {
-    new GcHubPort(can_hub, fd);
+    new GcHubPort(can_hub, fd, on_exit);
 }
