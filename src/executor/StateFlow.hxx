@@ -489,6 +489,14 @@ protected:
             service()->executor()->select(h);
             return wait();
         }
+#ifdef STATEFLOW_DEBUG_WRITE_ERRORS
+        static volatile int scount;
+        static volatile int serrno;
+        scount = count;
+        serrno = errno;
+        LOG(FATAL, "failed to write count=%d errno=%d", scount, serrno);
+        DIE("failed write");
+#endif
         // Now: we are at an unknown error or EOF.
         return call_immediately(h->nextState_);
     }
