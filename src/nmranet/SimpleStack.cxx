@@ -84,16 +84,16 @@ void SimpleCanStack::start_stack()
     }
 }
 
-void SimpleCanStack::add_gridconnect_port(const char* path) {
+void SimpleCanStack::add_gridconnect_port(const char* path, Notifiable* on_exit) {
   int fd = ::open(path, O_RDWR);
   HASSERT(fd >= 0);
-  create_gc_port_for_can_hub(&canHub0_, fd);
+  create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 }
 
-void SimpleCanStack::add_gridconnect_tty(const char* device) {
+void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit) {
   int fd = ::open(device, O_RDWR);
   HASSERT(fd >= 0);
-  create_gc_port_for_can_hub(&canHub0_, fd);
+  create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 
   HASSERT(!tcflush(fd, TCIOFLUSH));
   struct termios settings;
