@@ -11,3 +11,8 @@ void HubDeviceSelect<HubFlow>::check_target_size(HubFlow::buffer_type* b, int re
     HASSERT(remaining <= 64);
     b->data()->resize(64-remaining);
 }
+
+template<>
+bool HubDeviceSelect<HubFlow>::needs_read_fully() {
+    return true;
+}

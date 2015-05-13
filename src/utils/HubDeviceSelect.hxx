@@ -94,9 +94,10 @@ public:
         return fd_;
     }
 
-    static void resize_target(typename HFlow::buffer_type* b);
-    static void check_target_size(typename HFlow::buffer_type* b, int remaining);
-
+    static void resize_target(typename HFlow::buffer_type *b);
+    static void check_target_size(
+        typename HFlow::buffer_type *b, int remaining);
+    static bool needs_read_fully();
 
 protected:
     class ReadFlow : public StateFlowBase
@@ -129,8 +130,18 @@ protected:
             b_ = this->get_allocation_result(device()->hub());
             b_->data()->skipMember_ = device()->write_port();
             HubDeviceSelect::resize_target(b_);
-            return this->read_repeated(&selectHelper_, device()->fd(),
-                                       (void*)b_->data()->data(), b_->data()->size(), STATE(read_done), 0);
+            if (HubDeviceSelect::needs_read_fully())
+            {
+                return this->read_repeated(&selectHelper_, device()->fd(),
+                    (void *)b_->data()->data(), b_->data()->size(),
+                    STATE(read_done), 0);
+            }
+            else
+            {
+                return this->read_single(&selectHelper_, device()->fd(),
+                    (void *)b_->data()->data(), b_->data()->size(),
+                    STATE(read_done), 0);
+            }
         }
 
         Action read_done()
