@@ -100,6 +100,10 @@ public:
         return os_thread_getpriority(thread->handle);
     }
 
+    os_thread_t get_handle() {
+        return handle;
+    }
+
 protected:
     /** User entry point for the created thread.
      * @return exit status
