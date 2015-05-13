@@ -121,9 +121,11 @@ public:
     /** Adds a gridconnect port to the CAN bus. */
     void add_gridconnect_port(const char* path, Notifiable* on_exit = nullptr);
 
+#if defined(__linux__) || defined(__MACH__)
     /** Adds a gridconnect port to the CAN bus with setting the TTY
      * options. Suitablefor linux /dev/ttyACMxx devices. */
     void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
+#endif
 
     /** Starts a TCP server on the specified port in listening mode. Each
      * incoming connection will be assumed to be in gridconnect protocol and

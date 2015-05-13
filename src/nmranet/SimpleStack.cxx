@@ -32,7 +32,9 @@
  * @date 18 Mar 2015
  */
 
+#if defined(__linux__) || defined(__MACH__)
 #include <termios.h> /* tc* functions */
+#endif
 
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
@@ -87,12 +89,15 @@ void SimpleCanStack::start_stack()
 void SimpleCanStack::add_gridconnect_port(const char* path, Notifiable* on_exit) {
   int fd = ::open(path, O_RDWR);
   HASSERT(fd >= 0);
+  LOG(INFO, "Adding device %s as fd %d", path, fd);
   create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 }
 
+#if defined(__linux__) || defined(__MACH__)
 void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit) {
   int fd = ::open(device, O_RDWR);
   HASSERT(fd >= 0);
+  LOG(INFO, "Adding device %s as fd %d", device, fd);
   create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 
   HASSERT(!tcflush(fd, TCIOFLUSH));
@@ -101,7 +106,7 @@ void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit
   cfmakeraw(&settings);
   HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
-
+#endif
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
     mainBufferPool;
 
