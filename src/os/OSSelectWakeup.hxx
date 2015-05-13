@@ -97,7 +97,10 @@ public:
         if (need_wakeup)
         {
 #ifdef __FreeRTOS__
-            Device::select_wakeup(&selectInfo_);
+            HASSERT(selectInfo_.event);
+            // We cannot destroy the thread ID in the local object.
+            Device::SelectInfo copy(selectInfo_);
+            Device::select_wakeup(&copy);
 #else
             pthread_kill(thread_, WAKEUP_SIG);
 #endif
@@ -115,8 +118,11 @@ public:
         pendingWakeup_ = true;
         if (inSelect_)
         {
+            HASSERT(selectInfo_.event);
+            Device::SelectInfo copy(selectInfo_);
             int woken;
-            Device::select_wakeup_from_isr(&selectInfo_, &woken);
+            Device::select_wakeup_from_isr(&copy, &woken);
+            os_isr_exit_yield_test(woken);
         }
     }
 #endif
