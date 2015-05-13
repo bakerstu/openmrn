@@ -93,6 +93,11 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
         data += bytes_read;
     }
 
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EWOULDBLOCK;
+    }
+
     return result;
 }
 
@@ -141,7 +146,12 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
             data += bytes_written;
         }
     }
-    
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EWOULDBLOCK;
+    }
+
     return result;
 }
 
@@ -198,4 +208,3 @@ bool Serial::select(File* file, int mode)
     }
     return retval;
 }
-
