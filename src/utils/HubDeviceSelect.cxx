@@ -14,5 +14,5 @@ void HubDeviceSelect<HubFlow>::check_target_size(HubFlow::buffer_type* b, int re
 
 template<>
 bool HubDeviceSelect<HubFlow>::needs_read_fully() {
-    return true;
+    return false;
 }
