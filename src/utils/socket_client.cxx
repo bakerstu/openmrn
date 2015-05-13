@@ -35,13 +35,13 @@
 /** @todo need an equivalent to gethostbyname_n on MacOS */
 #if defined (__linux__) //|| defined (__MACH__)
 
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "utils/socket_listener.hxx"
 
@@ -76,6 +76,12 @@ int ConnectSocket(const char* host, int port) {
     close(fd);
     return -1;
   }
+
+  int val = 1;
+  ERRNOCHECK("setsockopt(nodelay)",
+             setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
+                        &val, sizeof(val)));
+
   LOG(INFO, "Connected to %s:%d. fd=%d", host, port, fd);
   return fd;
 }
