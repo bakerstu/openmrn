@@ -122,7 +122,7 @@ public:
                 /// performance.
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
-                destination_->send(target_buffer);
+                destination_->send(target_buffer, 0);
             }
             else
             {
