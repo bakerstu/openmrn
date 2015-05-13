@@ -103,6 +103,8 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
     OSEventType event = get_event();
     portEXIT_CRITICAL();
 
+    bool first = true;
+
     for ( ; /* forever */ ; )
     {
         /* cycle through all the FD Sets */
@@ -149,6 +151,13 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
             }
             return number;
         }
+        // We only run two rounds of this loop; if the event bit was signaled,
+        // our thread was likely woken up by a signal.
+        if (!first) {
+            errno = EINTR;
+            return -1;
+        }
+        first = false;
 
         if (until)
         {
