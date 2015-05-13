@@ -412,7 +412,7 @@ protected:
         helper->readFully_ = 1;
         helper->nextState_ = c;
         allocationResult_ = helper;
-        return call_immediately(STATE(try_read));
+        return call_immediately(STATE(internal_try_read));
     }
 
     Action read_single(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
@@ -422,15 +422,16 @@ protected:
         helper->readFully_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
-        return call_immediately(STATE(try_read));
+        return call_immediately(STATE(internal_try_read));
     }
 
-    Action try_read()
+    Action internal_try_read()
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
-        if (!h->remaining_) 
+        if (!h->remaining_)
         {
+            h->rbuf_ = nullptr;
             return call_immediately(h->nextState_);
         }
         int count = ::read(h->fd(), h->rbuf_, h->remaining_);
@@ -444,6 +445,7 @@ protected:
             }
             else
             {
+                h->rbuf_ = nullptr;
                 return call_immediately(h->nextState_);
             }
         }
@@ -455,6 +457,7 @@ protected:
             return wait();
         }
         // Now: we are at an unknown error or EOF.
+        h->rbuf_ = nullptr;
         return call_immediately(h->nextState_);
     }
 
@@ -465,14 +468,14 @@ protected:
         helper->readFully_ = 1;
         helper->nextState_ = c;
         allocationResult_ = helper;
-        return call_immediately(STATE(try_write));
+        return call_immediately(STATE(internal_try_write));
     }
 
-    Action try_write()
+    Action internal_try_write()
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
-        if (!h->remaining_) 
+        if (!h->remaining_)
         {
             return call_immediately(h->nextState_);
         }
