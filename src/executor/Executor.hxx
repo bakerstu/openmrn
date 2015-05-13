@@ -123,6 +123,8 @@ public:
 
     virtual bool empty() = 0;
 
+    os_thread_t thread_handle() { return OSThread::get_handle(); }
+
 protected:
     /** Thread entry point.
      * @return Should never return
