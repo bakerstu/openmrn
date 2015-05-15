@@ -414,6 +414,9 @@ volatile uint32_t psr;/* Program status register. */
     away as the variables never actually get used.  If the debugger won't show the
     values of the variables, make them global my moving their declaration outside
     of this function. */
+/** Fault handling information */
+typedef struct fault_information
+{
     volatile unsigned long stacked_r0 ;
     volatile unsigned long stacked_r1 ;
     volatile unsigned long stacked_r2 ;
@@ -428,50 +431,59 @@ volatile uint32_t psr;/* Program status register. */
     volatile unsigned long _AFSR ;
     volatile unsigned long _BFAR ;
     volatile unsigned long _MMAR ;
+} FaultInformation;
+
+/** Global instance so that it can be added to the watch expressions */
+volatile FaultInformation faultInfo;
 
 /** Decode the stack state prior to an exception occuring.  This code is
  * inspired by FreeRTOS.
  * @param address address of the stack
  */
-__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
+__attribute__((optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
-    hw_set_to_safe();
+    /* force a reference in the local variables for debug */
+    volatile FaultInformation *fault_info = &faultInfo;
 
-    stacked_r0 = ((unsigned long)hardfault_args[0]) ;
-    stacked_r1 = ((unsigned long)hardfault_args[1]) ;
-    stacked_r2 = ((unsigned long)hardfault_args[2]) ;
-    stacked_r3 = ((unsigned long)hardfault_args[3]) ;
-    stacked_r12 = ((unsigned long)hardfault_args[4]) ;
-    stacked_lr = ((unsigned long)hardfault_args[5]) ;
-    stacked_pc = ((unsigned long)hardfault_args[6]) ;
-    stacked_psr = ((unsigned long)hardfault_args[7]) ;
+    fault_info->stacked_r0 = ((unsigned long)hardfault_args[0]) ;
+    fault_info->stacked_r1 = ((unsigned long)hardfault_args[1]) ;
+    fault_info->stacked_r2 = ((unsigned long)hardfault_args[2]) ;
+    fault_info->stacked_r3 = ((unsigned long)hardfault_args[3]) ;
+    fault_info->stacked_r12 = ((unsigned long)hardfault_args[4]) ;
+    fault_info->stacked_lr = ((unsigned long)hardfault_args[5]) ;
+    fault_info->stacked_pc = ((unsigned long)hardfault_args[6]) ;
+    fault_info->stacked_psr = ((unsigned long)hardfault_args[7]) ;
 
     // Configurable Fault Status Register
     // Consists of MMSR, BFSR and UFSR
-    _CFSR = (*((volatile unsigned long *)(0xE000ED28))) ;   
+    fault_info->_CFSR = (*((volatile unsigned long *)(0xE000ED28))) ;   
                                                                                     
     // Hard Fault Status Register
-    _HFSR = (*((volatile unsigned long *)(0xE000ED2C))) ;
+    fault_info->_HFSR = (*((volatile unsigned long *)(0xE000ED2C))) ;
 
     // Debug Fault Status Register
-    _DFSR = (*((volatile unsigned long *)(0xE000ED30))) ;
+    fault_info->_DFSR = (*((volatile unsigned long *)(0xE000ED30))) ;
 
     // Auxiliary Fault Status Register
-    _AFSR = (*((volatile unsigned long *)(0xE000ED3C))) ;
+    fault_info->_AFSR = (*((volatile unsigned long *)(0xE000ED3C))) ;
 
     // Read the Fault Address Registers. These may not contain valid values.
     // Check BFARVALID/MMARVALID to see if they are valid values
     // MemManage Fault Address Register
-    _MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
+    fault_info->_MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
     // Bus Fault Address Register
-    _BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
+    fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
 
     __asm("BKPT #0\n") ; // Break into the debugger
 
     /* When the following line is hit, the variables contain the register values. */
-    if (stacked_r0 || stacked_r1 || stacked_r2 || stacked_r3 || stacked_r12 ||
-        stacked_lr || stacked_pc || stacked_psr || _CFSR || _HFSR || _DFSR ||
-        _AFSR || _MMAR || _BFAR)
+    if (fault_info->stacked_r0  || fault_info->stacked_r1  ||
+        fault_info->stacked_r2  || fault_info->stacked_r3  ||
+        fault_info->stacked_r12 || fault_info->stacked_lr  ||
+        fault_info->stacked_pc  || fault_info->stacked_psr ||
+        fault_info->_CFSR       || fault_info->_HFSR       ||
+        fault_info->_DFSR       || fault_info->_AFSR       ||
+        fault_info->_MMAR       || fault_info->_BFAR)
     {
         resetblink(BLINK_DIE_HARDFAULT);
         for( ;; );
@@ -480,20 +492,16 @@ __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned 
 
 /** The fault handler implementation.  This code is inspired by FreeRTOS.
  */
-static void hard_fault_handler(void)
+__attribute__((__naked__)) static void hard_fault_handler(void)
 {
     __asm volatile
     (
-        "MOVS   R0, #4                  \n"
-        "MOV    R1, LR                  \n"
-        "TST    R0, R1                  \n"
-        "BEQ    _MSP                    \n"
-        "MRS    R0, PSP                 \n"
-        "B      hard_fault_handler_c    \n"
-        "_MSP:                          \n"
-        "MRS    R0, MSP                 \n"
-        "B      hard_fault_handler_c    \n"
-        "BX    LR\n"
+        " tst   lr, #4               \n"
+        " ite   eq                   \n"
+        " mrseq r0, msp              \n"
+        " mrsne r0, psp              \n"
+        " b     hard_fault_handler_c \n"
+        " bx    lr                   \n"
     );
 }
 
