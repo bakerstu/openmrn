@@ -83,7 +83,11 @@ extern os_mutex_t g_log_mutex;
         }                                                                      \
     } while (0)
 
+#ifdef __linux__
+extern char logbuffer[4096];
+#else
 extern char logbuffer[256];
+#endif
 
 #ifndef LOGLEVEL
 #ifdef __FreeRTOS__
