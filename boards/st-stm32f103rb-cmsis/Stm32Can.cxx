@@ -238,18 +238,24 @@ void Stm32CanDriver::tx_msg()
     // transmit message buffer free.
     HASSERT(instance_->TSR & CAN_TSR_TME_ANY);
 
-    struct can_frame can_frame;
-    if (!get_tx_msg(&can_frame))
+    struct can_frame* can_frame;
+    size_t msg_count = txBuf->data_read_pointer(&can_frame);
+    if (!msg_count)
     {
         // No frame -- probably our frame was sent off by a racing ISR.
         return;
     }
     CanTxMsg msg;
-    fill_tx_message(can_frame, &msg);
+    fill_tx_message(can_frame[0], &msg);
     if (CAN_Transmit(instance_, &msg) == CAN_TxStatus_NoMailBox)
     {
-        DIE("Internal inconsistency: no interrupt pending but no transmit "
-            "buffer free");
+        // the tx interrupt will send off the frame.
+        return;
+    }
+    else
+    {
+        txBuf->consume(1);
+        txBuf->signal_condition();
     }
     if ((instance_->TSR & CAN_TSR_TME_ANY) == 0)
     {
@@ -261,20 +267,26 @@ void Stm32CanDriver::tx_msg()
 /** Handler for CAN device's transmit interrupt. */
 void Stm32CanDriver::tx_interrupt()
 {
-    struct can_frame can_frame;
     while (instance_->TSR & CAN_TSR_TME_ANY)
     {
-        if (!get_tx_msg_from_isr(&can_frame))
+        struct can_frame* can_frame;
+        size_t msg_count = txBuf->data_read_pointer(&can_frame);
+        if (!msg_count)
         {
             // No new frame but we have a txbuffer -> disable tx interrupt.
             instance_->IER &= ~CAN_IT_TME;
             return;
         }
         CanTxMsg msg;
-        fill_tx_message(can_frame, &msg);
+        fill_tx_message(can_frame[0], &msg);
         if (CAN_Transmit(instance_, &msg) == CAN_TxStatus_NoMailBox)
         {
             DIE("Internal inconsistency: free xmit buffer disappeared.");
+        }
+        else
+        {
+            txBuf->consume(1);
+            txBuf->signal_condition_from_isr();
         }
     }
 }
@@ -282,13 +294,16 @@ void Stm32CanDriver::tx_interrupt()
 void Stm32CanDriver::rx_interrupt()
 {
     HASSERT(instance_->RF0R & 3);
-    while (instance_->RF0R & 3) {
+    struct can_frame *can_frame;
+    while (instance_->RF0R & 3 && rxBuf->data_write_pointer(&can_frame)) {
         CanRxMsg msg;
         CAN_Receive(instance_, CAN_FIFO0, &msg);
-        struct can_frame frame;
-        parse_rx_message(msg, &frame);
-        put_rx_msg_from_isr(frame);
+        parse_rx_message(msg, can_frame);
+        rxBuf->advance(1);
+        rxBuf->signal_condition_from_isr();
     }
+    /** @TODO: if there is no rx buf left, we need to disable the rx interrupt
+        or else we get stuck in an infinite interrupt loop. */
 }
 
 Stm32CanDriver can0(CAN1, "/dev/can0");
@@ -304,4 +319,3 @@ void USB_LP_CAN1_RX0_IRQHandler(void) {
 }
 
 }
-
