@@ -33,6 +33,67 @@
 
 #include "utils/constants.hxx"
 
+/**
+ * @addtogroup constants
+ * @{
+ * OpenMRN constants are used in order a adjust settings at
+ * link time.  This allows for very generic implementations
+ * which can later be specialized based on a particular use case.  There is
+ * always a default value declared using the @ref DEFAULT_CONST macro.  The
+ * default values can be overridden by using the @ref OVERRIDE_CONST macro.
+ *
+ * Override default for constant @ref _sym_nmranet_can_bitrate, for example:
+ * @code
+ *     OVERRIDE_CONST(nmranet_can_bitrate, 250000);
+ * @endcode
+ *
+ * Notice that the "\_sym\_" prefix is left off as it is pre-pended to the
+ * constant name inside the @ref OVERRIDE_CONST macro.  Typically, these
+ * overrides are placed at the top of the main.cxx file or in the HwInit.cxx
+ * file for a given application.
+ */
+
+/** @var _sym_nmranet_can_bitrate
+ * @brief default CAN Bus data rate
+ */
+
+/** @var _sym_can2_bitrate
+ * @brief default CAN Bus data rate
+ */
+
+/** @var _sym_main_thread_priority
+ * @brief default priority of the main()/appl_main() thread
+ */
+
+/** @var _sym_main_thread_stack_size
+ * @brief default stack size of the main()/appl_main() thread
+ */
+
+/** @var _sym_can_tx_buffer_size
+ * @brief default software buffer size for CAN transmission
+ */
+
+/** @var _sym_can_rx_buffer_size
+ * @brief default software buffer size for CAN reception
+ */
+
+/** @var _sym_serial_tx_buffer_size
+ * @brief default software buffer size for serial transmission
+ */
+
+/** @var _sym_serial_rx_buffer_size
+ * @brief default software buffer size for serial reception
+ */
+
+/** @var _sym_gc_generate_newlines
+ * @brief default behavior of the grid connect protocol to generate newlines.
+ * This improves readability when debugging through a terminal.
+ */
+
+/**
+ * @}
+ */
+
 DEFAULT_CONST(nmranet_can_bitrate, 125000);
 DEFAULT_CONST(can2_bitrate, 125000);
 
