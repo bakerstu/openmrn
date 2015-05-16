@@ -23,7 +23,7 @@ HOST_TARGET := 1
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-ARCHOPTIMIZATION = -g -O0 -m64
+ARCHOPTIMIZATION = -g -O0 -m32
 
 CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
 
@@ -34,7 +34,7 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
 
 LDFLAGS = $(ARCHOPTIMIZATION) -pg -Wl,-Map="$(@:%=%.map)"
 SYSLIB_SUBDIRS += console
-SYSLIBRARIES = -lrt -lpthread -lconsole
+SYSLIBRARIES = -lrt -lpthread -lconsole $(SYSLIBRARIESEXTRA)
 
 EXTENTION =
 

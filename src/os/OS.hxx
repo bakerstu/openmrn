@@ -100,6 +100,10 @@ public:
         return os_thread_getpriority(thread->handle);
     }
 
+    os_thread_t get_handle() {
+        return handle;
+    }
+
 protected:
     /** User entry point for the created thread.
      * @return exit status
@@ -633,6 +637,6 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
-#endif
+#endif  // freertos
 
 #endif /* _OS_OS_HXX_ */

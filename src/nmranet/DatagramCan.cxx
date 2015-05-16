@@ -232,8 +232,8 @@ private:
     // Callback when a matching response comes in on the bus.
     void handle_response(NMRAnetMessage *message)
     {
-        LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
-            (int)message->mti, (int)message->src.alias);
+        //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
+        //    (int)message->mti, (int)message->src.alias);
         // First we check that the response is for this source node.
         if (message->dst.id)
         {

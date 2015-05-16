@@ -33,7 +33,11 @@
 
 #include "logging.h"
 
+#ifdef __linux__
+char logbuffer[4096];
+#else
 char logbuffer[256];
+#endif
 
 #ifdef LOCKED_LOGGING
 os_mutex_t g_log_mutex = OS_MUTEX_INITIALIZER;

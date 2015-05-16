@@ -39,7 +39,7 @@
 #ifdef TARGET_LPC11Cxx
 #define NUM_OPEN_FILES     4
 #else
-#define NUM_OPEN_FILES     8
+#define NUM_OPEN_FILES     12
 #endif
 
 Device *Device::first = NULL;

@@ -82,6 +82,9 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+/** I2C driver */
+static TivaI2C i2c1("/dev/i2c1", I2C1_BASE, INT_I2C1);
+
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
 
@@ -112,7 +115,7 @@ void uart1_interrupt_handler(void)
 
 /** Blink LED */
 uint32_t blinker_pattern = 0;
-static uint32_t rest_pattern = 0;
+static volatile uint32_t rest_pattern = 0;
 
 void resetblink(uint32_t pattern)
 {
@@ -212,6 +215,8 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    SW1_Pin::hw_init();
+
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
@@ -258,6 +263,14 @@ void hw_preinit(void)
     MAP_GPIOPinConfigure(GPIO_PE5_CAN0TX);
     MAP_GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
+    /* I2C pin initialization */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
+    MAP_GPIOPinConfigure(GPIO_PA6_I2C1SCL);
+    MAP_GPIOPinConfigure(GPIO_PA7_I2C1SDA);
+    MAP_GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_7);
+    MAP_GPIOPinTypeI2CSCL(GPIO_PORTA_BASE, GPIO_PIN_6);
+
     /* Blue LED pin initialization */
     set_gpio_led(LED_BLUE);
     set_gpio_led(LED_GREEN);
@@ -271,6 +284,20 @@ void hw_preinit(void)
 
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+
+    /* Inserts about 1s of wait in the initialization sequence in order to
+     * allow a debugger to connect to the target. */
+    rest_pattern = 0xAAAA;
+    blinker_pattern = 0;
+    asm("cpsie i\n");
+    while (rest_pattern) {
+      if (!SW1_Pin::get()) {
+        blinker_pattern = 0xAAAA;
+      } else {
+        blinker_pattern = 0;
+      }
+    }
+    asm("cpsid i\n");
 }
 
 }  // extern "C"

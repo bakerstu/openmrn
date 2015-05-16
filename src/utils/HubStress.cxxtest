@@ -1,0 +1,357 @@
+#include "utils/test_main.hxx"
+#include "utils/socket_listener.hxx"
+#include "utils/Hub.hxx"
+#include "utils/HubDeviceSelect.hxx"
+
+struct TestData
+{
+    int from;
+    int payload;
+};
+
+typedef HubContainer<StructContainer<TestData>> TestHubData;
+typedef StateFlow<Buffer<TestHubData>, QList<1>> TestHubPort;
+typedef GenericHubFlow<TestHubData> TestHubFlow;
+typedef HubDeviceSelect<TestHubFlow> TestHubDeviceAsync;
+
+static const int PORT = 12024;
+
+/** Equivalent of GcTcpHub, which listens to a tcp port and every incoming
+ * connection gets a bridge. */
+class TestTcpHub : public Destructable
+{
+public:
+    TestTcpHub(TestHubFlow *hub)
+        : hub_(hub)
+        , tcpListener_(PORT, std::bind(&TestTcpHub::OnNewConnection, this,
+                                 std::placeholders::_1))
+    {
+        while (!is_started())
+            usleep(1000);
+    }
+    ~TestTcpHub()
+    {
+        tcpListener_.shutdown();
+    }
+
+    bool is_started()
+    {
+        return tcpListener_.is_started();
+    }
+
+private:
+    void OnNewConnection(int fd)
+    {
+        ports_.emplace_back(new TestHubDeviceAsync(hub_, fd));
+    }
+
+    TestHubFlow *hub_;
+    SocketListener tcpListener_;
+    vector<std::unique_ptr<Destructable>> ports_;
+};
+
+class TestEndpoint : public TestHubPort
+{
+public:
+    TestEndpoint(
+        TestHubFlow *hub, int inject_id, int listen_id, int last_number)
+        : TestHubPort(hub->service())
+        , hub_(hub)
+        , injectId_(inject_id)
+        , listenId_(listen_id)
+        , lastNumber_(last_number)
+    {
+        hub->register_port(this);
+    }
+
+    ~TestEndpoint()
+    {
+        hub()->unregister_port(this);
+    }
+
+    TestHubFlow *hub()
+    {
+        return hub_;
+    }
+
+    Action entry() OVERRIDE
+    {
+        TestData *d = message()->data();
+        if (d->from == listenId_)
+        {
+            if (d->payload == lastNumber_)
+            {
+                n_.notify();
+            }
+            else
+            {
+                d->from = injectId_;
+                if (injectId_ != listenId_ + 1)
+                {
+                    d->payload++;
+                }
+                message()->data()->skipMember_ = this;
+                hub()->send(transfer_message());
+            }
+        }
+        return release_and_exit();
+    }
+
+    void inject()
+    {
+        auto *b = hub()->alloc();
+        b->data()->from = injectId_;
+        b->data()->payload = 1;
+        b->data()->skipMember_ = this;
+        hub()->send(b);
+    }
+
+    void wait_for_notification()
+    {
+        return n_.wait_for_notification();
+    }
+
+private:
+    TestHubFlow *hub_;
+    /// This id will be injected.
+    int injectId_;
+    /// This id will be listened to for.
+    int listenId_;
+    /// Values coming in for listenId_ that are less than this will be
+    /// re-injected at injectId_ and value == 1. This value coming in for
+    /// listenId_ will trigger the finish notification.
+    int lastNumber_;
+    SyncNotifiable n_;
+};
+
+/** Prints every packet received to stderr. */
+class DumpEndpoint : public TestHubPort
+{
+public:
+    DumpEndpoint(TestHubFlow *hub)
+        : TestHubPort(hub->service())
+        , hub_(hub)
+    {
+        hub->register_port(this);
+    }
+
+    ~DumpEndpoint()
+    {
+        hub()->unregister_port(this);
+    }
+
+    TestHubFlow *hub()
+    {
+        return hub_;
+    }
+
+    Action entry() OVERRIDE
+    {
+        fprintf(stderr, "<%d,%d> ", message()->data()->from,
+            message()->data()->payload);
+        return release_and_exit();
+    }
+
+private:
+    TestHubFlow *hub_;
+};
+
+class HubStressTest : public ::testing::Test
+{
+protected:
+    HubStressTest()
+    {
+    }
+
+    ~HubStressTest()
+    {
+        wait_for_main_executor();
+    }
+
+    void print_all()
+    {
+        components_.emplace_back(new DumpEndpoint(&startHub_));
+    }
+
+    void add_start_hub(int count)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            hubs_.push_back(&startHub_);
+        }
+    }
+
+    void add_endpoints(int num_rounds, int offset = 0, int m = 0)
+    {
+        injectEndpoints_.emplace_back(new TestEndpoint(
+            hubs_[offset % hubs_.size()], m + 1, m + hubs_.size(), num_rounds));
+        for (unsigned i = 1; i < hubs_.size(); ++i)
+        {
+            int h = (i + offset) % hubs_.size();
+            endpoints_.emplace_back(
+                new TestEndpoint(hubs_[h], m + i + 1, m + i, num_rounds + 1));
+        }
+    }
+
+    void run()
+    {
+        usleep(10000);  // Waits for tcp connections to be established.
+        for (auto &a : injectEndpoints_)
+        {
+            a->inject();
+        }
+        for (auto &a : injectEndpoints_)
+        {
+            a->wait_for_notification();
+        }
+    }
+
+    void start_tcp_hub()
+    {
+        tcpHub_.reset(new TestTcpHub(&startHub_));
+    }
+
+    void add_tcp_connections(int count)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            tcpClients_.emplace_back(new TcpClient(&g_service, PORT));
+        }
+    }
+
+    void use_tcp_hubs(int total_count)
+    {
+        for (int i = 0; i < total_count; ++i)
+        {
+            hubs_.push_back(&tcpClients_[i % tcpClients_.size()]->hub_);
+        }
+    }
+
+    struct TcpClient : public Destructable
+    {
+        TcpClient(Service *service, int port)
+            : hub_(service)
+            , fd_(ConnectSocket("localhost", port))
+            , port_(&hub_, fd_)
+        {
+            EXPECT_LE(0, fd_);
+        }
+        ~TcpClient()
+        {
+            ::close(fd_);
+            usleep(1000);
+            ExecutorGuard guard(hub_.service()->executor());
+            guard.wait_for_notification();
+        }
+        TestHubFlow hub_;
+        int fd_;
+        TestHubDeviceAsync port_;
+    };
+
+    TestHubFlow startHub_{&g_service};
+    vector<std::unique_ptr<TcpClient>> tcpClients_;
+    std::unique_ptr<TestTcpHub> tcpHub_;
+    vector<TestHubFlow *> hubs_;
+    vector<std::unique_ptr<Destructable>> components_;
+    vector<std::unique_ptr<TestEndpoint>> injectEndpoints_;
+    vector<std::unique_ptr<TestEndpoint>> endpoints_;
+};
+
+// A bunch of additional threads.
+Executor<1> g_executor1("ex1", 0, 0), g_executor2("ex2", 0, 0),
+    g_executor3("ex3", 0, 0), g_executor4("ex4", 0, 0);
+
+Service g_service1(&g_executor1), g_service2(&g_executor2),
+    g_service3(&g_executor3), g_service4(&g_executor4);
+
+TEST_F(HubStressTest, SingleHub)
+{
+    print_all();
+    add_start_hub(12);
+    add_endpoints(10);
+    run();
+}
+
+TEST_F(HubStressTest, SingleTcp)
+{
+    // print_all();
+    add_start_hub(1);
+    start_tcp_hub();
+    add_tcp_connections(1);
+    use_tcp_hubs(10);
+    add_start_hub(3);
+    use_tcp_hubs(10);
+    add_endpoints(10);
+    run();
+}
+
+TEST_F(HubStressTest, ManyTcp)
+{
+    // print_all();
+    add_start_hub(1);
+    start_tcp_hub();
+    add_tcp_connections(6);
+    use_tcp_hubs(20);
+    add_start_hub(3);
+    use_tcp_hubs(10);
+    add_start_hub(1);
+    use_tcp_hubs(10);
+    add_endpoints(10);
+    run();
+}
+
+TEST_F(HubStressTest, MultiThreaded)
+{
+    // print_all();
+    add_start_hub(1);
+    start_tcp_hub();
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(8);
+    add_endpoints(50);
+    run();
+    while (!g_executor4.empty() || !g_executor3.empty() ||
+        !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
+        usleep(1000);
+}
+
+TEST_F(HubStressTest, Parallel)
+{
+    // print_all();
+    add_start_hub(1);
+    start_tcp_hub();
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(16);
+    add_start_hub(1);
+    use_tcp_hubs(8);
+    add_endpoints(20, 0, 0);
+    add_endpoints(20, 7, 1000);
+    add_endpoints(20, 12, 2000);
+    add_endpoints(20, 33, 3000);
+    add_endpoints(20, 91, 4000);
+    add_endpoints(20, 47, 5000);
+    add_endpoints(20, 27, 6000);
+    run();
+    while (!g_executor4.empty() || !g_executor3.empty() ||
+        !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
+        usleep(1000);
+}

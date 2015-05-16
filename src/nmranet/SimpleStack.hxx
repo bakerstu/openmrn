@@ -81,6 +81,10 @@ public:
         return &ifCan_;
     }
 
+    DatagramService* dg_service() {
+        return &datagramService_;
+    }
+
     Node *node()
     {
         return &node_;
@@ -89,6 +93,10 @@ public:
     CanHubFlow *can_hub()
     {
         return &canHub0_;
+    }
+
+    MemoryConfigHandler* memory_config_handler() {
+        return &memoryConfigHandler_;
     }
 
     /** Adds a CAN bus port with synchronous driver API. */
@@ -111,11 +119,13 @@ public:
 #endif
 
     /** Adds a gridconnect port to the CAN bus. */
-    void add_gridconnect_port(const char* device) {
-        int fd = ::open(device, O_RDWR);
-        HASSERT(fd >= 0);
-        create_gc_port_for_can_hub(&canHub0_, fd);
-    }
+    void add_gridconnect_port(const char* path, Notifiable* on_exit = nullptr);
+
+#if defined(__linux__) || defined(__MACH__)
+    /** Adds a gridconnect port to the CAN bus with setting the TTY
+     * options. Suitablefor linux /dev/ttyACMxx devices. */
+    void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
+#endif
 
     /** Starts a TCP server on the specified port in listening mode. Each
      * incoming connection will be assumed to be in gridconnect protocol and

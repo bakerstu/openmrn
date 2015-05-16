@@ -40,6 +40,8 @@
 StateFlowWithQueue* StateFlowWithQueue::head_ = nullptr;
 Atomic StateFlowWithQueue::headMu_;
 
+const unsigned StateFlowWithQueue::MAX_PRIORITY;
+
 StateFlowWithQueue::StateFlowWithQueue(Service *service)
   : StateFlowBase(service)
   , queueSize_(0)

@@ -66,6 +66,10 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
+#ifdef USE_WII_CHUCK
+static TivaI2C i2c4("/dev/i2c4", I2C4_BASE, INT_I2C4);
+#endif
+
 #ifdef HAVE_RAILCOM
 TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
 
@@ -238,6 +242,15 @@ void hw_preinit(void)
     /* USB0 pin initialization */
     //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     //MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+
+#ifdef USE_WII_CHUCK
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C4);
+    MAP_GPIOPinConfigure(GPIO_PG2_I2C4SCL);
+    MAP_GPIOPinConfigure(GPIO_PG3_I2C4SDA);
+    MAP_GPIOPinTypeI2CSCL(GPIO_PORTG_BASE, GPIO_PIN_2);
+    MAP_GPIOPinTypeI2C(GPIO_PORTG_BASE, GPIO_PIN_3);
+#endif
 
     /* CAN pin initialization */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);

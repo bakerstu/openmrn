@@ -2,17 +2,6 @@ OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 ENTRY(ResetISR)
 SEARCH_DIR(.)
 
-GROUP(
- libgcc.a
- libc_s.a
- libstdc++_s.a
- libm.a
- crti.o
- crtn.o
- crtbegin.o
- crtend.o
-)
-
 MEMORY
 {
   /* Define each memory region */

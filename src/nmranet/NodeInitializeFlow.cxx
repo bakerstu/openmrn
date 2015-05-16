@@ -51,4 +51,4 @@ void StartInitializationFlow(Node *node)
 
 } // namespace nmranet
 
-DEFINE_SINGLETON_INSTANCE(nmranet::InitializeFlow);
+//DEFINE_SINGLETON_INSTANCE(nmranet::InitializeFlow);

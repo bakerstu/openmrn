@@ -48,6 +48,8 @@
 #endif
 #endif
 
+const unsigned long cpu_clock_hz = 48000000;
+
 // extern "C" {
 extern void __libc_init_array(void);
 //}

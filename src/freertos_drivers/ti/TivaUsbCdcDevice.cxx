@@ -201,6 +201,10 @@ ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
     {
         if (!connected)
         {
+            if (file->flags & O_NONBLOCK)
+            {
+                return -EWOULDBLOCK;
+            }
             fd_set fds;
             FD_ZERO(&fds);
             int fd = Device::fd_lookup(file);
@@ -215,9 +219,13 @@ ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
         if (sent == 0)
         {
             portEXIT_CRITICAL();
-            if ((file->flags & O_NONBLOCK) || result > 0)
+            if (result > 0)
             {
                 break;
+            }
+            if (file->flags & O_NONBLOCK)
+            {
+                return -EWOULDBLOCK;
             }
             else
             {

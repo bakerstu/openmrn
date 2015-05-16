@@ -60,25 +60,31 @@ static OSEventType get_event()
     return priv->selectEventBit;
 }
 
+void Device::select_clear()
+{
+    portENTER_CRITICAL();
+    OSEventType event = get_event();
+    portEXIT_CRITICAL();
+    wakeup.clear(event);
+}
+
 /** POSIX select().
  * @param nfds highest numbered file descriptor in any of the three, sets plus 1
  * @param readfds fd_set of file descritpors to pend on read active
  * @param writefds fd_set of file descritpors to pend on write active
  * @param exceptfds fd_set of file descritpors to pend on error active
- * @param timeout timeout value to wait, if 0, return immediately, if NULL
+ * @param timeout timeout in nsec to wait, if 0, return immediately, if < 0
  *                wait forever
  * @return on success, number of file descriptors in the three sets that are
  *         active, 0 on timeout, -1 with errno set appropriately upon error.
  */
 int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
-                   fd_set *exceptfds, struct timeval *timeout)
+                   fd_set *exceptfds, long long timeout)
 {
     long long until = 0;
-    if (timeout)
+    if (timeout >= 0)
     {
-        until = OSTime::get_monotonic() +
-                ((long long)timeout->tv_sec * 1000LL * 1000LL *1000LL) +
-                ((long long)timeout->tv_usec * 1000LL);
+        until = OSTime::get_monotonic() + timeout;
     }
     fd_set rd_result;
     fd_set wr_result;
@@ -96,7 +102,8 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
     portENTER_CRITICAL();
     OSEventType event = get_event();
     portEXIT_CRITICAL();
-    wakeup.clear(event);
+
+    bool first = true;
 
     for ( ; /* forever */ ; )
     {
@@ -144,8 +151,15 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
             }
             return number;
         }
+        // We only run two rounds of this loop; if the event bit was signaled,
+        // our thread was likely woken up by a signal.
+        if (!first) {
+            errno = EINTR;
+            return -1;
+        }
+        first = false;
 
-        if (timeout)
+        if (until)
         {
             long long now = OSTime::get_monotonic();
             if (now >= until)
@@ -211,5 +225,3 @@ void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
         info->event = 0;
     }
 }
-
-

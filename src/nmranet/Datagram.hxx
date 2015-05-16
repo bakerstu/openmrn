@@ -124,6 +124,7 @@ public:
         // The top byte of result_ is the response flags from Datagram_OK
         // response.
         RESPONSE_FLAGS_SHIFT = 24,
+        RESPONSE_CODE_MASK = (1<<RESPONSE_FLAGS_SHIFT) - 1,
         OK_REPLY_PENDING = (1 << 31),
     };
 

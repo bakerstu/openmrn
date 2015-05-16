@@ -36,11 +36,16 @@
 #ifndef _EXECUTOR_EXECUTOR_HXX_
 #define _EXECUTOR_EXECUTOR_HXX_
 
+#include <functional>
+
 #include "executor/Executable.hxx"
 #include "executor/Notifiable.hxx"
+#include "executor/Selectable.hxx"
 #include "executor/Timer.hxx"
 #include "utils/Queue.hxx"
+#include "utils/SimpleQueue.hxx"
 #include "utils/logging.h"
+#include "os/OSSelectWakeup.hxx"
 
 class ActiveTimers;
 
@@ -70,6 +75,10 @@ public:
      */
     virtual void add(Executable *action, unsigned priority = UINT_MAX) = 0;
 
+    /** Synchronously runs a closure on this executor. Does not return until
+     * the execution is completed. */
+    void sync_run(std::function<void()> fn);
+
 #ifdef __FreeRTOS__
     /** Send a message to this Executor's queue. Callable from interrupt
      * context.
@@ -80,8 +89,29 @@ public:
                               unsigned priority = UINT_MAX) = 0;
 #endif
 
+    /** Adds a file descriptor to be watched to the select loop.
+     * @param job Selectable structure that describes the descriptor to watch.
+     * The pointer must stay alive until it is activated, or is unselected.
+     *
+     * Must be called on the executor thread.
+     *
+     * @param job is a Selectable pointer that is not currently watched.
+     */
+    void select(Selectable* job);
+    /** Removes a job from the select loop.
+     *
+     * This stops watching the given file descriptor. The job must have been
+     * previously inserted into the Executor and must be not yet activated.
+     *
+     * Must be called on the executor thread.
+     *
+     * @param job is a Selectable pointer that was previously inserted.
+     */
+    void unselect(Selectable* job);
+
     /** Performs one loop of the execution on the calling thread. Returns true
-     * if there is more scheduled work to do. */
+     * if there is more scheduled work to do. Returns false if the executor
+     * loop would block right now. */
     bool loop_once();
 
     /** @returns the list of active timers. */
@@ -91,6 +121,10 @@ public:
      * executor. */
     void shutdown();
 
+    virtual bool empty() = 0;
+
+    os_thread_t thread_handle() { return OSThread::get_handle(); }
+
 protected:
     /** Thread entry point.
      * @return Should never return
@@ -98,6 +132,9 @@ protected:
     virtual void *entry();
 
     virtual void run() {}
+
+    /** Helper object for interruptible select calls. */
+    OSSelectWakeup selectHelper_;
 
 private:
     /** Wait for an item from the front of the queue.
@@ -121,6 +158,23 @@ private:
      */
     virtual Executable *next(unsigned *priority) = 0;
 
+    /** Executes a select call, and schedules any necessary executables based
+     * on the return. Will not sleep at all if not empty, otherwise sleeps at
+     * most next_timer_nsec nanoseconds (from now).
+     *
+     * @param next_timer is the maximum time to sleep in nanoseconds. */
+    void wait_with_select(long long next_timer_nsec);
+
+    fd_set* get_select_set(Selectable::SelectType type) {
+        switch(type) {
+        case Selectable::READ: return &selectRead_;
+        case Selectable::WRITE: return &selectWrite_;
+        case Selectable::EXCEPT: return &selectExcept_;
+        }
+        LOG(FATAL, "Unexpected select type %d", type);
+        return nullptr;
+    }
+
     /** name of this Executor */
     const char *name_;
 
@@ -136,10 +190,22 @@ private:
     /** List of active timers. */
     ActiveTimers activeTimers_;
 
+    /** fd to select for read. */
+    fd_set selectRead_;
+    /** fd to select for write. */
+    fd_set selectWrite_;
+    /** fd to select for except. */
+    fd_set selectExcept_;
+    /** maximum fd to select for + 1 */
+    int selectNFds_;
+    /** Head of the linked list for the select calls. */
+    TypedQueue<Selectable> selectables_;
+
     /** Set to 1 when the executor thread has exited and it is safe to delete
      * *this. */
     unsigned done_ : 1;
     unsigned started_ : 1;
+    unsigned selectPrescaler_ : 5;
 
     /** provide access to Executor::send method. */
     friend class Service;
@@ -147,7 +213,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(ExecutorBase);
 };
 
-/* This is an empty struct. If you give it as an argument to the executor
+/** This is an empty struct. If you give it as an argument to the executor
  * constructor, the executor will be created without a thread. The owner is
  * responsible for "donating" a thread (typically the main thread) to that
  * executor. See @ref Executor::thread_body() */
@@ -190,6 +256,7 @@ public:
     {
         queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+        selectHelper_.wakeup();
     }
 
 #ifdef __FreeRTOS__
@@ -202,6 +269,7 @@ public:
     {
         queue_.insert_from_isr(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+        selectHelper_.wakeup_from_isr();
     }
 #endif
 
@@ -213,7 +281,7 @@ public:
         entry();
     }
 
-    bool empty()
+    bool empty() OVERRIDE
     {
         return queue_.empty();
     }
@@ -264,14 +332,13 @@ private:
     QListProtectedWait<NUM_PRIO> queue_;
 };
 
-template<class Executor>
 /** This class can be given an executor, and will notify itself when that
  *   executor is out of work. Callers can pend on the sync notifiable to wait
  *   for that. */
 class ExecutorGuard : private Executable, public SyncNotifiable
 {
 public:
-    ExecutorGuard(Executor* e)
+    ExecutorGuard(ExecutorBase* e)
         : executor_(e) {
         executor_->add(this);  // lowest priority
     }
@@ -284,7 +351,7 @@ public:
         }
     }
 private:
-    Executor* executor_;
+    ExecutorBase* executor_;
 };
 
 template <unsigned NUM_PRIO>

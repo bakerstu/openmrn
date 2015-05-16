@@ -47,7 +47,7 @@ public:
     static const int kReadThreadStackSize = 1000;
     FdHubPortBase(int fd, Notifiable *done)
         : fd_(fd)
-        , writeThread_(fill_thread_name('W', fd), 0, kWriteThreadStackSize)
+        , writeThread_(fill_thread_name('W', fd), 3, kWriteThreadStackSize)
         , writeService_(&writeThread_)
         , barrier_(done)
         , hasError_(0)

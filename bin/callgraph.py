@@ -151,7 +151,7 @@ class Symbol(object):
     d += ("address = %x " % self.address)
     d += ("objfile = %s " % self.objfile)
     d += ("in edge count = %d " % len(self.indeps))
-    d += ("in sysle count = %d " % self.in_cycle_edge_count)
+    d += ("in cycle count = %d " % self.in_cycle_edge_count)
     return d
 
 

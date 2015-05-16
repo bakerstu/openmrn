@@ -149,7 +149,15 @@ int ioctl(int fd, unsigned long int key, ...)
 int select(int nfds, fd_set *readfds, fd_set *writefds,
            fd_set *exceptfds, struct timeval *timeout)
 {
-    return Device::select(nfds, readfds, writefds, exceptfds, timeout);
+    long long time_value = -1;
+    if (timeout) {
+        time_value = timeout->tv_sec;
+        time_value *= 1000000;
+        time_value += timeout->tv_usec;
+        time_value *= 1000;
+    }
+    Device::select_clear();
+    return Device::select(nfds, readfds, writefds, exceptfds, time_value);
 }
 
 /** Manipulate a file descriptor.

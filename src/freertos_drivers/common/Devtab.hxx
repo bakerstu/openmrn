@@ -128,13 +128,17 @@ public:
      * @param readfds fd_set of file descritpors to pend on read active
      * @param writefds fd_set of file descritpors to pend on write active
      * @param exceptfds fd_set of file descritpors to pend on error active
-     * @param timeout timeout value to wait, if 0, return immediately, if NULL
+     * @param timeout timeout in nsec to wait, if 0, return immediately, if < 0
      *                wait forever
      * @return on success, number of file descriptors in the three sets that are
      *         active, 0 on timeout, -1 with errno set appropriately upon error.
      */
     static int select(int nfds, fd_set *readfds, fd_set *writefds,
-                      fd_set *exceptfds, struct timeval *timeout);
+                      fd_set *exceptfds, long long timeout);
+
+    /** Clears the current thread's select bits. This is usedby ::select and
+     * ::pselect to ensure the necessary atomicity. */
+    static void select_clear();
 
     /** Manipulate a file descriptor.
      * @param fd file descriptor
@@ -258,6 +262,7 @@ protected:
 
     /** allow class DeviceBuffer access to select() related members. */
     friend class DeviceBufferBase;
+    friend class OSSelectWakeup;
 
 private:
     const char *name; /**< device name */

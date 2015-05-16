@@ -217,6 +217,39 @@ protected:
     std::unique_ptr<HubPort> printer_;
 };
 
+class AsyncCan1Test {
+protected:
+  AsyncCan1Test() { gc_hub1.register_port(&canBus1_); }
+  ~AsyncCan1Test() {
+    wait_for_main_executor();
+    gc_hub1.unregister_port(&canBus1_);
+  }
+  
+  static void SetUpTestCase() {
+    g_gc_adapter1 =
+        GCAdapterBase::CreateGridConnectAdapter(&gc_hub1, &can_hub1, false);
+  }
+
+  static void TearDownTestCase() {
+    delete g_gc_adapter1;
+  }
+
+#define expect_packet1(gc_packet) \
+  EXPECT_CALL(canBus1_, mwrite(StrCaseEq(gc_packet)))
+  
+  void send_packet1(const string &gc_packet) {
+    Buffer<HubData> *packet;
+    mainBufferPool->alloc(&packet);
+    packet->data()->assign(gc_packet);
+    packet->data()->skipMember_ = &canBus1_;
+    gc_hub1.send(packet);
+  }
+
+  /// Helper object for setting expectations on the packets sent on the bus.
+  StrictMock<MockSend> canBus1_;
+};
+
+
 namespace nmranet
 {
 

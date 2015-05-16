@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -55,13 +55,14 @@ void Serial::flush_buffers()
  * @param file file reference for this device
  * @param buf location to place read data
  * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes read upon success, -1 upon failure with errno
+ * containing the cause
  */
 ssize_t Serial::read(File *file, void *buf, size_t count)
 {
-    unsigned char *data = (unsigned char*)buf;
+    unsigned char *data = (unsigned char *)buf;
     ssize_t result = 0;
-    
+
     while (count)
     {
         portENTER_CRITICAL();
@@ -93,6 +94,11 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
         data += bytes_read;
     }
 
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EWOULDBLOCK;
+    }
+
     return result;
 }
 
@@ -100,13 +106,14 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
  * @param file file reference for this device
  * @param buf location to find write data
  * @param count number of bytes to write
- * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ * @return number of bytes written upon success, -1 upon failure with errno
+ * containing the cause
  */
 ssize_t Serial::write(File *file, const void *buf, size_t count)
 {
-    const unsigned char *data = (const unsigned char*)buf;
+    const unsigned char *data = (const unsigned char *)buf;
     ssize_t result = 0;
-    
+
     while (count)
     {
         portENTER_CRITICAL();
@@ -141,7 +148,12 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
             data += bytes_written;
         }
     }
-    
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EWOULDBLOCK;
+    }
+
     return result;
 }
 
@@ -162,7 +174,7 @@ int Serial::ioctl(File *file, unsigned long int key, unsigned long data)
  *        exceptions
  * @return true if active, false if inactive
  */
-bool Serial::select(File* file, int mode)
+bool Serial::select(File *file, int mode)
 {
     bool retval = false;
     switch (mode)
@@ -198,4 +210,3 @@ bool Serial::select(File* file, int mode)
     }
     return retval;
 }
-

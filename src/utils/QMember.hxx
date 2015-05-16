@@ -34,6 +34,8 @@
 #ifndef _UTILS_QMEMBER_HXX_
 #define _UTILS_QMEMBER_HXX_
 
+#include "utils/macros.h"
+
 /** Essentially a "next" pointer container.
  */
 class QMember
@@ -66,8 +68,12 @@ protected:
 
     /** This class is a helper of Q */
     friend class Q;
+    /** This class is a helper of SimpleQueue */
+    friend class SimpleQueue;
     /** ActiveTimers needs to iterate through the queue. */
     friend class ActiveTimers;
+    /** ActiveTimers needs to iterate through the queue. */
+    friend class ExecutorBase;
     friend class TimerTest;
 };
 

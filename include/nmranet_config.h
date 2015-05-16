@@ -63,6 +63,21 @@ DECLARE_CONST(main_thread_priority);
 /** Stack size of main thread. Used in FreeRTOS. */
 DECLARE_CONST(main_thread_stack_size);
 
+/** Prescaler for performing select calls.
+ *
+ * Executors will run this many Executables (if there is anything scheduled)
+ * before two calls to select. This helps in reducing the overhead of the
+ * select calls.
+ */
+DECLARE_CONST(executor_select_prescaler);
+
+/** Max select sleep time (in msec).
+ *
+ * Executors will sleep at most this much time before checking that something
+ * got scheduled on the executor.
+ */
+DECLARE_CONST(executor_max_sleep_msec);
+
 /** Number of packets to queue in the CANbus device driver for send. Each packet
  * takes 16 bytes of RAM. */
 DECLARE_CONST(can_tx_buffer_size);

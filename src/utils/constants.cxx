@@ -99,6 +99,8 @@ DEFAULT_CONST(can2_bitrate, 125000);
 
 DEFAULT_CONST(main_thread_priority, 0xdefa01);
 DEFAULT_CONST(main_thread_stack_size, 2048);
+DEFAULT_CONST(executor_max_sleep_msec, 40);
+DEFAULT_CONST(executor_select_prescaler, 5);
 
 DEFAULT_CONST(can_tx_buffer_size, 16);
 DEFAULT_CONST(can_rx_buffer_size, 16);
