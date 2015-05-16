@@ -39,7 +39,7 @@
 
 #include "Devtab.hxx"
 
-/** Helper for Device Buffer which allows for methods to not be inlined.
+/** Helper for DeviceBuffer which allows for methods to not be inlined.
  */
 class DeviceBufferBase
 {
@@ -192,7 +192,7 @@ private:
 /** Implements a smart buffer specifically designed for character
  * device drivers.  Technically, the private metadata for the size and index
  * counters should more properly be implemented as size_t types.  The choice
- * of uint16_t types is simply to same memory as 2^16 is normally a reasonable
+ * of uint16_t types is simply to save memory as 2^16 is normally a reasonable
  * maximum size for this type of metadata.
  */
 template <typename T> class DeviceBuffer : public DeviceBufferBase

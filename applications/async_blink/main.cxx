@@ -63,6 +63,8 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(main_thread_stack_size, 2500);
 #elif defined(TARGET_LPC11Cxx)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
+#elif defined(STM32F072xB)
+OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
 OVERRIDE_CONST(num_memory_spaces, 4);
 

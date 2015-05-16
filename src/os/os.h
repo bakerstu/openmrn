@@ -46,7 +46,6 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-#include <timers.h>
 #include <event_groups.h>
 #else
 #include <pthread.h>
@@ -97,7 +96,6 @@ typedef struct
     char recursive; /**< recursive mutex if set */
 } os_mutex_t; /**< mutex handle */
 typedef xQueueHandle os_mq_t; /**< message queue handle */
-typedef xTimerHandle os_timer_t; /**< timer handle */
 typedef struct
 {
     unsigned char state; /**< keep track if already executed */
@@ -124,14 +122,12 @@ typedef struct {
 } os_sem_t;
 
 typedef unsigned os_thread_t;
-typedef void* os_timer_t;
 typedef void *os_mq_t; /**< message queue handle */
 
 #else
 typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
-typedef void *os_timer_t; /**< timer handle */
 typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
 /** Some Operating Systems do not support timeouts with semaphores */
 typedef struct
@@ -205,9 +201,6 @@ OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 #define OS_MQ_EMPTY    2 /**< error code for the queue being empty */
 #define OS_MQ_FULL     3 /**< error code for queue being full */
 
-#define OS_TIMER_NONE 0LL /**< do not restart a timer */
-#define OS_TIMER_RESTART 1LL /**< restart a timer with the last period */
-#define OS_TIMER_DELETE -1LL /**< delete the timer */
 #if defined LLONG_MAX
 #define OS_WAIT_FOREVER LLONG_MAX /**< maximum timeout period */
 #else
@@ -360,32 +353,6 @@ OS_INLINE int os_thread_getpriority(os_thread_t thread)
 #define OS_RECURSIVE_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #endif
 #endif
-
-/** Create a new timer.
- * @param callback callback associated with timer
- * @param data1 data to pass along with callback
- * @param data2 data to pass along with callback
- * @return timer handle on success, else NULL
- */
-os_timer_t os_timer_create(long long (*callback)(void*, void*), void *data1, void* data2);
-
-/** Delete a timer.
- * @param timer timer to delete
- */
-void os_timer_delete(os_timer_t timer);
-
-/** Start a timer.  This method shall not be used on a timer within its own
- * callback function.
- * @param timer timer to start
- * @param period period in nanoseconds before expiration
- */
-void os_timer_start(os_timer_t timer, long long period);
-
-/** Delete a timer.  This method shall not be used on a timer within its own
- * callback function.
- * @param timer timer to stop
- */
-void os_timer_stop(os_timer_t timer);
 
 #ifdef __EMSCRIPTEN__
 extern void os_emscripten_yield();

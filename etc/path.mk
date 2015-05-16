@@ -27,6 +27,10 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 # endif
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
+ifeq ($(OS),Windows_NT)
+include $(OPENMRNPATH)/etc/path_windows.mk
+else
+
 ################ tivaware ##################
 ifndef TIVAWAREPATH
 SEARCHPATH := \
@@ -40,6 +44,17 @@ ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
 endif
 endif #TIVAWAREPATH
+
+################ STM32Cube_F0 ##################
+ifndef STM32CUBEF0PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F0/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF0PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF0PATH
 
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
@@ -118,6 +133,7 @@ SEARCHPATH := \
   /opt/FreeRTOS \
   /opt/FreeRTOS/default \
   $(HOME)/FreeRTOS \
+  /d/FreeRTOS/default
 
 TRYPATH:=$(call findfirst,Source,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -309,4 +325,5 @@ EMLLVMPATH:=$(TRYPATH)
 endif
 endif #EMLLVMPATH
 
+endif # ifeq ($(OS),Windows_NT)
 

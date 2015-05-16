@@ -1,0 +1,1 @@
+../armv7m/target-split-ram.ld

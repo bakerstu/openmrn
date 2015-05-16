@@ -169,59 +169,6 @@ private:
     void (*routine)(void);
 };
 
-/** This class provides a timer API.
- * The return value of the callback determines the behavior of how the timer is
- * rearmed.  @ref OS_TIMER_NONE indicates that the timer is not restarted,
- * OS_TIMER_RESTART restarts the timer with the period of the last timeout,
- * OS_TIMER_DELETE deletes the timer, and all other values indicate the restart
- * period in nanoseconds.
- */
-class OSTimer
-{
-public:
-    /** Create a new timer.
-     * @param callback callback associated with timer
-     * @param data1 data to pass along with callback
-     * @param data2 data to pass along with callback
-     */
-    OSTimer(long long (*callback)(void*, void*), void *data1, void *data2)
-    {
-        handle_ = os_timer_create(callback, data1, data2);
-    }
-
-    /** Delete a timer.
-     */
-    ~OSTimer()
-    {
-        os_timer_delete(handle_);
-    }
-
-    /** Start a timer.
-     * @param period period in nanoseconds before expiration
-     */
-    void start(long long period)
-    {
-        os_timer_start(handle_, period);
-    }
-
-    /** Delete a timer.
-     */
-    void stop()
-    {
-        os_timer_stop(handle_);
-    }
-
-private:
-    /** Default constructor.
-     */
-    OSTimer();
-
-    DISALLOW_COPY_AND_ASSIGN(OSTimer);
-
-    /** Private timer handle. */
-    os_timer_t handle_;
-};
-
 /** This class provides a counting semaphore API.
  */
 class OSSem
