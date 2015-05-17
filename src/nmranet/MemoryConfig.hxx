@@ -331,6 +331,7 @@ public:
         DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
+    // node can be nullptr, and then the handler will be registered globally.
     MemoryConfigHandler(DatagramService *if_dg, Node *node, int registry_size)
         : DefaultDatagramHandler(if_dg)
         , responseFlow_(nullptr)
