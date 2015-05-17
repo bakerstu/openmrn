@@ -187,7 +187,7 @@ struct Packet
 
     /** Adds a DCC POM write single CV command and the xor byte. This should be
      * called after add_dcc_address. */
-    void add_dcc_pom_read1(unsigned cv_number, uint8_t value);
+    void add_dcc_pom_write1(unsigned cv_number, uint8_t value);
 
     /** Appends one byte to the packet payload that represents the XOR checksum
      * for DCC. */
