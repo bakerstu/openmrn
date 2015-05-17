@@ -380,8 +380,10 @@ struct GcHubPort : public Executable
         }
         LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
             gcWrite_.fd(), bridge_.get());
-        onExit_->notify();
-        onExit_ = nullptr;
+        if (onExit_) {
+            onExit_->notify();
+            onExit_ = nullptr;
+        }
         /* We get this call when something is wrong with the FDs and we need to
          * close the connection. It is guaranteed that by the time we got this
          * call the device is unregistered from the char bridge, and the

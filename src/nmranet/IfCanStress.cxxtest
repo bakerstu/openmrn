@@ -80,11 +80,11 @@ private:
 //    AliasInfo testAlias_;
 };
 
-class Stats : public CanHubPortInterface
+class Stats : public CanHubPortInterface, private Timer
 {
 public:
     Stats()
-        : timer_(&Stats::timer_callback, this, nullptr),
+        : Timer(can_hub0.service()->executor()->active_timers()),
           numFrames_(0),
           badFrames_(0),
           cidFrames_(0),
@@ -93,12 +93,12 @@ public:
           eventFrames_(0)
     {
         can_hub0.register_port(this);
-        timer_.start(MSEC_TO_NSEC(1000));
+        start(MSEC_TO_NSEC(1000));
     }
 
     ~Stats()
     {
-        timer_.stop();
+        cancel();
         can_hub0.unregister_port(this);
     }
 
@@ -136,11 +136,10 @@ public:
         }
     }
 
-    static long long timer_callback(void* me, void*)
+    long long timeout() OVERRIDE
     {
-        Stats* s = static_cast<Stats*>(me);
-        s->print_stats();
-        return OS_TIMER_RESTART;
+        print_stats();
+        return RESTART;
     }
 
     void print_stats()
@@ -156,7 +155,7 @@ public:
 
 private:
     OSMutex lock_;
-    OSTimer timer_;
+  // OSTimer timer_;
     std::set<uint16_t> seenAliases_;
     size_t numFrames_;
     size_t badFrames_;
