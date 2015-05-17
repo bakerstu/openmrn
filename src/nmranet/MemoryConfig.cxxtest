@@ -127,7 +127,7 @@ TEST_F(MemoryConfigTest, InvalidSpace)
     memoryOne_.registry()->insert(node_, 0x27, &space);
 
     send_packet_and_expect_response(":X1A22A77CN204000000100330A;",
-                                    ":X19A4822AN077C1000;"); // Permanent error.
+                                    ":X19A4822AN077C1081;"); // Space not known
     wait();
 }
 
@@ -136,7 +136,7 @@ TEST_F(MemoryConfigTest, InvalidSpecialSpace)
     memoryOne_.registry()->insert(node_, 0xFE, &space);
 
     send_packet_and_expect_response(":X1A22A77CN2043000001000A;",
-                                    ":X19A4822AN077C1000;"); // Permanent error.
+                                    ":X19A4822AN077C1081;"); // Permanent error.
     wait();
 }
 

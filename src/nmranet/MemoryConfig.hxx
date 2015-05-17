@@ -569,7 +569,7 @@ private:
         MemorySpace *space = get_space();
         if (!space)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
         }
         int read_len = get_read_length();
         if (read_len < 0)
