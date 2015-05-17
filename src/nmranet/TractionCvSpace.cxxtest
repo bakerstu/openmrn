@@ -1,0 +1,22 @@
+#include "utils/async_traction_test_helper.hxx"
+#include "nmranet/TractionTestTrain.hxx"
+#include "nmranet/MemoryConfig.hxx"
+#include "nmranet/DatagramCan.hxx"
+
+namespace nmranet {
+
+
+class TractionCvTest : public TractionTest {
+protected:
+  TractionCvTest() {}
+
+  LoggingTrain train_impl_{175};
+  TrainNode train_node_{&trainService_, &train_impl_};
+  CanDatagramService datagram_support_{ifCan_.get(), 10, 2};
+  MemoryConfigHandler memory_config_handler_{&datagram_support_, nullptr, 3};
+};
+
+
+
+
+} // namespace nmranet
