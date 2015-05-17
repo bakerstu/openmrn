@@ -45,7 +45,7 @@
 namespace nmranet
 {
 
-class TractionCvSpace : private MemorySpace, private RailcomHubPortInterface
+class TractionCvSpace : private MemorySpace, private dcc::RailcomHubPortInterface, public StateFlowBase
 {
 public:
     TractionCvSpace(MemoryConfigHandler *parent,
@@ -73,7 +73,7 @@ private:
     Action read1_returned();
 
     // Railcom feedback
-    void send(Buffer<RailcomHubData>* b, unsigned priority) OVERRIDE;
+    void send(Buffer<dcc::RailcomHubData>* b, unsigned priority) OVERRIDE;
     void record_railcom_status(unsigned code);
 
     MemoryConfigHandler *parent_;

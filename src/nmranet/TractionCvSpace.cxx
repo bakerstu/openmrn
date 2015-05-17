@@ -40,12 +40,14 @@ namespace nmranet
 {
 
 TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
-    dcc::PacketFlowInterface *track, dcc::RailcomHubFlow *railcom_hub)
-    : RailcomHubPort(parent->service())
+                                 dcc::PacketFlowInterface *track,
+                                 dcc::RailcomHubFlow *railcom_hub)
+    : StateFlowBase(parent->service())
     , parent_(parent)
     , track_(track)
     , railcomHub_(railcom_hub)
-    , requestPending_(0)
+    , errorCode_(ERROR_NOOP)
+    , timer_(this)
 {
     // We purposefully do not start the state flow until a request comes in.
 }
@@ -70,7 +72,7 @@ bool TractionCvSpace::set_node(Node *node)
         if (dccAddress_ != new_address)
         {
             dccAddress_ = new_address;
-            responseSuccess_ = 0;
+            errorCode_ = ERROR_NOOP;
         }
         return true;
     }
@@ -83,33 +85,32 @@ bool TractionCvSpace::set_node(Node *node)
 const unsigned TractionCvSpace::MAX_CV;
 
 size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
-    errorcode_t *error, Notifiable *again)
+                             errorcode_t *error, Notifiable *again)
 {
     if (source > MAX_CV)
     {
         *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
         return 0;
     }
-    if (responseSuccess_ && source == cvNumber_)
+    if (errorCode_ == ERROR_OK && source == cvNumber_)
     {
         *dst = cvData_;
         return 1;
     }
     done_ = again;
     cvNumber_ = source;
-    responseSuccess_ = 0;
-    responseNAK_ = 0;
-    start_flow(STATE(try_read));
+    errorCode_ = ERROR_NOOP;
+    start_flow(STATE(try_read1));
+    *error = ERROR_AGAIN;
+    return 0;
 }
 
-using StateFlowBase::Action;
-
-Action TractionCvSpace::try_read1()
+StateFlowBase::Action TractionCvSpace::try_read1()
 {
     return allocate_and_call(track_, STATE(fill_read1_packet));
 }
 
-Action TractionCvSpace::fill_read1_packet()
+StateFlowBase::Action TractionCvSpace::fill_read1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
@@ -126,51 +127,57 @@ Action TractionCvSpace::fill_read1_packet()
     b->data()->add_dcc_pom_read1(cvNumber_);
     b->data()->feedback_key = reinterpret_cast<size_t>(this);
     railcomHub_->register_port(this);
-    requestPending_ = 1;
     errorCode_ = ERROR_PENDING;
     track_->send(b);
     return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(read1_returned));
 }
 
-Action TractionCvSpace::read1_returned()
+StateFlowBase::Action TractionCvSpace::read1_returned()
 {
-    LOG(WARNING, "railcom POM read returned status %d value %d", errorCode_, cvData_);
+    LOG(WARNING, "railcom POM read returned status %d value %d", errorCode_,
+        cvData_);
     done_->notify();
     return exit();
 }
 
-void TractionCvSpace::record_railcom_status(unsigned code) {
+void TractionCvSpace::record_railcom_status(unsigned code)
+{
     errorCode_ = code;
     timer_.trigger();
 }
 
-
-void TractionCvSpace::send(Buffer<RailcomHubData> *b, unsigned priority)
+void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
 {
-    AutoReleaseBuffer<RailcomHubData> ar(b);
-    if (errorCode_ != ERROR_PENDING) return;
+    AutoReleaseBuffer<dcc::RailcomHubData> ar(b);
+    if (errorCode_ != ERROR_PENDING)
+        return;
     const dcc::Feedback &f = *b->data();
     if (f.feedbackKey != reinterpret_cast<size_t>(this))
     {
         return;
     }
-    if (!f.ch2Size) {
-        return record_railcom_error(ERROR_NO_RAILCOM_CH2_DATA);
+    if (!f.ch2Size)
+    {
+        return record_railcom_status(ERROR_NO_RAILCOM_CH2_DATA);
     }
     uint8_t b0 = dcc::railcom_decode[f.ch2Data[0]];
-    if (b0 == RailcomDefs::BUSY || RailcomDefs::NACK) {
+    if (b0 == dcc::RailcomDefs::BUSY || dcc::RailcomDefs::NACK)
+    {
         return record_railcom_status(ERROR_BUSY);
     }
-    if (b0 == RailcomDefs::INV || b0 > 63) {
+    if (b0 == dcc::RailcomDefs::INV || b0 > 63)
+    {
         return record_railcom_status(ERROR_GARBAGE);
     }
     uint8_t cmd = b0 >> 2;
-    if (cmd != RMOB_POM) {
+    if (cmd != dcc::RMOB_POM)
+    {
         return record_railcom_status(ERROR_UNKNOWN_RESPONSE);
     }
     unsigned value = b0 & 3;
     uint8_t b1 = dcc::railcom_decode[f.ch2Data[1]];
-    if (b1 > 63) {
+    if (b1 > 63)
+    {
         return record_railcom_status(ERROR_GARBAGE);
     }
     value <<= 6;
