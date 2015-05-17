@@ -41,19 +41,26 @@ namespace nmranet
 
 TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
                                  dcc::PacketFlowInterface *track,
-                                 dcc::RailcomHubFlow *railcom_hub)
+                                 dcc::RailcomHubFlow *railcom_hub,
+                                 uint8_t space_id)
     : StateFlowBase(parent->service())
     , parent_(parent)
     , track_(track)
     , railcomHub_(railcom_hub)
     , errorCode_(ERROR_NOOP)
+    , spaceId_(space_id)
     , timer_(this)
 {
+    parent_->registry()->insert(nullptr, spaceId_, this);
     // We purposefully do not start the state flow until a request comes in.
 }
 
 TractionCvSpace::~TractionCvSpace()
 {
+    parent_->registry()->erase(nullptr, spaceId_, this);
+    if (errorCode_ == ERROR_PENDING) {
+        timer_.cancel();
+    }
 }
 
 bool TractionCvSpace::set_node(Node *node)
@@ -100,6 +107,7 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
     done_ = again;
     cvNumber_ = source;
     errorCode_ = ERROR_NOOP;
+    cvData_ = 0;
     start_flow(STATE(try_read1));
     *error = ERROR_AGAIN;
     return 0;
@@ -161,7 +169,8 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
         return record_railcom_status(ERROR_NO_RAILCOM_CH2_DATA);
     }
     uint8_t b0 = dcc::railcom_decode[f.ch2Data[0]];
-    if (b0 == dcc::RailcomDefs::BUSY || dcc::RailcomDefs::NACK)
+    LOG(INFO, "railcom byte 0 decoded as 0x%x", b0);
+    if (b0 == dcc::RailcomDefs::BUSY || b0 == dcc::RailcomDefs::NACK)
     {
         return record_railcom_status(ERROR_BUSY);
     }

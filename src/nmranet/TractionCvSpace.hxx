@@ -45,27 +45,37 @@
 namespace nmranet
 {
 
-class TractionCvSpace : private MemorySpace, private dcc::RailcomHubPortInterface, public StateFlowBase
+class TractionCvSpace : private MemorySpace,
+                        private dcc::RailcomHubPortInterface,
+                        public StateFlowBase
 {
 public:
     TractionCvSpace(MemoryConfigHandler *parent,
-        dcc::PacketFlowInterface *track, dcc::RailcomHubFlow *railcom_hub);
+                    dcc::PacketFlowInterface *track,
+                    dcc::RailcomHubFlow *railcom_hub, uint8_t space_id);
 
     ~TractionCvSpace();
+
 private:
     static const unsigned MAX_CV = 255;
 
-    bool set_node(Node* node) OVERRIDE;
+    bool set_node(Node *node) OVERRIDE;
 
-    bool read_only() OVERRIDE { return false; }
+    bool read_only() OVERRIDE
+    {
+        return false;
+    }
 
-    address_t max_address() OVERRIDE { return MAX_CV; }
+    address_t max_address() OVERRIDE
+    {
+        return MAX_CV;
+    }
 
     size_t write(address_t destination, const uint8_t *data, size_t len,
-                 errorcode_t *error, Notifiable *again) OVERRIDE;
+                 errorcode_t *error, Notifiable *again) OVERRIDE {return 0;}
 
-    size_t read(address_t source, uint8_t *dst, size_t len,
-                errorcode_t *error, Notifiable *again) OVERRIDE;
+    size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
+                Notifiable *again) OVERRIDE;
 
     // State flow states.
     Action try_read1();
@@ -73,7 +83,7 @@ private:
     Action read1_returned();
 
     // Railcom feedback
-    void send(Buffer<dcc::RailcomHubData>* b, unsigned priority) OVERRIDE;
+    void send(Buffer<dcc::RailcomHubData> *b, unsigned priority) OVERRIDE;
     void record_railcom_status(unsigned code);
 
     MemoryConfigHandler *parent_;
@@ -81,18 +91,20 @@ private:
     dcc::RailcomHubFlow *railcomHub_;
     uint16_t dccAddress_;
     uint16_t cvNumber_;
-    uint8_t cvData_;  //< data to read or write.
+    uint8_t cvData_; //< data to read or write.
     uint8_t errorCode_ : 3;
-    enum {
+    enum
+    {
         ERROR_NOOP = 0,
-        ERROR_PENDING,
-        ERROR_OK,
-        ERROR_BUSY,
-        ERROR_NO_RAILCOM_CH2_DATA,
-        ERROR_GARBAGE,
-        ERROR_UNKNOWN_RESPONSE
+        ERROR_PENDING = 1,
+        ERROR_OK = 2,
+        ERROR_BUSY = 3,
+        ERROR_NO_RAILCOM_CH2_DATA = 4,
+        ERROR_GARBAGE = 5,
+        ERROR_UNKNOWN_RESPONSE = 6
     };
-    Notifiable* done_;  //< notify when transfer is done
+    uint8_t spaceId_;
+    Notifiable *done_; //< notify when transfer is done
     StateFlowTimer timer_;
 };
 
