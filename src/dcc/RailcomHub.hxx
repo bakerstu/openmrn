@@ -40,7 +40,7 @@
 
 namespace dcc {
 
-typedef HubContainer<dcc::Feedback> RailcomHubData;
+typedef HubContainer<StructContainer<dcc::Feedback> > RailcomHubData;
 typedef FlowInterface<Buffer<RailcomHubData> > RailcomHubPortInterface;
 typedef StateFlow<Buffer<RailcomHubData>, QList<1>> RailcomHubPort;
 typedef GenericHubFlow<RailcomHubData> RailcomHubFlow;
