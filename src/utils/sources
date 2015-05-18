@@ -13,6 +13,7 @@ CXXSRCS += Buffer.cxx \
            gc_format.cxx \
            HubDevice.cxx \
            GcTcpHub.cxx \
+	   StringPrintf.cxx \
            socket_listener.cxx \
            socket_client.cxx \
            constants.cxx \
