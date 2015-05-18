@@ -1,0 +1,112 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file RailCom.cxxtest
+ *
+ * Unit tests for railcom helper functions.
+ *
+ * @author Balazs Racz
+ * @date 18 May 2015
+ */
+
+#include <vector>
+
+#include "utils/test_main.hxx"
+#include "dcc/RailCom.hxx"
+
+using ::testing::ElementsAre;
+using ::testing::Field;
+
+namespace dcc {
+
+void PrintTo(const RailcomPacket& p, ::std::ostream* os) {
+  *os << StringPrintf(
+        "Railcom packet from hw %d in channel %d type %d argument %u",
+        p.hw_channel, p.railcom_channel, p.type, p.argument);
+}
+
+class RailcomDecodeTest : public ::testing::Test {
+protected:
+    RailcomDecodeTest() {
+        memset(&fb_, 0, sizeof(fb_));
+        fb_.channel = 3;
+        fb_.feedbackKey = 0xdeadbf;
+    }
+
+    void decode() {
+        parse_railcom_data(fb_, &output_);
+    }
+
+    Feedback fb_;
+    std::vector<RailcomPacket> output_;
+};
+
+bool operator==(const RailcomPacket& a, const RailcomPacket& b) {
+    return a.hw_channel == b.hw_channel &&
+        a.railcom_channel == b.railcom_channel &&
+        a.type == b.type &&
+        a.argument == b.argument;
+}
+
+TEST_F(RailcomDecodeTest, SimpleAck) {
+    fb_.add_ch1_data(0xF0);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(AllOf(Field(&RailcomPacket::hw_channel, 3),
+                             Field(&RailcomPacket::railcom_channel, 1),
+                             Field(&RailcomPacket::type, RailcomPacket::ACK),
+                             Field(&RailcomPacket::argument, 0))));
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::ACK, 0)));
+}
+
+TEST_F(RailcomDecodeTest, MultipleAckNackBusy) {
+    fb_.add_ch1_data(0xF0);
+    fb_.add_ch1_data(0xE1);
+    fb_.add_ch2_data(0x0F);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::ACK, 0),
+                             RailcomPacket(3, 1, RailcomPacket::BUSY, 0),
+                             RailcomPacket(3, 2, RailcomPacket::NACK, 0)));
+}
+
+TEST_F(RailcomDecodeTest, Ch2Ext) {
+    fb_.add_ch2_data(0x8b);
+    fb_.add_ch2_data(0xac);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128)));
+}
+
+TEST_F(RailcomDecodeTest, Ch2ExtAndFeedback) {
+    fb_.add_ch2_data(0x8b);
+    fb_.add_ch2_data(0xac);
+    fb_.add_ch2_data(0b10101001);
+    fb_.add_ch2_data(0b01110001);
+    decode();
+    EXPECT_THAT(
+        output_, ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128),
+                     RailcomPacket(3, 2, RailcomPacket::MOB_POM, 0xA5)));
+}
+
+}  // namespace dcc

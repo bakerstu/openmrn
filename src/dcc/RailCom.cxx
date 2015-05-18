@@ -77,4 +77,92 @@ const uint8_t railcom_decode[256] =
        INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
 };
 
+void parse_railcom_data(
+    const dcc::Feedback &fb, std::vector<struct RailcomPacket> *output) {
+    output->clear();
+    if (fb.channel == 0xff) return; // Occupancy feedback information
+    for (bool ch1 : {true, false}) {
+        uint8_t size;
+        const uint8_t* ptr;
+        if (ch1) {
+            size = fb.ch1Size;
+            ptr = fb.ch1Data;
+        } else {
+            size = fb.ch2Size;
+            ptr = fb.ch2Data;
+        }
+
+        if (!size) continue;
+        for (unsigned ofs = 0; ofs < size; ++ofs) {
+            uint8_t decoded = railcom_decode[ptr[ofs]];
+            uint8_t type = 0xff;
+            uint32_t arg = 0;
+            if (decoded == RailcomDefs::ACK) {
+                type = RailcomPacket::ACK;
+            } else if (decoded == RailcomDefs::NACK) {
+                type = RailcomPacket::NACK;
+            } else if (decoded == RailcomDefs::BUSY) {
+                type = RailcomPacket::BUSY;
+            } else if (decoded >= 64) {
+                output->emplace_back(fb.channel, ch1 ? 1 : 2, RailcomPacket::GARBAGE, 0);
+                break;
+            }
+            if (type != 0xff)
+            {
+                output->emplace_back(fb.channel, ch1 ? 1 : 2, type, 0);
+                continue;
+            }
+            // Now: we have a packet.
+            uint8_t packet_id = decoded >> 2;
+            uint8_t len = 2;
+            arg = decoded & 3;
+            switch(packet_id) {
+            case RMOB_ADRHIGH:
+                type = RailcomPacket::MOB_ADRHIGH;
+                break;
+            case RMOB_ADRLOW:
+                type = RailcomPacket::MOB_ADRLOW;
+                break;
+            case RMOB_EXT:
+                type = RailcomPacket::MOB_EXT;
+                // TODO: according to the standardthis should be a len==3
+                // packet, but the ESU LokPilot 3 is sending it as 2-byte
+                // packet.
+                break;
+            case RMOB_POM:
+                type = RailcomPacket::MOB_POM;
+                if (size == 6 && ofs == 0) {
+                    len = 6;
+                } else {
+                    len = 2;
+                }
+                break;
+            case RMOB_DYN:
+                type = RailcomPacket::MOB_DYN;
+                len = 3;
+                break;
+            default:
+                // Don't know the size of the fragment. Throws out response.
+                len = 255;
+                break;
+            }
+            if (ofs + len > size) {
+                // The expected message size does not fit.
+                output->emplace_back(
+                    fb.channel, ch1 ? 1 : 2, RailcomPacket::GARBAGE, 0);
+                break;
+            }
+            for (int i = 1; i < len; ++i, ++ofs) {
+                arg <<= 6;
+                uint8_t decoded = railcom_decode[ptr[ofs+1]];
+                if (decoded >= 64) {
+                    type = RailcomPacket::GARBAGE;
+                }
+                arg |= decoded;
+            }
+            output->emplace_back(fb.channel, ch1 ? 1 : 2, type, arg);
+        }
+    }
+}
+
 }  // namespace dcc

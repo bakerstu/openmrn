@@ -36,6 +36,8 @@
 #define _DCC_RAILCOM_HXX_
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace dcc {
 
@@ -66,6 +68,8 @@ struct Feedback {
     uint32_t feedbackKey;
 };
 
+std::string railcom_debug(const Feedback& fb);
+
 namespace RailcomDefs {
   static const uint8_t INV = 0xff;
   static const uint8_t ACK = 0xfe;
@@ -91,6 +95,39 @@ enum RailcomMobilePacketId {
     RMOB_DYN = 4,
     RMOB_SUBID = 12,
 };
+
+struct RailcomPacket {
+    enum {
+        GARBAGE,
+        ACK,
+        NACK,
+        BUSY,
+        MOB_POM,
+        MOB_ADRHIGH,
+        MOB_ADRLOW,
+        MOB_EXT,
+        MOB_DYN,
+        MOB_SUBID
+    };
+    uint8_t hw_channel;  //< which detector supplied this data
+    uint8_t railcom_channel;  //< which part of the railcom cutout (1 or 2)
+    uint8_t type;  //< packet type, see enum above
+    uint32_t argument;  //< payload of the railcom packet, justified to LSB.
+    RailcomPacket(uint8_t _hw_channel, uint8_t _railcom_channel, uint8_t _type,
+        uint32_t _argument)
+        : hw_channel(_hw_channel)
+        , railcom_channel(_railcom_channel)
+        , type(_type)
+        , argument(_argument)
+    {
+    }
+};
+
+/** Interprets the data from a railcom feedback. If the railcom data contains
+ * error, will add a packet of type "GARBAGE" into the output list. Clears the
+ * output list before fillign with the railcom data. */
+void parse_railcom_data(
+    const dcc::Feedback &fb, std::vector<struct RailcomPacket> *output);
 
 }  // namespace dcc
 
