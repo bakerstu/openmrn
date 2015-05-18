@@ -69,6 +69,7 @@ protected:
                                const vector<uint8_t> &ch2_data)
     {
         auto *b = railcom_hub_.alloc();
+        memset(b->data(), 0, sizeof(*b->data()));
         b->data()->feedbackKey = feedback_key;
         b->data()->ch2Size = ch2_data.size();
         memcpy(b->data()->ch2Data, &ch2_data[0], ch2_data.size());
