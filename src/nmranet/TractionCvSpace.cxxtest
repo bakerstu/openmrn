@@ -129,4 +129,20 @@ TEST_F(TractionCvTest, SingleCvBusyRetry)
     wait();
 }
 
+TEST_F(TractionCvTest, SingleCvWrite)
+{
+    print_all_packets();
+    expect_packet(":X19A28272N088380;");
+    EXPECT_CALL(track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11101100, 0x37, 0x5A),
+                                  expected_feedback_key())).Times(1);
+    send_packet(":X1A272883N200000000037EF5A;");
+    wait();
+    expect_packet(":X1A883272N205000000037EF;");
+    send_railcom_response(expected_feedback_key(), {0b10100101, 0b10100110});
+    wait();
+    send_packet(":X19A28883N027200;");
+    wait();
+}
+
+
 } // namespace nmranet

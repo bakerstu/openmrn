@@ -58,7 +58,8 @@ TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
 TractionCvSpace::~TractionCvSpace()
 {
     parent_->registry()->erase(nullptr, spaceId_, this);
-    if (errorCode_ == ERROR_PENDING) {
+    if (errorCode_ == ERROR_PENDING)
+    {
         timer_.cancel();
     }
 }
@@ -117,6 +118,10 @@ StateFlowBase::Action TractionCvSpace::try_read1()
 {
     return allocate_and_call(track_, STATE(fill_read1_packet));
 }
+StateFlowBase::Action TractionCvSpace::try_write1()
+{
+    return allocate_and_call(track_, STATE(fill_write1_packet));
+}
 
 StateFlowBase::Action TractionCvSpace::fill_read1_packet()
 {
@@ -137,15 +142,57 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
-    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(read1_returned));
+    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(railcom_returned));
 }
 
-StateFlowBase::Action TractionCvSpace::read1_returned()
+StateFlowBase::Action TractionCvSpace::railcom_returned()
 {
-    LOG(WARNING, "railcom POM read returned status %d value %d", errorCode_,
-        cvData_);
+    LOG(WARNING, "railcom returned status %d value %d", errorCode_, cvData_);
     done_->notify();
     return exit();
+}
+
+size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
+                              size_t len, errorcode_t *error, Notifiable *again)
+{
+    if (destination > MAX_CV)
+    {
+        *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+        return 0;
+    }
+    if (errorCode_ == ERROR_OK && destination == cvNumber_ && *src == cvData_)
+    {
+        return 1;
+    }
+    done_ = again;
+    cvNumber_ = destination;
+    cvData_ = *src;
+    errorCode_ = ERROR_NOOP;
+    start_flow(STATE(try_write1));
+    *error = ERROR_AGAIN;
+    return 0;
+}
+
+StateFlowBase::Action TractionCvSpace::fill_write1_packet()
+{
+    auto *b = get_allocation_result(track_);
+    b->data()->start_dcc_packet();
+    /** @TODO(balazs.racz) here we make bad assumptions about how to decide
+     * between long and short addresses */
+    if (dccAddress_ >= 0x80)
+    {
+        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_));
+    }
+    else
+    {
+        b->data()->add_dcc_address(dcc::DccShortAddress(dccAddress_));
+    }
+    b->data()->add_dcc_pom_write1(cvNumber_, cvData_);
+    b->data()->feedback_key = reinterpret_cast<size_t>(this);
+    railcomHub_->register_port(this);
+    errorCode_ = ERROR_PENDING;
+    track_->send(b);
+    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(railcom_returned));
 }
 
 void TractionCvSpace::record_railcom_status(unsigned code)

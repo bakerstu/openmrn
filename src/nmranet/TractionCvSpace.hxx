@@ -72,7 +72,7 @@ private:
     }
 
     size_t write(address_t destination, const uint8_t *data, size_t len,
-                 errorcode_t *error, Notifiable *again) OVERRIDE {return 0;}
+                 errorcode_t *error, Notifiable *again) OVERRIDE;
 
     size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
                 Notifiable *again) OVERRIDE;
@@ -80,7 +80,11 @@ private:
     // State flow states.
     Action try_read1();
     Action fill_read1_packet();
-    Action read1_returned();
+
+    Action try_write1();
+    Action fill_write1_packet();
+
+    Action railcom_returned();
 
     // Railcom feedback
     void send(Buffer<dcc::RailcomHubData> *b, unsigned priority) OVERRIDE;
