@@ -564,7 +564,7 @@ private:
         size_t len = message()->data()->payload.size();
         if (len <= 6)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         MemorySpace *space = get_space();
         if (!space)
