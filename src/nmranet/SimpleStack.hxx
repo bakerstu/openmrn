@@ -224,7 +224,7 @@ private:
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};
     MemoryConfigHandler memoryConfigHandler_{&datagramService_,
-            &node_, config_num_memory_spaces()};
+            nullptr, config_num_memory_spaces()};
 
     /** All packets are forwarded to this hub in gridconnect format, if
      * needed. Will be initialized upon first use. */
