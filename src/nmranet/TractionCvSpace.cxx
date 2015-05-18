@@ -207,8 +207,10 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
     if (errorCode_ != ERROR_PENDING)
         return;
     const dcc::Feedback &f = *b->data();
-    if (f.feedbackKey != reinterpret_cast<size_t>(this))
+    if (f.feedbackKey != reinterpret_cast<size_t>(this) || f.channel == 0xff)
     {
+        // Skip railcom from other packets; also skip the railcom-based
+        // occupancy information packets.
         return;
     }
     if (!f.ch2Size)
