@@ -92,7 +92,7 @@ enum RailcomMobilePacketId {
     RMOB_ADRHIGH = 1,
     RMOB_ADRLOW = 2,
     RMOB_EXT = 3,
-    RMOB_DYN = 4,
+    RMOB_DYN = 7,
     RMOB_SUBID = 12,
 };
 
