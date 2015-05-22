@@ -32,6 +32,8 @@
  * @date 12 Nov 2014
  */
 
+#include <string.h>
+
 #include "dcc/RailCom.hxx"
 
 namespace dcc {
@@ -77,46 +79,46 @@ const uint8_t railcom_decode[256] =
        INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
 };
 
-void parse_railcom_data(
-    const dcc::Feedback &fb, std::vector<struct RailcomPacket> *output) {
-    output->clear();
-    if (fb.channel == 0xff) return; // Occupancy feedback information
-    for (bool ch1 : {true, false}) {
-        uint8_t size;
-        const uint8_t* ptr;
-        if (ch1) {
-            size = fb.ch1Size;
-            ptr = fb.ch1Data;
-        } else {
-            size = fb.ch2Size;
-            ptr = fb.ch2Data;
+void parse_internal(uint8_t fb_channel, uint8_t railcom_channel,
+    const uint8_t *ptr, unsigned size,
+    std::vector<struct RailcomPacket> *output)
+{
+    if (!size)
+        return;
+    for (unsigned ofs = 0; ofs < size; ++ofs)
+    {
+        uint8_t decoded = railcom_decode[ptr[ofs]];
+        uint8_t type = 0xff;
+        uint32_t arg = 0;
+        if (decoded == RailcomDefs::ACK)
+        {
+            type = RailcomPacket::ACK;
         }
-
-        if (!size) continue;
-        for (unsigned ofs = 0; ofs < size; ++ofs) {
-            uint8_t decoded = railcom_decode[ptr[ofs]];
-            uint8_t type = 0xff;
-            uint32_t arg = 0;
-            if (decoded == RailcomDefs::ACK) {
-                type = RailcomPacket::ACK;
-            } else if (decoded == RailcomDefs::NACK) {
-                type = RailcomPacket::NACK;
-            } else if (decoded == RailcomDefs::BUSY) {
-                type = RailcomPacket::BUSY;
-            } else if (decoded >= 64) {
-                output->emplace_back(fb.channel, ch1 ? 1 : 2, RailcomPacket::GARBAGE, 0);
-                break;
-            }
-            if (type != 0xff)
-            {
-                output->emplace_back(fb.channel, ch1 ? 1 : 2, type, 0);
-                continue;
-            }
-            // Now: we have a packet.
-            uint8_t packet_id = decoded >> 2;
-            uint8_t len = 2;
-            arg = decoded & 3;
-            switch(packet_id) {
+        else if (decoded == RailcomDefs::NACK)
+        {
+            type = RailcomPacket::NACK;
+        }
+        else if (decoded == RailcomDefs::BUSY)
+        {
+            type = RailcomPacket::BUSY;
+        }
+        else if (decoded >= 64)
+        {
+            output->emplace_back(
+                fb_channel, railcom_channel, RailcomPacket::GARBAGE, 0);
+            break;
+        }
+        if (type != 0xff)
+        {
+            output->emplace_back(fb_channel, railcom_channel, type, 0);
+            continue;
+        }
+        // Now: we have a packet.
+        uint8_t packet_id = decoded >> 2;
+        uint8_t len = 2;
+        arg = decoded & 3;
+        switch (packet_id)
+        {
             case RMOB_ADRHIGH:
                 type = RailcomPacket::MOB_ADRHIGH;
                 break;
@@ -131,9 +133,12 @@ void parse_railcom_data(
                 break;
             case RMOB_POM:
                 type = RailcomPacket::MOB_POM;
-                if (size == 6 && ofs == 0) {
+                if (size == 6 && ofs == 0)
+                {
                     len = 6;
-                } else {
+                }
+                else
+                {
                     len = 2;
                 }
                 break;
@@ -145,23 +150,62 @@ void parse_railcom_data(
                 // Don't know the size of the fragment. Throws out response.
                 len = 255;
                 break;
-            }
-            if (ofs + len > size) {
-                // The expected message size does not fit.
-                output->emplace_back(
-                    fb.channel, ch1 ? 1 : 2, RailcomPacket::GARBAGE, 0);
-                break;
-            }
-            for (int i = 1; i < len; ++i, ++ofs) {
-                arg <<= 6;
-                uint8_t decoded = railcom_decode[ptr[ofs+1]];
-                if (decoded >= 64) {
-                    type = RailcomPacket::GARBAGE;
-                }
-                arg |= decoded;
-            }
-            output->emplace_back(fb.channel, ch1 ? 1 : 2, type, arg);
         }
+        if (ofs + len > size)
+        {
+            // The expected message size does not fit.
+            output->emplace_back(
+                fb_channel, railcom_channel, RailcomPacket::GARBAGE, 0);
+            break;
+        }
+        for (int i = 1; i < len; ++i, ++ofs)
+        {
+            arg <<= 6;
+            uint8_t decoded = railcom_decode[ptr[ofs + 1]];
+            if (decoded >= 64)
+            {
+                type = RailcomPacket::GARBAGE;
+            }
+            arg |= decoded;
+        }
+        output->emplace_back(fb_channel, railcom_channel, type, arg);
+    }
+}
+
+void parse_railcom_data(
+    const dcc::Feedback &fb, std::vector<struct RailcomPacket> *output)
+{
+    output->clear();
+    if (fb.channel == 0xff)
+        return; // Occupancy feedback information
+    if (fb.ch1Size == 1 && (railcom_decode[fb.ch1Data[0]] != RailcomDefs::INV) && fb.ch2Size >= 1)
+    {
+        // Railcom channel 1 should have 0 or 2 bytes according to the standard.
+        //
+        // There is probably a mistake in the placement of the second window
+        // (i.e., a timing problem in the decoder). Let's concatenate the two
+        // channels and parse them together.
+        uint8_t data[8];
+        memcpy(data, fb.ch1Data, fb.ch1Size);
+        memcpy(data + fb.ch1Size, fb.ch2Data, fb.ch2Size);
+        parse_internal(fb.channel, 2, data, fb.ch1Size + fb.ch2Size, output);
+        return;
+    }
+    for (bool ch1 : {true, false})
+    {
+        uint8_t size;
+        const uint8_t *ptr;
+        if (ch1)
+        {
+            size = fb.ch1Size;
+            ptr = fb.ch1Data;
+        }
+        else
+        {
+            size = fb.ch2Size;
+            ptr = fb.ch2Data;
+        }
+        parse_internal(fb.channel, ch1 ? 1 : 2, ptr, size, output);
     }
 }
 

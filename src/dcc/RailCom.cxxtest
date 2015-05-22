@@ -109,4 +109,19 @@ TEST_F(RailcomDecodeTest, Ch2ExtAndFeedback) {
                      RailcomPacket(3, 2, RailcomPacket::MOB_POM, 0xA5)));
 }
 
+TEST_F(RailcomDecodeTest, ChannelBoundaryProblem) {
+    fb_.add_ch1_data(0x8b); // note wrong channel assignment
+    fb_.add_ch2_data(0xac);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128)));
+}
+
+TEST_F(RailcomDecodeTest, FalseChannelBoundaryProblem) {
+    fb_.add_ch1_data(0xf5); // Single garbage byte
+    fb_.add_ch2_data(0x8b); // valid packet here
+    fb_.add_ch2_data(0xac);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::GARBAGE, 0), RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128)));
+}
+
 }  // namespace dcc
