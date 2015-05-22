@@ -138,7 +138,7 @@ TEST_F(TractionCvTest, SingleCvWrite)
                                   expected_feedback_key())).Times(1);
     send_packet(":X1A272883N200000000037EF5A;");
     wait();
-    expect_packet(":X1A883272N205000000037EF;");
+    expect_packet(":X1A883272N201000000037EF;");
     send_railcom_response(expected_feedback_key(), {0b10100101, 0b10100110});
     wait();
     send_packet(":X19A28883N027200;");

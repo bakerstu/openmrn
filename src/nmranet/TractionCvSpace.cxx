@@ -36,6 +36,18 @@
 #include "nmranet/TractionCvSpace.hxx"
 #include "nmranet/TractionDefs.hxx"
 
+
+// We try this many times to write a CV using railcom if we keep getting an
+// unknown railcom response. After that we try to verify with a read.
+static const int WRITE_RETRY_COUNT_ON_UNKNOWN = 10;
+// We try at most this many times to read a CV if we keep getting an unknown
+// railcom response. After that we report an error.
+static const int READ_RETRY_COUNT_ON_UNKNOWN = 10;
+
+// Maximum time we keep trying to read or write a given CV.
+static const int RAILCOM_POM_OP_TIMEOUT_MSEC = 2000;
+
+
 namespace nmranet
 {
 
@@ -95,22 +107,32 @@ const unsigned TractionCvSpace::MAX_CV;
 size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
                              errorcode_t *error, Notifiable *again)
 {
+    LOG(INFO, "cv read %" PRId32, source);
     if (source > MAX_CV)
     {
         *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+        errorCode_ = ERROR_NOOP;
         return 0;
     }
-    if (errorCode_ == ERROR_OK && source == cvNumber_)
-    {
-        *dst = cvData_;
-        return 1;
+    if (source == cvNumber_) {
+        if (errorCode_ == ERROR_OK) {
+            *dst = cvData_;
+            errorCode_ = ERROR_NOOP;
+            return 1;
+        } else if (errorCode_ == ERROR_TIMEOUT) {
+            *error = Defs::ERROR_TEMPORARY;
+            errorCode_ = ERROR_NOOP;
+            return 0;
+        }
     }
     done_ = again;
     cvNumber_ = source;
     errorCode_ = ERROR_NOOP;
     cvData_ = 0;
+    numTry_ = 0;
     start_flow(STATE(try_read1));
     *error = ERROR_AGAIN;
+    deadline_ = os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
     return 0;
 }
 
@@ -142,12 +164,34 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
-    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(railcom_returned));
+    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(read_returned));
 }
 
-StateFlowBase::Action TractionCvSpace::railcom_returned()
+StateFlowBase::Action TractionCvSpace::read_returned()
 {
-    LOG(WARNING, "railcom returned status %d value %d", errorCode_, cvData_);
+    LOG(WARNING, "railcom read returned status %d value %d", errorCode_, cvData_);
+    switch (errorCode_) {
+    case ERROR_PENDING:
+        errorCode_ = ERROR_TIMEOUT;
+        railcomHub_->unregister_port(this);
+        break;
+    case ERROR_OK:
+        break;
+    default:
+    case ERROR_UNKNOWN_RESPONSE:
+        if (numTry_ >= READ_RETRY_COUNT_ON_UNKNOWN) {
+            errorCode_ = ERROR_TIMEOUT;
+            break;
+        }
+        numTry_++;
+        return call_immediately(STATE(try_read1));
+    case ERROR_BUSY:
+        if (os_get_time_monotonic() > deadline_) {
+            errorCode_ = ERROR_TIMEOUT;
+            break;
+        }
+        return call_immediately(STATE(try_read1));
+    }
     done_->notify();
     return exit();
 }
@@ -155,21 +199,32 @@ StateFlowBase::Action TractionCvSpace::railcom_returned()
 size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
                               size_t len, errorcode_t *error, Notifiable *again)
 {
+    LOG(INFO, "cv write %" PRId32 " := %d", destination, *src);
     if (destination > MAX_CV)
     {
         *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+        errorCode_ = ERROR_NOOP;
         return 0;
     }
-    if (errorCode_ == ERROR_OK && destination == cvNumber_ && *src == cvData_)
+    if (errorCode_ == ERROR_OK && destination == cvNumber_)
     {
+        errorCode_ = ERROR_NOOP;
         return 1;
+    }
+    if (errorCode_ == ERROR_TIMEOUT && destination == cvNumber_)
+    {
+        *error = Defs::ERROR_TEMPORARY | 1;
+        errorCode_ = ERROR_NOOP;
+        return 0;
     }
     done_ = again;
     cvNumber_ = destination;
     cvData_ = *src;
+    numTry_ = 0;
     errorCode_ = ERROR_NOOP;
     start_flow(STATE(try_write1));
     *error = ERROR_AGAIN;
+    deadline_ = os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
     return 0;
 }
 
@@ -192,13 +247,45 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
-    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(railcom_returned));
+    return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(write_returned));
+}
+
+StateFlowBase::Action TractionCvSpace::write_returned()
+{
+    LOG(WARNING, "railcom write returned status %d value %d", errorCode_, cvData_);
+    switch (errorCode_) {
+    case ERROR_PENDING:
+        errorCode_ = ERROR_TIMEOUT;
+        railcomHub_->unregister_port(this);
+        break;
+    case ERROR_OK:
+        break;
+    default:
+    case ERROR_UNKNOWN_RESPONSE:
+        if (numTry_ >= WRITE_RETRY_COUNT_ON_UNKNOWN) {
+            // We switch from writing to reading if we had tried many enough
+            // times. Maybe the write was actually successful.
+            return call_immediately(STATE(try_read1));
+        }
+        numTry_++;
+        return call_immediately(STATE(try_write1));
+    case ERROR_BUSY:
+        if (os_get_time_monotonic() > deadline_) {
+            errorCode_ = ERROR_TIMEOUT;
+            break;
+        }
+        /// @TODO(balazs.racz) keep a timestamp to not keep trying forever.
+        return call_immediately(STATE(try_write1));
+    }
+    done_->notify();
+    return exit();
 }
 
 void TractionCvSpace::record_railcom_status(unsigned code)
 {
     errorCode_ = code;
     timer_.trigger();
+    railcomHub_->unregister_port(this);
 }
 
 void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
@@ -213,35 +300,48 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
         // occupancy information packets.
         return;
     }
+    LOG(INFO, "CV railcom feedback ch=%d: %s", f.channel, railcom_debug(f).c_str());
     if (!f.ch2Size)
     {
         return record_railcom_status(ERROR_NO_RAILCOM_CH2_DATA);
     }
-    uint8_t b0 = dcc::railcom_decode[f.ch2Data[0]];
-    LOG(INFO, "railcom byte 0 decoded as 0x%x", b0);
-    if (b0 == dcc::RailcomDefs::BUSY || b0 == dcc::RailcomDefs::NACK)
-    {
-        return record_railcom_status(ERROR_BUSY);
+    dcc::parse_railcom_data(f, &interpretedResponse_);
+    unsigned new_status = ERROR_PENDING;
+    for (const auto& e : interpretedResponse_) {
+        if (e.railcom_channel != 2) continue;
+        switch(e.type) {
+        case dcc::RailcomPacket::BUSY:
+            if (new_status == ERROR_PENDING) {
+                new_status = ERROR_BUSY;
+            }
+            break;
+        case dcc::RailcomPacket::NACK:
+            if (new_status == ERROR_PENDING) {
+                new_status = ERROR_NACK;
+            }
+            break;
+        case dcc::RailcomPacket::ACK:
+            if (new_status == ERROR_PENDING) {
+                new_status = ERROR_OK;
+            }
+            break;
+        case dcc::RailcomPacket::GARBAGE:
+            if (new_status == ERROR_PENDING) {
+                new_status = ERROR_GARBAGE;
+            }
+            break;
+        case dcc::RailcomPacket::MOB_POM:
+            cvData_ = e.argument;
+            new_status = ERROR_OK;
+            break;
+        default:
+            if (new_status == ERROR_PENDING) {
+                new_status = ERROR_UNKNOWN_RESPONSE;
+            }
+            break;
+        }
     }
-    if (b0 == dcc::RailcomDefs::INV || b0 > 63)
-    {
-        return record_railcom_status(ERROR_GARBAGE);
-    }
-    uint8_t cmd = b0 >> 2;
-    if (cmd != dcc::RMOB_POM)
-    {
-        return record_railcom_status(ERROR_UNKNOWN_RESPONSE);
-    }
-    unsigned value = b0 & 3;
-    uint8_t b1 = dcc::railcom_decode[f.ch2Data[1]];
-    if (b1 > 63)
-    {
-        return record_railcom_status(ERROR_GARBAGE);
-    }
-    value <<= 6;
-    value |= b1;
-    cvData_ = value;
-    return record_railcom_status(ERROR_OK);
+    return record_railcom_status(new_status);
 }
 
 } // namespace nmranet

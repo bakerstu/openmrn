@@ -80,11 +80,12 @@ private:
     // State flow states.
     Action try_read1();
     Action fill_read1_packet();
+    Action read_returned();
 
     Action try_write1();
     Action fill_write1_packet();
+    Action write_returned();
 
-    Action railcom_returned();
 
     // Railcom feedback
     void send(Buffer<dcc::RailcomHubData> *b, unsigned priority) OVERRIDE;
@@ -96,20 +97,25 @@ private:
     uint16_t dccAddress_;
     uint16_t cvNumber_;
     uint8_t cvData_; //< data to read or write.
-    uint8_t errorCode_ : 3;
+    uint8_t errorCode_ : 4;
+    uint8_t numTry_ : 4;
     enum
     {
         ERROR_NOOP = 0,
         ERROR_PENDING = 1,
         ERROR_OK = 2,
         ERROR_BUSY = 3,
+        ERROR_NACK = 7,
         ERROR_NO_RAILCOM_CH2_DATA = 4,
         ERROR_GARBAGE = 5,
-        ERROR_UNKNOWN_RESPONSE = 6
+        ERROR_UNKNOWN_RESPONSE = 6,
+        ERROR_TIMEOUT = 8,
     };
     uint8_t spaceId_;
     Notifiable *done_; //< notify when transfer is done
     StateFlowTimer timer_;
+    long long deadline_;  //< time when we should give up and return error.
+    vector<dcc::RailcomPacket> interpretedResponse_;
 };
 
 } // namespace nmranet
