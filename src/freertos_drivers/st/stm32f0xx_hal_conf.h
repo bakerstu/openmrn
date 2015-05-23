@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    stm32f0xx_hal_conf_template.h
+  * @file    stm32f0xx_hal_conf.h
   * @author  MCD Application Team
   * @version V1.2.0
   * @date    11-December-2014

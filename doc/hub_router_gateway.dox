@@ -3,7 +3,7 @@
  * @section tableofcontents Table of Contents
  * - @ref introduction
  * - @ref hub
- * - @ref routers
+ * - @ref router
  * - @ref gateway
  *
  *
@@ -17,33 +17,33 @@
  *
  *
  *
- * @section hub Hubs
+ * @section hub Hub
  * A hub connects two or more physical interfaces through software.  It makes
  * no interpretation of the incoming messages.  A hub simply forwards an
  * incoming message coming in on one segment to all of the other segments
  * participating in the hub.  A hub may connect more than one physical interface
  * type (i.e. CAN, GridConnect over serial or TCP, raw TCP, etc...).  All
- * participants in a hub must have the same abstract protocol (NMRAnet for
+ * participants in a hub must have the same abstract protocol (OpenLCB for
  * example).
  *
  *
  *
- * @section routers Routers
+ * @section router Router
  * A router connects two or more physical interfaces through software.  It can
  * interpret incoming messages from each segment and make an intelligent
  * decision as to which of the other participating segments the message should
  * be forwarded onto.  The decision process can be made based on static routing
  * tables, or based on a learning tree as to what segment a message is
  * destined.  All participants in a hub must have the same abstract protocol
- * (NMRAnet for example).
+ * (OpenLCB for example).
  *
  *
  *
- * @section gateways Gateways
+ * @section gateway Gateway
  * A gateway connects exactly two physical interfaces through software.  Unlike
- * with @ref hub or @ref router, a gateway connects two segments with differing
+ * a @ref hub or @ref router, a gateway connects two segments with differing
  * abstract protocols.  For example, a gateway can connect an XpressNet segment
- * to an NMRAnet segment.  A translation between the two abstract protocols
+ * to an OpenLCB segment.  A translation between the two abstract protocols
  * takes place in the implementation of the gateway.
  */
 

@@ -1,26 +1,10 @@
 /**
  * @mainpage
  *
- * @section tableofcontents Table of Contents
- * - @ref intro_section
- * - @ref main_getting_started
- * - @ref main_user_api
- * - @ref copyright
- *   - @ref OpenMRN_license
- *   - @ref FreeRTOS_license
- *   - @ref newlib_license
- *   - @ref cJSON_license
- *   - @ref tinyxml2_license
- *   - @ref sys_tree_license
- * - @ref layering
- * - @ref threading
- *   - @ref main_thread
- *   - @ref rx_thread
- *   - @ref timer_thread
- *   - @ref idle_thread
- *   - @ref additional_threads
- * - @ref hub_router_gateway
- * - @ref coding_guidelines
+ * @tableofcontents
+ *
+ *
+ *
  *
  * @section intro_section Introduction
  * OpenMRN is a networking stack specifically designed for use in model
