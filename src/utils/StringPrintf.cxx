@@ -32,16 +32,31 @@
  * @date 10 May 2015
  */
 
-#ifndef _UTILS_STIRNGPRINTF_HXX_
-#define _UTILS_STIRNGPRINTF_HXX_
+#include "utils/StringPrintf.hxx"
 
-#include <string>
-#include <stdarg.h>
-#include <stdio.h>
+std::string StringPrintf(const char *format, ...)
+{
+#ifdef __FreeRTOS__
+    static const int kBufSize = 64;
+#else
+    static const int kBufSize = 1000;
+#endif
+    char buffer[kBufSize];
+    va_list ap;
 
-#include "utils/macros.h"
-
-/** Conveninence utility to do a printf directly into a C++ string. */
-std::string StringPrintf(const char *format, ...);
-
-#endif // _UTILS_STIRNGPRINTF_HXX_
+    va_start(ap, format);
+    int n = vsnprintf(buffer, kBufSize, format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    if (n < kBufSize)
+    {
+        return string(buffer, n);
+    }
+    string ret(n + 1, 0);
+    va_start(ap, format);
+    n = vsnprintf(&ret[0], ret.size(), format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    ret.resize(n);
+    return ret;
+}

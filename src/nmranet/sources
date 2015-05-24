@@ -17,6 +17,7 @@ CXXSRCS += \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
            TractionDefs.cxx \
+           TractionCvSpace.cxx \
            TractionTrain.cxx \
            Velocity.cxx \
            WriteHelper.cxx \

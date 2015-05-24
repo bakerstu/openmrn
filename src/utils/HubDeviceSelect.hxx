@@ -42,6 +42,47 @@
 #include "freertos/can_ioctl.h"
 #include "utils/Hub.hxx"
 
+template <class BType> struct SelectBufferInfo
+{
+};
+
+template <> struct SelectBufferInfo<HubFlow::buffer_type>
+{
+    static void resize_target(HubFlow::buffer_type *b)
+    {
+        b->data()->resize(64);
+    }
+    static void check_target_size(HubFlow::buffer_type *b, int remaining)
+    {
+        HASSERT(remaining >= 0);
+        HASSERT(remaining <= 64);
+        b->data()->resize(64 - remaining);
+    }
+    static bool needs_read_fully()
+    {
+
+        return false;
+    }
+};
+
+template <class T>
+struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
+{
+    typedef Buffer<HubContainer<StructContainer<T>>> buffer_type;
+
+    static void resize_target(buffer_type *b)
+    {
+    }
+    static void check_target_size(buffer_type *b, int remaining)
+    {
+        HASSERT(remaining == 0);
+    }
+    static bool needs_read_fully()
+    {
+        return true;
+    }
+};
+
 template <class HFlow>
 class HubDeviceSelect : public Destructable, private Atomic, public Service
 {
@@ -94,15 +135,12 @@ public:
         return fd_;
     }
 
-    static void resize_target(typename HFlow::buffer_type *b);
-    static void check_target_size(
-        typename HFlow::buffer_type *b, int remaining);
-    static bool needs_read_fully();
-
 protected:
     class ReadFlow : public StateFlowBase
     {
     public:
+        typedef typename HFlow::buffer_type buffer_type;
+
         ReadFlow(HubDeviceSelect *device)
             : StateFlowBase(device)
             , b_(nullptr)
@@ -129,8 +167,8 @@ protected:
         {
             b_ = this->get_allocation_result(device()->hub());
             b_->data()->skipMember_ = device()->write_port();
-            HubDeviceSelect::resize_target(b_);
-            if (HubDeviceSelect::needs_read_fully())
+            SelectBufferInfo<buffer_type>::resize_target(b_);
+            if (SelectBufferInfo<buffer_type>::needs_read_fully())
             {
                 return this->read_repeated(&selectHelper_, device()->fd(),
                     (void *)b_->data()->data(), b_->data()->size(),
@@ -146,7 +184,8 @@ protected:
 
         Action read_done()
         {
-            HubDeviceSelect::check_target_size(b_, selectHelper_.remaining_);
+            SelectBufferInfo<buffer_type>::check_target_size(
+                b_, selectHelper_.remaining_);
             device()->hub()->send(b_, 0);
             b_ = nullptr;
             return this->call_immediately(STATE(allocate_buffer));
@@ -154,7 +193,7 @@ protected:
 
     private:
         StateFlowSelectHelper selectHelper_{this};
-        typename HFlow::buffer_type *b_;
+        buffer_type *b_;
     };
 
     typedef StateFlow<typename HFlow::buffer_type, QList<1>> WriteFlowBase;

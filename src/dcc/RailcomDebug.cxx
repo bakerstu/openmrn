@@ -24,24 +24,36 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StringPrintf.hxx
+ * \file RailcomDebug.hxx
  *
- * Utility for creating c++ strings on demand with a printf-like structure.
+ * Implementation of railcom printf debugging.
  *
  * @author Balazs Racz
- * @date 10 May 2015
+ * @date 18 May 2015
  */
 
-#ifndef _UTILS_STIRNGPRINTF_HXX_
-#define _UTILS_STIRNGPRINTF_HXX_
+#include "dcc/RailCom.hxx"
+#include "utils/StringPrintf.hxx"
 
-#include <string>
-#include <stdarg.h>
-#include <stdio.h>
+namespace dcc
+{
 
-#include "utils/macros.h"
+string railcom_debug(const Feedback &fb)
+{
+    string ret;
+    ret += StringPrintf("ch1(%d) ", fb.ch1Size);
+    for (int i = 0; i < fb.ch1Size; ++i)
+    {
+        ret += StringPrintf(
+            " %02x=%02x", fb.ch1Data[i], railcom_decode[fb.ch1Data[i]]);
+    }
+    ret += StringPrintf(" ch2(%d) ", fb.ch2Size);
+    for (int i = 0; i < fb.ch2Size; ++i)
+    {
+        ret += StringPrintf(
+            " %02x=%02x", fb.ch2Data[i], railcom_decode[fb.ch2Data[i]]);
+    }
+    return ret;
+}
 
-/** Conveninence utility to do a printf directly into a C++ string. */
-std::string StringPrintf(const char *format, ...);
-
-#endif // _UTILS_STIRNGPRINTF_HXX_
+} // namespace dcc

@@ -54,7 +54,10 @@
 #include "nmranet/If.hxx"
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/DefaultNode.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
+#include "nmranet/DatagramHandlerDefault.hxx"
 #include "utils/socket_listener.hxx"
+#include "utils/StringPrintf.hxx"
 
 #include "freertos/bootloader_hal.h"
 
@@ -67,6 +70,8 @@ static const nmranet::NodeID NODE_ID = 0x05010101181EULL;
 
 nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
+nmranet::InitializeFlow g_init_flow(&g_if_can);
+
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 
@@ -82,12 +87,13 @@ const char *filename = nullptr;
 uint64_t destination_nodeid = 0;
 unsigned destination_alias = 0;
 vector<string> payload_strings;
+bool wait_for_response = false;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) "
-        "(-n nodeid | -a alias) (-g payload_hex)...\n",
+        "(-n nodeid | -a alias) [-w] (-g payload_hex)...\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and sends a datagram to a "
                     "specific node on the bus.\n");
@@ -108,13 +114,14 @@ void usage(const char *e)
                     "a memory config datagram with reboot request. "
                     "You can supply multiple -g arguments to send multiple "
                     "datagrams\n");
+    fprintf(stderr, "\n-w will wait for a response datagram and print it.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hi:p:d:n:a:g:")) >= 0)
+    while ((opt = getopt(argc, argv, "hi:p:d:n:a:g:w")) >= 0)
     {
         switch (opt)
         {
@@ -139,6 +146,9 @@ void parse_args(int argc, char *argv[])
             case 'g':
                 payload_strings.push_back(optarg);
                 break;
+            case 'w':
+                wait_for_response = true;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -154,6 +164,32 @@ using nmranet::DatagramPayload;
 using nmranet::DatagramClient;
 using nmranet::Defs;
 using nmranet::NodeHandle;
+using nmranet::DefaultDatagramHandler;
+using nmranet::DatagramService;
+
+class DatagramPrinter : public DefaultDatagramHandler {
+public:
+    DatagramPrinter(DatagramService* s) : DefaultDatagramHandler(s) {}
+
+    Action entry() OVERRIDE {
+        string s;
+        for (unsigned i = 0; i < size(); ++i) {
+            s += StringPrintf("%02X ", payload()[i]);
+        }
+        fprintf(stderr,"Response datagram: %s\n", s.c_str());
+        n_.notify();
+        return respond_ok(0);
+    }
+
+    void wait() {
+        n_.wait_for_notification();
+    }
+
+private:
+    SyncNotifiable n_;
+};
+
+DatagramPrinter printer(&g_datagram_can);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -203,6 +239,9 @@ int appl_main(int argc, char *argv[])
                 strtoul(payload_string.substr(ofs, 2).c_str(), nullptr, 16));
             ofs += 2;
         }
+        if (wait_for_response) {
+            g_datagram_can.registry()->insert(&g_node, payload[0], &printer);
+        }
         Buffer<nmranet::NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
 
@@ -214,8 +253,15 @@ int appl_main(int argc, char *argv[])
 
         client->write_datagram(b);
         n.wait_for_notification();
-
         fprintf(stderr, "Datagram send result: %04x\n", client->result());
+        if (!(client->result() & DatagramClient::OK_REPLY_PENDING)) {
+            LOG(INFO, "Target node indicates no response pending.");
+        } else if (wait_for_response) {
+            printer.wait();
+        }
+        if (wait_for_response) {
+            g_datagram_can.registry()->erase(&g_node, payload[0], &printer);
+        }
     }
 
     g_datagram_can.client_allocator()->typed_insert(client);

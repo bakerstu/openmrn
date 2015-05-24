@@ -182,6 +182,13 @@ public:
      * operation can be re-tried). */
     static const errorcode_t ERROR_AGAIN = 0x3FFF;
 
+    /// Specifies which node the next operation pertains. If it returns false,
+    /// the operation will be rejected by "unknown memory space ID".
+    virtual bool set_node(Node* node)
+    {
+        return true;
+    }
+
     /// @returns whether the memory space does not accept writes.
     virtual bool read_only()
     {
@@ -247,8 +254,10 @@ public:
     size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
                 Notifiable *again) OVERRIDE
     {
-        if (source >= len_)
+        if (source >= len_) {
+            *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
+        }
         size_t count = len;
         if (source + count > len_)
         {
@@ -322,6 +331,7 @@ public:
         DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
+    // node can be nullptr, and then the handler will be registered globally.
     MemoryConfigHandler(DatagramService *if_dg, Node *node, int registry_size)
         : DefaultDatagramHandler(if_dg)
         , responseFlow_(nullptr)
@@ -554,36 +564,73 @@ private:
         size_t len = message()->data()->payload.size();
         if (len <= 6)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         MemorySpace *space = get_space();
         if (!space)
         {
-            return respond_reject(DatagramClient::PERMANENT_ERROR);
+            return respond_reject(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
         }
         int read_len = get_read_length();
         if (read_len < 0)
         {
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
-        address_t address = get_address();
         size_t response_data_offset = 6;
         if (has_custom_space())
         {
             ++response_data_offset;
         }
         size_t response_len = response_data_offset + read_len;
+        currentOffset_ = 0;
         char c = 0;
         response_.assign(response_len, c);
-        uint8_t *response_bytes = out_bytes();
+        return call_immediately(STATE(try_read));
+    }
+
+    Action try_read() {
+        MemorySpace *space = get_space();
+        int read_len = get_read_length();
+        address_t address = get_address();
+        size_t response_data_offset = 6;
+        if (has_custom_space())
+        {
+            ++response_data_offset;
+        }
+        address += currentOffset_;
+        response_data_offset += currentOffset_;
+        read_len -= currentOffset_;
         errorcode_t error = 0;
-        int byte_read =
-            space->read(address, response_bytes + response_data_offset,
-                        read_len, &error, this);
+        uint8_t *response_bytes = out_bytes();
+        if (read_len > 0)
+        {
+            int byte_read = space->read(address,
+                response_bytes + response_data_offset, read_len, &error, this);
+            currentOffset_ += byte_read;
+            read_len -= byte_read;
+            if (error == MemorySpace::ERROR_AGAIN)
+            {
+                return wait();
+            }
+            else if (error == 0 && read_len)
+            {
+                return again();
+            }
+        }
+        if (error == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS && currentOffset_)
+        {
+            // We can return a partial response.
+            error = 0;
+        }
         response_bytes[0] = DATAGRAM_ID;
         response_bytes[1] = error ? MemoryConfigDefs::COMMAND_READ_FAILED
                                   : MemoryConfigDefs::COMMAND_READ_REPLY;
         set_address_and_space();
+        response_data_offset = 6;
+        if (has_custom_space())
+        {
+            ++response_data_offset;
+        }
         if (error)
         {
             response_bytes[response_data_offset] = error >> 8;
@@ -592,7 +639,7 @@ private:
         }
         else
         {
-            response_.resize(response_data_offset + byte_read);
+            response_.resize(response_data_offset + currentOffset_);
         }
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
@@ -640,7 +687,7 @@ private:
         data_offset += currentOffset_;
         write_len -= currentOffset_;
         errorcode_t error = 0;
-        while (write_len > 0)
+        if (write_len > 0)
         {
             size_t written = space->write(address, in_bytes() + data_offset,
                                           write_len, &error, this);
@@ -650,9 +697,9 @@ private:
             {
                 return wait();
             }
-            else if (error != 0)
+            else if (error == 0 && write_len)
             {
-                break;
+                return again();
             }
         }
         char c = 0;
@@ -723,6 +770,12 @@ private:
                          "%d. Source {0x%012" PRIx64 ", %03x}",
                 message()->data()->dst->node_id(), space_number,
                 message()->data()->src.id, message()->data()->src.alias);
+            return nullptr;
+        }
+        if (!space->set_node(message()->data()->dst))
+        {
+            LOG(WARNING, "MemoryConfig: Global space %d rejected node.",
+                space_number);
             return nullptr;
         }
         return space;

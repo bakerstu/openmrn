@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,24 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StringPrintf.hxx
+ * \file RailcomHub.hxx
  *
- * Utility for creating c++ strings on demand with a printf-like structure.
+ * Declarations for listening to incoming railcom packets.
  *
  * @author Balazs Racz
- * @date 10 May 2015
+ * @date 16 May 2015
  */
 
-#ifndef _UTILS_STIRNGPRINTF_HXX_
-#define _UTILS_STIRNGPRINTF_HXX_
+#ifndef _DCC_RAILCOMHUB_HXX_
+#define _DCC_RAILCOMHUB_HXX_
 
-#include <string>
-#include <stdarg.h>
-#include <stdio.h>
+#include "utils/Hub.hxx"
+#include "dcc/RailCom.hxx"
 
-#include "utils/macros.h"
+namespace dcc {
 
-/** Conveninence utility to do a printf directly into a C++ string. */
-std::string StringPrintf(const char *format, ...);
+typedef HubContainer<StructContainer<dcc::Feedback> > RailcomHubData;
+typedef FlowInterface<Buffer<RailcomHubData> > RailcomHubPortInterface;
+typedef StateFlow<Buffer<RailcomHubData>, QList<1>> RailcomHubPort;
+typedef GenericHubFlow<RailcomHubData> RailcomHubFlow;
 
-#endif // _UTILS_STIRNGPRINTF_HXX_
+}  // namespace dcc
+
+#endif // _DCC_RAILCOMHUB_HXX_

@@ -36,14 +36,7 @@
 #define _DCC_UPDATELOOP_HXX_
 
 #include "utils/Singleton.hxx"
-
-template <class T> class FlowInterface;
-template <class T> class Buffer;
-namespace dcc
-{
-struct Packet;
-}
-typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
+#include "dcc/PacketFlowInterface.hxx"
 
 namespace dcc
 {

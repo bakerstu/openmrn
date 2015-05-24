@@ -98,7 +98,7 @@ TEST(OSThreadOnceTest, all)
     EXPECT_EQ(count, 1);
 }
 
-#ifndef __EMSCRIPTEN__
+#if 0  // the timer mechanism is removed.
 void *args[2] = {NULL, NULL};
 
 long long timeout_none(void *arg1, void *arg2)
