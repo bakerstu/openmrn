@@ -35,15 +35,9 @@
 
 #include <cstring>
 
-const size_t __attribute__((weak)) TivaEEPROMEmulation::FLASH_SIZE = 4 * 1024;
 const TivaEEPROMEmulation::Family __attribute__((weak)) TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t __attribute__((weak)) TivaEEPROMEmulation::ADDRESS_SPACE = 512;
 const bool __attribute__((weak)) TivaEEPROMEmulation::SHADOW_IN_RAM = false;
-
-/** @todo this alignment only works for TM4C123, we need a solution that is
- * more portable to the TM4C129 device that has 16K FLASH blocks.
- */
-const uint16_t TivaEEPROMEmulation::raw[TivaEEPROMEmulation::FLASH_SIZE >> 1] __attribute__((aligned(1024))) = {0xFF};
 
 const uint32_t TivaEEPROMEmulation::MAGIC_DIRTY = 0xaa55aa55;
 const uint32_t TivaEEPROMEmulation::MAGIC_INTACT = 0xaa558001;
