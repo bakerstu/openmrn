@@ -113,7 +113,7 @@ private:
     static const uint32_t MAGIC_ERASED;
 
     /** Raw FLASH for storing EEPROM emulated data. */
-    static const uint16_t raw[];
+    static const uint16_t* const raw;
 
     /** Write to the EEPROM on a native word boundary.
      * @ref index word within EEPROM address space to write
