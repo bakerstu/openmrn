@@ -34,7 +34,7 @@ else
 ################ flock ##################
 ifndef FLOCKPATH
 SEARCHPATH := \
-  /usr/binn \
+  /usr/bin \
 
 TRYPATH:=$(call findfirst,flock,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
