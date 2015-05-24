@@ -97,7 +97,12 @@ lib/timestamp : FORCE $(BUILDDIRS)
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
 $(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
-	flock $(OPENMRNPATH)/targets/$(TARGET) -c "$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all"
+ifdef FLOCKPATH
+	$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all"
+else
+	echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
+	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
+endif
 
 # We cannot make lib/timestamp a phony target or else every test will always be
 # remade.

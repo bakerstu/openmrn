@@ -31,6 +31,17 @@ ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
+################ flock ##################
+ifndef FLOCKPATH
+SEARCHPATH := \
+  /usr/binn \
+
+TRYPATH:=$(call findfirst,flock,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+FLOCKPATH:=$(TRYPATH)
+endif
+endif #TIVAWAREPATH
+
 ################ tivaware ##################
 ifndef TIVAWAREPATH
 SEARCHPATH := \
