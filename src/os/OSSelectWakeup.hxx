@@ -34,6 +34,8 @@
 #ifndef _OS_OSSELECTWAKEUP_HXX_
 #define _OS_OSSELECTWAKEUP_HXX_
 
+#include <unistd.h>
+
 #include "utils/Atomic.hxx"
 #include "os/os.h"
 
