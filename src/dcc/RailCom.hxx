@@ -41,35 +41,49 @@
 
 namespace dcc {
 
-/** Structure used for reading (railcom) feedback data from DCC / Railcom
- *  device drivers. */
+/// Structure used for reading (railcom) feedback data from DCC / Railcom
+///  device drivers.
 struct Feedback {
+    /// Clears the structure and sets the feedback key to a specific value.
     void reset(uint32_t feedback_key) {
         this->feedbackKey = feedback_key;
         ch1Size = 0;
         ch2Size = 0;
         channel = 0;
     }
+    /// Appends a byte to the channel 1 payload.
     void add_ch1_data(uint8_t data) {
         if (ch1Size < sizeof(ch1Data)) {
             ch1Data[ch1Size++] = data;
         }
     }
+    /// Appends a byte to the channel 2 payload.
     void add_ch2_data(uint8_t data) {
         if (ch2Size < sizeof(ch2Data)) {
             ch2Data[ch2Size++] = data;
         }
     }
+    /// Number of bytes in channel one.
     uint8_t ch1Size;
+    /// Payload of channel 1.
     uint8_t ch1Data[2];
+    /// Number of bytes in channel two.
     uint8_t ch2Size;
+    /// Payload of channel 2.
     uint8_t ch2Data[6];
-    uint8_t channel; //< Used by multi-channel railcom receiver drivers.
+    /// Used by multi-channel railcom receiver drivers. Specifies which
+    /// hardware channel captured this data.
+    uint8_t channel;
+    /// Opaque identifier that allows linking outgoing dcc::Packet sent to the
+    /// DCC waveform generator to the incoming dcc::Feedback structure read
+    /// back from the railcom driver.
     uint32_t feedbackKey;
 };
 
+/// Formats a dcc::Feedback message into a debug string.
 std::string railcom_debug(const Feedback& fb);
 
+/// Special constant values returned by the @ref railcom_decode[] array.
 namespace RailcomDefs {
   static const uint8_t INV = 0xff;
   static const uint8_t ACK = 0xfe;
@@ -82,11 +96,11 @@ namespace RailcomDefs {
 
 /** Table for 8-to-6 decoding of railcom data. This table can be indexed by the
  * 8-bit value read from the railcom channel, and the return value will be
- * either a 6-bit number, or one of the constants above. If the value is
- * invalid, the INV constant is returned. */
+ * either a 6-bit number, or one of the constants in @ref RailcomDefs. If the
+ * value is invalid, the INV constant is returned. */
 extern const uint8_t railcom_decode[256];
 
-// Packet identifiers from Mobile Decoders.
+/// Packet identifiers from Mobile Decoders.
 enum RailcomMobilePacketId {
     RMOB_POM = 0,
     RMOB_ADRHIGH = 1,
@@ -96,6 +110,9 @@ enum RailcomMobilePacketId {
     RMOB_SUBID = 12,
 };
 
+/// Represents a single Railcom datagram. There can be multiple railcom
+/// datagrams in the cutout of one railcom packet: usually zero or one in
+/// channel 1 and up to four datagrams in channel 2.
 struct RailcomPacket {
     enum {
         GARBAGE,

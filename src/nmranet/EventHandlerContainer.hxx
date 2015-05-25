@@ -54,8 +54,8 @@
 namespace nmranet
 {
 
-// Abstract class for representing iteration through a container for event
-// handlers.
+/// Abstract class for representing iteration through a container for event
+/// handlers.
 class EventIterator {
 protected:
     /// Creates an EventIterator.
@@ -80,6 +80,8 @@ public:
     virtual void clear_iteration() = 0;
 };
 
+/// EventIterator that produces every single entry in a given container (which
+/// can be any STL-compatible container with begin() and eng() methods).
 template<class C> class FullContainerIterator : public EventIterator {
 public:
     FullContainerIterator(C* container)
@@ -104,6 +106,8 @@ private:
     C* container_;
 };
 
+/// EventRegistry implementation that keeps all event handlers in a vector and
+/// forwards every single call to each event handler.
 class VectorEventHandlers : public EventRegistry {
  public:
     VectorEventHandlers() {}
@@ -127,6 +131,9 @@ class VectorEventHandlers : public EventRegistry {
   HandlersList handlers_;
 };
 
+/// EventRegistry implementation that keeps event handlers in a red-black tree
+/// and filters the event handler calls based on the registered event handler
+/// arguments (id/mask).
 class TreeEventHandlers : public EventRegistry, private Atomic {
 public:
     TreeEventHandlers();

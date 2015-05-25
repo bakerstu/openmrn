@@ -44,6 +44,20 @@
 namespace dcc
 {
 
+/// Implementation of a command station update loop. This loop iterates over
+/// all locomotive implementations and polls them for the next packet in a
+/// strict round-robin behavior (no prioritization).
+///
+/// Usage:
+///
+/// - Instantiate a state flow for sending outgoing dcc packets to the command
+///  station driver, usually dcc::LocalTrackIf.
+///
+/// - create a FixedPool of dcc::Packets of a given size (usually 2 is enough).
+///
+/// - instantiate SimpleUpdateLoop, passing the LocalTrackIf pointer.
+///
+/// - send all packets from the pool to the updateloop using a PoolToQueueFlow.
 class SimpleUpdateLoop : public StateFlow<Buffer<dcc::Packet>, QList<1>>,
                          private UpdateLoopBase
 {

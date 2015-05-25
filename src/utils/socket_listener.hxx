@@ -40,6 +40,15 @@
 
 #include "os/OS.hxx"
 
+/// TCP server. Listends to a specific TCP port, accepts every
+/// incomingconnection, and calls an application-specific callback with the new
+/// file descriptor.
+///
+/// usage: Instantiate SocketListener and pass in a function object (by either
+/// std::bind or a C++11 lambda function) to decide what to do with the new
+/// incoming connections.
+///
+/// Starts a separate thread for the accept loop.
 class SocketListener
 {
 public:
@@ -69,7 +78,7 @@ private:
     OSThread accept_thread_;
 };
 
-// Connects a tcp socket to the specified host:port. Returns -1 if
+// Connects a tcp socket to the specified remote host:port. Returns -1 if
 // unsuccessful; returns the fd is successful.
 int ConnectSocket(const char *host, int port);
 

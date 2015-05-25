@@ -7,6 +7,9 @@
 
 namespace nmranet {
 
+/// Test helper class for TrainImpl using GoogleMock. Allows creating a train
+/// node without an implementation. All calls have to have an explicit
+/// expectation using the GoogleMock framework.
 class MockTrain : public TrainImpl
 {
 public:

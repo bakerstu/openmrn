@@ -40,6 +40,7 @@
 #define CAN_MSGOBJ_DAT  0x00000000UL   // data frame
 #define CAN_MSGOBJ_RTR  0x40000000UL   // rtr frame
 
+/// CAN message object.
 typedef struct _CAN_MSG_OBJ {
   uint32_t  mode_id;
   uint32_t  mask;

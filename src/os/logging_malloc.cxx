@@ -12,6 +12,7 @@ extern int strace_len;
 void call_unwind(void);
 }
 
+/// Linked list entry type for a call-stack backtrace.
 struct trace
 {
     /// For quick comparison of traces.

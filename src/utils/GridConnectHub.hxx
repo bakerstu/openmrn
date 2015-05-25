@@ -42,6 +42,12 @@ class Pipe;
 template <class T> class FlowInterface;
 template <class T, int N> class DispatchFlow;
 
+/// Publicly visible API for the gridconnect-to-CAN bridge.  This bridge links
+/// two Hubs, one typed string, the other typed CanHubData, by
+/// parsing/rendering the packets from the gridconnect protocol.
+///
+/// This public-facing API allows creating and managing the bridge as necessary
+/// for production code and unittests.
 class GCAdapterBase
 {
 public:

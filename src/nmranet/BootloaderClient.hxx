@@ -43,6 +43,8 @@
 namespace nmranet
 {
 
+/// This structure will be filled in by BootloaderClient when the bootloading
+/// operation is complete.
 struct BootloaderResponse
 {
     // Response error code. Zero if request successful.

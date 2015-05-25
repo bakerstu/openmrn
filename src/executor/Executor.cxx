@@ -109,6 +109,13 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     }
 }
 
+/// An Executable that runs a callback on the executor and returns once the run
+/// is complete. Must not be created against the local executor (because that
+/// would deterministically deadlock).
+///
+/// Usage:
+///
+/// SyncExecutable(stack.executor(), [] { DoFooBar(); });
 class SyncExecutable : public Executable
 {
 public:

@@ -43,6 +43,8 @@
 namespace nmranet
 {
 
+/// Abstract base class for components that need repeated execution (with a
+/// specified frequency, i.e. not a busy loop).
 class Polling
 {
 public:
@@ -52,6 +54,11 @@ public:
     virtual void poll_33hz(WriteHelper *helper, Notifiable *done) = 0;
 };
 
+/// State flow that calls a set of @ref Polling objects at a regular interval.
+///
+/// Usage: Instantiate your objects from descendants of the Polling
+/// class. Create a RefreshLoop object and pass in the list of Polling object
+/// pointers to the constructor.
 class RefreshLoop : public StateFlowBase
 {
 public:

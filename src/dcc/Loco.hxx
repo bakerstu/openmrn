@@ -175,6 +175,7 @@ protected:
     P p;
 };
 
+/// Structure defining the volatile state for a 28-speed-step DCC locomotive.
 struct Dcc28Payload
 {
     Dcc28Payload()
@@ -223,6 +224,7 @@ struct Dcc28Payload
     }
 };
 
+/// TrainImpl class for a DCC locomotive.
 template <class Payload> class DccTrain : public AbstractTrain<Payload>
 {
 public:
@@ -246,8 +248,10 @@ public:
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 };
 
+/// TrainImpl class for a 28-speed-step DCC locomotive.
 typedef DccTrain<Dcc28Payload> Dcc28Train;
 
+/// Structure defining the volatile state for a 128-speed-step DCC locomotive.
 struct Dcc128Payload
 {
     Dcc128Payload()
@@ -299,8 +303,11 @@ struct Dcc128Payload
     }
 };
 
+/// TrainImpl class for a 128-speed-step DCC locomotive.
 typedef DccTrain<Dcc128Payload> Dcc128Train;
 
+/// Structure defining the volatile state for a Marklin-Motorola v1 protocol
+/// locomotive (with 14 speed steps, one function and relative direction only).
 struct MMOldPayload
 {
     MMOldPayload()
@@ -337,6 +344,7 @@ struct MMOldPayload
     }
 };
 
+/// TrainImpl structure for Marklin-Motorola v1 protocol locomotives.
 class MMOldTrain : public AbstractTrain<MMOldPayload>
 {
 public:
@@ -347,6 +355,8 @@ public:
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 };
 
+/// Structure defining the volatile state for a Marklin-Motorola v2 protocol
+/// locomotive (with 28 speed steps, five functions and absolute direction).
 struct MMNewPayload
 {
     MMNewPayload()
@@ -392,6 +402,7 @@ struct MMNewPayload
     }
 };
 
+/// TrainImpl structure for Marklin-Motorola v2 protocol locomotives.
 class MMNewTrain : public AbstractTrain<MMNewPayload>
 {
 public:

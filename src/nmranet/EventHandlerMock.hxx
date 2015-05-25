@@ -42,6 +42,8 @@
 
 namespace nmranet {
 
+/// Test handler for receiving incoming event related messages via the
+/// EventService. Incoming messages need GoogleMock expectations.
 class MockEventHandler : public EventHandler
 {
 public:

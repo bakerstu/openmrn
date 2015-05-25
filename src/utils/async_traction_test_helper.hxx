@@ -10,6 +10,7 @@
 namespace nmranet
 {
 
+/// Test fixture base for traction tests.
 class TractionTest : public AsyncNodeTest
 {
 protected:

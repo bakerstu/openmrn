@@ -36,6 +36,10 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 
+/// Abstract base class for railcom drivers. This interface is used to
+/// communicate when the railcom cutout happens. The railcom cutout is produced
+/// or detected in the DCC generator or DCC parser driver, but the railcom
+/// drivers need to adjust the UART configuration in accordance with it.
 class RailcomDriver {
 public:
   /** Informs the driver that we are in a preamble bit. The driver may use this

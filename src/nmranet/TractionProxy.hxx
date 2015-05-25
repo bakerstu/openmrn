@@ -40,6 +40,8 @@
 namespace nmranet
 {
 
+/// Implements the unapproved Traction Proxy Protocol for dynamic allocation of
+/// train nodes.
 class TractionProxyService : public Service
 {
 public:

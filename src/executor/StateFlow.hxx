@@ -131,7 +131,24 @@
 
 template <class T> class FlowInterface;
 
-/** Runs incoming Messages through a State Flow.
+/** Base class for state machines. A state machine is a form of collaborative
+ * multi-tasking. StateFlows can be scheduled on an executor, and alternately
+ * perform synchronous code (executing a state handler function) and an
+ * asynchronous operation (waiting for some event to happen). The asynchronous
+ * operations may include waiting for a message to arrive in a queue, or
+ * waiting for the allocation of an empty buffer, or a notification from a
+ * called lower-level library that a specific request has completed processing.
+ *
+ * The current state of the StateFlow is represented by a function pointer the
+ * points to a member function of the current object. When the state flow is
+ * scheduled on an executor, it will execute the current state function. Upon
+ * the return of that state function some Action will be performed. The Actions
+ * to perform are represented by functions on the StateFlowBase class that
+ * return an Action structure, such as allocate_and_call(), wait_and_call(), or
+ * call_immediately(). Most factory functions that create these Actions will
+ * receive the new state handler as an argument; when the asynchronous action
+ * is complete, the state flow will resume execution in the presented state
+ * handler function.
  */
 class StateFlowBase : public Executable
 {
@@ -717,6 +734,11 @@ private:
 
 template <class MessageType> class FlowInterface;
 
+/// Abstract class for message recipients. A common base class for various
+/// handlers. Most of them are implemented as StateFlow classes. However, if
+/// the receiving flow does not need asynchronous handling, it is possible to
+/// directly implement a descendant of a specific FlowInterface by overriding
+/// the send() method.
 template <class MessageType> class FlowInterface
 {
 public:

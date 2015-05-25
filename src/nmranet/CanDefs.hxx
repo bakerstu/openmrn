@@ -40,19 +40,11 @@
 #include "can_frame.h"
 #include "nmranet_config.h"
 
-#define WRITE_BUFFER_TIMEOUT 3000000000LL
-
 namespace nmranet
 {
 
-
+/// Static values and helper functions for CAN-bus interfaces.
 struct CanDefs {
-    
-
-
-
-
-
     /** Status value for an alias pool item.
      */
     enum AliasStatus
@@ -376,9 +368,6 @@ private:
     CanDefs();
 };
 
-
 }  // namespace nmranet
-
-
 
 #endif /* _NMRAnetIfCan_hxx_ */

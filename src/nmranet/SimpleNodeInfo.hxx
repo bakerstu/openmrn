@@ -42,6 +42,8 @@
 namespace nmranet
 {
 
+/// Structure representing the layout of the memory space for Simple Node
+/// Identification manufacturer-specified data.
 struct SimpleNodeStaticValues
 {
     const uint8_t version;
@@ -51,6 +53,8 @@ struct SimpleNodeStaticValues
     const char software_version[21];
 };
 
+/// Structure representing the layout of the memory space for Simple Node
+/// Identification user-editable data.
 struct SimpleNodeDynamicValues
 {
     uint8_t version;

@@ -65,16 +65,28 @@ inline SpeedType nan_to_speed() {
     return s;
 }
 
+/// Static constants and helper functions for the Traciton protocol family.
 struct TractionDefs {
+    /// This event should be produced by train nodes.
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
+    /// This event should be produced by traction proxy nodes.
     static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
+    /// Producing this event causes all operations to stop (usually by turning
+    /// off the command station power output).
     static const uint64_t EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
+    /// Producing this event resumes all operations (usually by turning power
+    /// back on).
     static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010100000000FFFEULL;
 
+    /// Node ID space allocated for DC blocks.
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
+    /// Node ID space allocated for DCC locomotives.
     static const uint64_t NODE_ID_DCC = 0x060100000000ULL;
+    /// Node ID space allocated for TMCC protocol.
     static const uint64_t NODE_ID_TMCC = 0x060200000000ULL;
+    /// Node ID space allocated for the Marklin-Motorola protocol.
     static const uint64_t NODE_ID_MARKLIN_MOTOROLA = 0x060300000000ULL;
+    /// Node ID space allocated for the MTH DCS protocol.
     static const uint64_t NODE_ID_MTH_DCS = 0x060400000000ULL;
 
     enum {
@@ -236,8 +248,6 @@ struct TractionDefs {
         *value = (((uint16_t)p[4]) << 8) | p[5];
         return true;
     }
-
-
 };
 
 }  // namespace nmranet

@@ -36,6 +36,16 @@
 
 #include "utils/QMember.hxx"
 
+/// A simple fast single-linked queue class with non-virtual methods.
+///
+/// This structure allows putting QMember descendants (including buffers,
+/// stateflows, exeutables etc) into a queue without incurring the overhead of
+/// the virtual methods and allocation semantics of BufferQueue.
+///
+/// SimpleQueue does not support asynchronous access, allocation/deallocation
+/// and notification, but supports strongly typed access (via @ref TypedQueue)
+/// and queueing types other than Buffers. Almost all functions on SimpleQueue
+/// compile into just a few machine instructions.
 class SimpleQueue {
 public:
     SimpleQueue() : head_(nullptr) {}
@@ -64,6 +74,7 @@ public:
 
     class end_iterator {};
 
+    /// STL-compatible iterator for SimpleQueue.
     class iterator {
     public:
         iterator(QMember** link): link_(link) {
@@ -106,6 +117,7 @@ public:
         QMember** link_;
     };
 
+    /// STL-compatible iterator for TypedQueue.
     template<class T> class typed_iterator : public iterator {
     public:
         typed_iterator(QMember** link): iterator(link) {}
@@ -153,6 +165,10 @@ protected:
 };
 
 
+/// A simple, fast, type-safe single-linked queue class with non-virtual
+/// methods.
+///
+/// see @ref SimpleQueue for details.
 template<class T>
 class TypedQueue : public SimpleQueue {
 public:

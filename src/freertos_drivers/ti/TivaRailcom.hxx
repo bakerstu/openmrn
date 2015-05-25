@@ -123,7 +123,11 @@ __attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH
 
 struct Debug;
 
-
+/// Base class for railcom drivers. Ideally this base class should be
+/// non-specific to the hardwsre or the  TivaWare driver library.
+///
+/// @TODO(balazs.racz) factor this class out into
+/// freertos_drivers/common/Railcom.hxx.
 template <class HW>
 class RailcomDriverBase : public RailcomDriver, private Node
 {
@@ -293,6 +297,11 @@ protected:
     uint8_t isInput_ = 0;
 };
 
+/// Railcom driver for TI Tiva-class microcontrollers using the TivaWare
+/// peripheral library.
+///
+/// This railcom driver supports parallel polling of multiple UART channels for
+/// the railcom data. 
 template <class HW> class TivaRailcomDriver : public RailcomDriverBase<HW>
 {
 public:

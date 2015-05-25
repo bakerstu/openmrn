@@ -50,9 +50,7 @@ class VolatileState;
 struct VolatileStateRef;
 struct VolatileStatePtr;
 
-
-
-
+/// Unused.
 class VolatileState : public Singleton<VolatileState> {
 public:
   VolatileState(size_t size)
@@ -87,6 +85,7 @@ private:
   DISALLOW_COPY_AND_ASSIGN(VolatileState);
 };
 
+/// Unused.
 struct VolatileStateRef {
   VolatileStateRef() = delete;
 
@@ -108,6 +107,7 @@ struct VolatileStateRef {
   int base_;
 };
 
+/// Unused.
 struct VolatileStatePtr {
   explicit VolatileStatePtr(int base) : base_(base) {}
 

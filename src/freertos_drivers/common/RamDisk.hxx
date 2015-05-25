@@ -36,6 +36,17 @@
 
 #include "Devtab.hxx"
 
+/// A simple device driver that reads/write data from a block of memory in RAM.
+///
+/// Example:
+///   extern uint8_t __flash_config_block_start[];
+///   extern uint8_t __flash_config_block_end[];
+///   static const size_t flash_config_block_length = __flash_config_block_end
+///       - __flash_config_block_start;
+///   RamDiskBase flashdisk("/dev/rdonly_config, __flash_config_block_start,
+///                         flash_config_block_length, true);
+///
+///   then add appropriate linker symbols in the memory_map.ld for the project.
 class RamDiskBase : public Node
 {
 public:
@@ -90,9 +101,15 @@ protected:
     unsigned owned_ : 1;
 };
 
+/// A simple device driver that reads/write data from a block of memory in a
+/// typed array either statically or dynamically allocated.
+///
+/// Example:
+///   RamDisk rdisk("/dev/volatile_config", 256);
 class RamDisk : public RamDiskBase
 {
 public:
+    /// Allocates space on the heap for the ramdisk of size `size'.
     RamDisk(const char *path, size_t size)
         : RamDiskBase(path, new uint8_t[size], size, false)
     {
@@ -100,6 +117,9 @@ public:
         owned_ = 1;
     }
 
+    /// Uses an existing variable for backing the ramdisk structure. The
+    /// variable is usually of a struct type, such as @ref
+    /// nmranet::SimpleNodeDynamicValues. The variable may also be in flash.
     template<class T>
     RamDisk(const char* path, T* data, bool read_only = false)
         : RamDiskBase(path, data, sizeof(T), read_only) {

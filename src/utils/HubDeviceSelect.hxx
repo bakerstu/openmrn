@@ -42,10 +42,14 @@
 #include "freertos/can_ioctl.h"
 #include "utils/Hub.hxx"
 
+/// Generic template for the buffer traits. HubDeviceSelect will not compile on
+/// this default template because it lacks the necessary definitions. For each
+/// hub type there must be a partial template specialization of this class.
 template <class BType> struct SelectBufferInfo
 {
 };
 
+/// Partial template specialization of buffer traits for string-typed hubs.
 template <> struct SelectBufferInfo<HubFlow::buffer_type>
 {
     static void resize_target(HubFlow::buffer_type *b)
@@ -60,11 +64,11 @@ template <> struct SelectBufferInfo<HubFlow::buffer_type>
     }
     static bool needs_read_fully()
     {
-
         return false;
     }
 };
 
+/// Partial template specialization of buffer traits for struct-typed hubs.
 template <class T>
 struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
 {
@@ -83,10 +87,43 @@ struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
     }
 };
 
+/// Partial template specialization of buffer traits for CAN frame-typed
+/// hubs. The implementation here is equivalent to
+/// SelectBufferInfo<Hubcontainer<StructContainer<T>>> but the c++ template
+/// inference cannot figure this out.
+template <>
+struct SelectBufferInfo<Buffer<CanHubData>> {
+    typedef Buffer<CanHubData> buffer_type;
+    
+    static void resize_target(buffer_type *b)
+    {
+    }
+    static void check_target_size(buffer_type *b, int remaining)
+    {
+        HASSERT(remaining == 0);
+    }
+    static bool needs_read_fully()
+    {
+        return true;
+    }
+};
+
+/// HubPort that connects a select-aware device to a strongly typed Hub.
+///
+/// The device is given by either the path to the device or the fd to an opened
+/// device instance. The device will be put to nonblocking mode and all
+/// processing will be performed in the executor of the hub, by using
+/// ExecutorBase::select(). No additional threads are started.
+///
+/// Reads and writes will be performed in the units defined by the type of the
+/// hub: for string-typed hubs in 64 bytes units; for hubs of specific
+/// structures (such as CAN frame, dcc Packets or dcc Feedback structures) in
+/// the units ofthe size of the structure.
 template <class HFlow>
 class HubDeviceSelect : public Destructable, private Atomic, public Service
 {
 public:
+    /// Creates a select-aware hub port for the device specified by `path'.
     HubDeviceSelect(HFlow *hub, const char *path)
         : Service(hub->service()->executor())
         , fd_(::open(path, O_RDWR | O_NONBLOCK))
@@ -98,6 +135,8 @@ public:
         hub_->register_port(write_port());
     }
 
+    /// Creates a select-aware hub port for the opened device specified by
+    /// `fd'. It can be a hardware device, socket or pipe.
     HubDeviceSelect(HFlow *hub, int fd)
         : Service(hub->service()->executor())
         , fd_(fd)
@@ -136,6 +175,7 @@ public:
     }
 
 protected:
+    /// State flow implementing select-aware fd reads.
     class ReadFlow : public StateFlowBase
     {
     public:
@@ -197,6 +237,7 @@ protected:
     };
 
     typedef StateFlow<typename HFlow::buffer_type, QList<1>> WriteFlowBase;
+    /// State flow implementing select-aware fd writes.
     class WriteFlow : public WriteFlowBase
     {
     public:

@@ -370,6 +370,8 @@ class BitEventPC : public BitEventConsumer {
   virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
 };
 
+/// Producer-Consumer event handler for a sequence of bits represented by a
+/// dense block of consecutive event IDs.
 class BitRangeEventPC : public SimpleEventHandler {
  public:
   /// Creates a new bit range listener. backing store points to memory of at
@@ -420,6 +422,8 @@ class BitRangeEventPC : public SimpleEventHandler {
   unsigned size_;  //< number of bits stored.
 };
 
+/// Consumer event handler for a sequence of bytes represented by a dense block
+/// of consecutive event IDs. Each byte has a consecutive block of 256 events.
 class ByteRangeEventC : public SimpleEventHandler {
  public:
   /// Creates a new byte range listener. backing store points to memory of at
@@ -460,6 +464,8 @@ class ByteRangeEventC : public SimpleEventHandler {
  * in the middle between C and P: it should already have the export
  * functionality of P but not remove the import functionality of C yet. */
 
+/// Producer event handler for a sequence of bytes represented by a dense block
+/// of consecutive event IDs. Each byte has a consecutive block of 256 events.
 class ByteRangeEventP : public ByteRangeEventC {
  public:
   /// Creates a new byte range producer. backing store points to memory of at

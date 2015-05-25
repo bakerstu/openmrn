@@ -42,6 +42,12 @@ namespace dcc
 
 struct Feedback;
 
+/// Simple state machine to decode DCC address from railcom broadcast packets.
+/// Usage:
+///
+/// For each incoming Railcom packet call the process_packet() function. call
+/// the current_address() function to retrieve the currently known address that
+/// came with the global broadcast.
 class RailcomBroadcastDecoder
 {
 public:

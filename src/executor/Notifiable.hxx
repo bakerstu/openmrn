@@ -53,9 +53,9 @@ public:
 #endif
 };
 
-// A Notifiable for synchronously waiting for a notification.
-// TODO(balazs.racz): We should make a syncnotifiable not need a semaphore
-// of itself, but rather use a thread-local semaphore.
+/// A Notifiable for synchronously waiting for a notification.
+/// TODO(balazs.racz): We should make a syncnotifiable not need a semaphore
+/// of itself, but rather use a thread-local semaphore.
 class SyncNotifiable : public Notifiable
 {
 public:
@@ -88,6 +88,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(SyncNotifiable);
 };
 
+/// A Notifiable that doesn't do anything when notified.
 class EmptyNotifiable : public Notifiable
 {
 public:
@@ -98,7 +99,7 @@ public:
     static Notifiable* DefaultInstance();
 };
 
-// This notifiable will crash whenever called.
+/// A Notifiable that will crash whenever called.
 class CrashNotifiable : public Notifiable
 {
 public:
@@ -115,7 +116,6 @@ public:
  * such a callback has happened yet or not.
  *
  */
-
 class ProxyNotifiable : private Notifiable
 {
 public:
@@ -125,12 +125,10 @@ public:
     /// Creates a new callback. When this callback is called, the parent
     /// notifiable is called and HasBeenNotified() will return true after that
     /// point. This function must not be called again until the returned
-    // callback
-    /// is invoked.
-    //
+    /// callback is invoked.
+    ///
     /// @returns a Notifiable to be used as a done callback for some
-    // asynchronous
-    /// processing.
+    /// asynchronous processing.
     Notifiable* NewCallback(Notifiable* parent)
     {
         HASSERT(!parent_);
@@ -157,9 +155,9 @@ private:
     Notifiable* parent_;
 };
 
-// A BarrierNotifiable allows to create a number of child Notifiable and wait
-// for all of them to finish. When the last one is finished, the parent done
-// callback is called.
+/// A BarrierNotifiable allows to create a number of child Notifiable and wait
+/// for all of them to finish. When the last one is finished, the parent done
+/// callback is called.
 class BarrierNotifiable : public Notifiable, private Atomic
 {
 public:
@@ -172,25 +170,25 @@ public:
     {
     }
 
-    // Resets the barrier. Returns &*this. Asserts that is_done().
+    /// Resets the barrier. Returns &*this. Asserts that is_done().
     BarrierNotifiable* reset(Notifiable* done);
 
     ~BarrierNotifiable();
 
-    // Call this for each child task.
+    /// Call this for each child task.
     BarrierNotifiable* new_child();
-    // When there are no more child tasks to add, call MaybeDone. Then once all
-    // previously added child tasks are done, the parent callback will be
-    // called. If you haven't added any children, this will call the parent
-    // callback inline.
+    /// When there are no more child tasks to add, call maybe_done(). Then once
+    /// all previously added child tasks are done, the parent callback will be
+    /// called. If you haven't added any children, this will call the parent
+    /// callback inline.
     void maybe_done()
     {
         notify();
     }
     virtual void notify();
 
-    // Returns true if the barrier condition is true, i.e., the owner has clled
-    // MaybeDone and all children have called Done.
+    /// Returns true if the barrier condition is true, i.e., the owner has
+    /// called maybe_done() and all children have called Done.
     bool is_done()
     {
         return !count_;
@@ -247,9 +245,18 @@ private:
     Notifiable* n_;
 };
 
+/// If this error is presented, then the syntax of the AutoNotify was
+/// incorrectly used:
+///
+/// WRONG:  AutoNotify(done);
+/// RIGHT:  AutoNotify an(done);
+///
+/// Without the variable name the notification gets called immediately (since
+/// the temporary C++ object of type AutoNotifiable gets destructed immediately
+/// when the c++ statement fininshes), thus cuasing subtle concurrency bugs.
 #define AutoNotify(l) int error_omitted_autonotify_holder_variable[-1]
 
-/** A notifiable object that calls a particular function object once when it is
+/** A notifiable class that calls a particular function object once when it is
  * invoked, then deletes itself. */
 class TempNotifiable : public Notifiable
 {

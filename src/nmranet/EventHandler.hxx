@@ -66,7 +66,7 @@ typedef struct {
   EventId event;
   /// Specifies the mask in case the request is for an event range. The low
   /// bits are set to one, the high bits are set to zero. Ranges of size 1 have
-  /// mask==1, a range that covers all events has mask==0xffff...f.
+  /// mask==0, a range that covers all events has mask==0xffff...f.
   EventId mask;
   /// Information about the sender of the incoming event-related OpenLCB
   /// message. It is not specified whether the node_id or the alias is
@@ -153,6 +153,14 @@ typedef void (EventHandler::*EventHandlerFunction)(EventReport* event,
 
 class EventIterator;
 
+/// Global static object for registering event handlers.
+///
+/// Usage: create one of the implementation classes depending on the resource
+/// requirements of your binary. In the event handlers constructor, register
+/// the event handler via the singleton pointer.
+///
+/// @TODO(balazs.racz) transition to the usual Singleton class instead of
+/// hand-initialized singleton pointer.
 class EventRegistry {
 public:
     virtual ~EventRegistry();
@@ -174,8 +182,8 @@ public:
     /** mask = 0 means exact event only. Mask = 63 means this is a global
      * handler. Mask == 0 means we should be registered for one single
      * eventid. */
-  virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
+    virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
+    virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
   
     // Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator* create_iterator() = 0;

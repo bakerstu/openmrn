@@ -40,6 +40,10 @@
 
 namespace nmranet {
 
+/// Producer class for GPIO bits. Polls the hardware state at a given
+/// frequency, applies a debouncing algorithm, and when the output of the
+/// devbouncing algorithm changes, requests the Producer class to update (i.e.,
+/// generate the event report message to the OpenLCB bus).
 template <class Debouncer, class BaseBit>
 class PolledProducer : public BaseBit, public Polling
 {

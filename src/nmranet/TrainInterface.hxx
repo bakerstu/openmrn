@@ -39,6 +39,8 @@
 
 namespace nmranet {
 
+/// Abstract base class for train implementations. This interface links the
+/// OpenLCB trains to the dcc packet sources.
 class TrainImpl
 {
 public:

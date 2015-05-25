@@ -43,6 +43,11 @@
 namespace dcc
 {
 
+/// StateFlow that accepts dcc::Packet structures and sends them to a local
+/// device driver for producing the track signal.
+///
+/// The device driver must support the notifiable-based asynchronous write
+/// model.
 class LocalTrackIf : public StateFlow<Buffer<dcc::Packet>, QList<1>>
 {
 public:

@@ -117,9 +117,13 @@ typedef StateFlow<Buffer<SimpleInfoResponse>, QList<1>> SimpleInfoFlowBase;
 ///
 /// Create a static array of SimpleInfoDescriptor structures to define the
 /// response that needs to be pieced together. Add a MessageHandlerFlow to
-/// receive the simple X info request messages. When it arrives, extract the
-/// source node handle, and send a SimpleInfoResponse message to the
-/// SimpleInfoFlow with the node handle and the descriptor array pointer.
+/// receive the simple X info request messages. When such a request arrives,
+/// extract the source node handle, and send a SimpleInfoResponse message to
+/// the SimpleInfoFlow with the node handle and the descriptor array
+/// pointer. The SimpleInfoFlow will assemble, fragment and send the response
+/// message.
+///
+/// Example: see @SNIPHandler.
 class SimpleInfoFlow : public SimpleInfoFlowBase
 {
 public:

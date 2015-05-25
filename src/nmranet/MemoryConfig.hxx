@@ -53,6 +53,8 @@ extern void reboot();
 namespace nmranet
 {
 
+/// Static constants and helper functions related to the Memory Configuration
+/// Protocol.
 struct MemoryConfigDefs {
     /** Possible Commands for a configuration datagram.
      */
@@ -171,6 +173,12 @@ private:
     MemoryConfigDefs();
 };
 
+/// Abstract base class for the address spaces exported via the Memory Config
+/// Protocol.
+///
+/// Usage: Instantiate the specific child class of this interface. Register for
+/// the address space number needed via @ref
+/// MemoryConfigHandler::registry()->insert()
 class MemorySpace : public Destructable
 {
 public:
@@ -225,6 +233,10 @@ public:
                         errorcode_t *error, Notifiable *again) = 0;
 };
 
+/// Memory space implementation that exports a some memory-mapped data as a
+/// read-only memory space. The data must be given as a const void* pointer,
+/// which can point both to RAM or flash (either rodata or specific flash
+/// addresses).
 class ReadOnlyMemoryBlock : public MemorySpace
 {
 public:
@@ -272,6 +284,9 @@ private:
     const address_t len_; //< Length of block to serve.
 };
 
+/// Memory space implementation that exports the contents of a file as a memory
+/// space. The file can be specified either as a path or an fd. By default
+/// writes are also allowed.
 class FileMemorySpace : public MemorySpace
 {
 public:
@@ -323,6 +338,12 @@ private:
     int fd_;
 };
 
+/// Implementation of the Memory Access Configuration Protocol for OpenLCB.
+///
+/// Usage: Create an instance of this object either for the specific virtual
+/// node, or for an entire interface. Create your memory spaces using various
+/// children of the class @ref MemorySpace. Register the memory spaces using
+/// @ref registry().
 class MemoryConfigHandler : public DefaultDatagramHandler
 {
 public:
@@ -331,7 +352,7 @@ public:
         DATAGRAM_ID = DatagramDefs::CONFIGURATION,
     };
 
-    // node can be nullptr, and then the handler will be registered globally.
+    /// node can be nullptr, and then the handler will be registered globally.
     MemoryConfigHandler(DatagramService *if_dg, Node *node, int registry_size)
         : DefaultDatagramHandler(if_dg)
         , responseFlow_(nullptr)

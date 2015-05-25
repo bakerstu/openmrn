@@ -43,6 +43,7 @@
 class PipeBuffer;
 class PipeMember;
 
+/// Container for an arbitrary structure to pass through a Hub.
 template<class S> class StructContainer : public S {
 public:
     S& value() {
@@ -62,6 +63,7 @@ public:
     }
 };
 
+/// Container for (binary) CAN frames going through Hubs.
 struct CanFrameContainer : public StructContainer<can_frame>
 {
     /* Constructor. Sets up (outgoing) frames to be empty extended frames by
@@ -86,6 +88,10 @@ struct CanFrameContainer : public StructContainer<can_frame>
     }
 };
 
+/// Data type wrapper for sending data through a Hub. It adds the @ref
+/// skipMember_ to the structure that represents for a HubFlow to decide where
+/// the data is coming from. This is needed to avoid the Hub performing
+/// loopback.
 template <class T> class HubContainer : public T
 {
 public:
@@ -94,7 +100,10 @@ public:
     {
     }
     typedef uintptr_t id_type;
+    /// Defines which registered member of the hub should be skipped when the
+    /// output members are enumerated.
     FlowInterface<Buffer<HubContainer<T>>> *skipMember_;
+    /// Defines the indentifier used for the DispatchFlow inside the Hub.
     id_type id()
     {
         return reinterpret_cast<uintptr_t>(skipMember_);
@@ -123,9 +132,10 @@ typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
 typedef FlowInterface<Buffer<CanHubData>> CanHubPortInterface;
 typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
 
-// This should work for both 32 and 64-bit architectures.
+/// This should work for both 32 and 64-bit architectures.
 static const uintptr_t POINTER_MASK = UINTPTR_MAX;
 
+/// Templated implementation of the HubFlow.
 template<class D> class GenericHubFlow : public DispatchFlow<Buffer<D>, 1>
 {
 public:
@@ -156,7 +166,7 @@ typedef GenericHubFlow<HubData> HubFlow;
 /** A hub that proxies packets of CAN frames. */
 typedef GenericHubFlow<CanHubData> CanHubFlow;
 
-/** This port prints all traffic from a hub to stdout. */
+/** This port prints all traffic from a (string-typed) hub to stdout. */
 class DisplayPort : public HubPort
 {
 public:

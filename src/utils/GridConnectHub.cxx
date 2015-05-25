@@ -42,6 +42,8 @@
 #include "utils/Hub.hxx"
 #include "utils/gc_format.h"
 
+/// Actual implementation for the gridconnect bridge between a string-typed Hub
+/// and a CAN-frame-typed Hub.
 class GCAdapter : public GCAdapterBase
 {
 public:
@@ -88,6 +90,9 @@ public:
         return parser_.is_waiting() && formatter_.is_waiting();
     }
 
+    /// HubPort (on a CAN-typed hub) that turns a binary CAN packet into a
+    /// string-formatted CAN packet, and sends it off to the HubFlow (of type
+    /// string).
     class BinaryToGCMember : public CanHubPort
     {
     public:
@@ -142,6 +147,9 @@ public:
         int double_bytes_;
     };
 
+    /// HubPort (on a string hub) that turns a gridconnect-formatted CAN packet
+    /// into a binary CAN packet, and sends them off to the HubFlow (of CAN
+    /// frame).
     class GCToBinaryMember : public HubPort
     {
     public:
@@ -292,6 +300,9 @@ GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
     return new GCAdapter(gc_side_read, gc_side_write, can_side, double_bytes);
 }
 
+/// Implementation for the gridconnect bridge. Owns all necessary structures,
+/// and is responsible for the initialization, registering, unregistering and
+/// destruction of these structures.
 struct GcPacketPrinter::Impl
 {
     Impl(CanHubFlow *can_hub)
@@ -324,6 +335,11 @@ GcPacketPrinter::~GcPacketPrinter()
 {
 }
 
+/// Implementation class that adds a device to a CAN hub with dynamic
+/// translation of the packets to/from GridConnect format.
+///
+/// Sends a notification to the application level when there is an error on the
+/// device and the connection is closed.
 struct GcHubPort : public Executable
 {
     GcHubPort(CanHubFlow *can_hub, int fd, Notifiable *on_exit)

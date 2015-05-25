@@ -58,6 +58,10 @@ class Node;
 
 class EventIteratorFlow;
 
+/// Global Event Service. Registers itself with a specific interface to receive
+/// all incoming messages related to the OpenLCB Event Protocol, maintains the
+/// registry of event handlers, and routes the incoming messages to the event
+/// handlers based on the registration arguments.
 class EventService : public Service
 {
 public:

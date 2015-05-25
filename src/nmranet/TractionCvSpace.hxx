@@ -45,6 +45,24 @@
 namespace nmranet
 {
 
+/// Memory Space implementation for a CV (configuration variable) access on a
+/// Railcom-enabled command station. Reads are turned into DCC extended packets
+/// for Programming-on-Main mode CV reads, and the Railcom feedback is
+/// evaluated for the result of the memory read operation. Writes are turned
+/// into POM-mode CV write packets, and the Railcom feedback is evaluated for
+/// success acknowledgement.
+///
+/// A single instance of this class works for all DCC locomotives, assuming
+/// that the memory configuration handler was registered for all virtual nodes
+/// of the given interface.
+///
+/// Restrictions: the DCC locmotives are required to have theid NodeID
+/// allocated as TractionDefs::NODE_ID_DCC + address. There is a hard-coded
+/// assumption that node IDs lower, than 128 are shoprt addresses, and higher
+/// addresses are long addresses.
+///
+/// @TODO(balazs.racz) Wire up a link to the traction service to somehow remove
+/// these restrictions.
 class TractionCvSpace : private MemorySpace,
                         private dcc::RailcomHubPortInterface,
                         public StateFlowBase

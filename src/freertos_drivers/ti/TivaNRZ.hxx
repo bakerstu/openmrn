@@ -63,6 +63,14 @@ struct DCCDecode
 };
 */
 
+/// Protocol-independent driver for decoding NRZ codes using a TI Tiva class
+/// microcontroller. The driver will capture and accurately time each half wave
+/// of the incoming signal. The timing information will be available to the
+/// user-space by executing read() commands on the fd of the device
+/// driver. Then arbitrary user-space code can be run to decode the correct
+/// data stream without needing timing-accurate code in user space.
+///
+/// Supports asynchronous reads using the Notifiable method.
 template <class HW> class TivaNRZ : public Node
 {
 public:

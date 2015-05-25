@@ -317,6 +317,9 @@ to exclude the API function. */
 #define INCLUDE_xTimerPendFunctionCall  1
 #ifndef __LANGUAGE_ASSEMBLY__
 
+/// Subset of the TaskPriv structure that contains the struct reent
+/// pointer. This is needed for compatibility of newlib with the task switching
+/// code of FreeRTOS.
 typedef struct task_switched_in
 {
     struct _reent *reent; /**< newlib thread specific data (errno, etc...) */

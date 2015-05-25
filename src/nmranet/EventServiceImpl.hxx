@@ -85,21 +85,24 @@ private:
     BarrierNotifiable n_;
 };
 
+/// PImpl class for the EventService. This class creates and owns all
+/// components necessary to the correct operation of the EventService but does
+/// not need to appear on the application-facing API.
 class EventService::Impl
 {
 public:
     Impl(EventService *service);
     ~Impl();
 
-    /* The implementation of the event registry. */
+    /// The implementation of the event registry.
     std::unique_ptr<EventRegistry> registry;
 
-    /** Flows that we own. There will be a few entries for each interface
-     * registered. */
+    /// Flows that we own. There will be a few entries for each interface
+    /// registered.
     std::vector<std::unique_ptr<StateFlowWithQueue>> ownedFlows_;
 
-    /** This flow will serialize calls to NMRAnetEventHandler objects. All such
-     * calls need to be sent to this flow. */
+    /// This flow will serialize calls to NMRAnetEventHandler objects. All such
+    /// calls need to be sent to this flow.
     EventCallerFlow callerFlow_;
 
     enum

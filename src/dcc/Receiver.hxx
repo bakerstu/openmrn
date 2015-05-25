@@ -43,6 +43,8 @@
 namespace dcc
 {
 
+/// State machine for decoding a DCC packet flow. Supports both DCC and
+/// Marklin-Motorola packets.
 class DccDecoder
 {
 public:
@@ -77,6 +79,9 @@ public:
         return parseState_;
     }
 
+    /// Call this function for each time the polarity of the signal changes.
+    /// @param value is the number of clock cycles since the last polarity
+    /// change.
     void process_data(uint32_t value)
     {
         switch (parseState_)
@@ -287,6 +292,7 @@ private:
     uint8_t data_[6];
     uint8_t ofs_; // offset inside data_;
 
+    /// Represents the timing of a half-wave of the digital track signal.
     struct Timing
     {
         void set(int min_usec, int max_usec)
@@ -335,6 +341,14 @@ private:
     Timing timings_[MAX_TIMINGS];
 };
 
+/// User-space DCC decoding flow. This flow receives a sequence of numbers from
+/// the DCC driver, where each number means a specific number of microseconds
+/// for which the signal was of the same polarity (e.g. for dcc packet it would
+/// be something like 56, 56, 56, 56, ..., 56, 56, 105, 105, 56, 56, ...). Then
+/// calls for each packet the virtual function dcc_packet_finished() or
+/// mm_packet_finished().
+///
+/// This flow is a pretty expensive way to decode DCC data.
 class DccDecodeFlow : public StateFlowBase
 {
 public:
