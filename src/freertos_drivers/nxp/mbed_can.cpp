@@ -42,6 +42,13 @@
 #include "LPC17xx.h"
 #endif
 
+/** CAN driver implementation using an mbed-supported CAN device.
+ *
+ * Currently the pin numbers are hard-coded for the LPC1768 and LPC2387
+ * devices.
+ *
+ * This driver does supports select-based asynchronous operation.
+ */
 class MbedCanDriver : public Can
 {
 public:

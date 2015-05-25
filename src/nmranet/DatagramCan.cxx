@@ -40,8 +40,17 @@
 namespace nmranet
 {
 
+/// Defines how long the datagram client flow should wait for the datagram
+/// ack/nack response message.
 long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
 
+/// Datagram client implementation for CANbus-based datagram protocol.
+///
+/// This flow is responsible for the outgoing CAN datagram framing, and listens
+/// for incoming datagram response messages.
+///
+/// The base class of AddressedCanMessageWriteFlow is responsible for the
+/// discovery and address resolution of the destination node.
 class CanDatagramClient : public DatagramClient,
                           public AddressedCanMessageWriteFlow
 {
@@ -229,7 +238,7 @@ private:
         CanDatagramClient *parent_;
     };
 
-    // Callback when a matching response comes in on the bus.
+    /// Callback when a matching response comes in on the bus.
     void handle_response(NMRAnetMessage *message)
     {
         //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
@@ -347,7 +356,7 @@ private:
 };
 
 /** Frame handler that assembles incoming datagram fragments into a single
- * datagram message. */
+ * datagram message. (That is, datagrams addressed to local nodes.) */
 class CanDatagramParser : public CanFrameStateFlow
 {
 public:
@@ -360,8 +369,6 @@ public:
                    CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK,
     };
 
-    /** @param num_clients tells how many datagram write flows (aka client
-     * flows) to put into the client allocator. */
     CanDatagramParser(IfCan *interface);
     ~CanDatagramParser();
 
@@ -544,15 +551,15 @@ public:
     }
 
 private:
-    // A local buffer that owns the datagram payload bytes after we took the
-    // entry from the pending buffers map.
+    /// A local buffer that owns the datagram payload bytes after we took the
+    /// entry from the pending buffers map.
     DatagramPayload localBuffer_;
 
     Node *dstNode_;
     NodeHandle dst_;
     unsigned short srcAlias_ : 12;
-    // If non-zero, contains a Rejection error code and the datagram should not
-    // be forwarded to the upper layer in this case.
+    /// If non-zero, contains a Rejection error code and the datagram should not
+    /// be forwarded to the upper layer in this case.
     uint16_t errorCode_;
 
     /** Open datagram buffers. Keyed by (dstid | srcid), value is a datagram

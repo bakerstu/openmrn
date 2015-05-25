@@ -64,6 +64,21 @@ enum DccTrainUpdateCode
     ESTOP = 16,
 };
 
+/// AbstractTrain is a templated class for train implementations in a command
+/// station. It gives implementations for most functions that the OpenLCB
+/// command station neeeds, while using a compact structure for representing
+/// the state the command station needs to know about the train itself.
+///
+/// The only shared assumption about the train is that it has to participate in
+/// the standard command station packet loop. The exact protocol, number of
+/// speed steps, number of functions etc. are all defined by the template
+/// argument. The goal is to minimize the number of bytes needed to store
+/// information about one train in the RAM so that command stations with
+/// limited memory can still serve a large number of trains in their update
+/// loop.
+///
+/// Example implementations of the template payload are @ref Dcc28Payload, @ref
+/// Dcc128Payload, @ref MMOldPayload, @ref MMNewPayload.
 template <class P> class AbstractTrain : public PacketSource
 {
 public:

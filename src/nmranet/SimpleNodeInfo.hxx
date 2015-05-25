@@ -76,6 +76,11 @@ extern const char *const SNIP_DYNAMIC_FILENAME;
 void init_snip_user_file(int fd, const char *user_name,
                          const char *user_description);
 
+/// Handler for the Simple Node Information Protocol requests.
+///
+/// Uses the generic SimpleInfoProtocol handler with a specific response
+/// structure (@ref SNIPHandler::SNIP_RESPONSE) to assemble the necessary
+/// response packets.
 class SNIPHandler : public IncomingMessageStateFlow
 {
 public:

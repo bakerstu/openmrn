@@ -41,6 +41,8 @@
 #include "driverlib/sysctl.h"
 #include "inc/hw_memmap.h"
 
+/// GPIO Pin definition structure with no actual pin behind it. All writes to
+/// this pin will be silently ignored. Reads from this pin will not compile.
 struct DummyPin {
     static void hw_init() {}
     static void hw_set_to_safe() {}
@@ -48,15 +50,29 @@ struct DummyPin {
     static void toggle() {}
 };
 
+/// Helper macro for declaring a pin.
+///
+/// @deprecated, use @ref GPIO_PIN instead.
 #define DECL_PIN(NAME, PORT, NUM)                                              \
     static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT;                \
     static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE;                    \
     static const auto NAME##_PIN = GPIO_PIN_##NUM
 
+/// Helper macro for declaring a GPIO pin wiht a specific hardware config (not
+/// GPIO but a different hardware muxed onto the same pin).
+///
+/// @deprecated, use @ref GPIO_PIN instead.
 #define DECL_HWPIN(NAME, PORT, NUM, CONFIG)                                    \
     DECL_PIN(NAME, PORT, NUM);                                                 \
     static const auto NAME##_CONFIG = GPIO_P##PORT##NUM##_##CONFIG
 
+/// Defines a GPIO output pin. Writes to this structure will change the output
+/// level of the pin. Reads will return the pin's current level.
+///
+/// The pin is set to output at initialization time, with the level defined by
+/// `SAFE_VALUE'.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs, bool SAFE_VALUE>
 struct GpioOutputPin : public Defs {
 public:
@@ -87,12 +103,22 @@ public:
     }
 };
 
+/// Defines a GPIO output pin, initialized to be an output pin with low level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioOutputSafeLow : public GpioOutputPin<Defs, false> {};
 
+/// Defines a GPIO output pin, initialized to be an output pin with high level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
 
+/// Defines a GPIO output pin with high-current drive and low initialization
+/// level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct LedPin : public GpioOutputPin<Defs, false> {
 public:
@@ -105,6 +131,23 @@ public:
     }
 };
 
+/// Helper macro for defining GPIO pins on the Tiva microcontrollers.
+///
+/// @param NAME is the basename of the declaration. For NAME==FOO the macro
+/// declared FOO_Pin as a structure on which the read-write functions will be
+/// available.
+///
+/// @param BaseClass is the initialization structure, such as @ref LedPin, or
+/// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
+///
+/// @param port is the letter (e.g. D)
+///
+/// @param pin is the pin number, such as 3
+///
+/// Example:
+///  GPIO_PIN(FOO, LedPin, D, 3);
+///  ...
+///  FOO_Pin::set(true);
 #define GPIO_PIN(NAME, BaseClass, PORT, NUM)                                   \
     struct NAME##Defs                                                          \
     {                                                                          \
@@ -113,6 +156,7 @@ public:
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
 
+/// Common class for GPIO input pins.
 template<class Defs, uint32_t GPIO_PULL>
 struct GpioInputPin : public Defs {
 public:
@@ -134,15 +178,29 @@ public:
     }
 };
 
+/// GPIO Input pin with weak pull up.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioInputPU : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPU> {};
 
+/// GPIO Input pin with weak pull down.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioInputPD : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPD> {};
 
+/// GPIO Input pin in standard configuration (no pull).
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD> {};
 
+/// GPIO Input pin in ADC configuration (analog).
+///
+/// This pin cannot be read or written directly (will fail compilation).
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioADCPin : public Defs {
     using Defs::GPIO_PERIPH;
@@ -160,6 +218,13 @@ struct GpioADCPin : public Defs {
     }
 };
 
+/// GPIO pin in a hardware configuration (via pinmux: UART, I2C, CAN, etc).
+///
+/// The pin can be switched to hardware, input and output mode. In input.output
+/// mode the pin can be read and written using the usual set() and get()
+/// functions.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template<class Defs>
 struct GpioHwPin : public Defs {
     using Defs::GPIO_PERIPH;
@@ -217,6 +282,13 @@ struct GpioHwPin : public Defs {
 
 };
 
+/// Helper macro for defining GPIO pins with a specific hardware config on the
+/// Tiva microcontrollers.
+///
+/// For parameters, see @ref GPIO_PIN.
+///
+/// @param CONFIG is the suffix of the symbol that defines the pinmux for the
+/// hardware, e.g. U7TX.
 #define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG)                         \
     struct NAME##Defs                                                          \
     {                                                                          \
@@ -224,8 +296,5 @@ struct GpioHwPin : public Defs {
         static const bool GPIO_INVERTED = false;                               \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
-
-
-
 
 #endif //_FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_

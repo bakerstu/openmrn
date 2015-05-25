@@ -198,6 +198,7 @@ public:
     }
 
 private:
+    /// Virtual base class for the destructible holders.
     class HolderBase
     {
     public:
@@ -206,6 +207,9 @@ private:
         }
     };
 
+    /// Type-accurate class that holds the temporary variable with the old
+    /// value, the pointer to the variable and restores the previous state upon
+    /// destruction.
     template <class T> class Holder : public HolderBase
     {
     public:

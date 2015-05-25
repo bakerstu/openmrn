@@ -51,6 +51,8 @@ struct BootloaderResponse
     string error_details;
 };
 
+/// Send a structure of this type to the BootloaderClient state flow to perform
+/// the bootloading process on one target node.
 struct BootloaderRequest
 {
     /// Node to send the bootload request to.
@@ -71,6 +73,17 @@ struct BootloaderRequest
 extern int g_bootloader_timeout_sec;
 int g_bootloader_timeout_sec = 3;
 
+/// StateFlow performing the bootloading process.
+///
+/// 1) allocates a datagram handler
+/// 2) sends a stream write request datagram to the target node
+/// 3) waits for the write stream response
+/// 4) sends the data using a manual implementaiton of the stream protocol
+/// (stream initiate; data send; wait for proceeds; stream close)
+/// 5) reboots the target node.
+///
+/// This stateflow needs to get one message of type BootloaderRequest to
+/// perform the bootloading process on a single target.
 class BootloaderClient : public StateFlow<Buffer<BootloaderRequest>, QList<1>>
 {
 public:
@@ -175,6 +188,8 @@ private:
         return wait_and_call(STATE(write_request_sent));
     }
 
+    /// Datagram handler that listens to the incoming memoryconfig datagram for
+    /// the write response message.
     class WriteResponseHandler : public DefaultDatagramHandler
     {
     public:

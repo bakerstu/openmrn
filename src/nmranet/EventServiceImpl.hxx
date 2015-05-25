@@ -50,6 +50,9 @@ class IncomingEventFlow;
 class GlobalIdentifyFlow;
 class EventHandler;
 
+/// Arguments structure for the EventCallerFlow. Each such buffer sent to @ref
+/// EventCallerFlow means calling one event handler's one specific function
+/// with a given argument.
 struct EventHandlerCall
 {
     EventReport *rep;
@@ -64,6 +67,11 @@ struct EventHandlerCall
     }
 };
 
+/// Control flow that calls individual event handlers one at a time and waits
+/// until the done callback is invoked before calling the next event
+/// handler. In essence this control flow behaves as a global lock for the
+/// event handlers being called. This global lock is necessary, because the
+/// event handlers are using global buffers for holding the outgoing packets.
 class EventCallerFlow : public StateFlow<Buffer<EventHandlerCall>, QList<5>>
 {
 public:

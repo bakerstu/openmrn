@@ -801,6 +801,12 @@ StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
 }
 
 
+/** State flow base class with queue but generic message type.
+ *
+ * This base class contains the function definitions of StateFlow that don't
+ * need the actual message type. It's sole purpose is to avoid having to
+ * compile these function multiple times for different message type
+ * template arguments. */
 template<class QueueType>
 class UntypedStateFlow : public StateFlowWithQueue {
 public:
@@ -858,6 +864,8 @@ private:
     QueueType queue_;
 };
 
+/// Helper class in the StateFlow hierarchy. Merges the typed
+/// FlowInterface<Msg> abstract base into the regular stateflow hierarchy.
 template <class MessageType, class Base>
 class TypedStateFlow : public Base, public FlowInterface<MessageType>
 {
@@ -919,6 +927,10 @@ protected:
 };
 
 
+/// State flow with a given typed input queue.
+///
+/// MessageType has to be Buffer<T>. QueueType is usually QList<N>, depending
+/// on how many priority bands are necessary.
 template<class MessageType, class QueueType>
 class StateFlow : public TypedStateFlow<MessageType, UntypedStateFlow<QueueType> > {
 public:

@@ -39,6 +39,7 @@
 namespace nmranet
 {
 
+/** Static constants and functions related to the Datagram protocol. */
 struct DatagramDefs
 {
     /** All known datagram protocols */

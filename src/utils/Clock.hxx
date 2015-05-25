@@ -34,12 +34,22 @@
 
 #include "os/os.h"
 
+/// Virtual base class for a real-time clock.
+///
+/// The purpose for this base class is to have a real and a mock
+/// implementation. The Clock* pointer can be injected into components that
+/// need to use real time for business logic, and then tests can inject a mock
+/// or fake clock to drive the test scenario manually without needing to call
+/// sleep.
+///
+/// see @ref RealClock and @ref MockClock.
 class Clock
 {
 public:
     virtual long long get_time_nsec() = 0;
 };
 
+/// Implementation of @ref Clock that returns the current real time form the OS.
 class RealClock : public Clock
 {
 public:
@@ -49,6 +59,9 @@ public:
     }
 };
 
+/// Fake implementation of @ref Clock that returns an injected time.
+///
+/// @TODO(balazs.racz) this should be called FakeClock instead.
 class MockClock : public Clock
 {
 public:
