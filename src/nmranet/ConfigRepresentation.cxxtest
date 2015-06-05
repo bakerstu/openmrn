@@ -38,8 +38,10 @@
 #include "os/TempFile.hxx"
 #include "nmranet/EventHandler.hxx"
 
-namespace nmranet {
-namespace {
+namespace nmranet
+{
+namespace
+{
 
 BEGIN_GROUP(TestGroup, base);
 EXTEND_GROUP(TestGroup, base, e1, Uint8ConfigEntry);
@@ -56,7 +58,8 @@ EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
 EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
 END_GROUP(TestNodeConfig, last);
 
-TEST(GroupConfig, LengthAndOffsetsAreCorrect) {
+TEST(GroupConfig, LengthAndOffsetsAreCorrect)
+{
     EXPECT_EQ(25, TestNodeConfig::size());
     EXPECT_EQ(3, TestGroup::size());
     EXPECT_EQ(9, TestRepeat::size());
@@ -72,14 +75,14 @@ TEST(GroupConfig, LengthAndOffsetsAreCorrect) {
 
     EXPECT_EQ(26, cfg.testgroup().offset());
 
-    EXPECT_EQ(26, cfg.testgroup().entry(0).offset());
-    EXPECT_EQ(26, cfg.testgroup().entry(0).e1().offset());
-    EXPECT_EQ(27, cfg.testgroup().entry(0).e2().offset());
+    EXPECT_EQ(26, cfg.testgroup().entry<0>().offset());
+    EXPECT_EQ(26, cfg.testgroup().entry<0>().e1().offset());
+    EXPECT_EQ(27, cfg.testgroup().entry<0>().e2().offset());
 
-    EXPECT_EQ(29, cfg.testgroup().entry(1).offset());
+    EXPECT_EQ(29, cfg.testgroup().entry<1>().offset());
 
-    EXPECT_EQ(29, cfg.testgroup().entry(1).e1().offset());
-    EXPECT_EQ(33, cfg.testgroup().entry(2).e2().offset());
+    EXPECT_EQ(29, cfg.testgroup().entry<1>().e1().offset());
+    EXPECT_EQ(33, cfg.testgroup().entry<2>().e2().offset());
 
     EXPECT_EQ(35, cfg.last().offset());
 }
@@ -91,7 +94,8 @@ EXTEND_GROUP(HoleTestGroup, blocked, event, EventConfigEntry);
 EXTEND_GROUP(HoleTestGroup, event, last, Uint32ConfigEntry);
 END_GROUP(HoleTestGroup, last);
 
-TEST(GroupConfig, WithHoles) {
+TEST(GroupConfig, WithHoles)
+{
     HoleTestGroup cfg(17);
     EXPECT_EQ(18, HoleTestGroup::size());
     EXPECT_EQ(18, cfg.size());
@@ -103,7 +107,8 @@ TEST(GroupConfig, WithHoles) {
 
 TempDir dir;
 
-TEST(ReadTest, Integers) {
+TEST(ReadTest, Integers)
+{
     TempFile f(dir, "cfg_integers");
     f.write(0x75);
     // Blocked space
@@ -143,33 +148,41 @@ BEGIN_GROUP(ConfigGroup, base);
 EXTEND_GROUP(ConfigGroup, base, producers, MyProducers);
 END_GROUP(ConfigGroup, producers);
 
-string event_id_to_string(EventId id) {
+string event_id_to_string(EventId id)
+{
     id = htobe64(id);
-    string s(reinterpret_cast<const char*>(&id), 8);
+    string s(reinterpret_cast<const char *>(&id), 8);
     return s;
 }
 
-TEST(ReadTest, Events) {
+TEST(ReadTest, Events)
+{
     TempFile f(dir, "cfg_events");
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         f.write(13);
-        f.write(event_id_to_string(0x050101011833FF00ULL + i*2));
-        f.write(event_id_to_string(0x050101011833FF00ULL + i*2 + 1));
+        f.write(event_id_to_string(0x050101011833FF00ULL + i * 2));
+        f.write(event_id_to_string(0x050101011833FF00ULL + i * 2 + 1));
     }
     ConfigGroup grp(0);
 
-    class ProducerImpl {
+    class ProducerImpl
+    {
     public:
         ProducerImpl(ProducerGroup g, int idx)
-            : ref_(g.offset()), idx_(idx) {}
+            : ref_(g.offset())
+            , idx_(idx)
+        {
+        }
 
-        void test(int fd) {
+        void test(int fd)
+        {
             ProducerGroup g(ref_.offset());
             EXPECT_EQ(13, g.bounce_timeout().read(fd));
-            EXPECT_EQ(0x050101011833FF00ULL + idx_*2 + 1,
-                      g.one_event().read(fd));
-            EXPECT_EQ(0x050101011833FF00ULL + idx_*2,
-                      g.zero_event().read(fd));
+            EXPECT_EQ(
+                0x050101011833FF00ULL + idx_ * 2 + 1, g.one_event().read(fd));
+            EXPECT_EQ(
+                0x050101011833FF00ULL + idx_ * 2, g.zero_event().read(fd));
         }
 
     private:
@@ -177,14 +190,13 @@ TEST(ReadTest, Events) {
         int idx_;
     };
 
-    ProducerImpl impl5(grp.producers().entry(5), 5);
-    ProducerImpl impl2(grp.producers().entry(2), 2);
-    ProducerImpl impl0(grp.producers().entry(0), 0);
+    ProducerImpl impl5(grp.producers().entry<5>(), 5);
+    ProducerImpl impl2(grp.producers().entry<2>(), 2);
+    ProducerImpl impl0(grp.producers().entry<0>(), 0);
     impl5.test(f.fd());
     impl2.test(f.fd());
     impl0.test(f.fd());
 }
-
 
 } // namespace
 } // namespace nmranet

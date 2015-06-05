@@ -41,14 +41,14 @@ namespace nmranet
 {
 
 #define BEGIN_GROUP(group, base)                                               \
-    class group##base : public BaseGroup                                       \
+    class group##base : public nmranet::BaseGroup                              \
     {                                                                          \
     public:                                                                    \
         using base_type = BaseGroup;                                           \
         using base_type::base_type;                                            \
     };
 
-class BaseGroup : public ConfigReference
+class BaseGroup : public nmranet::ConfigReference
 {
 public:
     using ConfigReference::ConfigReference;
@@ -99,12 +99,12 @@ public:
     {
         return Group::size() * N;
     }
-    constexpr Group entry(const unsigned k)
+    template<int K>
+    constexpr Group entry()
     {
-        return k < N
-            ? Group(offset_ + (k * Group::size()))
-            : throw std::logic_error("Tried to fetch an entry of a repeated "
-                                     "group that does not exist!");
+        static_assert(K < N, "Tried to fetch an entry of a repeated "
+                      "group that does not exist!");
+        return Group(offset_ + (K * Group::size()));
     }
 };
 
