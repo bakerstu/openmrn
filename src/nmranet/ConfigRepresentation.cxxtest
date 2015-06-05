@@ -35,6 +35,8 @@
 #include "utils/test_main.hxx"
 
 #include "nmranet/ConfigRepresentation.hxx"
+#include "os/TempFile.hxx"
+#include "nmranet/EventHandler.hxx"
 
 namespace nmranet {
 namespace {
@@ -54,7 +56,7 @@ EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
 EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
 END_GROUP(TestNodeConfig, last);
 
-TEST(TestNodeConfig, LengthAndOffsetsAreCorrect) {
+TEST(GroupConfig, LengthAndOffsetsAreCorrect) {
     EXPECT_EQ(25, TestNodeConfig::size());
     EXPECT_EQ(3, TestGroup::size());
     EXPECT_EQ(9, TestRepeat::size());
@@ -81,6 +83,108 @@ TEST(TestNodeConfig, LengthAndOffsetsAreCorrect) {
 
     EXPECT_EQ(35, cfg.last().offset());
 }
+
+BEGIN_GROUP(HoleTestGroup, base);
+EXTEND_GROUP(HoleTestGroup, base, version, Uint8ConfigEntry);
+EXTEND_GROUP(HoleTestGroup, version, blocked, EmptyGroup<5>);
+EXTEND_GROUP(HoleTestGroup, blocked, event, EventConfigEntry);
+EXTEND_GROUP(HoleTestGroup, event, last, Uint32ConfigEntry);
+END_GROUP(HoleTestGroup, last);
+
+TEST(GroupConfig, WithHoles) {
+    HoleTestGroup cfg(17);
+    EXPECT_EQ(18, HoleTestGroup::size());
+    EXPECT_EQ(18, cfg.size());
+    EXPECT_EQ(17, cfg.version().offset());
+    EXPECT_EQ(18, cfg.blocked().offset());
+    EXPECT_EQ(23, cfg.event().offset());
+    EXPECT_EQ(31, cfg.last().offset());
+}
+
+TempDir dir;
+
+TEST(ReadTest, Integers) {
+    TempFile f(dir, "cfg_integers");
+    f.write(0x75);
+    // Blocked space
+    f.write("12345");
+    // Event
+    f.write(0x11);
+    f.write(0x22);
+    f.write(0x33);
+    f.write(0x44);
+    f.write(0x55);
+    f.write(0x66);
+    f.write(0x77);
+    f.write(0x88);
+
+    uint32_t value = 1843926331;
+    f.write((value >> 24) & 0xff);
+    f.write((value >> 16) & 0xff);
+    f.write((value >> 8) & 0xff);
+    f.write((value >> 0) & 0xff);
+
+    HoleTestGroup grp(0);
+    EXPECT_EQ(value, grp.last().read(f.fd()));
+
+    EXPECT_EQ(0x1122334455667788ULL, grp.event().read(f.fd()));
+    EXPECT_EQ(0x75U, grp.version().read(f.fd()));
+}
+
+BEGIN_GROUP(ProducerGroup, base);
+EXTEND_GROUP(ProducerGroup, base, bounce_timeout, Uint8ConfigEntry);
+EXTEND_GROUP(ProducerGroup, bounce_timeout, zero_event, EventConfigEntry);
+EXTEND_GROUP(ProducerGroup, zero_event, one_event, EventConfigEntry);
+END_GROUP(ProducerGroup, one_event);
+
+using MyProducers = RepeatedGroup<ProducerGroup, 8>;
+
+BEGIN_GROUP(ConfigGroup, base);
+EXTEND_GROUP(ConfigGroup, base, producers, MyProducers);
+END_GROUP(ConfigGroup, producers);
+
+string event_id_to_string(EventId id) {
+    id = htobe64(id);
+    string s(reinterpret_cast<const char*>(&id), 8);
+    return s;
+}
+
+TEST(ReadTest, Events) {
+    TempFile f(dir, "cfg_events");
+    for (int i = 0; i < 8; i++) {
+        f.write(13);
+        f.write(event_id_to_string(0x050101011833FF00ULL + i*2));
+        f.write(event_id_to_string(0x050101011833FF00ULL + i*2 + 1));
+    }
+    ConfigGroup grp(0);
+
+    class ProducerImpl {
+    public:
+        ProducerImpl(ProducerGroup g, int idx)
+            : ref_(g.offset()), idx_(idx) {}
+
+        void test(int fd) {
+            ProducerGroup g(ref_.offset());
+            EXPECT_EQ(13, g.bounce_timeout().read(fd));
+            EXPECT_EQ(0x050101011833FF00ULL + idx_*2 + 1,
+                      g.one_event().read(fd));
+            EXPECT_EQ(0x050101011833FF00ULL + idx_*2,
+                      g.zero_event().read(fd));
+        }
+
+    private:
+        ConfigReference ref_;
+        int idx_;
+    };
+
+    ProducerImpl impl5(grp.producers().entry(5), 5);
+    ProducerImpl impl2(grp.producers().entry(2), 2);
+    ProducerImpl impl0(grp.producers().entry(0), 0);
+    impl5.test(f.fd());
+    impl2.test(f.fd());
+    impl0.test(f.fd());
+}
+
 
 } // namespace
 } // namespace nmranet

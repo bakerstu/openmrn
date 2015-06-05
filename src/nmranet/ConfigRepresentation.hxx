@@ -40,26 +40,15 @@
 namespace nmranet
 {
 
-class EndGroup : private ConfigReference
-{
-public:
-    constexpr EndGroup(unsigned offset)
-        : ConfigReference(offset)
-    {
-    }
-    constexpr unsigned size()
-    {
-        return 0;
-    }
-};
-
 #define BEGIN_GROUP(group, base)                                               \
-    class group##base : public EmptyGroup                                      \
+    class group##base : public BaseGroup                                       \
     {                                                                          \
-        using EmptyGroup::EmptyGroup;                                          \
+    public:                                                                    \
+        using base_type = BaseGroup;                                           \
+        using base_type::base_type;                                            \
     };
 
-class EmptyGroup : public ConfigReference
+class BaseGroup : public ConfigReference
 {
 public:
     using ConfigReference::ConfigReference;
@@ -84,16 +73,22 @@ public:
         {                                                                      \
             return base_type::size();                                          \
         }                                                                      \
+        constexpr unsigned last_offset()                                       \
+        {                                                                      \
+            return offset() + offset_from_base();                              \
+        }                                                                      \
         constexpr current_type entry_name()                                    \
         {                                                                      \
-            return current_type(offset() + offset_from_base(), ##ARGS);        \
+            return current_type(last_offset(), ##ARGS);                        \
         }                                                                      \
     };
 
 #define END_GROUP(group, prev_entry_name)                                      \
     class group : public group##prev_entry_name                                \
     {                                                                          \
-        using group##prev_entry_name::group##prev_entry_name;                  \
+    public:                                                                    \
+        using base_type = group##prev_entry_name;                              \
+        using base_type::base_type;                                            \
     };
 
 template <class Group, unsigned N> class RepeatedGroup : public ConfigReference
@@ -110,6 +105,20 @@ public:
             ? Group(offset_ + (k * Group::size()))
             : throw std::logic_error("Tried to fetch an entry of a repeated "
                                      "group that does not exist!");
+    }
+};
+
+///
+/// Defines an empty group with no members, but blocking a certain amount of
+/// space in the rendered configuration.
+///
+template <unsigned N> class EmptyGroup : public ConfigReference
+{
+public:
+    using ConfigReference::ConfigReference;
+    static constexpr unsigned size()
+    {
+        return N;
     }
 };
 

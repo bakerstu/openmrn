@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <endian.h>
 
 namespace nmranet
 {
@@ -53,6 +54,14 @@ public:
     /// configuration.
     constexpr explicit ConfigReference(unsigned offset)
         : offset_(offset)
+    {
+    }
+
+    /// Initializes the config reference from an existing config reference.
+    ///
+    /// @param ref is the existing (or saved) config reference.
+    constexpr explicit ConfigReference(const ConfigReference& ref)
+        : offset_(ref.offset())
     {
     }
 
@@ -74,15 +83,7 @@ class ConfigEntryBase : public ConfigReference
 public:
     using ConfigReference::ConfigReference;
 
-private:
-    /// Performs a reliable read from the given FD. Crashes if the read fails.
-    ///
-    /// @param fd the file to read data from
-    /// @param buf the location to write data to
-    /// @param size how many bytes to read
-    ///
-    void repeated_read(int fd, void *buf, size_t size) const;
-
+protected:
     /// Reads a given typed variable from the configuration file. DOes not do
     /// any binary conversion (only reads raw data).
     ///
@@ -96,6 +97,15 @@ private:
         repeated_read(fd, &ret, sizeof(T));
         return ret;
     }
+
+private:
+    /// Performs a reliable read from the given FD. Crashes if the read fails.
+    ///
+    /// @param fd the file to read data from
+    /// @param buf the location to write data to
+    /// @param size how many bytes to read
+    ///
+    void repeated_read(int fd, void *buf, size_t size) const;
 };
 
 template <class TR> class NumericConfigEntry : public ConfigEntryBase
@@ -162,7 +172,7 @@ public:
     ///
     TR read(int fd) const
     {
-        return endian_convert(raw_read(fd));
+        return endian_convert(raw_read<TR>(fd));
     }
 };
 
@@ -170,6 +180,8 @@ using Uint8ConfigEntry = NumericConfigEntry<uint8_t>;
 using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
 using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
 using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
+
+using EventConfigEntry = Uint64ConfigEntry;
 
 } // namespace nmranet
 
