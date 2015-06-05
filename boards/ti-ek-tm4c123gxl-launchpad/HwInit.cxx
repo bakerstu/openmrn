@@ -47,6 +47,7 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
+#include "TivaEEPROMEmulation.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -82,6 +83,13 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
+
+extern const uint16_t __eeprom_start[];
+const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
+extern const uint16_t __eeprom_end[];
+const size_t TivaEEPROMEmulation::FLASH_SIZE = __eeprom_end - __eeprom_start;
+
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
 
 #define ONE_BIT_HALF_PERIOD  4480
 #define ZERO_BIT_HALF_PERIOD 8000
