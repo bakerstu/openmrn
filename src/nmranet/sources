@@ -7,6 +7,7 @@ CXXSRCS += \
            AliasCache.cxx \
            Bootloader.cxx \
            CanDefs.cxx \
+           ConfigEntry.cxx \
            DefaultNode.cxx \
            EventHandler.cxx \
            EventHandlerContainer.cxx \

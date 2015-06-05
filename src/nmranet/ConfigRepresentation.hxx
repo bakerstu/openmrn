@@ -35,37 +35,21 @@
 #ifndef _NMRANET_CONFIGREPRESENTATION_HXX_
 #define _NMRANET_CONFIGREPRESENTATION_HXX_
 
+#include "nmranet/ConfigEntry.hxx"
+
 namespace nmranet
 {
 
 class EndGroup : private ConfigReference
 {
 public:
-    constexpr EndGroup(unsigned offset) : ConfigReference(offset)
+    constexpr EndGroup(unsigned offset)
+        : ConfigReference(offset)
     {
     }
     constexpr unsigned size()
     {
         return 0;
-    }
-};
-
-class Uint16ConfigEntry : public ConfigReference
-{
-public:
-    using ConfigReference::ConfigReference;
-
-    uint16_t get_value(int fd)
-    {
-        lseek(fd, offset_, SEEK_SET);
-        uint16_t value;
-        ::read(fd, &value, 2);
-        return value;
-    }
-
-    static constexpr unsigned size()
-    {
-        return 2;
     }
 };
 
@@ -85,15 +69,13 @@ public:
     }
 };
 
-#define EXTEND_GROUP(group, prev, name, type)                                  \
-    class group##name : public group##prev                                     \
+#define EXTEND_GROUP(group, prev_entry_name, entry_name, type, ARGS...)        \
+    class group##entry_name : public group##prev_entry_name                    \
     {                                                                          \
     public:                                                                    \
-        using base_type = group##prev;                                         \
+        using base_type = group##prev_entry_name;                              \
         using current_type = type;                                             \
-        constexpr group##name(unsigned offset) : base_type(offset)             \
-        {                                                                      \
-        }                                                                      \
+        using base_type::base_type;                                            \
         static constexpr unsigned size()                                       \
         {                                                                      \
             return current_type::size() + offset_from_base();                  \
@@ -102,20 +84,16 @@ public:
         {                                                                      \
             return base_type::size();                                          \
         }                                                                      \
-        constexpr unsigned offset()                                            \
+        constexpr current_type entry_name()                                    \
         {                                                                      \
-            return offset_ + offset_from_base();                               \
-        }                                                                      \
-        constexpr current_type name()                                          \
-        {                                                                      \
-            return current_type(offset());                                     \
+            return current_type(offset() + offset_from_base(), ##ARGS);        \
         }                                                                      \
     };
 
-#define END_GROUP(group, prev)                                                 \
-    class group : public group##prev                                           \
+#define END_GROUP(group, prev_entry_name)                                      \
+    class group : public group##prev_entry_name                                \
     {                                                                          \
-        using group##prev::group##prev;                                        \
+        using group##prev_entry_name::group##prev_entry_name;                  \
     };
 
 template <class Group, unsigned N> class RepeatedGroup : public ConfigReference
@@ -126,10 +104,12 @@ public:
     {
         return Group::size() * N;
     }
-    constexpr Group entry(unsigned k)
+    constexpr Group entry(const unsigned k)
     {
-        static_assert(k < N);
-        return Group(offset_ + (k * Group::size()));
+        return k < N
+            ? Group(offset_ + (k * Group::size()))
+            : throw std::logic_error("Tried to fetch an entry of a repeated "
+                                     "group that does not exist!");
     }
 };
 

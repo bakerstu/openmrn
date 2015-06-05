@@ -35,20 +35,40 @@
 #ifndef _NMRANET_CONFIGENTRY_HXX_
 #define _NMRANET_CONFIGENTRY_HXX_
 
+#include <sys/types.h>
+#include <stdint.h>
+
 namespace nmranet
 {
 
+/// Class representing a particular location in the configuration space. All
+/// typed configuration objects (atoms as well as groups) will be subclasses of
+/// this.
 class ConfigReference
 {
 public:
-    constexpr explicit ConfigReference(unsigned offset) : offset_(offset)
+    /// Initializes the config reference from a configuration space offset.
+    ///
+    /// @param offset is the integer offset (0-based) in the address space for
+    /// configuration.
+    constexpr explicit ConfigReference(unsigned offset)
+        : offset_(offset)
     {
     }
 
-private:
-    unsigned offset;
+    constexpr unsigned offset() {
+        return offset_;
+    }
+
+protected:
+    /// zero-based offset from the beginning of the configuration file.
+    unsigned offset_;
 };
 
+///
+/// Base class for individual configuration entries. Defines helper methods for
+/// reading and writing.
+///
 class ConfigEntryBase : public ConfigReference
 {
 public:
@@ -61,29 +81,95 @@ private:
     /// @param buf the location to write data to
     /// @param size how many bytes to read
     ///
-    void repeated_read(int fd, void *buf, size_t size)
+    void repeated_read(int fd, void *buf, size_t size) const;
+
+    /// Reads a given typed variable from the configuration file. DOes not do
+    /// any binary conversion (only reads raw data).
+    ///
+    /// @param fd file to read data from.
+    ///
+    /// @return the raw value read from the configuration file.
+    ///
+    template <class T> T raw_read(int fd) const
     {
-        uint8_t *dst = static_cast<uint8_t *>(buf);
-        while (size)
-        {
-            ssize_t ret = ::read(fd, dst, size);
-            ERRNOCHECK("read_config", ret);
-            if (ret == 0)
-            {
-                DIE("Unexpected EOF reading the config file.");
-            }
-            size -= ret;
-            dst += ret;
-        }
+        T ret;
+        repeated_read(fd, &ret, sizeof(T));
+        return ret;
     }
 };
 
-template<class TR> class NumConfigEntry : public ConfigEntryBase {
+template <class TR> class NumericConfigEntry : public ConfigEntryBase
+{
 public:
     using ConfigEntryBase::ConfigEntryBase;
 
-    
+    /// Performs endian conversion.
+    ///
+    /// @param d network-byte-order data
+    ///
+    /// @return host-byte-order data
+    ///
+    static uint8_t endian_convert(uint8_t d)
+    {
+        return d;
+    }
+    /// Performs endian conversion.
+    ///
+    /// @param d network-byte-order data
+    ///
+    /// @return host-byte-order data
+    ///
+    static uint16_t endian_convert(uint16_t d)
+    {
+        return be16toh(d);
+    }
+    /// Performs endian conversion.
+    ///
+    /// @param d network-byte-order data
+    ///
+    /// @return host-byte-order data
+    ///
+    static uint32_t endian_convert(uint32_t d)
+    {
+        return be32toh(d);
+    }
+    /// Performs endian conversion.
+    ///
+    /// @param d network-byte-order data
+    ///
+    /// @return host-byte-order data
+    ///
+    static uint64_t endian_convert(uint64_t d)
+    {
+        return be64toh(d);
+    }
+
+    /// Storage bytes occupied by the instance in the config file.
+    ///
+    /// @return number of bytes that the config parser offset will be
+    /// incremented by this entry.
+    ///
+    static constexpr unsigned size()
+    {
+        return sizeof(TR);
+    }
+
+    /// Reads the data from the configuration file.
+    ///
+    /// @param fd file descriptor of the config file.
+    ///
+    /// @return value of the configuration atom that *this represents.
+    ///
+    TR read(int fd) const
+    {
+        return endian_convert(raw_read(fd));
+    }
 };
+
+using Uint8ConfigEntry = NumericConfigEntry<uint8_t>;
+using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
+using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
+using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 
 } // namespace nmranet
 
