@@ -29,7 +29,7 @@
  * Configuration option reader classes.
  *
  * @author Balazs Racz
- * @date 31 May 2014
+ * @date 31 May 2015
  */
 
 #ifndef _NMRANET_CONFIGENTRY_HXX_

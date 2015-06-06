@@ -29,7 +29,7 @@
  * Unittests for the representation of config files
  *
  * @author Balazs Racz
- * @date 31 May 2014
+ * @date 31 May 2015
  */
 
 #include "utils/test_main.hxx"
