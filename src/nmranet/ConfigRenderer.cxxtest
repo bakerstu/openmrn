@@ -1,0 +1,93 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file ConfigRenderer.cxxtest
+ *
+ * Unittests for the CDI rendering utilities.
+ *
+ * @author Balazs Racz
+ * @date 6 June 2015
+ */
+
+#include "utils/test_main.hxx"
+
+#include "nmranet/ConfigRenderer.hxx"
+#include "nmranet/ConfigEntry.hxx"
+
+namespace nmranet
+{
+namespace
+{
+
+TEST(ConfigRenderer, AtomWithoutOptions)
+{
+    AtomConfigRenderer rnd("int", 3);
+    string s = rnd.render(AtomConfigOptions());
+    EXPECT_EQ("<int size='3'>\n</int>\n", s);
+}
+
+TEST(ConfigRenderer, AtomWithName)
+{
+    using Name = AtomConfigOptions::Name;
+    AtomConfigRenderer rnd("int", 3);
+    string s = rnd.render(AtomConfigOptions(Name("foo bar")));
+    EXPECT_EQ("<int size='3'>\n<name>foo bar</name>\n</int>\n", s);
+}
+
+TEST(ConfigRenderer, AtomWithDescription)
+{
+    using Description = AtomConfigOptions::Description;
+    AtomConfigRenderer rnd("int", 3);
+    string s = rnd.render(
+        AtomConfigOptions(Description("some long string description")));
+    EXPECT_EQ("<int size='3'>\n<description>some long string "
+              "description</description>\n</int>\n",
+        s);
+}
+
+TEST(ConfigRenderer, AtomFull)
+{
+    using Name = AtomConfigOptions::Name;
+    using Description = AtomConfigOptions::Description;
+    AtomConfigRenderer rnd("int", 3);
+    string s = rnd.render(AtomConfigOptions(
+        Description("some long string description"), Name("xxxy")));
+    EXPECT_EQ(
+        "<int size='3'>\n<name>xxxy</name>\n"
+        "<description>some long string description</description>\n</int>\n",
+        s);
+}
+
+TEST(ConfigRenderer, AtomNoSize)
+{
+    using Name = AtomConfigOptions::Name;
+    auto rnd = EventConfigEntry(13).config_renderer();
+    string s = rnd.render(AtomConfigOptions(Name("fffoo")));
+    EXPECT_EQ("<eventid>\n<name>fffoo</name>\n</eventid>\n", s);
+}
+
+} // namespace
+} // namespace nmranet

@@ -39,6 +39,8 @@
 #include <stdint.h>
 #include <endian.h>
 
+#include "nmranet/ConfigRenderer.hxx"
+
 namespace nmranet
 {
 
@@ -164,6 +166,10 @@ public:
         return sizeof(TR);
     }
 
+    constexpr AtomConfigRenderer config_renderer() {
+        return AtomConfigRenderer("int", size());
+    }
+
     /// Reads the data from the configuration file.
     ///
     /// @param fd file descriptor of the config file.
@@ -181,7 +187,14 @@ using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
 using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
 using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 
-using EventConfigEntry = Uint64ConfigEntry;
+class EventConfigEntry : public Uint64ConfigEntry {
+public:
+    using Uint64ConfigEntry::Uint64ConfigEntry;
+
+    constexpr AtomConfigRenderer config_renderer() {
+        return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
+    }
+};
 
 } // namespace nmranet
 
