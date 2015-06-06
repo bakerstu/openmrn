@@ -37,6 +37,15 @@
 #include "nmranet/ConfigRenderer.hxx"
 #include "nmranet/ConfigEntry.hxx"
 #include "nmranet/ConfigRepresentation.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
+
+const char *const nmranet::SNIP_DYNAMIC_FILENAME =
+    "/dev/null";
+
+
+extern const nmranet::SimpleNodeStaticValues nmranet::SNIP_STATIC_DATA = {
+    4, "Manuf", "XXmodel", "NHWversion", "1.42"};
+
 
 namespace nmranet
 {
@@ -115,8 +124,10 @@ EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
 EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
 END_GROUP(TestNodeConfig, last);
 
-const char kExpectedTestNodeCdi[] =
-    R"(<group>
+TEST(ComplexGroupRender, RenderOk)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
 <name>node_config</name>
 <int size='1'>
 <name>Version</name>
@@ -144,13 +155,84 @@ const char kExpectedTestNodeCdi[] =
 </int>
 </group>
 )";
-
-TEST(ComplexGroupRender, RenderOk)
-{
     string s;
     TestNodeConfig cfg(0);
     cfg.config_renderer().render_cdi(&s);
     EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+BEGIN_GROUP(TestSegment, base, Name("testseg"), Description("test seg desc"),
+    Segment(17));
+EXTEND_GROUP(TestSegment, base, e1, Uint8ConfigEntry, Name("e1"));
+EXTEND_GROUP(TestSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
+END_GROUP(TestSegment, e2);
+
+BEGIN_GROUP(TestCdi1, base, MainCdi());
+EXTEND_GROUP(TestCdi1, base, testseg, TestSegment);
+END_GROUP(TestCdi1, testseg);
+
+TEST(CdiRender, Render)
+{
+    string s;
+    TestCdi1 cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<segment space='17'>
+<name>testseg</name>
+<description>test seg desc</description>
+<int size='1'>
+<name>e1</name>
+</int>
+<int size='2'>
+<description>e2</description>
+</int>
+</segment>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_EQ(1, cfg.testseg().e2().offset());
+}
+
+BEGIN_GROUP(OtherSegment, base, Name("testseg"), Description("test seg desc"),
+    Segment(12), Offset(33));
+EXTEND_GROUP(OtherSegment, base, e1, Uint8ConfigEntry, Name("e1"));
+EXTEND_GROUP(OtherSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
+END_GROUP(OtherSegment, e2);
+
+
+BEGIN_GROUP(TestCdi2, base, MainCdi());
+EXTEND_GROUP(TestCdi2, base, ident, Identification);
+EXTEND_GROUP(TestCdi2, ident, testseg, OtherSegment);
+END_GROUP(TestCdi2, testseg);
+
+TEST(CdiRender, RenderIdent)
+{
+    string s;
+    TestCdi2 cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<identification>
+<manufacturer>Manuf</manufacturer>
+<model>XXmodel</model>
+<hardwareVersion>NHWversion</hardwareVersion>
+<softwareVersion>1.42</softwareVersion>
+</identification>
+<segment space='12' offset='33'>
+<name>testseg</name>
+<description>test seg desc</description>
+<int size='1'>
+<name>e1</name>
+</int>
+<int size='2'>
+<description>e2</description>
+</int>
+</segment>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_EQ(34, cfg.testseg().e2().offset());
 }
 
 } // namespace

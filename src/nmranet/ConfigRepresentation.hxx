@@ -48,6 +48,9 @@ namespace nmranet
         using base_type::base_type;                                            \
         using Name = AtomConfigOptions::Name;                                  \
         using Description = AtomConfigOptions::Description;                    \
+        using Segment = GroupConfigOptions::Segment;                           \
+        using Offset = GroupConfigOptions::Offset;                             \
+        using MainCdi = GroupConfigOptions::MainCdi;                           \
         static constexpr GroupConfigOptions group_opts()                       \
         {                                                                      \
             return GroupConfigOptions(ARGS);                                   \
@@ -90,6 +93,9 @@ public:
         }                                                                      \
         constexpr current_type entry_name()                                    \
         {                                                                      \
+            static_assert(!group_opts().is_cdi() ||                            \
+                    current_type(0).group_opts().is_segment(),                 \
+                "May only have segments inside CDI.");                         \
             return group_opts().is_cdi()                                       \
                 ? current_type(                                                \
                       current_type(0).group_opts().get_segment_offset())       \
@@ -155,6 +161,32 @@ public:
     constexpr EmptyGroupConfigRenderer config_renderer()
     {
         return EmptyGroupConfigRenderer(N);
+    }
+};
+
+class ToplevelEntryBase : public ConfigEntryBase
+{
+public:
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
+    static constexpr GroupConfigOptions group_opts()
+    {
+        return GroupConfigOptions(GroupConfigOptions::Segment(1000));
+    }
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
+};
+
+class Identification : public ToplevelEntryBase
+{
+public:
+    using base_type = ToplevelEntryBase;
+    using base_type::base_type;
+    static constexpr IdentificationRenderer config_renderer()
+    {
+        return IdentificationRenderer();
     }
 };
 

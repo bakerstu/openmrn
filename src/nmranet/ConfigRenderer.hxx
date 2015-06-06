@@ -39,6 +39,7 @@
 #include <climits>
 
 #include "utils/StringPrintf.hxx"
+#include "nmranet/SimpleNodeInfo.hxx"
 
 namespace nmranet
 {
@@ -175,6 +176,13 @@ public:
         int d_;
     };
 
+    struct MainCdi
+    {
+        constexpr MainCdi()
+        {
+        }
+    };
+
     constexpr GroupConfigOptions()
     {
     }
@@ -225,12 +233,27 @@ public:
     {
     }
 
+    template <typename... Args>
+    explicit constexpr GroupConfigOptions(const MainCdi cdi, Args... args)
+        : name(GroupConfigOptions(args...).name)
+        , description(GroupConfigOptions(args...).description)
+        , offset(GroupConfigOptions(args...).offset)
+        , segment(-2)
+    {
+    }
+
     constexpr bool is_cdi()
     {
         return segment == -2;
     }
 
-    constexpr unsigned get_segment_offset() {
+    constexpr bool is_segment()
+    {
+        return segment >= 0;
+    }
+
+    constexpr unsigned get_segment_offset()
+    {
         return offset == INT_MAX ? 0 : offset;
     }
 
@@ -264,12 +287,16 @@ public:
     template <typename... Args> void render_cdi(string *s) const
     {
         constexpr GroupConfigOptions opts = Body::group_opts();
-        const char* tag = nullptr;
+        const char *tag = nullptr;
         *s += "<";
         if (opts.is_cdi())
         {
+            *s += "?xml version=\"1.0\"?>\n<";
             tag = "cdi";
             *s += tag;
+            *s += " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                  "xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/"
+                  "cdi/1/1/cdi.xsd\"";
             HASSERT(replication_ == 1);
             HASSERT(opts.name == nullptr && opts.description == nullptr);
         }
@@ -278,7 +305,8 @@ public:
             // Regular group
             tag = "group";
             *s += tag;
-            if (replication_ != 1) {
+            if (replication_ != 1)
+            {
                 *s += StringPrintf(" replication='%u'", replication_);
             }
         }
@@ -306,6 +334,25 @@ private:
     /// Object representing the contents of this group. Must have a
     /// render_content_cdi() call.
     Body body_;
+};
+
+class IdentificationRenderer {
+public:
+    constexpr IdentificationRenderer() {}
+
+    static void render_tag(const char* tag, const char* value, string* s) {
+        *s += StringPrintf("<%s>%s</%s>\n", tag, value, tag);
+    }
+
+    void render_cdi(string *s) const {
+        extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
+        *s += "<identification>\n";
+        render_tag("manufacturer", SNIP_STATIC_DATA.manufacturer_name, s);
+        render_tag("model", SNIP_STATIC_DATA.model_name, s);
+        render_tag("hardwareVersion", SNIP_STATIC_DATA.hardware_version, s);
+        render_tag("softwareVersion", SNIP_STATIC_DATA.software_version, s);
+        *s += "</identification>\n";
+    }
 };
 
 } // namespace nmranet
