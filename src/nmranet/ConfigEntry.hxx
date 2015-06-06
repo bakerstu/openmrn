@@ -62,12 +62,13 @@ public:
     /// Initializes the config reference from an existing config reference.
     ///
     /// @param ref is the existing (or saved) config reference.
-    constexpr explicit ConfigReference(const ConfigReference& ref)
+    constexpr explicit ConfigReference(const ConfigReference &ref)
         : offset_(ref.offset())
     {
     }
 
-    constexpr unsigned offset() {
+    constexpr unsigned offset()
+    {
         return offset_;
     }
 
@@ -84,6 +85,11 @@ class ConfigEntryBase : public ConfigReference
 {
 public:
     using ConfigReference::ConfigReference;
+
+    static constexpr GroupConfigOptions group_opts()
+    {
+        return GroupConfigOptions();
+    }
 
 protected:
     /// Reads a given typed variable from the configuration file. DOes not do
@@ -166,7 +172,8 @@ public:
         return sizeof(TR);
     }
 
-    constexpr AtomConfigRenderer config_renderer() {
+    constexpr AtomConfigRenderer config_renderer()
+    {
         return AtomConfigRenderer("int", size());
     }
 
@@ -187,11 +194,13 @@ using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
 using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
 using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 
-class EventConfigEntry : public Uint64ConfigEntry {
+class EventConfigEntry : public Uint64ConfigEntry
+{
 public:
     using Uint64ConfigEntry::Uint64ConfigEntry;
 
-    constexpr AtomConfigRenderer config_renderer() {
+    constexpr AtomConfigRenderer config_renderer()
+    {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
     }
 };

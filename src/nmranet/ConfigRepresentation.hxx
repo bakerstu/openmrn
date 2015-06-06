@@ -40,12 +40,21 @@
 namespace nmranet
 {
 
-#define BEGIN_GROUP(group, base)                                               \
+#define BEGIN_GROUP(group, base, ARGS...)                                      \
     class group##base : public nmranet::BaseGroup                              \
     {                                                                          \
     public:                                                                    \
         using base_type = BaseGroup;                                           \
         using base_type::base_type;                                            \
+        using Name = AtomConfigOptions::Name;                                  \
+        using Description = AtomConfigOptions::Description;                    \
+        static constexpr GroupConfigOptions group_opts()                       \
+        {                                                                      \
+            return GroupConfigOptions(ARGS);                                   \
+        }                                                                      \
+        void render_cdi(std::string *s) const                                  \
+        {                                                                      \
+        }                                                                      \
     };
 
 class BaseGroup : public nmranet::ConfigReference
@@ -65,6 +74,8 @@ public:
         using base_type = group##prev_entry_name;                              \
         using current_type = type;                                             \
         using base_type::base_type;                                            \
+        using Name = AtomConfigOptions::Name;                                  \
+        using Description = AtomConfigOptions::Description;                    \
         static constexpr unsigned size()                                       \
         {                                                                      \
             return current_type::size() + offset_from_base();                  \
@@ -79,7 +90,15 @@ public:
         }                                                                      \
         constexpr current_type entry_name()                                    \
         {                                                                      \
-            return current_type(last_offset(), ##ARGS);                        \
+            return group_opts().is_cdi()                                       \
+                ? current_type(                                                \
+                      current_type(0).group_opts().get_segment_offset())       \
+                : current_type(last_offset());                                 \
+        }                                                                      \
+        void render_cdi(std::string *s) const                                  \
+        {                                                                      \
+            base_type::render_cdi(s);                                          \
+            entry_name().config_renderer().render_cdi(s, ##ARGS);              \
         }                                                                      \
     };
 
@@ -89,22 +108,34 @@ public:
     public:                                                                    \
         using base_type = group##prev_entry_name;                              \
         using base_type::base_type;                                            \
+        void render_content_cdi(std::string *s) const                          \
+        {                                                                      \
+            base_type::render_cdi(s);                                          \
+        }                                                                      \
+        constexpr GroupConfigRenderer<group> config_renderer()                 \
+        {                                                                      \
+            return GroupConfigRenderer<group>(1, *this);                       \
+        }                                                                      \
     };
 
-template <class Group, unsigned N> class RepeatedGroup : public ConfigReference
+template <class Group, unsigned N> class RepeatedGroup : public ConfigEntryBase
 {
 public:
-    using ConfigReference::ConfigReference;
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
     static constexpr unsigned size()
     {
         return Group::size() * N;
     }
-    template<int K>
-    constexpr Group entry()
+    template <int K> constexpr Group entry()
     {
         static_assert(K < N, "Tried to fetch an entry of a repeated "
-                      "group that does not exist!");
+                             "group that does not exist!");
         return Group(offset_ + (K * Group::size()));
+    }
+    constexpr GroupConfigRenderer<Group> config_renderer()
+    {
+        return GroupConfigRenderer<Group>(N, entry<0>());
     }
 };
 
@@ -112,13 +143,18 @@ public:
 /// Defines an empty group with no members, but blocking a certain amount of
 /// space in the rendered configuration.
 ///
-template <unsigned N> class EmptyGroup : public ConfigReference
+template <unsigned N> class EmptyGroup : public ConfigEntryBase
 {
 public:
-    using ConfigReference::ConfigReference;
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
     static constexpr unsigned size()
     {
         return N;
+    }
+    constexpr EmptyGroupConfigRenderer config_renderer()
+    {
+        return EmptyGroupConfigRenderer(N);
     }
 };
 
