@@ -148,7 +148,7 @@ public:
             new (&impl_)
                 Impl(cfg_event_on, cfg_event_off, saved_getter, saved_setter);
             new (&consumer_) BitEventConsumer(&impl_);
-            return REINIT_NEEDED;
+            return REINIT_NEEDED; // Causes events identify.
         }
         return UPDATED;
     }
