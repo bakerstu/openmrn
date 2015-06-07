@@ -60,13 +60,18 @@
 #include "TivaGPIO.hxx"
 #include "RailcomDriver.hxx"
 
-// This structure is safe to use from an interrupt context and a regular
-// context at the same time, provided that
-//
-// . one context uses only the front() and the other only the back() functions.
-//
-// . ++ and -- are compiled into atomic operations on the processor (on the
-//   count_ variable).
+/// This structure is safe to use from an interrupt context and a regular
+/// context at the same time, provided that
+///
+/// . one context uses only the front() and the other only the back() functions.
+///
+/// . ++ and -- are compiled into atomic operations on the processor (on the
+///   count_ variable).
+///
+/// @deprecated, use @ref DeviceBuffer instead.
+///
+/// @TODO(balazs.racz) replace uses of this class with DeviceBuffer (to enable
+/// select support for example).
 template<class T, uint8_t SIZE> class FixedQueue {
 public:
     FixedQueue()

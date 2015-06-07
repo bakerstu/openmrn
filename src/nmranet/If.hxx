@@ -207,6 +207,11 @@ struct NMRAnetMessage
 
 typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
 
+/// Abstract class representing an OpenLCB Interface. All interaction between
+/// the local software stack and the physical bus has to go through this
+/// class. The API that's not specific to the wire protocol appears here. The
+/// implementations of this class would be specific to the wire protocol
+/// (e.g. IfCan for CAN, and a not-yet-implemented class for TCP).
 class If : public Service
 {
 public:

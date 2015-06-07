@@ -203,7 +203,7 @@ ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
         {
             if (file->flags & O_NONBLOCK)
             {
-                return -EWOULDBLOCK;
+                return -EAGAIN;
             }
             fd_set fds;
             FD_ZERO(&fds);
@@ -225,7 +225,7 @@ ssize_t TivaCdc::write(File *file, const void *buf, size_t count)
             }
             if (file->flags & O_NONBLOCK)
             {
-                return -EWOULDBLOCK;
+                return -EAGAIN;
             }
             else
             {

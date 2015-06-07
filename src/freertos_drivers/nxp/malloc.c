@@ -47,7 +47,7 @@ extern char _pvHeapStart;
 extern char _vStackTop;
 #define __heap_start _pvHeapStart
 
-
+/// Freelist overlay for the tiny malloc implementation.
 struct __freelist {
     size_t sz;
     struct __freelist *nx;

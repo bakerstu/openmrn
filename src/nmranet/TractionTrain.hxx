@@ -48,6 +48,14 @@ namespace nmranet
 
 class TrainService;
 
+/// Virtual node class for an OpenLCB train protocol node.
+///
+/// Usage:
+///   - Create a TrainImpl defining how to send the commands to the hardware.
+///   - Create a TrainNode and pass it the pointer to the implementation.
+///
+/// for train implementations see @ref LoggingTrain, @ref dcc::Dcc28Train, @ref
+/// dcc::MMNewTrain etc.
 class TrainNode : public Node
 {
 public:
@@ -88,6 +96,11 @@ private:
     NodeHandle controllerNodeId_;
 };
 
+/// Collection of control flows necessary for implementing the Traction
+/// Protocol.
+///
+/// usage: instantiate for the given interface. Pass the pointer to the train
+/// nodes upon their construction.
 class TrainService : public Service, private Atomic
 {
 public:

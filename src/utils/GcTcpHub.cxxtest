@@ -153,6 +153,7 @@ TEST_F(GcTcpHubTest, TwoClientsPingPong)
     send_packet(":S002N0102;");
     EXPECT_EQ(":S002N0102;", readline(a.fd_, ';'));
     EXPECT_EQ(":S002N0102;", readline(b.fd_, ';'));
+    wait();
 }
 
 TEST_F(GcTcpHubTest, ClientCloseExpect)
@@ -167,6 +168,7 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
         writeline(b.fd_, ":S001N01;");
         EXPECT_EQ(":S001N01;", readline(a.fd_, ';'));
         EXPECT_EQ(can_hub_size + 2, can_hub0.size());
+        wait();
     }
     // Test writing outwards.
     send_packet(":S002N0102;");

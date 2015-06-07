@@ -96,7 +96,7 @@ ssize_t Serial::read(File *file, void *buf, size_t count)
 
     if (!result && (file->flags & O_NONBLOCK))
     {
-        return -EWOULDBLOCK;
+        return -EAGAIN;
     }
 
     return result;
@@ -151,7 +151,7 @@ ssize_t Serial::write(File *file, const void *buf, size_t count)
 
     if (!result && (file->flags & O_NONBLOCK))
     {
-        return -EWOULDBLOCK;
+        return -EAGAIN;
     }
 
     return result;

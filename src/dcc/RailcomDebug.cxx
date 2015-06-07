@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,46 +24,36 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventHandlerMock.hxx
+ * \file RailcomDebug.cxx
  *
- * Helper utilities for testing event handlers.
- *
- * This file must only ever be included in unittests.
+ * Implementation of railcom printf debugging.
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 18 May 2015
  */
 
-#ifndef _NMRANET_EVENTHANDLERMOCK_HXX_
-#define _NMRANET_EVENTHANDLERMOCK_HXX_
+#include "dcc/RailCom.hxx"
+#include "utils/StringPrintf.hxx"
 
-#include "gmock/gmock.h"
-#include "nmranet/EventHandler.hxx"
-
-namespace nmranet {
-
-/// Test handler for receiving incoming event related messages via the
-/// EventService. Incoming messages need GoogleMock expectations.
-class MockEventHandler : public EventHandler
+namespace dcc
 {
-public:
-#define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
 
-    DEFPROXYFN(HandleEventReport);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
+string railcom_debug(const Feedback &fb)
+{
+    string ret;
+    ret += StringPrintf("ch1(%d) ", fb.ch1Size);
+    for (int i = 0; i < fb.ch1Size; ++i)
+    {
+        ret += StringPrintf(
+            " %02x=%02x", fb.ch1Data[i], railcom_decode[fb.ch1Data[i]]);
+    }
+    ret += StringPrintf(" ch2(%d) ", fb.ch2Size);
+    for (int i = 0; i < fb.ch2Size; ++i)
+    {
+        ret += StringPrintf(
+            " %02x=%02x", fb.ch2Data[i], railcom_decode[fb.ch2Data[i]]);
+    }
+    return ret;
+}
 
-#undef DEFPROXYFN
-};
-
-}  // namespace nmranet
-
-#endif // _NMRAnetEventHandlerTemplates_hxx_
-
-
+} // namespace dcc

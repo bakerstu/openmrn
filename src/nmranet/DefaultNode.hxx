@@ -40,6 +40,8 @@
 namespace nmranet
 {
 
+/// Trivial implementation of a virtual Node. Stores all dynamic information in
+/// class member variables.
 class DefaultNode: public Node
 {
 public:
@@ -50,11 +52,11 @@ public:
     {
         return nodeId_;
     }
-    virtual If* interface()
+    If* interface() OVERRIDE
     {
         return interface_;
     }
-    virtual bool is_initialized()
+    bool is_initialized() OVERRIDE
     {
         return isInitialized_;
     }

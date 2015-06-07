@@ -157,6 +157,8 @@ private:
     map_type entries_;
 };
 
+/** A type-safe map that allows registration and lookup or per-node handler of
+ *  a particular message ID. see @ref NodeHandlerMapBase for details. */
 template <class Node, class Handler>
 class TypedNodeHandlerMap : private NodeHandlerMapBase
 {
@@ -199,6 +201,7 @@ public:
         return static_cast<Handler*>(NodeHandlerMapBase::lookup(node, id));
     }
 
+    /// Type-safe iterator for NodeHandlerMap.
     class iterator {
     public:
         iterator(NodeHandlerMapBase::iterator i)
@@ -229,7 +232,6 @@ public:
     iterator end() {
         return iterator(NodeHandlerMapBase::end());
     }
-
 };
 
 #endif // _UTILS_NODEHANDLERMAP_HXX_

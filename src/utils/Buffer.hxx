@@ -70,9 +70,11 @@ extern DynamicPool *mainBufferPool;
  * static initialization. */
 void init_main_buffer_pool();
 
-/** THis pointer will be saved for debugging the current allocation source. */
+/** This pointer will be saved for debugging the current allocation source. */
 extern void* g_current_alloc;
 
+/// Abstract base class for all Buffers. This class contains all shared
+/// components that are not template-dependent.
 class BufferBase : public QMember
 {
 public:

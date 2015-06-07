@@ -44,6 +44,9 @@
 namespace nmranet
 {
 
+/// A statically allocated buffer for sending one message to the OpenLCB
+/// bus. This buffer is reusable, as soon as the done notifiable is called, the
+/// buffer is free for sending the next packet.
 class WriteHelper : public Executable
 {
 public:

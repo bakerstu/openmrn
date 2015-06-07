@@ -35,6 +35,9 @@
 #ifndef _UTILS_DESTRUCTABLE_HXX_
 #define _UTILS_DESTRUCTABLE_HXX_
 
+/// Base class of everything with a virtual destructor. Useful to keep a
+/// mixture of objects in a vector<unique_ptr<Destructable>> to avoid leaking
+/// them.
 class Destructable {
 public:
     virtual ~Destructable() {}

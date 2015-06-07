@@ -66,6 +66,10 @@ enum
     DCC_FEATURE_EXP_F13 = 0b11011110,
     DCC_FEATURE_EXP_F21 = 0b11011111,
 
+    DCC_PROG_READ1 = 0b11100100,
+    DCC_PROG_WRITE1 = 0b11101100,
+    DCC_PROG_READ4 = 0b11100000,
+
     // Extended packet: 128-step speed.
     DCC_EXT_SPEED = 0b00111111,
     DCC_EXT_SPEED_FORWARD = 0x80,
@@ -223,6 +227,20 @@ void Packet::add_dcc_function21_28(unsigned values)
 {
     payload[dlc++] = DCC_FEATURE_EXP_F21;
     payload[dlc++] = values & 0xff;
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_pom_read1(unsigned cv_number) {
+    payload[dlc++] = DCC_PROG_READ1 | ((cv_number >> 8) & 3);
+    payload[dlc++] = cv_number & 0xff;
+    payload[dlc++] = 0;
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_pom_write1(unsigned cv_number, uint8_t value) {
+    payload[dlc++] = DCC_PROG_WRITE1 | ((cv_number >> 8) & 3);
+    payload[dlc++] = cv_number & 0xff;
+    payload[dlc++] = value;
     add_dcc_checksum();
 }
 

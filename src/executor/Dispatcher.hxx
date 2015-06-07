@@ -130,6 +130,8 @@ private:
     template<class T>
     friend class GenericHubFlow;
 
+    /// Internal information we store about each registered handler:
+    /// identifier, mask, handler pointer.
     struct HandlerInfo
     {
         HandlerInfo() : handler(nullptr)
@@ -169,6 +171,8 @@ private:
 #define BASE_NUM_PRIO NUM_PRIO
 #endif
 
+/// Type-specific implementations of the DispatchFlow methods. see @ref
+/// DispatchFlowBase.
 template <class MessageType, int NUM_PRIO>
 class DispatchFlow : public TypedStateFlow<MessageType, DispatchFlowBase<BASE_NUM_PRIO> > {
 public:

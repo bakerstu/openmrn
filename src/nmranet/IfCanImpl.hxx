@@ -244,7 +244,7 @@ private:
     }
 };
 
-/* The addressed write flow is responsible for sending addressed messages to
+/** The addressed write flow is responsible for sending addressed messages to
  * the CANbus. It uses some shared states from the generic CAN write flow base
  * class, and extends it with destination alias lookup states.  */
 class AddressedCanMessageWriteFlow : public CanMessageWriteFlow

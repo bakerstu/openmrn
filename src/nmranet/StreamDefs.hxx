@@ -36,6 +36,7 @@
 namespace nmranet
 {
 
+/// Static constants and helper functions for the OpenLCB streaming protocol.
 struct StreamDefs
 {
     static const uint16_t MAX_PAYLOAD = 0xffff;

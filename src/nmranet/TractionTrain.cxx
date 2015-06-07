@@ -63,6 +63,9 @@ If *TrainNode::interface()
     return service_->interface();
 }
 
+/// Implementation structure for TrainService. Holds ownership of the various
+/// flows that are necessary for the correct operation, but do not need to be
+/// exposed on the external API.
 struct TrainService::Impl
 {
     class TractionRequestFlow;
@@ -71,6 +74,8 @@ struct TrainService::Impl
     {
     }
 
+    /// Handler for incoming OpenLCB messages of MTI == Traction Protocol
+    /// Request.
     class TractionRequestFlow : public IncomingMessageStateFlow
     {
     public:
@@ -435,9 +440,6 @@ TrainService::~TrainService()
 void TrainService::register_train(TrainNode *node)
 {
     interface_->add_local_node(node);
-    /** @TODO(balazs.racz) We should have a single flow for initializing all
-     * trains in sequence instead of creating a new one for each in
-     * parallel. */
     extern void StartInitializationFlow(Node * node);
     StartInitializationFlow(node);
     AtomicHolder h(this);

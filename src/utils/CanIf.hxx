@@ -155,6 +155,8 @@ private:
     CanIf *ifCan_;
 };
 
+/// Interface class for CANbus-based protocols. Contains a dispatcher for
+/// incoming CANbus messages, and a queue for outgoing messages.
 class CanIf
 {
 public:

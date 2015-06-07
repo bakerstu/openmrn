@@ -42,6 +42,28 @@ typedef DummyPin PIN_RailcomCutout;
 #define SIGNAL_LEVEL_ONE 0x80000000UL
 
 /*
+*/
+
+/**
+  Device driver for decoding a DCC signal on a TI Tiva class microcontroller.
+ 
+  This driver exports a filesystem device node, but that file node is not
+  usable for reading or writing anything at the moment. The only feature
+  supported by this device driver right now is that it is able to tell a
+  RailcomDriver when the railcom cutout is supposed to start, when we're in the
+  middle and when it is over. This is necessary for the correct functionality
+  of the railcom driver.
+
+  @TODO: implement actual packet decoding and sending back to the application
+  layer.
+
+  Usage: Define a structure declaring your hardware information. See below for
+  what you need to define in there. Instantiate the device driver and pass the
+  pointer to the railcom driver to the constructor. There is no need to touch
+  the device from the application layer.
+
+  Example hardware definitions:
+
 struct DCCDecode
 {
     static const auto TIMER_BASE = WTIMER4_BASE;
@@ -63,8 +85,7 @@ struct DCCDecode
     static const int Q_SIZE = 16;
 
 };
-*/
-
+ */
 template <class HW> class TivaDccDecoder : public Node
 {
 public:

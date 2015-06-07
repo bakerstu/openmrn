@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,46 +24,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventHandlerMock.hxx
+ * \file StringPrintf.hxx
  *
- * Helper utilities for testing event handlers.
- *
- * This file must only ever be included in unittests.
+ * Utility for creating c++ strings on demand with a printf-like structure.
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 10 May 2015
  */
 
-#ifndef _NMRANET_EVENTHANDLERMOCK_HXX_
-#define _NMRANET_EVENTHANDLERMOCK_HXX_
+#include "utils/StringPrintf.hxx"
 
-#include "gmock/gmock.h"
-#include "nmranet/EventHandler.hxx"
-
-namespace nmranet {
-
-/// Test handler for receiving incoming event related messages via the
-/// EventService. Incoming messages need GoogleMock expectations.
-class MockEventHandler : public EventHandler
+std::string StringPrintf(const char *format, ...)
 {
-public:
-#define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
+#ifdef __FreeRTOS__
+    static const int kBufSize = 64;
+#else
+    static const int kBufSize = 1000;
+#endif
+    char buffer[kBufSize];
+    va_list ap;
 
-    DEFPROXYFN(HandleEventReport);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
-
-#undef DEFPROXYFN
-};
-
-}  // namespace nmranet
-
-#endif // _NMRAnetEventHandlerTemplates_hxx_
-
-
+    va_start(ap, format);
+    int n = vsnprintf(buffer, kBufSize, format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    if (n < kBufSize)
+    {
+        return string(buffer, n);
+    }
+    string ret(n + 1, 0);
+    va_start(ap, format);
+    n = vsnprintf(&ret[0], ret.size(), format, ap);
+    va_end(ap);
+    HASSERT(n >= 0);
+    ret.resize(n);
+    return ret;
+}

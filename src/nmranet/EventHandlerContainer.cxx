@@ -60,6 +60,8 @@ void TreeEventHandlers::unregister_handlerr(EventHandler *handler,
     DIE("tried to unregister a handler that was not registered");
 }
 
+/// Class representing the iteration state on the binary tree-based event
+/// handler registry.
 class TreeEventHandlers::Iterator : public EventIterator
 {
 public:

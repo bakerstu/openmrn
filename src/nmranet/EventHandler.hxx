@@ -59,11 +59,25 @@ enum EventState {
   EVENT_ALL_MASK = 0xffffffffffffffffULL
   };*/
 
+/// Shared notification structure that is assembled for each incoming
+/// event-related message, and passed around to all event handlers.
 typedef struct {
+  /// The event ID from the incoming message.
   EventId event;
+  /// Specifies the mask in case the request is for an event range. The low
+  /// bits are set to one, the high bits are set to zero. Ranges of size 1 have
+  /// mask==0, a range that covers all events has mask==0xffff...f.
   EventId mask;
+  /// Information about the sender of the incoming event-related OpenLCB
+  /// message. It is not specified whether the node_id or the alias is
+  /// specified, but they are not both zero.
   NodeHandle src_node;
+  /// nullptr for global messages; points to the specific virtual node for
+  /// addressed events identify message.
   Node* dst_node;
+  /// For producer/consumer identified messages, specifies the state of the
+  /// producer/consumer as the sender of the message
+  /// (valid/invalid/unknown/reserved).
   EventState state;
 } EventReport;
 
@@ -77,50 +91,59 @@ extern WriteHelper event_write_helper2;
 extern WriteHelper event_write_helper3;
 extern WriteHelper event_write_helper4;
 
+/// Abstract base class for all event handlers. Instances of this class can
+/// get registered with the event service to receive notifications of incoming
+/// event messages from the bus.
 class EventHandler {
 public:
   virtual ~EventHandler() {}
 
-  // Called on incoming EventReport messages. Filled: src_node, event. Mask is
-  // always 1 (filled in). state is not filled in.
+  /// Called on incoming EventReport messages. Filled: src_node, event. Mask is
+  /// always 1 (filled in). state is not filled in.
   virtual void HandleEventReport(EventReport* event,
                                  BarrierNotifiable* done) = 0;
 
-  // Called on another node sending ConsumerIdentified for this event. Filled:
-  // event_id, mask=1, src_node, state.
+  /// Called on another node sending ConsumerIdentified for this event. Filled:
+  /// event_id, mask=1, src_node, state.
   virtual void HandleConsumerIdentified(EventReport* event,
                                         BarrierNotifiable* done) {
     done->notify();
   };
 
-  // Called on another node sending ConsumerRangeIdentified. Filled: event id, mask (!= 1), src_node. Not filled: state.
+  /// Called on another node sending ConsumerRangeIdentified. Filled: event id,
+  /// mask (!= 1), src_node. Not filled: state.
   virtual void HandleConsumerRangeIdentified(EventReport* event,
                                              BarrierNotifiable* done) {
     done->notify();
   }
 
-  // Called on another node sending ProducerIdentified for this event. Filled: event_id, mask=1, src_node, state.
+  /// Called on another node sending ProducerIdentified for this event. Filled:
+  /// event_id, mask=1, src_node, state.
   virtual void HandleProducerIdentified(EventReport* event,
                                         BarrierNotifiable* done) {
     done->notify();
   }
 
-  // Called on another node sending ProducerRangeIdentified for this event. Filled: event id, mask (!= 1), src_node. Not filled: state.
+  /// Called on another node sending ProducerRangeIdentified for this
+  /// event. Filled: event id, mask (!= 1), src_node. Not filled: state.
   virtual void HandleProducerRangeIdentified(EventReport* event,
                                              BarrierNotifiable* done) {
     done->notify();
   }
 
-  // Called on the need of sending out identification messages. event is
-  // NULL. This happens on startup, or when a global or addressed
-  // IdentifyGlobal message arrives. Might have destination node id!
-  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done) = 0;
+  /// Called on the need of sending out identification messages. event is
+  /// NULL. This happens on startup, or when a global or addressed
+  /// IdentifyGlobal message arrives. Might have destination node id!
+  virtual void HandleIdentifyGlobal(EventReport *event,
+                                    BarrierNotifiable *done) = 0;
 
-  // Called on another node sending IdentifyConsumer. Filled: src_node, event, mask=1. Not filled: state.
+  /// Called on another node sending IdentifyConsumer. Filled: src_node, event,
+  /// mask=1. Not filled: state.
   virtual void HandleIdentifyConsumer(EventReport* event,
                                       BarrierNotifiable* done) = 0;
 
-  // Called on another node sending IdentifyProducer. Filled: src_node, event, mask=1. Not filled: state.
+  /// Called on another node sending IdentifyProducer. Filled: src_node, event,
+  /// mask=1. Not filled: state.
   virtual void HandleIdentifyProducer(EventReport* event,
                                       BarrierNotifiable* done) = 0;
 };
@@ -130,6 +153,14 @@ typedef void (EventHandler::*EventHandlerFunction)(EventReport* event,
 
 class EventIterator;
 
+/// Global static object for registering event handlers.
+///
+/// Usage: create one of the implementation classes depending on the resource
+/// requirements of your binary. In the event handlers constructor, register
+/// the event handler via the singleton pointer.
+///
+/// @TODO(balazs.racz) transition to the usual Singleton class instead of
+/// hand-initialized singleton pointer.
 class EventRegistry {
 public:
     virtual ~EventRegistry();
@@ -151,8 +182,8 @@ public:
     /** mask = 0 means exact event only. Mask = 63 means this is a global
      * handler. Mask == 0 means we should be registered for one single
      * eventid. */
-  virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
-  virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
+    virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
+    virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
   
     // Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator* create_iterator() = 0;

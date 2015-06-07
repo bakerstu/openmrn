@@ -41,6 +41,9 @@
 
 namespace dcc {
 
+/// Strongly typed wrapper representing a short DCC address. This allows C++
+/// type inference to decide whether a particular value is a long or short
+/// address.
 struct DccShortAddress {
     uint8_t value;
     explicit DccShortAddress(uint8_t v)
@@ -49,6 +52,9 @@ struct DccShortAddress {
     }
 };
 
+/// Strongly typed wrapper representing a long DCC address. This allows C++
+/// type inference to decide whether a particular value is a long or short
+/// address.
 struct DccLongAddress {
     uint16_t value;
     explicit DccLongAddress(uint16_t v)
@@ -57,6 +63,8 @@ struct DccLongAddress {
     }
 };
 
+/// Strongly typed wrapper representing a marklin-motorola protocol
+/// address. This address is between 0 and 80.
 struct MMAddress {
     uint8_t value;
     explicit MMAddress(uint8_t v)

@@ -55,6 +55,12 @@ extern size_t g_alias_use_conflicts;
 class AliasAllocator;
 class IfCan;
 
+/// Implementation of the OpenLCB interface abstraction for the CAN-bus
+/// interface standard. This contains the parsers for CAN frames, dispatcher
+/// for the different frame types, the alias mapping tables (both local and
+/// remote nodes), and the flows responsible for sending outgoing
+/// messages. Inherits handling of the MTI-indexed messages from the base class
+/// @ref If.
 class IfCan : public If, public CanIf
 {
 public:

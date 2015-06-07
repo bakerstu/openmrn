@@ -79,6 +79,8 @@ private:
   string dirName_;
 };
 
+/** This class creates a temporary file for the test, and removes it when the
+ * test is done. */
 class TempFile {
 public:
   TempFile(const TempDir& dir, const string& basename) {
@@ -101,12 +103,14 @@ public:
       return fd_;
   }
 
+  /// writes a single byte to the temporary file.
   void write(const uint8_t byte) {
     string s;
     s.push_back(byte);
     write(s);
   }
 
+  /// writes the given data to the temporary file.
   void write(const string& s) {
     size_t ofs = 0;
     while (ofs < s.size()) {

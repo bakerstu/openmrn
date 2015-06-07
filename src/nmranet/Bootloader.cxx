@@ -60,6 +60,7 @@ enum InitState
     INITIALIZED,
 };
 
+/// Internal state of the bootloader stack.
 struct BootloaderState
 {
     struct can_frame input_frame;

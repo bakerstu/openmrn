@@ -72,26 +72,29 @@ struct Packet
         memset(this, 0, sizeof(*this));
     }
 
+    /// Specifies the meaning of the command byte for packets to send.
     struct pkt_t
     {
-        // Always 0.
+        /// Always 0.
         uint8_t is_pkt : 1;
-        // 0: DCC packet, 1: motorola packet.
+        /// 0: DCC packet, 1: motorola packet.
         uint8_t is_marklin : 1;
 
-        // typically for DCC packets:
-        // 1: do NOT append an EC byte to the end of the packet.
+        /// typically for DCC packets:
+        /// 1: do NOT append an EC byte to the end of the packet.
         uint8_t skip_ec : 1;
-        // 1: send long preamble instead of packet. 0: send normal preamble and
-        // pkt.
+        /// 1: send long preamble instead of packet. 0: send normal preamble
+        /// and pkt.
         uint8_t send_long_preamble : 1;
-        // 1: wait for service mode ack and report it back to the host.
+        /// 1: wait for service mode ack and report it back to the host.
         uint8_t sense_ack : 1;
-        // The packet will be sent 1 + rept_count times to the wire. default: 0.
+        /// The packet will be sent 1 + rept_count times to the wire. default:
+        /// 0.
         uint8_t rept_count : 2;
         uint8_t reserved : 1;
     };
 
+    /// Specifies the meaning of the command byte for meta-commands to send.
     struct cmd_t
     {
         // Always 1.
@@ -180,6 +183,14 @@ struct Packet
     void add_dcc_function9_12(unsigned values);
     void add_dcc_function13_20(unsigned values);
     void add_dcc_function21_28(unsigned values);
+
+    /** Adds a DCC POM read single CV command and the xor byte. This should be
+     * called after add_dcc_address. */
+    void add_dcc_pom_read1(unsigned cv_number);
+
+    /** Adds a DCC POM write single CV command and the xor byte. This should be
+     * called after add_dcc_address. */
+    void add_dcc_pom_write1(unsigned cv_number, uint8_t value);
 
     /** Appends one byte to the packet payload that represents the XOR checksum
      * for DCC. */

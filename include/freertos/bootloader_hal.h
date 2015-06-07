@@ -102,7 +102,7 @@ extern void bootloader_hw_set_to_safe(void);
  *  initialized. Initializes the processor state, CAN hardware etc. */
 extern void bootloader_hw_init(void);
 
-/** @Returns true if the hardware state requests entry to the bootloader. This
+/** @returns true if the hardware state requests entry to the bootloader. This
  *  will typically read a GPIO pin for a bootloader switch. This function will
  *  run after hw_init. */
 extern bool request_bootloader(void);
@@ -136,7 +136,6 @@ extern bool read_can_frame(struct can_frame *frame);
 extern bool try_send_can_frame(const struct can_frame &frame);
 
 #endif
-
 
 /** Returns the boundaries of the user flash.
  *

@@ -42,6 +42,8 @@
 namespace nmranet
 {
 
+/// Structure representing the layout of the memory space for Simple Node
+/// Identification manufacturer-specified data.
 struct SimpleNodeStaticValues
 {
     const uint8_t version;
@@ -51,6 +53,8 @@ struct SimpleNodeStaticValues
     const char software_version[21];
 };
 
+/// Structure representing the layout of the memory space for Simple Node
+/// Identification user-editable data.
 struct SimpleNodeDynamicValues
 {
     uint8_t version;
@@ -76,6 +80,11 @@ extern const char *const SNIP_DYNAMIC_FILENAME;
 void init_snip_user_file(int fd, const char *user_name,
                          const char *user_description);
 
+/// Handler for the Simple Node Information Protocol requests.
+///
+/// Uses the generic SimpleInfoProtocol handler with a specific response
+/// structure (@ref SNIPHandler::SNIP_RESPONSE) to assemble the necessary
+/// response packets.
 class SNIPHandler : public IncomingMessageStateFlow
 {
 public:

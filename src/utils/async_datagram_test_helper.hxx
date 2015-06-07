@@ -41,6 +41,7 @@
 
 namespace nmranet {
 
+/// Test base class for OpenLCB unittests that need a datagram handler.
 class AsyncDatagramTest : public AsyncNodeTest
 {
 protected:
@@ -53,6 +54,25 @@ protected:
 
 Pool* const g_incoming_datagram_allocator = mainBufferPool;
 
+/// Test base class for OpenLCB unittests that simulate two physical or virtual
+/// nodes talking to each other with the canbus protocol.
+///
+/// The two modes of operation are as follows:
+///
+/// 1) The test base class creates one interface on the canbus, and adds two
+/// virtual nodes to this interface. These virtual nodes will be able to send
+/// datagrams to each other via local loopback without generating any CANbus
+/// traffic visible outside. This mode does not test the CAN frame
+/// fragmentation and parsing code.
+///
+/// 2) the test base class creates two independent CAN interface objects that
+/// will be both wired to the same CAN hub (aka virtual CAN bus). The two
+/// interfaces will each have one virtual node (but separate alias allocation,
+/// local and remote alias cache and local nodes map structure). Talking
+/// between these nodes will cause the datagram to be fragmented and sent onto
+/// the CAN bus. Using this mode will require tests to make expectations on the
+/// canbus traffic, or ignore all canbus packets from the test correctness
+/// perspective.
 class TwoNodeDatagramTest : public AsyncDatagramTest
 {
 protected:
@@ -62,6 +82,9 @@ protected:
         OTHER_NODE_ALIAS = 0x225,
     };
 
+    /// @param separate_if defines which mode the test base should operate
+    /// in. false = mode 1 (one interface, two virtual nodes); true = mode 2
+    /// (two interfaces).
     void setup_other_node(bool separate_if)
     {
         if (separate_if)
@@ -85,6 +108,9 @@ protected:
         wait();
     }
 
+    /// Adds the necessary expectations for the address lookup reuqests on the
+    /// CANbus by the first datagram being sent from node_ to otherNode_. Not
+    /// needed for mode 1 operation.
     void expect_other_node_lookup()
     {
         expect_packet(":X1070222AN02010D000103;"); // looking for DST node

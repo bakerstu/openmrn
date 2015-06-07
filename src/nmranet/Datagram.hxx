@@ -50,12 +50,15 @@ extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 // cont
 typedef Payload DatagramPayload;
 
+/// Message structure for incoming datagram handlers.
 struct IncomingDatagram
 {
+    /// Originator of the incoming datagram.
     NodeHandle src;
+    /// Virtual node that the datagram was addressed to.
     Node *dst;
-    // Owned by the current IncomingDatagram object. Includes the datagram ID
-    // as the first byte.
+    /// Owned by the current IncomingDatagram object. Includes the datagram ID
+    /// as the first byte.
     DatagramPayload payload;
 };
 
@@ -103,6 +106,9 @@ public:
         return result_;
     }
 
+    /// Known result codes from the DatagramClient. Some of these are
+    /// duplicates from the general result codes; others (the ones above 16
+    /// bit) are specific to the DatagramClient.
     enum ResultCodes
     {
         PERMANENT_ERROR = 0x1000,

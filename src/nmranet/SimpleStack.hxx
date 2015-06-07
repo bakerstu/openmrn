@@ -52,6 +52,7 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
+#include "utils/HubDeviceSelect.hxx"
 
 namespace nmranet
 {
@@ -59,6 +60,18 @@ namespace nmranet
 extern const char CDI_DATA[];
 extern const size_t CDI_SIZE;
 
+/// Helper class for bringing up all components needed for a typical OpenLCB
+/// node.
+///
+/// Usage: create a global variable of type SimpleCanStack with the node's
+/// NodeID as argument. For any additional components needed use the accessors
+/// (such as executor(), service(), or memory_config_handler()) to instantiate
+/// them. In the beginning of appl_main define how to access the bus, for
+/// example by add_can_port_async() or add_gridconnect_port() or
+/// connect_tcp_gridconnect_hub(). At the end of appl_main start the stack's
+/// executor by calling either loop_executor() or start_executor_thread().
+///
+/// Example: applications/async_blink/main.cxx
 class SimpleCanStack
 {
 public:
@@ -66,40 +79,54 @@ public:
 
     SimpleCanStack(const nmranet::NodeID node_id);
 
+    /// @returns the executor that's controlling the main thread of the OpenLCB
+    /// stack.
     Executor<EXECUTOR_PRIORITIES> *executor()
     {
         return &executor_;
     }
 
+    /// @returns a plain service bound to the main thread's executor.
     Service *service()
     {
         return &service_;
     }
 
+    /// @returns the nmranet Interface object.
     IfCan *interface()
     {
         return &ifCan_;
     }
 
+    /// @returns the datagram service for registering new datagram handlers or
+    /// acquiring datagram client objects.
     DatagramService* dg_service() {
         return &datagramService_;
     }
 
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
     Node *node()
     {
         return &node_;
     }
 
+    /// @returns the CanHubFlow to which this stack is talking to. This hub
+    /// flow usually has two members: the interface object from the software
+    /// stack and the hardware connection via which to connect to the physical
+    /// bus (which may be a device driver or a gridconnect protocol converter).
     CanHubFlow *can_hub()
     {
         return &canHub0_;
     }
 
+    /// @return the handler for the memory configuration protocol. This is
+    /// needed for registering additional memory spaces.
     MemoryConfigHandler* memory_config_handler() {
         return &memoryConfigHandler_;
     }
 
-    /** Adds a CAN bus port with synchronous driver API. */
+    /// Adds a CAN bus port with synchronous driver API.
     void add_can_port_blocking(const char *device)
     {
         int can_fd = ::open(device, O_RDWR);
@@ -110,26 +137,39 @@ public:
     }
 
 #ifdef __FreeRTOS__
-    /** Adds a CAN bus port with asynchronous driver API. */
+    /// Adds a CAN bus port with asynchronous driver API.
+    ///
+    /// @deprecated: most current FreeRTOS drivers use the the select-based
+    /// asynchronous API, so they need add_can_port_select().
     void add_can_port_async(const char *device)
     {
         auto* port = new HubDeviceNonBlock<CanHubFlow>(&canHub0_, device);
         additionalComponents_.emplace_back(port);
     }
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    void add_can_port_select(const char *device)
+    {
+        auto* port = new HubDeviceSelect<CanHubFlow>(&canHub0_, device);
+        additionalComponents_.emplace_back(port);
+    }
 #endif
 
-    /** Adds a gridconnect port to the CAN bus. */
+    /// Adds a gridconnect port to the CAN bus.
     void add_gridconnect_port(const char* path, Notifiable* on_exit = nullptr);
 
 #if defined(__linux__) || defined(__MACH__)
-    /** Adds a gridconnect port to the CAN bus with setting the TTY
-     * options. Suitablefor linux /dev/ttyACMxx devices. */
+    /// Adds a gridconnect port to the CAN bus with setting the TTY options to
+    /// raw. Suitablefor linux /dev/ttyACMxx devices. The most important option
+    /// this call sets is to not echo characters coming in from the device back
+    /// to the device. Echoing data back causes alias allocation problems and
+    /// nodes on the bus repeatedly dropping their allocated aliases.
     void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
 #endif
 
-    /** Starts a TCP server on the specified port in listening mode. Each
-     * incoming connection will be assumed to be in gridconnect protocol and
-     * will be added to the gridconnect hub. */
+    /// Starts a TCP server on the specified port in listening mode. Each
+    /// incoming connection will be assumed to be in gridconnect protocol and
+    /// will be added to the gridconnect hub.
     void start_tcp_hub_server(int port)
     {
         /// @TODO (balazs.racz) make this more efficient by rendering to string
@@ -138,7 +178,7 @@ public:
         new GcTcpHub(&canHub0_, port);
     }
 
-    /** Connects to a CAN hub using TCP with the gridconnect protocol. */
+    /// Connects to a CAN hub using TCP with the gridconnect protocol.
     void connect_tcp_gridconnect_hub(const char* host, int port)
     {
         int fd = ConnectSocket(host, port);
@@ -146,7 +186,7 @@ public:
         create_gc_port_for_can_hub(&canHub0_, fd);
     }
 
-    /** Causes all CAN packets to be printed to stdout. */
+    /// Causes all CAN packets to be printed to stdout.
     void print_all_packets()
     {
         auto *port = new DisplayPort(&service_);
@@ -154,12 +194,12 @@ public:
         additionalComponents_.emplace_back(port);
     }
 
-    /** Returns the hub to be used for gridconnect-format CANbus. You can
-     * inject text CAN packets to this hub, add printers and in general connect
-     * devices and sockets using the gridconnect protocol to talk CANbus.
-     *
-     * The actual gridconnect parser / renderer objects will be created upon
-     * the first call to this function. */
+    /// Returns the hub to be used for gridconnect-format CANbus. You can
+    /// inject text CAN packets to this hub, add printers and in general connect
+    /// devices and sockets using the gridconnect protocol to talk CANbus.
+    ///
+    /// The actual gridconnect parser / renderer objects will be created upon
+    /// the first call to this function.
     HubFlow *gridconnect_hub()
     {
         if (!gcHub_)
@@ -171,14 +211,14 @@ public:
         return gcHub_.get();
     }
 
-    /** Donates the current thread to the executor. Never returns. */
+    /// Donates the current thread to the executor. Never returns.
     void loop_executor()
     {
         start_stack();
         executor_.thread_body();
     }
 
-    /** Instructs the executor to create a new thread and run in there. */
+    /// Instructs the executor to create a new thread and run in there.
     void start_executor_thread(const char *name, int priority,
                                size_t stack_size)
     {
@@ -192,8 +232,8 @@ private:
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
         Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 
-    /** Call this function once after the actual IO ports are set up. Calling
-     * before the executor starts looping is okay. */
+    /// Call this function once after the actual IO ports are set up. Calling
+    /// before the executor starts looping is okay.
     void start_stack();
 
     /// This executor's threads will be handled
@@ -202,8 +242,8 @@ private:
     Service service_{&executor_};
     /// Abstract CAN bus in-memory.
     CanHubFlow canHub0_{&service_};
-    /** NMRAnet interface for sending and receiving messages, formatting them
-     * to the CAN bus port and maintaining the conversion flows, caches etc. */
+    /// NMRAnet interface for sending and receiving messages, formatting them
+    /// to the CAN bus port and maintaining the conversion flows, caches etc.
     IfCan ifCan_{
         &executor_,                      &canHub0_,
         config_local_alias_cache_size(), config_remote_alias_cache_size(),
@@ -224,12 +264,12 @@ private:
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};
     MemoryConfigHandler memoryConfigHandler_{&datagramService_,
-            &node_, config_num_memory_spaces()};
+            nullptr, config_num_memory_spaces()};
 
-    /** All packets are forwarded to this hub in gridconnect format, if
-     * needed. Will be initialized upon first use. */
+    /// All packets are forwarded to this hub in gridconnect format, if
+    /// needed. Will be initialized upon first use.
     std::unique_ptr<HubFlow> gcHub_;
-    /** Bridge between canHub_ and gcHub_. Lazily initialized. */
+    /// Bridge between canHub_ and gcHub_. Lazily initialized.
     std::unique_ptr<GCAdapterBase> gcAdapter_;
 
     /// Stores and keeps ownership of optional components.

@@ -40,6 +40,9 @@
 
 template <class Data> class FdHubWriteFlow;
 
+/// Template-nonspecific base class for @ref FdHubPort. The purpose of this
+/// class is to avoid compiling this code multiple times for differently typed
+/// devices (and thus saving flash space).
 class FdHubPortBase : public Destructable, private Atomic
 {
 public:
@@ -77,6 +80,8 @@ protected:
      * released. */
     virtual void unregister_write_port() = 0;
 
+    /// Call when an IO error is encountered. Closes the FD, unregisters the
+    /// port from the hub and causes the threads to exit.
     void report_error()
     {
         {
@@ -94,6 +99,7 @@ protected:
         unregister_write_port();
     }
 
+    /// Read thread implementation with template-inspecific methods.
     class ReadThreadBase : public OSThread
     {
     public:
@@ -177,6 +183,9 @@ protected:
     unsigned writeExitEnqueued_ : 1;
 };
 
+/// State flow for writing data to an fd. This flow performs synchronous
+/// writes, thus must be run on its own executor (and must never be run on the
+/// shared executor used by the stack).
 template <class Data>
 class FdHubWriteFlow : public StateFlow<Buffer<Data>, QList<1>>
 {
@@ -235,6 +244,16 @@ public:
     FdHubPortBase *port_;
 };
 
+/// HubPort that connects a raw device to a strongly typed Hub.
+///
+/// The device is given by the fd to an opened device instance (or socket,
+/// pipe, etc). Starts two additional threads: one for reading, one for
+/// writing.
+///
+/// Reads and writes will be performed in the units defined by the type of the
+/// hub: for string-typed hubs in 64 bytes units; for hubs of specific
+/// structures (such as CAN frame, dcc Packets or dcc Feedback structures) in
+/// the units of the size of the structure.
 template <class HFlow> class FdHubPort : public FdHubPortBase
 {
 public:
@@ -263,6 +282,7 @@ public:
         writeFlow_.send(b);
     }
 
+    /// Thread performing the read operations on the device.
     class ReadThread : public ReadThreadBase
     {
     public:

@@ -41,7 +41,11 @@
 namespace nmranet
 {
 
+/**
+   Base service for OpenLCB streaming protocol.
 
+   This code does not work yet.
+ */
 class Stream
 {
 public:

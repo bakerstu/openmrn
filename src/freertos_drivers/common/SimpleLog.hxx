@@ -36,6 +36,10 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
 
+/// A very simple logging mechanism of driver events that is capable of logging
+/// a few entries of an 8-bit enum value, in a gdb-friendly way.
+///
+/// C is typically uint64_t.
 template<typename C> class SimpleLog {
 public:
   SimpleLog()

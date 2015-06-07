@@ -97,7 +97,12 @@ lib/timestamp : FORCE $(BUILDDIRS)
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
 $(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
-	flock $(OPENMRNPATH)/targets/$(TARGET) -c "$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all"
+ifdef FLOCKPATH
+	$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all"
+else
+	echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
+	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
+endif
 
 # We cannot make lib/timestamp a phony target or else every test will always be
 # remade.
@@ -145,7 +150,7 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 .SUFFIXES:
 .SUFFIXES: .o .c .cxx .cpp .S .xml .cout .cxxout
 
-.xml.o:
+.xml.o: $(OPENMRNPATH)/bin/build_cdi.py
 	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cxxout
 	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
 	$(CXX) -MM $(CXXFLAGS) -x c++ $*.cxxout > $*.d

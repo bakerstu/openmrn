@@ -41,6 +41,11 @@
 namespace nmranet
 {
 
+/// Implementation of the DatagramService with the CANbus-specific OpenLCB
+/// datagram protocol. This service is responsible for fragmenting outgoing
+/// datagram messages to the CANbus, assembling incoming datagram frames into
+/// messages and managing the necessary temporary buffers. This class is also
+/// responsible for instantiating the correct DatagramClient objects.
 class CanDatagramService : public DatagramService
 {
 public:

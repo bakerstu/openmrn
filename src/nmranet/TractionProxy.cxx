@@ -73,6 +73,9 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo, Trai
     return train_node;
 }
 
+/// PImpl Implementation structure for the Traction Proxy service. Owns all
+/// implementation flows, which are important for the correct function of the
+/// service, but are not needed to be visible on the API.
 struct TractionProxyService::Impl
 {
 public:
@@ -99,6 +102,8 @@ public:
         return proxyNode_;
     }
 
+    /// State flow handling incoming OpenLCB messages of MTI == Traction proxy
+    /// Request.
     class ProxyRequestFlow : public IncomingMessageStateFlow
     {
     public:

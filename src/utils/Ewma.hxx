@@ -35,17 +35,36 @@
 #include <time.h>
 #include <stdint.h>
 
+/// Exponentially weighted moving average.
+///
+/// This class allows an O(1) representation of an average over a timeseries of
+/// data. This is the algorithm that Linux is using for the loadavg
+/// calculation. The algorithm is parametrized by a coefficient \alpha. The
+/// larger \alpha is, the longer "memory" the average has, meaning that the
+/// slower the average adapts to a changing situation.
+///
+/// This class is implemented to perform computation of transfer speed. It
+/// keeps track of the time since the last call, computes the speed in
+/// bytes/sec, and averages the speed values according to the EWMA algorithm.
+///
+/// This class currently does not work under freertos due to the clock readout
+/// mechanism used. To fix it, we'd need to create an API for an equally
+/// accurate clock readout mechanism under linux and freertos.
 class Ewma {
 public:
     Ewma(float alpha = 0.8) : alpha_(alpha) {
 
     }
 
+    /// Sets the absolute value where the transfer is. Sequential calls must
+    /// have an increasing value of `offset'.
     void add_absolute(uint32_t offset) {
         add_diff(offset - lastOffset_);
         lastOffset_ = offset;
     }
 
+    /// Notifies the average algorithm that since the last call `bytes'
+    /// additional bytes were transferred.
     void add_diff(uint32_t bytes) {
         long long t = current_time();
         if (lastMeasurementTimeNsec_) {
@@ -59,6 +78,7 @@ public:
         lastMeasurementTimeNsec_ = t;
     }
 
+    /// @returns the current average speed in bytes/sec.
     float avg() { return avg_; }
 
 private:

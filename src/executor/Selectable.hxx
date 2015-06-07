@@ -35,6 +35,8 @@
 #ifndef _EXECUTOR_SELECTABLE_HXX_
 #define _EXECUTOR_SELECTABLE_HXX_
 
+/// Handler structure that ExecutorBase knows about each entry to the select
+/// call. See @ref ExecutorBase::select().
 class Selectable : public QMember
 {
 public:

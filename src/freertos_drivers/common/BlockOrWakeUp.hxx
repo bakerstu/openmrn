@@ -76,6 +76,7 @@ public:
     friend class LockHolder;
     friend class CriticalHolder;
 
+    /// RAII class for holding a critical section lock.
     struct CriticalHolder
     {
         ~CriticalHolder()
@@ -103,6 +104,8 @@ public:
         BlockOrWakeUp<Critical> *parent_;
     };
 
+    /// RAII class for holding a mutex lock that can be upgraded to a critical
+    /// section lock.
     struct LockHolder
     {
         LockHolder(BlockOrWakeUp<Critical> *parent)

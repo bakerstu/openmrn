@@ -123,10 +123,11 @@ private:
 };
 
 
-/* Utility class to block an executor for a while.
+/** Utility class to block an executor for a while.
  *
  * Usage: add an instance of BlockExecutor to the executor you want to block,
- * then call wait_for_blocked() and later release_block().
+ * (using @ref ExecutorBase::add) then call wait_for_blocked() and later
+ * release_block() to unblock the executor.
  */
 class BlockExecutor : public Executable
 {
@@ -198,6 +199,7 @@ public:
     }
 
 private:
+    /// Virtual base class for the destructible holders.
     class HolderBase
     {
     public:
@@ -206,6 +208,9 @@ private:
         }
     };
 
+    /// Type-accurate class that holds the temporary variable with the old
+    /// value, the pointer to the variable and restores the previous state upon
+    /// destruction.
     template <class T> class Holder : public HolderBase
     {
     public:

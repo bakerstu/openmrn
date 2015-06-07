@@ -455,10 +455,11 @@ private:
     DISALLOW_COPY_AND_ASSIGN(QAsync);
 };
 
+/// Strongly typed queue class with asynchronous access. 
 template <class T> class TypedQAsync : public QAsync
 {
 public:
-    /** Returns the next item from the queue. If the queu is currently empty,
+    /** Returns the next item from the queue. If the queue is currently empty,
      * then blocks the current thread until an item is available. MUST NOT BE
      * CALLED ON INTERFACE EXECUTORS. */
     T *next_blocking()
@@ -466,11 +467,14 @@ public:
         return BlockingWait(this).result();
     }
 
+    /// Inserts an entry at the end of the queue.
     void typed_insert(T* entry) {
         insert(entry);
     }
 
 private:
+    /// Helper class for waiting (blocking the current thread) until a message
+    /// in the queue shows up.
     class BlockingWait : public Executable
     {
     public:

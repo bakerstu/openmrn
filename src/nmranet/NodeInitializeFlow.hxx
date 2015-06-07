@@ -43,6 +43,8 @@
 namespace nmranet
 {
 
+/// Request to send to instruct @ref InitializeFlow to perform the
+/// initialization function of a single virtual node.
 struct InitializeRequest
 {
     InitializeRequest()
@@ -54,6 +56,11 @@ struct InitializeRequest
 
 typedef StateFlow<Buffer<InitializeRequest>, QList<1>> InitializeFlowBase;
 
+/// Performs upon-startup initialization of virtual nodes.
+///
+/// Usage: Create a global static instance of InitializeFlow. Allocate a
+/// Buffer<INitializerequest> and fill in the node pointer. Send the buffer via
+/// Singleton<InitializeFlow>::instance()->send(buffer)
 class InitializeFlow : public InitializeFlowBase,
                        public Singleton<InitializeFlow>
 {
@@ -134,6 +141,8 @@ private:
     BarrierNotifiable done_;
 };
 
+/// Helper function that sends a local virtual node to the static
+/// InitializeFlow.
 void StartInitializationFlow(Node *node);
 
 } // namespace nmranet

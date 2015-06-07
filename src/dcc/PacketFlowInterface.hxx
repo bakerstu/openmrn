@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,46 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file EventHandlerMock.hxx
+ * \file PacketFlowInterface.hxx
  *
- * Helper utilities for testing event handlers.
- *
- * This file must only ever be included in unittests.
+ * Shared declarations for sending DCC packets.
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 16 May 2015
  */
 
-#ifndef _NMRANET_EVENTHANDLERMOCK_HXX_
-#define _NMRANET_EVENTHANDLERMOCK_HXX_
+#ifndef _DCC_PACKETFLOWINTERFACE_HXX_
+#define _DCC_PACKETFLOWINTERFACE_HXX_
 
-#include "gmock/gmock.h"
-#include "nmranet/EventHandler.hxx"
+#include "executor/StateFlow.hxx"
+#include "dcc/Packet.hxx"
 
-namespace nmranet {
+namespace dcc {
 
-/// Test handler for receiving incoming event related messages via the
-/// EventService. Incoming messages need GoogleMock expectations.
-class MockEventHandler : public EventHandler
-{
-public:
-#define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
+typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
 
-    DEFPROXYFN(HandleEventReport);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
-
-#undef DEFPROXYFN
-};
-
-}  // namespace nmranet
-
-#endif // _NMRAnetEventHandlerTemplates_hxx_
+}  // namespace dcc
 
 
+#endif

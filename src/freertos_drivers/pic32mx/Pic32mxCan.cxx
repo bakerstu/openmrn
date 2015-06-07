@@ -46,6 +46,7 @@ extern "C" {
 #include "peripheral/int.h"
 }
 
+/// CAN-bus device driver for the Pic32MX.
 class Pic32mxCan : public Node
 {
 public:

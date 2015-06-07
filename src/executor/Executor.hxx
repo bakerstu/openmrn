@@ -222,6 +222,9 @@ public:
     NO_THREAD() {}
 };
 
+/// Implementation the ExecutorBase with a specific number of priority
+/// bands. The memory usage and scheduling cost is proportional to the number
+/// of priority bands, so it should be kept pretty low.
 template <unsigned NUM_PRIO>
 class Executor : public ExecutorBase
 {
