@@ -242,17 +242,17 @@ public:
     {
     }
 
-    constexpr bool is_cdi()
+    constexpr bool is_cdi() const
     {
         return segment == -2;
     }
 
-    constexpr bool is_segment()
+    constexpr bool is_segment() const
     {
         return segment >= 0;
     }
 
-    constexpr unsigned get_segment_offset()
+    constexpr unsigned get_segment_offset() const
     {
         return offset == INT_MAX ? 0 : offset;
     }

@@ -67,7 +67,7 @@ public:
     {
     }
 
-    constexpr unsigned offset()
+    constexpr unsigned offset() const
     {
         return offset_;
     }
@@ -172,7 +172,7 @@ public:
         return sizeof(TR);
     }
 
-    constexpr AtomConfigRenderer config_renderer()
+    constexpr AtomConfigRenderer config_renderer() const
     {
         return AtomConfigRenderer("int", size());
     }
@@ -197,9 +197,10 @@ using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 class EventConfigEntry : public Uint64ConfigEntry
 {
 public:
-    using Uint64ConfigEntry::Uint64ConfigEntry;
+    template<typename T>
+    constexpr EventConfigEntry(T t) : Uint64ConfigEntry(t) {}
 
-    constexpr AtomConfigRenderer config_renderer()
+    constexpr AtomConfigRenderer config_renderer() const
     {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
     }
