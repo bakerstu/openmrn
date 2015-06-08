@@ -62,9 +62,7 @@ public:
 
     /** Destructor.
      */
-    ~TivaEEPROMEmulation()
-    {
-    }
+    ~TivaEEPROMEmulation();
 
     /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
      * byte boundaries in the case of power loss.  The user should take this
@@ -222,4 +220,3 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(TivaEEPROMEmulation);
 };
-

@@ -132,6 +132,10 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
     }
 }
 
+TivaEEPROMEmulation::~TivaEEPROMEmulation()
+{
+}
+
 /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
  * byte boundaries in the case of power loss.  The user should take this
  * into account as it relates to data integrity of a whole block.
@@ -334,4 +338,3 @@ void TivaEEPROMEmulation::read_word(unsigned int index, uint16_t *data)
         }
     }
 }
-
