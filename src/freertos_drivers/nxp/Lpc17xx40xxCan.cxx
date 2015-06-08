@@ -37,6 +37,7 @@
 #include "Lpc17xx40xxCan.hxx"
 
 #include "chip.h"
+#include "nmranet_config.h"
 
 LpcCan *LpcCan::instances[2] = {NULL};
 unsigned int LpcCan::intCount = 0;
@@ -76,7 +77,18 @@ LpcCan::LpcCan(const char *name, LPC_CAN_T *base)
 void LpcCan::enable()
 {
     Chip_CAN_Init(base, LPC_CANAF, LPC_CANAF_RAM);
-    Chip_CAN_SetBitRate(base, 125000);
+    if (base == LPC_CAN2)
+    {
+        Chip_CAN_SetBitRate(base, config_nmranet_can_bitrate());
+    }
+    else if (base == LPC_CAN1)
+    {
+        Chip_CAN_SetBitRate(base, config_can2_bitrate());
+    }
+    else
+    {
+        DIE("Unknown CAN base address.");
+    }
     Chip_CAN_SetAFMode(LPC_CANAF, CAN_AF_BYBASS_MODE);
     Chip_CAN_EnableInt(base, CAN_IER_BITMASK & 
                              ~(CAN_IER_TIE2 | CAN_IER_TIE3 | CAN_ICR_IDI));

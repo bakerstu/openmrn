@@ -6,7 +6,7 @@ MEMORY
 {
   /* Define each memory region */
   /*MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x08000  /*32k */
-  MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x10000 /* 64k TEMPORARY */
+  MFlash32 (rx) : ORIGIN = 0x0, LENGTH = 0x18000 /* 96k TEMPORARY */
   /* Top 32 bytes is used by the flash writing firmware. 0x50..0xb8 by the ROM CAN drivers. 0 to 0x50 is used by the */
 
   RamLoc8 (rwx) : ORIGIN = 0x10000100, LENGTH = 0x1ee0 /* 7k */

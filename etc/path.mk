@@ -81,9 +81,10 @@ endif #LPCOPENPATH_18XX_43XX
 ################ lpc_chip_17xx_40xx ##################
 ifndef LPCCHIPPATH_17XX_40XX
 SEARCHPATH := \
-  /opt/nxp/lpc_chip/lpc_chip_17xx_40xx 
+  /opt/nxp/lpc_chip/lpc_chip_17xx_40xx \
+  /opt/nxp/lpc_chip/lpc_chip_175x_6x \
 
-TRYPATH:=$(call findfirst,inc,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,inc/can_17xx_40xx.h,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 LPCCHIPPATH_17XX_40XX:=$(TRYPATH)
 endif
