@@ -91,7 +91,12 @@ ssize_t Can::read(File *file, void *buf, size_t count)
         result += frames_read;
         data += frames_read;
     }
-    
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
     return result * sizeof(struct can_frame);
 }
 
@@ -144,7 +149,12 @@ ssize_t Can::write(File *file, const void *buf, size_t count)
             data += frames_written;
         }
     }
-    
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
     return result * sizeof(struct can_frame);
 }
 
