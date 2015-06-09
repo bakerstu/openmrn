@@ -63,7 +63,7 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(main_thread_stack_size, 2500);
 #elif defined(TARGET_LPC11Cxx)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
-#elif defined(STM32F072xB)
+#elif defined(STM32F072xB) || defined(STM32F10X_MD)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
 OVERRIDE_CONST(num_memory_spaces, 4);
@@ -170,7 +170,7 @@ int appl_main(int argc, char* argv[])
 #elif defined(TARGET_PIC32MX)
     stack.add_can_port_blocking("/dev/can0");
 #elif defined(__FreeRTOS__)
-    stack.add_can_port_async("/dev/can0");
+    stack.add_can_port_select("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
     // No hardware connection for the moment.
     stack.print_all_packets();
