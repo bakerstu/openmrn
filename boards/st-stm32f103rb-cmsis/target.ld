@@ -164,7 +164,8 @@ SECTIONS
      * size of stack_dummy section */
     __StackTop = ORIGIN(RAM) + LENGTH(RAM);
     __StackLimit = __StackTop - 0x200;
-    __cs3_heap_end = __StackLimit;
+    /* After FreeRTOS boots the original stack is not needed anymore. */
+    __cs3_heap_end = ORIGIN(RAM) + LENGTH(RAM);
     PROVIDE(__stack = __StackTop);
     PROVIDE(_estack = __StackTop);
     
