@@ -65,6 +65,9 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
+#include "TivaGPIO.hxx"
+
+GPIO_PIN(SW1, GpioInputPU, F, 4);
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -220,7 +223,7 @@ static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
-static uint32_t rest_pattern = 0;
+static volatile uint32_t rest_pattern = 0;
 
 void dcc_generator_init(void);
 
@@ -330,6 +333,19 @@ void hw_preinit(void)
 
     /* Initialize the DCC Timers and GPIO outputs */
     tivaDCC.hw_init();
+
+    SW1_Pin::hw_init();
+    /* Checks the SW1 pin at boot time in case we want to allow for a debugger
+     * to connect. */
+    asm volatile ("cpsie i\n");
+    do {
+      if (!SW1_Pin::get()) {
+        blinker_pattern = 0xAAAA;
+      } else {
+        blinker_pattern = 0;
+      }
+    } while (blinker_pattern || rest_pattern);
+    asm volatile ("cpsid i\n");
 }
 
 /** Timer interrupt for DCC packet handling.
