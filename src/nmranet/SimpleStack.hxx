@@ -39,6 +39,7 @@
 
 #include "executor/Executor.hxx"
 #include "nmranet/AliasAllocator.hxx"
+#include "nmranet/ConfigUpdateFlow.hxx"
 #include "nmranet/DatagramCan.hxx"
 #include "nmranet/DefaultNode.hxx"
 #include "nmranet/EventService.hxx"
@@ -59,6 +60,10 @@ namespace nmranet
 
 extern const char CDI_DATA[];
 extern const size_t CDI_SIZE;
+
+/// This symbol must be defined by the application to tell which file to open
+/// for the configuration listener.
+extern const char* const CONFIG_FILENAME;
 
 /// Helper class for bringing up all components needed for a typical OpenLCB
 /// node.
@@ -211,6 +216,10 @@ public:
         return gcHub_.get();
     }
 
+    ConfigUpdateService* config_service() {
+        return &configUpdateFlow_;
+    }
+
     /// Donates the current thread to the executor. Never returns.
     void loop_executor()
     {
@@ -240,6 +249,8 @@ private:
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
     /// Default service on the particular executor.
     Service service_{&executor_};
+    /// Calls the config listeners with the configuration FD.
+    ConfigUpdateFlow configUpdateFlow_{&service_};
     /// Abstract CAN bus in-memory.
     CanHubFlow canHub0_{&service_};
     /// NMRAnet interface for sending and receiving messages, formatting them
