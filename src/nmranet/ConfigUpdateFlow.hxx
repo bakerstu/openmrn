@@ -39,29 +39,56 @@
 
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
+#include "executor/StateFlow.hxx"
 
 namespace nmranet
 {
 
 class ConfigUpdateFlow : public StateFlowBase,
-                         private ConfigUpdateService,
+                         public ConfigUpdateService,
                          private Atomic
 {
 public:
     ConfigUpdateFlow(Service *service)
         : StateFlowBase(service)
         , nextRefresh_(listeners_.begin())
+        , fd_(-1)
     {
     }
 
-    void trigger_update(bool is_initial_update)
+    void init(const char *path)
+    {
+        if (!path)
+        {
+            fd_ = -1;
+        }
+        else
+        {
+            fd_ = ::open(path, O_RDONLY);
+            HASSERT(fd_ >= 0);
+        }
+        trigger_update();
+        isInitialLoad_ = 1;
+    }
+
+    void TEST_set_fd(int fd)
+    {
+        fd_ = fd;
+    }
+
+    void trigger_update()
     {
         AtomicHolder h(this);
         nextRefresh_ = listeners_.begin();
-        reset_flow(STATE(call_next_listener));
+        isInitialLoad_ = 0;
+        needsReboot_ = 0;
+        needsReInit_ = 0;
+        if (is_state(exit().next_state()))
+        {
+            start_flow(STATE(call_next_listener));
+        }
     }
 
-private:
     void register_update_listener(ConfigUpdateListener *listener) OVERRIDE
     {
         AtomicHolder h(this);
@@ -80,10 +107,11 @@ private:
         {
             listeners_.erase(it);
         }
-        // We invalidated the iteratos due to the erase.
+        // We invalidated the iterators due to the erase.
         nextRefresh_ = listeners_.begin();
     }
 
+private:
     Action call_next_listener()
     {
         ConfigUpdateListener *l = nullptr;
@@ -95,6 +123,11 @@ private:
                 return exit();
             }
             l = nextRefresh_.operator->();
+        }
+        if (fd_ < 0)
+        {
+            DIE("CONFIG_FILENAME not specified, or init() was not called, but "
+                "there are configuration listeners.");
         }
         ConfigUpdateListener::UpdateAction action =
             l->apply_configuration(fd_, isInitialLoad_, n_.reset(this));
@@ -124,19 +157,15 @@ private:
         return wait();
     }
 
-    Action listener_done()
-    {
-    }
-
     typedef TypedQueue<ConfigUpdateListener> queue_type;
     /// All registered update listeners. Protected by Atomic *this.
     queue_type listeners_;
     /// Where are we in the refresh cycle.
     typename queue_type::iterator nextRefresh_;
     /// are we in initial load?
-    unsigned isInitialLoad_ : 1 = 1;
-    unsigned needsReboot_ : 1 = 0;
-    unsigned needsReInit_ : 1 = 0;
+    unsigned isInitialLoad_ : 1;
+    unsigned needsReboot_ : 1;
+    unsigned needsReInit_ : 1;
     int fd_;
     BarrierNotifiable n_;
 };

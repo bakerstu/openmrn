@@ -30,6 +30,7 @@ using ::testing::Return;
 using ::testing::StrCaseEq;
 using ::testing::StrictMock;
 using ::testing::WithArg;
+using ::testing::SaveArg;
 using ::testing::_;
 
 class TrainTestHelper;
