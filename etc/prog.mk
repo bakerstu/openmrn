@@ -67,7 +67,10 @@ DEPS += TOOLPATH
 MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
 ifneq ($(MISSING_DEPS),)
-all docs clean veryclean tests mksubdirs:
+all docs clean veryclean tests mksubdirs: print_error_deps
+
+
+print_error_deps:
 	@echo "******************************************************************"
 	@echo "*"
 	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
