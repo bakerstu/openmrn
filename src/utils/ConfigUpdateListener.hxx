@@ -41,7 +41,7 @@
 /// Abstract class for components that need to receive configuration from
 /// EEPROM. Configuration update comes in two flavors: initial load and refresh
 /// (upon potential change). Each configuration update call supplies the file
-/// desriptor of the EEPROM file, which is opened for reading.
+/// desriptor of the EEPROM file, which is already opened for reading.
 ///
 /// Config listeners provide feedback to the system in two forms: they notify
 /// the system in case the configuration change can be applied only with a
