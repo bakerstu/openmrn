@@ -15,4 +15,6 @@ SYSLIBRARIESEXTRA += -lfreertos_drivers_lpc_chip_175x_6x
 # Find LPC Chip libraries
 include $(OPENMRNPATH)/boards/nxp-lpc175x_6x-generic/Makefile
 
+ifeq ($(MISSING_DEPS),)
 all: $(EXECUTABLE).bin
+endif
