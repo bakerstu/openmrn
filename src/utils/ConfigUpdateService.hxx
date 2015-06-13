@@ -41,7 +41,7 @@ class ConfigUpdateListener;
 
 /// Virtual interface for the config update listeners to register themselves
 /// for receiving configuration updates.
-class ConfigUpdateService : public Singleton<ConfigUpdateService>
+class ConfigUpdateService
 {
 public:
     /// Adds a config update listener to be called upon configuration
