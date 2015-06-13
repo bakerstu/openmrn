@@ -61,8 +61,6 @@ int upstream_port = 12021;
 const char *upstream_host = nullptr;
 
 
-#ifdef __linux__
-
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] [-q upstream_port]\n\n", e);
@@ -108,7 +106,6 @@ void parse_args(int argc, char *argv[])
         }
     }
 }
-#endif
 
 /** Entry point to application.
  * @param argc number of command line arguments

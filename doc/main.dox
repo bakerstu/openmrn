@@ -179,30 +179,26 @@
  * @enddot
  *
  * @section threading Threading Model
- * The stack is implemented by a number separate threads of execution.
+ * An OpenMRN application always contains a minimum of one thread
+ * of execution managed by an operating system.  In the case of FreeRTOS, an
+ * OpenMRN application will also contain an @ref idle_thread and a
+ * @ref timer_thread.  OpenMRN is designed to support
+ * a number of different operating systems, and a thin abstraction is provided
+ * in order to hide any OS specific differences.  The OS abstraction is
+ * provided by @ref OS.hxx, and applications are encouraged to make use of when
+ * accessing OS features such as threads, mutexes, semaphores, etc...
  *
  * @subsection main_thread Main Thread
  * The main thread is the thread of execution that os_main() is called with,
  * os_main() being the entry point of an application.
- * This thread is used for the application to initialize the stack.  The
- * application is free to use this thread once the stack has been started.
+ * This thread is used for the application to initialize the stack.  Typically,
+ * once any onetime initialization is complete, the OpenLCB stack inherits the
+ * main thread for its own use with a SimpleCanStack::loop_executor() call.
  * 
- * @subsection rx_thread Receive Thread
- * Each instantiated interface contains a receive thread.  This thread will
- * pend on incoming data.  On some interfaces, such as CAN, some of the traffic
- * is used only for the management of the physical layer.  Because this,
- * management traffic is of no interest to the application, the physical layer
- * specific code handles it without passing anything up the stack.  When a
- * receive thread has a complete message that is of interest to to the
- * the application, it will make a function call to pass the data up to the
- * physical layer agnostic portion of the stack.  This could result in an
- * application layer callback, or in a node notification of incoming data.
- *
  * @subsection timer_thread Timer Thread
- * All timers share a common thread of execution started automatically by the
- * operating system abstraction code.  All timers share the same thread of
- * execution, therefore, minimizing the amount of code and potential to block
- * within timer callbacks improves the determinism of all timers.
+ * FreeRTOS internally creates a thread for handling timers and events.  This
+ * thread is managed by the RTOS and used by the RTOS.  It is not available for
+ * application use.
  *
  * @subsection idle_thread Idle Thread
  * Some of the OS ports, such as FreeRTOS utilize an idle thread hook.  This
@@ -212,7 +208,12 @@
  *
  * @subsection additional_threads Additional Threads
  * An application may instantiate additional threads of its own using the
- * threading API defined in os.h and OS.hxx.
+ * threading API found in OS.hxx.
+ *
+ * @subsection executor_service_stateflow Executors, Services, State Flows and Dispatch Flows
+ * OpenMRN contains a further abstraction of the threading model, which is used
+ * by the OpenLCB stack.  It is also available for application use and is
+ * described on the @ref executor_service_stateflow_page page.
  *
  * @section hub_router_gateway Hubs, Routers, and Gateways
  * OpenMRN is designed to implement Hubs, Routers, and Gateways that can be
