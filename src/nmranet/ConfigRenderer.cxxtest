@@ -1,0 +1,239 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file ConfigRenderer.cxxtest
+ *
+ * Unittests for the CDI rendering utilities.
+ *
+ * @author Balazs Racz
+ * @date 6 June 2015
+ */
+
+#include "utils/test_main.hxx"
+
+#include "nmranet/ConfigRenderer.hxx"
+#include "nmranet/ConfigEntry.hxx"
+#include "nmranet/ConfigRepresentation.hxx"
+#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
+
+const char *const nmranet::SNIP_DYNAMIC_FILENAME =
+    "/dev/null";
+
+
+extern const nmranet::SimpleNodeStaticValues nmranet::SNIP_STATIC_DATA = {
+    4, "Manuf", "XXmodel", "NHWversion", "1.42"};
+
+
+namespace nmranet
+{
+namespace
+{
+
+TEST(ConfigRenderer, AtomWithoutOptions)
+{
+    AtomConfigRenderer rnd("int", 3);
+    string s;
+    rnd.render_cdi(&s, AtomConfigOptions());
+    EXPECT_EQ("<int size='3'>\n</int>\n", s);
+}
+
+TEST(ConfigRenderer, AtomWithName)
+{
+    using Name = AtomConfigOptions::Name;
+    AtomConfigRenderer rnd("int", 3);
+    string s;
+    rnd.render_cdi(&s, AtomConfigOptions(Name("foo bar")));
+    EXPECT_EQ("<int size='3'>\n<name>foo bar</name>\n</int>\n", s);
+}
+
+TEST(ConfigRenderer, AtomWithDescription)
+{
+    using Description = AtomConfigOptions::Description;
+    AtomConfigRenderer rnd("int", 3);
+    string s;
+    rnd.render_cdi(
+        &s, AtomConfigOptions(Description("some long string description")));
+    EXPECT_EQ("<int size='3'>\n<description>some long string "
+              "description</description>\n</int>\n",
+        s);
+}
+
+TEST(ConfigRenderer, AtomFull)
+{
+    using Name = AtomConfigOptions::Name;
+    using Description = AtomConfigOptions::Description;
+    AtomConfigRenderer rnd("int", 3);
+    string s;
+    rnd.render_cdi(
+        &s, AtomConfigOptions(
+                Description("some long string description"), Name("xxxy")));
+    EXPECT_EQ(
+        "<int size='3'>\n<name>xxxy</name>\n"
+        "<description>some long string description</description>\n</int>\n",
+        s);
+}
+
+TEST(ConfigRenderer, AtomNoSize)
+{
+    using Name = AtomConfigOptions::Name;
+    auto rnd = EventConfigEntry(13).config_renderer();
+    string s;
+    rnd.render_cdi(&s, AtomConfigOptions(Name("fffoo")));
+    EXPECT_EQ("<eventid>\n<name>fffoo</name>\n</eventid>\n", s);
+}
+
+BEGIN_GROUP(TestGroup, base, Name("testgroup"), Description("test group desc"));
+EXTEND_GROUP(TestGroup, base, e1, Uint8ConfigEntry, Name("e1"));
+EXTEND_GROUP(TestGroup, e1, e2, Uint16ConfigEntry, Description("e2"));
+END_GROUP(TestGroup, e2);
+
+BEGIN_GROUP(OtherGroup, base);
+END_GROUP(OtherGroup, base);
+
+BEGIN_GROUP(TestNodeConfig, base, Name("node_config"));
+EXTEND_GROUP(TestNodeConfig, base, version, Uint8ConfigEntry, Name("Version"));
+EXTEND_GROUP(TestNodeConfig, version, test_short, Uint16ConfigEntry);
+EXTEND_GROUP(TestNodeConfig, test_short, ogrp, OtherGroup);
+EXTEND_GROUP(TestNodeConfig, ogrp, test64, Uint64ConfigEntry, Name("64"));
+EXTEND_GROUP(TestNodeConfig, test64, test32, Uint32ConfigEntry);
+using TestRepeat = RepeatedGroup<TestGroup, 3>;
+EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
+EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
+END_GROUP(TestNodeConfig, last);
+
+TEST(ComplexGroupRender, RenderOk)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
+<name>node_config</name>
+<int size='1'>
+<name>Version</name>
+</int>
+<int size='2'>
+</int>
+<group>
+</group>
+<int size='8'>
+<name>64</name>
+</int>
+<int size='4'>
+</int>
+<group replication='3'>
+<name>testgroup</name>
+<description>test group desc</description>
+<int size='1'>
+<name>e1</name>
+</int>
+<int size='2'>
+<description>e2</description>
+</int>
+</group>
+<int size='1'>
+</int>
+</group>
+)";
+    string s;
+    TestNodeConfig cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+BEGIN_GROUP(TestSegment, base, Name("testseg"), Description("test seg desc"),
+    Segment(17));
+EXTEND_GROUP(TestSegment, base, e1, Uint8ConfigEntry, Name("e1"));
+EXTEND_GROUP(TestSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
+END_GROUP(TestSegment, e2);
+
+BEGIN_GROUP(TestCdi1, base, MainCdi());
+EXTEND_GROUP(TestCdi1, base, testseg, TestSegment);
+END_GROUP(TestCdi1, testseg);
+
+TEST(CdiRender, Render)
+{
+    string s;
+    TestCdi1 cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<segment space='17'>
+<name>testseg</name>
+<description>test seg desc</description>
+<int size='1'>
+<name>e1</name>
+</int>
+<int size='2'>
+<description>e2</description>
+</int>
+</segment>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_EQ(1, cfg.testseg().e2().offset());
+}
+
+BEGIN_GROUP(OtherSegment, base, Name("testseg"), Description("test seg desc"),
+    Segment(12), Offset(33));
+EXTEND_GROUP(OtherSegment, base, e1, Uint8ConfigEntry, Name("e1"));
+EXTEND_GROUP(OtherSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
+END_GROUP(OtherSegment, e2);
+
+
+BEGIN_GROUP(TestCdi2, base, MainCdi());
+EXTEND_GROUP(TestCdi2, base, ident, Identification);
+EXTEND_GROUP(TestCdi2, ident, testseg, OtherSegment);
+END_GROUP(TestCdi2, testseg);
+
+TEST(CdiRender, RenderIdent)
+{
+    string s;
+    TestCdi2 cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<identification>
+<manufacturer>Manuf</manufacturer>
+<model>XXmodel</model>
+<hardwareVersion>NHWversion</hardwareVersion>
+<softwareVersion>1.42</softwareVersion>
+</identification>
+<segment space='12' offset='33'>
+<name>testseg</name>
+<description>test seg desc</description>
+<int size='1'>
+<name>e1</name>
+</int>
+<int size='2'>
+<description>e2</description>
+</int>
+</segment>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_EQ(34, cfg.testseg().e2().offset());
+}
+
+} // namespace
+} // namespace nmranet

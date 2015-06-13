@@ -57,10 +57,13 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 
 int port = 12021;
 const char *device_path = nullptr;
+int upstream_port = 12021;
+const char *upstream_host = nullptr;
+
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path]\n\n", e);
+    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] [-q upstream_port]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
@@ -70,13 +73,15 @@ void usage(const char *e)
     fprintf(stderr, "\t-d device   is a path to a physical device doing "
                     "serial-CAN or USB-CAN. If specified, opens device and "
                     "adds it to the hub.\n");
+    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream hub. If specified, this hub will connect to an upstream hub.\n");
+    fprintf(stderr, "\t-q upstream_port   is the port number for the upstream hub.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:c:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:u:q:")) >= 0)
     {
         switch (opt)
         {
@@ -88,6 +93,12 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'p':
                 port = atoi(optarg);
+                break;
+            case 'u':
+                upstream_host = optarg;
+                break;
+            case 'q':
+                upstream_port = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -104,8 +115,16 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    GcTcpHub hub(&can_hub0, 12021);
+    GcTcpHub hub(&can_hub0, port);
     int dev_fd = 0;
+
+    if (upstream_host)
+    {
+        int conn_fd = ConnectSocket(upstream_host, upstream_port);
+        HASSERT(conn_fd >= 0);
+        create_gc_port_for_can_hub(&can_hub0, conn_fd);
+    }
+
     while (1)
     {
         if (device_path && !dev_fd)

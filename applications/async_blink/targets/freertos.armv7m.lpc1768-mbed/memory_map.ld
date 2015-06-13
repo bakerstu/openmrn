@@ -1,0 +1,1 @@
+../../../../boards/nxp-lpc1768-mbed/memory_map.ld

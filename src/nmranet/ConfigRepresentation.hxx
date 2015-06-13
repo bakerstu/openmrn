@@ -35,65 +35,50 @@
 #ifndef _NMRANET_CONFIGREPRESENTATION_HXX_
 #define _NMRANET_CONFIGREPRESENTATION_HXX_
 
+#include "nmranet/ConfigEntry.hxx"
+
 namespace nmranet
 {
 
-class EndGroup : private ConfigReference
-{
-public:
-    constexpr EndGroup(unsigned offset) : ConfigReference(offset)
-    {
-    }
-    constexpr unsigned size()
-    {
-        return 0;
-    }
-};
-
-class Uint16ConfigEntry : public ConfigReference
-{
-public:
-    using ConfigReference::ConfigReference;
-
-    uint16_t get_value(int fd)
-    {
-        lseek(fd, offset_, SEEK_SET);
-        uint16_t value;
-        ::read(fd, &value, 2);
-        return value;
-    }
-
-    static constexpr unsigned size()
-    {
-        return 2;
-    }
-};
-
-#define BEGIN_GROUP(group, base)                                               \
-    class group##base : public EmptyGroup                                      \
-    {                                                                          \
-        using EmptyGroup::EmptyGroup;                                          \
-    };
-
-class EmptyGroup : public ConfigReference
-{
-public:
-    using ConfigReference::ConfigReference;
-    static constexpr unsigned size()
-    {
-        return 0;
-    }
-};
-
-#define EXTEND_GROUP(group, prev, name, type)                                  \
-    class group##name : public group##prev                                     \
+#define BEGIN_GROUP(group, base, ARGS...)                                      \
+    class group##base : public nmranet::BaseGroup                              \
     {                                                                          \
     public:                                                                    \
-        using base_type = group##prev;                                         \
-        using current_type = type;                                             \
-        constexpr group##name(unsigned offset) : base_type(offset)             \
+        using base_type = BaseGroup;                                           \
+        using base_type::base_type;                                            \
+        using Name = AtomConfigOptions::Name;                                  \
+        using Description = AtomConfigOptions::Description;                    \
+        using Segment = GroupConfigOptions::Segment;                           \
+        using Offset = GroupConfigOptions::Offset;                             \
+        using MainCdi = GroupConfigOptions::MainCdi;                           \
+        static constexpr GroupConfigOptions group_opts()                       \
+        {                                                                      \
+            return GroupConfigOptions(ARGS);                                   \
+        }                                                                      \
+        void render_cdi(std::string *s) const                                  \
         {                                                                      \
         }                                                                      \
+    };
+
+class BaseGroup : public nmranet::ConfigReference
+{
+public:
+    using ConfigReference::ConfigReference;
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
+};
+
+#define EXTEND_GROUP(group, prev_entry_name, entry_name, type, ARGS...)        \
+    class group##entry_name : public group##prev_entry_name                    \
+    {                                                                          \
+    public:                                                                    \
+        using base_type = group##prev_entry_name;                              \
+        using current_type = type;                                             \
+        using base_type::base_type;                                            \
+        using Name = AtomConfigOptions::Name;                                  \
+        using Description = AtomConfigOptions::Description;                    \
         static constexpr unsigned size()                                       \
         {                                                                      \
             return current_type::size() + offset_from_base();                  \
@@ -102,34 +87,106 @@ public:
         {                                                                      \
             return base_type::size();                                          \
         }                                                                      \
-        constexpr unsigned offset()                                            \
+        constexpr unsigned last_offset()                                       \
         {                                                                      \
-            return offset_ + offset_from_base();                               \
+            return offset() + offset_from_base();                              \
         }                                                                      \
-        constexpr current_type name()                                          \
+        constexpr current_type entry_name()                                    \
         {                                                                      \
-            return current_type(offset());                                     \
+            static_assert(!group_opts().is_cdi() ||                            \
+                    current_type(0).group_opts().is_segment(),                 \
+                "May only have segments inside CDI.");                         \
+            return group_opts().is_cdi()                                       \
+                ? current_type(                                                \
+                      current_type(0).group_opts().get_segment_offset())       \
+                : current_type(last_offset());                                 \
+        }                                                                      \
+        void render_cdi(std::string *s) const                                  \
+        {                                                                      \
+            base_type::render_cdi(s);                                          \
+            entry_name().config_renderer().render_cdi(s, ##ARGS);              \
         }                                                                      \
     };
 
-#define END_GROUP(group, prev)                                                 \
-    class group : public group##prev                                           \
+#define END_GROUP(group, prev_entry_name)                                      \
+    class group : public group##prev_entry_name                                \
     {                                                                          \
-        using group##prev::group##prev;                                        \
+    public:                                                                    \
+        using base_type = group##prev_entry_name;                              \
+        using base_type::base_type;                                            \
+        void render_content_cdi(std::string *s) const                          \
+        {                                                                      \
+            base_type::render_cdi(s);                                          \
+        }                                                                      \
+        constexpr GroupConfigRenderer<group> config_renderer()                 \
+        {                                                                      \
+            return GroupConfigRenderer<group>(1, *this);                       \
+        }                                                                      \
     };
 
-template <class Group, unsigned N> class RepeatedGroup : public ConfigReference
+template <class Group, unsigned N> class RepeatedGroup : public ConfigEntryBase
 {
 public:
-    using ConfigReference::ConfigReference;
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
     static constexpr unsigned size()
     {
         return Group::size() * N;
     }
-    constexpr Group entry(unsigned k)
+    template <int K> constexpr Group entry()
     {
-        static_assert(k < N);
-        return Group(offset_ + (k * Group::size()));
+        static_assert(K < N, "Tried to fetch an entry of a repeated "
+                             "group that does not exist!");
+        return Group(offset_ + (K * Group::size()));
+    }
+    constexpr GroupConfigRenderer<Group> config_renderer()
+    {
+        return GroupConfigRenderer<Group>(N, entry<0>());
+    }
+};
+
+///
+/// Defines an empty group with no members, but blocking a certain amount of
+/// space in the rendered configuration.
+///
+template <unsigned N> class EmptyGroup : public ConfigEntryBase
+{
+public:
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
+    static constexpr unsigned size()
+    {
+        return N;
+    }
+    constexpr EmptyGroupConfigRenderer config_renderer()
+    {
+        return EmptyGroupConfigRenderer(N);
+    }
+};
+
+class ToplevelEntryBase : public ConfigEntryBase
+{
+public:
+    using base_type = ConfigEntryBase;
+    using base_type::base_type;
+    static constexpr GroupConfigOptions group_opts()
+    {
+        return GroupConfigOptions(GroupConfigOptions::Segment(1000));
+    }
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
+};
+
+class Identification : public ToplevelEntryBase
+{
+public:
+    using base_type = ToplevelEntryBase;
+    using base_type::base_type;
+    static constexpr IdentificationRenderer config_renderer()
+    {
+        return IdentificationRenderer();
     }
 };
 

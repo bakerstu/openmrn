@@ -47,6 +47,7 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
+#include "TivaEEPROMEmulation.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -64,6 +65,9 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
+#include "TivaGPIO.hxx"
+
+GPIO_PIN(SW1, GpioInputPU, F, 4);
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -82,6 +86,13 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
+
+extern const uint16_t __eeprom_start[];
+const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
+extern const uint16_t __eeprom_end[];
+const size_t TivaEEPROMEmulation::FLASH_SIZE = __eeprom_end - __eeprom_start;
+
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
 
 #define ONE_BIT_HALF_PERIOD  4480
 #define ZERO_BIT_HALF_PERIOD 8000
@@ -212,7 +223,7 @@ static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
-static uint32_t rest_pattern = 0;
+static volatile uint32_t rest_pattern = 0;
 
 void dcc_generator_init(void);
 
@@ -322,6 +333,19 @@ void hw_preinit(void)
 
     /* Initialize the DCC Timers and GPIO outputs */
     tivaDCC.hw_init();
+
+    SW1_Pin::hw_init();
+    /* Checks the SW1 pin at boot time in case we want to allow for a debugger
+     * to connect. */
+    asm volatile ("cpsie i\n");
+    do {
+      if (!SW1_Pin::get()) {
+        blinker_pattern = 0xAAAA;
+      } else {
+        blinker_pattern = 0;
+      }
+    } while (blinker_pattern || rest_pattern);
+    asm volatile ("cpsid i\n");
 }
 
 /** Timer interrupt for DCC packet handling.

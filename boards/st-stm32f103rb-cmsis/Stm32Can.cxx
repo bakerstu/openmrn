@@ -256,6 +256,11 @@ void Stm32CanDriver::tx_msg()
     {
         txBuf->consume(1);
         txBuf->signal_condition();
+        if (writableNotify_)
+        {
+            writableNotify_->notify();
+            writableNotify_= nullptr;
+        }
     }
     if ((instance_->TSR & CAN_TSR_TME_ANY) == 0)
     {
@@ -287,6 +292,11 @@ void Stm32CanDriver::tx_interrupt()
         {
             txBuf->consume(1);
             txBuf->signal_condition_from_isr();
+            if (writableNotify_)
+            {
+                writableNotify_->notify_from_isr();
+                writableNotify_= nullptr;
+            }
         }
     }
 }
@@ -301,6 +311,11 @@ void Stm32CanDriver::rx_interrupt()
         parse_rx_message(msg, can_frame);
         rxBuf->advance(1);
         rxBuf->signal_condition_from_isr();
+        if (readableNotify_)
+        {
+            readableNotify_->notify_from_isr();
+            readableNotify_ = nullptr;
+        }
     }
     /** @TODO: if there is no rx buf left, we need to disable the rx interrupt
         or else we get stuck in an infinite interrupt loop. */

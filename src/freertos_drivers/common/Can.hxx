@@ -74,7 +74,7 @@ protected:
     /** @todo (Stuart Baker) remove once we switch over to select().
      */
     bool has_tx_buffer_space() OVERRIDE {
-        return txBuf->space();        
+        return txBuf->space();
     }
 
     /** @todo (Stuart Baker) remove once we switch over to select().
