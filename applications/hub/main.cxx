@@ -58,8 +58,6 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 int port = 12021;
 const char *device_path = nullptr;
 
-#ifdef __linux__
-
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-p port] [-d device_path]\n\n", e);
@@ -97,7 +95,6 @@ void parse_args(int argc, char *argv[])
         }
     }
 }
-#endif
 
 /** Entry point to application.
  * @param argc number of command line arguments
