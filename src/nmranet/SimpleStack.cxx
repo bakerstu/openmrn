@@ -114,8 +114,6 @@ void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
     mainBufferPool;
 
-extern const char *const __attribute__((__weak__)) CONFIG_FILENAME = nullptr;
-
 extern const char __attribute__((weak)) CDI_DATA[] = 
 R"cdi(<?xml version="1.0"?>
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
