@@ -41,6 +41,8 @@
  */
 #define NVIC_INT_CTRL_R (*((volatile uint32_t *)0xE000ED04))
 
+#define NVIC_INT_DIS_BASE ((volatile uint32_t *)0xE000E180)
+
 /* prototypes */
 extern unsigned long *__stack;
 extern void reset_handler(void);
@@ -435,7 +437,7 @@ typedef struct fault_information
 
 /** Global instance so that it can be added to the watch expressions */
 volatile FaultInformation faultInfo;
-
+volatile int wait_for_continue = 0;
 /** Decode the stack state prior to an exception occuring.  This code is
  * inspired by FreeRTOS.
  * @param address address of the stack
@@ -476,18 +478,14 @@ __attribute__((optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardf
 
     __asm("BKPT #0\n") ; // Break into the debugger
 
-    /* When the following line is hit, the variables contain the register values. */
-    if (fault_info->stacked_r0  || fault_info->stacked_r1  ||
-        fault_info->stacked_r2  || fault_info->stacked_r3  ||
-        fault_info->stacked_r12 || fault_info->stacked_lr  ||
-        fault_info->stacked_pc  || fault_info->stacked_psr ||
-        fault_info->_CFSR       || fault_info->_HFSR       ||
-        fault_info->_DFSR       || fault_info->_AFSR       ||
-        fault_info->_MMAR       || fault_info->_BFAR)
-    {
-        resetblink(BLINK_DIE_HARDFAULT);
-        for( ;; );
-    }
+    resetblink(BLINK_DIE_HARDFAULT);
+    while (!wait_for_continue) {}
+    // Masks all interrupts before returning.
+    NVIC_INT_DIS_BASE[0] = 0xFFFFFFFFU;
+    NVIC_INT_DIS_BASE[1] = 0xFFFFFFFFU;
+    NVIC_INT_DIS_BASE[2] = 0xFFFFFFFFU;
+    NVIC_INT_DIS_BASE[3] = 0xFFFFFFFFU;
+    NVIC_INT_DIS_BASE[4] = 0xFFFFFFFFU;
 }
 
 /** The fault handler implementation.  This code is inspired by FreeRTOS.
