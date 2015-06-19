@@ -56,20 +56,7 @@ public:
     {
     }
 
-    void init(const char *path)
-    {
-        if (!path)
-        {
-            fd_ = -1;
-        }
-        else
-        {
-            fd_ = ::open(path, O_RDONLY);
-            HASSERT(fd_ >= 0);
-        }
-        trigger_update();
-        isInitialLoad_ = 1;
-    }
+    void init(const char *path);
 
     void TEST_set_fd(int fd)
     {
