@@ -136,13 +136,13 @@ StateFlowBase::Action EventIteratorFlow::entry()
             return release_and_exit();
         }
         rep->event = NetworkToEventID(nmsg()->payload.data());
-        rep->mask = 1;
+        rep->mask = 0;
     }
     else
     {
         // Message without event payload.
         rep->event = 0;
-        /// @TODO(balazs.racz) refactor this into a
+        /// @TODO(balazs.racz) refactor this into a global constant.
         rep->mask = 0xFFFFFFFFFFFFFFFFULL;
     }
 
