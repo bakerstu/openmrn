@@ -36,18 +36,19 @@
 #ifndef _NMRANET_CONFIGUREDCONSUMER_HXX_
 #define _NMRANET_CONFIGUREDCONSUMER_HXX_
 
-#include "nmranet/SimpleStack.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/ConfigRepresentation.hxx"
 #include "utils/ConfigUpdateListener.hxx"
+#include "utils/ConfigUpdateService.hxx"
 
 namespace nmranet
 {
 
 BEGIN_GROUP(ConsumerConfig, base);
-EXTEND_GROUP(ConsumerConfig, base, event_on, EventConfigEntry, Name("Event On"),
+EXTEND_GROUP(ConsumerConfig, base, event_on, EventConfigEntry, //
+    Name("Event On"),
     Description("Receiving this event ID will turn the output on."));
-EXTEND_GROUP(ConsumerConfig, event_on, event_off, EventConfigEntry,
+EXTEND_GROUP(ConsumerConfig, event_on, event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("Receiving this event ID will turn the output off."));
 END_GROUP(ConsumerConfig, event_off);
