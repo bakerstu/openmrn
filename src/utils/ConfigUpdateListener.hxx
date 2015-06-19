@@ -36,6 +36,7 @@
 #ifndef _UTILS_CONFIGUPDATELISTENER_HXX_
 #define _UTILS_CONFIGUPDATELISTENER_HXX_
 
+#include "utils/QMember.hxx"
 #include "executor/Notifiable.hxx"
 
 /// Abstract class for components that need to receive configuration from
