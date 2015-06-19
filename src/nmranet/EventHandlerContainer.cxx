@@ -41,6 +41,7 @@ void TreeEventHandlers::register_handlerr(EventHandler *handler,
                                           EventId event, unsigned mask)
 {
     AtomicHolder h(this);
+    set_dirty();
     handlers_[mask].insert(std::make_pair(event, handler));
 }
 
@@ -48,6 +49,7 @@ void TreeEventHandlers::unregister_handlerr(EventHandler *handler,
                                             EventId event, unsigned mask)
 {
     AtomicHolder h(this);
+    set_dirty();
     auto r = handlers_[mask].equal_range(event);
     for (auto it = r.first; it != r.second; ++it)
     {

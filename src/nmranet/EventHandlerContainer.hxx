@@ -81,7 +81,7 @@ public:
 };
 
 /// EventIterator that produces every single entry in a given container (which
-/// can be any STL-compatible container with begin() and eng() methods).
+/// can be any STL-compatible container with begin() and end() methods).
 template<class C> class FullContainerIterator : public EventIterator {
 public:
     FullContainerIterator(C* container)
@@ -120,10 +120,12 @@ class VectorEventHandlers : public EventRegistry {
   virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_front(handler);
+    set_dirty();
   }
   virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.remove(handler);
+    set_dirty();
   }
 
  private:

@@ -219,12 +219,20 @@ StateFlowBase::Action EventIteratorFlow::entry()
     incomingDone_ = message()->new_child();
     release();
 
+    eventRegistryEpoch_ = eventService_->impl()->registry->get_epoch();
     iterator_->init_iteration(rep);
     return yield_and_call(STATE(iterate_next));
 }
 
 StateFlowBase::Action EventIteratorFlow::iterate_next()
 {
+    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch()) {
+        // Iterators are invalidated. We need to start over. This may cause
+        // duplicate delivery of the same events.
+        iterator_->clear_iteration();
+        iterator_->init_iteration(&eventReport_);
+    }
+
     EventHandler *handler = iterator_->next_entry();
     if (!handler)
     {

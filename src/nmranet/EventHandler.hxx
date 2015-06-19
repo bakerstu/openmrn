@@ -185,14 +185,29 @@ public:
     virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
     virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) = 0;
   
-    // Creates a new event iterator. Caller takes ownership of object.
+    /// Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator* create_iterator() = 0;
+
+    /// Returns a monotonically increasing number that will change every time
+    /// the set of registered event handlers change. Whenever this number
+    /// changes, the iterators are invalidated and must be cleared.
+    unsigned get_epoch() {
+      return dirtyCounter_;
+    }
 
 protected:
   EventRegistry();
 
+  /// Implementations must call this function from register and unregister
+  /// handler to mark iterators being invalidated.
+  void set_dirty() { ++dirtyCounter_; }
+
 private:
   static EventRegistry* instance_;
+
+  /// This counter will be incremented every time the set of event handlers
+  /// change (and thus the event iterators are invalidated).
+  unsigned dirtyCounter_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(EventRegistry);
 };
