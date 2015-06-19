@@ -46,10 +46,11 @@
 #include "nmranet/ConfiguredConsumer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
 #include "definitions.hxx"
 
-#define SNIFF_ON_USB
+#define SNIFF_ON_SERIAL
 
 extern const nmranet::NodeID NODE_ID;
 
@@ -68,7 +69,6 @@ const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
 
 static_assert(nmranet::ConfigDef::size() <= 256, "Need to adjust eeprom size");
 
-GPIO_PIN(LED_RED, LedPin, F, 1);
 GPIO_PIN(LED_GREEN, LedPin, F, 3);
 GPIO_PIN(LED_BLUE, LedPin, F, 2);
 
@@ -77,7 +77,7 @@ GPIO_PIN(SW1, GpioInputPU, F, 4);
 nmranet::ConfigDef cfg(0);
 
 nmranet::ConfiguredConsumer consumer_red(cfg.seg().consumers().entry<0>(),
-                                         LED_RED_Pin());
+                                         BLINKER_Pin());
 nmranet::ConfiguredConsumer consumer_green(cfg.seg().consumers().entry<1>(),
                                            LED_GREEN_Pin());
 nmranet::ConfiguredConsumer consumer_blue(cfg.seg().consumers().entry<2>(),
