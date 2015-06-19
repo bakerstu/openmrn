@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<identification>
+<manufacturer>OpenMRN</manufacturer>
+<model>Test IO Board - Tiva Launchpad 123</model>
+<hardwareVersion>ek-tm4c123gxl</hardwareVersion>
+<softwareVersion>1.01</softwareVersion>
+</identification>
+<segment space='253'>
+<group offset='128'/><group replication='3'>
+<eventid>
+</eventid>
+<eventid>
+</eventid>
+</group>
+<group replication='2'>
+<int size='1'>
+</int>
+<eventid>
+</eventid>
+<eventid>
+</eventid>
+</group>
+</segment>
+</cdi>
