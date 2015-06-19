@@ -125,6 +125,16 @@ int appl_main(int argc, char *argv[])
         create_gc_port_for_can_hub(&can_hub0, conn_fd);
     }
 
+    class DeviceClosedNotify : public Notifiable {
+    public:
+        DeviceClosedNotify(int* fd) : fd_(fd) {}
+        void notify() override {
+            *fd_ = 0;
+        }
+    private:
+        int* fd_;
+    } closed_notify(&dev_fd);
+
     while (1)
     {
         if (device_path && !dev_fd)
@@ -141,12 +151,13 @@ int appl_main(int argc, char *argv[])
                 cfmakeraw(&settings);
                 HASSERT(!tcsetattr(dev_fd, TCSANOW, &settings));
                 LOG(INFO, "Opened device %s.\n", device_path);
-                create_gc_port_for_can_hub(&can_hub0, dev_fd);
+                create_gc_port_for_can_hub(&can_hub0, dev_fd, &closed_notify);
             }
             else
             {
                 LOG(ERROR, "Failed to open device %s: %s\n", device_path,
                     strerror(errno));
+                dev_fd = 0;
             }
         }
         sleep(1);
