@@ -67,6 +67,17 @@ STM32CUBEF0PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF0PATH
 
+################ STM32Cube_F1 ##################
+ifndef STM32CUBEF1PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F1/default
+
+TRYPATH:=$(call findfirst,Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF1PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF1PATH
+
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
