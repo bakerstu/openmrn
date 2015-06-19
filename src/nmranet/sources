@@ -10,6 +10,7 @@ CXXSRCS += \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
            DefaultNode.cxx \
+           DefaultCdi.cxx \
            EventHandler.cxx \
            EventHandlerContainer.cxx \
            EventHandlerTemplates.cxx \

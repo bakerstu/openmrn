@@ -57,7 +57,7 @@ file_in = open(options.input, 'r')
 file_out = open(options.output, 'w')
 
 file_out.write('/* Generated code based off of ' + options.input + ' */\n\n')
-file_out.write('#include <cstdint>\n\n')
+file_out.write('#include <cstdint>\n#include <unistd.h>\n\n')
 file_out.write('namespace nmranet {\n')
 file_out.write('extern const char CDI_DATA[];\n')
 file_out.write('const char CDI_DATA[] =\n{\n')
@@ -91,7 +91,7 @@ if cnt != 0 :
     file_out.write("|\n   ")    
 file_out.write("0\n")
    
-file_out.write('\n};\n}  //namespace nmranet\n');
+file_out.write('\n};\nextern const size_t CDI_SIZE = sizeof(CDI_DATA);\n}  //namespace nmranet\n');
 
 file_in.close()
 file_out.close()
