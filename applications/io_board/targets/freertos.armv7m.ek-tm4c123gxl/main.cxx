@@ -60,8 +60,8 @@ OVERRIDE_CONST(num_memory_spaces, 5);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-nmranet::MockSNIPUserFile snip_user_file("Default user name",
-                                         "Default user description");
+nmranet::MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
@@ -76,14 +76,15 @@ GPIO_PIN(SW1, GpioInputPU, F, 4);
 
 nmranet::ConfigDef cfg(0);
 
-nmranet::ConfiguredConsumer consumer_red(cfg.seg().consumers().entry<0>(),
-                                         BLINKER_Pin());
-nmranet::ConfiguredConsumer consumer_green(cfg.seg().consumers().entry<1>(),
-                                           LED_GREEN_Pin());
-nmranet::ConfiguredConsumer consumer_blue(cfg.seg().consumers().entry<2>(),
-                                          LED_BLUE_Pin());
+nmranet::ConfiguredConsumer consumer_red(
+    stack.node(), cfg.seg().consumers().entry<0>(), BLINKER_Pin());
+nmranet::ConfiguredConsumer consumer_green(
+    stack.node(), cfg.seg().consumers().entry<1>(), LED_GREEN_Pin());
+nmranet::ConfiguredConsumer consumer_blue(
+    stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
 
-nmranet::FileMemorySpace config_space(nmranet::CONFIG_FILENAME, cfg.seg().size());
+nmranet::FileMemorySpace config_space(
+    nmranet::CONFIG_FILENAME, cfg.seg().size());
 
 /** Entry point to application.
  * @param argc number of command line arguments
