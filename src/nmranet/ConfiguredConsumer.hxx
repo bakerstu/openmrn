@@ -41,10 +41,6 @@
 #include "nmranet/ConfigRepresentation.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 
-// TODO(balazs.racz) this is not nice but we shouldn't store a node
-// pointer for every consumer separately.
-extern nmranet::SimpleCanStack stack;
-
 namespace nmranet
 {
 
@@ -59,41 +55,11 @@ END_GROUP(ConsumerConfig, event_off);
 class ConfiguredConsumer : public ConfigUpdateListener
 {
 public:
-    typedef bool (*getter_fn_t)();
-    typedef void (*setter_fn_t)(bool);
-
-    class Impl : public BitEventInterface
-    {
-    public:
-        Impl(EventId event_on, EventId event_off, getter_fn_t getter,
-            setter_fn_t setter)
-            : BitEventInterface(event_on, event_off)
-            , getter_(getter)
-            , setter_(setter)
-        {
-        }
-
-        bool GetCurrentState() OVERRIDE
-        {
-            return getter_();
-        }
-        void SetState(bool new_value) OVERRIDE
-        {
-            setter_(new_value);
-        }
-        Node *node() OVERRIDE
-        {
-            return stack.node();
-        }
-
-    public:
-        const getter_fn_t getter_;
-        const setter_fn_t setter_;
-    };
+    using Impl = GPIOBit;
 
     template <class HW>
-    ConfiguredConsumer(const ConsumerConfig &cfg, const HW &)
-        : impl_(0, 0, &HW::get, &HW::set)
+    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &)
+        : impl_(node, 0, 0, &HW::get, &HW::set)
         , consumer_(&impl_)
         , cfg_(cfg)
     {
@@ -111,12 +77,13 @@ public:
         {
             auto saved_setter = impl_.setter_;
             auto saved_getter = impl_.getter_;
+            auto saved_node = impl_.node();
             // Need to reinitialize the consumer. We do this with in-place
             // destruction and construction.
             consumer_.~BitEventConsumer();
             impl_.~Impl();
-            new (&impl_)
-                Impl(cfg_event_on, cfg_event_off, saved_getter, saved_setter);
+            new (&impl_) Impl(saved_node, cfg_event_on, cfg_event_off,
+                saved_getter, saved_setter);
             new (&consumer_) BitEventConsumer(&impl_);
             return REINIT_NEEDED; // Causes events identify.
         }

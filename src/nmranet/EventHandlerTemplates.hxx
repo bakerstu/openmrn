@@ -215,6 +215,43 @@ template<class T> class MemoryBit : public BitEventInterface {
   DISALLOW_COPY_AND_ASSIGN(MemoryBit);
 };
 
+/// Simple implementation of the BitEventInterface for going through GPIO
+/// ports. The port getter and setter are taken as precompiled function
+/// pointers.
+class GPIOBit : public BitEventInterface
+{
+public:
+    typedef bool (*getter_fn_t)();
+    typedef void (*setter_fn_t)(bool);
+
+    GPIOBit(Node *node, EventId event_on, EventId event_off, getter_fn_t getter,
+        setter_fn_t setter)
+        : BitEventInterface(event_on, event_off)
+        , node_(node)
+        , getter_(getter)
+        , setter_(setter)
+    {
+    }
+
+    bool GetCurrentState() OVERRIDE
+    {
+        return getter_();
+    }
+    void SetState(bool new_value) OVERRIDE
+    {
+        setter_(new_value);
+    }
+    Node *node() OVERRIDE
+    {
+        return node_;
+    }
+
+public:
+    Node *node_;
+    const getter_fn_t getter_;
+    const setter_fn_t setter_;
+};
+
 /// Base class for single-bit producer and consumer objects.
 ///
 /// Contains helper functions for operations shared by event handlers.
