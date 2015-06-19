@@ -73,6 +73,7 @@ GPIO_PIN(LED_GREEN, LedPin, F, 3);
 GPIO_PIN(LED_BLUE, LedPin, F, 2);
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
+GPIO_PIN(SW2, GpioInputPU, F, 0);
 
 nmranet::ConfigDef cfg(0);
 
@@ -82,6 +83,13 @@ nmranet::ConfiguredConsumer consumer_green(
     stack.node(), cfg.seg().consumers().entry<1>(), LED_GREEN_Pin());
 nmranet::ConfiguredConsumer consumer_blue(
     stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
+
+nmranet::ConfiguredProducer producer_sw1(
+    stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
+nmranet::ConfiguredProducer producer_sw2(
+    stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
+
+nmranet::RefreshLoop loop(stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 nmranet::FileMemorySpace config_space(
     nmranet::CONFIG_FILENAME, cfg.seg().size());

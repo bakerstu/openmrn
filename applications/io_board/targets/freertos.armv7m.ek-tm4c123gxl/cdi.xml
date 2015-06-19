@@ -9,16 +9,24 @@
 <segment space='253'>
 <group offset='128'/><group replication='3'>
 <eventid>
+<name>Event On</name>
+<description>Receiving this event ID will turn the output on.</description>
 </eventid>
 <eventid>
+<name>Event Off</name>
+<description>Receiving this event ID will turn the output off.</description>
 </eventid>
 </group>
 <group replication='2'>
 <int size='1'>
 </int>
 <eventid>
+<name>Event On</name>
+<description>This event will be produced when the input goes to HIGH.</description>
 </eventid>
 <eventid>
+<name>Event Off</name>
+<description>This event will be produced when the input goes to LOW.</description>
 </eventid>
 </group>
 </segment>
