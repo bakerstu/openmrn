@@ -37,6 +37,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
@@ -68,6 +69,7 @@ struct Debug {
 #include "TivaGPIO.hxx"
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
+GPIO_PIN(SW2, GpioInputPU, F, 0);
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -335,11 +337,21 @@ void hw_preinit(void)
     tivaDCC.hw_init();
 
     SW1_Pin::hw_init();
+    //
+    // Unlock PF0 so we can change it to a GPIO input
+    // Once we have enabled (unlocked) the commit register then re-lock it
+    // to prevent further changes.  PF0 is muxed with NMI thus a special case.
+    //
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_CR) |= 0x01;
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = 0;
+
+    SW2_Pin::hw_init();
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
     asm volatile ("cpsie i\n");
     do {
-      if (!SW1_Pin::get()) {
+      if (!SW2_Pin::get()) {
         blinker_pattern = 0xAAAA;
       } else {
         blinker_pattern = 0;
