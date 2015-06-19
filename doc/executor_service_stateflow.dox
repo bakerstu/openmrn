@@ -1,0 +1,117 @@
+/**
+@page executor_service_stateflow_page Executors, Services, State Flows, and Dispatch Flows
+
+@tableofcontents
+
+
+
+@section introduction Introduction
+The Executor programming paradigm is a way of managing many separate
+asynchronous operations while only using a single thread.  The workhorse of
+this model is the StateFlow, which maintains a state machine for doing work.
+The StateFlow's execution is gated by an Executor on the basis of whether it
+has work to do.
+
+As a StateFlow does its work, it moves from one internal state
+to the next.  Logically speaking, a StateFlow is blocked when waiting on an
+event.  However, the Executor is designed to allow another unblocked StateFlow
+to execute in the meantime.
+
+
+
+@section executor Executor
+An Executor is built around an OSThread.  I has its own thread stack which it
+uses as its context.  The sole purpose of an executor is to manage the
+execution of State Flows.
+
+
+
+@section service Service
+A Service is a container of similar or related State Flows.  A Service is bound
+to a single Executor for execution, however multiple Services may be bound to a
+single Executor.
+
+
+
+@section stateflow State Flow
+A StateFlow is responsible for processing an incoming event.  The result of
+that processing could be anything, including the sending, or forwarding, of an
+event to another StateFlow.  A StateFlow, as the name implies, contains one
+or more states.
+
+Logically, each state contained in the StateFlow pends on some event happening
+such as a timeout, a resource becoming available, an incoming message, or an
+explicit change in state.
+
+
+
+@section dispatchflow Dispatch Flow
+A DispatchFlow can be used to process a generic incoming message.  Based on some
+criteria, such as a unique message type identifier, the DispatchFlow will
+"dispatch" that message to an appropriate StateFlow which is designed to
+handle the message type, and has been previously registered with the
+DispatchFlow instance.
+
+
+
+@section examples Examples
+@subsection service_state_flow One Service with Two StateFlows
+@code
+#include "executor/Service.hxx"
+#include "executor/StateFlow.hxx"
+#include "executor/Timer.hxx"
+
+ExampleService : public Service
+{
+public:
+    ExampleService(Executor *e)
+        : Service(e)
+    {
+    }
+
+    ~ExampleService()
+    {
+    }
+
+    class ExampleStateFlow1 : public StateFlowBase
+    {
+    public:
+        ExampleStateFlow1(Service *s)
+            : StateFlowBase(s)
+            , timer(this)
+        {
+            start_flow(STATE(wait_for_timeout));
+        }
+
+        ~ExampleStateFlow1()
+        {
+        }
+
+    private:
+        Action wait_for_timeout()
+        {
+        }
+
+        StateFlowTimer timer;
+    }
+
+private:
+    ExampleStateFlow1 stateFlow1;
+}
+
+ExampleService2 : public Service
+{
+public:
+    ExampleService2(Executor *e)
+        : Service(e)
+    {
+    }
+
+    ~ExampleService1()
+    {
+    }
+
+
+}
+@endcode
+*/

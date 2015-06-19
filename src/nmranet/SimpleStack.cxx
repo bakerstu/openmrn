@@ -50,6 +50,10 @@ SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
 
 void SimpleCanStack::start_stack()
 {
+    // Opens the eeprom file and sends configuration update commands to all
+    // listeners.
+    configUpdateFlow_.init(CONFIG_FILENAME);
+
     // Bootstraps the alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
 
@@ -109,7 +113,6 @@ void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit
 #endif
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
     mainBufferPool;
-
 
 extern const char __attribute__((weak)) CDI_DATA[] = 
 R"cdi(<?xml version="1.0"?>

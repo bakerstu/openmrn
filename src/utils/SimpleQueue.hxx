@@ -149,7 +149,10 @@ public:
         *position.link_ = entry;
     }
 
-    /** Removes the entry pointed to by the iterator. */
+    /** Removes the entry pointed to by the iterator. The iterator will
+     * afterwards point to the next member after the removed one (or end() if
+     * this was the last member). Invalidates any other iterator pointing just
+     * behind the marked position (but not iterators pointing elsewhere). */
     void erase(const iterator& position) {
         QMember* m = *position.link_;
         HASSERT(m);

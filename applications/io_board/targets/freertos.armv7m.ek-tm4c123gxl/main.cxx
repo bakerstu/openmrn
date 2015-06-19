@@ -43,128 +43,30 @@
 #include "os/TempFile.hxx"
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
-#include "utils/ConfigUpdateListener.hxx"
+#include "nmranet/ConfiguredConsumer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "config.hxx"
+#include "definitions.hxx"
+
+#define SNIFF_ON_USB
 
 extern const nmranet::NodeID NODE_ID;
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(main_thread_stack_size, 2500);
-OVERRIDE_CONST(num_memory_spaces, 4);
+OVERRIDE_CONST(num_memory_spaces, 5);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-nmranet::MockSNIPUserFile snip_user_file(
-    "Default user name", "Default user description");
+nmranet::MockSNIPUserFile snip_user_file("Default user name",
+                                         "Default user description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
-namespace nmranet
-{
-BEGIN_GROUP(ConsumerConfig, base);
-EXTEND_GROUP(ConsumerConfig, base, event_on, EventConfigEntry);
-EXTEND_GROUP(ConsumerConfig, event_on, event_off, EventConfigEntry);
-END_GROUP(ConsumerConfig, event_off);
+const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
 
-using AllConsumers = RepeatedGroup<ConsumerConfig, 3>;
-
-BEGIN_GROUP(ProducerConfig, base);
-EXTEND_GROUP(ProducerConfig, base, debounce, Uint8ConfigEntry);
-EXTEND_GROUP(ProducerConfig, debounce, event_on, EventConfigEntry);
-EXTEND_GROUP(ProducerConfig, event_on, event_off, EventConfigEntry);
-END_GROUP(ProducerConfig, event_off);
-
-using AllProducers = RepeatedGroup<ProducerConfig, 2>;
-
-BEGIN_GROUP(ConfigDef, base);
-EXTEND_GROUP(ConfigDef, base, snip_data, EmptyGroup<128>);
-EXTEND_GROUP(ConfigDef, snip_data, consumers, AllConsumers);
-EXTEND_GROUP(ConfigDef, consumers, producers, AllProducers);
-END_GROUP(ConfigDef, consumers);
-
-static_assert(ConfigDef::size() <= 256, "Need to adjust eeprom size");
-
-typedef bool (*getter_fn_t)();
-typedef void (*setter_fn_t)(bool);
-
-class ConfiguredConsumer : public ConfigUpdateListener
-{
-public:
-    class Impl : public BitEventInterface
-    {
-    public:
-        Impl(EventId event_on, EventId event_off, getter_fn_t getter,
-            setter_fn_t setter)
-            : BitEventInterface(event_on, event_off)
-            , getter_(getter)
-            , setter_(setter)
-        {
-        }
-
-        bool GetCurrentState() OVERRIDE
-        {
-            return getter_();
-        }
-        void SetState(bool new_value) OVERRIDE
-        {
-            setter_(new_value);
-        }
-        Node *node() OVERRIDE
-        {
-            return stack.node();
-        }
-
-    public:
-        const getter_fn_t getter_;
-        const setter_fn_t setter_;
-    };
-
-    template <class HW>
-    ConfiguredConsumer(const ConsumerConfig &cfg, const HW &)
-        : impl_(0, 0, &HW::get, &HW::set)
-        , consumer_(&impl_)
-        , cfg_(cfg)
-    {
-    }
-
-    UpdateAction apply_configuration(
-        int fd, bool initial_load, BarrierNotifiable *done)
-    {
-        AutoNotify n(done);
-        EventId cfg_event_on = cfg_.event_on().read(fd);
-        EventId cfg_event_off = cfg_.event_off().read(fd);
-        if (cfg_event_off != impl_.event_off() ||
-            cfg_event_on != impl_.event_on())
-        {
-            auto saved_setter = impl_.setter_;
-            auto saved_getter = impl_.getter_;
-            // Need to reinitialize the consumer. We do this with in-place
-            // destruction and construction.
-            consumer_.~BitEventConsumer();
-            impl_.~Impl();
-            new (&impl_)
-                Impl(cfg_event_on, cfg_event_off, saved_getter, saved_setter);
-            new (&consumer_) BitEventConsumer(&impl_);
-            return REINIT_NEEDED; // Causes events identify.
-        }
-        return UPDATED;
-    }
-
-    ///@TODO(balazs.racz): implement
-    void factory_reset(int fd) OVERRIDE
-    {
-    }
-
-private:
-    Impl impl_;
-    BitEventConsumer consumer_;
-    const ConsumerConfig cfg_;
-};
-
-} // namespace nmranet
+static_assert(nmranet::ConfigDef::size() <= 256, "Need to adjust eeprom size");
 
 GPIO_PIN(LED_RED, LedPin, F, 1);
 GPIO_PIN(LED_GREEN, LedPin, F, 3);
@@ -174,12 +76,14 @@ GPIO_PIN(SW1, GpioInputPU, F, 4);
 
 nmranet::ConfigDef cfg(0);
 
-nmranet::ConfiguredConsumer consumer_red(
-    cfg.consumers().entry<0>(), LED_RED_Pin());
-nmranet::ConfiguredConsumer consumer_green(
-    cfg.consumers().entry<1>(), LED_GREEN_Pin());
-nmranet::ConfiguredConsumer consumer_blue(
-    cfg.consumers().entry<2>(), LED_BLUE_Pin());
+nmranet::ConfiguredConsumer consumer_red(cfg.seg().consumers().entry<0>(),
+                                         LED_RED_Pin());
+nmranet::ConfiguredConsumer consumer_green(cfg.seg().consumers().entry<1>(),
+                                           LED_GREEN_Pin());
+nmranet::ConfiguredConsumer consumer_blue(cfg.seg().consumers().entry<2>(),
+                                          LED_BLUE_Pin());
+
+nmranet::FileMemorySpace config_space(nmranet::CONFIG_FILENAME, cfg.seg().size());
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -188,6 +92,9 @@ nmranet::ConfiguredConsumer consumer_blue(
  */
 int appl_main(int argc, char *argv[])
 {
+    stack.memory_config_handler()->registry()->insert(
+        stack.node(), nmranet::MemoryConfigDefs::SPACE_CONFIG, &config_space);
+
 #if defined(HAVE_PHYSICAL_CAN_PORT)
     stack.add_can_port_select("/dev/can0");
 #endif

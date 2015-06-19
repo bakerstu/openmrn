@@ -8,6 +8,7 @@ CXXSRCS += \
            Bootloader.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
+           ConfigUpdateFlow.cxx \
            DefaultNode.cxx \
            EventHandler.cxx \
            EventHandlerContainer.cxx \

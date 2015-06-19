@@ -47,6 +47,9 @@
   
    /*! Invalid single line Doxygen comment */
   
+   /// Valid multi-line Doxygen
+   /// comment
+  
    /** Valid mulit-line Doxygen
     * comment
     */
@@ -55,9 +58,16 @@
       comment
     */
   
-   /// Invalid multi-line Doxygen
-   /// comment
+   /// This is a valid Doxygen comment for int i
+   int i;
   
+   /** This is a valid Doxygen comment for int i */
+   int i;
+  
+   int i; ///< This is a valid Doxygen comment for int i
+  
+   int i; /**< This is a valid Doxygen comment for int i */
+
    /** @param - preferred tag style */
   
    /** \param - allowed tag style, not preferred */
@@ -65,7 +75,8 @@
  *
  * Multi-line comments shall use
  * C style comments blocks with intermediate "*" characters starting each line
- * and aligned appropriately as shown in the below example.  Single line
+ * and aligned appropriately as shown in the below example.  Multi-line comments
+ * using the C++ "//" style are also acceptable.  Single line
  * comments may use C or C++ style.
  * @verbatim
    // This is a valid comment for int i
@@ -79,25 +90,18 @@
     */
    int i;
   
-   // This is an invalid multi-line
+   // This is a valid multi-line
    // comment for int i
    int i;
   
-   /** This is an invalid multi-line
-       comment for int i
+   /* This is an invalid multi-line
+      comment for int i
     */
-  
-   /// This is a valid Doxygen comment for int i
-   int i;
-  
-   /** This is a valid Doxygen comment for int i */
-   int i;
-  
-   int i; ///< This is a valid Doxygen comment for int i
-  
-   int i; /**< This is a valid Doxygen comment for int i */
    @endverbatim
  *
+ * For multi-line C style comment blocks contained within a *.dox documentation
+ * file, an exception to the rules is made.  In the case of a *.dox file, the
+ * intermediate "*" character starting each line is optional, and not required.
  *
  *
  *

@@ -136,8 +136,8 @@ protected:
 private:
     EventService *eventService_;
 
-    // Statically allocated structure for calling the event handlers from the
-    // main event queue.
+    /// Statically allocated structure for calling the event handlers from the
+    /// main event queue.
     EventReport eventReport_;
 
     /** Iterator for generating the event handlers from the registry. */
@@ -146,6 +146,9 @@ private:
      * buffer. We must not release this notifiable until we have completed
      * processing and freed all the buffers related to this iteration. */
     Notifiable* incomingDone_;
+    /// The epoch of the event registry at the start of the iteration. Used to
+    /// recognize when the iterators are invalidated.
+    unsigned eventRegistryEpoch_;
 
     BarrierNotifiable n_;
     EventHandlerFunction fn_;

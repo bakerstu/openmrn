@@ -136,13 +136,13 @@ StateFlowBase::Action EventIteratorFlow::entry()
             return release_and_exit();
         }
         rep->event = NetworkToEventID(nmsg()->payload.data());
-        rep->mask = 1;
+        rep->mask = 0;
     }
     else
     {
         // Message without event payload.
         rep->event = 0;
-        /// @TODO(balazs.racz) refactor this into a
+        /// @TODO(balazs.racz) refactor this into a global constant.
         rep->mask = 0xFFFFFFFFFFFFFFFFULL;
     }
 
@@ -219,12 +219,20 @@ StateFlowBase::Action EventIteratorFlow::entry()
     incomingDone_ = message()->new_child();
     release();
 
+    eventRegistryEpoch_ = eventService_->impl()->registry->get_epoch();
     iterator_->init_iteration(rep);
     return yield_and_call(STATE(iterate_next));
 }
 
 StateFlowBase::Action EventIteratorFlow::iterate_next()
 {
+    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch()) {
+        // Iterators are invalidated. We need to start over. This may cause
+        // duplicate delivery of the same events.
+        iterator_->clear_iteration();
+        iterator_->init_iteration(&eventReport_);
+    }
+
     EventHandler *handler = iterator_->next_entry();
     if (!handler)
     {
