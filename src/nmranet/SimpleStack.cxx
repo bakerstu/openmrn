@@ -83,7 +83,7 @@ void SimpleCanStack::start_stack()
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&CDI_DATA),
-            CDI_SIZE);
+            strlen(CDI_DATA) + 1);
         memoryConfigHandler_.registry()->insert(
             &node_, MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);

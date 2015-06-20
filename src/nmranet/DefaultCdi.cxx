@@ -81,6 +81,4 @@ R"cdi(<?xml version="1.0"?>
 </cdi>
 )cdi";
 
-extern const size_t __attribute__((weak)) CDI_SIZE = sizeof(CDI_DATA);
-
 } // namespace nmranet

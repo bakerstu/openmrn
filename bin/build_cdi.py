@@ -91,7 +91,7 @@ if cnt != 0 :
     file_out.write("|\n   ")    
 file_out.write("0\n")
    
-file_out.write('\n};\nextern const size_t CDI_SIZE = sizeof(CDI_DATA);\n}  //namespace nmranet\n');
+file_out.write('\n};\n}  //namespace nmranet\n');
 
 file_in.close()
 file_out.close()

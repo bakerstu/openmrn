@@ -59,7 +59,6 @@ namespace nmranet
 {
 
 extern const char CDI_DATA[];
-extern const size_t CDI_SIZE;
 
 /// This symbol must be defined by the application to tell which file to open
 /// for the configuration listener.
