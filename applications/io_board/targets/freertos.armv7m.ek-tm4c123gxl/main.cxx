@@ -32,23 +32,16 @@
  * @date 5 Jun 2015
  */
 
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-
 #include "os/os.h"
-#include "can_frame.h"
 #include "nmranet_config.h"
 
-#include "os/TempFile.hxx"
 #include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/ConfiguredConsumer.hxx"
+#include "nmranet/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
-#include "definitions.hxx"
 
 #define SNIFF_ON_SERIAL
 
@@ -84,7 +77,8 @@ nmranet::ConfiguredProducer producer_sw1(
 nmranet::ConfiguredProducer producer_sw2(
     stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
 
-nmranet::RefreshLoop loop(stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+nmranet::RefreshLoop loop(
+    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 nmranet::FileMemorySpace config_space(
     nmranet::CONFIG_FILENAME, cfg.seg().size() + cfg.seg().offset());
@@ -102,8 +96,6 @@ int appl_main(int argc, char *argv[])
 #if defined(HAVE_PHYSICAL_CAN_PORT)
     stack.add_can_port_select("/dev/can0");
 #endif
-
-// Enable this to add sniffing through the usb or serial port.
 #if defined(SNIFF_ON_USB)
     stack.add_gridconnect_port("/dev/serUSB0");
 #endif
