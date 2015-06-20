@@ -48,6 +48,7 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "TivaGPIO.hxx"
+#include "TivaEEPROMEmulation.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -61,16 +62,33 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** UART 0 serial driver instance */
 static TivaUart uart2("/dev/ser0", UART2_BASE, INT_RESOLVE(INT_UART2_, 0));
 
+extern "C" void uart2_interrupt_handler(void)
+{
+    uart2.interrupt_handler();
+}
+
 /** CAN 0 CAN driver instance */
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 /** USB Device CDC serial driver instance */
 static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));
 
+extern const uint16_t __eeprom_start[];
+const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
+extern const uint16_t __eeprom_end[];
+const size_t TivaEEPROMEmulation::FLASH_SIZE = sizeof(__eeprom_end[0])*(__eeprom_end - __eeprom_start);
+const unsigned TivaEEPROMEmulation::FAMILY = TM4C129;
+const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 1024;
+const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 1024);
+
 GPIO_PIN(LED_B1, LedPin, N, 1);
 GPIO_PIN(LED_B2, LedPin, N, 0);
 GPIO_PIN(LED_B3, LedPin, F, 4);
 GPIO_PIN(LED_B4, LedPin, F, 0);
+
+GPIO_PIN(SW1, GpioInputPU, J, 0);
+GPIO_PIN(SW2, GpioInputPU, J, 1);
 
 extern "C" {
 /** Blink LED */
@@ -139,7 +157,7 @@ void hw_preinit(void)
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
     MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
-    MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, MAP_SysCtlClockGet() / 8);
+    MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, configCPU_CLOCK_HZ / 8);
     MAP_TimerControlStall(TIMER5_BASE, TIMER_A, true);
     MAP_IntEnable(INT_TIMER5A);
 
@@ -180,6 +198,9 @@ void hw_preinit(void)
     LED_B2_Pin::hw_init();
     LED_B3_Pin::hw_init();
     LED_B4_Pin::hw_init();
+
+    SW1_Pin::hw_init();
+    SW2_Pin::hw_init();
 }
 
 }
