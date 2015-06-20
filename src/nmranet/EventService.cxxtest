@@ -66,7 +66,7 @@ TEST_F(AsyncEventTest, EventReportFields)
                 Field(&EventReport::src_node, Field(&NodeHandle::id, node_id)),
                 Field(&EventReport::dst_node, IsNull()),
                 Field(&EventReport::event, 0x0102030405060702ULL),
-                Field(&EventReport::mask, 1))),
+                Field(&EventReport::mask, 0))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     send_packet(":X195B4621N0102030405060702;");
 }
@@ -83,7 +83,7 @@ TEST_F(AsyncEventTest, EventReportUnknownNode)
                 Field(&EventReport::src_node, Field(&NodeHandle::id, 0)),
                 Field(&EventReport::dst_node, IsNull()),
                 Field(&EventReport::event, 0x0102030405060703ULL),
-                Field(&EventReport::mask, 1))),
+                Field(&EventReport::mask, 0))),
             _)).WillOnce(WithArg<1>(Invoke(&InvokeNotification)));
     send_packet(":X195B4631N0102030405060703;");
 }
