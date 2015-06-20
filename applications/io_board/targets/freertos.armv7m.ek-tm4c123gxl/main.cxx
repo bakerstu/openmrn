@@ -56,16 +56,11 @@ extern const nmranet::NodeID NODE_ID;
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(main_thread_stack_size, 2500);
-OVERRIDE_CONST(num_memory_spaces, 5);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-nmranet::MockSNIPUserFile snip_user_file(
-    "Default user name", "Default user description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::MockSNIPUserFile::snip_user_file_path;
-
 const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
+const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::CONFIG_FILENAME;
 
 static_assert(nmranet::ConfigDef::size() <= 256, "Need to adjust eeprom size");
 
@@ -92,7 +87,7 @@ nmranet::ConfiguredProducer producer_sw2(
 nmranet::RefreshLoop loop(stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 nmranet::FileMemorySpace config_space(
-    nmranet::CONFIG_FILENAME, cfg.seg().size());
+    nmranet::CONFIG_FILENAME, cfg.seg().size() + cfg.seg().offset());
 
 /** Entry point to application.
  * @param argc number of command line arguments

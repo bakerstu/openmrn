@@ -12,16 +12,19 @@ namespace nmranet
 using AllConsumers = RepeatedGroup<ConsumerConfig, 3>;
 using AllProducers = RepeatedGroup<ProducerConfig, 2>;
 
-BEGIN_GROUP(IoBoardSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG),
-            Offset(0));
-EXTEND_GROUP(IoBoardSegment, base, snip_data, EmptyGroup<128>);
-EXTEND_GROUP(IoBoardSegment, snip_data, consumers, AllConsumers);
-EXTEND_GROUP(IoBoardSegment, consumers, producers, AllProducers);
+BEGIN_GROUP(
+    IoBoardSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
+EXTEND_GROUP(
+    IoBoardSegment, base, consumers, AllConsumers, Name("Output LEDs"));
+EXTEND_GROUP(
+    IoBoardSegment, consumers, producers, AllProducers, Name("Input buttons"));
 END_GROUP(IoBoardSegment, producers);
 
 BEGIN_GROUP(ConfigDef, base, MainCdi());
 EXTEND_GROUP(ConfigDef, base, ident, Identification);
-EXTEND_GROUP(ConfigDef, ident, seg, IoBoardSegment);
+EXTEND_GROUP(ConfigDef, ident, acdi, Acdi);
+EXTEND_GROUP(ConfigDef, acdi, userinfo, UserInfoSegment);
+EXTEND_GROUP(ConfigDef, userinfo, seg, IoBoardSegment);
 END_GROUP(ConfigDef, seg);
 
 } // namespace nmranet

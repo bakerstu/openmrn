@@ -6,8 +6,20 @@
 <hardwareVersion>ek-tm4c123gxl</hardwareVersion>
 <softwareVersion>1.01</softwareVersion>
 </identification>
-<segment space='253'>
-<group offset='128'/><group replication='3'>
+<acdi/>
+<segment space='251' origin='1'>
+<string size='63'>
+<name>User name</name>
+<description>This name will appear in network browsers for the current node.</description>
+</string>
+<string size='64'>
+<name>User description</name>
+<description>This description will appear in network browsers for the current node.</description>
+</string>
+</segment>
+<segment space='253' origin='128'>
+<group replication='3'>
+<name>Output LEDs</name>
 <eventid>
 <name>Event On</name>
 <description>Receiving this event ID will turn the output on.</description>
@@ -18,6 +30,7 @@
 </eventid>
 </group>
 <group replication='2'>
+<name>Input buttons</name>
 <int size='1'>
 </int>
 <eventid>
