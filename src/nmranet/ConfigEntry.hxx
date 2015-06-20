@@ -116,6 +116,8 @@ private:
     void repeated_read(int fd, void *buf, size_t size) const;
 };
 
+/// Implementation class for numeric configuration entries, templated by the
+/// integer type.
 template <class TR> class NumericConfigEntry : public ConfigEntryBase
 {
 public:
@@ -194,6 +196,7 @@ using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
 using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
 using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 
+/// Implementation class for event ID configuration entries.
 class EventConfigEntry : public Uint64ConfigEntry
 {
 public:
@@ -209,6 +212,9 @@ public:
     }
 };
 
+/// Implementation class for string configuration entries. The template
+/// argument is the string size (total space in bytes used in the configuration
+/// space including the NULL character).
 template <unsigned SIZE> class StringConfigEntry : public ConfigEntryBase
 {
 public:

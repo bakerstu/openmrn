@@ -41,6 +41,12 @@
 namespace nmranet
 {
 
+/// Starts a CDI group.
+///
+/// @param group is the c++ name of the struct that is being defined.
+/// @param base is a c++ name which represents the beginning of the chain.
+/// @param ARGS are additional arguments for group options, like Name(...),
+/// Description(...), Segment(...), Offset(...) or MainCdi().
 #define BEGIN_GROUP(group, base, ARGS...)                                      \
     class group##base : public nmranet::BaseGroup                              \
     {                                                                          \
@@ -61,6 +67,7 @@ namespace nmranet
         }                                                                      \
     };
 
+/// Helper class for starting a group. Terminates the type recursion.
 class BaseGroup : public nmranet::ConfigReference
 {
 public:
@@ -71,6 +78,16 @@ public:
     }
 };
 
+/// Adds an entry to a CDI group.
+///
+/// @param group is the c++ name of the struct that is being defined.
+/// @param prev_entry_name links to the name of the previous entry
+/// @param entry_name defines the name of the current entry
+/// @param type defines the c++ class / struct of the entry being added
+/// @param ARGS are additional arguments for the entry options, like Name(...),
+/// Description(...). If a subgroup is added, then group options are also
+/// allowed and they will override the respective values from the group
+/// definition.
 #define EXTEND_GROUP(group, prev_entry_name, entry_name, type, ARGS...)        \
     class group##entry_name : public group##prev_entry_name                    \
     {                                                                          \
@@ -109,11 +126,16 @@ public:
         }                                                                      \
     };
 
-#define END_GROUP(group, prev_entry_name)                                      \
-    class group : public group##prev_entry_name                                \
+/// Finalizes a CDI group definition.
+///
+/// @param group is the c++ name of the struct that is being defined.
+/// @param last_entry_name links to the name of the last entry
+///
+#define END_GROUP(group, last_entry_name)                                      \
+    class group : public group##last_entry_name                                \
     {                                                                          \
     public:                                                                    \
-        using base_type = group##prev_entry_name;                              \
+        using base_type = group##last_entry_name;                              \
         using base_type::base_type;                                            \
         void render_content_cdi(std::string *s) const                          \
         {                                                                      \
@@ -125,6 +147,13 @@ public:
         }                                                                      \
     };
 
+/// Defines a repeated group of a given type and a given number of repeats.
+///
+/// Typical usage:
+///
+///  using AllConsumers = RepeatedGroup<ConsumerConfig, 3>;
+///
+/// then add AllConsumers as an entry to the enclosing group or segment.
 template <class Group, unsigned N> class RepeatedGroup : public ConfigEntryBase
 {
 public:
@@ -165,6 +194,11 @@ public:
     }
 };
 
+/// Base class for all entries that can appear in the MainCdi group. THe common
+/// property of these entries is that they do not rely on the offset/size
+/// propagation of the previous entries, because they either do not take part
+/// in the layout algorithm (e.g. the <identification> tag) or they specify the
+/// origin explcitly.
 class ToplevelEntryBase : public ConfigEntryBase
 {
 public:
@@ -180,6 +214,10 @@ public:
     }
 };
 
+/// Add this entry to the beginning of the CDI group to render an
+/// <identification> tag at the beginning of the output cdi.xml. Requires a
+/// global symbol of @ref nmranet::SNIP_STATIC_DATA to fill in the specific
+/// values of the identification tree.
 class Identification : public ToplevelEntryBase
 {
 public:
@@ -191,6 +229,7 @@ public:
     }
 };
 
+/// Renders an <acdi> tag in the CDI group.
 class Acdi : public ToplevelEntryBase
 {
 public:
@@ -213,6 +252,9 @@ EXTEND_GROUP(UserInfoSegment, name, description, StringConfigEntry<64>, //
     Name("User description"),                                           //
     Description("This description will appear in network browsers for the "
                 "current node."));
+/// Configuration description for a segment containing the ACDI user-modifiable
+/// data. The implementation refers to the ACDI-userdata space number and does
+/// not depend on where the actual data is located.
 END_GROUP(UserInfoSegment, description);
 
 } // namespace nmranet

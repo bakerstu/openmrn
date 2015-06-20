@@ -44,9 +44,11 @@
 namespace nmranet
 {
 
+/// Configuration options for rendering CDI (atom) data elements.
 class AtomConfigOptions
 {
 public:
+    /// Represent the value enclosed in the <name> tag of the data element.
     struct Name
     {
         constexpr Name(const char *d)
@@ -55,6 +57,8 @@ public:
         }
         const char *d_;
     };
+    /// Represent the value enclosed in the <description> tag of the data
+    /// element.
     struct Description
     {
         constexpr Description(const char *d)
@@ -98,6 +102,7 @@ public:
     const char *description = nullptr;
 };
 
+/// Helper class for rendering an atom data element into the cdi.xml.
 class AtomConfigRenderer
 {
 public:
@@ -131,6 +136,7 @@ private:
     unsigned size_;
 };
 
+/// Helper class for rendering an empty group of a given size into the cdi.xml.
 class EmptyGroupConfigRenderer
 {
 public:
@@ -154,11 +160,16 @@ private:
     unsigned size_;
 };
 
+/// Configuration options for the CDI group element, as well as representing
+/// and distinguishing alternate uses of the BEGIN_GROUP/EXTEND_GROUP/END_GROUP
+/// syntax, such as for the toplevel CDI node and for representing segments..
 class GroupConfigOptions
 {
 public:
     using Name = AtomConfigOptions::Name;
     using Description = AtomConfigOptions::Description;
+    /// Represents the 'offset' attribute for groups and the 'origin' attribute
+    /// for segments.
     struct Offset
     {
         constexpr Offset(int d)
@@ -167,8 +178,11 @@ public:
         }
         int d_;
     };
+    /// Declares that the group is a segment (and thus may be used in the
+    /// toplevel CDI.
     struct Segment
     {
+        /// @param d is the memory space number (between 0 and 255).
         constexpr Segment(int d)
             : d_(d)
         {
@@ -176,6 +190,8 @@ public:
         int d_;
     };
 
+    /// Declares that this group is a toplevel CDI. Causes the group to render
+    /// the xml header.
     struct MainCdi
     {
         constexpr MainCdi()
@@ -242,16 +258,28 @@ public:
     {
     }
 
+    ///
+    /// @return true if this group is a toplevel CDI definition and shall only
+    /// allow segments and other toplevel-compatible entries (but no data
+    /// elements).
+    ///
     constexpr bool is_cdi() const
     {
         return segment == -2;
     }
 
+    ///
+    /// @return true if this group is a segment definition.
+    ///
     constexpr bool is_segment() const
     {
         return segment >= 0;
     }
 
+    ///
+    /// @return the origin of the current segment or zero (default) if not
+    /// specified.
+    ///
     constexpr unsigned get_segment_offset() const
     {
         return offset == INT_MAX ? 0 : offset;
@@ -275,6 +303,8 @@ public:
     int segment = -1;
 };
 
+/// Helper class for rendering the cdi.xml of groups, segments and the toplevel
+/// CDI node.
 template <class Body> class GroupConfigRenderer
 {
 
@@ -337,6 +367,7 @@ private:
     Body body_;
 };
 
+/// Helper class for rendering the <identification> tag.
 class IdentificationRenderer
 {
 public:
@@ -361,6 +392,7 @@ public:
     }
 };
 
+/// Helper class for rendering the <acdi> tag.
 class AcdiRenderer
 {
 public:
