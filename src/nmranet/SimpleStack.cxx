@@ -74,44 +74,53 @@ void SimpleCanStack::start_stack()
         additionalComponents_.emplace_back(space);
     }
     {
-        auto *space = new FileMemorySpace(SNIP_DYNAMIC_FILENAME,
-                                          sizeof(SimpleNodeDynamicValues));
+        auto *space = new FileMemorySpace(
+            SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
         memoryConfigHandler_.registry()->insert(
             &node_, MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
     {
         auto *space = new ReadOnlyMemoryBlock(
-            reinterpret_cast<const uint8_t *>(&CDI_DATA),
-            strlen(CDI_DATA) + 1);
+            reinterpret_cast<const uint8_t *>(&CDI_DATA), strlen(CDI_DATA) + 1);
         memoryConfigHandler_.registry()->insert(
             &node_, MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
+    if (CONFIG_FILENAME != nullptr)
+    {
+        auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
+        memory_config_handler()->registry()->insert(
+            &node_, nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
+        additionalComponents_.emplace_back(space);
+    }
 }
 
-void SimpleCanStack::add_gridconnect_port(const char* path, Notifiable* on_exit) {
-  int fd = ::open(path, O_RDWR);
-  HASSERT(fd >= 0);
-  LOG(INFO, "Adding device %s as fd %d", path, fd);
-  create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
+void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
+{
+    int fd = ::open(path, O_RDWR);
+    HASSERT(fd >= 0);
+    LOG(INFO, "Adding device %s as fd %d", path, fd);
+    create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 }
 
 #if defined(__linux__) || defined(__MACH__)
-void SimpleCanStack::add_gridconnect_tty(const char* device, Notifiable* on_exit) {
-  int fd = ::open(device, O_RDWR);
-  HASSERT(fd >= 0);
-  LOG(INFO, "Adding device %s as fd %d", device, fd);
-  create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
+void SimpleCanStack::add_gridconnect_tty(
+    const char *device, Notifiable *on_exit)
+{
+    int fd = ::open(device, O_RDWR);
+    HASSERT(fd >= 0);
+    LOG(INFO, "Adding device %s as fd %d", device, fd);
+    create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
 
-  HASSERT(!tcflush(fd, TCIOFLUSH));
-  struct termios settings;
-  HASSERT(!tcgetattr(fd, &settings));
-  cfmakeraw(&settings);
-  HASSERT(!tcsetattr(fd, TCSANOW, &settings));
+    HASSERT(!tcflush(fd, TCIOFLUSH));
+    struct termios settings;
+    HASSERT(!tcgetattr(fd, &settings));
+    cfmakeraw(&settings);
+    HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
-    mainBufferPool;
+extern Pool *const
+    __attribute__((__weak__)) g_incoming_datagram_allocator = mainBufferPool;
 
 } // namespace nmranet

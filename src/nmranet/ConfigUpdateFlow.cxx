@@ -56,5 +56,6 @@ void ConfigUpdateFlow::init(const char *path)
 }
 
 extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
+extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
 
 } // namespace nmranet

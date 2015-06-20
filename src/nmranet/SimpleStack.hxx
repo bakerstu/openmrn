@@ -58,11 +58,15 @@
 namespace nmranet
 {
 
+/// This symbol contains the embedded text of the CDI xml file.
 extern const char CDI_DATA[];
 
 /// This symbol must be defined by the application to tell which file to open
 /// for the configuration listener.
 extern const char* const CONFIG_FILENAME;
+/// This symbol must be defined by the application. It defines the size of the
+/// config (or eeprom) file in bytes.
+extern const size_t CONFIG_FILE_SIZE;
 
 /// Helper class for bringing up all components needed for a typical OpenLCB
 /// node.

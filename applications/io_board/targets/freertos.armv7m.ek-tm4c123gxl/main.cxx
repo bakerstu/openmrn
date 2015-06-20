@@ -52,18 +52,19 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
-const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::CONFIG_FILENAME;
-
-static_assert(nmranet::ConfigDef::size() <= 256, "Need to adjust eeprom size");
+nmranet::ConfigDef cfg(0);
+extern const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
+extern const size_t nmranet::CONFIG_FILE_SIZE =
+    cfg.seg().size() + cfg.seg().offset();
+static_assert(nmranet::CONFIG_FILE_SIZE <= 256, "Need to adjust eeprom size");
+extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
+    nmranet::CONFIG_FILENAME;
 
 GPIO_PIN(LED_GREEN, LedPin, F, 3);
 GPIO_PIN(LED_BLUE, LedPin, F, 2);
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
-
-nmranet::ConfigDef cfg(0);
 
 nmranet::ConfiguredConsumer consumer_red(
     stack.node(), cfg.seg().consumers().entry<0>(), BLINKER_Pin());
@@ -80,9 +81,6 @@ nmranet::ConfiguredProducer producer_sw2(
 nmranet::RefreshLoop loop(
     stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
-nmranet::FileMemorySpace config_space(
-    nmranet::CONFIG_FILENAME, cfg.seg().size() + cfg.seg().offset());
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -90,9 +88,6 @@ nmranet::FileMemorySpace config_space(
  */
 int appl_main(int argc, char *argv[])
 {
-    stack.memory_config_handler()->registry()->insert(
-        stack.node(), nmranet::MemoryConfigDefs::SPACE_CONFIG, &config_space);
-
 #if defined(HAVE_PHYSICAL_CAN_PORT)
     stack.add_can_port_select("/dev/can0");
 #endif
