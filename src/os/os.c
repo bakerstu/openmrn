@@ -557,13 +557,6 @@ void abort(void)
     }
 }
 
-/** This function does nothing. It can be used to alias other symbols to it via
- * linker flags, such as atexit(). */
-int ignore_fn(void)
-{
-    return 0;
-}
-
 extern char *heap_end;
 char *heap_end = 0;
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
@@ -660,6 +653,13 @@ void main_thread(void *arg)
     abort();
 }
 #endif
+
+/** This function does nothing. It can be used to alias other symbols to it via
+ * linker flags, such as atexit(). */
+int ignore_fn(void)
+{
+    return 0;
+}
 
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));
