@@ -43,4 +43,11 @@
 </eventid>
 </group>
 </segment>
+<segment space='253'>
+<name>Version information</name>
+<int size='1'>
+<name>ACDI User Data version</name>
+<description>Set to 2 and do not change.</description>
+</int>
+</segment>
 </cdi>
