@@ -52,7 +52,7 @@ DEFAULT_CONST(num_datagram_clients, 2);
 
 /** Maximum number of memory spaces that can be registered for the MemoryConfig
  * datagram handler. */
-DEFAULT_CONST(num_memory_spaces, 1);
+DEFAULT_CONST(num_memory_spaces, 5);
 
 /** Set to CONSTANT_TRUE if you want to export an "all memory" memory space
  * from the SimpleStack. Note that this should not be enabled in production,
