@@ -3,7 +3,6 @@
 using std::string;
 
 #include "config.hxx"
-#include "definitions.hxx"
 
 #include "utils/StringPrintf.cxx"
 

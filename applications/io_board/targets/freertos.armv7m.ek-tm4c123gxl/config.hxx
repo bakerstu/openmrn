@@ -9,6 +9,10 @@
 namespace nmranet
 {
 
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4,               "OpenMRN", "Test IO Board - Tiva Launchpad 123",
+    "ek-tm4c123gxl", "1.01"};
+
 using AllConsumers = RepeatedGroup<ConsumerConfig, 3>;
 using AllProducers = RepeatedGroup<ProducerConfig, 2>;
 
