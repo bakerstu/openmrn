@@ -120,7 +120,7 @@ EXTEND_GROUP(TestNodeConfig, test_short, ogrp, OtherGroup);
 EXTEND_GROUP(TestNodeConfig, ogrp, test64, Uint64ConfigEntry, Name("64"));
 EXTEND_GROUP(TestNodeConfig, test64, test32, Uint32ConfigEntry);
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
-EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
+EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat, Name("testgrouprept"));
 EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
 END_GROUP(TestNodeConfig, last);
 
@@ -142,7 +142,7 @@ TEST(ComplexGroupRender, RenderOk)
 <int size='4'>
 </int>
 <group replication='3'>
-<name>testgroup</name>
+<name>testgrouprept</name>
 <description>test group desc</description>
 <int size='1'>
 <name>e1</name>
@@ -157,6 +157,31 @@ TEST(ComplexGroupRender, RenderOk)
 )";
     string s;
     TestNodeConfig cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+
+BEGIN_GROUP(UserIdentificationGroup, base);
+EXTEND_GROUP(UserIdentificationGroup, base, version, Uint8ConfigEntry);
+EXTEND_GROUP(UserIdentificationGroup, version, user_name, StringConfigEntry<63>);
+EXTEND_GROUP(UserIdentificationGroup, user_name, user_description, StringConfigEntry<64>);
+END_GROUP(UserIdentificationGroup, user_description);
+
+TEST(StringIdentRender, RenderOk)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
+<int size='1'>
+</int>
+<string size='63'>
+</string>
+<string size='64'>
+</string>
+</group>
+)";
+    UserIdentificationGroup cfg(0);
+    string s;
     cfg.config_renderer().render_cdi(&s);
     EXPECT_EQ(kExpectedTestNodeCdi, s);
 }
@@ -203,7 +228,9 @@ END_GROUP(OtherSegment, e2);
 
 BEGIN_GROUP(TestCdi2, base, MainCdi());
 EXTEND_GROUP(TestCdi2, base, ident, Identification);
-EXTEND_GROUP(TestCdi2, ident, testseg, OtherSegment);
+EXTEND_GROUP(TestCdi2, ident, acdi, Acdi);
+EXTEND_GROUP(TestCdi2, acdi, userinfo, UserInfoSegment);
+EXTEND_GROUP(TestCdi2, userinfo, testseg, OtherSegment);
 END_GROUP(TestCdi2, testseg);
 
 TEST(CdiRender, RenderIdent)
@@ -219,7 +246,18 @@ TEST(CdiRender, RenderIdent)
 <hardwareVersion>NHWversion</hardwareVersion>
 <softwareVersion>1.42</softwareVersion>
 </identification>
-<segment space='12' offset='33'>
+<acdi/>
+<segment space='251' origin='1'>
+<string size='63'>
+<name>User name</name>
+<description>This name will appear in network browsers for the current node.</description>
+</string>
+<string size='64'>
+<name>User description</name>
+<description>This description will appear in network browsers for the current node.</description>
+</string>
+</segment>
+<segment space='12' origin='33'>
 <name>testseg</name>
 <description>test seg desc</description>
 <int size='1'>

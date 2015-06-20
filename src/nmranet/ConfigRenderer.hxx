@@ -213,7 +213,7 @@ public:
         , offset(GroupConfigOptions(args...).offset)
         , segment(GroupConfigOptions(args...).segment)
     {
-    }*/
+    */
 
     template <typename... Args>
     explicit constexpr GroupConfigOptions(const Offset o, Args... args)
@@ -277,6 +277,7 @@ public:
 
 template <class Body> class GroupConfigRenderer
 {
+
 public:
     constexpr GroupConfigRenderer(unsigned replication, Body body)
         : replication_(replication)
@@ -284,9 +285,9 @@ public:
     {
     }
 
-    template <typename... Args> void render_cdi(string *s) const
+    template <typename... Args> void render_cdi(string *s, Args... args)
     {
-        constexpr GroupConfigOptions opts = Body::group_opts();
+        GroupConfigOptions opts(args..., Body::group_opts());
         const char *tag = nullptr;
         *s += "<";
         if (opts.is_cdi())
@@ -318,7 +319,7 @@ public:
             *s += StringPrintf(" space='%d'", opts.segment);
             if (body_.offset() != 0)
             {
-                *s += StringPrintf(" offset='%d'", body_.offset());
+                *s += StringPrintf(" origin='%d'", body_.offset());
             }
             HASSERT(replication_ == 1);
         }
@@ -336,15 +337,20 @@ private:
     Body body_;
 };
 
-class IdentificationRenderer {
+class IdentificationRenderer
+{
 public:
-    constexpr IdentificationRenderer() {}
+    constexpr IdentificationRenderer()
+    {
+    }
 
-    static void render_tag(const char* tag, const char* value, string* s) {
+    static void render_tag(const char *tag, const char *value, string *s)
+    {
         *s += StringPrintf("<%s>%s</%s>\n", tag, value, tag);
     }
 
-    void render_cdi(string *s) const {
+    void render_cdi(string *s) const
+    {
         extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
         *s += "<identification>\n";
         render_tag("manufacturer", SNIP_STATIC_DATA.manufacturer_name, s);
@@ -352,6 +358,19 @@ public:
         render_tag("hardwareVersion", SNIP_STATIC_DATA.hardware_version, s);
         render_tag("softwareVersion", SNIP_STATIC_DATA.software_version, s);
         *s += "</identification>\n";
+    }
+};
+
+class AcdiRenderer
+{
+public:
+    constexpr AcdiRenderer()
+    {
+    }
+
+    void render_cdi(string *s) const
+    {
+        s->append("<acdi/>\n");
     }
 };
 

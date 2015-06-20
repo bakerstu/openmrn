@@ -36,6 +36,7 @@
 #define _NMRANET_CONFIGREPRESENTATION_HXX_
 
 #include "nmranet/ConfigEntry.hxx"
+#include "nmranet/MemoryConfig.hxx"
 
 namespace nmranet
 {
@@ -189,6 +190,30 @@ public:
         return IdentificationRenderer();
     }
 };
+
+class Acdi : public ToplevelEntryBase
+{
+public:
+    using base_type = ToplevelEntryBase;
+    using base_type::base_type;
+    static constexpr AcdiRenderer config_renderer()
+    {
+        return AcdiRenderer();
+    }
+};
+
+BEGIN_GROUP(UserInfoSegment, base, Segment(MemoryConfigDefs::SPACE_ACDI_USR),
+    Offset(1));
+EXTEND_GROUP(
+    UserInfoSegment, base, name, StringConfigEntry<63>, //
+    Name("User name"),                                  //
+    Description(
+        "This name will appear in network browsers for the current node."));
+EXTEND_GROUP(UserInfoSegment, name, description, StringConfigEntry<64>, //
+    Name("User description"),                                           //
+    Description("This description will appear in network browsers for the "
+                "current node."));
+END_GROUP(UserInfoSegment, description);
 
 } // namespace nmranet
 

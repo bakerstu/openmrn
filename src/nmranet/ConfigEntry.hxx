@@ -197,12 +197,45 @@ using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 class EventConfigEntry : public Uint64ConfigEntry
 {
 public:
-    template<typename T>
-    constexpr EventConfigEntry(T t) : Uint64ConfigEntry(t) {}
+    template <typename T>
+    constexpr EventConfigEntry(T t)
+        : Uint64ConfigEntry(t)
+    {
+    }
 
     constexpr AtomConfigRenderer config_renderer() const
     {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
+    }
+};
+
+template <unsigned SIZE> class StringConfigEntry : public ConfigEntryBase
+{
+public:
+    using ConfigEntryBase::ConfigEntryBase;
+
+    /// Storage bytes occupied by the instance in the config file.
+    ///
+    /// @return number of bytes that the config parser offset will be
+    /// incremented by this entry.
+    ///
+    static constexpr unsigned size()
+    {
+        return SIZE;
+    }
+
+    constexpr AtomConfigRenderer config_renderer() const
+    {
+        return AtomConfigRenderer("string", size());
+    }
+
+    string read(int fd) const
+    {
+        string s(size(), '\0');
+        repeated_read(fd, &s[0], size());
+        size_t real_len = strlen(s.c_str());
+        s.resize(real_len);
+        return s;
     }
 };
 
