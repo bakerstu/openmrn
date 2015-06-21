@@ -59,4 +59,22 @@ void ConfigEntryBase::repeated_read(int fd, void *buf, size_t size) const
     }
 }
 
+void ConfigEntryBase::repeated_write(int fd, const void *buf, size_t size) const
+{
+    int ret = lseek(fd, offset_, SEEK_SET);
+    ERRNOCHECK("seek_config", ret);
+    const uint8_t *dst = static_cast<const uint8_t *>(buf);
+    while (size)
+    {
+        ssize_t ret = ::write(fd, dst, size);
+        ERRNOCHECK("read_config", ret);
+        if (ret == 0)
+        {
+            DIE("Unexpected EOF reading the config file.");
+        }
+        size -= ret;
+        dst += ret;
+    }
+}
+
 } // namespace nmranet

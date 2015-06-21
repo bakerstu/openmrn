@@ -106,6 +106,18 @@ protected:
         return ret;
     }
 
+    /// Writes a given typed variable to the configuration file. Does not do
+    /// any binary conversion.
+    ///
+    /// @param fd file to write data to.
+    ///
+    /// @param value the raw value to write to the configuration file.
+    ///
+    template <class T> void raw_write(int fd, const T& value) const
+    {
+        repeated_write(fd, &value, sizeof(T));
+    }
+
 private:
     /// Performs a reliable read from the given FD. Crashes if the read fails.
     ///
@@ -114,6 +126,14 @@ private:
     /// @param size how many bytes to read
     ///
     void repeated_read(int fd, void *buf, size_t size) const;
+
+    /// Performs a reliable write to the given FD. Crashes if the write fails.
+    ///
+    /// @param fd the file to write data to
+    /// @param buf the location of the data to write
+    /// @param size how many bytes to write
+    ///
+    void repeated_write(int fd, const void *buf, size_t size) const;
 };
 
 /// Implementation class for numeric configuration entries, templated by the
@@ -188,6 +208,17 @@ public:
     TR read(int fd) const
     {
         return endian_convert(raw_read<TR>(fd));
+    }
+
+    /// Writes the data to the configuration file.
+    ///
+    /// @param fd file descriptor of the config file.
+    ///
+    /// @param value of the configuration atom that should be written.
+    ///
+    void write(int fd, TR d) const
+    {
+        raw_write(fd, endian_convert(d));
     }
 };
 
