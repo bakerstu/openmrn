@@ -84,7 +84,7 @@ protected:
 class ConfigEntryBase : public ConfigReference
 {
 public:
-    using ConfigReference::ConfigReference;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(ConfigEntryBase, ConfigReference)
 
     static constexpr GroupConfigOptions group_opts()
     {
@@ -118,7 +118,6 @@ protected:
         repeated_write(fd, &value, sizeof(T));
     }
 
-private:
     /// Performs a reliable read from the given FD. Crashes if the read fails.
     ///
     /// @param fd the file to read data from
@@ -141,7 +140,7 @@ private:
 template <class TR> class NumericConfigEntry : public ConfigEntryBase
 {
 public:
-    using ConfigEntryBase::ConfigEntryBase;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(NumericConfigEntry, ConfigEntryBase)
 
     /// Performs endian conversion.
     ///
@@ -249,7 +248,7 @@ public:
 template <unsigned SIZE> class StringConfigEntry : public ConfigEntryBase
 {
 public:
-    using ConfigEntryBase::ConfigEntryBase;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(StringConfigEntry, ConfigEntryBase)
 
     /// Storage bytes occupied by the instance in the config file.
     ///

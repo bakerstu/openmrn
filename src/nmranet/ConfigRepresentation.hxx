@@ -52,7 +52,7 @@ namespace nmranet
     {                                                                          \
     public:                                                                    \
         using base_type = BaseGroup;                                           \
-        using base_type::base_type;                                            \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(group##base, base_type);                 \
         using Name = AtomConfigOptions::Name;                                  \
         using Description = AtomConfigOptions::Description;                    \
         using Segment = GroupConfigOptions::Segment;                           \
@@ -71,7 +71,7 @@ namespace nmranet
 class BaseGroup : public nmranet::ConfigReference
 {
 public:
-    using ConfigReference::ConfigReference;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(BaseGroup, ConfigReference)
     static constexpr unsigned size()
     {
         return 0;
@@ -94,7 +94,7 @@ public:
     public:                                                                    \
         using base_type = group##prev_entry_name;                              \
         using current_type = type;                                             \
-        using base_type::base_type;                                            \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(group##entry_name, base_type);           \
         using Name = AtomConfigOptions::Name;                                  \
         using Description = AtomConfigOptions::Description;                    \
         static constexpr unsigned size()                                       \
@@ -112,12 +112,13 @@ public:
         constexpr current_type entry_name()                                    \
         {                                                                      \
             static_assert(!group_opts().is_cdi() ||                            \
-                    current_type(0).group_opts().is_segment(),                 \
-                "May only have segments inside CDI.");                         \
+                              current_type(0).group_opts().is_segment(),       \
+                          "May only have segments inside CDI.");               \
             return group_opts().is_cdi()                                       \
-                ? current_type(                                                \
-                      current_type(0).group_opts().get_segment_offset())       \
-                : current_type(last_offset());                                 \
+                       ? current_type(current_type(0)                          \
+                                          .group_opts()                        \
+                                          .get_segment_offset())               \
+                       : current_type(last_offset());                          \
         }                                                                      \
         void render_cdi(std::string *s) const                                  \
         {                                                                      \
@@ -136,7 +137,7 @@ public:
     {                                                                          \
     public:                                                                    \
         using base_type = group##last_entry_name;                              \
-        using base_type::base_type;                                            \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(group, base_type);                       \
         void render_content_cdi(std::string *s) const                          \
         {                                                                      \
             base_type::render_cdi(s);                                          \
@@ -158,7 +159,7 @@ template <class Group, unsigned N> class RepeatedGroup : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
-    using base_type::base_type;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(RepeatedGroup, base_type)
     static constexpr unsigned size()
     {
         return Group::size() * N;
@@ -189,7 +190,7 @@ template <unsigned N> class EmptyGroup : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
-    using base_type::base_type;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(EmptyGroup, base_type)
     static constexpr unsigned size()
     {
         return N;
@@ -209,7 +210,7 @@ class ToplevelEntryBase : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
-    using base_type::base_type;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(ToplevelEntryBase, base_type)
     static constexpr GroupConfigOptions group_opts()
     {
         return GroupConfigOptions(GroupConfigOptions::Segment(1000));
@@ -228,7 +229,7 @@ class Identification : public ToplevelEntryBase
 {
 public:
     using base_type = ToplevelEntryBase;
-    using base_type::base_type;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(Identification, base_type)
     static constexpr IdentificationRenderer config_renderer()
     {
         return IdentificationRenderer();
@@ -240,7 +241,7 @@ class Acdi : public ToplevelEntryBase
 {
 public:
     using base_type = ToplevelEntryBase;
-    using base_type::base_type;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(Acdi, base_type)
     static constexpr AcdiRenderer config_renderer()
     {
         return AcdiRenderer();
