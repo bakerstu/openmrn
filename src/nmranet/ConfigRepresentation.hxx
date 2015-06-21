@@ -169,6 +169,12 @@ public:
                              "group that does not exist!");
         return Group(offset_ + (K * Group::size()));
     }
+
+    Group entry(int k) {
+        HASSERT(k < N);
+        return Group(offset_ + (k * Group::size()));
+    }
+
     constexpr GroupConfigRenderer<Group> config_renderer()
     {
         return GroupConfigRenderer<Group>(N, entry<0>());
