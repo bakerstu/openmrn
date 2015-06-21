@@ -41,6 +41,7 @@
 #include "os/OS.hxx"
 #include "Lpc17xx40xxUart.hxx"
 #include "Lpc17xx40xxCan.hxx"
+#include "Lpc17xx40xxGPIO.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -59,6 +60,11 @@ static LpcCan can0("/dev/can0", LPC_CAN2);
 
 /** CAN 0 driver instance */
 //static LpcCan can1("/dev/can1", LPC_CAN2);
+
+GPIO_PIN(LED0, LedPin, 1, 18);
+GPIO_PIN(LED1, LedPin, 1, 20);
+GPIO_PIN(LED2, LedPin, 1, 21);
+GPIO_PIN(LED3, LedPin, 1, 23);
 
 extern "C" {
 const uint32_t OscRateIn = 12000000;
@@ -154,10 +160,10 @@ void hw_preinit(void)
                             sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 
     /* Setup LED as an output */
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 1, 18);
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 1, 20);
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 1, 21);
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 1, 23);
+    LED0_Pin::hw_init();
+    LED1_Pin::hw_init();
+    LED2_Pin::hw_init();
+    LED3_Pin::hw_init();
     setblink(0xFFFF0000);
 
     /* Blinker timer initialization */

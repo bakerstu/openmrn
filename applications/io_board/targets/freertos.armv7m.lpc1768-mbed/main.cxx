@@ -39,8 +39,10 @@
 #include "nmranet/ConfiguredConsumer.hxx"
 #include "nmranet/ConfiguredProducer.hxx"
 
-#include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "BlinkerGPIO.hxx"
+#include "DummyGPIO.hxx"
 #include "freertos_drivers/common/RamDisk.hxx"
+#include "Lpc17xx40xxGPIO.hxx" 
 #include "config.hxx"
 
 // These preprocessor symbols are used to select which physical connections
@@ -91,28 +93,18 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 // Defines the GPIO ports used for the producers and the consumers.
 
-// The first LED is driven by the blinker device from BlinkerGPIO.hxx. WE just
+// The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_B1_Pin;
 
-struct DummyPin {
-    static bool get() { return false;}
-    static void set(bool v) {}
-};
-typedef DummyPin LED_B2_Pin;
-typedef DummyPin LED_B3_Pin;
-typedef DummyPin LED_B4_Pin;
-typedef DummyPin SW1_Pin;
-typedef DummyPin SW2_Pin;
+// These are GPIO output pins from Lpc17xx40xxGPIO.hxx
+GPIO_PIN(LED_B2, LedPin, 1, 20);
+GPIO_PIN(LED_B3, LedPin, 1, 21);
+GPIO_PIN(LED_B4, LedPin, 1, 23);
 
-// These are GPIO output pins from TivaGPIO.hxx
-//GPIO_PIN(LED_B2, LedPin, N, 0);
-//GPIO_PIN(LED_B3, LedPin, F, 4);
-//GPIO_PIN(LED_B4, LedPin, F, 0);
-
-// These are GPIO input pins from TivaGPIO.hxx
-//GPIO_PIN(SW1, GpioInputPU, J, 0);
-//GPIO_PIN(SW2, GpioInputPU, J, 1);
+// These are GPIO input pins from Lpc17xx40xxGPIO.hxx
+GPIO_PIN(SW1, GpioInputPU, 1, 30);  // p19 on the mbed
+GPIO_PIN(SW2, GpioInputPU, 1, 31);  // p20 on the mbed
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -161,6 +153,7 @@ int appl_main(int argc, char *argv[])
             cfg.seg().consumers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);
             cfg.seg().consumers().entry(entry).event_off().write(fd, 0x0501010114120000ULL + q++);
         }
+        q = 4;
         for (int entry = 0; entry < 2; ++entry) {
             cfg.seg().producers().entry(entry).debounce().write(fd, 3);
             cfg.seg().producers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);

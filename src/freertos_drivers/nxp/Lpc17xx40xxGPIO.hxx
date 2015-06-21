@@ -36,6 +36,8 @@
 #ifndef _FREERTOS_DRIVERS_NXP_LPC17XX40XX_HXX_
 #define _FREERTOS_DRIVERS_NXP_LPC17XX40XX_HXX_
 
+#include "chip.h"
+#include "core_cm3.h"
 #include "gpio_17xx_40xx.h"
 #include "iocon_17xx_40xx.h"
 
@@ -77,6 +79,10 @@ protected:
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
 {
+    using Defs::port;
+    using Defs::pin;
+    using Defs::set_output;
+    using Defs::set;
     static void hw_init()
     {
         Chip_GPIO_Init(LPC_GPIO);
@@ -115,6 +121,8 @@ struct LedPin : public GpioOutputPin<Defs, false> {};
 template<class Defs, uint32_t GPIO_PULL>
 struct GpioInputPin : public Defs {
 public:
+    using Defs::port;
+    using Defs::pin;
     static void hw_init() {
         Chip_GPIO_Init(LPC_GPIO);
         Chip_IOCON_Init(LPC_IOCON);
