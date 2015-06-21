@@ -14,6 +14,8 @@ AR = llvm-ar
 LD = clang++
 OBJDUMP = llvm-objdump
 
+OBJDUMPOPTS=-symbolize 
+
 HOST_TARGET := 1
 
 STARTGROUP := -Wl,--start-group

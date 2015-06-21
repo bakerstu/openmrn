@@ -21,6 +21,7 @@ OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
 AROPTS=D
+OBJDUMPOPTS=-C
 
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group

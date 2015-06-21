@@ -125,11 +125,15 @@ endif
 ifdef OBJDUMP
 all:  $(EXECUTABLE).lst
 
+ifndef OBJDUMPOPTS
+OBJDUMPOPTS=-C
+endif
+
 $(EXECUTABLE).lst: $(EXECUTABLE)$(EXTENTION)
-	$(OBJDUMP) -C -d -h $< > $@
+	$(OBJDUMP) $(OBJDUMPOPTS) -d -h $< > $@
 
 $(EXECUTABLE).slst: $(EXECUTABLE)$(EXTENTION)
-	$(OBJDUMP) -C -d -S -h $< > $@
+	$(OBJDUMP) $(OBJDUMPOPTS) -d -S -h $< > $@
 
 $(EXECUTABLE).ndlst: $(EXECUTABLE)$(EXTENTION)
 	$(OBJDUMP) -d $< > $@
