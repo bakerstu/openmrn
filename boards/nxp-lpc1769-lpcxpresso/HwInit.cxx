@@ -39,6 +39,7 @@
 #include "os/OS.hxx"
 #include "Lpc17xx40xxUart.hxx"
 #include "Lpc17xx40xxCan.hxx"
+#include "Lpc17xx40xxEEPROMEmulation.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -54,6 +55,9 @@ static LpcUart uart0("/dev/ser0", LPC_UART3, UART3_IRQn);
 
 /** CAN 0 driver instance */
 static LpcCan can0("/dev/can0", LPC_CAN2);
+
+/** EEPROM file */
+static LpcEEPROMEmulation eeprom("/dev/eeprom", 256);
 
 extern "C" {
 const uint32_t OscRateIn = 12000000;

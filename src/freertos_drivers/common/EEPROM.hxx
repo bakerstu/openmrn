@@ -31,9 +31,15 @@
  * @date 22 January 2015
  */
 
+#ifndef _FREERTOS_DRIVERS_COMMON_EEPROM_HXX_
+#define _FREERTOS_DRIVERS_COMMON_EEPROM_HXX_
+
 #include <cstdint>
 
 #include "Devtab.hxx"
+
+extern const char __eeprom_start;
+extern const char __eeprom_end;
 
 /** Common base class for all EEPROM access.
  */
@@ -71,6 +77,14 @@ protected:
      * @ref len length in bytes of data to read
      */
     virtual void read(unsigned int index, void *buf, size_t len) = 0;
+
+    /** Get the maximum file size of the EEPROM file.
+     * @return maximum file size we can grow to
+     */
+    size_t file_size()
+    {
+        return fileSize;
+    }
 
 private:
     size_t fileSize; /**< Maximum file size we can grow to */
@@ -121,3 +135,6 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(EEPROM);
 };
+
+#endif /* _FREERTOS_DRIVERS_COMMON_EEPROM_HXX_ */
+

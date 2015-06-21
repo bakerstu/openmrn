@@ -112,7 +112,7 @@ endif
 FORCE:
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk
-	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP)
 ifdef SIZE
 	$(SIZE) $@
 endif
