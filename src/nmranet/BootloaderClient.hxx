@@ -123,7 +123,7 @@ public:
     {
         if (responseDatagram_)
         {
-            LOG(ERROR, "Multiple response datagrams arrived from the "
+            LOG_ERROR("Multiple response datagrams arrived from the "
                        "target node.");
             responseDatagram_->unref();
         }

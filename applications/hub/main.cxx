@@ -155,7 +155,7 @@ int appl_main(int argc, char *argv[])
             }
             else
             {
-                LOG(ERROR, "Failed to open device %s: %s\n", device_path,
+                LOG_ERROR("Failed to open device %s: %s\n", device_path,
                     strerror(errno));
                 dev_fd = 0;
             }

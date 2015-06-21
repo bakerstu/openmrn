@@ -45,7 +45,7 @@
 #include "os/os.h"
 
 static const int FATAL = 0;
-static const int LOG_ERROR = 1;
+static const int LEVEL_ERROR = 1;
 static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
@@ -82,6 +82,8 @@ extern os_mutex_t g_log_mutex;
             UNLOCK_LOG;                                                        \
         }                                                                      \
     } while (0)
+
+#define LOG_ERROR(message...) LOG(LEVEL_ERROR, message)
 
 #ifdef __linux__
 extern char logbuffer[4096];

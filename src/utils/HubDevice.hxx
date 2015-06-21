@@ -141,13 +141,13 @@ protected:
 #ifdef __linux__
                     if (!ret)
                     {
-                        LOG(ERROR, "EOF reading fd %d", port_->fd_);
+                        LOG_ERROR("EOF reading fd %d", port_->fd_);
                     }
                     else if (errno == EINTR || errno == EAGAIN)
                     {
                         continue;
                     } else {
-                        LOG(ERROR, "Error reading fd %d: (%d) %s", port_->fd_,
+                        LOG_ERROR("Error reading fd %d: (%d) %s", port_->fd_,
                             errno, strerror(errno));
                     }
 #endif
@@ -227,11 +227,11 @@ public:
 #ifdef __linux__
             if (!ret)
             {
-                LOG(ERROR, "EOF writing fd %d", port_->fd_);
+                LOG_ERROR("EOF writing fd %d", port_->fd_);
             }
             else
             {
-                LOG(ERROR, "Error reading fd %d: (%d) %s", port_->fd_, errno,
+                LOG_ERROR("Error reading fd %d: (%d) %s", port_->fd_, errno,
                     strerror(errno));
             }
 #endif

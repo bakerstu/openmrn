@@ -54,7 +54,7 @@ int ConnectSocket(const char* host, int port) {
   int local_errno;
   if (gethostbyname_r(host, &hnd, buf, sizeof(buf), &hn,
                       &local_errno) || !hn) {
-    LOG(ERROR, "gethostbyname failed for '%s': %s", host,
+    LOG_ERROR("gethostbyname failed for '%s': %s", host,
         strerror(local_errno));
     return -1;
   }
@@ -66,13 +66,13 @@ int ConnectSocket(const char* host, int port) {
 
   int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd < 0) {
-    LOG(ERROR, "socket: %s", strerror(errno));
+    LOG_ERROR("socket: %s", strerror(errno));
     return -1;
   }
 
   int ret = connect(fd, (struct sockaddr *) &server, sizeof(server));
   if (ret < 0) {
-    LOG(ERROR, "connect: %s", strerror(errno));
+    LOG_ERROR("connect: %s", strerror(errno));
     close(fd);
     return -1;
   }

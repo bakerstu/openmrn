@@ -461,7 +461,7 @@ protected:
             parent_->dstAlias_ = id & CanDefs::SRC_MASK;
             if (!parent_->dstAlias_)
             {
-                LOG(LOG_ERROR, "Incoming alias definition message with zero alias. "
+                LOG_ERROR("Incoming alias definition message with zero alias. "
                            "CAN frame id %08x",
                     (unsigned)id);
                 message->unref();
