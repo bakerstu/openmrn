@@ -171,7 +171,7 @@ public:
         return Group(offset_ + (K * Group::size()));
     }
 
-    Group entry(int k) {
+    Group entry(unsigned k) {
         HASSERT(k < N);
         return Group(offset_ + (k * Group::size()));
     }
