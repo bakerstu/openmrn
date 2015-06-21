@@ -157,17 +157,21 @@ void LpcEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
     while (len)
     {
         /* get the least significant address bits */
-        unsigned int lsa = index & ~(BYTES_PER_BLOCK - 1);
+        unsigned int lsa = index & (BYTES_PER_BLOCK - 1);
         if (lsa)
         {
             /* head, (unaligned) address */
             uint8_t data[BYTES_PER_BLOCK];
             size_t write_size = len < (BYTES_PER_BLOCK - lsa) ?
                                 len : (BYTES_PER_BLOCK - lsa);
-
             read_block(index / BYTES_PER_BLOCK, data);
-            memcpy(data + lsa, byte_data, write_size);
-            write_block(index / BYTES_PER_BLOCK, data);
+
+            if (memcmp(data + lsa, byte_data, write_size) != 0)
+            {
+                /* at least some data has changed */
+                memcpy(data + lsa, byte_data, write_size);
+                write_block(index / BYTES_PER_BLOCK, data);
+            }
 
             index     += write_size;
             len       -= write_size;
@@ -177,10 +181,14 @@ void LpcEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         {
             /* tail, (unaligned) address */
             uint8_t data[BYTES_PER_BLOCK];
-
             read_block(index / BYTES_PER_BLOCK, data);
-            memcpy(data, byte_data, len);
-            write_block(index / BYTES_PER_BLOCK, data);
+
+            if (memcmp(data, byte_data, len) != 0)
+            {
+                /* at least some data has changed */
+                memcpy(data, byte_data, len);
+                write_block(index / BYTES_PER_BLOCK, data);
+            }
 
             len = 0;
         }
@@ -188,8 +196,14 @@ void LpcEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         {
             /* aligned data */
             uint8_t data[BYTES_PER_BLOCK];
-            memcpy(data, byte_data, BYTES_PER_BLOCK);
-            write_block(index / BYTES_PER_BLOCK, data);
+            read_block(index / BYTES_PER_BLOCK, data);
+
+            if (memcmp(data, byte_data, BYTES_PER_BLOCK) != 0)
+            {
+                /* at least some data has changed */
+                memcpy(data, byte_data, BYTES_PER_BLOCK);
+                write_block(index / BYTES_PER_BLOCK, data);
+            }
 
             index     += BYTES_PER_BLOCK;
             len       -= BYTES_PER_BLOCK;
@@ -302,7 +316,7 @@ void LpcEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
         while (len)
         {
             /* get the least significant address bits */
-            unsigned int lsa = index & ~(BYTES_PER_BLOCK - 1);
+            unsigned int lsa = index & (BYTES_PER_BLOCK - 1);
             if (lsa)
             {
                 /* head, (unaligned) address */
@@ -369,8 +383,8 @@ bool LpcEEPROMEmulation::read_block(unsigned int index, uint8_t data[])
                 /* found the data */
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    data[(i * 2) + 0] = (*address >> 0) & 0xFF; 
-                    data[(i * 2) + 1] = (*address >> 8) & 0xFF; 
+                    data[(i * 2) + 0] = (address[i] >> 0) & 0xFF; 
+                    data[(i * 2) + 1] = (address[i] >> 8) & 0xFF; 
                 }
                 return true;
             }
