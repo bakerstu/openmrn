@@ -126,12 +126,12 @@ ssize_t EEPROM::write(File *file, const void *buf, size_t count)
     lock_.lock();
     if ((file->offset + count) > fileSize)
     {
-        /* adjust to read just to the end of the file */
+        /* adjust to write just to the end of the file */
         count = fileSize - file->offset;
     }
     if (count > 0)
     {
-        /* if there is anything left to read */
+        /* if there is anything left to write */
         write(file->offset, buf, count);
         file->offset += count;
     }

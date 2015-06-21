@@ -66,6 +66,8 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
         }
     }
 
+    /// @bug (Stuart Baker) this should be != MAGIC_INTACT.  There may be other
+    /// implications for a proper fix as well.
     if (active()[0] != MAGIC_ERASED)
     {
         /* our active block is corrupted, we are starting over */
@@ -97,10 +99,10 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
         shadow = new uint16_t[ADDRESS_SPACE/sizeof(uint16_t)];
 
         memset(shadow, 0xFF, ADDRESS_SPACE);
-        /// @TODO(stuart_w_baker) this is buggy, should be 'FAMILY /' instead
+        /// @todo (stuart_w_baker) this is buggy, should be 'FAMILY /' instead
         /// of 'FAMILY %'. There are other instances of this bug later on.
         ///
-        /// @TODO(sturt_w_baker) there is a readability issue here, FAMILY is
+        /// @todo (sturt_w_baker) there is a readability issue here, FAMILY is
         /// actually something like page_size. It should be called like that.
         for (uint32_t *address = active() + (FAMILY % sizeof(uint32_t));
              address > active();
@@ -109,12 +111,13 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
             uint16_t eeprom_index = *address >> 16;
             if (shadow[eeprom_index] != 0xFFFF)
             {
-              /// @TODO(stuart_w_baker): bounds check here on eeprom_index
+              /// @todo (stuart_w_baker): bounds check here on eeprom_index
                 shadow[eeprom_index] = (*address & 0xFFFF);
             }
         }
     }
 
+    /// @bug (stuart baker): This loop is not necessary
     /* find out how much space we have left in this block */
     for (uint32_t *address = active() + (FAMILY % sizeof(uint32_t));
          address > active();
@@ -145,7 +148,7 @@ void TivaEEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
 
     uint8_t* byte_data = (uint8_t*)buf;
 
-    /// @TODO(stuart_w_baker) if shadow_in_ram then copy the whole buffer to the shadow.
+    /// @todo (stuart_w_baker) if shadow_in_ram then copy the whole buffer to the shadow.
 
     while (len)
     {
@@ -205,6 +208,7 @@ void TivaEEPROMEmulation::write_word(unsigned int index, const uint16_t data)
         uint32_t *new_block = next_active();
         uint32_t magic = MAGIC_DIRTY;
 
+        /// @bug (Stuart Baker) I think this should be "flash_erase(new_block)"
         /* prep the new block */
         flash_erase(active());
         flash_program(&magic, new_block, sizeof(magic));

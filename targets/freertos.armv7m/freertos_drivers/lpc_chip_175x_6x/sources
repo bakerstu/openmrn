@@ -40,4 +40,5 @@ CSRCS += adc_17xx_40xx.c \
          wwdt_17xx_40xx.c
 
 CXXSRCS += Lpc17xx40xxUart.cxx \
-           Lpc17xx40xxCan.cxx
+           Lpc17xx40xxCan.cxx \
+           Lpc17xx40xxEEPROMEmulation.cxx
