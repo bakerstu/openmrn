@@ -38,9 +38,6 @@
 
 #include "Devtab.hxx"
 
-extern const char __eeprom_start;
-extern const char __eeprom_end;
-
 /** Common base class for all EEPROM access.
  */
 class EEPROM : public Node
