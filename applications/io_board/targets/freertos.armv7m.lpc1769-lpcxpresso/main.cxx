@@ -148,17 +148,21 @@ int appl_main(int argc, char *argv[])
     {
         int fd = ::open("/dev/eeprom", O_RDWR);
         HASSERT(fd >= 0);
-        cfg.version().acdi_user_version().write(fd, 2);
-        int q = 0;
-        for (int entry = 0; entry < 4; ++entry) {
-            cfg.seg().consumers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);
-            cfg.seg().consumers().entry(entry).event_off().write(fd, 0x0501010114120000ULL + q++);
-        }
-        q = 4;
-        for (int entry = 0; entry < 2; ++entry) {
-            cfg.seg().producers().entry(entry).debounce().write(fd, 3);
-            cfg.seg().producers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);
-            cfg.seg().producers().entry(entry).event_off().write(fd, 0x0501010114120000ULL + q++);
+        if (cfg.version().acdi_user_version().read(fd) != 2)
+        {
+            // we must have a blank EEPROM
+            cfg.version().acdi_user_version().write(fd, 2);
+            int q = 0;
+            for (int entry = 0; entry < 4; ++entry) {
+                cfg.seg().consumers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);
+                cfg.seg().consumers().entry(entry).event_off().write(fd, 0x0501010114120000ULL + q++);
+            }
+            q = 4;
+            for (int entry = 0; entry < 2; ++entry) {
+                cfg.seg().producers().entry(entry).debounce().write(fd, 3);
+                cfg.seg().producers().entry(entry).event_on().write(fd, 0x0501010114120000ULL + q++);
+                cfg.seg().producers().entry(entry).event_off().write(fd, 0x0501010114120000ULL + q++);
+            }
         }
 
         ::close(fd);
