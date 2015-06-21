@@ -31,6 +31,9 @@
  * @date 21 January 2015
  */
 
+#ifndef _FREERTOS_DRIVERS_TI_TIVAEEPROMEMULATION_HXX_
+#define _FREERTOS_DRIVERS_TI_TIVAEEPROMEMULATION_HXX_
+
 #include "EEPROM.hxx"
 
 #include "driverlib/rom.h"
@@ -220,3 +223,5 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(TivaEEPROMEmulation);
 };
+
+#endif /* _FREERTOS_DRIVERS_TI_TIVAEEPROMEMULATION_HXX_ */
