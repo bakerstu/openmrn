@@ -35,10 +35,6 @@
 
 #include <cstring>
 
-const TivaEEPROMEmulation::Family __attribute__((weak)) TivaEEPROMEmulation::FAMILY = TM4C123;
-const size_t __attribute__((weak)) TivaEEPROMEmulation::ADDRESS_SPACE = 512;
-const bool __attribute__((weak)) TivaEEPROMEmulation::SHADOW_IN_RAM = false;
-
 const uint32_t TivaEEPROMEmulation::MAGIC_DIRTY = 0xaa55aa55;
 const uint32_t TivaEEPROMEmulation::MAGIC_INTACT = 0xaa558001;
 const uint32_t TivaEEPROMEmulation::MAGIC_USED = 0x00000000;
@@ -58,7 +54,7 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size)
     HASSERT((FLASH_SIZE % FAMILY) == 0);  // must be whole blocks
     HASSERT(FLASH_SIZE >= (2 * FAMILY));  // at least two of them
     HASSERT(ADDRESS_SPACE <= (FAMILY >> 1));  // single block fit all the data
-    HASSERT(FLASH_SIZE >= (4 * ADDRESS_SPACE)); // fit two copies of the whole data, at 50% efficienct
+    HASSERT(FLASH_SIZE >= (4 * ADDRESS_SPACE)); // fit two copies of the whole data, at 50% efficiency
     HASSERT(ADDRESS_SPACE <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
 
     for (int i = 0; i < block_count(); ++i)

@@ -91,7 +91,7 @@ private:
     static const size_t FLASH_SIZE;
 
     /** @ref Family that device belongs to */
-    static const Family FAMILY;
+    static const unsigned FAMILY;
 
     /** Address space in terms of bytes to emulate, must be less than 2^16. */
     static const size_t ADDRESS_SPACE;

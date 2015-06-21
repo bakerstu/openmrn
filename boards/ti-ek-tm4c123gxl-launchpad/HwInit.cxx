@@ -92,7 +92,10 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 extern const uint16_t __eeprom_start[];
 const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
 extern const uint16_t __eeprom_end[];
-const size_t TivaEEPROMEmulation::FLASH_SIZE = __eeprom_end - __eeprom_start;
+const size_t TivaEEPROMEmulation::FLASH_SIZE = sizeof(__eeprom_end[0])*(__eeprom_end - __eeprom_start);
+const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
+const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 512;
+const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
 
