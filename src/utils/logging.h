@@ -45,7 +45,7 @@
 #include "os/os.h"
 
 static const int FATAL = 0;
-static const int ERROR = 1;
+static const int LOG_ERROR = 1;
 static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
