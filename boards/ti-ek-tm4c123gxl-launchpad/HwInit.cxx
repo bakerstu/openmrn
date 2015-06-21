@@ -49,6 +49,7 @@
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "DummyGPIO.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.

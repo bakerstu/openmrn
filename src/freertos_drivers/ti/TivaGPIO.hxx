@@ -41,15 +41,6 @@
 #include "driverlib/sysctl.h"
 #include "inc/hw_memmap.h"
 
-/// GPIO Pin definition structure with no actual pin behind it. All writes to
-/// this pin will be silently ignored. Reads from this pin will not compile.
-struct DummyPin {
-    static void hw_init() {}
-    static void hw_set_to_safe() {}
-    static void set(bool value) {}
-    static void toggle() {}
-};
-
 /// Helper macro for declaring a pin.
 ///
 /// @deprecated, use @ref GPIO_PIN instead.
