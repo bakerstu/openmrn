@@ -23,8 +23,8 @@ namespace nmranet
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Test IO Board - Tiva Connected Launchpad",
-    "ek-tm4c1294xl", "1.01"};
+    4,               "OpenMRN", "Test IO Board - LPCXpresso LPC1769",
+    "lpc1769-lpcxpresso", "1.01"};
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
