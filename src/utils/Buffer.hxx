@@ -68,7 +68,7 @@ extern DynamicPool *mainBufferPool;
 /** Initializes the main buffer pool. The first call is not thread safe, later
  * calls are noops. It is recommended to call this one or more times from the
  * static initialization. */
-void init_main_buffer_pool();
+Pool* init_main_buffer_pool();
 
 /** This pointer will be saved for debugging the current allocation source. */
 extern void* g_current_alloc;
