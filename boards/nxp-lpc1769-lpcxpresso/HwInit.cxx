@@ -39,6 +39,7 @@
 #include "os/OS.hxx"
 #include "Lpc17xx40xxUart.hxx"
 #include "Lpc17xx40xxCan.hxx"
+#include "Lpc17xx40xxGPIO.hxx"
 #include "Lpc17xx40xxEEPROMEmulation.hxx"
 
 /** override stdin */
@@ -63,13 +64,21 @@ extern "C" {
 const uint32_t OscRateIn = 12000000;
 const uint32_t RTCOscRateIn = 32768;
 
+GPIO_PIN(LED0, LedPin, 0, 22);
+GPIO_PIN(LED1, LedPin, 0,  2);
+GPIO_PIN(LED2, LedPin, 0,  3);
+GPIO_PIN(LED3, LedPin, 0, 21);
+
 /* Pin muxing configuration */
 STATIC const PINMUX_GRP_T pinmuxing[] = {
-    {0,  0,   IOCON_MODE_INACT  | IOCON_FUNC2},    /* TXD3 */
-    {0,  1,   IOCON_MODE_PULLUP | IOCON_FUNC2},    /* RXD3 */
-    {0,  4,   IOCON_MODE_INACT  | IOCON_FUNC2},    /* CAN-RD2 */
-    {0,  5,   IOCON_MODE_INACT  | IOCON_FUNC2},    /* CAN-TD2 */
-    {0,  22,  IOCON_MODE_INACT  | IOCON_FUNC0},    /* Led 0 */
+    {0,  0, IOCON_MODE_INACT  | IOCON_FUNC2},    /* TXD3 */
+    {0,  1, IOCON_MODE_PULLUP | IOCON_FUNC2},    /* RXD3 */
+    {0,  4, IOCON_MODE_INACT  | IOCON_FUNC2},    /* CAN-RD2 */
+    {0,  5, IOCON_MODE_INACT  | IOCON_FUNC2},    /* CAN-TD2 */
+    {0, 22, IOCON_MODE_INACT  | IOCON_FUNC0},    /* Led 0 */
+    {0,  2, IOCON_MODE_INACT  | IOCON_FUNC0},    /* Led 1 J6.21 */
+    {0,  3, IOCON_MODE_INACT  | IOCON_FUNC0},    /* Led 2 J6.22 */
+    {0, 21, IOCON_MODE_INACT  | IOCON_FUNC0},    /* Led 3 J6.23 */
 };
 
 /** Blink LED */
@@ -123,6 +132,7 @@ void diewith(uint32_t pattern)
         ;
 }
 
+uint32_t clock_speed = 0;
 
 /** Initialize the processor hardware.
  */
@@ -146,15 +156,19 @@ void hw_preinit(void)
                             sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 
     /* Setup LED as an output */
-    Chip_GPIO_SetPinDIROutput(LPC_GPIO, 0, 22);
+    LED0_Pin::hw_init();
+    LED1_Pin::hw_init();
+    LED2_Pin::hw_init();
+    LED3_Pin::hw_init();
     setblink(0xFFFF0000);
 
     /* Blinker timer initialization */
     Chip_TIMER_Init(LPC_TIMER3);
+    clock_speed = Chip_Clock_GetSystemClockRate();
     uint32_t timerFreq = Chip_Clock_GetSystemClockRate();
     Chip_TIMER_Reset(LPC_TIMER3);
     Chip_TIMER_MatchEnableInt(LPC_TIMER3, 1);
-    Chip_TIMER_SetMatch(LPC_TIMER3, 1, (timerFreq / 11));
+    Chip_TIMER_SetMatch(LPC_TIMER3, 1, (timerFreq / 8));
     Chip_TIMER_ResetOnMatchEnable(LPC_TIMER3, 1);
     Chip_TIMER_Enable(LPC_TIMER3);
     NVIC_ClearPendingIRQ(TIMER3_IRQn);
