@@ -39,8 +39,6 @@
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-#include "config.hxx"
-
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
 OVERRIDE_CONST(gc_generate_newlines, 1);
@@ -57,8 +55,8 @@ struct DummyPin
     }
 };
 
-nmranet::MockSNIPUserFile snip_user_file("Default user name",
-                                         "Default user description");
+nmranet::MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
@@ -72,7 +70,7 @@ void usage(const char *e)
     fprintf(stderr, "\t-n node_id is required, defines the OpenLCB node ID. "
                     "Example: -n 0x0501010118F0\n");
     fprintf(stderr,
-            "\t-d hostname   is the host name for a GridConnect TCP hub.\n");
+        "\t-d hostname   is the host name for a GridConnect TCP hub.\n");
     fprintf(stderr, "\t-p port     specifies the port number to connect to, "
                     "default is 12021.\n");
     exit(1);
@@ -120,7 +118,7 @@ int appl_main(int argc, char *argv[])
     // Sets up the stack with the dynamic node ID and a fixed consumer.
     nmranet::SimpleCanStack stack(node_id);
     nmranet::GPIOBit bit(stack.node(), 0x0501010118010203, 0x0501010118010204,
-                         &DummyPin::get, &DummyPin::set);
+        &DummyPin::get, &DummyPin::set);
     nmranet::BitEventConsumer consumer(&bit);
 
     // Connects to a TCP hub.
@@ -128,8 +126,7 @@ int appl_main(int argc, char *argv[])
     // Causes all packets to be dumped to stdout.
     stack.print_all_packets();
     // This command donates the main thread to the operation of the
-    // stack. Alternatively the stack could be started in a separate stack
-    // and
+    // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy
     // loop in the main thread.
     stack.loop_executor();

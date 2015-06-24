@@ -1,3 +1,3 @@
-SUBDIRS = simple_client
+SUBDIRS = targets
 -include config.mk
 include $(OPENMRNPATH)/etc/recurse.mk
