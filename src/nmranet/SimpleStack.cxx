@@ -120,7 +120,7 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-extern Pool *const
-    __attribute__((__weak__)) g_incoming_datagram_allocator = mainBufferPool;
+extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
+    init_main_buffer_pool();
 
 } // namespace nmranet

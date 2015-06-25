@@ -35,12 +35,13 @@
 
 DynamicPool *mainBufferPool = nullptr;
 
-void init_main_buffer_pool()
+Pool* init_main_buffer_pool()
 {
     if (!mainBufferPool)
     {
         mainBufferPool = new DynamicPool(Bucket::init(16, 32, 48, 72, 0));
     }
+    return mainBufferPool;
 }
 
 /** Expand the buffer by allocating a buffer double the size, copying the

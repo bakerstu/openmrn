@@ -233,6 +233,12 @@ public:
     {
     }
 
+    template <class HW>
+    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &)
+        : GPIOBit(node, event_on, event_off, &HW::get, &HW::set)
+    {
+    }
+
     bool GetCurrentState() OVERRIDE
     {
         return getter_();
