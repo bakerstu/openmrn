@@ -35,6 +35,7 @@
 
 #include <cstring>
 
+#include "iap.h"
 #include "chip.h"
 
 const size_t __attribute__((weak)) EEPROMEmulation::SECTOR_SIZE = 0x8000;
@@ -54,12 +55,28 @@ LpcEEPROMEmulation::LpcEEPROMEmulation(const char *name, size_t file_size)
     mount();
 }
 
-/** Simple LpcWare abstraction for Chip_IAP_CopyRamToFlash() API.
+/** Simple hardware abstraction for FLASH erase API.
+ * @param address the start address of the flash block to be erased
+ */
+void LpcEEPROMEmulation::flash_erase(void *address)
+{
+    HASSERT(((uintptr_t)address % SECTOR_SIZE) == 0);
+    HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
+    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+
+    uint32_t sector = address_to_sector(address);
+    portENTER_CRITICAL();
+    Chip_IAP_PreSectorForReadWrite(sector, sector);
+    Chip_IAP_EraseSector(sector, sector);
+    portEXIT_CRITICAL();
+}
+
+/** Simple hardware abstraction for FLASH program API.
  * @param data a pointer to the data to be programmed
  * @param address the starting address in flash to be programmed.
- *                Must be a multiple of BLOCK_SIZE.
+ *                Must be a multiple of BLOCK_SIZE
  * @param count the number of bytes to be programmed.
- *              Must be a multiple of BLOCK_SIZE and WRITE_SIZE or less
+ *              Must be a multiple of BLOCK_SIZE
  */
 void LpcEEPROMEmulation::flash_program(uint32_t *data, void *address,
                                        uint32_t count)

@@ -36,12 +36,6 @@
 
 #include "EEPROMEmulation.hxx"
 
-#include "iap.h"
-
-/// @todo these should be moved to EEPROM.hxx once we adjust the Tiva version
-extern const char __eeprom_start;
-extern const char __eeprom_end;
-
 /** Emulates EEPROM in FLASH for the LPC17xx and LPC40xx platforms.
  * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2.
  */
@@ -76,28 +70,17 @@ private:
      */
     uint32_t *sector_to_address(const int sector) OVERRIDE;
 
-    /** Simple LpcWare abstraction for Chip_IAP_EraseSector() API.
+    /** Simple hardware abstraction for FLASH erase API.
      * @param address the start address of the flash block to be erased
      */
-    void flash_erase(void *address) OVERRIDE
-    {
-        HASSERT(((uintptr_t)address % SECTOR_SIZE) == 0);
-        HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-        HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+    void flash_erase(void *address) OVERRIDE;
 
-        uint32_t sector = address_to_sector(address);
-        portENTER_CRITICAL();
-        Chip_IAP_PreSectorForReadWrite(sector, sector);
-        Chip_IAP_EraseSector(sector, sector);
-        portEXIT_CRITICAL();
-    }
-
-    /** Simple LpcWare abstraction for Chip_IAP_CopyRamToFlash() API.
+    /** Simple hardware abstraction for FLASH program API.
      * @param data a pointer to the data to be programmed
      * @param address the starting address in flash to be programmed.
-     *                Must be a multiple of 16.
+     *                Must be a multiple of BLOCK_SIZE
      * @param count the number of bytes to be programmed.
-     *              Must be a multiple of 16
+     *              Must be a multiple of BLOCK_SIZE
      */
     void flash_program(uint32_t *data, void *address, uint32_t count) OVERRIDE;
 

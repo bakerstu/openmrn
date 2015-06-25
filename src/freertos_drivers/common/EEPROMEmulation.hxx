@@ -36,7 +36,6 @@
 
 #include "EEPROM.hxx"
 
-/// @todo these should be moved to EEPROM.hxx once we adjust the Tiva version
 extern const char __eeprom_start;
 extern const char __eeprom_end;
 
@@ -250,12 +249,12 @@ private:
      */
     virtual uint32_t *sector_to_address(const int sector) = 0;
 
-    /** Simple hardware abstraction for Chip_IAP_EraseSector() API.
+    /** Simple hardware abstraction for FLASH erase API.
      * @param address the start address of the flash block to be erased
      */
     virtual void flash_erase(void *address) = 0;
 
-    /** Simple hardware abstraction for Chip_IAP_CopyRamToFlash() API.
+    /** Simple hardware abstraction for FLASH program API.
      * @param data a pointer to the data to be programmed
      * @param address the starting address in flash to be programmed.
      *                Must be a multiple of BLOCK_SIZE
