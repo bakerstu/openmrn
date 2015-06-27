@@ -41,112 +41,149 @@
 namespace nmranet
 {
 
-/// Starts a CDI group.
-///
-/// @param group is the c++ name of the struct that is being defined.
-/// @param base is a c++ name which represents the beginning of the chain.
-/// @param ARGS are additional arguments for group options, like Name(...),
-/// Description(...), Segment(...), Offset(...) or MainCdi().
-#define BEGIN_GROUP(group, base, ARGS...)                                      \
-    class group##base : public nmranet::BaseGroup                              \
-    {                                                                          \
-    public:                                                                    \
-        using base_type = BaseGroup;                                           \
-        INHERIT_CONSTEXPR_CONSTRUCTOR(group##base, base_type);                 \
-        using Name = AtomConfigOptions::Name;                                  \
-        using Description = AtomConfigOptions::Description;                    \
-        using Segment = GroupConfigOptions::Segment;                           \
-        using Offset = GroupConfigOptions::Offset;                             \
-        using MainCdi = GroupConfigOptions::MainCdi;                           \
-        static constexpr GroupConfigOptions group_opts()                       \
-        {                                                                      \
-            return GroupConfigOptions(ARGS);                                   \
-        }                                                                      \
-        void render_cdi(std::string *s) const                                  \
-        {                                                                      \
-        }                                                                      \
-    };
-
-/// Helper class for starting a group. Terminates the type recursion.
-class BaseGroup : public nmranet::ConfigReference
+class GroupBaseEntry : public nmranet::ConfigReference
 {
 public:
-    INHERIT_CONSTEXPR_CONSTRUCTOR(BaseGroup, ConfigReference)
+    INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBaseEntry, ConfigReference)
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
+    constexpr unsigned end_offset()
+    {
+        return offset_;
+    }
+};
+
+template <int N> class EntryMarker
+{
+public:
+    constexpr EntryMarker()
+    {
+    }
+};
+
+class NoopGroupEntry : public ConfigReference
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(NoopGroupEntry, ConfigReference);
+    constexpr unsigned end_offset()
+    {
+        return offset_;
+    }
     static constexpr unsigned size()
     {
         return 0;
     }
 };
 
-/// Adds an entry to a CDI group.
+class GroupBase : public nmranet::ConfigReference
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBase, ConfigReference)
+    static constexpr GroupConfigOptions group_opts()
+    {
+        return GroupConfigOptions();
+    }
+    using Name = AtomConfigOptions::Name;
+    using Description = AtomConfigOptions::Description;
+    using Segment = GroupConfigOptions::Segment;
+    using Offset = GroupConfigOptions::Offset;
+    using MainCdi = GroupConfigOptions::MainCdi;
+};
+
+#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
+    struct GroupName : public nmranet::GroupBase                               \
+    {                                                                          \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
+        constexpr GroupBaseEntry entry(const EntryMarker<START_LINE> &)        \
+        {                                                                      \
+            return GroupBaseEntry(offset_);                                    \
+        }                                                                      \
+        static constexpr GroupConfigOptions group_opts()                       \
+        {                                                                      \
+            return GroupConfigOptions(ARGS);                                   \
+        }                                                                      \
+        static constexpr unsigned size()                                       \
+        {                                                                      \
+            return GroupName(0).end_offset();                                  \
+        }                                                                      \
+        template <int LINE>                                                    \
+        constexpr NoopGroupEntry entry(const EntryMarker<LINE> &)              \
+        {                                                                      \
+            return NoopGroupEntry(                                             \
+                entry(EntryMarker<LINE - 1>()).end_offset());                  \
+        }                                                                      \
+        template <int LINE>                                                    \
+        static void render_content_cdi(                                        \
+            const EntryMarker<LINE> &, std::string *s)                         \
+        {                                                                      \
+            render_content_cdi(EntryMarker<LINE - 1>(), s);                    \
+        }                                                                      \
+        static void render_content_cdi(                                        \
+            const EntryMarker<START_LINE> &, std::string *s)                   \
+        {                                                                      \
+        }                                                                      \
+        static constexpr GroupConfigRenderer<GroupName> config_renderer()      \
+        {                                                                      \
+            return GroupConfigRenderer<GroupName>(1, GroupName(0));            \
+        }
+
+/// @todo (balazs.racz) the group config renderer should not get an instance of
+/// the current group.
+
+#define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
+    constexpr TYPE entry(const EntryMarker<LINE> &)                            \
+    {                                                                          \
+        static_assert(                                                         \
+            !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
+            "May only have segments inside CDI.");                             \
+        return TYPE(group_opts().is_cdi()                                      \
+                ? TYPE(0).group_opts().get_segment_offset()                    \
+                : entry(EntryMarker<LINE - 1>()).end_offset());                \
+    }                                                                          \
+    constexpr TYPE NAME()                                                      \
+    {                                                                          \
+        return entry(EntryMarker<LINE>());                                     \
+    }                                                                          \
+    static void render_content_cdi(const EntryMarker<LINE> &, std::string *s)  \
+    {                                                                          \
+        render_content_cdi(EntryMarker<LINE - 1>(), s);                        \
+        TYPE::config_renderer().render_cdi(s, ##__VA_ARGS__);                  \
+    }
+
+#define CDI_GROUP_END_HELPER(LINE)                                             \
+    constexpr unsigned end_offset()                                            \
+    {                                                                          \
+        return entry(EntryMarker<LINE>()).end_offset();                        \
+    }                                                                          \
+    static void render_content_cdi(std::string *s)                             \
+    {                                                                          \
+        return render_content_cdi(EntryMarker<LINE>(), s);                     \
+    }                                                                          \
+    }
+
+/// Starts a CDI group.
 ///
 /// @param group is the c++ name of the struct that is being defined.
-/// @param prev_entry_name links to the name of the previous entry
-/// @param entry_name defines the name of the current entry
-/// @param type defines the c++ class / struct of the entry being added
+/// @param ARGS are additional arguments for group options, like Name(...),
+/// Description(...), Segment(...), Offset(...) or MainCdi().
+#define CDI_GROUP(GroupName, ARGS...)                                          \
+    CDI_GROUP_HELPER(__LINE__, GroupName, ##ARGS)
+
+/// Adds an entry to a CDI group.
+///
+/// @param NAME is the c++ name of the entry
+/// @param TYPE is the c++ class / struct of the entry being added
 /// @param ARGS are additional arguments for the entry options, like Name(...),
 /// Description(...). If a subgroup is added, then group options are also
 /// allowed and they will override the respective values from the group
 /// definition.
-#define EXTEND_GROUP(group, prev_entry_name, entry_name, type, ARGS...)        \
-    class group##entry_name : public group##prev_entry_name                    \
-    {                                                                          \
-    public:                                                                    \
-        using base_type = group##prev_entry_name;                              \
-        using current_type = type;                                             \
-        INHERIT_CONSTEXPR_CONSTRUCTOR(group##entry_name, base_type);           \
-        using Name = AtomConfigOptions::Name;                                  \
-        using Description = AtomConfigOptions::Description;                    \
-        static constexpr unsigned size()                                       \
-        {                                                                      \
-            return current_type::size() + offset_from_base();                  \
-        }                                                                      \
-        static constexpr unsigned offset_from_base()                           \
-        {                                                                      \
-            return base_type::size();                                          \
-        }                                                                      \
-        constexpr unsigned last_offset()                                       \
-        {                                                                      \
-            return offset() + offset_from_base();                              \
-        }                                                                      \
-        constexpr current_type entry_name()                                    \
-        {                                                                      \
-            static_assert(!group_opts().is_cdi() ||                            \
-                              current_type(0).group_opts().is_segment(),       \
-                          "May only have segments inside CDI.");               \
-            return group_opts().is_cdi()                                       \
-                       ? current_type(current_type(0)                          \
-                                          .group_opts()                        \
-                                          .get_segment_offset())               \
-                       : current_type(last_offset());                          \
-        }                                                                      \
-        void render_cdi(std::string *s) const                                  \
-        {                                                                      \
-            base_type::render_cdi(s);                                          \
-            entry_name().config_renderer().render_cdi(s, ##ARGS);              \
-        }                                                                      \
-    };
+#define CDI_GROUP_ENTRY(NAME, TYPE, ...)                                       \
+    CDI_GROUP_ENTRY_HELPER(__LINE__, NAME, TYPE, ##__VA_ARGS__)
 
-/// Finalizes a CDI group definition.
-///
-/// @param group is the c++ name of the struct that is being defined.
-/// @param last_entry_name links to the name of the last entry
-///
-#define END_GROUP(group, last_entry_name)                                      \
-    class group : public group##last_entry_name                                \
-    {                                                                          \
-    public:                                                                    \
-        using base_type = group##last_entry_name;                              \
-        INHERIT_CONSTEXPR_CONSTRUCTOR(group, base_type);                       \
-        void render_content_cdi(std::string *s) const                          \
-        {                                                                      \
-            base_type::render_cdi(s);                                          \
-        }                                                                      \
-        constexpr GroupConfigRenderer<group> config_renderer()                 \
-        {                                                                      \
-            return GroupConfigRenderer<group>(1, *this);                       \
-        }                                                                      \
-    };
+/// Closes a CDI group structure definition.
+#define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
 
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
@@ -164,6 +201,10 @@ public:
     {
         return Group::size() * N;
     }
+    constexpr unsigned end_offset()
+    {
+        return offset() + size();
+    }
     template <int K> constexpr Group entry()
     {
         static_assert(K < N, "Tried to fetch an entry of a repeated "
@@ -171,14 +212,16 @@ public:
         return Group(offset_ + (K * Group::size()));
     }
 
-    Group entry(unsigned k) {
+    Group entry(unsigned k)
+    {
         HASSERT(k < N);
         return Group(offset_ + (k * Group::size()));
     }
 
-    constexpr GroupConfigRenderer<Group> config_renderer()
+    static constexpr GroupConfigRenderer<Group> config_renderer()
     {
-        return GroupConfigRenderer<Group>(N, entry<0>());
+        /// @todo (balazs.racz) get rid of the instance of Group here.
+        return GroupConfigRenderer<Group>(N, Group(0));
     }
 };
 
@@ -195,7 +238,11 @@ public:
     {
         return N;
     }
-    constexpr EmptyGroupConfigRenderer config_renderer()
+    constexpr unsigned end_offset()
+    {
+        return offset() + size();
+    }
+    static constexpr EmptyGroupConfigRenderer config_renderer()
     {
         return EmptyGroupConfigRenderer(N);
     }
@@ -218,6 +265,10 @@ public:
     static constexpr unsigned size()
     {
         return 0;
+    }
+    constexpr unsigned end_offset()
+    {
+        return offset() + size();
     }
 };
 
@@ -248,21 +299,21 @@ public:
     }
 };
 
-BEGIN_GROUP(UserInfoSegment, base, Segment(MemoryConfigDefs::SPACE_ACDI_USR),
-    Offset(1));
-EXTEND_GROUP(
-    UserInfoSegment, base, name, StringConfigEntry<63>, //
-    Name("User name"),                                  //
-    Description(
-        "This name will appear in network browsers for the current node."));
-EXTEND_GROUP(UserInfoSegment, name, description, StringConfigEntry<64>, //
-    Name("User description"),                                           //
-    Description("This description will appear in network browsers for the "
-                "current node."));
 /// Configuration description for a segment containing the ACDI user-modifiable
 /// data. The implementation refers to the ACDI-userdata space number and does
 /// not depend on where the actual data is located.
-END_GROUP(UserInfoSegment, description);
+CDI_GROUP(
+    UserInfoSegment, Segment(MemoryConfigDefs::SPACE_ACDI_USR), Offset(1));
+CDI_GROUP_ENTRY(
+    name, StringConfigEntry<63>, //
+    Name("User name"),           //
+    Description(
+        "This name will appear in network browsers for the current node."));
+CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
+    Name("User description"),                       //
+    Description("This description will appear in network browsers for the "
+                "current node."));
+CDI_GROUP_END();
 
 } // namespace nmranet
 
