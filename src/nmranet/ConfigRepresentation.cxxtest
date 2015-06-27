@@ -105,23 +105,23 @@ TEST(GroupConfig, WithHoles)
     EXPECT_EQ(31, cfg.last().offset());
 }
 
-BEGIN_GROUP(IoBoardSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG),
+CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
             Offset(128));
-EXTEND_GROUP(IoBoardSegment, base, first, Uint8ConfigEntry);
-END_GROUP(IoBoardSegment, first);
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
 
-BEGIN_GROUP(SecondSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG));
-EXTEND_GROUP(SecondSegment, base, first, Uint8ConfigEntry);
-END_GROUP(SecondSegment, first);
+CDI_GROUP(SecondSegment, Segment(MemoryConfigDefs::SPACE_CONFIG));
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
 
 
-BEGIN_GROUP(ConfigDef, base, MainCdi());
-EXTEND_GROUP(ConfigDef, base, ident, Identification);
-EXTEND_GROUP(ConfigDef, ident, acdi, Acdi);
-EXTEND_GROUP(ConfigDef, acdi, userinfo, UserInfoSegment);
-EXTEND_GROUP(ConfigDef, userinfo, seg, IoBoardSegment);
-EXTEND_GROUP(ConfigDef, seg, seg2, SecondSegment);
-END_GROUP(ConfigDef, seg2);
+CDI_GROUP(ConfigDef, MainCdi());
+CDI_GROUP_ENTRY(ident, Identification);
+CDI_GROUP_ENTRY(acdi, Acdi);
+CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
+CDI_GROUP_ENTRY(seg, IoBoardSegment);
+CDI_GROUP_ENTRY(seg2, SecondSegment);
+CDI_GROUP_END();
 
 TEST(FullCdi, SegmentOffset)
 {

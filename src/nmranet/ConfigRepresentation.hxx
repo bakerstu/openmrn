@@ -109,6 +109,10 @@ public:
         {                                                                      \
             return offset() + offset_from_base();                              \
         }                                                                      \
+        constexpr unsigned end_offset()                                        \
+        {                                                                      \
+            return last_offset() + size();                                     \
+        }                                                                      \
         constexpr current_type entry_name()                                    \
         {                                                                      \
             static_assert(!group_opts().is_cdi() ||                            \
@@ -141,9 +145,9 @@ public:
         {                                                                      \
             base_type::render_cdi(s);                                          \
         }                                                                      \
-        constexpr GroupConfigRenderer<group> config_renderer()                 \
+        static constexpr GroupConfigRenderer<group> config_renderer()          \
         {                                                                      \
-            return GroupConfigRenderer<group>(1, *this);                       \
+            return GroupConfigRenderer<group>(1, group(0));                    \
         }                                                                      \
     };
 
@@ -241,7 +245,12 @@ public:
 #define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
     constexpr TYPE entry(const EntryMarker<LINE> &)                            \
     {                                                                          \
-        return TYPE(entry(EntryMarker<LINE - 1>()).end_offset());              \
+        static_assert(                                                         \
+            !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
+            "May only have segments inside CDI.");                             \
+        return TYPE(group_opts().is_cdi()                                      \
+                ? TYPE(0).group_opts().get_segment_offset()                    \
+                : entry(EntryMarker<LINE - 1>()).end_offset());                \
     }                                                                          \
     constexpr TYPE NAME()                                                      \
     {                                                                          \
@@ -307,7 +316,8 @@ public:
     {
         return Group::size() * N;
     }
-    constexpr unsigned end_offset() {
+    constexpr unsigned end_offset()
+    {
         return offset() + size();
     }
     template <int K> constexpr Group entry()
@@ -343,7 +353,8 @@ public:
     {
         return N;
     }
-    constexpr unsigned end_offset() {
+    constexpr unsigned end_offset()
+    {
         return offset() + size();
     }
     static constexpr EmptyGroupConfigRenderer config_renderer()
@@ -369,6 +380,10 @@ public:
     static constexpr unsigned size()
     {
         return 0;
+    }
+    constexpr unsigned end_offset()
+    {
+        return offset() + size();
     }
 };
 
