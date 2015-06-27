@@ -72,7 +72,7 @@ extern os_mutex_t g_log_mutex;
 #ifdef __FreeRTOS__
 #define LOG_MAYBE_DIE(level) (level == FATAL)
 #else
-#define LOG_MAYBE_DIE(level) false
+#define LOG_MAYBE_DIE(level) 0
 #endif
 
 #define LOG(level, message...)                                                 \
