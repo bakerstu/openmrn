@@ -147,12 +147,40 @@ public:
         }                                                                      \
     };
 
-
-class GroupBaseEntry : public nmranet::ConfigReference {
+class GroupBaseEntry : public nmranet::ConfigReference
+{
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBaseEntry, ConfigReference)
-    static constexpr unsigned size() { return 0; }
-    constexpr unsigned end_offset() { return offset_; }
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
+    constexpr unsigned end_offset()
+    {
+        return offset_;
+    }
+};
+
+template <int N> class EntryMarker
+{
+public:
+    constexpr EntryMarker()
+    {
+    }
+};
+
+class NoopGroupEntry : public ConfigReference
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(NoopGroupEntry, ConfigReference);
+    constexpr unsigned end_offset()
+    {
+        return offset_;
+    }
+    static constexpr unsigned size()
+    {
+        return 0;
+    }
 };
 
 class GroupBase : public nmranet::ConfigReference
@@ -168,14 +196,89 @@ public:
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
     using MainCdi = GroupConfigOptions::MainCdi;
-    constexpr GroupBaseEntry base_entry() { return GroupBaseEntry(offset_); }
 };
 
+#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
+    struct GroupName : public nmranet::GroupBase                               \
+    {                                                                          \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
+        constexpr GroupBaseEntry entry(const EntryMarker<START_LINE> &)        \
+        {                                                                      \
+            return GroupBaseEntry(offset_);                                    \
+        }                                                                      \
+        static constexpr GroupConfigOptions group_opts()                       \
+        {                                                                      \
+            return GroupConfigOptions(ARGS);                                   \
+        }                                                                      \
+        static constexpr unsigned size()                                       \
+        {                                                                      \
+            return GroupName(0).end_offset();                                  \
+        }                                                                      \
+        template <int LINE>                                                    \
+        constexpr NoopGroupEntry entry(const EntryMarker<LINE> &)              \
+        {                                                                      \
+            return NoopGroupEntry(                                             \
+                entry(EntryMarker<LINE - 1>()).end_offset());                  \
+        }                                                                      \
+        template <int LINE>                                                    \
+        static void render_content_cdi(                                        \
+            const EntryMarker<LINE> &, std::string *s)                         \
+        {                                                                      \
+            render_content_cdi(EntryMarker<LINE - 1>(), s);                    \
+        }                                                                      \
+        static void render_content_cdi(                                        \
+            const EntryMarker<START_LINE> &, std::string *s)                   \
+        {                                                                      \
+        }                                                                      \
+        static constexpr GroupConfigRenderer<GroupName> config_renderer()      \
+        {                                                                      \
+            return GroupConfigRenderer<GroupName>(1, GroupName(0));            \
+        }
+
+/// @todo (balazs.racz) the group config renderer should not get an instance of
+/// the current group.
+
+#define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
+    constexpr TYPE entry(const EntryMarker<LINE> &)                            \
+    {                                                                          \
+        return TYPE(entry(EntryMarker<LINE - 1>()).end_offset());              \
+    }                                                                          \
+    constexpr TYPE NAME()                                                      \
+    {                                                                          \
+        return entry(EntryMarker<LINE>());                                     \
+    }                                                                          \
+    static void render_content_cdi(const EntryMarker<LINE> &, std::string *s)  \
+    {                                                                          \
+        render_content_cdi(EntryMarker<LINE - 1>(), s);                        \
+        TYPE::config_renderer().render_cdi(s, ##__VA_ARGS__);                  \
+    }
+
+#define CDI_GROUP_END_HELPER(LINE)                                             \
+    constexpr unsigned end_offset()                                            \
+    {                                                                          \
+        return entry(EntryMarker<LINE>()).end_offset();                        \
+    }                                                                          \
+    static void render_content_cdi(std::string *s)                             \
+    {                                                                          \
+        return render_content_cdi(EntryMarker<LINE>(), s);                     \
+    }                                                                          \
+    }
+
+#define CDI_GROUP(GroupName, ARGS...)                                          \
+    CDI_GROUP_HELPER(__LINE__, GroupName, ##ARGS)
+
+#define CDI_GROUP_ENTRY(NAME, TYPE, ...)                                       \
+    CDI_GROUP_ENTRY_HELPER(__LINE__, NAME, TYPE, ##__VA_ARGS__)
+
+#define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
+
 /*
-#define CDI_MEMBER(NAME, TYPE, OPTIONS...) NAME, TYPE, CDI_MEMBER_OPTIONS(OPTIONS)
+#define CDI_MEMBER(NAME, TYPE, OPTIONS...) NAME, TYPE,
+CDI_MEMBER_OPTIONS(OPTIONS)
 
 #define DECLARE_CDI_MEMBERS(LASTNAME, NAME, TYPE, OPTIONS, MORE...) \
-    constexpr TYPE NAME() { return TYPE(LASTNAME().offset() + LASTNAME().size(), OPTIONS); } \
+    constexpr TYPE NAME() { return TYPE(LASTNAME().offset() + LASTNAME().size(),
+OPTIONS); } \
     DECLARE_CDI_MEMBERS(NAME, MORE);
 
 
@@ -187,7 +290,6 @@ public:
         DECLARE_CDI_MEMBERS(base_entry, MEMBERS, );                      \
     };
 */
-
 
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
