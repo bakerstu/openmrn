@@ -32,13 +32,13 @@
  */
 
 #include "utils/HubDevice.hxx"
-
+#include <stdlib.h>
 
 template <>
 const int FdHubPort<CanHubFlow>::ReadThread::kUnit = sizeof(struct can_frame);
 template <>
-const int FdHubPort<CanHubFlow>::ReadThread::kBufSize =
-    sizeof(struct can_frame);
+const int FdHubPort<CanHubFlow>::ReadThread::kBufSize = sizeof(
+    struct can_frame);
 
 template <>
 void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
@@ -58,6 +58,34 @@ void FdHubPort<HubFlow>::ReadThread::send_message(const void *buf, int size)
 {
     auto *b = port()->hub_->alloc();
     b->data()->skipMember_ = &port()->writeFlow_;
-    b->data()->assign((const char*)buf, size);
+    b->data()->assign((const char *)buf, size);
     port()->hub_->send(b);
+}
+
+static const char kThreadPrefix[] = "thread_fd_";
+
+void FdHubPortBase::fill_thread_name(char *buf, char mode, int fd)
+{
+    memcpy(buf, kThreadPrefix, sizeof(kThreadPrefix));
+    static_assert(
+        sizeof(kThreadPrefix) == 11, "size of thread prefix incorrect");
+    char *p = buf + sizeof(kThreadPrefix) - 1;
+    *p++ = mode;
+    *p++ = '_';
+    char *q = p;
+    int ff = fd;
+    do
+    {
+        ff /= 10;
+        q++;
+    } while (ff);
+    *q = 0;
+    q--;
+    ff = fd;
+    do
+    {
+        *q = '0' + (ff % 10);
+        q--;
+        ff /= 10;
+    } while (ff);
 }

@@ -68,10 +68,11 @@ public:
         return fd_;
     }
 
+    static void fill_thread_name(char* buf, char mode, int fd);
+
 protected:
-    const char *fill_thread_name(char mode, int fd)
-    {
-        sprintf(threadName_, "thread_fd_%c_%d", mode, fd);
+    const char *fill_thread_name(char mode, int fd) {
+        fill_thread_name(threadName_, mode, fd);
         return threadName_;
     }
 
