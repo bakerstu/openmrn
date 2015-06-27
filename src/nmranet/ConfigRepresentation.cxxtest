@@ -224,6 +224,54 @@ TEST(ReadTest, Events)
 }
 
 
+namespace test {
+
+class NoopGroupEntry : public ConfigReference {
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(NoopGroupEntry, ConfigReference);
+    constexpr unsigned end_offset() { return offset_; }
+    constexpr unsigned size() { return 0; }
+};
+
+#define CDI_ENTRY_HELPER(LINE, NAME, TYPE, ARGS...) 
+
+#define CDI_ENTRY(NAME, TYPE, ARGS...) CDI_ENTRY_HELPER(__LINE__, NAME, TYPE, ARGS)
+
+template<int N> class EntryMarker {
+public:
+    constexpr EntryMarker() {}
+};
+
+class TestGroup : public ConfigReference {
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(TestGroup, ConfigReference);
+
+    template<int LINE> constexpr NoopGroupEntry entry(const EntryMarker<LINE>&) {
+        return NoopGroupEntry(entry(EntryMarker<LINE - 1>()).end_offset());
+    }
+
+    constexpr GroupBaseEntry entry(EntryMarker<40>) {
+        return GroupBaseEntry(offset_);
+    }
+
+    constexpr Uint8ConfigEntry entry(EntryMarker<56>) {
+        return Uint8ConfigEntry(entry(EntryMarker<55>()).end_offset());
+    }
+
+    constexpr Uint8ConfigEntry testi8() { return entry(EntryMarker<56>()); }
+    constexpr NoopGroupEntry last_entry() { return entry(EntryMarker<60>()); }
+    constexpr unsigned size() { return last_entry().end_offset() - offset_; }
+    constexpr unsigned end_offset() { return last_entry().end_offset(); }
+};
+
+TEST(TestGroupTest, SizeOkay) {
+    TestGroup grp(34);
+    EXPECT_EQ(1, grp.size());
+    EXPECT_EQ(34, grp.testi8().offset());
+    EXPECT_EQ(35, grp.end_offset());
+}
+
+} // namespace test
 
 } // namespace
 } // namespace nmranet

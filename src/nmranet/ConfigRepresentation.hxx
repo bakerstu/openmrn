@@ -112,13 +112,12 @@ public:
         constexpr current_type entry_name()                                    \
         {                                                                      \
             static_assert(!group_opts().is_cdi() ||                            \
-                              current_type(0).group_opts().is_segment(),       \
-                          "May only have segments inside CDI.");               \
+                    current_type(0).group_opts().is_segment(),                 \
+                "May only have segments inside CDI.");                         \
             return group_opts().is_cdi()                                       \
-                       ? current_type(current_type(0)                          \
-                                          .group_opts()                        \
-                                          .get_segment_offset())               \
-                       : current_type(last_offset());                          \
+                ? current_type(                                                \
+                      current_type(0).group_opts().get_segment_offset())       \
+                : current_type(last_offset());                                 \
         }                                                                      \
         void render_cdi(std::string *s) const                                  \
         {                                                                      \
@@ -148,6 +147,48 @@ public:
         }                                                                      \
     };
 
+
+class GroupBaseEntry : public nmranet::ConfigReference {
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBaseEntry, ConfigReference)
+    static constexpr unsigned size() { return 0; }
+    constexpr unsigned end_offset() { return offset_; }
+};
+
+class GroupBase : public nmranet::ConfigReference
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBase, ConfigReference)
+    static constexpr GroupConfigOptions group_opts()
+    {
+        return GroupConfigOptions();
+    }
+    using Name = AtomConfigOptions::Name;
+    using Description = AtomConfigOptions::Description;
+    using Segment = GroupConfigOptions::Segment;
+    using Offset = GroupConfigOptions::Offset;
+    using MainCdi = GroupConfigOptions::MainCdi;
+    constexpr GroupBaseEntry base_entry() { return GroupBaseEntry(offset_); }
+};
+
+/*
+#define CDI_MEMBER(NAME, TYPE, OPTIONS...) NAME, TYPE, CDI_MEMBER_OPTIONS(OPTIONS)
+
+#define DECLARE_CDI_MEMBERS(LASTNAME, NAME, TYPE, OPTIONS, MORE...) \
+    constexpr TYPE NAME() { return TYPE(LASTNAME().offset() + LASTNAME().size(), OPTIONS); } \
+    DECLARE_CDI_MEMBERS(NAME, MORE);
+
+
+#define CDI_GROUP(NAME, MEMBERS...)                                            \
+    class NAME : public GroupBase                                              \
+    {                                                                          \
+    public:                                                                    \
+        INHERIT_CONSTEXPR_CONSTRUCTOR(NAME, GroupBase);                        \
+        DECLARE_CDI_MEMBERS(base_entry, MEMBERS, );                      \
+    };
+*/
+
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
@@ -171,7 +212,8 @@ public:
         return Group(offset_ + (K * Group::size()));
     }
 
-    Group entry(unsigned k) {
+    Group entry(unsigned k)
+    {
         HASSERT(k < N);
         return Group(offset_ + (k * Group::size()));
     }
