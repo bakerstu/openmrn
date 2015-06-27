@@ -161,17 +161,17 @@ TEST(ReadTest, Integers)
     EXPECT_EQ(0x75U, grp.version().read(f.fd()));
 }
 
-BEGIN_GROUP(ProducerGroup, base);
-EXTEND_GROUP(ProducerGroup, base, bounce_timeout, Uint8ConfigEntry);
-EXTEND_GROUP(ProducerGroup, bounce_timeout, zero_event, EventConfigEntry);
-EXTEND_GROUP(ProducerGroup, zero_event, one_event, EventConfigEntry);
-END_GROUP(ProducerGroup, one_event);
+CDI_GROUP(ProducerGroup);
+CDI_GROUP_ENTRY(bounce_timeout, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(zero_event, EventConfigEntry);
+CDI_GROUP_ENTRY(one_event, EventConfigEntry);
+CDI_GROUP_END();
 
 using MyProducers = RepeatedGroup<ProducerGroup, 8>;
 
-BEGIN_GROUP(ConfigGroup, base);
-EXTEND_GROUP(ConfigGroup, base, producers, MyProducers);
-END_GROUP(ConfigGroup, producers);
+CDI_GROUP(ConfigGroup);
+CDI_GROUP_ENTRY(producers, MyProducers);
+CDI_GROUP_END();
 
 string event_id_to_string(EventId id)
 {
