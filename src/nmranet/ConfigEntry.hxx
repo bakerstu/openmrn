@@ -198,7 +198,7 @@ public:
         return offset() + size();
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("int", size());
     }
@@ -241,7 +241,7 @@ public:
     {
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
     }
@@ -270,7 +270,7 @@ public:
         return offset() + size();
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("string", size());
     }
