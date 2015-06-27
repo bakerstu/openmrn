@@ -81,6 +81,12 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap___cxa_throw=abort \
           -Wl,--wrap=_ZSt19__throw_logic_errorPKc   \
           -Wl,--defsym=__wrap__ZSt19__throw_logic_errorPKc=abort \
+          -Wl,--wrap=_ZSt17__throw_bad_allocv   \
+          -Wl,--defsym=__wrap__ZSt17__throw_bad_allocv=abort \
+          -Wl,--wrap=_ZSt20__throw_out_of_rangePKc   \
+          -Wl,--defsym=__wrap__ZSt20__throw_out_of_rangePKc=abort \
+          -Wl,--wrap=_ZSt25__throw_bad_function_callv   \
+          -Wl,--defsym=__wrap__ZSt25__throw_bad_function_callv=abort \
           -Wl,--wrap=__cxa_allocate_exception   \
           -Wl,--defsym=__wrap___cxa_allocate_exception=abort \
           -Wl,--wrap=__gxx_personality_v0   \
@@ -99,6 +105,13 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr0=abort \
           -Wl,--wrap=__aeabi_unwind_cpp_pr1   \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
+
+
+ifeq (1,0)
+          -Wl,--wrap=   \
+          -Wl,--defsym=__wrap_=abort \
+
+endif
 
 
 
