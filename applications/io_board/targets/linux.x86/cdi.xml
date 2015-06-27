@@ -2,8 +2,8 @@
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
 <identification>
 <manufacturer>OpenMRN</manufacturer>
-<model>Test IO Board - mbed LPC1768</model>
-<hardwareVersion>mbed LPC1768</hardwareVersion>
+<model>Test IO Board - Fake (linux)</model>
+<hardwareVersion>linux.x86</hardwareVersion>
 <softwareVersion>1.01</softwareVersion>
 </identification>
 <acdi/>
