@@ -113,7 +113,7 @@ protected:
     ///
     /// @param value the raw value to write to the configuration file.
     ///
-    template <class T> void raw_write(int fd, const T& value) const
+    template <class T> void raw_write(int fd, const T &value) const
     {
         repeated_write(fd, &value, sizeof(T));
     }
@@ -193,6 +193,11 @@ public:
         return sizeof(TR);
     }
 
+    constexpr unsigned end_offset()
+    {
+        return offset() + size();
+    }
+
     constexpr AtomConfigRenderer config_renderer() const
     {
         return AtomConfigRenderer("int", size());
@@ -258,6 +263,11 @@ public:
     static constexpr unsigned size()
     {
         return SIZE;
+    }
+
+    static constexpr unsigned end_offset()
+    {
+        return offset() + size();
     }
 
     constexpr AtomConfigRenderer config_renderer() const
