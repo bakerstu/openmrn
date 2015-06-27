@@ -193,7 +193,7 @@ public:
         return sizeof(TR);
     }
 
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset() + size();
     }
@@ -265,7 +265,7 @@ public:
         return SIZE;
     }
 
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset() + size();
     }
