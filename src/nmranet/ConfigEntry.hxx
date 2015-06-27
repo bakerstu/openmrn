@@ -265,7 +265,7 @@ public:
         return SIZE;
     }
 
-    static constexpr unsigned end_offset()
+    constexpr unsigned end_offset()
     {
         return offset() + size();
     }
