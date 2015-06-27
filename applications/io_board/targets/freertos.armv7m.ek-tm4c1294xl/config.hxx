@@ -25,12 +25,15 @@ namespace nmranet
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {4, "OpenMRN",
     "Test IO Board - Tiva Connected Launchpad", "ek-tm4c1294xl", "1.01"};
 
+#define NUM_OUTPUTS 4
+#define NUM_INPUTS 2
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
 /// from their respective hxx file.
-using AllConsumers = RepeatedGroup<ConsumerConfig, 4>;
-using AllProducers = RepeatedGroup<ProducerConfig, 2>;
+using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
+using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
