@@ -46,15 +46,15 @@
 namespace nmranet
 {
 
-BEGIN_GROUP(ProducerConfig, base);
-EXTEND_GROUP(ProducerConfig, base, debounce, Uint8ConfigEntry);
-EXTEND_GROUP(ProducerConfig, debounce, event_on, EventConfigEntry, //
+CDI_GROUP(ProducerConfig);
+CDI_GROUP_ENTRY(debounce, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(event_on, EventConfigEntry, //
     Name("Event On"),
     Description("This event will be produced when the input goes to HIGH."));
-EXTEND_GROUP(ProducerConfig, event_on, event_off, EventConfigEntry, //
+CDI_GROUP_ENTRY(event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("This event will be produced when the input goes to LOW."));
-END_GROUP(ProducerConfig, event_off);
+CDI_GROUP_END();
 
 extern "C" {
 void ignore_fn();

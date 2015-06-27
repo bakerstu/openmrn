@@ -44,14 +44,14 @@
 namespace nmranet
 {
 
-BEGIN_GROUP(ConsumerConfig, base);
-EXTEND_GROUP(ConsumerConfig, base, event_on, EventConfigEntry, //
+CDI_GROUP(ConsumerConfig);
+CDI_GROUP_ENTRY(event_on, EventConfigEntry, //
     Name("Event On"),
     Description("Receiving this event ID will turn the output on."));
-EXTEND_GROUP(ConsumerConfig, event_on, event_off, EventConfigEntry, //
+CDI_GROUP_ENTRY(event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("Receiving this event ID will turn the output off."));
-END_GROUP(ConsumerConfig, event_off);
+CDI_GROUP_END();
 
 class ConfiguredConsumer : public ConfigUpdateListener
 {
