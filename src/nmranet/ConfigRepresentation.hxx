@@ -307,6 +307,9 @@ public:
     {
         return Group::size() * N;
     }
+    constexpr unsigned end_offset() {
+        return offset() + size();
+    }
     template <int K> constexpr Group entry()
     {
         static_assert(K < N, "Tried to fetch an entry of a repeated "
@@ -320,9 +323,10 @@ public:
         return Group(offset_ + (k * Group::size()));
     }
 
-    constexpr GroupConfigRenderer<Group> config_renderer()
+    static constexpr GroupConfigRenderer<Group> config_renderer()
     {
-        return GroupConfigRenderer<Group>(N, entry<0>());
+        /// @todo (balazs.racz) get rid of the instance of Group here.
+        return GroupConfigRenderer<Group>(N, Group(0));
     }
 };
 
@@ -339,7 +343,10 @@ public:
     {
         return N;
     }
-    constexpr EmptyGroupConfigRenderer config_renderer()
+    constexpr unsigned end_offset() {
+        return offset() + size();
+    }
+    static constexpr EmptyGroupConfigRenderer config_renderer()
     {
         return EmptyGroupConfigRenderer(N);
     }

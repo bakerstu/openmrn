@@ -43,26 +43,26 @@ namespace nmranet
 namespace
 {
 
-BEGIN_GROUP(TestGroup, base);
-EXTEND_GROUP(TestGroup, base, e1, Uint8ConfigEntry);
-EXTEND_GROUP(TestGroup, e1, e2, Uint16ConfigEntry);
-END_GROUP(TestGroup, e2);
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry);
+CDI_GROUP_END();
 
-BEGIN_GROUP(TestNodeConfig, base);
-EXTEND_GROUP(TestNodeConfig, base, version, Uint8ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, version, test_short, Uint16ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, test_short, test64, Uint64ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, test64, test32, Uint32ConfigEntry);
+CDI_GROUP(TestNodeConfig);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(test64, Uint64ConfigEntry);
+CDI_GROUP_ENTRY(test32, Uint32ConfigEntry);
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
-EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
-EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
-END_GROUP(TestNodeConfig, last);
+CDI_GROUP_ENTRY(testgroup, TestRepeat);
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
 
 TEST(GroupConfig, LengthAndOffsetsAreCorrect)
 {
     EXPECT_EQ(25, TestNodeConfig::size());
     EXPECT_EQ(3, TestGroup::size());
-    EXPECT_EQ(9, TestRepeat::size());
+    EXPECT_EQ(9, TestNodeConfig::TestRepeat::size());
     TestNodeConfig cfg(11);
     EXPECT_EQ(4, sizeof(cfg));
 
@@ -87,12 +87,12 @@ TEST(GroupConfig, LengthAndOffsetsAreCorrect)
     EXPECT_EQ(35, cfg.last().offset());
 }
 
-BEGIN_GROUP(HoleTestGroup, base);
-EXTEND_GROUP(HoleTestGroup, base, version, Uint8ConfigEntry);
-EXTEND_GROUP(HoleTestGroup, version, blocked, EmptyGroup<5>);
-EXTEND_GROUP(HoleTestGroup, blocked, event, EventConfigEntry);
-EXTEND_GROUP(HoleTestGroup, event, last, Uint32ConfigEntry);
-END_GROUP(HoleTestGroup, last);
+CDI_GROUP(HoleTestGroup);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(blocked, EmptyGroup<5>);
+CDI_GROUP_ENTRY(event, EventConfigEntry);
+CDI_GROUP_ENTRY(last, Uint32ConfigEntry);
+CDI_GROUP_END();
 
 TEST(GroupConfig, WithHoles)
 {
@@ -265,6 +265,7 @@ namespace test2 {
 CDI_GROUP(TestGroup);
 CDI_GROUP_ENTRY(testi8, Uint8ConfigEntry);
 CDI_GROUP_ENTRY(testi32, Uint32ConfigEntry);
+// some comment in here
 CDI_GROUP_ENTRY(testi64, Uint64ConfigEntry);
 CDI_GROUP_END();
 
