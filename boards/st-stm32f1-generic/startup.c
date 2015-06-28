@@ -35,6 +35,25 @@
 #include <stdint.h>
 
 #include "FreeRTOSConfig.h"
+#include "utils/macros.h"
+
+/* prototypes */
+extern unsigned long *__stack;
+extern void reset_handler(void);
+static void nmi_handler(void);
+static void hard_fault_handler(void);
+extern void SVC_Handler(void);
+extern void PendSV_Handler(void);
+extern void SysTick_Handler(void);
+static void memmanage_handler(void);
+static void busfault_handler(void);
+static void usagefault_handler(void);
+static void debugmon_handler(void);
+
+extern void __libc_init_array(void);
+
+extern int main(int argc, char *argv[]);
+extern void hw_set_to_safe(void);
 
 extern void watchdog_interrupt_handler(void);
 extern void pvd_interrupt_handler(void);
@@ -104,6 +123,8 @@ extern void can2_rx0_interrupt_handler(void);
 extern void can2_rx1_interrupt_handler(void);
 extern void can2_sce_interrupt_handler(void);
 extern void otg_fs_interrupt_handler(void);
+
+extern void ignore_fn(void);
 
 /** Exception table */
 __attribute__((section(".interrupt_vector"))) void (
@@ -195,7 +216,12 @@ __attribute__((section(".interrupt_vector"))) void (
              ignore_fn /**< forces the linker to add this fn */
 };
 
-static_assert(ARRAYSIZE(__interrupt_vector) == 85);
+C_STATIC_ASSERT(ARRAYSIZE(__interrupt_vector) == 85, vector_table_len_not_as_expected);
+
+extern unsigned long __data_section_table;
+extern unsigned long __data_section_table_end;
+extern unsigned long __bss_section_table;
+extern unsigned long __bss_section_table_end;
 
 /*extern unsigned long _etext;
 extern unsigned long _data;
@@ -209,7 +235,7 @@ extern unsigned long _ebss;*/
  */
 uint32_t HAL_RCC_GetSysClockFreq(void)
 {
-    return cpu_clock_hz;
+    return cm3_cpu_clock_hz;
 }
 
 /** Stub function to make the HAL happy.  We don't need it for any of our
@@ -222,7 +248,55 @@ uint32_t HAL_GetTick(void)
     return 0;
 }
 
+/** This hardware initialization code will be called before C++ global objects
+ * are initialized. */
+extern void hw_preinit(void);
 
+/** Startup the C/C++ runtime environment.
+ */
+void reset_handler(void)
+{
+    unsigned long *section_table_addr = &__data_section_table;
+
+    /* copy ram load sections from flash to ram */
+    while (section_table_addr < &__data_section_table_end)
+    {
+        unsigned long *src = (unsigned long *)*section_table_addr++;
+        unsigned long *dst = (unsigned long *)*section_table_addr++;
+        unsigned long  len = (unsigned long)  *section_table_addr++;
+
+        for ( ; len; len -= 4)
+        {
+            *dst++ = *src++;
+        }
+    }
+
+    /* zero initialize bss segment(s) */
+    while (section_table_addr < &__bss_section_table_end)
+    {
+        unsigned long *zero = (unsigned long *)*section_table_addr++;
+        unsigned long  len  = (unsigned long)  *section_table_addr++;
+        
+        for ( ; len; len -= 4)
+        {
+            *zero++ = 0;
+        }
+    }
+
+    hw_preinit();
+
+    /* call static constructors */
+    __libc_init_array();
+
+    /* execute main */
+    char *argv[] = {0};
+    main(0, argv);
+
+    for ( ; /* forever */ ;)
+    {
+        /* if we ever return from main, loop forever */
+    }
+}
 
 extern void resetblink(unsigned long pattern);
 // extern void diewith(unsigned pattern);
@@ -335,28 +409,34 @@ static void nmi_handler(void)
     {
     }
 }
-#if 0
-static void mpu_fault_handler(void)
+
+static void memmanage_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
 
-static void bus_fault_handler(void)
+static void busfault_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
 
-static void usage_fault_handler(void)
+static void usagefault_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
-#endif
+
+static void debugmon_handler(void)
+{
+    for ( ; /* forever */ ; )
+    {
+    }
+}
 
 /** This is the default handler for exceptions not defined by the application.
  */
@@ -369,138 +449,138 @@ void default_interrupt_handler(void)
 }
 
 void watchdog_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void pvd_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tamper_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void rtc_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void flash_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void rcc_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti0_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti4_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel4_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel6_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma1_channel7_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void adc1_2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usb_hp_can1_tx_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usb_lp_can1_rx0_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can1_rx1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can1_sce_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti9_5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim1_brk_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim1_up_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim1_trg_com_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim1_cc_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim4_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void i2c1_ev_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void i2c1_er_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void i2c2_ev_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void i2c2_er_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void spi1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void spi2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usart1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usart2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usart3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void exti15_10_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void rtc_alarm_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void usbwakeup_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim8_brk_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim8_up_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim8_trg_com_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim8_cc_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void adc3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void fsmc_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void sdio_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void spi3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void uart4_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void uart5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim6_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void tim7_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma2_channel1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma2_channel2_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma2_channel3_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma2_channel4_5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void dma2_channel5_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void eth_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void eth_wkup_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can2_tx_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can2_rx0_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can2_rx1_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void can2_sce_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
 void otg_fs_interrupt_handler(void)
-    __attribute__((weak, alias(default_interrupt_handler)));
+    __attribute__((weak, alias("default_interrupt_handler")));
