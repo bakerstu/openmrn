@@ -38,7 +38,13 @@
 
 #include "Can.hxx"
 
+#if defined(STM32F072xB)
 #include "stm32f0xx_hal_can.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_hal_can.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
@@ -58,7 +64,8 @@ public:
 
     /** Handle an interrupt.
      */
-    void interrupt_handler();
+    void rx_interrupt_handler();
+    void tx_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Can *instances[1];

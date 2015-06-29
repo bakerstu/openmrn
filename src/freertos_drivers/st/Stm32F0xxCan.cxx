@@ -35,7 +35,26 @@
 
 #include <stdint.h>
 
+#if defined(STM32F072xB)
+
 #include "stm32f0xx_hal_cortex.h"
+#define CAN_IRQN CEC_CAN_IRQn
+
+#define CAN_CLOCK cpu_clock_hz
+
+#elif defined(STM32F103xB)
+
+#include "stm32f1xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN_TX_IRQN USB_HP_CAN1_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN USB_LP_CAN1_RX0_IRQn
+#define CAN CAN1
+#define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
+
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 Stm32Can *Stm32Can::instances[1] = {NULL};
 
@@ -51,12 +70,17 @@ Stm32Can::Stm32Can(const char *name)
     instances[0] = this;
 
     /* should already be disabled, but just in case */
-    HAL_NVIC_DisableIRQ(CEC_CAN_IRQn);
+    HAL_NVIC_DisableIRQ(CAN_IRQN);
 
     /* The priority of CAN interrupt is as high as possible while maintaining
      * FreeRTOS compatibility.
      */
-    HAL_NVIC_SetPriority(CEC_CAN_IRQn, 0, 0);
+    NVIC_SetPriority(CAN_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+
+#ifdef SPLIT_INT
+    HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
+    NVIC_SetPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+#endif
 }
 
 /** Enable use of the device.
@@ -79,7 +103,7 @@ void Stm32Can::enable()
      * 125,000 Kbps = 8 usec/bit
      */
     CAN->BTR = (CAN_BS1_5TQ | CAN_BS2_2TQ | CAN_SJW_1TQ |
-                ((cpu_clock_hz / 1000000) - 1));
+                ((CAN_CLOCK / 1000000) - 1));
 
     /* enter normal mode */
     CAN->MCR &= ~CAN_MCR_INRQ;
@@ -100,14 +124,20 @@ void Stm32Can::enable()
 
     /* enable interrupts */
     CAN->IER = (/*CAN_IER_ERRIE |*/ CAN_IER_BOFIE | CAN_IER_FMPIE0);
-    HAL_NVIC_EnableIRQ(CEC_CAN_IRQn);
+    HAL_NVIC_EnableIRQ(CAN_IRQN);
+#ifdef SPLIT_INT
+    HAL_NVIC_EnableIRQ(CAN_SECOND_IRQN);
+#endif
 }
 
 /** Disable use of the device.
  */
 void Stm32Can::disable()
 {
-    HAL_NVIC_DisableIRQ(CEC_CAN_IRQn);
+    HAL_NVIC_DisableIRQ(CAN_IRQN);
+#ifdef SPLIT_INT
+    HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
+#endif
     CAN->IER = 0;
 
     /* disable sleep, enter init mode */
@@ -187,7 +217,7 @@ void Stm32Can::tx_msg()
 
 /** Handle an interrupt.
  */
-void Stm32Can::interrupt_handler()
+void Stm32Can::rx_interrupt_handler()
 {
     unsigned msg_receive_count = 0;
 
@@ -270,7 +300,10 @@ void Stm32Can::interrupt_handler()
         rxBuf->advance(msg_receive_count);
         rxBuf->signal_condition_from_isr();
     }
+}
 
+void Stm32Can::tx_interrupt_handler()
+{
     if (CAN->TSR & (CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2))
     {
         /* transmit request completed, should be able to send another */
@@ -343,12 +376,31 @@ void Stm32Can::interrupt_handler()
     }
 }
 
+
 extern "C" {
 /** This is the interrupt handler for the can device.
  */
+
+#if defined(STM32F072xB)
 void cec_can_interrupt_handler(void)
 {
-    Stm32Can::instances[0]->interrupt_handler();
+    Stm32Can::instances[0]->rx_interrupt_handler();
+    Stm32Can::instances[0]->tx_interrupt_handler();
 }
+#elif defined(STM32F103xB)
+
+void usb_hp_can1_tx_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+
+void usb_lp_can1_rx0_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
+
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 } // extern "C"

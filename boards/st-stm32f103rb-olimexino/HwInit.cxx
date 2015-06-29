@@ -44,7 +44,7 @@
 
 #include "os/OS.hxx"
 //#include "Stm32F0xxUart.hxx"
-//#include "Stm32F0xxCan.hxx"
+#include "Stm32F0xxCan.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -59,7 +59,7 @@ const char *STDERR_DEVICE = "/dev/ser0";
 // static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
-// static Stm32Can can0("/dev/can0");
+static Stm32Can can0("/dev/can0");
 
 extern "C" {
 
@@ -207,10 +207,9 @@ void hw_preinit(void)
 
     /* enable peripheral clocks */
     __GPIOA_CLK_ENABLE();
-    //__GPIOB_CLK_ENABLE();
+    __GPIOB_CLK_ENABLE();
     //__USART1_CLK_ENABLE();
-    //__CAN_CLK_ENABLE();
-
+    __CAN1_CLK_ENABLE();
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init = {0};
 
@@ -232,13 +231,15 @@ void hw_preinit(void)
     // HAL_GPIO_Init(GPIOA, &gpio_init);
 
     /* CAN pinmux on PB8 and PB9 */
-    gpio_init.Mode = GPIO_MODE_AF_PP;
+    __HAL_AFIO_REMAP_CAN1_2();
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_HIGH;
     // gpio_init.Alternate = GPIO_AF4_CAN;
+    gpio_init.Mode = GPIO_MODE_AF_INPUT;
     gpio_init.Pin = GPIO_PIN_8;
-    // HAL_GPIO_Init(GPIOB, &gpio_init);
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pin = GPIO_PIN_9;
-    // HAL_GPIO_Init(GPIOB, &gpio_init);
+    HAL_GPIO_Init(GPIOB, &gpio_init);
 }
 }
