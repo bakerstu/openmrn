@@ -142,7 +142,7 @@ ln -s FreeRTOSV8.2.1/FreeRTOS default
 cd $working
 
 #unpack ARMGCC
-tar -xjf $TMPDIR/ARMGCCINSTALLNAME -C $INSTALL_DIR/armgcc/ 
+tar -xjf $TMPDIR/$ARMGCCINSTALLNAME -C $INSTALL_DIR/armgcc/ 
 cd $INSTALL_DIR/armgcc
 rm -f default
 ln -s gcc-arm-none-eabi-4_8-2014q1 default
