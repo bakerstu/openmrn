@@ -1,12 +1,17 @@
-
 include hardware.mk
 
-$(EXECUTABLE)$(EXTENTION): cdi.xml
+OBJS += cdi.o
+
+$(EXECUTABLE)$(EXTENTION): cdi.o
 
 -include *.d
 
-cdi.xml: compile_cdi
-	./compile_cdi > cdi.xml
+cdi.nxml: compile_cdi
+	./compile_cdi > $@
+
+cdi.o : cdi.nxml $(OPENMRNPATH)/bin/build_cdi.py
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o cdi.cxxout
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include --std=c++11 -MD -MF $@.d $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx

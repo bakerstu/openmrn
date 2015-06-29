@@ -113,7 +113,7 @@ protected:
     ///
     /// @param value the raw value to write to the configuration file.
     ///
-    template <class T> void raw_write(int fd, const T& value) const
+    template <class T> void raw_write(int fd, const T &value) const
     {
         repeated_write(fd, &value, sizeof(T));
     }
@@ -193,7 +193,12 @@ public:
         return sizeof(TR);
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    constexpr unsigned end_offset() const
+    {
+        return offset() + size();
+    }
+
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("int", size());
     }
@@ -236,7 +241,7 @@ public:
     {
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
     }
@@ -260,7 +265,12 @@ public:
         return SIZE;
     }
 
-    constexpr AtomConfigRenderer config_renderer() const
+    constexpr unsigned end_offset() const
+    {
+        return offset() + size();
+    }
+
+    static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("string", size());
     }

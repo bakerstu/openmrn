@@ -105,24 +105,24 @@ TEST(ConfigRenderer, AtomNoSize)
     EXPECT_EQ("<eventid>\n<name>fffoo</name>\n</eventid>\n", s);
 }
 
-BEGIN_GROUP(TestGroup, base, Name("testgroup"), Description("test group desc"));
-EXTEND_GROUP(TestGroup, base, e1, Uint8ConfigEntry, Name("e1"));
-EXTEND_GROUP(TestGroup, e1, e2, Uint16ConfigEntry, Description("e2"));
-END_GROUP(TestGroup, e2);
+CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"));
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
+CDI_GROUP_END();
 
-BEGIN_GROUP(OtherGroup, base);
-END_GROUP(OtherGroup, base);
+CDI_GROUP(OtherGroup);
+CDI_GROUP_END();
 
-BEGIN_GROUP(TestNodeConfig, base, Name("node_config"));
-EXTEND_GROUP(TestNodeConfig, base, version, Uint8ConfigEntry, Name("Version"));
-EXTEND_GROUP(TestNodeConfig, version, test_short, Uint16ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, test_short, ogrp, OtherGroup);
-EXTEND_GROUP(TestNodeConfig, ogrp, test64, Uint64ConfigEntry, Name("64"));
-EXTEND_GROUP(TestNodeConfig, test64, test32, Uint32ConfigEntry);
+CDI_GROUP(TestNodeConfig, Name("node_config"));
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
+CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(ogrp, OtherGroup);
+CDI_GROUP_ENTRY(test64, Uint64ConfigEntry, Name("64"));
+CDI_GROUP_ENTRY(test32, Uint32ConfigEntry);
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
-EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat, Name("testgrouprept"));
-EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
-END_GROUP(TestNodeConfig, last);
+CDI_GROUP_ENTRY(testgroup, TestRepeat, Name("testgrouprept"));
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
 
 TEST(ComplexGroupRender, RenderOk)
 {
@@ -162,11 +162,11 @@ TEST(ComplexGroupRender, RenderOk)
 }
 
 
-BEGIN_GROUP(UserIdentificationGroup, base);
-EXTEND_GROUP(UserIdentificationGroup, base, version, Uint8ConfigEntry);
-EXTEND_GROUP(UserIdentificationGroup, version, user_name, StringConfigEntry<63>);
-EXTEND_GROUP(UserIdentificationGroup, user_name, user_description, StringConfigEntry<64>);
-END_GROUP(UserIdentificationGroup, user_description);
+CDI_GROUP(UserIdentificationGroup);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(user_name, StringConfigEntry<63>);
+CDI_GROUP_ENTRY(user_description, StringConfigEntry<64>);
+CDI_GROUP_END();
 
 TEST(StringIdentRender, RenderOk)
 {
@@ -186,15 +186,15 @@ TEST(StringIdentRender, RenderOk)
     EXPECT_EQ(kExpectedTestNodeCdi, s);
 }
 
-BEGIN_GROUP(TestSegment, base, Name("testseg"), Description("test seg desc"),
+CDI_GROUP(TestSegment, Name("testseg"), Description("test seg desc"),
     Segment(17));
-EXTEND_GROUP(TestSegment, base, e1, Uint8ConfigEntry, Name("e1"));
-EXTEND_GROUP(TestSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
-END_GROUP(TestSegment, e2);
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
+CDI_GROUP_END();
 
-BEGIN_GROUP(TestCdi1, base, MainCdi());
-EXTEND_GROUP(TestCdi1, base, testseg, TestSegment);
-END_GROUP(TestCdi1, testseg);
+CDI_GROUP(TestCdi1, MainCdi());
+CDI_GROUP_ENTRY(testseg, TestSegment);
+CDI_GROUP_END();
 
 TEST(CdiRender, Render)
 {
@@ -219,19 +219,19 @@ TEST(CdiRender, Render)
     EXPECT_EQ(1, cfg.testseg().e2().offset());
 }
 
-BEGIN_GROUP(OtherSegment, base, Name("testseg"), Description("test seg desc"),
+CDI_GROUP(OtherSegment, Name("testseg"), Description("test seg desc"),
     Segment(12), Offset(33));
-EXTEND_GROUP(OtherSegment, base, e1, Uint8ConfigEntry, Name("e1"));
-EXTEND_GROUP(OtherSegment, e1, e2, Uint16ConfigEntry, Description("e2"));
-END_GROUP(OtherSegment, e2);
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
+CDI_GROUP_END();
 
 
-BEGIN_GROUP(TestCdi2, base, MainCdi());
-EXTEND_GROUP(TestCdi2, base, ident, Identification);
-EXTEND_GROUP(TestCdi2, ident, acdi, Acdi);
-EXTEND_GROUP(TestCdi2, acdi, userinfo, UserInfoSegment);
-EXTEND_GROUP(TestCdi2, userinfo, testseg, OtherSegment);
-END_GROUP(TestCdi2, testseg);
+CDI_GROUP(TestCdi2, MainCdi());
+CDI_GROUP_ENTRY(ident, Identification);
+CDI_GROUP_ENTRY(acdi, Acdi);
+CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
+CDI_GROUP_ENTRY(testseg, OtherSegment);
+CDI_GROUP_END();
 
 TEST(CdiRender, RenderIdent)
 {

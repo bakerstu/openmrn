@@ -50,7 +50,7 @@ static const int WARNING = 2;
 static const int INFO = 3;
 static const int VERBOSE = 4;
 
-#if defined(__linux__) || defined(GCC_ARMCM3) || defined (GCC_ARMCM0)
+#if defined(__linux__) || defined(GCC_ARMCM3) || defined(GCC_ARMCM0)
 #define LOCKED_LOGGING
 #endif
 
@@ -69,10 +69,20 @@ extern os_mutex_t g_log_mutex;
 #define GLOBAL_LOG_OUTPUT log_output
 #endif
 
+#ifdef __FreeRTOS__
+#define LOG_MAYBE_DIE(level) (level == FATAL)
+#else
+#define LOG_MAYBE_DIE(level) 0
+#endif
+
 #define LOG(level, message...)                                                 \
     do                                                                         \
     {                                                                          \
-        if (LOGLEVEL >= level)                                                 \
+        if (LOG_MAYBE_DIE(level))                                              \
+        {                                                                      \
+            DIE("log fatal");                                                  \
+        }                                                                      \
+        else if (LOGLEVEL >= level)                                            \
         {                                                                      \
             LOCK_LOG;                                                          \
             int sret = snprintf(logbuffer, sizeof(logbuffer), message);        \

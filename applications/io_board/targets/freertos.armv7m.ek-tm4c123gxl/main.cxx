@@ -88,7 +88,7 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 // Defines the GPIO ports used for the producers and the consumers.
 
-// The first LED is driven by the blinker device from BlinkerGPIO.hxx. WE just
+// The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_RED_Pin;
 // These are GPIO output pins from TivaGPIO.hxx

@@ -347,9 +347,9 @@ public:
             tag = "segment";
             *s += tag;
             *s += StringPrintf(" space='%d'", opts.segment);
-            if (body_.offset() != 0)
+            if (opts.get_segment_offset() != 0)
             {
-                *s += StringPrintf(" origin='%d'", body_.offset());
+                *s += StringPrintf(" origin='%d'", opts.get_segment_offset());
             }
             HASSERT(replication_ == 1);
         }

@@ -43,26 +43,26 @@ namespace nmranet
 namespace
 {
 
-BEGIN_GROUP(TestGroup, base);
-EXTEND_GROUP(TestGroup, base, e1, Uint8ConfigEntry);
-EXTEND_GROUP(TestGroup, e1, e2, Uint16ConfigEntry);
-END_GROUP(TestGroup, e2);
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry);
+CDI_GROUP_END();
 
-BEGIN_GROUP(TestNodeConfig, base);
-EXTEND_GROUP(TestNodeConfig, base, version, Uint8ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, version, test_short, Uint16ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, test_short, test64, Uint64ConfigEntry);
-EXTEND_GROUP(TestNodeConfig, test64, test32, Uint32ConfigEntry);
+CDI_GROUP(TestNodeConfig);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(test64, Uint64ConfigEntry);
+CDI_GROUP_ENTRY(test32, Uint32ConfigEntry);
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
-EXTEND_GROUP(TestNodeConfig, test32, testgroup, TestRepeat);
-EXTEND_GROUP(TestNodeConfig, testgroup, last, Uint8ConfigEntry);
-END_GROUP(TestNodeConfig, last);
+CDI_GROUP_ENTRY(testgroup, TestRepeat);
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
 
 TEST(GroupConfig, LengthAndOffsetsAreCorrect)
 {
     EXPECT_EQ(25, TestNodeConfig::size());
     EXPECT_EQ(3, TestGroup::size());
-    EXPECT_EQ(9, TestRepeat::size());
+    EXPECT_EQ(9, TestNodeConfig::TestRepeat::size());
     TestNodeConfig cfg(11);
     EXPECT_EQ(4, sizeof(cfg));
 
@@ -87,12 +87,12 @@ TEST(GroupConfig, LengthAndOffsetsAreCorrect)
     EXPECT_EQ(35, cfg.last().offset());
 }
 
-BEGIN_GROUP(HoleTestGroup, base);
-EXTEND_GROUP(HoleTestGroup, base, version, Uint8ConfigEntry);
-EXTEND_GROUP(HoleTestGroup, version, blocked, EmptyGroup<5>);
-EXTEND_GROUP(HoleTestGroup, blocked, event, EventConfigEntry);
-EXTEND_GROUP(HoleTestGroup, event, last, Uint32ConfigEntry);
-END_GROUP(HoleTestGroup, last);
+CDI_GROUP(HoleTestGroup);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(blocked, EmptyGroup<5>);
+CDI_GROUP_ENTRY(event, EventConfigEntry);
+CDI_GROUP_ENTRY(last, Uint32ConfigEntry);
+CDI_GROUP_END();
 
 TEST(GroupConfig, WithHoles)
 {
@@ -105,23 +105,23 @@ TEST(GroupConfig, WithHoles)
     EXPECT_EQ(31, cfg.last().offset());
 }
 
-BEGIN_GROUP(IoBoardSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG),
+CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
             Offset(128));
-EXTEND_GROUP(IoBoardSegment, base, first, Uint8ConfigEntry);
-END_GROUP(IoBoardSegment, first);
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
 
-BEGIN_GROUP(SecondSegment, base, Segment(MemoryConfigDefs::SPACE_CONFIG));
-EXTEND_GROUP(SecondSegment, base, first, Uint8ConfigEntry);
-END_GROUP(SecondSegment, first);
+CDI_GROUP(SecondSegment, Segment(MemoryConfigDefs::SPACE_CONFIG));
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
 
 
-BEGIN_GROUP(ConfigDef, base, MainCdi());
-EXTEND_GROUP(ConfigDef, base, ident, Identification);
-EXTEND_GROUP(ConfigDef, ident, acdi, Acdi);
-EXTEND_GROUP(ConfigDef, acdi, userinfo, UserInfoSegment);
-EXTEND_GROUP(ConfigDef, userinfo, seg, IoBoardSegment);
-EXTEND_GROUP(ConfigDef, seg, seg2, SecondSegment);
-END_GROUP(ConfigDef, seg2);
+CDI_GROUP(ConfigDef, MainCdi());
+CDI_GROUP_ENTRY(ident, Identification);
+CDI_GROUP_ENTRY(acdi, Acdi);
+CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
+CDI_GROUP_ENTRY(seg, IoBoardSegment);
+CDI_GROUP_ENTRY(seg2, SecondSegment);
+CDI_GROUP_END();
 
 TEST(FullCdi, SegmentOffset)
 {
@@ -161,17 +161,17 @@ TEST(ReadTest, Integers)
     EXPECT_EQ(0x75U, grp.version().read(f.fd()));
 }
 
-BEGIN_GROUP(ProducerGroup, base);
-EXTEND_GROUP(ProducerGroup, base, bounce_timeout, Uint8ConfigEntry);
-EXTEND_GROUP(ProducerGroup, bounce_timeout, zero_event, EventConfigEntry);
-EXTEND_GROUP(ProducerGroup, zero_event, one_event, EventConfigEntry);
-END_GROUP(ProducerGroup, one_event);
+CDI_GROUP(ProducerGroup);
+CDI_GROUP_ENTRY(bounce_timeout, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(zero_event, EventConfigEntry);
+CDI_GROUP_ENTRY(one_event, EventConfigEntry);
+CDI_GROUP_END();
 
 using MyProducers = RepeatedGroup<ProducerGroup, 8>;
 
-BEGIN_GROUP(ConfigGroup, base);
-EXTEND_GROUP(ConfigGroup, base, producers, MyProducers);
-END_GROUP(ConfigGroup, producers);
+CDI_GROUP(ConfigGroup);
+CDI_GROUP_ENTRY(producers, MyProducers);
+CDI_GROUP_END();
 
 string event_id_to_string(EventId id)
 {
@@ -224,6 +224,61 @@ TEST(ReadTest, Events)
 }
 
 
+namespace test {
+
+
+/*class TestGroup : public ConfigReference {
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(TestGroup, ConfigReference);
+
+    template<int LINE> constexpr NoopGroupEntry entry(const EntryMarker<LINE>&) {
+        return NoopGroupEntry(entry(EntryMarker<LINE - 1>()).end_offset());
+    }
+
+    constexpr GroupBaseEntry entry(EntryMarker<40>) {
+        return GroupBaseEntry(offset_);
+    }
+
+    constexpr Uint8ConfigEntry entry(EntryMarker<56>) {
+        return Uint8ConfigEntry(entry(EntryMarker<55>()).end_offset());
+    }
+
+    constexpr Uint8ConfigEntry testi8() { return entry(EntryMarker<56>()); }
+    constexpr NoopGroupEntry last_entry() { return entry(EntryMarker<60>()); }
+    constexpr unsigned size() { return last_entry().end_offset() - offset_; }
+    constexpr unsigned end_offset() { return last_entry().end_offset(); }
+};
+
+TEST(TestGroupTest, SizeOkay) {
+    TestGroup grp(34);
+    EXPECT_EQ(1, grp.size());
+    EXPECT_EQ(34, grp.testi8().offset());
+    EXPECT_EQ(35, grp.end_offset());
+}
+*/
+
+
+} // namespace test
+
+namespace test2 {
+
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(testi8, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(testi32, Uint32ConfigEntry);
+// some comment in here
+CDI_GROUP_ENTRY(testi64, Uint64ConfigEntry);
+CDI_GROUP_END();
+
+TEST(Test2GroupTest, Offsets) {
+    TestGroup grp(11);
+    EXPECT_EQ(13, TestGroup::size());
+    EXPECT_EQ(11, grp.testi8().offset());
+    EXPECT_EQ(12, grp.testi32().offset());
+    EXPECT_EQ(16, grp.testi64().offset());
+    EXPECT_EQ(24, grp.end_offset());
+}
+
+} // namespace test2
 
 } // namespace
 } // namespace nmranet
