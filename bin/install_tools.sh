@@ -44,26 +44,26 @@ fi
 ###################################
 # OS dependent download mechanism #
 ###################################
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    function download
-    {
+function download
+{
+    if [ "$(uname -s)" == "Linux" ]; then
         wget -P $1 $2
-    }
-elif [[ "$OSTYPE" == "darwin*" ]]; then
-    function download
-    {
-        curl $1 -o $2
-    }
-fi
+    elif [ "$(uname -s)" == "Darwin" ]; then
+	working=$PWD
+	cd $1
+        curl -O -L $2
+	cd $working
+    fi
+}
 
 #####################
 # Download packages #
 #####################
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
+if [ "$(uname -s)" == "Linux" ]; then
     JMRIINSTALLNAME="JMRI.3.10.1-r28327.tgz"
     ARMGCCINSTALLNAME="gcc-arm-none-eabi-4_8-2014q1-20140314-linux.tar.bz2"
     ECLISEINSTALLNAME="eclipse-cpp-mars-R-linux-gtk.tar.gz"
-elif [[ "$OSTYPE" == "darwin*" ]]; then
+elif [ "$(uname -s)" == "Darwin" ]; then
     JMRIINSTALLNAME="JMRI.3.10.1-r28327.dmg"
     ARMGCCINSTALLNAME="gcc-arm-none-eabi-4_8-2014q1-20140314-mac.tar.bz2"
     ECLIPSEINSTALLNAME="eclipse-cpp-mars-R-macosx-cocoa-x86_64.tar.gz"
@@ -97,13 +97,13 @@ download $TMPDIR $STM32CUBEF0URL
 ####################
 # Install packages #
 ####################
-if [[ $INSTALL_ECLIPSE -ne 0 ]]; then
+#if [[ $INSTALL_ECLIPSE -ne 0 ]]; then
     #unpack Eclipse
     #tar -xzf eclipse-cpp-mars-R-linux-gtk.tar.gz
-fi
-if [[ $INSTALL_JMRI -ne 0 ]]; then
+#fi
+#if [[ $INSTALL_JMRI -ne 0 ]]; then
     #wget -P $TMPDIR $JMRIURL
-fi
+#fi
 
 mkdir -p $INSTALL_DIR/ti/TivaWare
 mkdir -p $INSTALL_DIR/nxp/lpc_chip
@@ -112,35 +112,48 @@ mkdir -p $INSTALL_DIR/FreeRTOS
 mkdir -p $INSTALL_DIR/armgcc
 mkdir -p $INSTALL_DIR/gmock
 
+working=$PWD
+
 # unpack TivaWare
 unzip -d $INSTALL_DIR/ti/TivaWare/SW-TM4C-2.1.1.71 $TMPDIR/SW-TM4C-2.1.1.71.exe
-rm -f $INSTALL_DIR/ti/TivaWare/default
-ln -rs $INSTALL_DIR/ti/TivaWare/SW-TM4C-2.1.1.71 $INSTALL_DIR/ti/TivaWare/default
+cd $INSTALL_DIR/ti/TivaWare
+rm -f default
+ln -s SW-TM4C-2.1.1.71 default
 
 # unpack LPCopen
 unzip -d $INSTALL_DIR/nxp/lpc_chip/lpcopen_2_10_lpcxpresso_nxp_lpcxpresso_1769 $TMPDIR/lpcopen_2_10_lpcxpresso_nxp_lpcxpresso_1769.zip
-rm -f $INSTALL_DIR/nxp/lpc_chip/lpc_chip_17xx_40xx
-ln -rs $INSTALL_DIR/nxp/lpc_chip/lpcopen_2_10_lpcxpresso_nxp_lpcxpresso_1769/lpc_chip_175x_6x $INSTALL_DIR/nxp/lpc_chip/lpc_chip_17xx_40xx
+cd $INSTALL_DIR/nxp/lpc_chip
+rm -f lpc_chip_17xx_40xx
+ln -s lpcopen_2_10_lpcxpresso_nxp_lpcxpresso_1769/lpc_chip_175x_6x lpc_chip_17xx_40xx
+cd $working
 
 #unpack STM32CubeF0
 unzip -d $INSTALL_DIR/st/STM32Cube_FW_F0 $TMPDIR/stm32cubef0.zip
-rm -f $INSTALL_DIR/st/STM32Cube_FW_F0/default
-ln -rs $INSTALL_DIR/st/STM32Cube_FW_F0/STM32Cube_FW_F0_V1.2.0 $INSTALL_DIR/st/STM32Cube_FW_F0/default
+cd $INSTALL_DIR/st/STM32Cube_FW_F0
+rm -f default
+ln -s STM32Cube_FW_F0_V1.2.0 default
+cd $working
 
 #unpack FreeRTOS
 unzip -d $INSTALL_DIR/FreeRTOS/ $TMPDIR/FreeRTOSV8.2.1.zip
-rm -f $INSTALL_DIR/FreeRTOS/default
-ln -rs $INSTALL_DIR/FreeRTOS/FreeRTOSV8.2.1/FreeRTOS $INSTALL_DIR/FreeRTOS/default
+cd $INSTALL_DIR/FreeRTOS
+rm -f default
+ln -s FreeRTOSV8.2.1/FreeRTOS default
+cd $working
 
 #unpack ARMGCC
-tar -xjf $TMPDIR/gcc-arm-none-eabi-4_8-2014q1-20140314-linux.tar.bz2 -C $INSTALL_DIR/armgcc/ 
-rm -f $INSTALL_DIR/armgcc/default
-ln -rs $INSTALL_DIR/armgcc/gcc-arm-none-eabi-4_8-2014q1 $INSTALL_DIR/armgcc/default
+tar -xjf $TMPDIR/ARMGCCINSTALLNAME -C $INSTALL_DIR/armgcc/ 
+cd $INSTALL_DIR/armgcc
+rm -f default
+ln -s gcc-arm-none-eabi-4_8-2014q1 default
+cd $working
 
 #unpack GMock
 unzip -d $INSTALL_DIR/gmock $TMPDIR/gmock-1.7.0.zip
-rm -f $INSTALL_DIR/gmock/default
-ln -rs $INSTALL_DIR/gmock/gmock-1.7.0 $INSTALL_DIR/gmock/default
+cd $INSTALL_DIR/gmock
+rm -f default
+ln -s gmock-1.7.0 default
+cd $working
 
 printf "\n\n"
 printf "*********************************************************************\n"
