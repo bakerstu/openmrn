@@ -41,6 +41,21 @@ if [ "$(id -u)" != 0 ] && [ "$INSTALL_DIR" == "/opt" ]; then
     exit 1
 fi
 
+###################################
+# OS dependent download mechanism #
+###################################
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    function download
+    {
+        wget -P $1 $2
+    }
+elif [[ "$OSTYPE" == "darwin*" ]]; then
+    function download
+    {
+        curl $1 -o $2
+    }
+fi
+
 #####################
 # Download packages #
 #####################
@@ -67,17 +82,17 @@ ECLIPSEURL="http://ftp.osuosl.org/pub/eclipse/technology/epp/downloads/release/m
 rm -rf $TMPDIR
 mkdir $TMPDIR
 if [[ $INSTALL_ECLIPSE -ne 0 ]]; then
-    wget -P $TMPDIR $ECLIPSEURL
+    download $TMPDIR $ECLIPSEURL
 fi
 if [[ $INSTALL_JMRI -ne 0 ]]; then
-    wget -P $TMPDIR $JMRIURL
+    download $TMPDIR $JMRIURL
 fi
-wget -P $TMPDIR $ARMGCCURL
-wget -P $TMPDIR $GMOCKURL
-wget -P $TMPDIR $FREERTOSURL
-wget -P $TMPDIR $LPCOPEN1769URL
-wget -P $TMPDIR $TIVAWAREURL
-wget -P $TMPDIR $STM32CUBEF0URL
+download $TMPDIR $ARMGCCURL
+download $TMPDIR $GMOCKURL
+download $TMPDIR $FREERTOSURL
+download $TMPDIR $LPCOPEN1769URL
+download $TMPDIR $TIVAWAREURL
+download $TMPDIR $STM32CUBEF0URL
 
 ####################
 # Install packages #
@@ -87,7 +102,7 @@ if [[ $INSTALL_ECLIPSE -ne 0 ]]; then
     #tar -xzf eclipse-cpp-mars-R-linux-gtk.tar.gz
 fi
 if [[ $INSTALL_JMRI -ne 0 ]]; then
-    wget -P $TMPDIR $JMRIURL
+    #wget -P $TMPDIR $JMRIURL
 fi
 
 mkdir -p $INSTALL_DIR/ti/TivaWare
