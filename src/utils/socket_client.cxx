@@ -84,6 +84,8 @@ int ConnectSocket(const char *host, int port)
         return -1;
     }
 
+    freeaddrinfo(addr);
+
     int val = 1;
     ERRNOCHECK("setsockopt(nodelay)",
                setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
