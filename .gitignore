@@ -57,7 +57,11 @@ ldpreproc
 delete.sym
 delete_pat.tmp
 delete_destructors
+snip_user_file.*
 
 # files that are local to the build environment
 set250k.c
 openmrnpath.mk
+
+#Mac OS X file system artifacts
+.DS_Store

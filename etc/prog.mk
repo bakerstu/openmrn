@@ -63,6 +63,16 @@ LDFLAGS += -Llib -L$(LIBDIR)
 
 EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
 
+CDIEXTRA :=
+
+ifeq ($(OS),Windows_NT)
+include $(OPENMRNPATH)/etc/path_windows.mk
+else
+    ifeq ($(shell uname -s),Darwin)
+        CDIEXTRA += -I$(OPENMRNPATH)/include/mach
+    endif
+endif
+
 DEPS += TOOLPATH
 MISSING_DEPS:=$(call find_missing_deps,$(DEPS))
 
