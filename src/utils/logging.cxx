@@ -33,7 +33,7 @@
 
 #include "logging.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__MACH__)
 char logbuffer[4096];
 #else
 char logbuffer[256];
