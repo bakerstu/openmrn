@@ -32,8 +32,7 @@
  * @date 28 Dec 2013
  */
 
-/** @todo need an equivalent to gethostbyname_n on MacOS */
-#if defined (__linux__) //|| defined (__MACH__)
+#if defined(__linux__) || defined (__MACH__)
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -48,42 +47,47 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
-int ConnectSocket(const char* host, int port) {
-  struct hostent hnd, *hn;
-  char buf[300];
-  int local_errno;
-  if (gethostbyname_r(host, &hnd, buf, sizeof(buf), &hn,
-                      &local_errno) || !hn) {
-    LOG_ERROR("gethostbyname failed for '%s': %s", host,
-        strerror(local_errno));
-    return -1;
-  }
+int ConnectSocket(const char *host, int port)
+{
+    char port_str[30];
+    snprintf(port_str, sizeof(port_str), "%d", port);
 
-  struct sockaddr_in server;
-  server.sin_family=hn->h_addrtype;
-  server.sin_port=htons(port);
-  memcpy((caddr_t)&(server.sin_addr),hn->h_addr, hn->h_length);
+    struct addrinfo *addr;
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;
 
-  int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (fd < 0) {
-    LOG_ERROR("socket: %s", strerror(errno));
-    return -1;
-  }
+    if (int ai_ret = getaddrinfo(host, port_str, &hints, &addr) != 0 || !addr)
+    {
+        LOG_ERROR("getaddrinfo failed for '%s': %s", host,
+                  gai_strerror(ai_ret));
+        return -1;
+    }
 
-  int ret = connect(fd, (struct sockaddr *) &server, sizeof(server));
-  if (ret < 0) {
-    LOG_ERROR("connect: %s", strerror(errno));
-    close(fd);
-    return -1;
-  }
+    int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    if (fd < 0)
+    {
+        LOG_ERROR("socket: %s", strerror(errno));
+        return -1;
+    }
 
-  int val = 1;
-  ERRNOCHECK("setsockopt(nodelay)",
-             setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
-                        &val, sizeof(val)));
+    int ret = connect(fd, addr->ai_addr, addr->ai_addrlen);
+    if (ret < 0)
+    {
+        LOG_ERROR("connect: %s", strerror(errno));
+        close(fd);
+        return -1;
+    }
 
-  LOG(INFO, "Connected to %s:%d. fd=%d", host, port, fd);
-  return fd;
+    int val = 1;
+    ERRNOCHECK("setsockopt(nodelay)",
+               setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
+
+    LOG(INFO, "Connected to %s:%d. fd=%d", host, port, fd);
+    return fd;
 }
 
 #endif // __linux__
