@@ -95,7 +95,7 @@ extern os_mutex_t g_log_mutex;
 
 #define LOG_ERROR(message...) LOG(LEVEL_ERROR, message)
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__MACH__)
 extern char logbuffer[4096];
 #else
 extern char logbuffer[256];
