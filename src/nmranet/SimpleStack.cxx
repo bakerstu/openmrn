@@ -117,6 +117,7 @@ void SimpleCanStack::add_gridconnect_tty(
     struct termios settings;
     HASSERT(!tcgetattr(fd, &settings));
     cfmakeraw(&settings);
+    cfsetspeed(&settings, B115200);
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
