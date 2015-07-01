@@ -17,6 +17,8 @@ ifndef BOARD
 export BOARD := BOARD_LAUNCHPAD_EK
 endif
 
+OPENOCDARGS = -f board/ek-lm4f120xl.cfg
+
 LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
                -L$(TIVAWAREPATH)/usblib/gcc
 SYSLIBRARIESEXTRA = -lusb -ldriver
@@ -31,11 +33,29 @@ CXXFLAGSEXTRA += -DPART_TM4C123GH6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
 
+
+$(info $(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH))
+ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
+
+flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" $(OPENOCDARGS)" -ex "monitor reset halt" -ex "load" -ex "monitor reset init" -ex "monitor reset run"  -ex "detach" -ex "quit"
+
+gdb:
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" $(OPENOCDARGS)" -ex "monitor reset halt"
+
+
+else
+
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	stellaris-flash.sh $<
 
 gdb:
 	stellaris-gdb.sh $(EXECUTABLE)$(EXTENTION)
+
+endif
+
 
 ifndef ADDRESS
 ADDRESS=0x04

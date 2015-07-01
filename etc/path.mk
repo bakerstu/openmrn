@@ -297,6 +297,7 @@ endif #PIC32MXLIBPATH
 ifndef OPENOCDPATH
 SEARCHPATH := \
   /opt/openocd/default/openocd/src \
+  /opt/openocd/default/bin \
   /usr/local/bin \
   /usr/bin \
 
@@ -310,6 +311,8 @@ endif #OPENOCDPATH
 ifndef OPENOCDSCRIPTSPATH
 SEARCHPATH := \
   /opt/openocd/default/openocd/tcl \
+  /opt/openocd/default/tcl \
+  /opt/openocd/default/scripts \
   /usr/local/share/openocd/scripts \
   /usr/share/openocd/scripts \
 
