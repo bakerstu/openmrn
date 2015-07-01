@@ -34,21 +34,23 @@ ifndef BOARD
 BOARD := BOARD_LAUNCHPAD_EK
 endif
 
+OPENOCDARGS = -f board/ek-tm4c1294xl.cfg
+
+
 include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(call find_missing_deps,OPENOCDSCRIPTSPATH OPENOCDPATH),)
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
-	if ps l -C openocd | grep -q openocd.*ek-tm4c129 ; then echo killing openocd ; ps l -C openocd | grep  openocd.*ek-tm4c129 | cut -d ' ' -f 3 | xargs kill ; sleep 2 ; fi
-	$(PREFIX)gdb $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor reset halt' -ex 'load' -ex 'monitor reset init' -ex 'monitor reset run' -ex 'detach' -ex 'quit'
-#	./flash.sh $(EXECUTABLE)$(EXTENTION)
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor reset halt" -ex "load" -ex "monitor reset init" -ex "monitor reset run"  -ex "detach" -ex "quit"
 
 gdb:
-	if ps l -C openocd | grep -q openocd.*ek-tm4c129 ; then echo openocd already running. ; exit 1 ; fi
-	$(PREFIX)gdb $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor halt' 
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor reset halt"
 
 reboot:
-	if ps l -C openocd | grep -q openocd.*ek-tm4c129 ; then echo openocd already running. ; exit 1 ; fi
-	$(PREFIX)gdb $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --file board/ek-tm4c1294xl.cfg --search $(OPENOCDSCRIPTSPATH)" -ex 'monitor reset init' -ex 'monitor reset run' -ex 'detach' -ex 'quit' 
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex 'monitor reset init' -ex 'monitor reset run' -ex 'detach' -ex 'quit' 
 
 
 endif
