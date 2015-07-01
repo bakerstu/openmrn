@@ -149,6 +149,7 @@ int appl_main(int argc, char *argv[])
                 struct termios settings;
                 HASSERT(!tcgetattr(dev_fd, &settings));
                 cfmakeraw(&settings);
+                cfsetspeed(&settings, B115200);
                 HASSERT(!tcsetattr(dev_fd, TCSANOW, &settings));
                 LOG(INFO, "Opened device %s.\n", device_path);
                 create_gc_port_for_can_hub(&can_hub0, dev_fd, &closed_notify);
