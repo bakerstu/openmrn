@@ -8,4 +8,5 @@ CXXSRCS += TivaCan.cxx \
            TivaUart.cxx \
            TivaUsbCdcDevice.cxx \
            TivaFlash.cxx \
-           TivaEEPROMEmulation.cxx
+           TivaEEPROMEmulation.cxx \
+           TivaGPIOGeneric.cxx
