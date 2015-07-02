@@ -23,6 +23,7 @@ LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
+GDB = $(PREFIX)gdb
 
 AROPTS=D
 
