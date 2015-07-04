@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,162 +24,90 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file GPIOGeneric.hxx
+ * \file Gpio.hxx
  *
  * Generic implementation header for GPIO.
  *
- * @author Stuart Baker
+ * @author Stuart Baker, Balazs Racz
  * @date 1 July 2015
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_GPIOGENERIC_HXX_
-#define _FREERTOS_DRIVERS_COMMON_GPIOGENERIC_HXX_
+#ifndef _OS_GPIO_HXX_
+#define _OS_GPIO_HXX_
 
 #include "utils/macros.h"
 
-/** Tiva specific implementation of GPIO.  For the Tiva devices, the GPIO
- * number mapping can be found in the @ref GpioMapping enumeration.
+/** OS-independent abstraction for GPIO.
  */
 class Gpio
 {
 public:
-    /** GPIO setup mode */
-    enum Mode
+    constexpr Gpio()
     {
-        INPUT     = 0x00, /**< GPIO is an input */
-        OUTPUT    = 0x01, /**< GPIO is an output */
-        PULL_UP   = 0x02, /**< GPIO has week pull up enabled */
-        PULL_DOWN = 0x04, /**< GPIO has week pull down enabled */
-        LED       = 0x10, /**< GPIO drives an LED, configure for high current */
-        INVERT    = 0x80, /**< GPIO data is inverted */
+    }
+    virtual ~Gpio();
+
+    /** Defines the options for GPIO level. */
+    enum Value : bool
+    {
+        CLR = false,
+        SET = true,
+        LOW = CLR,
+        HIGH = SET
     };
 
-    /** Values representing the voltage on a GPIO pin */
-    enum Value
+    /** Defines the options for GPIO direction. This enum must always be used
+     * fully qualified (i.e. Gpio::Direction::INPUT and
+     * Gpio::Direction::OUTPUT). */
+    enum class Direction
     {
-        CLR = false, /**< GPIO is clear, in other words, currently a '0' */
-        SET = true   /**< GPIO is set, in other words, currently a '1' */
+        INPUT,
+        OUTPUT,
     };
 
-    /** Constructor.
-     * @param GPIO number
-     * @param mode GPIO mode settings
-     * @param safe default "safe" value, may go unused for input only pins
+    /** Writes a GPIO output pin (set or clear to a specific state).
+     * @param new_state the desired output state.
      */
-    Gpio(unsigned number, Mode mode, Value safe);
+    virtual void write(Value new_state) = 0;
 
-    /** Destructor.
+    /** Retrieve the current @ref Value of a GPIO input pin.
+     * @return @ref SET if currently high, @ref CLR if currently low.
      */
-    ~Gpio();
+    virtual Value read() = 0;
 
-    /** Set or clear the GPIO based on its value
-     * @param v @ref Value to apply to the GPIO
+    /** Test the GPIO input pin to see if it is set.
+     * @return true if input pin is currently high, false if currently low.
      */
-    void value(Value v)
+    bool is_set()
     {
-        if (v == CLR)
-        {
-            clr();
-        }
-        else
-        {
-            set();
-        }
+        return value() == SET;
     }
 
-    /** Retrieve the current @ref Value of the GPIO pin.
-     * @return @ref SET if currently a '1', @ref CLR if currently a '0'.
-     *         Note: if the GPIO is inverted, this has the effect of
-     *         returning the opposite value
+    /** Test the GPIO input pin to see if it is clear.
+     * @return true if input pin is currently low, false if currently high.
      */
-    Value value()
+    bool is_clr()
     {
-        return is_clr() ? CLR : SET;
+        return value() == CLR;
     }
 
-    /** Write GPIO to a safe state value as defined during construction.
-     */
-    void safe()
-    {
-        value(safeValue ? SET : CLR);
-    }
-
-    /** Test the GPIO pin to see if it is set.
-     * @return true if currently a '1', false CLR if currently a '0'.
-     *         Note: if the GPIO is inverted, this has the effect of
-     *         returning the opposite value
-     */
-    virtual bool is_set() = 0;
-
-    /** Test the GPIO pin to see if it is clear.
-     * @return true if currently a '0', false CLR if currently a '1'.
-     *         Note: if the GPIO is inverted, this has the effect of
-     *         returning the opposite value
-     */
-    virtual bool is_clr() = 0;
-
-    /** Set the GPIO to a '1'.  Note: if the GPIO is inverted, this could
-     * have the opposite effect of clearing the GPIO to a value of '0'.
+    /** Set the GPIO output pin to high.
      */
     virtual void set() = 0;
 
-    /** Clear the GPIO to a '0'.  Note: if the GPIO is inverted, this has
-     * have the opposite effect of setting the GPIO to a value of '1'.
+    /** Clear the GPIO output pin to low.
      */
     virtual void clr() = 0;
 
     /** Set the GPIO direction.
-     * @param mode @ref INPUT or @ref OUTPUT
+     * @param dir @ref INPUT or @ref OUTPUT
      */
-    virtual void direction(Mode mode) = 0;
+    virtual void set_direction(Direction dir) = 0;
 
     /** Get the GPIO direction.
      * @return @ref INPUT or @ref OUTPUT
      */
-    virtual Mode direction() = 0;
-
-    /** Find a GPIO by referencing its number.
-     * @return Gpio instance pointer if found, else nullptr if not found
-     */
-    static Gpio *find(unsigned number);
-
-protected:
-    /** Add the GPIO number to our list of known GPIO.
-     */
-    void track();
-
-    /** Pin number of GPIO */
-    uint8_t pin;
-
-    /** Bit index on GPIO port */
-    uint8_t bit;
-
-    /** Value (1 := SET, 0 := CLR) of GPIO in "safe" state.  We store as a
-     * uint8_t instead of type @ref Value in order to pack into less memory
-     */
-    uint8_t safeValue;
-
-    /** 1 if pin in inverted value on read/write.  We store as a uint8_t
-     * instead of a bool to ensure it get packed with the other data members
-     * around it for the smallest size.
-     */
-    uint8_t invert;
-
-    /** next GPIO in linked list */
-    Gpio *next;
-
-    /** first GPIO in linked list */
-    static Gpio *first;
-
-private:
-    /* default constructor */
-    Gpio()
-    {
-    }
-
-    DISALLOW_COPY_AND_ASSIGN(Gpio);
+    virtual Direction direction() = 0;
 };
 
-
 #endif /* _FREERTOS_DRIVERS_COMMON_GPIOGENERIC_HXX_ */
-

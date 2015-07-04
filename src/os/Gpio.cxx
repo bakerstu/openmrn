@@ -24,132 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file GPIOGeneric.hxx
+ * \file Gpio.cxx
  *
- * Generic implementation header for GPIO.
+ * Generic base class for GPIO.
  *
- * @author Stuart Baker
+ * @author Stuart Baker and Balazs Racz
  * @date 1 July 2015
  */
 
-#include "GPIOGeneric.hxx"
+#include "os/Gpio.hxx"
 
-#include "os/os.h"
-
-Gpio *Gpio::first = nullptr;
-
-/** Constructor.
- * @param GPIO number
- * @param mode GPIO mode settings
- * @param safe default "safe" value, may go unused for input only pins
- */
-Gpio::Gpio(unsigned number, Mode mode, Value safe)
-        : pin(number)
-        , bit(0)
-        , safeValue(safe == CLR ? 0 : 1)
-        , invert(mode & INVERT ? 1 : 0)
-        , next(nullptr)
-{
-}
-
-/** Destructor.
- */
-Gpio::~Gpio()
-{
-    /* we use the schedualer lock as a poor man's mutex.  This sequence allows
-     * for static or dynamic construction.
-     */
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        vTaskSuspendAll();
-    }
-
-    Gpio *current = first;
-    Gpio *last = nullptr;
-    while (current)
-    {
-        /* make sure we are not constructing this I/O twice */
-        if (current->pin == pin)
-        {
-            if (last)
-            {
-                last->next = next;
-            }
-            else
-            {
-                first = next;
-            }
-            break;
-        }
-        last = current;
-        current->next = last;
-    }
-
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        xTaskResumeAll();
-    }
-}
-
-
-/** Add the GPIO number to our list of known GPIO.
- */
-void Gpio::track()
-{
-    /* we use the schedualer lock as a poor man's mutex.  This sequence allows
-     * for static or dynamic construction.
-     */
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        vTaskSuspendAll();
-    }
-
-    /* make sure we are not constructing this I/O twice */
-    Gpio *current = first;
-    while (current)
-    {
-        HASSERT(current->pin != pin);
-        current = current->next;
-    }
-
-    /* register GPIO in the system */
-    next = first;
-    first = this;
-
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        xTaskResumeAll();
-    }
-}
-
-/** Find a GPIO by referencing its number.
- * @return Gpio instance pointer if found, else nullptr if not found
- */
-Gpio *Gpio::find(unsigned number)
-{
-    /* we use the schedualer lock as a poor man's mutex.  This sequence allows
-     * for static or dynamic construction.
-     */
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        vTaskSuspendAll();
-    }
-
-    Gpio *current = first;
-    while (current)
-    {
-        /* make sure we are not constructing this I/O twice */
-        if (current->pin == number)
-        {
-            break;
-        }
-        current = current->next;
-    }
-
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    {
-        xTaskResumeAll();
-    }
-
-    return current;
-}
+Gpio::~Gpio() {}
