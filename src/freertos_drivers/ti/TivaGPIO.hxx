@@ -36,6 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_
 #define _FREERTOS_DRIVERS_TI_TIVAGPIO_HXX_
 
+#include "os/Gpio.hxx"
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
@@ -57,6 +58,76 @@
     DECL_PIN(NAME, PORT, NUM);                                                 \
     static const auto NAME##_CONFIG = GPIO_P##PORT##NUM##_##CONFIG
 
+/// Generic GPIO class implementation.
+template <unsigned GPIO_BASE, unsigned GPIO_PIN> class TivaGpio : public Gpio
+{
+public:
+    constexpr TivaGpio()
+    {
+    }
+
+    void write(Value new_state) OVERRIDE
+    {
+        *pin_address() = (new_state ? 0xff : 0);
+    }
+
+    void set() OVERRIDE
+    {
+        *pin_address() = 0xff;
+    }
+
+    void clr() OVERRIDE
+    {
+        *pin_address() = 0;
+    }
+
+    Value read() OVERRIDE
+    {
+        return *pin_address() ? HIGH : LOW;
+    }
+
+    void set_direction(Direction dir) OVERRIDE
+    {
+        if (dir == Direction::OUTPUT)
+        {
+            GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        }
+        else
+        {
+            GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+        }
+    }
+
+    Direction direction() OVERRIDE
+    {
+        uint32_t mode = GPIODirModeGet(GPIO_BASE, GPIO_PIN);
+        switch (mode)
+        {
+            default:
+                HASSERT(0);
+            case GPIO_DIR_MODE_IN:
+                return Direction::INPUT;
+            case GPIO_DIR_MODE_OUT:
+                return Direction::OUTPUT;
+        }
+    }
+
+    static TivaGpio instance_;
+
+private:
+    /// Computes the memory address where the bit refeerring to this pin can be
+    /// accessed. This address is bit-masked to the single individual pin, so
+    /// only ever one bit can be read to be non-zero and setting any other bit
+    /// than the desired has no effect.
+    constexpr uint8_t *pin_address()
+    {
+        return reinterpret_cast<uint8_t *>(GPIO_BASE +
+                                           (((unsigned)GPIO_PIN) << 2));
+    }
+};
+
+template <unsigned GPIO_BASE, unsigned GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
+
 /// Defines a GPIO output pin. Writes to this structure will change the output
 /// level of the pin. Reads will return the pin's current level.
 ///
@@ -64,61 +135,77 @@
 /// `SAFE_VALUE'.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs, bool SAFE_VALUE>
-struct GpioOutputPin : public Defs {
+template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
+{
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
-    static void hw_init() {
+    static void hw_init()
+    {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
         set(SAFE_VALUE);
     }
-    static void hw_set_to_safe() {
+    static void hw_set_to_safe()
+    {
         hw_init();
     }
-    static void set(bool value) {
-        //if (GPIO_INVERTED) value = !value;
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+    static void set(bool value)
+    {
+        // if (GPIO_INVERTED) value = !value;
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(GPIO_BASE +
+                                                   (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
-    static bool get() {
+    static bool get()
+    {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
-    static void toggle() {
+    static void toggle()
+    {
         set(!get());
+    }
+
+    static Gpio *instance()
+    {
+        return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
 };
 
 /// Defines a GPIO output pin, initialized to be an output pin with low level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioOutputSafeLow : public GpioOutputPin<Defs, false> {};
+template <class Defs>
+struct GpioOutputSafeLow : public GpioOutputPin<Defs, false>
+{
+};
 
 /// Defines a GPIO output pin, initialized to be an output pin with high level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
+template <class Defs>
+struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
+{
+};
 
 /// Defines a GPIO output pin with high-current drive and low initialization
 /// level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct LedPin : public GpioOutputPin<Defs, false> {
+template <class Defs> struct LedPin : public GpioOutputPin<Defs, false>
+{
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
-    static void hw_init() {
+    static void hw_init()
+    {
         GpioOutputPin<Defs, false>::hw_init();
-        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_8MA_SC, GPIO_PIN_TYPE_STD);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_8MA_SC,
+                             GPIO_PIN_TYPE_STD);
     }
 };
 
@@ -148,21 +235,24 @@ public:
     typedef BaseClass<NAME##Defs> NAME##_Pin
 
 /// Common class for GPIO input pins.
-template<class Defs, uint32_t GPIO_PULL>
-struct GpioInputPin : public Defs {
+template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin : public Defs
+{
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
-    static void hw_init() {
+    static void hw_init()
+    {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
         MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PULL);
     }
-    static void hw_set_to_safe() {
+    static void hw_set_to_safe()
+    {
         hw_init();
     }
-    static bool get() {
+    static bool get()
+    {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
@@ -172,39 +262,48 @@ public:
 /// GPIO Input pin with weak pull up.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputPU : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPU> {};
+template <class Defs>
+struct GpioInputPU : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPU>
+{
+};
 
 /// GPIO Input pin with weak pull down.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputPD : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPD> {};
+template <class Defs>
+struct GpioInputPD : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD_WPD>
+{
+};
 
 /// GPIO Input pin in standard configuration (no pull).
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD> {};
+template <class Defs>
+struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD>
+{
+};
 
 /// GPIO Input pin in ADC configuration (analog).
 ///
 /// This pin cannot be read or written directly (will fail compilation).
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioADCPin : public Defs {
+template <class Defs> struct GpioADCPin : public Defs
+{
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
-    static void hw_init() {
+    static void hw_init()
+    {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_HW);
-        MAP_GPIOPadConfigSet(
-            GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_ANALOG);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA,
+                             GPIO_PIN_TYPE_ANALOG);
     }
-    static void hw_set_to_safe() {
-        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+    static void hw_set_to_safe()
+    {
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe.
+        /// Options are drive low, drive high, input std, input wpu, input wpd.
         hw_init();
     }
 };
@@ -216,34 +315,40 @@ struct GpioADCPin : public Defs {
 /// functions.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioHwPin : public Defs {
+template <class Defs> struct GpioHwPin : public Defs
+{
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
     using Defs::GPIO_CONFIG;
-    static void hw_init() {
+    static void hw_init()
+    {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
         MAP_GPIOPinConfigure(GPIO_CONFIG);
         set_hw();
     }
-    static void hw_set_to_safe() {
-        /// TODO(balazs.racz): we need to somehow specify what to do to be safe. Options are drive low, drive high, input std, input wpu, input wpd.
+    static void hw_set_to_safe()
+    {
+        /// TODO(balazs.racz): we need to somehow specify what to do to be safe.
+        /// Options are drive low, drive high, input std, input wpu, input wpd.
         hw_init();
     }
 
     /** Switches the GPIO pin to the hardware peripheral. */
-    static void set_hw() {
+    static void set_hw()
+    {
         /// TODO(balazs.racz) this is wrong, we have to define somehow which
         /// type to call.
         MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
     }
-    
+
     /** Switches the GPIO pin to an output pin. Use the set() command to define
      * the value. */
-    static void set_output() {
+    static void set_output()
+    {
         MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
-        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA,
+                             GPIO_PIN_TYPE_STD);
     }
 
     /** Switches the GPIO pin to an input pin. Use the get() command to
@@ -252,25 +357,29 @@ struct GpioHwPin : public Defs {
      * @param drive_type specifies whether there should be a weak pullup
      * (GPIO_PIN_TYPE_STD_WPU), pull-down (GPIO_PIN_TYPE_STD_WPD) or standard
      * pin (default, GPIO_PIN_TYPE_STD)*/
-    static void set_input(uint32_t drive_type = GPIO_PIN_TYPE_STD) {
+    static void set_input(uint32_t drive_type = GPIO_PIN_TYPE_STD)
+    {
         MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
-        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, drive_type);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA,
+                             drive_type);
     }
 
-    static void set(bool value) {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+    static void set(bool value)
+    {
+        uint8_t *ptr = reinterpret_cast<uint8_t *>(GPIO_BASE +
+                                                   (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
-    static bool get() {
+    static bool get()
+    {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
-    static void toggle() {
+    static void toggle()
+    {
         set(!get());
     }
-
 };
 
 /// Helper macro for defining GPIO pins with a specific hardware config on the
