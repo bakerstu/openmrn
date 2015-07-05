@@ -54,8 +54,12 @@
 /// GPIO but a different hardware muxed onto the same pin).
 ///
 /// @deprecated, use @ref GPIO_PIN instead.
-#define DECL_HWPIN(NAME, PORT, NUM, CONFIG)                                    \
+#define DECL_HWPIN(NAME, PORT, NUM, CONFIG, Type)                              \
     DECL_PIN(NAME, PORT, NUM);                                                 \
+    static void NAME##_SetPinType()                                            \
+    {                                                                          \
+        MAP_GPIOPinType##Type(NAME##_BASE, NAME##_PIN);                        \
+    }                                                                          \
     static const auto NAME##_CONFIG = GPIO_P##PORT##NUM##_##CONFIG
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin;
@@ -118,8 +122,13 @@ public:
     }
 
 private:
-    template<class Defs, bool SAFE_VALUE> friend struct GpioOutputPin;
-    template<class Defs, uint32_t GPIO_PULL> friend struct GpioInputPin;
+    template <class Defs, bool SAFE_VALUE> friend struct GpioOutputPin;
+    template <class Defs, uint32_t GPIO_PULL> friend struct GpioInputPin;
+    /// Static instance variable that can be used for libraries expectiong a
+    /// generic Gpio pointer. This instance variable will be initialized by the
+    /// linker and (assuming the application developer initialized the hardware
+    /// pins in hw_preinit) is accessible, including virtual methods at static
+    /// constructor time.
     static TivaGpio instance_;
 
     /// Computes the memory address where the bit referring to this pin can be
@@ -163,7 +172,6 @@ public:
     }
     static void set(bool value)
     {
-        // if (GPIO_INVERTED) value = !value;
         uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
@@ -244,7 +252,6 @@ public:
     struct NAME##Defs                                                          \
     {                                                                          \
         DECL_PIN(GPIO, PORT, NUM);                                             \
-        static const bool GPIO_INVERTED = false;                               \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
 
@@ -343,6 +350,7 @@ template <class Defs> struct GpioHwPin : public Defs
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
     using Defs::GPIO_CONFIG;
+    using Defs::GPIO_SetPinType;
     static void hw_init()
     {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
@@ -359,9 +367,7 @@ template <class Defs> struct GpioHwPin : public Defs
     /** Switches the GPIO pin to the hardware peripheral. */
     static void set_hw()
     {
-        /// TODO(balazs.racz) this is wrong, we have to define somehow which
-        /// type to call.
-        MAP_GPIOPinTypeUART(GPIO_BASE, GPIO_PIN);
+        Defs::GPIO_SetPinType();
     }
 
     /** Switches the GPIO pin to an output pin. Use the set() command to define
@@ -411,11 +417,13 @@ template <class Defs> struct GpioHwPin : public Defs
 ///
 /// @param CONFIG is the suffix of the symbol that defines the pinmux for the
 /// hardware, e.g. U7TX.
-#define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG)                         \
+///
+/// @param TYPE is a suffix for a TivaWare GPIOPinType function such as UART
+/// for GPIOPinTypeUART() to set the pin to the hardware configuration.
+#define GPIO_HWPIN(NAME, BaseClass, PORT, NUM, CONFIG, TYPE)                   \
     struct NAME##Defs                                                          \
     {                                                                          \
-        DECL_HWPIN(GPIO, PORT, NUM, CONFIG);                                   \
-        static const bool GPIO_INVERTED = false;                               \
+        DECL_HWPIN(GPIO, PORT, NUM, CONFIG, TYPE);                             \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
 

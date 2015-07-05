@@ -106,7 +106,7 @@ struct RailcomDefs
 
     static const auto OS_INTERRUPT = INT_UART1;
 
-    GPIO_HWPIN(CH1, GpioHwPin, B, 0, U1RX);
+    GPIO_HWPIN(CH1, GpioHwPin, B, 0, U1RX, UART);
 
     static void hw_init() {
          CH1_Pin::hw_init();
