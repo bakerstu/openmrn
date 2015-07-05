@@ -278,7 +278,6 @@ void diewith(uint32_t pattern)
         ;
 }
 
-
 /** Initialize the processor hardware.
  */
 void hw_preinit(void)
@@ -313,10 +312,6 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
-
-    /* USB0 pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
 
     /* USB interrupt priority */
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority

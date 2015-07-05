@@ -337,6 +337,27 @@ template <class Defs> struct GpioADCPin : public Defs
     }
 };
 
+/// GPIO Input pin for USB.
+///
+/// This pin cannot be read or written directly (will fail compilation).
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs> struct GpioUSBAPin : public Defs
+{
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeUSBAnalog(GPIO_BASE, GPIO_PIN);
+    }
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+};
+
 /// GPIO pin in a hardware configuration (via pinmux: UART, I2C, CAN, etc).
 ///
 /// The pin can be switched to hardware, input and output mode. In input.output
