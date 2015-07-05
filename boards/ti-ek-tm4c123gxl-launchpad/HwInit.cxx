@@ -255,7 +255,7 @@ void timer5a_interrupt_handler(void)
     //
     MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     // Set output LED.
-    LED_RED_RAW_Pin::set((rest_pattern & 1));
+    BLINKER_RAW_Pin::set((rest_pattern & 1));
 
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
