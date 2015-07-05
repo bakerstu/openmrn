@@ -35,6 +35,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_DUMMYGPIO_HXX_
 #define _FREERTOS_DRIVERS_COMMON_DUMMYGPIO_HXX_
 
+#include "GpioWrapper.hxx"
+
 /// GPIO Pin definition structure with no actual pin behind it. All writes to
 /// this pin will be silently ignored. Reads from this pin will not compile.
 struct DummyPin
@@ -56,6 +58,12 @@ struct DummyPin
     static void toggle()
     {
     }
+
+    /// Returns whether this is an output pin or not.
+    static bool is_output()
+    {
+        return true;
+    }
 };
 
 /// GPIO Pin definition structure with no actual pin behind it. All writes to
@@ -66,6 +74,17 @@ struct DummyPinWithRead : public DummyPin
     static bool get()
     {
         return false;
+    }
+
+    /// Returns whether this is an output pin or not.
+    static bool is_output()
+    {
+        return false;
+    }
+
+    static Gpio *instance()
+    {
+        return GpioWrapper<DummyPinWithRead>::instance();
     }
 };
 
