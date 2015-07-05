@@ -32,6 +32,9 @@
 <group replication='2'>
 <name>Input buttons</name>
 <int size='1'>
+<name>Debounce parameter</name>
+<description>Amount of time to wait for the input to stabilize before producing the event. Unit is 30 msec of time. Usually a value of 2-3 works well in a non-noisy environment. In high noise (train wheels for example) a setting between 8 -- 15 makes for a slower response time but a more stable signal.
+Formally, the parameter tells how many times of tries, each 30 msec apart, the input must have the same value in order for that value to be accepted and the event transition produced.</description>
 </int>
 <eventid>
 <name>Event On</name>
