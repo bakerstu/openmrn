@@ -427,6 +427,7 @@ protected:
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 1;
+        helper->readNonblocking_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
@@ -437,6 +438,18 @@ protected:
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 0;
+        helper->readNonblocking_ = 0;
+        helper->nextState_ = c;
+        allocationResult_ = helper;
+        return call_immediately(STATE(internal_try_read));
+    }
+
+    Action read_nonblocking(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+        helper->reset(Selectable::READ, fd, priority);
+        helper->rbuf_ = static_cast<uint8_t*>(buf);
+        helper->remaining_ = size;
+        helper->readFully_ = 0;
+        helper->readNonblocking_ = 1;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
@@ -456,7 +469,7 @@ protected:
         {
             h->remaining_ -= count;
             h->rbuf_ += count;
-            if (h->remaining_ && h->readFully_)
+            if (h->remaining_ && h->readFully_ && !h->readNonblocking_)
             {
                 return again();
             }
@@ -469,9 +482,17 @@ protected:
         if (count < 0 &&
             (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
         {
-            // Blocked.
-            service()->executor()->select(h);
-            return wait();
+            if (h->readNonblocking_)
+            {
+                h->rbuf_ = nullptr;
+                return call_immediately(h->nextState_);
+            }
+            else
+            {
+                // Blocked.
+                service()->executor()->select(h);
+                return wait();
+            }
         }
         // Now: we are at an unknown error or EOF.
         h->rbuf_ = nullptr;
@@ -555,11 +576,12 @@ protected:
         /** State to transition to after the read is complete. */
         Callback nextState_;
         /** 1 if we need to read until all remaining_ is consumed. 0 if we want
-         * to
-         * return as soon as we have read something. */
+         * to return as soon as we have read something. */
         unsigned readFully_ : 1;
+        /** 1 if we need a non-blocking read, in other words, try once */
+        unsigned readNonblocking_ : 1;
         /** Number of bytes still outstanding to read. */
-        unsigned remaining_ : 31;
+        unsigned remaining_ : 30;
     };
 
 private:
