@@ -35,8 +35,10 @@
 #ifndef _UTILS_GPIOINITIALIZER_HXX_
 #define _UTILS_GPIOINITIALIZER_HXX_
 
+/// Forward declaration to make the template matcher happy.
 template <class T> struct GpioInitHelper;
 
+/// Partial template specialization to end the type recursion.
 template <> struct GpioInitHelper<std::tuple<>>
 {
     static void hw_init()
@@ -47,6 +49,8 @@ template <> struct GpioInitHelper<std::tuple<>>
     }
 };
 
+/// General recursion step. Calls the hw_init / hw_set_to_safe function on the
+/// first type argument, and then recurses to the rest of the types.
 template <typename Head, typename... Tail>
 struct GpioInitHelper<std::tuple<Head, Tail...>>
 {
@@ -62,13 +66,31 @@ struct GpioInitHelper<std::tuple<Head, Tail...>>
     }
 };
 
+/// Class collecting a bunch of GPIO pins and allowing them to be initialized
+/// in one go. Usage:
+///
+/// in hardware.hxx:
+///
+///  GPIO_PIN(FOO, ...)
+///  GPIO_PIN(BAR, ...)
+///
+///  typedef GpioInitializer<FOO_Pin, BAR_Pin> GpioInit;
+///
+/// in HwInit.cxx call all GPIO pins:
+///
+///  void hw_preinit()
+///  {
+///      GpioInit::hw_init();
+///  }
 template <typename... Args> struct GpioInitializer
 {
 public:
+    /// Calls the hw_init() function for all declared pins.
     static void hw_init()
     {
         GpioInitHelper<std::tuple<Args...>>::hw_init();
     }
+    /// Calls the hw_set_to_safe() function for all declared pins.
     static void hw_set_to_safe()
     {
         GpioInitHelper<std::tuple<Args...>>::hw_set_to_safe();
