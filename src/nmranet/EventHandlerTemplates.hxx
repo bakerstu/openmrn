@@ -38,6 +38,7 @@
 
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/WriteHelper.hxx"
+#include "os/Gpio.hxx"
 
 namespace nmranet
 {
@@ -221,31 +222,26 @@ template<class T> class MemoryBit : public BitEventInterface {
 class GPIOBit : public BitEventInterface
 {
 public:
-    typedef bool (*getter_fn_t)();
-    typedef void (*setter_fn_t)(bool);
-
-    GPIOBit(Node *node, EventId event_on, EventId event_off, getter_fn_t getter,
-        setter_fn_t setter)
+    GPIOBit(Node *node, EventId event_on, EventId event_off, Gpio* gpio)
         : BitEventInterface(event_on, event_off)
         , node_(node)
-        , getter_(getter)
-        , setter_(setter)
+        , gpio_(gpio)
     {
     }
 
     template <class HW>
     GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &)
-        : GPIOBit(node, event_on, event_off, &HW::get, &HW::set)
+        : GPIOBit(node, event_on, event_off, HW::instance())
     {
     }
 
     bool GetCurrentState() OVERRIDE
     {
-        return getter_();
+        return gpio_->is_set();
     }
     void SetState(bool new_value) OVERRIDE
     {
-        setter_(new_value);
+        gpio_->write(new_value);
     }
     Node *node() OVERRIDE
     {
@@ -254,8 +250,7 @@ public:
 
 public:
     Node *node_;
-    const getter_fn_t getter_;
-    const setter_fn_t setter_;
+    Gpio* gpio_;
 };
 
 /// Base class for single-bit producer and consumer objects.

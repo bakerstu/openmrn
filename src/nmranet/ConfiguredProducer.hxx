@@ -68,8 +68,7 @@ public:
 
     template <class HW>
     ConfiguredProducer(Node *node, const ProducerConfig &cfg, const HW &)
-        : producer_(QuiesceDebouncer::Options(3), node, 0, 0, &HW::get,
-              (GPIOBit::setter_fn_t)&ignore_fn)
+        : producer_(QuiesceDebouncer::Options(3), node, 0, 0, HW::instance())
         , cfg_(cfg)
     {
         ConfigUpdateService::instance()->register_update_listener(this);
@@ -85,15 +84,14 @@ public:
         if (cfg_event_off != producer_.event_off() ||
             cfg_event_on != producer_.event_on())
         {
-            auto saved_setter = producer_.setter_;
-            auto saved_getter = producer_.getter_;
+            auto saved_gpio = producer_.gpio_;
             auto saved_node = producer_.node();
             // Need to reinitialize the producer. We do this with in-place
             // destruction and construction.
             producer_.~ProducerClass();
             new (&producer_) ProducerClass(
                 QuiesceDebouncer::Options(debounce_arg), saved_node,
-                cfg_event_on, cfg_event_off, saved_getter, saved_setter);
+                cfg_event_on, cfg_event_off, saved_gpio);
             return REINIT_NEEDED; // Causes events identify.
         }
         return UPDATED;

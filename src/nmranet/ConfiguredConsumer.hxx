@@ -60,7 +60,7 @@ public:
 
     template <class HW>
     ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &)
-        : impl_(node, 0, 0, &HW::get, &HW::set)
+        : impl_(node, 0, 0, HW::instance())
         , consumer_(&impl_)
         , cfg_(cfg)
     {
@@ -76,15 +76,14 @@ public:
         if (cfg_event_off != impl_.event_off() ||
             cfg_event_on != impl_.event_on())
         {
-            auto saved_setter = impl_.setter_;
-            auto saved_getter = impl_.getter_;
+            auto saved_gpio = impl_.gpio_;
             auto saved_node = impl_.node();
             // Need to reinitialize the consumer. We do this with in-place
             // destruction and construction.
             consumer_.~BitEventConsumer();
             impl_.~Impl();
-            new (&impl_) Impl(saved_node, cfg_event_on, cfg_event_off,
-                saved_getter, saved_setter);
+            new (&impl_)
+                Impl(saved_node, cfg_event_on, cfg_event_off, saved_gpio);
             new (&consumer_) BitEventConsumer(&impl_);
             return REINIT_NEEDED; // Causes events identify.
         }
