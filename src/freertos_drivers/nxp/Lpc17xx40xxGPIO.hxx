@@ -40,6 +40,79 @@
 #include "core_cm3.h"
 #include "gpio_17xx_40xx.h"
 #include "iocon_17xx_40xx.h"
+#include "os/Gpio.hxx"
+
+template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin;
+
+/// Generic GPIO class implementation.
+template <uint8_t PORT, uint8_t PIN> class LpcGpio : public Gpio
+{
+public:
+    /// This constructor is constexpr which ensures that the object can be
+    /// initialized in the data section.
+    constexpr LpcGpio()
+    {
+    }
+
+    void write(Value new_state) OVERRIDE
+    {
+        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, new_state);
+    }
+
+    void set() OVERRIDE
+    {
+        // This will be optimized by the compiler to a single register write.
+        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, true);
+    }
+
+    void clr() OVERRIDE
+    {
+        // This will be optimized by the compiler to a single register write.
+        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, false);
+    }
+
+    Value read() OVERRIDE
+    {
+        return Chip_GPIO_GetPinState(LPC_GPIO, PORT, PIN) ? HIGH : LOW;
+    }
+
+    void set_direction(Direction dir) OVERRIDE
+    {
+        if (dir == Direction::OUTPUT)
+        {
+            Chip_GPIO_SetPinDIROutput(LPC_GPIO, PORT, PIN);
+        }
+        else
+        {
+            Chip_GPIO_SetPinDIRInput(LPC_GPIO, PORT, PIN);
+        }
+    }
+
+    Direction direction() OVERRIDE
+    {
+        if (Chip_GPIO_GetPinDIR(LPC_GPIO, PORT, PIN))
+        {
+            return Direction::OUTPUT;
+        }
+        else
+        {
+            return Direction::INPUT;
+        }
+    }
+
+private:
+    template <uint8_t PORTx, uint8_t PINx> friend struct LpcGpioPin;
+    /// Static instance variable that can be used for libraries expectiong a
+    /// generic Gpio pointer. This instance variable will be initialized by the
+    /// linker and (assuming the application developer initialized the hardware
+    /// pins in hw_preinit) is accessible, including virtual methods at static
+    /// constructor time.
+    static LpcGpio instance_;
+};
+
+/// Defines the linker symbol for the wrapped Gpio instance.
+template <uint8_t PORT, uint8_t PIN>
+LpcGpio<PORT, PIN> LpcGpio<PORT, PIN>::instance_;
 
 template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
 {
@@ -66,6 +139,13 @@ template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
         return Chip_GPIO_GetPinState(LPC_GPIO, port(), pin());
     }
 
+    /// Returns a os-indepentent Gpio abstraction instance for use in
+    /// libraries.
+    static Gpio *instance()
+    {
+        return &LpcGpio<PORT, PIN>::instance_;
+    }
+
 protected:
     static void set_output()
     {
@@ -87,8 +167,8 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
     {
         Chip_GPIO_Init(LPC_GPIO);
         Chip_IOCON_Init(LPC_IOCON);
-        Chip_IOCON_PinMuxSet(LPC_IOCON, port(), pin(),
-                             IOCON_FUNC0 | IOCON_MODE_INACT);
+        Chip_IOCON_PinMuxSet(
+            LPC_IOCON, port(), pin(), IOCON_FUNC0 | IOCON_MODE_INACT);
         hw_set_to_safe();
     }
     static void hw_set_to_safe()
@@ -101,35 +181,41 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
 /// Defines a GPIO output pin, initialized to be an output pin with low level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioOutputSafeLow : public GpioOutputPin<Defs, false> {};
+template <class Defs>
+struct GpioOutputSafeLow : public GpioOutputPin<Defs, false>
+{
+};
 
 /// Defines a GPIO output pin, initialized to be an output pin with high level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true> {};
+template <class Defs>
+struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
+{
+};
 
 /// Defines a GPIO output pin with high-current drive and low initialization
 /// level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct LedPin : public GpioOutputPin<Defs, false> {};
+template <class Defs> struct LedPin : public GpioOutputPin<Defs, false>
+{
+};
 
 /// Common class for GPIO input pins.
-template<class Defs, uint32_t GPIO_PULL>
-struct GpioInputPin : public Defs {
+template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin : public Defs
+{
 public:
     using Defs::port;
     using Defs::pin;
-    static void hw_init() {
+    static void hw_init()
+    {
         Chip_GPIO_Init(LPC_GPIO);
         Chip_IOCON_Init(LPC_IOCON);
-        Chip_IOCON_PinMuxSet(LPC_IOCON, port(), pin(),
-                             IOCON_FUNC0 | GPIO_PULL);
+        Chip_IOCON_PinMuxSet(LPC_IOCON, port(), pin(), IOCON_FUNC0 | GPIO_PULL);
     }
-    static void hw_set_to_safe() {
+    static void hw_set_to_safe()
+    {
         hw_init();
     }
 };
@@ -137,27 +223,35 @@ public:
 /// GPIO Input pin with weak pull up.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputPU : public GpioInputPin<Defs, IOCON_MODE_PULLUP> {};
+template <class Defs>
+struct GpioInputPU : public GpioInputPin<Defs, IOCON_MODE_PULLUP>
+{
+};
 
 /// GPIO Input pin with weak pull down.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputPD : public GpioInputPin<Defs, IOCON_MODE_PULLDOWN> {};
+template <class Defs>
+struct GpioInputPD : public GpioInputPin<Defs, IOCON_MODE_PULLDOWN>
+{
+};
 
 /// GPIO Input pin in standard configuration (no pull).
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputNP : public GpioInputPin<Defs, IOCON_MODE_INACT> {};
+template <class Defs>
+struct GpioInputNP : public GpioInputPin<Defs, IOCON_MODE_INACT>
+{
+};
 
 /// GPIO Input pin in repeater configuration (pull the same direction as sensed
 /// on the input).
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template<class Defs>
-struct GpioInputRep : public GpioInputPin<Defs, IOCON_MODE_REPEATER> {};
+template <class Defs>
+struct GpioInputRep : public GpioInputPin<Defs, IOCON_MODE_REPEATER>
+{
+};
 
 /// Helper macro for defining GPIO pins.
 ///
