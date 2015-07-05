@@ -1,0 +1,17 @@
+#include "utils/test_main.hxx"
+#include "utils/HubDevice.hxx"
+
+class HubDeviceTest : public ::testing::Test {
+public:
+    string thread_name(char mode, int fd) {
+        char buf[30];
+        FdHubPortBase::fill_thread_name(buf, mode, fd);
+        return buf;
+    }
+};
+
+TEST_F(HubDeviceTest, ThreadNameTest) {
+    EXPECT_EQ("thread_fd_R_3", thread_name('R', 3));
+    EXPECT_EQ("thread_fd_W_12", thread_name('W', 12));
+    EXPECT_EQ("thread_fd_h_0", thread_name('h', 0));
+}
