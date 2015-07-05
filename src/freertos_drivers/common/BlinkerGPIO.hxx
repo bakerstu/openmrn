@@ -36,21 +36,39 @@
 #define _FREERTOS_DRIVERS_COMMON_BLINKER_GPIO_HXX_
 
 #include "utils/blinker.h"
+#include "os/Gpio.hxx"
+#include "GpioWrapper.hxx"
 
 /** GPIO-abstraction implementation for the blinker bit. This allows a
  * GPIO-style usage of the LED that is controlled by the blinker code in the
  * FreeRTOS-compatible hardware implementations. */
-struct BLINKER_Pin {
-    static void hw_init() {}
-    static void hw_set_to_safe() {}
-    static void set(bool value) {
+struct BLINKER_Pin
+{
+    static void hw_init()
+    {
+    }
+    static void hw_set_to_safe()
+    {
+    }
+    static void set(bool value)
+    {
         resetblink(value ? 1 : 0);
     }
-    static void toggle() {
+    static void toggle()
+    {
         resetblink(get() ? 0 : 1);
     }
-    static bool get() {
+    static bool get()
+    {
         return blinker_pattern;
+    }
+    static bool is_output()
+    {
+        return true;
+    }
+    static Gpio *instance()
+    {
+        return GpioWrapper<BLINKER_Pin>::instance();
     }
 };
 
