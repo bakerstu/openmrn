@@ -47,8 +47,8 @@
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
-#include "TivaGPIO.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "hardware.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -82,14 +82,6 @@ const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 1024;
 const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 1024);
 
-GPIO_PIN(LED_B1, LedPin, N, 1);
-GPIO_PIN(LED_B2, LedPin, N, 0);
-GPIO_PIN(LED_B3, LedPin, F, 4);
-GPIO_PIN(LED_B4, LedPin, F, 0);
-
-GPIO_PIN(SW1, GpioInputPU, J, 0);
-GPIO_PIN(SW2, GpioInputPU, J, 1);
-
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -98,7 +90,7 @@ static uint32_t rest_pattern = 0;
 void resetblink(uint32_t pattern)
 {
     blinker_pattern = pattern;
-    /* make a timer event trigger immediately */
+    /// @todo (balazs.racz) make a timer event trigger immediately
 }
 
 void setblink(uint32_t pattern)
@@ -140,67 +132,36 @@ void diewith(uint32_t pattern)
  */
 void hw_preinit(void)
 {
-    /* Globally disables interrupts until the FreeRTOS scheduler is up. */
+    // Globally disables interrupts until the FreeRTOS scheduler is up.
     asm("cpsid i\n");
 
-    /* Setup the system clock. */
+    // Setup the system clock.
     MAP_SysCtlClockFreqSet(SYSCTL_XTAL_25MHZ | SYSCTL_USE_PLL |
                            SYSCTL_OSC_MAIN | SYSCTL_CFG_VCO_480,
                            120000000);
 
-    /* Red LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-    MAP_GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
-    MAP_GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);
+    // Unlocks the gpio pin that is mapped onto NMI.
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0xff;
 
-    /* Blinker timer initialization. */
+    // Initalizes all declared pins from hardware.hxx.
+    GpioInit::hw_init();
+
+    // Blinker timer initialization.
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
     MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
     MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, configCPU_CLOCK_HZ / 8);
     MAP_TimerControlStall(TIMER5_BASE, TIMER_A, true);
     MAP_IntEnable(INT_TIMER5A);
 
-    /* This interrupt should hit even during kernel operations. */
+    // This interrupt should hit even during kernel operations.
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
-    /* UART0 pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinConfigure(GPIO_PD4_U2RX);
-    MAP_GPIOPinConfigure(GPIO_PD5_U2TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-    /* CAN pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    MAP_GPIOPinConfigure(GPIO_PA0_CAN0RX);
-    MAP_GPIOPinConfigure(GPIO_PA1_CAN0TX);
-    MAP_GPIOPinTypeCAN(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-
-    /* USB pins initialization. */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
-
-    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = 0xff;
-    MAP_GPIOPinConfigure(GPIO_PD6_USB0EPEN);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-    MAP_GPIOPinTypeUSBDigital(GPIO_PORTD_BASE, GPIO_PIN_6);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTL_BASE, GPIO_PIN_6 | GPIO_PIN_7);
-    MAP_GPIOPinTypeGPIOInput(GPIO_PORTQ_BASE, GPIO_PIN_4);
-    MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
-
-    // LED pins initialization
-    LED_B1_Pin::hw_init();
-    LED_B2_Pin::hw_init();
-    LED_B3_Pin::hw_init();
-    LED_B4_Pin::hw_init();
-
-    SW1_Pin::hw_init();
-    SW2_Pin::hw_init();
+    // USB interrupt is low priority.
+    MAP_IntPrioritySet(INT_USB0, 0xff);
 }
 
 }
