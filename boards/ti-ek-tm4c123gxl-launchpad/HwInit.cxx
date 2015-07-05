@@ -50,6 +50,7 @@
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
+#include "hardware.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -67,10 +68,6 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 };
 #include "TivaRailcom.hxx"
-#include "TivaGPIO.hxx"
-
-GPIO_PIN(SW1, GpioInputPU, F, 4);
-GPIO_PIN(SW2, GpioInputPU, F, 0);
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -122,7 +119,7 @@ struct RailcomDefs
 
     static const auto OS_INTERRUPT = INT_UART1;
 
-    GPIO_HWPIN(CH1, GpioHwPin, B, 0, U1RX, UART);
+    typedef RAILCOM_CH1_Pin CH1_Pin;
 
     static void hw_init() {
          CH1_Pin::hw_init();
@@ -214,6 +211,7 @@ struct DccHwDefs {
 
   // Pins defined for railcom
   //DECL_PIN(RAILCOM_TRIGGER, B, 4);
+    /// @todo (balazs.racz) move these to tivagpio.
   DECL_PIN(RAILCOM_TRIGGER, D, 6);
   static const auto RAILCOM_TRIGGER_INVERT = true;
 
@@ -236,6 +234,7 @@ void dcc_generator_init(void);
 void hw_set_to_safe(void)
 {
     tivaDCC.disable_output();
+    GpioInit::hw_set_to_safe();
 }
 
 void resetblink(uint32_t pattern)
@@ -256,8 +255,8 @@ void timer5a_interrupt_handler(void)
     //
     MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     // Set output LED.
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1,
-                     (rest_pattern & 1) ? GPIO_PIN_1 : 0);
+    LED_RED_RAW_Pin::set((rest_pattern & 1));
+
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
@@ -287,15 +286,22 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    //
+    // Unlock PF0 so we can change it to a GPIO input
+    // Once we have enabled (unlocked) the commit register then re-lock it
+    // to prevent further changes.  PF0 is muxed with NMI thus a special case.
+    //
+    MAP_SysCtlPeripheralEnable(SW2_Pin::GPIO_PERIPH);
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_CR) |= 0x01;
+    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = 0;
+
+    // Initializes all GPIO and hardware pins.
+    GpioInit::hw_init();
+
     /* Setup the system clock. */
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                        SYSCTL_XTAL_16MHZ);
-
-    /* Red LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
 
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
@@ -308,31 +314,9 @@ void hw_preinit(void)
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
-    /* UART0 pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
-    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-
     /* USB0 pin initialization */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-
-    /* CAN pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    MAP_GPIOPinConfigure(GPIO_PE4_CAN0RX);
-    MAP_GPIOPinConfigure(GPIO_PE5_CAN0TX);
-    MAP_GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-    /* Blue LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
-
-    /* Green LED pin initialization */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_PIN_3);
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);
 
     /* USB interrupt priority */
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
@@ -340,17 +324,6 @@ void hw_preinit(void)
     /* Initialize the DCC Timers and GPIO outputs */
     tivaDCC.hw_init();
 
-    SW1_Pin::hw_init();
-    //
-    // Unlock PF0 so we can change it to a GPIO input
-    // Once we have enabled (unlocked) the commit register then re-lock it
-    // to prevent further changes.  PF0 is muxed with NMI thus a special case.
-    //
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_CR) |= 0x01;
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = 0;
-
-    SW2_Pin::hw_init();
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
     asm volatile ("cpsie i\n");

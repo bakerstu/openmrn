@@ -42,6 +42,7 @@
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
+#include "hardware.hxx"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -91,13 +92,6 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 // The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_RED_Pin;
-// These are GPIO output pins from TivaGPIO.hxx
-GPIO_PIN(LED_GREEN, LedPin, F, 3);
-GPIO_PIN(LED_BLUE, LedPin, F, 2);
-
-// These are GPIO input pins from TivaGPIO.hxx
-GPIO_PIN(SW1, GpioInputPU, F, 4);
-GPIO_PIN(SW2, GpioInputPU, F, 0);
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
