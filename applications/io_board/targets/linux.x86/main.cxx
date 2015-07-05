@@ -40,6 +40,7 @@
 #include "nmranet/ConfiguredProducer.hxx"
 
 #include "config.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -78,20 +79,12 @@ static_assert(nmranet::CONFIG_FILE_SIZE <= 256, "Need to adjust eeprom size");
 extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::CONFIG_FILENAME;
 
-// Defines the GPIO ports used for the producers and the consumers.
-
-struct DummyPin {
-    static bool get() { return false;}
-    static void set(bool v) {}
-};
-
-// The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
-// create an alias for symmetry.
-typedef DummyPin LED_RED_Pin;
-typedef DummyPin LED_GREEN_Pin;
-typedef DummyPin LED_BLUE_Pin;
-typedef DummyPin SW1_Pin;
-typedef DummyPin SW2_Pin;
+// None of these pins exist in Linux.
+typedef DummyPinWithRead LED_RED_Pin;
+typedef DummyPinWithRead LED_GREEN_Pin;
+typedef DummyPinWithRead LED_BLUE_Pin;
+typedef DummyPinWithRead SW1_Pin;
+typedef DummyPinWithRead SW2_Pin;
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
