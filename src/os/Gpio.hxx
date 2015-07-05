@@ -80,7 +80,7 @@ public:
      */
     bool is_set()
     {
-        return value() == SET;
+        return read() == SET;
     }
 
     /** Test the GPIO input pin to see if it is clear.
@@ -88,7 +88,7 @@ public:
      */
     bool is_clr()
     {
-        return value() == CLR;
+        return read() == CLR;
     }
 
     /** Set the GPIO output pin to high.

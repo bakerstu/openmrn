@@ -33,8 +33,6 @@
  * @date 1 July 2015
  */
 
-#include "TivaGPIOGeneric.hxx"
-
 //#include <stdlib.h>
 
 #include "driverlib/rom_map.h"
