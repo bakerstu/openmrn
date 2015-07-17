@@ -133,7 +133,12 @@ void parse_internal(uint8_t fb_channel, uint8_t railcom_channel,
                 break;
             case RMOB_POM:
                 type = RailcomPacket::MOB_POM;
-                if (size == 6 && ofs == 0)
+                if (size == 6 && ofs == 0
+                    // The ESU LokPilot V4 decoder fills the CV read (a 2-byte
+                    // packet) with four NACK bytes, presumably to report that
+                    // it is not actually giving back a 32-bit response but
+                    // only an 8-bit response.
+                    && railcom_decode[ptr[2]] < 64)
                 {
                     len = 6;
                 }
