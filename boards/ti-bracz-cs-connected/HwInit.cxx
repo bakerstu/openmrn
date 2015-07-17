@@ -54,10 +54,12 @@
 #include "dcc_control.hxx"
 #include "hardware.hxx"
 #include "DccHardware.hxx"
+#include "DummyGPIO.hxx"
+
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
-  typedef DummyPin RailcomDriverCutout;
+  typedef RC_DEBUG_Pin RailcomDriverCutout;
   // Flips every time an uart byte is received error.
   typedef DummyPin RailcomError;
   // Flips every time an 'E0' byte is received in the railcom driver.
@@ -231,6 +233,7 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+
     /* First we take care of the important pins that control the power
      * transistors */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -251,6 +254,7 @@ void hw_preinit(void)
 
     dcc_hw.hw_init();
     disable_dcc();
+    RC_DEBUG_Pin::hw_init();
 
     // controls the accessory bus.
     AccHwDefs::ACC_ENABLE_Pin::hw_set_to_safe();

@@ -32,6 +32,8 @@ GPIO_PIN(LED_B4, LedPin, F, 0);
 GPIO_PIN(USR_SW1, GpioInputPU, J, 0);
 GPIO_PIN(USR_SW2, GpioInputPU, J, 1);
 
+GPIO_PIN(RC_DEBUG, GpioOutputSafeLow, K, 7);
+
 namespace io {
 typedef LED_RED_Pin TrackPktLed;
 typedef LED_BLUE_Pin TrackOnLed;
