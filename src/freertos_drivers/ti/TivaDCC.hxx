@@ -719,8 +719,9 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     unsigned railcom_part = 0;
     fill_timing(RAILCOM_CUTOUT_PRE, 6 - railcom_part, 0);
     railcom_part = 6;
-    fill_timing(RAILCOM_CUTOUT_FIRST, 210 - railcom_part, 0);
-    railcom_part = 210;
+    // was: 210
+    fill_timing(RAILCOM_CUTOUT_FIRST, 175 - railcom_part, 0);
+    railcom_part = 175;
     fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
     railcom_part = 471;
     // remaining time
