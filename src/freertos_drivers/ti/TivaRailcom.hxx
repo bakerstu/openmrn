@@ -346,24 +346,34 @@ private:
     void start_cutout() OVERRIDE
     {
         this->eval_samples();
-        if (this->isInput_) {
+        if (this->isInput_)
+        {
             this->isInput_ = 0;
             HW::set_hw();
         }
+        const bool need_ch1_cutout = (this->feedbackKey_ < 11000);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
-            HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
-            //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
+            if (need_ch1_cutout)
+            {
+                HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+            }
+            // HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
             //    UART_CTL_RXE;
             // flush fifo
-            while (MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]) >= 0);
+            while (MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]) >= 0)
+                ;
             returnedPackets_[i] = 0;
         }
-        Debug::RailcomDriverCutout::set(true);
+        if (!need_ch1_cutout)
+        {
+            Debug::RailcomDriverCutout::set(true);
+        }
     }
 
     void middle_cutout() OVERRIDE
     {
+        Debug::RailcomDriverCutout::set(false);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
@@ -381,10 +391,12 @@ private:
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
                 if (data < 0 || data > 0xff) {
                     Debug::RailcomError::toggle();
+                    returnedPackets_[i]->add_ch1_data(0xF8 | ((data >> 8) & 0x7));
                     continue;
                 }
                 returnedPackets_[i]->add_ch1_data(data);
             }
+            HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
         }
     }
 
@@ -407,6 +419,7 @@ private:
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
                 if (data < 0 || data > 0xff) {
                     Debug::RailcomError::toggle();
+                    returnedPackets_[i]->add_ch2_data(0xF8 | ((data >> 8) & 0x7));
                     continue;
                 }
                 if (data == 0xE0) {
