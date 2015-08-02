@@ -166,9 +166,7 @@ TivaDccDecoder<HW>::TivaDccDecoder(const char *name,
     , railcomDriver_(railcom_driver)
 {
     MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
-    MAP_SysCtlPeripheralEnable(HW::NRZPIN_PERIPH);
-    MAP_GPIOPinConfigure(HW::NRZPIN_CONFIG);
-    MAP_GPIOPinTypeTimer(HW::NRZPIN_BASE, HW::NRZPIN_PIN);
+    HW::NRZ_Pin::hw_init();
 
     disable();
 }
