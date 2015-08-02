@@ -81,6 +81,7 @@ extern "C" {
 
 void enter_bootloader()
 {
+    hw_set_to_safe();
     __bootloader_magic_ptr = REQUEST_BOOTLOADER;
     /* Globally disables interrupts. */
     asm("cpsid i\n");
