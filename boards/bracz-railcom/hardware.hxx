@@ -49,6 +49,15 @@ GPIO_HWPIN(DCC_IN, GpioHwPin, B, 1, T2CCP1, Timer);
 GPIO_HWPIN(DAC_TIMER, GpioHwPin, D, 7, WT5CCP1, Timer);
 GPIO_PIN(DAC_DIV, GpioOutputSafeHigh, A, 2);
 
+GPIO_PIN(GNDACTRL_NON, GpioOutputODSafeLow, D, 3);
+GPIO_PIN(GNDACTRL_NOFF, GpioOutputSafeHigh, D, 2);
+GPIO_PIN(GNDBCTRL_NON, GpioOutputODSafeHigh, D, 0);
+GPIO_PIN(GNDBCTRL_NOFF, GpioOutputSafeLow, D, 1);
+
+// These are internally connected to D0 and D1.
+GPIO_PIN(SHADOW_1, GpioInputNP, B, 6);
+GPIO_PIN(SHADOW_2, GpioInputNP, B, 7);
+
 typedef GpioInitializer<                               //
     SW1_Pin, SW2_Pin,                                  //
     LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin,      //
@@ -61,6 +70,9 @@ typedef GpioInitializer<                               //
     STAT3_Pin, STAT4_Pin, STAT5_Pin,                   //
     DCC_IN_Pin,                                        //
     DAC_TIMER_Pin, DAC_DIV_Pin,                        //
+    GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,               //
+    GNDBCTRL_NON_Pin, GNDBCTRL_NOFF_Pin,               //
+    SHADOW_1_Pin, SHADOW_2_Pin, //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
 
 struct RailcomDefs
@@ -186,7 +198,7 @@ struct DACDefsxx
 
     GPIO_HWPIN(TIMER, GpioHwPin, C, 7, WT1CCP1, Timer);
 
-    //typedef DAC_TIMER_Pin TIMER_Pin;
+    // typedef DAC_TIMER_Pin TIMER_Pin;
     typedef DAC_DIV_Pin DIV_Pin;
 };
 

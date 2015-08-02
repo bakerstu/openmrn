@@ -53,6 +53,7 @@
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
 #include "TivaRailcom.hxx"
+#include "custom/TivaGNDControl.hxx"
 #include "bootloader_hal.h"
 
 
@@ -106,6 +107,7 @@ static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
 TivaDAC<DACDefs> dac;
+TivaGNDControl gnd_control;
 
 extern "C" {
 /** Blink LED */
