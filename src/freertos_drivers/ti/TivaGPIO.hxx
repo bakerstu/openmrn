@@ -41,6 +41,7 @@
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
 #include "inc/hw_memmap.h"
+#include "driverlib/rom_map.h"
 
 /// Helper macro for declaring a pin.
 ///
