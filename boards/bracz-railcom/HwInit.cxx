@@ -108,6 +108,7 @@ static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
+TivaBypassControl bypass_control;
 
 extern "C" {
 /** Blink LED */

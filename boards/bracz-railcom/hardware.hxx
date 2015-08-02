@@ -58,6 +58,10 @@ GPIO_PIN(GNDBCTRL_NOFF, GpioOutputSafeLow, D, 1);
 GPIO_PIN(SHADOW_1, GpioInputNP, B, 6);
 GPIO_PIN(SHADOW_2, GpioInputNP, B, 7);
 
+GPIO_PIN(RCBYPASS_NON, GpioOutputSafeLow, B, 3);
+//GPIO_PIN(RCBYPASS_OFF, GpioOutputSafeLow, B, 2);
+GPIO_PIN(RCBYPASS_OFF, LedPin, B, 2);
+
 typedef GpioInitializer<                               //
     SW1_Pin, SW2_Pin,                                  //
     LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin,      //
@@ -72,7 +76,8 @@ typedef GpioInitializer<                               //
     DAC_TIMER_Pin, DAC_DIV_Pin,                        //
     GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,               //
     GNDBCTRL_NON_Pin, GNDBCTRL_NOFF_Pin,               //
-    SHADOW_1_Pin, SHADOW_2_Pin, //
+    SHADOW_1_Pin, SHADOW_2_Pin,                        //
+    RCBYPASS_OFF_Pin, RCBYPASS_NON_Pin,                //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
 
 struct RailcomDefs
