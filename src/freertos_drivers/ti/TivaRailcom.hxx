@@ -390,6 +390,15 @@ private:
                 }
                 long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
                 if (data < 0 || data > 0xff) {
+                    // We reset the receiver circuitry because we got an error
+                    // in channel 1. Typical cause of this error is if there
+                    // are multiple locomotives on the block (e.g. if this is
+                    // the global detector) and they talk over each other
+                    // during ch1 broadcast. There is a good likelihood that
+                    // the asynchronous receiver is out of sync with the
+                    // transmitter, but right now we should be in the
+                    // between-byte space.
+                    HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
                     Debug::RailcomError::toggle();
                     returnedPackets_[i]->add_ch1_data(0xF8 | ((data >> 8) & 0x7));
                     continue;
