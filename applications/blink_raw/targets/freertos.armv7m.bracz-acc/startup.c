@@ -1,1 +1,1 @@
-../../../../boards/ti-ek-lm4f120xl-launchpad/startup.c
+../../../../boards/ti-bracz-acc3/startup.c

@@ -1,1 +1,1 @@
-../../../../boards/ti-ek-lm4f120xl-launchpad/Makefile
+../../../../boards/ti-bracz-acc3/Makefile

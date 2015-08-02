@@ -1,1 +1,1 @@
-../../../../boards/ti-ek-lm4f120xl-launchpad/target.ld
+../../../../boards/ti-bracz-acc3/target.ld

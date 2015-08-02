@@ -1,1 +1,1 @@
-../../../../boards/ti-ek-lm4f120xl-launchpad/memory_map.ld
+../../../../boards/ti-bracz-acc3/memory_map.ld
