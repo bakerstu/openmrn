@@ -214,6 +214,31 @@ struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
 {
 };
 
+/// Defines a GPIO output pin with high-current drive and a defined
+/// initialization level
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs, bool SAFE_VALUE> struct GpioOutputOD : public GpioOutputPin<Defs, SAFE_VALUE>
+{
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    static void hw_init()
+    {
+        GpioOutputPin<Defs, SAFE_VALUE>::hw_init();
+        MAP_GPIOPadConfigSet(
+            GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_OD);
+    }
+};
+
+template <class Defs>
+using GpioOutputODSafeLow = GpioOutputOD<Defs, false>;
+
+template <class Defs>
+using GpioOutputODSafeHigh = GpioOutputOD<Defs, true>;
+
+
 /// Defines a GPIO output pin with high-current drive and low initialization
 /// level.
 ///
