@@ -38,6 +38,7 @@
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -48,6 +49,10 @@ struct DummyPin
     static bool get()
     {
         return false;
+    }
+    static bool is_output()
+    {
+        return true;
     }
     static void set(bool v)
     {
@@ -118,7 +123,7 @@ int appl_main(int argc, char *argv[])
     // Sets up the stack with the dynamic node ID and a fixed consumer.
     nmranet::SimpleCanStack stack(node_id);
     nmranet::GPIOBit bit(stack.node(), 0x0501010118010203, 0x0501010118010204,
-        &DummyPin::get, &DummyPin::set);
+                         GpioWrapper<DummyPin>::instance());
     nmranet::BitEventConsumer consumer(&bit);
 
     // Connects to a TCP hub.
