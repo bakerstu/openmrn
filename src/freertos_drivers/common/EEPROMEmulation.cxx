@@ -58,6 +58,8 @@ EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     HASSERT(FLASH_SIZE >= (2 * SECTOR_SIZE));  // at least two of them
     HASSERT(file_size <= (SECTOR_SIZE >> 1));  // single block fit all the data
     HASSERT(file_size <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
+    HASSERT(BLOCK_SIZE >= 4); // we don't support block sizes less than 4 bytes
+    HASSERT((BLOCK_SIZE % 4) == 0); // block size must be on 4 byte boundary
 }
 
 /** Mount the EEPROM file.

@@ -40,7 +40,8 @@ extern const char __eeprom_start;
 extern const char __eeprom_end;
 
 /** Emulates EEPROM in FLASH for the LPC17xx and LPC40xx platforms.
- * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2.
+ * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2 unless
+ * specified otherwise in a device specific specialization.
  */
 class EEPROMEmulation : public EEPROM
 {

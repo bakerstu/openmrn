@@ -66,10 +66,9 @@ Stm32EEPROMEmulation::Stm32EEPROMEmulation(const char *name, size_t file_size)
  */
 void Stm32EEPROMEmulation::flash_erase(void *address)
 {
-
     HASSERT(((uintptr_t)address % SECTOR_SIZE) == 0);
     HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
 
     uint32_t page_error;
     FLASH_EraseInitTypeDef erase_init;
@@ -96,12 +95,19 @@ void Stm32EEPROMEmulation::flash_program(uint32_t *data, void *address,
 {
     HASSERT(((uintptr_t)address % BLOCK_SIZE) == 0);
     HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
     HASSERT((count % BLOCK_SIZE) == 0);
     HASSERT(count <= WRITE_SIZE);
 
     uintptr_t uint_address = (uintptr_t)address;
 
+    /* The STM32 program size is 16-bits, however BLOCK_SIZE is [at least]
+     * 32-bits.  Because the upper 16-bits contains the EEPROM address, while
+     * the lower 16-bits contains the data.  0xFFFF is not considered a valid
+     * address by the generic EEPROM driver, therefore, so long as the data
+     * half-word is written ahead of the address half-word, there is no race
+     * condition on power failure.
+     */
     while (count)
     {
         portENTER_CRITICAL();
