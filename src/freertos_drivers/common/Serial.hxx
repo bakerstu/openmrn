@@ -109,7 +109,7 @@ protected:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
     
-    /** Device select method. Default impementation returns true.
+    /** Device select method. Default implementation returns true.
      * @param file reference to the file
      * @param mode FREAD for read active, FWRITE for write active, 0 for
      *        exceptions

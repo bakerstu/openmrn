@@ -181,7 +181,7 @@ void TivaUart::interrupt_handler()
             rxBuf->signal_condition_from_isr();
         }
     }
-    /* tranmit a character if we have pending tx data */
+    /* transmit a character if we have pending tx data */
     if (txPending)
     {
         /** @todo (Stuart Baker) optimization opportunity by getting a read
