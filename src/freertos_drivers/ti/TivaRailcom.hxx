@@ -336,15 +336,18 @@ private:
 
     // RailcomDriver interface
     void preamble_bit() OVERRIDE {
+        HW::enable_measurement();
         if (!this->isInput_) {
             HW::set_input();
             this->isInput_ = 1;
         }
         this->add_sample(HW::sample());
+        HW::disable_measurement();
     }
 
     void start_cutout() OVERRIDE
     {
+        HW::enable_measurement();
         this->eval_samples();
         if (this->isInput_)
         {
@@ -411,6 +414,7 @@ private:
 
     void end_cutout() OVERRIDE
     {
+        HW::disable_measurement();
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
