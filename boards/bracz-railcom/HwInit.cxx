@@ -54,6 +54,7 @@
 #include "TivaDCCDecoder.hxx"
 #include "TivaRailcom.hxx"
 #include "custom/TivaGNDControl.hxx"
+#include "custom/TivaDAC.hxx"
 #include "bootloader_hal.h"
 
 
@@ -102,13 +103,26 @@ static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
 const uint32_t RailcomDefs::UART_BASE[] = RAILCOM_BASE;
 const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
 
-static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
-/** The input pin for detecting the DCC signal. */
-static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
-
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
+
+void RailcomDefs::enable_measurement() {
+  LED_GREEN_Pin::set(true);
+  bypass_control.set(false);
+  SysCtlDelay(26);
+}
+
+void RailcomDefs::disable_measurement() {
+  bypass_control.set(true);
+  LED_GREEN_Pin::set(false);
+}
+
+static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
+
+/** The input pin for detecting the DCC signal. */
+static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
+
 
 extern "C" {
 /** Blink LED */

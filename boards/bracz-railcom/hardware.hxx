@@ -3,10 +3,9 @@
 
 #include "TivaGPIO.hxx"
 #include "driverlib/rom_map.h"
+#include "driverlib/timer.h"
 #include "utils/GpioInitializer.hxx"
-#include "custom/TivaDAC.hxx"
 #include "inc/hw_ints.h"
-#include "DummyGPIO.hxx"
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
@@ -30,12 +29,12 @@ GPIO_HWPIN(RAILCOM_CH3, GpioHwPin, E, 0, U7RX, UART);
 GPIO_HWPIN(RAILCOM_CH4, GpioHwPin, E, 4, U5RX, UART);
 GPIO_HWPIN(RAILCOM_CH5, GpioHwPin, B, 0, U1RX, UART);
 
-GPIO_PIN(OUTPUT_EN0, GpioOutputSafeLow, A, 3);
-GPIO_PIN(OUTPUT_EN1, GpioOutputSafeLow, A, 4);
-GPIO_PIN(OUTPUT_EN2, GpioOutputSafeLow, C, 7);
-GPIO_PIN(OUTPUT_EN3, GpioOutputSafeLow, C, 5);
-GPIO_PIN(OUTPUT_EN4, GpioOutputSafeLow, E, 1);
-GPIO_PIN(OUTPUT_EN5, GpioOutputSafeLow, B, 5);
+GPIO_PIN(OUTPUT_EN0, GpioOutputODSafeHigh, A, 3);
+GPIO_PIN(OUTPUT_EN1, GpioOutputODSafeHigh, A, 4);
+GPIO_PIN(OUTPUT_EN2, GpioOutputODSafeHigh, C, 7);
+GPIO_PIN(OUTPUT_EN3, GpioOutputODSafeHigh, C, 5);
+GPIO_PIN(OUTPUT_EN4, GpioOutputODSafeHigh, E, 1);
+GPIO_PIN(OUTPUT_EN5, GpioOutputODSafeHigh, B, 5);
 
 typedef LED_GREEN_Pin STAT0_Pin;
 GPIO_PIN(STAT1, LedPin, E, 2);
@@ -59,7 +58,7 @@ GPIO_PIN(SHADOW_1, GpioInputNP, B, 6);
 GPIO_PIN(SHADOW_2, GpioInputNP, B, 7);
 
 GPIO_PIN(RCBYPASS_NON, GpioOutputSafeLow, B, 3);
-//GPIO_PIN(RCBYPASS_OFF, GpioOutputSafeLow, B, 2);
+// GPIO_PIN(RCBYPASS_OFF, GpioOutputSafeLow, B, 2);
 GPIO_PIN(RCBYPASS_OFF, LedPin, B, 2);
 
 typedef GpioInitializer<                               //
@@ -80,6 +79,21 @@ typedef GpioInitializer<                               //
     RCBYPASS_OFF_Pin, RCBYPASS_NON_Pin,                //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
 
+typedef GpioInitializer<                            //
+    SW1_Pin,                                        //
+    LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin,   //
+    OUTPUT_EN0_Pin, OUTPUT_EN1_Pin, OUTPUT_EN2_Pin, //
+    OUTPUT_EN3_Pin, OUTPUT_EN4_Pin, OUTPUT_EN5_Pin, //
+    GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,            //
+    GNDBCTRL_NON_Pin, GNDBCTRL_NOFF_Pin,            //
+    SHADOW_1_Pin, SHADOW_2_Pin,                     //
+    RCBYPASS_OFF_Pin, RCBYPASS_NON_Pin,             //
+    CAN0RX_Pin, CAN0TX_Pin> BootloaderGpioInit;
+
+#ifndef PINDEFS_ONLY
+
+#include "DummyGPIO.hxx"
+
 struct RailcomDefs
 {
     static const uint32_t CHANNEL_COUNT = 6;
@@ -90,6 +104,9 @@ struct RailcomDefs
     static const uint32_t Q_SIZE = 24;
 
     static const auto OS_INTERRUPT = INT_UART1;
+
+    static void enable_measurement();
+    static void disable_measurement();
 
     static void hw_init()
     {
@@ -207,7 +224,7 @@ struct DACDefsxx
     typedef DAC_DIV_Pin DIV_Pin;
 };
 
-extern TivaDAC<DACDefs> dac;
+// extern TivaDAC<DACDefs> dac;
 
 struct Debug
 {
@@ -240,5 +257,7 @@ struct Debug
 
     typedef DummyPin DetectRepeat;
 };
+
+#endif // ! pindefs_only
 
 #endif // _HARDWARE_HXX_
