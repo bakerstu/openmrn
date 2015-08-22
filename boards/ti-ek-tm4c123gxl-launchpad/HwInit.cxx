@@ -133,6 +133,9 @@ struct RailcomDefs
         CH1_Pin::set_hw();
     }
 
+    static void enable_measurement() {}
+    static void disable_measurement() {}
+
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
      * channel 0 is active (drawing current).*/
     static uint8_t sample() {
