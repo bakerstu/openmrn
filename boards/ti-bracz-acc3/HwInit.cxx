@@ -47,6 +47,7 @@
 #include "os/OS.hxx"
 #include "TivaDev.hxx"
 #include "hardware.hxx"
+#include "TivaEEPROMEmulation.hxx"
 #include "TivaDCCDecoder.hxx"
 #include "TivaRailcom.hxx"
 #include "bootloader_hal.h"
@@ -77,7 +78,17 @@ TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 #endif
 
+extern const uint16_t __eeprom_start[];
+const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
+extern const uint16_t __eeprom_end[];
+const size_t TivaEEPROMEmulation::FLASH_SIZE = sizeof(__eeprom_end[0])*(__eeprom_end - __eeprom_start);
+const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
+const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 512;
+const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
+
 extern "C" {
+
+void hw_set_to_safe(void);
 
 void enter_bootloader()
 {
@@ -194,7 +205,7 @@ void hw_preinit(void)
 
     hw_set_to_safe(); // initializes all output pins.
 
-    LED_RED_Pin::hw_init();
+    LED_RED_RAW_Pin::hw_init();
     LED_GREEN_Pin::hw_init();
     LED_YELLOW_Pin::hw_init();
     LED_BLUE_Pin::hw_init();

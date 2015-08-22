@@ -10,7 +10,7 @@
 #include "inc/hw_ints.h"
 #include "driverlib/timer.h"
 
-GPIO_PIN(LED_RED, LedPin, D, 6);
+GPIO_PIN(LED_RED_RAW, LedPin, D, 6);
 GPIO_PIN(LED_GREEN, LedPin, D, 5);
 GPIO_PIN(LED_BLUE, LedPin, G, 1);
 GPIO_PIN(LED_YELLOW, LedPin, B, 0);
@@ -48,8 +48,9 @@ GPIO_PIN(BUT_GOLD, GpioInputPU, C, 7);
 
 GPIO_PIN(RC4_SHADOW, GpioInputNP, F, 0);
 
+GPIO_HWPIN(DCC_IN, GpioHwPin, D, 4, WT4CCP0, Timer);
 
-typedef LED_RED_Pin BlinkerLed;
+typedef LED_RED_RAW_Pin BlinkerLed;
 
 struct Debug {
   // One for the duration of the first byte successfully read from the uart
@@ -96,7 +97,7 @@ struct DCCDecode
     static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
 
     static const auto OS_INTERRUPT = INT_WTIMER4B;
-    DECL_HWPIN(NRZPIN, D, 4, WT4CCP0, Timer);
+    typedef DCC_IN_Pin NRZ_Pin;
 
     static const uint32_t TIMER_MAX_VALUE = 0x8000000UL;
     static const uint32_t PS_MAX = 0;
@@ -142,6 +143,9 @@ struct RailcomHw
         CH3_Pin::set_hw();
         CH4_Pin::set_hw();
     }
+
+    static void enable_measurement() {}
+    static void disable_measurement() {}
 
     /// @returns a bitmask telling which pins are active. Bit 0 will be set if
     /// channel 0 is active (drawing current).
