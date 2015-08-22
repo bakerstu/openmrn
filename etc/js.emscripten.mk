@@ -19,6 +19,8 @@ OBJDUMP = echo $(EMLLVMPATH)/llvm-objdump
 
 EMU := nodejs
 
+DEPS += NODEJSPATH
+
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 

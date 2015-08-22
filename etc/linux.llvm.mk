@@ -7,6 +7,9 @@ endif
 
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
+include $(OPENMRNPATH)/etc/path.mk
+
+DEPS += CLANGPPPATH
 
 CC = clang
 CXX = clang++

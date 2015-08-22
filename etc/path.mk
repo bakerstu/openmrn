@@ -351,5 +351,30 @@ EMLLVMPATH:=$(TRYPATH)
 endif
 endif #EMLLVMPATH
 
+##################### CLANGPPP ######################
+ifndef CLANGPPPATH
+SEARCHPATH := \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+CLANGPPPATH:=$(TRYPATH)
+endif
+endif #CLANGPPPATH
+
+##################### NODEJS ######################
+ifndef NODEJSPATH
+SEARCHPATH := \
+  /usr/bin
+
+
+TRYPATH:=$(call findfirst,nodejs,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+NODEJSPATH:=$(TRYPATH)
+endif
+endif #NODEJSPATH
+
+
 endif # ifeq ($(OS),Windows_NT)
 
