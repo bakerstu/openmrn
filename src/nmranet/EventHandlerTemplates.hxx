@@ -217,8 +217,7 @@ template<class T> class MemoryBit : public BitEventInterface {
 };
 
 /// Simple implementation of the BitEventInterface for going through GPIO
-/// ports. The port getter and setter are taken as precompiled function
-/// pointers.
+/// ports. The port getter and setter are taken as a GPIO* pointer.
 class GPIOBit : public BitEventInterface
 {
 public:
