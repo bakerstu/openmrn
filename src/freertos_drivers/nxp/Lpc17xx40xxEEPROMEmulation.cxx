@@ -62,7 +62,7 @@ void LpcEEPROMEmulation::flash_erase(void *address)
 {
     HASSERT(((uintptr_t)address % SECTOR_SIZE) == 0);
     HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
 
     uint32_t sector = address_to_sector(address);
     portENTER_CRITICAL();
@@ -83,7 +83,7 @@ void LpcEEPROMEmulation::flash_program(uint32_t *data, void *address,
 {
     HASSERT(((uintptr_t)address % BLOCK_SIZE) == 0);
     HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + (FLASH_SIZE >> 1)));
+    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
     HASSERT((count % BLOCK_SIZE) == 0);
     HASSERT(count <= WRITE_SIZE);
 
