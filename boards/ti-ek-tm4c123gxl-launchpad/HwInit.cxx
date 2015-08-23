@@ -95,7 +95,7 @@ const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 512;
 const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
 
-static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
 
 #define ONE_BIT_HALF_PERIOD  4480
 #define ZERO_BIT_HALF_PERIOD 8000
