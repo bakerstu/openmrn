@@ -34,6 +34,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
 /// from their respective hxx file.
 using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
+using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 3>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
@@ -42,6 +43,7 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
+CDI_GROUP_ENTRY(pulseconsumers, PulseConsumers, Name("Pulsed outputs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
 CDI_GROUP_END();
 
