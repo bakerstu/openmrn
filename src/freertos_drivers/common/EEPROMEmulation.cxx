@@ -86,10 +86,10 @@ void EEPROMEmulation::mount()
         uint32_t data[4] = {MAGIC_DIRTY, 0, 0, 0};
 
         flash_erase(active());
-        flash_program(data, block(0, active()), sizeof(data));
+        flash_program(data, block(0, active()), BLOCK_SIZE);
 
         data[0] = MAGIC_INTACT;
-        flash_program(data, block(1, active()), sizeof(data));
+        flash_program(data, block(1, active()), BLOCK_SIZE);
 
         available = slot_count();
     }
@@ -229,7 +229,7 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         flash_erase(new_block);
         flash_program(magic,
                       block(MAGIC_DIRTY_INDEX, new_block),
-                      sizeof(magic));
+                      BLOCK_SIZE);
 
         /* reset the available count */
         available = slot_count();
@@ -273,11 +273,9 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         }
         /* finalize the data move and write */
         magic[0] = MAGIC_INTACT;
-        flash_program(magic, block(MAGIC_INTACT_INDEX,
-                      new_block),
-                      sizeof(magic));
+        flash_program(magic, block(MAGIC_INTACT_INDEX, new_block), BLOCK_SIZE);
         magic[0] = MAGIC_USED;
-        flash_program(magic, block(MAGIC_USED_INDEX, active()), sizeof(magic));
+        flash_program(magic, block(MAGIC_USED_INDEX, active()), BLOCK_SIZE);
         activeIndex = sector_index(new_block);
     }
 }
