@@ -90,7 +90,7 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t EEPROMEmulation::SECTOR_SIZE = (1024);
 
-static TivaEEPROMEmulation eeprom("/dev/eeprom", 256);
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
 
 #define ONE_BIT_HALF_PERIOD  4480
 #define ZERO_BIT_HALF_PERIOD 8000

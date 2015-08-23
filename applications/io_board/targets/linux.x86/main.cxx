@@ -41,6 +41,7 @@
 
 #include "config.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/LoggingGPIO.hxx"
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -86,6 +87,11 @@ typedef DummyPinWithRead LED_BLUE_Pin;
 typedef DummyPinWithRead SW1_Pin;
 typedef DummyPinWithRead SW2_Pin;
 
+constexpr char PULSE1[] = "pulse1";
+constexpr char PULSE2[] = "pulse2";
+typedef LoggingPinWithRead<PULSE1> PULSE1_Pin;
+typedef LoggingPinWithRead<PULSE2> PULSE2_Pin;
+
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
 // complicated setup and operation requirements. We need to give it the virtual
@@ -102,6 +108,11 @@ nmranet::ConfiguredConsumer consumer_green(
 nmranet::ConfiguredConsumer consumer_blue(
     stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
 
+nmranet::ConfiguredPulseConsumer consumer_pulse1(
+    stack.node(), cfg.seg().pulseconsumers().entry<0>(), PULSE1_Pin());
+nmranet::ConfiguredPulseConsumer consumer_pulse2(
+    stack.node(), cfg.seg().pulseconsumers().entry<1>(), PULSE2_Pin());
+
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
@@ -112,7 +123,7 @@ nmranet::ConfiguredProducer producer_sw2(
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 nmranet::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+    stack.node(), {&consumer_pulse1, &consumer_pulse2});
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -122,7 +133,8 @@ nmranet::RefreshLoop loop(
 int appl_main(int argc, char *argv[])
 {
     // Connects to a TCP hub on the internet.
-    stack.connect_tcp_gridconnect_hub("28k.ch", 50007);
+    //stack.connect_tcp_gridconnect_hub("28k.ch", 50007);
+    stack.connect_tcp_gridconnect_hub("localhost", 12021);
     // Causes all packets to be dumped to stdout.
     stack.print_all_packets();
     // This command donates the main thread to the operation of the
