@@ -85,6 +85,7 @@ const size_t TivaEEPROMEmulation::FLASH_SIZE = sizeof(__eeprom_end[0])*(__eeprom
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 512;
 const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
 
 extern "C" {
 
