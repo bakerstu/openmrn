@@ -76,6 +76,14 @@ class ConfiguredConsumer : public ConfigUpdateListener
 public:
     using Impl = GPIOBit;
 
+    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, Gpio *gpio)
+        : impl_(node, 0, 0, gpio)
+        , consumer_(&impl_)
+        , cfg_(cfg)
+    {
+        ConfigUpdateService::instance()->register_update_listener(this);
+    }
+
     template <class HW>
     ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &)
         : impl_(node, 0, 0, HW::instance())

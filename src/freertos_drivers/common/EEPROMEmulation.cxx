@@ -58,6 +58,8 @@ EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     HASSERT(FLASH_SIZE >= (2 * SECTOR_SIZE));  // at least two of them
     HASSERT(file_size <= (SECTOR_SIZE >> 1));  // single block fit all the data
     HASSERT(file_size <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
+    HASSERT(BLOCK_SIZE >= 4); // we don't support block sizes less than 4 bytes
+    HASSERT((BLOCK_SIZE % 4) == 0); // block size must be on 4 byte boundary
 }
 
 /** Mount the EEPROM file.
@@ -84,10 +86,10 @@ void EEPROMEmulation::mount()
         uint32_t data[4] = {MAGIC_DIRTY, 0, 0, 0};
 
         flash_erase(active());
-        flash_program(data, block(0, active()), sizeof(data));
+        flash_program(data, block(0, active()), BLOCK_SIZE);
 
         data[0] = MAGIC_INTACT;
-        flash_program(data, block(1, active()), sizeof(data));
+        flash_program(data, block(1, active()), BLOCK_SIZE);
 
         available = slot_count();
     }
@@ -227,7 +229,7 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         flash_erase(new_block);
         flash_program(magic,
                       block(MAGIC_DIRTY_INDEX, new_block),
-                      sizeof(magic));
+                      BLOCK_SIZE);
 
         /* reset the available count */
         available = slot_count();
@@ -271,11 +273,9 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         }
         /* finalize the data move and write */
         magic[0] = MAGIC_INTACT;
-        flash_program(magic, block(MAGIC_INTACT_INDEX,
-                      new_block),
-                      sizeof(magic));
+        flash_program(magic, block(MAGIC_INTACT_INDEX, new_block), BLOCK_SIZE);
         magic[0] = MAGIC_USED;
-        flash_program(magic, block(MAGIC_USED_INDEX, active()), sizeof(magic));
+        flash_program(magic, block(MAGIC_USED_INDEX, active()), BLOCK_SIZE);
         activeIndex = sector_index(new_block);
     }
 }
