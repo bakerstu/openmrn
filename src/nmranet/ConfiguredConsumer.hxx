@@ -46,6 +46,9 @@ namespace nmranet
 {
 
 CDI_GROUP(ConsumerConfig);
+CDI_GROUP_ENTRY(description, StringConfigEntry<8>, //
+    Name("Description"),
+    Description("User name of this output."));
 CDI_GROUP_ENTRY(event_on, EventConfigEntry, //
     Name("Event On"),
     Description("Receiving this event ID will turn the output on."));
@@ -56,6 +59,9 @@ CDI_GROUP_END();
 
 
 CDI_GROUP(PulseConsumerConfig);
+CDI_GROUP_ENTRY(description, StringConfigEntry<16>, //
+    Name("Description"),
+    Description("User name of this output."));
 CDI_GROUP_ENTRY(event, EventConfigEntry, //
     Name("Event"),
     Description("Receiving this event ID will generate a pulso on the output."));

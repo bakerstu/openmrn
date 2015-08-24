@@ -143,6 +143,7 @@ struct RailcomDefs
     static uint8_t sample()
     {
         uint8_t ret = 0;
+        MAP_SysCtlDelay(5*26);
         if (!RAILCOM_CH0_Pin::get())
             ret |= 1;
         if (!RAILCOM_CH1_Pin::get())

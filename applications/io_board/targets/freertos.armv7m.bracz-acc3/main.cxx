@@ -116,7 +116,7 @@ nmranet::ConfiguredConsumer consumer_bluesw(
     stack.node(), cfg.seg().leds().entry<5>(), LED_BLUE_SW_Pin());
 
 // Similar syntax for the producers.
-nmranet::ConfiguredProducer producer_in0(
+/*nmranet::ConfiguredProducer producer_in0(
     stack.node(), cfg.seg().producers().entry<0>(), IN0_Pin());
 nmranet::ConfiguredProducer producer_in1(
     stack.node(), cfg.seg().producers().entry<1>(), IN1_Pin());
@@ -131,7 +131,7 @@ nmranet::ConfiguredProducer producer_in5(
 nmranet::ConfiguredProducer producer_in6(
     stack.node(), cfg.seg().producers().entry<6>(), IN6_Pin());
 nmranet::ConfiguredProducer producer_in7(
-    stack.node(), cfg.seg().producers().entry<7>(), IN7_Pin());
+stack.node(), cfg.seg().producers().entry<7>(), IN7_Pin());*/
 
 // Similar syntax for the pulsed consumers.
 nmranet::ConfiguredPulseConsumer consumer_out0(
@@ -155,7 +155,7 @@ nmranet::ConfiguredPulseConsumer consumer_out7(
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 nmranet::RefreshLoop loop(
-    stack.node(), {producer_in0.polling(), producer_in1.polling(),producer_in2.polling(),producer_in3.polling(),producer_in4.polling(),producer_in5.polling(),producer_in6.polling(),producer_in7.polling(), &consumer_out0, &consumer_out1, &consumer_out2, &consumer_out3, &consumer_out4, &consumer_out5, &consumer_out6, &consumer_out7});
+    stack.node(), {/*producer_in0.polling(), producer_in1.polling(),producer_in2.polling(),producer_in3.polling(),producer_in4.polling(),producer_in5.polling(),producer_in6.polling(),producer_in7.polling(), */ &consumer_out0, &consumer_out1, &consumer_out2, &consumer_out3, &consumer_out4, &consumer_out5, &consumer_out6, &consumer_out7});
 
 /** Entry point to application.
  * @param argc number of command line arguments

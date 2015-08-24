@@ -29,6 +29,17 @@
 <description>Receiving this event ID will turn the output off.</description>
 </eventid>
 </group>
+<group replication='3'>
+<name>Pulsed outputs</name>
+<eventid>
+<name>Event</name>
+<description>Receiving this event ID will generate a pulso on the output.</description>
+</eventid>
+<int size='1'>
+<name>Pulse duration</name>
+<description>Length of the pulse to output (unit of 30 msec).</description>
+</int>
+</group>
 <group replication='2'>
 <name>Input buttons</name>
 <int size='1'>
