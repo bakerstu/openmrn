@@ -66,6 +66,13 @@ public:
     using Impl = GPIOBit;
     using ProducerClass = PolledProducer<QuiesceDebouncer, Impl>;
 
+    ConfiguredProducer(Node *node, const ProducerConfig &cfg, Gpio *gpio)
+        : producer_(QuiesceDebouncer::Options(3), node, 0, 0, gpio)
+        , cfg_(cfg)
+    {
+        ConfigUpdateService::instance()->register_update_listener(this);
+    }
+
     template <class HW>
     ConfiguredProducer(Node *node, const ProducerConfig &cfg, const HW &)
         : producer_(QuiesceDebouncer::Options(3), node, 0, 0, HW::instance())
