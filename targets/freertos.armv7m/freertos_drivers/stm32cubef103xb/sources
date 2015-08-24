@@ -1,0 +1,53 @@
+include $(OPENMRNPATH)/etc/stm32cubef1.mk
+VPATH = $(OPENMRNPATH)/src/freertos_drivers/st \
+        $(STM32CUBEF1PATH)/Drivers/STM32F1xx_HAL_Driver/Src
+
+CFLAGS += -DSTM32F103xB
+CXXFLAGS += -DSTM32F103xB
+
+CSRCS += stm32f1xx_hal_adc.c \
+         stm32f1xx_hal_adc_ex.c \
+         stm32f1xx_hal.c \
+         stm32f1xx_hal_can.c \
+         stm32f1xx_hal_cec.c \
+         stm32f1xx_hal_cortex.c \
+         stm32f1xx_hal_crc.c \
+         stm32f1xx_hal_dac.c \
+         stm32f1xx_hal_dac_ex.c \
+         stm32f1xx_hal_dma.c \
+         stm32f1xx_hal_eth.c \
+         stm32f1xx_hal_flash.c \
+         stm32f1xx_hal_flash_ex.c \
+         stm32f1xx_hal_gpio.c \
+         stm32f1xx_hal_gpio_ex.c \
+         stm32f1xx_hal_hcd.c \
+         stm32f1xx_hal_i2c.c \
+         stm32f1xx_hal_i2s.c \
+         stm32f1xx_hal_irda.c \
+         stm32f1xx_hal_iwdg.c \
+         stm32f1xx_hal_msp_template.c \
+         stm32f1xx_hal_nand.c \
+         stm32f1xx_hal_nor.c \
+         stm32f1xx_hal_pccard.c \
+         stm32f1xx_hal_pcd.c \
+         stm32f1xx_hal_pcd_ex.c \
+         stm32f1xx_hal_pwr.c \
+         stm32f1xx_hal_rcc.c \
+         stm32f1xx_hal_rcc_ex.c \
+         stm32f1xx_hal_rtc.c \
+         stm32f1xx_hal_rtc_ex.c \
+         stm32f1xx_hal_sd.c \
+         stm32f1xx_hal_smartcard.c \
+         stm32f1xx_hal_spi.c \
+         stm32f1xx_hal_spi_ex.c \
+         stm32f1xx_hal_tim.c \
+         stm32f1xx_hal_tim_ex.c \
+         stm32f1xx_hal_uart.c \
+         stm32f1xx_hal_usart.c \
+         stm32f1xx_hal_wwdg.c
+
+CXXSRCS += Stm32F0xxCan.cxx \
+
+
+#           Stm32F0xxUart.cxx \
+#           Stm32F0xxEEPROMEmulation.cxx
