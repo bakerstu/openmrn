@@ -37,14 +37,15 @@
 #define _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
 
 #include "os/Gpio.hxx"
+#include "GpioWrapper.hxx"
 
 #include "stm32f1xx_hal_gpio.h"
 
-template <GPIO_TypeDef *GPIOx, uint16_t PIN> struct Stm32GpioDefs
+template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
     static GPIO_TypeDef *port()
     {
-        return GPIOx;
+        return (GPIO_TypeDef *)GPIOx;
     }
 
     static uint16_t pin()
@@ -75,19 +76,23 @@ template <GPIO_TypeDef *GPIOx, uint16_t PIN> struct Stm32GpioDefs
     /// libraries.
     static Gpio *instance()
     {
-        return &GpioWrapper<Stm32GpioDefs<GPIOx, PIN>>::instance_;
+        return &GpioWrapper<Stm32GpioDefs<GPIOx, PIN, PIN_NUM>>::instance_;
     }
 
-    static void set_input()
+    static bool is_output()
     {
+        uint8_t* mode = (uint8_t*)port();
+        uint8_t m = mode[PIN_NUM >> 1];
+        if (PIN_NUM & 1) { m >>= 4; }
+        return (m & 3) != 0;
     }
+
 };
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
 {
     using Defs::port;
     using Defs::pin;
-    using Defs::set_output;
     using Defs::set;
     static void hw_init()
     {
@@ -102,10 +107,6 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
     {
         hw_init();
         set(SAFE_VALUE);
-    }
-    static bool is_output()
-    {
-        return true;
     }
 };
 
@@ -137,7 +138,6 @@ template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
 {
     using Defs::port;
     using Defs::pin;
-    using Defs::set_output;
     using Defs::set;
     static void hw_init()
     {
@@ -199,7 +199,7 @@ struct GpioInputNP : public GpioInputPin<Defs, GPIO_NOPULL>
 ///  GPIO_PIN(FOO, LedPin, 0, 3);
 ///  ...
 ///  FOO_Pin::set(true);
-#define GPIO_PIN(NAME, BaseClass, PORT, NUM)                                   \
-    typedef BaseClass<Stm32GpioDefs<PORT, NUM>> NAME##_Pin
+#define GPIO_PIN(NAME, BaseClass, PORTNAME, NUM)                               \
+    typedef BaseClass<Stm32GpioDefs<(uint32_t)(GPIO ## PORTNAME), GPIO_PIN_ ## NUM, NUM>> NAME##_Pin
 
 #endif // _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
