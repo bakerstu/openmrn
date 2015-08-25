@@ -44,7 +44,8 @@
 
 #include "os/OS.hxx"
 //#include "Stm32F0xxUart.hxx"
-#include "Stm32F0xxCan.hxx"
+#include "Stm32Can.hxx"
+#include "Stm32Gpio.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -61,6 +62,11 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
 
+GPIO_PIN(LED1, LedPin, A, 5);
+GPIO_PIN(LED2, LedPin, A, 1);
+
+static Gpio* blinker_gpio = LED1_Pin::instance();
+
 extern "C" {
 
 const unsigned long cm3_cpu_clock_hz = 72000000;
@@ -75,7 +81,9 @@ void hw_set_to_safe(void)
 
 void resetblink(uint32_t pattern)
 {
-    GPIOA->BSRR = pattern ? (1 << 1) : (1 << 17);
+    //LED2_Pin::set(!!pattern);
+    blinker_gpio->write(!!pattern);
+    //GPIOA->BSRR = pattern ? (1 << 1) : (1 << 17);
     blinker_pattern = pattern;
     /* make a timer event trigger immediately */
 }
@@ -241,5 +249,8 @@ void hw_preinit(void)
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    LED1_Pin::hw_init();
+    LED2_Pin::hw_init();
 }
 }
