@@ -1,0 +1,205 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file Stm32Gpio.hxx
+ *
+ * Helper declarations for using GPIO pins (both for GPIO and other hardware)
+ * on STM32 microcontrollers.
+ *
+ * @author Balazs Racz
+ * @date 24 Aug 2015
+ */
+
+#ifndef _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
+#define _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
+
+#include "os/Gpio.hxx"
+
+#include "stm32f1xx_hal_gpio.h"
+
+template <GPIO_TypeDef *GPIOx, uint16_t PIN> struct Stm32GpioDefs
+{
+    static GPIO_TypeDef *port()
+    {
+        return GPIOx;
+    }
+
+    static uint16_t pin()
+    {
+        return PIN;
+    }
+
+    /// Sets the output pin to a given level.
+    static void set(bool value)
+    {
+        if (value)
+        {
+            port()->BSRR = pin();
+        }
+        else
+        {
+            port()->BSRR = pin() << 16;
+        }
+    }
+
+    /// Sets the output pin to a given level.
+    static bool get()
+    {
+        return port()->IDR & pin();
+    }
+
+    /// Returns a os-indepentent Gpio abstraction instance for use in
+    /// libraries.
+    static Gpio *instance()
+    {
+        return &GpioWrapper<Stm32GpioDefs<GPIOx, PIN>>::instance_;
+    }
+
+    static void set_input()
+    {
+    }
+};
+
+template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
+{
+    using Defs::port;
+    using Defs::pin;
+    using Defs::set_output;
+    using Defs::set;
+    static void hw_init()
+    {
+        GPIO_InitTypeDef gpio_init = {0};
+        gpio_init.Pin = pin();
+        gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+        gpio_init.Pull = GPIO_NOPULL;
+        gpio_init.Speed = GPIO_SPEED_LOW;
+        HAL_GPIO_Init(port(), &gpio_init);
+    }
+    static void hw_set_to_safe()
+    {
+        hw_init();
+        set(SAFE_VALUE);
+    }
+    static bool is_output()
+    {
+        return true;
+    }
+};
+
+/// Defines a GPIO output pin, initialized to be an output pin with low level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioOutputSafeLow : public GpioOutputPin<Defs, false>
+{
+};
+
+/// Defines a GPIO output pin, initialized to be an output pin with high level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
+{
+};
+
+/// Defines a GPIO output pin for driving an LED. The MCU must be in spec for
+/// the necessary output current.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs> struct LedPin : public GpioOutputPin<Defs, false>
+{
+};
+
+template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
+{
+    using Defs::port;
+    using Defs::pin;
+    using Defs::set_output;
+    using Defs::set;
+    static void hw_init()
+    {
+        GPIO_InitTypeDef gpio_init = {0};
+        gpio_init.Pin = pin();
+        gpio_init.Mode = GPIO_MODE_INPUT;
+        gpio_init.Pull = PULL_MODE;
+        gpio_init.Speed = GPIO_SPEED_LOW;
+        HAL_GPIO_Init(port(), &gpio_init);
+    }
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+    static bool is_output()
+    {
+        return false;
+    }
+};
+
+/// GPIO Input pin with weak pull up.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioInputPU : public GpioInputPin<Defs, GPIO_PULLUP>
+{
+};
+
+/// GPIO Input pin with weak pull down.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioInputPD : public GpioInputPin<Defs, GPIO_PULLDOWN>
+{
+};
+
+/// GPIO Input pin in standard configuration (no pull).
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioInputNP : public GpioInputPin<Defs, GPIO_NOPULL>
+{
+};
+
+/// Helper macro for defining GPIO pins.
+///
+/// @param NAME is the basename of the declaration. For NAME==FOO the macro
+/// declares FOO_Pin as a structure on which the read-write functions will be
+/// available.
+///
+/// @param BaseClass is the initialization structure, such as @ref LedPin, or
+/// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
+///
+/// @param port is the number of the port, such as 0
+///
+/// @param pin is the pin number, such as 3
+///
+/// Example:
+///  GPIO_PIN(FOO, LedPin, 0, 3);
+///  ...
+///  FOO_Pin::set(true);
+#define GPIO_PIN(NAME, BaseClass, PORT, NUM)                                   \
+    typedef BaseClass<Stm32GpioDefs<PORT, NUM>> NAME##_Pin
+
+#endif // _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
