@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32F0xxUart.hxx
+ * \file Stm32Uart.hxx
  * This file implements a UART device driver layer specific to STM32F0xx MCUs.
  *
  * @author Stuart W. Baker
@@ -36,8 +36,18 @@
 
 #include <cstdint>
 
+#if defined(STM32F072xB)
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_uart.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_hal_dma.h"
+#include "stm32f1xx_hal_uart.h"
+#elif defined(STM32F303xC)
+#include "stm32f3xx_hal_dma.h"
+#include "stm32f3xx_hal_uart.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 #include "Serial.hxx"
 
@@ -96,6 +106,8 @@ private:
    || defined (STM32F078xx)
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Uart *instances[4];
+#elif defined (STM32F303xC)
+    static Stm32Uart *instances[5];
 #elif defined (STM32F030xC)
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Uart *instances[6];

@@ -24,18 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32F0xxEEPROMEmulation.cxx
+ * \file Stm32EEPROMEmulation.cxx
  * This file implements STM32F0xx compatible EEPROM emulation in FLASH.
  *
  * @author Stuart W. Baker
  * @date 24 June 2015
  */
 
-#include "Stm32F0xxEEPROMEmulation.hxx"
+#include "Stm32EEPROMEmulation.hxx"
 
 #include <cstring>
 
+#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
+ || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
+ || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx) \
+ || defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
+ || defined (STM32F072xB) || defined (STM32F078xx) \
+ || defined (STM32F091xC) || defined (STM32F098xx)
 #include "stm32f0xx_hal_flash.h"
+#elif defined(STM32F303xC)
+#include "stm32f3xx_hal_flash.h"
+#else
+#error "stm32EEPROMEmulation unsupported STM32 device"
+#endif
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
@@ -43,7 +54,8 @@
 const size_t __attribute__((weak)) EEPROMEmulation::SECTOR_SIZE = 0x400;
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
-   || defined (STM32F091xC) || defined (STM32F098xx)
+   || defined (STM32F091xC) || defined (STM32F098xx) \
+   || defined (STM32F303xC)
 const size_t __attribute__((weak)) EEPROMEmulation::SECTOR_SIZE = 0x800;
 #endif
 const size_t EEPROMEmulation::BLOCK_SIZE = 4;
@@ -139,8 +151,11 @@ int Stm32EEPROMEmulation::address_to_sector(const void *address)
     if (sector >= 64)
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
-   || defined (STM32F091xC) || defined (STM32F098xx)
+   || defined (STM32F091xC) || defined (STM32F098xx) \
+   || defined (STM32F303xC)
     if (sector >= 128)
+#else
+#error "stm32EEPROMEmulation unsupported STM32 device"
 #endif
     {
         HASSERT(0);
@@ -161,7 +176,8 @@ uint32_t *Stm32EEPROMEmulation::sector_to_address(const int sector)
     if (sector < 64)
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
-   || defined (STM32F091xC) || defined (STM32F098xx)
+   || defined (STM32F091xC) || defined (STM32F098xx) \
+   || defined (STM32F303xC)
     if (sector < 128)
 #endif
     {

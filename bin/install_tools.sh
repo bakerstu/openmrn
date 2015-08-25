@@ -74,6 +74,7 @@ FREERTOSURL="http://downloads.sourceforge.net/project/freertos/FreeRTOS/V8.2.1/F
 TIVAWAREURL="http://software-dl.ti.com/download/tiva-c/AYZBDHVNPVSW_EERZ8XXRAETY5KK48QW/SW-TM4C-2.1.1.71.exe"
 LPCOPEN1769URL="http://www.lpcware.com/system/files/lpcopen_2_10_lpcxpresso_nxp_lpcxpresso_1769.zip"
 STM32CUBEF0URL="http://www.st.com/st-web-ui/static/active/en/st_prod_software_internet/resource/technical/software/firmware/stm32cubef0.zip"
+STM32CUBEF3URL="http://www.st.com/st-web-ui/static/active/en/st_prod_software_internet/resource/technical/software/firmware/stm32cubef3.zip"
 
 JMRIURL="http://downloads.sourceforge.net/project/jmri/production%20files/$JMRIINSTALLNAME"
 ARMGCCURL="https://launchpad.net/gcc-arm-embedded/4.8/4.8-2014-q1-update/+download/$ARMGCCINSTALLNAME"
@@ -93,6 +94,7 @@ download $TMPDIR $FREERTOSURL
 download $TMPDIR $LPCOPEN1769URL
 download $TMPDIR $TIVAWAREURL
 download $TMPDIR $STM32CUBEF0URL
+download $TMPDIR $STM32CUBEF3URL
 
 ####################
 # Install packages #
@@ -108,6 +110,7 @@ download $TMPDIR $STM32CUBEF0URL
 mkdir -p $INSTALL_DIR/ti/TivaWare
 mkdir -p $INSTALL_DIR/nxp/lpc_chip
 mkdir -p $INSTALL_DIR/st/STM32Cube_FW_F0
+mkdir -p $INSTALL_DIR/st/STM32Cube_FW_F3
 mkdir -p $INSTALL_DIR/FreeRTOS
 mkdir -p $INSTALL_DIR/armgcc
 mkdir -p $INSTALL_DIR/gmock
@@ -132,6 +135,13 @@ unzip -d $INSTALL_DIR/st/STM32Cube_FW_F0 $TMPDIR/stm32cubef0.zip
 cd $INSTALL_DIR/st/STM32Cube_FW_F0
 rm -f default
 ln -s STM32Cube_FW_F0_V1.2.0 default
+cd $working
+
+#unpack STM32CubeF0
+unzip -d $INSTALL_DIR/st/STM32Cube_FW_F3 $TMPDIR/stm32cubef3.zip
+cd $INSTALL_DIR/st/STM32Cube_FW_F3
+rm -f default
+ln -s STM32Cube_FW_F3_V1.2.0 default
 cd $working
 
 #unpack FreeRTOS

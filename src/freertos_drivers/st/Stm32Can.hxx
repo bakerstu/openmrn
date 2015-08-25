@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Stm32F0xxCan.hxx
+ * @file Stm32Can.hxx
  * This file implements a can device driver layer specific to STM32F0xx devices.
  *
  * @author Stuart W. Baker
@@ -42,6 +42,8 @@
 #include "stm32f0xx_hal_can.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_can.h"
+#elif defined(STM32F303xC)
+#include "stm32f3xx_hal_can.h"
 #else
 #error Dont know what STM32 chip you have.
 #endif

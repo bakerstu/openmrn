@@ -24,25 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Stm32F0xxCan.cxx
+ * @file Stm32Can.cxx
  * This file implements a can device driver layer specific to STM32F0xx devices.
  *
  * @author Stuart W. Baker
  * @date 3 May 2015
  */
 
-#include "Stm32F0xxCan.hxx"
+#include "Stm32Can.hxx"
 
 #include <stdint.h>
 
-#if defined(STM32F072xB)
+#if defined (STM32F072xB)
 
 #include "stm32f0xx_hal_cortex.h"
 #define CAN_IRQN CEC_CAN_IRQn
 
 #define CAN_CLOCK cpu_clock_hz
 
-#elif defined(STM32F103xB)
+#elif defined (STM32F103xB)
 
 #include "stm32f1xx_hal_cortex.h"
 #define SPLIT_INT
@@ -50,6 +50,15 @@
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN USB_LP_CAN1_RX0_IRQn
 #define CAN CAN1
+#define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
+
+#elif defined (STM32F303xC)
+
+#include "stm32f3xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN_TX_IRQN USB_HP_CAN_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
 #else
@@ -72,6 +81,13 @@ Stm32Can::Stm32Can(const char *name)
     /* should already be disabled, but just in case */
     HAL_NVIC_DisableIRQ(CAN_IRQN);
 
+#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
+ || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
+ || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx) \
+ || defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
+ || defined (STM32F072xB) || defined (STM32F078xx) \
+ || defined (STM32F091xC) || defined (STM32F098xx)
+#else
     /* The priority of CAN interrupt is as high as possible while maintaining
      * FreeRTOS compatibility.
      */
@@ -80,6 +96,7 @@ Stm32Can::Stm32Can(const char *name)
 #ifdef SPLIT_INT
     HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
     NVIC_SetPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+#endif
 #endif
 }
 
@@ -381,13 +398,13 @@ extern "C" {
 /** This is the interrupt handler for the can device.
  */
 
-#if defined(STM32F072xB)
+#if defined (STM32F072xB)
 void cec_can_interrupt_handler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
     Stm32Can::instances[0]->tx_interrupt_handler();
 }
-#elif defined(STM32F103xB)
+#elif defined (STM32F103xB) || defined (STM32F303xC)
 
 void usb_hp_can1_tx_interrupt_handler(void)
 {

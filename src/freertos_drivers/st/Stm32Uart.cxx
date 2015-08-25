@@ -24,16 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32F0xxUart.cxx
+ * \file Stm32Uart.cxx
  * This file implements a UART device driver layer specific to STM32F0xx MCUs.
  *
  * @author Stuart W. Baker
  * @date 26 April 2015
  */
 
-#include "Stm32F0xxUart.hxx"
+#include "Stm32Uart.hxx"
 
+#if defined(STM32F072xB)
 #include "stm32f0xx_hal_cortex.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_hal_cortex.h"
+#elif defined(STM32F303xC)
+#include "stm32f3xx_hal_cortex.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
 Stm32Uart *Stm32Uart::instances[1] = {NULL};
@@ -43,6 +51,10 @@ Stm32Uart *Stm32Uart::instances[2] = {NULL};
 #elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
    || defined (STM32F078xx)
 Stm32Uart *Stm32Uart::instances[4] = {NULL};
+#elif defined (STM32F303xC)
+Stm32Uart *Stm32Uart::instances[5] = {NULL};
+#define USART4 UART4
+#define USART5 UART5
 #elif defined (STM32F030xC)
 Stm32Uart *Stm32Uart::instances[6] = {NULL};
 #elif defined (STM32F091xC) || defined (STM32F098xx)
@@ -87,6 +99,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     {
         instances[4] = this;
     }
+#if !defined (STM32F303xC)
     else if (base == USART6)
     {
         instances[5] = this;
@@ -102,6 +115,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     }
 #if !defined (STM32F091xC) && !defined (STM32F098xx)
 	/* room for future devices with more UARTs */
+#endif
 #endif
 #endif
 #endif
@@ -285,6 +299,29 @@ void uart2_interrupt_handler(void)
     Stm32Uart::interrupt_handler(1);
 }
 
+#if defined (STM32F303xC)
+/** UART3 interrupt handler.
+ */
+void uart3_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(2);
+}
+
+/** UART4 interrupt handler.
+ */
+void uart4_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(3);
+}
+
+/** UART5 interrupt handler.
+ */
+void uart5_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(4);
+}
+
+#else
 #if !defined (STM32F030x8) && !defined (STM32F042x6) && !defined (STM32F048xx) \
  && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6)
 /** UART3 interrupt handler.
@@ -297,6 +334,7 @@ void uart3_4_5_6_7_8_interrupt_handler(void)
  && !defined (STM32F078xx) && !defined (STM32F030xC) && !defined (STM32F091xC) \
  && !defined (STM32F098xx)
 /* room for future devices with more Interrupt vectors */
+#endif
 #endif
 #endif
 #endif

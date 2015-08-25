@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32F0xxEEPROMEmulation.hxx
+ * \file Stm32EEPROMEmulation.hxx
  * This file implements STM32F0xx compatible EEPROM emulation in FLASH.
  *
  * @author Stuart W. Baker

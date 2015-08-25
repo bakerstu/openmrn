@@ -46,6 +46,6 @@ CSRCS += stm32f0xx_hal_adc.c \
          stm32f0xx_hal_usart.c \
          stm32f0xx_hal_wwdg.c
 
-CXXSRCS += Stm32F0xxCan.cxx \
-           Stm32F0xxUart.cxx \
-           Stm32F0xxEEPROMEmulation.cxx
+CXXSRCS += Stm32Can.cxx \
+           Stm32Uart.cxx \
+           Stm32EEPROMEmulation.cxx
