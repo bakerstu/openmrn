@@ -78,6 +78,17 @@ STM32CUBEF1PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF1PATH
 
+################ STM32Cube_F3 ##################
+ifndef STM32CUBEF3PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F3/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF3PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF3PATH
+
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
