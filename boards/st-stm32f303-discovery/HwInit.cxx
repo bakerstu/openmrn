@@ -117,7 +117,7 @@ void diewith(uint32_t pattern)
 
 /** CPU clock speed. */
 const unsigned long cm3_cpu_clock_hz = 72000000;
-uint32_t SystemCoreClock = 72000000;
+//uint32_t SystemCoreClock = 72000000;
 
 /**
   * @brief  System Clock Configuration
@@ -135,8 +135,15 @@ uint32_t SystemCoreClock = 72000000;
   * @param  None
   * @retval None
   */
+extern volatile uint32_t r;
+volatile uint32_t r = 0;
+
 static void clock_setup(void)
 {
+    SystemInit();
+
+    HAL_RCC_DeInit();
+    
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_OscInitTypeDef RCC_OscInitStruct;
 
@@ -148,7 +155,8 @@ static void clock_setup(void)
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
 
-    HAL_RCC_OscConfig(&RCC_OscInitStruct);
+    r = HAL_RCC_OscConfig(&RCC_OscInitStruct); 
+    HASSERT(r == HAL_OK);
     	
     /* Select PLL as system clock source and configure the HCLK, PCLK1 and
      * PCLK2 clocks dividers
@@ -160,7 +168,9 @@ static void clock_setup(void)
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;  
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
+    HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) == HAL_OK);
+
+    SystemCoreClock = cm3_cpu_clock_hz;
 
 #if 0
     /* reset clock configuration to default state */
