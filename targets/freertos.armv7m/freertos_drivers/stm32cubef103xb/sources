@@ -46,7 +46,7 @@ CSRCS += stm32f1xx_hal_adc.c \
          stm32f1xx_hal_usart.c \
          stm32f1xx_hal_wwdg.c
 
-CXXSRCS += Stm32F0xxCan.cxx \
+CXXSRCS += Stm32Can.cxx \
 
 
 #           Stm32F0xxUart.cxx \
