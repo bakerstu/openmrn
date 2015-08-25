@@ -33,8 +33,8 @@
  * @date 2 Dec 2014
  */
 
-#ifndef _FREERTOS_DRIVERS_NXP_LPC17XX40XX_HXX_
-#define _FREERTOS_DRIVERS_NXP_LPC17XX40XX_HXX_
+#ifndef _FREERTOS_DRIVERS_NXP_LPC17XX40XXGPIO_HXX_
+#define _FREERTOS_DRIVERS_NXP_LPC17XX40XXGPIO_HXX_
 
 #include "chip.h"
 #include "core_cm3.h"
@@ -273,4 +273,4 @@ struct GpioInputRep : public GpioInputPin<Defs, IOCON_MODE_REPEATER>
 #define GPIO_PIN(NAME, BaseClass, PORT, NUM)                                   \
     typedef BaseClass<LpcGpioPin<PORT, NUM>> NAME##_Pin
 
-#endif // _FREERTOS_DRIVERS_NXP_LPC17XX40XX_HXX_
+#endif // _FREERTOS_DRIVERS_NXP_LPC17XX40XXGPIO_HXX_
