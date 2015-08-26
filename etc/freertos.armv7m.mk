@@ -34,7 +34,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
@@ -53,7 +53,7 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
             -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
-            -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
+            #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
