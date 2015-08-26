@@ -27,6 +27,7 @@
 *.bin
 *.lst
 *.cxxout
+*.xmlout
 dirlock
 dirlock.*
 *.nxml
