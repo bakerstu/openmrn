@@ -39,8 +39,8 @@ CSRCS += stm32f3xx_hal.c \
          stm32f3xx_hal_ppp.c \
          stm32f3xx_hal_pwr.c \
          stm32f3xx_hal_pwr_ex.c \
-         stm32f3xx_hal_rcc_ex.c \
          stm32f3xx_hal_rcc.c \
+         stm32f3xx_hal_rcc_ex.c \
          stm32f3xx_hal_rtc.c \
          stm32f3xx_hal_rtc_ex.c \
          stm32f3xx_hal_sdadc.c \

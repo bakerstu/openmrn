@@ -39,7 +39,15 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
+#if defined(STM32F072xB)
+#include "stm32f0xx_hal_gpio.h"
+#elif defined(STM32F103xB)
 #include "stm32f1xx_hal_gpio.h"
+#elif defined(STM32F303xC)
+#include "stm32f3xx_hal_gpio.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
@@ -58,11 +66,19 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
     {
         if (value)
         {
+#if defined(STM32F303xC)
+            port()->BSRRL = pin();
+#else
             port()->BSRR = pin();
+#endif
         }
         else
         {
+#if defined(STM32F303xC)
+            port()->BSRRH = pin();
+#else
             port()->BSRR = pin() << 16;
+#endif
         }
     }
 

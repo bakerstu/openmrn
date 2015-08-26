@@ -7,7 +7,7 @@ INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/st \
             -I$(STM32CUBEF3PATH)/Drivers/CMSIS/Include
 endif
 
-CFLAGS +=
-CXXFLAGS +=
+CFLAGS += 
+CXXFLAGS += 
 
 DEPS += STM32CUBEF3PATH

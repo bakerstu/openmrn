@@ -315,12 +315,6 @@ extern unsigned long _ebss;
  * are initialized. */
 extern void hw_preinit(void);
 
-/** Sets the hardware outputs to a safe state. Called when the program crashes
- * handler. */
-/*void hw_set_to_safe(void) __attribute__ ((weak));
-void hw_set_to_safe(void)
-{
-}*/
 extern void hw_set_to_safe(void);
 
 /** Startup the C/C++ runtime environment.

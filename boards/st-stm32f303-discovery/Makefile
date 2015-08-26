@@ -11,7 +11,9 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 include $(OPENMRNPATH)/etc/stm32cubef3.mk
 
 LDFLAGSEXTRA += 
-SYSLIBRARIESEXTRA += -lfreertos_drivers_stm32cubef303x_28x_58x_98x
+SYSLIBRARIESEXTRA +=  -Wl,--whole-archive \
+                      -lfreertos_drivers_stm32cubef303x_28x_58x_98x \
+                      -Wl,--no-whole-archive
 OBJEXTRA += 
 
 CFLAGS += -DSTM32F303xC

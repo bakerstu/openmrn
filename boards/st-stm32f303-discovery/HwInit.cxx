@@ -43,6 +43,8 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 
+#include "hardware.hxx"
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -53,10 +55,10 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-//static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
-//static Stm32Can can0("/dev/can0");
+static Stm32Can can0("/dev/can0");
 
 extern "C" {
 
@@ -117,7 +119,7 @@ void diewith(uint32_t pattern)
 
 /** CPU clock speed. */
 const unsigned long cm3_cpu_clock_hz = 72000000;
-//uint32_t SystemCoreClock = 72000000;
+uint32_t SystemCoreClock;
 
 /**
   * @brief  System Clock Configuration
@@ -135,13 +137,8 @@ const unsigned long cm3_cpu_clock_hz = 72000000;
   * @param  None
   * @retval None
   */
-extern volatile uint32_t r;
-volatile uint32_t r = 0;
-
 static void clock_setup(void)
 {
-    SystemInit();
-
     HAL_RCC_DeInit();
     
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -155,8 +152,7 @@ static void clock_setup(void)
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
 
-    r = HAL_RCC_OscConfig(&RCC_OscInitStruct); 
-    HASSERT(r == HAL_OK);
+    HAL_RCC_OscConfig(&RCC_OscInitStruct); 
     	
     /* Select PLL as system clock source and configure the HCLK, PCLK1 and
      * PCLK2 clocks dividers
@@ -171,33 +167,6 @@ static void clock_setup(void)
     HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) == HAL_OK);
 
     SystemCoreClock = cm3_cpu_clock_hz;
-
-#if 0
-    /* reset clock configuration to default state */
-    RCC->CR = RCC_CR_HSITRIM_4 | RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
-
-#define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 0
-    /* configure PLL:  8 MHz * 6 = 48 MHz */
-#if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
-    RCC->CR |= RCC_CR_HSEON;
-    while (!(RCC->CR & RCC_CR_HSERDY));
-    RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSE_PREDIV | RCC_CFGR_SW_HSE;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSE));
-#else
-    RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSI_PREDIV | RCC_CFGR_SW_HSI;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSI));
-#endif
-    /* enable PLL */
-    RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
-
-    /* set PLL as system clock */
-    RCC->CFGR = (RCC->CFGR & (~RCC_CFGR_SW)) | RCC_CFGR_SW_PLL;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL));
-#else
-
-#endif
 }
 
 /** Initialize the processor hardware.
@@ -220,21 +189,15 @@ void hw_preinit(void)
     //__USART1_CLK_ENABLE();
     //__CAN_CLK_ENABLE();
 
-    GPIO_InitTypeDef gpio_init;
-    gpio_init.Pin = GPIO_PIN_9;
-    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_HIGH;
-    HAL_GPIO_Init(GPIOE, &gpio_init);
+    GpioInit::hw_init();
 
     /* setup pinmux */
-#if 0
     GPIO_InitTypeDef gpio_init;
     /* USART1 pinmux on PA9 and PA10 */
     gpio_init.Mode      = GPIO_MODE_AF_PP;
     gpio_init.Pull      = GPIO_PULLUP;
     gpio_init.Speed     = GPIO_SPEED_HIGH;
-    gpio_init.Alternate = GPIO_AF1_USART1;
+    gpio_init.Alternate = GPIO_AF7_USART1;
     gpio_init.Pin       = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOA, &gpio_init);
     gpio_init.Pin       = GPIO_PIN_10;
@@ -244,12 +207,11 @@ void hw_preinit(void)
     gpio_init.Mode      = GPIO_MODE_AF_PP;
     gpio_init.Pull      = GPIO_PULLUP;
     gpio_init.Speed     = GPIO_SPEED_HIGH;
-    gpio_init.Alternate = GPIO_AF4_CAN;
+    gpio_init.Alternate = GPIO_AF9_CAN;
     gpio_init.Pin       = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin       = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
-#endif
 }
 
 }
