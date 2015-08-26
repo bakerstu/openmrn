@@ -7,7 +7,6 @@ SUBDIRS = linux.x86 \
         freertos.armv7m.ek-tm4c123gxl \
         freertos.armv7m.ek-tm4c1294xl \
         freertos.armv7m.mbed-1768 \
-        freertos.armv7m.st-maple-cmsis \
         freertos.armv7m.lpc1769-lpcxpresso \
         freertos.armv7m.lpc1768-mbed \
         freertos.armv6m.lpc11cxx \
@@ -16,5 +15,8 @@ SUBDIRS = linux.x86 \
         freertos.mips4k.pic32mx-duinomitemega \
         js.emscripten \
 
+
+#doesn't fit into flash. Let's retire this.
+#freertos.armv7m.st-maple-cmsis \
 
 include $(OPENMRNPATH)/etc/recurse.mk
