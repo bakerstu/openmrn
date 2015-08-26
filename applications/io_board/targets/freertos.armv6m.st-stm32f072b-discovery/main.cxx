@@ -39,7 +39,7 @@
 #include "nmranet/ConfiguredConsumer.hxx"
 #include "nmranet/ConfiguredProducer.hxx"
 
-#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
 
@@ -79,7 +79,7 @@ extern const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t nmranet::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(nmranet::CONFIG_FILE_SIZE <= 256, "Need to adjust eeprom size");
+static_assert(nmranet::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
