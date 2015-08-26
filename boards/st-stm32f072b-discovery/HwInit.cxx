@@ -40,8 +40,8 @@
 #include "stm32f0xx_hal_gpio_ex.h"
 
 #include "os/OS.hxx"
-#include "Stm32F0xxUart.hxx"
-#include "Stm32F0xxCan.hxx"
+#include "Stm32Uart.hxx"
+#include "Stm32Can.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

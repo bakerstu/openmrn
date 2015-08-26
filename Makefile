@@ -2,7 +2,7 @@
 OPENMRNPATH:=$(realpath .)
 export OPENMRNPATH
 
-SUBDIRS = targets doc applications test
+SUBDIRS = targets doc applications #test
 
 include $(OPENMRNPATH)/etc/recurse.mk
 
