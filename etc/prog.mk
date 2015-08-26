@@ -97,6 +97,33 @@ endif
 
 all: $(EXECUTABLE)$(EXTENTION)
 
+# This part detects whether we have a config.hxx defining CDI data and if yes,
+# then compiles it into an xml and object file.
+HAVE_CONFIG_CDI := $(shell grep ConfigDef config.hxx 2>/dev/null)
+ifneq ($(HAVE_CONFIG_CDI),)
+OBJS += cdi.o
+
+$(EXECUTABLE)$(EXTENTION): cdi.o
+
+cdi.xmlout: compile_cdi
+	./compile_cdi > $@
+
+cdi.o : cdi.xmlout $(OPENMRNPATH)/bin/build_cdi.py
+	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o cdi.cxxout
+	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
+
+compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA) --std=c++11 -MD -MF $@.d $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+
+clean: clean_cdi
+
+.PHONY: clean_cdi
+
+clean_cdi:
+	rm -f cdi.xmlout cdi.nxml compile_cdi	
+
+endif
+
 # Makes sure the subdirectory builds are done before linking the binary.
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 #$(FULLPATHLIBS): $(BUILDDIRS)

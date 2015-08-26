@@ -1,1 +1,1 @@
-../freertos.armv7m.bracz-acc3/Makefile
+../../../../boards/ti-bracz-acc3/Makefile
