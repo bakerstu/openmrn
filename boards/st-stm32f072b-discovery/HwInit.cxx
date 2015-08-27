@@ -42,6 +42,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
+#include "Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
