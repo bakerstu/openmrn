@@ -2,14 +2,14 @@
 #include "Stm32Gpio.hxx"
 #include "utils/GpioInitializer.hxx"
 
+GPIO_PIN(LED_ORA, LedPin, C, 8);
+GPIO_PIN(LED_GREEN, LedPin, C, 9);
+GPIO_PIN(LED_RED_RAW, LedPin, C, 6);
+GPIO_PIN(LED_BLUE, LedPin, C, 7);
 
-GPIO_PIN(LED3_RAW, LedPin, C, 8);
-GPIO_PIN(LED4, LedPin, C, 9);
-GPIO_PIN(LED5, LedPin, C, 6);
-GPIO_PIN(LED6, LedPin, C, 7);
-
+GPIO_PIN(SW_USER, GpioInputPU, A, 0);
 
 typedef GpioInitializer<                          //
-    LED3_RAW_Pin, LED4_Pin, LED5_Pin, LED6_Pin> GpioInit;
+    LED_RED_RAW_Pin, LED_GREEN_Pin, LED_ORA_Pin, LED_BLUE_Pin> GpioInit;
 
-typedef LED3_RAW_Pin BLINKER_RAW_Pin;
+typedef LED_RED_RAW_Pin BLINKER_RAW_Pin;

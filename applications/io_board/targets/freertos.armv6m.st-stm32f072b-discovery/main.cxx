@@ -92,13 +92,13 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 // The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_RED_Pin;
-// These are GPIO output pins from TivaGPIO.hxx
-//GPIO_PIN(LED_GREEN, LedPin, F, 3);
-//GPIO_PIN(LED_BLUE, LedPin, F, 2);
+// These are GPIO output pins from Stm32Gpio.hxx
+GPIO_PIN(LED_ORA, LedPin, C, 8);
+GPIO_PIN(LED_GREEN, LedPin, C, 9);
+GPIO_PIN(LED_BLUE, LedPin, C, 7);
 
-// These are GPIO input pins from TivaGPIO.hxx
-//GPIO_PIN(SW1, GpioInputPU, F, 4);
-//GPIO_PIN(SW2, GpioInputPU, F, 0);
+// These are GPIO input pins from Stm32Gpio.hxx
+GPIO_PIN(SW_USER, GpioInputPU, A, 0);
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -112,21 +112,21 @@ typedef BLINKER_Pin LED_RED_Pin;
 nmranet::ConfiguredConsumer consumer_red(
     stack.node(), cfg.seg().consumers().entry<0>(), LED_RED_Pin());
 nmranet::ConfiguredConsumer consumer_green(
-    stack.node(), cfg.seg().consumers().entry<1>(), DummyPinWithRead());
+    stack.node(), cfg.seg().consumers().entry<1>(), LED_GREEN_Pin());
 nmranet::ConfiguredConsumer consumer_blue(
-    stack.node(), cfg.seg().consumers().entry<2>(), DummyPinWithRead());
+    stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
+nmranet::ConfiguredConsumer consumer_ora(
+    stack.node(), cfg.seg().consumers().entry<3>(), LED_ORA_Pin());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), DummyPinWithRead());
-nmranet::ConfiguredProducer producer_sw2(
-    stack.node(), cfg.seg().producers().entry<1>(), DummyPinWithRead());
+    stack.node(), cfg.seg().producers().entry<0>(), SW_USER_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 nmranet::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+    stack.node(), {producer_sw1.polling()});
 
 /** Entry point to application.
  * @param argc number of command line arguments
