@@ -41,13 +41,14 @@
 
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 #include "config.hxx"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
+//#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-//#define HAVE_PHYSICAL_CAN_PORT
+#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -92,12 +93,12 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_RED_Pin;
 // These are GPIO output pins from TivaGPIO.hxx
-GPIO_PIN(LED_GREEN, LedPin, F, 3);
-GPIO_PIN(LED_BLUE, LedPin, F, 2);
+//GPIO_PIN(LED_GREEN, LedPin, F, 3);
+//GPIO_PIN(LED_BLUE, LedPin, F, 2);
 
 // These are GPIO input pins from TivaGPIO.hxx
-GPIO_PIN(SW1, GpioInputPU, F, 4);
-GPIO_PIN(SW2, GpioInputPU, F, 0);
+//GPIO_PIN(SW1, GpioInputPU, F, 4);
+//GPIO_PIN(SW2, GpioInputPU, F, 0);
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -111,15 +112,15 @@ GPIO_PIN(SW2, GpioInputPU, F, 0);
 nmranet::ConfiguredConsumer consumer_red(
     stack.node(), cfg.seg().consumers().entry<0>(), LED_RED_Pin());
 nmranet::ConfiguredConsumer consumer_green(
-    stack.node(), cfg.seg().consumers().entry<1>(), LED_GREEN_Pin());
+    stack.node(), cfg.seg().consumers().entry<1>(), DummyPinWithRead());
 nmranet::ConfiguredConsumer consumer_blue(
-    stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
+    stack.node(), cfg.seg().consumers().entry<2>(), DummyPinWithRead());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
+    stack.node(), cfg.seg().producers().entry<0>(), DummyPinWithRead());
 nmranet::ConfiguredProducer producer_sw2(
-    stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
+    stack.node(), cfg.seg().producers().entry<1>(), DummyPinWithRead());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two

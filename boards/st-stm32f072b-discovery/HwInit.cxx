@@ -42,6 +42,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
+#include "hardware.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -53,10 +54,10 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+//static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
-static Stm32Can can0("/dev/can0");
+//static Stm32Can can0("/dev/can0");
 
 extern "C" {
 
@@ -70,6 +71,7 @@ void hw_set_to_safe(void)
 
 void resetblink(uint32_t pattern)
 {
+    BLINKER_RAW_Pin::set(pattern ? true : false);
     blinker_pattern = pattern;
     /* make a timer event trigger immediately */
 }
@@ -150,6 +152,7 @@ void hw_preinit(void)
     /* enable peripheral clocks */
     __GPIOA_CLK_ENABLE();
     __GPIOB_CLK_ENABLE();
+    __GPIOC_CLK_ENABLE();
     __USART1_CLK_ENABLE();
     __CAN_CLK_ENABLE();
 
@@ -175,6 +178,8 @@ void hw_preinit(void)
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin       = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    GpioInit::hw_init();
 }
 
 }
