@@ -59,6 +59,9 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** CAN 0 CAN driver instance */
 //static Stm32Can can0("/dev/can0");
 
+/** EEPROM emulation driver. The file size might be made bigger. */
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+
 extern "C" {
 
 /** Blink LED */
