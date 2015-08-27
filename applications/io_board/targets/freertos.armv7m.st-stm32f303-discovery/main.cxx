@@ -80,7 +80,7 @@ extern const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t nmranet::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(nmranet::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(nmranet::CONFIG_FILE_SIZE <= 512, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -91,7 +91,7 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 // The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
 // create an alias for symmetry.
-typedef BLINKER_Pin LED_RED_Pin;
+typedef BLINKER_Pin LED_1_Pin;
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -102,12 +102,22 @@ typedef BLINKER_Pin LED_RED_Pin;
 // segment 'seg', in which there is a repeated group 'consumers', and we assign
 // the individual entries to the individual consumers. Each consumer gets its
 // own GPIO pin.
-nmranet::ConfiguredConsumer consumer_red(
-    stack.node(), cfg.seg().consumers().entry<0>(), LED_2_Pin());
-nmranet::ConfiguredConsumer consumer_green(
-    stack.node(), cfg.seg().consumers().entry<1>(), LED_3_Pin());
-nmranet::ConfiguredConsumer consumer_blue(
-    stack.node(), cfg.seg().consumers().entry<2>(), LED_4_Pin());
+nmranet::ConfiguredConsumer consumer_0(
+    stack.node(), cfg.seg().consumers().entry<0>(), LED_1_Pin());
+nmranet::ConfiguredConsumer consumer_1(
+    stack.node(), cfg.seg().consumers().entry<1>(), LED_2_Pin());
+nmranet::ConfiguredConsumer consumer_2(
+    stack.node(), cfg.seg().consumers().entry<2>(), LED_3_Pin());
+nmranet::ConfiguredConsumer consumer_3(
+    stack.node(), cfg.seg().consumers().entry<3>(), LED_4_Pin());
+nmranet::ConfiguredConsumer consumer_4(
+    stack.node(), cfg.seg().consumers().entry<4>(), LED_5_Pin());
+nmranet::ConfiguredConsumer consumer_5(
+    stack.node(), cfg.seg().consumers().entry<5>(), LED_6_Pin());
+nmranet::ConfiguredConsumer consumer_6(
+    stack.node(), cfg.seg().consumers().entry<6>(), LED_7_Pin());
+nmranet::ConfiguredConsumer consumer_7(
+    stack.node(), cfg.seg().consumers().entry<7>(), LED_8_Pin());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(

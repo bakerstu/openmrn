@@ -4,7 +4,7 @@
 #include "Stm32Gpio.hxx"
 #include "utils/GpioInitializer.hxx"
 
-GPIO_PIN(SW1, GpioInputPU, A, 0);
+GPIO_PIN(SW1, GpioInputPD, A, 0);
 
 GPIO_PIN(LED_RAW_1, LedPin, E, 15);
 GPIO_PIN(LED_2, LedPin, E, 14);
