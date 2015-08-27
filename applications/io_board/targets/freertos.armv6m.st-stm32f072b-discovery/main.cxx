@@ -55,7 +55,7 @@
 OVERRIDE_CONST(gc_generate_newlines, 1);
 // Specifies how much RAM (in bytes) we allocate to the stack of the main
 // thread. Useful tuning parameter in case the application runs out of memory.
-OVERRIDE_CONST(main_thread_stack_size, 2500);
+OVERRIDE_CONST(main_thread_stack_size, 1300);
 
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
@@ -98,7 +98,7 @@ GPIO_PIN(LED_GREEN, LedPin, C, 9);
 GPIO_PIN(LED_BLUE, LedPin, C, 7);
 
 // These are GPIO input pins from Stm32Gpio.hxx
-GPIO_PIN(SW_USER, GpioInputPU, A, 0);
+GPIO_PIN(SW_USER, GpioInputPD, A, 0);
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -116,7 +116,7 @@ nmranet::ConfiguredConsumer consumer_green(
 nmranet::ConfiguredConsumer consumer_blue(
     stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
 nmranet::ConfiguredConsumer consumer_ora(
-    stack.node(), cfg.seg().consumers().entry<3>(), LED_ORA_Pin());
+stack.node(), cfg.seg().consumers().entry<3>(), LED_ORA_Pin());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(
