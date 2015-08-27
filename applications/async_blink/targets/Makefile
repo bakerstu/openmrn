@@ -11,6 +11,7 @@ SUBDIRS = linux.x86 \
         freertos.armv7m.lpc1768-mbed \
         freertos.armv6m.lpc11cxx \
         freertos.armv6m.st-stm32f072b-discovery \
+        freertos.armv7m.st-stm32f303-discovery \
         freertos.armv4t.panda2 \
         freertos.mips4k.pic32mx-duinomitemega \
         js.emscripten \

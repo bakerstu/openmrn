@@ -42,6 +42,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
+#include "Stm32EEPROMEmulation.hxx"
 
 #include "hardware.hxx"
 
@@ -55,10 +56,17 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+
+// this driver causes us to crash in default_interrupt_handler. Check that the
+// appropriate weak definition / implementation is used.
+
+//static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
+
+/** EEPROM emulation driver. The file size might be made bigger. */
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 extern "C" {
 
@@ -184,10 +192,11 @@ void hw_preinit(void)
     clock_setup();
 
     /* enable peripheral clocks */
+    __GPIOA_CLK_ENABLE();
+    __GPIOB_CLK_ENABLE();
     __GPIOE_CLK_ENABLE();
-    //__GPIOB_CLK_ENABLE();
-    //__USART1_CLK_ENABLE();
-    //__CAN_CLK_ENABLE();
+    __USART1_CLK_ENABLE();
+    __CAN_CLK_ENABLE();
 
     GpioInit::hw_init();
 
