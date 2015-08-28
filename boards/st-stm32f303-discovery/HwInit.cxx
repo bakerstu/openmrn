@@ -38,6 +38,8 @@
 #include "stm32f3xx_hal_flash.h"
 #include "stm32f3xx_hal_gpio.h"
 #include "stm32f3xx_hal_gpio_ex.h"
+#include "stm32f3xx_hal_dma.h"
+#include "stm32f3xx_hal_tim.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -72,7 +74,7 @@ extern "C" {
 
 /** Blink LED */
 uint32_t blinker_pattern = 0;
-//static uint32_t rest_pattern = 0;
+static uint32_t rest_pattern = 0;
 
 void hw_set_to_safe(void)
 {
@@ -98,21 +100,22 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
-void timer5a_interrupt_handler(void)
+void tim7_interrupt_handler(void)
 {
-#if 0
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
+    TIM7->SR = ~TIM_IT_UPDATE;
+
     // Set output LED.
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1,
-                     (rest_pattern & 1) ? GPIO_PIN_1 : 0);
+    BLINKER_RAW_Pin::set(rest_pattern & 1);
+
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
+    {
         rest_pattern = blinker_pattern;
-#endif
+    }
 }
 
 void diewith(uint32_t pattern)
@@ -197,6 +200,7 @@ void hw_preinit(void)
     __GPIOE_CLK_ENABLE();
     __USART1_CLK_ENABLE();
     __CAN_CLK_ENABLE();
+    __TIM7_CLK_ENABLE();
 
     GpioInit::hw_init();
 
@@ -221,6 +225,27 @@ void hw_preinit(void)
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin       = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    /* Initializes the blinker timer. */
+    TIM_HandleTypeDef TimHandle;
+    TimHandle.Instance = TIM7;
+    TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
+    TimHandle.Init.Prescaler = 10000;
+    TimHandle.Init.ClockDivision = 0;
+    TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+    TimHandle.Init.RepetitionCounter = 0;
+    if (HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
+    {
+        /* Initialization Error */
+        HASSERT(0);
+    }
+    if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
+    {
+        /* Starting Error */
+        HASSERT(0);
+    }
+    NVIC_SetPriority(TIM7_IRQn, 0);
+    NVIC_EnableIRQ(TIM7_IRQn);
 }
 
 }
