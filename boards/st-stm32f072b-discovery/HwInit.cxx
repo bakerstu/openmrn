@@ -38,6 +38,8 @@
 #include "stm32f0xx_hal_flash.h"
 #include "stm32f0xx_hal_gpio.h"
 #include "stm32f0xx_hal_gpio_ex.h"
+#include "stm32f0xx_hal_dma.h"
+#include "stm32f0xx_hal_tim.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -55,7 +57,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-//static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+// static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -67,7 +69,7 @@ extern "C" {
 
 /** Blink LED */
 uint32_t blinker_pattern = 0;
-//static uint32_t rest_pattern = 0;
+static uint32_t rest_pattern = 0;
 
 void hw_set_to_safe(void)
 {
@@ -85,26 +87,27 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
-void timer5a_interrupt_handler(void)
+void timer14_interrupt_handler(void)
 {
-#if 0
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
+    TIM14->SR = ~TIM_IT_UPDATE;
+
     // Set output LED.
-    MAP_GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1,
-                     (rest_pattern & 1) ? GPIO_PIN_1 : 0);
+    BLINKER_RAW_Pin::set(rest_pattern & 1);
+
     // Shift and maybe reset pattern.
     rest_pattern >>= 1;
     if (!rest_pattern)
+    {
         rest_pattern = blinker_pattern;
-#endif
+    }
 }
 
 void diewith(uint32_t pattern)
 {
-    //vPortClearInterruptMask(0x20);
+    // vPortClearInterruptMask(0x20);
     asm("cpsie i\n");
 
     resetblink(pattern);
@@ -117,26 +120,32 @@ static void clock_setup(void)
 {
     /* reset clock configuration to default state */
     RCC->CR = RCC_CR_HSITRIM_4 | RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
+    while (!(RCC->CR & RCC_CR_HSIRDY))
+        ;
 
 #define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 0
-    /* configure PLL:  8 MHz * 6 = 48 MHz */
+/* configure PLL:  8 MHz * 6 = 48 MHz */
 #if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
     RCC->CR |= RCC_CR_HSEON;
-    while (!(RCC->CR & RCC_CR_HSERDY));
+    while (!(RCC->CR & RCC_CR_HSERDY))
+        ;
     RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSE_PREDIV | RCC_CFGR_SW_HSE;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSE));
+    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSE))
+        ;
 #else
     RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSI_PREDIV | RCC_CFGR_SW_HSI;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSI));
+    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSI))
+        ;
 #endif
     /* enable PLL */
     RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
+    while (!(RCC->CR & RCC_CR_PLLRDY))
+        ;
 
     /* set PLL as system clock */
     RCC->CFGR = (RCC->CFGR & (~RCC_CFGR_SW)) | RCC_CFGR_SW_PLL;
-    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL));
+    while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL))
+        ;
 }
 
 /** Initialize the processor hardware.
@@ -159,31 +168,53 @@ void hw_preinit(void)
     __GPIOC_CLK_ENABLE();
     __USART1_CLK_ENABLE();
     __CAN_CLK_ENABLE();
+    __TIM14_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
 
     /* USART1 pinmux on PA9 and PA10 */
-    gpio_init.Mode      = GPIO_MODE_AF_PP;
-    gpio_init.Pull      = GPIO_PULLUP;
-    gpio_init.Speed     = GPIO_SPEED_HIGH;
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_PULLUP;
+    gpio_init.Speed = GPIO_SPEED_HIGH;
     gpio_init.Alternate = GPIO_AF1_USART1;
-    gpio_init.Pin       = GPIO_PIN_9;
+    gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOA, &gpio_init);
-    gpio_init.Pin       = GPIO_PIN_10;
+    gpio_init.Pin = GPIO_PIN_10;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
     /* CAN pinmux on PB8 and PB9 */
-    gpio_init.Mode      = GPIO_MODE_AF_PP;
-    gpio_init.Pull      = GPIO_PULLUP;
-    gpio_init.Speed     = GPIO_SPEED_HIGH;
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_PULLUP;
+    gpio_init.Speed = GPIO_SPEED_HIGH;
     gpio_init.Alternate = GPIO_AF4_CAN;
-    gpio_init.Pin       = GPIO_PIN_8;
+    gpio_init.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);
-    gpio_init.Pin       = GPIO_PIN_9;
+    gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
 
     GpioInit::hw_init();
+
+    /* Initializes the blinker timer. */
+    TIM_HandleTypeDef TimHandle;
+    TimHandle.Instance = TIM14;
+    TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
+    TimHandle.Init.Prescaler = 10000;
+    TimHandle.Init.ClockDivision = 0;
+    TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+    TimHandle.Init.RepetitionCounter = 0;
+    if (HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
+    {
+        /* Initialization Error */
+        HASSERT(0);
+    }
+    if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
+    {
+        /* Starting Error */
+        HASSERT(0);
+    }
+    NVIC_SetPriority(TIM14_IRQn, 0);
+    NVIC_EnableIRQ(TIM14_IRQn);
 }
 
 }
