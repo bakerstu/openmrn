@@ -78,13 +78,8 @@ TivaRailcomDriver<RailcomHw> railcom_driver("/dev/railcom");
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 #endif
 
-extern const uint16_t __eeprom_start[];
-const uint16_t* const TivaEEPROMEmulation::raw = __eeprom_start;
-extern const uint16_t __eeprom_end[];
-const size_t TivaEEPROMEmulation::FLASH_SIZE = sizeof(__eeprom_end[0])*(__eeprom_end - __eeprom_start);
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
-const size_t TivaEEPROMEmulation::ADDRESS_SPACE = 512;
-const bool TivaEEPROMEmulation::SHADOW_IN_RAM = false;
+const size_t EEPROMEmulation::SECTOR_SIZE = (1024);
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
 
 extern "C" {
