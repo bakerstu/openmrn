@@ -73,6 +73,8 @@ struct TractionDefs {
     static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
     /// Producing this event causes all operations to stop (usually by turning
     /// off the command station power output).
+    /// @TODO : there is a mistake in this constant. It should start with
+    /// 0100 by the standard (instead of 0101).
     static const uint64_t EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
     /// Producing this event resumes all operations (usually by turning power
     /// back on).
