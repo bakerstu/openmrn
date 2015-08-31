@@ -194,6 +194,35 @@ public:
         return !count_;
     }
 
+    /// Checks if there is exactly one outstanding notification left in the
+    /// barrier. It is required that the caller be actually holding on to a
+    /// child. Effectively this tests whether there were either no children
+    /// created, or all were notified inline.
+    ///
+    /// The use-case is that the owner of the barrier wants to figure out
+    /// whether all children completed inline or not. If the children were
+    /// completed inline, we may want to call the next phase immediately
+    /// instead of yielding to the executor. For that the barrier must
+    /// swallow the notification.
+    ///
+    /// @returns true, if there were exactly one outstanding notify pending,
+    /// and in such case sets the barrier to done. Otherwise returns false and
+    /// has no side-effect.
+    bool abort_if_almost_done()
+    {
+        AtomicHolder h(this);
+        HASSERT(!is_done());
+        if (count_ == 1)
+        {
+            count_ = 0;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
 private:
     unsigned count_;
     Notifiable* done_;
