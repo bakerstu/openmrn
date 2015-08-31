@@ -2,6 +2,10 @@
 
 performance data collected:
 
+
+FOR COMPILATION WITH -Os
+========================
+
 processing 20 events of 0100..0104 (which have 8 matches in the registry)
 ~40 msec  (37-40 msec)
 for 100:
@@ -15,4 +19,18 @@ for 100 irrelevant events: 4-10 msec
 
 processing events with one match in the registry:
 100-140 msec for 100 events.
+
+
+
+FOR COMPILATION WITH -O3
+========================
+
+processing events with 8 match in the registry:
+160-200 msec for 100 events.
+
+processing events with one match in the registry:
+100-125 msec for 100 events.
+
+processing events with zero match in the registry:
+1-12 msec for 100 events.
 
