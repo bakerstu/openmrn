@@ -60,7 +60,7 @@ CXXFLAGS += -c $(CORECFLAGS) -std=gnu++0x -D_ISOC99_SOURCE \
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+           -Wl,--undefined=ignore_fn -Wl,--undefined=cpuload_tick $(LDFLAGSEXTRA) $(LDFLAGSENV) \
            --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
 
 # We disable linking against certain components from libc that we don't need
