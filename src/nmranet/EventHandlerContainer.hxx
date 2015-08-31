@@ -48,6 +48,7 @@
 
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
+#include "utils/SortedListMap.hxx"
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 
@@ -133,7 +134,7 @@ class VectorEventHandlers : public EventRegistry {
   HandlersList handlers_;
 };
 
-/// EventRegistry implementation that keeps event handlers in a red-black tree
+/// EventRegistry implementation that keeps event handlers in a SortedListMap
 /// and filters the event handler calls based on the registered event handler
 /// arguments (id/mask).
 class TreeEventHandlers : public EventRegistry, private Atomic {
@@ -148,7 +149,7 @@ private:
     class Iterator;
     friend class Iterator;
 
-    typedef std::multimap<uint64_t, EventHandler*> OneMaskMap;
+    typedef SortedListMap<uint64_t, EventHandler*> OneMaskMap;
     typedef std::map<uint8_t, OneMaskMap> MaskLookupMap;
     /** The registered handlers. The offset in the first map tell us how many
      * bits wide the registration is (it is the mask value in the register

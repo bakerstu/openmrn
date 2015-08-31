@@ -40,6 +40,7 @@ processing events with zero match in the registry:
 
 AFTER FIRST ROUND OF OPTIMIZATION
 =================================
+(eliminate eventhandlercall)
 
 
 processing events with 8 match in the registry:  (0100)
@@ -54,6 +55,7 @@ processing events with zero match in the registry:
 
 AFTER SECOND ROUND OF OPTIMIZATION
 =================================
+(add new version of barriernotify)
 
 processing events with 8 match in the registry:  (0100)
 8-17 msec
@@ -66,6 +68,18 @@ processing events with zero match in the registry:
 
 
 
+AFTER MEMORY OPTIMIZATION
+=================================
+(with new tree event handler implementation)
+
+processing events with 8 match in the registry:  (0100)
+12-18 msec
+
+processing events with one match in the registry: 
+7-16 msec for 100 events.
+
+processing events with zero match in the registry:
+2-10 msec for 100 events.
 
 
 
@@ -84,3 +98,9 @@ delta:
 per consumer size: 144 bytes.
 
  
+AFTER MEMORY OPTIMIZATION
+0x612c (appl_main: 53a0 pool: 376)
+
+adding four consumers:
+0x622c (appl_main 54a0 pool: 376)
+per consumer size: 64
