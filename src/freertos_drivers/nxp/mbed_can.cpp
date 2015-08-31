@@ -36,10 +36,17 @@
 #include "Can.hxx"
 #ifdef TARGET_LPC2368
 #include "lpc23xx.h"
+
+int tx_led = 0;
+
 #endif
 
 #ifdef TARGET_LPC1768
 #include "LPC17xx.h"
+
+extern DigitalOut d1;
+DigitalOut& tx_led = d1;
+
 #endif
 
 /** CAN driver implementation using an mbed-supported CAN device.
@@ -117,6 +124,7 @@ void MbedCanDriver::tx_msg()
         txBuf->signal_condition();
     }
     txPending_ = 1;
+    tx_led = 1;
     taskEXIT_CRITICAL();
 }
 
@@ -157,6 +165,7 @@ void MbedCanDriver::interrupt()
                            can_frame->can_eff ? CANExtended : CANStandard);
             if (mbedCan_.write(msg))
             {
+                tx_led = 1;
                 txPending_ = 1;
                 txBuf->consume(1);
                 txBuf->signal_condition_from_isr();
@@ -167,11 +176,13 @@ void MbedCanDriver::interrupt()
                 // then TX1 buffer is empty, so if write fails, then... a task
                 // switch occured while serving an interrupt handler?
                 overrunCount++;
+                tx_led = 0;
                 txPending_ = 0;
             }
         }
         else
         {
+            tx_led = 0;
             txPending_ = 0;
         }
     }
