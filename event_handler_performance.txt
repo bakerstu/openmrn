@@ -52,3 +52,16 @@ processing events with zero match in the registry:
 2-8 msec for 100 events.
 
 
+AFTER SECOND ROUND OF OPTIMIZATION
+=================================
+
+processing events with 8 match in the registry:  (0100)
+8-17 msec
+
+processing events with one match in the registry: 
+6-15 msec for 100 events.
+
+processing events with zero match in the registry:
+2-8 msec for 100 events.
+
+

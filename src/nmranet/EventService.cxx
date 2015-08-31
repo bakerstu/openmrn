@@ -313,17 +313,17 @@ void InlineEventIteratorFlow::no_more_matches()
 
 StateFlowBase::Action InlineEventIteratorFlow::perform_call()
 {
-    /// @TODO (balazs.racz) we should have a different Notifiable here. The
-    /// problem is that if the Notifiable is notified inline, we want to keep
-    /// performing the iteration inline without returning to the executor. This
-    /// is not possible with the existing implementation of
-    /// BarrierNotifiable. A possible solution would be to take another child
-    /// of the barrier, and test after the call for the barrier to have exactly
-    /// one outstanding child left (no that's not a race condition); if yes,
-    /// then call immediately else notify and wait-and-call.
     n_.reset(this);
+    // It is required to hold on to a child to call abort_if_almost_done. 
+    auto* c = n_.new_child();
     (currentHandler_->*(fn_))(&eventReport_, &n_);
-    return wait_and_call(STATE(iterate_next));
+    if (n_.abort_if_almost_done()) {
+        // Aborted. Event handler did not do any asynchronous action.
+        return call_immediately(STATE(iterate_next));
+    } else {
+        c->notify();
+        return wait_and_call(STATE(iterate_next));
+    }
 }
 
 } /* namespace nmranet */
