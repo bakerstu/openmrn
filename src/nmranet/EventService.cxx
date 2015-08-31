@@ -243,6 +243,7 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
         // Iterators are invalidated. We need to start over. This may cause
         // duplicate delivery of the same events.
         iterator_->clear_iteration();
+        eventRegistryEpoch_ = eventService_->impl()->registry->get_epoch();
         iterator_->init_iteration(&eventReport_);
     }
 
