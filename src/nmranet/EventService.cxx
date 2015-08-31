@@ -85,6 +85,9 @@ EventIteratorFlow::EventIteratorFlow(If *async_if, EventService *event_service,
     : IncomingMessageStateFlow(async_if)
     , eventService_(event_service)
     , iterator_(event_service->impl()->registry->create_iterator())
+#ifdef DEBUG_EVENT_PERFORMANCE
+    , mtiValue_(mti_value)
+#endif
 {
     interface()->dispatcher()->register_handler(this, mti_value, mti_mask);
 }
@@ -124,6 +127,9 @@ StateFlowBase::Action EventIteratorFlow::entry()
 {
     // at this point: we have the mutex.
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
+#ifdef DEBUG_EVENT_PERFORMANCE
+    currentProcessStart_ = os_get_time_monotonic();
+#endif    
     EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
@@ -241,6 +247,23 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
             incomingDone_->notify();
             incomingDone_ = nullptr;
         }
+
+#ifdef DEBUG_EVENT_PERFORMANCE
+        long long len = os_get_time_monotonic() - currentProcessStart_;
+        numProcessNsec_ += len;
+        countEvents_++;
+        if (countEvents_ >= REPORT_COUNT)
+        {
+        long msec = numProcessNsec_ / 1000000;
+        printf("event perf for mti %04x: %ld msec for %d events\n",
+            mtiValue_, msec, REPORT_COUNT);
+        countEvents_ = 0;
+        numProcessNsec_ = 0;
+        }
+
+#endif    
+
+
         return exit();
     }
     Buffer<EventHandlerCall> *b;

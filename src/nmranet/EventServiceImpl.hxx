@@ -152,6 +152,17 @@ private:
 
     BarrierNotifiable n_;
     EventHandlerFunction fn_;
+
+#ifdef DEBUG_EVENT_PERFORMANCE
+    static const int REPORT_COUNT = 100;
+    /// How many events' cost are accumulated so far.
+    uint8_t countEvents_{0};
+    uint16_t mtiValue_;
+    /// Accumulator of how many msec processingthe events took.
+    long long numProcessNsec_{0};
+    /// When the processing of the current event started.
+    long long currentProcessStart_{0};
+#endif
 };
 
 } // namespace nmranet

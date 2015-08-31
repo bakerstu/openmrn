@@ -44,6 +44,8 @@
 #define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
 #endif
 
+#define DEBUG_EVENT_PERFORMANCE
+
 #include <memory>
 
 #include "utils/macros.h"
