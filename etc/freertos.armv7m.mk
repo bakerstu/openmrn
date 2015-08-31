@@ -50,9 +50,11 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           $(CFLAGSENV) $(CFLAGSEXTRA)
 
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
-            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
+            -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
+
+	   # -D__LINEAR_MAP__
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
