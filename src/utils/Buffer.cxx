@@ -128,6 +128,7 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
                     if (0 && totalSize < 5000 && totalSize + current->size() >= 5000) {
                         HASSERT(0);
                     }
+                    current->allocCount_++;
                     totalSize += current->size();
                 }
             }
