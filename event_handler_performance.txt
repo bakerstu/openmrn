@@ -1,6 +1,9 @@
 
 
-performance data collected:
+performance data collected: 
+
+(this is for the tcs io board, with the restricted set of inputs/outputs
+enabled: 40 outputs and about 15 inputs)
 
 
 FOR COMPILATION WITH -Os
@@ -33,4 +36,19 @@ processing events with one match in the registry:
 
 processing events with zero match in the registry:
 1-12 msec for 100 events.
+
+
+AFTER FIRST ROUND OF OPTIMIZATION
+=================================
+
+
+processing events with 8 match in the registry:  (0100)
+24-34 msec for 100 events.
+
+processing events with one match in the registry: 
+12-20 msec for 100 events.
+
+processing events with zero match in the registry:
+2-8 msec for 100 events.
+
 

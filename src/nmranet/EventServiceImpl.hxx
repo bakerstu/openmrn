@@ -80,6 +80,7 @@ public:
 
 private:
     virtual Action entry() OVERRIDE;
+    Action perform_call();
     Action call_done();
 
     BarrierNotifiable n_;
@@ -119,7 +120,7 @@ public:
 };
 
 /** Flow to receive incoming messages of event protocol, and dispatch them to
- * the global event handler. This flow runs on the executor of the event
+ * the registered event handler. This flow runs on the executor of the event
  * service (and not necessarily the interface). Its main job is to iterate
  * through the matching event handler and call each of them for that report. */
 class EventIteratorFlow : public IncomingMessageStateFlow
@@ -134,6 +135,12 @@ protected:
     Action iterate_next();
 
 private:
+    virtual Action dispatch_event(EventHandler* handler);
+    /// Called when there will be no more dispatch_event calls for this
+    /// iteration.
+    virtual void no_more_matches() {};
+
+protected:
     EventService *eventService_;
 
     /// Statically allocated structure for calling the event handlers from the
@@ -163,6 +170,29 @@ private:
     /// When the processing of the current event started.
     long long currentProcessStart_{0};
 #endif
+};
+
+/** Flow to receive incoming messages of event protocol, and dispatch them to
+ * the registered event handler. This flow runs on the executor of the event
+ * service (and not necessarily the interface). Its main job is to iterate
+ * through the matching event handler and call each of them for that report. */
+class InlineEventIteratorFlow : public EventIteratorFlow
+{
+public:
+    InlineEventIteratorFlow(If *interface, EventService *event_service,
+                            unsigned mti_value, unsigned mti_mask) :
+        EventIteratorFlow(interface, event_service, mti_value, mti_mask) {}
+
+private:
+    Action dispatch_event(EventHandler* handler) OVERRIDE;
+    void no_more_matches() OVERRIDE;
+
+    Action perform_call();
+
+    /// True if we are already holding the event handler mutex.
+    bool holdingEventMutex_{false};
+    /// The handler we need to call.
+    EventHandler* currentHandler_{nullptr};
 };
 
 } // namespace nmranet

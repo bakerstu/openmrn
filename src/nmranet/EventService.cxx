@@ -19,6 +19,7 @@ namespace nmranet
 
 /*static*/
 EventService *EventService::instance = nullptr;
+static AsyncMutex event_caller_mutex;
 
 EventService::EventService(ExecutorBase *e) : Service(e)
 {
@@ -43,7 +44,7 @@ EventService::~EventService()
 
 void EventService::register_interface(If *interface)
 {
-    impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
+    impl()->ownedFlows_.emplace_back(new InlineEventIteratorFlow(
         interface, this, EventService::Impl::MTI_VALUE_EVENT,
         EventService::Impl::MTI_MASK_EVENT));
     impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
@@ -69,6 +70,11 @@ EventService::Impl::~Impl()
 
 StateFlowBase::Action EventCallerFlow::entry()
 {
+    return allocate_and_call(STATE(perform_call), &event_caller_mutex);
+}
+
+StateFlowBase::Action EventCallerFlow::perform_call()
+{
     n_.reset(this);
     EventHandlerCall *c = message()->data();
     (c->handler->*(c->fn))(c->rep, &n_);
@@ -77,6 +83,7 @@ StateFlowBase::Action EventCallerFlow::entry()
 
 StateFlowBase::Action EventCallerFlow::call_done()
 {
+    event_caller_mutex.Unlock();
     return release_and_exit();
 }
 
@@ -242,6 +249,7 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
     EventHandler *handler = iterator_->next_entry();
     if (!handler)
     {
+        no_more_matches();
         if (incomingDone_)
         {
             incomingDone_->notify();
@@ -266,6 +274,11 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
 
         return exit();
     }
+    return dispatch_event(handler);
+}
+
+StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler* handler) 
+{
     Buffer<EventHandlerCall> *b;
     /* This could be made an asynchronous allocation. Then the pool could be
      * made fixed size. */
@@ -276,6 +289,41 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
     b->set_done(&n_);
     eventService_->impl()->callerFlow_.send(b, priority());
     return wait();
+}
+
+StateFlowBase::Action InlineEventIteratorFlow::dispatch_event(EventHandler* handler)
+{
+    currentHandler_ = handler;
+    if (!holdingEventMutex_) {
+        holdingEventMutex_ = true; // will be true when we get called again
+        return allocate_and_call(STATE(perform_call), &event_caller_mutex);
+    } else {
+        return perform_call();
+    }
+}
+
+void InlineEventIteratorFlow::no_more_matches()
+{
+    if (holdingEventMutex_)
+    {
+        event_caller_mutex.Unlock();
+        holdingEventMutex_ = false;
+    }
+}
+
+StateFlowBase::Action InlineEventIteratorFlow::perform_call()
+{
+    /// @TODO (balazs.racz) we should have a different Notifiable here. The
+    /// problem is that if the Notifiable is notified inline, we want to keep
+    /// performing the iteration inline without returning to the executor. This
+    /// is not possible with the existing implementation of
+    /// BarrierNotifiable. A possible solution would be to take another child
+    /// of the barrier, and test after the call for the barrier to have exactly
+    /// one outstanding child left (no that's not a race condition); if yes,
+    /// then call immediately else notify and wait-and-call.
+    n_.reset(this);
+    (currentHandler_->*(fn_))(&eventReport_, &n_);
+    return wait_and_call(STATE(iterate_next));
 }
 
 } /* namespace nmranet */
