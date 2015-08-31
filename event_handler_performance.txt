@@ -1,0 +1,18 @@
+
+
+performance data collected:
+
+processing 20 events of 0100..0104 (which have 8 matches in the registry)
+~40 msec  (37-40 msec)
+for 100:
+174 or 212 msec (there is probably a rounding problem here, freertos cannot really measure sub-millisecond time)
+
+
+processing 20 events that have zero matches
+~2 msec (0-3 msec)
+for 100 irrelevant events: 4-10 msec
+
+
+processing events with one match in the registry:
+100-140 msec for 100 events.
+
