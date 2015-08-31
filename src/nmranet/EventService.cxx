@@ -136,7 +136,7 @@ StateFlowBase::Action EventIteratorFlow::entry()
     LOG(VERBOSE, "GlobalFlow::HandleEvent");
 #ifdef DEBUG_EVENT_PERFORMANCE
     currentProcessStart_ = os_get_time_monotonic();
-#endif    
+#endif
     EventReport *rep = &eventReport_;
     rep->src_node = nmsg()->src;
     rep->dst_node = nmsg()->dstNode;
@@ -239,7 +239,8 @@ StateFlowBase::Action EventIteratorFlow::entry()
 
 StateFlowBase::Action EventIteratorFlow::iterate_next()
 {
-    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch()) {
+    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch())
+    {
         // Iterators are invalidated. We need to start over. This may cause
         // duplicate delivery of the same events.
         iterator_->clear_iteration();
@@ -263,22 +264,21 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
         countEvents_++;
         if (countEvents_ >= REPORT_COUNT)
         {
-        long msec = numProcessNsec_ / 1000000;
-        printf("event perf for mti %04x: %ld msec for %d events\n",
-            mtiValue_, msec, REPORT_COUNT);
-        countEvents_ = 0;
-        numProcessNsec_ = 0;
+            long msec = numProcessNsec_ / 1000000;
+            printf("event perf for mti %04x: %ld msec for %d events\n",
+                   mtiValue_, msec, REPORT_COUNT);
+            countEvents_ = 0;
+            numProcessNsec_ = 0;
         }
 
-#endif    
-
+#endif
 
         return exit();
     }
     return dispatch_event(handler);
 }
 
-StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler* handler) 
+StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler *handler)
 {
     Buffer<EventHandlerCall> *b;
     /* This could be made an asynchronous allocation. Then the pool could be
@@ -292,13 +292,17 @@ StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler* handler)
     return wait();
 }
 
-StateFlowBase::Action InlineEventIteratorFlow::dispatch_event(EventHandler* handler)
+StateFlowBase::Action
+InlineEventIteratorFlow::dispatch_event(EventHandler *handler)
 {
     currentHandler_ = handler;
-    if (!holdingEventMutex_) {
+    if (!holdingEventMutex_)
+    {
         holdingEventMutex_ = true; // will be true when we get called again
         return allocate_and_call(STATE(perform_call), &event_caller_mutex);
-    } else {
+    }
+    else
+    {
         return perform_call();
     }
 }
@@ -315,13 +319,16 @@ void InlineEventIteratorFlow::no_more_matches()
 StateFlowBase::Action InlineEventIteratorFlow::perform_call()
 {
     n_.reset(this);
-    // It is required to hold on to a child to call abort_if_almost_done. 
-    auto* c = n_.new_child();
+    // It is required to hold on to a child to call abort_if_almost_done.
+    auto *c = n_.new_child();
     (currentHandler_->*(fn_))(&eventReport_, &n_);
-    if (n_.abort_if_almost_done()) {
+    if (n_.abort_if_almost_done())
+    {
         // Aborted. Event handler did not do any asynchronous action.
         return call_immediately(STATE(iterate_next));
-    } else {
+    }
+    else
+    {
         c->notify();
         return wait_and_call(STATE(iterate_next));
     }

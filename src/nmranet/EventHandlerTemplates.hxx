@@ -52,29 +52,32 @@ uint64_t EncodeRange(uint64_t begin, unsigned size);
 /// A proxy event handler has a single helper function that gets every event
 /// handler call with an indication of which call it is. It is helpful to
 /// create event containers that proxy calls to many event handler instances.
-class ProxyEventHandler : public EventHandler {
- public:
-  virtual ~ProxyEventHandler() {}
+class ProxyEventHandler : public EventHandler
+{
+public:
+    virtual ~ProxyEventHandler()
+    {
+    }
 
-  /// This function will be called for any other incoming event handler
-  /// function.
-  virtual void HandlerFn(EventHandlerFunction fn,
-                         EventReport* event,
-                         BarrierNotifiable* done) = 0;
+    /// This function will be called for any other incoming event handler
+    /// function.
+    virtual void HandlerFn(EventHandlerFunction fn, EventReport *event,
+                           BarrierNotifiable *done) = 0;
 
-#define DEFPROXYFN(FN)                                    \
-  virtual void FN(EventReport* event, BarrierNotifiable* done) { \
-    HandlerFn(&EventHandler::FN, event, done);     \
-  }
+#define DEFPROXYFN(FN)                                                         \
+    virtual void FN(EventReport *event, BarrierNotifiable *done)               \
+    {                                                                          \
+        HandlerFn(&EventHandler::FN, event, done);                             \
+    }
 
-  DEFPROXYFN(HandleEventReport);
-  DEFPROXYFN(HandleConsumerIdentified);
-  DEFPROXYFN(HandleConsumerRangeIdentified);
-  DEFPROXYFN(HandleProducerIdentified);
-  DEFPROXYFN(HandleProducerRangeIdentified);
-  DEFPROXYFN(HandleIdentifyGlobal);
-  DEFPROXYFN(HandleIdentifyConsumer);
-  DEFPROXYFN(HandleIdentifyProducer);
+    DEFPROXYFN(HandleEventReport);
+    DEFPROXYFN(HandleConsumerIdentified);
+    DEFPROXYFN(HandleConsumerRangeIdentified);
+    DEFPROXYFN(HandleProducerIdentified);
+    DEFPROXYFN(HandleProducerRangeIdentified);
+    DEFPROXYFN(HandleIdentifyGlobal);
+    DEFPROXYFN(HandleIdentifyConsumer);
+    DEFPROXYFN(HandleIdentifyProducer);
 
 #undef DEFPROXYFN
 };
@@ -82,18 +85,22 @@ class ProxyEventHandler : public EventHandler {
 /// SimpleEventHandler ignores all non-essential callbacks. This is used as as
 /// a base class for other event handler implementations to avoid duplicate
 /// code.
-class SimpleEventHandler : public EventHandler {
- public:
-#define IGNOREFN(FN) \
-  virtual void FN(EventReport* event, BarrierNotifiable* done) { done->notify(); }
+class SimpleEventHandler : public EventHandler
+{
+public:
+#define IGNOREFN(FN)                                                           \
+    virtual void FN(EventReport *event, BarrierNotifiable *done)               \
+    {                                                                          \
+        done->notify();                                                        \
+    }
 
-  IGNOREFN(HandleEventReport);
-  IGNOREFN(HandleConsumerIdentified);
-  IGNOREFN(HandleConsumerRangeIdentified);
-  IGNOREFN(HandleProducerIdentified);
-  IGNOREFN(HandleProducerRangeIdentified);
-  IGNOREFN(HandleIdentifyConsumer);
-  IGNOREFN(HandleIdentifyProducer);
+    IGNOREFN(HandleEventReport);
+    IGNOREFN(HandleConsumerIdentified);
+    IGNOREFN(HandleConsumerRangeIdentified);
+    IGNOREFN(HandleProducerIdentified);
+    IGNOREFN(HandleProducerRangeIdentified);
+    IGNOREFN(HandleIdentifyConsumer);
+    IGNOREFN(HandleIdentifyProducer);
 
 #undef IGNOREFN
 };
@@ -157,28 +164,40 @@ private:
 ///  - how to set the hardware to a new event state.
 ///
 /// See @ref BitEventProducer, @ref BitEventConsumer, @ref BitEventPC.
-class BitEventInterface {
- public:
-  BitEventInterface(uint64_t event_on, uint64_t event_off)
-      : event_on_(event_on), event_off_(event_off) {}
-  /// returns the current hardware state: true for ON, false for OFF.
-  virtual bool GetCurrentState() = 0;
-  /// Updates the hardware for the new event state.
-  ///
-  /// @param new_value is true for state ON, false for state OFF.
-  virtual void SetState(bool new_value) = 0;
-  /// returns the event ID for representing the state transition OFF->ON.
-  uint64_t event_on() { return event_on_; }
-  /// returns the event ID for representing the state transition ON->OFF.
-  uint64_t event_off() { return event_off_; }
-  /// returns the OpenLCB virtual node from which to send the respective events
-  /// when the bit changes.
-  virtual Node *node() = 0;
- private:
-  uint64_t event_on_;
-  uint64_t event_off_;
+class BitEventInterface
+{
+public:
+    BitEventInterface(uint64_t event_on, uint64_t event_off)
+        : event_on_(event_on)
+        , event_off_(event_off)
+    {
+    }
+    /// returns the current hardware state: true for ON, false for OFF.
+    virtual bool GetCurrentState() = 0;
+    /// Updates the hardware for the new event state.
+    ///
+    /// @param new_value is true for state ON, false for state OFF.
+    virtual void SetState(bool new_value) = 0;
+    /// returns the event ID for representing the state transition OFF->ON.
+    uint64_t event_on()
+    {
+        return event_on_;
+    }
+    /// returns the event ID for representing the state transition ON->OFF.
+    uint64_t event_off()
+    {
+        return event_off_;
+    }
+    /// returns the OpenLCB virtual node from which to send the respective
+    /// events
+    /// when the bit changes.
+    virtual Node *node() = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(BitEventInterface);
+private:
+    uint64_t event_on_;
+    uint64_t event_off_;
+
+    DISALLOW_COPY_AND_ASSIGN(BitEventInterface);
 };
 
 /// Simple implementation of a BitEventInterface when the true state ofthe
@@ -187,33 +206,49 @@ class BitEventInterface {
 ///
 /// The template argument is the C++ type of the raw pointer, usually uint32_t
 /// or uint8_t.
-template<class T> class MemoryBit : public BitEventInterface {
- public:
-  /// @param ptr defines the memory address of the bit where the hardware state
-  /// is located in the address space. @param mask defines which bit at that
-  /// address. If there are multiple bits set in mask, they will all be
-  /// set/cleared for output purposes, and if any of them is set, the input
-  /// will be considered on.
-  MemoryBit(Node *node, uint64_t event_on, uint64_t event_off, T* ptr, T mask)
-      : BitEventInterface(event_on, event_off),
-        node_(node), ptr_(ptr), mask_(mask) {}
-
-  virtual Node *node() { return node_; }
-  virtual bool GetCurrentState() { return (*ptr_) & mask_; }
-  virtual void SetState(bool new_value) {
-    if (new_value) {
-      *ptr_ |= mask_;
-    } else {
-      *ptr_ &= ~mask_;
+template <class T> class MemoryBit : public BitEventInterface
+{
+public:
+    /// @param ptr defines the memory address of the bit where the hardware
+    /// state
+    /// is located in the address space. @param mask defines which bit at that
+    /// address. If there are multiple bits set in mask, they will all be
+    /// set/cleared for output purposes, and if any of them is set, the input
+    /// will be considered on.
+    MemoryBit(Node *node, uint64_t event_on, uint64_t event_off, T *ptr, T mask)
+        : BitEventInterface(event_on, event_off)
+        , node_(node)
+        , ptr_(ptr)
+        , mask_(mask)
+    {
     }
-  }
 
- private:
-  Node *node_;
-  T* ptr_;
-  T mask_;
+    virtual Node *node()
+    {
+        return node_;
+    }
+    virtual bool GetCurrentState()
+    {
+        return (*ptr_) & mask_;
+    }
+    virtual void SetState(bool new_value)
+    {
+        if (new_value)
+        {
+            *ptr_ |= mask_;
+        }
+        else
+        {
+            *ptr_ &= ~mask_;
+        }
+    }
 
-  DISALLOW_COPY_AND_ASSIGN(MemoryBit);
+private:
+    Node *node_;
+    T *ptr_;
+    T mask_;
+
+    DISALLOW_COPY_AND_ASSIGN(MemoryBit);
 };
 
 /// Simple implementation of the BitEventInterface for going through GPIO
@@ -221,7 +256,7 @@ template<class T> class MemoryBit : public BitEventInterface {
 class GPIOBit : public BitEventInterface
 {
 public:
-    GPIOBit(Node *node, EventId event_on, EventId event_off, Gpio* gpio)
+    GPIOBit(Node *node, EventId event_on, EventId event_off, Gpio *gpio)
         : BitEventInterface(event_on, event_off)
         , node_(node)
         , gpio_(gpio)
@@ -249,60 +284,64 @@ public:
 
 public:
     Node *node_;
-    Gpio* gpio_;
+    Gpio *gpio_;
 };
 
 /// Base class for single-bit producer and consumer objects.
 ///
 /// Contains helper functions for operations shared by event handlers.
-class BitEventHandler : public SimpleEventHandler {
- public:
-  BitEventHandler(BitEventInterface* bit);
+class BitEventHandler : public SimpleEventHandler
+{
+public:
+    BitEventHandler(BitEventInterface *bit);
 
-  /// Requests the event associated with the current value of the bit to be
-  /// produced (unconditionally): sends an event report packet ot the bus.
-  ///
-  /// @param writer is the output flow to be used.
-  ///
-  /// @param done is the notification callback. If it is NULL, the writer will
-  /// be invoked inline and potentially block the calling thread.
-  void SendEventReport(WriteHelper *writer, Notifiable *done);
+    /// Requests the event associated with the current value of the bit to be
+    /// produced (unconditionally): sends an event report packet ot the bus.
+    ///
+    /// @param writer is the output flow to be used.
+    ///
+    /// @param done is the notification callback. If it is NULL, the writer will
+    /// be invoked inline and potentially block the calling thread.
+    void SendEventReport(WriteHelper *writer, Notifiable *done);
 
- protected:
-  /// Registers this event handler with the global event manager. Call this from
-  /// the constructor of the derived class.
-  void register_handler();
-  /// Removes this event handler from the global event manager. Call this from
-  /// the destructor of the derived class.
-  void unregister_handler();
+protected:
+    /// Registers this event handler with the global event manager. Call this
+    /// from
+    /// the constructor of the derived class.
+    void register_handler();
+    /// Removes this event handler from the global event manager. Call this from
+    /// the destructor of the derived class.
+    void unregister_handler();
 
-  /// Sends off two packets using event_write_helper{1,2} of ProducerIdentified
-  /// for handling a global identify events message. Allocates children from
-  /// barrier done (but does not notify it).
-  ///
-  /// @TODO: for consistency of API this function should be changed to notify
-  /// the barrier. The caller should always use new_child.
-  void SendProducerIdentified(BarrierNotifiable* done);
+    /// Sends off two packets using event_write_helper{1,2} of
+    /// ProducerIdentified
+    /// for handling a global identify events message. Allocates children from
+    /// barrier done (but does not notify it).
+    ///
+    /// @TODO: for consistency of API this function should be changed to notify
+    /// the barrier. The caller should always use new_child.
+    void SendProducerIdentified(BarrierNotifiable *done);
 
-  /// Sends off two packets using event_write_helper{3,4} of ConsumerIdentified
-  /// for handling a global identify events message. Allocates children from
-  /// barrier done (but does not notify it).
-  ///
-  /// @TODO: for consistency of API this function should be changed to notify
-  /// the barrier. The caller should always use new_child.
-  void SendConsumerIdentified(BarrierNotifiable* done);
+    /// Sends off two packets using event_write_helper{3,4} of
+    /// ConsumerIdentified
+    /// for handling a global identify events message. Allocates children from
+    /// barrier done (but does not notify it).
+    ///
+    /// @TODO: for consistency of API this function should be changed to notify
+    /// the barrier. The caller should always use new_child.
+    void SendConsumerIdentified(BarrierNotifiable *done);
 
-  /// Checks if the event in the report is something we are interested in, and
-  /// if so, sends off a {Producer|Consumer}Identified{Valid|Invalid} message
-  /// depending on the current state of the hardware bit. Uses
-  /// event_write_helper1. Notifies done.
-  void HandlePCIdentify(Defs::MTI mti_valid, EventReport *event,
-                        BarrierNotifiable *done);
+    /// Checks if the event in the report is something we are interested in, and
+    /// if so, sends off a {Producer|Consumer}Identified{Valid|Invalid} message
+    /// depending on the current state of the hardware bit. Uses
+    /// event_write_helper1. Notifies done.
+    void HandlePCIdentify(Defs::MTI mti_valid, EventReport *event,
+                          BarrierNotifiable *done);
 
-  BitEventInterface* bit_;
+    BitEventInterface *bit_;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(BitEventHandler);
+private:
+    DISALLOW_COPY_AND_ASSIGN(BitEventHandler);
 };
 
 /// Event handler for a single-bit producer, e.g. an individual pin of GPIO
@@ -315,38 +354,41 @@ class BitEventHandler : public SimpleEventHandler {
 /// BitEventInterface. Instantiate this class by passing the pointer to it in
 /// the constructor. When the hardware state changes, call the @ref
 /// SendEventReport method.
-class BitEventProducer : public BitEventHandler {
- public:
-  BitEventProducer(BitEventInterface* bit)
-      : BitEventHandler(bit) {
-      register_handler();
-  }
-  ~BitEventProducer() {
-      unregister_handler();
-  }
+class BitEventProducer : public BitEventHandler
+{
+public:
+    BitEventProducer(BitEventInterface *bit) : BitEventHandler(bit)
+    {
+        register_handler();
+    }
+    ~BitEventProducer()
+    {
+        unregister_handler();
+    }
 
-  /// Requests the event associated with the current value of the bit to be
-  /// produced (unconditionally).
-  ///
-  /// @param writer is the output flow to be used.
-  ///
-  /// @param done is the notification callback. If it is NULL, the writer will
-  /// be invoked inline and potentially block the calling thread.
-  ///
-  /// @TODO: remove this function and change all callers to use SendEventReport
-  /// instead.
-  void Update(WriteHelper *writer, Notifiable *done)
-  {
-    SendEventReport(writer, done);
-  }
+    /// Requests the event associated with the current value of the bit to be
+    /// produced (unconditionally).
+    ///
+    /// @param writer is the output flow to be used.
+    ///
+    /// @param done is the notification callback. If it is NULL, the writer will
+    /// be invoked inline and potentially block the calling thread.
+    ///
+    /// @TODO: remove this function and change all callers to use
+    /// SendEventReport
+    /// instead.
+    void Update(WriteHelper *writer, Notifiable *done)
+    {
+        SendEventReport(writer, done);
+    }
 
-  virtual void HandleIdentifyGlobal(EventReport *event,
-                                    BarrierNotifiable *done);
-  virtual void HandleIdentifyProducer(EventReport *event,
+    virtual void HandleIdentifyGlobal(EventReport *event,
                                       BarrierNotifiable *done);
+    virtual void HandleIdentifyProducer(EventReport *event,
+                                        BarrierNotifiable *done);
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(BitEventProducer);
+private:
+    DISALLOW_COPY_AND_ASSIGN(BitEventProducer);
 };
 
 /// Event handler for a single-bit consumer, e.g. an individual pin of GPIO
@@ -396,105 +438,118 @@ public:
 /// When the current state of the bit changes, the application must call @ref
 /// SendEvent on this object, which will produce the necessary event message to
 /// the bus.
-class BitEventPC : public BitEventConsumer {
- public:
-  /// @param bit represents the event bits and the getter/setter of the
-  /// hardware state.
-  BitEventPC(BitEventInterface* bit)
-      : BitEventConsumer(bit) {}
+class BitEventPC : public BitEventConsumer
+{
+public:
+    /// @param bit represents the event bits and the getter/setter of the
+    /// hardware state.
+    BitEventPC(BitEventInterface *bit) : BitEventConsumer(bit)
+    {
+    }
 
-  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
+    virtual void HandleIdentifyProducer(EventReport *event,
+                                        BarrierNotifiable *done);
+    virtual void HandleIdentifyGlobal(EventReport *event,
+                                      BarrierNotifiable *done);
 };
 
 /// Producer-Consumer event handler for a sequence of bits represented by a
 /// dense block of consecutive event IDs.
-class BitRangeEventPC : public SimpleEventHandler {
- public:
-  /// Creates a new bit range listener. backing store points to memory of at
-  /// least size bits (round up to multiple of 32). This class will advertise
-  /// producing and consuming size * 2 events contiguous from
-  /// event_base. event_base will turn bit 0 on, event_base + 1 will turn bit 0
-  /// off, event_base + 2 will turn bit 1 on, event_base + 3 will turn bit 1
-  /// off, etc.
-  BitRangeEventPC(Node *node,
-                  uint64_t event_base,
-                  uint32_t* backing_store,
-                  unsigned size);
-  virtual ~BitRangeEventPC();
+class BitRangeEventPC : public SimpleEventHandler
+{
+public:
+    /// Creates a new bit range listener. backing store points to memory of at
+    /// least size bits (round up to multiple of 32). This class will advertise
+    /// producing and consuming size * 2 events contiguous from
+    /// event_base. event_base will turn bit 0 on, event_base + 1 will turn bit
+    /// 0
+    /// off, event_base + 2 will turn bit 1 on, event_base + 3 will turn bit 1
+    /// off, etc.
+    BitRangeEventPC(Node *node, uint64_t event_base, uint32_t *backing_store,
+                    unsigned size);
+    virtual ~BitRangeEventPC();
 
-  /// Requests the event associated with the current value of the bit to be
-  /// produced (unconditionally).
-  ///
-  /// @param node specifies the source node from which to produce the event.
-  ///
-  /// @param bit is the offset of the bit to set (0 <= bit < size)
-  ///
-  /// @param new_value is the new value of the bit
-  ///
-  /// @param writer is the output flow to be used.
-  ///
-  /// @param done is the notification callback. If it is NULL, the writer will
-  /// be invoked inline and potentially block the calling thread.
-  void Set(unsigned bit, bool new_value, WriteHelper* writer, BarrierNotifiable* done);
+    /// Requests the event associated with the current value of the bit to be
+    /// produced (unconditionally).
+    ///
+    /// @param node specifies the source node from which to produce the event.
+    ///
+    /// @param bit is the offset of the bit to set (0 <= bit < size)
+    ///
+    /// @param new_value is the new value of the bit
+    ///
+    /// @param writer is the output flow to be used.
+    ///
+    /// @param done is the notification callback. If it is NULL, the writer will
+    /// be invoked inline and potentially block the calling thread.
+    void Set(unsigned bit, bool new_value, WriteHelper *writer,
+             BarrierNotifiable *done);
 
-  /// @returns the value of a given bit. 0 <= bit < size_.
-  bool Get(unsigned bit) const;
+    /// @returns the value of a given bit. 0 <= bit < size_.
+    bool Get(unsigned bit) const;
 
-  /// Sends out a ProducerRangeIdentified.
-  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
+    /// Sends out a ProducerRangeIdentified.
+    void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
-  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
+    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
+    virtual void HandleIdentifyProducer(EventReport *event,
+                                        BarrierNotifiable *done);
+    virtual void HandleIdentifyConsumer(EventReport *event,
+                                        BarrierNotifiable *done);
+    virtual void HandleIdentifyGlobal(EventReport *event,
+                                      BarrierNotifiable *done);
 
- private:
-  void HandleIdentifyBase(Defs::MTI mti_valid, EventReport* event, BarrierNotifiable* done);
-  void GetBitAndMask(unsigned bit, uint32_t** data, uint32_t* mask) const;
+private:
+    void HandleIdentifyBase(Defs::MTI mti_valid, EventReport *event,
+                            BarrierNotifiable *done);
+    void GetBitAndMask(unsigned bit, uint32_t **data, uint32_t *mask) const;
 
-  uint64_t event_base_;
-  Node *node_;
-  uint32_t* data_;
-  unsigned size_;  //< number of bits stored.
+    uint64_t event_base_;
+    Node *node_;
+    uint32_t *data_;
+    unsigned size_; //< number of bits stored.
 };
 
 /// Consumer event handler for a sequence of bytes represented by a dense block
 /// of consecutive event IDs. Each byte has a consecutive block of 256 events.
-class ByteRangeEventC : public SimpleEventHandler {
- public:
-  /// Creates a new byte range listener. backing store points to memory of at
-  /// least size bytes. This class will advertise consuming size * 256 events
-  /// contiguous from event_base. event_base will set byte 0 to value 0,
-  /// event_base + 1 will set byte 0 to value 1, event_base + 256 will set byte
-  /// 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
-  ByteRangeEventC(Node *node,
-                  uint64_t event_base,
-                  uint8_t* backing_store,
-                  unsigned size);
-  virtual ~ByteRangeEventC();
+class ByteRangeEventC : public SimpleEventHandler
+{
+public:
+    /// Creates a new byte range listener. backing store points to memory of at
+    /// least size bytes. This class will advertise consuming size * 256 events
+    /// contiguous from event_base. event_base will set byte 0 to value 0,
+    /// event_base + 1 will set byte 0 to value 1, event_base + 256 will set
+    /// byte
+    /// 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
+    ByteRangeEventC(Node *node, uint64_t event_base, uint8_t *backing_store,
+                    unsigned size);
+    virtual ~ByteRangeEventC();
 
-  /// Sends out a ConsumerRangeIdentified.
-  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
+    /// Sends out a ConsumerRangeIdentified.
+    void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
-  /// This function is called by the handler when a data value overwrite event
-  /// arrives.
-  virtual void notify_changed(unsigned offset) {}
+    /// This function is called by the handler when a data value overwrite event
+    /// arrives.
+    virtual void notify_changed(unsigned offset)
+    {
+    }
 
-  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
+    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
+    virtual void HandleIdentifyConsumer(EventReport *event,
+                                        BarrierNotifiable *done);
+    virtual void HandleIdentifyGlobal(EventReport *event,
+                                      BarrierNotifiable *done);
 
- protected:
-  /// takes an event ID and checks if we are responsible for it. Returns false
-  /// if it is an uninteresting eventid, returns true and fills *data with the
-  /// byte pointer and *value with the corresponding value.
-  bool DecodeEventId(uint64_t event_id, uint8_t** data, uint8_t* value);
+protected:
+    /// takes an event ID and checks if we are responsible for it. Returns false
+    /// if it is an uninteresting eventid, returns true and fills *data with the
+    /// byte pointer and *value with the corresponding value.
+    bool DecodeEventId(uint64_t event_id, uint8_t **data, uint8_t *value);
 
-  uint64_t event_base_;
-  Node *node_;
-  uint8_t* data_;
-  unsigned size_;  //< number of bytes consumed.
+    uint64_t event_base_;
+    Node *node_;
+    uint8_t *data_;
+    unsigned size_; //< number of bytes consumed.
 };
 
 /** TODO(balazs.racz): Add another class here, ByteRangeEventPC. It should be
@@ -503,46 +558,52 @@ class ByteRangeEventC : public SimpleEventHandler {
 
 /// Producer event handler for a sequence of bytes represented by a dense block
 /// of consecutive event IDs. Each byte has a consecutive block of 256 events.
-class ByteRangeEventP : public ByteRangeEventC {
- public:
-  /// Creates a new byte range producer. backing store points to memory of at
-  /// least size bytes. This class will advertise producing size * 256 events
-  /// contiguous from event_base. event_base will set byte 0 to value 0,
-  /// event_base + 1 will set byte 0 to value 1, event_base + 256 will set byte
-  /// 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
-  ByteRangeEventP(Node *node,
-                  uint64_t event_base,
-                  uint8_t* backing_store,
-                  unsigned size);
+class ByteRangeEventP : public ByteRangeEventC
+{
+public:
+    /// Creates a new byte range producer. backing store points to memory of at
+    /// least size bytes. This class will advertise producing size * 256 events
+    /// contiguous from event_base. event_base will set byte 0 to value 0,
+    /// event_base + 1 will set byte 0 to value 1, event_base + 256 will set
+    /// byte
+    /// 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
+    ByteRangeEventP(Node *node, uint64_t event_base, uint8_t *backing_store,
+                    unsigned size);
 
-  /// Requests the event associated with the current value of a specific byte to
-  /// be produced (unconditionally).
-  ///
-  /// @param byte is the offset of the value to produce (0 <= byte < size)
-  ///
-  /// @param writer is the output flow to be used.
-  ///
-  /// @param done is the notification callback. Must not be NULL.
-  void Update(unsigned byte, WriteHelper* writer, BarrierNotifiable* done);
+    /// Requests the event associated with the current value of a specific byte
+    /// to
+    /// be produced (unconditionally).
+    ///
+    /// @param byte is the offset of the value to produce (0 <= byte < size)
+    ///
+    /// @param writer is the output flow to be used.
+    ///
+    /// @param done is the notification callback. Must not be NULL.
+    void Update(unsigned byte, WriteHelper *writer, BarrierNotifiable *done);
 
-  /// Sends out a ProducerRangeIdentified.
-  void SendIdentified(WriteHelper* writer, BarrierNotifiable* done);
+    /// Sends out a ProducerRangeIdentified.
+    void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
-  // Need to override C behavior.
-  virtual void HandleEventReport(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyConsumer(EventReport* event, BarrierNotifiable* done);
-  // Own behavior.
-  virtual void HandleIdentifyProducer(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleIdentifyGlobal(EventReport* event, BarrierNotifiable* done);
-  // Responses to possible queries.
-  virtual void HandleConsumerIdentified(EventReport* event, BarrierNotifiable* done);
-  virtual void HandleConsumerRangeIdentified(EventReport* event, BarrierNotifiable* done);
+    // Need to override C behavior.
+    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
+    virtual void HandleIdentifyConsumer(EventReport *event,
+                                        BarrierNotifiable *done);
+    // Own behavior.
+    virtual void HandleIdentifyProducer(EventReport *event,
+                                        BarrierNotifiable *done);
+    virtual void HandleIdentifyGlobal(EventReport *event,
+                                      BarrierNotifiable *done);
+    // Responses to possible queries.
+    virtual void HandleConsumerIdentified(EventReport *event,
+                                          BarrierNotifiable *done);
+    virtual void HandleConsumerRangeIdentified(EventReport *event,
+                                               BarrierNotifiable *done);
 
- private:
-  /// Creates the eventid of the currently valid value of a given byte.
-  uint64_t CurrentEventId(unsigned byte);
+private:
+    /// Creates the eventid of the currently valid value of a given byte.
+    uint64_t CurrentEventId(unsigned byte);
 };
 
-}  // namespace nmranet
+} // namespace nmranet
 
-#endif  // _NMRANET_EVENTHANDLERTEMPLATES_HXX_
+#endif // _NMRANET_EVENTHANDLERTEMPLATES_HXX_

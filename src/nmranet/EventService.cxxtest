@@ -108,7 +108,8 @@ TEST_F(AsyncEventTest, ManyEvents)
                  Pointee(Field(&EventReport::event, 0x01020304050655aaULL)), _))
         .Times(100)
         .WillRepeatedly(WithArg<1>(Invoke(&InvokeNotification)));
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100; ++i)
+    {
         send_packet(":X195B4621N01020304050655aa;");
     }
 }

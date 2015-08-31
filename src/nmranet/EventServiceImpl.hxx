@@ -58,8 +58,7 @@ struct EventHandlerCall
     EventReport *rep;
     EventHandler *handler;
     EventHandlerFunction fn;
-    void reset(EventReport *rep, EventHandler *handler,
-               EventHandlerFunction fn)
+    void reset(EventReport *rep, EventHandler *handler, EventHandlerFunction fn)
     {
         this->rep = rep;
         this->handler = handler;
@@ -127,7 +126,7 @@ class EventIteratorFlow : public IncomingMessageStateFlow
 {
 public:
     EventIteratorFlow(If *interface, EventService *event_service,
-                    unsigned mti_value, unsigned mti_mask);
+                      unsigned mti_value, unsigned mti_mask);
     ~EventIteratorFlow();
 
 protected:
@@ -135,7 +134,7 @@ protected:
     Action iterate_next();
 
 private:
-    virtual Action dispatch_event(EventHandler* handler);
+    virtual Action dispatch_event(EventHandler *handler);
     /// Called when there will be no more dispatch_event calls for this
     /// iteration.
     virtual void no_more_matches() {};
@@ -148,11 +147,11 @@ protected:
     EventReport eventReport_;
 
     /** Iterator for generating the event handlers from the registry. */
-    EventIterator* iterator_;
+    EventIterator *iterator_;
     /** This done notifiable holds a reference to the incoming message
      * buffer. We must not release this notifiable until we have completed
      * processing and freed all the buffers related to this iteration. */
-    Notifiable* incomingDone_;
+    Notifiable *incomingDone_;
     /// The epoch of the event registry at the start of the iteration. Used to
     /// recognize when the iterators are invalidated.
     unsigned eventRegistryEpoch_;
@@ -180,11 +179,13 @@ class InlineEventIteratorFlow : public EventIteratorFlow
 {
 public:
     InlineEventIteratorFlow(If *interface, EventService *event_service,
-                            unsigned mti_value, unsigned mti_mask) :
-        EventIteratorFlow(interface, event_service, mti_value, mti_mask) {}
+                            unsigned mti_value, unsigned mti_mask)
+        : EventIteratorFlow(interface, event_service, mti_value, mti_mask)
+    {
+    }
 
 private:
-    Action dispatch_event(EventHandler* handler) OVERRIDE;
+    Action dispatch_event(EventHandler *handler) OVERRIDE;
     void no_more_matches() OVERRIDE;
 
     Action perform_call();
@@ -192,7 +193,7 @@ private:
     /// True if we are already holding the event handler mutex.
     bool holdingEventMutex_{false};
     /// The handler we need to call.
-    EventHandler* currentHandler_{nullptr};
+    EventHandler *currentHandler_{nullptr};
 };
 
 } // namespace nmranet
