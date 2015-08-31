@@ -65,3 +65,22 @@ processing events with zero match in the registry:
 2-8 msec for 100 events.
 
 
+
+
+
+
+
+MEMORY SIZE TESTS
+=================
+
+heap_end with newlib nano:
+0x62e8  (appl_main: 5ca4  pool: 376)
+
+adding four new consumers:
+0x6528   (appl_main: 5ee4  pool: 376)
+
+delta:
+576 (appl main: the same)
+per consumer size: 144 bytes.
+
+ 
