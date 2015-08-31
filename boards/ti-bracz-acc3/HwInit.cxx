@@ -52,6 +52,8 @@
 #include "TivaRailcom.hxx"
 #include "bootloader_hal.h"
 
+//#define ERASE_ALL_EEPROM
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -271,5 +273,15 @@ void hw_preinit(void)
     MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
     MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_1);
     //DBG_SIGNAL_Pin::hw_init();
+
+
+#ifdef ERASE_ALL_EEPROM
+    for (uint32_t address = (uint32_t) __eeprom_start;
+         address < (uint32_t) __eeprom_start;
+         address += TivaEEPROMEmulation::TM4C123) {
+        MAP_FlashErase(address);
+    }
+#endif    
+
 }
 }
