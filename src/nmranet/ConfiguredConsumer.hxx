@@ -171,17 +171,20 @@ public:
 private:
     /// Registers the event handler with the global event registry.
     void do_register() {
-        EventRegistry::instance()->register_handlerr(this, event_, 0);
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, event_), 0);
     }
 
-    /// Registers the event handler with the global event registry.
+    /// Removed registration of this event handler from the global event
+    /// registry.
     void do_unregister() {
-        EventRegistry::instance()->unregister_handlerr(this, event_, 0);
+        EventRegistry::instance()->unregister_handler(this);
     }
-    
+
     // Implementations for the event handler functions.
 
-    void HandleIdentifyGlobal(EventReport* event,
+    void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
+                              EventReport* event,
                               BarrierNotifiable* done) OVERRIDE {
         if (event->dst_node && event->dst_node != node_) {
             return done->notify();
@@ -189,7 +192,7 @@ private:
         SendConsumerIdentified(done);
     }
 
-    void SendConsumerIdentified(BarrierNotifiable* done) OVERRIDE {
+    void SendConsumerIdentified(BarrierNotifiable* done) {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
         if (!pulseRemaining_) {
             mti++; // INVALID
@@ -199,7 +202,8 @@ private:
                                        done);
     }
     
-    void HandleIdentifyConsumer(EventReport* event,
+    void HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
+                                EventReport* event,
                                 BarrierNotifiable* done) OVERRIDE {
         if (event->event != event_) {
             return done->notify();
@@ -207,7 +211,9 @@ private:
         SendConsumerIdentified(done);
     }
 
-    void HandleEventReport(EventReport* event, BarrierNotifiable* done) OVERRIDE {
+    void HandleEventReport(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) OVERRIDE
+    {
         if (event->event == event_) {
             pulseRemaining_ = pulseLength_;
         }
