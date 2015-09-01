@@ -69,14 +69,13 @@ BitRangeEventPC::BitRangeEventPC(Node *node, uint64_t event_base,
     , size_(size)
 {
     unsigned mask = EventRegistry::align_mask(&event_base, size * 2);
-    EventRegistry::instance()->register_handlerr(this, event_base, mask);
+    EventRegistry::instance()->register_handler(
+        EventRegistryEntry(this, event_base), mask);
 }
 
 BitRangeEventPC::~BitRangeEventPC()
 {
-    uint64_t event = event_base_;
-    unsigned mask = EventRegistry::align_mask(&event, size_ * 2);
-    EventRegistry::instance()->unregister_handlerr(this, event, mask);
+    EventRegistry::instance()->unregister_handler(this);
 }
 
 void BitRangeEventPC::GetBitAndMask(unsigned bit, uint32_t **data,
@@ -166,7 +165,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper *writer,
     }
 }
 
-void BitRangeEventPC::HandleEventReport(EventReport *event,
+void BitRangeEventPC::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     done->notify();
@@ -201,13 +200,13 @@ void BitRangeEventPC::HandleEventReport(EventReport *event,
     }
 }
 
-void BitRangeEventPC::HandleIdentifyProducer(EventReport *event,
+void BitRangeEventPC::HandleIdentifyProducer(const EventRegistryEntry& entry, EventReport *event,
                                              BarrierNotifiable *done)
 {
     HandleIdentifyBase(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
-void BitRangeEventPC::HandleIdentifyConsumer(EventReport *event,
+void BitRangeEventPC::HandleIdentifyConsumer(const EventRegistryEntry& entry, EventReport *event,
                                              BarrierNotifiable *done)
 {
     HandleIdentifyBase(Defs::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
@@ -260,7 +259,7 @@ uint64_t EncodeRange(uint64_t begin, unsigned size)
     }
 }
 
-void BitRangeEventPC::HandleIdentifyGlobal(EventReport *event,
+void BitRangeEventPC::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                            BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != node_)
@@ -293,17 +292,16 @@ ByteRangeEventC::ByteRangeEventC(Node *node, uint64_t event_base,
     , size_(size)
 {
     unsigned mask = EventRegistry::align_mask(&event_base, size * 256);
-    EventRegistry::instance()->register_handlerr(this, event_base, mask);
+    EventRegistry::instance()->register_handler(
+        EventRegistryEntry(this, event_base), mask);
 }
 
 ByteRangeEventC::~ByteRangeEventC()
 {
-    uint64_t event_base = event_base_;
-    unsigned mask = EventRegistry::align_mask(&event_base, size_ * 256);
-    EventRegistry::instance()->unregister_handlerr(this, event_base, mask);
+    EventRegistry::instance()->unregister_handler(this);
 }
 
-void ByteRangeEventC::HandleEventReport(EventReport *event,
+void ByteRangeEventC::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     done->notify();
@@ -340,7 +338,7 @@ bool ByteRangeEventC::DecodeEventId(uint64_t event, uint8_t **storage,
     return true;
 }
 
-void ByteRangeEventC::HandleIdentifyConsumer(EventReport *event,
+void ByteRangeEventC::HandleIdentifyConsumer(const EventRegistryEntry& entry, EventReport *event,
                                              BarrierNotifiable *done)
 {
     uint8_t *storage;
@@ -358,7 +356,7 @@ void ByteRangeEventC::HandleIdentifyConsumer(EventReport *event,
                                    eventid_to_buffer(event->event), done);
 }
 
-void ByteRangeEventC::HandleIdentifyGlobal(EventReport *event,
+void ByteRangeEventC::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                            BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != node_)
@@ -386,13 +384,13 @@ ByteRangeEventP::ByteRangeEventP(Node *node, uint64_t event_base,
 {
 }
 
-void ByteRangeEventP::HandleEventReport(EventReport *event,
+void ByteRangeEventP::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     // Nothing to do for producers.
     done->notify();
 }
-void ByteRangeEventP::HandleIdentifyConsumer(EventReport *event,
+void ByteRangeEventP::HandleIdentifyConsumer(const EventRegistryEntry& entry, EventReport *event,
                                              BarrierNotifiable *done)
 {
     // Nothing to do for producers.
@@ -404,7 +402,7 @@ uint64_t ByteRangeEventP::CurrentEventId(unsigned byte)
     return event_base_ + (byte << 8) + data_[byte];
 }
 
-void ByteRangeEventP::HandleIdentifyProducer(EventReport *event,
+void ByteRangeEventP::HandleIdentifyProducer(const EventRegistryEntry& entry, EventReport *event,
                                              BarrierNotifiable *done)
 {
     uint8_t *storage;
@@ -425,7 +423,7 @@ void ByteRangeEventP::HandleIdentifyProducer(EventReport *event,
                                    done->new_child());
     done->maybe_done();
 }
-void ByteRangeEventP::HandleIdentifyGlobal(EventReport *event,
+void ByteRangeEventP::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                            BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != node_)
@@ -456,7 +454,7 @@ void ByteRangeEventP::Update(unsigned byte, WriteHelper *writer,
 }
 
 // Responses to possible queries.
-void ByteRangeEventP::HandleConsumerIdentified(EventReport *event,
+void ByteRangeEventP::HandleConsumerIdentified(const EventRegistryEntry& entry, EventReport *event,
                                                BarrierNotifiable *done)
 {
     uint8_t *storage;
@@ -468,7 +466,7 @@ void ByteRangeEventP::HandleConsumerIdentified(EventReport *event,
     Update(storage - data_, &event_write_helper1, done);
 }
 
-void ByteRangeEventP::HandleConsumerRangeIdentified(EventReport *event,
+void ByteRangeEventP::HandleConsumerRangeIdentified(const EventRegistryEntry& entry, EventReport *event,
                                                     BarrierNotifiable *done)
 {
     /** @TODO(balazs.racz): We should respond with the correct signal aspect
@@ -528,37 +526,33 @@ BitEventHandler::BitEventHandler(BitEventInterface *bit) : bit_(bit)
 {
 }
 
-void BitEventHandler::register_handler()
+void BitEventHandler::register_handler(uint64_t event_on, uint64_t event_off)
 {
-    if ((bit_->event_on() ^ bit_->event_off()) == 1ULL)
+    if ((event_on ^ event_off) == 1ULL)
     {
         // Register once for two eventids.
-        uint64_t id = bit_->event_on() & (~1ULL);
-        EventRegistry::instance()->register_handlerr(this, id, 1);
+        uint64_t id = event_on & (~1ULL);
+        unsigned user_data = 0;
+        if (event_on & 1) {
+            user_data |= BOTH_OFF_IS_ZERO;
+        } else {
+            user_data |= BOTH_ON_IS_ZERO;
+        }
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, id, user_data), 1);
     }
     else
     {
-        EventRegistry::instance()->register_handlerr(this, bit_->event_on(), 0);
-        EventRegistry::instance()->register_handlerr(this, bit_->event_off(),
-                                                     0);
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, event_on, EVENT_ON), 0);
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, event_off, EVENT_OFF), 0);
     }
 }
 
 void BitEventHandler::unregister_handler()
 {
-    if ((bit_->event_on() ^ bit_->event_off()) == 1ULL)
-    {
-        // Register once for two eventids.
-        uint64_t id = bit_->event_on() & (~1ULL);
-        EventRegistry::instance()->unregister_handlerr(this, id, 1);
-    }
-    else
-    {
-        EventRegistry::instance()->unregister_handlerr(this, bit_->event_on(),
-                                                       0);
-        EventRegistry::instance()->unregister_handlerr(this, bit_->event_off(),
-                                                       0);
-    }
+    EventRegistry::instance()->unregister_handler(this);
 }
 
 void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
@@ -646,7 +640,7 @@ void BitEventHandler::HandlePCIdentify(Defs::MTI mti, EventReport *event,
                                    eventid_to_buffer(event->event), done);
 }
 
-void BitEventConsumer::HandleProducerIdentified(EventReport *event,
+void BitEventConsumer::HandleProducerIdentified(const EventRegistryEntry& entry, EventReport *event,
                                                 BarrierNotifiable *done)
 {
     done->notify();
@@ -684,7 +678,7 @@ void BitEventConsumer::SendQuery(WriteHelper *writer, BarrierNotifiable *done)
                        eventid_to_buffer(bit_->event_on()), done);
 }
 
-void BitEventConsumer::HandleEventReport(EventReport *event,
+void BitEventConsumer::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
                                          BarrierNotifiable *done)
 {
     if (event->event == bit_->event_on())
@@ -698,7 +692,7 @@ void BitEventConsumer::HandleEventReport(EventReport *event,
     done->notify();
 }
 
-void BitEventProducer::HandleIdentifyGlobal(EventReport *event,
+void BitEventProducer::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                             BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != bit_->node())
@@ -709,25 +703,25 @@ void BitEventProducer::HandleIdentifyGlobal(EventReport *event,
     done->maybe_done();
 }
 
-void BitEventProducer::HandleIdentifyProducer(EventReport *event,
+void BitEventProducer::HandleIdentifyProducer(const EventRegistryEntry& entry, EventReport *event,
                                               BarrierNotifiable *done)
 {
     HandlePCIdentify(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
-void BitEventPC::HandleIdentifyProducer(EventReport *event,
+void BitEventPC::HandleIdentifyProducer(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     HandlePCIdentify(Defs::MTI_PRODUCER_IDENTIFIED_VALID, event, done);
 }
 
-void BitEventConsumer::HandleIdentifyConsumer(EventReport *event,
+void BitEventConsumer::HandleIdentifyConsumer(const EventRegistryEntry& entry, EventReport *event,
                                               BarrierNotifiable *done)
 {
     HandlePCIdentify(Defs::MTI_CONSUMER_IDENTIFIED_VALID, event, done);
 }
 
-void BitEventConsumer::HandleIdentifyGlobal(EventReport *event,
+void BitEventConsumer::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                             BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != bit_->node())
@@ -738,7 +732,7 @@ void BitEventConsumer::HandleIdentifyGlobal(EventReport *event,
     done->maybe_done();
 }
 
-void BitEventPC::HandleIdentifyGlobal(EventReport *event,
+void BitEventPC::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                       BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != bit_->node())

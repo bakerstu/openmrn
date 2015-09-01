@@ -69,7 +69,7 @@ public:
      * @returns the next entry or NULL if the iteration is done.
      * May be called many times after the iteratin is ended and should
      * consistently return NULL. */
-    virtual EventHandler* next_entry() = 0;
+    virtual EventRegistryEntry* next_entry() = 0;
 
     /** Starts the iteration. If the iteration is not done yet, call
      * clear_iteration first.
@@ -89,9 +89,9 @@ public:
         : container_(container) {
         clear_iteration();
     }
-    EventHandler* next_entry() OVERRIDE {
+    EventRegistryEntry* next_entry() OVERRIDE {
         if (it_ == container_->end()) return nullptr;
-        EventHandler* h = *it_;
+        EventRegistryEntry* h = &*it_;
         ++it_;
         return h;
     }
@@ -118,19 +118,33 @@ class VectorEventHandlers : public EventRegistry {
         return new FullContainerIterator<HandlersList>(&handlers_);
     }
 
-  virtual void register_handlerr(EventHandler* handler, EventId event, unsigned mask) {
+  virtual void register_handler(const EventRegistryEntry& entry, unsigned mask) {
     // @TODO(balazs.racz): need some kind of locking here.
-    handlers_.push_front(handler);
+    handlers_.push_front(entry);
     set_dirty();
   }
-  virtual void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) {
-    // @TODO(balazs.racz): need some kind of locking here.
-    handlers_.remove(handler);
-    set_dirty();
+  virtual void unregister_handler(EventHandler *handler)
+  {
+      // @TODO(balazs.racz): need some kind of locking here.
+      struct HandlerEquals
+      {
+          HandlerEquals(EventHandler *h) : h_(h)
+          {
+          }
+          bool operator()(const EventRegistryEntry &e)
+          {
+              return e.handler == h_;
+          }
+
+      private:
+          EventHandler *h_;
+      } predicate(handler);
+      handlers_.remove_if(predicate);
+      set_dirty();
   }
 
  private:
-  typedef std::forward_list<EventHandler*> HandlersList;
+  typedef std::forward_list<EventRegistryEntry> HandlersList;
   HandlersList handlers_;
 };
 
@@ -142,14 +156,31 @@ public:
     TreeEventHandlers();
 
     EventIterator* create_iterator() OVERRIDE;
-    void register_handlerr(EventHandler* handler, EventId event, unsigned mask) OVERRIDE;
-    void unregister_handlerr(EventHandler* handler, EventId event, unsigned mask) OVERRIDE;
+    void register_handler(const EventRegistryEntry &entry,
+                          unsigned mask) OVERRIDE;
+    void unregister_handler(EventHandler* handler) OVERRIDE;
 
 private:
     class Iterator;
     friend class Iterator;
 
-    typedef SortedListMap<uint64_t, EventHandler*> OneMaskMap;
+    struct cmpop
+    {
+        bool operator()(const EventRegistryEntry &d, uint64_t k)
+        {
+            return d.event < k;
+        }
+        bool operator()(uint64_t k, const EventRegistryEntry &d)
+        {
+            return k < d.event;
+        }
+        bool operator()(const EventRegistryEntry &a, const EventRegistryEntry &b)
+        {
+            return a.event < b.event;
+        }
+    };
+
+    typedef SortedListSet<EventRegistryEntry, cmpop> OneMaskMap;
     typedef std::map<uint8_t, OneMaskMap> MaskLookupMap;
     /** The registered handlers. The offset in the first map tell us how many
      * bits wide the registration is (it is the mask value in the register

@@ -61,13 +61,15 @@ public:
 
     /// This function will be called for any other incoming event handler
     /// function.
-    virtual void HandlerFn(EventHandlerFunction fn, EventReport *event,
-                           BarrierNotifiable *done) = 0;
+    virtual void HandlerFn(EventHandlerFunction fn,
+                           const EventRegistryEntry &registry_entry,
+                           EventReport *event, BarrierNotifiable *done) = 0;
 
 #define DEFPROXYFN(FN)                                                         \
-    virtual void FN(EventReport *event, BarrierNotifiable *done)               \
+    virtual void FN(const EventRegistryEntry &registry_entry,                  \
+                    EventReport *event, BarrierNotifiable *done)               \
     {                                                                          \
-        HandlerFn(&EventHandler::FN, event, done);                             \
+        HandlerFn(&EventHandler::FN, registry_entry, event, done);             \
     }
 
     DEFPROXYFN(HandleEventReport);
@@ -89,7 +91,8 @@ class SimpleEventHandler : public EventHandler
 {
 public:
 #define IGNOREFN(FN)                                                           \
-    virtual void FN(EventReport *event, BarrierNotifiable *done)               \
+    virtual void FN(const EventRegistryEntry &registry_entry,                  \
+                    EventReport *event, BarrierNotifiable *done)               \
     {                                                                          \
         done->notify();                                                        \
     }
@@ -122,15 +125,19 @@ class FixedEventProducer : public SimpleEventHandler
 public:
     FixedEventProducer(Node *node) : node_(node)
     {
-        EventRegistry::instance()->register_handlerr(this, EVENT_ID, 0);
+        /// TODO (balazs.racz) move the event ID argument from the templates to
+        /// a constructor argument; use the event registry entry value to send
+        /// out messages to the bus.
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, EVENT_ID), 0);
     }
 
     ~FixedEventProducer()
     {
-        EventRegistry::instance()->unregister_handlerr(this, EVENT_ID, 0);
+        EventRegistry::instance()->unregister_handler(this);
     }
 
-    void HandleIdentifyGlobal(EventReport *event, BarrierNotifiable *done)
+    void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
         if (event->dst_node && event->dst_node != node_)
@@ -142,10 +149,10 @@ public:
             WriteHelper::global(), nmranet::eventid_to_buffer(EVENT_ID), done);
     }
 
-    void HandleIdentifyProducer(EventReport *event, BarrierNotifiable *done)
+    void HandleIdentifyProducer(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
-        return HandleIdentifyGlobal(event, done);
+        return HandleIdentifyGlobal(registry_entry, event, done);
     }
 
 private:
@@ -306,11 +313,10 @@ public:
 
 protected:
     /// Registers this event handler with the global event manager. Call this
-    /// from
-    /// the constructor of the derived class.
-    void register_handler();
-    /// Removes this event handler from the global event manager. Call this from
-    /// the destructor of the derived class.
+    /// from the constructor of the derived class.
+    void register_handler(uint64_t event_on, uint64_t event_off);
+    /// Removes this event handler from the global event manager. Call this
+    /// from the destructor of the derived class.
     void unregister_handler();
 
     /// Sends off two packets using event_write_helper{1,2} of
@@ -341,6 +347,21 @@ protected:
     BitEventInterface *bit_;
 
 private:
+    /// Bits defined in the user_data value for the registrations in this event
+    /// handler.
+    enum {
+        /// This registration is for a single event_on.
+        EVENT_ON = 1,
+        /// This registration is for a single event_off.
+        EVENT_OFF = 2,
+        /// This registration is for two events, and the lower numbered is the
+        /// event on.
+        BOTH_ON_IS_ZERO = 4,
+        /// This registration is for two events, and the lower numbered is the
+        /// event off.
+        BOTH_OFF_IS_ZERO = 8,
+    };
+
     DISALLOW_COPY_AND_ASSIGN(BitEventHandler);
 };
 
@@ -359,7 +380,9 @@ class BitEventProducer : public BitEventHandler
 public:
     BitEventProducer(BitEventInterface *bit) : BitEventHandler(bit)
     {
-        register_handler();
+        /// @TODO (balazs.racz) this should be more efficient when done from
+        /// the update configuration callback.
+        register_handler(bit->event_on(), bit->event_off());
     }
     ~BitEventProducer()
     {
@@ -382,10 +405,12 @@ public:
         SendEventReport(writer, done);
     }
 
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
-    virtual void HandleIdentifyProducer(EventReport *event,
-                                        BarrierNotifiable *done);
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
+    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
 
 private:
     DISALLOW_COPY_AND_ASSIGN(BitEventProducer);
@@ -408,7 +433,7 @@ class BitEventConsumer : public BitEventHandler
 public:
     BitEventConsumer(BitEventInterface *bit) : BitEventHandler(bit)
     {
-        register_handler();
+        register_handler(bit->event_on(), bit->event_off());
     }
     ~BitEventConsumer()
     {
@@ -418,13 +443,17 @@ public:
     /// Queries producers and acquires the current state of the bit.
     void SendQuery(WriteHelper *writer, BarrierNotifiable *done);
 
-    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
-    virtual void HandleIdentifyConsumer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleProducerIdentified(EventReport *event,
-                                          BarrierNotifiable *done);
+    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+                           BarrierNotifiable *done) override;
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
+    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleProducerIdentified(const EventRegistryEntry &entry,
+                                  EventReport *event,
+                                  BarrierNotifiable *done) override;
 };
 
 /// Producer-Consumer event handler for a single bit represented by two event
@@ -447,10 +476,12 @@ public:
     {
     }
 
-    virtual void HandleIdentifyProducer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
+    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
 };
 
 /// Producer-Consumer event handler for a sequence of bits represented by a
@@ -491,13 +522,17 @@ public:
     /// Sends out a ProducerRangeIdentified.
     void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
-    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
-    virtual void HandleIdentifyProducer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleIdentifyConsumer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
+    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+                           BarrierNotifiable *done) override;
+    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
 
 private:
     void HandleIdentifyBase(Defs::MTI mti_valid, EventReport *event,
@@ -534,11 +569,14 @@ public:
     {
     }
 
-    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
-    virtual void HandleIdentifyConsumer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
+    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+                           BarrierNotifiable *done) override;
+    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
 
 protected:
     /// takes an event ID and checks if we are responsible for it. Returns false
@@ -585,19 +623,25 @@ public:
     void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
     // Need to override C behavior.
-    virtual void HandleEventReport(EventReport *event, BarrierNotifiable *done);
-    virtual void HandleIdentifyConsumer(EventReport *event,
-                                        BarrierNotifiable *done);
+    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+                           BarrierNotifiable *done) override;
+    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
     // Own behavior.
-    virtual void HandleIdentifyProducer(EventReport *event,
-                                        BarrierNotifiable *done);
-    virtual void HandleIdentifyGlobal(EventReport *event,
-                                      BarrierNotifiable *done);
+    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
     // Responses to possible queries.
-    virtual void HandleConsumerIdentified(EventReport *event,
-                                          BarrierNotifiable *done);
-    virtual void HandleConsumerRangeIdentified(EventReport *event,
-                                               BarrierNotifiable *done);
+    void HandleConsumerIdentified(const EventRegistryEntry &entry,
+                                  EventReport *event,
+                                  BarrierNotifiable *done) override;
+    void HandleConsumerRangeIdentified(const EventRegistryEntry &entry,
+                                       EventReport *event,
+                                       BarrierNotifiable *done) override;
 
 private:
     /// Creates the eventid of the currently valid value of a given byte.

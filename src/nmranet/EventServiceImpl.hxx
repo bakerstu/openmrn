@@ -55,13 +55,14 @@ class EventHandler;
 /// with a given argument.
 struct EventHandlerCall
 {
+    const EventRegistryEntry *registry_entry;
     EventReport *rep;
-    EventHandler *handler;
     EventHandlerFunction fn;
-    void reset(EventReport *rep, EventHandler *handler, EventHandlerFunction fn)
+    void reset(const EventRegistryEntry *entry, EventReport *rep,
+               EventHandlerFunction fn)
     {
+        this->registry_entry = entry;
         this->rep = rep;
-        this->handler = handler;
         this->fn = fn;
     }
 };
@@ -134,7 +135,7 @@ protected:
     Action iterate_next();
 
 private:
-    virtual Action dispatch_event(EventHandler *handler);
+    virtual Action dispatch_event(const EventRegistryEntry *entry);
     /// Called when there will be no more dispatch_event calls for this
     /// iteration.
     virtual void no_more_matches() {};
@@ -185,7 +186,7 @@ public:
     }
 
 private:
-    Action dispatch_event(EventHandler *handler) OVERRIDE;
+    Action dispatch_event(const EventRegistryEntry *entry) OVERRIDE;
     void no_more_matches() OVERRIDE;
 
     Action perform_call();
@@ -193,7 +194,7 @@ private:
     /// True if we are already holding the event handler mutex.
     bool holdingEventMutex_{false};
     /// The handler we need to call.
-    EventHandler *currentHandler_{nullptr};
+    const EventRegistryEntry *currentEntry_{nullptr};
 };
 
 } // namespace nmranet

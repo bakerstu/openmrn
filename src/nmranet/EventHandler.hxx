@@ -46,6 +46,7 @@ namespace nmranet
 
 typedef uint64_t EventId;
 class Node;
+class EventHandler;
 
 enum EventState
 {
@@ -84,6 +85,33 @@ typedef struct
     EventState state;
 } EventReport;
 
+/// Structure used in registering event handlers.
+class EventRegistryEntry
+{
+public:
+    /// Stores the event ID or beginning of range for which to register the
+    /// given handler.
+    EventId event;
+    /// Pointer to the handler.
+    EventHandler *handler;
+    /// Opaque user argument. The event handlers may use this to store
+    /// arbitrary data.
+    uint32_t user_arg;
+    EventRegistryEntry(EventHandler *_handler, EventId _event)
+        : event(_event)
+        , handler(_handler)
+        , user_arg(0)
+    {
+    }
+    EventRegistryEntry(EventHandler *_handler, EventId _event,
+                       unsigned _user_arg)
+        : event(_event)
+        , handler(_handler)
+        , user_arg(_user_arg)
+    {
+    }
+};
+
 // Static objects usable by all event handler implementations
 
 // These allow event handlers to produce up to four messages per
@@ -104,68 +132,97 @@ public:
     {
     }
 
-    /// Called on incoming EventReport messages. Filled: src_node, event. Mask
-    /// is
-    /// always 1 (filled in). state is not filled in.
-    virtual void HandleEventReport(EventReport *event,
+    /// Called on incoming EventReport messages. @param event stores
+    /// information about the incoming message. Filled: src_node, event. Mask
+    /// is always 1 (filled in). state is not filled in. @param registry_entry
+    /// gives the registry entry for which the current handler is being
+    /// called. @param done must be notified when the processing is done.
+    virtual void HandleEventReport(const EventRegistryEntry &registry_entry,
+                                   EventReport *event,
                                    BarrierNotifiable *done) = 0;
 
     /// Called on another node sending ConsumerIdentified for this event.
-    /// Filled:
-    /// event_id, mask=1, src_node, state.
-    virtual void HandleConsumerIdentified(EventReport *event,
-                                          BarrierNotifiable *done)
+    /// @param event stores information about the incoming message. Filled:
+    /// event_id, mask=1, src_node, state.  @param registry_entry gives the
+    /// registry entry for which the current handler is being called. @param
+    /// done must be notified when the processing is done.
+    virtual void
+    HandleConsumerIdentified(const EventRegistryEntry &registry_entry,
+                             EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
     };
 
-    /// Called on another node sending ConsumerRangeIdentified. Filled: event
-    /// id,
-    /// mask (!= 1), src_node. Not filled: state.
-    virtual void HandleConsumerRangeIdentified(EventReport *event,
-                                               BarrierNotifiable *done)
+    /// Called on another node sending ConsumerRangeIdentified. @param event
+    /// stores information about the incoming message. Filled: event id, mask
+    /// (!= 1), src_node. Not filled: state.  @param registry_entry gives the
+    /// registry entry for which the current handler is being called. @param
+    /// done must be notified when the processing is done.
+    virtual void
+    HandleConsumerRangeIdentified(const EventRegistryEntry &registry_entry,
+                                  EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
     }
 
     /// Called on another node sending ProducerIdentified for this event.
-    /// Filled:
-    /// event_id, mask=1, src_node, state.
-    virtual void HandleProducerIdentified(EventReport *event,
-                                          BarrierNotifiable *done)
+    /// @param event stores information about the incoming message. Filled:
+    /// event_id, mask=1, src_node, state.  @param registry_entry gives the
+    /// registry entry for which the current handler is being called. @param
+    /// user_arg is an opaque argument passed in from the registration. @param
+    /// done must be notified when the processing is done.
+    virtual void
+    HandleProducerIdentified(const EventRegistryEntry &registry_entry,
+                             EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
     }
 
     /// Called on another node sending ProducerRangeIdentified for this
-    /// event. Filled: event id, mask (!= 1), src_node. Not filled: state.
-    virtual void HandleProducerRangeIdentified(EventReport *event,
-                                               BarrierNotifiable *done)
+    /// event. @param event stores information about the incoming
+    /// message. Filled: event id, mask (!= 1), src_node. Not filled: state.
+    /// @param registry_entry gives the registry entry for which the current
+    /// handler is being called. @param done must be notified when the
+    /// processing is done.
+    virtual void
+    HandleProducerRangeIdentified(const EventRegistryEntry &registry_entry,
+                                  EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
     }
 
-    /// Called on the need of sending out identification messages. event is
-    /// NULL. This happens on startup, or when a global or addressed
-    /// IdentifyGlobal message arrives. Might have destination node id!
-    virtual void HandleIdentifyGlobal(EventReport *event,
+    /// Called on the need of sending out identification messages. @param event
+    /// is NULL. This happens on startup, or when a global or addressed
+    /// IdentifyGlobal message arrives. Might have destination node id! @param
+    /// registry_entry gives the registry entry for which the current handler
+    /// is being called. @param done must be notified when the processing is
+    /// done.
+    virtual void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
+                                      EventReport *event,
                                       BarrierNotifiable *done) = 0;
 
-    /// Called on another node sending IdentifyConsumer. Filled: src_node,
-    /// event,
-    /// mask=1. Not filled: state.
-    virtual void HandleIdentifyConsumer(EventReport *event,
-                                        BarrierNotifiable *done) = 0;
+    /// Called on another node sending IdentifyConsumer. @param event stores
+    /// information about the incoming message. Filled: src_node, event,
+    /// mask=1. Not filled: state. @param registry_entry gives the registry
+    /// entry for which the current handler is being called. @param done must
+    /// be notified when the processing is done.
+    virtual void
+    HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
+                           EventReport *event, BarrierNotifiable *done) = 0;
 
-    /// Called on another node sending IdentifyProducer. Filled: src_node,
-    /// event,
-    /// mask=1. Not filled: state.
-    virtual void HandleIdentifyProducer(EventReport *event,
-                                        BarrierNotifiable *done) = 0;
+    /// Called on another node sending IdentifyProducer. @param event stores
+    /// information about the incoming message. Filled: src_node, event,
+    /// mask=1. Not filled: state.  @param registry_entry gives the registry
+    /// entry for which the current handler is being called. @param done must
+    /// be notified when the processing is done.
+    virtual void
+    HandleIdentifyProducer(const EventRegistryEntry &registry_entry,
+                           EventReport *event, BarrierNotifiable *done) = 0;
 };
 
-typedef void (EventHandler::*EventHandlerFunction)(EventReport *event,
-                                                   BarrierNotifiable *done);
+typedef void (EventHandler::*EventHandlerFunction)(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done);
 
 class EventIterator;
 
@@ -197,13 +254,11 @@ public:
      */
     static unsigned align_mask(EventId *event, unsigned size);
 
-    /** mask = 0 means exact event only. Mask = 63 means this is a global
-     * handler. Mask == 0 means we should be registered for one single
-     * eventid. */
-    virtual void register_handlerr(EventHandler *handler, EventId event,
-                                   unsigned mask) = 0;
-    virtual void unregister_handlerr(EventHandler *handler, EventId event,
-                                     unsigned mask) = 0;
+    /// Adds a new event handler to the registry.
+    virtual void register_handler(const EventRegistryEntry &entry,
+                                  unsigned mask) = 0;
+    /// Removes all registered instances of a given event handler pointer.
+    virtual void unregister_handler(EventHandler *handler) = 0;
 
     /// Creates a new event iterator. Caller takes ownership of object.
     virtual EventIterator *create_iterator() = 0;

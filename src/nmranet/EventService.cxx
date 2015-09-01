@@ -77,7 +77,7 @@ StateFlowBase::Action EventCallerFlow::perform_call()
 {
     n_.reset(this);
     EventHandlerCall *c = message()->data();
-    (c->handler->*(c->fn))(c->rep, &n_);
+    (c->registry_entry->handler->*(c->fn))(*c->registry_entry, c->rep, &n_);
     return wait_and_call(STATE(call_done));
 }
 
@@ -248,8 +248,8 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
         iterator_->init_iteration(&eventReport_);
     }
 
-    EventHandler *handler = iterator_->next_entry();
-    if (!handler)
+    EventRegistryEntry *entry = iterator_->next_entry();
+    if (!entry)
     {
         no_more_matches();
         if (incomingDone_)
@@ -275,17 +275,17 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
 
         return exit();
     }
-    return dispatch_event(handler);
+    return dispatch_event(entry);
 }
 
-StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler *handler)
+StateFlowBase::Action EventIteratorFlow::dispatch_event(const EventRegistryEntry *entry)
 {
     Buffer<EventHandlerCall> *b;
     /* This could be made an asynchronous allocation. Then the pool could be
      * made fixed size. */
     eventService_->impl()->callerFlow_.pool()->alloc(&b, nullptr);
     HASSERT(b);
-    b->data()->reset(&eventReport_, handler, fn_);
+    b->data()->reset(entry, &eventReport_, fn_);
     n_.reset(this);
     b->set_done(&n_);
     eventService_->impl()->callerFlow_.send(b, priority());
@@ -293,9 +293,9 @@ StateFlowBase::Action EventIteratorFlow::dispatch_event(EventHandler *handler)
 }
 
 StateFlowBase::Action
-InlineEventIteratorFlow::dispatch_event(EventHandler *handler)
+InlineEventIteratorFlow::dispatch_event(const EventRegistryEntry *entry)
 {
-    currentHandler_ = handler;
+    currentEntry_ = entry;
     if (!holdingEventMutex_)
     {
         holdingEventMutex_ = true; // will be true when we get called again
@@ -321,7 +321,7 @@ StateFlowBase::Action InlineEventIteratorFlow::perform_call()
     n_.reset(this);
     // It is required to hold on to a child to call abort_if_almost_done.
     auto *c = n_.new_child();
-    (currentHandler_->*(fn_))(&eventReport_, &n_);
+    (currentEntry_->handler->*(fn_))(*currentEntry_, &eventReport_, &n_);
     if (n_.abort_if_almost_done())
     {
         // Aborted. Event handler did not do any asynchronous action.

@@ -37,12 +37,10 @@
 #include <vector>
 #include <algorithm>
 
-template <class K, class V> class SortedListMap
+template <class D, class CMP> class SortedListSet
 {
 public:
-    typedef K key_type;
-    typedef V value_type;
-    typedef std::pair<key_type, value_type> data_type;
+    typedef D data_type;
 
 private:
     typedef std::vector<data_type> container_type;
@@ -51,7 +49,7 @@ public:
     typedef typename container_type::iterator iterator;
     typedef typename container_type::const_iterator const_iterator;
 
-    SortedListMap()
+    SortedListSet()
     {
     }
 
@@ -66,37 +64,28 @@ public:
         return container_.begin() + sortedCount_;
     }
 
-    struct cmpop
-    {
-        bool operator()(const data_type &d, const key_type &k)
-        {
-            return d.first < k;
-        }
-        bool operator()(const key_type &k, const data_type &d)
-        {
-            return k < d.first;
-        }
-    };
-
+    template<class key_type>
     iterator lower_bound(key_type key)
     {
         lazy_init();
         return std::lower_bound(container_.begin(), container_.end(), key,
-                                cmpop());
+                                CMP());
     }
 
+    template<class key_type>
     iterator upper_bound(key_type key)
     {
         lazy_init();
         return std::upper_bound(container_.begin(), container_.end(), key,
-                                cmpop());
+                                CMP());
     }
 
+    template<class key_type>
     pair<iterator, iterator> equal_range(key_type key)
     {
         lazy_init();
         return std::equal_range(container_.begin(), container_.end(), key,
-                                cmpop());
+                                CMP());
     }
 
     void insert(data_type &&d)
@@ -115,7 +104,7 @@ private:
     {
         if (sortedCount_ != container_.size())
         {
-            sort(container_.begin(), container_.end());
+            sort(container_.begin(), container_.end(), CMP());
             sortedCount_ = container_.size();
         }
     }
