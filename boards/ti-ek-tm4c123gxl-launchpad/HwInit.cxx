@@ -222,6 +222,55 @@ struct DccHwDefs {
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 
+class MyTestClass : public Gpio {
+public:
+    constexpr MyTestClass() {}
+
+    void write(Value new_state) OVERRIDE {} 
+    Value read() OVERRIDE { return CLR; }
+    void set() OVERRIDE {}
+    void clr() OVERRIDE {}
+    void set_direction(Direction dir) OVERRIDE {}
+    Direction direction() OVERRIDE { return Direction::OUTPUT; }
+
+    void foo() const {}
+};
+
+const MyTestClass mytestv;
+
+constexpr std::initializer_list<const Gpio* const> ggentries = { &mytestv, &mytestv };
+
+class TestBase {
+public:
+    virtual void set() const = 0;
+    virtual void clr() const = 0;
+};
+
+class OtherClass : public TestBase {
+public:
+    constexpr OtherClass(uint32_t gpio_base, uint8_t gpio_pin)
+        : ptr_(reinterpret_cast<uint8_t *>(gpio_base +
+                                           (((unsigned)gpio_pin) << 2)))
+    {
+    }
+
+    void set() const {
+        *ptr_ = 0xff;
+    }
+
+    void clr() const {
+        *ptr_ = 0;
+    }
+
+private:
+    uint8_t* ptr_;
+};
+
+const OtherClass otherv(GPIO_PORTA_BASE, GPIO_PIN_3);
+
+constexpr std::initializer_list<const TestBase* const> myentries = { &otherv, &otherv };
+
+
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -276,6 +325,11 @@ void diewith(uint32_t pattern)
         ;
 }
 
+void __attribute__((noinline)) mytestfn(const std::initializer_list<const TestBase* const>& data) {
+    data.begin()[0]->set();
+    data.begin()[1]->clr();
+}
+
 /** Initialize the processor hardware.
  */
 void hw_preinit(void)
@@ -328,6 +382,8 @@ void hw_preinit(void)
       }
     } while (blinker_pattern || rest_pattern);
     asm volatile ("cpsid i\n");
+
+    mytestfn(myentries);
 }
 
 /** Timer interrupt for DCC packet handling.
@@ -338,3 +394,4 @@ void timer1a_interrupt_handler(void)
 }
 
 }
+
