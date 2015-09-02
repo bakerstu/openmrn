@@ -48,13 +48,24 @@ namespace nmranet
 
 CDI_GROUP(ProducerConfig);
 CDI_GROUP_ENTRY(description, StringConfigEntry<15>, //
-    Name("Description"),
-    Description("User name of this input."));
-CDI_GROUP_ENTRY(debounce, Uint8ConfigEntry, Name("Debounce parameter"), Description("Amount of time to wait for the input to stabilize before producing the event. Unit is 30 msec of time. Usually a value of 2-3 works well in a non-noisy environment. In high noise (train wheels for example) a setting between 8 -- 15 makes for a slower response time but a more stable signal.\nFormally, the parameter tells how many times of tries, each 30 msec apart, the input must have the same value in order for that value to be accepted and the event transition produced."));
-CDI_GROUP_ENTRY(event_on, EventConfigEntry, //
+                Name("Description"), Description("User name of this input."));
+CDI_GROUP_ENTRY(
+    debounce, Uint8ConfigEntry, Name("Debounce parameter"),
+    Description("Amount of time to wait for the input to stabilize before "
+                "producing the event. Unit is 30 msec of time. Usually a value "
+                "of 2-3 works well in a non-noisy environment. In high noise "
+                "(train wheels for example) a setting between 8 -- 15 makes "
+                "for a slower response time but a more stable "
+                "signal.\nFormally, the parameter tells how many times of "
+                "tries, each 30 msec apart, the input must have the same value "
+                "in order for that value to be accepted and the event "
+                "transition produced."));
+CDI_GROUP_ENTRY(
+    event_on, EventConfigEntry, //
     Name("Event On"),
     Description("This event will be produced when the input goes to HIGH."));
-CDI_GROUP_ENTRY(event_off, EventConfigEntry, //
+CDI_GROUP_ENTRY(
+    event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("This event will be produced when the input goes to LOW."));
 CDI_GROUP_END();
@@ -84,8 +95,8 @@ public:
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
-    UpdateAction apply_configuration(
-        int fd, bool initial_load, BarrierNotifiable *done)
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done)
     {
         AutoNotify n(done);
         uint8_t debounce_arg = cfg_.debounce().read(fd);

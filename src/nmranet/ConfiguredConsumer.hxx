@@ -47,29 +47,30 @@ namespace nmranet
 
 CDI_GROUP(ConsumerConfig);
 CDI_GROUP_ENTRY(description, StringConfigEntry<8>, //
-    Name("Description"),
-    Description("User name of this output."));
-CDI_GROUP_ENTRY(event_on, EventConfigEntry, //
+                Name("Description"), Description("User name of this output."));
+CDI_GROUP_ENTRY(
+    event_on, EventConfigEntry, //
     Name("Event On"),
     Description("Receiving this event ID will turn the output on."));
-CDI_GROUP_ENTRY(event_off, EventConfigEntry, //
+CDI_GROUP_ENTRY(
+    event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("Receiving this event ID will turn the output off."));
 CDI_GROUP_END();
 
-
 CDI_GROUP(PulseConsumerConfig);
 CDI_GROUP_ENTRY(description, StringConfigEntry<16>, //
-    Name("Description"),
-    Description("User name of this output."));
-CDI_GROUP_ENTRY(event, EventConfigEntry, //
+                Name("Description"), Description("User name of this output."));
+CDI_GROUP_ENTRY(
+    event, EventConfigEntry, //
     Name("Event"),
-    Description("Receiving this event ID will generate a pulso on the output."));
-CDI_GROUP_ENTRY(duration, Uint8ConfigEntry, //
+    Description(
+        "Receiving this event ID will generate a pulso on the output."));
+CDI_GROUP_ENTRY(
+    duration, Uint8ConfigEntry, //
     Name("Pulse duration"),
     Description("Length of the pulse to output (unit of 30 msec)."));
 CDI_GROUP_END();
-
 
 class ConfiguredConsumer : public ConfigUpdateListener
 {
@@ -93,8 +94,8 @@ public:
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
-    UpdateAction apply_configuration(
-        int fd, bool initial_load, BarrierNotifiable *done)
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done)
     {
         AutoNotify n(done);
         EventId cfg_event_on = cfg_.event_on().read(fd);
@@ -127,35 +128,46 @@ private:
     const ConsumerConfig cfg_;
 };
 
-class ConfiguredPulseConsumer : public ConfigUpdateListener, private SimpleEventHandler, public Polling
+class ConfiguredPulseConsumer : public ConfigUpdateListener,
+                                private SimpleEventHandler,
+                                public Polling
 {
 public:
     template <class HW>
-    ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg, const HW &)
-        : node_(node), gpio_(HW::instance()), cfg_(cfg)
+    ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg,
+                            const HW &)
+        : node_(node)
+        , gpio_(HW::instance())
+        , cfg_(cfg)
     {
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
-    ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg, Gpio* gpio)
-        : node_(node), gpio_(gpio), cfg_(cfg)
+    ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg,
+                            Gpio *gpio)
+        : node_(node)
+        , gpio_(gpio)
+        , cfg_(cfg)
     {
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
-    ~ConfiguredPulseConsumer() {
+    ~ConfiguredPulseConsumer()
+    {
         do_unregister();
         ConfigUpdateService::instance()->unregister_update_listener(this);
     }
 
-    UpdateAction apply_configuration(
-        int fd, bool initial_load, BarrierNotifiable *done) OVERRIDE
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done) OVERRIDE
     {
         AutoNotify n(done);
         EventId cfg_event_on = cfg_.event().read(fd);
         pulseLength_ = cfg_.duration().read(fd);
-        if (cfg_event_on == event_) return UPDATED; // nothing to do
-        if (!initial_load) {
+        if (cfg_event_on == event_)
+            return UPDATED; // nothing to do
+        if (!initial_load)
+        {
             do_unregister();
         }
         event_ = cfg_event_on;
@@ -170,73 +182,85 @@ public:
 
 private:
     /// Registers the event handler with the global event registry.
-    void do_register() {
+    void do_register()
+    {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, event_), 0);
     }
 
     /// Removed registration of this event handler from the global event
     /// registry.
-    void do_unregister() {
+    void do_unregister()
+    {
         EventRegistry::instance()->unregister_handler(this);
     }
 
     // Implementations for the event handler functions.
 
     void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
-                              EventReport* event,
-                              BarrierNotifiable* done) OVERRIDE {
-        if (event->dst_node && event->dst_node != node_) {
+                              EventReport *event, BarrierNotifiable *done)
+        OVERRIDE
+    {
+        if (event->dst_node && event->dst_node != node_)
+        {
             return done->notify();
         }
         SendConsumerIdentified(done);
     }
 
-    void SendConsumerIdentified(BarrierNotifiable* done) {
+    void SendConsumerIdentified(BarrierNotifiable *done)
+    {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
-        if (!pulseRemaining_) {
+        if (!pulseRemaining_)
+        {
             mti++; // INVALID
         }
         event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
-                                       eventid_to_buffer(event_),
-                                       done);
+                                       eventid_to_buffer(event_), done);
     }
-    
+
     void HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
-                                EventReport* event,
-                                BarrierNotifiable* done) OVERRIDE {
-        if (event->event != event_) {
+                                EventReport *event, BarrierNotifiable *done)
+        OVERRIDE
+    {
+        if (event->event != event_)
+        {
             return done->notify();
         }
         SendConsumerIdentified(done);
     }
 
     void HandleEventReport(const EventRegistryEntry &registry_entry,
-        EventReport *event, BarrierNotifiable *done) OVERRIDE
+                           EventReport *event, BarrierNotifiable *done) OVERRIDE
     {
-        if (event->event == event_) {
+        if (event->event == event_)
+        {
             pulseRemaining_ = pulseLength_;
         }
         done->notify();
     }
 
     // Polling interface
-    void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE {
-        if (pulseRemaining_ > 0) {
+    void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
+    {
+        if (pulseRemaining_ > 0)
+        {
             gpio_->set();
             --pulseRemaining_;
-        } else {
+        }
+        else
+        {
             gpio_->clr();
         }
         done->notify();
     }
 
-    Node* node_; //< virtual node to export the consumer on
-    Gpio* gpio_; //< hardware output pin to drive
-    EventId event_{0}; //< Event ID to listen for
+    Node *node_;                    //< virtual node to export the consumer on
+    Gpio *gpio_;                    //< hardware output pin to drive
+    EventId event_{0};              //< Event ID to listen for
     const PulseConsumerConfig cfg_; //< offset to the config in EEPROM
-    uint8_t pulseLength_{1}; //< length of pulse (in polling count)
-    uint8_t pulseRemaining_{0}; //< remaining polling count to keep pulse on
+    uint8_t pulseLength_{1};        //< length of pulse (in polling count)
+    uint8_t pulseRemaining_{0};     //< remaining polling count to keep pulse on
 };
 
 } // namespace nmranet
