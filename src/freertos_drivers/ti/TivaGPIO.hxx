@@ -76,27 +76,27 @@ public:
     {
     }
 
-    void write(Value new_state) OVERRIDE
+    void write(Value new_state) const OVERRIDE
     {
         *pin_address() = (new_state ? 0xff : 0);
     }
 
-    void set() OVERRIDE
+    void set() const OVERRIDE
     {
         *pin_address() = 0xff;
     }
 
-    void clr() OVERRIDE
+    void clr() const OVERRIDE
     {
         *pin_address() = 0;
     }
 
-    Value read() OVERRIDE
+    Value read() const OVERRIDE
     {
         return *pin_address() ? HIGH : LOW;
     }
 
-    void set_direction(Direction dir) OVERRIDE
+    void set_direction(Direction dir) const OVERRIDE
     {
         if (dir == Direction::OUTPUT)
         {
@@ -108,7 +108,7 @@ public:
         }
     }
 
-    Direction direction() OVERRIDE
+    Direction direction() const OVERRIDE
     {
         uint32_t mode = GPIODirModeGet(GPIO_BASE, GPIO_PIN);
         switch (mode)
@@ -137,7 +137,7 @@ private:
     /// only ever one bit can be read to be non-zero, and setting any other bit
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test.
-    constexpr uint8_t *pin_address()
+    constexpr uint8_t *pin_address() const
     {
         return reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));

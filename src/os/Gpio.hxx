@@ -48,11 +48,14 @@ public:
     constexpr Gpio()
     {
     }
-    /** Destructor. Empty, inlined and non-virtual on purpose. This allows less
-     * code to be generated for Gpio pins. The Gpio objects are never deleted
-     * through their base class; the specific implementations must live in
-     * HwInit.cxx with global scope. */
-    ~Gpio() {}
+
+    /* It is important that there be no destructor declared here, not even with
+     * empty and inlined and non-virtual body. The Gpio objects are never
+     * deleted through their base class; the specific implementations must live
+     * in HwInit.cxx with global scope. If there is a destructor here, that
+     * will prevent the compiler from creating the Gpio instance variables in
+     * the flash, and they will all start using RAM instead. That's a big
+     * difference. */
 
     /** Defines the options for GPIO level. */
     enum Value : bool
@@ -75,7 +78,7 @@ public:
     /** Writes a GPIO output pin (set or clear to a specific state).
      * @param new_state the desired output state. See @ref Value.
      */
-    virtual void write(Value new_state) = 0;
+    virtual void write(Value new_state) const = 0;
 
     /** Writes a GPIO output pin (set or clear to a specific state).
      *
@@ -86,7 +89,7 @@ public:
      * @param new_state bool representing the desired output state. true ==
      * high, false == low.
      */
-    void write(bool new_state)
+    void write(bool new_state) const
     {
         write((Value)new_state);
     }
@@ -94,12 +97,12 @@ public:
     /** Retrieves the current @ref Value of a GPIO input pin.
      * @return @ref SET if currently high, @ref CLR if currently low.
      */
-    virtual Value read() = 0;
+    virtual Value read() const = 0;
 
     /** Tests the GPIO input pin to see if it is set.
      * @return true if input pin is currently high, false if currently low.
      */
-    bool is_set()
+    bool is_set() const
     {
         return read() == SET;
     }
@@ -107,28 +110,28 @@ public:
     /** Tests the GPIO input pin to see if it is clear.
      * @return true if input pin is currently low, false if currently high.
      */
-    bool is_clr()
+    bool is_clr()const
     {
         return read() == CLR;
     }
 
     /** Sets the GPIO output pin to high.
      */
-    virtual void set() = 0;
+    virtual void set() const = 0;
 
     /** Clears the GPIO output pin to low.
      */
-    virtual void clr() = 0;
+    virtual void clr() const = 0;
 
     /** Sets the GPIO direction.
      * @param dir @ref INPUT or @ref OUTPUT
      */
-    virtual void set_direction(Direction dir) = 0;
+    virtual void set_direction(Direction dir) const = 0;
 
     /** Gets the GPIO direction.
      * @return @ref INPUT or @ref OUTPUT
      */
-    virtual Direction direction() = 0;
+    virtual Direction direction() const = 0;
 };
 
 #endif /* _FREERTOS_DRIVERS_COMMON_GPIOGENERIC_HXX_ */
