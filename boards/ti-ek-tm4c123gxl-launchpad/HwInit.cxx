@@ -222,23 +222,25 @@ struct DccHwDefs {
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 
+GPIO_PIN(TEST, LedPin, A, 3);
+
 class MyTestClass : public Gpio {
 public:
     constexpr MyTestClass() {}
 
-    void write(Value new_state) OVERRIDE {} 
-    Value read() OVERRIDE { return CLR; }
-    void set() OVERRIDE {}
-    void clr() OVERRIDE {}
-    void set_direction(Direction dir) OVERRIDE {}
-    Direction direction() OVERRIDE { return Direction::OUTPUT; }
+    void write(Value new_state) const OVERRIDE {} 
+    Value read() const OVERRIDE { return CLR; }
+    void set() const OVERRIDE {}
+    void clr() const OVERRIDE {}
+    void set_direction(Direction dir) const OVERRIDE {}
+    Direction direction() const OVERRIDE { return Direction::OUTPUT; }
 
     void foo() const {}
 };
 
 const MyTestClass mytestv;
 
-constexpr std::initializer_list<const Gpio* const> ggentries = { &mytestv, &mytestv };
+constexpr std::initializer_list<const Gpio* const> ggentries = { &mytestv, &mytestv, TEST_Pin::instance() };
 
 class TestBase {
 public:
@@ -325,6 +327,11 @@ void diewith(uint32_t pattern)
         ;
 }
 
+void __attribute__((noinline)) ggtestfn(const std::initializer_list<const Gpio* const>& data) {
+    data.begin()[0]->set();
+    data.begin()[1]->clr();
+}
+
 void __attribute__((noinline)) mytestfn(const std::initializer_list<const TestBase* const>& data) {
     data.begin()[0]->set();
     data.begin()[1]->clr();
@@ -383,6 +390,7 @@ void hw_preinit(void)
     } while (blinker_pattern || rest_pattern);
     asm volatile ("cpsid i\n");
 
+    ggtestfn(ggentries);
     mytestfn(myentries);
 }
 
