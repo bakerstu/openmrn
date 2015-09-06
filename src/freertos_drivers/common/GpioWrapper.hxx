@@ -97,15 +97,15 @@ public:
         }
     }
 
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &instance_;
     }
 
-    static GpioWrapper instance_;
+    static const GpioWrapper instance_;
 };
 
 /// Defines the linker symbol for the wrapped Gpio instance.
-template <class PIN> GpioWrapper<PIN> GpioWrapper<PIN>::instance_;
+template <class PIN> const GpioWrapper<PIN> GpioWrapper<PIN>::instance_;
 
 #endif // _FREERTOS_DRIVERS_COMMON_GPIOWRAPPER_HXX_
