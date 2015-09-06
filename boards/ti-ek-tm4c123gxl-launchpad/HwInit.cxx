@@ -240,7 +240,14 @@ public:
 
 const MyTestClass mytestv;
 
-constexpr std::initializer_list<const Gpio* const> ggentries = { &mytestv, &mytestv, TEST_Pin::instance() };
+constexpr auto p = TEST_Pin::instance();
+constexpr std::initializer_list<const Gpio* const> ggentries{ &mytestv, &mytestv , p };
+
+const Gpio* const hhentries[] = { &mytestv, p, TEST_Pin::instance()};
+
+//constexpr std::initializer_list<const Gpio* const> ggentries{kGpioList, 3};
+
+//constexpr auto ggge = { TEST_Pin::instance() };
 
 class TestBase {
 public:
@@ -332,6 +339,11 @@ void __attribute__((noinline)) ggtestfn(const std::initializer_list<const Gpio* 
     data.begin()[1]->clr();
 }
 
+void __attribute__((noinline)) hhtestfn(const Gpio* const* data, size_t size) {
+    data[0]->set();
+    data[1]->clr();
+}
+
 void __attribute__((noinline)) mytestfn(const std::initializer_list<const TestBase* const>& data) {
     data.begin()[0]->set();
     data.begin()[1]->clr();
@@ -391,6 +403,7 @@ void hw_preinit(void)
     asm volatile ("cpsid i\n");
 
     ggtestfn(ggentries);
+    hhtestfn(hhentries, ARRAYSIZE(hhentries));
     mytestfn(myentries);
 }
 
