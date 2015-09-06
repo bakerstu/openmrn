@@ -193,10 +193,6 @@ public:
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
 
-    static constexpr const TivaGpio<GPIO_BASE, GPIO_PIN>* iinstance() {
-        return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
-    }
-
     static bool is_output()
     {
         return true;
@@ -313,7 +309,7 @@ public:
     {
         return false;
     }
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }

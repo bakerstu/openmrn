@@ -66,7 +66,7 @@ struct BLINKER_Pin
     {
         return true;
     }
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return GpioWrapper<BLINKER_Pin>::instance();
     }
