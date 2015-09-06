@@ -40,7 +40,7 @@
 class CpuDisplay : public StateFlowBase
 {
 public:
-    CpuDisplay(Service *s, Gpio *red, Gpio *green)
+    CpuDisplay(Service *s, const Gpio *red, const Gpio *green)
         : StateFlowBase(s)
         , timer_(this)
         , red_(red)
@@ -78,9 +78,9 @@ public:
 private:
     StateFlowTimer timer_;
     // Red LED for display.
-    Gpio *red_;
+    const Gpio *red_;
     // Green LED for display.
-    Gpio *green_;
+    const Gpio *green_;
 };
 
 #endif // _UTILS_CPUDISPLAY_HXX_
