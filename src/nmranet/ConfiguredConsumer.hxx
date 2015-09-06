@@ -95,7 +95,7 @@ public:
     }
 
     UpdateAction apply_configuration(int fd, bool initial_load,
-                                     BarrierNotifiable *done)
+                                     BarrierNotifiable *done) OVERRIDE
     {
         AutoNotify n(done);
         EventId cfg_event_on = cfg_.event_on().read(fd);
