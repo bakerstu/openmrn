@@ -130,7 +130,7 @@ private:
     /// linker and (assuming the application developer initialized the hardware
     /// pins in hw_preinit) is accessible, including virtual methods at static
     /// constructor time.
-    static TivaGpio instance_;
+    static const TivaGpio instance_;
 
     /// Computes the memory address where the bit referring to this pin can be
     /// accessed. This address is bit-masked to the single individual pin, so
@@ -146,7 +146,7 @@ private:
 
 /// Defines the linker symbol for the wrapped Gpio instance.
 template <unsigned GPIO_BASE, unsigned GPIO_PIN>
-TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
+const TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
 
 /// Defines a GPIO output pin. Writes to this structure will change the output
 /// level of the pin. Reads will return the pin's current level.
@@ -188,10 +188,15 @@ public:
         set(!get());
     }
 
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
+
+    static constexpr const TivaGpio<GPIO_BASE, GPIO_PIN>* iinstance() {
+        return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
+    }
+
     static bool is_output()
     {
         return true;
