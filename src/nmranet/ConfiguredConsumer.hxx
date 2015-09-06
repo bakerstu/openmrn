@@ -77,7 +77,7 @@ class ConfiguredConsumer : public ConfigUpdateListener
 public:
     using Impl = GPIOBit;
 
-    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, Gpio *gpio)
+    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const Gpio *gpio)
         : impl_(node, 0, 0, gpio)
         , consumer_(&impl_)
         , cfg_(cfg)
@@ -86,8 +86,8 @@ public:
     }
 
     template <class HW>
-    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &)
-        : impl_(node, 0, 0, HW::instance())
+    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &, const Gpio* g = HW::instance())
+        : impl_(node, 0, 0, g)
         , consumer_(&impl_)
         , cfg_(cfg)
     {

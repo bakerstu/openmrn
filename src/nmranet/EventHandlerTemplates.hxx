@@ -263,7 +263,7 @@ private:
 class GPIOBit : public BitEventInterface
 {
 public:
-    GPIOBit(Node *node, EventId event_on, EventId event_off, Gpio *gpio)
+    GPIOBit(Node *node, EventId event_on, EventId event_off, const Gpio *gpio)
         : BitEventInterface(event_on, event_off)
         , node_(node)
         , gpio_(gpio)
@@ -271,8 +271,8 @@ public:
     }
 
     template <class HW>
-    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &)
-        : GPIOBit(node, event_on, event_off, HW::instance())
+    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &, const Gpio* g = HW::instance())
+        : GPIOBit(node, event_on, event_off, g)
     {
     }
 
@@ -291,7 +291,7 @@ public:
 
 public:
     Node *node_;
-    Gpio *gpio_;
+    const Gpio *gpio_;
 };
 
 /// Base class for single-bit producer and consumer objects.
