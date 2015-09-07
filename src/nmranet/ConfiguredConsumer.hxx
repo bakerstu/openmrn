@@ -135,16 +135,16 @@ class ConfiguredPulseConsumer : public ConfigUpdateListener,
 public:
     template <class HW>
     ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg,
-                            const HW &)
+                            const HW &, const Gpio* g = HW::instance())
         : node_(node)
-        , gpio_(HW::instance())
+        , gpio_(g)
         , cfg_(cfg)
     {
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
     ConfiguredPulseConsumer(Node *node, const PulseConsumerConfig &cfg,
-                            Gpio *gpio)
+                            const Gpio *gpio)
         : node_(node)
         , gpio_(gpio)
         , cfg_(cfg)
@@ -256,7 +256,7 @@ private:
     }
 
     Node *node_;                    //< virtual node to export the consumer on
-    Gpio *gpio_;                    //< hardware output pin to drive
+    const Gpio *gpio_;              //< hardware output pin to drive
     EventId event_{0};              //< Event ID to listen for
     const PulseConsumerConfig cfg_; //< offset to the config in EEPROM
     uint8_t pulseLength_{1};        //< length of pulse (in polling count)

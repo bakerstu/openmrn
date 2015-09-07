@@ -41,78 +41,7 @@
 #include "gpio_17xx_40xx.h"
 #include "iocon_17xx_40xx.h"
 #include "os/Gpio.hxx"
-
-template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin;
-
-/// Generic GPIO class implementation.
-template <uint8_t PORT, uint8_t PIN> class LpcGpio : public Gpio
-{
-public:
-    /// This constructor is constexpr which ensures that the object can be
-    /// initialized in the data section.
-    constexpr LpcGpio()
-    {
-    }
-
-    void write(Value new_state) OVERRIDE
-    {
-        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, new_state);
-    }
-
-    void set() OVERRIDE
-    {
-        // This will be optimized by the compiler to a single register write.
-        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, true);
-    }
-
-    void clr() OVERRIDE
-    {
-        // This will be optimized by the compiler to a single register write.
-        Chip_GPIO_SetPinState(LPC_GPIO, PORT, PIN, false);
-    }
-
-    Value read() OVERRIDE
-    {
-        return Chip_GPIO_GetPinState(LPC_GPIO, PORT, PIN) ? HIGH : LOW;
-    }
-
-    void set_direction(Direction dir) OVERRIDE
-    {
-        if (dir == Direction::OUTPUT)
-        {
-            Chip_GPIO_SetPinDIROutput(LPC_GPIO, PORT, PIN);
-        }
-        else
-        {
-            Chip_GPIO_SetPinDIRInput(LPC_GPIO, PORT, PIN);
-        }
-    }
-
-    Direction direction() OVERRIDE
-    {
-        if (Chip_GPIO_GetPinDIR(LPC_GPIO, PORT, PIN))
-        {
-            return Direction::OUTPUT;
-        }
-        else
-        {
-            return Direction::INPUT;
-        }
-    }
-
-private:
-    template <uint8_t PORTx, uint8_t PINx> friend struct LpcGpioPin;
-    /// Static instance variable that can be used for libraries expectiong a
-    /// generic Gpio pointer. This instance variable will be initialized by the
-    /// linker and (assuming the application developer initialized the hardware
-    /// pins in hw_preinit) is accessible, including virtual methods at static
-    /// constructor time.
-    static LpcGpio instance_;
-};
-
-/// Defines the linker symbol for the wrapped Gpio instance.
-template <uint8_t PORT, uint8_t PIN>
-LpcGpio<PORT, PIN> LpcGpio<PORT, PIN>::instance_;
+#include "GpioWrapper.hxx"
 
 template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
 {
@@ -141,9 +70,14 @@ template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
 
     /// Returns a os-indepentent Gpio abstraction instance for use in
     /// libraries.
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
-        return &LpcGpio<PORT, PIN>::instance_;
+        return GpioWrapper<LpcGpioPin<PORT, PIN>>::instance();
+    }
+
+    static bool is_output()
+    {
+        return Chip_GPIO_GetPinDIR(LPC_GPIO, port(), pin());
     }
 
 protected:
