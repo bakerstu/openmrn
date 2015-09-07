@@ -113,7 +113,7 @@ private:
     container_type container_;
 
     /// The first this many elements in the container are already sorted.
-    size_t sortedCount_;
+    size_t sortedCount_{0};
 };
 
 #endif // _UTILS_SORTEDLISTMAP_HXX_
