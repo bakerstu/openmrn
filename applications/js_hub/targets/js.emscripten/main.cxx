@@ -56,36 +56,43 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 int port = 12021;
 const char *device_path = nullptr;
 
+int ws_port = -1;
+
+
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path]\n\n", e);
+    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-w websocket_port]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
                     "packets to all other participants.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to listen on, "
                     "default is 12021.\n");
-    fprintf(stderr, "\t-d device   is a path to a physical device doing "
+/*    fprintf(stderr, "\t-d device   is a path to a physical device doing "
                     "serial-CAN or USB-CAN. If specified, opens device and "
-                    "adds it to the hub.\n");
+                    "adds it to the hub.\n");*/
+    fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port and serves up a websocket connection to the same CAN-bus.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:c:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:w:")) >= 0)
     {
         switch (opt)
         {
             case 'h':
                 usage(argv[0]);
                 break;
-            case 'd':
+/*            case 'd':
                 device_path = optarg;
-                break;
+                break;*/
             case 'p':
                 port = atoi(optarg);
+                break;
+            case 'w':
+                ws_port = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -97,17 +104,20 @@ void parse_args(int argc, char *argv[])
 class JSHubPort : public HubPortInterface
 {
 public:
-    JSHubPort(HubFlow *parent, emscripten::val send_fn)
-        : parent_(parent)
+    JSHubPort(unsigned long parent, emscripten::val send_fn)
+        : parent_(reinterpret_cast<CanHubFlow*>(parent))
         , sendFn_(send_fn)
+        , gcHub_(parent_->service())
+        , gcAdapter_(
+              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, parent_, false))
     {
         HASSERT(sendFn_.typeof().as<std::string>() == "function");
-        parent_->register_port(this);
+        gcHub_.register_port(this);
     }
 
     ~JSHubPort()
     {
-        parent_->unregister_port(this);
+        gcHub_.unregister_port(this);
     }
 
     void send(HubPortInterface::message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE
@@ -118,15 +128,17 @@ public:
 
     void recv(string s)
     {
-        auto *b = parent_->alloc();
+        auto *b = gcHub_.alloc();
         b->data()->assign(s);
         b->data()->skipMember_ = this;
-        parent_->send(b);
+        gcHub_.send(b);
     }
 
 private:
-    HubFlow *parent_;
+    CanHubFlow *parent_;
     emscripten::val sendFn_;
+    HubFlow gcHub_;
+    std::unique_ptr<GCAdapterBase> gcAdapter_;
 };
 
 class JSTcpHub
@@ -134,9 +146,6 @@ class JSTcpHub
 public:
     JSTcpHub(CanHubFlow *hflow, int port)
         : canHub_(hflow)
-        , gcHub_(canHub_->service())
-        , gcAdapter_(
-              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, canHub_, false))
     {
         EM_ASM_(
         {
@@ -158,14 +167,21 @@ public:
             server.listen($0, function()
             { console.log('listening on port ' + $0); });
         },
-            port, &gcHub_);
+        port, (unsigned long)canHub_);
     }
 
 private:
     CanHubFlow *canHub_;
-    HubFlow gcHub_;
-    std::unique_ptr<GCAdapterBase> gcAdapter_;
 };
+
+/*
+class JSWebsocketServer
+{
+public:
+    JSWebsocketServer(CanHubFlow* hflow, int port)
+        : canHub_(hflow)
+
+        };*/
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -210,6 +226,6 @@ int appl_main(int argc, char *argv[])
 EMSCRIPTEN_BINDINGS(js_hub_module)
 {
     emscripten::class_<JSHubPort>("JSHubPort")
-        .constructor<HubFlow *, emscripten::val>()
+        .constructor<unsigned long, emscripten::val>()
         .function("recv", &JSHubPort::recv);
 }
