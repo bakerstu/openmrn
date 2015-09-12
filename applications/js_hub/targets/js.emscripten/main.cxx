@@ -58,20 +58,22 @@ const char *device_path = nullptr;
 
 int ws_port = -1;
 
-
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-w websocket_port]\n\n", e);
+    fprintf(stderr,
+        "Usage: %s [-p port] [-d device_path] [-w websocket_port]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
                     "packets to all other participants.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to listen on, "
                     "default is 12021.\n");
-/*    fprintf(stderr, "\t-d device   is a path to a physical device doing "
-                    "serial-CAN or USB-CAN. If specified, opens device and "
-                    "adds it to the hub.\n");*/
-    fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port and serves up a websocket connection to the same CAN-bus.\n");
+    /*    fprintf(stderr, "\t-d device   is a path to a physical device doing "
+                        "serial-CAN or USB-CAN. If specified, opens device and "
+                        "adds it to the hub.\n");*/
+    fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port "
+                    "and serves up a websocket connection to the same "
+                    "CAN-bus.\n");
     exit(1);
 }
 
@@ -85,9 +87,9 @@ void parse_args(int argc, char *argv[])
             case 'h':
                 usage(argv[0]);
                 break;
-/*            case 'd':
-                device_path = optarg;
-                break;*/
+            /*            case 'd':
+                            device_path = optarg;
+                            break;*/
             case 'p':
                 port = atoi(optarg);
                 break;
@@ -105,7 +107,7 @@ class JSHubPort : public HubPortInterface
 {
 public:
     JSHubPort(unsigned long parent, emscripten::val send_fn)
-        : parent_(reinterpret_cast<CanHubFlow*>(parent))
+        : parent_(reinterpret_cast<CanHubFlow *>(parent))
         , sendFn_(send_fn)
         , gcHub_(parent_->service())
         , gcAdapter_(
@@ -120,7 +122,8 @@ public:
         gcHub_.unregister_port(this);
     }
 
-    void send(HubPortInterface::message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE
+    void send(HubPortInterface::message_type *buffer,
+        unsigned priority = UINT_MAX) OVERRIDE
     {
         sendFn_((string &)*buffer->data());
         buffer->unref();
@@ -148,40 +151,105 @@ public:
         : canHub_(hflow)
     {
         EM_ASM_(
-        {
-            var net = require('net');
-            var server = net.createServer(function(c)
             {
-                console.log('client connected');
-                c.setEncoding('utf-8');
-                var client_port = new Module.JSHubPort($1, function(data)
-                { c.write(data); });
-                c.on('close', function()
-                {
-                    console.log('client disconnected');
-                    client_port.delete ();
-                });
-                c.on('data', function(data)
-                { client_port.recv(data); });
-            });
-            server.listen($0, function()
-            { console.log('listening on port ' + $0); });
-        },
-        port, (unsigned long)canHub_);
+                var net = require('net');
+                var server = net.createServer(function(c)
+                    {
+                        console.log('client connected');
+                        c.setEncoding('utf-8');
+                        var client_port =
+                            new Module.JSHubPort($1, function(data)
+                                {
+                                    c.write(data);
+                                });
+                        c.on('close', function()
+                            {
+                                console.log('client disconnected');
+                                client_port.delete();
+                            });
+                        c.on('data', function(data)
+                            {
+                                client_port.recv(data);
+                            });
+                    });
+                server.listen($0, function()
+                    {
+                        console.log('listening on port ' + $0);
+                    });
+            },
+            port, (unsigned long)canHub_);
     }
 
 private:
     CanHubFlow *canHub_;
 };
 
-/*
 class JSWebsocketServer
 {
 public:
-    JSWebsocketServer(CanHubFlow* hflow, int port)
+    JSWebsocketServer(CanHubFlow *hflow, int port)
         : canHub_(hflow)
+    {
+        EM_ASM_(
+            {
+                var WebSocketServer = require('websocket').server;
+                var http = require('http');
+                var server = http.createServer(function(request, response){
+                    // process HTTP request. Since we're writing just
+                    // WebSockets server we don't have to implement anything.
+                });
+                server.listen($0, function()
+                    {
+                        console.log(
+                            'websocket server: listening on port ' + $0);
+                    });
 
-        };*/
+                // create the server
+                wsServer = new WebSocketServer({httpServer : server});
+
+                // WebSocket server
+                wsServer.on('request', function(request)
+                    {
+                        var connection = request.accept(null, request.origin);
+                        var client_port = new Module.JSHubPort($1,
+                            function(gc_text)
+                            {
+                                var json = JSON.stringify(
+                                    {type : 'gc_can_frame', data : gc_text});
+                                connection.sendUTF(json);
+                            });
+                        connection.on('message', function(message)
+                            {
+                                try
+                                {
+                                    var json = JSON.parse(message.data);
+                                }
+                                catch (e)
+                                {
+                                    console.log(
+                                        'This doesn\'t look like a valid JSON: ',
+                                        message.data);
+                                    return;
+                                }
+                                if (message.type === 'gc_can_frame')
+                                {
+                                    // Send can frame data to the hub port
+                                    client_port.recv(json.data);
+                                }
+                            });
+                        connection.on('close', function(connection)
+                            {
+                                console.log('websocket client disconnected');
+                                client_port.delete();
+                            });
+                    });
+            },
+            port, (unsigned long)canHub_);
+    }
+
+private:
+    CanHubFlow *canHub_;
+};
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -192,6 +260,10 @@ int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
     JSTcpHub hub(&can_hub0, port);
+    std::unique_ptr<JSWebsocketServer> ws;
+    if (ws_port > 0) {
+        ws.reset(new JSWebsocketServer(&can_hub0, ws_port));
+    }
     /*    int dev_fd = 0;
     while (1)
     {
