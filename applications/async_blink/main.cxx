@@ -32,6 +32,8 @@
  * @date 7 Dec 2013
  */
 
+#define LOGLEVEL INFO
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -46,6 +48,12 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
 #endif
 
 #ifdef BOARD_LAUNCHPAD_EK
@@ -151,6 +159,139 @@ private:
 
 BlinkerFlow blinker_flow(stack.node());
 
+#ifdef __EMSCRIPTEN__
+
+class JSHubPort : public HubPortInterface
+{
+public:
+    JSHubPort(unsigned long parent, emscripten::val send_fn)
+        : parent_(reinterpret_cast<CanHubFlow *>(parent))
+        , sendFn_(send_fn)
+        , gcHub_(parent_->service())
+        , gcAdapter_(
+              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, parent_, false))
+    {
+        HASSERT(sendFn_.typeof().as<std::string>() == "function");
+        gcHub_.register_port(this);
+    }
+
+    ~JSHubPort()
+    {
+        gcHub_.unregister_port(this);
+    }
+
+    void send(HubPortInterface::message_type *buffer,
+        unsigned priority = UINT_MAX) OVERRIDE
+    {
+        sendFn_((string &)*buffer->data());
+        buffer->unref();
+    }
+
+    void recv(string s)
+    {
+        auto *b = gcHub_.alloc();
+        b->data()->assign(s);
+        b->data()->skipMember_ = this;
+        gcHub_.send(b);
+    }
+
+private:
+    CanHubFlow *parent_;
+    emscripten::val sendFn_;
+    HubFlow gcHub_;
+    std::unique_ptr<GCAdapterBase> gcAdapter_;
+};
+
+class JSWebsocketClient
+{
+public:
+    JSWebsocketClient(CanHubFlow* hflow, string server)
+        : canHub_(hflow) {
+        string script = "Module.ws_server = '" + server + "';\n";
+        emscripten_run_script(script.c_str());
+        EM_ASM_(
+            {
+                console.log('test type');
+                try {
+                    var WS = window.WebSocket || window.MozWebSocket;
+                } catch (err) {
+                    var WS = require('websocket').w3cwebsocket;
+                }
+                /*var is_node = window ? false : true;
+                if (!is_node) {
+                    console.log('using browser');
+                } else {
+                    console.log('using nodejs');
+                    }*/
+                console.log('connecting to ws server: ', Module.ws_server);
+                var connection = new WS(Module.ws_server);
+                var client_port = new Module.JSHubPort($0,
+                            function(gc_text)
+                            {
+                                var json = JSON.stringify(
+                                    {type : 'gc_can_frame', data : gc_text});
+                                if (connection.readyState == 1) {
+                                    connection.send(json);
+                                } else {
+                                    console.log('Not sending frame ', gc_text,
+                                                ' because connection state = ',
+                                                connection.readyState);
+                                }
+                            });
+                connection.onopen = function() {
+                    console.log('ws connection established. starting stack.');
+                    try {
+                        Module.startStack();
+                    } catch (e) {
+                        if (e === 'SimulateInfiniteLoop') {
+                            console.log('stack started.');
+                        } else {
+                            console.log('unknown exception ', e);
+                            throw e;
+                        }
+                    }
+                };
+                connection.onerror = function (eee) {
+                    console.log('Connection error: ', eee);
+                };
+                connection.onmessage = function(message) {
+                    try
+                    {
+                        var json = JSON.parse(message.data);
+                    }
+                    catch (e)
+                    {
+                        console.log(
+                            'This doesn\'t look like a valid JSON: ',
+                            message.data);
+                        return;
+                    }
+                    if (message.type === 'gc_can_frame')
+                    {
+                        // Send can frame data to the hub port
+                        client_port.recv(json.data);
+                    }
+                };
+            }, (unsigned long)canHub_);
+    }
+
+private:
+    CanHubFlow *canHub_;
+};
+
+void start_stack() {
+    emscripten_cancel_main_loop();
+    stack.loop_executor();
+    EM_ASM(console.log('stack start done'););
+}
+
+void ignore_function() {
+}
+
+
+#endif
+
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -164,7 +305,7 @@ int appl_main(int argc, char* argv[])
 
 #if defined (__linux__) || defined (__MACH__)
     stack.print_all_packets();
-    stack.start_tcp_hub_server(12021);
+    stack.connect_tcp_gridconnect_hub("localhost",12025);
 #elif defined(TARGET_LPC11Cxx)
     lpc11cxx::CreateCanDriver(stack.can_hub());
 #elif defined(TARGET_PIC32MX)
@@ -172,8 +313,9 @@ int appl_main(int argc, char* argv[])
 #elif defined(__FreeRTOS__)
     stack.add_can_port_select("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
+    new JSWebsocketClient(stack.can_hub(), "ws://bracz2.zrh:50003");
     // No hardware connection for the moment.
-    stack.print_all_packets();
+    //stack.print_all_packets();
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target
@@ -186,10 +328,24 @@ int appl_main(int argc, char* argv[])
     stack.add_gridconnect_port("/dev/ser0");
 #endif
 
-
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
 
+#ifdef __EMSCRIPTEN__
+    // We delay the start of the stack until the connection is established.
+    emscripten_set_main_loop(&ignore_function, 0, true);
+#else
     stack.loop_executor();
+#endif
     return 0;
 }
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_BINDINGS(js_hub_module)
+{
+    emscripten::class_<JSHubPort>("JSHubPort")
+        .constructor<unsigned long, emscripten::val>()
+        .function("recv", &JSHubPort::recv);
+    emscripten::function("startStack", &start_stack);
+}
+#endif
