@@ -222,19 +222,21 @@ public:
                             {
                                 try
                                 {
-                                    var json = JSON.parse(message.data);
+                                    var json = JSON.parse(message.utf8Data);
                                 }
                                 catch (e)
                                 {
                                     console.log(
                                         'This doesn\'t look like a valid JSON: ',
-                                        message.data);
+                                        message.data, ' raw msg ' ,message);
                                     return;
                                 }
-                                if (message.type === 'gc_can_frame')
+                                if (json.type === 'gc_can_frame')
                                 {
                                     // Send can frame data to the hub port
                                     client_port.recv(json.data);
+                                } else {
+                                    console.log('Unknown type ', message.type);
                                 }
                             });
                         connection.on('close', function(connection)
