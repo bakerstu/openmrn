@@ -43,7 +43,7 @@
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
-#include "utils/JSHubPort.hxx"
+#include "utils/JSTcpHub.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -108,46 +108,6 @@ void parse_args(int argc, char *argv[])
         }
     }
 }
-
-class JSTcpHub
-{
-public:
-    JSTcpHub(CanHubFlow *hflow, int port)
-        : canHub_(hflow)
-    {
-        EM_ASM_(
-            {
-                var net = require('net');
-                var server = net.createServer(function(c)
-                    {
-                        console.log('client connected');
-                        c.setEncoding('utf-8');
-                        var client_port =
-                            new Module.JSHubPort($1, function(data)
-                                {
-                                    c.write(data);
-                                });
-                        c.on('close', function()
-                            {
-                                console.log('client disconnected');
-                                client_port.delete();
-                            });
-                        c.on('data', function(data)
-                            {
-                                client_port.recv(data);
-                            });
-                    });
-                server.listen($0, function()
-                    {
-                        console.log('listening on port ' + $0);
-                    });
-            },
-            port, (unsigned long)canHub_);
-    }
-
-private:
-    CanHubFlow *canHub_;
-};
 
 class JSWebsocketServer
 {
