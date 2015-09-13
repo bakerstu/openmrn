@@ -1,0 +1,26 @@
+<html>
+<body>
+Hello, world!<p/>
+
+Loading stack...<p/>
+
+Event state: <div id="event_output">unknown</div><p/>
+
+<script type="text/javascript" src="js_client.js"></script>
+
+
+<script type="text/javascript">
+var event_output = document.getElementById("event_output");
+event_output.innerHTML = "script loading";
+var on_cb = function() {
+  event_output.innerHTML = "on";
+};
+var off_cb = function() {
+  event_output.innerHTML = "off";
+};
+var pc = new Module.BitEventPC("0x0502010202000000", on_cb, "0x0502010202000001", off_cb);
+event_output.innerHTML = "loaded";
+</script>
+
+</body>
+</html>
