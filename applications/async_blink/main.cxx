@@ -54,7 +54,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
-#include "utils/JSHubPort.hxx"
+#include "utils/JSWebsocketClient.hxx"
 #endif
 
 #ifdef BOARD_LAUNCHPAD_EK
@@ -163,87 +163,6 @@ BlinkerFlow blinker_flow(stack.node());
 #endif
 
 #ifdef __EMSCRIPTEN__
-
-
-class JSWebsocketClient
-{
-public:
-    JSWebsocketClient(CanHubFlow* hflow, string server)
-        : canHub_(hflow) {
-        string script = "Module.ws_server = '" + server + "';\n";
-        emscripten_run_script(script.c_str());
-        EM_ASM_(
-            {
-                console.log('test type');
-                try {
-                    var WS = window.WebSocket || window.MozWebSocket;
-                } catch (err) {
-                    var WS = require('websocket').w3cwebsocket;
-                }
-                /*var is_node = window ? false : true;
-                if (!is_node) {
-                    console.log('using browser');
-                } else {
-                    console.log('using nodejs');
-                    }*/
-                console.log('connecting to ws server: ', Module.ws_server);
-                var connection = new WS(Module.ws_server);
-                var client_port = new Module.JSHubPort($0,
-                            function(gc_text)
-                            {
-                                var json = JSON.stringify(
-                                    {type : 'gc_can_frame', data : gc_text});
-                                if (connection.readyState == 1) {
-                                    connection.send(json);
-                                } else {
-                                    console.log('Not sending frame ', gc_text,
-                                                ' because connection state = ',
-                                                connection.readyState);
-                                }
-                            });
-                connection.onopen = function() {
-                    console.log('ws connection established. starting stack.');
-                    try {
-                        Module.startStack();
-                    } catch (e) {
-                        if (e === 'SimulateInfiniteLoop') {
-                            console.log('stack started.');
-                        } else {
-                            console.log('unknown exception ', e);
-                            throw e;
-                        }
-                    }
-                };
-                connection.onerror = function (eee) {
-                    console.log('Connection error: ', eee);
-                };
-                connection.onmessage = function(message) {
-                    try
-                    {
-                        var json = JSON.parse(message.data);
-                    }
-                    catch (e)
-                    {
-                        console.log(
-                            'This doesn\'t look like a valid JSON: ',
-                            message.data);
-                        return;
-                    }
-                    if (json.type === 'gc_can_frame')
-                    {
-                        // Send can frame data to the hub port
-                        client_port.recv(json.data);
-                    } else {
-                        console.log('Received data of unknown type: ',
-                                    json.type);
-                    }
-                };
-            }, (unsigned long)canHub_);
-    }
-
-private:
-    CanHubFlow *canHub_;
-};
 
 void start_stack() {
     emscripten_cancel_main_loop();
