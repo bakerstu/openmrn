@@ -43,6 +43,7 @@
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/JSHubPort.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -107,47 +108,6 @@ void parse_args(int argc, char *argv[])
         }
     }
 }
-
-class JSHubPort : public HubPortInterface
-{
-public:
-    JSHubPort(unsigned long parent, emscripten::val send_fn)
-        : parent_(reinterpret_cast<CanHubFlow *>(parent))
-        , sendFn_(send_fn)
-        , gcHub_(parent_->service())
-        , gcAdapter_(
-              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, parent_, false))
-    {
-        HASSERT(sendFn_.typeof().as<std::string>() == "function");
-        gcHub_.register_port(this);
-    }
-
-    ~JSHubPort()
-    {
-        gcHub_.unregister_port(this);
-    }
-
-    void send(HubPortInterface::message_type *buffer,
-        unsigned priority = UINT_MAX) OVERRIDE
-    {
-        sendFn_((string &)*buffer->data());
-        buffer->unref();
-    }
-
-    void recv(string s)
-    {
-        auto *b = gcHub_.alloc();
-        b->data()->assign(s);
-        b->data()->skipMember_ = this;
-        gcHub_.send(b);
-    }
-
-private:
-    CanHubFlow *parent_;
-    emscripten::val sendFn_;
-    HubFlow gcHub_;
-    std::unique_ptr<GCAdapterBase> gcAdapter_;
-};
 
 class JSTcpHub
 {
@@ -310,11 +270,4 @@ int appl_main(int argc, char *argv[])
         }*/
     g_executor.thread_body();
     return 0;
-}
-
-EMSCRIPTEN_BINDINGS(js_hub_module)
-{
-    emscripten::class_<JSHubPort>("JSHubPort")
-        .constructor<unsigned long, emscripten::val>()
-        .function("recv", &JSHubPort::recv);
 }
