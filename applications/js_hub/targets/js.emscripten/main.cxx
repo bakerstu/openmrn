@@ -55,13 +55,14 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 
 int port = 12021;
 const char *device_path = nullptr;
+const char *static_dir = "";
 
 int ws_port = -1;
 
 void usage(const char *e)
 {
     fprintf(stderr,
-        "Usage: %s [-p port] [-d device_path] [-w websocket_port]\n\n", e);
+        "Usage: %s [-p port] [-d device_path] [-w websocket_port [-l path_to_web]]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
@@ -74,13 +75,14 @@ void usage(const char *e)
     fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port "
                     "and serves up a websocket connection to the same "
                     "CAN-bus.\n");
+    fprintf(stderr, "\t-l path_to_web     Exports the contents of this directory thorugh the websocket's webserver.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:w:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:w:l:")) >= 0)
     {
         switch (opt)
         {
@@ -95,6 +97,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'w':
                 ws_port = atoi(optarg);
+                break;
+            case 'l':
+                static_dir = optarg;
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -187,17 +192,27 @@ private:
 class JSWebsocketServer
 {
 public:
-    JSWebsocketServer(CanHubFlow *hflow, int port)
+    JSWebsocketServer(CanHubFlow *hflow, int port, string static_dir)
         : canHub_(hflow)
     {
+        if (!static_dir.empty()) {
+            string script = "Module.static_dir = '" + static_dir + "';\n";
+            emscripten_run_script(script.c_str());
+        }
         EM_ASM_(
             {
                 var WebSocketServer = require('websocket').server;
                 var http = require('http');
-                var server = http.createServer(function(request, response){
+                var ecstatic = require('ecstatic');
+                if (Module.static_dir) {
+                    var serverImpl = ecstatic({ root: Module.static_dir });
+                } else {
+                    var serverImpl = function(request, response){
                     // process HTTP request. Since we're writing just
                     // WebSockets server we don't have to implement anything.
-                });
+                    };
+                }
+                var server = http.createServer(serverImpl);
                 server.listen($0, function()
                     {
                         console.log(
@@ -264,7 +279,7 @@ int appl_main(int argc, char *argv[])
     JSTcpHub hub(&can_hub0, port);
     std::unique_ptr<JSWebsocketServer> ws;
     if (ws_port > 0) {
-        ws.reset(new JSWebsocketServer(&can_hub0, ws_port));
+        ws.reset(new JSWebsocketServer(&can_hub0, ws_port, static_dir));
     }
     /*    int dev_fd = 0;
     while (1)
