@@ -157,7 +157,9 @@ private:
     bool state_;
 };
 
+#ifndef __EMSCRIPTEN__
 BlinkerFlow blinker_flow(stack.node());
+#endif
 
 #ifdef __EMSCRIPTEN__
 
@@ -266,10 +268,13 @@ public:
                             message.data);
                         return;
                     }
-                    if (message.type === 'gc_can_frame')
+                    if (json.type === 'gc_can_frame')
                     {
                         // Send can frame data to the hub port
                         client_port.recv(json.data);
+                    } else {
+                        console.log('Received data of unknown type: ',
+                                    json.type);
                     }
                 };
             }, (unsigned long)canHub_);
@@ -305,7 +310,7 @@ int appl_main(int argc, char* argv[])
 
 #if defined (__linux__) || defined (__MACH__)
     stack.print_all_packets();
-    stack.connect_tcp_gridconnect_hub("localhost",12025);
+    stack.connect_tcp_gridconnect_hub("localhost",12021);
 #elif defined(TARGET_LPC11Cxx)
     lpc11cxx::CreateCanDriver(stack.can_hub());
 #elif defined(TARGET_PIC32MX)
@@ -313,7 +318,8 @@ int appl_main(int argc, char* argv[])
 #elif defined(__FreeRTOS__)
     stack.add_can_port_select("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
-    new JSWebsocketClient(stack.can_hub(), "ws://bracz2.zrh:50003");
+    new JSWebsocketClient(stack.can_hub(), "ws://localhost:50003");
+    //new JSWebsocketClient(stack.can_hub(), "ws://bracz2.zrh:50003");
     // No hardware connection for the moment.
     //stack.print_all_packets();
 #else
