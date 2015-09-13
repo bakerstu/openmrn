@@ -53,7 +53,7 @@ void log_output(char* buf, int size) {
     send_stdio_serial_message(buf);
 }
 
-#elif defined(__linux__) || defined(__MACH__)
+#elif defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__)
 
 #include <stdio.h>
 
