@@ -55,12 +55,12 @@ public:
         , debouncer_(debounce_args)
         , producer_(this)
     {
-        debouncer_.initialize(BaseBit::GetCurrentState());
+        debouncer_.initialize(BaseBit::GetCurrentState() == EventState::VALID);
     }
 
-    bool GetCurrentState() OVERRIDE
+    EventState GetCurrentState() OVERRIDE
     {
-        return debouncer_.current_state();
+        return debouncer_.current_state() ? EventState::VALID : EventState::INVALID;
     }
 
     void SetState(bool new_value) OVERRIDE
@@ -70,7 +70,7 @@ public:
 
     void poll_33hz(WriteHelper *helper, Notifiable *done) OVERRIDE
     {
-        if (debouncer_.update_state(BaseBit::GetCurrentState()))
+        if (debouncer_.update_state(BaseBit::GetCurrentState() == EventState::VALID))
         {
             producer_.SendEventReport(helper, done);
         }
