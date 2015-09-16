@@ -70,6 +70,15 @@ struct NodeHandle
     }
 };
 
+/** Allowed states of producers and consumers. */
+enum class EventState
+{
+    VALID = 0,
+    INVALID = 1,
+    UNKNOWN = 2,
+    RESERVED = 3
+};
+
 /** The generic interface for NMRAnet network interfaces
  */
 struct Defs
@@ -223,6 +232,30 @@ private:
     /** This struct should not be instantiated. */
     Defs();
 };
+
+/** Allows ofsetting the producer/consumer identified MTI with the event state
+ * to set the low bits. */
+inline Defs::MTI operator+(const Defs::MTI &value, EventState state)
+{
+    int code = static_cast<int>(value);
+    code += static_cast<int>(state);
+    return static_cast<Defs::MTI>(code);
+}
+
+/** Returns the inverted event state, switching valid and invalid, but not
+ * changing unknown and reserved. */
+inline EventState invert_event_state(EventState state)
+{
+    switch (state)
+    {
+        case EventState::VALID:
+            return EventState::INVALID;
+        case EventState::INVALID:
+            return EventState::VALID;
+        default:
+            return state;
+    }
+}
 
 /** Operator overload for post increment */
 inline Defs::MTI operator ++ (Defs::MTI &value, int)

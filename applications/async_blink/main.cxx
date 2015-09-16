@@ -133,13 +133,16 @@ public:
     {
     }
 
-    virtual bool GetCurrentState()
+    virtual nmranet::EventState GetCurrentState()
     {
-        return state_;
+        using nmranet::EventState;
+        if (!stateKnown_) return EventState::UNKNOWN;
+        return state_ ? EventState::VALID : EventState::INVALID;
     }
     virtual void SetState(bool new_value)
     {
         state_ = new_value;
+        stateKnown_ = true;
         //HASSERT(0);
 #if defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__MACH__)
         LOG(INFO, "bit %s set to %d", name_, state_);
@@ -155,6 +158,7 @@ public:
 
 private:
     const char* name_;
+    bool stateKnown_{false};
     bool state_;
 };
 

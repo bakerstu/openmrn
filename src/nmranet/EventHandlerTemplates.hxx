@@ -179,8 +179,9 @@ public:
         , event_off_(event_off)
     {
     }
+
     /// returns the current hardware state: true for ON, false for OFF.
-    virtual bool GetCurrentState() = 0;
+    virtual EventState GetCurrentState() = 0;
     /// Updates the hardware for the new event state.
     ///
     /// @param new_value is true for state ON, false for state OFF.
@@ -234,9 +235,9 @@ public:
     {
         return node_;
     }
-    virtual bool GetCurrentState()
+    virtual EventState GetCurrentState()
     {
-        return (*ptr_) & mask_;
+        return ((*ptr_) & mask_) ? EventState::VALID : EventState::INVALID;
     }
     virtual void SetState(bool new_value)
     {
@@ -276,9 +277,9 @@ public:
     {
     }
 
-    bool GetCurrentState() OVERRIDE
+    EventState GetCurrentState() OVERRIDE
     {
-        return gpio_->is_set();
+        return gpio_->is_set() ? EventState::VALID : EventState::INVALID;
     }
     void SetState(bool new_value) OVERRIDE
     {

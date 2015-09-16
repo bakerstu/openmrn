@@ -48,14 +48,6 @@ typedef uint64_t EventId;
 class Node;
 class EventHandler;
 
-enum class EventState
-{
-    VALID = 0,
-    INVALID = 1,
-    UNKNOWN = 2,
-    RESERVED = 3
-};
-
 /*enum EventMask {
   EVENT_EXACT_MASK = 1,
   EVENT_ALL_MASK = 0xffffffffffffffffULL

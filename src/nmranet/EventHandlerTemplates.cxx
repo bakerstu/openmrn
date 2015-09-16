@@ -557,21 +557,12 @@ void BitEventHandler::unregister_handler()
 
 void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
 {
-    bool value = bit_->GetCurrentState();
-    Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID;
-    if (!value)
-        mti++; // INVALID
+    EventState state = bit_->GetCurrentState();
+    Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + state;
     event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
                                    done->new_child());
-    if (!value)
-    {
-        mti--; // VALID
-    }
-    else
-    {
-        mti++; // INVALID
-    }
+    mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + invert_event_state(state);
     event_write_helper2.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_off()),
                                    done->new_child());
@@ -579,21 +570,12 @@ void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
 
 void BitEventHandler::SendConsumerIdentified(BarrierNotifiable *done)
 {
-    bool value = bit_->GetCurrentState();
-    Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
-    if (!value)
-        mti++; // INVALID
+    EventState state = bit_->GetCurrentState();
+    Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + state;
     event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
                                    done->new_child());
-    if (!value)
-    {
-        mti--; // VALID
-    }
-    else
-    {
-        mti++; // INVALID
-    }
+    mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + invert_event_state(state);
     event_write_helper4.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_off()),
                                    done->new_child());
@@ -601,8 +583,16 @@ void BitEventHandler::SendConsumerIdentified(BarrierNotifiable *done)
 
 void BitEventHandler::SendEventReport(WriteHelper *writer, Notifiable *done)
 {
-    bool value = bit_->GetCurrentState();
-    uint64_t event = value ? bit_->event_on() : bit_->event_off();
+    EventState value = bit_->GetCurrentState();
+    uint64_t event;
+    if (value == EventState::VALID) {
+        event = bit_->event_on();
+    } else if (value == EventState::INVALID) {
+        event = bit_->event_off();
+    } else {
+        DIE("Requested sending event report for a bit event that is in unknown "
+            "state.");
+    }
     writer->WriteAsync(bit_->node(), Defs::MTI_EVENT_REPORT,
                        WriteHelper::global(), eventid_to_buffer(event), done);
 }
@@ -618,24 +608,21 @@ void BitEventHandler::HandlePCIdentify(Defs::MTI mti, EventReport *event,
         done->notify();
         return;
     }
-    bool active;
+    EventState active;
     if (event->event == bit_->event_on())
     {
         active = bit_->GetCurrentState();
     }
     else if (event->event == bit_->event_off())
     {
-        active = !bit_->GetCurrentState();
+        active = invert_event_state(bit_->GetCurrentState());
     }
     else
     {
         done->notify();
         return;
     }
-    if (!active)
-    {
-        ++mti; // mti_invalid.
-    }
+    mti = mti + active;
     event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(event->event), done);
 }
