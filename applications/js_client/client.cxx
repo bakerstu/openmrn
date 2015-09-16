@@ -38,12 +38,14 @@
 #include <emscripten/val.h>
 
 #include <memory>
+#include <set>
 
 #include "os/os.h"
 #include "can_frame.h"
 #include "nmranet_config.h"
 
 #include "os/TempFile.hxx"
+#include "nmranet/Defs.hxx"
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
@@ -53,8 +55,8 @@ const nmranet::NodeID NODE_ID = 0x0501010114DFULL;
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-nmranet::MockSNIPUserFile snip_user_file("Default user name",
-                                         "Default user description");
+nmranet::MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
@@ -69,16 +71,103 @@ void ignore_function()
 {
 }
 
+class QueryFlow : public StateFlowBase
+{
+public:
+    QueryFlow()
+        : StateFlowBase(stack.service())
+    {
+        start_flow(STATE(wait_for_initialized));
+    }
+
+    void add_event(uint64_t event_id)
+    {
+        /// @TODO (balazs.racz) handle the case when events are insnerted after
+        /// the iteration has begun.
+        events_.insert(event_id);
+    }
+
+private:
+    Action wait_for_initialized()
+    {
+        if (!stack.node()->is_initialized())
+        {
+            return sleep_and_call(
+                &timer_, SEC_TO_NSEC(1), STATE(wait_for_initialized));
+        }
+        return call_immediately(STATE(start_iteration));
+    }
+
+    Action start_iteration()
+    {
+        nextEvent_ = events_.begin();
+        return call_immediately(STATE(iterate));
+    }
+
+    Action iterate()
+    {
+        if (nextEvent_ == events_.end())
+        {
+            return exit();
+        }
+        return allocate_and_call(
+            stack.node()->interface()->global_message_write_flow(),
+            STATE(send_query));
+    }
+
+    Action send_query()
+    {
+        auto *f = stack.node()->interface()->global_message_write_flow();
+        auto *b = get_allocation_result(f);
+        b->data()->reset(nmranet::Defs::MTI_PRODUCER_IDENTIFY, stack.node()->node_id(),
+                         nmranet::eventid_to_buffer(*nextEvent_));
+        b->data()->set_flag_dst(nmranet::NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+        b->set_done(n_.reset(this));
+        f->send(b);
+        nextEvent_++;
+        return wait_and_call(STATE(delay_before_iterate));
+    }
+
+    Action delay_before_iterate() {
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(5), STATE(iterate));
+    }
+
+    using EventList = std::set<uint64_t>;
+    EventList events_;
+    EventList::iterator nextEvent_;
+    BarrierNotifiable n_;
+    StateFlowTimer timer_{this};
+} g_query_flow;
+
 class JSBitEventPC : private nmranet::BitEventInterface
 {
 public:
     JSBitEventPC(std::string event_on, emscripten::val fn_on_cb,
-                 std::string event_off, emscripten::val fn_off_cb)
+        std::string event_off, emscripten::val fn_off_cb)
         : BitEventInterface(parse_event_id(event_on), parse_event_id(event_off))
         , eventOnCallback_(fn_on_cb)
         , eventOffCallback_(fn_off_cb)
         , consumer_(this)
     {
+        g_query_flow.add_event(BitEventInterface::event_on());
+    }
+
+    void toggleState()
+    {
+        if (!hasValue_)
+        {
+            return;
+        }
+        /// @TODO(balazs.racz) ideally we should be able to just call
+        /// SendEventReport. However, that requires a WriteHelper and there is
+        /// no option to allocate a buffer dynamically.
+        lastValue_ = !lastValue_;
+        auto *f = stack.node()->interface()->global_message_write_flow();
+        auto *b = f->alloc();
+        b->data()->reset(nmranet::Defs::MTI_EVENT_REPORT,
+            stack.node()->node_id(),
+            nmranet::eventid_to_buffer(lastValue_ ? event_on() : event_off()));
+        f->send(b);
     }
 
 private:
@@ -92,19 +181,29 @@ private:
         return stack.node();
     }
 
-    void SetState(bool new_value) OVERRIDE {
+    void SetState(bool new_value) OVERRIDE
+    {
         lastValue_ = new_value;
-        if (new_value) {
+        hasValue_ = true;
+        if (new_value)
+        {
             eventOnCallback_();
-        } else {
+        }
+        else
+        {
             eventOffCallback_();
         }
     }
 
-    bool GetCurrentState() OVERRIDE {
-        return lastValue_;
+    nmranet::EventState GetCurrentState() OVERRIDE
+    {
+        using nmranet::EventState;
+        if (!hasValue_)
+            return EventState::UNKNOWN;
+        return lastValue_ ? EventState::VALID : EventState::INVALID;
     }
 
+    bool hasValue_{false};
     bool lastValue_{false};
     emscripten::val eventOnCallback_;
     emscripten::val eventOffCallback_;
@@ -130,5 +229,6 @@ EMSCRIPTEN_BINDINGS(js_client_main)
     emscripten::function("startStack", &start_stack);
     emscripten::class_<JSBitEventPC>("BitEventPC")
         .constructor<std::string, emscripten::val, std::string,
-                     emscripten::val>();
+            emscripten::val>()
+        .function("toggleState", &JSBitEventPC::toggleState);
 }
