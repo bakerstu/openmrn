@@ -645,11 +645,11 @@ void BitEventConsumer::HandleProducerIdentified(const EventRegistryEntry& entry,
 {
     done->notify();
     bool value;
-    if (event->state == VALID)
+    if (event->state == EventState::VALID)
     {
         value = true;
     }
-    else if (event->state == INVALID)
+    else if (event->state == EventState::INVALID)
     {
         value = false;
     }

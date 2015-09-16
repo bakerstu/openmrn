@@ -172,19 +172,19 @@ StateFlowBase::Action EventIteratorFlow::entry()
             fn_ = &EventHandler::HandleConsumerRangeIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
-            rep->state = UNKNOWN;
+            rep->state = EventState::UNKNOWN;
             fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_VALID:
-            rep->state = VALID;
+            rep->state = EventState::VALID;
             fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_INVALID:
-            rep->state = INVALID;
+            rep->state = EventState::INVALID;
             fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_RESERVED:
-            rep->state = RESERVED;
+            rep->state = EventState::RESERVED;
             fn_ = &EventHandler::HandleConsumerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFY:
@@ -195,19 +195,19 @@ StateFlowBase::Action EventIteratorFlow::entry()
             fn_ = &EventHandler::HandleProducerRangeIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
-            rep->state = UNKNOWN;
+            rep->state = EventState::UNKNOWN;
             fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_VALID:
-            rep->state = VALID;
+            rep->state = EventState::VALID;
             fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_INVALID:
-            rep->state = INVALID;
+            rep->state = EventState::INVALID;
             fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_RESERVED:
-            rep->state = RESERVED;
+            rep->state = EventState::RESERVED;
             fn_ = &EventHandler::HandleProducerIdentified;
             break;
         case Defs::MTI_EVENTS_IDENTIFY_ADDRESSED:

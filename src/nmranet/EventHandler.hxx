@@ -48,7 +48,7 @@ typedef uint64_t EventId;
 class Node;
 class EventHandler;
 
-enum EventState
+enum class EventState
 {
     VALID = 0,
     INVALID = 1,
