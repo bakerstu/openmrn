@@ -156,7 +156,9 @@ public:
     {
         if (!hasValue_)
         {
-            return;
+            lastValue_ = true;
+            hasValue_ = true;
+            //return;
         }
         /// @TODO(balazs.racz) ideally we should be able to just call
         /// SendEventReport. However, that requires a WriteHelper and there is
