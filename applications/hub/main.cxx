@@ -60,10 +60,11 @@ const char *device_path = nullptr;
 int upstream_port = 12021;
 const char *upstream_host = nullptr;
 
-
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] [-q upstream_port]\n\n", e);
+    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
+                    "[-q upstream_port]\n\n",
+            e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
@@ -73,8 +74,11 @@ void usage(const char *e)
     fprintf(stderr, "\t-d device   is a path to a physical device doing "
                     "serial-CAN or USB-CAN. If specified, opens device and "
                     "adds it to the hub.\n");
-    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream hub. If specified, this hub will connect to an upstream hub.\n");
-    fprintf(stderr, "\t-q upstream_port   is the port number for the upstream hub.\n");
+    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
+                    "hub. If specified, this hub will connect to an upstream "
+                    "hub.\n");
+    fprintf(stderr,
+            "\t-q upstream_port   is the port number for the upstream hub.\n");
     exit(1);
 }
 
@@ -107,6 +111,124 @@ void parse_args(int argc, char *argv[])
     }
 }
 
+class ConnectionClient
+{
+public:
+    /** Test the connection whether it is alive; establish the connection if it
+     * is dead. */
+    virtual void ping() = 0;
+};
+
+class DeviceClosedNotify : public Notifiable
+{
+public:
+    DeviceClosedNotify(int *fd, string name)
+        : fd_(fd)
+        , name_(name)
+    {
+    }
+    void notify() override
+    {
+        LOG_ERROR("Connection to %s closed.", name_.c_str());
+        *fd_ = -1;
+    }
+
+private:
+    int *fd_;
+    string name_;
+};
+
+class FdConnectionClient : public ConnectionClient
+{
+public:
+    FdConnectionClient(const string &name) : closedNotify_(&fd_, name)
+    {
+    }
+
+    void ping() OVERRIDE
+    {
+        if (fd_ < 0)
+        {
+            try_connect();
+        }
+    }
+
+protected:
+    virtual void try_connect() = 0;
+
+    int fd_{-1};
+    DeviceClosedNotify closedNotify_;
+};
+
+class DeviceConnectionClient : public FdConnectionClient
+{
+public:
+    DeviceConnectionClient(const string &name, const string &dev)
+        : FdConnectionClient(name)
+        , dev_(dev)
+    {
+    }
+
+private:
+    void try_connect() OVERRIDE
+    {
+        fd_ = ::open(dev_.c_str(), O_RDWR);
+        if (fd_ >= 0)
+        {
+            // Sets up the terminal in raw mode. Otherwise linux might echo
+            // characters coming in from the device and that will make
+            // packets go back to where they came from.
+            HASSERT(!tcflush(fd_, TCIOFLUSH));
+            struct termios settings;
+            HASSERT(!tcgetattr(fd_, &settings));
+            cfmakeraw(&settings);
+            cfsetspeed(&settings, B115200);
+            HASSERT(!tcsetattr(fd_, TCSANOW, &settings));
+            LOG(INFO, "Opened device %s.\n", device_path);
+            create_gc_port_for_can_hub(&can_hub0, fd_, &closedNotify_);
+        }
+        else
+        {
+            LOG_ERROR("Failed to open device %s: %s\n", device_path,
+                      strerror(errno));
+            fd_ = -1;
+        }
+    }
+
+    string dev_;
+};
+
+class UpstreamConnectionClient : public FdConnectionClient
+{
+public:
+    UpstreamConnectionClient(const string &name, const string &host, int port)
+        : FdConnectionClient(name)
+        , host_(host)
+        , port_(port)
+    {
+    }
+
+private:
+    void try_connect() OVERRIDE
+    {
+        fd_ = ConnectSocket(upstream_host, upstream_port);
+        if (fd_ >= 0)
+        {
+            LOG_ERROR("Connected to %s:%d\n", host_.c_str(), port_);
+            create_gc_port_for_can_hub(&can_hub0, fd_, &closedNotify_);
+        }
+        else
+        {
+            LOG_ERROR("Failed to connect to %s:%d: %s\n", host_.c_str(), port_,
+                      strerror(errno));
+            fd_ = -1;
+        }
+    }
+
+    string host_;
+    int port_;
+};
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -116,50 +238,25 @@ int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
     GcTcpHub hub(&can_hub0, port);
-    int dev_fd = 0;
+    vector<std::unique_ptr<ConnectionClient>> connections;
 
     if (upstream_host)
     {
-        int conn_fd = ConnectSocket(upstream_host, upstream_port);
-        HASSERT(conn_fd >= 0);
-        create_gc_port_for_can_hub(&can_hub0, conn_fd);
+        connections.emplace_back(new UpstreamConnectionClient(
+            "upstream", upstream_host, upstream_port));
     }
 
-    class DeviceClosedNotify : public Notifiable {
-    public:
-        DeviceClosedNotify(int* fd) : fd_(fd) {}
-        void notify() override {
-            *fd_ = 0;
-        }
-    private:
-        int* fd_;
-    } closed_notify(&dev_fd);
+    if (device_path)
+    {
+        connections.emplace_back(
+            new DeviceConnectionClient("device", device_path));
+    }
 
     while (1)
     {
-        if (device_path && !dev_fd)
+        for (const auto &p : connections)
         {
-            dev_fd = ::open(device_path, O_RDWR);
-            if (dev_fd > 0)
-            {
-                // Sets up the terminal in raw mode. Otherwise linux might echo
-                // characters coming in from the device and that will make
-                // packets go back to where they came from.
-                HASSERT(!tcflush(dev_fd, TCIOFLUSH));
-                struct termios settings;
-                HASSERT(!tcgetattr(dev_fd, &settings));
-                cfmakeraw(&settings);
-                cfsetspeed(&settings, B115200);
-                HASSERT(!tcsetattr(dev_fd, TCSANOW, &settings));
-                LOG(INFO, "Opened device %s.\n", device_path);
-                create_gc_port_for_can_hub(&can_hub0, dev_fd, &closed_notify);
-            }
-            else
-            {
-                LOG_ERROR("Failed to open device %s: %s\n", device_path,
-                    strerror(errno));
-                dev_fd = 0;
-            }
+            p->ping();
         }
         sleep(1);
     }
