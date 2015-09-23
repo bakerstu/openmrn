@@ -57,6 +57,8 @@ public:
                     {
                         console.log('client connected');
                         c.setEncoding('utf-8');
+                        c.setTimeout(0);
+                        c.setKeepAlive(true);
                         var client_port =
                             new Module.JSHubPort($1, function(data)
                                 {
@@ -65,6 +67,11 @@ public:
                         c.on('close', function()
                             {
                                 console.log('client disconnected');
+                                client_port.delete();
+                            });
+                        c.on('error', function()
+                            {
+                                console.log('client error -- disconnected');
                                 client_port.delete();
                             });
                         c.on('data', function(data)
