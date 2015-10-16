@@ -22,9 +22,9 @@ protected:
         {
         }
 
-        virtual bool GetCurrentState()
+        virtual EventState GetCurrentState()
         {
-            return parent_->hwState_;
+            return parent_->hwState_ ? EventState::VALID : EventState::INVALID;
         }
 
         void SetState(bool new_value) OVERRIDE

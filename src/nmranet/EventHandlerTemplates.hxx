@@ -535,6 +535,9 @@ public:
                               EventReport *event,
                               BarrierNotifiable *done) override;
 
+    /// @returns the number of bits maintained.
+    unsigned size() { return size_; }
+
 private:
     void HandleIdentifyBase(Defs::MTI mti_valid, EventReport *event,
                             BarrierNotifiable *done);

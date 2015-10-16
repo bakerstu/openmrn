@@ -312,7 +312,7 @@ void ByteRangeEventC::HandleEventReport(const EventRegistryEntry& entry, EventRe
 #ifdef DESCRIBE_VAR
     if (debug_variables)
     {
-        fprintf(stderr, "ByteRange: IN  byte %x to %d\n", storage - data_,
+        fprintf(stderr, "ByteRange: IN  byte %" PRIxPTR " to %d\n", storage - data_,
                 value);
     }
 #else
