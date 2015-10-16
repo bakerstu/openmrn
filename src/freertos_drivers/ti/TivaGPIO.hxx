@@ -399,6 +399,7 @@ template <class Defs> struct GpioHwPin : public Defs
     using Defs::GPIO_PIN;
     using Defs::GPIO_CONFIG;
     using Defs::GPIO_SetPinType;
+
     static void hw_init()
     {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
@@ -442,13 +443,13 @@ template <class Defs> struct GpioHwPin : public Defs
 
     static void set(bool value)
     {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+        volatile uint8_t *ptr = reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
     static bool get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
