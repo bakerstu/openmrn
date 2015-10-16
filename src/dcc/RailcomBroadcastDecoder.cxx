@@ -114,10 +114,9 @@ void RailcomBroadcastDecoder::set_occupancy(bool value) {
     if (value) return;
     if (countH_) --countH_;
     if (countL_) --countL_;
-    if (!countH_ || !countL_) {
+    if ((!countH_) || (!countL_)) {
         currentAddress_ = 0;
     }
 }
 
 } // namespace dcc
-

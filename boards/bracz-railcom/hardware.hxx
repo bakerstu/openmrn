@@ -7,6 +7,10 @@
 #include "utils/GpioInitializer.hxx"
 #include "inc/hw_ints.h"
 
+// note : this might cause problems in the bootloader compilation
+#include "DummyGPIO.hxx"
+
+
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
 
@@ -36,7 +40,8 @@ GPIO_PIN(OUTPUT_EN3, GpioOutputODSafeHigh, C, 5);
 GPIO_PIN(OUTPUT_EN4, GpioOutputODSafeHigh, E, 1);
 GPIO_PIN(OUTPUT_EN5, GpioOutputODSafeHigh, B, 5);
 
-typedef LED_GREEN_Pin STAT0_Pin;
+//typedef LED_GREEN_Pin STAT0_Pin;
+typedef DummyPin STAT0_Pin;
 GPIO_PIN(STAT1, LedPin, E, 2);
 GPIO_PIN(STAT2, LedPin, E, 3);
 GPIO_PIN(STAT3, LedPin, A, 7);
@@ -94,6 +99,47 @@ typedef GpioInitializer<                            //
 
 #include "DummyGPIO.hxx"
 
+struct Debug
+{
+    // One for the duration of the first byte successfully read from the uart
+    // device for railcom until the next 1 msec when the receiver gets disabled.
+    typedef DummyPin RailcomUartReceived;
+    // Measures the time from the end of a DCC packet until the entry of the
+    // user-space state flow.
+    typedef DummyPin DccPacketDelay;
+
+    // High between start_cutout and end_cutout from the TivaRailcom driver.
+    // typedef DBG_SIGNAL_Pin RailcomDriverCutout;
+    typedef DummyPin RailcomDriverCutout;
+
+    // Flips every timer capture interrupt from the dcc deocder flow.
+    // typedef LED_BLUE_SW_Pin DccDecodeInterrupts;
+    typedef DummyPin DccDecodeInterrupts;
+
+    // Flips every timer capture interrupt from the dcc deocder flow.
+    // typedef DBG_SIGNAL_Pin RailcomE0;
+    //typedef LED_GREEN_Pin RailcomE0;
+    typedef DummyPin RailcomE0;
+
+    // Flips every timer capture interrupt from the dcc deocder flow.
+    typedef DummyPin RailcomError;
+    // typedef LED_BLUE_SW_Pin RailcomError;
+
+    typedef DummyPin RailcomDataReceived;
+    //typedef LED_BLUE_Pin RailcomDataReceived;
+    typedef DummyPin RailcomAnyData;
+    typedef DummyPin RailcomPackets;
+
+    typedef DummyPin DetectRepeat;
+
+
+    //typedef DummyPin MeasurementEnabled;
+    typedef LED_BLUE_Pin MeasurementEnabled;
+
+    typedef STAT2_Pin NSampling;
+
+};
+
 struct RailcomDefs
 {
     static const uint32_t CHANNEL_COUNT = 6;
@@ -105,8 +151,20 @@ struct RailcomDefs
 
     static const auto OS_INTERRUPT = INT_UART1;
 
+    static bool need_ch1_cutout() {
+        return true;
+    }
+
     static void enable_measurement();
     static void disable_measurement();
+
+    static uint8_t feedbackChannel_;
+    static uint8_t get_feedback_channel() {
+        return feedbackChannel_;
+    }
+    static void set_feedback_channel(uint8_t arg) {
+        feedbackChannel_ = arg;
+    }
 
     static void hw_init()
     {
@@ -120,22 +178,39 @@ struct RailcomDefs
 
     static void set_input()
     {
-        RAILCOM_CH0_Pin::set_input();
-        RAILCOM_CH1_Pin::set_input();
-        RAILCOM_CH2_Pin::set_input();
-        RAILCOM_CH3_Pin::set_input();
-        RAILCOM_CH4_Pin::set_input();
-        RAILCOM_CH5_Pin::set_input();
+        RAILCOM_CH0_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
+        RAILCOM_CH1_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
+        RAILCOM_CH2_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
+        RAILCOM_CH3_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
+        RAILCOM_CH4_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
+        RAILCOM_CH5_Pin::set_input(GPIO_PIN_TYPE_STD_WPU);
     }
 
     static void set_hw()
     {
         RAILCOM_CH0_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH0_Pin::GPIO_BASE, RAILCOM_CH0_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
         RAILCOM_CH1_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
         RAILCOM_CH2_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH2_Pin::GPIO_BASE, RAILCOM_CH2_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
         RAILCOM_CH3_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH3_Pin::GPIO_BASE, RAILCOM_CH3_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
         RAILCOM_CH4_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH4_Pin::GPIO_BASE, RAILCOM_CH4_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
         RAILCOM_CH5_Pin::set_hw();
+        MAP_GPIOPadConfigSet(
+            RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
     }
 
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
@@ -144,18 +219,26 @@ struct RailcomDefs
     {
         uint8_t ret = 0;
         MAP_SysCtlDelay(5*26);
-        if (!RAILCOM_CH0_Pin::get())
+        Debug::NSampling::set(false);
+        if (!RAILCOM_CH0_Pin::get()) {
+            extern volatile uint32_t ch0_count;
+            ch0_count++;
             ret |= 1;
-        if (!RAILCOM_CH1_Pin::get())
+        }
+        if (!RAILCOM_CH1_Pin::get()) {
+            extern volatile uint32_t ch1_count;
             ret |= 2;
-        if (!RAILCOM_CH2_Pin::get())
+            ch1_count++;
+        }
+        /*if (!RAILCOM_CH2_Pin::get())
             ret |= 4;
         if (!RAILCOM_CH3_Pin::get())
             ret |= 8;
         if (!RAILCOM_CH4_Pin::get())
             ret |= 16;
         if (!RAILCOM_CH5_Pin::get())
-            ret |= 32;
+        ret |= 32;*/
+        Debug::NSampling::set(true);
         return ret;
     }
 };
@@ -170,28 +253,6 @@ struct RailcomDefs
         SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART4,         \
             SYSCTL_PERIPH_UART7, SYSCTL_PERIPH_UART5, SYSCTL_PERIPH_UART1      \
     }
-
-struct DCCDecode
-{
-    static const auto TIMER_BASE = TIMER2_BASE;
-    static const auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER2;
-    static const auto TIMER_INTERRUPT = INT_TIMER2B;
-    static const auto TIMER = TIMER_B;
-    static const auto CFG_CAP_TIME_UP =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME_UP | TIMER_CFG_A_PWM;
-    // Interrupt bits.
-    static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
-
-    static const auto OS_INTERRUPT = INT_TIMER2A;
-    typedef DCC_IN_Pin NRZ_Pin;
-
-    // 16-bit timer max + use 7 bits of prescaler.
-    static const uint32_t TIMER_MAX_VALUE = 0x800000UL;
-    static const uint32_t PS_MAX = 0x80;
-
-    static const int Q_SIZE = 32;
-};
 
 struct DACDefs
 {
@@ -225,38 +286,50 @@ struct DACDefsxx
     typedef DAC_DIV_Pin DIV_Pin;
 };
 
-// extern TivaDAC<DACDefs> dac;
+#include "custom/TivaDAC.hxx"
 
-struct Debug
+extern TivaDAC<DACDefs> dac;
+
+struct DCCDecode
 {
-    // One for the duration of the first byte successfully read from the uart
-    // device for railcom until the next 1 msec when the receiver gets disabled.
-    typedef DummyPin RailcomUartReceived;
-    // Measures the time from the end of a DCC packet until the entry of the
-    // user-space state flow.
-    typedef DummyPin DccPacketDelay;
+    static const auto TIMER_BASE = TIMER2_BASE;
+    static const auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER2;
+    static const auto TIMER_INTERRUPT = INT_TIMER2B;
+    static const auto TIMER = TIMER_B;
+    static const auto CFG_CAP_TIME_UP =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME_UP | TIMER_CFG_A_PWM;
+    // Interrupt bits.
+    static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
+    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
 
-    // High between start_cutout and end_cutout from the TivaRailcom driver.
-    // typedef DBG_SIGNAL_Pin RailcomDriverCutout;
-    typedef DummyPin RailcomDriverCutout;
+    static const auto OS_INTERRUPT = INT_TIMER2A;
+    typedef DCC_IN_Pin NRZ_Pin;
 
-    // Flips every timer capture interrupt from the dcc deocder flow.
-    // typedef LED_BLUE_SW_Pin DccDecodeInterrupts;
-    typedef DummyPin DccDecodeInterrupts;
+    // 16-bit timer max + use 7 bits of prescaler.
+    static const uint32_t TIMER_MAX_VALUE = 0x800000UL;
+    static const uint32_t PS_MAX = 0x80;
 
-    // Flips every timer capture interrupt from the dcc deocder flow.
-    // typedef DBG_SIGNAL_Pin RailcomE0;
-    typedef LED_GREEN_Pin RailcomE0;
+    static const int Q_SIZE = 32;
 
-    // Flips every timer capture interrupt from the dcc deocder flow.
-    typedef DummyPin RailcomError;
-    // typedef LED_BLUE_SW_Pin RailcomError;
+    static inline void dcc_packet_finished_hook() {
+        extern bool dac_next_packet_occupancy;
+        if (dac_next_packet_occupancy) {
+            extern DacSettings dac_overcurrent;
+            dac_next_packet_occupancy = false;
+            RailcomDefs::set_feedback_channel(0xfe);
+            dac.set(dac_overcurrent);
+        } else {
+            extern DacSettings dac_occupancy;
+            dac_next_packet_occupancy = true;
+            RailcomDefs::set_feedback_channel(0xff);
+            dac.set(dac_occupancy);
+        }
+    }
+    static inline void dcc_preamble_finished_hook() {
+        extern DacSettings dac_railcom;
+        dac.set(dac_railcom);
+    }
 
-    typedef DummyPin RailcomDataReceived;
-    typedef DummyPin RailcomAnyData;
-    typedef DummyPin RailcomPackets;
-
-    typedef DummyPin DetectRepeat;
 };
 
 #endif // ! pindefs_only

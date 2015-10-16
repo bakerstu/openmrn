@@ -426,7 +426,11 @@ inline void TivaDCC<HW>::interrupt_handler()
                 state = START;
                 preamble_count = 0;
             } else {
-                railcomDriver_->preamble_bit();
+                /// @TODO (balazs.racz) This interrupt is not hit at the
+                /// beginning of the bit, but somewhere around the previous
+                /// bit. This means that it is not clear what the exact
+                /// polarity is.
+                railcomDriver_->preamble_bit(true);
             }
             break;
         case START:
