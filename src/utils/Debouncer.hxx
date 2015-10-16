@@ -114,15 +114,96 @@ private:
     unsigned currentState_ : 1;
 };
 
+/** This debouncer will count the ON values and if the number of ON values in a
+ * given window exceeds a threshold, then triggers. @TODO: there should really
+ * be a hysteresis. */
+class CountingDebouncer
+{
+public:
+    typedef struct
+    {
+        /// Number of samples to keep. Must be between 1 and 32.
+        uint8_t window_size;
+        /// Number of samples that have to be 1 within the window to consider
+        /// the debounce value 1. Must be within 1 and window_size.
+        uint8_t min_count;
+    } Options;
+
+    CountingDebouncer(const Options &opts)
+        : opts_(opts)
+        , lastCount_(0)
+        , currentState_(0)
+    {
+        if (opts_.window_size > 32)
+        {
+            opts_.window_size = 32;
+        }
+        if (opts_.window_size == 0)
+        {
+            opts_.window_size = 1;
+        }
+        if (opts_.min_count == 0)
+        {
+            opts_.min_count = 1;
+        }
+        if (opts_.min_count > opts_.window_size)
+        {
+            opts_.min_count = opts_.window_size;
+        }
+    }
+
+    void initialize(bool state)
+    {
+        currentState_ = state ? 1 : 0;
+    }
+
+    void override(bool new_state)
+    {
+        initialize(new_state);
+    }
+
+    bool current_state()
+    {
+        return currentState_;
+    }
+
+    bool update_state(bool state)
+    {
+        if (window_ & (1<<(opts_.window_size - 1))) {
+            --lastCount_;
+        }
+        window_ <<= 1;
+        if (state) {
+            lastCount_++;
+            window_ |= 1;
+        }
+        unsigned new_state = lastCount_ >= opts_.min_count ? 1 : 0;
+        if (new_state != currentState_) {
+            currentState_ = new_state;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+private:
+    uint32_t window_{0}; //< bit-map of last observations. bit 0 is latest.
+    Options opts_; //< options
+    unsigned lastCount_ : 6; //< how many 1 bits we have in the window
+    unsigned currentState_ : 1; //< last known state
+};
+
 /** This class acts as a debouncer that uses one momentary input button, and
- * switches the event state at every rising edge of that input button. 
+ * switches the event state at every rising edge of that input button.
  Internally it uses another debouncer to smooth the input button. */
 template <class Debouncer> class ToggleDebouncer
 {
 public:
     typedef typename Debouncer::Options Options;
 
-    ToggleDebouncer(const Options &options) : impl_(options), eventState_(0)
+    ToggleDebouncer(const Options &options)
+        : impl_(options)
+        , eventState_(0)
     {
     }
 
