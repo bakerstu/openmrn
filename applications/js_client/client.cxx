@@ -219,7 +219,7 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
-    new JSWebsocketClient(stack.can_hub(), "ws://28k.ch:50003");
+    new JSWebsocketClient(stack.can_hub(), "openmrn_websocket_server_url");
 
     // We delay the start of the stack until the connection is established.
     emscripten_set_main_loop(&ignore_function, 0, true);

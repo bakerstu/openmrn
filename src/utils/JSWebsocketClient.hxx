@@ -47,9 +47,9 @@
 class JSWebsocketClient
 {
 public:
-    JSWebsocketClient(CanHubFlow* hflow, string server)
+    JSWebsocketClient(CanHubFlow* hflow, string server_js)
         : canHub_(hflow) {
-        string script = "Module.ws_server = '" + server + "';\n";
+        string script = "Module.ws_server = " + server_js + ";\n";
         emscripten_run_script(script.c_str());
         EM_ASM_(
             {
