@@ -44,6 +44,7 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/JSTcpHub.hxx"
+#include "utils/JSTcpClient.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -57,13 +58,15 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 int port = 12021;
 const char *device_path = nullptr;
 const char *static_dir = "";
+int upstream_port = 12021;
+const char *upstream_host = nullptr;
 
 int ws_port = -1;
 
 void usage(const char *e)
 {
     fprintf(stderr,
-        "Usage: %s [-p port] [-d device_path] [-w websocket_port [-l path_to_web]]\n\n", e);
+        "Usage: %s [-p port] [-d device_path] [-w websocket_port [-l path_to_web]] [-u upstream_host [-q upstream_port]]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
@@ -77,13 +80,18 @@ void usage(const char *e)
                     "and serves up a websocket connection to the same "
                     "CAN-bus.\n");
     fprintf(stderr, "\t-l path_to_web     Exports the contents of this directory thorugh the websocket's webserver.\n");
+    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
+                    "hub. If specified, this hub will connect to an upstream "
+                    "hub.\n");
+    fprintf(stderr,
+            "\t-q upstream_port   is the port number for the upstream hub.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:w:l:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:w:l:u:q:")) >= 0)
     {
         switch (opt)
         {
@@ -101,6 +109,12 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'l':
                 static_dir = optarg;
+                break;
+            case 'u':
+                upstream_host = optarg;
+                break;
+            case 'q':
+                upstream_port = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -133,11 +147,13 @@ public:
                     };
                 }
                 var server = http.createServer(serverImpl);
+                console.log('try to listen on ', $0);
                 server.listen($0, function()
                     {
                         console.log(
                             'websocket server: listening on port ' + $0);
                     });
+                console.log('ws: listen done ', $0);
 
                 // create the server
                 wsServer = new WebSocketServer({httpServer : server});
@@ -200,6 +216,10 @@ int appl_main(int argc, char *argv[])
     std::unique_ptr<JSWebsocketServer> ws;
     if (ws_port > 0) {
         ws.reset(new JSWebsocketServer(&can_hub0, ws_port, static_dir));
+    }
+    std::unique_ptr<JSTcpClient> client;
+    if (upstream_host) {
+        client.reset(new JSTcpClient(&can_hub0, upstream_host, upstream_port));
     }
     /*    int dev_fd = 0;
     while (1)
