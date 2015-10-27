@@ -11,5 +11,6 @@ __flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
 __eeprom_start = ORIGIN(EEPROMEMU);
 __eeprom_end = ORIGIN(EEPROMEMU) + LENGTH(EEPROMEMU);
 __bootloader_start = ORIGIN(BOOTLOADER);
+__bootloader_end = ORIGIN(BOOTLOADER) + LENGTH(BOOTLOADER);
 __app_header_offset = 0x270;
 __bootloader_magic_ptr = ORIGIN(RAM);
