@@ -33,18 +33,14 @@
  * @date 27 Oct 2015
  */
 
+#include "utils/ReflashBootloader.hxx"
+
 #include "freertos/bootloader_hal.h"
 
-typedef struct
-{
-    uint8_t *dst_address; //< address in the flash space where to write
-    const uint8_t *src_address; //< address where to read the golden data from
-    uint32_t length; //< number of bytes to write
-} SegmentTable;
-
 // The last entry of this table must have a length = 0.
-extern SegmentTable table[];
+extern const SegmentTable table[];
 
+extern "C" {
 // This function needs to be called from reset_handler (instead of main etc.)
 void reflash_bootloader_entry()
 {
@@ -63,7 +59,7 @@ void reflash_bootloader_entry()
             get_flash_page_info(dst_address, &page_start, &page_length_bytes);
             raw_erase_flash_page(page_start);
             uint32_t write_length = end_address - dst_address;
-            uint32_t max_length = page_start + page_length_bytes - dst_address;
+            uint32_t max_length = ((const uint8_t*)page_start) + page_length_bytes - dst_address;
             if (write_length > max_length)
             {
                 write_length = max_length;
@@ -75,4 +71,5 @@ void reflash_bootloader_entry()
     }
 
     bootloader_reboot();
+}
 }

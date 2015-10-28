@@ -9,6 +9,7 @@ CXXSRCS += Buffer.cxx \
            logging.cxx \
            GridConnectHub.cxx \
            HubDeviceSelect.cxx \
+           ReflashBootloader.cxx \
 	   Crc.cxx \
            gc_format.cxx \
            HubDevice.cxx \
