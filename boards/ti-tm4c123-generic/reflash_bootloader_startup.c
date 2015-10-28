@@ -182,7 +182,7 @@ void (* const __interrupt_vector[])(void) =
     0,                               /**<  10 reserved */
     SVC_Handler,                     /**<  11 SV call */
     debug_interrupt_handler,         /**<  12 debug monitor */
-    0,                               /**<  13 reserved */
+    reset_handler,                   /**<  13 reserved -- bootloader appentry */
     PendSV_Handler,                  /**<  14 pend SV */
     SysTick_Handler,                 /**<  15 system tick */
     porta_interrupt_handler,         /**<  16 GPIO port A */
@@ -387,6 +387,23 @@ volatile uint32_t lr; /* Link register. */
 volatile uint32_t pc; /* Program counter. */
 volatile uint32_t psr;/* Program status register. */
 
+/* These are volatile to try and prevent the compiler/linker optimising them
+   away as the variables never actually get used. */
+volatile unsigned long stacked_r0 ;
+volatile unsigned long stacked_r1 ;
+volatile unsigned long stacked_r2 ;
+volatile unsigned long stacked_r3 ;
+volatile unsigned long stacked_r12 ;
+volatile unsigned long stacked_lr ;
+volatile unsigned long stacked_pc ;
+volatile unsigned long stacked_psr ;
+volatile unsigned long _CFSR ;
+volatile unsigned long _HFSR ;
+volatile unsigned long _DFSR ;
+volatile unsigned long _AFSR ;
+volatile unsigned long _BFAR ;
+volatile unsigned long _MMAR ;
+
 /** Decode the stack state prior to an exception occuring.  This code is
  * inspired by FreeRTOS.
  * @param address address of the stack
@@ -394,24 +411,6 @@ volatile uint32_t psr;/* Program status register. */
 __attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
 {
     bootloader_hw_set_to_safe();
-    /* These are volatile to try and prevent the compiler/linker optimising them
-    away as the variables never actually get used.  If the debugger won't show the
-    values of the variables, make them global my moving their declaration outside
-    of this function. */
-    volatile unsigned long stacked_r0 ;
-    volatile unsigned long stacked_r1 ;
-    volatile unsigned long stacked_r2 ;
-    volatile unsigned long stacked_r3 ;
-    volatile unsigned long stacked_r12 ;
-    volatile unsigned long stacked_lr ;
-    volatile unsigned long stacked_pc ;
-    volatile unsigned long stacked_psr ;
-    volatile unsigned long _CFSR ;
-    volatile unsigned long _HFSR ;
-    volatile unsigned long _DFSR ;
-    volatile unsigned long _AFSR ;
-    volatile unsigned long _BFAR ;
-    volatile unsigned long _MMAR ;
 
     stacked_r0 = ((unsigned long)hardfault_args[0]) ;
     stacked_r1 = ((unsigned long)hardfault_args[1]) ;
