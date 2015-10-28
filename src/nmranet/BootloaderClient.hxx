@@ -61,8 +61,11 @@ struct BootloaderRequest
     NodeHandle dst;
     /// Memory space ID to write into.
     uint8_t memory_space;
-    // Nonzero: request the target to reboot into bootloader mode.
+    // Nonzero: request the target to reboot into bootloader mode before
+    // flashing.
     uint8_t request_reboot;
+    // Nonzero: request the target to reboot after flashing.
+    uint8_t request_reboot_after{1};
     /// Offset at which to start writing.
     uint32_t offset;
     /// Payload to write.
@@ -582,8 +585,12 @@ private:
 
     Action send_reboot_request()
     {
-        return allocate_and_call(
-            STATE(reboot_dg_client), datagramService_->client_allocator());
+        if (message()->data()->request_reboot_after) {
+            return allocate_and_call(
+                STATE(reboot_dg_client), datagramService_->client_allocator());
+        } else {
+            return return_error(0, "Remote node left in bootloader.");
+        }
     }
 
     Action reboot_dg_client()
