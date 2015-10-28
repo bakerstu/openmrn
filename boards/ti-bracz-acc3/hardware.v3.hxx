@@ -103,6 +103,9 @@ struct DCCDecode
     static const uint32_t PS_MAX = 0;
 
     static const int Q_SIZE = 32;
+
+  static void dcc_preamble_finished_hook() {}
+  static void dcc_packet_finished_hook() {}
 };
 
 #define HAVE_RAILCOM
@@ -146,6 +149,9 @@ struct RailcomHw
 
     static void enable_measurement() {}
     static void disable_measurement() {}
+
+    static bool need_ch1_cutout() { return true; }
+    static uint8_t get_feedback_channel() { return 0xff; }
 
     /// @returns a bitmask telling which pins are active. Bit 0 will be set if
     /// channel 0 is active (drawing current).
