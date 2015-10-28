@@ -105,7 +105,7 @@ struct BootloaderState
 #define WRITE_BUFFER_SIZE 256
 uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 
-#define FLASH_SPACE 0xF0
+#define FLASH_SPACE (MemoryConfigDefs::SPACE_FIRMWARE)
 // local stream ID.
 #define STREAM_ID 0x5A
 }
@@ -122,6 +122,16 @@ Atomic g_bootloader_lock;
 static const char TEST_PATTERN[] = "123456789";
 extern uint32_t g_test_pattern_checksum[CHECKSUM_COUNT];
 uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {0, };
+
+#define PIP_REPLY_VALUE (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM | Defs::STREAM | Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+// We manually convert to big-endian to store this value in .rodata.
+static const uint64_t PIP_REPLY =        //
+    (PIP_REPLY_VALUE >> 40) |            //
+    ((PIP_REPLY_VALUE >> 24) & 0xff00) | //
+    ((PIP_REPLY_VALUE >> 8) & 0xff0000) |
+    ((PIP_REPLY_VALUE << 8) & 0xff000000) |
+    ((PIP_REPLY_VALUE << 24) & 0xff00000000) |
+    ((PIP_REPLY_VALUE << 40) & 0xff0000000000);
 
 void reset_stream_state();
 
@@ -352,6 +362,18 @@ void handle_addressed_message(Defs::MTI mti)
 {
     switch (mti)
     {
+        case Defs::MTI_PROTOCOL_SUPPORT_INQUIRY:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_addressed(Defs::MTI_PROTOCOL_SUPPORT_REPLY);
+            state_.output_frame.can_dlc = 8;
+            memcpy(state_.output_frame.data + 2, &PIP_REPLY, 6);
+            break;
+        }
         case Defs::MTI_DATAGRAM_OK:
         {
             if (state_.datagram_reply_waiting)

@@ -436,12 +436,12 @@ protected:
         // expect datagram ok
         expect_packet(":X19A28428N0321;");
         // and expect response datagram
-        expect_packet(StringPrintf(":X1A321428N2030%sF0;", offset.c_str()))
+        expect_packet(StringPrintf(":X1A321428N2030%sEF;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
                 {
                     send_packet(":X19A28321N0428;");
                 }));
-        send_packet(StringPrintf(":X1A428321N2020%sF01A;", offset.c_str()));
+        send_packet(StringPrintf(":X1A428321N2020%sEF1A;", offset.c_str()));
         wait();
         clear_expect(true);
     }
@@ -545,6 +545,18 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
     proper_startup();
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, PIPReply)
+{
+    proper_startup();
+
+    expect_packet(":X19668428N0321F00010000000;");
+    send_packet(":X19828321N0428;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
     exit_bootloader();
 }
 
@@ -833,7 +845,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
     print_all_packets();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     request_->data()->data = get_block(42, 3500);
@@ -849,7 +861,7 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     expect_any_packet();
     startup();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 349);
@@ -871,7 +883,7 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     expect_any_packet();
     startup();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
@@ -892,7 +904,7 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     expect_any_packet();
     startup();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 3 * 1024;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
@@ -935,7 +947,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     expect_any_packet();
     startup();
     request_->data()->dst.id = 0x05010101146C;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 349);
