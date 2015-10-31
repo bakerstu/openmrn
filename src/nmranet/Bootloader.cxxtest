@@ -548,6 +548,40 @@ TEST_F(BootloaderTest, WelcomeMessageArrives)
     exit_bootloader();
 }
 
+TEST_F(BootloaderTest, Reset)
+{
+    proper_startup();
+
+    wait();
+    EXPECT_CALL(mock_, bootloader_reboot());
+    expect_packet(":X19A28428N0111;");
+    send_packet(":X1A428111N20A9;");
+}
+
+TEST_F(BootloaderTest, Unfreeze)
+{
+    proper_startup();
+
+    wait();
+    EXPECT_CALL(mock_, bootloader_reboot());
+    expect_packet(":X19A28428N0111;");
+    // Unfreeze on the proper space ID is equivalent to reboot.
+    send_packet(":X1A428111N20A0EF;");
+}
+
+TEST_F(BootloaderTest, BadUnfreeze)
+{
+    proper_startup();
+
+    wait();
+    expect_packet(":X19A48428N01111010;");
+    // Unfreeze for a wrong space number causes error response.
+    send_packet(":X1A428111N20A0EE;");
+    wait();
+
+    exit_bootloader();
+}
+
 TEST_F(BootloaderTest, PIPReply)
 {
     proper_startup();

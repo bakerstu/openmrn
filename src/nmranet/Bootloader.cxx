@@ -282,10 +282,36 @@ void handle_memory_config_frame()
     uint8_t command = state_.input_frame.data[1];
     switch (command)
     {
+        case MemoryConfigDefs::COMMAND_FREEZE:
+        {
+            if (state_.input_frame.can_dlc < 3 ||
+                state_.input_frame.data[2] != MemoryConfigDefs::SPACE_FIRMWARE)
+            {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(DatagramDefs::INVALID_ARGUMENTS);
+                return;
+            }
+            // fall through
+        }
         case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
-        {  
+        {
+            // Poor man's reset. Clears the entire state machine, which will
+            // cause us to run the boot sequence again.
             memset(&state_, 0, sizeof(state_));
             return;
+        }
+        case MemoryConfigDefs::COMMAND_UNFREEZE:
+        {
+            if (state_.input_frame.can_dlc < 3 ||
+                state_.input_frame.data[2] != MemoryConfigDefs::SPACE_FIRMWARE)
+            {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(DatagramDefs::INVALID_ARGUMENTS);
+                return;
+            }
+            // fall through
         }
         case MemoryConfigDefs::COMMAND_RESET:
         {
@@ -608,7 +634,7 @@ void handle_input_frame()
         state_.input_frame_full = 0;
         return;
     }
-    else if ((can_id >> 12) == (0x1A000 | state_.alias) && dlc > 1)
+    else if ((can_id >> 12) == (0x1A000 | state_.alias))
     {
         // Datagram one frame.
 
@@ -618,7 +644,8 @@ void handle_input_frame()
         {
             return; // re-try.
         }
-        if (state_.input_frame.data[0] == DatagramDefs::CONFIGURATION)
+        if (dlc > 1 &&
+            state_.input_frame.data[0] == DatagramDefs::CONFIGURATION)
         {
             return handle_memory_config_frame();
         }
