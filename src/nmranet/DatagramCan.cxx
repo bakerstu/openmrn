@@ -78,6 +78,7 @@ public:
         result_ = OPERATION_PENDING;
         if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
         if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
+        if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
         reset_message(b, priority);
         /// @TODO(balazs.racz) this will not work for loopback messages because
         /// it calls transfer_message().
@@ -118,6 +119,8 @@ private:
         MTI_2b = Defs::MTI_DATAGRAM_REJECTED,
         MASK_2 = ~(MTI_2a ^ MTI_2b),
         MTI_2 = MTI_2a,
+        MTI_3 = Defs::MTI_INITIALIZATION_COMPLETE,
+        MASK_3 = Defs::MTI_EXACT,
     };
 
     void register_handlers()
@@ -213,6 +216,7 @@ private:
     {
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
+        if_can()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
         release();
@@ -243,6 +247,22 @@ private:
     {
         //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
         //    (int)message->mti, (int)message->src.alias);
+
+        // Check for reboot (unaddressed message) first.
+        if (message->mti == Defs::MTI_INITIALIZATION_COMPLETE) {
+            if (message->payload.size() != 6) {
+                // Malformed message inbound.
+                return;
+            }
+            NodeID rebooted = buffer_to_node_id(message->payload);
+            if (rebooted == nmsg()->dst.id) {
+                // Destination node has rebooted. Kill datagram flow.
+                result_ |= DST_REBOOT;
+                return stop_waiting_for_response();
+            }
+            return; // everything else below is for addressed message
+        }
+
         // First we check that the response is for this source node.
         if (message->dst.id)
         {
@@ -343,14 +363,20 @@ private:
                 LOG(VERBOSE, "unknown mti");
                 return;
         } // switch response MTI
+        stop_waiting_for_response();
+    } // handle_message
 
+    /// To be called from the handler. Wakes up main flow and terminates it
+    /// (with whatever is in the result_ code right now).
+    void stop_waiting_for_response()
+    {
         // Stops waiting for response.
         timer_.trigger();
         /// @TODO(balazs.racz) Here we might want to decide whether to start a
         /// retry.
         LOG(VERBOSE, "restarting at datagram finalize");
         reset_flow(STATE(datagram_finalize));
-    } // handle_message
+    }
 
     ReplyListener listener_;
 };
