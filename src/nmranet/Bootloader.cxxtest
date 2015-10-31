@@ -410,10 +410,8 @@ protected:
         send_packet(":X1A428111N20A9;");
     }
 
-    void proper_startup()
+    void expect_startup_packets()
     {
-        expect_boot(true);
-        EXPECT_CALL(mock_, application_entry()).Times(0);
         expect_packet(":X17050428N;");
         expect_packet(":X16101428N;");
         expect_packet(":X15011428N;");
@@ -421,6 +419,13 @@ protected:
         expect_packet(":X10700428N;");
         expect_packet(":X10701428N05010101146C;");
         expect_packet(":X19100428N05010101146C;");
+    }
+
+    void proper_startup()
+    {
+        expect_boot(true);
+        EXPECT_CALL(mock_, application_entry()).Times(0);
+        expect_startup_packets();
         run_bootloader();
         wait();
         clear_expect(true);
@@ -578,6 +583,19 @@ TEST_F(BootloaderTest, BadUnfreeze)
     // Unfreeze for a wrong space number causes error response.
     send_packet(":X1A428111N20A0EE;");
     wait();
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, FreezeWillReboot)
+{
+    proper_startup();
+
+    wait();
+    // Freeze on the proper space ID will start the bootloader again. It will
+    // not, however, call bootloader_reboot().
+    expect_startup_packets();
+    send_packet(":X1A428111N20A1EF;");
 
     exit_bootloader();
 }
