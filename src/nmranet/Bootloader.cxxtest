@@ -909,13 +909,16 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 
 TEST_F(BootloaderClientTest, WriteSmallData)
 {
-    // print_all_packets();
+    //print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.alias = 0x428;
+    expect_packet(":X19100428N05010101146C;");
+
+    request_->data()->dst.id = 0x05010101146C;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
-    request_->data()->request_reboot = 0;
+    // This test case also causes the bootloader to reboot inside once.
+    request_->data()->request_reboot = 1;
     string s = get_block(42, 349);
     request_->data()->data = s;
     add_send_expectations(s);
