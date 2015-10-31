@@ -283,5 +283,16 @@ void hw_preinit(void)
     }
 #endif    
 
+    /*    MAP_GPIOIntTypeSet(IN0_Pin::GPIO_BASE, IN0_Pin::GPIO_PIN, GPIO_BOTH_EDGES);
+    HASSERT(GPIO_INT_PIN_0 == GPIO_PIN_0);
+    MAP_GPIOIntEnable(IN0_Pin::GPIO_BASE, IN0_Pin::GPIO_PIN);
+    MAP_IntEnable(INT_GPIOA);*/
 }
+
+/*void porta_interrupt_handler(void)
+{
+  MAP_GPIOIntClear(IN0_Pin::GPIO_BASE, IN0_Pin::GPIO_PIN);
+  LED_GOLD_SW_Pin::set(IN0_Pin::get());
+  }*/
+
 }
