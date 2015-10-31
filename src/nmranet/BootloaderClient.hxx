@@ -48,7 +48,7 @@ namespace nmranet
 struct BootloaderResponse
 {
     // Response error code. Zero if request successful.
-    uint16_t error_code;
+    uint16_t error_code{0};
     // Human-readable error string.
     string error_details;
 };
@@ -60,19 +60,19 @@ struct BootloaderRequest
     /// Node to send the bootload request to.
     NodeHandle dst;
     /// Memory space ID to write into.
-    uint8_t memory_space;
+    uint8_t memory_space{MemoryConfigDefs::SPACE_FIRMWARE};
     // Nonzero: request the target to reboot into bootloader mode before
     // flashing.
-    uint8_t request_reboot;
+    uint8_t request_reboot{1};
     // Nonzero: request the target to reboot after flashing.
     uint8_t request_reboot_after{1};
     /// Offset at which to start writing.
-    uint32_t offset;
+    uint32_t offset{0};
     /// Payload to write.
     string data;
     /// This structure will be filled with the returning error code, or zero if
     /// the bootloading was successful.
-    BootloaderResponse *response;
+    BootloaderResponse *response{nullptr};
 };
 
 extern int g_bootloader_timeout_sec;
@@ -151,7 +151,7 @@ private:
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
         payload.push_back(MemoryConfigDefs::COMMAND_FREEZE);
-        payload.push_back(MemoryConfigDefs::SPACE_FIRMWARE);
+        payload.push_back(message()->data()->memory_space);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
@@ -603,7 +603,7 @@ private:
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
         payload.push_back(MemoryConfigDefs::COMMAND_UNFREEZE);
-        payload.push_back(MemoryConfigDefs::SPACE_FIRMWARE);
+        payload.push_back(message()->data()->memory_space);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
