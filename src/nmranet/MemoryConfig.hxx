@@ -232,6 +232,18 @@ public:
      * returned bytes. */
     virtual size_t read(address_t source, uint8_t *dst, size_t len,
                         errorcode_t *error, Notifiable *again) = 0;
+
+    /** Handles space freeze command. Returns an error code, or 0 for
+     * success. */
+    virtual errorcode_t freeze() {
+        return Defs::ERROR_INVALID_ARGS;
+    }
+
+    /** Handles space unfreeze command. Returns an error code, or 0 for
+     * success. */
+    virtual errorcode_t unfreeze() {
+        return Defs::ERROR_INVALID_ARGS;
+    }
 };
 
 /// Memory space implementation that exports a some memory-mapped data as a
@@ -411,6 +423,21 @@ private:
 
                 // if (
                 break;
+            }
+            case MemoryConfigDefs::COMMAND_FREEZE:
+            {
+                if (len < 3)
+                {
+                    return respond_reject(
+                        Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                }
+                uint8_t space = bytes[2];
+                if (space != MemoryConfigDefs::SPACE_FIRMWARE)
+                {
+                    // Custom spaces cannot do free yet.
+                    return respond_reject(Defs::ERROR_INVALID_ARGS);
+                }
+                // Fall through.
             }
             case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
             {

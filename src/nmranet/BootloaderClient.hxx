@@ -150,7 +150,8 @@ private:
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
-        payload.push_back(MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER);
+        payload.push_back(MemoryConfigDefs::COMMAND_FREEZE);
+        payload.push_back(MemoryConfigDefs::SPACE_FIRMWARE);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
@@ -601,7 +602,8 @@ private:
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
-        payload.push_back(MemoryConfigDefs::COMMAND_RESET);
+        payload.push_back(MemoryConfigDefs::COMMAND_UNFREEZE);
+        payload.push_back(MemoryConfigDefs::SPACE_FIRMWARE);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
