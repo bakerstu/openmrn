@@ -283,6 +283,22 @@ void init_flash_write_buffer()
     memset(g_write_buffer, 0xff, WRITE_BUFFER_SIZE);
 }
 
+bool normalize_write_buffer_offset()
+{
+    const void *flash_min;
+    const void *flash_max;
+    const struct app_header *app_header;
+    get_flash_boundaries(&flash_min, &flash_max, &app_header);
+    if (state_.write_buffer_offset >=
+        ((uintptr_t)flash_max - (uintptr_t)flash_min))
+    {
+        return false;
+    }
+    state_.write_buffer_offset += (uintptr_t)flash_min;
+    init_flash_write_buffer();
+    return true;
+}
+
 void flush_flash_buffer()
 {
     const void *address =
@@ -377,9 +393,12 @@ void handle_memory_config_frame()
             }
             state_.incoming_datagram_pending = 1;
             state_.datagram_write_pending = 1;
+            state_.write_src_alias =
+                CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
 
             state_.write_buffer_offset =
-                load_uint32_be(state_.input_frame.data + 2) + 1;
+                load_uint32_be(state_.input_frame.data + 2);
+            normalize_write_buffer_offset();
             g_write_buffer[0] = state_.input_frame.data[7];
             state_.write_buffer_index = 1;
 
@@ -437,19 +456,12 @@ void handle_memory_config_frame()
             state_.write_buffer_index = 0;
             state_.write_buffer_offset =
                 load_uint32_be(state_.input_frame.data + 2);
-            const void *flash_min;
-            const void *flash_max;
-            const struct app_header *app_header;
-            get_flash_boundaries(&flash_min, &flash_max, &app_header);
-            if (state_.write_buffer_offset >=
-                ((uintptr_t)flash_max - (uintptr_t)flash_min))
+            if (!normalize_write_buffer_offset())
             {
                 add_memory_config_error_response(
                     DatagramDefs::INVALID_ARGUMENTS);
                 return reset_stream_state();
             }
-            state_.write_buffer_offset += (uintptr_t)flash_min;
-            init_flash_write_buffer();
             return;
         }
 #endif
@@ -741,7 +753,8 @@ void handle_input_frame()
         (can_id >> 12) == (0x1D000 | state_.alias))
     {
         if (!state_.incoming_datagram_pending ||
-            CanDefs::get_src(can_id) != state_.write_src_alias) {
+            CanDefs::get_src(can_id) != state_.write_src_alias)
+        {
             if (state_.output_frame_full)
             {
                 return; // re-try.
@@ -751,7 +764,7 @@ void handle_input_frame()
             return;
         }
         memcpy(g_write_buffer + state_.write_buffer_index,
-               state_.input_frame.data, state_.input_frame.can_dlc);
+            state_.input_frame.data, state_.input_frame.can_dlc);
         state_.write_buffer_index += state_.input_frame.can_dlc;
 
         if (CanDefs::get_can_frame_type(can_id) ==

@@ -1,7 +1,7 @@
 #include "utils/async_datagram_test_helper.hxx"
 #include "freertos/bootloader_hal.h"
 
-#define BOOTLOADER_STREAM
+#define BOOTLOADER_DATAGRAM
 #include "nmranet/Bootloader.hxx"
 #include "nmranet/BootloaderClient.hxx"
 #include <string>
@@ -432,6 +432,33 @@ protected:
         clear_expect(true);
     }
 
+    void write_dg_at_offset(uint32_t offset, string payload)
+    {
+        // expect datagram ok
+        expect_packet(":X19A28428N0321;");
+
+        string packet = StringPrintf(":X1%c428321N2000%08" PRIx32 "EF",
+            payload.size() > 1 ? 'B' : 'A', offset);
+        if (!payload.empty())
+        {
+            packet += StringPrintf("%02x", payload[0]);
+        }
+        packet += ";";
+        send_packet(packet);
+
+        unsigned i = 1;
+        while (i < payload.size())
+        {
+            packet = StringPrintf(
+                ":X1%c428321N", i + 8 >= payload.size() ? 'D' : 'C');
+            for (int j = 0; j < 8 && i < payload.size(); ++j, ++i) {
+                packet += StringPrintf("%02x", payload[i]);
+            }
+            packet += ";";
+            send_packet(packet);
+        }
+    }
+
     /** Sends a memory config write stream request fo rthe given offset, and
      * puts in expectations on responses.
      *
@@ -613,45 +640,124 @@ TEST_F(BootloaderTest, PIPReply)
     exit_bootloader();
 }
 
+TEST_F(BootloaderTest, StartWriteAtOffsetZero1)
+{
+    print_all_packets();
+    proper_startup();
+    
+    wait();
+    send_packet(":X1B428321N200000000000EF30;");
+
+    exit_bootloader();
+}
+
 TEST_F(BootloaderTest, StartWriteAtOffsetZero)
 {
     print_all_packets();
     proper_startup();
-
-    initiate_stream_write("00000000");
-    setup_stream_request();
+    
+    string payload = "0123456";
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
 
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, RejectStreamOutOfTheBlue)
+TEST_F(BootloaderTest, WriteOneByte)
 {
+    print_all_packets();
     proper_startup();
-
-    expect_packet(":X19868428N0321000042201A5A;");
-    send_packet(":X19CC8321N0428008000001A;");
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    
+    string payload = "0";
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
 
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, RejectStreamWithWrongId)
+TEST_F(BootloaderTest, WriteNineBytes)
 {
+    print_all_packets();
     proper_startup();
-
-    initiate_stream_write("00000000");
-
-    // Sends stream setup request with wrong id (1A vs 55).
-    expect_packet(":X19868428N032100004220555A;");
-    send_packet(":X19CC8321N04280080000055;");
-    wait();
-    Mock::VerifyAndClear(&canBus_);
+    
+    string payload = "123456789";
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
 
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, WriteABlock)
+TEST_F(BootloaderTest, WriteElevenBytes)
+{
+    print_all_packets();
+    proper_startup();
+    
+    string payload = "12345678901";
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, WriteThreeBlocks)
+{
+    print_all_packets();
+    proper_startup();
+    
+    string payload = "12345678901234567";
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, WriteOne64ByteBlock)
+{
+    print_all_packets();
+    proper_startup();
+    
+    string payload;
+    for (int i = 0; i < 64; ++i) payload.push_back('a' + i % 10);
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, WriteThree64ByteBlock)
+{
+    print_all_packets();
+    proper_startup();
+    
+    string payload;
+    for (int i = 0; i < 64; ++i) payload.push_back('a' + i % 10);
+    EXPECT_CALL(mock_, erase_flash_page(0));
+    EXPECT_CALL(mock_, write_flash(0, payload, payload.size()));
+    write_dg_at_offset(0, payload);
+
+    wait();
+
+    payload.clear();
+    for (int i = 0; i < 64; ++i) payload.push_back('f' + i % 10);
+    EXPECT_CALL(mock_, write_flash(64, payload, payload.size()));
+    write_dg_at_offset(64, payload);
+
+    wait();
+
+    payload = "0123456789012345";
+    EXPECT_CALL(mock_, write_flash(128, payload, payload.size()));
+    write_dg_at_offset(128, payload);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, DISABLED_WriteABlock)
 {
     print_all_packets();
     proper_startup();
@@ -681,7 +787,7 @@ TEST_F(BootloaderTest, WriteABlock)
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, WriteTwoPages)
+TEST_F(BootloaderTest, DISABLED_WriteTwoPages)
 {
     proper_startup();
     initiate_stream_write("00000000");
@@ -713,7 +819,7 @@ TEST_F(BootloaderTest, WriteTwoPages)
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, FinishStream)
+TEST_F(BootloaderTest, DISABLED_FinishStream)
 {
     proper_startup();
     initiate_stream_write("00000000");
@@ -756,7 +862,7 @@ TEST_F(BootloaderTest, FinishStream)
     exit_bootloader();
 }
 
-TEST_F(BootloaderTest, MultiStream)
+TEST_F(BootloaderTest, DISABLED_MultiStream)
 {
     proper_startup();
     initiate_stream_write("00000000");
@@ -870,7 +976,6 @@ protected:
         EXPECT_CALL(mock_, bootloader_reboot());
     }
 
-
     void wait_for_bootloader_exit()
     {
         wait();
@@ -908,9 +1013,9 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
     EXPECT_NE("", response_.error_details);
 }
 
-TEST_F(BootloaderClientTest, WriteSmallData)
+TEST_F(BootloaderClientTest, DISABLED_WriteSmallData)
 {
-    //print_all_packets();
+    // print_all_packets();
     expect_any_packet();
     startup();
     expect_packet(":X19100428N05010101146C;");
@@ -928,12 +1033,12 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     EXPECT_EQ(0, response_.error_code);
     EXPECT_EQ("", response_.error_details);
 
-    EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+    EXPECT_EQ(s, string((char *)virtual_flash, s.size()));
 
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, WriteSomeData)
+TEST_F(BootloaderClientTest, DISABLED_WriteSomeData)
 {
     // print_all_packets();
     expect_any_packet();
@@ -950,11 +1055,11 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     EXPECT_EQ(0, response_.error_code);
     EXPECT_EQ("", response_.error_details);
 
-    EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+    EXPECT_EQ(s, string((char *)virtual_flash, s.size()));
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, WriteAtOffset)
+TEST_F(BootloaderClientTest, DISABLED_WriteAtOffset)
 {
     // print_all_packets();
     expect_any_packet();
@@ -965,17 +1070,17 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
     request_->data()->data = s;
-    add_send_expectations(s, 3*1024);
+    add_send_expectations(s, 3 * 1024);
     send();
     n_.wait_for_notification();
     EXPECT_EQ(0, response_.error_code);
     EXPECT_EQ("", response_.error_details);
 
-    EXPECT_EQ(s, string((char*)&virtual_flash[3*1024], s.size()));
+    EXPECT_EQ(s, string((char *)&virtual_flash[3 * 1024], s.size()));
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, FailOnSpaceId)
+TEST_F(BootloaderClientTest, DISABLED_FailOnSpaceId)
 {
     // print_all_packets();
     expect_any_packet();
@@ -990,14 +1095,16 @@ TEST_F(BootloaderClientTest, FailOnSpaceId)
     n_.wait_for_notification();
     EXPECT_NE(0, response_.error_code);
     EXPECT_EQ(0x1080, response_.error_code);
-    EXPECT_EQ(DatagramDefs::PERMANENT_ERROR, response_.error_code & DatagramDefs::PERMANENT_ERROR);
-    EXPECT_THAT(response_.error_details, ::testing::HasSubstr("Write rejected"));
+    EXPECT_EQ(DatagramDefs::PERMANENT_ERROR,
+        response_.error_code & DatagramDefs::PERMANENT_ERROR);
+    EXPECT_THAT(
+        response_.error_details, ::testing::HasSubstr("Write rejected"));
 
     exit_bootloader();
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, FindByNodeId)
+TEST_F(BootloaderClientTest, DISABLED_FindByNodeId)
 {
     // print_all_packets();
     expect_any_packet();
@@ -1014,7 +1121,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     EXPECT_EQ(0, response_.error_code);
     EXPECT_EQ("", response_.error_details);
 
-    EXPECT_EQ(s, string((char*)virtual_flash, s.size()));
+    EXPECT_EQ(s, string((char *)virtual_flash, s.size()));
     wait_for_bootloader_exit();
 }
 
