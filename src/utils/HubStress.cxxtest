@@ -24,7 +24,7 @@ public:
     TestTcpHub(TestHubFlow *hub)
         : hub_(hub)
         , tcpListener_(PORT, std::bind(&TestTcpHub::OnNewConnection, this,
-                                 std::placeholders::_1))
+                                       std::placeholders::_1))
     {
         while (!is_started())
             usleep(1000);
@@ -53,8 +53,8 @@ private:
 class TestEndpoint : public TestHubPort
 {
 public:
-    TestEndpoint(
-        TestHubFlow *hub, int inject_id, int listen_id, int last_number)
+    TestEndpoint(TestHubFlow *hub, int inject_id, int listen_id,
+                 int last_number)
         : TestHubPort(hub->service())
         , hub_(hub)
         , injectId_(inject_id)
@@ -148,7 +148,7 @@ public:
     Action entry() OVERRIDE
     {
         fprintf(stderr, "<%d,%d> ", message()->data()->from,
-            message()->data()->payload);
+                message()->data()->payload);
         return release_and_exit();
     }
 
@@ -195,7 +195,7 @@ protected:
 
     void run()
     {
-        usleep(10000);  // Waits for tcp connections to be established.
+        usleep(10000); // Waits for tcp connections to be established.
         for (auto &a : injectEndpoints_)
         {
             a->inject();
@@ -321,13 +321,15 @@ TEST_F(HubStressTest, MultiThreaded)
     add_endpoints(50);
     run();
     while (!g_executor4.empty() || !g_executor3.empty() ||
-        !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
+           !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
         usleep(1000);
 }
 
 TEST_F(HubStressTest, Parallel)
 {
     // print_all();
+    LOG(INFO, "This test runs quite long, depending on how many CPUs you have "
+              "in your machine.");
     add_start_hub(1);
     start_tcp_hub();
     tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
@@ -350,8 +352,10 @@ TEST_F(HubStressTest, Parallel)
     add_endpoints(20, 91, 4000);
     add_endpoints(20, 47, 5000);
     add_endpoints(20, 27, 6000);
+    LOG(INFO, "This test runs quite long, depending on how many CPUs you have "
+              "in your machine.");
     run();
     while (!g_executor4.empty() || !g_executor3.empty() ||
-        !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
+           !g_executor2.empty() || !g_executor1.empty() || !g_executor.empty())
         usleep(1000);
 }
