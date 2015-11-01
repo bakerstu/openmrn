@@ -74,13 +74,20 @@ struct BootloaderState
     unsigned input_frame_full : 1;
     unsigned output_frame_full : 1;
     unsigned request_reset : 1;
+#ifdef BOOTLOADER_STREAM
     unsigned stream_pending : 1;
     unsigned stream_open : 1;
     unsigned stream_proceed_pending : 1;
+#endif
+#ifdef BOOTLOADER_DATAGRAM
+    unsigned incoming_datagram_pending : 1;
+    unsigned datagram_write_pending : 1;
+#endif
     // 1 if the datagram buffer is busy
     unsigned datagram_output_pending : 1;
     // 1 if we are waiting for an incoming reply to a sent datagram
     unsigned datagram_reply_waiting : 1;
+
     NodeAlias alias;
     InitState init_state;
 
@@ -90,15 +97,18 @@ struct BootloaderState
     uint8_t datagram_offset;
     uint8_t datagram_payload[14];
 
+    // Node that is sending us the stream of data.
+    NodeAlias write_src_alias;
+
+#ifdef BOOTLOADER_STREAM
     // stream source ID of incoming data.
     uint8_t stream_src_id;
-    // Node that is sending us the stream of data.
-    NodeAlias stream_src_alias;
     // What's the total length of the negotiated stream buffer.
     uint16_t stream_buffer_size;
     // How many bytes are left of the strem buffer before a continue needs to
     // be sent.
     int stream_buffer_remaining;
+#endif
 
     // Offset of the beginning of the write buffer.
     uintptr_t write_buffer_offset;
@@ -108,7 +118,12 @@ struct BootloaderState
 } state_;
 
 //#define WRITE_BUFFER_SIZE 1024
+
+#ifdef BOOTLOADER_STREAM
 #define WRITE_BUFFER_SIZE 256
+#else
+#define WRITE_BUFFER_SIZE 64
+#endif
 uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 
 #define FLASH_SPACE (MemoryConfigDefs::SPACE_FIRMWARE)
@@ -127,9 +142,13 @@ Atomic g_bootloader_lock;
 
 static const char TEST_PATTERN[] = "123456789";
 extern uint32_t g_test_pattern_checksum[CHECKSUM_COUNT];
-uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {0, };
+uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {
+    0,
+};
 
-#define PIP_REPLY_VALUE (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM | Defs::STREAM | Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+#define PIP_REPLY_VALUE                                                        \
+    (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM | Defs::STREAM |           \
+        Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
 // We manually convert to big-endian to store this value in .rodata.
 static const uint64_t PIP_REPLY =        //
     (PIP_REPLY_VALUE >> 40) |            //
@@ -152,16 +171,16 @@ bool check_application_checksum()
     const struct app_header *app_header;
     get_flash_boundaries(&flash_min, &flash_max, &app_header);
     uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header) -
-                        static_cast<const uint8_t *>(flash_min);
+        static_cast<const uint8_t *>(flash_min);
     checksum_data(flash_min, pre_size, checksum);
     if (memcmp(app_header->checksum_pre, checksum, sizeof(checksum)))
     {
         return false;
     }
     uint32_t post_size = app_header->app_size -
-                         (reinterpret_cast<const uint8_t *>(app_header) -
-                          static_cast<const uint8_t *>(flash_min)) -
-                         sizeof(struct app_header);
+        (reinterpret_cast<const uint8_t *>(app_header) -
+                             static_cast<const uint8_t *>(flash_min)) -
+        sizeof(struct app_header);
     checksum_data(app_header + 1, post_size, checksum);
     if (memcmp(app_header->checksum_post, checksum, sizeof(checksum)))
     {
@@ -184,20 +203,20 @@ void set_can_frame_global(Defs::MTI mti)
     setup_can_frame();
     uint32_t id;
     CanDefs::set_fields(&id, state_.alias, mti, CanDefs::GLOBAL_ADDRESSED,
-                        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
 }
 
 /** Sets the outgoing CAN frame to addressed, destination taken from the source
  * field of the incoming message or the given alias. */
-void set_can_frame_addressed(Defs::MTI mti,
-                             NodeAlias alias = CanDefs::get_src(
-                                 GET_CAN_FRAME_ID_EFF(state_.input_frame)))
+void set_can_frame_addressed(
+    Defs::MTI mti, NodeAlias alias = CanDefs::get_src(
+                       GET_CAN_FRAME_ID_EFF(state_.input_frame)))
 {
     setup_can_frame();
     uint32_t id;
     CanDefs::set_fields(&id, state_.alias, mti, CanDefs::GLOBAL_ADDRESSED,
-                        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+        CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
     state_.output_frame.can_dlc = 2;
     state_.output_frame.data[0] = (alias >> 8) & 0xf;
@@ -277,7 +296,7 @@ void flush_flash_buffer()
         erase_flash_page(address);
     }
     write_flash((const void *)state_.write_buffer_offset, g_write_buffer,
-                state_.write_buffer_index);
+        state_.write_buffer_index);
     state_.write_buffer_offset += state_.write_buffer_index;
     state_.write_buffer_index = 0;
     init_flash_write_buffer();
@@ -326,6 +345,57 @@ void handle_memory_config_frame()
             state_.input_frame_full = 0;
             return;
         }
+#ifdef BOOTLOADER_DATAGRAM
+        case MemoryConfigDefs::COMMAND_WRITE:
+        {
+            NodeAlias src =
+                CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
+            if (state_.incoming_datagram_pending)
+            {
+                reject_datagram();
+                if (src == state_.write_src_alias)
+                {
+                    set_error_code(DatagramDefs::OUT_OF_ORDER);
+                }
+                else
+                {
+                    set_error_code(DatagramDefs::BUFFER_UNAVAILABLE);
+                }
+                return;
+            }
+            if (state_.input_frame.can_dlc < 8)
+            {
+                reject_datagram();
+                set_error_code(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                return;
+            }
+            if (state_.input_frame.data[6] != FLASH_SPACE)
+            {
+                reject_datagram();
+                set_error_code(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
+                return;
+            }
+            state_.incoming_datagram_pending = 1;
+            state_.datagram_write_pending = 1;
+
+            state_.write_buffer_offset =
+                load_uint32_be(state_.input_frame.data + 2) + 1;
+            g_write_buffer[0] = state_.input_frame.data[7];
+            state_.write_buffer_index = 1;
+
+            if (CanDefs::get_can_frame_type(GET_CAN_FRAME_ID_EFF(
+                    state_.input_frame)) == CanDefs::DATAGRAM_ONE_FRAME)
+            {
+                // We also need to finish writing here.
+                flush_flash_buffer();
+                set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+            }
+
+            state_.input_frame_full = 0;
+            return;
+        }
+#endif
+#ifdef BOOTLOADER_STREAM
         case MemoryConfigDefs::COMMAND_WRITE_STREAM:
         {
             if (state_.datagram_output_pending || state_.stream_open)
@@ -349,7 +419,7 @@ void handle_memory_config_frame()
             // Composes write stream reply datagram.
             state_.datagram_dlc = state_.input_frame.can_dlc - 1;
             memcpy(state_.datagram_payload, state_.input_frame.data,
-                   state_.input_frame.can_dlc - 1);
+                state_.input_frame.can_dlc - 1);
             state_.datagram_payload[1] |= MemoryConfigDefs::COMMAND_WRITE_REPLY;
             state_.datagram_output_pending = 1;
             state_.datagram_dst =
@@ -362,7 +432,7 @@ void handle_memory_config_frame()
                 return;
             }
             state_.stream_pending = 1;
-            state_.stream_src_alias = state_.datagram_dst;
+            state_.write_src_alias = state_.datagram_dst;
             state_.stream_src_id = state_.input_frame.data[7];
             state_.write_buffer_index = 0;
             state_.write_buffer_offset =
@@ -382,6 +452,7 @@ void handle_memory_config_frame()
             init_flash_write_buffer();
             return;
         }
+#endif
     } // switch
     reject_datagram();
     set_error_code(DatagramDefs::UNIMPLEMENTED);
@@ -415,6 +486,7 @@ void handle_addressed_message(Defs::MTI mti)
             }
             break;
         }
+#ifdef BOOTLOADER_STREAM
         case Defs::MTI_STREAM_INITIATE_REQUEST:
         {
             if (state_.output_frame_full)
@@ -446,7 +518,7 @@ void handle_addressed_message(Defs::MTI mti)
             else
             {
                 uint16_t proposed_size = (state_.input_frame.data[2] << 8) |
-                                         state_.input_frame.data[3];
+                    state_.input_frame.data[3];
                 uint16_t final_size = WRITE_BUFFER_SIZE;
                 while (final_size > proposed_size)
                 {
@@ -468,6 +540,7 @@ void handle_addressed_message(Defs::MTI mti)
         {
             return handle_stream_complete();
         }
+#endif
         default:
         {
             // Send reject.
@@ -492,6 +565,7 @@ void handle_global_message(Defs::MTI mti)
     return;
 }
 
+#ifdef BOOTLOADER_STREAM
 /** Clears out the stream state in state_. */
 void reset_stream_state()
 {
@@ -499,7 +573,7 @@ void reset_stream_state()
     state_.stream_pending = 0;
     state_.stream_proceed_pending = 0;
     state_.stream_src_id = 0;
-    state_.stream_src_alias = 0;
+    state_.write_src_alias = 0;
     state_.stream_buffer_size = 0;
     state_.stream_buffer_remaining = 0;
     state_.write_buffer_index = 0;
@@ -534,7 +608,7 @@ void handle_stream_data()
     }
     state_.input_frame_full = 0;
     memcpy(&g_write_buffer[state_.write_buffer_index],
-           &state_.input_frame.data[1], len);
+        &state_.input_frame.data[1], len);
     state_.write_buffer_index += len;
     state_.stream_buffer_remaining -= len;
     if (state_.stream_buffer_remaining <= 0)
@@ -554,7 +628,7 @@ void handle_stream_complete()
         state_.input_frame.data[2] != state_.stream_src_id ||
         state_.input_frame.data[3] != STREAM_ID ||
         CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame)) !=
-            state_.stream_src_alias)
+            state_.write_src_alias)
     {
         // no or wrong stream -- reject.
         if (state_.output_frame_full)
@@ -581,6 +655,7 @@ void handle_stream_complete()
     state_.input_frame_full = 0;
     reset_stream_state();
 }
+#endif
 
 void handle_input_frame()
 {
@@ -610,8 +685,8 @@ void handle_input_frame()
                 return; // re-try.
             }
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  CanDefs::RID_FRAME, 0);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, CanDefs::RID_FRAME, 0);
         }
         else
         {
@@ -632,17 +707,18 @@ void handle_input_frame()
                 return; // re-try.
             }
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  CanDefs::AMD_FRAME, 0);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, CanDefs::AMD_FRAME, 0);
             set_can_frame_nodeid();
         }
         // All other control messages are ignored.
         state_.input_frame_full = 0;
         return;
     }
-    else if ((can_id >> 12) == (0x1A000 | state_.alias))
+    else if ((can_id >> 12) == (0x1A000 | state_.alias) ||
+        (can_id >> 12) == (0x1B000 | state_.alias))
     {
-        // Datagram one frame.
+        // Datagram start frame.
 
         // Datagrams always need an answer. If we cannot render the answer,
         // let's not even try to parse the message.
@@ -660,10 +736,43 @@ void handle_input_frame()
             return reject_datagram();
         }
     }
+#ifdef BOOTLOADER_DATAGRAM
+    else if ((can_id >> 12) == (0x1C000 | state_.alias) ||
+        (can_id >> 12) == (0x1D000 | state_.alias))
+    {
+        if (!state_.incoming_datagram_pending ||
+            CanDefs::get_src(can_id) != state_.write_src_alias) {
+            if (state_.output_frame_full)
+            {
+                return; // re-try.
+            }
+            reject_datagram();
+            set_error_code(DatagramDefs::OUT_OF_ORDER);
+            return;
+        }
+        memcpy(g_write_buffer + state_.write_buffer_index,
+               state_.input_frame.data, state_.input_frame.can_dlc);
+        state_.write_buffer_index += state_.input_frame.can_dlc;
+
+        if (CanDefs::get_can_frame_type(can_id) ==
+            CanDefs::DATAGRAM_FINAL_FRAME)
+        {
+            flush_flash_buffer();
+            set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+            state_.incoming_datagram_pending = 0;
+            state_.datagram_write_pending = 0;
+        }
+
+        state_.input_frame_full = 0;
+        return;
+    }
+#endif
+#ifdef BOOTLOADER_STREAM
     else if ((can_id >> 12) == (0x1F000 | state_.alias) && dlc > 1)
     {
         return handle_stream_data();
     }
+#endif
     else if ((can_id >> 24) == 0x19)
     {
         // global or addressed message
@@ -699,8 +808,7 @@ void handle_init()
                 if (!state_.alias)
                 {
                     state_.alias = (node & 0xfff) ^ ((node >> 12) & 0xfff) ^
-                                   ((node >> 24) & 0xfff) ^
-                                   ((node >> 36) & 0xfff);
+                        ((node >> 24) & 0xfff) ^ ((node >> 36) & 0xfff);
                 }
             }
             else
@@ -717,29 +825,29 @@ void handle_init()
         case SEND_CID_7:
         {
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  nmranet_nodeid() >> 36, 7);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, nmranet_nodeid() >> 36, 7);
             break;
         }
         case SEND_CID_6:
         {
             setup_can_frame();
             CanDefs::control_init(state_.output_frame, state_.alias,
-                                  (nmranet_nodeid() >> 24) & 0xfff, 6);
+                (nmranet_nodeid() >> 24) & 0xfff, 6);
             break;
         }
         case SEND_CID_5:
         {
             setup_can_frame();
             CanDefs::control_init(state_.output_frame, state_.alias,
-                                  (nmranet_nodeid() >> 12) & 0xfff, 5);
+                (nmranet_nodeid() >> 12) & 0xfff, 5);
             break;
         }
         case SEND_CID_4:
         {
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  nmranet_nodeid() & 0xfff, 4);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, nmranet_nodeid() & 0xfff, 4);
             break;
         }
         case WAIT_RID:
@@ -749,15 +857,15 @@ void handle_init()
         case SEND_RID:
         {
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  CanDefs::RID_FRAME, 0);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, CanDefs::RID_FRAME, 0);
             break;
         }
         case SEND_AMD:
         {
             setup_can_frame();
-            CanDefs::control_init(state_.output_frame, state_.alias,
-                                  CanDefs::AMD_FRAME, 0);
+            CanDefs::control_init(
+                state_.output_frame, state_.alias, CanDefs::AMD_FRAME, 0);
             set_can_frame_nodeid();
             break;
         }
@@ -800,12 +908,12 @@ void handle_send_datagram()
     {
         frame_type = CanDefs::DATAGRAM_MIDDLE_FRAME;
     }
-    CanDefs::set_datagram_fields(&id, state_.alias, state_.datagram_dst,
-                                 frame_type);
+    CanDefs::set_datagram_fields(
+        &id, state_.alias, state_.datagram_dst, frame_type);
     SET_CAN_FRAME_ID_EFF(state_.output_frame, id);
     int len = std::min(state_.datagram_dlc - state_.datagram_offset, 8);
     memcpy(state_.output_frame.data,
-           &state_.datagram_payload[state_.datagram_offset], len);
+        &state_.datagram_payload[state_.datagram_offset], len);
     state_.datagram_offset += len;
     state_.output_frame.can_dlc = len;
     if (state_.datagram_offset >= state_.datagram_dlc)
@@ -844,11 +952,11 @@ void bootloader_entry()
             }
             unsigned new_busy =
                 (state_.input_frame_full || state_.output_frame_full ||
-                 state_.init_state != INITIALIZED ||
-                 (state_.datagram_output_pending
-                  /*&& !state_.datagram_reply_waiting*/))
-                    ? 1
-                    : 0;
+                    state_.init_state != INITIALIZED ||
+                    (state_.datagram_output_pending
+                        /*&& !state_.datagram_reply_waiting*/))
+                ? 1
+                : 0;
             if (g_bootloader_busy != new_busy)
             {
                 bootloader_led(LED_ACTIVE, new_busy);
@@ -872,10 +980,11 @@ void bootloader_entry()
         {
             handle_init();
         }
+#ifdef BOOTLOADER_STREAM
         if (state_.stream_proceed_pending && !state_.output_frame_full)
         {
-            set_can_frame_addressed(Defs::MTI_STREAM_PROCEED,
-                                    state_.stream_src_alias);
+            set_can_frame_addressed(
+                Defs::MTI_STREAM_PROCEED, state_.write_src_alias);
             state_.stream_proceed_pending = 0;
             state_.output_frame.data[state_.output_frame.can_dlc++] =
                 state_.stream_src_id;
@@ -883,6 +992,7 @@ void bootloader_entry()
             state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
             state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
         }
+#endif
         if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
             !state_.output_frame_full)
         {
