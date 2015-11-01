@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Bootloader.cxx
+ * \file Bootloader.hxx
  *
  * A standalone NMRAnet stack with the sole purpose of reflashing a
  * microcontroller.
@@ -32,6 +32,12 @@
  * @author Balazs Racz
  * @date 8 Dec 2014
  */
+
+#ifdef _NMRANET_BOOTLOADER_HXX_
+#error Bootlaoder.hxx should be included only once.
+#endif
+
+#define _NMRANET_BOOTLOADER_HXX_
 
 #include <string.h>
 #include <unistd.h>

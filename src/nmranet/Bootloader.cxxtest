@@ -1,6 +1,7 @@
 #include "utils/async_datagram_test_helper.hxx"
 #include "freertos/bootloader_hal.h"
 
+#include "nmranet/Bootloader.hxx"
 #include "nmranet/BootloaderClient.hxx"
 #include <string>
 #include <functional>

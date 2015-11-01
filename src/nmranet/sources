@@ -5,7 +5,6 @@ CSRCS +=
 CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
-           Bootloader.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
