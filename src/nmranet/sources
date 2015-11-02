@@ -18,6 +18,7 @@ CXXSRCS += \
            IfCan.cxx \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
+	   PIPClient.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionTrain.cxx \
