@@ -95,6 +95,17 @@ extern string error_to_buffer(uint16_t error_code, uint16_t mti);
  * Rejected. */
 extern string error_to_buffer(uint16_t error_code);
 
+/** Parses the payload of an Optional Interaction Rejected or Terminate Due To
+ * Error message.
+ * @param payload is the contents of the incoming addressed message.
+ * @param error_code will hold the 2-byte error code, or ERROR_PERMANENT if not
+ * specified
+ * @param mti will hold the MTI value, or 0 if not specified
+ * @param error_message will hold all remaining bytes that came with the error
+ * message.
+ */
+extern void buffer_to_error(const Payload& payload, uint16_t* error_code, uint16_t* mti, string* error_message);
+
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 
