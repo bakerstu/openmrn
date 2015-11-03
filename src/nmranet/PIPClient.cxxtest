@@ -105,6 +105,8 @@ protected:
 
     ~TwoIfPIPClientTest()
     {
+        // This delay is needed for the second If to successfully finish the
+        // alias allocation flow.
         usleep(300000);
         wait();
     }
@@ -120,8 +122,8 @@ protected:
 
 TEST_F(TwoIfPIPClientTest, RemoteIfById)
 {
-    print_all_packets();
-    //expect_any_packet();
+    //print_all_packets();
+    expect_any_packet();
     NodeHandle dst(node_->node_id());
     client_.request(dst, &secondNode_, get_notifiable());
     wait_for_notification();
