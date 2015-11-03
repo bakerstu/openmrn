@@ -34,6 +34,7 @@
 
 #include "nmranet/PIPClient.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
+#include "nmranet/IfCanImpl.hxx"
 #include "utils/async_if_test_helper.hxx"
 
 namespace nmranet
@@ -48,7 +49,7 @@ protected:
     {
     }
 
-    const uint64_t PIP_RESPONSE = 0x810203040506;  // Top bit is always 1.
+    const uint64_t PIP_RESPONSE = 0x810203040506; // Top bit is always 1.
     ProtocolIdentificationHandler pipHandler_{node_, PIP_RESPONSE};
     PIPClient client_{ifCan_.get()};
 };
@@ -72,6 +73,57 @@ TEST_F(PIPClientTest, RegularFetchByAlias)
 {
     NodeHandle dst(NodeAlias(0x22A));
     client_.request(dst, node_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::OPERATION_SUCCESS, client_.error_code());
+    EXPECT_EQ(StringPrintf("%012" PRIx64, PIP_RESPONSE),
+        StringPrintf("%012" PRIx64, client_.response()));
+}
+
+TEST_F(PIPClientTest, Unknown)
+{
+    ScopedOverride ov1(
+        &ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
+    ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(800));
+    print_all_packets();
+    NodeHandle dst(NodeID(0x050101011400));
+    client_.request(dst, node_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::TIMEOUT, client_.error_code());
+}
+
+class TwoIfPIPClientTest : public AsyncNodeTest
+{
+protected:
+    TwoIfPIPClientTest()
+    {
+        AddAliasAllocator(SECOND_NODE_ID, &secondIf_);
+        secondIf_.add_addressed_message_support();
+        // Adds one alias buffer to the alias allocation flow.
+        auto* b = secondIf_.alias_allocator()->alloc();
+        secondIf_.alias_allocator()->send(b);
+    }
+
+    ~TwoIfPIPClientTest()
+    {
+        usleep(300000);
+        wait();
+    }
+
+    const uint64_t PIP_RESPONSE = 0x810203040506; // Top bit is always 1.
+    ProtocolIdentificationHandler pipHandler_{node_, PIP_RESPONSE};
+
+    const uint64_t SECOND_NODE_ID = TEST_NODE_ID + 256;
+    IfCan secondIf_{&g_executor, &can_hub0, 10, 10, 5};
+    DefaultNode secondNode_{&secondIf_, SECOND_NODE_ID};
+    PIPClient client_{&secondIf_};
+};
+
+TEST_F(TwoIfPIPClientTest, RemoteIfById)
+{
+    print_all_packets();
+    //expect_any_packet();
+    NodeHandle dst(node_->node_id());
+    client_.request(dst, &secondNode_, get_notifiable());
     wait_for_notification();
     EXPECT_EQ(PIPClient::OPERATION_SUCCESS, client_.error_code());
     EXPECT_EQ(StringPrintf("%012" PRIx64, PIP_RESPONSE),
