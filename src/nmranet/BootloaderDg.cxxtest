@@ -963,15 +963,17 @@ protected:
     void add_send_expectations(const string &s, unsigned offset = 0)
     {
         testing::InSequence seq;
-        for (unsigned i = 0; i < (s.size() + 255) / 256; i++)
+        for (unsigned i = 0;
+             i < (s.size() + sendBlockSize_ - 1) / sendBlockSize_; i++)
         {
-            if (i % 4 == 0)
+            if ((i * sendBlockSize_) % 1024 == 0)
             {
-                EXPECT_CALL(mock_, erase_flash_page(i * 256 + offset));
+                EXPECT_CALL(
+                    mock_, erase_flash_page(i * sendBlockSize_ + offset));
             }
-            string expected = s.substr(i * 256, 256);
-            EXPECT_CALL(mock_,
-                write_flash(i * 256 + offset, expected, expected.size()));
+            string expected = s.substr(i * sendBlockSize_, sendBlockSize_);
+            EXPECT_CALL(mock_, write_flash(i * sendBlockSize_ + offset,
+                                   expected, expected.size()));
         }
         EXPECT_CALL(mock_, bootloader_reboot());
     }
@@ -989,6 +991,7 @@ protected:
         send_packet(":X1A428111N20A9;");
     }
 
+    unsigned sendBlockSize_ = 64;
     BootloaderClient client_;
     Buffer<BootloaderRequest> *request_;
     BootloaderResponse response_;
@@ -1001,6 +1004,7 @@ TEST_F(BootloaderClientTest, CreateDestroy)
 TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
+    ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
     print_all_packets();
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xEF;
@@ -1013,7 +1017,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
     EXPECT_NE("", response_.error_details);
 }
 
-TEST_F(BootloaderClientTest, DISABLED_WriteSmallData)
+TEST_F(BootloaderClientTest, WriteSmallData)
 {
     // print_all_packets();
     expect_any_packet();
@@ -1038,7 +1042,7 @@ TEST_F(BootloaderClientTest, DISABLED_WriteSmallData)
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, DISABLED_WriteSomeData)
+TEST_F(BootloaderClientTest, WriteSomeData)
 {
     // print_all_packets();
     expect_any_packet();
@@ -1059,7 +1063,7 @@ TEST_F(BootloaderClientTest, DISABLED_WriteSomeData)
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, DISABLED_WriteAtOffset)
+TEST_F(BootloaderClientTest, WriteAtOffset)
 {
     // print_all_packets();
     expect_any_packet();
@@ -1080,7 +1084,7 @@ TEST_F(BootloaderClientTest, DISABLED_WriteAtOffset)
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, DISABLED_FailOnSpaceId)
+TEST_F(BootloaderClientTest, FailOnSpaceId)
 {
     // print_all_packets();
     expect_any_packet();
@@ -1094,7 +1098,8 @@ TEST_F(BootloaderClientTest, DISABLED_FailOnSpaceId)
     send();
     n_.wait_for_notification();
     EXPECT_NE(0, response_.error_code);
-    EXPECT_EQ(0x1080, response_.error_code);
+    /// @TODO: the stream test has a different expectation here. why?
+    EXPECT_EQ(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN, response_.error_code);
     EXPECT_EQ(DatagramDefs::PERMANENT_ERROR,
         response_.error_code & DatagramDefs::PERMANENT_ERROR);
     EXPECT_THAT(
@@ -1104,7 +1109,7 @@ TEST_F(BootloaderClientTest, DISABLED_FailOnSpaceId)
     wait_for_bootloader_exit();
 }
 
-TEST_F(BootloaderClientTest, DISABLED_FindByNodeId)
+TEST_F(BootloaderClientTest, FindByNodeId)
 {
     // print_all_packets();
     expect_any_packet();

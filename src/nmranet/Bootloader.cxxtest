@@ -896,6 +896,7 @@ TEST_F(BootloaderClientTest, CreateDestroy)
 TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
+    ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
     print_all_packets();
     request_->data()->dst.alias = 0x428;
     request_->data()->memory_space = 0xEF;

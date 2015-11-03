@@ -193,12 +193,6 @@ private:
         }
     }
 
-    Action bootload_using_datagrams()
-    {
-        return return_error(DatagramDefs::PERMANENT_ERROR,
-            "Datagram-based bootloading not yet supported.");
-    }
-
     Action bootload_using_stream()
     {
         Buffer<NMRAnetMessage> *b;
@@ -225,7 +219,7 @@ private:
     }
 
     /// Datagram handler that listens to the incoming memoryconfig datagram for
-    /// the write response message.
+    /// the write stream response message.
     class WriteResponseHandler : public DefaultDatagramHandler
     {
     public:
@@ -624,10 +618,69 @@ private:
         }
     }
 
+    Action bootload_using_datagrams()
+    {
+        // dgClient_ is active currently.
+        bufferOffset_ = 0;
+        return call_immediately(STATE(next_dg_write_datagram));
+    }
+
+    Action next_dg_write_datagram()
+    {
+        Buffer<NMRAnetMessage> *b;
+        mainBufferPool->alloc(&b);
+        DatagramPayload payload = MemoryConfigDefs::write_datagram(message()->data()->memory_space, message()->data()->offset + bufferOffset_);
+        unsigned len = message()->data()->data.size() - bufferOffset_;
+        if (len > 64) len = 64;
+        payload.append(&message()->data()->data[bufferOffset_], len);
+        b->set_done(n_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
+            message()->data()->dst, payload);
+        dgClient_->write_datagram(b);
+
+        responseDatagram_ = nullptr;
+        sleeping_ = false;
+        /// @TODO (balazs.racz) we have to expect write response datagrams too.
+        return wait_and_call(STATE(dg_write_request_sent));
+    }
+
+    Action dg_write_request_sent()
+    {
+        uint32_t dg_result =
+            dgClient_->result() & DatagramClient::RESPONSE_CODE_MASK;
+        if (dg_result != DatagramClient::OPERATION_SUCCESS) {
+            datagramService_->client_allocator()->typed_insert(dgClient_);
+            return return_error(dg_result, "Write rejected.");
+        }
+
+        if (dgClient_->result() & DatagramClient::OK_REPLY_PENDING) {
+            DIE("Write datagram results with reply pending not supported for "
+                "bootloader yet.");
+        }
+
+        unsigned len = message()->data()->data.size() - bufferOffset_;
+        if (len > 64) len = 64;
+        bufferOffset_ += len;
+
+        if (bufferOffset_ < message()->data()->data.size()) {
+            return call_immediately(STATE(next_dg_write_datagram));
+        }
+        if (message()->data()->request_reboot_after) {
+            return call_immediately(STATE(reboot_with_dg_client));
+        } else {
+            return return_error(0, "Remote node left in bootloader.");
+        }
+    }
+
     Action reboot_dg_client()
     {
         dgClient_ =
             full_allocation_result(datagramService_->client_allocator());
+        return reboot_with_dg_client();
+    }
+
+    Action reboot_with_dg_client()
+    {
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
