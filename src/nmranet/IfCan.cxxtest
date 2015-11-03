@@ -228,6 +228,38 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
                 //Field(&NMRAnetMessage::payload, NotNull()),
                 Field(&NMRAnetMessage::payload,
                       IsBufferValue(UINT64_C(0x0102030405060708))),
+//                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&NMRAnetMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                /// @TODO(balazs.racz): reenable node check.
+                Field(&NMRAnetMessage::dstNode, node_))),
+            _));
+    ifCan_->dispatcher()->register_handler(&h, 0, 0);
+
+    auto* b = ifCan_->addressed_message_write_flow()->alloc();
+    /** Here we are using a new source node ID number, which would normally
+     * trigger an alias allocation. However, since the message never makes it
+     * to the canbus (is looped back), that does not happen.*/
+    b->data()->reset(Defs::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
+        {TEST_NODE_ID, 0}, eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    b->set_done(get_notifiable());
+    ifCan_->addressed_message_write_flow()->send(b);
+    wait_for_notification();
+    wait();
+}
+
+// this will only work once the addressed flow is okay
+TEST_F(AsyncNodeTest, WriteByMTIAddressedByAliasDoesLoopback)
+{
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&NMRAnetMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                //Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&NMRAnetMessage::payload,
+                      IsBufferValue(UINT64_C(0x0102030405060708))),
                 Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
                 Field(&NMRAnetMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
@@ -241,7 +273,7 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
      * trigger an alias allocation. However, since the message never makes it
      * to the canbus (is looped back), that does not happen.*/
     b->data()->reset(Defs::MTI_EVENTS_IDENTIFY_ADDRESSED, TEST_NODE_ID + 1,
-        {TEST_NODE_ID, 0x22A}, eventid_to_buffer(UINT64_C(0x0102030405060708)));
+        {0, 0x22A}, eventid_to_buffer(UINT64_C(0x0102030405060708)));
     b->set_done(get_notifiable());
     ifCan_->addressed_message_write_flow()->send(b);
     wait_for_notification();

@@ -291,6 +291,21 @@ protected:
                 return call_immediately(STATE(send_finished));
             }
         }
+        else if (dst_.alias)
+        {
+            // Check if this is a local node being called by alias.
+            NodeID id = if_can()->local_aliases()->lookup(dst_.alias);
+            if (id)
+            {
+                Node *dst_node = if_can()->lookup_local_node(id);
+                if (dst_node)
+                {
+                    dst_.id = id;
+                    nmsg()->dstNode = dst_node;
+                    return call_immediately(STATE(send_to_local_node));
+                }
+            }
+        }
         if (dst_.alias && dstAlias_ && dst_.alias != dstAlias_)
         {
             /** @TODO(balazs.racz) what should we do here? The caller said
