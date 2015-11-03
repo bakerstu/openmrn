@@ -594,6 +594,22 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)
     wait_for_notification();
 }
 
+TEST_F(AsyncNodeTest, SendAddressedMessageNoPayload)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+
+    expect_packet(":X1948822AN0210;");
+    auto* b = ifCan_->addressed_message_write_flow()->alloc();
+    ifCan_->remote_aliases()->add(id, alias);
+    b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+                     TEST_NODE_ID, {id, 0},
+                     EMPTY_PAYLOAD);
+    b->set_done(get_notifiable());
+    ifCan_->addressed_message_write_flow()->send(b);
+    wait_for_notification();
+}
+
 TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithConflictingAlias)
 {
     static const NodeAlias alias = 0x210U;

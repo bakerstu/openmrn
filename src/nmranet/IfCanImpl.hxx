@@ -202,7 +202,11 @@ private:
         {
             f->data[0] = dstAlias_ >> 8;
             f->data[1] = dstAlias_ & 0xff;
-            if (data.size())
+            if (data.empty())
+            {
+                f->can_dlc = 2;
+            }
+            else
             {
                 if (dataOffset_)
                 {
