@@ -37,6 +37,7 @@
 
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/StreamDefs.hxx"
+#include "nmranet/PIPClient.hxx"
 #include "nmranet/CanDefs.hxx"
 #include "nmranet/MemoryConfig.hxx"
 
@@ -144,7 +145,7 @@ private:
             full_allocation_result(datagramService_->client_allocator());
         if (!message()->data()->request_reboot)
         {
-            return call_immediately(STATE(send_write_dg));
+            return call_immediately(STATE(send_pip_request));
         }
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
@@ -166,10 +167,39 @@ private:
     {
         uint32_t dg_result = dgClient_->result();
         LOG(INFO, "Reboot command result: %04x", dg_result);
-        return call_immediately(STATE(send_write_dg));
+        return call_immediately(STATE(send_pip_request));
     }
 
-    Action send_write_dg()
+    Action send_pip_request()
+    {
+        pipClient_.request(message()->data()->dst, node_, this);
+        return wait_and_call(STATE(pip_response));
+    }
+
+    Action pip_response()
+    {
+        if (pipClient_.error_code() != PIPClient::OPERATION_SUCCESS) {
+            LOG(INFO,
+                "PIP request failed. Error code: %" PRIx32 ". Using streams.",
+                pipClient_.error_code());
+            return call_immediately(STATE(bootload_using_stream));
+        }
+        if (pipClient_.response() & Defs::STREAM) {
+            LOG(INFO, "Using streams for bootloading.");
+            return call_immediately(STATE(bootload_using_stream));
+        } else {
+            LOG(INFO, "Using datagrams for bootloading.");
+            return call_immediately(STATE(bootload_using_datagrams));
+        }
+    }
+
+    Action bootload_using_datagrams()
+    {
+        return return_error(DatagramDefs::PERMANENT_ERROR,
+            "Datagram-based bootloading not yet supported.");
+    }
+
+    Action bootload_using_stream()
     {
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
@@ -659,6 +689,7 @@ private:
     // sleeping yet.
     bool sleeping_ = false;
     BarrierNotifiable n_;
+    PIPClient pipClient_{ifCan_};
 };
 
 } // namespace nmranet

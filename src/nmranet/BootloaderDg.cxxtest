@@ -631,8 +631,8 @@ TEST_F(BootloaderTest, FreezeWillReboot)
 TEST_F(BootloaderTest, PIPReply)
 {
     proper_startup();
-
-    expect_packet(":X19668428N0321F00010000000;");
+    // No stream support in reply.
+    expect_packet(":X19668428N0321D00010000000;");
     send_packet(":X19828321N0428;");
     wait();
     Mock::VerifyAndClear(&canBus_);
