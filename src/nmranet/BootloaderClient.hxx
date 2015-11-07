@@ -40,6 +40,7 @@
 #include "nmranet/PIPClient.hxx"
 #include "nmranet/CanDefs.hxx"
 #include "nmranet/MemoryConfig.hxx"
+#include "utils/Ewma.hxx"
 
 namespace nmranet
 {
@@ -662,6 +663,12 @@ private:
         if (len > 64) len = 64;
         bufferOffset_ += len;
 
+        if ((bufferOffset_ & ~0xFF) != ((bufferOffset_ - len) & ~0xFF)) {
+            speedAvg_.add_absolute(bufferOffset_);
+            LOG(INFO, "write offset: %" PRIdPTR "; speed=%.0f bytes/sec",
+                bufferOffset_, speedAvg_.avg());
+        }
+
         if (bufferOffset_ < message()->data()->data.size()) {
             return call_immediately(STATE(next_dg_write_datagram));
         }
@@ -721,6 +728,7 @@ private:
     // The next byte we need to send from the input data.
     size_t bufferOffset_;
 
+    Ewma speedAvg_;
     // The Average speed (ewma) in bytes/second.
     float speed_;
     // The offset at which the last speed measurement took place.
