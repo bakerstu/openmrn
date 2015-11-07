@@ -120,7 +120,9 @@ struct BootloaderState
 //#define WRITE_BUFFER_SIZE 1024
 
 #ifdef BOOTLOADER_STREAM
-#define WRITE_BUFFER_SIZE 256
+#ifndef WRITE_BUFFER_SIZE
+#define WRITE_BUFFER_SIZE 1024
+#endif
 #else
 #define WRITE_BUFFER_SIZE 64
 #endif
