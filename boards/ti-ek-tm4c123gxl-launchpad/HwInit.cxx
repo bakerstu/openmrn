@@ -51,6 +51,7 @@
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
 #include "hardware.hxx"
+#include "bootloader_hal.h"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -91,6 +92,35 @@ const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t EEPROMEmulation::SECTOR_SIZE = (1024);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
+
+
+extern "C" {
+void hw_set_to_safe(void);
+
+void enter_bootloader()
+{
+    extern void (* const __interrupt_vector[])(void);
+    if (__interrupt_vector[1] == __interrupt_vector[13] ||
+        __interrupt_vector[13] == nullptr) {
+        // No bootloader detected.
+        return;
+    }
+    hw_set_to_safe();
+    __bootloader_magic_ptr = REQUEST_BOOTLOADER;
+    /* Globally disables interrupts. */
+    asm("cpsid i\n");
+    extern char __flash_start;
+    asm volatile(" mov   r3, %[flash_addr] \n"
+                 :
+                 : [flash_addr] "r"(&__flash_start));
+    /* Loads SP and jumps to the reset vector. */
+    asm volatile(
+        " ldr r0, [r3]\n"
+        " mov sp, r0\n"
+        " ldr r0, [r3, #4]\n"
+        " bx  r0\n");
+}
+}
 
 #define ONE_BIT_HALF_PERIOD  4480
 #define ZERO_BIT_HALF_PERIOD 8000
