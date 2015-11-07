@@ -51,7 +51,7 @@
 Executor<1> g_executor{NO_THREAD()};
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
-GcPacketPrinter packet_printer(&can_hub0);
+GcPacketPrinter packet_printer(&can_hub0, false);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 

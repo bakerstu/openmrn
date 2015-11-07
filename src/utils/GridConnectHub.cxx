@@ -305,10 +305,10 @@ GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
 /// destruction of these structures.
 struct GcPacketPrinter::Impl
 {
-    Impl(CanHubFlow *can_hub)
+    Impl(CanHubFlow *can_hub, bool timestamped)
         : canHub_(can_hub)
         , gcHub_(canHub_->service())
-        , displayPort_(canHub_->service())
+        , displayPort_(canHub_->service(), timestamped)
         , formatter_(canHub_->service(), &gcHub_, nullptr, false)
     {
         gcHub_.register_port(&displayPort_);
@@ -327,7 +327,7 @@ struct GcPacketPrinter::Impl
     GCAdapter::BinaryToGCMember formatter_;
 };
 
-GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub) : impl_(new Impl(can_hub))
+GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub, bool timestamped) : impl_(new Impl(can_hub, timestamped))
 {
 }
 

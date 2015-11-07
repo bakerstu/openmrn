@@ -94,7 +94,7 @@ public:
  * gridconnect format. */
 class GcPacketPrinter {
 public:
-    GcPacketPrinter(CanHubFlow* can_hub);
+    GcPacketPrinter(CanHubFlow* can_hub, bool timestamped);
     ~GcPacketPrinter();
 private:
     struct Impl;

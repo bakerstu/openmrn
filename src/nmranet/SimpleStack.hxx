@@ -195,9 +195,9 @@ public:
     }
 
     /// Causes all CAN packets to be printed to stdout.
-    void print_all_packets()
+    void print_all_packets(bool timestamped = false)
     {
-        auto *port = new DisplayPort(&service_);
+        auto *port = new DisplayPort(&service_, timestamped);
         gridconnect_hub()->register_port(port);
         additionalComponents_.emplace_back(port);
     }
