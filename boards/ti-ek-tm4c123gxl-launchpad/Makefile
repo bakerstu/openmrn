@@ -62,4 +62,4 @@ ADDRESS=0x04
 endif
 
 rflash: $(EXECUTABLE).bin
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x050101011F$$(printf %02x $(ADDRESS)) -f $<
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010118$$(printf %02x $(ADDRESS)) -f $<
