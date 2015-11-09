@@ -46,6 +46,7 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
+#include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
@@ -100,6 +101,13 @@ const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
+
+const Gpio *const charlieplex_pins[] = {
+    CHARLIE0_Pin::instance(), CHARLIE1_Pin::instance(), CHARLIE2_Pin::instance()};
+
+Charlieplex<3> stat_leds(charlieplex_pins);
+
+unsigned* stat_led_ptr() { return stat_leds.payload(); }
 
 void RailcomDefs::enable_measurement() {
   Debug::MeasurementEnabled::set(true);
@@ -179,6 +187,16 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+void timer4a_interrupt_handler(void)
+{
+    //
+    // Clear the timer interrupt.
+    //
+    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+
+    stat_leds.tick();
+}
+
 
 void timer2b_interrupt_handler(void)
 {
@@ -244,6 +262,15 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
+
+    /* Charlieplexed pins */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
+    MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
+    MAP_IntEnable(INT_TIMER4A);
+    // Still above kernel but not prio zero
+    MAP_IntPrioritySet(INT_TIMER4A, 0x10);
+    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */

@@ -41,12 +41,13 @@ GPIO_PIN(OUTPUT_EN4, GpioOutputODSafeHigh, E, 1);
 GPIO_PIN(OUTPUT_EN5, GpioOutputODSafeHigh, B, 5);
 
 //typedef LED_GREEN_Pin STAT0_Pin;
-typedef DummyPin STAT0_Pin;
-GPIO_PIN(STAT1, LedPin, E, 2);
-GPIO_PIN(STAT2, LedPin, E, 3);
-GPIO_PIN(STAT3, LedPin, A, 7);
-GPIO_PIN(STAT4, LedPin, A, 6);
-GPIO_PIN(STAT5, LedPin, A, 5);
+//typedef DummyPin STAT0_Pin;
+//GPIO_PIN(STAT1, LedPin, E, 2);
+//GPIO_PIN(STAT2, LedPin, E, 3);
+// Charlieplexing pins.
+GPIO_PIN(CHARLIE0, LedPin, A, 7);
+GPIO_PIN(CHARLIE1, LedPin, A, 6);
+GPIO_PIN(CHARLIE2, LedPin, A, 5);
 
 GPIO_HWPIN(DCC_IN, GpioHwPin, B, 1, T2CCP1, Timer);
 
@@ -66,22 +67,21 @@ GPIO_PIN(RCBYPASS_NON, GpioOutputSafeLow, B, 3);
 // GPIO_PIN(RCBYPASS_OFF, GpioOutputSafeLow, B, 2);
 GPIO_PIN(RCBYPASS_OFF, LedPin, B, 2);
 
-typedef GpioInitializer<                               //
-    SW1_Pin, SW2_Pin,                                  //
-    LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin,      //
-    UART0RX_Pin, UART0TX_Pin,                          //
-    RAILCOM_CH0_Pin, RAILCOM_CH1_Pin, RAILCOM_CH2_Pin, //
-    RAILCOM_CH3_Pin, RAILCOM_CH4_Pin, RAILCOM_CH5_Pin, //
-    OUTPUT_EN0_Pin, OUTPUT_EN1_Pin, OUTPUT_EN2_Pin,    //
-    OUTPUT_EN3_Pin, OUTPUT_EN4_Pin, OUTPUT_EN5_Pin,    //
-    STAT0_Pin, STAT1_Pin, STAT2_Pin,                   //
-    STAT3_Pin, STAT4_Pin, STAT5_Pin,                   //
-    DCC_IN_Pin,                                        //
-    DAC_TIMER_Pin, DAC_DIV_Pin,                        //
-    GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,               //
-    GNDBCTRL_NON_Pin, GNDBCTRL_NOFF_Pin,               //
-    SHADOW_1_Pin, SHADOW_2_Pin,                        //
-    RCBYPASS_OFF_Pin, RCBYPASS_NON_Pin,                //
+typedef GpioInitializer<                                //
+    SW1_Pin, SW2_Pin,                                   //
+    LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin,       //
+    UART0RX_Pin, UART0TX_Pin,                           //
+    RAILCOM_CH0_Pin, RAILCOM_CH1_Pin, RAILCOM_CH2_Pin,  //
+    RAILCOM_CH3_Pin, RAILCOM_CH4_Pin, RAILCOM_CH5_Pin,  //
+    OUTPUT_EN0_Pin, OUTPUT_EN1_Pin, OUTPUT_EN2_Pin,     //
+    OUTPUT_EN3_Pin, OUTPUT_EN4_Pin, OUTPUT_EN5_Pin,     //
+    CHARLIE0_Pin, CHARLIE1_Pin, CHARLIE2_Pin,           //
+    DCC_IN_Pin,                                         //
+    DAC_TIMER_Pin, DAC_DIV_Pin,                         //
+    GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,                //
+    GNDBCTRL_NON_Pin, GNDBCTRL_NOFF_Pin,                //
+    SHADOW_1_Pin, SHADOW_2_Pin,                         //
+    RCBYPASS_OFF_Pin, RCBYPASS_NON_Pin,                 //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
 
 typedef GpioInitializer<                            //
@@ -136,7 +136,7 @@ struct Debug
     //typedef DummyPin MeasurementEnabled;
     typedef LED_BLUE_Pin MeasurementEnabled;
 
-    typedef STAT2_Pin NSampling;
+    typedef DummyPin NSampling;
 
 };
 
