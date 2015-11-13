@@ -43,7 +43,7 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
-             -D__FreeRTOS__ -DGCC_ARMCM3  
+             -D__FreeRTOS__ -DGCC_ARMCM3 -D_REENT_SMALL
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes \
@@ -58,7 +58,8 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
+           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r 
 
 SYSLIB_SUBDIRS += console
 SYSLIBRARIES += -lconsole
