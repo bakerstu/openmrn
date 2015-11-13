@@ -334,7 +334,15 @@ typedef struct task_switched_in
     if (task_switched_in) _impure_ptr = task_switched_in->reent;         \
 }
 
+#ifndef TARGET_LPC11Cxx
+/** This trace macro is called from the tick interrupt; we use it for
+ * collecting CPU load information. */
+void cpuload_tick(void);
+#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
 #endif
+
+#endif
+
 
 
 #endif /* FREERTOS_CONFIG_H */

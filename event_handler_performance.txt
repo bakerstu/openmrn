@@ -1,0 +1,106 @@
+
+
+performance data collected: 
+
+(this is for the tcs io board, with the restricted set of inputs/outputs
+enabled: 40 outputs and about 15 inputs)
+
+
+FOR COMPILATION WITH -Os
+========================
+
+processing 20 events of 0100..0104 (which have 8 matches in the registry)
+~40 msec  (37-40 msec)
+for 100:
+174 or 212 msec (there is probably a rounding problem here, freertos cannot really measure sub-millisecond time)
+
+
+processing 20 events that have zero matches
+~2 msec (0-3 msec)
+for 100 irrelevant events: 4-10 msec
+
+
+processing events with one match in the registry:
+100-140 msec for 100 events.
+
+
+
+FOR COMPILATION WITH -O3
+========================
+
+processing events with 8 match in the registry:
+160-200 msec for 100 events.
+
+processing events with one match in the registry:
+100-125 msec for 100 events.
+
+processing events with zero match in the registry:
+1-12 msec for 100 events.
+
+
+AFTER FIRST ROUND OF OPTIMIZATION
+=================================
+(eliminate eventhandlercall)
+
+
+processing events with 8 match in the registry:  (0100)
+24-34 msec for 100 events.
+
+processing events with one match in the registry: 
+12-20 msec for 100 events.
+
+processing events with zero match in the registry:
+2-8 msec for 100 events.
+
+
+AFTER SECOND ROUND OF OPTIMIZATION
+=================================
+(add new version of barriernotify)
+
+processing events with 8 match in the registry:  (0100)
+8-17 msec
+
+processing events with one match in the registry: 
+6-15 msec for 100 events.
+
+processing events with zero match in the registry:
+2-8 msec for 100 events.
+
+
+
+AFTER MEMORY OPTIMIZATION
+=================================
+(with new tree event handler implementation)
+
+processing events with 8 match in the registry:  (0100)
+12-18 msec
+
+processing events with one match in the registry: 
+7-16 msec for 100 events.
+
+processing events with zero match in the registry:
+2-10 msec for 100 events.
+
+
+
+
+MEMORY SIZE TESTS
+=================
+
+heap_end with newlib nano:
+0x62e8  (appl_main: 5ca4  pool: 376)
+
+adding four new consumers:
+0x6528   (appl_main: 5ee4  pool: 376)
+
+delta:
+576 (appl main: the same)
+per consumer size: 144 bytes.
+
+ 
+AFTER MEMORY OPTIMIZATION
+0x612c (appl_main: 53a0 pool: 376)
+
+adding four consumers:
+0x622c (appl_main 54a0 pool: 376)
+per consumer size: 64

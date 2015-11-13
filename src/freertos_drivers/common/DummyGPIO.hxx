@@ -82,7 +82,7 @@ struct DummyPinWithRead : public DummyPin
         return false;
     }
 
-    static Gpio *instance()
+    static const Gpio *instance()
     {
         return GpioWrapper<DummyPinWithRead>::instance();
     }

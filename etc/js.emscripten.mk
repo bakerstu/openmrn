@@ -24,16 +24,16 @@ DEPS += NODEJSPATH
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-ARCHOPTIMIZATION = -g -O0 -m32
+ARCHOPTIMIZATION = -g2 -O0 -m32
 
-CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MP -m32 -fno-stack-protector -D_GNU_SOURCE -Wno-warn-absolute-paths --em-config $(EMSDKPATH)/../../.emscripten
+CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -MP -m32 -fno-stack-protector -D_GNU_SOURCE -Wno-warn-absolute-paths --em-config $(EMSDKPATH)/../../.emscripten -s ASSERTIONS=2
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 
 CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
            -D__STDC_LIMIT_MACROS #-D__LINEAR_MAP__
 
-LDFLAGS = -g -m32 -Wl,-Map="$(@:%=%.map)" --em-config $(EMSDKPATH)/../../.emscripten
+LDFLAGS = -g -m32 -Wl,-Map="$(@:%=%.map)" --em-config $(EMSDKPATH)/../../.emscripten -s ASSERTIONS=2
 SYSLIB_SUBDIRS += console
 SYSLIBRARIES = -lconsole
 

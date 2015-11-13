@@ -14,7 +14,7 @@ HOST_TARGET := 1
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-ARCHOPTIMIZATION = -g -O0 -m32 -fprofile-arcs -ftest-coverage
+ARCHOPTIMIZATION = -g -O0 -fprofile-arcs -ftest-coverage
 
 CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
 

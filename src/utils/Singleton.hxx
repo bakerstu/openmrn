@@ -78,6 +78,10 @@ public:
     return instance_;
   }
 
+  static bool exists() {
+    return (instance_ != nullptr);
+  }
+
 private:
   static T* instance_;
 };

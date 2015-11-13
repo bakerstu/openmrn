@@ -48,7 +48,8 @@ class MockEventHandler : public EventHandler
 {
 public:
 #define DEFPROXYFN(FN)                                                         \
-    MOCK_METHOD2(FN, void(EventReport *event, BarrierNotifiable *done))
+    MOCK_METHOD3(FN, void(const EventRegistryEntry &, EventReport *event,      \
+                          BarrierNotifiable *done))
 
     DEFPROXYFN(HandleEventReport);
     DEFPROXYFN(HandleConsumerIdentified);

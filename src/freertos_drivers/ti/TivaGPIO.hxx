@@ -76,27 +76,27 @@ public:
     {
     }
 
-    void write(Value new_state) OVERRIDE
+    void write(Value new_state) const OVERRIDE
     {
         *pin_address() = (new_state ? 0xff : 0);
     }
 
-    void set() OVERRIDE
+    void set() const OVERRIDE
     {
         *pin_address() = 0xff;
     }
 
-    void clr() OVERRIDE
+    void clr() const OVERRIDE
     {
         *pin_address() = 0;
     }
 
-    Value read() OVERRIDE
+    Value read() const OVERRIDE
     {
         return *pin_address() ? HIGH : LOW;
     }
 
-    void set_direction(Direction dir) OVERRIDE
+    void set_direction(Direction dir) const OVERRIDE
     {
         if (dir == Direction::OUTPUT)
         {
@@ -108,7 +108,7 @@ public:
         }
     }
 
-    Direction direction() OVERRIDE
+    Direction direction() const OVERRIDE
     {
         uint32_t mode = GPIODirModeGet(GPIO_BASE, GPIO_PIN);
         switch (mode)
@@ -130,14 +130,14 @@ private:
     /// linker and (assuming the application developer initialized the hardware
     /// pins in hw_preinit) is accessible, including virtual methods at static
     /// constructor time.
-    static TivaGpio instance_;
+    static const TivaGpio instance_;
 
     /// Computes the memory address where the bit referring to this pin can be
     /// accessed. This address is bit-masked to the single individual pin, so
     /// only ever one bit can be read to be non-zero, and setting any other bit
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test.
-    constexpr uint8_t *pin_address()
+    constexpr uint8_t *pin_address() const
     {
         return reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
@@ -146,7 +146,7 @@ private:
 
 /// Defines the linker symbol for the wrapped Gpio instance.
 template <unsigned GPIO_BASE, unsigned GPIO_PIN>
-TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
+const TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
 
 /// Defines a GPIO output pin. Writes to this structure will change the output
 /// level of the pin. Reads will return the pin's current level.
@@ -188,10 +188,11 @@ public:
         set(!get());
     }
 
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
+
     static bool is_output()
     {
         return true;
@@ -308,7 +309,7 @@ public:
     {
         return false;
     }
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
@@ -398,6 +399,7 @@ template <class Defs> struct GpioHwPin : public Defs
     using Defs::GPIO_PIN;
     using Defs::GPIO_CONFIG;
     using Defs::GPIO_SetPinType;
+
     static void hw_init()
     {
         MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
@@ -441,13 +443,13 @@ template <class Defs> struct GpioHwPin : public Defs
 
     static void set(bool value)
     {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+        volatile uint8_t *ptr = reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
     static bool get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }

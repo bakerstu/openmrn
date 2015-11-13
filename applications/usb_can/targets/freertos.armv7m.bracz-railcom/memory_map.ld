@@ -1,0 +1,1 @@
+../../../../boards/bracz-railcom/memory_map.ld

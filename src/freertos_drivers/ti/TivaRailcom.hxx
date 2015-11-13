@@ -274,7 +274,7 @@ protected:
         totalHits_ = 0;
         if (feedbackQueue_.full()) return;
         feedbackQueue_.back().reset(feedbackKey_);
-        feedbackQueue_.back().channel = 0xff;
+        feedbackQueue_.back().channel = HW::get_feedback_channel();
         feedbackQueue_.back().add_ch1_data(result);
         feedbackQueue_.increment_back();
         MAP_IntPendSet(HW::OS_INTERRUPT);
@@ -335,14 +335,15 @@ private:
     }
 
     // RailcomDriver interface
-    void preamble_bit() OVERRIDE {
-        HW::enable_measurement();
+    void preamble_bit(bool polarity) OVERRIDE {
         if (!this->isInput_) {
             HW::set_input();
             this->isInput_ = 1;
+        } else if (polarity) {
+            HW::enable_measurement();
+            this->add_sample(HW::sample());
+            HW::disable_measurement();
         }
-        this->add_sample(HW::sample());
-        HW::disable_measurement();
     }
 
     void start_cutout() OVERRIDE
@@ -354,7 +355,7 @@ private:
             this->isInput_ = 0;
             HW::set_hw();
         }
-        const bool need_ch1_cutout = (this->feedbackKey_ < 11000);
+        const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             if (need_ch1_cutout)

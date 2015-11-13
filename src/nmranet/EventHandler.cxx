@@ -73,7 +73,7 @@ unsigned EventRegistry::align_mask(EventId *event, unsigned size)
     uint64_t new_event, rounded_range;
     do
     {
-        ++log2;  // 8 in both examples
+        ++log2;                       // 8 in both examples
         rounded_range = 1ULL << log2; // 256
         new_event = *event & (~(rounded_range - 1));
         // we have to be careful for overflowing uint64 in new_event =

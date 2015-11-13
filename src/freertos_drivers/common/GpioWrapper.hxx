@@ -51,27 +51,27 @@ public:
     {
     }
 
-    void write(Value new_state) OVERRIDE
+    void write(Value new_state) const OVERRIDE
     {
         PIN::set(new_state);
     }
 
-    void set() OVERRIDE
+    void set() const OVERRIDE
     {
         PIN::set(true);
     }
 
-    void clr() OVERRIDE
+    void clr() const OVERRIDE
     {
         PIN::set(false);
     }
 
-    Value read() OVERRIDE
+    Value read() const OVERRIDE
     {
         return PIN::get() ? HIGH : LOW;
     }
 
-    void set_direction(Direction dir) OVERRIDE
+    void set_direction(Direction dir) const OVERRIDE
     {
         // We cannot change the direction of a wrapped pin. Crash if the code
         // attempts to do so.
@@ -85,7 +85,7 @@ public:
         }
     }
 
-    Direction direction() OVERRIDE
+    Direction direction() const OVERRIDE
     {
         if (PIN::is_output())
         {
@@ -97,15 +97,15 @@ public:
         }
     }
 
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return &instance_;
     }
 
-    static GpioWrapper instance_;
+    static const GpioWrapper instance_;
 };
 
 /// Defines the linker symbol for the wrapped Gpio instance.
-template <class PIN> GpioWrapper<PIN> GpioWrapper<PIN>::instance_;
+template <class PIN> const GpioWrapper<PIN> GpioWrapper<PIN>::instance_;
 
 #endif // _FREERTOS_DRIVERS_COMMON_GPIOWRAPPER_HXX_

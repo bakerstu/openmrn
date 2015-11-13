@@ -431,7 +431,9 @@ private:
     }
 
     size_t size_; /**< size of entry */
-
+public:
+    size_t allocCount_{0}; /**< total entries allocated */
+private:
     /** list of anyone waiting for an item in the bucket */
     Q pending_;
 };

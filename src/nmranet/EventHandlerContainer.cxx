@@ -37,28 +37,29 @@
 namespace nmranet
 {
 
-void TreeEventHandlers::register_handlerr(EventHandler *handler,
-                                          EventId event, unsigned mask)
+void TreeEventHandlers::register_handler(const EventRegistryEntry &entry,
+                                         unsigned mask)
 {
     AtomicHolder h(this);
     set_dirty();
-    handlers_[mask].insert(std::make_pair(event, handler));
+    handlers_[mask].insert(EventRegistryEntry(entry));
 }
 
-void TreeEventHandlers::unregister_handlerr(EventHandler *handler,
-                                            EventId event, unsigned mask)
+void TreeEventHandlers::unregister_handler(EventHandler *handler)
 {
     AtomicHolder h(this);
     set_dirty();
-    auto r = handlers_[mask].equal_range(event);
-    for (auto it = r.first; it != r.second; ++it)
-    {
-        if (it->second == handler)
-        {
-            handlers_[mask].erase(it);
-            return;
+    bool found = false;
+    for (auto r = handlers_.begin(); r != handlers_.end(); ++r) {
+        for (auto it = r->second.begin(); it != r->second.end(); ++it) {
+            if (it->handler == handler)
+            {
+                r->second.erase(it);
+                found = true;
+            }
         }
     }
+    if (found) return;
     DIE("tried to unregister a handler that was not registered");
 }
 
@@ -75,7 +76,7 @@ public:
         clear_iteration();
     }
 
-    EventHandler *next_entry() OVERRIDE
+    EventRegistryEntry *next_entry() OVERRIDE
     {
         AtomicHolder h(parent_);
         while (maskIterator_ != parent_->handlers_.end())
@@ -91,9 +92,9 @@ public:
             }
             else
             {
-                EventHandler *h = it_->second;
+                EventRegistryEntry *e = &*it_;
                 it_++;
-                return h;
+                return e;
             }
         }
         return nullptr;

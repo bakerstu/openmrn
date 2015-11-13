@@ -43,6 +43,8 @@
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/JSTcpHub.hxx"
+#include "utils/JSTcpClient.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -55,37 +57,64 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 
 int port = 12021;
 const char *device_path = nullptr;
+const char *static_dir = "";
+int upstream_port = 12021;
+const char *upstream_host = nullptr;
+
+int ws_port = -1;
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path]\n\n", e);
+    fprintf(stderr,
+        "Usage: %s [-p port] [-d device_path] [-w websocket_port [-l path_to_web]] [-u upstream_host [-q upstream_port]]\n\n", e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
                     "packets to all other participants.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to listen on, "
                     "default is 12021.\n");
-    fprintf(stderr, "\t-d device   is a path to a physical device doing "
-                    "serial-CAN or USB-CAN. If specified, opens device and "
-                    "adds it to the hub.\n");
+    /*    fprintf(stderr, "\t-d device   is a path to a physical device doing "
+                        "serial-CAN or USB-CAN. If specified, opens device and "
+                        "adds it to the hub.\n");*/
+    fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port "
+                    "and serves up a websocket connection to the same "
+                    "CAN-bus.\n");
+    fprintf(stderr, "\t-l path_to_web     Exports the contents of this directory thorugh the websocket's webserver.\n");
+    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
+                    "hub. If specified, this hub will connect to an upstream "
+                    "hub.\n");
+    fprintf(stderr,
+            "\t-q upstream_port   is the port number for the upstream hub.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:c:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:w:l:u:q:")) >= 0)
     {
         switch (opt)
         {
             case 'h':
                 usage(argv[0]);
                 break;
-            case 'd':
-                device_path = optarg;
-                break;
+            /*            case 'd':
+                            device_path = optarg;
+                            break;*/
             case 'p':
                 port = atoi(optarg);
+                break;
+            case 'w':
+                ws_port = atoi(optarg);
+                break;
+            case 'l':
+                static_dir = optarg;
+                break;
+            case 'u':
+                upstream_host = optarg;
+                break;
+            case 'q':
+                upstream_port = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -94,77 +123,85 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-class JSHubPort : public HubPortInterface
+class JSWebsocketServer
 {
 public:
-    JSHubPort(HubFlow *parent, emscripten::val send_fn)
-        : parent_(parent)
-        , sendFn_(send_fn)
-    {
-        HASSERT(sendFn_.typeof().as<std::string>() == "function");
-        parent_->register_port(this);
-    }
-
-    ~JSHubPort()
-    {
-        parent_->unregister_port(this);
-    }
-
-    void send(HubPortInterface::message_type *buffer, unsigned priority = UINT_MAX) OVERRIDE
-    {
-        sendFn_((string &)*buffer->data());
-        buffer->unref();
-    }
-
-    void recv(string s)
-    {
-        auto *b = parent_->alloc();
-        b->data()->assign(s);
-        b->data()->skipMember_ = this;
-        parent_->send(b);
-    }
-
-private:
-    HubFlow *parent_;
-    emscripten::val sendFn_;
-};
-
-class JSTcpHub
-{
-public:
-    JSTcpHub(CanHubFlow *hflow, int port)
+    JSWebsocketServer(CanHubFlow *hflow, int port, string static_dir)
         : canHub_(hflow)
-        , gcHub_(canHub_->service())
-        , gcAdapter_(
-              GCAdapterBase::CreateGridConnectAdapter(&gcHub_, canHub_, false))
     {
+        if (!static_dir.empty()) {
+            string script = "Module.static_dir = '" + static_dir + "';\n";
+            emscripten_run_script(script.c_str());
+        }
         EM_ASM_(
-        {
-            var net = require('net');
-            var server = net.createServer(function(c)
             {
-                console.log('client connected');
-                c.setEncoding('utf-8');
-                var client_port = new Module.JSHubPort($1, function(data)
-                { c.write(data); });
-                c.on('close', function()
-                {
-                    console.log('client disconnected');
-                    client_port.delete ();
-                });
-                c.on('data', function(data)
-                { client_port.recv(data); });
-            });
-            server.listen($0, function()
-            { console.log('listening on port ' + $0); });
-        },
-            port, &gcHub_);
+                var WebSocketServer = require('websocket').server;
+                var http = require('http');
+                var ecstatic = require('ecstatic');
+                if (Module.static_dir) {
+                    var serverImpl = ecstatic({ root: Module.static_dir });
+                } else {
+                    var serverImpl = function(request, response){
+                    // process HTTP request. Since we're writing just
+                    // WebSockets server we don't have to implement anything.
+                    };
+                }
+                var server = http.createServer(serverImpl);
+                console.log('try to listen on ', $0);
+                server.listen($0, function()
+                    {
+                        console.log(
+                            'websocket server: listening on port ' + $0);
+                    });
+                console.log('ws: listen done ', $0);
+
+                // create the server
+                wsServer = new WebSocketServer({httpServer : server});
+
+                // WebSocket server
+                wsServer.on('request', function(request)
+                    {
+                        var connection = request.accept(null, request.origin);
+                        var client_port = new Module.JSHubPort($1,
+                            function(gc_text)
+                            {
+                                var json = JSON.stringify(
+                                    {type : 'gc_can_frame', data : gc_text});
+                                connection.sendUTF(json);
+                            });
+                        connection.on('message', function(message)
+                            {
+                                try
+                                {
+                                    var json = JSON.parse(message.utf8Data);
+                                }
+                                catch (e)
+                                {
+                                    console.log(
+                                        'This doesn\'t look like a valid JSON: ',
+                                        message.data, ' raw msg ' ,message);
+                                    return;
+                                }
+                                if (json.type === 'gc_can_frame')
+                                {
+                                    // Send can frame data to the hub port
+                                    client_port.recv(json.data);
+                                } else {
+                                    console.log('Unknown type ', message.type);
+                                }
+                            });
+                        connection.on('close', function(connection)
+                            {
+                                console.log('websocket client disconnected');
+                                client_port.delete();
+                            });
+                    });
+            },
+            port, (unsigned long)canHub_);
     }
 
 private:
     CanHubFlow *canHub_;
-    HubFlow gcHub_;
-    std::unique_ptr<GCAdapterBase> gcAdapter_;
 };
 
 /** Entry point to application.
@@ -176,6 +213,14 @@ int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
     JSTcpHub hub(&can_hub0, port);
+    std::unique_ptr<JSWebsocketServer> ws;
+    if (ws_port > 0) {
+        ws.reset(new JSWebsocketServer(&can_hub0, ws_port, static_dir));
+    }
+    std::unique_ptr<JSTcpClient> client;
+    if (upstream_host) {
+        client.reset(new JSTcpClient(&can_hub0, upstream_host, upstream_port));
+    }
     /*    int dev_fd = 0;
     while (1)
     {
@@ -205,11 +250,4 @@ int appl_main(int argc, char *argv[])
         }*/
     g_executor.thread_body();
     return 0;
-}
-
-EMSCRIPTEN_BINDINGS(js_hub_module)
-{
-    emscripten::class_<JSHubPort>("JSHubPort")
-        .constructor<HubFlow *, emscripten::val>()
-        .function("recv", &JSHubPort::recv);
 }

@@ -14,7 +14,7 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv6m/freertos_drivers/drivers_lpc11
 INCLUDES += -I$(CMSIS_LPC11_PATH)/inc -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC11U24" -I"$(MBEDSRCPATH)/capi"  #-I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC11U24"
 DEPS += CMSIS_LPC11_PATH
 
-SYSLIBRARIESEXTRA = -lmbed
+#SYSLIBRARIESEXTRA = -lmbed
 
 LDFLAGSEXTRA = -Wl,--wrap=__cxa_pure_virtual  -Wl,--wrap=__cxa_atexit  -Wl,--wrap=exit
 

@@ -32,6 +32,8 @@
  * @date 7 Dec 2013
  */
 
+#define LOGLEVEL INFO
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -46,6 +48,13 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
+#include "utils/JSWebsocketClient.hxx"
 #endif
 
 #ifdef BOARD_LAUNCHPAD_EK
@@ -124,13 +133,16 @@ public:
     {
     }
 
-    virtual bool GetCurrentState()
+    virtual nmranet::EventState GetCurrentState()
     {
-        return state_;
+        using nmranet::EventState;
+        if (!stateKnown_) return EventState::UNKNOWN;
+        return state_ ? EventState::VALID : EventState::INVALID;
     }
     virtual void SetState(bool new_value)
     {
         state_ = new_value;
+        stateKnown_ = true;
         //HASSERT(0);
 #if defined(__linux__) || defined(__EMSCRIPTEN__) || defined(__MACH__)
         LOG(INFO, "bit %s set to %d", name_, state_);
@@ -146,10 +158,28 @@ public:
 
 private:
     const char* name_;
+    bool stateKnown_{false};
     bool state_;
 };
 
+#ifndef __EMSCRIPTEN__
 BlinkerFlow blinker_flow(stack.node());
+#endif
+
+#ifdef __EMSCRIPTEN__
+
+void start_stack() {
+    emscripten_cancel_main_loop();
+    stack.loop_executor();
+    EM_ASM(console.log('stack start done'););
+}
+
+void ignore_function() {
+}
+
+
+#endif
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -164,7 +194,7 @@ int appl_main(int argc, char* argv[])
 
 #if defined (__linux__) || defined (__MACH__)
     stack.print_all_packets();
-    stack.start_tcp_hub_server(12021);
+    stack.connect_tcp_gridconnect_hub("localhost",12021);
 #elif defined(TARGET_LPC11Cxx)
     lpc11cxx::CreateCanDriver(stack.can_hub());
 #elif defined(TARGET_PIC32MX)
@@ -172,8 +202,10 @@ int appl_main(int argc, char* argv[])
 #elif defined(__FreeRTOS__)
     stack.add_can_port_select("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
+    new JSWebsocketClient(stack.can_hub(), "ws://localhost:50003");
+    //new JSWebsocketClient(stack.can_hub(), "ws://bracz2.zrh:50003");
     // No hardware connection for the moment.
-    stack.print_all_packets();
+    //stack.print_all_packets();
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target
@@ -186,10 +218,23 @@ int appl_main(int argc, char* argv[])
     stack.add_gridconnect_port("/dev/ser0");
 #endif
 
-
     LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
     nmranet::BitEventConsumer consumer(&logger);
 
+#ifdef __EMSCRIPTEN__
+    // We delay the start of the stack until the connection is established.
+    emscripten_set_main_loop(&ignore_function, 0, true);
+#else
     stack.loop_executor();
+#endif
     return 0;
 }
+
+#ifdef __EMSCRIPTEN__
+
+EMSCRIPTEN_BINDINGS(async_blink_main)
+{
+    emscripten::function("startStack", &start_stack);
+}
+
+#endif

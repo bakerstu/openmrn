@@ -91,7 +91,7 @@ struct LoggingPinWithRead : public LoggingPin<message>
         return false;
     }
 
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return GpioWrapper<LoggingPinWithRead>::instance();
     }

@@ -39,7 +39,7 @@
 #include "executor/Notifiable.hxx"
 
 /** Open method */
-int Node::open(File *, const char *, int, int) OVERRIDE {
+int Node::open(File *, const char *, int, int) {
     OSMutexLock l(&lock_);
     if (references_++ == 0)
     {
@@ -49,7 +49,7 @@ int Node::open(File *, const char *, int, int) OVERRIDE {
 }
 
 /** Close method */
-int Node::close(File *) OVERRIDE {
+int Node::close(File *) {
     OSMutexLock l(&lock_);
     if (--references_ <= 0)
     {

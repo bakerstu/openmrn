@@ -34,7 +34,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
@@ -46,20 +46,23 @@ CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -D__FreeRTOS__ -DGCC_ARMCM3 -D_REENT_SMALL
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
-          -Wstrict-prototypes \
-          $(CFLAGSENV) $(CFLAGSEXTRA)
+          -Wstrict-prototypes -D_REENT_SMALL \
+          $(CFLAGSENV) $(CFLAGSEXTRA) \
+
 
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
-            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
+            -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
+
+	   # -D__LINEAR_MAP__
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r 
+           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
 
 SYSLIB_SUBDIRS += console
 SYSLIBRARIES += -lconsole

@@ -37,6 +37,7 @@
 
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/ConfiguredConsumer.hxx"
+#include "nmranet/MultiConfiguredConsumer.hxx"
 #include "nmranet/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
@@ -46,9 +47,9 @@
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
+//#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-//#define HAVE_PHYSICAL_CAN_PORT
+#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -93,21 +94,24 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 // create an alias for symmetry.
 typedef BLINKER_Pin LED_RED_Pin;
 
+// List of GPIO objects that will be used for the output pins. You should keep
+// the constexpr declaration, because it will produce a compile error in case
+// the list of pointers cannot be compiled into a compiler constant and thus
+// would be placed into RAM instead of ROM.
+constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
+                                             LED_GREEN_Pin::instance(),
+                                             LED_BLUE_Pin::instance()};
+
 // Instantiates the actual producer and consumer objects for the given GPIO
-// pins from above. The ConfiguredConsumer class takes care of most of the
+// pins from above. The MultiConfiguredConsumer class takes care of most of the
 // complicated setup and operation requirements. We need to give it the virtual
-// node pointer, the configuration configuration from the CDI definition, and
-// the hardware pin definition. The virtual node pointer comes from the stack
-// object. The configuration structure comes from the CDI definition object,
-// segment 'seg', in which there is a repeated group 'consumers', and we assign
-// the individual entries to the individual consumers. Each consumer gets its
-// own GPIO pin.
-nmranet::ConfiguredConsumer consumer_red(
-    stack.node(), cfg.seg().consumers().entry<0>(), LED_RED_Pin());
-nmranet::ConfiguredConsumer consumer_green(
-    stack.node(), cfg.seg().consumers().entry<1>(), LED_GREEN_Pin());
-nmranet::ConfiguredConsumer consumer_blue(
-    stack.node(), cfg.seg().consumers().entry<2>(), LED_BLUE_Pin());
+// node pointer, the hardware pin definition and the configuration from the CDI
+// definition. The virtual node pointer comes from the stack object. The
+// configuration structure comes from the CDI definition object, segment 'seg',
+// in which there is a repeated group 'consumers'. The GPIO pins get assigned
+// to the repetitions in the group in order.
+nmranet::MultiConfiguredConsumer consumers(kOutputGpio, ARRAYSIZE(kOutputGpio),
+                                           cfg.seg().consumers());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(

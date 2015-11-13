@@ -90,9 +90,9 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 
     /// Returns a os-indepentent Gpio abstraction instance for use in
     /// libraries.
-    static Gpio *instance()
+    static constexpr const Gpio *instance()
     {
-        return &GpioWrapper<Stm32GpioDefs<GPIOx, PIN, PIN_NUM>>::instance_;
+        return GpioWrapper<Stm32GpioDefs<GPIOx, PIN, PIN_NUM>>::instance();
     }
 
     static bool is_output()

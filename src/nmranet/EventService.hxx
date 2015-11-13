@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -43,6 +43,8 @@
 #ifndef __CR2_C___4_6_2_BITS_SHARED_PTR_H__
 #define __CR2_C___4_6_2_BITS_SHARED_PTR_H__
 #endif
+
+#define DEBUG_EVENT_PERFORMANCE
 
 #include <memory>
 

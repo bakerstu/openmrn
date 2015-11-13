@@ -114,8 +114,8 @@ using std::pair;
 
 /** Function attribute for virtual functions declaring that this funciton is
  * overriding a funciton that should be virtual in the base class. Supported by
- * GCC >= 4.7, so currently empty */
-#define OVERRIDE 
+ * GCC >= 4.7 */
+#define OVERRIDE override 
 
 /** Returns the number of elements in a statically defined array (of static
  *  size) */

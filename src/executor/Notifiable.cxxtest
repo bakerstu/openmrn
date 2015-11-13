@@ -55,6 +55,21 @@ TEST_F(BarrierTests, TwoChild) {
   EXPECT_TRUE(parent_.is_done());
 }
 
+TEST_F(BarrierTests, AlmostDone) {
+  EXPECT_FALSE(parent_.is_done());
+  Notifiable* d1 = barrier_.new_child();
+  Notifiable* d2 = barrier_.new_child();
+  EXPECT_FALSE(barrier_.abort_if_almost_done());
+  d1->notify();
+  EXPECT_FALSE(barrier_.abort_if_almost_done());
+  d2->notify();
+  EXPECT_FALSE(barrier_.is_done());
+  EXPECT_TRUE(barrier_.abort_if_almost_done());
+  EXPECT_TRUE(barrier_.is_done());
+
+  EXPECT_FALSE(parent_.is_done());
+}
+
 TEST(BarrierDies, WhenFailedToCallmaybe_done) {
   EXPECT_DEATH({
       TestNotifiable parent;
