@@ -55,8 +55,9 @@ GPIO_HWPIN(DAC_TIMER, GpioHwPin, D, 7, WT5CCP1, Timer);
 GPIO_PIN(DAC_DIV, GpioOutputSafeHigh, A, 2);
 
 GPIO_PIN(GNDACTRL_NON, GpioOutputODSafeLow, D, 3);
-GPIO_PIN(GNDACTRL_NOFF, GpioOutputSafeHigh, D, 2);
-GPIO_PIN(GNDBCTRL_NON, GpioOutputODSafeHigh, D, 0);
+GPIO_PIN(GNDACTRL_NOFF, GpioOutputODSafeHigh, D, 2);
+//GPIO_PIN(GNDBCTRL_NON, GpioOutputODSafeHigh, D, 0);
+GPIO_PIN(GNDBCTRL_NON, GpioInputNP, D, 0);
 GPIO_PIN(GNDBCTRL_NOFF, GpioOutputSafeLow, D, 1);
 
 // These are internally connected to D0 and D1.
