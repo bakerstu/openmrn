@@ -52,7 +52,7 @@ public:
      * @param supported bit mask of supported @ref Defs::Protocols for the node
      */
     ProtocolIdentificationHandler(Node* node, uint64_t supported)
-        : IncomingMessageStateFlow(node->interface())
+        : IncomingMessageStateFlow(node->iface())
         , node_(node)
         , payload_()
     {
@@ -62,7 +62,7 @@ public:
         payload_.assign(src + 2, 6);
 
         /* register our interest in the Protocol Identification Protocol */
-        node_->interface()->dispatcher()->register_handler(
+        node_->iface()->dispatcher()->register_handler(
             this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
     }
 
@@ -71,7 +71,7 @@ public:
     ~ProtocolIdentificationHandler()
     {
         /* register our interest in the Protocol Identification Protocol */
-        node_->interface()->dispatcher()->unregister_handler(
+        node_->iface()->dispatcher()->unregister_handler(
             this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
     }
 
@@ -91,7 +91,7 @@ private:
         /* hanlde messager */
         LOG(INFO, "PIP Handle");
         return allocate_and_call(
-            node_->interface()->addressed_message_write_flow(),
+            node_->iface()->addressed_message_write_flow(),
             STATE(fill_response_buffer));
     }
 
@@ -102,12 +102,12 @@ private:
     {
         /* grab our allocated buffer */
         auto *b = get_allocation_result(
-            node_->interface()->addressed_message_write_flow());
+            node_->iface()->addressed_message_write_flow());
         /* fill in response. */
         b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(), nmsg()->src, payload_);
 
         /* pass the response to the addressed message write flow */
-        node_->interface()->addressed_message_write_flow()->send(b);
+        node_->iface()->addressed_message_write_flow()->send(b);
 
         return release_and_exit();
     }

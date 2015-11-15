@@ -55,8 +55,8 @@ class CanDatagramClient : public DatagramClient,
                           public AddressedCanMessageWriteFlow
 {
 public:
-    CanDatagramClient(IfCan *interface)
-        : AddressedCanMessageWriteFlow(interface)
+    CanDatagramClient(IfCan *iface)
+        : AddressedCanMessageWriteFlow(iface)
         , listener_(this)
     {
         /** This flow does not use the incoming queue that we inherited from
@@ -395,7 +395,7 @@ public:
                    CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK,
     };
 
-    CanDatagramParser(IfCan *interface);
+    CanDatagramParser(IfCan *iface);
     ~CanDatagramParser();
 
     /// Handler callback for incoming frames.
@@ -595,10 +595,10 @@ private:
      * in here. */
     StlMap<uint64_t, DatagramPayload> pendingBuffers_;
 };
-CanDatagramService::CanDatagramService(IfCan *interface,
+CanDatagramService::CanDatagramService(IfCan *iface,
                                        int num_registry_entries,
                                        int num_clients)
-    : DatagramService(interface, num_registry_entries)
+    : DatagramService(iface, num_registry_entries)
 {
     if_can()->add_owned_flow(new CanDatagramParser(if_can()));
     for (int i = 0; i < num_clients; ++i)
@@ -618,8 +618,8 @@ CanDatagramService::~CanDatagramService()
 {
 }
 
-CanDatagramParser::CanDatagramParser(IfCan *interface)
-    : CanFrameStateFlow(interface)
+CanDatagramParser::CanDatagramParser(IfCan *iface)
+    : CanFrameStateFlow(iface)
 {
     if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER, CAN_MASK);
 }

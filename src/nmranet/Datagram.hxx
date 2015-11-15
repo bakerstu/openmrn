@@ -167,7 +167,7 @@ public:
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)
      */
-    DatagramService(If *interface, size_t num_registry_entries);
+    DatagramService(If *iface, size_t num_registry_entries);
     ~DatagramService();
 
     /// @returns the registry of datagram handlers.
@@ -187,9 +187,9 @@ public:
         return &clients_;
     }
 
-    If *interface()
+    If *iface()
     {
-        return interface_;
+        return iface_;
     }
 
 private:
@@ -204,8 +204,8 @@ private:
     class DatagramDispatcher : public IncomingMessageStateFlow
     {
     public:
-        DatagramDispatcher(If *interface, size_t num_registry_entries)
-            : IncomingMessageStateFlow(interface)
+        DatagramDispatcher(If *iface, size_t num_registry_entries)
+            : IncomingMessageStateFlow(iface)
             , registry_(num_registry_entries)
         {
         }
@@ -236,7 +236,7 @@ private:
     };
 
     /// Interface on which we are registered.
-    If *interface_;
+    If *iface_;
 
     /// Datagram clients.
     TypedQAsync<DatagramClient> clients_;

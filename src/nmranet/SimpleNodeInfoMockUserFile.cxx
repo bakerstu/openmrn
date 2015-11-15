@@ -46,7 +46,11 @@ nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
             sizeof(snipData_.user_description));
 }
 
-#else
+nmranet::MockSNIPUserFile::~MockSNIPUserFile()
+{
+}
+
+#elif !defined(__WINNT__)
 #include "os/TempFile.hxx"
 
 nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
@@ -61,8 +65,9 @@ nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
 
 char nmranet::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
 
-#endif
-
 nmranet::MockSNIPUserFile::~MockSNIPUserFile()
 {
 }
+
+#endif
+

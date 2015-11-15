@@ -67,7 +67,7 @@ protected:
         responseMti_ = Defs::MTI_DATAGRAM_OK;
         responseErrorCode_ = flags;
         return allocate_and_call(
-            dg_service()->interface()->addressed_message_write_flow(),
+            dg_service()->iface()->addressed_message_write_flow(),
             STATE(send_ok_response));
     }
 
@@ -75,11 +75,11 @@ private:
     Action send_ok_response()
     {
         auto *b = get_allocation_result(
-            dg_service()->interface()->addressed_message_write_flow());
+            dg_service()->iface()->addressed_message_write_flow());
         b->data()->reset(responseMti_, message()->data()->dst->node_id(),
                          message()->data()->src,
                          Payload(1, (char)(responseErrorCode_ & 0xff)));
-        dg_service()->interface()->addressed_message_write_flow()->send(b);
+        dg_service()->iface()->addressed_message_write_flow()->send(b);
         return call_immediately(STATE(ok_response_sent));
     }
 
@@ -95,7 +95,7 @@ protected:
         responseMti_ = Defs::MTI_DATAGRAM_REJECTED;
         responseErrorCode_ = error_code;
         return allocate_and_call(
-            dg_service()->interface()->addressed_message_write_flow(),
+            dg_service()->iface()->addressed_message_write_flow(),
             STATE(send_reject_response));
     }
 
@@ -103,11 +103,11 @@ private:
     Action send_reject_response()
     {
         auto *b = get_allocation_result(
-            dg_service()->interface()->addressed_message_write_flow());
+            dg_service()->iface()->addressed_message_write_flow());
         b->data()->reset(responseMti_, message()->data()->dst->node_id(),
                          message()->data()->src,
                          error_to_buffer(responseErrorCode_));
-        dg_service()->interface()->addressed_message_write_flow()->send(b);
+        dg_service()->iface()->addressed_message_write_flow()->send(b);
         return release_and_exit();
     }
 

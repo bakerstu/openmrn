@@ -119,7 +119,7 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
             *dst = cvData_;
             errorCode_ = ERROR_NOOP;
             return 1;
-        } else if (errorCode_ == ERROR_TIMEOUT) {
+        } else if (errorCode_ == _ERROR_TIMEOUT) {
             *error = Defs::ERROR_TEMPORARY;
             errorCode_ = ERROR_NOOP;
             return 0;
@@ -172,7 +172,7 @@ StateFlowBase::Action TractionCvSpace::read_returned()
     LOG(WARNING, "railcom read returned status %d value %d", errorCode_, cvData_);
     switch (errorCode_) {
     case ERROR_PENDING:
-        errorCode_ = ERROR_TIMEOUT;
+        errorCode_ = _ERROR_TIMEOUT;
         railcomHub_->unregister_port(this);
         break;
     case ERROR_OK:
@@ -180,14 +180,14 @@ StateFlowBase::Action TractionCvSpace::read_returned()
     default:
     case ERROR_UNKNOWN_RESPONSE:
         if (numTry_ >= READ_RETRY_COUNT_ON_UNKNOWN) {
-            errorCode_ = ERROR_TIMEOUT;
+            errorCode_ = _ERROR_TIMEOUT;
             break;
         }
         numTry_++;
         return call_immediately(STATE(try_read1));
-    case ERROR_BUSY:
+    case _ERROR_BUSY:
         if (os_get_time_monotonic() > deadline_) {
-            errorCode_ = ERROR_TIMEOUT;
+            errorCode_ = _ERROR_TIMEOUT;
             break;
         }
         return call_immediately(STATE(try_read1));
@@ -211,7 +211,7 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
         errorCode_ = ERROR_NOOP;
         return 1;
     }
-    if (errorCode_ == ERROR_TIMEOUT && destination == cvNumber_)
+    if (errorCode_ == _ERROR_TIMEOUT && destination == cvNumber_)
     {
         *error = Defs::ERROR_TEMPORARY | 1;
         errorCode_ = ERROR_NOOP;
@@ -255,7 +255,7 @@ StateFlowBase::Action TractionCvSpace::write_returned()
     LOG(WARNING, "railcom write returned status %d value %d", errorCode_, cvData_);
     switch (errorCode_) {
     case ERROR_PENDING:
-        errorCode_ = ERROR_TIMEOUT;
+        errorCode_ = _ERROR_TIMEOUT;
         railcomHub_->unregister_port(this);
         break;
     case ERROR_OK:
@@ -269,9 +269,9 @@ StateFlowBase::Action TractionCvSpace::write_returned()
         }
         numTry_++;
         return call_immediately(STATE(try_write1));
-    case ERROR_BUSY:
+    case _ERROR_BUSY:
         if (os_get_time_monotonic() > deadline_) {
-            errorCode_ = ERROR_TIMEOUT;
+            errorCode_ = _ERROR_TIMEOUT;
             break;
         }
         /// @TODO(balazs.racz) keep a timestamp to not keep trying forever.
@@ -312,7 +312,7 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
         switch(e.type) {
         case dcc::RailcomPacket::BUSY:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_BUSY;
+                new_status = _ERROR_BUSY;
             }
             break;
         case dcc::RailcomPacket::NACK:

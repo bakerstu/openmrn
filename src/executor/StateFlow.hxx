@@ -716,7 +716,7 @@ protected:
     /// Overrides the current priority.
     void set_priority(unsigned priority)
     {
-        currentPriority_ = std::min(priority, MAX_PRIORITY);
+        currentPriority_ = std::min(priority, MAX_PRIORITY_);
     }
 
     /** Call this from the constructor of the child class to do some work
@@ -751,7 +751,7 @@ private:
     template <class M, class B> friend class TypedStateFlow;
     friend class GlobalEventFlow;
 
-    static const unsigned MAX_PRIORITY = 0x7FFFFFFFU;
+    static const unsigned MAX_PRIORITY_ = 0x7FFFFFFFU;
 };
 
 template <class MessageType> class FlowInterface;

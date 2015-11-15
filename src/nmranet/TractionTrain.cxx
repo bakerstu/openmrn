@@ -58,9 +58,9 @@ NodeID TrainNode::node_id()
     return TractionDefs::NODE_ID_DCC | train_->legacy_address();
 }
 
-If *TrainNode::interface()
+If *TrainNode::iface()
 {
-    return service_->interface();
+    return service_->iface();
 }
 
 /// Implementation structure for TrainService. Holds ownership of the various
@@ -80,18 +80,18 @@ struct TrainService::Impl
     {
     public:
         TractionRequestFlow(TrainService *service)
-            : IncomingMessageStateFlow(service->interface())
+            : IncomingMessageStateFlow(service->iface())
             , reserved_(0)
             , trainService_(service)
             , response_(nullptr)
         {
-            interface()->dispatcher()->register_handler(
+            iface()->dispatcher()->register_handler(
                 this, Defs::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
         }
 
         ~TractionRequestFlow()
         {
-            interface()->dispatcher()->unregister_handler(
+            iface()->dispatcher()->unregister_handler(
                 this, Defs::MTI_TRACTION_CONTROL_COMMAND, 0xffff);
         }
 
@@ -110,7 +110,7 @@ struct TrainService::Impl
             else
             {
                 return allocate_and_call(
-                    interface()->addressed_message_write_flow(), c);
+                    iface()->addressed_message_write_flow(), c);
             }
         }
 
@@ -119,7 +119,7 @@ struct TrainService::Impl
             if (!response_)
             {
                 response_ = get_allocation_result(
-                    interface()->addressed_message_write_flow());
+                    iface()->addressed_message_write_flow());
             }
         }
 
@@ -268,7 +268,7 @@ struct TrainService::Impl
                     NodeHandle existing_controller =
                         train_node()->get_controller();
                     if (existing_controller.id &&
-                        !interface()->matching_node(existing_controller,
+                        !iface()->matching_node(existing_controller,
                                                     supplied_controller))
                     {
                         /** @TODO (balazs.racz): we need to implement stealing
@@ -312,7 +312,7 @@ struct TrainService::Impl
                     }
                     NodeHandle existing_controller =
                         train_node()->get_controller();
-                    if (!interface()->matching_node(existing_controller,
+                    if (!iface()->matching_node(existing_controller,
                                                     supplied_controller))
                     {
                         LOG(WARNING,
@@ -382,7 +382,7 @@ struct TrainService::Impl
         /** Sends off the response buffer to the client. */
         Action send_response()
         {
-            interface()->addressed_message_write_flow()->send(response_);
+            iface()->addressed_message_write_flow()->send(response_);
             response_ = nullptr;
             return release_and_exit();
         }
@@ -425,9 +425,9 @@ struct TrainService::Impl
     TractionRequestFlow traction_;
 };
 
-TrainService::TrainService(If *interface)
-    : Service(interface->executor())
-    , interface_(interface)
+TrainService::TrainService(If *iface)
+    : Service(iface->executor())
+    , iface_(iface)
 {
     impl_ = new Impl(this);
 }
@@ -439,7 +439,7 @@ TrainService::~TrainService()
 
 void TrainService::register_train(TrainNode *node)
 {
-    interface_->add_local_node(node);
+    iface_->add_local_node(node);
     extern void StartInitializationFlow(Node * node);
     StartInitializationFlow(node);
     AtomicHolder h(this);

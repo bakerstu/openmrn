@@ -1,22 +1,26 @@
-ifndef TOOLPATH
-TOOLPATH := $(shell \
-sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo /usr/bin; \
-      else echo; fi" \
-)
+
+
+
+
+findmatch=$(firstword $(foreach dir,$(1),$(if $(wildcard $(dir)),$(wildcard $(dir)))))
+
+MINGWSEARCHPATH := \
+	/usr/bin/i686-w64-mingw32-g++ \
+	/usr/bin/x86_64-w64-mingw32-g++ \
+
+
+TRYPATH:=$(call findmatch,$(MINGWSEARCHPATH))
+ifneq ($(TRYPATH),)
+TOOLPATH:=$(subst g++,,$(TRYPATH))
 endif
-
-PREFIX ?= $(shell \
-sh -c "if [ -d /usr/i686-w64-mingw32 ]; then echo i686-w64-mingw32-; \
-      else echo; fi" \
-)
-
+$(info $(TRYPATH) toolpath $(TOOLPATH))
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-CC  = $(TOOLPATH)/$(PREFIX)gcc
-CXX = $(TOOLPATH)/$(PREFIX)g++
-AR  = $(TOOLPATH)/$(PREFIX)ar
-LD  = $(TOOLPATH)/$(PREFIX)g++
+CC  = $(TOOLPATH)gcc
+CXX = $(TOOLPATH)g++
+AR  = $(TOOLPATH)ar
+LD  = $(TOOLPATH)g++
 
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group

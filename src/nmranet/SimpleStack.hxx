@@ -101,7 +101,7 @@ public:
     }
 
     /// @returns the nmranet Interface object.
-    IfCan *interface()
+    IfCan *iface()
     {
         return &ifCan_;
     }

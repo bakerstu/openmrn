@@ -71,12 +71,12 @@ public:
     EventService(ExecutorBase *e);
     /** Creates a global event service that runs on an interface's thread and
      * registers the interface. */
-    EventService(If *interface);
+    EventService(If *iface);
     ~EventService();
 
     /** Registers this global event handler with an interface. This operation
      * will be undone in the destructor. */
-    void register_interface(If *interface);
+    void register_interface(If *iface);
 
     class Impl;
     Impl *impl()

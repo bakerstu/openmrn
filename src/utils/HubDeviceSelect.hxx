@@ -123,6 +123,8 @@ template <class HFlow>
 class HubDeviceSelect : public Destructable, private Atomic, public Service
 {
 public:
+
+#ifndef __WINNT__
     /// Creates a select-aware hub port for the device specified by `path'.
     HubDeviceSelect(HFlow *hub, const char *path)
         : Service(hub->service()->executor())
@@ -134,6 +136,7 @@ public:
         HASSERT(fd_ >= 0);
         hub_->register_port(write_port());
     }
+#endif
 
     /// Creates a select-aware hub port for the opened device specified by
     /// `fd'. It can be a hardware device, socket or pipe.
@@ -145,7 +148,12 @@ public:
         , writeFlow_(this)
     {
         HASSERT(fd_ >= 0);
+#ifdef __WINNT__
+        unsigned long par = 1;
+        ioctlsocket(fd_, FIONBIO, &par);
+#else
         ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
+#endif
         hub_->register_port(write_port());
     }
 

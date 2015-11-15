@@ -348,7 +348,7 @@ private:
             return release_and_exit();
         }
         return allocate_and_call(
-            message()->data()->src->interface()->addressed_message_write_flow(),
+            message()->data()->src->iface()->addressed_message_write_flow(),
             STATE(fill_buffer));
     }
 
@@ -356,7 +356,7 @@ private:
     {
         auto *b = get_allocation_result(message()
                                             ->data()
-                                            ->src->interface()
+                                            ->src->iface()
                                             ->addressed_message_write_flow());
         const SimpleInfoResponse &r = *message()->data();
         b->data()->reset(r.mti, r.src->node_id(), r.dst, EMPTY_PAYLOAD);
@@ -385,11 +385,8 @@ private:
             }
         }
         b->set_done(n_.reset(this));
-        message()
-            ->data()
-            ->src->interface()
-            ->addressed_message_write_flow()
-            ->send(b);
+        message()->data()->src->iface()->addressed_message_write_flow()->send(
+            b);
         return wait_and_call(STATE(continue_send));
     }
 
@@ -403,7 +400,9 @@ private:
     unsigned isFirstMessage_ : 1;
     /** Tells which descriptor entry we are processing. */
     unsigned entryOffset_ : 5;
+#ifdef __GCC__
 #pragma clang diagnostic ignored "-Wunused-private-field"
+#endif
     unsigned reserved_ : 1; // for alignment
 
     /** Byte offset within a descriptor entry. */

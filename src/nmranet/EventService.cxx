@@ -28,12 +28,12 @@ EventService::EventService(ExecutorBase *e) : Service(e)
     impl_.reset(new Impl(this));
 }
 
-EventService::EventService(If *interface) : Service(interface->executor())
+EventService::EventService(If *iface) : Service(iface->executor())
 {
     HASSERT(instance == nullptr);
     instance = this;
     impl_.reset(new Impl(this));
-    register_interface(interface);
+    register_interface(iface);
 }
 
 EventService::~EventService()
@@ -42,16 +42,16 @@ EventService::~EventService()
     instance = nullptr;
 }
 
-void EventService::register_interface(If *interface)
+void EventService::register_interface(If *iface)
 {
     impl()->ownedFlows_.emplace_back(new InlineEventIteratorFlow(
-        interface, this, EventService::Impl::MTI_VALUE_EVENT,
+        iface, this, EventService::Impl::MTI_VALUE_EVENT,
         EventService::Impl::MTI_MASK_EVENT));
     impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
-        interface, this, EventService::Impl::MTI_VALUE_GLOBAL,
+        iface, this, EventService::Impl::MTI_VALUE_GLOBAL,
         EventService::Impl::MTI_MASK_GLOBAL));
     impl()->ownedFlows_.emplace_back(new EventIteratorFlow(
-        interface, this, EventService::Impl::MTI_VALUE_ADDRESSED_ALL,
+        iface, this, EventService::Impl::MTI_VALUE_ADDRESSED_ALL,
         EventService::Impl::MTI_MASK_ADDRESSED_ALL));
 }
 
@@ -96,12 +96,12 @@ EventIteratorFlow::EventIteratorFlow(If *async_if, EventService *event_service,
     , mtiValue_(mti_value)
 #endif
 {
-    interface()->dispatcher()->register_handler(this, mti_value, mti_mask);
+    iface()->dispatcher()->register_handler(this, mti_value, mti_mask);
 }
 
 EventIteratorFlow::~EventIteratorFlow()
 {
-    interface()->dispatcher()->unregister_handler_all(this);
+    iface()->dispatcher()->unregister_handler_all(this);
     delete iterator_;
 }
 
