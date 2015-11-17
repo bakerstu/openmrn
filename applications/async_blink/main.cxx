@@ -90,7 +90,7 @@ class BlinkerFlow : public StateFlowBase
 {
 public:
     BlinkerFlow(nmranet::Node* node)
-        : StateFlowBase(node->interface()),
+        : StateFlowBase(node->iface()),
           state_(1),
           bit_(node, EVENT_ID, EVENT_ID + 1, &state_, (uint8_t)1),
           producer_(&bit_),
