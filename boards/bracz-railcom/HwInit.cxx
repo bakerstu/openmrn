@@ -102,6 +102,26 @@ TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
 
+inline void DCCDecode::dcc_packet_finished_hook() {
+  extern bool dac_next_packet_occupancy;
+  if (dac_next_packet_occupancy) {
+    extern DacSettings dac_overcurrent;
+    dac_next_packet_occupancy = false;
+    RailcomDefs::set_feedback_channel(0xfe);
+    dac.set(dac_overcurrent);
+  } else {
+    extern DacSettings dac_occupancy;
+    dac_next_packet_occupancy = true;
+    RailcomDefs::set_feedback_channel(0xff);
+    dac.set(dac_occupancy);
+  }
+}
+
+inline void DCCDecode::dcc_preamble_finished_hook() {
+  extern DacSettings dac_railcom;
+  dac.set(dac_railcom);
+}
+
 const Gpio *const charlieplex_pins[] = {
     CHARLIE0_Pin::instance(), CHARLIE1_Pin::instance(), CHARLIE2_Pin::instance()};
 

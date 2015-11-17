@@ -308,25 +308,8 @@ struct DCCDecode
 
     static const int Q_SIZE = 32;
 
-    static inline void dcc_packet_finished_hook() {
-        extern bool dac_next_packet_occupancy;
-        if (dac_next_packet_occupancy) {
-            extern DacSettings dac_overcurrent;
-            dac_next_packet_occupancy = false;
-            RailcomDefs::set_feedback_channel(0xfe);
-            dac.set(dac_overcurrent);
-        } else {
-            extern DacSettings dac_occupancy;
-            dac_next_packet_occupancy = true;
-            RailcomDefs::set_feedback_channel(0xff);
-            dac.set(dac_occupancy);
-        }
-    }
-    static inline void dcc_preamble_finished_hook() {
-        extern DacSettings dac_railcom;
-        dac.set(dac_railcom);
-    }
-
+    static inline void dcc_packet_finished_hook();
+    static inline void dcc_preamble_finished_hook();
 };
 
 #endif // ! pindefs_only
