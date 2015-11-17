@@ -1,1 +1,1 @@
-../../../../boards/ti-bracz-acc3/bootloader.ld
+../../../../boards/ti-tm4c123-generic/reflash_bootloader.ld

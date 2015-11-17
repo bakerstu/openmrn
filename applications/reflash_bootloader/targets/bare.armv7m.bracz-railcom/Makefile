@@ -27,5 +27,9 @@ CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
 # might have changed.
 NodeId.o: FORCE
 
+payload.cxx: FORCE
+	$(MAKE) -C $(realpath bootloader_bin) bootloader.bin
+	$(OPENMRNPATH)/bin/build_bootloader_img.py -i bootloader_bin/bootloader.bin -o $@
+
 FORCE:
 
