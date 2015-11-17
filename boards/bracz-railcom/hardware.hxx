@@ -57,12 +57,12 @@ GPIO_PIN(DAC_DIV, GpioOutputSafeHigh, A, 2);
 GPIO_PIN(GNDACTRL_NON, GpioOutputODSafeLow, D, 3);
 GPIO_PIN(GNDACTRL_NOFF, GpioOutputODSafeHigh, D, 2);
 //GPIO_PIN(GNDBCTRL_NON, GpioOutputODSafeHigh, D, 0);
-GPIO_PIN(GNDBCTRL_NON, GpioInputNP, D, 0);
+GPIO_PIN(GNDBCTRL_NON, GpioOutputODSafeHigh, D, 0);
 GPIO_PIN(GNDBCTRL_NOFF, GpioOutputSafeLow, D, 1);
 
 // These are internally connected to D0 and D1.
-GPIO_PIN(SHADOW_1, GpioInputNP, B, 6);
-GPIO_PIN(SHADOW_2, GpioInputNP, B, 7);
+GPIO_PIN(SHADOW_1, GpioOutputODSafeHigh, B, 6);
+GPIO_PIN(SHADOW_2, GpioOutputODSafeHigh, B, 7);
 
 GPIO_PIN(RCBYPASS_NON, GpioOutputSafeLow, B, 3);
 // GPIO_PIN(RCBYPASS_OFF, GpioOutputSafeLow, B, 2);
