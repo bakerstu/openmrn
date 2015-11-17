@@ -400,9 +400,7 @@ private:
     unsigned isFirstMessage_ : 1;
     /** Tells which descriptor entry we are processing. */
     unsigned entryOffset_ : 5;
-#ifdef __GCC__
 #pragma clang diagnostic ignored "-Wunused-private-field"
-#endif
     unsigned reserved_ : 1; // for alignment
 
     /** Byte offset within a descriptor entry. */

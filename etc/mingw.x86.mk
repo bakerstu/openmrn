@@ -29,9 +29,9 @@ INCLUDES += -I/usr/mingw-pthreads/mingw32/i686-w64-mingw32/include \
             -I$(OPENMRNPATH)/include/windows
 
 CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -m32 -fno-stack-protector \
-         -D_GNU_SOURCE
+         -D_GNU_SOURCE -Wno-unknown-pragmas 
 CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -m32 -fno-stack-protector \
-           -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++0x
+           -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++0x -Wno-unknown-pragmas 
 
 LDFLAGS = -g -m32 -L/usr/mingw-pthreads/mingw32/bin
 SYSLIBRARIES = -lpthreadGC2-w32 -lwsock32
