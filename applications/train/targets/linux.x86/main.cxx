@@ -53,7 +53,7 @@ static const nmranet::NodeID NODE_ID = 0x0501010100F5ULL;
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
-nmranet::TrainService traction_service(stack.interface());
+nmranet::TrainService traction_service(stack.iface());
 
 nmranet::MockSNIPUserFile snip_user_file("Train name",
                                          "Train description");

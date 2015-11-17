@@ -111,13 +111,13 @@ private:
             return exit();
         }
         return allocate_and_call(
-            stack.node()->interface()->global_message_write_flow(),
+            stack.node()->iface()->global_message_write_flow(),
             STATE(send_query));
     }
 
     Action send_query()
     {
-        auto *f = stack.node()->interface()->global_message_write_flow();
+        auto *f = stack.node()->iface()->global_message_write_flow();
         auto *b = get_allocation_result(f);
         b->data()->reset(nmranet::Defs::MTI_PRODUCER_IDENTIFY, stack.node()->node_id(),
                          nmranet::eventid_to_buffer(*nextEvent_));
@@ -164,7 +164,7 @@ public:
         /// SendEventReport. However, that requires a WriteHelper and there is
         /// no option to allocate a buffer dynamically.
         lastValue_ = !lastValue_;
-        auto *f = stack.node()->interface()->global_message_write_flow();
+        auto *f = stack.node()->iface()->global_message_write_flow();
         auto *b = f->alloc();
         b->data()->reset(nmranet::Defs::MTI_EVENT_REPORT,
             stack.node()->node_id(),

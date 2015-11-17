@@ -386,6 +386,5 @@ NODEJSPATH:=$(TRYPATH)
 endif
 endif #NODEJSPATH
 
-
-endif # ifeq ($(OS),Windows_NT)
+endif # if  $(OS)  != Windows_NT
 

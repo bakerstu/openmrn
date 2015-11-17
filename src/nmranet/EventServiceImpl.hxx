@@ -126,7 +126,7 @@ public:
 class EventIteratorFlow : public IncomingMessageStateFlow
 {
 public:
-    EventIteratorFlow(If *interface, EventService *event_service,
+    EventIteratorFlow(If *iface, EventService *event_service,
                       unsigned mti_value, unsigned mti_mask);
     ~EventIteratorFlow();
 
@@ -179,9 +179,9 @@ protected:
 class InlineEventIteratorFlow : public EventIteratorFlow
 {
 public:
-    InlineEventIteratorFlow(If *interface, EventService *event_service,
+    InlineEventIteratorFlow(If *iface, EventService *event_service,
                             unsigned mti_value, unsigned mti_mask)
-        : EventIteratorFlow(interface, event_service, mti_value, mti_mask)
+        : EventIteratorFlow(iface, event_service, mti_value, mti_mask)
     {
     }
 

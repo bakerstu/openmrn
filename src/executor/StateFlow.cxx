@@ -40,13 +40,13 @@
 StateFlowWithQueue* StateFlowWithQueue::head_ = nullptr;
 Atomic StateFlowWithQueue::headMu_;
 
-const unsigned StateFlowWithQueue::MAX_PRIORITY;
+const unsigned StateFlowWithQueue::MAX_PRIORITY_;
 
 StateFlowWithQueue::StateFlowWithQueue(Service *service)
   : StateFlowBase(service)
   , queueSize_(0)
   , currentMessage_(nullptr)
-  , currentPriority_(MAX_PRIORITY)
+  , currentPriority_(MAX_PRIORITY_)
   , isWaiting_(1)
 {
     reset_flow(STATE(wait_for_message));
@@ -108,7 +108,7 @@ StateFlowBase::Action StateFlowWithQueue::wait_for_message()
     {
         isWaiting_ = 1;
         queueSize_ = 0;
-        currentPriority_ = MAX_PRIORITY;
+        currentPriority_ = MAX_PRIORITY_;
         return wait();
     }
 }

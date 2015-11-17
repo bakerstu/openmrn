@@ -45,16 +45,16 @@ namespace nmranet
 class DefaultNode: public Node
 {
 public:
-    DefaultNode(If* interface, NodeID node_id);
+    DefaultNode(If* iface, NodeID node_id);
     virtual ~DefaultNode();
 
     NodeID node_id() OVERRIDE
     {
         return nodeId_;
     }
-    If* interface() OVERRIDE
+    If* iface() OVERRIDE
     {
-        return interface_;
+        return iface_;
     }
     bool is_initialized() OVERRIDE
     {
@@ -72,7 +72,7 @@ private:
     /** 1 if the node has reached initialized state. */
     unsigned isInitialized_ : 1;
     /** Interface this node is bound to. */
-    If* interface_;
+    If* iface_;
 };
 
 } // namespace nmranet

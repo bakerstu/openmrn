@@ -101,11 +101,11 @@ public:
         buffer_ = buffer;
         if (dst == global())
         {
-            node->interface()->global_message_write_flow()->alloc_async(this);
+            node->iface()->global_message_write_flow()->alloc_async(this);
         }
         else
         {
-            node->interface()->addressed_message_write_flow()->alloc_async(
+            node->iface()->addressed_message_write_flow()->alloc_async(
                 this);
         }
     }
@@ -120,7 +120,7 @@ private:
          * the current packet is enqueued on the physical layer. */
         if (dst_ == global())
         {
-            auto *f = node_->interface()->global_message_write_flow();
+            auto *f = node_->iface()->global_message_write_flow();
             Buffer<NMRAnetMessage> *b = f->cast_alloc(entry);
             b->data()->reset(mti_, node_->node_id(), buffer_);
             if (waitForLocalLoopback_)
@@ -133,7 +133,7 @@ private:
         }
         else
         {
-            auto *f = node_->interface()->addressed_message_write_flow();
+            auto *f = node_->iface()->addressed_message_write_flow();
             auto *b = f->cast_alloc(entry);
             b->data()->reset(mti_, node_->node_id(), dst_, buffer_);
             if (waitForLocalLoopback_)

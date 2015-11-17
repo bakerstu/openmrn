@@ -48,8 +48,8 @@ extern long long PIP_CLIENT_TIMEOUT_NSEC;
 class PIPClient : public StateFlowBase
 {
 public:
-    PIPClient(If *interface)
-        : StateFlowBase(interface)
+    PIPClient(If *iface)
+        : StateFlowBase(iface)
     {
     }
 
@@ -112,22 +112,22 @@ private:
     Action request_buffer()
     {
         return allocate_and_call(
-            interface()->addressed_message_write_flow(), STATE(write_request));
+            iface()->addressed_message_write_flow(), STATE(write_request));
     }
 
     Action write_request()
     {
         auto *b =
-            get_allocation_result(interface()->addressed_message_write_flow());
+            get_allocation_result(iface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, src_->node_id(),
             dst_, EMPTY_PAYLOAD);
 
-        interface()->dispatcher()->register_handler(
+        iface()->dispatcher()->register_handler(
             &responseHandler_, MTI_1, MASK_1);
-        interface()->dispatcher()->register_handler(
+        iface()->dispatcher()->register_handler(
             &responseHandler_, MTI_2, MASK_2);
 
-        interface()->addressed_message_write_flow()->send(b);
+        iface()->addressed_message_write_flow()->send(b);
 
         return sleep_and_call(
             &timer_, PIP_CLIENT_TIMEOUT_NSEC, STATE(response_came));
@@ -138,7 +138,7 @@ private:
     {
         AutoReleaseBuffer<NMRAnetMessage> rb(message);
         if (src_ != message->data()->dstNode ||
-            !interface()->matching_node(dst_, message->data()->src))
+            !iface()->matching_node(dst_, message->data()->src))
         {
             // Not from the right place.
             return;
@@ -180,7 +180,7 @@ private:
         {
             errorCode_ = TIMEOUT;
         }
-        interface()->dispatcher()->unregister_handler_all(&responseHandler_);
+        iface()->dispatcher()->unregister_handler_all(&responseHandler_);
         done_->notify();
         return exit();
     }
@@ -202,7 +202,7 @@ private:
         PIPClient *parent_;
     };
 
-    If *interface()
+    If *iface()
     {
         return static_cast<If *>(service());
     }

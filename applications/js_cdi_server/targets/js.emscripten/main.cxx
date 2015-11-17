@@ -64,7 +64,7 @@ const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 const uint64_t node_id = 0x0501010118F3ULL;
 nmranet::SimpleCanStack stack(node_id);
-GcPacketPrinter packet_printer(stack.can_hub());
+GcPacketPrinter packet_printer(stack.can_hub(), false);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 

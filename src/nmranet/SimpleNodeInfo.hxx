@@ -37,7 +37,6 @@
 
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
-#include "os/TempFile.hxx"
 
 namespace nmranet
 {
@@ -88,18 +87,18 @@ void init_snip_user_file(int fd, const char *user_name,
 class SNIPHandler : public IncomingMessageStateFlow
 {
 public:
-    SNIPHandler(If *interface, SimpleInfoFlow *response_flow)
-        : IncomingMessageStateFlow(interface)
+    SNIPHandler(If *iface, SimpleInfoFlow *response_flow)
+        : IncomingMessageStateFlow(iface)
         , responseFlow_(response_flow)
     {
         HASSERT(SNIP_STATIC_DATA.version == 4);
-        interface->dispatcher()->register_handler(
+        iface->dispatcher()->register_handler(
             this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 
     ~SNIPHandler()
     {
-        interface()->dispatcher()->unregister_handler(
+        iface()->dispatcher()->unregister_handler(
             this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }
 

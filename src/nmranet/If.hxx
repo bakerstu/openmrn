@@ -342,12 +342,12 @@ class IncomingMessageStateFlow
     : public MessageStateFlowBase
 {
 public:
-    IncomingMessageStateFlow(If *interface)
-        : MessageStateFlowBase(interface)
+    IncomingMessageStateFlow(If *iface)
+        : MessageStateFlowBase(iface)
     {
     }
 
-    If *interface()
+    If *iface()
     {
         return static_cast<If *>(service());
     }

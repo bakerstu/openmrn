@@ -222,7 +222,7 @@ public:
     virtual size_t write(address_t destination, const uint8_t *data, size_t len,
                          errorcode_t *error, Notifiable *again)
     {
-        HASSERT(0);
+        DIE("Unimplemented");
     }
     /** @returns the number of bytes successfully read (before hitting end of
      * space). If *error is set to non-null, then the operation has failed. If
@@ -489,14 +489,14 @@ private:
     {
         responseFlow_ =
             full_allocation_result(dg_service()->client_allocator());
-        return allocate_and_call(dg_service()->interface()->dispatcher(),
+        return allocate_and_call(dg_service()->iface()->dispatcher(),
                                  STATE(send_response_datagram));
     }
 
     Action send_response_datagram()
     {
         auto *b =
-            get_allocation_result(dg_service()->interface()->dispatcher());
+            get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(b_.reset(this));
         b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
                          message()->data()->src, EMPTY_PAYLOAD);

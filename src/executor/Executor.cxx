@@ -36,7 +36,13 @@
 #include "executor/Executor.hxx"
 
 #include <unistd.h>
+
+#ifdef __WINNT__
+#include <winsock2.h>
+#else
 #include <sys/select.h>
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -254,7 +260,7 @@ void ExecutorBase::unselect(Selectable *job)
         LOG(FATAL, "Tried to remove a non-active selectable: fd %d type %u", fd,
             job->selectType_);
     }
-    FD_CLR(fd, s);
+    FD_CLR((unsigned)fd, s);
     auto it = selectables_.begin();
     unsigned max_fd = 0;
     while (it != selectables_.end())

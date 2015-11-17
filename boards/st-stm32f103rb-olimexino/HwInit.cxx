@@ -65,7 +65,7 @@ static Stm32Can can0("/dev/can0");
 GPIO_PIN(LED1, LedPin, A, 5);
 GPIO_PIN(LED2, LedPin, A, 1);
 
-static Gpio* blinker_gpio = LED1_Pin::instance();
+static const Gpio* blinker_gpio = LED1_Pin::instance();
 
 extern "C" {
 

@@ -287,10 +287,6 @@ struct DACDefsxx
     typedef DAC_DIV_Pin DIV_Pin;
 };
 
-#include "custom/TivaDAC.hxx"
-
-extern TivaDAC<DACDefs> dac;
-
 struct DCCDecode
 {
     static const auto TIMER_BASE = TIMER2_BASE;

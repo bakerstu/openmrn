@@ -96,7 +96,7 @@ class BootloaderClient : public StateFlow<Buffer<BootloaderRequest>, QList<1>>
 public:
     BootloaderClient(
         Node *node, DatagramService *if_datagram_service, IfCan *if_can)
-        : StateFlow<Buffer<BootloaderRequest>, QList<1>>(node->interface())
+        : StateFlow<Buffer<BootloaderRequest>, QList<1>>(node->iface())
         , node_(node)
         , datagramService_(if_datagram_service)
         , ifCan_(if_can)
@@ -235,7 +235,7 @@ private:
             IncomingDatagram *datagram = message()->data();
 
             if (datagram->dst != parent_->node() ||
-                !parent_->node()->interface()->matching_node(
+                !parent_->node()->iface()->matching_node(
                     parent_->dst(), datagram->src) ||
                 datagram->payload.size() < 6 ||
                 datagram->payload[0] != DatagramDefs::CONFIGURATION ||
@@ -384,21 +384,21 @@ private:
     Action initiate_stream()
     {
         return allocate_and_call(
-            node_->interface()->addressed_message_write_flow(),
+            node_->iface()->addressed_message_write_flow(),
             STATE(send_init_stream));
     }
 
     Action send_init_stream()
     {
         auto *b = get_allocation_result(
-            node_->interface()->addressed_message_write_flow());
+            node_->iface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
             message()->data()->dst,
             StreamDefs::create_initiate_request(
                              StreamDefs::MAX_PAYLOAD, false, localStreamId_));
-        node_->interface()->addressed_message_write_flow()->send(b);
+        node_->iface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
-        node_->interface()->dispatcher()->register_handler(
+        node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
         return sleep_and_call(&timer_, SEC_TO_NSEC(g_bootloader_timeout_sec),
@@ -408,7 +408,7 @@ private:
     void stream_initiate_replied(Buffer<NMRAnetMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
-            !node_->interface()->matching_node(dst(), message->data()->src))
+            !node_->iface()->matching_node(dst(), message->data()->src))
         {
             // Not for me.
             return message->unref();
@@ -435,7 +435,7 @@ private:
     Action received_init_stream()
     {
         sleeping_ = false;
-        node_->interface()->dispatcher()->unregister_handler(
+        node_->iface()->dispatcher()->unregister_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
         if (!(streamFlags_ & StreamDefs::FLAG_ACCEPT))
@@ -464,7 +464,7 @@ private:
         speed_ = 0;
         lastMeasurementOffset_ = 0;
         lastMeasurementTimeNsec_ = os_get_time_monotonic();
-        node_->interface()->dispatcher()->register_handler(
+        node_->iface()->dispatcher()->register_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return call_immediately(STATE(send_stream_data));
     }
@@ -531,7 +531,7 @@ private:
     void stream_proceed_received(Buffer<NMRAnetMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
-            !node_->interface()->matching_node(dst(), message->data()->src))
+            !node_->iface()->matching_node(dst(), message->data()->src))
         {
             // Not for me.
             return message->unref();
@@ -589,21 +589,21 @@ private:
 
     Action close_stream()
     {
-        node_->interface()->dispatcher()->unregister_handler(
+        node_->iface()->dispatcher()->unregister_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return allocate_and_call(
-            node_->interface()->addressed_message_write_flow(),
+            node_->iface()->addressed_message_write_flow(),
             STATE(send_close_stream));
     }
 
     Action send_close_stream()
     {
         auto *b = get_allocation_result(
-            node_->interface()->addressed_message_write_flow());
+            node_->iface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_STREAM_COMPLETE, node_->node_id(),
             message()->data()->dst,
             StreamDefs::create_close_request(localStreamId_, remoteStreamId_));
-        node_->interface()->addressed_message_write_flow()->send(b);
+        node_->iface()->addressed_message_write_flow()->send(b);
         // wait some time before sending the reset command.
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(200), STATE(send_reboot_request));

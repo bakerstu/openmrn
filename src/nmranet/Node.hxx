@@ -55,7 +55,7 @@ public:
     // @returns the 48-bit NMRAnet node id for this node.
     virtual NodeID node_id() = 0;
     // @returns the interface this virtual node is bound to.
-    virtual If* interface() = 0;
+    virtual If* iface() = 0;
     /** @returns true if the node is in the initialized state.
      *
      * Nodes not in initialized state may not send traffic to the bus. */
