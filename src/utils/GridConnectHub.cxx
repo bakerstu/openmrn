@@ -303,28 +303,43 @@ GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
 /// Implementation for the gridconnect bridge. Owns all necessary structures,
 /// and is responsible for the initialization, registering, unregistering and
 /// destruction of these structures.
-struct GcPacketPrinter::Impl
+struct GcPacketPrinter::Impl : public CanHubPortInterface
 {
     Impl(CanHubFlow *can_hub, bool timestamped)
         : canHub_(can_hub)
-        , gcHub_(canHub_->service())
-        , displayPort_(canHub_->service(), timestamped)
-        , formatter_(canHub_->service(), &gcHub_, nullptr, false)
+        , timestamped_(timestamped)
     {
-        gcHub_.register_port(&displayPort_);
-        canHub_->register_port(&formatter_);
+        canHub_->register_port(this);
     }
 
     ~Impl()
     {
-        canHub_->unregister_port(&formatter_);
-        gcHub_.unregister_port(&displayPort_);
+        canHub_->unregister_port(this);
     }
 
-    CanHubFlow *canHub_;
-    HubFlow gcHub_;
-    DisplayPort displayPort_;
-    GCAdapter::BinaryToGCMember formatter_;
+    void send(Buffer<CanHubData> *message, unsigned priority) OVERRIDE
+    {
+        AutoReleaseBuffer<CanHubData> b(message);
+        char str[40];
+        char* p = gc_format_generate(message->data(), str, false);
+        *p = 0;
+        if (timestamped_)
+        {
+#if defined(__linux__) || defined(__MACH__)
+            struct timeval tv;
+            gettimeofday(&tv, nullptr);
+            struct tm t;
+            localtime_r(&tv.tv_sec, &t);
+            printf("%04d-%02d-%02d %02d:%02d:%02d:%06ld [%p] ",
+                t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min,
+                t.tm_sec, tv.tv_usec, message->data()->skipMember_);
+#endif
+        }
+        printf("%s\n", str);
+    }
+
+    CanHubFlow* canHub_;
+    bool timestamped_;
 };
 
 GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub, bool timestamped) : impl_(new Impl(can_hub, timestamped))
