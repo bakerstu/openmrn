@@ -76,6 +76,9 @@
   };*/
 #include "TivaRailcom.hxx"
 
+// This symbol releases the charlieplex pins to do other stuff.
+//#define FAKE_CHARLIE
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -103,31 +106,58 @@ TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
 
 inline void DCCDecode::dcc_packet_finished_hook() {
-  extern bool dac_next_packet_occupancy;
-  if (dac_next_packet_occupancy) {
-    extern DacSettings dac_overcurrent;
-    dac_next_packet_occupancy = false;
-    RailcomDefs::set_feedback_channel(0xfe);
-    dac.set(dac_overcurrent);
-  } else {
+  RailcomDefs::set_input();
+  extern uint8_t dac_next_packet_mode;
+  if (!dac_next_packet_mode) {
     extern DacSettings dac_occupancy;
-    dac_next_packet_occupancy = true;
     RailcomDefs::set_feedback_channel(0xff);
     dac.set(dac_occupancy);
+  } else {
+    extern DacSettings dac_overcurrent;
+    RailcomDefs::set_feedback_channel(0xfe);
+    dac.set(dac_overcurrent);
   }
 }
 
-inline void DCCDecode::dcc_preamble_finished_hook() {
+inline void DCCDecode::dcc_before_cutout_hook() {
+  RailcomDefs::set_hw();
   extern DacSettings dac_railcom;
   dac.set(dac_railcom);
 }
 
-const Gpio *const charlieplex_pins[] = {
-    CHARLIE0_Pin::instance(), CHARLIE1_Pin::instance(), CHARLIE2_Pin::instance()};
+inline void DCCDecode::after_feedback_hook() {
+  extern uint8_t dac_next_packet_mode;
+  if (!dac_next_packet_mode) {
+    ++dac_next_packet_mode;
+    extern DacSettings dac_overcurrent;
+    RailcomDefs::set_feedback_channel(0xfe);
+    dac.set(dac_overcurrent);
+  } else {
+    if (++dac_next_packet_mode >= OCCUPANCY_SAMPLE_RATIO) {
+      dac_next_packet_mode = 0;
+      extern DacSettings dac_occupancy;
+      RailcomDefs::set_feedback_channel(0xff);
+      dac.set(dac_occupancy);
+    }
+  }
+}
 
+const Gpio *const charlieplex_pins[] = {CHARLIE0_Pin::instance(),
+                                        CHARLIE1_Pin::instance(),
+                                        CHARLIE2_Pin::instance()};
+
+#ifndef FAKE_CHARLIE
 Charlieplex<3> stat_leds(charlieplex_pins);
+#endif
 
-unsigned* stat_led_ptr() { return stat_leds.payload(); }
+unsigned *stat_led_ptr() {
+#ifdef FAKE_CHARLIE
+  static unsigned payload = 0;
+  return &payload;
+#else
+  return stat_leds.payload();
+#endif
+}
 
 void RailcomDefs::enable_measurement() {
   Debug::MeasurementEnabled::set(true);
@@ -214,7 +244,9 @@ void timer4a_interrupt_handler(void)
     //
     MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
 
+#ifndef FAKE_CHARLIE
     stat_leds.tick();
+#endif
 }
 
 

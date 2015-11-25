@@ -272,6 +272,13 @@ public:
         return;
     }
 
+    /// Returns true if we are close to the DCC cutout. This situation is
+    /// recognized by having seen the first half of the end-of-packet one bit.
+    bool before_dcc_cutout() {
+        return (!parseCount_) &&           // end of byte
+            (parseState_ == DCC_DATA_ONE); // one bit comes
+    }
+
     /// Returns the number of payload bytes in the current packet.
     uint8_t packet_length()
     {

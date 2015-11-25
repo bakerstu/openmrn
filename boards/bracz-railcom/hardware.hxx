@@ -42,8 +42,8 @@ GPIO_PIN(OUTPUT_EN5, GpioOutputODSafeHigh, B, 5);
 
 //typedef LED_GREEN_Pin STAT0_Pin;
 //typedef DummyPin STAT0_Pin;
-//GPIO_PIN(STAT1, LedPin, E, 2);
-//GPIO_PIN(STAT2, LedPin, E, 3);
+GPIO_PIN(DEBUG1, GpioOutputSafeLow, E, 2);
+GPIO_PIN(DEBUG2, GpioOutputSafeLow, E, 3);
 // Charlieplexing pins.
 GPIO_PIN(CHARLIE0, LedPin, A, 7);
 GPIO_PIN(CHARLIE1, LedPin, A, 6);
@@ -77,6 +77,7 @@ typedef GpioInitializer<                                //
     OUTPUT_EN0_Pin, OUTPUT_EN1_Pin, OUTPUT_EN2_Pin,     //
     OUTPUT_EN3_Pin, OUTPUT_EN4_Pin, OUTPUT_EN5_Pin,     //
     CHARLIE0_Pin, CHARLIE1_Pin, CHARLIE2_Pin,           //
+    DEBUG1_Pin, DEBUG2_Pin,                             //
     DCC_IN_Pin,                                         //
     DAC_TIMER_Pin, DAC_DIV_Pin,                         //
     GNDACTRL_NON_Pin, GNDACTRL_NOFF_Pin,                //
@@ -137,7 +138,7 @@ struct Debug
     //typedef DummyPin MeasurementEnabled;
     typedef LED_BLUE_Pin MeasurementEnabled;
 
-    typedef DummyPin NSampling;
+    typedef DEBUG1_Pin NSampling;
 
 };
 
@@ -219,27 +220,52 @@ struct RailcomDefs
     static uint8_t sample()
     {
         uint8_t ret = 0;
-        MAP_SysCtlDelay(5*26);
+        if (feedbackChannel_ == 0xff) {
+            extern volatile uint32_t sample_count;
+            sample_count++;
+        }
         Debug::NSampling::set(false);
+        MAP_SysCtlDelay(5*26);
         if (!RAILCOM_CH0_Pin::get()) {
             extern volatile uint32_t ch0_count;
-            ch0_count++;
+            if (feedbackChannel_ == 0xff) {
+                ch0_count++;
+            }
             ret |= 1;
         }
         if (!RAILCOM_CH1_Pin::get()) {
             extern volatile uint32_t ch1_count;
+            if (feedbackChannel_ == 0xff) {
+                ch1_count++;
+            }
             ret |= 2;
-            ch1_count++;
         }
-        /*if (!RAILCOM_CH2_Pin::get())
+        if (!RAILCOM_CH2_Pin::get())
             ret |= 4;
         if (!RAILCOM_CH3_Pin::get())
             ret |= 8;
         if (!RAILCOM_CH4_Pin::get())
             ret |= 16;
         if (!RAILCOM_CH5_Pin::get())
-        ret |= 32;*/
+            ret |= 32;
         Debug::NSampling::set(true);
+
+        /*if (feedbackChannel_ == 0xff) {
+          if (ret & 1) {
+            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::OUTPUT);
+            CHARLIE0_Pin::set(true);
+          } else {
+            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::INPUT);
+          }
+
+          if (ret & 2) {
+            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::OUTPUT);
+            CHARLIE1_Pin::set(true);
+          } else {
+            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::INPUT);
+          }
+          }*/
+
         return ret;
     }
 };
@@ -293,11 +319,16 @@ struct DCCDecode
     static const auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER2;
     static const auto TIMER_INTERRUPT = INT_TIMER2B;
     static const auto TIMER = TIMER_B;
-    static const auto CFG_CAP_TIME_UP =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME_UP | TIMER_CFG_A_PWM;
+    static const auto CFG_CAP_TIME_UP = TIMER_CFG_SPLIT_PAIR |
+                                        TIMER_CFG_B_CAP_TIME_UP |
+                                        TIMER_CFG_A_PERIODIC_UP;
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
     static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
+
+    static const auto SAMPLE_TIMER = TIMER_A;
+    static const auto SAMPLE_PERIOD_CLOCKS = 60000;
+    static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
 
     static const auto OS_INTERRUPT = INT_TIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
@@ -308,8 +339,11 @@ struct DCCDecode
 
     static const int Q_SIZE = 32;
 
+    // after 5 overcurrent samples we get one occupancy sample
+    static const uint32_t OCCUPANCY_SAMPLE_RATIO = 5;
+    static inline void dcc_before_cutout_hook();
     static inline void dcc_packet_finished_hook();
-    static inline void dcc_preamble_finished_hook();
+    static inline void after_feedback_hook();
 };
 
 #endif // ! pindefs_only
