@@ -1,0 +1,71 @@
+#include "test_main.hxx"
+#include "utils/OptionalArgs.hxx"
+
+struct ArgsOneDecl
+{
+    DECLARE_OPTIONALARG(Foo, foo, int, 0, 23);
+    DECLARE_OPTIONALARG(Bar, bar, const char *, 1, nullptr);
+    typedef OptionalArg<ArgsOneDecl, Foo, Bar> BaseType;
+};
+
+struct ArgsOne : public ArgsOneDecl::BaseType
+{
+    INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsOne, BaseType);
+
+    DEFINE_OPTIONALARG(Foo, foo, int, 0);
+    DEFINE_OPTIONALARG(Bar, bar, const char *, 1);
+};
+
+constexpr ArgsOne ao(ArgsOne::Bar("abcdef"), ArgsOne::Foo(42));
+
+TEST(OptionalArg, Get)
+{
+    EXPECT_EQ(42, ao.foo());
+    EXPECT_EQ(string("abcdef"), ao.bar());
+}
+
+constexpr ArgsOne adef;
+
+TEST(OptionalArg, Default)
+{
+    EXPECT_EQ(23, adef.foo());
+    EXPECT_EQ(nullptr, adef.bar());
+}
+
+struct ArgsTwoDecl : public ArgsOneDecl
+{
+    // This is needed for inheriting declarations.
+    using ArgsOneDecl::check_arguments_are_valid;
+
+    DECLARE_OPTIONALARG(Qux, qux, const char *, 2, nullptr);
+
+    typedef OptionalArg<ArgsTwoDecl, Foo, Bar, Qux> BaseType;
+};
+
+struct ArgsTwo : public ArgsTwoDecl::BaseType
+{
+    INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsTwo, BaseType);
+
+    // Here we need to repeat all definitions (even the inherited ones).
+    DEFINE_OPTIONALARG(Foo, foo, int, 0);
+    DEFINE_OPTIONALARG(Bar, bar, const char *, 1);
+    DEFINE_OPTIONALARG(Qux, qux, const char *, 2);
+};
+
+constexpr ArgsTwo at(ArgsTwo::Qux("fooo"));
+
+TEST(OptionalArg, Inherit)
+{
+    EXPECT_EQ(23, at.foo());
+    EXPECT_EQ(nullptr, at.bar());
+    EXPECT_EQ("fooo", at.qux());
+}
+
+constexpr ArgsTwo att(ArgsOne::Foo(41), ArgsTwo::Qux("fooo"));
+
+TEST(OptionalArg, Inherit2)
+{
+    EXPECT_EQ(41, att.foo());
+    EXPECT_EQ(nullptr, att.bar());
+    EXPECT_EQ("fooo", att.qux());
+}
