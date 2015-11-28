@@ -67,10 +67,10 @@ void ConfigEntryBase::repeated_write(int fd, const void *buf, size_t size) const
     while (size)
     {
         ssize_t ret = ::write(fd, dst, size);
-        ERRNOCHECK("read_config", ret);
+        ERRNOCHECK("write_config", ret);
         if (ret == 0)
         {
-            DIE("Unexpected EOF reading the config file.");
+            DIE("Unexpected EOF writing the config file.");
         }
         size -= ret;
         dst += ret;
