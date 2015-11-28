@@ -106,7 +106,7 @@ TEST(GroupConfig, WithHoles)
 }
 
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
-            Offset(128));
+          Offset(128));
 CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
 CDI_GROUP_END();
 
@@ -126,6 +126,22 @@ CDI_GROUP_END();
 TEST(FullCdi, SegmentOffset)
 {
     ConfigDef def(0);
+    EXPECT_TRUE(def.group_opts().is_cdi());
+    EXPECT_EQ(-2, def.group_opts().segment());
+
+    EXPECT_EQ(INT_MAX, def.ident().group_opts().offset());
+    EXPECT_EQ(0, def.ident().group_opts().get_segment_offset());
+    EXPECT_EQ(0, def.ident().offset());
+    EXPECT_EQ(1000, def.ident().group_opts().segment());
+    EXPECT_EQ(1000, def.acdi().group_opts().segment());
+
+    EXPECT_EQ(1, def.userinfo().offset());
+    EXPECT_EQ(0xFB, def.userinfo().group_opts().segment());
+    EXPECT_EQ(1, def.userinfo().name().offset());
+
+    EXPECT_EQ(128, def.seg().group_opts().offset());
+    EXPECT_EQ(128, def.seg().offset());
+
     EXPECT_EQ(128, def.seg().first().offset());
     EXPECT_EQ(0, def.seg2().first().offset());
 }
