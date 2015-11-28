@@ -89,7 +89,8 @@ public:
     using Description = AtomConfigOptions::Description;
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
-    using MainCdi = GroupConfigOptions::MainCdi;
+    static constexpr Segment MainCdi() { return Segment(-2); }
+    //using MainCdi = GroupConfigOptions::MainCdi;
 };
 
 #define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
