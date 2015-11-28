@@ -101,16 +101,22 @@ public:
     {
     }
 
-    template <class F> constexpr void get(const F f) const
+    template <class F> constexpr F get(const F f) const
     {
-        return tried_to_get_unknown_argument();
+        return tried_to_get_unknown_argument() ? f : F();
     }
 
 private:
+    using Decl::check_arguments_are_valid;
+    static constexpr int check_arguments_are_valid(const OptionalArg &a)
+    {
+        return 0;
+    }
+
     template <typename A, typename... Args>
     static constexpr int check_all_args(const A a, Args... args)
     {
-        return Decl::check_arguments_are_valid(a) + check_all_args(args...);
+        return check_arguments_are_valid(a) + check_all_args(args...);
     }
 
     static constexpr int check_all_args()
@@ -118,12 +124,12 @@ private:
         return 0;
     }
 
-    static void tried_to_get_unknown_argument(); // unimplemented.
+    static bool tried_to_get_unknown_argument(); // unimplemented.
 
     const int check_;
 };
 
-/// Template recursion entry. We have as many insntances of this class in the
+/// Template recursion entry. We have as many instances of this class in the
 /// inheritance stack as the number of data elements we need to carry. Each of
 /// these classes stores one single element in the private variable d_.
 ///
@@ -151,18 +157,22 @@ public:
     {
     }
 
-    constexpr OptionalArg() : d_(GetFromArgs()) {}
-
+    constexpr OptionalArg()
+        : d_(GetFromArgs())
+    {
+    }
 
     constexpr data_type get(const fetcher_type) const
     {
         return d_;
     }
 
-    /// Needed due to templating; the public inheritance is not enough.
+    /// Needed due to templated base class; the public inheritance is not
+    /// enough.
     using Base::get;
 
 private:
+    /// This template gets instantiated when the first argument is for us.
     template <typename... Args>
     static constexpr data_type GetFromArgs(
         const specifier_type spec, Args... args)
@@ -170,12 +180,32 @@ private:
         return spec.d_;
     }
 
+    /// This template gets instantiated for a copy constructor: when the
+    /// argument is already an OptionalArg (or reference to it).
+    template <typename U, typename... Args>
+    static constexpr typename std::enable_if<
+        std::is_convertible<typename std::add_lvalue_reference<U>::type,
+            typename std::add_lvalue_reference<Base>::type>::value,
+        data_type>::type
+    GetFromArgs(const U me, Args... args)
+    {
+        return me.get(fetcher_type());
+    }
+
+    /// This template gets instantiated only if the argument is not an
+    /// OptionalArg and not for the current entry. Then we just ignore the
+    /// first arg.
     template <typename T, typename... Args>
-    static constexpr data_type GetFromArgs(const T t, Args... args)
+    static constexpr typename std::enable_if<
+        !std::is_convertible<typename std::add_lvalue_reference<T>::type,
+            typename std::add_lvalue_reference<Base>::type>::value,
+        data_type>::type
+    GetFromArgs(const T t, Args... args)
     {
         return GetFromArgs(args...);
     }
 
+    // If we've run out of all arguments, we take the default value.
     static constexpr data_type GetFromArgs()
     {
         return specifier_type::default_value();

@@ -1,25 +1,40 @@
 #include "test_main.hxx"
 #include "utils/OptionalArgs.hxx"
 
+// Shows how to declare an arguments base class.
 struct ArgsOneDecl
 {
+    // Arguments are:
+    // * setter class name (Foo),
+    // * getter function name (foo),
+    // * data type (int),
+    // * an ordinal number that has to be different for every entry (0 here)
+    // * the default value if the argument is not specified (23 here).
     DECLARE_OPTIONALARG(Foo, foo, int, 0, 23);
     DECLARE_OPTIONALARG(Bar, bar, const char *, 1, nullptr);
+    // Must refer to yourself first, then list all allowed arguments.
     typedef OptionalArg<ArgsOneDecl, Foo, Bar> BaseType;
 };
 
+// The real arguments class is declared like this.
 struct ArgsOne : public ArgsOneDecl::BaseType
 {
     INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsOne, BaseType);
 
+    // The default values do not need to be prepeated anymore.
     DEFINE_OPTIONALARG(Foo, foo, int, 0);
     DEFINE_OPTIONALARG(Bar, bar, const char *, 1);
 };
 
+// Instances of the arguments are constructed using the names. If needed, a
+// using declaration can be employed to import the names to the current
+// namespace.
 constexpr ArgsOne ao(ArgsOne::Bar("abcdef"), ArgsOne::Foo(42));
 
 TEST(OptionalArg, Get)
 {
+    // Fetching values happens by calling the specified function name on the
+    // object.
     EXPECT_EQ(42, ao.foo());
     EXPECT_EQ(string("abcdef"), ao.bar());
 }
@@ -32,16 +47,34 @@ TEST(OptionalArg, Default)
     EXPECT_EQ(nullptr, adef.bar());
 }
 
+// This entry shows an inheritance-type relationship between two ArgsOne
+// objects. We take ao to specify the default values and override some value in
+// it.
+constexpr ArgsOne aoverride(ArgsOne::Foo(20), ao);
+
+TEST(OptionalArg, Override)
+{
+    EXPECT_EQ(20, aoverride.foo());
+    ASSERT_NE(nullptr, aoverride.bar());
+    EXPECT_EQ(string("abcdef"), aoverride.bar());
+}
+
+// Args objects can extend each other with a moderately clumsy syntax by
+// extending the DECL class.
 struct ArgsTwoDecl : public ArgsOneDecl
 {
     // This is needed for inheriting declarations.
     using ArgsOneDecl::check_arguments_are_valid;
 
+    // We add the new arguments.
     DECLARE_OPTIONALARG(Qux, qux, const char *, 2, nullptr);
 
+    // Then when defining the base class we have to list all valid arguments,
+    // including the inherited ones.
     typedef OptionalArg<ArgsTwoDecl, Foo, Bar, Qux> BaseType;
 };
 
+// The object type for the child.
 struct ArgsTwo : public ArgsTwoDecl::BaseType
 {
     INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsTwo, BaseType);
@@ -52,15 +85,18 @@ struct ArgsTwo : public ArgsTwoDecl::BaseType
     DEFINE_OPTIONALARG(Qux, qux, const char *, 2);
 };
 
+// Example specifying only one value.
 constexpr ArgsTwo at(ArgsTwo::Qux("fooo"));
 
 TEST(OptionalArg, Inherit)
 {
+    EXPECT_EQ("fooo", at.qux());
+    // The rest are defaults.
     EXPECT_EQ(23, at.foo());
     EXPECT_EQ(nullptr, at.bar());
-    EXPECT_EQ("fooo", at.qux());
 }
 
+// We can mix and match arguments. They can be in various order.
 constexpr ArgsTwo att(ArgsOne::Foo(41), ArgsTwo::Qux("fooo"));
 
 TEST(OptionalArg, Inherit2)
