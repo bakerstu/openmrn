@@ -130,10 +130,7 @@ void parse_args(int argc, char *argv[])
         fprintf(stderr, "cdi_file is not specified\n");
         usage(argv[0]);
     }
-    using emscripten::val;
-    EM_ASM(var fs = require('fs'); Module.fs = fs;);
-    val fs = val::module_property("fs");
-    string contents = fs.call<val>("readFileSync", string(cdi_file), string("utf8")).as<string>();
+    string contents = read_file_to_string(cdi_file);
     if (contents.size() + 1 <= sizeof(nmranet::CDI_DATA)) {
         memcpy((char*)nmranet::CDI_DATA, contents.c_str(), contents.size() + 1);
     } else {

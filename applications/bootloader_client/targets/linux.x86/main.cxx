@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * An application which acts as an openlcb hub with the GC protocol.
+ * An application for updating the firmware of a remote node on the bus.
  *
  * @author Balazs Racz
  * @date 3 Aug 2013
@@ -45,6 +45,7 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/Crc.hxx"
+#include "utils/FileUtils.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -109,15 +110,15 @@ void usage(const char *e)
                     "no separators, like '-b 0x05010101141F'\n");
     fprintf(stderr, "alias should be a 3-char hex string with 0x prefix and no "
                     "separators, like '-a 0x3F9'\n");
-    fprintf(stderr, "memory_space_if defines which memory space to write the "
+    fprintf(stderr, "memory_space_id defines which memory space to write the "
                     "data into. Default is '-s 0xF0'.\n");
     fprintf(stderr, "csum_algo defines the checksum algorithm to use. If "
                     "omitted, no checksumming is done before writing the "
                     "data.\n");
     fprintf(stderr,
         "-r request the target to enter bootloader mode before sending data\n");
-    fprintf(stderr,
-        "-t prevents rebooting the target after flashing complete.\n");
+    fprintf(stderr, "Unless -t is specified the target will be rebooted after "
+                    "flashing complete.\n");
     exit(1);
 }
 
@@ -264,21 +265,8 @@ int appl_main(int argc, char *argv[])
     b->data()->response = &response;
     b->data()->request_reboot = request_reboot ? 1 : 0;
     b->data()->request_reboot_after = request_reboot_after ? 1 : 0;
+    b->data()->data = read_file_to_string(filename);
 
-    FILE *f = fopen(filename, "rb");
-    if (!f)
-    {
-        fprintf(
-            stderr, "Could not open file %s: %s\n", filename, strerror(errno));
-        exit(1);
-    }
-    char buf[1024];
-    size_t nr;
-    while ((nr = fread(buf, 1, sizeof(buf), f)) > 0)
-    {
-        b->data()->data.append(buf, nr);
-    }
-    fclose(f);
     printf("Read %" PRIdPTR
            " bytes from file %s. Writing to memory space 0x%02x\n",
         b->data()->data.size(), filename, memory_space_id);
