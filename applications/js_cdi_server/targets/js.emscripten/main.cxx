@@ -45,6 +45,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/JSTcpHub.hxx"
 #include "utils/JSTcpClient.hxx"
+#include "utils/FileUtils.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
