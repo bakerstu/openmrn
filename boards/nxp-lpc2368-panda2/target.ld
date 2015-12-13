@@ -27,7 +27,8 @@ MEMORY
     BatRam (rw)  : ORIGIN = 0xE0084000, LENGTH = 2k
 }
 
-automata_code = 0x70000;
+__automata_start = 0x70000;
+__automata_end = 0x80000;
 
 /* Stack sizes: */
 UND_Stack_Size = 32;
