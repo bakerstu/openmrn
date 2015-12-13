@@ -47,10 +47,12 @@ class MultiConfiguredConsumer : public ConfigUpdateListener,
 public:
     typedef ConsumerConfig config_entry_type;
 
-    template <unsigned N> __attribute__((noinline))
-    MultiConfiguredConsumer(const Gpio *const *pins, unsigned size,
-                            const RepeatedGroup<config_entry_type, N> &config)
-        : pins_(pins)
+    template <unsigned N>
+    __attribute__((noinline))
+    MultiConfiguredConsumer(Node *node, const Gpio *const *pins, unsigned size,
+        const RepeatedGroup<config_entry_type, N> &config)
+        : node_(node)
+        , pins_(pins)
         , size_(N)
         , offset_(config)
     {
