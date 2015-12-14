@@ -66,9 +66,9 @@ class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
   nmranet::Node* node_;
 }; 
 
-class DccDecodeFlow : public dcc::DccDecodeFlow {
+class DccDebugDecodeFlow : public dcc::DccDecodeFlow {
  public:
-  DccDecodeFlow() : dcc::DccDecodeFlow(&g_service, "/dev/nrz0") {}
+  DccDebugDecodeFlow(Service* service, const char* path) : dcc::DccDecodeFlow(service, path) {}
 
  private:
   void dcc_packet_finished(const uint8_t* payload, size_t len) override {
