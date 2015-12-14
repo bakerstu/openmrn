@@ -110,8 +110,8 @@ constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
 // configuration structure comes from the CDI definition object, segment 'seg',
 // in which there is a repeated group 'consumers'. The GPIO pins get assigned
 // to the repetitions in the group in order.
-nmranet::MultiConfiguredConsumer consumers(kOutputGpio, ARRAYSIZE(kOutputGpio),
-                                           cfg.seg().consumers());
+nmranet::MultiConfiguredConsumer consumers(
+    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(
