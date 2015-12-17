@@ -64,7 +64,9 @@ class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
   }
 
   nmranet::Node* node_;
-}; 
+};
+
+extern DccPacketDebugFlow g_packet_debug_flow;
 
 class DccDebugDecodeFlow : public dcc::DccDecodeFlow {
  public:

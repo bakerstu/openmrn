@@ -238,12 +238,18 @@ protected:
         return state_ == c;
     }
 
+    /** Returns true if the current flow is terminated. */
+    bool is_terminated()
+    {
+        return is_state(STATE(terminated));
+    }
+
     /** Resets the flow to the specified state and starts it.
      * @param c is the state to start the flow from.
      */
     void start_flow(Callback c)
     {
-        HASSERT(state_ == STATE(terminated));
+        HASSERT(is_terminated());
         yield_and_call(c);
     }
 
