@@ -44,6 +44,7 @@ LIBS = $(STARTGROUP) \
        $(LINKCORELIBS) \
        $(ENDGROUP) \
 
+CDIEXTRA := -I.
 INCLUDES += -I.
 
 #we don't have to recurse into lib, because there are no sources there. We don't need a liblib.a
@@ -51,6 +52,7 @@ INCLUDES += -I.
 INCLUDES += -I$(OPENMRNPATH)/src/ -I$(OPENMRNPATH)/include
 ifdef APP_PATH
 INCLUDES += -I$(APP_PATH)
+CDIEXTRA += -I$(APP_PATH)
 else
 #$(error no APP_PATH found)
 endif
@@ -63,7 +65,6 @@ LDFLAGS += -Llib -L$(LIBDIR)
 
 EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
 
-CDIEXTRA :=
 
 ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
@@ -113,7 +114,7 @@ cdi.o : cdi.xmlout $(OPENMRNPATH)/bin/build_cdi.py
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
-	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA) --std=c++11 -MD -MF $@.d $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
 
 clean: clean_cdi
 
