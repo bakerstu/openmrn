@@ -46,6 +46,7 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
+#include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
@@ -75,6 +76,9 @@
   };*/
 #include "TivaRailcom.hxx"
 
+// This symbol releases the charlieplex pins to do other stuff.
+//#define FAKE_CHARLIE
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -100,6 +104,60 @@ const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
+
+inline void DCCDecode::dcc_packet_finished_hook() {
+  RailcomDefs::set_input();
+  extern uint8_t dac_next_packet_mode;
+  if (!dac_next_packet_mode) {
+    extern DacSettings dac_occupancy;
+    RailcomDefs::set_feedback_channel(0xff);
+    dac.set(dac_occupancy);
+  } else {
+    extern DacSettings dac_overcurrent;
+    RailcomDefs::set_feedback_channel(0xfe);
+    dac.set(dac_overcurrent);
+  }
+}
+
+inline void DCCDecode::dcc_before_cutout_hook() {
+  RailcomDefs::set_hw();
+  extern DacSettings dac_railcom;
+  dac.set(dac_railcom);
+}
+
+inline void DCCDecode::after_feedback_hook() {
+  extern uint8_t dac_next_packet_mode;
+  if (!dac_next_packet_mode) {
+    ++dac_next_packet_mode;
+    extern DacSettings dac_overcurrent;
+    RailcomDefs::set_feedback_channel(0xfe);
+    dac.set(dac_overcurrent);
+  } else {
+    if (++dac_next_packet_mode >= OCCUPANCY_SAMPLE_RATIO) {
+      dac_next_packet_mode = 0;
+      extern DacSettings dac_occupancy;
+      RailcomDefs::set_feedback_channel(0xff);
+      dac.set(dac_occupancy);
+    }
+  }
+}
+
+const Gpio *const charlieplex_pins[] = {CHARLIE0_Pin::instance(),
+                                        CHARLIE1_Pin::instance(),
+                                        CHARLIE2_Pin::instance()};
+
+#ifndef FAKE_CHARLIE
+Charlieplex<3> stat_leds(charlieplex_pins);
+#endif
+
+unsigned *stat_led_ptr() {
+#ifdef FAKE_CHARLIE
+  static unsigned payload = 0;
+  return &payload;
+#else
+  return stat_leds.payload();
+#endif
+}
 
 void RailcomDefs::enable_measurement() {
   Debug::MeasurementEnabled::set(true);
@@ -179,6 +237,18 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+void timer4a_interrupt_handler(void)
+{
+    //
+    // Clear the timer interrupt.
+    //
+    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+
+#ifndef FAKE_CHARLIE
+    stat_leds.tick();
+#endif
+}
+
 
 void timer2b_interrupt_handler(void)
 {
@@ -244,6 +314,15 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
+
+    /* Charlieplexed pins */
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
+    MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
+    MAP_IntEnable(INT_TIMER4A);
+    // Still above kernel but not prio zero
+    MAP_IntPrioritySet(INT_TIMER4A, 0x10);
+    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */

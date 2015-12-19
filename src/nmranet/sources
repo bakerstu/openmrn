@@ -5,7 +5,6 @@ CSRCS +=
 CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
-           Bootloader.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
@@ -19,6 +18,7 @@ CXXSRCS += \
            IfCan.cxx \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
+	   PIPClient.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionTrain.cxx \

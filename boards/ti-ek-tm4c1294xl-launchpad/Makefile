@@ -33,6 +33,7 @@ TARGET := freertos.armv7m
 ifndef BOARD
 BOARD := BOARD_LAUNCHPAD_EK
 endif
+export BOARD
 
 OPENOCDARGS = -f board/ek-tm4c1294xl.cfg
 

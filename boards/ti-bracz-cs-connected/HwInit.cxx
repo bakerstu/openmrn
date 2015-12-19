@@ -363,6 +363,4 @@ void hw_preinit(void)
 
 }
 
-
-
 }  // extern C

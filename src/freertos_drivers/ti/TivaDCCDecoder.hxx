@@ -150,6 +150,7 @@ private:
     unsigned lastLevel_;
     bool overflowed_ = false;
     bool inCutout_ = false;
+    bool prepCutout_ = false;
 
     Notifiable *readableNotifiable_ = nullptr;
     RailcomDriver *railcomDriver_; //< notified for cutout events.
@@ -187,6 +188,12 @@ template <class HW> void TivaDccDecoder<HW>::enable()
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_TIM_TIMEOUT);
 
+    MAP_TimerLoadSet(
+        HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS & 0xffffU);
+    MAP_TimerPrescaleSet(
+        HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS >> 16);
+    MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
+
     MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);
@@ -207,7 +214,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
     // get masked interrupt status
-    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
+    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, false);
     if (status & HW::TIMER_TIM_TIMEOUT)
     {
         // The timer got reloaded.
@@ -242,18 +249,22 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             overflowed_ = true;
             }*/
         decoder_.process_data(new_value);
-        if (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE)
+        if ((status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
+            !prepCutout_)
         {
-            railcomDriver_->preamble_bit(HW::NRZ_Pin::get());
+            // The first positive edge after the sample timer expired (but
+            // outside of the cutout).
+            MAP_TimerIntClear(HW::TIMER_BASE, HW::SAMPLE_TIMER_TIMEOUT);
+            railcomDriver_->feedback_sample();
+            HW::after_feedback_hook();
         }
-        else if (decoder_.state() == dcc::DccDecoder::DCC_END_OF_PREAMBLE)
+        if (decoder_.before_dcc_cutout())
         {
-            HW::dcc_preamble_finished_hook();
+            prepCutout_ = true;
+            HW::dcc_before_cutout_hook();
         }
         else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
         {
-            /// @TODO(balazs.racz) if there is no cutout, we should still
-            /// evaluate the occupancy information.
             railcomDriver_->start_cutout();
             inCutout_ = true;
         }
@@ -265,6 +276,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
                 inCutout_ = false;
             }
             HW::dcc_packet_finished_hook();
+            prepCutout_ = false;
         }
         lastTimerValue_ = raw_new_value;
         // We are not currently writing anything to the inputData_ queue, thus

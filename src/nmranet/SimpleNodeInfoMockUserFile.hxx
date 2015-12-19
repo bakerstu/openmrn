@@ -42,6 +42,9 @@
 #include "freertos_drivers/common/RamDisk.hxx"
 #endif
 
+#ifndef __WINNT__
+#include "os/TempFile.hxx"
+
 namespace nmranet {
 
 /** Helper class for mock implementations. Creates a mock file with the SNIP
@@ -74,11 +77,7 @@ private:
 #endif
 };
 
-
-
 }  // namespace nmranet
 
-
-
-
+#endif // !winnt
 #endif // _NMRANET_SIMPLENODEINFOMOCKUSERFILE_HXX_

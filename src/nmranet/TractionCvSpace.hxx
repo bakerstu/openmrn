@@ -122,12 +122,12 @@ private:
         ERROR_NOOP = 0,
         ERROR_PENDING = 1,
         ERROR_OK = 2,
-        ERROR_BUSY = 3,
+        _ERROR_BUSY = 3,
         ERROR_NACK = 7,
         ERROR_NO_RAILCOM_CH2_DATA = 4,
         ERROR_GARBAGE = 5,
         ERROR_UNKNOWN_RESPONSE = 6,
-        ERROR_TIMEOUT = 8,
+        _ERROR_TIMEOUT = 8,
     };
     uint8_t spaceId_;
     Notifiable *done_; //< notify when transfer is done

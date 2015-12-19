@@ -88,6 +88,29 @@ string error_to_buffer(uint16_t error_code)
     return ret;
 }
 
+void buffer_to_error(const Payload &payload, uint16_t *error_code,
+    uint16_t *mti, string *error_message)
+{
+    if (mti)
+        *mti = 0;
+    if (error_code)
+        *error_code = Defs::ERROR_PERMANENT;
+    if (error_message)
+        error_message->clear();
+    if (payload.size() >= 2 && error_code)
+    {
+        *error_code = (((uint16_t)payload[0]) << 8) | payload[1];
+    }
+    if (payload.size() >= 4 && mti)
+    {
+        *mti = (((uint16_t)payload[2]) << 8) | payload[3];
+    }
+    if (payload.size() > 4 && error_message)
+    {
+        error_message->assign(&payload[4], payload.size() - 4);
+    }
+}
+
 string EMPTY_PAYLOAD;
 
 /*Buffer *node_id_to_buffer(NodeID id)

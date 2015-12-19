@@ -126,6 +126,7 @@ public:
         OPERATION_PENDING = 0x20000, //< cleared when done is called.
         DST_NOT_FOUND = 0x40000,     //< on CAN. Permanent error code.
         TIMEOUT = 0x80000,           //< Timeout waiting for ack/nack.
+        DST_REBOOT = 0x100000,       //< Target node has rebooted.
 
         // The top byte of result_ is the response flags from Datagram_OK
         // response.
@@ -166,7 +167,7 @@ public:
      * @param num_registry_entries is the size of the registry map (how
      * many datagram handlers can be registered)
      */
-    DatagramService(If *interface, size_t num_registry_entries);
+    DatagramService(If *iface, size_t num_registry_entries);
     ~DatagramService();
 
     /// @returns the registry of datagram handlers.
@@ -186,9 +187,9 @@ public:
         return &clients_;
     }
 
-    If *interface()
+    If *iface()
     {
-        return interface_;
+        return iface_;
     }
 
 private:
@@ -203,8 +204,8 @@ private:
     class DatagramDispatcher : public IncomingMessageStateFlow
     {
     public:
-        DatagramDispatcher(If *interface, size_t num_registry_entries)
-            : IncomingMessageStateFlow(interface)
+        DatagramDispatcher(If *iface, size_t num_registry_entries)
+            : IncomingMessageStateFlow(iface)
             , registry_(num_registry_entries)
         {
         }
@@ -235,7 +236,7 @@ private:
     };
 
     /// Interface on which we are registered.
-    If *interface_;
+    If *iface_;
 
     /// Datagram clients.
     TypedQAsync<DatagramClient> clients_;

@@ -106,6 +106,7 @@ struct MemoryConfigDefs {
         SPACE_CONFIG     = 0xFD, /**< config memory space */
         SPACE_ACDI_SYS   = 0xFC, /**< read-only ACDI space */
         SPACE_ACDI_USR   = 0xFB, /**< read-write ACDI space */
+        SPACE_FIRMWARE   = 0xEF, /**< firmware upgrade space */
     };
 
     /** Possible available options.
@@ -221,7 +222,7 @@ public:
     virtual size_t write(address_t destination, const uint8_t *data, size_t len,
                          errorcode_t *error, Notifiable *again)
     {
-        HASSERT(0);
+        DIE("Unimplemented");
     }
     /** @returns the number of bytes successfully read (before hitting end of
      * space). If *error is set to non-null, then the operation has failed. If
@@ -231,6 +232,18 @@ public:
      * returned bytes. */
     virtual size_t read(address_t source, uint8_t *dst, size_t len,
                         errorcode_t *error, Notifiable *again) = 0;
+
+    /** Handles space freeze command. Returns an error code, or 0 for
+     * success. */
+    virtual errorcode_t freeze() {
+        return Defs::ERROR_INVALID_ARGS;
+    }
+
+    /** Handles space unfreeze command. Returns an error code, or 0 for
+     * success. */
+    virtual errorcode_t unfreeze() {
+        return Defs::ERROR_INVALID_ARGS;
+    }
 };
 
 /// Memory space implementation that exports a some memory-mapped data as a
@@ -411,6 +424,21 @@ private:
                 // if (
                 break;
             }
+            case MemoryConfigDefs::COMMAND_FREEZE:
+            {
+                if (len < 3)
+                {
+                    return respond_reject(
+                        Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                }
+                uint8_t space = bytes[2];
+                if (space != MemoryConfigDefs::SPACE_FIRMWARE)
+                {
+                    // Custom spaces cannot do free yet.
+                    return respond_reject(Defs::ERROR_INVALID_ARGS);
+                }
+                // Fall through.
+            }
             case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
             {
                 enter_bootloader();
@@ -461,14 +489,14 @@ private:
     {
         responseFlow_ =
             full_allocation_result(dg_service()->client_allocator());
-        return allocate_and_call(dg_service()->interface()->dispatcher(),
+        return allocate_and_call(dg_service()->iface()->dispatcher(),
                                  STATE(send_response_datagram));
     }
 
     Action send_response_datagram()
     {
         auto *b =
-            get_allocation_result(dg_service()->interface()->dispatcher());
+            get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(b_.reset(this));
         b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
                          message()->data()->src, EMPTY_PAYLOAD);

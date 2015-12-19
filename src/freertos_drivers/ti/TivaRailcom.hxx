@@ -254,28 +254,10 @@ protected:
 
     // Adds a sample for a preamble bit.
     void add_sample(uint8_t sample) {
-        if (totalHits_ >= 255) return;
-        ++totalHits_;
-        uint8_t mask = 1;
-        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i, mask<<=1) {
-            if (sample & mask) ++hitCount_[i];
-        }
-    }
-
-    void eval_samples() {
-        uint8_t mask = 1;
-        uint8_t result = 0;
-        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i, mask<<=1) {
-            if (hitCount_[i] > (totalHits_ >> 2)) {
-                result |= mask;
-            }
-            hitCount_[i] = 0;
-        }
-        totalHits_ = 0;
         if (feedbackQueue_.full()) return;
         feedbackQueue_.back().reset(feedbackKey_);
         feedbackQueue_.back().channel = HW::get_feedback_channel();
-        feedbackQueue_.back().add_ch1_data(result);
+        feedbackQueue_.back().add_ch1_data(sample);
         feedbackQueue_.increment_back();
         MAP_IntPendSet(HW::OS_INTERRUPT);
     }
@@ -288,13 +270,6 @@ protected:
     /** Stores pointers to packets we are filling right now, one for each
      * channel. */
     dcc::Feedback *returnedPackets_[HW::CHANNEL_COUNT];
-
-    // Counts the number of preamble bits for which a given channel was active. 
-    uint8_t hitCount_[HW::CHANNEL_COUNT];
-    // Counts the total number of preamble bits.
-    uint8_t totalHits_;
-    // 1 if we have set the uart pins to input.
-    uint8_t isInput_ = 0;
 };
 
 /// Railcom driver for TI Tiva-class microcontrollers using the TivaWare
@@ -310,6 +285,8 @@ public:
     }
 
 private:
+    bool inCutout_ = false;
+
     using RailcomDriverBase<HW>::returnedPackets_;
     // File node interface
     void enable() OVERRIDE
@@ -335,26 +312,15 @@ private:
     }
 
     // RailcomDriver interface
-    void preamble_bit(bool polarity) OVERRIDE {
-        if (!this->isInput_) {
-            HW::set_input();
-            this->isInput_ = 1;
-        } else if (polarity) {
-            HW::enable_measurement();
-            this->add_sample(HW::sample());
-            HW::disable_measurement();
-        }
+    void feedback_sample() OVERRIDE {
+        HW::enable_measurement();
+        this->add_sample(HW::sample());
+        HW::disable_measurement();
     }
 
     void start_cutout() OVERRIDE
     {
         HW::enable_measurement();
-        this->eval_samples();
-        if (this->isInput_)
-        {
-            this->isInput_ = 0;
-            HW::set_hw();
-        }
         const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {

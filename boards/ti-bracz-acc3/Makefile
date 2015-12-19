@@ -28,11 +28,12 @@ CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
 
-ifdef ADDRESS
-CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
-else
-$(error Must define address with ADDRESS=0x4c)
+ifndef ADDRESS
+ADDRESS=0x4a
 endif
+
+CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
+
 
 flash: $(EXECUTABLE).elf $(EXECUTABLE).lst
 	ti-flash.sh $<

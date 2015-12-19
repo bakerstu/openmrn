@@ -168,6 +168,15 @@ void application_entry(void)
                  " bx  r0\n");
 }
 
+void raw_erase_flash_page(const void *address)
+{
+    bootloader_led(LED_ACTIVE, 0);
+    bootloader_led(LED_WRITING, 1);
+    ROM_FlashErase((uint32_t)address);
+    bootloader_led(LED_WRITING, 0);
+    bootloader_led(LED_ACTIVE, 1);
+}
+
 void erase_flash_page(const void *address)
 {
     bootloader_led(LED_ACTIVE, 0);
@@ -184,6 +193,15 @@ void erase_flash_page(const void *address)
         bootdata[1] = reinterpret_cast<uint32_t>(&reset_handler);
         ROM_FlashProgram(bootdata, (uint32_t)address, sizeof(bootdata));
     }
+    bootloader_led(LED_WRITING, 0);
+    bootloader_led(LED_ACTIVE, 1);
+}
+
+void raw_write_flash(const void *address, const void *data, uint32_t size_bytes)
+{
+    bootloader_led(LED_ACTIVE, 0);
+    bootloader_led(LED_WRITING, 1);
+    ROM_FlashProgram((uint32_t*)data, (uint32_t)address, (size_bytes + 3) & ~3);
     bootloader_led(LED_WRITING, 0);
     bootloader_led(LED_ACTIVE, 1);
 }

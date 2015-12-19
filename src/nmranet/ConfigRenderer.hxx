@@ -35,71 +35,47 @@
 #ifndef _NMRANET_CONFIGRENDERER_HXX_
 #define _NMRANET_CONFIGRENDERER_HXX_
 
-#include <string>
 #include <climits>
+#include <string>
 
-#include "utils/StringPrintf.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "utils/OptionalArgs.hxx"
+#include "utils/StringPrintf.hxx"
 
 namespace nmranet
 {
 
 /// Configuration options for rendering CDI (atom) data elements.
-class AtomConfigOptions
+struct AtomConfigDefs
+{
+    DECLARE_OPTIONALARG(Name, name, const char *, 0, nullptr);
+    DECLARE_OPTIONALARG(Description, description, const char *, 1, nullptr);
+    using Base = OptionalArg<AtomConfigDefs, Name, Description>;
+};
+
+class AtomConfigOptions : public AtomConfigDefs::Base
 {
 public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(AtomConfigOptions, AtomConfigDefs::Base);
+
     /// Represent the value enclosed in the <name> tag of the data element.
-    struct Name
-    {
-        constexpr Name(const char *d)
-            : d_(d)
-        {
-        }
-        const char *d_;
-    };
+    DEFINE_OPTIONALARG(Name, name, const char *, 0);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
-    struct Description
-    {
-        constexpr Description(const char *d)
-            : d_(d)
-        {
-        }
-        const char *d_;
-    };
-
-    constexpr AtomConfigOptions()
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr AtomConfigOptions(const Name n, Args... args)
-        : name(n.d_)
-        , description(AtomConfigOptions(args...).description)
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr AtomConfigOptions(const Description d, Args... args)
-        : name(AtomConfigOptions(args...).name)
-        , description(d.d_)
-    {
-    }
+    DEFINE_OPTIONALARG(Description, description, const char *, 1);
 
     void render_cdi(std::string *r) const
     {
-        if (name)
+        if (name())
         {
-            *r += StringPrintf("<name>%s</name>\n", name);
+            *r += StringPrintf("<name>%s</name>\n", name());
         }
-        if (description)
+        if (description())
         {
-            *r += StringPrintf("<description>%s</description>\n", description);
+            *r +=
+                StringPrintf("<description>%s</description>\n", description());
         }
     }
-
-    const char *name = nullptr;
-    const char *description = nullptr;
 };
 
 /// Helper class for rendering an atom data element into the cdi.xml.
@@ -163,100 +139,44 @@ private:
 /// Configuration options for the CDI group element, as well as representing
 /// and distinguishing alternate uses of the BEGIN_GROUP/EXTEND_GROUP/END_GROUP
 /// syntax, such as for the toplevel CDI node and for representing segments..
-class GroupConfigOptions
+struct GroupConfigDefs : public AtomConfigDefs
+{
+    // This is needed for inheriting declarations.
+    using AtomConfigDefs::check_arguments_are_valid;
+    DECLARE_OPTIONALARG(Offset, offset, int, 2, INT_MAX);
+    DECLARE_OPTIONALARG(Segment, segment, int, 3, -1);
+    using Base =
+        OptionalArg<GroupConfigDefs, Name, Description, Segment, Offset>;
+};
+
+class GroupConfigOptions : public GroupConfigDefs::Base
 {
 public:
-    using Name = AtomConfigOptions::Name;
-    using Description = AtomConfigOptions::Description;
+    INHERIT_CONSTEXPR_CONSTRUCTOR(GroupConfigOptions, GroupConfigDefs::Base);
+
+    DEFINE_OPTIONALARG(Name, name, const char *, 0);
+    /// Represent the value enclosed in the <description> tag of the data
+    /// element.
+    DEFINE_OPTIONALARG(Description, description, const char *, 1);
+
     /// Represents the 'offset' attribute for groups and the 'origin' attribute
     /// for segments.
-    struct Offset
-    {
-        constexpr Offset(int d)
-            : d_(d)
-        {
-        }
-        int d_;
-    };
+    DEFINE_OPTIONALARG(Offset, offset, int, 2);
+
     /// Declares that the group is a segment (and thus may be used in the
     /// toplevel CDI.
-    struct Segment
-    {
-        /// @param d is the memory space number (between 0 and 255).
-        constexpr Segment(int d)
-            : d_(d)
-        {
-        }
-        int d_;
-    };
+    DEFINE_OPTIONALARG(Segment, segment, int, 3);
 
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
-    struct MainCdi
+    ///static constexpr Segment MainCdi() { return Segment(-2); }
+    /*struct MainCdi : public Segment
     {
         constexpr MainCdi()
+            : Segment(-2)
         {
         }
-    };
-
-    constexpr GroupConfigOptions()
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const Name n, Args... args)
-        : name(n.d_)
-        , description(GroupConfigOptions(args...).description)
-        , offset(GroupConfigOptions(args...).offset)
-        , segment(GroupConfigOptions(args...).segment)
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const Description d, Args... args)
-        : name(GroupConfigOptions(args...).name)
-        , description(d.d_)
-        , offset(GroupConfigOptions(args...).offset)
-        , segment(GroupConfigOptions(args...).segment)
-    {
-    }
-
-    /*
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const XXX d, Args... args)
-        : name(GroupConfigOptions(args...).name)
-        , description(GroupConfigOptions(args...).description)
-        , offset(GroupConfigOptions(args...).offset)
-        , segment(GroupConfigOptions(args...).segment)
-    {
-    */
-
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const Offset o, Args... args)
-        : name(GroupConfigOptions(args...).name)
-        , description(GroupConfigOptions(args...).description)
-        , offset(o.d_)
-        , segment(GroupConfigOptions(args...).segment)
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const Segment s, Args... args)
-        : name(GroupConfigOptions(args...).name)
-        , description(GroupConfigOptions(args...).description)
-        , offset(GroupConfigOptions(args...).offset)
-        , segment(s.d_)
-    {
-    }
-
-    template <typename... Args>
-    explicit constexpr GroupConfigOptions(const MainCdi cdi, Args... args)
-        : name(GroupConfigOptions(args...).name)
-        , description(GroupConfigOptions(args...).description)
-        , offset(GroupConfigOptions(args...).offset)
-        , segment(-2)
-    {
-    }
+        };*/
 
     ///
     /// @return true if this group is a toplevel CDI definition and shall only
@@ -265,7 +185,7 @@ public:
     ///
     constexpr bool is_cdi() const
     {
-        return segment == -2;
+        return segment() == -2;
     }
 
     ///
@@ -273,7 +193,7 @@ public:
     ///
     constexpr bool is_segment() const
     {
-        return segment >= 0;
+        return segment() >= 0;
     }
 
     ///
@@ -282,25 +202,21 @@ public:
     ///
     constexpr unsigned get_segment_offset() const
     {
-        return offset == INT_MAX ? 0 : offset;
+        return offset() == INT_MAX ? 0 : offset();
     }
 
     void render_cdi(std::string *r) const
     {
-        if (name)
+        if (name())
         {
-            *r += StringPrintf("<name>%s</name>\n", name);
+            *r += StringPrintf("<name>%s</name>\n", name());
         }
-        if (description)
+        if (description())
         {
-            *r += StringPrintf("<description>%s</description>\n", description);
+            *r +=
+                StringPrintf("<description>%s</description>\n", description());
         }
     }
-
-    const char *name = nullptr;
-    const char *description = nullptr;
-    int offset = INT_MAX;
-    int segment = -1;
 };
 
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
@@ -329,9 +245,9 @@ public:
                   "xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/"
                   "cdi/1/1/cdi.xsd\"";
             HASSERT(replication_ == 1);
-            HASSERT(opts.name == nullptr && opts.description == nullptr);
+            HASSERT(opts.name() == nullptr && opts.description() == nullptr);
         }
-        else if (opts.segment == -1)
+        else if (opts.segment() == -1)
         {
             // Regular group
             tag = "group";
@@ -346,7 +262,7 @@ public:
             // Segment inside CDI.
             tag = "segment";
             *s += tag;
-            *s += StringPrintf(" space='%d'", opts.segment);
+            *s += StringPrintf(" space='%d'", opts.segment());
             if (opts.get_segment_offset() != 0)
             {
                 *s += StringPrintf(" origin='%d'", opts.get_segment_offset());

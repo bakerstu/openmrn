@@ -45,6 +45,10 @@
 #include <signal.h>
 #endif
 
+#ifdef __WINNT__
+#include <winsock2.h>
+#endif
+
 void empty_signal_handler(int);
 
 /** Helper class that allows a select to be asynchronously woken up. */
@@ -69,7 +73,7 @@ public:
         thread_ = os_thread_self();
 #ifdef __FreeRTOS__
         Device::select_insert(&selectInfo_);
-#else
+#elif !defined(__WINNT__)
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
         HASSERT(!sigemptyset(&usrmask));
@@ -103,6 +107,7 @@ public:
             // We cannot destroy the thread ID in the local object.
             Device::SelectInfo copy(selectInfo_);
             Device::select_wakeup(&copy);
+#elif defined(__WINNT__)
 #else
             pthread_kill(thread_, WAKEUP_SIG);
 #endif
@@ -165,6 +170,12 @@ public:
             ret = -1;
             errno = EINTR;
         }
+#elif defined(__WINNT__)
+        struct timeval timeout;
+        timeout.tv_sec = deadline_nsec / 1000000000;
+        timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
+        int ret =
+            ::select(nfds, readfds, writefds, exceptfds, &timeout);
 #else
         struct timespec timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
@@ -181,7 +192,7 @@ public:
     }
 
 private:
-#ifndef __FreeRTOS__
+#if !defined(__FreeRTOS__) && !defined(__WINNT__)
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
 #endif
@@ -190,9 +201,9 @@ private:
     /** True during the duration of a select operation. */
     bool inSelect_;
     os_thread_t thread_;
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__)
     Device::SelectInfo selectInfo_;
-#else
+#elif !defined(__WINNT__)
     sigset_t origMask_;
 #endif
 };

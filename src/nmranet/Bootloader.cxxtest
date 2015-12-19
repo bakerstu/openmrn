@@ -1,7 +1,9 @@
 #include "utils/async_datagram_test_helper.hxx"
 #include "freertos/bootloader_hal.h"
 
-#include "Bootloader.hxx"
+#define BOOTLOADER_STREAM
+#define WRITE_BUFFER_SIZE 256
+#include "nmranet/Bootloader.hxx"
 #include "nmranet/BootloaderClient.hxx"
 #include <string>
 #include <functional>
@@ -410,10 +412,8 @@ protected:
         send_packet(":X1A428111N20A9;");
     }
 
-    void proper_startup()
+    void expect_startup_packets()
     {
-        expect_boot(true);
-        EXPECT_CALL(mock_, application_entry()).Times(0);
         expect_packet(":X17050428N;");
         expect_packet(":X16101428N;");
         expect_packet(":X15011428N;");
@@ -421,6 +421,13 @@ protected:
         expect_packet(":X10700428N;");
         expect_packet(":X10701428N05010101146C;");
         expect_packet(":X19100428N05010101146C;");
+    }
+
+    void proper_startup()
+    {
+        expect_boot(true);
+        EXPECT_CALL(mock_, application_entry()).Times(0);
+        expect_startup_packets();
         run_bootloader();
         wait();
         clear_expect(true);
@@ -436,12 +443,12 @@ protected:
         // expect datagram ok
         expect_packet(":X19A28428N0321;");
         // and expect response datagram
-        expect_packet(StringPrintf(":X1A321428N2030%sF0;", offset.c_str()))
+        expect_packet(StringPrintf(":X1A321428N2030%sEF;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
                 {
                     send_packet(":X19A28321N0428;");
                 }));
-        send_packet(StringPrintf(":X1A428321N2020%sF01A;", offset.c_str()));
+        send_packet(StringPrintf(":X1A428321N2020%sEF1A;", offset.c_str()));
         wait();
         clear_expect(true);
     }
@@ -545,6 +552,65 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
     proper_startup();
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, Reset)
+{
+    proper_startup();
+
+    wait();
+    EXPECT_CALL(mock_, bootloader_reboot());
+    expect_packet(":X19A28428N0111;");
+    send_packet(":X1A428111N20A9;");
+}
+
+TEST_F(BootloaderTest, Unfreeze)
+{
+    proper_startup();
+
+    wait();
+    EXPECT_CALL(mock_, bootloader_reboot());
+    expect_packet(":X19A28428N0111;");
+    // Unfreeze on the proper space ID is equivalent to reboot.
+    send_packet(":X1A428111N20A0EF;");
+}
+
+TEST_F(BootloaderTest, BadUnfreeze)
+{
+    proper_startup();
+
+    wait();
+    expect_packet(":X19A48428N01111010;");
+    // Unfreeze for a wrong space number causes error response.
+    send_packet(":X1A428111N20A0EE;");
+    wait();
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, FreezeWillReboot)
+{
+    proper_startup();
+
+    wait();
+    // Freeze on the proper space ID will start the bootloader again. It will
+    // not, however, call bootloader_reboot().
+    expect_startup_packets();
+    send_packet(":X1A428111N20A1EF;");
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, PIPReply)
+{
+    proper_startup();
+
+    expect_packet(":X19668428N0321F00010000000;");
+    send_packet(":X19828321N0428;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
     exit_bootloader();
 }
 
@@ -831,9 +897,10 @@ TEST_F(BootloaderClientTest, CreateDestroy)
 TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 {
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
+    ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
     print_all_packets();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     request_->data()->data = get_block(42, 3500);
@@ -845,13 +912,16 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 
 TEST_F(BootloaderClientTest, WriteSmallData)
 {
-    // print_all_packets();
+    //print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    expect_packet(":X19100428N05010101146C;");
+
+    request_->data()->dst.id = 0x05010101146C;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
-    request_->data()->request_reboot = 0;
+    // This test case also causes the bootloader to reboot inside once.
+    request_->data()->request_reboot = 1;
     string s = get_block(42, 349);
     request_->data()->data = s;
     add_send_expectations(s);
@@ -871,7 +941,7 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     expect_any_packet();
     startup();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
@@ -892,7 +962,7 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     expect_any_packet();
     startup();
     request_->data()->dst.alias = 0x428;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 3 * 1024;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 3500);
@@ -935,7 +1005,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     expect_any_packet();
     startup();
     request_->data()->dst.id = 0x05010101146C;
-    request_->data()->memory_space = 0xF0;
+    request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
     string s = get_block(42, 349);

@@ -1,0 +1,136 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file PIPClient.cxxtest
+ *
+ * Unit tests for PIP client.
+ *
+ * @author Balazs Racz
+ * @date 2 Nov 2015
+ */
+
+#include "nmranet/PIPClient.hxx"
+#include "nmranet/ProtocolIdentification.hxx"
+#include "nmranet/IfCanImpl.hxx"
+#include "utils/async_if_test_helper.hxx"
+
+namespace nmranet
+{
+namespace
+{
+
+class PIPClientTest : public AsyncNodeTest
+{
+protected:
+    PIPClientTest()
+    {
+    }
+
+    const uint64_t PIP_RESPONSE = 0x810203040506; // Top bit is always 1.
+    ProtocolIdentificationHandler pipHandler_{node_, PIP_RESPONSE};
+    PIPClient client_{ifCan_.get()};
+};
+
+TEST_F(PIPClientTest, StartupIdle)
+{
+    EXPECT_EQ(PIPClient::IDLE, client_.error_code());
+}
+
+TEST_F(PIPClientTest, RegularFetchById)
+{
+    NodeHandle dst(node_->node_id());
+    client_.request(dst, node_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::OPERATION_SUCCESS, client_.error_code());
+    EXPECT_EQ(StringPrintf("%012" PRIx64, PIP_RESPONSE),
+        StringPrintf("%012" PRIx64, client_.response()));
+}
+
+TEST_F(PIPClientTest, RegularFetchByAlias)
+{
+    NodeHandle dst(NodeAlias(0x22A));
+    client_.request(dst, node_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::OPERATION_SUCCESS, client_.error_code());
+    EXPECT_EQ(StringPrintf("%012" PRIx64, PIP_RESPONSE),
+        StringPrintf("%012" PRIx64, client_.response()));
+}
+
+TEST_F(PIPClientTest, Unknown)
+{
+    ScopedOverride ov1(
+        &ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
+    ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(800));
+    print_all_packets();
+    NodeHandle dst(NodeID(0x050101011400));
+    client_.request(dst, node_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::TIMEOUT, client_.error_code());
+}
+
+class TwoIfPIPClientTest : public AsyncNodeTest
+{
+protected:
+    TwoIfPIPClientTest()
+    {
+        AddAliasAllocator(SECOND_NODE_ID, &secondIf_);
+        secondIf_.add_addressed_message_support();
+        // Adds one alias buffer to the alias allocation flow.
+        auto* b = secondIf_.alias_allocator()->alloc();
+        secondIf_.alias_allocator()->send(b);
+    }
+
+    ~TwoIfPIPClientTest()
+    {
+        // This delay is needed for the second If to successfully finish the
+        // alias allocation flow.
+        usleep(300000);
+        wait();
+    }
+
+    const uint64_t PIP_RESPONSE = 0x810203040506; // Top bit is always 1.
+    ProtocolIdentificationHandler pipHandler_{node_, PIP_RESPONSE};
+
+    const uint64_t SECOND_NODE_ID = TEST_NODE_ID + 256;
+    IfCan secondIf_{&g_executor, &can_hub0, 10, 10, 5};
+    DefaultNode secondNode_{&secondIf_, SECOND_NODE_ID};
+    PIPClient client_{&secondIf_};
+};
+
+TEST_F(TwoIfPIPClientTest, RemoteIfById)
+{
+    //print_all_packets();
+    expect_any_packet();
+    NodeHandle dst(node_->node_id());
+    client_.request(dst, &secondNode_, get_notifiable());
+    wait_for_notification();
+    EXPECT_EQ(PIPClient::OPERATION_SUCCESS, client_.error_code());
+    EXPECT_EQ(StringPrintf("%012" PRIx64, PIP_RESPONSE),
+        StringPrintf("%012" PRIx64, client_.response()));
+}
+
+} // namespace
+} // namespace nmranet

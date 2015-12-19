@@ -92,9 +92,14 @@ struct DCCDecode
     static const auto TIMER = TIMER_A;
     static const auto CFG_CAP_TIME_UP =
         TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME_UP | TIMER_CFG_B_ONE_SHOT;
+    // needs to be B_PERIODIC_UP
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPA_EVENT;
     static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
+
+    static const auto SAMPLE_TIMER = TIMER_B;
+    static const auto SAMPLE_PERIOD_CLOCKS = 60000;
+    static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMB_TIMEOUT;
 
     static const auto OS_INTERRUPT = INT_WTIMER4B;
     typedef DCC_IN_Pin NRZ_Pin;
@@ -103,6 +108,10 @@ struct DCCDecode
     static const uint32_t PS_MAX = 0;
 
     static const int Q_SIZE = 32;
+
+    static inline void dcc_before_cutout_hook() {}
+    static inline void dcc_packet_finished_hook() {}
+    static inline void after_feedback_hook() {}
 };
 
 #define HAVE_RAILCOM
@@ -146,6 +155,9 @@ struct RailcomHw
 
     static void enable_measurement() {}
     static void disable_measurement() {}
+
+    static bool need_ch1_cutout() { return true; }
+    static uint8_t get_feedback_channel() { return 0xff; }
 
     /// @returns a bitmask telling which pins are active. Bit 0 will be set if
     /// channel 0 is active (drawing current).

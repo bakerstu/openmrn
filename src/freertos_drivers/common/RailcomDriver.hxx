@@ -42,13 +42,11 @@
 /// drivers need to adjust the UART configuration in accordance with it.
 class RailcomDriver {
 public:
-  /** Informs the driver that we are in a preamble bit. The driver may use this
-   *  information to sample the current sensor. This will be called for each
-   *  preamble bit twice, shortly after both transitions.
-   *
-   *  @param polarity is true, if the DCC signal is positive, false if the DCC
-   *  signal is negative. */
-  virtual void preamble_bit(bool polarity) = 0;
+  /** Call to the driver for sampling the current sensors. This call is
+   * performed repeatedly, in a configurable interval, on the next positive
+   * edge.
+   */
+  virtual void feedback_sample() = 0;
   /** Instructs the driver that the railcom cutout is starting now. The driver
    *  will use this information to enable the UART receiver. */
   virtual void start_cutout() = 0;
@@ -72,7 +70,7 @@ public:
 /** Empty implementation of the railcom driver for boards that have no railcom
  *  hardware. */
 class NoRailcomDriver : public RailcomDriver {
-  void preamble_bit(bool) OVERRIDE {}
+  void feedback_sample() OVERRIDE {}
   void start_cutout() OVERRIDE {}
   void middle_cutout() OVERRIDE {}
   void end_cutout() OVERRIDE {}

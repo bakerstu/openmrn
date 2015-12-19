@@ -45,6 +45,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/JSTcpHub.hxx"
 #include "utils/JSTcpClient.hxx"
+#include "utils/FileUtils.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -64,7 +65,7 @@ const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 const uint64_t node_id = 0x0501010118F3ULL;
 nmranet::SimpleCanStack stack(node_id);
-GcPacketPrinter packet_printer(stack.can_hub());
+GcPacketPrinter packet_printer(stack.can_hub(), false);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 
@@ -130,10 +131,7 @@ void parse_args(int argc, char *argv[])
         fprintf(stderr, "cdi_file is not specified\n");
         usage(argv[0]);
     }
-    using emscripten::val;
-    EM_ASM(var fs = require('fs'); Module.fs = fs;);
-    val fs = val::module_property("fs");
-    string contents = fs.call<val>("readFileSync", string(cdi_file), string("utf8")).as<string>();
+    string contents = read_file_to_string(cdi_file);
     if (contents.size() + 1 <= sizeof(nmranet::CDI_DATA)) {
         memcpy((char*)nmranet::CDI_DATA, contents.c_str(), contents.size() + 1);
     } else {

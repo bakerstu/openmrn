@@ -82,21 +82,21 @@ private:
     {
         HASSERT(message()->data()->node);
         return allocate_and_call(
-            node()->interface()->global_message_write_flow(),
+            node()->iface()->global_message_write_flow(),
             STATE(send_initialized));
     }
 
     Action send_initialized()
     {
         auto *b = get_allocation_result(
-            node()->interface()->global_message_write_flow());
+            node()->iface()->global_message_write_flow());
         done_.reset(this);
         NodeID id = node()->node_id();
         b->data()->reset(
             Defs::MTI_INITIALIZATION_COMPLETE, id, node_id_to_buffer(id));
         b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(&done_);
-        node()->interface()->global_message_write_flow()->send(
+        node()->iface()->global_message_write_flow()->send(
             b, b->data()->priority());
         return wait_and_call(STATE(initialization_complete));
     }
@@ -115,12 +115,12 @@ private:
         }
         // Get the dispatch flow.
         return allocate_and_call(
-            node()->interface()->dispatcher(), STATE(initiate_local_identify));
+            node()->iface()->dispatcher(), STATE(initiate_local_identify));
     }
 
     Action initiate_local_identify()
     {
-        auto *b = get_allocation_result(node()->interface()->dispatcher());
+        auto *b = get_allocation_result(node()->iface()->dispatcher());
         b->set_done(done_.reset(this));
         NMRAnetMessage *m = b->data();
         m->mti = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
@@ -129,7 +129,7 @@ private:
         m->dstNode = node();
         m->src.alias = 0;
         m->src.id = node()->node_id();
-        node()->interface()->dispatcher()->send(b, b->data()->priority());
+        node()->iface()->dispatcher()->send(b, b->data()->priority());
         return wait_and_call(STATE(wait_for_local_identify));
     }
 

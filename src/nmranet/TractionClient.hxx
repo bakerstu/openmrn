@@ -50,7 +50,7 @@ namespace nmranet
  *   SyncTimeout t(g_executor.active_timers());
  *   t.start(MSEC_TO_NSEC(300));
  *   response_handler.wait_for_response(b->data()->dst, b->data()->payload[0], &t);
- *   interface->addressed_message_write_flow()->send(b);
+ *   iface->addressed_message_write_flow()->send(b);
  *   t.wait_for_notification();
  *   response_handler.wait_timeout();  // Stops listening.
  *   if (response_handler.response())
@@ -67,10 +67,10 @@ namespace nmranet
  *
  *   Action send_request()
  *   {
- *      auto* b = get_allocation_result(interface->addressed_message_write_flow());
+ *      auto* b = get_allocation_result(iface->addressed_message_write_flow());
  *      // fill b
  *      responseHandler_.wait_for_response(b->data()->dst, b->data()->payload[0], &t_);
- *      interface->addressed_message_write_flow()->send(b);
+ *      iface->addressed_message_write_flow()->send(b);
  *      return sleep_and_call(&t_, MSEC_TO_NSEC(), STATE(parse_response));
  *   }
  *
@@ -95,9 +95,9 @@ namespace nmranet
 class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
-    TractionResponseHandler(nmranet::If *interface,
+    TractionResponseHandler(nmranet::If *iface,
                             nmranet::Node *local_node)
-        : IncomingMessageStateFlow(interface)
+        : IncomingMessageStateFlow(iface)
         , expectedDst_(local_node)
         , trigger_(nullptr)
         , response_(nullptr)
@@ -139,14 +139,14 @@ public:
 private:
     void start_listening()
     {
-        interface()->dispatcher()->register_handler(
+        iface()->dispatcher()->register_handler(
             this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
             nmranet::Defs::MTI_EXACT);
     }
 
     void stop_listening()
     {
-        interface()->dispatcher()->unregister_handler(
+        iface()->dispatcher()->unregister_handler(
             this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
             nmranet::Defs::MTI_EXACT);
     }

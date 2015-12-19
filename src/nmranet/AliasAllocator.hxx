@@ -185,10 +185,9 @@ private:
 class AddAliasAllocator
 {
 public:
-    AddAliasAllocator(NodeID if_id, IfCan *interface)
+    AddAliasAllocator(NodeID if_id, IfCan *iface)
     {
-        interface->set_alias_allocator(
-            new AliasAllocator(if_id, interface));
+        iface->set_alias_allocator(new AliasAllocator(if_id, iface));
     }
 };
 

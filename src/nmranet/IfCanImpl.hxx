@@ -202,7 +202,11 @@ private:
         {
             f->data[0] = dstAlias_ >> 8;
             f->data[1] = dstAlias_ & 0xff;
-            if (data.size())
+            if (data.empty())
+            {
+                f->can_dlc = 2;
+            }
+            else
             {
                 if (dataOffset_)
                 {
@@ -289,6 +293,21 @@ protected:
                           " to an alias on the bus. Dropping packet.",
                     nmsg()->dst.id);
                 return call_immediately(STATE(send_finished));
+            }
+        }
+        else if (dst_.alias)
+        {
+            // Check if this is a local node being called by alias.
+            NodeID id = if_can()->local_aliases()->lookup(dst_.alias);
+            if (id)
+            {
+                Node *dst_node = if_can()->lookup_local_node(id);
+                if (dst_node)
+                {
+                    dst_.id = id;
+                    nmsg()->dstNode = dst_node;
+                    return call_immediately(STATE(send_to_local_node));
+                }
             }
         }
         if (dst_.alias && dstAlias_ && dst_.alias != dstAlias_)

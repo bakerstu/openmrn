@@ -92,9 +92,9 @@ public:
         return trainService_;
     }
 
-    If *interface()
+    If *iface()
     {
-        return traction_service()->interface();
+        return traction_service()->iface();
     }
 
     Node *node()
@@ -108,17 +108,17 @@ public:
     {
     public:
         ProxyRequestFlow(Impl *impl)
-            : IncomingMessageStateFlow(impl->interface())
+            : IncomingMessageStateFlow(impl->iface())
             , impl_(impl)
             , response_(nullptr)
         {
-            interface()->dispatcher()->register_handler(
+            iface()->dispatcher()->register_handler(
                 this, Defs::MTI_TRACTION_PROXY_COMMAND, 0xffff);
         }
 
         ~ProxyRequestFlow()
         {
-            interface()->dispatcher()->unregister_handler(
+            iface()->dispatcher()->unregister_handler(
                 this, Defs::MTI_TRACTION_PROXY_COMMAND, 0xffff);
         }
 
@@ -142,7 +142,7 @@ public:
             else
             {
                 return allocate_and_call(
-                    impl_->interface()->addressed_message_write_flow(),
+                    impl_->iface()->addressed_message_write_flow(),
                     STATE(handle_cmd));
             }
         }
@@ -152,7 +152,7 @@ public:
             if (!response_)
             {
                 response_ = get_allocation_result(
-                    impl_->interface()->addressed_message_write_flow());
+                    impl_->iface()->addressed_message_write_flow());
             }
             // No command byte?
             if (size() < 1)
@@ -207,7 +207,7 @@ public:
                     response_->data()->reset(Defs::MTI_TRACTION_PROXY_REPLY,
                                              nmsg()->dstNode->node_id(),
                                              nmsg()->src, p);
-                    impl_->interface()->addressed_message_write_flow()->send(
+                    impl_->iface()->addressed_message_write_flow()->send(
                         response_);
                     response_ = nullptr;
                     return release_and_exit();
@@ -257,7 +257,7 @@ public:
             response_->data()->reset(Defs::MTI_TRACTION_PROXY_REPLY,
                                      nmsg()->dstNode->node_id(), nmsg()->src,
                                      b);
-            impl_->interface()->addressed_message_write_flow()->send(response_);
+            impl_->iface()->addressed_message_write_flow()->send(response_);
             response_ = nullptr;
             return release_and_exit();
         }
@@ -282,7 +282,7 @@ public:
                 Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
                 nmsg()->dstNode->node_id(), nmsg()->src,
                 error_to_buffer(Defs::ERROR_PERMANENT, nmsg()->mti));
-            impl_->interface()->addressed_message_write_flow()->send(response_);
+            impl_->iface()->addressed_message_write_flow()->send(response_);
             response_ = nullptr;
             return release_and_exit();
         }
@@ -301,7 +301,7 @@ public:
 
 TractionProxyService::TractionProxyService(TrainService *train_service,
                                            Node *proxy_node)
-    : Service(train_service->interface()->executor())
+    : Service(train_service->iface()->executor())
 {
     impl_ = new Impl(train_service, proxy_node);
 }

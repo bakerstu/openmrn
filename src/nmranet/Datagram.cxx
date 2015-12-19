@@ -37,17 +37,17 @@
 namespace nmranet
 {
 
-DatagramService::DatagramService(If* interface,
+DatagramService::DatagramService(If* iface,
                                  size_t num_registry_entries)
-    : Service(interface->executor()), interface_(interface), dispatcher_(interface_, num_registry_entries)
+    : Service(iface->executor()), iface_(iface), dispatcher_(iface_, num_registry_entries)
 {
-    interface_->dispatcher()->register_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
+    iface_->dispatcher()->register_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
                                               );
 }
 
 DatagramService::~DatagramService()
 {
-    interface_->dispatcher()->unregister_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
+    iface_->dispatcher()->unregister_handler(&dispatcher_, Defs::MTI_DATAGRAM, 0xffff
                                                 );
 }
 
@@ -86,7 +86,7 @@ DatagramService::DatagramDispatcher::incoming_datagram_allocated()
             " alias %x has no payload.",
             d->src.id, d->src.alias);
         resultCode_ = DatagramClient::PERMANENT_ERROR;
-        return allocate_and_call(interface()->addressed_message_write_flow(),
+        return allocate_and_call(iface()->addressed_message_write_flow(),
                                  STATE(respond_rejection));
     }
     datagram_id = *reinterpret_cast<const uint8_t*>(d->payload.data());
@@ -99,7 +99,7 @@ DatagramService::DatagramDispatcher::incoming_datagram_allocated()
         LOG(VERBOSE, "No datagram handler found for node %p id %x", d->dst,
             datagram_id);
         resultCode_ = DatagramClient::PERMANENT_ERROR;
-        return allocate_and_call(interface()->addressed_message_write_flow(),
+        return allocate_and_call(iface()->addressed_message_write_flow(),
                                  STATE(respond_rejection));
     }
 
@@ -111,12 +111,12 @@ DatagramService::DatagramDispatcher::incoming_datagram_allocated()
 StateFlowBase::Action
 DatagramService::DatagramDispatcher::respond_rejection()
 {
-    auto* f = get_allocation_result(interface()->addressed_message_write_flow());
+    auto* f = get_allocation_result(iface()->addressed_message_write_flow());
 
     f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, d_->data()->dst->node_id(),
                      d_->data()->src, error_to_buffer(resultCode_));
     
-    interface()->addressed_message_write_flow()->send(f);
+    iface()->addressed_message_write_flow()->send(f);
     
     d_->unref();
     d_ = nullptr;

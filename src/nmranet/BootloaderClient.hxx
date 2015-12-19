@@ -37,8 +37,10 @@
 
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/StreamDefs.hxx"
+#include "nmranet/PIPClient.hxx"
 #include "nmranet/CanDefs.hxx"
 #include "nmranet/MemoryConfig.hxx"
+#include "utils/Ewma.hxx"
 
 namespace nmranet
 {
@@ -48,7 +50,7 @@ namespace nmranet
 struct BootloaderResponse
 {
     // Response error code. Zero if request successful.
-    uint16_t error_code;
+    uint16_t error_code{0};
     // Human-readable error string.
     string error_details;
 };
@@ -60,16 +62,19 @@ struct BootloaderRequest
     /// Node to send the bootload request to.
     NodeHandle dst;
     /// Memory space ID to write into.
-    uint8_t memory_space;
-    // Nonzero: request the target to reboot into bootloader mode.
-    uint8_t request_reboot;
+    uint8_t memory_space{MemoryConfigDefs::SPACE_FIRMWARE};
+    // Nonzero: request the target to reboot into bootloader mode before
+    // flashing.
+    uint8_t request_reboot{1};
+    // Nonzero: request the target to reboot after flashing.
+    uint8_t request_reboot_after{1};
     /// Offset at which to start writing.
-    uint32_t offset;
+    uint32_t offset{0};
     /// Payload to write.
     string data;
     /// This structure will be filled with the returning error code, or zero if
     /// the bootloading was successful.
-    BootloaderResponse *response;
+    BootloaderResponse *response{nullptr};
 };
 
 extern int g_bootloader_timeout_sec;
@@ -91,7 +96,7 @@ class BootloaderClient : public StateFlow<Buffer<BootloaderRequest>, QList<1>>
 public:
     BootloaderClient(
         Node *node, DatagramService *if_datagram_service, IfCan *if_can)
-        : StateFlow<Buffer<BootloaderRequest>, QList<1>>(node->interface())
+        : StateFlow<Buffer<BootloaderRequest>, QList<1>>(node->iface())
         , node_(node)
         , datagramService_(if_datagram_service)
         , ifCan_(if_can)
@@ -141,13 +146,14 @@ private:
             full_allocation_result(datagramService_->client_allocator());
         if (!message()->data()->request_reboot)
         {
-            return call_immediately(STATE(send_write_dg));
+            return call_immediately(STATE(send_pip_request));
         }
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
-        payload.push_back(MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER);
+        payload.push_back(MemoryConfigDefs::COMMAND_FREEZE);
+        payload.push_back(message()->data()->memory_space);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
@@ -162,10 +168,33 @@ private:
     {
         uint32_t dg_result = dgClient_->result();
         LOG(INFO, "Reboot command result: %04x", dg_result);
-        return call_immediately(STATE(send_write_dg));
+        return call_immediately(STATE(send_pip_request));
     }
 
-    Action send_write_dg()
+    Action send_pip_request()
+    {
+        pipClient_.request(message()->data()->dst, node_, this);
+        return wait_and_call(STATE(pip_response));
+    }
+
+    Action pip_response()
+    {
+        if (pipClient_.error_code() != PIPClient::OPERATION_SUCCESS) {
+            LOG(INFO,
+                "PIP request failed. Error code: %" PRIx32 ". Using streams.",
+                pipClient_.error_code());
+            return call_immediately(STATE(bootload_using_stream));
+        }
+        if (pipClient_.response() & Defs::STREAM) {
+            LOG(INFO, "Using streams for bootloading.");
+            return call_immediately(STATE(bootload_using_stream));
+        } else {
+            LOG(INFO, "Using datagrams for bootloading.");
+            return call_immediately(STATE(bootload_using_datagrams));
+        }
+    }
+
+    Action bootload_using_stream()
     {
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
@@ -191,7 +220,7 @@ private:
     }
 
     /// Datagram handler that listens to the incoming memoryconfig datagram for
-    /// the write response message.
+    /// the write stream response message.
     class WriteResponseHandler : public DefaultDatagramHandler
     {
     public:
@@ -206,7 +235,7 @@ private:
             IncomingDatagram *datagram = message()->data();
 
             if (datagram->dst != parent_->node() ||
-                !parent_->node()->interface()->matching_node(
+                !parent_->node()->iface()->matching_node(
                     parent_->dst(), datagram->src) ||
                 datagram->payload.size() < 6 ||
                 datagram->payload[0] != DatagramDefs::CONFIGURATION ||
@@ -355,21 +384,21 @@ private:
     Action initiate_stream()
     {
         return allocate_and_call(
-            node_->interface()->addressed_message_write_flow(),
+            node_->iface()->addressed_message_write_flow(),
             STATE(send_init_stream));
     }
 
     Action send_init_stream()
     {
         auto *b = get_allocation_result(
-            node_->interface()->addressed_message_write_flow());
+            node_->iface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
             message()->data()->dst,
             StreamDefs::create_initiate_request(
                              StreamDefs::MAX_PAYLOAD, false, localStreamId_));
-        node_->interface()->addressed_message_write_flow()->send(b);
+        node_->iface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
-        node_->interface()->dispatcher()->register_handler(
+        node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
         return sleep_and_call(&timer_, SEC_TO_NSEC(g_bootloader_timeout_sec),
@@ -379,7 +408,7 @@ private:
     void stream_initiate_replied(Buffer<NMRAnetMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
-            !node_->interface()->matching_node(dst(), message->data()->src))
+            !node_->iface()->matching_node(dst(), message->data()->src))
         {
             // Not for me.
             return message->unref();
@@ -406,7 +435,7 @@ private:
     Action received_init_stream()
     {
         sleeping_ = false;
-        node_->interface()->dispatcher()->unregister_handler(
+        node_->iface()->dispatcher()->unregister_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
         if (!(streamFlags_ & StreamDefs::FLAG_ACCEPT))
@@ -435,7 +464,7 @@ private:
         speed_ = 0;
         lastMeasurementOffset_ = 0;
         lastMeasurementTimeNsec_ = os_get_time_monotonic();
-        node_->interface()->dispatcher()->register_handler(
+        node_->iface()->dispatcher()->register_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return call_immediately(STATE(send_stream_data));
     }
@@ -502,7 +531,7 @@ private:
     void stream_proceed_received(Buffer<NMRAnetMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
-            !node_->interface()->matching_node(dst(), message->data()->src))
+            !node_->iface()->matching_node(dst(), message->data()->src))
         {
             // Not for me.
             return message->unref();
@@ -560,21 +589,21 @@ private:
 
     Action close_stream()
     {
-        node_->interface()->dispatcher()->unregister_handler(
+        node_->iface()->dispatcher()->unregister_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return allocate_and_call(
-            node_->interface()->addressed_message_write_flow(),
+            node_->iface()->addressed_message_write_flow(),
             STATE(send_close_stream));
     }
 
     Action send_close_stream()
     {
         auto *b = get_allocation_result(
-            node_->interface()->addressed_message_write_flow());
+            node_->iface()->addressed_message_write_flow());
         b->data()->reset(Defs::MTI_STREAM_COMPLETE, node_->node_id(),
             message()->data()->dst,
             StreamDefs::create_close_request(localStreamId_, remoteStreamId_));
-        node_->interface()->addressed_message_write_flow()->send(b);
+        node_->iface()->addressed_message_write_flow()->send(b);
         // wait some time before sending the reset command.
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(200), STATE(send_reboot_request));
@@ -582,19 +611,89 @@ private:
 
     Action send_reboot_request()
     {
-        return allocate_and_call(
-            STATE(reboot_dg_client), datagramService_->client_allocator());
+        if (message()->data()->request_reboot_after) {
+            return allocate_and_call(
+                STATE(reboot_dg_client), datagramService_->client_allocator());
+        } else {
+            return return_error(0, "Remote node left in bootloader.");
+        }
+    }
+
+    Action bootload_using_datagrams()
+    {
+        // dgClient_ is active currently.
+        bufferOffset_ = 0;
+        return call_immediately(STATE(next_dg_write_datagram));
+    }
+
+    Action next_dg_write_datagram()
+    {
+        Buffer<NMRAnetMessage> *b;
+        mainBufferPool->alloc(&b);
+        DatagramPayload payload = MemoryConfigDefs::write_datagram(message()->data()->memory_space, message()->data()->offset + bufferOffset_);
+        unsigned len = message()->data()->data.size() - bufferOffset_;
+        if (len > 64) len = 64;
+        payload.append(&message()->data()->data[bufferOffset_], len);
+        b->set_done(n_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
+            message()->data()->dst, payload);
+        dgClient_->write_datagram(b);
+
+        responseDatagram_ = nullptr;
+        sleeping_ = false;
+        /// @TODO (balazs.racz) we have to expect write response datagrams too.
+        return wait_and_call(STATE(dg_write_request_sent));
+    }
+
+    Action dg_write_request_sent()
+    {
+        uint32_t dg_result =
+            dgClient_->result() & DatagramClient::RESPONSE_CODE_MASK;
+        if (dg_result != DatagramClient::OPERATION_SUCCESS) {
+            datagramService_->client_allocator()->typed_insert(dgClient_);
+            return return_error(dg_result, "Write rejected.");
+        }
+
+        if (dgClient_->result() & DatagramClient::OK_REPLY_PENDING) {
+            DIE("Write datagram results with reply pending not supported for "
+                "bootloader yet.");
+        }
+
+        unsigned len = message()->data()->data.size() - bufferOffset_;
+        if (len > 64) len = 64;
+        bufferOffset_ += len;
+
+        if ((bufferOffset_ & ~0xFF) != ((bufferOffset_ - len) & ~0xFF)) {
+            speedAvg_.add_absolute(bufferOffset_);
+            LOG(INFO, "write offset: %" PRIdPTR "; speed=%.0f bytes/sec",
+                bufferOffset_, speedAvg_.avg());
+        }
+
+        if (bufferOffset_ < message()->data()->data.size()) {
+            return call_immediately(STATE(next_dg_write_datagram));
+        }
+        if (message()->data()->request_reboot_after) {
+            return call_immediately(STATE(reboot_with_dg_client));
+        } else {
+            return return_error(0, "Remote node left in bootloader.");
+        }
     }
 
     Action reboot_dg_client()
     {
         dgClient_ =
             full_allocation_result(datagramService_->client_allocator());
+        return reboot_with_dg_client();
+    }
+
+    Action reboot_with_dg_client()
+    {
         Buffer<NMRAnetMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
-        payload.push_back(MemoryConfigDefs::COMMAND_RESET);
+        payload.push_back(MemoryConfigDefs::COMMAND_UNFREEZE);
+        payload.push_back(message()->data()->memory_space);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
             message()->data()->dst, payload);
         b->set_done(n_.reset(this));
@@ -629,6 +728,7 @@ private:
     // The next byte we need to send from the input data.
     size_t bufferOffset_;
 
+    Ewma speedAvg_;
     // The Average speed (ewma) in bytes/second.
     float speed_;
     // The offset at which the last speed measurement took place.
@@ -650,6 +750,7 @@ private:
     // sleeping yet.
     bool sleeping_ = false;
     BarrierNotifiable n_;
+    PIPClient pipClient_{ifCan_};
 };
 
 } // namespace nmranet

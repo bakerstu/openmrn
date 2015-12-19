@@ -119,7 +119,9 @@ using std::pair;
 
 /** Returns the number of elements in a statically defined array (of static
  *  size) */
+#ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof(a) / sizeof(a[0]))
+#endif
 
 /// Adds a constructor to the current class that proxies every argument to the
 /// base constructor.

@@ -168,6 +168,16 @@ extern void get_flash_page_info(
  */
 extern void erase_flash_page(const void *address);
 
+/** Erases the flash page at a specific address. Blocks the caller until the
+ * flash erase is successful. (Microcontrollers often cannot execute code while
+ * the flash is being written or erased, so a polling mechanism would not help
+ * here too much.) Does NOT ensure that the reset vector is intact.
+ *
+ * @param address is the start address of a valid page, as returned by
+ * get_flash_page_info.
+ */
+extern void raw_erase_flash_page(const void *address);
+
 /** Writes data to the flash.
  *
  * @param address is the location to write data to. Aligned to 4 bytes.
@@ -176,6 +186,18 @@ extern void erase_flash_page(const void *address);
  * multiple of 4.
  */
 extern void write_flash(
+    const void *address, const void *data, uint32_t size_bytes);
+
+/** Writes data to the flash.
+ *
+ * Does NOT ensure that the reset vector is intact.
+ *
+ * @param address is the location to write data to. Aligned to 4 bytes.
+ * @param data is the buffer to write data from.
+ * @param size_bytes is the total number of bytes to write. Has to be a
+ * multiple of 4.
+ */
+extern void raw_write_flash(
     const void *address, const void *data, uint32_t size_bytes);
 
 /** Computes checksum over a block of data.

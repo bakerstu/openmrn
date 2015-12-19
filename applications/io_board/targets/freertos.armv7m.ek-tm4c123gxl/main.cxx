@@ -61,7 +61,7 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const nmranet::NodeID NODE_ID = 0x050101011412ULL;
+extern const nmranet::NodeID NODE_ID = 0x050101011804ULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
@@ -110,8 +110,8 @@ constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
 // configuration structure comes from the CDI definition object, segment 'seg',
 // in which there is a repeated group 'consumers'. The GPIO pins get assigned
 // to the repetitions in the group in order.
-nmranet::MultiConfiguredConsumer consumers(kOutputGpio, ARRAYSIZE(kOutputGpio),
-                                           cfg.seg().consumers());
+nmranet::MultiConfiguredConsumer consumers(
+    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
 
 // Similar syntax for the producers.
 nmranet::ConfiguredProducer producer_sw1(

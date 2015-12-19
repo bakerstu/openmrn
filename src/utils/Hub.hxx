@@ -170,16 +170,27 @@ typedef GenericHubFlow<CanHubData> CanHubFlow;
 class DisplayPort : public HubPort
 {
 public:
-    DisplayPort(Service* service) : HubPort(service)
+    DisplayPort(Service *service, bool timestamped)
+        : HubPort(service)
+        , timestamped_(timestamped)
     {
     }
 
     virtual Action entry()
     {
         string s(message()->data()->data(), message()->data()->size());
-        printf("%s", s.c_str());
+        if (timestamped_) {
+            long long ts = os_get_time_monotonic();
+            printf("%lld.%06lld: %s", ts / 1000000000, (ts / 1000) % 1000000,
+                   s.c_str());
+        } else {
+            printf("%s", s.c_str());
+        }
         return release_and_exit();
     }
+
+private:
+    bool timestamped_;
 };
 
 #endif // _UTILS_HUB_HXX_

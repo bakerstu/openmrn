@@ -9,10 +9,10 @@ SUBDIRS = linux.x86 \
           mach.x86 mach.x86_64 \
           bare.armv7m \
           js.emscripten \
+          mingw.x86 \
 
 
           #test
           #nuttx.armv7m \
-          #mingw.x86
 
 include $(OPENMRNPATH)/etc/recurse.mk

@@ -141,7 +141,7 @@ class VerifyNodeIdHandler : public IncomingMessageStateFlow
 public:
     VerifyNodeIdHandler(If *service) : IncomingMessageStateFlow(service)
     {
-        interface()->dispatcher()->register_handler(
+        iface()->dispatcher()->register_handler(
             this, Defs::MTI_VERIFY_NODE_ID_GLOBAL &
                       Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
@@ -150,7 +150,7 @@ public:
 
     ~VerifyNodeIdHandler()
     {
-        interface()->dispatcher()->unregister_handler(
+        iface()->dispatcher()->unregister_handler(
             this, Defs::MTI_VERIFY_NODE_ID_GLOBAL &
                       Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
             0xffff & ~(Defs::MTI_VERIFY_NODE_ID_GLOBAL ^
@@ -170,14 +170,14 @@ public:
         {
             // Global message with a node id included
             NodeID id = buffer_to_node_id(m->payload);
-            srcNode_ = interface()->lookup_local_node(id);
+            srcNode_ = iface()->lookup_local_node(id);
             if (!srcNode_)
             {
                 // Someone looking for a node that's not on this interface.
                 return release_and_exit();
             }
 #ifndef SIMPLE_NODE_ONLY
-            it_ = interface()->localNodes_.end();
+            it_ = iface()->localNodes_.end();
 #endif
         }
         else
@@ -185,19 +185,19 @@ public:
 // Global message. Everyone should respond.
 #ifdef SIMPLE_NODE_ONLY
             // We assume there can be only one local node.
-            If::VNodeMap::Iterator it = interface()->localNodes_.begin();
-            if (it == interface()->localNodes_.end())
+            If::VNodeMap::Iterator it = iface()->localNodes_.begin();
+            if (it == iface()->localNodes_.end())
             {
                 // No local nodes.
                 return release_and_exit();
             }
             srcNode_ = it->second;
             ++it;
-            HASSERT(it == interface()->localNodes_.end());
+            HASSERT(it == iface()->localNodes_.end());
 #else
             // We need to do an iteration over all local nodes.
-            it_ = interface()->localNodes_.begin();
-            if (it_ == interface()->localNodes_.end())
+            it_ = iface()->localNodes_.begin();
+            if (it_ == iface()->localNodes_.end())
             {
                 // No local nodes.
                 return release_and_exit();
@@ -209,7 +209,7 @@ public:
         if (srcNode_)
         {
             release();
-            return allocate_and_call(interface()->global_message_write_flow(),
+            return allocate_and_call(iface()->global_message_write_flow(),
                                      STATE(send_response));
         }
         LOG(WARNING, "node pointer not found.");
@@ -220,35 +220,35 @@ public:
     Action send_response()
     {
         auto *b =
-            get_allocation_result(interface()->global_message_write_flow());
+            get_allocation_result(iface()->global_message_write_flow());
         NMRAnetMessage *m = b->data();
         NodeID id = srcNode_->node_id();
         m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
-        interface()->global_message_write_flow()->send(b);
+        iface()->global_message_write_flow()->send(b);
         return exit();
     }
 #else
     Action send_response()
     {
         auto *b =
-            get_allocation_result(interface()->global_message_write_flow());
+            get_allocation_result(iface()->global_message_write_flow());
         NMRAnetMessage *m = b->data();
         // This is called on the main executor of the interface, this we are
         // allowed to access the local nodes cache.
         NodeID id = srcNode_->node_id();
         LOG(VERBOSE, "Sending verified reply from node %012" PRIx64, id);
         m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
-        interface()->global_message_write_flow()->send(b);
+        iface()->global_message_write_flow()->send(b);
 
         /** Continues the iteration over the nodes.
          *
          * @TODO(balazs.racz): we should probably wait for the outgoing message
          * to be sent. */
-        if (it_ != interface()->localNodes_.end())
+        if (it_ != iface()->localNodes_.end())
         {
             srcNode_ = it_->second;
             ++it_;
-            return allocate_and_call(interface()->global_message_write_flow(),
+            return allocate_and_call(iface()->global_message_write_flow(),
                                      STATE(send_response));
         }
         else

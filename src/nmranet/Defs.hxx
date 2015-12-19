@@ -188,6 +188,9 @@ struct Defs
         TRACTION_PROXY          = 0x000100000000,
         TRACTION_SIMPLE_TRAIN_INFO
                                 = 0x000080000000,
+        FUNCTION_CONFIGURATION  = 0x000040000000,
+        FIRMWARE_UPGRADE        = 0x000020000000,
+        FIRMWARE_UPGRADE_ACTIVE = 0x000010000000,
         RESERVED_MASK           = 0x00007FFFFFFF
     };
 
@@ -233,15 +236,6 @@ private:
     Defs();
 };
 
-/** Allows ofsetting the producer/consumer identified MTI with the event state
- * to set the low bits. */
-inline Defs::MTI operator+(const Defs::MTI &value, EventState state)
-{
-    int code = static_cast<int>(value);
-    code += static_cast<int>(state);
-    return static_cast<Defs::MTI>(code);
-}
-
 /** Returns the inverted event state, switching valid and invalid, but not
  * changing unknown and reserved. */
 inline EventState invert_event_state(EventState state)
@@ -255,6 +249,15 @@ inline EventState invert_event_state(EventState state)
         default:
             return state;
     }
+}
+
+/** Allows ofsetting the producer/consumer identified MTI with the event state
+ * to set the low bits. */
+inline Defs::MTI operator+(const Defs::MTI &value, EventState state)
+{
+    int code = static_cast<int>(value);
+    code += static_cast<int>(state);
+    return static_cast<Defs::MTI>(code);
 }
 
 /** Operator overload for post increment */
