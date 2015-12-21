@@ -56,7 +56,13 @@ public:
     {
     }
 
-    void init(const char *path);
+    /// Must be called once before calling anything else. Returns the file
+    /// descriptor.
+    int open_file(const char *path);
+    /// Asynchronously invokes all update listeners with the config FD.
+    void init_flow();
+    /// Synchronously invokes all update listeners to factory reset.
+    void factory_reset();
 
     void TEST_set_fd(int fd)
     {

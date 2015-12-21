@@ -52,7 +52,8 @@ void SimpleCanStack::start_stack()
 {
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
-    configUpdateFlow_.init(CONFIG_FILENAME);
+    configUpdateFlow_.open_file(CONFIG_FILENAME);
+    configUpdateFlow_.init_flow();
 
     // Bootstraps the alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());

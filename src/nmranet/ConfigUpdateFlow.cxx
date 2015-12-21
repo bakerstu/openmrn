@@ -40,7 +40,7 @@
 namespace nmranet
 {
 
-void ConfigUpdateFlow::init(const char *path)
+int ConfigUpdateFlow::open_file(const char *path)
 {
     if (!path)
     {
@@ -48,11 +48,23 @@ void ConfigUpdateFlow::init(const char *path)
     }
     else
     {
-        fd_ = ::open(path, O_RDONLY);
+        fd_ = ::open(path, O_RDWR);
         HASSERT(fd_ >= 0);
     }
+    return fd_;
+}
+
+void ConfigUpdateFlow::init_flow()
+{
     trigger_update();
     isInitialLoad_ = 1;
+}
+
+void ConfigUpdateFlow::factory_reset()
+{
+    for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+        it->factory_reset(fd_);
+    }
 }
 
 extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
