@@ -37,6 +37,8 @@
 #endif
 
 #include "nmranet/SimpleStack.hxx"
+
+#include "nmranet/EventHandler.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
 
 namespace nmranet
@@ -94,6 +96,57 @@ void SimpleCanStack::start_stack()
         memory_config_handler()->registry()->insert(
             &node_, nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
+    }
+}
+
+void SimpleCanStack::check_version_and_factory_reset(
+    const InternalConfigData &cfg, uint16_t expected_version,
+    bool force)
+{
+    HASSERT(CONFIG_FILENAME);
+    int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    if (cfg.version().read(fd) != expected_version)
+    {
+        /// TODO(balazs.racz): We need to clear the eeprom. Best would be if
+        /// there was an ioctl to return the eeprom to factory default state by
+        /// just erasing the segments.
+        cfg.version().write(fd, expected_version);
+        cfg.next_event().write(fd, 0);
+        // ACDI version byte. This is not very nice because we cannot be
+        // certain that the EEPROM starts with the ACDI data. We'll check it
+        // though.
+        HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
+        Uint8ConfigEntry(0).write(fd, 2);
+        force = true;
+    }
+    if (force)
+    {
+        factory_reset_all_events(cfg, fd);
+        configUpdateFlow_.factory_reset();
+    }
+}
+
+extern const uint16_t CDI_EVENT_OFFSETS[];
+
+void SimpleCanStack::factory_reset_all_events(
+    const InternalConfigData &cfg, int fd)
+{
+    // First we find the event count.
+    uint16_t new_next_event = cfg.next_event().read(fd);
+    uint16_t next_event = new_next_event;
+    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    {
+        ++new_next_event;
+    }
+    // We block off the event IDs first.
+    cfg.next_event().write(fd, new_next_event);
+    // Then we write them to eeprom.
+    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    {
+        EventId id = node_.node_id();
+        id <<= 16;
+        id |= next_event++;
+        EventConfigEntry(CDI_EVENT_OFFSETS[i]).write(fd, id);
     }
 }
 
