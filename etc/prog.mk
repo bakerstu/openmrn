@@ -1,4 +1,3 @@
--include *.d
 
 ifeq ($(TARGET),)
 # if the target is so far undefined
@@ -99,6 +98,8 @@ include $(OPENMRNPATH)/etc/recurse.mk
 endif
 
 all: $(EXECUTABLE)$(EXTENTION)
+
+-include *.d
 
 # This part detects whether we have a config.hxx defining CDI data and if yes,
 # then compiles it into an xml and object file.
