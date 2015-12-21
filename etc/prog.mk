@@ -1,3 +1,5 @@
+-include *.d
+
 ifeq ($(TARGET),)
 # if the target is so far undefined
 TARGET := $(shell basename `pwd`)
