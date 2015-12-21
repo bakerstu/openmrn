@@ -88,12 +88,13 @@ int memory_space_id = nmranet::MemoryConfigDefs::SPACE_FIRMWARE;
 const char *checksum_algorithm = nullptr;
 bool request_reboot = false;
 bool request_reboot_after = true;
+bool skip_pip = false;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] (-n nodeid | -a "
+        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] (-n nodeid | -a "
         "alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
@@ -119,13 +120,14 @@ void usage(const char *e)
         "-r request the target to enter bootloader mode before sending data\n");
     fprintf(stderr, "Unless -t is specified the target will be rebooted after "
                     "flashing complete.\n");
+    fprintf(stderr, "-x skips the PIP request and uses streams.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:rtd:n:a:s:f:c:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:rtd:n:a:s:f:c:x")) >= 0)
     {
         switch (opt)
         {
@@ -158,6 +160,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'r':
                 request_reboot = true;
+                break;
+            case 'x':
+                skip_pip = true;
                 break;
             case 't':
                 request_reboot_after = false;
@@ -240,7 +245,7 @@ int appl_main(int argc, char *argv[])
     }
     else
     {
-        conn_fd = ConnectSocket("localhost", 12021);
+        conn_fd = ConnectSocket(host, port);
     }
     HASSERT(conn_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, conn_fd);
@@ -265,6 +270,7 @@ int appl_main(int argc, char *argv[])
     b->data()->response = &response;
     b->data()->request_reboot = request_reboot ? 1 : 0;
     b->data()->request_reboot_after = request_reboot_after ? 1 : 0;
+    b->data()->skip_pip = skip_pip ? 1 : 0;
     b->data()->data = read_file_to_string(filename);
 
     printf("Read %" PRIdPTR
