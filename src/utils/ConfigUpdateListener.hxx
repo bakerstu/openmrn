@@ -100,4 +100,15 @@ public:
     virtual void factory_reset(int fd) = 0;
 };
 
+
+/// Implementation of ConfigUpdateListener that registers itself in the
+/// constructor and unregisters itself in the destructor.
+class DefaultConfigUpdateListener : public ConfigUpdateListener
+{
+public:
+    DefaultConfigUpdateListener();
+    ~DefaultConfigUpdateListener();
+};
+
+
 #endif // _UTILS_CONFIGUPDATELISTENER_HXX_

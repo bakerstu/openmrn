@@ -89,78 +89,110 @@ public:
     using Description = AtomConfigOptions::Description;
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
-    static constexpr Segment MainCdi() { return Segment(-2); }
-    //using MainCdi = GroupConfigOptions::MainCdi;
+    static constexpr Segment MainCdi()
+    {
+        return Segment(-2);
+    }
+    // using MainCdi = GroupConfigOptions::MainCdi;
 };
 
 #define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
     struct GroupName : public nmranet::GroupBase                               \
     {                                                                          \
         INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
-        constexpr GroupBaseEntry entry(const EntryMarker<START_LINE> &)        \
+        constexpr nmranet::GroupBaseEntry entry(                               \
+            const nmranet::EntryMarker<START_LINE> &)                          \
         {                                                                      \
-            return GroupBaseEntry(offset_);                                    \
+            return nmranet::GroupBaseEntry(offset_);                           \
         }                                                                      \
-        static constexpr GroupConfigOptions group_opts()                       \
+        static constexpr nmranet::GroupConfigOptions group_opts()              \
         {                                                                      \
-            return GroupConfigOptions(ARGS);                                   \
+            return nmranet::GroupConfigOptions(ARGS);                          \
         }                                                                      \
         static constexpr unsigned size()                                       \
         {                                                                      \
             return GroupName(0).end_offset();                                  \
         }                                                                      \
         template <int LINE>                                                    \
-        constexpr NoopGroupEntry entry(const EntryMarker<LINE> &)              \
+        constexpr nmranet::NoopGroupEntry entry(                               \
+            const nmranet::EntryMarker<LINE> &)                                \
         {                                                                      \
-            return NoopGroupEntry(                                             \
-                entry(EntryMarker<LINE - 1>()).end_offset());                  \
+            return nmranet::NoopGroupEntry(                                    \
+                entry(nmranet::EntryMarker<LINE - 1>()).end_offset());         \
         }                                                                      \
         template <int LINE>                                                    \
         static void render_content_cdi(                                        \
-            const EntryMarker<LINE> &, std::string *s)                         \
+            const nmranet::EntryMarker<LINE> &, std::string *s)                \
         {                                                                      \
-            render_content_cdi(EntryMarker<LINE - 1>(), s);                    \
+            render_content_cdi(nmranet::EntryMarker<LINE - 1>(), s);           \
         }                                                                      \
         static void render_content_cdi(                                        \
-            const EntryMarker<START_LINE> &, std::string *s)                   \
+            const nmranet::EntryMarker<START_LINE> &, std::string *s)          \
         {                                                                      \
         }                                                                      \
-        static constexpr GroupConfigRenderer<GroupName> config_renderer()      \
+        template <int LINE>                                                    \
+        void __attribute__((always_inline))                                    \
+            recursive_handle_events(const nmranet::EntryMarker<LINE> &,        \
+                const nmranet::EventOffsetCallback &fn)                        \
         {                                                                      \
-            return GroupConfigRenderer<GroupName>(1, GroupName(0));            \
+            recursive_handle_events(nmranet::EntryMarker<LINE - 1>(), fn);     \
+        }                                                                      \
+        void __attribute__((always_inline))                                    \
+            recursive_handle_events(const nmranet::EntryMarker<START_LINE> &,  \
+                const nmranet::EventOffsetCallback &fn)                        \
+        {                                                                      \
+        }                                                                      \
+                                                                               \
+        static constexpr nmranet::GroupConfigRenderer<GroupName>               \
+        config_renderer()                                                      \
+        {                                                                      \
+            return nmranet::GroupConfigRenderer<GroupName>(1, GroupName(0));   \
         }
 
 /// @todo (balazs.racz) the group config renderer should not get an instance of
 /// the current group.
 
 #define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
-    constexpr TYPE entry(const EntryMarker<LINE> &)                            \
+    constexpr TYPE entry(const nmranet::EntryMarker<LINE> &)                   \
     {                                                                          \
         static_assert(                                                         \
             !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
             "May only have segments inside CDI.");                             \
         return TYPE(group_opts().is_cdi()                                      \
                 ? TYPE(0).group_opts().get_segment_offset()                    \
-                : entry(EntryMarker<LINE - 1>()).end_offset());                \
+                : entry(nmranet::EntryMarker<LINE - 1>()).end_offset());       \
     }                                                                          \
     constexpr TYPE NAME()                                                      \
     {                                                                          \
-        return entry(EntryMarker<LINE>());                                     \
+        return entry(nmranet::EntryMarker<LINE>());                            \
     }                                                                          \
-    static void render_content_cdi(const EntryMarker<LINE> &, std::string *s)  \
+    static void render_content_cdi(                                            \
+        const nmranet::EntryMarker<LINE> &, std::string *s)                    \
     {                                                                          \
-        render_content_cdi(EntryMarker<LINE - 1>(), s);                        \
+        render_content_cdi(nmranet::EntryMarker<LINE - 1>(), s);               \
         TYPE::config_renderer().render_cdi(s, ##__VA_ARGS__);                  \
+    }                                                                          \
+    void __attribute__((always_inline))                                        \
+        recursive_handle_events(const nmranet::EntryMarker<LINE> &e,           \
+            const nmranet::EventOffsetCallback &fn)                            \
+    {                                                                          \
+        recursive_handle_events(nmranet::EntryMarker<LINE - 1>(), fn);         \
+        entry(e).handle_events(fn);                                            \
     }
 
 #define CDI_GROUP_END_HELPER(LINE)                                             \
     constexpr unsigned end_offset()                                            \
     {                                                                          \
-        return entry(EntryMarker<LINE>()).end_offset();                        \
+        return entry(nmranet::EntryMarker<LINE>()).end_offset();               \
     }                                                                          \
     static void render_content_cdi(std::string *s)                             \
     {                                                                          \
-        return render_content_cdi(EntryMarker<LINE>(), s);                     \
+        return render_content_cdi(nmranet::EntryMarker<LINE>(), s);            \
+    }                                                                          \
+    void __attribute__((always_inline))                                        \
+        handle_events(const nmranet::EventOffsetCallback &fn)                  \
+    {                                                                          \
+        recursive_handle_events(nmranet::EntryMarker<LINE>(), fn);             \
     }                                                                          \
     }
 
@@ -224,6 +256,12 @@ public:
         /// @todo (balazs.racz) get rid of the instance of Group here.
         return GroupConfigRenderer<Group>(N, Group(0));
     }
+
+    void handle_events(const EventOffsetCallback& fn) {
+        for (unsigned i = 0; i < N; ++i) {
+            entry(i).handle_events(fn);
+        }
+    }
 };
 
 ///
@@ -245,7 +283,7 @@ public:
     }
     static constexpr EmptyGroupConfigRenderer config_renderer()
     {
-        return EmptyGroupConfigRenderer(N);
+         return EmptyGroupConfigRenderer(N);
     }
 };
 
@@ -314,6 +352,14 @@ CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
     Name("User description"),                       //
     Description("This description will appear in network browsers for the "
                 "current node."));
+CDI_GROUP_END();
+
+/// Configuration description for internal configuration variables. This should
+/// preferably not be user-visible in the CDI, but the space has to be reserved
+/// in the configuration EEPROM.
+CDI_GROUP(InternalConfigData, Name("Internal data"), Description("Do not change these settings."));
+CDI_GROUP_ENTRY(version, Uint16ConfigEntry, Name("Version"));
+CDI_GROUP_ENTRY(next_event, Uint16ConfigEntry, Name("Next event ID"));
 CDI_GROUP_END();
 
 } // namespace nmranet

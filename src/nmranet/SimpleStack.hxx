@@ -39,6 +39,7 @@
 
 #include "executor/Executor.hxx"
 #include "nmranet/AliasAllocator.hxx"
+#include "nmranet/ConfigRepresentation.hxx"
 #include "nmranet/ConfigUpdateFlow.hxx"
 #include "nmranet/DatagramCan.hxx"
 #include "nmranet/DefaultNode.hxx"
@@ -237,6 +238,14 @@ public:
         start_stack();
         executor_.start_thread(name, priority, stack_size);
     }
+
+    /// Checks the version information in the EEPROM and performs a factory
+    /// reset if incorrect or if force is set.
+    void check_version_and_factory_reset(const InternalConfigData &ofs,
+        uint16_t expected_version, bool force = false);
+
+    /// Overwrites all events in the eeprom with a brand new event ID.
+    void factory_reset_all_events(const InternalConfigData &ofs, int fd);
 
 private:
     static const auto PIP_RESPONSE =

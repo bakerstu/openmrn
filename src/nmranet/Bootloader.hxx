@@ -449,6 +449,8 @@ void handle_memory_config_frame()
                 state_.input_frame.can_dlc - 1);
             state_.datagram_payload[1] |= MemoryConfigDefs::COMMAND_WRITE_REPLY;
             state_.datagram_output_pending = 1;
+            state_.output_frame.data[state_.output_frame.can_dlc++] =
+                DatagramDefs::REPLY_PENDING;
             state_.datagram_dst =
                 CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
             state_.datagram_offset = 0;

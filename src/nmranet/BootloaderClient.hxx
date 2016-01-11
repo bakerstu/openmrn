@@ -68,6 +68,8 @@ struct BootloaderRequest
     uint8_t request_reboot{1};
     // Nonzero: request the target to reboot after flashing.
     uint8_t request_reboot_after{1};
+    // Nonzero: skip the PIP request to the bootloader. Use streams.
+    uint8_t skip_pip{0};
     /// Offset at which to start writing.
     uint32_t offset{0};
     /// Payload to write.
@@ -173,6 +175,10 @@ private:
 
     Action send_pip_request()
     {
+        if (message()->data()->skip_pip) {
+            LOG(INFO, "Skipping PIP request. Using streams.");
+            return call_immediately(STATE(bootload_using_stream));
+        }
         pipClient_.request(message()->data()->dst, node_, this);
         return wait_and_call(STATE(pip_response));
     }

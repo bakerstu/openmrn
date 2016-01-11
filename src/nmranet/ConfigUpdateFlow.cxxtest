@@ -124,7 +124,8 @@ TEST_F(ConfigUpdateFlowTest, InitialLoad)
     EXPECT_CALL(l1, apply_configuration(::testing::Gt(0), true, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
-    updateFlow_.init("/dev/zero");
+    updateFlow_.open_file("/dev/zero");
+    updateFlow_.init_flow();
     wait_for_main_executor();
 }
 

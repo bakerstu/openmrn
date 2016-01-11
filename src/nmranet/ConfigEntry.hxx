@@ -39,6 +39,8 @@
 #include <stdint.h>
 #include <endian.h>
 
+#include <functional>
+
 #include "nmranet/ConfigRenderer.hxx"
 
 namespace nmranet
@@ -77,6 +79,8 @@ protected:
     unsigned offset_;
 };
 
+typedef std::function<void(unsigned)> EventOffsetCallback;
+
 ///
 /// Base class for individual configuration entries. Defines helper methods for
 /// reading and writing.
@@ -90,6 +94,8 @@ public:
     {
         return GroupConfigOptions();
     }
+
+    static void handle_events(const EventOffsetCallback& fn) {}
 
 protected:
     /// Reads a given typed variable from the configuration file. DOes not do
@@ -244,6 +250,10 @@ public:
     static constexpr AtomConfigRenderer config_renderer()
     {
         return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
+    }
+
+    void handle_events(const EventOffsetCallback& fn) {
+        fn(offset());
     }
 };
 

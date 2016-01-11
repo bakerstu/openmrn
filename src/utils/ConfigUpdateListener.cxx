@@ -24,50 +24,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ConfigUpdateFlow.hxx
+ * \file ConfigUpdateListener.cxx
  *
- * Implementation of the notification flow for all config update
- * listeners. This flow calls each update listener and performs the necessary
- * actions.
+ * Definitions for the default config update listener.
  *
  * @author Balazs Racz
- * @date 13 June 2015
+ * @date 21 Dec 2015
  */
 
-#include "nmranet/ConfigUpdateFlow.hxx"
-#include <fcntl.h>
+#include "utils/ConfigUpdateListener.hxx"
+#include "utils/ConfigUpdateService.hxx"
 
-namespace nmranet
+DefaultConfigUpdateListener::DefaultConfigUpdateListener()
 {
-
-int ConfigUpdateFlow::open_file(const char *path)
-{
-    if (!path)
-    {
-        fd_ = -1;
-    }
-    else
-    {
-        fd_ = ::open(path, O_RDWR);
-        HASSERT(fd_ >= 0);
-    }
-    return fd_;
+    Singleton<ConfigUpdateService>::instance()->register_update_listener(this);
 }
-
-void ConfigUpdateFlow::init_flow()
+DefaultConfigUpdateListener::~DefaultConfigUpdateListener()
 {
-    trigger_update();
-    isInitialLoad_ = 1;
+    Singleton<ConfigUpdateService>::instance()->unregister_update_listener(
+        this);
 }
-
-void ConfigUpdateFlow::factory_reset()
-{
-    for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
-        it->factory_reset(fd_);
-    }
-}
-
-extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
-extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
-
-} // namespace nmranet

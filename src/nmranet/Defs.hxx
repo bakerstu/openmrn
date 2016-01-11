@@ -251,6 +251,13 @@ inline EventState invert_event_state(EventState state)
     }
 }
 
+/** Returns the inverted event state, switching valid and invalid, but not
+ * changing unknown and reserved. */
+inline EventState to_event_state(bool state)
+{
+    return state ? EventState::VALID : EventState::INVALID;
+}
+
 /** Allows ofsetting the producer/consumer identified MTI with the event state
  * to set the low bits. */
 inline Defs::MTI operator+(const Defs::MTI &value, EventState state)

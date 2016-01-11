@@ -46,6 +46,9 @@ parser.add_option("-i", "--input", dest="input",
 parser.add_option("-o", "--output", dest="output",
                   help="output file that will serve as the destination C code",
                   metavar="FILE")
+parser.add_option("-x", "--maxsize", dest="maxsize",
+                  help="maximum size of binary to read",
+                  type="int")
 
 (options, args) = parser.parse_args()
 
@@ -73,6 +76,8 @@ while True :
         break
     bin_file.append(c)
     ofs = ofs + 1
+    if options.maxsize is not None and ofs >= options.maxsize:
+      break
 file_in.close()
 
 ofs = 0
