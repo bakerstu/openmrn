@@ -441,7 +441,7 @@ protected:
     void initiate_stream_write(string offset)
     {
         // expect datagram ok
-        expect_packet(":X19A28428N0321;");
+        expect_packet(":X19A28428N032180;");
         // and expect response datagram
         expect_packet(StringPrintf(":X1A321428N2030%sEF;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
