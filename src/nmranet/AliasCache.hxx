@@ -61,16 +61,17 @@ public:
      *        the cache however it will not be called in the remove() method
      * @param context context pointer to pass to remove_callback
      */
-    AliasCache(NodeID seed, size_t entries,
+    AliasCache(NodeID seed, size_t _entries,
                void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
                void *context = NULL)
-        : pool(new Metadata[entries]),
+        : pool(new Metadata[_entries]),
           freeList(NULL),
-          aliasMap(entries),
-          idMap(entries),
+          aliasMap(_entries),
+          idMap(_entries),
           oldest(NULL),
           newest(NULL),
           seed(seed),
+          entries(_entries),
           removeCallback(remove_callback),
           context(context)
     {
@@ -118,6 +119,21 @@ public:
      */
     void for_each(void (*callback)(void*, NodeID, NodeAlias), void *context);
 
+    /** Returns the total number of aliases that can be cached. */
+    size_t size()
+    {
+        return entries;
+    }
+
+    /** Retrieves an entry by index. Allows stable iteration in the face of
+     * changes.
+     * @param entry is between 0 and size() - 1.
+     * @param node will be filled with the node ID. May be null.
+     * @param aliad will be filles with the alias. May be null.
+     * @return true if the entry is valid, and node and alias were filled, otherwise false if the entry is not allocated.
+     */
+    bool retrieve(unsigned entry, NodeID* node, NodeAlias* alias);
+
     /** Generate a 12-bit pseudo-random alias for a givin alias cache.
      * @return pseudo-random 12-bit alias, an alias of zero is invalid
      */
@@ -139,8 +155,8 @@ private:
     /** Interesting information about a given cache entry. */
     struct Metadata
     {
-        NodeID id; /**< 48-bit NMRAnet Node ID */
-        NodeAlias alias; /**< NMRAnet alias */
+        NodeID id = 0; /**< 48-bit NMRAnet Node ID */
+        NodeAlias alias = 0; /**< NMRAnet alias */
         long long timestamp; /**< time stamp of last usage */
         union
         {
@@ -180,7 +196,10 @@ private:
 
     /** Seed for the generation of the next alias */
     NodeID seed;
-    
+
+    /** How many metadata entries have we allocated. */
+    size_t entries;
+
     /** callback function to be used when we remove an entry from the cache */
     void (*removeCallback)(NodeID id, NodeAlias alias, void *);
     

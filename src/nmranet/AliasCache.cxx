@@ -165,6 +165,16 @@ void AliasCache::remove(NodeAlias alias)
     
 }
 
+bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
+{
+    HASSERT(entry < size());
+    Metadata* md = pool + entry;
+    if (!md->alias) return false;
+    if (node) *node = md->id;
+    if (alias) *alias = md->alias;
+    return true;
+}
+
 /** Lookup a node's alias based on its Node ID.
  * @param id Node ID to look for
  * @return alias that matches the Node ID, else 0 if not found
@@ -274,4 +284,3 @@ void AliasCache::touch(Metadata* metadata)
 }
 
 };
-

@@ -291,6 +291,10 @@ public:
         {
             node_id = data_to_node_id(f->data);
         }
+        else
+        {
+            return release_and_exit();
+        }
         NodeAlias local_alias = if_can()->local_aliases()->lookup(node_id);
         if (!node_id || !local_alias)
         {
@@ -302,6 +306,129 @@ public:
         if_can()->frame_write_flow()->send(b);
         return exit();
     }
+};
+
+/** This class listens for Alias Mapping Enquiry frames with no destination
+ * node ID (aka global alias enquiries) and sends back as many frames as wel
+ * have local aliases mapped. */
+class AMEGlobalQueryHandler : public StateFlowBase,
+                              private FlowInterface<Buffer<CanMessageData>>
+{
+public:
+    AMEGlobalQueryHandler(IfCan *service)
+        : StateFlowBase(service)
+    {
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    ~AMEGlobalQueryHandler()
+    {
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER, CAN_MASK);
+    }
+
+    using MessageType = Buffer<CanMessageData>;
+
+private:
+    enum
+    {
+        CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
+            (CanDefs::CONTROL_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::AME_FRAME << CanDefs::CONTROL_FIELD_SHIFT),
+        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CONTROL_FIELD_MASK,
+    };
+
+    IfCan *if_can()
+    {
+        return static_cast<IfCan *>(service());
+    }
+
+    /** Sends a message to the state flow for processing. This function never
+     * blocks.
+     *
+     * Must be called from the main executor of the interface.
+     *
+     * @param msg Message to enqueue
+     * @param priority the priority at which to enqueue this message.
+     */
+    void send(MessageType *msg, unsigned priority = UINT_MAX)
+    {
+        AutoReleaseBuffer<CanMessageData> rb(msg);
+        struct can_frame *f = msg->data();
+        if (f->can_dlc != 0)
+        {
+            return;
+        }
+        needRerun_ = true;
+        if (is_terminated())
+        {
+            start_flow(STATE(rerun));
+        }
+    }
+
+    Action rerun()
+    {
+        needRerun_ = false;
+        nextIndex_ = 0;
+        return call_immediately(STATE(find_next));
+    }
+
+    Action find_next()
+    {
+        while (nextIndex_ < if_can()->local_aliases()->size())
+        {
+            if (if_can()->local_aliases()->retrieve(
+                    nextIndex_, nullptr, nullptr))
+            {
+                return allocate_and_call(
+                    if_can()->frame_write_flow(), STATE(fill_response));
+            }
+            nextIndex_++;
+        }
+        if (needRerun_)
+        {
+            return call_immediately(STATE(rerun));
+        }
+        else
+        {
+            return exit();
+        }
+    }
+
+    Action fill_response()
+    {
+        auto *b = get_allocation_result(if_can()->frame_write_flow());
+        NodeID node;
+        NodeAlias alias;
+        if (if_can()->local_aliases()->retrieve(nextIndex_, &node, &alias))
+        {
+            struct can_frame *f = b->data()->mutable_frame();
+            SET_CAN_FRAME_ID_EFF(
+                *f, CanDefs::set_control_fields(alias, CanDefs::AMD_FRAME, 0));
+            f->can_dlc = 6;
+            node_id_to_data(node, f->data);
+            b->set_done(n_.reset(this));
+            if_can()->frame_write_flow()->send(b);
+            nextIndex_++;
+            return wait_and_call(STATE(find_next));
+        }
+        else
+        {
+            // The alias disappeared in the mean time. Release.
+            b->unref();
+            return call_immediately(STATE(find_next));
+        }
+    }
+
+    /// This boolean will be set to true when a full re-run of all sent frames
+    /// is necessary.
+    bool needRerun_ = false;
+    /// Which alias entry index we take next.
+    unsigned nextIndex_;
+    /// Helper object to wait for frame to be sent.
+    BarrierNotifiable n_;
 };
 
 /** This class listens for incoming CAN frames of regular unaddressed global
@@ -545,6 +672,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new VerifyNodeIdHandler(this));
     add_owned_flow(new RemoteAliasCacheUpdater(this));
     add_owned_flow(new AMEQueryHandler(this));
+    add_owned_flow(new AMEGlobalQueryHandler(this));
     add_addressed_message_support();
     /*pipe_member_.reset(new CanReadFlow(device, this, executor));
     for (int i = 0; i < hw_write_flow_count; ++i)

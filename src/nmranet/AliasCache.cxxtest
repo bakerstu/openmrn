@@ -59,6 +59,7 @@ TEST(NMRAnetAliasCacheTest, constructor)
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
     
     EXPECT_EQ(count, 0);
+    EXPECT_EQ(2, aliasCache->size());
 
     aliasCache->add(101, 10);
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
