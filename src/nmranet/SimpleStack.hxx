@@ -253,8 +253,7 @@ public:
     }
 
 private:
-    static const auto PIP_RESPONSE =
-        Defs::EVENT_EXCHANGE | Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM |
+    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
         Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 

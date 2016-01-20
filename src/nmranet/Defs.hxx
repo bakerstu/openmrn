@@ -170,7 +170,7 @@ struct Defs
      */
     enum Protocols
     {
-        PROTOCOL_IDENTIFICATION = 0x800000000000,
+        SIMPLE_PROTOCOL_SUBSET  = 0x800000000000,
         DATAGRAM                = 0x400000000000,
         STREAM                  = 0x200000000000,
         MEMORY_CONFIGURATION    = 0x100000000000,

@@ -57,9 +57,7 @@ public:
         , payload_()
     {
         /* store the supported protocol as a payload */
-        supported = htobe64(supported | Defs::PROTOCOL_IDENTIFICATION);
-        const char *src = reinterpret_cast<const char *>(&supported);
-        payload_.assign(src + 2, 6);
+        payload_ = node_id_to_buffer(supported);
 
         /* register our interest in the Protocol Identification Protocol */
         node_->iface()->dispatcher()->register_handler(
@@ -89,7 +87,7 @@ private:
             return release_and_exit();
         }
         /* hanlde messager */
-        LOG(INFO, "PIP Handle");
+        //LOG(INFO, "PIP Handle");
         return allocate_and_call(
             node_->iface()->addressed_message_write_flow(),
             STATE(fill_response_buffer));
