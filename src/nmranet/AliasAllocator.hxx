@@ -52,6 +52,7 @@ struct AliasInfo : public QMember
     AliasInfo()
         : alias(0)
         , state(STATE_EMPTY)
+        , return_to_reallocation(1)
     {
     }
 
@@ -59,11 +60,18 @@ struct AliasInfo : public QMember
     {
         alias = 0;
         state = STATE_EMPTY;
+        return_to_reallocation = 0;
+    }
+
+    void do_not_reallocate()
+    {
+        return_to_reallocation = 0;
     }
 
     /** The current alias. This is 0 if the alias needs to be generated. */
     unsigned alias : 12;
-    unsigned state : 4;
+    unsigned state : 3;
+    unsigned return_to_reallocation : 1;
 
     enum State
     {
