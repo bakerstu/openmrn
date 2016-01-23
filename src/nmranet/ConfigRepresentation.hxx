@@ -49,7 +49,7 @@ public:
     {
         return 0;
     }
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset_;
     }
@@ -67,7 +67,7 @@ class NoopGroupEntry : public ConfigReference
 {
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(NoopGroupEntry, ConfigReference);
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset_;
     }
@@ -101,7 +101,7 @@ public:
     {                                                                          \
         INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
         constexpr nmranet::GroupBaseEntry entry(                               \
-            const nmranet::EntryMarker<START_LINE> &)                          \
+            const nmranet::EntryMarker<START_LINE> &) const                    \
         {                                                                      \
             return nmranet::GroupBaseEntry(offset_);                           \
         }                                                                      \
@@ -115,7 +115,7 @@ public:
         }                                                                      \
         template <int LINE>                                                    \
         constexpr nmranet::NoopGroupEntry entry(                               \
-            const nmranet::EntryMarker<LINE> &)                                \
+            const nmranet::EntryMarker<LINE> &) const                          \
         {                                                                      \
             return nmranet::NoopGroupEntry(                                    \
                 entry(nmranet::EntryMarker<LINE - 1>()).end_offset());         \
@@ -153,7 +153,7 @@ public:
 /// the current group.
 
 #define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
-    constexpr TYPE entry(const nmranet::EntryMarker<LINE> &)                   \
+    constexpr TYPE entry(const nmranet::EntryMarker<LINE> &) const             \
     {                                                                          \
         static_assert(                                                         \
             !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
@@ -162,7 +162,7 @@ public:
                 ? TYPE(0).group_opts().get_segment_offset()                    \
                 : entry(nmranet::EntryMarker<LINE - 1>()).end_offset());       \
     }                                                                          \
-    constexpr TYPE NAME()                                                      \
+    constexpr TYPE NAME() const                                                \
     {                                                                          \
         return entry(nmranet::EntryMarker<LINE>());                            \
     }                                                                          \
@@ -181,7 +181,7 @@ public:
     }
 
 #define CDI_GROUP_END_HELPER(LINE)                                             \
-    constexpr unsigned end_offset()                                            \
+    constexpr unsigned end_offset() const                                      \
     {                                                                          \
         return entry(nmranet::EntryMarker<LINE>()).end_offset();               \
     }                                                                          \
@@ -234,11 +234,11 @@ public:
     {
         return Group::size() * N;
     }
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset() + size();
     }
-    template <int K> constexpr Group entry()
+    template <int K> constexpr Group entry() const
     {
         static_assert(K < N, "Tried to fetch an entry of a repeated "
                              "group that does not exist!");
@@ -257,8 +257,10 @@ public:
         return GroupConfigRenderer<Group>(N, Group(0));
     }
 
-    void handle_events(const EventOffsetCallback& fn) {
-        for (unsigned i = 0; i < N; ++i) {
+    void handle_events(const EventOffsetCallback &fn)
+    {
+        for (unsigned i = 0; i < N; ++i)
+        {
             entry(i).handle_events(fn);
         }
     }
@@ -277,13 +279,13 @@ public:
     {
         return N;
     }
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset() + size();
     }
     static constexpr EmptyGroupConfigRenderer config_renderer()
     {
-         return EmptyGroupConfigRenderer(N);
+        return EmptyGroupConfigRenderer(N);
     }
 };
 
@@ -305,7 +307,7 @@ public:
     {
         return 0;
     }
-    constexpr unsigned end_offset()
+    constexpr unsigned end_offset() const
     {
         return offset() + size();
     }
@@ -357,7 +359,8 @@ CDI_GROUP_END();
 /// Configuration description for internal configuration variables. This should
 /// preferably not be user-visible in the CDI, but the space has to be reserved
 /// in the configuration EEPROM.
-CDI_GROUP(InternalConfigData, Name("Internal data"), Description("Do not change these settings."));
+CDI_GROUP(InternalConfigData, Name("Internal data"),
+    Description("Do not change these settings."));
 CDI_GROUP_ENTRY(version, Uint16ConfigEntry, Name("Version"));
 CDI_GROUP_ENTRY(next_event, Uint16ConfigEntry, Name("Next event ID"));
 CDI_GROUP_END();
