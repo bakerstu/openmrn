@@ -123,9 +123,9 @@ private:
             alias = new_alias->data()->alias;
             /* Sends the alias back for reallocating. This will trigger the
              * alias allocator flow. */
-            new_alias->data()->reset();
             if (new_alias->data()->return_to_reallocation)
             {
+                new_alias->data()->reset();
                 if_can()->alias_allocator()->send(new_alias);
             }
             else

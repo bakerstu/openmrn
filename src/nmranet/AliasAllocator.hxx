@@ -60,7 +60,7 @@ struct AliasInfo : public QMember
     {
         alias = 0;
         state = STATE_EMPTY;
-        return_to_reallocation = 0;
+        return_to_reallocation = 1;
     }
 
     void do_not_reallocate()
