@@ -150,12 +150,12 @@ uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {
 
 #ifdef BOOTLOADER_STREAM
 #define PIP_REPLY_VALUE                                                        \
-    (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM | Defs::STREAM |           \
-        Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+    (Defs::DATAGRAM | Defs::STREAM | Defs::MEMORY_CONFIGURATION |              \
+        Defs::FIRMWARE_UPGRADE_ACTIVE)
 #else
 #define PIP_REPLY_VALUE                                                        \
-    (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM |                          \
-        Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+    (Defs::DATAGRAM | Defs::MEMORY_CONFIGURATION |                             \
+        Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
 // We manually convert to big-endian to store this value in .rodata.
 static const uint64_t PIP_REPLY =        //
