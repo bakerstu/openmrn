@@ -310,10 +310,12 @@ protected:
         }
         Buffer<AliasInfo> *a;
         mainBufferPool->alloc(&a);
+        a->data()->reset();
         a->data()->alias = alias;
         a->data()->state = AliasInfo::STATE_RESERVED;
-        // TODO: this might break a lot of tests.
-        a->data()->return_to_reallocation = repeat ? 1 : 0;
+        if (!repeat) {
+            a->data()->do_not_reallocate();
+        }
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                      a->data()->alias);
         ifCan_->alias_allocator()->reserved_aliases()->insert(a);
