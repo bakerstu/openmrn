@@ -52,14 +52,14 @@ protected:
 
 TEST_F(ProtocolIdentificationTest, WillRespond)
 {
-    expect_packet(":X1966822AN09FFE65544332211;");
+    expect_packet(":X1966822AN09FF665544332211;");
     send_packet(":X198289FFN022A;");
     wait();
 }
 
 TEST_F(ProtocolIdentificationTest, AnotherTest)
 {
-    send_packet_and_expect_response(":X198289FFN022A;", ":X1966822AN09FFE65544332211;");
+    send_packet_and_expect_response(":X198289FFN022A;", ":X1966822AN09FF665544332211;");
 }
 
 TEST_F(ProtocolIdentificationTest, DoNotHandleTest)
