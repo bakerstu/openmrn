@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
+ * \file JSHubPort.hxx
  *
- * A simple application to demonstrate asynchronous interfaces.
+ * Shared base class for all javascript "device drivers".
  *
  * @author Balazs Racz
  * @date 13 Sep 2015
