@@ -45,6 +45,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/JSTcpHub.hxx"
 #include "utils/JSTcpClient.hxx"
+#include "utils/JSSerialPort.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -56,7 +57,7 @@ GcPacketPrinter packet_printer(&can_hub0, false);
 OVERRIDE_CONST(gc_generate_newlines, 1);
 
 int port = 12021;
-const char *device_path = nullptr;
+std::vector<string> device_paths;
 const char *static_dir = "";
 int upstream_port = 12021;
 const char *upstream_host = nullptr;
@@ -73,9 +74,10 @@ void usage(const char *e)
                     "packets to all other participants.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to listen on, "
                     "default is 12021.\n");
-    /*    fprintf(stderr, "\t-d device   is a path to a physical device doing "
-                        "serial-CAN or USB-CAN. If specified, opens device and "
-                        "adds it to the hub.\n");*/
+    fprintf(stderr, "\t-d device   is a path to a physical device doing "
+                    "serial-CAN or USB-CAN. If specified, opens device and "
+                    "adds it to the hub.\n");
+    fprintf(stderr, "\t-D lists available serial ports.\n");
     fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port "
                     "and serves up a websocket connection to the same "
                     "CAN-bus.\n");
@@ -91,16 +93,19 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:w:l:u:q:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:w:l:u:q:d:D")) >= 0)
     {
         switch (opt)
         {
             case 'h':
                 usage(argv[0]);
                 break;
-            /*            case 'd':
-                            device_path = optarg;
-                            break;*/
+            case 'd':
+                device_paths.push_back(optarg);
+                break;
+            case 'D':
+                JSSerialPort::list_ports();
+                break;
             case 'p':
                 port = atoi(optarg);
                 break;
@@ -220,6 +225,10 @@ int appl_main(int argc, char *argv[])
     std::unique_ptr<JSTcpClient> client;
     if (upstream_host) {
         client.reset(new JSTcpClient(&can_hub0, upstream_host, upstream_port));
+    }
+    std::vector<std::unique_ptr<JSSerialPort> > devices;
+    for (auto& d : device_paths) {
+        devices.emplace_back(new JSSerialPort(&can_hub0, d));
     }
     /*    int dev_fd = 0;
     while (1)
