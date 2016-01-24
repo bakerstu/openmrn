@@ -53,6 +53,7 @@ public:
         emscripten_run_script(script.c_str());
         EM_ASM_(
             {
+                var server_address = Module.ws_server;
                 try {
                     var WS = window.WebSocket || window.MozWebSocket;
                 } catch (err) {
@@ -64,8 +65,11 @@ public:
                 } else {
                     console.log('using nodejs');
                     }*/
-                console.log('connecting to ws server: ', Module.ws_server);
-                var connection = new WS(Module.ws_server);
+                var reconnect;
+                reconnect = function() {
+                console.log('NNNN connecting to ws server: ', server_address);
+                var connection = new WS(server_address);
+                var portnum;
                 var client_port = new Module.JSHubPort($0,
                             function(gc_text)
                             {
@@ -75,12 +79,13 @@ public:
                                     connection.send(json);
                                 } else {
                                     console.log('Not sending frame ', gc_text,
-                                                ' because connection state = ',
+                                                ' because connection',portnum,'state = ',
                                                 connection.readyState);
                                 }
                             });
+                portnum = client_port.get_port_num();
                 connection.onopen = function() {
-                    console.log('ws connection established. starting stack.');
+                    console.log('ws connection',portnum,'established. starting stack.');
                     try {
                         Module.startStack();
                     } catch (e) {
@@ -93,7 +98,18 @@ public:
                     }
                 };
                 connection.onerror = function (eee) {
-                    console.log('Connection error: ', eee);
+                    console.log('Connection',portnum,'error: ', eee);
+                    //client_port.abandon();
+                    //connection.close();
+                    //setTimeout(reconnect, 1000);
+                };
+                connection.onclose = function () {
+                    console.log('Websocket',portnum,'closed.');
+                    client_port.abandon();
+                    connection.close();
+                    delete connection;
+                    console.log('Scheduling reconnect.');
+                    setTimeout(reconnect, 1000);
                 };
                 connection.onmessage = function(message) {
                     try
@@ -116,6 +132,8 @@ public:
                                     json.type);
                     }
                 };
+                };
+                reconnect();
             }, (unsigned long)canHub_);
     }
 
