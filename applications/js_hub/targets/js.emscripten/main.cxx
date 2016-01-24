@@ -54,7 +54,7 @@ Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 GcPacketPrinter packet_printer(&can_hub0, false);
 
-OVERRIDE_CONST(gc_generate_newlines, 1);
+OVERRIDE_CONST(gc_generate_newlines, 0);
 
 int port = 12021;
 std::vector<string> device_paths;
@@ -66,8 +66,10 @@ int ws_port = -1;
 
 void usage(const char *e)
 {
-    fprintf(stderr,
-        "Usage: %s [-p port] [-d device_path] [-w websocket_port [-l path_to_web]] [-u upstream_host [-q upstream_port]]\n\n", e);
+    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-w websocket_port "
+                    "[-l path_to_web]] [-u upstream_host [-q "
+                    "upstream_port]]\n\n",
+        e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
                     "the GridConnect protocol, and forwards all incoming "
@@ -81,12 +83,13 @@ void usage(const char *e)
     fprintf(stderr, "\t-w websocket_port     Opens a webserver on this port "
                     "and serves up a websocket connection to the same "
                     "CAN-bus.\n");
-    fprintf(stderr, "\t-l path_to_web     Exports the contents of this directory thorugh the websocket's webserver.\n");
+    fprintf(stderr, "\t-l path_to_web     Exports the contents of this "
+                    "directory thorugh the websocket's webserver.\n");
     fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
                     "hub. If specified, this hub will connect to an upstream "
                     "hub.\n");
     fprintf(stderr,
-            "\t-q upstream_port   is the port number for the upstream hub.\n");
+        "\t-q upstream_port   is the port number for the upstream hub.\n");
     exit(1);
 }
 
@@ -134,7 +137,8 @@ public:
     JSWebsocketServer(CanHubFlow *hflow, int port, string static_dir)
         : canHub_(hflow)
     {
-        if (!static_dir.empty()) {
+        if (!static_dir.empty())
+        {
             string script = "Module.static_dir = '" + static_dir + "';\n";
             emscripten_run_script(script.c_str());
         }
@@ -143,12 +147,17 @@ public:
                 var WebSocketServer = require('websocket').server;
                 var http = require('http');
                 var ecstatic = require('ecstatic');
-                if (Module.static_dir) {
-                    var serverImpl = ecstatic({ root: Module.static_dir });
-                } else {
+                if (Module.static_dir)
+                {
+                    var serverImpl =
+                        ecstatic({root : Module.static_dir, gzip : true});
+                }
+                else
+                {
                     var serverImpl = function(request, response){
-                    // process HTTP request. Since we're writing just
-                    // WebSockets server we don't have to implement anything.
+                        // process HTTP request. Since we're writing just
+                        // WebSockets server we don't have to implement
+                        // anything.
                     };
                 }
                 var server = http.createServer(serverImpl);
@@ -174,6 +183,8 @@ public:
                                     {type : 'gc_can_frame', data : gc_text});
                                 connection.sendUTF(json);
                             });
+                        console.log('websocket client ',
+                            client_port.get_port_num(), 'connected');
                         connection.on('message', function(message)
                             {
                                 try
@@ -184,22 +195,46 @@ public:
                                 {
                                     console.log(
                                         'This doesn\'t look like a valid JSON: ',
-                                        message.data, ' raw msg ' ,message);
+                                        message.data, ' raw msg ', message);
                                     return;
                                 }
                                 if (json.type === 'gc_can_frame')
                                 {
                                     // Send can frame data to the hub port
                                     client_port.recv(json.data);
-                                } else {
+                                }
+                                else
+                                {
                                     console.log('Unknown type ', message.type);
                                 }
                             });
                         connection.on('close', function(connection)
                             {
-                                console.log('websocket client disconnected');
-                                client_port.delete();
+                                console.log('websocket client ',
+                                    client_port.get_port_num(), 'disconnected');
+                                client_port.pause();
                             });
+                        connection.on('resume', function(connection)
+                            {
+                                console.log('websocket client ',
+                                    client_port.get_port_num(), ' resumed');
+                                client_port.resume();
+                            });
+                        connection.on('pause', function(connection)
+                            {
+                                console.log('websocket client ',
+                                    client_port.get_port_num(), ' paused');
+                                client_port.pause();
+                            });
+                        var ignevent = function(evname)
+                        {
+                            connection.on(evname, function(connection)
+                                {
+                                    console.log(
+                                        'websocket ingoring event ', evname);
+                                });
+                        };
+                        ignevent('drain');
                     });
             },
             port, (unsigned long)canHub_);
@@ -219,15 +254,18 @@ int appl_main(int argc, char *argv[])
     parse_args(argc, argv);
     JSTcpHub hub(&can_hub0, port);
     std::unique_ptr<JSWebsocketServer> ws;
-    if (ws_port > 0) {
+    if (ws_port > 0)
+    {
         ws.reset(new JSWebsocketServer(&can_hub0, ws_port, static_dir));
     }
     std::unique_ptr<JSTcpClient> client;
-    if (upstream_host) {
+    if (upstream_host)
+    {
         client.reset(new JSTcpClient(&can_hub0, upstream_host, upstream_port));
     }
-    std::vector<std::unique_ptr<JSSerialPort> > devices;
-    for (auto& d : device_paths) {
+    std::vector<std::unique_ptr<JSSerialPort>> devices;
+    for (auto &d : device_paths)
+    {
         devices.emplace_back(new JSSerialPort(&can_hub0, d));
     }
     /*    int dev_fd = 0;
