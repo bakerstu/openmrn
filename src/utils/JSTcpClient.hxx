@@ -66,11 +66,11 @@ public:
                         $1, function(data) { c.write(data); });
                     c.on('close', function() {
                         console.log('connection lost');
-                        client_port.delete();
+                        client_port.abandon();
                     });
                     c.on('error', function() {
                         console.log('connection error -- disconnected');
-                        client_port.delete();
+                        client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data); });
                 });

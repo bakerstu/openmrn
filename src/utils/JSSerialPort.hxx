@@ -89,12 +89,12 @@ public:
                         $0, function(data) { c.write(data); });
                     c.on('close', function() {
                         console.log('serial port ' + portdev + ' closed.');
-                        client_port.delete();
+                        client_port.abandon();
                     });
                     c.on('error', function(err) {
                         console.log('error on serial port ' + portdev + ': ' + err);
                         c.close();
-                        client_port.delete();
+                        client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data.toString()); });
                 });

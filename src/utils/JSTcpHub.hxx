@@ -67,12 +67,12 @@ public:
                         c.on('close', function()
                             {
                                 console.log('client disconnected');
-                                client_port.delete();
+                                client_port.abandon();
                             });
                         c.on('error', function()
                             {
                                 console.log('client error -- disconnected');
-                                client_port.delete();
+                                client_port.abandon();
                             });
                         c.on('data', function(data)
                             {
