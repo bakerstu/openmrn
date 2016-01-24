@@ -86,6 +86,15 @@ public:
     /** Short hand for the iterator type of a given instance */
     typedef typename std::map<Key, Value>::iterator Iterator;
 
+    /** Removes all elements in the map. */
+    void clear() {
+        if (mapping) {
+            mapping->clear();
+        } else {
+            mappingAllocator->clear();
+        }
+    }
+
     /** Remove an element from the tree.
      * @param key key for the element to remove
      * @return number of elements removed

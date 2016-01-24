@@ -54,7 +54,7 @@ public:
           nodes(NULL)
 
     {
-        RB_INIT(&head);
+        clear();
     }
 
     /** Constructor that limits the number of mappings to a static pool.
@@ -67,14 +67,7 @@ public:
           nodes(new Node[entries])
     {
         HASSERT(entries != 0);
-        RB_INIT(&head);
-        nodes->entry.rbe_left = NULL;
-        
-        for (size_t i = 1; i < entries; ++i)
-        {
-            nodes[i].entry.rbe_left = nodes + (i - 1);
-        }
-        freeList = nodes + (entries - 1);
+        clear();
     }
 
     /** Destructor.
@@ -233,7 +226,24 @@ public:
     {
         return entries ? entries : UINTPTR_MAX / sizeof(Pair);
     }
-    
+
+    /** Removes all elements in the map. */
+    void clear()
+    {
+        RB_INIT(&head);
+        used = 0;
+        if (entries)
+        {
+            nodes->entry.rbe_left = NULL;
+
+            for (size_t i = 1; i < entries; ++i)
+            {
+                nodes[i].entry.rbe_left = nodes + (i - 1);
+            }
+            freeList = nodes + (entries - 1);
+        }
+    }
+
     /** Find an element matching the given key.
      * @param key key to search for
      * @return iterator index pointing to key, else iterator end() if not found
