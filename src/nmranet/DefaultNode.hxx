@@ -62,8 +62,15 @@ public:
     }
 
     // Sets the initialized status to true.
-    void set_initialized() OVERRIDE {
+    void set_initialized() OVERRIDE
+    {
         isInitialized_ = 1;
+    }
+
+    // Used for restarting the stack.
+    void clear_initialized()
+    {
+        isInitialized_ = 0;
     }
 
 private:

@@ -99,9 +99,31 @@ void SimpleCanStack::start_stack()
     }
 }
 
+void SimpleCanStack::restart_stack()
+{
+    node_.clear_initialized();
+    ifCan_.alias_allocator()->reinit_seed();
+    ifCan_.local_aliases()->clear();
+    ifCan_.remote_aliases()->clear();
+    // Deletes all reserved aliases from the queue.
+    while (!ifCan_.alias_allocator()->reserved_aliases()->empty())
+    {
+        Buffer<AliasInfo> *a = static_cast<Buffer<AliasInfo> *>(
+            ifCan_.alias_allocator()->reserved_aliases()->next().item);
+        if (a)
+        {
+            a->unref();
+        }
+    }
+
+    // Bootstraps the fresh alias allocation process.
+    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    extern void StartInitializationFlow(Node * node);
+    StartInitializationFlow(&node_);
+}
+
 void SimpleCanStack::check_version_and_factory_reset(
-    const InternalConfigData &cfg, uint16_t expected_version,
-    bool force)
+    const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
     int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
@@ -175,7 +197,7 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
-    init_main_buffer_pool();
+extern Pool *const __attribute__((
+    __weak__)) g_incoming_datagram_allocator = init_main_buffer_pool();
 
 } // namespace nmranet

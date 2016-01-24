@@ -224,6 +224,10 @@ public:
         return &configUpdateFlow_;
     }
 
+    /// Reinitializes the node. Useful to call after the connection has flapped
+    /// (gone down and up).
+    void restart_stack();
+
     /// Donates the current thread to the executor. Never returns.
     void loop_executor()
     {

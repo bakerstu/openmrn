@@ -75,17 +75,14 @@ public:
           removeCallback(remove_callback),
           context(context)
     {
-        /* initialize the freeList */
-        for (size_t i = 0; i < entries; ++i)
-        {
-            pool[i].prev = NULL;
-            pool[i].next = freeList;
-            freeList = pool + i;
-        }
+        clear();
     }
 
     /** This NodeID will be used for reserved but unused local aliases. */
     static const NodeID RESERVED_ALIAS_NODE_ID;
+
+    /** Reinitializes the entire map. */
+    void clear();
 
     /** Add an alias to an alias cache.
      * @param id 48-bit NMRAnet Node ID to associate alias with

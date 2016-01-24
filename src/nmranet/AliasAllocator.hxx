@@ -110,6 +110,11 @@ public:
 
     virtual ~AliasAllocator();
 
+    /** Resets the alias allocator to the state it was at construction. useful
+     * after connection restart in order to ensure it will try to allocate the
+     * same alias. */
+    void reinit_seed();
+
     /** "Allocate" a buffer from this pool (but without initialization) in
      * order to get a reserved alias. */
     QAsync *reserved_aliases()
