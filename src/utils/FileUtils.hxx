@@ -45,9 +45,8 @@ string read_file_to_string(const string &filename)
     using emscripten::val;
     EM_ASM(var fs = require('fs'); Module.fs = fs;);
     val fs = val::module_property("fs");
-    string contents =
-        fs.call<val>("readFileSync", string(filename), string("binary"))
-            .as<string>();
+    string contents = fs.call<val>("readFileSync", string(filename),
+                             string("binary")).as<string>();
     return contents;
 }
 
@@ -73,6 +72,29 @@ string read_file_to_string(const string &filename)
     }
     fclose(f);
     return ret;
+}
+
+void write_string_to_file(const string &filename, const string &data)
+{
+    FILE *f = fopen(filename.c_str(), "wb");
+    if (!f)
+    {
+        fprintf(stderr, "Could not open file %s: %s\n", filename.c_str(),
+            strerror(errno));
+        exit(1);
+    }
+    size_t nr;
+    size_t offset;
+    string ret;
+    while ((nr = fwrite(data.data() + offset, 1, data.size() - offset, f)) > 0)
+    {
+        offset += nr;
+        if (offset >= data.size()) break;
+    }
+    if (nr < 0) {
+        fprintf(stderr, "error writing: %s\n", strerror(errno));
+    }
+    fclose(f);
 }
 
 #endif
