@@ -251,9 +251,9 @@ protected:
         can_hub0.register_port(&can_port_);
         g_bootloader_port = &can_port_;
 
-        EXPECT_CALL(mock_, nmranet_alias()).WillRepeatedly(Return(0x428));
+        EXPECT_CALL(mock_, nmranet_alias()).WillRepeatedly(Return(0x4AA));
         EXPECT_CALL(mock_, nmranet_nodeid())
-            .WillRepeatedly(Return(0x05010101146CULL));
+            .WillRepeatedly(Return(0x1A2A3A4A5A6AULL));
     }
 
     ~BootloaderTestBase()
@@ -408,19 +408,19 @@ protected:
     {
         wait();
         EXPECT_CALL(mock_, bootloader_reboot());
-        expect_packet(":X19A28428N0111;");
-        send_packet(":X1A428111N20A9;");
+        expect_packet(":X19A284AAN0111;");
+        send_packet(":X1A4AA111N20A9;");
     }
 
     void expect_startup_packets()
     {
-        expect_packet(":X17050428N;");
-        expect_packet(":X16101428N;");
-        expect_packet(":X15011428N;");
-        expect_packet(":X1446C428N;");
-        expect_packet(":X10700428N;");
-        expect_packet(":X10701428N05010101146C;");
-        expect_packet(":X19100428N05010101146C;");
+        expect_packet(":X171A24AAN;");
+        expect_packet(":X16A3A4AAN;");
+        expect_packet(":X154A54AAN;");
+        expect_packet(":X14A6A4AAN;");
+        expect_packet(":X107004AAN;");
+        expect_packet(":X107014AAN1A2A3A4A5A6A;");
+        expect_packet(":X191004AAN1A2A3A4A5A6A;");
     }
 
     void proper_startup()
@@ -441,14 +441,14 @@ protected:
     void initiate_stream_write(string offset)
     {
         // expect datagram ok
-        expect_packet(":X19A28428N032180;");
+        expect_packet(":X19A284AAN032180;");
         // and expect response datagram
-        expect_packet(StringPrintf(":X1A321428N2030%sEF;", offset.c_str()))
+        expect_packet(StringPrintf(":X1A3214AAN2030%sEF;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
                 {
-                    send_packet(":X19A28321N0428;");
+                    send_packet(":X19A28321N04AA;");
                 }));
-        send_packet(StringPrintf(":X1A428321N2020%sEF1A;", offset.c_str()));
+        send_packet(StringPrintf(":X1A4AA321N2020%sEF1A;", offset.c_str()));
         wait();
         clear_expect(true);
     }
@@ -457,15 +457,15 @@ protected:
     void setup_stream_request()
     {
         // Sends stream setup request.
-        expect_packet(":X19868428N0321008080001A5A;");
-        send_packet(":X19CC8321N0428008000001A;");
+        expect_packet(":X198684AAN0321008080001A5A;");
+        send_packet(":X19CC8321N04AA008000001A;");
         wait();
         clear_expect(true);
     }
 
     string create_stream_packet(const string &bytes)
     {
-        string packet = ":X1F428321N5A";
+        string packet = ":X1F4AA321N5A";
         for (unsigned i = 0; i < bytes.size(); ++i)
         {
             packet += StringPrintf("%02x", (uint8_t)bytes[i]);
@@ -561,8 +561,8 @@ TEST_F(BootloaderTest, Reset)
 
     wait();
     EXPECT_CALL(mock_, bootloader_reboot());
-    expect_packet(":X19A28428N0111;");
-    send_packet(":X1A428111N20A9;");
+    expect_packet(":X19A284AAN0111;");
+    send_packet(":X1A4AA111N20A9;");
 }
 
 TEST_F(BootloaderTest, Unfreeze)
@@ -571,9 +571,9 @@ TEST_F(BootloaderTest, Unfreeze)
 
     wait();
     EXPECT_CALL(mock_, bootloader_reboot());
-    expect_packet(":X19A28428N0111;");
+    expect_packet(":X19A284AAN0111;");
     // Unfreeze on the proper space ID is equivalent to reboot.
-    send_packet(":X1A428111N20A0EF;");
+    send_packet(":X1A4AA111N20A0EF;");
 }
 
 TEST_F(BootloaderTest, BadUnfreeze)
@@ -581,9 +581,9 @@ TEST_F(BootloaderTest, BadUnfreeze)
     proper_startup();
 
     wait();
-    expect_packet(":X19A48428N01111010;");
+    expect_packet(":X19A484AAN01111010;");
     // Unfreeze for a wrong space number causes error response.
-    send_packet(":X1A428111N20A0EE;");
+    send_packet(":X1A4AA111N20A0EE;");
     wait();
 
     exit_bootloader();
@@ -597,7 +597,7 @@ TEST_F(BootloaderTest, FreezeWillReboot)
     // Freeze on the proper space ID will start the bootloader again. It will
     // not, however, call bootloader_reboot().
     expect_startup_packets();
-    send_packet(":X1A428111N20A1EF;");
+    send_packet(":X1A4AA111N20A1EF;");
 
     exit_bootloader();
 }
@@ -606,8 +606,8 @@ TEST_F(BootloaderTest, PIPReply)
 {
     proper_startup();
 
-    expect_packet(":X19668428N0321700010000000;");
-    send_packet(":X19828321N0428;");
+    expect_packet(":X196684AAN0321700010000000;");
+    send_packet(":X19828321N04AA;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 
@@ -629,8 +629,8 @@ TEST_F(BootloaderTest, RejectStreamOutOfTheBlue)
 {
     proper_startup();
 
-    expect_packet(":X19868428N0321000042201A5A;");
-    send_packet(":X19CC8321N0428008000001A;");
+    expect_packet(":X198684AAN0321000042201A5A;");
+    send_packet(":X19CC8321N04AA008000001A;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 
@@ -644,8 +644,8 @@ TEST_F(BootloaderTest, RejectStreamWithWrongId)
     initiate_stream_write("00000000");
 
     // Sends stream setup request with wrong id (1A vs 55).
-    expect_packet(":X19868428N032100004220555A;");
-    send_packet(":X19CC8321N04280080000055;");
+    expect_packet(":X198684AAN032100004220555A;");
+    send_packet(":X19CC8321N04AA0080000055;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 
@@ -666,7 +666,7 @@ TEST_F(BootloaderTest, WriteABlock)
         data.push_back(i & 0xff);
     }
     unsigned ofs = 0;
-    expect_packet(":X19888428N03211A5A0000;");
+    expect_packet(":X198884AAN03211A5A0000;");
     while (ofs + 7 < data.size())
     {
         send_packet(create_stream_packet(data.substr(ofs, 7)));
@@ -675,7 +675,7 @@ TEST_F(BootloaderTest, WriteABlock)
     }
     EXPECT_CALL(mock_, erase_flash_page(0));
     EXPECT_CALL(mock_, write_flash(0, data, 256));
-    expect_packet(":X19888428N03211A5A0000;");
+    expect_packet(":X198884AAN03211A5A0000;");
     send_packet(create_stream_packet(data.substr(ofs, data.size() - ofs)));
     wait();
     EXPECT_EQ(data, string((char *)virtual_flash, 256));
@@ -690,7 +690,7 @@ TEST_F(BootloaderTest, WriteTwoPages)
 
     string all_data;
 
-    expect_packet(":X19888428N03211A5A0000;").Times(16);
+    expect_packet(":X198884AAN03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
         start_block(42 * i, 256);
@@ -722,7 +722,7 @@ TEST_F(BootloaderTest, FinishStream)
 
     string all_data;
 
-    expect_packet(":X19888428N03211A5A0000;").Times(12);
+    expect_packet(":X198884AAN03211A5A0000;").Times(12);
     for (int i = 0; i < 6; ++i)
     {
         start_block(42 * i, 256);
@@ -743,13 +743,13 @@ TEST_F(BootloaderTest, FinishStream)
     }
 
     // Partial block
-    expect_packet(":X19888428N03211A5A0000;").Times(1);
+    expect_packet(":X198884AAN03211A5A0000;").Times(1);
     start_block(42 * 9, 178);
     wait();
     finish_block();
     wait();
     EXPECT_CALL(mock_, write_flash(6 * 256, current_block_, 178));
-    send_packet(":X198A8321N04281A5A0000;");
+    send_packet(":X198A8321N04AA1A5A0000;");
     all_data += current_block_;
     wait();
 
@@ -765,7 +765,7 @@ TEST_F(BootloaderTest, MultiStream)
 
     string all_data;
 
-    expect_packet(":X19888428N03211A5A0000;").Times(16);
+    expect_packet(":X198884AAN03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
         start_block(42 * i, 256);
@@ -786,13 +786,13 @@ TEST_F(BootloaderTest, MultiStream)
     }
 
     // End of stream.
-    send_packet(":X198A8321N04281A5A0000;");
+    send_packet(":X198A8321N04AA1A5A0000;");
     wait();
 
     initiate_stream_write(StringPrintf("%08x", 2048));
     setup_stream_request();
 
-    expect_packet(":X19888428N03211A5A0000;").Times(16);
+    expect_packet(":X198884AAN03211A5A0000;").Times(16);
     for (int i = 0; i < 8; ++i)
     {
         start_block(45 * i, 256);
@@ -813,7 +813,7 @@ TEST_F(BootloaderTest, MultiStream)
     }
 
     // End of stream.
-    send_packet(":X198A8321N04281A5A0000;");
+    send_packet(":X198A8321N04AA1A5A0000;");
     wait();
 
     EXPECT_EQ(all_data, string((char *)virtual_flash, 4096));
@@ -849,7 +849,7 @@ protected:
     {
         expect_boot(true);
         EXPECT_CALL(mock_, application_entry()).Times(0);
-        expect_packet(":X19100428N05010101146C;");
+        expect_packet(":X191004AAN1A2A3A4A5A6A;");
         run_bootloader();
         while (g_bootloader_busy)
             usleep(100);
@@ -881,8 +881,8 @@ protected:
     void exit_bootloader()
     {
         EXPECT_CALL(mock_, bootloader_reboot());
-        expect_packet(":X19A28428N0111;");
-        send_packet(":X1A428111N20A9;");
+        expect_packet(":X19A284AAN0111;");
+        send_packet(":X1A4AA111N20A9;");
     }
 
     BootloaderClient client_;
@@ -899,7 +899,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
     ScopedOverride ov(&DATAGRAM_RESPONSE_TIMEOUT_NSEC, MSEC_TO_NSEC(100));
     ScopedOverride ov2(&PIP_CLIENT_TIMEOUT_NSEC, MSEC_TO_NSEC(300));
     print_all_packets();
-    request_->data()->dst.alias = 0x428;
+    request_->data()->dst.alias = 0x4AA;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
@@ -915,9 +915,9 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     //print_all_packets();
     expect_any_packet();
     startup();
-    expect_packet(":X19100428N05010101146C;");
+    expect_packet(":X191004AAN1A2A3A4A5A6A;");
 
-    request_->data()->dst.id = 0x05010101146C;
+    request_->data()->dst.id = 0x1A2A3A4A5A6A;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     // This test case also causes the bootloader to reboot inside once.
@@ -940,7 +940,7 @@ TEST_F(BootloaderClientTest, WriteSomeData)
     // print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.alias = 0x428;
+    request_->data()->dst.alias = 0x4AA;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
@@ -961,7 +961,7 @@ TEST_F(BootloaderClientTest, WriteAtOffset)
     // print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.alias = 0x428;
+    request_->data()->dst.alias = 0x4AA;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 3 * 1024;
     request_->data()->request_reboot = 0;
@@ -982,7 +982,7 @@ TEST_F(BootloaderClientTest, FailOnSpaceId)
     // print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.alias = 0x428;
+    request_->data()->dst.alias = 0x4AA;
     request_->data()->memory_space = 0xF1;
     request_->data()->offset = 3 * 1024;
     request_->data()->request_reboot = 0;
@@ -1004,7 +1004,7 @@ TEST_F(BootloaderClientTest, FindByNodeId)
     // print_all_packets();
     expect_any_packet();
     startup();
-    request_->data()->dst.id = 0x05010101146C;
+    request_->data()->dst.id = 0x1A2A3A4A5A6A;
     request_->data()->memory_space = 0xEF;
     request_->data()->offset = 0;
     request_->data()->request_reboot = 0;
