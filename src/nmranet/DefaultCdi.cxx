@@ -35,8 +35,12 @@
  */
 
 #include <unistd.h>
+#include <stdint.h>
 
 namespace nmranet {
+
+extern const uint16_t __attribute__((weak)) CDI_EVENT_OFFSETS[] = {0};
+
 extern const char __attribute__((weak)) CDI_DATA[] =
 R"cdi(<?xml version="1.0"?>
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
@@ -80,5 +84,6 @@ R"cdi(<?xml version="1.0"?>
 </segment>
 </cdi>
 )cdi";
+
 
 } // namespace nmranet

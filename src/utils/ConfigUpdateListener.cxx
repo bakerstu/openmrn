@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,64 +24,23 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file DefaultNode.hxx
+ * \file ConfigUpdateListener.cxx
  *
- * Default AsyncNode implementation for a fat virtual node.
+ * Definitions for the default config update listener.
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 21 Dec 2015
  */
 
-#ifndef _NMRANET_DEFAULTNODE_HXX_
-#define _NMRANET_DEFAULTNODE_HXX_
+#include "utils/ConfigUpdateListener.hxx"
+#include "utils/ConfigUpdateService.hxx"
 
-#include "nmranet/Node.hxx"
-
-namespace nmranet
+DefaultConfigUpdateListener::DefaultConfigUpdateListener()
 {
-
-/// Trivial implementation of a virtual Node. Stores all dynamic information in
-/// class member variables.
-class DefaultNode: public Node
+    Singleton<ConfigUpdateService>::instance()->register_update_listener(this);
+}
+DefaultConfigUpdateListener::~DefaultConfigUpdateListener()
 {
-public:
-    DefaultNode(If* iface, NodeID node_id);
-    virtual ~DefaultNode();
-
-    NodeID node_id() OVERRIDE
-    {
-        return nodeId_;
-    }
-    If* iface() OVERRIDE
-    {
-        return iface_;
-    }
-    bool is_initialized() OVERRIDE
-    {
-        return isInitialized_;
-    }
-
-    // Sets the initialized status to true.
-    void set_initialized() OVERRIDE
-    {
-        isInitialized_ = 1;
-    }
-
-    // Used for restarting the stack.
-    void clear_initialized()
-    {
-        isInitialized_ = 0;
-    }
-
-private:
-    /** 48-bit node identifier of this node. */
-    NodeID nodeId_ : 48;
-    /** 1 if the node has reached initialized state. */
-    unsigned isInitialized_ : 1;
-    /** Interface this node is bound to. */
-    If* iface_;
-};
-
-} // namespace nmranet
-
-#endif // _NMRANET_DEFAULTNODE_HXX_
+    Singleton<ConfigUpdateService>::instance()->unregister_update_listener(
+        this);
+}

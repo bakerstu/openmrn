@@ -75,10 +75,10 @@ struct TractionDefs {
     /// off the command station power output).
     /// @TODO : there is a mistake in this constant. It should start with
     /// 0100 by the standard (instead of 0101).
-    static const uint64_t EMERGENCY_STOP_EVENT = 0x010100000000FFFFULL;
+    static const uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFFULL;
     /// Producing this event resumes all operations (usually by turning power
     /// back on).
-    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010100000000FFFEULL;
+    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFEULL;
 
     /// Node ID space allocated for DC blocks.
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;

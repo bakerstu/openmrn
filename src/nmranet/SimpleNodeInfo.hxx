@@ -87,8 +87,9 @@ void init_snip_user_file(int fd, const char *user_name,
 class SNIPHandler : public IncomingMessageStateFlow
 {
 public:
-    SNIPHandler(If *iface, SimpleInfoFlow *response_flow)
+    SNIPHandler(If *iface, Node* node, SimpleInfoFlow *response_flow)
         : IncomingMessageStateFlow(iface)
+        , node_(node)
         , responseFlow_(response_flow)
     {
         HASSERT(SNIP_STATIC_DATA.version == 4);
@@ -106,6 +107,8 @@ public:
     {
         if (!nmsg()->dstNode)
             return release_and_exit();
+        if (node_ && nmsg()->dstNode != node_)
+            return release_and_exit();
         return allocate_and_call(responseFlow_, STATE(send_response_request));
     }
 
@@ -121,6 +124,7 @@ private:
     /** Defines the SNIP response fields. */
     static const SimpleInfoDescriptor SNIP_RESPONSE[];
 
+    Node* node_;
     SimpleInfoFlow *responseFlow_;
 };
 

@@ -42,6 +42,19 @@ namespace nmranet
 
 const NodeID AliasCache::RESERVED_ALIAS_NODE_ID = 1;
 
+void AliasCache::clear()
+{
+    idMap.clear();
+    aliasMap.clear();
+    /* initialize the freeList */
+    for (size_t i = 0; i < entries; ++i)
+    {
+        pool[i].prev = NULL;
+        pool[i].next = freeList;
+        freeList = pool + i;
+    }
+}
+
 /** Add an alias to an alias cache.
  * @param id 48-bit NMRAnet Node ID to associate alias with
  * @param alias 12-bit alias associated with Node ID
@@ -165,6 +178,16 @@ void AliasCache::remove(NodeAlias alias)
     
 }
 
+bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
+{
+    HASSERT(entry < size());
+    Metadata* md = pool + entry;
+    if (!md->alias) return false;
+    if (node) *node = md->id;
+    if (alias) *alias = md->alias;
+    return true;
+}
+
 /** Lookup a node's alias based on its Node ID.
  * @param id Node ID to look for
  * @return alias that matches the Node ID, else 0 if not found
@@ -274,4 +297,3 @@ void AliasCache::touch(Metadata* metadata)
 }
 
 };
-

@@ -297,17 +297,28 @@ protected:
      *  alias. */
     void create_allocated_alias()
     {
-        ifCan_->set_alias_allocator(
-            new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
+        inject_allocated_alias(0x33A, true);
+        aliasSeed_ = 0x44C;
+        pendingAliasAllocation_ = false;
+    }
+
+    void inject_allocated_alias(NodeAlias alias, bool repeat = false)
+    {
+        if (!ifCan_->alias_allocator()) {
+            ifCan_->set_alias_allocator(
+                new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
+        }
         Buffer<AliasInfo> *a;
         mainBufferPool->alloc(&a);
-        a->data()->alias = 0x33A;
+        a->data()->reset();
+        a->data()->alias = alias;
         a->data()->state = AliasInfo::STATE_RESERVED;
+        if (!repeat) {
+            a->data()->do_not_reallocate();
+        }
         ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
                                      a->data()->alias);
         ifCan_->alias_allocator()->reserved_aliases()->insert(a);
-        aliasSeed_ = 0x44C;
-        pendingAliasAllocation_ = false;
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)

@@ -113,9 +113,9 @@ struct Defs
         MTI_EVENTS_IDENTIFY_GLOBAL    = 0x0970, /**< request identify all of every node's events */
         MTI_LEARN_EVENT               = 0x0594, /**< */
         MTI_EVENT_REPORT              = 0x05B4, /**< */
-        MTI_TRACTION_CONTROL_COMMAND  = 0x05EA,
-        MTI_TRACTION_CONTROL_REPLY    = 0x05E8,
-        MTI_TRACTION_PROXY_COMMAND    = 0x01EA,
+        MTI_TRACTION_CONTROL_COMMAND  = 0x05EB,
+        MTI_TRACTION_CONTROL_REPLY    = 0x01E9,
+        MTI_TRACTION_PROXY_COMMAND    = 0x05EA,
         MTI_TRACTION_PROXY_REPLY      = 0x01E8,
         MTI_XPRESSNET                 = 0x09C0, /**< */
         MTI_IDENT_INFO_REQUEST        = 0x0DE8, /**< request node identity */
@@ -170,7 +170,7 @@ struct Defs
      */
     enum Protocols
     {
-        PROTOCOL_IDENTIFICATION = 0x800000000000,
+        SIMPLE_PROTOCOL_SUBSET  = 0x800000000000,
         DATAGRAM                = 0x400000000000,
         STREAM                  = 0x200000000000,
         MEMORY_CONFIGURATION    = 0x100000000000,
@@ -249,6 +249,13 @@ inline EventState invert_event_state(EventState state)
         default:
             return state;
     }
+}
+
+/** Returns the inverted event state, switching valid and invalid, but not
+ * changing unknown and reserved. */
+inline EventState to_event_state(bool state)
+{
+    return state ? EventState::VALID : EventState::INVALID;
 }
 
 /** Allows ofsetting the producer/consumer identified MTI with the event state

@@ -150,12 +150,12 @@ uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {
 
 #ifdef BOOTLOADER_STREAM
 #define PIP_REPLY_VALUE                                                        \
-    (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM | Defs::STREAM |           \
-        Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+    (Defs::DATAGRAM | Defs::STREAM | Defs::MEMORY_CONFIGURATION |              \
+        Defs::FIRMWARE_UPGRADE_ACTIVE)
 #else
 #define PIP_REPLY_VALUE                                                        \
-    (Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM |                          \
-        Defs::MEMORY_CONFIGURATION | Defs::FIRMWARE_UPGRADE_ACTIVE)
+    (Defs::DATAGRAM | Defs::MEMORY_CONFIGURATION |                             \
+        Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
 // We manually convert to big-endian to store this value in .rodata.
 static const uint64_t PIP_REPLY =        //
@@ -449,6 +449,8 @@ void handle_memory_config_frame()
                 state_.input_frame.can_dlc - 1);
             state_.datagram_payload[1] |= MemoryConfigDefs::COMMAND_WRITE_REPLY;
             state_.datagram_output_pending = 1;
+            state_.output_frame.data[state_.output_frame.can_dlc++] =
+                DatagramDefs::REPLY_PENDING;
             state_.datagram_dst =
                 CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
             state_.datagram_offset = 0;

@@ -441,7 +441,7 @@ protected:
     void initiate_stream_write(string offset)
     {
         // expect datagram ok
-        expect_packet(":X19A28428N0321;");
+        expect_packet(":X19A28428N032180;");
         // and expect response datagram
         expect_packet(StringPrintf(":X1A321428N2030%sEF;", offset.c_str()))
             .WillOnce(InvokeWithoutArgs([this]
@@ -606,7 +606,7 @@ TEST_F(BootloaderTest, PIPReply)
 {
     proper_startup();
 
-    expect_packet(":X19668428N0321F00010000000;");
+    expect_packet(":X19668428N0321700010000000;");
     send_packet(":X19828321N0428;");
     wait();
     Mock::VerifyAndClear(&canBus_);

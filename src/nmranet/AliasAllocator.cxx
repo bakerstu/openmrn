@@ -50,12 +50,17 @@ AliasAllocator::AliasAllocator(NodeID if_id, IfCan *if_can)
     , cid_frame_sequence_(0)
     , conflict_detected_(0)
 {
-    seed_ = if_id >> 30;
-    seed_ ^= if_id >> 18;
-    seed_ ^= if_id >> 6;
-    seed_ ^= uint16_t(if_id >> 42) | uint16_t(if_id << 6);
+    reinit_seed();
     // Moves all the allocated alias buffers over to the input queue for
     // allocation.
+}
+
+void AliasAllocator::reinit_seed()
+{
+    seed_ = if_id_ >> 30;
+    seed_ ^= if_id_ >> 18;
+    seed_ ^= if_id_ >> 6;
+    seed_ ^= uint16_t(if_id_ >> 42) | uint16_t(if_id_ << 6);
 }
 
 /** Helper function to instruct the async alias allocator to pre-allocate N

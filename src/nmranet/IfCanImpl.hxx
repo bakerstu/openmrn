@@ -123,8 +123,15 @@ private:
             alias = new_alias->data()->alias;
             /* Sends the alias back for reallocating. This will trigger the
              * alias allocator flow. */
-            new_alias->data()->reset();
-            if_can()->alias_allocator()->send(new_alias);
+            if (new_alias->data()->return_to_reallocation)
+            {
+                new_alias->data()->reset();
+                if_can()->alias_allocator()->send(new_alias);
+            }
+            else
+            {
+                new_alias->unref();
+            }
         }
         LOG(INFO, "Allocating new alias %03X for node %012" PRIx64, alias,
             nmsg()->src.id);

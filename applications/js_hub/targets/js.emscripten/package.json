@@ -3,6 +3,7 @@
   "version": "0.9.1",
   "dependencies": {
     "websocket": "*",
-    "ecstatic": "*"
+    "ecstatic": "*",
+    "serialport": "*"
   }
 }

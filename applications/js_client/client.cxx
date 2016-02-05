@@ -56,16 +56,11 @@ const nmranet::NodeID NODE_ID = 0x0501010114DFULL;
 nmranet::SimpleCanStack stack(NODE_ID);
 
 nmranet::MockSNIPUserFile snip_user_file(
-    "Default user name", "Default user description");
+    "Javascript app", "No description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
-void start_stack()
-{
-    emscripten_cancel_main_loop();
-    stack.loop_executor();
-    EM_ASM(console.log('stack start done'););
-}
+bool stack_started = false;
 
 void ignore_function()
 {
@@ -80,11 +75,26 @@ public:
         start_flow(STATE(wait_for_initialized));
     }
 
+    /// Adds an event ID to be queried (once the node is up).
     void add_event(uint64_t event_id)
     {
-        /// @TODO (balazs.racz) handle the case when events are insnerted after
+        /// @TODO (balazs.racz) handle the case when events are inserted after
         /// the iteration has begun.
         events_.insert(event_id);
+    }
+
+    /// Starts the entire initialization again, performing a query on all known
+    /// event IDs once more.
+    void restart()
+    {
+        if (is_terminated())
+        {
+            start_flow(STATE(wait_for_initialized));
+        }
+        else
+        {
+            nextEvent_ = events_.begin();
+        }
     }
 
 private:
@@ -93,7 +103,7 @@ private:
         if (!stack.node()->is_initialized())
         {
             return sleep_and_call(
-                &timer_, SEC_TO_NSEC(1), STATE(wait_for_initialized));
+                &timer_, MSEC_TO_NSEC(100), STATE(wait_for_initialized));
         }
         return call_immediately(STATE(start_iteration));
     }
@@ -211,6 +221,22 @@ private:
     emscripten::val eventOffCallback_;
     nmranet::BitEventPC consumer_;
 };
+
+void start_stack()
+{
+    if (!stack_started) {
+        stack_started = true;
+        emscripten_cancel_main_loop();
+        stack.loop_executor();
+        EM_ASM(console.log('stack start done'););
+    } else {
+        // Restarting.
+        stack.restart_stack();
+        g_query_flow.restart();
+    }
+}
+
+
 
 /** Entry point to application.
  * @param argc number of command line arguments

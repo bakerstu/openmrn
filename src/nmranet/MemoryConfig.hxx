@@ -106,6 +106,8 @@ struct MemoryConfigDefs {
         SPACE_CONFIG     = 0xFD, /**< config memory space */
         SPACE_ACDI_SYS   = 0xFC, /**< read-only ACDI space */
         SPACE_ACDI_USR   = 0xFB, /**< read-write ACDI space */
+        SPACE_FDI        = 0xFA, /**< read-only for function definition XML */
+        SPACE_FUNCTION   = 0xF9, /**< read-write for function data */
         SPACE_FIRMWARE   = 0xEF, /**< firmware upgrade space */
     };
 

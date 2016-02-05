@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,64 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file DefaultNode.hxx
+ * \file JSHubPort.hxx
  *
- * Default AsyncNode implementation for a fat virtual node.
+ * Shared base class for all javascript "device drivers".
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 13 Sep 2015
  */
 
-#ifndef _NMRANET_DEFAULTNODE_HXX_
-#define _NMRANET_DEFAULTNODE_HXX_
+#ifdef __EMSCRIPTEN__
 
-#include "nmranet/Node.hxx"
+extern int JSHubPort_debug_port_num;
+int JSHubPort_debug_port_num = 0;
 
-namespace nmranet
-{
-
-/// Trivial implementation of a virtual Node. Stores all dynamic information in
-/// class member variables.
-class DefaultNode: public Node
-{
-public:
-    DefaultNode(If* iface, NodeID node_id);
-    virtual ~DefaultNode();
-
-    NodeID node_id() OVERRIDE
-    {
-        return nodeId_;
-    }
-    If* iface() OVERRIDE
-    {
-        return iface_;
-    }
-    bool is_initialized() OVERRIDE
-    {
-        return isInitialized_;
-    }
-
-    // Sets the initialized status to true.
-    void set_initialized() OVERRIDE
-    {
-        isInitialized_ = 1;
-    }
-
-    // Used for restarting the stack.
-    void clear_initialized()
-    {
-        isInitialized_ = 0;
-    }
-
-private:
-    /** 48-bit node identifier of this node. */
-    NodeID nodeId_ : 48;
-    /** 1 if the node has reached initialized state. */
-    unsigned isInitialized_ : 1;
-    /** Interface this node is bound to. */
-    If* iface_;
-};
-
-} // namespace nmranet
-
-#endif // _NMRANET_DEFAULTNODE_HXX_
+#endif // __EMSCRIPTEN__

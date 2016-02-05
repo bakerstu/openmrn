@@ -632,7 +632,7 @@ TEST_F(BootloaderTest, PIPReply)
 {
     proper_startup();
     // No stream support in reply.
-    expect_packet(":X19668428N0321D00010000000;");
+    expect_packet(":X19668428N0321500010000000;");
     send_packet(":X19828321N0428;");
     wait();
     Mock::VerifyAndClear(&canBus_);

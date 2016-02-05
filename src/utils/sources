@@ -3,22 +3,25 @@ VPATH := $(SRCDIR)
 CSRCS += errno_exit.c \
          ieeehalfprecision.c
 
-CXXSRCS += Buffer.cxx \
-           Queue.cxx \
-           GridConnect.cxx \
-           logging.cxx \
-           GridConnectHub.cxx \
-           HubDeviceSelect.cxx \
-           ReflashBootloader.cxx \
-	   Crc.cxx \
-           gc_format.cxx \
-           HubDevice.cxx \
-           GcTcpHub.cxx \
-	   StringPrintf.cxx \
-           socket_listener.cxx \
-           socket_client.cxx \
-           constants.cxx \
+CXXSRCS += \
 	   CanIf.cxx \
+	   Crc.cxx \
+	   StringPrintf.cxx \
+           Buffer.cxx \
+           ConfigUpdateListener.cxx \
+           GcTcpHub.cxx \
+           GridConnect.cxx \
+           GridConnectHub.cxx \
+           HubDevice.cxx \
+           HubDeviceSelect.cxx \
+           Queue.cxx \
+           JSHubPort.cxx \
+           ReflashBootloader.cxx \
+           constants.cxx \
+           gc_format.cxx \
+           logging.cxx \
+           socket_client.cxx \
+           socket_listener.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \

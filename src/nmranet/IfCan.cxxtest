@@ -119,6 +119,10 @@ TEST_F(AsyncIfTest, AMESupport)
     wait();
     send_packet(":X10702643N050101011878;");
     wait();
+    expect_packet(":X1070122AN02010D000003;");
+    expect_packet(":X10701729N050101011877;");
+    send_packet(":X10702643N;");
+    wait();
 }
 
 class AsyncMessageCanTests : public AsyncIfTest

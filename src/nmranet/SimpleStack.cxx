@@ -37,6 +37,8 @@
 #endif
 
 #include "nmranet/SimpleStack.hxx"
+
+#include "nmranet/EventHandler.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
 
 namespace nmranet
@@ -52,7 +54,8 @@ void SimpleCanStack::start_stack()
 {
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
-    configUpdateFlow_.init(CONFIG_FILENAME);
+    configUpdateFlow_.open_file(CONFIG_FILENAME);
+    configUpdateFlow_.init_flow();
 
     // Bootstraps the alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
@@ -96,6 +99,79 @@ void SimpleCanStack::start_stack()
     }
 }
 
+void SimpleCanStack::restart_stack()
+{
+    node_.clear_initialized();
+    ifCan_.alias_allocator()->reinit_seed();
+    ifCan_.local_aliases()->clear();
+    ifCan_.remote_aliases()->clear();
+    // Deletes all reserved aliases from the queue.
+    while (!ifCan_.alias_allocator()->reserved_aliases()->empty())
+    {
+        Buffer<AliasInfo> *a = static_cast<Buffer<AliasInfo> *>(
+            ifCan_.alias_allocator()->reserved_aliases()->next().item);
+        if (a)
+        {
+            a->unref();
+        }
+    }
+
+    // Bootstraps the fresh alias allocation process.
+    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    extern void StartInitializationFlow(Node * node);
+    StartInitializationFlow(&node_);
+}
+
+void SimpleCanStack::check_version_and_factory_reset(
+    const InternalConfigData &cfg, uint16_t expected_version, bool force)
+{
+    HASSERT(CONFIG_FILENAME);
+    int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    if (cfg.version().read(fd) != expected_version)
+    {
+        /// TODO(balazs.racz): We need to clear the eeprom. Best would be if
+        /// there was an ioctl to return the eeprom to factory default state by
+        /// just erasing the segments.
+        cfg.version().write(fd, expected_version);
+        cfg.next_event().write(fd, 0);
+        // ACDI version byte. This is not very nice because we cannot be
+        // certain that the EEPROM starts with the ACDI data. We'll check it
+        // though.
+        HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
+        Uint8ConfigEntry(0).write(fd, 2);
+        force = true;
+    }
+    if (force)
+    {
+        factory_reset_all_events(cfg, fd);
+        configUpdateFlow_.factory_reset();
+    }
+}
+
+extern const uint16_t CDI_EVENT_OFFSETS[];
+
+void SimpleCanStack::factory_reset_all_events(
+    const InternalConfigData &cfg, int fd)
+{
+    // First we find the event count.
+    uint16_t new_next_event = cfg.next_event().read(fd);
+    uint16_t next_event = new_next_event;
+    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    {
+        ++new_next_event;
+    }
+    // We block off the event IDs first.
+    cfg.next_event().write(fd, new_next_event);
+    // Then we write them to eeprom.
+    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    {
+        EventId id = node_.node_id();
+        id <<= 16;
+        id |= next_event++;
+        EventConfigEntry(CDI_EVENT_OFFSETS[i]).write(fd, id);
+    }
+}
+
 void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
 {
     int fd = ::open(path, O_RDWR);
@@ -121,7 +197,7 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
-    init_main_buffer_pool();
+extern Pool *const __attribute__((
+    __weak__)) g_incoming_datagram_allocator = init_main_buffer_pool();
 
 } // namespace nmranet

@@ -33,6 +33,7 @@
 import sys
 import os
 import time
+import re
 from optparse import OptionParser
 
 parser = OptionParser()
@@ -67,10 +68,16 @@ bytesPerLine = 70
 cnt = 0
 comment = ""
 file_out.write("   ")
-while True :
-    c = file_in.read(1)
-    if c == "" :
-        break
+input_lines = file_in.readlines()
+m = re.search("<!-- events: (.*)-->", input_lines[-1])
+if m:
+    event_offsets = m.group(1)
+    input_lines.pop()
+else:
+    print("cound not find events: last line", input_lines[-1])
+    event_offsets = None
+input_chars = ''.join(input_lines)
+for c in input_chars:
     if ord(c) < 100:
         file_out.write(" ")
     file_out.write(str(ord(c[0:1]))+", ")
@@ -91,7 +98,13 @@ if cnt != 0 :
     file_out.write("|\n   ")    
 file_out.write("0\n")
    
-file_out.write('\n};\n}  //namespace nmranet\n');
+file_out.write('\n};\n')
+
+if event_offsets:
+    file_out.write('extern const uint16_t CDI_EVENT_OFFSETS[];\n');
+    file_out.write('const uint16_t CDI_EVENT_OFFSETS[] = {%s0};\n\n' % event_offsets);
+
+file_out.write('}  //namespace nmranet\n');
 
 file_in.close()
 file_out.close()

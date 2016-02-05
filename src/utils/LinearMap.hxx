@@ -177,7 +177,13 @@ public:
         /** Allow access to index member */
         friend class LinearMap;
     };
-    
+
+    /** Removes all elements */
+    void clear()
+    {
+        used = 0;
+    }
+
     /** Remove a node from the tree.
      * @param key key for the element to remove
      * @return number of elements removed

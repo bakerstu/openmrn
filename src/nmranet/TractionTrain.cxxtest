@@ -105,7 +105,7 @@ TEST_F(TractionSingleMockTest, SetSpeed)
 {
     LOG(INFO, "node %p", trainNode_.get());
     EXPECT_CALL(m1_, set_speed(Velocity(37.5)));
-    send_packet(":X195EA551N033A0050B0;");
+    send_packet(":X195EB551N033A0050B0;");
 }
 
 TEST_F(TractionSingleMockTest, GetSpeed)
@@ -113,9 +113,9 @@ TEST_F(TractionSingleMockTest, GetSpeed)
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(nan_to_speed()));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
-    expect_packet(":X195E833AN15511050B000FFFF;");
-    expect_packet(":X195E833AN2551FFFF;");
-    send_packet(":X195EA551N033A10;");
+    expect_packet(":X191E933AN15511050B000FFFF;");
+    expect_packet(":X191E933AN2551FFFF;");
+    send_packet(":X195EB551N033A10;");
 }
 
 TEST_F(TractionSingleMockTest, GetSpeedTestWithCommandedSpeed)
@@ -123,9 +123,9 @@ TEST_F(TractionSingleMockTest, GetSpeedTestWithCommandedSpeed)
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
-    expect_packet(":X195E833AN15511050B00050A0;");
-    expect_packet(":X195E833AN2551FFFF;");
-    send_packet(":X195EA551N033A10;");
+    expect_packet(":X191E933AN15511050B00050A0;");
+    expect_packet(":X191E933AN2551FFFF;");
+    send_packet(":X195EB551N033A10;");
 }
 
 TEST_F(TractionSingleMockTest, GetSpeedTestWithActualSpeed)
@@ -133,60 +133,60 @@ TEST_F(TractionSingleMockTest, GetSpeedTestWithActualSpeed)
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(38.0));
-    expect_packet(":X195E833AN15511050B00050A0;");
-    expect_packet(":X195E833AN255150C0;");
-    send_packet(":X195EA551N033A10;");
+    expect_packet(":X191E933AN15511050B00050A0;");
+    expect_packet(":X191E933AN255150C0;");
+    send_packet(":X195EB551N033A10;");
 }
 
 TEST_F(TractionSingleMockTest, SetFn)
 {
     EXPECT_CALL(m1_, set_fn(0x112233, 0x4384));
-    send_packet(":X195EA551N033A011122334384;");
+    send_packet(":X195EB551N033A011122334384;");
 }
 
 TEST_F(TractionSingleMockTest, GetFn)
 {
     EXPECT_CALL(m1_, get_fn(0x332244)).WillOnce(Return(0x6622));
-    send_packet_and_expect_response(":X195EA551N033A11332244;",
-                                    ":X195E833AN0551113322446622;");
+    send_packet_and_expect_response(":X195EB551N033A11332244;",
+                                    ":X191E933AN0551113322446622;");
 }
 
 TEST_F(TractionSingleMockTest, ReserveRelease)
 {
     // First reserve succeeds.
-    send_packet_and_expect_response(":X195EA551N033A4001;",
-                                    ":X195E833AN0551400100;");
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400100;");
     // Second reserve fails.
-    send_packet_and_expect_response(":X195EA551N033A4001;",
-                                    ":X195E833AN0551400101;");
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400101;");
     // Reserve from another node fails.
-    send_packet_and_expect_response(":X195EA557N033A4001;",
-                                    ":X195E833AN0557400101;");
+    send_packet_and_expect_response(":X195EB557N033A4001;",
+                                    ":X191E933AN0557400101;");
     // Send a release. No response.
-    send_packet_and_flush_expect(":X195EA551N033A4002;");
+    send_packet_and_flush_expect(":X195EB551N033A4002;");
 
     // Now I can reserve from another node.
-    send_packet_and_expect_response(":X195EA557N033A4001;",
-                                    ":X195E833AN0557400100;");
+    send_packet_and_expect_response(":X195EB557N033A4001;",
+                                    ":X191E933AN0557400100;");
 
     // Reserve-release is a voluntary protocol. Source is not checked, so
     // another source can release.
-    send_packet_and_flush_expect(":X195EA551N033A4002;");
+    send_packet_and_flush_expect(":X195EB551N033A4002;");
 
     // Another reserve succeeds.
-    send_packet_and_expect_response(":X195EA551N033A4001;",
-                                    ":X195E833AN0551400100;");
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400100;");
 
     // Release at the end of the interaction.
-    send_packet_and_flush_expect(":X195EA567N033A4002;");
+    send_packet_and_flush_expect(":X195EB567N033A4002;");
 }
 
 TEST_F(TractionSingleMockTest, AssignController)
 {
     // Assign controller 050101011827
-    send_packet(":X195EA551N133A200100050101;");
-    send_packet_and_expect_response(":X195EA551N233A011827;",
-                                    ":X195E833AN0551200100;");
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
 
     NodeHandle h = trainNode_->get_controller();
     EXPECT_EQ(0x050101011827ULL, h.id);
@@ -196,9 +196,9 @@ TEST_F(TractionSingleMockTest, AssignController)
 TEST_F(TractionSingleMockTest, DoubleAssignController)
 {
     // Assign controller 050101011827
-    send_packet(":X195EA551N133A200100050101;");
-    send_packet_and_expect_response(":X195EA551N233A011827;",
-                                    ":X195E833AN0551200100;");
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
 
     NodeHandle h = trainNode_->get_controller();
     EXPECT_EQ(0x050101011827ULL, h.id);
@@ -208,41 +208,41 @@ TEST_F(TractionSingleMockTest, DoubleAssignController)
 
     // Again: should succeed.
     // Assign controller 050101011827
-    send_packet(":X195EA551N133A200100050101;");
-    send_packet_and_expect_response(":X195EA551N233A011827;",
-                                    ":X195E833AN0551200100;");
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
 }
 
 TEST_F(TractionSingleMockTest, QueryController)
 {
-    expect_packet(":X195E833AN1551200300000000;");
-    send_packet_and_expect_response(":X195EA551N033A2003;",
-                                    ":X195E833AN2551000000;");
+    expect_packet(":X191E933AN1551200300000000;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551000000;");
 
     NodeHandle h{0,0};
     h.id = 0x112233445566ULL;
     trainNode_->set_controller(h);
-    expect_packet(":X195E833AN1551200300112233;");
-    send_packet_and_expect_response(":X195EA551N033A2003;",
-                                    ":X195E833AN2551445566;");
+    expect_packet(":X191E933AN1551200300112233;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551445566;");
 }
 
 TEST_F(TractionSingleMockTest, AssignAndQueryController)
 {
     // Query controller
-    expect_packet(":X195E833AN1551200300000000;");
-    send_packet_and_expect_response(":X195EA551N033A2003;",
-                                    ":X195E833AN2551000000;");
+    expect_packet(":X191E933AN1551200300000000;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551000000;");
 
     // Assign controller 050101011827
-    send_packet(":X195EA551N133A200100050101;");
-    send_packet_and_expect_response(":X195EA551N233A011827;",
-                                    ":X195E833AN0551200100;");
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
 
     // Query controller
-    expect_packet(":X195E833AN1551200300050101;");
-    send_packet_and_expect_response(":X195EA551N033A2003;",
-                                    ":X195E833AN2551011827;");
+    expect_packet(":X191E933AN1551200300050101;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551011827;");
 }
 
 TEST_F(TractionSingleMockTest, ReleaseControllerOK)
@@ -251,8 +251,8 @@ TEST_F(TractionSingleMockTest, ReleaseControllerOK)
     trainNode_->set_controller(h);
 
     // Release controller
-    send_packet(":X195EA551N133A200200050101;");
-    send_packet(":X195EA551N233A011827;");
+    send_packet(":X195EB551N133A200200050101;");
+    send_packet(":X195EB551N233A011827;");
     wait();
     
     h = trainNode_->get_controller();
@@ -266,8 +266,8 @@ TEST_F(TractionSingleMockTest, ReleaseControllerFailed)
     trainNode_->set_controller(h);
 
     // Release controller
-    send_packet(":X195EA551N133A200200050101;");
-    send_packet(":X195EA551N233A011827;");
+    send_packet(":X195EB551N133A200200050101;");
+    send_packet(":X195EB551N233A011827;");
     wait();
     
     h = trainNode_->get_controller();
@@ -345,7 +345,7 @@ TEST_F(TractionClientTest, SimpleResponse)
 {
     flow_.enter();
     handler_.wait_for_response({0, 0x33C}, 65, flow_.trigger());
-    send_packet(":X195E833CN022A414243;");
+    send_packet(":X191E933CN022A414243;");
     flow_.block();
     ASSERT_NE(nullptr, handler_.response());
     EXPECT_EQ("ABC", handler_.response()->data()->payload);

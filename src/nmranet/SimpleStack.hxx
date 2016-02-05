@@ -39,6 +39,7 @@
 
 #include "executor/Executor.hxx"
 #include "nmranet/AliasAllocator.hxx"
+#include "nmranet/ConfigRepresentation.hxx"
 #include "nmranet/ConfigUpdateFlow.hxx"
 #include "nmranet/DatagramCan.hxx"
 #include "nmranet/DefaultNode.hxx"
@@ -223,6 +224,10 @@ public:
         return &configUpdateFlow_;
     }
 
+    /// Reinitializes the node. Useful to call after the connection has flapped
+    /// (gone down and up).
+    void restart_stack();
+
     /// Donates the current thread to the executor. Never returns.
     void loop_executor()
     {
@@ -238,9 +243,21 @@ public:
         executor_.start_thread(name, priority, stack_size);
     }
 
+    /// Checks the version information in the EEPROM and performs a factory
+    /// reset if incorrect or if force is set.
+    void check_version_and_factory_reset(const InternalConfigData &ofs,
+        uint16_t expected_version, bool force = false);
+
+    /// Overwrites all events in the eeprom with a brand new event ID.
+    void factory_reset_all_events(const InternalConfigData &ofs, int fd);
+
+    /// Accessor for clients that have their custom SNIP-like handler.
+    SimpleInfoFlow* info_flow() {
+        return &infoFlow_;
+    }
+
 private:
-    static const auto PIP_RESPONSE =
-        Defs::EVENT_EXCHANGE | Defs::PROTOCOL_IDENTIFICATION | Defs::DATAGRAM |
+    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
         Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 
@@ -273,7 +290,7 @@ private:
     /// General flow for simple info requests.
     SimpleInfoFlow infoFlow_{&ifCan_};
     /// Handles SNIP requests.
-    SNIPHandler snipHandler_{&ifCan_, &infoFlow_};
+    SNIPHandler snipHandler_{&ifCan_, &node_, &infoFlow_};
 
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};

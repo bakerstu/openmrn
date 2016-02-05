@@ -47,7 +47,7 @@ namespace nmranet
 {
 
 const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
- 
+
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
 
@@ -59,7 +59,7 @@ class SNIPTest : public AsyncNodeTest
 protected:
     SNIPTest()
         : infoFlow_(ifCan_.get())
-        , handler_(ifCan_.get(), &infoFlow_)
+        , handler_(ifCan_.get(), nullptr, &infoFlow_)
     {
     }
 

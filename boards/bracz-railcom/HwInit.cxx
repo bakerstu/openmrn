@@ -95,8 +95,8 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
-const size_t EEPROMEmulation::SECTOR_SIZE = 1024;
-static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
+const size_t EEPROMEmulation::SECTOR_SIZE = 4 * 1024;
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 1024);
 
 const uint32_t RailcomDefs::UART_BASE[] = RAILCOM_BASE;
 const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
