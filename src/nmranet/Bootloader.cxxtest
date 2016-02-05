@@ -912,6 +912,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 
 TEST_F(BootloaderClientTest, WriteSmallData)
 {
+    ifCan_->local_aliases()->add(TEST_NODE_ID, 0x3CC);
     //print_all_packets();
     expect_any_packet();
     startup();
