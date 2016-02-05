@@ -443,12 +443,14 @@ protected:
         // expect datagram ok
         expect_packet(":X19A284AAN032180;");
         // and expect response datagram
-        expect_packet(StringPrintf(":X1A3214AAN2030%sEF;", offset.c_str()))
+        expect_packet(StringPrintf(":X1B3214AAN2030%sEF5A;", offset.c_str()));
+        expect_packet(":X1D3214AAN1A;")
             .WillOnce(InvokeWithoutArgs([this]
                 {
                     send_packet(":X19A28321N04AA;");
                 }));
-        send_packet(StringPrintf(":X1A4AA321N2020%sEF1A;", offset.c_str()));
+        send_packet(StringPrintf(":X1B4AA321N2020%sEFFF;", offset.c_str()));
+        send_packet(":X1D4AA321N1A;");
         wait();
         clear_expect(true);
     }

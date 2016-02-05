@@ -78,6 +78,7 @@ struct BootloaderState
     unsigned stream_pending : 1;
     unsigned stream_open : 1;
     unsigned stream_proceed_pending : 1;
+    unsigned stream_id_pending : 1;
 #endif
 #ifdef BOOTLOADER_DATAGRAM
     unsigned incoming_datagram_pending : 1;
@@ -440,7 +441,7 @@ void handle_memory_config_frame()
                 return;
             }
             // Replies OK.
-            set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+            state_.stream_id_pending = 1;
             state_.input_frame_full = 0;
 
             // Composes write stream reply datagram.
@@ -448,9 +449,7 @@ void handle_memory_config_frame()
             memcpy(state_.datagram_payload, state_.input_frame.data,
                 state_.input_frame.can_dlc - 1);
             state_.datagram_payload[1] |= MemoryConfigDefs::COMMAND_WRITE_REPLY;
-            state_.datagram_output_pending = 1;
-            state_.output_frame.data[state_.output_frame.can_dlc++] =
-                DatagramDefs::REPLY_PENDING;
+            state_.datagram_output_pending = 0;
             state_.datagram_dst =
                 CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
             state_.datagram_offset = 0;
@@ -460,9 +459,8 @@ void handle_memory_config_frame()
                 add_memory_config_error_response(DatagramDefs::UNIMPLEMENTED);
                 return;
             }
-            state_.stream_pending = 1;
             state_.write_src_alias = state_.datagram_dst;
-            state_.stream_src_id = state_.input_frame.data[7];
+            //state_.stream_src_id = state_.input_frame.data[7];
             state_.write_buffer_index = 0;
             state_.write_buffer_offset =
                 load_uint32_be(state_.input_frame.data + 2);
@@ -787,6 +785,25 @@ void handle_input_frame()
         }
 
         state_.input_frame_full = 0;
+        return;
+    }
+#else
+    else if (state_.stream_id_pending &&
+        (can_id >> 12) == (0x1D000 | state_.alias))
+    {
+        // The only incoming multi-frame datagram is the stream write datagram.
+        state_.stream_id_pending = 0;
+        state_.input_frame_full = 0;
+        state_.stream_src_id = state_.input_frame.data[0];
+
+        state_.datagram_payload[state_.datagram_dlc++] = STREAM_ID;
+        state_.datagram_payload[state_.datagram_dlc++] = state_.stream_src_id;
+
+        state_.datagram_output_pending = 1;
+        state_.stream_pending = 1;
+        set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
+        state_.output_frame.data[state_.output_frame.can_dlc++] =
+            DatagramDefs::REPLY_PENDING;
         return;
     }
 #endif

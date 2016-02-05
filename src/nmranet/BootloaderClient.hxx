@@ -212,6 +212,7 @@ private:
         payload.push_back(message()->data()->offset >> 8);
         payload.push_back(message()->data()->offset);
         payload.push_back(message()->data()->memory_space);
+        payload.push_back(0xFF); // dst stream ID
         localStreamId_ = allocate_local_stream_id();
         payload.push_back(localStreamId_);
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
