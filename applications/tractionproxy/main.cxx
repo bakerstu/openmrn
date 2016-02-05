@@ -67,7 +67,7 @@ static const nmranet::NodeID NODE_ID = 0x050101011807ULL;
 static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
 nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
-nmranet::SNIPHandler snip(&g_if_can, &gInfoFlow);
+nmranet::SNIPHandler snip(&g_if_can, &g_node, &gInfoFlow);
 
 nmranet::ProtocolIdentificationHandler
 pip(&g_node, nmranet::Defs::EVENT_EXCHANGE |
