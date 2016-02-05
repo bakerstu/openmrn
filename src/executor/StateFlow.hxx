@@ -131,6 +131,8 @@
 
 template <class T> class FlowInterface;
 
+class StateFlowTimer;
+
 /** Base class for state machines. A state machine is a form of collaborative
  * multi-tasking. StateFlows can be scheduled on an executor, and alternately
  * perform synchronous code (executing a state handler function) and an
@@ -426,10 +428,43 @@ protected:
         return wait_and_call(c);
     }
 
+    /** Calls a helper flow to perform some actions. Performs inline
+     * synchronous allocation form the main buffer pool. Ignores the target
+     * flow's buffer pool settings, because that makes it impossible to
+     * guarantee successful allocation.
+     *
+     * Fills in the payload's arguments using the passed-in args by calling
+     * T::reset(args...). Then sends the buffer to the target flow, and waits
+     * for the target flow to call return_buffer.
+     *
+     * The target flow has to call transfer_message()->data()->done.notify().
+     *
+     * There are requirements on the arguments structure T:
+     *
+     * struct Foo {
+     *   void reset(...);
+     *   BarrierNotifiable done;
+     * }
+     */
+    template <class T, typename... Args>
+    Action invoke_subflow_and_wait(
+        FlowInterface<Buffer<T>> *target_flow, Callback c, Args &&... args)
+    {
+        Buffer<T> *b;
+        mainBufferPool->alloc(&b);
+        b->data()->reset(std::forward<Args>(args)...);
+        b->data()->done.reset(this);
+        target_flow->send(b);
+        allocationResult_ = b;
+        return wait_and_call(c);
+    }
+
     struct StateFlowSelectHelper;
 
+    /** Blocks until size bytes are read and then invokes the next state. */
     Action read_repeated(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
+        helper->timer_ = nullptr;
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 1;
@@ -439,8 +474,12 @@ protected:
         return call_immediately(STATE(internal_try_read));
     }
 
+    /** Attempts to read at most size_t bytes, and blocks the caller until at
+     * least one byte is read. Then the next state is invoked with whatever the
+     * first read returned. */
     Action read_single(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
+        helper->timer_ = nullptr;
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 0;
@@ -450,8 +489,11 @@ protected:
         return call_immediately(STATE(internal_try_read));
     }
 
+    /** Attempts to read at most size bytes, and then invokes the next state,
+     * even if only zero bytes are available right now. */
     Action read_nonblocking(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
+        helper->timer_ = nullptr;
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 0;
@@ -460,6 +502,22 @@ protected:
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
     }
+
+    /** Blocks until size bytes are read, or a timeout expires. If the timeout
+     * expires, jumps to next state with whatever data has been read. */
+    /* sorry this approach will not work.
+    Action read_repeated_with_timeout(StateFlowTimer* timer, long long timeout_nsec, StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+        timer->start(timeout_nsec);
+        helper->reset(Selectable::READ, fd, priority);
+        helper->timer_ = timer;
+        helper->rbuf_ = static_cast<uint8_t*>(buf);
+        helper->remaining_ = size;
+        helper->readFully_ = 1;
+        helper->readNonblocking_ = 0;
+        helper->nextState_ = c;
+        allocationResult_ = helper;
+        return call_immediately(STATE(internal_try_read));
+        }*/
 
     Action internal_try_read()
     {
@@ -588,6 +646,8 @@ protected:
         unsigned readNonblocking_ : 1;
         /** Number of bytes still outstanding to read. */
         unsigned remaining_ : 30;
+        /** If not null, the reads are bounded by a timeout. */
+        StateFlowTimer* timer_;
     };
 
 private:
@@ -958,6 +1018,13 @@ protected:
             message()->unref();
         }
         this->currentMessage_ = nullptr;
+    }
+
+    /** For state flows that are operated using invoke_child_flow this is a way
+     * to hand back the buffer to the caller. */
+    void return_buffer()
+    {
+        transfer_message()->data()->done.notify();
     }
 
     /** @returns the current message we are processing. */
