@@ -15,6 +15,7 @@
 #include "nmranet_config.h"
 #include "nmranet/Defs.hxx"
 #include "TivaGPIO.hxx"
+#include "nmranet/If.hxx"
 
 //OVERRIDE_CONST(nmranet_can_bitrate, 1000000);
 
@@ -37,7 +38,7 @@ void bootloader_hw_set_to_safe(void)
 }
 
 extern void bootloader_reset_segments(void);
-extern unsigned long cm3_cpu_clock_hz;
+//extern unsigned long cm3_cpu_clock_hz;
 
 void bootloader_hw_init()
 {
