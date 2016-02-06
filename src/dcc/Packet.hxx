@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include "dcc/Address.hxx"
+#include "dcc/packet.h"
 
 namespace dcc
 {
@@ -46,15 +47,15 @@ namespace dcc
 /** Represents a command to be sent to the track driver. Most of the commands
  * are "send packet X", but there are some that are controlling the track
  * booster itself, such as "power off". */
-struct Packet
+struct Packet : public DCCPacket
 {
     /** Maximum number of payload bytes. */
-    static const unsigned MAX_PAYLOAD = 6;
+    static const unsigned MAX_PAYLOAD = DCC_PACKET_MAX_PAYLOAD;
     /** Send this speed step to emergency-stop the locomotive. */
-    static const unsigned EMERGENCY_STOP = 0xFFFF;
+    static const unsigned EMERGENCY_STOP = DCC_PACKET_EMERGENCY_STOP;
     /** Send this speed step to switch direction of the locomotive. Only used
      * for marklin-14-step speed commands. */
-    static const unsigned CHANGE_DIR = 0xFFFF;
+    static const unsigned CHANGE_DIR = DCC_PACKET_EMERGENCY_STOP;
 
     Packet()
     {
@@ -71,55 +72,6 @@ struct Packet
     {
         memset(this, 0, sizeof(*this));
     }
-
-    /// Specifies the meaning of the command byte for packets to send.
-    struct pkt_t
-    {
-        /// Always 0.
-        uint8_t is_pkt : 1;
-        /// 0: DCC packet, 1: motorola packet.
-        uint8_t is_marklin : 1;
-
-        /// typically for DCC packets:
-        /// 1: do NOT append an EC byte to the end of the packet.
-        uint8_t skip_ec : 1;
-        /// 1: send long preamble instead of packet. 0: send normal preamble
-        /// and pkt.
-        uint8_t send_long_preamble : 1;
-        /// 1: wait for service mode ack and report it back to the host.
-        uint8_t sense_ack : 1;
-        /// The packet will be sent 1 + rept_count times to the wire. default:
-        /// 0.
-        uint8_t rept_count : 2;
-        uint8_t reserved : 1;
-    };
-
-    /// Specifies the meaning of the command byte for meta-commands to send.
-    struct cmd_t
-    {
-        // Always 1.
-        uint8_t is_pkt : 1;
-        // Command identifier.
-        uint8_t cmd : 7;
-    };
-
-    union
-    {
-        uint8_t header_raw_data;
-        pkt_t packet_header;
-        cmd_t command_header;
-    };
-    /** Specifies the number of used payload bytes. */
-    uint8_t dlc;
-    /** Packet payload bytes. */
-    uint8_t payload[MAX_PAYLOAD];
-
-    /** An opaque key used by the hardware driver to attribute feedback
-     * information to the source of the packet. This key will be sent back in
-     * the dcc::Feedback structure. If the key is non-zero it is guaranteed
-     * that some feedback (maybe empty) will be sent back after the packet is
-     * transmitted to the track. */
-    size_t feedback_key;
 
     /** Returns true if this is a packet, false if it is a command to the
      * track processor. */
