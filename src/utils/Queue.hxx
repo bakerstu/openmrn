@@ -393,6 +393,7 @@ public:
      * @return item retrieved from queue, NULL if no item available
      */
     void next_async(Executable *flow);
+
     /** Get an item from the front of the queue.
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
