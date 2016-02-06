@@ -58,7 +58,6 @@ public:
 
     typedef StateFlowBase::Action Action;
 
-
     ~DispatchFlowBase();
 
     /** @returns the number of handlers registered. */
