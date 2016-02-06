@@ -8,6 +8,7 @@
 *.delf
 *.so
 *.o
+*.o-*
 *.obj
 *.d
 *.pp
