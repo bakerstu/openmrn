@@ -39,6 +39,10 @@ public:
         return tcpListener_.is_started();
     }
 
+    size_t size() {
+        return ports_.size();
+    }
+
 private:
     void OnNewConnection(int fd)
     {
@@ -211,11 +215,15 @@ protected:
         tcpHub_.reset(new TestTcpHub(&startHub_));
     }
 
-    void add_tcp_connections(int count)
+    void add_tcp_connections(int count, Service* service = &g_service)
     {
+        size_t client_previous = tcpHub_->size();
         for (int i = 0; i < count; ++i)
         {
-            tcpClients_.emplace_back(new TcpClient(&g_service, PORT));
+            tcpClients_.emplace_back(new TcpClient(service, PORT));
+        }
+        while (tcpHub_->size() < client_previous + count) {
+            usleep(10000);
         }
     }
 
@@ -290,7 +298,7 @@ TEST_F(HubStressTest, ManyTcp)
     // print_all();
     add_start_hub(1);
     start_tcp_hub();
-    add_tcp_connections(6);
+    add_tcp_connections(6, &g_service);
     use_tcp_hubs(20);
     add_start_hub(3);
     use_tcp_hubs(10);
@@ -305,14 +313,10 @@ TEST_F(HubStressTest, MultiThreaded)
     // print_all();
     add_start_hub(1);
     start_tcp_hub();
-    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    add_tcp_connections(2, &g_service1);
+    add_tcp_connections(2, &g_service2);
+    add_tcp_connections(2, &g_service3);
+    add_tcp_connections(2, &g_service4);
     use_tcp_hubs(16);
     add_start_hub(1);
     use_tcp_hubs(16);
@@ -332,14 +336,10 @@ TEST_F(HubStressTest, Parallel)
               "in your machine.");
     add_start_hub(1);
     start_tcp_hub();
-    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service1, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service2, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service3, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
-    tcpClients_.emplace_back(new TcpClient(&g_service4, PORT));
+    add_tcp_connections(2, &g_service1);
+    add_tcp_connections(2, &g_service2);
+    add_tcp_connections(2, &g_service3);
+    add_tcp_connections(2, &g_service4);
     use_tcp_hubs(16);
     add_start_hub(1);
     use_tcp_hubs(16);

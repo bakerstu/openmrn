@@ -354,7 +354,7 @@ private:
 
     uint8_t allocate_local_stream_id()
     {
-        return 0x6F;
+        return 0x55;
     }
 
     Action return_error(uint16_t error_code, const string &error_details)
