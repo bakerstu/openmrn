@@ -122,4 +122,104 @@ private:
 
 } // namespace dcc
 
+namespace nmranet
+{
+
+/** This flow proxies all incoming railcom traffic to the openlcb bus in
+ *  non-standard messages. It should be used for debugging only. 
+ *
+ *  It also proxies all occupancy information to a downstream port. That's not
+ *  super useful but a bit more efficient than registering the downstream port
+ *  into the railcom hub port.
+ */
+class RailcomToOpenLCBDebugProxy : public dcc::RailcomHubPort
+{
+public:
+    RailcomToOpenLCBDebugProxy(dcc::RailcomHubFlow *parent, Node *node,
+        dcc::RailcomHubPort *occupancy_port)
+        : dcc::RailcomHubPort(parent->service())
+        , parent_(parent)
+        , node_(node)
+        , occupancyPort_(occupancy_port)
+    {
+        parent_->register_port(this);
+    }
+
+    ~RailcomToOpenLCBDebugProxy()
+    {
+        parent_->unregister_port(this);
+    }
+
+    Action entry()
+    {
+        if (message()->data()->channel == 0xff && occupancyPort_)
+        {
+            occupancyPort_->send(transfer_message());
+            return exit();
+        }
+        if (message()->data()->ch1Size)
+        {
+            return allocate_and_call(
+                node_->iface()->global_message_write_flow(),
+                STATE(ch1_msg_allocated));
+        }
+        else
+        {
+            return call_immediately(STATE(maybe_send_ch2));
+        }
+    }
+
+    Action ch1_msg_allocated()
+    {
+        auto *b =
+            get_allocation_result(node_->iface()->global_message_write_flow());
+
+        b->data()->reset(
+            static_cast<nmranet::Defs::MTI>(nmranet::Defs::MTI_XPRESSNET + 2),
+            node_->node_id(), string());
+        b->data()->payload.push_back(message()->data()->channel | 0x10);
+        b->data()->payload.append(
+            (char *)message()->data()->ch1Data, message()->data()->ch1Size);
+        node_->iface()->global_message_write_flow()->send(b);
+
+        return call_immediately(STATE(maybe_send_ch2));
+    }
+
+    Action maybe_send_ch2()
+    {
+        if (message()->data()->ch2Size)
+        {
+            return allocate_and_call(
+                node_->iface()->global_message_write_flow(),
+                STATE(ch2_msg_allocated));
+        }
+        else
+        {
+            return release_and_exit();
+        }
+    }
+
+    Action ch2_msg_allocated()
+    {
+        auto *b =
+            get_allocation_result(node_->iface()->global_message_write_flow());
+
+        b->data()->reset(
+            static_cast<nmranet::Defs::MTI>(nmranet::Defs::MTI_XPRESSNET + 3),
+            node_->node_id(), string());
+        b->data()->payload.push_back(message()->data()->channel | 0x20);
+        b->data()->payload.append(
+            (char *)message()->data()->ch2Data, message()->data()->ch2Size);
+        node_->iface()->global_message_write_flow()->send(b);
+
+        return release_and_exit();
+    }
+
+    dcc::RailcomHubFlow *parent_;
+    Node *node_;
+    dcc::RailcomHubPort *occupancyPort_;
+};
+
+} // namespace nmranet
+
 #endif // _DCC_RAILCOMPORTDEBUG_HXX
