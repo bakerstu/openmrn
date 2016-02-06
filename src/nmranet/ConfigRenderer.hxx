@@ -50,7 +50,8 @@ struct AtomConfigDefs
 {
     DECLARE_OPTIONALARG(Name, name, const char *, 0, nullptr);
     DECLARE_OPTIONALARG(Description, description, const char *, 1, nullptr);
-    using Base = OptionalArg<AtomConfigDefs, Name, Description>;
+    DECLARE_OPTIONALARG(MapValues, mapvalues, const char *, 2, nullptr);
+    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues>;
 };
 
 class AtomConfigOptions : public AtomConfigDefs::Base
@@ -63,6 +64,8 @@ public:
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
     DEFINE_OPTIONALARG(Description, description, const char *, 1);
+    /// Represent the value enclosed in the <map> tag of the data element.
+    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *, 2);
 
     void render_cdi(std::string *r) const
     {
@@ -74,6 +77,10 @@ public:
         {
             *r +=
                 StringPrintf("<description>%s</description>\n", description());
+        }
+        if (mapvalues())
+        {
+            *r += StringPrintf("<map>%s</map>\n",mapvalues());
         }
     }
 };
@@ -102,6 +109,95 @@ public:
         }
         *s += ">\n";
         AtomConfigOptions(args...).render_cdi(s);
+        *s += StringPrintf("</%s>\n", tag_);
+    }
+
+private:
+    /// XML tag for this atom.
+    const char *tag_;
+    /// The size attribute of the configuration atom.
+    unsigned size_;
+};
+
+struct NumericConfigDefs : public AtomConfigDefs {
+    // This is needed for inheriting declarations.
+    using AtomConfigDefs::check_arguments_are_valid;
+    DECLARE_OPTIONALARG(Min, minvalue, int, 6, INT_MAX);
+    DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
+    DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
+    using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues, Min, Max, Default>;
+};
+
+class NumericConfigOptions : public NumericConfigDefs::Base
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(NumericConfigOptions, NumericConfigDefs::Base);
+
+    /// Represent the value enclosed in the <name> tag of the data element.
+    DEFINE_OPTIONALARG(Name, name, const char *, 0);
+    /// Represent the value enclosed in the <description> tag of the data
+    /// element.
+    DEFINE_OPTIONALARG(Description, description, const char *, 1);
+    /// Represent the value enclosed in the <map> tag of the data element.
+    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *, 2);
+    DEFINE_OPTIONALARG(Min, minvalue, int, 6);
+    DEFINE_OPTIONALARG(Max, maxvalue, int, 7);
+    DEFINE_OPTIONALARG(Default, defaultvalue, int, 8);
+
+    void render_cdi(std::string *r) const
+    {
+        if (name())
+        {
+            *r += StringPrintf("<name>%s</name>\n", name());
+        }
+        if (description())
+        {
+            *r +=
+                StringPrintf("<description>%s</description>\n", description());
+        }
+        if (minvalue() != INT_MAX) {
+            *r +=
+                StringPrintf("<min>%d</min>\n", minvalue());
+        }
+        if (maxvalue() != INT_MAX) {
+            *r +=
+                StringPrintf("<max>%d</max>\n", maxvalue());
+        }
+        if (defaultvalue() != INT_MAX) {
+            *r +=
+                StringPrintf("<default>%d</default>\n", defaultvalue());
+        }
+        if (mapvalues())
+        {
+            *r += StringPrintf("<map>%s</map>\n",mapvalues());
+        }
+    }
+};
+
+/// Helper class for rendering a numeric data element into the cdi.xml.
+class NumericConfigRenderer
+{
+public:
+    enum
+    {
+        SKIP_SIZE = 0xffffffff,
+    };
+
+    constexpr NumericConfigRenderer(const char *tag, unsigned size)
+        : tag_(tag)
+        , size_(size)
+    {
+    }
+
+    template <typename... Args> void render_cdi(string *s, Args... args) const
+    {
+        *s += StringPrintf("<%s", tag_);
+        if (size_ != SKIP_SIZE)
+        {
+            *s += StringPrintf(" size=\'%u\'", size_);
+        }
+        *s += ">\n";
+        NumericConfigOptions(args...).render_cdi(s);
         *s += StringPrintf("</%s>\n", tag_);
     }
 
@@ -143,8 +239,8 @@ struct GroupConfigDefs : public AtomConfigDefs
 {
     // This is needed for inheriting declarations.
     using AtomConfigDefs::check_arguments_are_valid;
-    DECLARE_OPTIONALARG(Offset, offset, int, 2, INT_MAX);
-    DECLARE_OPTIONALARG(Segment, segment, int, 3, -1);
+    DECLARE_OPTIONALARG(Offset, offset, int, 10, INT_MAX);
+    DECLARE_OPTIONALARG(Segment, segment, int, 11, -1);
     using Base =
         OptionalArg<GroupConfigDefs, Name, Description, Segment, Offset>;
 };

@@ -105,6 +105,16 @@ TEST(ConfigRenderer, AtomNoSize)
     EXPECT_EQ("<eventid>\n<name>fffoo</name>\n</eventid>\n", s);
 }
 
+TEST(ConfigRenderer, IntWithMax)
+{
+    using Name = AtomConfigOptions::Name;
+    using Max = NumericConfigOptions::Max;
+    auto rnd = NumericConfigEntry<uint8_t>(13).config_renderer();
+    string s;
+    rnd.render_cdi(&s, NumericConfigOptions(Name("fffoo"), Max(21)));
+    EXPECT_EQ("<int size='1'>\n<name>fffoo</name>\n<max>21</max>\n</int>\n", s);
+}
+
 CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
@@ -113,12 +123,19 @@ CDI_GROUP_END();
 CDI_GROUP(OtherGroup);
 CDI_GROUP_END();
 
+static const char TEST_MAP_VALUES[] = R"(
+<relation><property>0</property><value>0.125 sec</value></relation>
+<relation><property>1</property><value>0.25 sec</value></relation>
+<relation><property>2</property><value>0.35 sec</value></relation>
+<relation><property>3</property><value>0.5 sec</value></relation>
+)";
+
 CDI_GROUP(TestNodeConfig, Name("node_config"));
 CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
-CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry, MapValues(TEST_MAP_VALUES));
 CDI_GROUP_ENTRY(ogrp, OtherGroup);
-CDI_GROUP_ENTRY(test64, Uint64ConfigEntry, Name("64"));
-CDI_GROUP_ENTRY(test32, Uint32ConfigEntry);
+CDI_GROUP_ENTRY(test64, Uint64ConfigEntry, Name("64"), Min(12), Max(34));
+CDI_GROUP_ENTRY(test32, Uint32ConfigEntry, Default(18));
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
 CDI_GROUP_ENTRY(testgroup, TestRepeat, Name("testgrouprept"));
 CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
@@ -133,13 +150,22 @@ TEST(ComplexGroupRender, RenderOk)
 <name>Version</name>
 </int>
 <int size='2'>
+<map>
+<relation><property>0</property><value>0.125 sec</value></relation>
+<relation><property>1</property><value>0.25 sec</value></relation>
+<relation><property>2</property><value>0.35 sec</value></relation>
+<relation><property>3</property><value>0.5 sec</value></relation>
+</map>
 </int>
 <group>
 </group>
 <int size='8'>
 <name>64</name>
+<min>12</min>
+<max>34</max>
 </int>
 <int size='4'>
+<default>18</default>
 </int>
 <group replication='3'>
 <name>testgrouprept</name>

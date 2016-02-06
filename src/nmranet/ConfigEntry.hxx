@@ -204,9 +204,9 @@ public:
         return offset() + size();
     }
 
-    static constexpr AtomConfigRenderer config_renderer()
+    static constexpr NumericConfigRenderer config_renderer()
     {
-        return AtomConfigRenderer("int", size());
+        return NumericConfigRenderer("int", size());
     }
 
     /// Reads the data from the configuration file.

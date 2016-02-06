@@ -87,6 +87,10 @@ public:
     }
     using Name = AtomConfigOptions::Name;
     using Description = AtomConfigOptions::Description;
+    using MapValues = AtomConfigOptions::MapValues;
+    using Min = NumericConfigOptions::Min;
+    using Max = NumericConfigOptions::Max;
+    using Default = NumericConfigOptions::Default;
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
     static constexpr Segment MainCdi()
