@@ -51,7 +51,7 @@
 #include "TivaGPIO.hxx"
 #include "TivaFlash.hxx"
 
-#include "dcc_control.hxx"
+#include "commandstation/dcc_control.hxx"
 #include "hardware.hxx"
 #include "DccHardware.hxx"
 #include "DummyGPIO.hxx"
