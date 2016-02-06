@@ -181,8 +181,7 @@ private:
 
     /** Get the block index.
      * @param sector_address pointer to the beginning of the sector
-     & @return index of sector relative to start of EERPROM region
-     * @return 
+     * @return index of sector relative to start of EERPROM region
      */
     int sector_index(uint32_t *sector_address)
     {
@@ -197,8 +196,8 @@ private:
         return FLASH_SIZE / SECTOR_SIZE;
     }
 
-    /** Total number of EEPROM slots in a FLASH block.  A slot is the same
-     * as a block, except that is exludes any metadata blocks.
+    /** Total number of EEPROM slots in a FLASH sector.  A slot is the same
+     * as a block, except that it excludes any metadata blocks.
      * @return number of EEPROM slots in a FLASH block.
      */
     int slot_count()
@@ -207,9 +206,9 @@ private:
     }
 
     /** Slot data pointer pointing to the last slot in a given sector
-     * as a block, except that is exludes any metadata blocks.
+     * as a block, except that it excludes any metadata blocks.
      * @param sector_address pointer to the beginning of the sector
-     * @return address point to the last slot in the sector.
+     * @return address pointing to the last slot in the sector.
      */
     uint32_t *slot_last(uint32_t *sector_address)
     {
@@ -220,17 +219,16 @@ private:
     /** Slot data pointer pointing to the first slot in a given sector
      * as a block, except that is exludes any metadata blocks.
      * @param sector_address pointer to the beginning of the sector
-     * @return address point to the last slot in the sector.
+     * @return address pointer to the last slot in the sector.
      */
     uint32_t *slot_first(uint32_t *sector_address)
     {
         return sector_address + (MAGIC_COUNT * (BLOCK_SIZE / sizeof(uint32_t)));
     }
 
-    /** Slot data pointer pointing to the first slot in a given sector
-     * as a block, except that is exludes any metadata blocks.
+    /** Block data pointer pointing to the last magic block in a given sector.
      * @param sector_address pointer to the beginning of the sector
-     * @return address point to the last slot in the sector.
+     * @return address pointer to the last magic block in the sector.
      */
     uint32_t *magic_last(uint32_t *sector_address)
     {
