@@ -115,6 +115,9 @@ public:
     {
     }
 
+    ~TractionThrottle() {
+    }
+
     using Command = TractionThrottleInput::Command;
 
     enum
@@ -215,7 +218,7 @@ private:
     Action release_train()
     {
         send_traction_message(TractionDefs::release_controller_payload(node_));
-        assigned_ = false;
+        clear_assigned();
         clear_cache();
         if (input()->cmd == Command::CMD_ASSIGN_TRAIN)
         {
@@ -261,15 +264,17 @@ private:
         {
             return return_with_error(Defs::ERROR_REJECTED);
         }
-        assigned_ = true;
+        set_assigned();
         return return_ok();
     }
 
     Action load_state()
     {
+        pendingQueries_ = 1;
         send_traction_message(TractionDefs::speed_get_payload());
         for (int i = 0; i < MAX_FN_QUERY; ++i)
         {
+            pendingQueries_++;
             send_traction_message(TractionDefs::fn_get_payload(i));
         }
         return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(load_done));
@@ -360,6 +365,17 @@ private:
         b->data()->reset(Defs::MTI_TRACTION_CONTROL_COMMAND, node_->node_id(),
             NodeHandle(dst_), payload);
         iface()->addressed_message_write_flow()->send(b);
+    }
+
+    void set_assigned() {
+        assigned_ = true;
+        iface()->dispatcher()->register_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+    }
+
+    void clear_assigned() {
+        if (!assigned_) return;
+        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+        assigned_ = false;
     }
 
     void clear_cache()
