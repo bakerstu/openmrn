@@ -472,6 +472,8 @@ public:
         insert(entry);
     }
 
+    /// TODO(balazs.racz): add a typed next() command here.
+
 private:
     /// Helper class for waiting (blocking the current thread) until a message
     /// in the queue shows up.
