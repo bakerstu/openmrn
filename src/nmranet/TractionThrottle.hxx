@@ -37,6 +37,7 @@
 
 #include "nmranet/TractionClient.hxx"
 #include "nmranet/TractionDefs.hxx"
+#include "nmranet/TrainInterface.hxx"
 
 namespace nmranet
 {
@@ -91,7 +92,8 @@ struct TractionThrottleInput
  *
  */
 class TractionThrottle
-    : public StateFlow<Buffer<TractionThrottleInput>, QList<1>>
+    : public StateFlow<Buffer<TractionThrottleInput>, QList<1>>,
+      public nmranet::TrainImpl
 {
 public:
     /// @param node is the nmranet node from which this throttle will be
@@ -108,6 +110,34 @@ public:
     {
         TIMEOUT_NSEC = SEC_TO_NSEC(1),
     };
+
+    void set_speed(SpeedType speed) override {
+        send_traction_message(TractionDefs::speed_set_payload(speed));
+        lastSetSpeed_ = speed;
+    }
+
+    SpeedType get_speed() override {
+        // TODO: if we don't know the current speed, we should probably go and
+        // ask.
+        return lastSetSpeed_;
+    }
+
+    void set_emergencystop() override {
+        send_traction_message(TractionDefs::estop_set_payload());
+    }
+
+    void set_fn(uint32_t address, uint16_t value) override {
+        send_traction_message(TractionDefs::fn_set_payload(address, value));
+        lastKnownFn_[address] = value;
+    }
+
+    uint16_t get_fn(uint32_t address) override {
+        return 0;
+    }
+
+    uint32_t legacy_address() override {
+        return 0;
+    }
 
 private:
     Action entry() override
@@ -149,6 +179,7 @@ private:
     {
         send_traction_message(TractionDefs::release_controller_payload(node_));
         assigned_ = false;
+        clear_cache();
         if (input()->cmd == Command::CMD_ASSIGN_TRAIN)
         {
             return sleep_and_call(
@@ -220,6 +251,11 @@ private:
         iface()->addressed_message_write_flow()->send(b);
     }
 
+    void clear_cache() {
+        lastSetSpeed_ = nan_to_speed();
+        lastKnownFn_.clear();
+    }
+
     TractionThrottleInput *input()
     {
         return message()->data();
@@ -237,6 +273,8 @@ private:
     NodeID dst_;
     Node *node_;
     TractionResponseHandler handler_{iface(), node_};
+    SpeedType lastSetSpeed_;
+    std::map<uint32_t, uint16_t> lastKnownFn_;
 };
 
 } // namespace nmranet
