@@ -74,7 +74,7 @@ public:
         fd_ = fd;
     }
 
-private:
+protected:
     Action entry() OVERRIDE;
 
     Action finish()
@@ -84,6 +84,20 @@ private:
 
     int fd_;
     FixedPool pool_;
+};
+
+class LocalTrackIfSelect : public LocalTrackIf
+{
+public:
+    LocalTrackIfSelect(Service *service, int pool_size)
+        : LocalTrackIf(service, pool_size)
+    {
+    }
+
+protected:
+    Action entry() OVERRIDE;
+
+    StateFlowSelectHelper helper_{this};
 };
 
 } // namespace dcc
