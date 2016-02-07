@@ -435,9 +435,7 @@ protected:
      *
      * Fills in the payload's arguments using the passed-in args by calling
      * T::reset(args...). Then sends the buffer to the target flow, and waits
-     * for the target flow to call return_buffer.
-     *
-     * The target flow has to call transfer_message()->data()->done.notify().
+     * for the target flow to call return_buffer().
      *
      * There are requirements on the arguments structure T:
      *
@@ -454,8 +452,8 @@ protected:
         mainBufferPool->alloc(&b);
         b->data()->reset(std::forward<Args>(args)...);
         b->data()->done.reset(this);
+        allocationResult_ = b->ref();
         target_flow->send(b);
-        allocationResult_ = b;
         return wait_and_call(c);
     }
 
@@ -1021,10 +1019,12 @@ protected:
     }
 
     /** For state flows that are operated using invoke_child_flow this is a way
-     * to hand back the buffer to the caller. */
+     * to hand back the buffer to the caller. message() will be null
+     * afterwards. */
     void return_buffer()
     {
-        transfer_message()->data()->done.notify();
+        message()->data()->done.notify();
+        release();
     }
 
     /** @returns the current message we are processing. */

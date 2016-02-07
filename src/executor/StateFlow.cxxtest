@@ -397,6 +397,8 @@ public:
 
     Action call_done()
     {
+        auto* b = full_allocation_result(child_);
+        b->unref();
         done_->notify();
         return exit();
     }
