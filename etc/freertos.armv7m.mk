@@ -43,7 +43,7 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
-             -D__FreeRTOS__ -DGCC_ARMCM3  
+             -D__FreeRTOS__ -DGCC_ARMCM3 -D_REENT_SMALL
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes -D_REENT_SMALL \

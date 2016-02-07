@@ -86,7 +86,7 @@ public:
   TempFile(const TempDir& dir, const string& basename) {
     fileName_ = dir.name() + "/" + basename + ".XXXXXX";
     fileName_.c_str();
-    fd_ = mkstemp(&fileName_[0]);
+    fd_ = mkstemp((char*)fileName_.c_str());
   }
 
   ~TempFile() {

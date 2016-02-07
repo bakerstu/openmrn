@@ -39,8 +39,12 @@
 #include "utils/logging.h"
 #include "utils/macros.h"
 
+
 namespace dcc
 {
+
+static_assert(sizeof(Packet) == sizeof(DCCPacket), "DCCPacket size missmatch");
+
 enum
 {
     MARKLIN_DEFAULT_CMD = 0b00100110,

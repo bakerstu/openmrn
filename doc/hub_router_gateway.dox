@@ -34,7 +34,7 @@
  * decision as to which of the other participating segments the message should
  * be forwarded onto.  The decision process can be made based on static routing
  * tables, or based on a learning tree as to what segment a message is
- * destined.  All participants in a hub must have the same abstract protocol
+ * destined.  All participants in a router must have the same abstract protocol
  * (OpenLCB for example).
  *
  *

@@ -179,7 +179,7 @@ public:
     /// Starts a TCP server on the specified port in listening mode. Each
     /// incoming connection will be assumed to be in gridconnect protocol and
     /// will be added to the gridconnect hub.
-    void start_tcp_hub_server(int port)
+    void start_tcp_hub_server(int port = 12021)
     {
         /// @TODO (balazs.racz) make this more efficient by rendering to string
         /// only once for all connections.
