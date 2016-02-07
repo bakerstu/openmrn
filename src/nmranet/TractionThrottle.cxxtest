@@ -97,7 +97,7 @@ TEST_F(ThrottleTest, SendAssign)
     } flow(this);
     flow.start();
     n_.wait_for_notification();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 }
@@ -146,14 +146,14 @@ TEST_F(ThrottleTest, SendAssignRelease)
 
     flow.start_assign();
     n_.wait_for_notification();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 
     flow.start_release();
     n_.wait_for_notification();
     wait();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(0, actual_ctrl_id);
 }
