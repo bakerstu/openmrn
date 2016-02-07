@@ -12,6 +12,7 @@ CXXSRCS += \
            GcTcpHub.cxx \
            GridConnect.cxx \
            GridConnectHub.cxx \
+           format_utils.cxx \
            HubDevice.cxx \
            HubDeviceSelect.cxx \
            Queue.cxx \
