@@ -1,0 +1,161 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "nmranet/TractionTrain.hxx"
+#include "nmranet/TractionTestTrain.hxx"
+#include "nmranet/TractionThrottle.hxx"
+
+namespace nmranet
+{
+
+static constexpr NodeID TRAIN_NODE_ID = 0x060100000000 | 1372;
+
+class ThrottleTest : public AsyncNodeTest
+{
+protected:
+    ThrottleTest()
+    {
+        print_all_packets();
+        create_allocated_alias();
+        otherIf_.local_aliases()->add(TRAIN_NODE_ID, 0x771);
+        trainNode_.reset(new TrainNode(&trainService_, &trainImpl_));
+        wait();
+    }
+
+    LoggingTrain trainImpl_{1372};
+    std::unique_ptr<TrainNode> trainNode_;
+
+    IfCan otherIf_{&g_executor, &can_hub0, 5, 5, 5};
+    TrainService trainService_{&otherIf_};
+
+public:
+    SyncNotifiable n_;
+
+    class ImplFlow : public StateFlowBase
+    {
+    public:
+        ImplFlow(ThrottleTest *test)
+            : StateFlowBase(test->ifCan_.get())
+            , throttle_(test->node_)
+            , test_(test)
+        {
+        }
+
+        ~ImplFlow()
+        {
+            auto *b = full_allocation_result(&throttle_);
+            if (b)
+            {
+                b->unref();
+            }
+        }
+
+        TractionThrottleInput *response()
+        {
+            return full_allocation_result(&throttle_)->data();
+        }
+
+        TractionThrottle throttle_;
+        ThrottleTest *test_;
+    };
+};
+
+TEST_F(ThrottleTest, CreateDestroy)
+{
+    wait();
+    clear_expect();
+}
+
+TEST_F(ThrottleTest, SendAssign)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(ThrottleTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start()
+        {
+            start_flow(STATE(send_assign));
+        }
+
+        Action send_assign()
+        {
+            return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+        }
+
+        Action assign_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+    } flow(this);
+    flow.start();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, flow.response()->result_code);
+    NodeID actual_ctrl_id = trainNode_->get_controller().id;
+    EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
+}
+
+TEST_F(ThrottleTest, SendAssignRelease)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(ThrottleTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start_assign()
+        {
+            start_flow(STATE(send_assign));
+        }
+
+        void start_release()
+        {
+            start_flow(STATE(send_release));
+        }
+
+        Action send_assign()
+        {
+            return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+        }
+
+        Action send_release()
+        {
+            return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
+                TractionThrottleCommands::RELEASE_TRAIN);
+        }
+
+        Action assign_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+    } flow(this);
+
+    flow.start_assign();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, flow.response()->result_code);
+    NodeID actual_ctrl_id = trainNode_->get_controller().id;
+    EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
+
+    flow.start_release();
+    n_.wait_for_notification();
+    wait();
+    EXPECT_EQ(0, flow.response()->result_code);
+    actual_ctrl_id = trainNode_->get_controller().id;
+    EXPECT_EQ(0, actual_ctrl_id);
+}
+
+} // namespace nmranet

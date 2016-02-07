@@ -21,6 +21,7 @@ CXXSRCS += \
 	   PIPClient.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
+           TractionThrottle.cxx \
            TractionTrain.cxx \
            Velocity.cxx \
            WriteHelper.cxx \
