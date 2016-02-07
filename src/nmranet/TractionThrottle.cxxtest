@@ -97,7 +97,7 @@ TEST_F(ThrottleTest, SendAssign)
     } flow(this);
     flow.start();
     n_.wait_for_notification();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 }
@@ -146,16 +146,84 @@ TEST_F(ThrottleTest, SendAssignRelease)
 
     flow.start_assign();
     n_.wait_for_notification();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 
     flow.start_release();
     n_.wait_for_notification();
     wait();
-    EXPECT_EQ(0, flow.response()->result_code);
+    EXPECT_EQ(0, flow.response()->resultCode);
     actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(0, actual_ctrl_id);
+}
+
+TEST_F(ThrottleTest, SendQuery)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(ThrottleTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start()
+        {
+            start_flow(STATE(send_assign));
+        }
+
+        void load()
+        {
+            start_flow(STATE(send_load));
+        }
+
+        Action send_assign()
+        {
+            return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+        }
+
+        Action send_load()
+        {
+            return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
+                TractionThrottleCommands::LOAD_STATE);
+        }
+
+        Action assign_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+    } flow(this);
+    flow.start();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, flow.response()->resultCode);
+    NodeID actual_ctrl_id = trainNode_->get_controller().id;
+    EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
+
+    trainImpl_.set_speed(Velocity::from_mph(13.2));
+    trainImpl_.set_fn(1, 1);
+    trainImpl_.set_fn(2, 0);
+    trainImpl_.set_fn(4, 1);
+    trainImpl_.set_fn(7, 1);
+
+    flow.load();
+    n_.wait_for_notification();
+    EXPECT_EQ(0, flow.response()->resultCode);
+
+    EXPECT_NEAR(13.2, flow.throttle_.get_speed().mph(), 0.1);
+    EXPECT_EQ(0, flow.throttle_.get_fn(0));
+    EXPECT_EQ(1, flow.throttle_.get_fn(1));
+    EXPECT_EQ(0, flow.throttle_.get_fn(2));
+    EXPECT_EQ(0, flow.throttle_.get_fn(3));
+    EXPECT_EQ(1, flow.throttle_.get_fn(4));
+    EXPECT_EQ(0, flow.throttle_.get_fn(5));
+    EXPECT_EQ(0, flow.throttle_.get_fn(6));
+    EXPECT_EQ(1, flow.throttle_.get_fn(7));
 }
 
 } // namespace nmranet

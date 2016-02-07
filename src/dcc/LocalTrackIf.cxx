@@ -65,4 +65,10 @@ StateFlowBase::Action LocalTrackIf::entry()
     return finish();
 }
 
+StateFlowBase::Action LocalTrackIfSelect::entry() {
+    HASSERT(fd_ >= 0);
+    auto *p = message()->data();
+    return write_repeated(&helper_, fd_, p, sizeof(*p), STATE(finish));
+}
+
 } // namespace dcc

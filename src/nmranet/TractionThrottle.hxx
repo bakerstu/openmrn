@@ -55,6 +55,11 @@ struct TractionThrottleCommands
     {
         RELEASE_TRAIN,
     };
+
+    enum LoadState
+    {
+        LOAD_STATE,
+    };
 };
 
 struct TractionThrottleInput
@@ -63,6 +68,7 @@ struct TractionThrottleInput
     {
         CMD_ASSIGN_TRAIN,
         CMD_RELEASE_TRAIN,
+        CMD_LOAD_STATE,
     };
 
     void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst)
@@ -76,16 +82,21 @@ struct TractionThrottleInput
         cmd = CMD_RELEASE_TRAIN;
     }
 
+    void reset(const TractionThrottleCommands::LoadState &)
+    {
+        cmd = CMD_LOAD_STATE;
+    }
+
     Command cmd;
     NodeID dst;
 
     BarrierNotifiable done;
     /// If high bits are zero, this is a 16-bit OpenLCB result code. Higher
     /// values are OpenMRN errors.
-    int result_code;
+    int resultCode;
     /// For assign controller reply REJECTED, this is 1 for controller refused
     /// connection, 2 fortrain refused connection.
-    uint8_t reply_cause;
+    uint8_t replyCause;
 };
 
 /** Interface for a single throttle for running a train node.
@@ -104,38 +115,59 @@ public:
     {
     }
 
+    ~TractionThrottle() {
+    }
+
     using Command = TractionThrottleInput::Command;
 
     enum
     {
+        /// Timeout for assign controller request.
         TIMEOUT_NSEC = SEC_TO_NSEC(1),
+        /// Returned from get_fn() when we don't have a cahced value for a
+        /// function.
+        FN_NOT_KNOWN = 0xffff,
+        /// Upon a load state request, how far do we go into the function list?
+        MAX_FN_QUERY = 8,
     };
 
-    void set_speed(SpeedType speed) override {
+    void set_speed(SpeedType speed) override
+    {
         send_traction_message(TractionDefs::speed_set_payload(speed));
         lastSetSpeed_ = speed;
     }
 
-    SpeedType get_speed() override {
+    SpeedType get_speed() override
+    {
         // TODO: if we don't know the current speed, we should probably go and
         // ask.
         return lastSetSpeed_;
     }
 
-    void set_emergencystop() override {
+    void set_emergencystop() override
+    {
         send_traction_message(TractionDefs::estop_set_payload());
+        lastSetSpeed_.set_mph(0);
     }
 
-    void set_fn(uint32_t address, uint16_t value) override {
+    void set_fn(uint32_t address, uint16_t value) override
+    {
         send_traction_message(TractionDefs::fn_set_payload(address, value));
         lastKnownFn_[address] = value;
     }
 
-    uint16_t get_fn(uint32_t address) override {
-        return 0;
+    uint16_t get_fn(uint32_t address) override
+    {
+        auto it = lastKnownFn_.find(address);
+        if (it != lastKnownFn_.end())
+        {
+            return it->second;
+        }
+        return FN_NOT_KNOWN;
     }
 
-    uint32_t legacy_address() override {
+    uint32_t legacy_address() override
+    {
         return 0;
     }
 
@@ -167,6 +199,14 @@ private:
                     return return_ok();
                 }
             }
+            case Command::CMD_LOAD_STATE:
+            {
+                if (!dst_)
+                {
+                    return return_ok();
+                }
+                return call_immediately(STATE(load_state));
+            }
 
             default:
                 LOG_ERROR("Unknown traction throttle command %d received.",
@@ -178,7 +218,7 @@ private:
     Action release_train()
     {
         send_traction_message(TractionDefs::release_controller_payload(node_));
-        assigned_ = false;
+        clear_assigned();
         clear_cache();
         if (input()->cmd == Command::CMD_ASSIGN_TRAIN)
         {
@@ -205,7 +245,7 @@ private:
         handler_.wait_timeout();
         if (!handler_.response())
         {
-            return return_with_error(Defs::TIMEOUT);
+            return return_with_error(Defs::ERROR_TIMEOUT);
         }
 
         AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
@@ -219,13 +259,89 @@ private:
             // spurious reply message
             return return_with_error(Defs::ERROR_OUT_OF_ORDER);
         }
-        input()->reply_cause = payload[2];
+        input()->replyCause = payload[2];
         if (payload[2] != 0)
         {
-            return return_with_error(Defs::REJECTED);
+            return return_with_error(Defs::ERROR_REJECTED);
         }
-        assigned_ = true;
+        set_assigned();
         return return_ok();
+    }
+
+    Action load_state()
+    {
+        pendingQueries_ = 1;
+        send_traction_message(TractionDefs::speed_get_payload());
+        for (int i = 0; i < MAX_FN_QUERY; ++i)
+        {
+            pendingQueries_++;
+            send_traction_message(TractionDefs::fn_get_payload(i));
+        }
+        return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(load_done));
+    }
+
+    Action load_done()
+    {
+        if (!timer_.is_triggered())
+        {
+            // timed out
+            return return_with_error(Defs::ERROR_TIMEOUT);
+        }
+        else
+        {
+            return return_ok();
+        }
+    }
+
+    void pending_reply_arrived()
+    {
+        if (pendingQueries_ > 0)
+        {
+            if (!--pendingQueries_)
+            {
+                timer_.trigger();
+            }
+        }
+    }
+
+    void speed_reply(Buffer<NMRAnetMessage> *msg)
+    {
+        AutoReleaseBuffer<NMRAnetMessage> rb(msg);
+        if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
+        {
+            return;
+        }
+        const Payload &p = msg->data()->payload;
+        if (p.size() < 1)
+            return;
+        switch (p[0])
+        {
+            case TractionDefs::RESP_QUERY_SPEED:
+            {
+                pending_reply_arrived();
+                Velocity v;
+                if (TractionDefs::speed_get_parse_last(p, &v))
+                {
+                    lastSetSpeed_ = v;
+                    // TODO(balazs.racz): call a callback for the client.
+                }
+                return;
+            }
+            case TractionDefs::RESP_QUERY_FN:
+            {
+                pending_reply_arrived();
+                uint16_t v;
+                if (TractionDefs::fn_get_parse(p, &v))
+                {
+                    uint32_t num = p[1];
+                    num <<= 8;
+                    num |= p[2];
+                    num <<= 8;
+                    num |= p[3];
+                    lastKnownFn_[num] = v;
+                }
+            }
+        }
     }
 
     Action return_ok()
@@ -235,7 +351,7 @@ private:
 
     Action return_with_error(int error)
     {
-        input()->result_code = error;
+        input()->resultCode = error;
         return_buffer();
         return exit();
     }
@@ -251,7 +367,19 @@ private:
         iface()->addressed_message_write_flow()->send(b);
     }
 
-    void clear_cache() {
+    void set_assigned() {
+        assigned_ = true;
+        iface()->dispatcher()->register_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+    }
+
+    void clear_assigned() {
+        if (!assigned_) return;
+        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+        assigned_ = false;
+    }
+
+    void clear_cache()
+    {
         lastSetSpeed_ = nan_to_speed();
         lastKnownFn_.clear();
     }
@@ -268,12 +396,21 @@ private:
         return static_cast<If *>(service());
     }
 
+    MessageHandler::GenericHandler speedReplyHandler_{
+        this, &TractionThrottle::speed_reply};
+    /// How many speed/fn query requests I have sent off to the train node that
+    /// have not yet seen a reply.
+    unsigned pendingQueries_{0};
     StateFlowTimer timer_{this};
+    /// True if the assign controller has returned positive.
     bool assigned_{false};
     NodeID dst_;
     Node *node_;
+    /// Helper class for stateful query/return flows.
     TractionResponseHandler handler_{iface(), node_};
+    /// Cache: Velocity value that we last commanded to the train.
     SpeedType lastSetSpeed_;
+    /// Cache: all known function values.
     std::map<uint32_t, uint16_t> lastKnownFn_;
 };
 

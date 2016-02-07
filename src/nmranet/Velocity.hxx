@@ -134,6 +134,12 @@ public:
     /** Destructor does nothing. */
     ~Velocity() {}
 
+    static Velocity from_mph(float mph) {
+        Velocity v;
+        v.set_mph(mph);
+        return v;
+    }
+
     /** Checks whether the speed is unknown. (NaN).
      * @return true if the speed value is NaN. */
     bool isnan() const
