@@ -74,10 +74,8 @@ public:
      */
     enum
     {
-        FORWARD  = 0, /**< forward direction */
-        POSITIVE = 0, /**< forward direction */
-        REVERSE  = 1, /**< reverse direction */
-        NEGATIVE = 1, /**< reverse direction */
+        FORWARD  = false, /**< forward direction */
+        REVERSE  = true, /**< reverse direction */
     };
 
     /** Default constructor.
@@ -154,7 +152,7 @@ public:
     /** Return the direction independent of speed.
      * @return direction FORWARD or REVERSE
      */
-    int direction() const
+    bool direction() const
     {
         if (std::signbit(velocity))
         {
@@ -163,7 +161,7 @@ public:
         return FORWARD;
     }
     
-    void set_direction(int direction)
+    void set_direction(bool direction)
     {
         switch (direction)
         {
