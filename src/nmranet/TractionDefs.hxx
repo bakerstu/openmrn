@@ -41,6 +41,7 @@
 
 #include "nmranet/Velocity.hxx"
 #include "nmranet/Payload.hxx"
+#include "nmranet/If.hxx"
 
 namespace nmranet {
 
@@ -249,6 +250,24 @@ struct TractionDefs {
         }
         *value = (((uint16_t)p[4]) << 8) | p[5];
         return true;
+    }
+
+    static Payload assign_controller_payload(Node* ctrl) {
+        Payload p(9, 0);
+        p[0] = REQ_CONTROLLER_CONFIG;
+        p[1] = CTRLREQ_ASSIGN_CONTROLLER;
+        p[2] = 0;
+        node_id_to_data(ctrl->node_id(), &p[3]);
+        return p;
+    }
+
+    static Payload release_controller_payload(Node* ctrl) {
+        Payload p(9, 0);
+        p[0] = REQ_CONTROLLER_CONFIG;
+        p[1] = CTRLREQ_RELEASE_CONTROLLER;
+        p[2] = 0;
+        node_id_to_data(ctrl->node_id(), &p[3]);
+        return p;
     }
 };
 
