@@ -187,6 +187,12 @@ struct TractionDefs {
         FNCONFIG_ANALOG_OUTPUT = 0x3
     };
 
+    static Payload estop_set_payload() {
+        Payload p(1, 0);
+        p[0] = REQ_EMERGENCY_STOP;
+        return p;
+    }
+
     static Payload speed_set_payload(Velocity v) {
         Payload p(3, 0);
         p[0] = REQ_SET_SPEED;
