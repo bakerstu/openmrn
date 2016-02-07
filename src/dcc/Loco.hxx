@@ -104,7 +104,7 @@ public:
         float f_speed = speed.mph();
         if (f_speed > 0)
         {
-            f_speed *= ((p.get_speed_steps() * 1.0) / 128);
+            f_speed *= ((p.get_speed_steps() * 1.0) / 126);
             unsigned sp = f_speed;
             sp++; // makes sure it is at least speed step 1.
             if (sp > p.get_speed_steps())
