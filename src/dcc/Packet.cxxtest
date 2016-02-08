@@ -366,7 +366,7 @@ TEST_F(Train28Test, BelowMaxSpeed)
 {
     EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
     SpeedType s;
-    s.set_mph(123.42);
+    s.set_mph(121.42);
     train_.set_speed(s);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101111, _));
