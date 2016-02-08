@@ -267,9 +267,10 @@ struct TrainService::Impl
                     }
                     NodeHandle existing_controller =
                         train_node()->get_controller();
-                    if (existing_controller.id &&
+                    if (false && // TODO(balazs.racz) this will automatically "steal" the loco but forgets to notify the old controller that it's stolen.
+                        existing_controller.id &&
                         !iface()->matching_node(existing_controller,
-                                                    supplied_controller))
+                                                supplied_controller))
                     {
                         /** @TODO (balazs.racz): we need to implement stealing
                          * a train from the existing controller. */
