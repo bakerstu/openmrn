@@ -258,6 +258,12 @@ protected:
   StrictMock<MockSend> canBus1_;
 };
 
+/*
+template<class T, typename... Args>
+Buffer<T>* invoke_flow(FlowInterface<Buffer<T>>* flow, Args... args) {
+    Buffer<T>* b = flow->alloc();
+    b->data()->reset();
+    }*/
 
 namespace nmranet
 {
