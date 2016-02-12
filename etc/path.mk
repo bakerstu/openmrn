@@ -219,7 +219,9 @@ endif #ARMGCCPATH
 ifndef PRUCGTPATH
 SEARCHPATH := \
   /opt/ti/ccsv6/tools/compiler/pru \
-  /opt/ti/ccsv6/tools/compiler/ti-cgt-pru_2.1.1
+  /opt/ti/ccsv6/tools/compiler/ti-cgt-pru_2.1.2 \
+  /opt/ti/ccsv6/tools/compiler/ti-cgt-pru_2.1.1 \
+  /opt/ti/ccsv6/tools/compiler/ti-cgt-pru_2.1.0
 
 TRYPATH:=$(call findfirst,bin/clpru,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
