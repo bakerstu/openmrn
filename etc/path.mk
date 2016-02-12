@@ -215,6 +215,41 @@ ARMGCCPATH:=$(TRYPATH)
 endif
 endif #ARMGCCPATH
 
+################### PRU-CGT #####################
+ifndef PRUCGTPATH
+SEARCHPATH := \
+  /opt/ti/ccsv6/tools/compiler/pru \
+  /opt/ti/ccsv6/tools/compiler/ti-cgt-pru_2.1.1
+
+TRYPATH:=$(call findfirst,bin/clpru,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PRUCGTPATH:=$(TRYPATH)
+endif
+endif #PRUCGTPATH
+
+################### TI-LINUX-SDK #####################
+ifndef TILINUXSDKPATH
+SEARCHPATH := \
+  ~/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
+  /opt/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
+
+TRYPATH:=$(call findfirst,setup.sh,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TILINUXSDKPATH:=$(TRYPATH)
+endif
+endif #TILINUXSDKPATH
+
+################### PRU-ICSS #####################
+ifndef PRUICSSPATH
+SEARCHPATH := \
+  $(TILINUXSDKPATH)/example-applications/pru-icss-4.0.1
+
+TRYPATH:=$(call findfirst,ReadMe.txt,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PRUICSSPATH:=$(TRYPATH)
+endif
+endif #PRUICSSPATH
+
 ############### CMSIS-LPC11xx ###################
 ifndef CMSIS_LPC11_PATH
 SEARCHPATH := \

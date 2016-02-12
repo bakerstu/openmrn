@@ -62,7 +62,11 @@ INCLUDES += -D$(BOARD)
 endif
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
+ifeq ($(TARGET),bare.pruv3)
+LDFLAGS += -ilib -i$(LIBDIR)
+else
 LDFLAGS += -Llib -L$(LIBDIR)
+endif
 
 EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
 
@@ -153,7 +157,7 @@ endif
 FORCE:
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk
-	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP)
+	$(LD) $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
 endif
@@ -203,6 +207,20 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
 	$(CXX) -MM $(CXXFLAGS) -x c++ $*.cxxout > $*.d
 
+ifeq ($(TARGET),bare.pruv3)
+.cpp.o:
+	$(CXX) $(CXXFLAGS) $<
+
+.cxx.o:
+	$(CXX) $(CXXFLAGS) $<
+
+.S.o:
+	$(AS) $(ASFLAGS) $<
+
+.c.o:
+	$(CC) $(CFLAGS) $<
+
+else
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d $(abspath $<) -o $@
 
@@ -214,6 +232,7 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 
 .c.o:
 	$(CC) $(CFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+endif
 
 clean: clean-local
 
