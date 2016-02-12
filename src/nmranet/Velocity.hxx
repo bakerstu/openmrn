@@ -169,16 +169,13 @@ public:
     
     void set_direction(bool direction)
     {
-        switch (direction)
+        if (direction == FORWARD)
         {
-        case FORWARD:
             forward();
-            break;
-        case REVERSE:
+        }
+        else
+        {
             reverse();
-            break;
-        default:
-            DIE("Unexpected direction value");
         }
     }
 
