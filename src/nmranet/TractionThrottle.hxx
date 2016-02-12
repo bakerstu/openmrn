@@ -361,6 +361,7 @@ private:
      * for dst_. */
     void send_traction_message(const Payload &payload)
     {
+        HASSERT(dst_ != 0);
         auto *b = iface()->addressed_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_TRACTION_CONTROL_COMMAND, node_->node_id(),
             NodeHandle(dst_), payload);
