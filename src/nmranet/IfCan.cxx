@@ -712,6 +712,19 @@ void IfCan::add_addressed_message_support()
     add_owned_flow(f);
 }
 
+void IfCan::delete_local_node(Node *node) {
+    remove_local_node_from_map(node);
+    auto alias = localAliases_.lookup(node->node_id());
+    if (alias) {
+        // The node had a local alias.
+        localAliases_.remove(alias);
+        localAliases_.add(AliasCache::RESERVED_ALIAS_NODE_ID, alias);
+        // Sends AMR & returns alias to pool.
+        aliasAllocator_->return_alias(node->node_id(), alias);
+    }
+}
+
+
 void IfCan::canonicalize_handle(NodeHandle *h)
 {
     if (!h->id & !h->alias)

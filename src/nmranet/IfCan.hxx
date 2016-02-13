@@ -117,6 +117,8 @@ public:
 
     bool matching_node(NodeHandle expected, NodeHandle actual) OVERRIDE;
 
+    void delete_local_node(Node *node) override;
+
 private:
     void canonicalize_handle(NodeHandle* h);
 

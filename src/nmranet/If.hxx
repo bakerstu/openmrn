@@ -283,16 +283,17 @@ public:
     /** Removes a local node from this interface. This function must be called
      * from the interface's executor.
      *
-     * @param node is the node to delete.
+     * @param node is the node to delete. The node will not be freed, just
+     * removed from the data structures.
      */
-    void delete_local_node(Node *node)
+    virtual void delete_local_node(Node *node) = 0;
+        /*
     {
         HASSERT(0);
-        /*
         auto it = localNodes_.find(node->node_id());
         HASSERT(it != localNodes_.end());
-        localNodes_.erase(it);*/
-    }
+        localNodes_.erase(it);
+        }*/
 
     /** Looks up a node ID in the local nodes' registry. This function must be
      * called from the interface's executor.
@@ -316,6 +317,12 @@ public:
                                NodeHandle actual) = 0;
 
 protected:
+    void remove_local_node_from_map(Node *node) {
+        auto it = localNodes_.find(node->node_id());
+        HASSERT(it != localNodes_.end());
+        localNodes_.erase(it);
+    }
+
     /// Allocator containing the global write flows.
     MessageHandler *globalWriteFlow_;
     /// Allocator containing the addressed write flows.
