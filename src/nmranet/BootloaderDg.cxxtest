@@ -409,6 +409,7 @@ protected:
         EXPECT_CALL(mock_, bootloader_reboot());
         expect_packet(":X19A28428N0111;");
         send_packet(":X1A428111N20A9;");
+        wait();
     }
 
     void expect_startup_packets()
