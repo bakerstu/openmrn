@@ -242,6 +242,10 @@ public:
     {
         return offset() + size();
     }
+    constexpr unsigned num_repeats() const
+    {
+        return N;
+    }
     template <int K> constexpr Group entry() const
     {
         static_assert(K < N, "Tried to fetch an entry of a repeated "
