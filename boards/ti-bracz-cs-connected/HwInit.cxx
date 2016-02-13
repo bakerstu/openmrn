@@ -50,6 +50,7 @@
 #include "TivaDCC.hxx"
 #include "TivaGPIO.hxx"
 #include "TivaFlash.hxx"
+#include "TivaEEPROMEmulation.hxx"
 
 #include "commandstation/dcc_control.hxx"
 #include "hardware.hxx"
@@ -85,6 +86,10 @@ extern char __automata_end[];
 extern char __flash_page_size;
 
 static TivaFlash flash0("/etc/automata", __automata_start, __automata_end - __automata_start, reinterpret_cast<uint32_t>(&__flash_page_size));
+
+const unsigned TivaEEPROMEmulation::FAMILY = TM4C129;
+const size_t EEPROMEmulation::SECTOR_SIZE = (16 * 1024);
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 4*1024);
 
 /** USB Device CDC serial driver instance */
 static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));
