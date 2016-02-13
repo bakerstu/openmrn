@@ -79,6 +79,29 @@ void seed_alias_allocator(AliasAllocator* aliases, Pool* pool, int n) {
     }
 }
 
+void AliasAllocator::return_alias(NodeID id, NodeAlias alias)
+{
+    // This is synchronous allocation, which is not nice.
+    {
+        auto *b = if_can()->frame_write_flow()->alloc();
+        struct can_frame *f = b->data()->mutable_frame();
+        CanDefs::control_init(*f, alias, CanDefs::AMR_FRAME, 0);
+        f->can_dlc = 6;
+        node_id_to_data(id, f->data);
+        if_can()->frame_write_flow()->send(b);
+    }
+
+    // This is synchronous allocation, which is not nice.
+    {
+        auto* b = alloc();
+        b->data()->reset();
+        b->data()->alias = alias;
+        b->data()->do_not_reallocate();
+        b->data()->state = AliasInfo::STATE_RESERVED;
+        reserved_aliases()->insert(b);
+    }
+}
+
 AliasAllocator::~AliasAllocator()
 {
 }

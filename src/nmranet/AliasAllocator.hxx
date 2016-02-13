@@ -122,6 +122,10 @@ public:
         return &reserved_alias_pool_;
     }
 
+    /** Releases a given alias. Sends out an AMR frame and puts the alias into
+     * the reserved aliases queue. */
+    void return_alias(NodeID id, NodeAlias alias);
+
     /** If there is a pending alias allocation waiting for the timer to expire,
      * finishes it immediately. Needed in test destructors. */
     void TEST_finish_pending_allocation();
