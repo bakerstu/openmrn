@@ -93,6 +93,10 @@ public:
     using Default = NumericConfigOptions::Default;
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
+    using Manufacturer = IdentificationConfigOptions::Manufacturer;
+    using Model = IdentificationConfigOptions::Model;
+    using HwVersion = IdentificationConfigOptions::HwVersion;
+    using SwVersion = IdentificationConfigOptions::SwVersion;
     static constexpr Segment MainCdi()
     {
         return Segment(-2);
