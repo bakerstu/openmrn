@@ -125,7 +125,7 @@ public:
         OPERATION_SUCCESS = 0x10000, //< set when the Datagram OK arrives
         OPERATION_PENDING = 0x20000, //< cleared when done is called.
         DST_NOT_FOUND = Defs::ERROR_DST_NOT_FOUND, //< on CAN. Permanent error code.
-        TIMEOUT = Defs::ERROR_TIMEOUT,       //< Timeout waiting for ack/nack.
+        TIMEOUT = Defs::OPENMRN_TIMEOUT,       //< Timeout waiting for ack/nack.
         DST_REBOOT = Defs::ERROR_DST_REBOOT, //< Target node has rebooted.
 
         // The top byte of result_ is the response flags from Datagram_OK
