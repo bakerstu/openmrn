@@ -38,6 +38,11 @@ ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-p
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
+ifdef DEBUG_MEMORY_USE
+#warning: -funwind-tables adds 10k code size. Needed for malloc debugging.
+ARCHFLAGS += -funwind-tables
+endif
+
 ASFLAGS = -c $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \

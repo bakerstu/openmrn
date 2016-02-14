@@ -5,6 +5,7 @@
 #include "utils/Atomic.hxx"
 
 #define MAX_STRACE 20
+#define MIN_SIZE_TRACED 64
 
 extern "C" {
 extern void *stacktrace[MAX_STRACE];
@@ -101,8 +102,11 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
 
 void *__wrap_malloc(size_t size)
 {
+    if (size < MIN_SIZE_TRACED) {
+        return __real_malloc(size);
+    }
     uintptr_t saved_lr = 0;
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3)
     asm volatile ("mov %0, lr \n" : "=r" (saved_lr));
 #endif
     {
