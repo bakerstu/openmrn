@@ -245,7 +245,7 @@ private:
         handler_.wait_timeout();
         if (!handler_.response())
         {
-            return return_with_error(Defs::ERROR_TIMEOUT);
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
 
         AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
@@ -285,7 +285,7 @@ private:
         if (!timer_.is_triggered())
         {
             // timed out
-            return return_with_error(Defs::ERROR_TIMEOUT);
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
         else
         {
