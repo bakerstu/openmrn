@@ -498,6 +498,10 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " ite   eq                   \n"
         " mrseq r0, msp              \n"
         " mrsne r0, psp              \n"
+        // Restores the real stack pointer
+        " mov   sp, r0               \n"
+        // Simulates a BL instruction form the original PC
+        " ldr   lr, [r0, 20]       \n"
         " b     hard_fault_handler_c \n"
         " bx    lr                   \n"
     );
