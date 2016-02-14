@@ -375,4 +375,53 @@ CDI_GROUP_END();
 
 } // namespace nmranet
 
+/// Helper function defined in CompileCdiMain.cxx.
+template <typename CdiType>
+void render_cdi_helper(const CdiType &t, string ns, string name);
+
+/// Default template instantiation for CDI rendering.
+template <int N> class CdiRenderHelper
+{
+public:
+    static void render_cdi() __attribute__((always_inline))
+    {
+        CdiRenderHelper<N - 1>::render_cdi();
+    }
+};
+
+/// End-of-recursion template instantiation for CDI rendering.
+template <> class CdiRenderHelper<0>
+{
+public:
+    static void render_cdi()
+    {
+    }
+};
+
+/** Use this macro if additional CDI entries need to be rendered, in addition
+ * to the nmranet::ConfigDef. Example usage:
+ *
+ * } // namespace XXX -- RENDER_CDI will work only if at toplevel!
+ *
+ * RENDER_CDI(nmranet, ConfigDef, "CDI", 3);
+ *   this will create CDI_DATA and CDI_SIZE symbols.
+ *
+ * @param NS is the namespace without quotes
+ * @param TYPE is the typename of the CDI root group (with MainCdi())
+ * @param NAME is the basenamefor the output symbols. Generated will be
+ *    $(NAME)_DATA and $(NAME)_SIZE
+ * @param N is a unique integer between 2 and 10 for the invocation.
+ */
+#define RENDER_CDI(NS, TYPE, NAME, N)                                          \
+    template <> class CdiRenderHelper<N>                                       \
+    {                                                                          \
+    public:                                                                    \
+        static void render_cdi() __attribute__((always_inline))                \
+        {                                                                      \
+            NS::TYPE def(0);                                                   \
+            render_cdi_helper(def, #NS, NAME);                                 \
+            CdiRenderHelper<N - 1>::render_cdi();                              \
+        }                                                                      \
+    }
+
 #endif // _NMRANET_CONFIGREPRESENTATION_HXX_

@@ -113,11 +113,8 @@ OBJS += cdi.o
 
 $(EXECUTABLE)$(EXTENTION): cdi.o
 
-cdi.xmlout: compile_cdi
-	./compile_cdi > $@
-
-cdi.o : cdi.xmlout $(OPENMRNPATH)/bin/build_cdi.py
-	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o cdi.cxxout
+cdi.o : compile_cdi
+	./compile_cdi > cdi.cxxout
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
@@ -128,7 +125,7 @@ clean: clean_cdi
 .PHONY: clean_cdi
 
 clean_cdi:
-	rm -f cdi.xmlout cdi.nxml compile_cdi	
+	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi	
 
 endif
 
