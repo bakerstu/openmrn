@@ -258,17 +258,17 @@ public:
     /** Creates a memory block for a given pointer of data. The pointer must
      * stay alive so long as this object is alive.  @param data is a
      * null-terminated string, which may point into read-only memory. */
-    ReadOnlyMemoryBlock(const char *data)
+    ReadOnlyMemoryBlock(const void *data)
         : data_(reinterpret_cast<const uint8_t *>(data))
-        , len_(strlen(data))
+        , len_(strlen((const char*)data_))
     {
     }
 
     /** Initializes a memory block with a given block of memory. The address
      * range [data, data+len) must be dereferenceable for read so long as this
      * object is alive. It may point into read-only memory. */
-    ReadOnlyMemoryBlock(const uint8_t *data, address_t len)
-        : data_(data)
+    ReadOnlyMemoryBlock(const void *data, address_t len)
+        : data_(reinterpret_cast<const uint8_t*>(data))
         , len_(len)
     {
     }
