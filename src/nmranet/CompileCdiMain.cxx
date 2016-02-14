@@ -11,6 +11,12 @@ using std::string;
 
 RENDER_CDI(nmranet, ConfigDef, "CDI", 1);
 
+template <int N> void render_all_cdi() {
+    printf("// skipping config %d\n", N);
+    render_all_cdi<N-1>();
+}
+
+
 template <typename CdiType>
 void render_cdi_helper(const CdiType &t, string ns, string name)
 {
@@ -37,7 +43,16 @@ int main(int argc, char *argv[])
 
 )");
 
-    CdiRenderHelper<20>::render_cdi();
+    render_all_cdi<10>();
+/*    render_all_cdi<9>();
+    render_all_cdi<8>();
+    render_all_cdi<7>();
+    render_all_cdi<6>();
+    render_all_cdi<5>();
+    render_all_cdi<4>();
+    render_all_cdi<3>();
+    render_all_cdi<2>();
+    render_all_cdi<1>();*/
 
     /*
       string cdi;

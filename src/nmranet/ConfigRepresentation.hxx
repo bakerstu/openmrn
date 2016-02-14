@@ -379,24 +379,14 @@ CDI_GROUP_END();
 template <typename CdiType>
 void render_cdi_helper(const CdiType &t, string ns, string name);
 
-/// Default template instantiation for CDI rendering.
-template <int N> class CdiRenderHelper
-{
-public:
-    static void render_cdi() __attribute__((always_inline))
-    {
-        CdiRenderHelper<N - 1>::render_cdi();
-    }
-};
+template <int N> class CdiRenderHelper;
+
+template <int N> void render_all_cdi();
 
 /// End-of-recursion template instantiation for CDI rendering.
-template <> class CdiRenderHelper<0>
+template <> inline void render_all_cdi<0>()
 {
-public:
-    static void render_cdi()
-    {
-    }
-};
+}
 
 /** Use this macro if additional CDI entries need to be rendered, in addition
  * to the nmranet::ConfigDef. Example usage:
@@ -413,15 +403,11 @@ public:
  * @param N is a unique integer between 2 and 10 for the invocation.
  */
 #define RENDER_CDI(NS, TYPE, NAME, N)                                          \
-    template <> class CdiRenderHelper<N>                                       \
+    template <> inline void render_all_cdi<N>()                                \
     {                                                                          \
-    public:                                                                    \
-        static void render_cdi() __attribute__((always_inline))                \
-        {                                                                      \
-            NS::TYPE def(0);                                                   \
-            render_cdi_helper(def, #NS, NAME);                                 \
-            CdiRenderHelper<N - 1>::render_cdi();                              \
-        }                                                                      \
+        NS::TYPE def(0);                                                       \
+        render_cdi_helper(def, #NS, NAME);                                     \
+        render_all_cdi<N - 1>();                                               \
     }
 
 #endif // _NMRANET_CONFIGREPRESENTATION_HXX_
