@@ -80,7 +80,7 @@ public:
         }
         if (mapvalues())
         {
-            *r += StringPrintf("<map>%s</map>\n",mapvalues());
+            *r += StringPrintf("<map>%s</map>\n", mapvalues());
         }
     }
 };
@@ -119,19 +119,22 @@ private:
     unsigned size_;
 };
 
-struct NumericConfigDefs : public AtomConfigDefs {
+struct NumericConfigDefs : public AtomConfigDefs
+{
     // This is needed for inheriting declarations.
     using AtomConfigDefs::check_arguments_are_valid;
     DECLARE_OPTIONALARG(Min, minvalue, int, 6, INT_MAX);
     DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
     DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
-    using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues, Min, Max, Default>;
+    using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
+        Min, Max, Default>;
 };
 
 class NumericConfigOptions : public NumericConfigDefs::Base
 {
 public:
-    INHERIT_CONSTEXPR_CONSTRUCTOR(NumericConfigOptions, NumericConfigDefs::Base);
+    INHERIT_CONSTEXPR_CONSTRUCTOR(
+        NumericConfigOptions, NumericConfigDefs::Base);
 
     /// Represent the value enclosed in the <name> tag of the data element.
     DEFINE_OPTIONALARG(Name, name, const char *, 0);
@@ -155,21 +158,21 @@ public:
             *r +=
                 StringPrintf("<description>%s</description>\n", description());
         }
-        if (minvalue() != INT_MAX) {
-            *r +=
-                StringPrintf("<min>%d</min>\n", minvalue());
+        if (minvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<min>%d</min>\n", minvalue());
         }
-        if (maxvalue() != INT_MAX) {
-            *r +=
-                StringPrintf("<max>%d</max>\n", maxvalue());
+        if (maxvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<max>%d</max>\n", maxvalue());
         }
-        if (defaultvalue() != INT_MAX) {
-            *r +=
-                StringPrintf("<default>%d</default>\n", defaultvalue());
+        if (defaultvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<default>%d</default>\n", defaultvalue());
         }
         if (mapvalues())
         {
-            *r += StringPrintf("<map>%s</map>\n",mapvalues());
+            *r += StringPrintf("<map>%s</map>\n", mapvalues());
         }
     }
 };
@@ -265,7 +268,7 @@ public:
 
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
-    ///static constexpr Segment MainCdi() { return Segment(-2); }
+    /// static constexpr Segment MainCdi() { return Segment(-2); }
     /*struct MainCdi : public Segment
     {
         constexpr MainCdi()
@@ -379,6 +382,31 @@ private:
     Body body_;
 };
 
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
+
+/// Configuration options for rendering CDI (identification) data elements.
+struct IdentificationConfigDefs
+{
+    DECLARE_OPTIONALARG(Manufacturer, manufacturer, const char *, 0, nullptr);
+    DECLARE_OPTIONALARG(Model, model, const char *, 1, nullptr);
+    DECLARE_OPTIONALARG(HwVersion, hardware_version, const char *, 2, nullptr);
+    DECLARE_OPTIONALARG(SwVersion, software_version, const char *, 3, nullptr);
+    using Base = OptionalArg<IdentificationConfigDefs, Manufacturer, Model,
+        HwVersion, SwVersion>;
+};
+
+class IdentificationConfigOptions : public IdentificationConfigDefs::Base
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(
+        IdentificationConfigOptions, IdentificationConfigDefs::Base);
+
+    DEFINE_OPTIONALARG(Manufacturer, manufacturer, const char *, 0);
+    DEFINE_OPTIONALARG(Model, model, const char *, 1);
+    DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *, 2);
+    DEFINE_OPTIONALARG(SwVersion, software_version, const char *, 3);
+};
+
 /// Helper class for rendering the <identification> tag.
 class IdentificationRenderer
 {
@@ -392,14 +420,25 @@ public:
         *s += StringPrintf("<%s>%s</%s>\n", tag, value, tag);
     }
 
-    void render_cdi(string *s) const
+    static const char *alt(const char *opt, const char *def)
     {
+        if (opt)
+            return opt;
+        return def;
+    }
+
+    template <typename... Args> void render_cdi(string *s, Args... args) const
+    {
+        IdentificationConfigOptions opts(args...);
         extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
         *s += "<identification>\n";
-        render_tag("manufacturer", SNIP_STATIC_DATA.manufacturer_name, s);
-        render_tag("model", SNIP_STATIC_DATA.model_name, s);
-        render_tag("hardwareVersion", SNIP_STATIC_DATA.hardware_version, s);
-        render_tag("softwareVersion", SNIP_STATIC_DATA.software_version, s);
+        render_tag("manufacturer",
+            alt(opts.manufacturer(), SNIP_STATIC_DATA.manufacturer_name), s);
+        render_tag("model", alt(opts.model(), SNIP_STATIC_DATA.model_name), s);
+        render_tag("hardwareVersion",
+            alt(opts.hardware_version(), SNIP_STATIC_DATA.hardware_version), s);
+        render_tag("softwareVersion",
+            alt(opts.software_version(), SNIP_STATIC_DATA.software_version), s);
         *s += "</identification>\n";
     }
 };

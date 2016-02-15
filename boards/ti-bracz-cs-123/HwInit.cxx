@@ -50,6 +50,7 @@
 #include "DccHardware.hxx"
 #include "TivaDCC.hxx"
 #include "DummyGPIO.hxx"
+#include "TivaEEPROMEmulation.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -85,6 +86,11 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 /** I2C driver */
 static TivaI2C i2c1("/dev/i2c1", I2C1_BASE, INT_I2C1);
+
+const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
+const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
+
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 2000);
 
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
