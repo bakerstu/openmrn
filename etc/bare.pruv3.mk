@@ -31,7 +31,7 @@ INCLUDES += -I$(TOOLPATH)/include \
 
 ASFLAGS +=
 
-CFLAGS += -v3 -O4 --opt_for_speed=0 -g --c99 --define=am3359 --define=pru0 \
+CFLAGS += -v3 -O0 --opt_for_speed=0 -g --c99 \
           --diag_warning=225 --display_error_number --diag_wrap=off \
           --endian=little --hardware_mac=on --obj_extension=.o \
           --emit_warnings_as_errors --verbose_diagnostics \
