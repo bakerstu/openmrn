@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2016, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
