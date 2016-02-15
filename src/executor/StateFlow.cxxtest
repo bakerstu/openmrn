@@ -432,3 +432,101 @@ TEST(ChildFlowCall, CallMany) {
         EXPECT_EQ(18, e.member_);
     }
 }
+
+
+// =========== Tests for asynchronous read/writes. ======
+
+class StateFlowPipeTest : public ::testing::Test {
+protected:
+    StateFlowPipeTest() {
+        int pipefd[2];
+        HASSERT(::pipe2(pipefd, O_NONBLOCK) == 0);
+        fdRecv_ = pipefd[0];
+        fdSend_ = pipefd[1];
+    }
+
+    ~StateFlowPipeTest() {
+        close(fdSend_);
+        close(fdRecv_);
+    }
+
+#define DECL_FLOW(body)                                                        \
+    class TestFlow : public StateFlowBase                                      \
+    {                                                                          \
+    public:                                                                    \
+        TestFlow(StateFlowPipeTest *parent)                                    \
+            : StateFlowBase(&g_service)                                        \
+            , parent_(parent)                                                  \
+        {                                                                      \
+            start_flow(STATE(test_state));                                     \
+        }                                                                      \
+        Action test_state()                                                    \
+        {                                                                      \
+            parent_->bnIn_.notify();                                           \
+            LOG_ERROR("in select");                                            \
+            body;                                                              \
+        }                                                                      \
+        Action finished()                                                      \
+        {                                                                      \
+            LOG_ERROR("select returned");                                      \
+            parent_->bnOut_.notify();                                          \
+            return exit();                                                     \
+        }                                                                      \
+                                                                               \
+        StateFlowSelectHelper selectHelper_{this};                             \
+        StateFlowPipeTest *parent_;                                            \
+    } flow(this)
+
+public:
+    int fdSend_;
+    int fdRecv_;
+    char recvBuf_[100] = {0};
+    char sndBuf_[100] = {88, 33, 21, 14, 52, 61, 0};
+    SyncNotifiable inTestState_;
+    BarrierNotifiable bnIn_{&inTestState_};
+    SyncNotifiable outOfTestState_;
+    BarrierNotifiable bnOut_{&outOfTestState_};
+};
+
+
+TEST_F(StateFlowPipeTest, TestPipe) {
+    ASSERT_EQ(5, write(fdSend_, sndBuf_, 5));
+    ASSERT_EQ(4, read(fdRecv_, recvBuf_, 4));
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4), std::vector<char>(recvBuf_, recvBuf_ + 4));
+    bnIn_.notify();
+    bnOut_.notify();
+}
+
+TEST_F(StateFlowPipeTest, TestReadSingle) {
+    DECL_FLOW(return read_single(&selectHelper_, parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+    inTestState_.wait_for_notification();
+    usleep(50000);
+    wait_for_main_executor();
+    EXPECT_FALSE(bnOut_.is_done());
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    outOfTestState_.wait_for_notification();
+    EXPECT_EQ(3, flow.selectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2), std::vector<char>(recvBuf_, recvBuf_ + 2));
+}
+
+TEST_F(StateFlowPipeTest, TestReadRepeated) {
+    DECL_FLOW(return read_repeated(&selectHelper_, parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+    inTestState_.wait_for_notification();
+    usleep(50000);
+    wait_for_main_executor();
+    EXPECT_FALSE(bnOut_.is_done());
+    // In the first round we write 2 bytes out of 5
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    usleep(50000);
+    wait_for_main_executor();
+    // Still not exited wait
+    EXPECT_EQ(3, flow.selectHelper_.remaining_);
+    EXPECT_FALSE(bnOut_.is_done());
+    // Write the rest
+    ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
+    outOfTestState_.wait_for_notification();
+    EXPECT_EQ(0, flow.selectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4), std::vector<char>(recvBuf_, recvBuf_ + 4));
+}
+
+#undef DECL_FLOW
