@@ -118,12 +118,12 @@ class VectorEventHandlers : public EventRegistry {
         return new FullContainerIterator<HandlersList>(&handlers_);
     }
 
-  virtual void register_handler(const EventRegistryEntry& entry, unsigned mask) {
+  void register_handler(const EventRegistryEntry& entry, unsigned mask) OVERRIDE {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_front(entry);
     set_dirty();
   }
-  virtual void unregister_handler(EventHandler *handler)
+  void unregister_handler(EventHandler *handler) OVERRIDE
   {
       // @TODO(balazs.racz): need some kind of locking here.
       struct HandlerEquals

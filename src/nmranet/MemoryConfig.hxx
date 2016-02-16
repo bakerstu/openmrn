@@ -467,7 +467,7 @@ private:
         }
     }
 
-    virtual Action ok_response_sent()
+    Action ok_response_sent() OVERRIDE
     {
         if (!response_.empty())
         {
