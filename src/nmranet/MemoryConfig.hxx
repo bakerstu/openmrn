@@ -510,7 +510,7 @@ private:
 
     Action response_flow_complete()
     {
-        if (!responseFlow_->result() & DatagramClient::OPERATION_SUCCESS)
+        if (!(responseFlow_->result() & DatagramClient::OPERATION_SUCCESS))
         {
             LOG(WARNING,
                 "MemoryConfig: Failed to send response datagram. error code %x",
