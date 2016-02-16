@@ -90,10 +90,10 @@ public:
         return executor_;
     }
 
-    virtual void notify();
+    void notify() override;
 
     /** Callback from the executor. Puts all expired timers on the executor. */
-    virtual void run();
+    void run() override;
 
 private:
     /** Removes a timer from the active list. Assert fails if it is not
@@ -142,7 +142,7 @@ public:
 
     /** Callback from the executor when this timer is scheduled. It will call
      * the virtual method timeout(). */
-    virtual void run();
+    void run() override;
 
     /** Special return values from the timeout function. */
     enum

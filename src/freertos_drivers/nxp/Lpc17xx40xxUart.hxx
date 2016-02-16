@@ -79,8 +79,8 @@ public:
     }
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
 
     /** handle an interrupt.
      */
@@ -88,7 +88,7 @@ private:
 
     /** Try and transmit a message.
      */
-    void tx_char();
+    void tx_char() override;
 
     LPC_USART_T *base; /**< base address of this device */
     IRQn_Type interrupt; /**< interrupt of this device */

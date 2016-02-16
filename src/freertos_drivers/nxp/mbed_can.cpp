@@ -72,9 +72,9 @@ public:
         mbedCan_.attach(this, &MbedCanDriver::interrupt);
     }
 private:
-    virtual void enable() {}; /**< function to enable device */
-    virtual void disable() {}; /**< function to disable device */
-    virtual void flush_buffers() {}; /**< called after disabling the dev */
+    void enable() override {}; /**< function to enable device */
+    void disable() override {}; /**< function to disable device */
+    void flush_buffers() override {}; /**< called after disabling the dev */
 
     void interrupt();
     void tx_msg() OVERRIDE;

@@ -67,7 +67,7 @@ public:
 
 #define DEFPROXYFN(FN)                                                         \
     virtual void FN(const EventRegistryEntry &registry_entry,                  \
-                    EventReport *event, BarrierNotifiable *done)               \
+                    EventReport *event, BarrierNotifiable *done) override      \
     {                                                                          \
         HandlerFn(&EventHandler::FN, registry_entry, event, done);             \
     }
@@ -92,7 +92,7 @@ class SimpleEventHandler : public EventHandler
 public:
 #define IGNOREFN(FN)                                                           \
     virtual void FN(const EventRegistryEntry &registry_entry,                  \
-                    EventReport *event, BarrierNotifiable *done)               \
+                    EventReport *event, BarrierNotifiable *done) override      \
     {                                                                          \
         done->notify();                                                        \
     }

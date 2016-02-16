@@ -110,7 +110,7 @@ protected:
     using StateFlowBase::again;
     using StateFlowWithQueue::release_and_exit;
 
-    STATE_FLOW_STATE(entry);
+    STATE_FLOW_STATE(entry) override;
 
     /*    Action entry()
         {

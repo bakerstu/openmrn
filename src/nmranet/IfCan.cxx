@@ -69,12 +69,12 @@ public:
     }
 
 protected:
-    virtual Action entry()
+    Action entry() override
     {
         return call_immediately(STATE(send_to_hardware));
     }
 
-    virtual Action send_finished()
+    Action send_finished() override
     {
         return call_immediately(STATE(global_entry));
     }
@@ -109,7 +109,7 @@ public:
     }
 
     /// Handler callback for incoming messages.
-    virtual Action entry()
+    Action entry() override
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*message()->data());
         release();
@@ -353,7 +353,7 @@ private:
      * @param msg Message to enqueue
      * @param priority the priority at which to enqueue this message.
      */
-    void send(MessageType *msg, unsigned priority = UINT_MAX)
+    void send(MessageType *msg, unsigned priority = UINT_MAX) override
     {
         AutoReleaseBuffer<CanMessageData> rb(msg);
         struct can_frame *f = msg->data();
@@ -543,7 +543,7 @@ public:
     }
 
     /// Handler entry for incoming messages.
-    virtual Action entry()
+    Action entry() override
     {
         struct can_frame *f = message()->data();
         id_ = GET_CAN_FRAME_ID_EFF(*f);

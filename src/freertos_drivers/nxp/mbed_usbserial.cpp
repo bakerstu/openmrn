@@ -95,7 +95,7 @@ public:
     }
 
 protected:
-    virtual bool EP2_OUT_callback()
+    bool EP2_OUT_callback() override
     {
         //HASSERT(IsEpPending());
         // and wake up the RX thread.
@@ -104,7 +104,7 @@ protected:
         return false;
     }
 
-    virtual bool EP2_IN_callback()
+    bool EP2_IN_callback() override
     {
         configASSERT(txPending);
         int woken = 0;
@@ -127,15 +127,15 @@ protected:
     }
 
 private:
-    void enable()
+    void enable() override
     {
     } /**< function to enable device */
-    void disable()
+    void disable() override
     {
     } /**< function to disable device */
 
     /** function to try and transmit a character */
-    void tx_char()
+    void tx_char() override
     {
         // Without this critical section there were cases when we deadlocked
         // with txPending == true but no interrupt coming in to clear it.

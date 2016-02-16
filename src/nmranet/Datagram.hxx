@@ -221,7 +221,7 @@ private:
         }
 
     private:
-        virtual Action entry();
+        Action entry() override;
 
         Action incoming_datagram_allocated();
         Action respond_rejection();

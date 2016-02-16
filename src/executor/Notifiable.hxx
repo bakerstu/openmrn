@@ -63,7 +63,7 @@ public:
     {
     }
 
-    virtual void notify()
+    void notify() override
     {
         sem_.post();
     }
@@ -92,7 +92,7 @@ private:
 class EmptyNotifiable : public Notifiable
 {
 public:
-    virtual void notify()
+    void notify() override
     {
     }
 
@@ -103,7 +103,7 @@ public:
 class CrashNotifiable : public Notifiable
 {
 public:
-    virtual void notify();
+    void notify() override;
 
     static Notifiable* DefaultInstance();
 };
@@ -144,7 +144,7 @@ public:
 
 private:
     /// Implementation of the private Notifiable interface.
-    virtual void notify()
+    void notify() override
     {
         Notifiable* p = parent_;
         HASSERT(p);
@@ -185,7 +185,7 @@ public:
     {
         notify();
     }
-    virtual void notify();
+    void notify() override;
 
     /// Returns true if the barrier condition is true, i.e., the owner has
     /// called maybe_done() and all children have called Done.

@@ -98,7 +98,7 @@ public:
     }
 
 protected:
-    virtual bool EP2_OUT_callback()
+    bool EP2_OUT_callback() override
     {
         // HASSERT(IsEpPending());
         // and wake up the RX thread.
@@ -111,7 +111,7 @@ protected:
         return false;
     }
 
-    virtual bool EP2_IN_callback()
+    bool EP2_IN_callback() override
     {
         configASSERT(txPending_);
         TxHelper();

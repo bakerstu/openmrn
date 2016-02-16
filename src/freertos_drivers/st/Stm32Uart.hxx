@@ -75,8 +75,8 @@ public:
     static void interrupt_handler(unsigned index);
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
 
     /** @todo (Stuart Baker) this should be made private */
     /** handle an interrupt.
@@ -85,7 +85,7 @@ private:
 
     /** Try and transmit a message.
      */
-    void tx_char();
+    void tx_char() override;
 
     IRQn_Type interrupt; /**< interrupt of this device */
 

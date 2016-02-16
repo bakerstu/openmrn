@@ -65,7 +65,7 @@ protected:
     unsigned dataOffset_ : 8; /**< for continuation frames: which offset in
                                 * the Buffer should we start the payload at. */
 
-    virtual Action send_to_hardware()
+    Action send_to_hardware() override
     {
         dataOffset_ = 0;
         srcAlias_ = 0;
@@ -271,12 +271,12 @@ protected:
     /** Entry point of message handling flow. We start with the shared
      * implementation. We may get back control at the send_to_hardware
      * action. */
-    virtual Action entry()
+    Action entry() override
     {
         return call_immediately(STATE(addressed_entry));
     }
 
-    virtual Action send_to_hardware()
+    Action send_to_hardware() override
     {
         dataOffset_ = 0;
         srcAlias_ = 0;

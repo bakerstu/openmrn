@@ -93,8 +93,8 @@ private:
      */
     bool select(File* file, int mode) OVERRIDE;
 
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
 
     /** Function to try and transmit a character.  Unused by this device driver.
      */
@@ -173,12 +173,12 @@ public:
     void interrupt_handler();
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
 
     /** Try and transmit a message.
      */
-    void tx_char();
+    void tx_char() override;
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
@@ -215,9 +215,9 @@ public:
     void interrupt_handler();
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_msg(); /**< function to try and transmit a message */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
+    void tx_msg() override; /**< function to try and transmit a message */
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */

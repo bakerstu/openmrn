@@ -112,7 +112,7 @@ public:
 
 private:
     // Callback from the allocator.
-    virtual void alloc_result(QMember *entry)
+    void alloc_result(QMember *entry) override
     {
         /* NOTE(balazs.racz): We could choose not to pass on the done_
          * callback. That will allow the current write flow to be released
@@ -146,7 +146,7 @@ private:
         }
     }
 
-    virtual void run()
+    void run() override
     {
         HASSERT(0);
     }

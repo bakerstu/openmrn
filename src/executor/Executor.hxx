@@ -129,9 +129,9 @@ protected:
     /** Thread entry point.
      * @return Should never return
      */
-    virtual void *entry();
+    void *entry() override;
 
-    virtual void run() {}
+    void run() override {}
 
     /** Helper object for interruptible select calls. */
     OSSelectWakeup selectHelper_;
@@ -268,7 +268,7 @@ public:
      * @param msg Executable instance to insert into the input queue
      * @param priority priority of message
      */
-    void add_from_isr(Executable *msg, unsigned priority = UINT_MAX)
+    void add_from_isr(Executable *msg, unsigned priority = UINT_MAX) override
     {
         queue_.insert_from_isr(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
@@ -346,7 +346,7 @@ public:
         executor_->add(this);  // lowest priority
     }
 
-    virtual void run() {
+    void run() override {
         if (executor_->empty()) {
             SyncNotifiable::notify();
         } else {

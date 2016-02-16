@@ -181,7 +181,7 @@ public:
      * @param item to add to queue
      * @param index in the list to operate on
      */
-    void insert(QMember *item, unsigned index)
+    void insert(QMember *item, unsigned index) override
     {
         AtomicHolder h(this);
         MultiMap<unsigned, QMember *>::Iterator it = upper_bound(index);
@@ -193,7 +193,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next(unsigned index)
+    QMember *next(unsigned index) override
     {
         AtomicHolder h(this);
         MultiMap<unsigned, QMember *>::Iterator it;
@@ -211,7 +211,7 @@ public:
     /** Get an item from the front of the queue in priority order.
      * @return item retrieved from queue + index, NULL if no item available
      */
-    Result next()
+    Result next() override
     {
         AtomicHolder h(this);
         MultiMap<unsigned, QMember *>::Iterator it;
@@ -230,7 +230,7 @@ public:
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index) override
     {
         return MultiMap<unsigned, QMember *>::count(index);
     }
@@ -239,7 +239,7 @@ public:
      * @param index in the list to operate on
      * @return number of total pending items in all queues in the list
      */
-    size_t pending()
+    size_t pending() override
     {
         return MultiMap<unsigned, QMember *>::size();
     }
@@ -248,7 +248,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index) override
     {
         return (pending(index) == 0);
     }
@@ -257,7 +257,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty()
+    bool empty() override
     {
         return (pending() == 0);
     }
@@ -293,7 +293,7 @@ public:
      * @param item to add to queue
      * @param index unused parameter
      */
-    void insert(QMember *item, unsigned index = 0);
+    void insert(QMember *item, unsigned index = 0) override;
 
     /** Add an item to the back of the queue. Needs external locking.
      * @param item to add to queue
@@ -305,7 +305,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next(unsigned index)
+    QMember *next(unsigned index) override
     {
         return next().item;
     }
@@ -314,13 +314,13 @@ public:
      * @return @ref Result structure with item retrieved from queue, NULL if
      *         no item available
      */
-    Result next();
+    Result next() override;
 
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index) override
     {
         return pending();
     };
@@ -328,7 +328,7 @@ public:
     /** Get the number of pending items in the queue.
      * @return number of pending items in the queue
      */
-    size_t pending()
+    size_t pending() override
     {
         return count;
     }
@@ -337,7 +337,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index) override
     {
         return empty();
     }
@@ -345,7 +345,7 @@ public:
     /** Test if the queue is empty.
      * @return true if empty, else false
      */
-    bool empty()
+    bool empty() override
     {
         return (head == NULL);
     }
@@ -386,7 +386,7 @@ public:
      * @param item to add to queue
      * @param index unused parameter
      */
-    void insert(QMember *item, unsigned index = 0);
+    void insert(QMember *item, unsigned index = 0) override;
 
     /** Get an item from the front of the queue.
      * @param flow Executable that will wait on the item
@@ -398,7 +398,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next(unsigned index)
+    QMember *next(unsigned index) override
     {
         return next().item;
     }
@@ -407,7 +407,7 @@ public:
      * @return @ref Result structure with item retrieved from queue, NULL if
      *         no item available
      */
-    Result next()
+    Result next() override
     {
         AtomicHolder h(this);
         return waiting ? Result() : Q::next();
@@ -417,7 +417,7 @@ public:
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index) override
     {
         return pending();
     };
@@ -425,7 +425,7 @@ public:
     /** Get the number of pending items in the queue.
      * @return number of pending items in the queue
      */
-    size_t pending()
+    size_t pending() override
     {
         AtomicHolder h(this);
         return waiting ? 0 : Q::pending();
@@ -435,7 +435,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index) override
     {
         return empty();
     }
@@ -443,7 +443,7 @@ public:
     /** Test if the queue is empty.
      * @return true if empty, else false
      */
-    bool empty()
+    bool empty() override
     {
         AtomicHolder h(this);
         return waiting ? true : Q::empty();
@@ -535,7 +535,7 @@ public:
      * @param item to add to queue
      * @param index in the list to operate on
      */
-    void insert(QMember *item, unsigned index)
+    void insert(QMember *item, unsigned index) override
     {
         if (index >= ITEMS)
         {
@@ -561,7 +561,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next(unsigned index)
+    QMember *next(unsigned index) override
     {
         return list[index].next().item;
     }
@@ -569,7 +569,7 @@ public:
     /** Get an item from the front of the queue queue in priority order.
      * @return item retrieved from queue + index, NULL if no item available
      */
-    Result next()
+    Result next() override
     {
         for (unsigned i = 0; i < ITEMS; ++i)
         {
@@ -586,7 +586,7 @@ public:
      * @param index in the list to operate on
      * @return number of pending items in the queue
      */
-    size_t pending(unsigned index)
+    size_t pending(unsigned index) override
     {
         return list[index].pending();
     }
@@ -594,7 +594,7 @@ public:
     /** Get the total number of pending items in all queues in the list.
      * @return number of total pending items in all queues in the list
      */
-    size_t pending()
+    size_t pending() override
     {
         size_t result = 0;
         for (unsigned i = 0; i < ITEMS; ++i)
@@ -613,7 +613,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty(unsigned index)
+    bool empty(unsigned index) override
     {
         return list[index].empty();
     }
@@ -622,7 +622,7 @@ public:
      * @param index in the list to operate on
      * @return true if empty, else false
      */
-    bool empty()
+    bool empty() override
     {
         for (unsigned i = 0; i < ITEMS; ++i)
         {
@@ -664,7 +664,7 @@ public:
      * @param item to add to queue
      * @return item retrieved from queue, NULL if no item available
      */
-    void insert(QMember *q, unsigned index = 0)
+    void insert(QMember *q, unsigned index = 0) override
     {
         AtomicHolder h(this);
         QList<items>::insert(q, index);
@@ -683,7 +683,7 @@ public:
      * @param index in the list to operate on
      * @return item retrieved from queue, NULL if no item available
      */
-    QMember *next(unsigned index)
+    QMember *next(unsigned index) override
     {
         AtomicHolder h(this);
         return QList<items>::next(index);
@@ -695,7 +695,7 @@ public:
     /** Get an item from the front of the queue queue in priority order.
      * @return item retrieved from queue + index, NULL if no item available
      */
-    Result next()
+    Result next() override
     {
         AtomicHolder h(this);
         return QList<items>::next();
@@ -922,7 +922,7 @@ public:
      * @param item item to add to queue
      * @param index in the list to operate on
      */
-    void insert(QMember *item, unsigned index)
+    void insert(QMember *item, unsigned index) override
     {
         QListProtected<items>::insert(item, index);
         post();
@@ -947,7 +947,7 @@ public:
     /** Get an item from the front of the queue.
      * @return item retrieved from one of the queues
      */
-    Result next()
+    Result next() override
     {
         Result result = QListProtected<items>::next();
         if (result.item != NULL)
