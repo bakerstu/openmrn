@@ -131,12 +131,12 @@ private:
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
 
-    void enable();  /**< function to enable device */
-    void disable(); /**< function to disable device */
+    void enable() override;  /**< function to enable device */
+    void disable() override; /**< function to disable device */
 
     /** Discards all pending buffers.  Called after disable().
      */
-    void flush_buffers()
+    void flush_buffers() override
     {
         while (!inputData_.empty())
         {

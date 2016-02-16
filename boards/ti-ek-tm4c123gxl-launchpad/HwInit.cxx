@@ -295,11 +295,11 @@ public:
     {
     }
 
-    void set() const {
+    void set() const override {
         *ptr_ = 0xff;
     }
 
-    void clr() const {
+    void clr() const override  {
         *ptr_ = 0;
     }
 

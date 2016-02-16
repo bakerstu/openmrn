@@ -231,15 +231,15 @@ public:
     {
     }
 
-    virtual Node *node()
+    Node *node() override
     {
         return node_;
     }
-    virtual EventState GetCurrentState()
+    EventState GetCurrentState() override
     {
         return ((*ptr_) & mask_) ? EventState::VALID : EventState::INVALID;
     }
-    virtual void SetState(bool new_value)
+    void SetState(bool new_value) override
     {
         if (new_value)
         {
