@@ -39,6 +39,7 @@ ENDGROUP := -Wl,--end-group
 INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/GCC/ARM_CM3 \
             -I$(OPENMRNPATH)/include/freertos \
+            -idirafter $(OPENMRNPATH)/include/freertos_select \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 INCLUDES += -I$(TOOLPATH)/arm-none-eabi/include -I$(CLIBPATH)/include-fixed -I$(CLIBPATH)/include -I$(CPPLIBPATH)/backward -I$(CPPLIBPATH)/arm-none-eabi -I"$(MBEDSRCPATH)/cpp" -I"$(MBEDPATH)/mbed/vendor/NXP/capi" -I"$(MBEDPATH)/mbed/vendor/NXP/capi/LPC1768" -I"$(MBEDPATH)/mbed/vendor/NXP/cmsis/LPC1768" -I"$(MBEDPATH)/USBDevice/USBDevice" -I"$(MBEDPATH)/USBDevice/USBSerial" -I"$(MBEDSRCPATH)/capi" 

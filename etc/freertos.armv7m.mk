@@ -30,6 +30,7 @@ ENDGROUP := -Wl,--end-group
 INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/GCC/ARM_CM3 \
             -I$(OPENMRNPATH)/include/freertos \
+            -idirafter $(OPENMRNPATH)/include/freertos_select \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
@@ -57,6 +58,7 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
 
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
+            -Wsuggest-override \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 

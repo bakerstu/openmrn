@@ -47,6 +47,8 @@
 
 #ifdef __WINNT__
 #include <winsock2.h>
+#else
+#include <sys/select.h>
 #endif
 
 void empty_signal_handler(int);
