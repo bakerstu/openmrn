@@ -413,6 +413,40 @@ protected:
         return wait();
     }
 
+    /** Use this timer class to deliver the timeout notification to a stateflow.
+     *
+     * Usage:
+     *
+     * in the StateFlow class create a variable
+     *   StateFlowTimer timer_;
+     * in the constructor initialize it with
+     *   , timer_(this).
+     * then in the state function do
+     *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200),
+     *                         STATE(next_after_timeout));
+     * If needed, you can wake up the timer in a handler function by calling
+     * timer_.trigger(). This will transition to the new state immediately.
+     */
+    class StateFlowTimer : public ::Timer
+    {
+    public:
+        StateFlowTimer(StateFlowBase *parent)
+            : Timer(parent->service()->executor()->active_timers())
+            , parent_(parent)
+        {
+        }
+
+        virtual long long timeout()
+        {
+            parent_->notify();
+            return NONE;
+        }
+
+    protected:
+        /// The timer will deliver notifications to this flow.
+        StateFlowBase *parent_;
+    };
+
     /** Suspends execution of this control flow for a specified time. After
      * the timeout expires the flow will continue in state c.
      *
@@ -458,15 +492,17 @@ protected:
     }
 
     struct StateFlowSelectHelper;
+    struct StateFlowTimedSelectHelper;
 
     /** Blocks until size bytes are read and then invokes the next state. */
     Action read_repeated(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
-        helper->timer_ = nullptr;
+        helper->set_wakeup(this);
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 1;
         helper->readNonblocking_ = 0;
+        helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
@@ -477,11 +513,12 @@ protected:
      * first read returned. */
     Action read_single(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
-        helper->timer_ = nullptr;
+        helper->set_wakeup(this);
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 0;
         helper->readNonblocking_ = 0;
+        helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
@@ -491,36 +528,51 @@ protected:
      * even if only zero bytes are available right now. */
     Action read_nonblocking(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
-        helper->timer_ = nullptr;
+        helper->set_wakeup(this);
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 0;
         helper->readNonblocking_ = 1;
+        helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
     }
 
     /** Blocks until size bytes are read, or a timeout expires. If the timeout
-     * expires, jumps to next state with whatever data has been read. */
-    /* sorry this approach will not work.
-    Action read_repeated_with_timeout(StateFlowTimer* timer, long long timeout_nsec, StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
-        timer->start(timeout_nsec);
+     * expires, jumps to next state with whatever data has been read. To figure
+     * out whether the timer expired or the read completed, the caller can
+     * check helper->remaining_ != 0. */
+    Action read_repeated_with_timeout(StateFlowTimedSelectHelper *helper,
+        long long timeout_nsec, int fd, void *buf, size_t size, Callback c,
+        unsigned priority = Selectable::MAX_PRIO)
+    {
         helper->reset(Selectable::READ, fd, priority);
-        helper->timer_ = timer;
+        helper->set_timed_wakeup();
         helper->rbuf_ = static_cast<uint8_t*>(buf);
         helper->remaining_ = size;
+        helper->expiry_ = OSTime::get_monotonic() + timeout_nsec;
         helper->readFully_ = 1;
         helper->readNonblocking_ = 0;
+        helper->readWithTimeout_ = 1;
+        helper->timer_.set_triggered(); // Needed for the first iteration
         helper->nextState_ = c;
-        allocationResult_ = helper;
+        allocationResult_ = static_cast<StateFlowSelectHelper *>(helper);
         return call_immediately(STATE(internal_try_read));
-        }*/
+    }
 
     Action internal_try_read()
     {
         StateFlowSelectHelper *h =
             static_cast<StateFlowSelectHelper *>(allocationResult_);
+        if (h->readWithTimeout_)
+        {
+            auto *hh = static_cast<StateFlowTimedSelectHelper *>(h);
+            if (!hh->timer_.is_triggered())
+            {
+                service()->executor()->unselect(h);
+            }
+        }
         if (!h->remaining_)
         {
             h->rbuf_ = nullptr;
@@ -552,6 +604,17 @@ protected:
             else
             {
                 // Blocked.
+                if (h->readWithTimeout_)
+                {
+                    auto *hh = static_cast<StateFlowTimedSelectHelper *>(h);
+                    if (!hh->timer_.is_triggered())
+                    {
+                        // We actually got a timeout notification.
+                        h->rbuf_ = nullptr;
+                        return call_immediately(h->nextState_);
+                    }
+                    hh->timer_.start_absolute(hh->expiry_);
+                }
                 service()->executor()->select(h);
                 return wait();
             }
@@ -563,9 +626,11 @@ protected:
 
     Action write_repeated(StateFlowSelectHelper* helper, int fd, const void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::WRITE, fd, priority);
+        helper->set_wakeup(this);
         helper->wbuf_ = static_cast<const uint8_t*>(buf);
         helper->remaining_ = size;
         helper->readFully_ = 1;
+        helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_write));
@@ -642,10 +707,49 @@ protected:
         unsigned readFully_ : 1;
         /** 1 if we need a non-blocking read, in other words, try once */
         unsigned readNonblocking_ : 1;
+        /** 1 if there is also a timer involved; in this case *this must be a
+         * StateFlowTimedSelectHelper. */
+        unsigned readWithTimeout_ : 1;
         /** Number of bytes still outstanding to read. */
-        unsigned remaining_ : 30;
-        /** If not null, the reads are bounded by a timeout. */
-        StateFlowTimer* timer_;
+        unsigned remaining_ : 29;
+    };
+
+    /** Use this class to read from an fd with select and timeout. This clas
+     * encapsulates both a selecthelper and a timer. It is okay to use them
+     * separately and independently from each other as well, for example to do
+     * return sleep_and_call(&timedSelect_.timer_, ...). */
+    struct StateFlowTimedSelectHelper : public StateFlowSelectHelper,
+                                        private Executable
+    {
+        StateFlowTimedSelectHelper(StateFlowBase *parent)
+            : StateFlowSelectHelper(parent)
+            , timer_(parent)
+        {
+        }
+
+        void set_timed_wakeup() {
+            set_wakeup((Executable*)this);
+        }
+
+        /** This timer is used to wake up the StateFlow. In general if the
+         * timer expires first, it will notify the stateflow directly. If the
+         * select expires first, it will cause code to run that trigger()'s
+         * this timer.
+         *
+         * It is okay to use this timer for other purposes in the same
+         * stateflow when there is no read_with_timeout in operation. */
+        StateFlowTimer timer_;
+
+        /** End of the wakeup timeout. We need to store this separately because
+         * each immediate select return will cancel the timer. This is in
+         * absolute time. */
+        long long expiry_;
+
+    private:
+        // Executable interface. Called by select.
+        void run() override {
+            timer_.trigger();
+        }
     };
 
 private:
@@ -1055,40 +1159,6 @@ public:
         : TypedStateFlow<MessageType, UntypedStateFlow<QueueType>>(service)
     {
     }
-};
-
-/** Use this timer class to deliver the timeout notification to a stateflow.
- *
- * Usage:
- *
- * in the StateFlow class create a variable
- *   StateFlowTimer timer_;
- * in the constructor initialize it with
- *   , timer_(this).
- * then in the state function do
- *   return sleep_and_call(&timer_, MSEC_TO_NSEC(200),
- *                         STATE(next_after_timeout));
- * If needed, you can wake up the timer in a handler function by calling
- * timer_.trigger(). This will transition to the new state immediately.
- */
-class StateFlowTimer : public ::Timer
-{
-public:
-    StateFlowTimer(StateFlowBase *parent)
-        : Timer(parent->service()->executor()->active_timers())
-        , parent_(parent)
-    {
-    }
-
-    virtual long long timeout()
-    {
-        parent_->notify();
-        return NONE;
-    }
-
-protected:
-    /// The timer will deliver notifications to this flow.
-    StateFlowBase *parent_;
 };
 
 #endif /* _EXECUTOR_STATEFLOW_HXX_ */

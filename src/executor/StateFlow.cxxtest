@@ -436,20 +436,26 @@ TEST(ChildFlowCall, CallMany) {
 
 // =========== Tests for asynchronous read/writes. ======
 
-class StateFlowPipeTest : public ::testing::Test {
+class StateFlowPipeTest : public ::testing::Test
+{
 protected:
-    StateFlowPipeTest() {
+    StateFlowPipeTest()
+    {
         int pipefd[2];
         HASSERT(::pipe2(pipefd, O_NONBLOCK) == 0);
         fdRecv_ = pipefd[0];
         fdSend_ = pipefd[1];
     }
 
-    ~StateFlowPipeTest() {
+    ~StateFlowPipeTest()
+    {
         close(fdSend_);
         close(fdRecv_);
     }
 
+    /** Declares a local class (and instance) of a stateflow with two
+     * interesting states, and the first state using the code in `body' to
+     * perform the return action. */
 #define DECL_FLOW(body)                                                        \
     class TestFlow : public StateFlowBase                                      \
     {                                                                          \
@@ -474,6 +480,7 @@ protected:
         }                                                                      \
                                                                                \
         StateFlowSelectHelper selectHelper_{this};                             \
+        StateFlowTimedSelectHelper timedSelectHelper_{this};                   \
         StateFlowPipeTest *parent_;                                            \
     } flow(this)
 
@@ -488,17 +495,21 @@ public:
     BarrierNotifiable bnOut_{&outOfTestState_};
 };
 
-
-TEST_F(StateFlowPipeTest, TestPipe) {
+TEST_F(StateFlowPipeTest, TestPipe)
+{
     ASSERT_EQ(5, write(fdSend_, sndBuf_, 5));
     ASSERT_EQ(4, read(fdRecv_, recvBuf_, 4));
-    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4), std::vector<char>(recvBuf_, recvBuf_ + 4));
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
+        std::vector<char>(recvBuf_, recvBuf_ + 4));
+    // Needed to avoid crashes at destruction.
     bnIn_.notify();
     bnOut_.notify();
 }
 
-TEST_F(StateFlowPipeTest, TestReadSingle) {
-    DECL_FLOW(return read_single(&selectHelper_, parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+TEST_F(StateFlowPipeTest, TestReadSingle)
+{
+    DECL_FLOW(return read_single(&selectHelper_, parent_->fdRecv_,
+        parent_->recvBuf_, 5, STATE(finished)));
     inTestState_.wait_for_notification();
     usleep(50000);
     wait_for_main_executor();
@@ -506,11 +517,14 @@ TEST_F(StateFlowPipeTest, TestReadSingle) {
     ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
     outOfTestState_.wait_for_notification();
     EXPECT_EQ(3, flow.selectHelper_.remaining_);
-    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2), std::vector<char>(recvBuf_, recvBuf_ + 2));
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
+        std::vector<char>(recvBuf_, recvBuf_ + 2));
 }
 
-TEST_F(StateFlowPipeTest, TestReadRepeated) {
-    DECL_FLOW(return read_repeated(&selectHelper_, parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+TEST_F(StateFlowPipeTest, TestReadRepeated)
+{
+    DECL_FLOW(return read_repeated(&selectHelper_, parent_->fdRecv_,
+        parent_->recvBuf_, 5, STATE(finished)));
     inTestState_.wait_for_notification();
     usleep(50000);
     wait_for_main_executor();
@@ -526,7 +540,111 @@ TEST_F(StateFlowPipeTest, TestReadRepeated) {
     ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
     outOfTestState_.wait_for_notification();
     EXPECT_EQ(0, flow.selectHelper_.remaining_);
-    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4), std::vector<char>(recvBuf_, recvBuf_ + 4));
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
+        std::vector<char>(recvBuf_, recvBuf_ + 4));
+}
+
+TEST_F(StateFlowPipeTest, TestReadRepeatedWithTimedHelper)
+{
+    DECL_FLOW(return read_repeated(&timedSelectHelper_, parent_->fdRecv_,
+        parent_->recvBuf_, 5, STATE(finished)));
+    inTestState_.wait_for_notification();
+    usleep(50000);
+    wait_for_main_executor();
+    EXPECT_FALSE(bnOut_.is_done());
+    // In the first round we write 2 bytes out of 5
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    usleep(50000);
+    wait_for_main_executor();
+    // Still not exited wait
+    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_FALSE(bnOut_.is_done());
+    // Write the rest
+    ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
+    outOfTestState_.wait_for_notification();
+    EXPECT_EQ(0, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
+        std::vector<char>(recvBuf_, recvBuf_ + 4));
+}
+
+TEST_F(StateFlowPipeTest, TestReadWithTimeoutLongTimeout)
+{
+    // If the timeout is long enough we will read all data.
+    DECL_FLOW(return read_repeated_with_timeout(&timedSelectHelper_,
+        MSEC_TO_NSEC(500), parent_->fdRecv_, parent_->recvBuf_, 5,
+        STATE(finished)));
+    inTestState_.wait_for_notification();
+    usleep(50000);
+    wait_for_main_executor();
+    EXPECT_FALSE(bnOut_.is_done());
+    // In the first round we write 2 bytes out of 5
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    usleep(50000);
+    wait_for_main_executor();
+    // Still not exited wait
+    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_FALSE(bnOut_.is_done());
+    // Write the rest
+    ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
+    outOfTestState_.wait_for_notification();
+    EXPECT_EQ(0, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
+        std::vector<char>(recvBuf_, recvBuf_ + 4));
+}
+
+TEST_F(StateFlowPipeTest, TestReadWithTimeoutShortTimeout)
+{
+    // If the timeout is shorter we will return partial data.
+    DECL_FLOW(
+        return read_repeated_with_timeout(&timedSelectHelper_, MSEC_TO_NSEC(70),
+            parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+    long long t_start = OSTime::get_monotonic();
+    inTestState_.wait_for_notification();
+    wait_for_main_executor();
+    EXPECT_FALSE(bnOut_.is_done());
+    // In the first round we write 2 bytes out of 5
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    outOfTestState_.wait_for_notification();
+    long long elapsed = OSTime::get_monotonic() - t_start;
+    ASSERT_LT(MSEC_TO_NSEC(69), elapsed);
+    ASSERT_GT(MSEC_TO_NSEC(500), elapsed);
+    EXPECT_TRUE(bnOut_.is_done());
+    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
+        std::vector<char>(recvBuf_, recvBuf_ + 2));
+}
+
+TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeout)
+{
+    // If the timeout is zero we will return no data.
+    DECL_FLOW(return read_repeated_with_timeout(&timedSelectHelper_, 0,
+        parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+    inTestState_.wait_for_notification();
+    wait_for_main_executor();
+    usleep(50000);
+    EXPECT_TRUE(bnOut_.is_done());
+    outOfTestState_.wait_for_notification();
+    EXPECT_EQ(5, flow.timedSelectHelper_.remaining_);
+}
+
+TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeoutReadyData)
+{
+    // If the timeout is zero but there is data in the pipe we will return it.
+    ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
+    usleep(50000);
+    long long t_start = OSTime::get_monotonic();
+    DECL_FLOW(return read_repeated_with_timeout(&timedSelectHelper_, 0,
+        parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
+    inTestState_.wait_for_notification();
+    outOfTestState_.wait_for_notification();
+    long long elapsed = OSTime::get_monotonic() - t_start;
+    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
+        std::vector<char>(recvBuf_, recvBuf_ + 2));
+    LOG(INFO, "elapsed time %lld usec", elapsed / 1000);
+    // Hard to give an upper bound on the scheduling delay of multiple threads.
+    ASSERT_GT(MSEC_TO_NSEC(50), elapsed);
+    wait_for_main_executor();
 }
 
 #undef DECL_FLOW

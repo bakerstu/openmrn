@@ -173,6 +173,20 @@ public:
         activeTimers_->schedule_timer(this);
     }
 
+    /** Starts the timer with an absolute deadline. The timer must not be
+     * active, and neither expired at the time of call.
+     * @param expiry_time_nsec absolute time when the timer should expire in nanoseconds. If less than the current time, the timer will expire immediately. */
+    void start_absolute(long long expiry_time_nsec)
+    {
+        HASSERT(!isActive_);
+        HASSERT(!isExpired_);
+        isActive_ = 1;
+        isCancelled_ = 0;
+        when_ = expiry_time_nsec;
+        period_ = when_ - OSTime::get_monotonic();
+        activeTimers_->schedule_timer(this);
+    }
+
     /** Restart a timer with the existing period but from the current
      * time. This function must be called on the timer executor only. Calling
      * restart on an expired timer has no effect and is ignored.
@@ -234,6 +248,14 @@ public:
     {
         return isCancelled_;
     }
+
+    /** Sets the timer as if it was woken up by a trigger(), even if it was
+     * never started. This is helpful for boundary conditions. */
+    void set_triggered()
+    {
+        isCancelled_ = 1;
+    }
+
 
 private:
     friend class ActiveTimers;  // for scheduling an expiring timers

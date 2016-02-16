@@ -84,6 +84,13 @@ public:
         return fd_;
     }
 
+    /** Can be used to override the executable to wake up. Make sure to set it
+     * back afterwards. */
+    void set_wakeup(Executable *e)
+    {
+        wakeup_ = e;
+    }
+
 private:
     friend class ExecutorBase;
 
