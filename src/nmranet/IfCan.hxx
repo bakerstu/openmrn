@@ -113,7 +113,7 @@ public:
     /// Sets the alias allocator for this If. Takes ownership of pointer.
     void set_alias_allocator(AliasAllocator *a);
 
-    virtual void add_owned_flow(Executable *e);
+    void add_owned_flow(Executable *e) OVERRIDE;
 
     bool matching_node(NodeHandle expected, NodeHandle actual) OVERRIDE;
 

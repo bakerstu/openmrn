@@ -1101,7 +1101,7 @@ public:
      * @param msg Message to enqueue
      * @param priority the priority at which to enqueue this message.
      */
-    void send(MessageType *msg, unsigned priority = UINT_MAX)
+    void send(MessageType *msg, unsigned priority = UINT_MAX) OVERRIDE
     {
         Base::send(msg);
     }
@@ -1110,7 +1110,7 @@ public:
      * defined by derived class.
      * @return function pointer to next state
      */
-    virtual Action entry() = 0;
+    virtual Action entry() OVERRIDE = 0;
 
 protected:
     void release() OVERRIDE

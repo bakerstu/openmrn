@@ -255,7 +255,7 @@ public:
      * @param msg Executable instance to insert into the input queue
      * @param priority priority of message
      */
-    void add(Executable *msg, unsigned priority = UINT_MAX)
+    void add(Executable *msg, unsigned priority = UINT_MAX) OVERRIDE
     {
         queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
