@@ -679,11 +679,14 @@ TEST_F(StateFlowPipeTest, RaceCondition)
         {
             if (timedSelectHelper_.remaining_)
             {
+                // Ensures that there is no remaining byte in the pipe from the
+                // previous iteration.
                 return read_repeated(&timedSelectHelper_, parent_->fdRecv_,
                     parent_->recvBuf_, 1, STATE(test_state));
             }
             else
             {
+                successCount_++;
                 return call_immediately(STATE(test_state));
             }
         }
@@ -697,6 +700,7 @@ TEST_F(StateFlowPipeTest, RaceCondition)
         StateFlowTimedSelectHelper timedSelectHelper_{this};
         StateFlowPipeTest *parent_;
         unsigned count_;
+        unsigned successCount_ = 0;
     } flow(this);
 
     // This flow will act as a representative of other stuff going on on the
@@ -734,11 +738,12 @@ TEST_F(StateFlowPipeTest, RaceCondition)
     {
         inTestState_.wait_for_notification();
         bnIn_.reset(&inTestState_);
-        usleep(200 + random() % 200);
+        usleep(200 + random() % 500);
         ASSERT_EQ(1, write(fdSend_, sndBuf_, 1));
         if (bnOut_.is_done())
             break;
     }
     bnIn_.notify();
     outOfTestState_.wait_for_notification();
+    LOG(INFO, "Success count: %u out of %u.", flow.successCount_, COUNT);
 }
