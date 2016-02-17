@@ -150,6 +150,8 @@ TEST_F(ThrottleTest, SendAssignRelease)
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 
+    wait();
+
     flow.start_release();
     n_.wait_for_notification();
     wait();
