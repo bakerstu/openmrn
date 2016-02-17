@@ -649,40 +649,46 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeoutReadyData)
 
 #undef DECL_FLOW
 
-
-/*
 TEST_F(StateFlowPipeTest, RaceCondition)
 {
     static const unsigned COUNT = 1000;
+    // This flow will perform many iterations of wait_with_timeout,
+    // synchronized with the main thread dumping some bytes into the pipe.
     class TestFlow : public StateFlowBase
     {
     public:
         TestFlow(StateFlowPipeTest *parent)
             : StateFlowBase(&g_service)
             , parent_(parent)
-            , count_(count)
+            , count_(COUNT)
         {
             start_flow(STATE(test_state));
         }
         Action test_state()
         {
             parent_->bnIn_.notify();
-            if (--count_) {
+            if (--count_ == 0)
+            {
                 return call_immediately(STATE(finished));
             }
-            return read_repeated_with_timeout(&timedSelectHelper_, MSEC_TO_NSEC(3), parent_->fdRecv_, parent_->recvBuf_, 1, STATE(read_again));
+            return read_repeated_with_timeout(&timedSelectHelper_,
+                USEC_TO_NSEC(300), parent_->fdRecv_, parent_->recvBuf_, 1,
+                STATE(read_again));
         }
         Action read_again()
         {
-            if (timedSelectHelper_.remaining_) {
-                return read_repeated(&timedSelectHelper_, parent_->fdRecv_, parent_->recvBuf_, 1, STATE(test_state));
-            } else {
+            if (timedSelectHelper_.remaining_)
+            {
+                return read_repeated(&timedSelectHelper_, parent_->fdRecv_,
+                    parent_->recvBuf_, 1, STATE(test_state));
+            }
+            else
+            {
                 return call_immediately(STATE(test_state));
             }
         }
         Action finished()
         {
-            LOG_ERROR("select returned");
             parent_->bnOut_.notify();
             return exit();
         }
@@ -690,14 +696,49 @@ TEST_F(StateFlowPipeTest, RaceCondition)
         StateFlowSelectHelper selectHelper_{this};
         StateFlowTimedSelectHelper timedSelectHelper_{this};
         StateFlowPipeTest *parent_;
+        unsigned count_;
     } flow(this);
 
-    while (true) {
+    // This flow will act as a representative of other stuff going on on the
+    // main executor, scheduling and perfoming "computation" and scheduling
+    // etc.
+    class BlockerFlow : public StateFlowBase
+    {
+    public:
+        BlockerFlow()
+            : StateFlowBase(&g_service)
+        {
+            start_flow(STATE(block));
+        }
+
+        ~BlockerFlow()
+        {
+            be_done = true;
+            wait_for_main_executor();
+            wait_for_main_executor();
+        }
+
+        Action block()
+        {
+            if (be_done)
+                return exit();
+            usleep(100);
+            return yield_and_call(STATE(block));
+        }
+
+    private:
+        bool be_done = false;
+    } blocker_flow;
+
+    while (true)
+    {
         inTestState_.wait_for_notification();
         bnIn_.reset(&inTestState_);
-        usleep(2500);
+        usleep(200 + random() % 200);
         ASSERT_EQ(1, write(fdSend_, sndBuf_, 1));
-        if (bnOut_.is_done()) break;
+        if (bnOut_.is_done())
+            break;
     }
+    bnIn_.notify();
+    outOfTestState_.wait_for_notification();
 }
-*/
