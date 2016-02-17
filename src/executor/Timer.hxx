@@ -225,6 +225,12 @@ public:
         activeTimers_->update_timer(this);
     }
 
+    /** Triggers the timer if it is not expired yet. */
+    void ensure_triggered()
+    {
+        if (isActive_) trigger();
+    }
+
     /** Dangerous, do not call. Contains a race condition. Production users
      * should use the trigger() method to cancel an active timer.
      * 

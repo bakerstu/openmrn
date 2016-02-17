@@ -251,6 +251,13 @@ void ExecutorBase::select(Selectable *job)
     selectables_.push_front(job);
 }
 
+bool ExecutorBase::is_selected(Selectable *job)
+{
+    fd_set *s = get_select_set(job->type());
+    int fd = job->fd_;
+    return FD_ISSET(fd, s);
+}
+
 void ExecutorBase::unselect(Selectable *job)
 {
     fd_set *s = get_select_set(job->type());

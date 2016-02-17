@@ -567,8 +567,7 @@ protected:
             static_cast<StateFlowSelectHelper *>(allocationResult_);
         if (h->readWithTimeout_)
         {
-            auto *hh = static_cast<StateFlowTimedSelectHelper *>(h);
-            if (!hh->timer_.is_triggered())
+            if (service()->executor()->is_selected(h))
             {
                 service()->executor()->unselect(h);
             }
@@ -748,7 +747,7 @@ protected:
     private:
         // Executable interface. Called by select.
         void run() override {
-            timer_.trigger();
+            timer_.ensure_triggered();
         }
     };
 

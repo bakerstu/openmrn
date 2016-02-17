@@ -98,6 +98,14 @@ public:
      * @param job is a Selectable pointer that is not currently watched.
      */
     void select(Selectable* job);
+
+    /** @returns true if the given job's FD is currently enqueued for a
+     * select. This may or may not mean that the specific job is waiting for a
+     * select call. If this returns true, it does mean that trying to select()
+     * that job will cause a crash, since the same FD cannot be selected more
+     * than once. */
+    bool is_selected(Selectable* job);
+
     /** Removes a job from the select loop.
      *
      * This stops watching the given file descriptor. The job must have been
