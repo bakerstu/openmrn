@@ -133,13 +133,13 @@ public:
     {
     }
 
-    virtual nmranet::EventState GetCurrentState()
+    nmranet::EventState GetCurrentState() override
     {
         using nmranet::EventState;
         if (!stateKnown_) return EventState::UNKNOWN;
         return state_ ? EventState::VALID : EventState::INVALID;
     }
-    virtual void SetState(bool new_value)
+    void SetState(bool new_value) override
     {
         state_ = new_value;
         stateKnown_ = true;
@@ -151,7 +151,7 @@ public:
 #endif
     }
 
-    virtual nmranet::Node* node()
+    nmranet::Node* node() override
     {
         return stack.node();
     }

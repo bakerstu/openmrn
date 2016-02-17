@@ -78,7 +78,7 @@ private:
     /** Simple hardware abstraction for FLASH erase API.
      * @param address the start address of the flash block to be erased
      */
-    void flash_erase(void *address);
+    void flash_erase(void *address) override;
 
     /** Simple hardware abstraction for FLASH program API.
      * @param data a pointer to the data to be programmed

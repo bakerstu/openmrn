@@ -49,7 +49,7 @@ public:
      * the CPU. */
     virtual void run() = 0;
 
-    virtual void notify() {
+    void notify() override {
         HASSERT(0 && "unexpected call to notify in Executable");
     }
 

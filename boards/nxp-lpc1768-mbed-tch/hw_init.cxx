@@ -44,7 +44,7 @@ void send_stdio_serial_message(const char* data) {
 class StdOutPipeMember : public HubPortInterface
 {
 public:
-    virtual void send(Buffer<HubData>* b, unsigned) {
+  void send(Buffer<HubData>* b, unsigned) override {
     const char* cb = (const char*)(b->data()->data());
     for (size_t i = 0; i < b->data()->size(); i++) {
       serial_putc(stdio_serial, cb[i]);

@@ -87,9 +87,9 @@ public:
     }
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_msg(); /**< function to try and transmit a message */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
+    void tx_msg() override; /**< function to try and transmit a message */
 
     /** handle an interrupt.
      * @param status interrupt source status

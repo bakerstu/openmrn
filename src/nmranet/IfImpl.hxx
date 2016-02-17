@@ -158,7 +158,7 @@ public:
     }
 
     /// Handler callback for incoming messages.
-    virtual Action entry()
+    Action entry() override
     {
         NMRAnetMessage *m = message()->data();
         if (m->dst.id)

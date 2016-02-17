@@ -138,7 +138,7 @@ private:
         ConflictHandler(AliasAllocator *parent) : parent_(parent)
         {
         }
-        virtual void send(Buffer<CanMessageData> *message, unsigned priority);
+        void send(Buffer<CanMessageData> *message, unsigned priority) override;
 
     private:
         AliasAllocator *parent_;
@@ -151,7 +151,7 @@ private:
         return message()->data();
     }
 
-    Action entry();
+    Action entry() override;
     Action handle_allocate_for_cid_frame();
     Action send_cid_frame();
     Action wait_done();

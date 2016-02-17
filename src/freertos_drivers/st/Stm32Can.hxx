@@ -73,9 +73,9 @@ public:
     static Stm32Can *instances[1];
 
 private:
-    void enable(); /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void tx_msg(); /**< function to try and transmit a message */
+    void enable() override; /**< function to enable device */
+    void disable() override; /**< function to disable device */
+    void tx_msg() override; /**< function to try and transmit a message */
 
     /** one interrupt vector is shared between two CAN controllers, so we need
      *  to keep track of the number of controllers in use.

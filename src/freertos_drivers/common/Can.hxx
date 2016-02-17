@@ -67,8 +67,8 @@ protected:
         rxBuf->destroy();
     }
 
-    virtual void enable() = 0; /**< function to enable device */
-    virtual void disable() = 0; /**< function to disable device */
+    void enable() override = 0; /**< function to enable device */
+    void disable() override = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
 
     /** @todo (Stuart Baker) remove once we switch over to select().

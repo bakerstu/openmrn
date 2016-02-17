@@ -158,11 +158,11 @@ public:
     /** Callback from the executor. This function will be invoked when the
      * current stateflow gets the CPU. It will execute the current states until
      * the flow yields or is blocked in a waiting state. */
-    virtual void run();
+    void run() override;
 
     /** Wakeup call arrived. Schedules *this on the executor. Does not know the
      * priority. */
-    virtual void notify();
+    void notify() override;
 
 #ifdef __FreeRTOS__
     /** Wakeup call arrived. Schedules *this on the executor. Does not know the
@@ -436,7 +436,7 @@ protected:
         {
         }
 
-        virtual long long timeout()
+        long long timeout() override
         {
             parent_->notify();
             return NONE;
@@ -764,7 +764,7 @@ private:
     Action terminated();
 
     /** Callback from a Pool in case of an asynchronous allocation. */
-    virtual void alloc_result(QMember *b)
+    void alloc_result(QMember *b) override
     {
         LOG(VERBOSE, "allocation result arrived.");
         allocationResult_ = b;
@@ -794,7 +794,7 @@ public:
     ~StateFlowWithQueue();
 
     /// Wakeup call arrived. Schedules *this on the executor.
-    virtual void notify();
+    void notify() override;
 
 #ifdef __FreeRTOS__
     /** Wakeup call arrived. Schedules *this on the executor. */
@@ -1101,7 +1101,7 @@ public:
      * @param msg Message to enqueue
      * @param priority the priority at which to enqueue this message.
      */
-    void send(MessageType *msg, unsigned priority = UINT_MAX)
+    void send(MessageType *msg, unsigned priority = UINT_MAX) OVERRIDE
     {
         Base::send(msg);
     }
@@ -1110,7 +1110,7 @@ public:
      * defined by derived class.
      * @return function pointer to next state
      */
-    virtual Action entry() = 0;
+    virtual Action entry() override = 0;
 
 protected:
     void release() OVERRIDE

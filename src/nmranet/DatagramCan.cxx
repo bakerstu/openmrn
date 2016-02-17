@@ -399,7 +399,7 @@ public:
     ~CanDatagramParser();
 
     /// Handler callback for incoming frames.
-    virtual Action entry()
+    Action entry() override
     {
         errorCode_ = 0;
         const struct can_frame *f = &message()->data()->frame();

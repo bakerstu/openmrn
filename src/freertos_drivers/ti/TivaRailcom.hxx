@@ -178,7 +178,7 @@ private:
     }
 
     // Notify interface
-    int ioctl(File *file, unsigned long int key, unsigned long data)
+    int ioctl(File *file, unsigned long int key, unsigned long data) override
     {
         if (IOC_TYPE(key) == CAN_IOC_MAGIC &&
             IOC_SIZE(key) == NOTIFIABLE_TYPE && key == CAN_IOC_READ_ACTIVE)

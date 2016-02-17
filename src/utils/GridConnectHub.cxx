@@ -110,7 +110,7 @@ public:
             return destination_;
         }
 
-        Action entry()
+        Action entry() override
         {
             LOG(VERBOSE, "can packet arrived: %" PRIx32,
                 GET_CAN_FRAME_ID_EFF(*message()->data()));
@@ -168,7 +168,7 @@ public:
         }
 
         /** Takes more characters from the pending incoming buffer. */
-        Action entry()
+        Action entry() override
         {
             inBuf_ = message()->data()->data();
             inBufSize_ = message()->data()->size();

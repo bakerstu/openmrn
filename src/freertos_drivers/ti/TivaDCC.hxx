@@ -303,7 +303,7 @@ private:
 
     /** Discards all pending buffers.  Called after disable().
      */
-    void flush_buffers(){};
+    void flush_buffers() override {};
 
     /** maximum packet size we can support */
     static const size_t MAX_PKT_SIZE = 6;

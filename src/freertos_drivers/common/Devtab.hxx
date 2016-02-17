@@ -36,6 +36,7 @@
 
 #include <stropts.h>
 #include <sys/types.h>
+#include <sys/select.h>
 #include "os/OS.hxx"
 
 class Device;

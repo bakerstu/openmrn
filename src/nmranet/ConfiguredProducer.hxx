@@ -97,7 +97,7 @@ public:
     }
 
     UpdateAction apply_configuration(int fd, bool initial_load,
-                                     BarrierNotifiable *done)
+                                     BarrierNotifiable *done) override
     {
         AutoNotify n(done);
         uint8_t debounce_arg = cfg_.debounce().read(fd);

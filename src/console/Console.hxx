@@ -230,7 +230,7 @@ private:
     /** Entry point to the thread.
      * @return should never return
      */
-    void *entry();
+    void *entry() override;
 };
 
 #endif // _CONSOLE_CONSOLE_HXX_

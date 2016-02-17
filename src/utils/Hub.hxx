@@ -176,7 +176,7 @@ public:
     {
     }
 
-    virtual Action entry()
+    Action entry() override
     {
         string s(message()->data()->data(), message()->data()->size());
         if (timestamped_) {

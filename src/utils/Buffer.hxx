@@ -463,13 +463,13 @@ public:
     /** Number of free items in the pool.
      * @return number of free items in the pool
      */
-    size_t free_items();
+    size_t free_items() override;
 
     /** Number of free items in the pool for a given allocation size.
      * @param size size of interest
      * @return number of free items in the pool for a given allocation size
      */
-    size_t free_items(size_t size);
+    size_t free_items(size_t size) override;
 
     /** Returns the total memory held by this pool. */
     size_t total_size()
@@ -490,7 +490,7 @@ private:
      * @param flow if !NULL, then the alloc call is considered async and will
      *        behave as if @ref alloc_async() was called.
      */
-    BufferBase *alloc_untyped(size_t size, Executable *flow);
+    BufferBase *alloc_untyped(size_t size, Executable *flow) override;
 
     /** Allocates a large memory block directly from the heap. */
     void* alloc_large(size_t size);
@@ -501,7 +501,7 @@ private:
      * @param item pointer to item to release
      * @param size size of buffer to free
      */
-    void free(BufferBase *item);
+    void free(BufferBase *item) override;
 
     /** Default constructor.
      */
@@ -561,7 +561,7 @@ public:
     /** Number of free items in the pool.
      * @return number of free items in the pool
      */
-    size_t free_items()
+    size_t free_items() override
     {
         return items - (totalSize / itemSize);
     }
@@ -570,7 +570,7 @@ public:
      * @param size size of interest
      * @return number of free items in the pool for a given allocation size
      */
-    size_t free_items(size_t size)
+    size_t free_items(size_t size) override
     {
         return size == itemSize ? free_items() : 0;
     }
@@ -600,13 +600,13 @@ private:
      * @param flow if !NULL, then the alloc call is considered async and will
      *        behave as if @ref alloc_async() was called.
      */
-    BufferBase *alloc_untyped(size_t size, Executable *flow);
+    BufferBase *alloc_untyped(size_t size, Executable *flow) override;
 
     /** Release an item back to the free pool.
      * @param item pointer to item to release
      * @param size size of buffer to free
      */
-    void free(BufferBase *item);
+    void free(BufferBase *item) override;
 
     /** Default Constructor.
      */
