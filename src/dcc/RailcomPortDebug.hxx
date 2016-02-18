@@ -150,7 +150,7 @@ public:
         parent_->unregister_port(this);
     }
 
-    Action entry()
+    Action entry() override
     {
         if (message()->data()->channel == 0xff && occupancyPort_)
         {
