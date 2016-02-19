@@ -120,6 +120,10 @@ extern WriteHelper event_write_helper4;
 class EventHandler
 {
 public:
+    using EventReport = nmranet::EventReport;
+    using EventRegistryEntry = nmranet::EventRegistryEntry;
+    using EventId = nmranet::EventId;
+
     virtual ~EventHandler()
     {
     }
