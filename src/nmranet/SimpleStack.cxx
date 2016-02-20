@@ -34,6 +34,8 @@
 
 #if defined(__linux__) || defined(__MACH__)
 #include <termios.h> /* tc* functions */
+#include <net/if.h>
+#include <linux/sockios.h>
 #endif
 
 #include "nmranet/SimpleStack.hxx"
@@ -195,6 +197,26 @@ void SimpleCanStack::add_gridconnect_tty(
     cfmakeraw(&settings);
     cfsetspeed(&settings, B115200);
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
+}
+
+void SimpleCanStack::add_socketcan_port_select(const char *device)
+{
+    int s;
+    struct sockaddr_can addr;
+    struct ifreq ifr;
+
+    s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+
+    strcpy(ifr.ifr_name, device );
+    ioctl(s, SIOCGIFINDEX, &ifr);
+
+    addr.can_family = AF_CAN;
+    addr.can_ifindex = ifr.ifr_ifindex;
+
+    bind(s, (struct sockaddr *)&addr, sizeof(addr));
+
+    auto* port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
+    additionalComponents_.emplace_back(port);
 }
 #endif
 extern Pool *const __attribute__((

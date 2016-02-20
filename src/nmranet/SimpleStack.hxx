@@ -174,6 +174,9 @@ public:
     /// to the device. Echoing data back causes alias allocation problems and
     /// nodes on the bus repeatedly dropping their allocated aliases.
     void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    void add_socketcan_port_select(const char *device);
 #endif
 
     /// Starts a TCP server on the specified port in listening mode. Each
