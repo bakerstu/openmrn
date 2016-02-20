@@ -24,6 +24,7 @@ ENDGROUP := -Wl,--end-group
 INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/GCC/ARM_CM3 \
             -I$(OPENMRNPATH)/include/freertos \
+            -idirafter $(OPENMRNPATH)/include/freertos_select \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 #ARCHOPTIMIZATION = -D__NEWLIB__

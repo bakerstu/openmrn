@@ -60,7 +60,8 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
-            -Wsuggest-override \
+
+#            -Wsuggest-override \
 
 
 	   # -D__LINEAR_MAP__

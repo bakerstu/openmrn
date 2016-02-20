@@ -208,6 +208,52 @@ private:
     DISALLOW_COPY_AND_ASSIGN(BitEventInterface);
 };
 
+class DistributedBit : public BitEventInterface
+{
+public:
+    DistributedBit(Node *node, uint64_t event_on, uint64_t event_off)
+        : BitEventInterface(event_on, event_off)
+        , node_(node)
+        , state_(EventState::UNKNOWN)
+    {
+    }
+
+    /// Destructor.
+    ~DistributedBit()
+    {
+    }
+
+    /// Get a refference to the owning Node.
+    /// @return Node reference
+    Node *node() override
+    {
+        return node_;
+    }
+
+    /// Get the current state
+    /// @return current state
+    EventState GetCurrentState() override
+    {
+        return state_;
+    }
+
+    /// Set the current state
+    /// New state value
+    void SetState(bool new_value) override
+    {
+        state_ = new_value ? EventState::VALID : EventState::INVALID;
+    }
+
+private:
+    /// node that this interface is bound to
+    Node *node_;
+
+    /// Event state.
+    EventState state_;
+
+    DISALLOW_COPY_AND_ASSIGN(DistributedBit);
+};
+
 /// Simple implementation of a BitEventInterface when the true state ofthe
 /// variable is mapped in memory (e.g. mmap-ed gpio, or if there is no real
 /// hardware but a bit in RAM).

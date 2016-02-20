@@ -30,6 +30,7 @@ ENDGROUP := -Wl,--end-group
 INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/GCC/ARM7_LPC23xx \
             -I$(OPENMRNPATH)/include/freertos \
+            -idirafter $(OPENMRNPATH)/include/freertos_select \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 ARCHOPTIMIZATION = -Os -funwind-tables #-D_REENT_SMALL
