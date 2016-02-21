@@ -52,7 +52,7 @@ Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-OVERRIDE_CONST(gc_generate_newlines, 1);
+OVERRIDE_CONST(gc_generate_newlines, 0);
 
 int port = 12021;
 const char *device_path = nullptr;
