@@ -512,8 +512,8 @@ public:
 /// called.
 ///
 /// When the current state of the bit changes, the application must call @ref
-/// SendEvent on this object, which will produce the necessary event message to
-/// the bus.
+/// SendEventReport on this object, which will produce the necessary event
+/// message to the bus.
 class BitEventPC : public BitEventConsumer
 {
 public:
