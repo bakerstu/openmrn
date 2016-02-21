@@ -208,15 +208,20 @@ private:
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
                   "destination %012" PRIx64 ".",
             nmsg()->dst.id);
+        unregister_response_handler();
         result_ |= PERMANENT_ERROR | TIMEOUT;
         return call_immediately(STATE(datagram_finalize));
     }
 
-    Action datagram_finalize()
+    void unregister_response_handler()
     {
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
+    }
+
+    Action datagram_finalize()
+    {
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
         release();
@@ -370,7 +375,9 @@ private:
     /// (with whatever is in the result_ code right now).
     void stop_waiting_for_response()
     {
-        // Stops waiting for response.
+        // Avoids duplicate wakeups on the timer.
+        unregister_response_handler();
+        // Stops waiting for response and notifies the current flow.
         timer_.trigger();
         /// @TODO(balazs.racz) Here we might want to decide whether to start a
         /// retry.
