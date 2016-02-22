@@ -583,7 +583,7 @@ void BitEventHandler::SendConsumerIdentified(BarrierNotifiable *done)
 
 void BitEventHandler::SendEventReport(WriteHelper *writer, Notifiable *done)
 {
-    EventState value = bit_->GetCurrentState();
+    EventState value = bit_->get_requested_state();
     uint64_t event;
     if (value == EventState::VALID) {
         event = bit_->event_on();

@@ -182,20 +182,31 @@ public:
 
     /// returns the current hardware state: true for ON, false for OFF.
     virtual EventState GetCurrentState() = 0;
+
+    /// Get the requested state.
+    /// @return requested state
+    virtual EventState get_requested_state()
+    {
+        return GetCurrentState();
+    }
+
     /// Updates the hardware for the new event state.
     ///
     /// @param new_value is true for state ON, false for state OFF.
     virtual void SetState(bool new_value) = 0;
+
     /// returns the event ID for representing the state transition OFF->ON.
     uint64_t event_on()
     {
         return event_on_;
     }
+
     /// returns the event ID for representing the state transition ON->OFF.
     uint64_t event_off()
     {
         return event_off_;
     }
+
     /// returns the OpenLCB virtual node from which to send the respective
     /// events
     /// when the bit changes.
@@ -215,6 +226,7 @@ public:
         : BitEventInterface(event_on, event_off)
         , node_(node)
         , state_(EventState::UNKNOWN)
+        , requested_(EventState::INVALID)
     {
     }
 
@@ -230,18 +242,39 @@ public:
         return node_;
     }
 
-    /// Get the current state
+    /// Get the current state.
     /// @return current state
     EventState GetCurrentState() override
     {
         return state_;
     }
 
-    /// Set the current state
-    /// New state value
+    /// Get the requested state.
+    /// @return requested state
+    EventState get_requested_state() override
+    {
+        return requested_;
+    }
+
+    /// Set the current state.
+    /// @param new state value
     void SetState(bool new_value) override
     {
         state_ = new_value ? EventState::VALID : EventState::INVALID;
+    }
+
+    /// Set the requested state.
+    /// @param new requested value
+    void set_requested_state(bool new_value)
+    {
+        requested_ = new_value ? EventState::VALID : EventState::INVALID;
+    }
+
+    /// Invert the requested state from the current state.
+    void toggle_state()
+    {
+        requested_ = state_ == EventState::UNKNOWN ? EventState::VALID :
+                                                     invert_event_state(state_);
     }
 
 private:
@@ -250,6 +283,9 @@ private:
 
     /// Event state.
     EventState state_;
+
+    /// Event state reauested
+    EventState requested_;
 
     DISALLOW_COPY_AND_ASSIGN(DistributedBit);
 };
