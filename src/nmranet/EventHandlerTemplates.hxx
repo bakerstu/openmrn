@@ -488,6 +488,9 @@ public:
         SendEventReport(writer, done);
     }
 
+    /// Queries consumers and acquires the current state of the bit.
+    void SendQuery(WriteHelper *writer, BarrierNotifiable *done);
+
     void HandleIdentifyGlobal(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
@@ -559,12 +562,24 @@ public:
     {
     }
 
+    /// Queries producers and acquires the current state of the bit.
+    void SendQueryProducer(WriteHelper *writer, BarrierNotifiable *done)
+    {
+        SendQuery(writer, done);
+    }
+
+    /// Queries consumer and acquires the current state of the bit.
+    void SendQueryConsumer(WriteHelper *writer, BarrierNotifiable *done);
+
     void HandleIdentifyProducer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
     void HandleIdentifyGlobal(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
+    void HandleConsumerIdentified(const EventRegistryEntry &entry,
+                                  EventReport *event,
+                                  BarrierNotifiable *done) override;
 };
 
 /// Producer-Consumer event handler for a sequence of bits represented by a

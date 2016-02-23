@@ -679,6 +679,13 @@ void BitEventConsumer::HandleEventReport(const EventRegistryEntry& entry, EventR
     done->notify();
 }
 
+void BitEventProducer::SendQuery(WriteHelper *writer, BarrierNotifiable *done)
+{
+    writer->WriteAsync(bit_->node(), Defs::MTI_CONSUMER_IDENTIFY,
+                       WriteHelper::global(),
+                       eventid_to_buffer(bit_->event_on()), done);
+}
+
 void BitEventProducer::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                             BarrierNotifiable *done)
 {
@@ -719,6 +726,13 @@ void BitEventConsumer::HandleIdentifyGlobal(const EventRegistryEntry& entry, Eve
     done->maybe_done();
 }
 
+void BitEventPC::SendQueryConsumer(WriteHelper *writer, BarrierNotifiable *done)
+{
+    writer->WriteAsync(bit_->node(), Defs::MTI_CONSUMER_IDENTIFY,
+                       WriteHelper::global(),
+                       eventid_to_buffer(bit_->event_on()), done);
+}
+
 void BitEventPC::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventReport *event,
                                       BarrierNotifiable *done)
 {
@@ -730,5 +744,37 @@ void BitEventPC::HandleIdentifyGlobal(const EventRegistryEntry& entry, EventRepo
     SendConsumerIdentified(done);
     done->maybe_done();
 }
+
+void BitEventPC::HandleConsumerIdentified(const EventRegistryEntry& entry, EventReport *event,
+                                                BarrierNotifiable *done)
+{
+    done->notify();
+    bool value;
+    if (event->state == EventState::VALID)
+    {
+        value = true;
+    }
+    else if (event->state == EventState::INVALID)
+    {
+        value = false;
+    }
+    else
+    {
+        return; // nothing to learn from this message.
+    }
+    if (event->event == bit_->event_on())
+    {
+        bit_->SetState(value);
+    }
+    else if (event->event == bit_->event_off())
+    {
+        bit_->SetState(!value);
+    }
+    else
+    {
+        return; // uninteresting event id.
+    }
+}
+
 
 }; /* namespace nmranet */
