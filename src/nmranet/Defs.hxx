@@ -75,8 +75,8 @@ enum class EventState
 {
     VALID = 0,
     INVALID = 1,
-    UNKNOWN = 2,
-    RESERVED = 3
+    RESERVED = 2,
+    UNKNOWN = 3
 };
 
 /** The generic interface for NMRAnet network interfaces
