@@ -283,7 +283,7 @@ protected:
     AsyncIfTest()
         : pendingAliasAllocation_(false)
     {
-        ifCan_.reset(new IfCan(&g_executor, &can_hub0, 10, 10, 5));
+        ifCan_.reset(new IfCan(&g_executor, &can_hub0, 10, 10, 9));
         ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
     }
 
