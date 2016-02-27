@@ -14,7 +14,7 @@ typedef StateFlow<Buffer<TestHubData>, QList<1>> TestHubPort;
 typedef GenericHubFlow<TestHubData> TestHubFlow;
 typedef HubDeviceSelect<TestHubFlow> TestHubDeviceAsync;
 
-static const int PORT = 12024;
+static const int PORT = 22029;
 
 /** Equivalent of GcTcpHub, which listens to a tcp port and every incoming
  * connection gets a bridge. */
