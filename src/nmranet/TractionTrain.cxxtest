@@ -86,6 +86,9 @@ protected:
         expect_next_alias_allocation();
         EXPECT_CALL(m1_, legacy_address()).Times(AtLeast(0)).WillRepeatedly(
             Return(0x00003456U));
+        EXPECT_CALL(m1_, legacy_address_type())
+            .Times(AtLeast(0))
+            .WillRepeatedly(Return(dcc::TrainAddressType::DCC_LONG_ADDRESS));
         // alias reservation
         expect_packet(":X1070133AN060100003456;");
         // initialized

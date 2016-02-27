@@ -171,6 +171,11 @@ public:
         return 0;
     }
 
+    dcc::TrainAddressType legacy_address_type() override
+    {
+        return dcc::TrainAddressType::DCC_SHORT_ADDRESS;
+    }
+
 private:
     Action entry() override
     {

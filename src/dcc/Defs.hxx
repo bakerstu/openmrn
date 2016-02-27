@@ -24,44 +24,26 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TractionTestTrain.hxx
+ * \file Defs.hxx
  *
- * Train implementation plugins helpful for testing without a layout.
+ * Definitions for DCC concepts.
  *
  * @author Balazs Racz
- * @date 4 Aug 2014
+ * @date 27 Feb 2016
  */
 
-#ifndef _NMRANET_TRACTIONTESTTRAIN_HXX_
-#define _NMRANET_TRACTIONTESTTRAIN_HXX_
+#ifndef _DCC_DEFS_HXX_
+#define _DCC_DEFS_HXX_
 
-#include <map>
+namespace dcc {
 
-#include "nmranet/TrainInterface.hxx"
-
-namespace nmranet
+enum class TrainAddressType
 {
-
-/** Test train implementation that just logs every action to the info log. */
-class LoggingTrain : public TrainImpl
-{
-public:
-    LoggingTrain(uint32_t legacy_address);
-    ~LoggingTrain();
-    void set_speed(SpeedType speed) OVERRIDE;
-    SpeedType get_speed() OVERRIDE;
-    void set_emergencystop() OVERRIDE;
-    void set_fn(uint32_t address, uint16_t value) OVERRIDE;
-    uint16_t get_fn(uint32_t address) OVERRIDE;
-    uint32_t legacy_address() OVERRIDE;
-    dcc::TrainAddressType legacy_address_type() OVERRIDE;
-
-private:
-    uint32_t legacyAddress_;
-    SpeedType currentSpeed_;
-    map<uint32_t, uint16_t> fnValues_;
+    DCC_SHORT_ADDRESS,
+    DCC_LONG_ADDRESS,
+    MM,
 };
 
-} // namespace nmranet
+}  // namespace dcc
 
 #endif

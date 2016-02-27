@@ -53,9 +53,10 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
 
 NodeID TrainNode::node_id()
 {
-    /** @TODO(balazs.racz) revise how to specify the nodeid for non-DCC
+    /** @TODO(balazs.racz) revise how to specify the nodeid for non-legacy
      * trains. */
-    return TractionDefs::NODE_ID_DCC | train_->legacy_address();
+    return TractionDefs::train_node_id_from_legacy(
+        train_->legacy_address_type(), train_->legacy_address());
 }
 
 If *TrainNode::iface()

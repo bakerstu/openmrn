@@ -38,6 +38,7 @@
 #include "dcc/Packet.hxx"
 #include "dcc/PacketSource.hxx"
 #include "dcc/UpdateLoop.hxx"
+#include "dcc/Defs.hxx"
 #include "utils/logging.h"
 
 namespace dcc
@@ -169,6 +170,10 @@ public:
     {
         return p.address_;
     }
+    TrainAddressType legacy_address_type() OVERRIDE
+    {
+        return p.get_address_type();
+    }
 
 protected:
     // Payload -- actual data we know about the train.
@@ -221,6 +226,11 @@ struct Dcc28Payload
     void add_dcc_estop_to_packet(dcc::Packet *p)
     {
         p->add_dcc_speed28(!direction_, Packet::EMERGENCY_STOP);
+    }
+
+    TrainAddressType get_address_type()
+    {
+        return isShortAddress_ ? TrainAddressType::DCC_SHORT_ADDRESS : TrainAddressType::DCC_LONG_ADDRESS;
     }
 };
 
@@ -301,6 +311,11 @@ struct Dcc128Payload
     {
         p->add_dcc_speed128(!direction_, Packet::EMERGENCY_STOP);
     }
+
+    TrainAddressType get_address_type()
+    {
+        return isShortAddress_ ? TrainAddressType::DCC_SHORT_ADDRESS : TrainAddressType::DCC_LONG_ADDRESS;
+    }
 };
 
 /// TrainImpl class for a 128-speed-step DCC locomotive.
@@ -341,6 +356,11 @@ struct MMOldPayload
     unsigned get_fn_update_code(unsigned address)
     {
         return SPEED;
+    }
+
+    static TrainAddressType get_address_type()
+    {
+        return TrainAddressType::MM;
     }
 };
 
@@ -399,6 +419,11 @@ struct MMNewPayload
         {
             return SPEED;
         }
+    }
+
+    static TrainAddressType get_address_type()
+    {
+        return TrainAddressType::MM;
     }
 };
 

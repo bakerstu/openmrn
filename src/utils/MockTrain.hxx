@@ -4,6 +4,7 @@
 #include "gmock/gmock.h"
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TractionTrain.hxx"
+#include "dcc/Defs.hxx"
 
 namespace nmranet {
 
@@ -21,6 +22,7 @@ public:
     MOCK_METHOD2(set_fn, void(uint32_t address, uint16_t value));
     MOCK_METHOD1(get_fn, uint16_t(uint32_t address));
     MOCK_METHOD0(legacy_address, uint32_t());
+    MOCK_METHOD0(legacy_address_type, dcc::TrainAddressType());
 };
 
 }  // namespace nmranet

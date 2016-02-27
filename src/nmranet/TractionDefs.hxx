@@ -42,6 +42,7 @@
 #include "nmranet/Velocity.hxx"
 #include "nmranet/Payload.hxx"
 #include "nmranet/If.hxx"
+#include "dcc/Defs.hxx"
 
 namespace nmranet {
 
@@ -186,6 +187,40 @@ struct TractionDefs {
          * values 0-255 each. */
         FNCONFIG_ANALOG_OUTPUT = 0x3
     };
+
+    /** Converts a legacy address to an NMRAnet node ID.
+
+        The conversion algorithm chosen here is rather arbitrary, as it is not
+        specified in the standard how the individual reserved blocks are laid
+        out internally to addresses. The only important thing is that for
+        different track bit patterns a different node ID be generated.
+
+      @param type defines what address type it is (dcc-short, dcc-long or MM)
+      @param addr is the legacy address, the valid values are defined by the
+      specific protocols.
+    */
+    static NodeID train_node_id_from_legacy(
+        dcc::TrainAddressType type, uint32_t addr)
+    {
+        switch (type)
+        {
+            case dcc::TrainAddressType::DCC_SHORT_ADDRESS:
+                return NODE_ID_DCC | addr;
+            case dcc::TrainAddressType::DCC_LONG_ADDRESS:
+                if (addr < 128)
+                {
+                    return NODE_ID_DCC | 0xC000 | addr;
+                }
+                else
+                {
+                    return NODE_ID_DCC | addr;
+                }
+            case dcc::TrainAddressType::MM:
+                return NODE_ID_MARKLIN_MOTOROLA | addr;
+            default:
+                DIE("Unknown train address type");
+        }
+    }
 
     static Payload estop_set_payload() {
         Payload p(1, 0);

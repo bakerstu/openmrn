@@ -92,4 +92,9 @@ uint32_t LoggingTrain::legacy_address()
     return legacyAddress_;
 }
 
+dcc::TrainAddressType LoggingTrain::legacy_address_type()
+{
+    return dcc::TrainAddressType::DCC_LONG_ADDRESS;
+}
+
 } // namespace nmranet

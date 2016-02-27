@@ -36,6 +36,7 @@
 #define _NMRANET_TRAININTERFACE_HXX_
 
 #include "nmranet/TractionDefs.hxx"
+#include "dcc/Defs.hxx"
 
 namespace nmranet {
 
@@ -84,6 +85,9 @@ public:
      * best interface for that.
      */
     virtual uint32_t legacy_address() = 0;
+
+    /** @returns the type of legacy protocol in use. */
+    virtual dcc::TrainAddressType legacy_address_type() = 0;
 };
 
 }  // namespace nmranet
