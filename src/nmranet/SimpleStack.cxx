@@ -207,6 +207,10 @@ void SimpleCanStack::add_socketcan_port_select(const char *device)
 
     s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 
+    /* Set the blocking limit to the minimum allowed, typically 1024 in Linux */
+    int sndbuf = 0;
+    setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+
     strcpy(ifr.ifr_name, device );
     ioctl(s, SIOCGIFINDEX, &ifr);
 
