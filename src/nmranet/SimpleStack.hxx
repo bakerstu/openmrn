@@ -177,9 +177,9 @@ public:
 
     /// Adds a CAN bus port with select-based asynchronous driver API.
     /// @params device CAN device name, for example: "can0" or "can1"
-    /// @params loopback 1 to enable loopback localy to other open references
-    ///                  0 to enable loopback localy to other open references
-    ///                  in most cases, this paramter won't matter.
+    /// @params loopback 1 to enable loopback localy to other open references,
+    ///                  0 to enable loopback localy to other open references,
+    ///                  in most cases, this paramter won't matter
     void add_socketcan_port_select(const char *device, int loopback = 1);
 #endif
 
