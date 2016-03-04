@@ -131,7 +131,7 @@ void SimpleCanStack::check_version_and_factory_reset(
     int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
     if (cfg.version().read(fd) != expected_version)
     {
-        /// TODO(balazs.racz): We need to clear the eeprom. Best would be if
+        /// @todo (balazs.racz): We need to clear the eeprom. Best would be if
         /// there was an ioctl to return the eeprom to factory default state by
         /// just erasing the segments.
         cfg.version().write(fd, expected_version);
