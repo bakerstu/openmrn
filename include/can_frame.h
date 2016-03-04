@@ -37,6 +37,9 @@
 #if defined (__linux__)
     #include <sys/socket.h>
     #include <linux/can.h>
+    #include <linux/can/raw.h>
+    #include <linux/can/error.h>
+
     #define SET_CAN_FRAME_EFF(_frame) (_frame).can_id |= CAN_EFF_FLAG
     #define SET_CAN_FRAME_RTR(_frame) (_frame).can_id |= CAN_RTR_FLAG
     #define SET_CAN_FRAME_ERR(_frame) (_frame).can_id |= CAN_ERR_FLAG
@@ -61,7 +64,7 @@
     }
 
 #elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__) || defined(__EMSCRIPTEN__)
-#include <stdint.h>
+    #include <stdint.h>
 
     struct can_frame
     {

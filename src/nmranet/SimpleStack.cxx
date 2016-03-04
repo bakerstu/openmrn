@@ -199,7 +199,7 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 
-void SimpleCanStack::add_socketcan_port_select(const char *device)
+void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
 {
     int s;
     struct sockaddr_can addr;
@@ -207,11 +207,26 @@ void SimpleCanStack::add_socketcan_port_select(const char *device)
 
     s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 
-    /* Set the blocking limit to the minimum allowed, typically 1024 in Linux */
+    // Set the blocking limit to the minimum allowed, typically 1024 in Linux
     int sndbuf = 0;
     setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
 
-    strcpy(ifr.ifr_name, device );
+    // turn on/off loopback
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
+
+    // setup error notifications
+    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT |
+                              CAN_ERR_LOSTARB |
+                              CAN_ERR_CRTL |
+                              CAN_ERR_PROT |
+                              CAN_ERR_TRX |
+                              CAN_ERR_ACK |
+                              CAN_ERR_BUSOFF |
+                              CAN_ERR_BUSERROR |
+                              CAN_ERR_RESTARTED;
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
+               &err_mask, sizeof(err_mask));    strcpy(ifr.ifr_name, device );
+
     ioctl(s, SIOCGIFINDEX, &ifr);
 
     addr.can_family = AF_CAN;
