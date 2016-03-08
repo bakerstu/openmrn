@@ -41,7 +41,7 @@
 extern "C" {
 
 /** Open a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param path file or device name
  * @param flags open flags
  * @param mode open mode, ignored in this implementation
@@ -53,7 +53,7 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
 }
 
 /** Close a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to close
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
@@ -63,7 +63,7 @@ int _close_r(struct _reent *reent, int fd)
 }
 
 /** Read from a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to read
  * @param buf location to place read data
  * @param count number of bytes to read
@@ -75,7 +75,7 @@ ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
 }
 
 /** Write to a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to write
  * @param buf location to find write data
  * @param count number of bytes to write
@@ -87,7 +87,7 @@ ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
 }
 
 /** Get the status information of a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to get status of
  * @param stat structure to fill status info into
  * @return 0 upon success, -1 upon failure with errno containing the cause
@@ -98,7 +98,7 @@ int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
 }
 
 /** Get the tty information of a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor determine if it is a tty
  * @return 1 if a tty, else 0
  */
@@ -108,7 +108,7 @@ int _isatty_r(struct _reent *reent, int fd)
 }
 
 /** Change the offset index of a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to seek
  * @param offset offset within file
  * @param whence type of seek to complete
