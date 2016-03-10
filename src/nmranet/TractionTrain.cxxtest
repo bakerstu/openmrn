@@ -336,6 +336,32 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_FALSE(trainNode_->query_consist(0));
 }
 
+TEST_F(TractionSingleMockTest, RemoteConsisting)
+{
+    NodeID n1 = 0x050101011837;
+    //NodeID n2 = 0x050101012351;
+
+    send_packet(":X195EB551N133A300100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011837;",
+        ":X191E933AN055130010000;");
+    wait();
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0));
+
+    expect_packet(":X191E933AN1551300301000501;");
+    send_packet_and_expect_response(":X195EB551N033A300300;",
+                                    ":X191E933AN255101011837;");
+    wait();
+
+    send_packet(":X195EB551N133A300200050101;");
+    send_packet_and_expect_response(":X195EB551N233A011837;",
+                                    ":X191E933AN055130020000;");
+    wait();
+    send_packet_and_expect_response(":X195EB551N033A300300;",
+                                    ":X191E933AN0551300300;");
+    wait();
+}
+
 class ClientFlow : public StateFlowBase
 {
 public:
