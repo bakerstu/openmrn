@@ -278,6 +278,64 @@ TEST_F(TractionSingleMockTest, ReleaseControllerFailed)
     EXPECT_EQ(0x123U, h.alias);
 }
 
+TEST_F(TractionSingleMockTest, Consisting)
+{
+    NodeID n1 = 0x050101011837;
+    NodeID n2 = 0x050101012351;
+
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    // add new
+    EXPECT_TRUE(trainNode_->add_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    // add existing
+    EXPECT_FALSE(trainNode_->add_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    // queries
+    EXPECT_EQ(n1, trainNode_->query_consist(0));
+    EXPECT_FALSE(trainNode_->query_consist(1));
+    EXPECT_FALSE(trainNode_->query_consist(2));
+    // remove nonexistent
+    EXPECT_FALSE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    // remove real
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    // add again
+    EXPECT_TRUE(trainNode_->add_consist(n1));
+    EXPECT_TRUE(trainNode_->add_consist(n2));
+    EXPECT_FALSE(trainNode_->add_consist(n2));
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+
+    // query again
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_EQ(n1, trainNode_->query_consist(1));
+    EXPECT_FALSE(trainNode_->query_consist(2));
+    EXPECT_FALSE(trainNode_->query_consist(3));
+
+    // remove again
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_FALSE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_TRUE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+
+    // Remove front
+    EXPECT_TRUE(trainNode_->add_consist(n1));
+    EXPECT_TRUE(trainNode_->add_consist(n2));
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_TRUE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0));
+    EXPECT_FALSE(trainNode_->query_consist(1));
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_FALSE(trainNode_->query_consist(0));
+}
+
 class ClientFlow : public StateFlowBase
 {
 public:

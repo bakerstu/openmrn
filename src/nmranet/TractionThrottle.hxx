@@ -60,6 +60,21 @@ struct TractionThrottleCommands
     {
         LOAD_STATE,
     };
+
+    enum ConsistAdd
+    {
+        CONSIST_ADD,
+    };
+
+    enum ConsistDel
+    {
+        CONSIST_DEL,
+    };
+
+    enum ConsistQry
+    {
+        CONSIST_QRY,
+    };
 };
 
 struct TractionThrottleInput
@@ -69,6 +84,9 @@ struct TractionThrottleInput
         CMD_ASSIGN_TRAIN,
         CMD_RELEASE_TRAIN,
         CMD_LOAD_STATE,
+        CMD_CONSIST_ADD,
+        CMD_CONSIST_DEL,
+        CMD_CONSIST_QRY,
     };
 
     void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst)
@@ -87,15 +105,43 @@ struct TractionThrottleInput
         cmd = CMD_LOAD_STATE;
     }
 
+    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave)
+    {
+        cmd = CMD_CONSIST_ADD;
+        dst = slave;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistDel &, NodeID slave)
+    {
+        cmd = CMD_CONSIST_DEL;
+        dst = slave;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistQry &)
+    {
+        cmd = CMD_CONSIST_QRY;
+        replyCause = 0xff;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistQry &, uint8_t ofs)
+    {
+        cmd = CMD_CONSIST_QRY;
+        replyCause = ofs;
+    }
+
     Command cmd;
+    /// For assign, this carries the destination node ID. For consisting
+    /// requests, this is an in-out argument.
     NodeID dst;
+
 
     BarrierNotifiable done;
     /// If high bits are zero, this is a 16-bit OpenLCB result code. Higher
     /// values are OpenMRN errors.
     int resultCode;
     /// For assign controller reply REJECTED, this is 1 for controller refused
-    /// connection, 2 fortrain refused connection.
+    /// connection, 2 fortrain refused connection. For consist query replies,
+    /// this contains the total number of slaves for the consist.
     uint8_t replyCause;
 };
 
@@ -129,6 +175,7 @@ public:
         FN_NOT_KNOWN = 0xffff,
         /// Upon a load state request, how far do we go into the function list?
         MAX_FN_QUERY = 8,
+        ERROR_UNASSIGNED = 0x4000000,
     };
 
     void set_speed(SpeedType speed) override
@@ -208,11 +255,22 @@ private:
             {
                 if (!dst_)
                 {
-                    return return_ok();
+                    return return_with_error(ERROR_UNASSIGNED)
                 }
                 return call_immediately(STATE(load_state));
             }
-
+            case Command::CMD_CONSIST_ADD:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED)
+                }
+                if (!input()->dst)
+                {
+                    return return_with_error(Defs::ERROR_INVALID_ARGS);
+                }
+                return call_immediately(STATE(consist_add));
+            }
             default:
                 LOG_ERROR("Unknown traction throttle command %d received.",
                     input()->cmd);
@@ -347,6 +405,37 @@ private:
                 }
             }
         }
+    }
+
+    Action consist_add()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        send_traction_message(TractionDefs::consist_add_payload(input()->dst));
+        return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
+    }
+
+    Action consist_add_response()
+    {
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
+        }
+
+        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        const string &payload = handler_.response()->data()->payload;
+        if (payload.size() < 3)
+        {
+            return return_with_error(Defs::ERROR_INVALID_ARGS);
+        }
+        if (payload[1] != TractionDefs::CNSTRESP_ATTACH_NODE)
+        {
+            // spurious reply message
+            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        input()->replyCause = payload[2];
+        return return_ok();
     }
 
     Action return_ok()

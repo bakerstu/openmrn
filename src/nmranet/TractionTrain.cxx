@@ -51,6 +51,13 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
     service_->register_train(this);
 }
 
+TrainNode::~TrainNode()
+{
+    while (!consistSlaves_.empty()) {
+        delete consistSlaves_.pop_front();
+    }
+}
+
 NodeID TrainNode::node_id()
 {
     /** @TODO(balazs.racz) revise how to specify the nodeid for non-legacy
@@ -190,6 +197,11 @@ struct TrainService::Impl
                 {
                     return maybe_alloc_response(
                         STATE(handle_controller_config));
+                }
+                case TractionDefs::REQ_CONSIST_CONFIG:
+                {
+                    return maybe_alloc_response(
+                        STATE(handle_consist_config));
                 }
                 case TractionDefs::REQ_TRACTION_MGMT:
                 {
@@ -333,6 +345,61 @@ struct TrainService::Impl
             return reject_permanent();
         }
 
+        Action handle_consist_config()
+        {
+            Payload &p = *initialize_response();
+            uint8_t cmd = payload()[1];
+            switch (cmd)
+            {
+                case TractionDefs::CNSTREQ_ATTACH_NODE:
+                {
+                    if (size() < 8)
+                        return reject_permanent(
+                            Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    NodeID target = data_to_node_id(payload() + 2);
+                    bool resp = train_node()->add_consist(target);
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_ATTACH_NODE);
+                    p.push_back(resp ? 1 : 0);
+                    return send_response();
+                }
+                case TractionDefs::CNSTREQ_DETACH_NODE:
+                {
+                    if (size() < 8)
+                        return reject_permanent(
+                            Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    NodeID target = data_to_node_id(payload() + 2);
+                    bool resp = train_node()->remove_consist(target);
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_DETACH_NODE);
+                    p.push_back(resp ? 1 : 0);
+                    return send_response();
+                }
+                case TractionDefs::CNSTREQ_QUERY_NODES:
+                {
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_QUERY_NODES);
+                    int sz = train_node()->query_consist_length();
+                    if (sz > 255) sz = 255;
+                    p.push_back(sz);
+                    if (size() > 2) {
+                        uint8_t id = payload()[2];
+                        p.push_back(id);
+                        if (id < sz) {
+                            NodeID rp = train_node()->query_consist(id);
+                            size_t of = p.size();
+                            p.resize(of + 6);
+                            node_id_to_data(rp, &p[of]);
+                        }
+                    }
+                    return send_response();
+                }
+                default:
+                    LOG(VERBOSE, "Unknown Traction consist subcommand %x", cmd);
+                    return reject_permanent();
+            }
+        }
+
         Action handle_traction_mgmt()
         {
             Payload &p = *initialize_response();
@@ -402,7 +469,7 @@ struct TrainService::Impl
         }
 
         /** Rejects the incoming message with a permanent error. */
-        Action reject_permanent()
+        Action reject_permanent(uint16_t code = Defs::ERROR_PERMANENT)
         {
             return maybe_alloc_response(STATE(send_reject_permanent));
         }
@@ -414,11 +481,14 @@ struct TrainService::Impl
             response_->data()->reset(
                 Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
                 nmsg()->dstNode->node_id(), nmsg()->src,
-                error_to_buffer(Defs::ERROR_PERMANENT, nmsg()->mti));
+                error_to_buffer(errorCode_, nmsg()->mti));
             return send_response();
         }
 
     private:
+        /// error code for reject_permanent().
+        unsigned errorCode_ : 16;
+        /// 1 if the voluntary lock protocol has set this train to be reserved.
         unsigned reserved_ : 1;
         TrainService *trainService_;
         Buffer<NMRAnetMessage> *response_;
