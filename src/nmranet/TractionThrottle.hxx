@@ -255,7 +255,7 @@ private:
             {
                 if (!dst_)
                 {
-                    return return_with_error(ERROR_UNASSIGNED)
+                    return return_with_error(ERROR_UNASSIGNED);
                 }
                 return call_immediately(STATE(load_state));
             }
@@ -263,7 +263,7 @@ private:
             {
                 if (!dst_)
                 {
-                    return return_with_error(ERROR_UNASSIGNED)
+                    return return_with_error(ERROR_UNASSIGNED);
                 }
                 if (!input()->dst)
                 {
@@ -271,6 +271,30 @@ private:
                 }
                 return call_immediately(STATE(consist_add));
             }
+            case Command::CMD_CONSIST_DEL:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED);
+                }
+                if (!input()->dst)
+                {
+                    return return_with_error(Defs::ERROR_INVALID_ARGS);
+                }
+                return call_immediately(STATE(consist_del));
+            }
+/*            case Command::CMD_CONSIST_QRY:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED);
+                }
+                if (!input()->dst)
+                {
+                    return return_with_error(Defs::ERROR_INVALID_ARGS);
+                }
+                return call_immediately(STATE(consist_qry));
+                }*/
             default:
                 LOG_ERROR("Unknown traction throttle command %d received.",
                     input()->cmd);
@@ -415,6 +439,14 @@ private:
         return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
     }
 
+    Action consist_del()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        send_traction_message(TractionDefs::consist_del_payload(input()->dst));
+        return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
+    }
+
     Action consist_add_response()
     {
         handler_.wait_timeout();
@@ -429,13 +461,27 @@ private:
         {
             return return_with_error(Defs::ERROR_INVALID_ARGS);
         }
-        if (payload[1] != TractionDefs::CNSTRESP_ATTACH_NODE)
+        if (message()->data()->cmd == Command::CMD_CONSIST_ADD)
         {
-            // spurious reply message
-            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+            if (payload[1] != TractionDefs::CNSTRESP_ATTACH_NODE)
+            {
+                // spurious reply message
+                return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+            }
         }
-        input()->replyCause = payload[2];
-        return return_ok();
+        else if (message()->data()->cmd == Command::CMD_CONSIST_DEL)
+        {
+            if (payload[1] != TractionDefs::CNSTRESP_DETACH_NODE)
+            {
+                // spurious reply message
+                return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+            }
+        }
+        uint16_t e = payload[2];
+        e <<= 8;
+        e |= payload[3];
+        input()->replyCause = e ? 1 : 0;
+        return return_with_error(e);
     }
 
     Action return_ok()

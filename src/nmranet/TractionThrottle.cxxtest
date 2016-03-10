@@ -228,4 +228,65 @@ TEST_F(ThrottleTest, SendQuery)
     EXPECT_EQ(1, flow.throttle_.get_fn(7));
 }
 
+class ThrottleClientTest : public ThrottleTest {
+protected:
+    TractionThrottle throttle_{node_};
+};
+
+TEST_F(ThrottleClientTest, SendConsistAdd)
+{
+    NodeID n1 = 0x050101011837;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, 0x050101011837);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0));
+}
+
+TEST_F(ThrottleClientTest, SendConsistAddDel)
+{
+    NodeID n1 = 0x050101011837;
+    NodeID n2 = 0x050101012188;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n1);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0));
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n2);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_EQ(n1, trainNode_->query_consist(1));
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
+    EXPECT_EQ(Defs::ERROR_NOT_FOUND, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0));
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n2);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+}
+
+
 } // namespace nmranet
