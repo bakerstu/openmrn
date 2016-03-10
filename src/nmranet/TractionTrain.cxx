@@ -353,26 +353,26 @@ struct TrainService::Impl
             {
                 case TractionDefs::CNSTREQ_ATTACH_NODE:
                 {
-                    if (size() < 8)
+                    if (size() < 9)
                         return reject_permanent(
                             Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
-                    NodeID target = data_to_node_id(payload() + 2);
+                    NodeID target = data_to_node_id(payload() + 3);
                     bool resp = train_node()->add_consist(target);
                     p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
                     p.push_back(TractionDefs::CNSTRESP_ATTACH_NODE);
-                    p.push_back(resp ? 1 : 0);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_ALREADY_EXISTS, &p);
                     return send_response();
                 }
                 case TractionDefs::CNSTREQ_DETACH_NODE:
                 {
-                    if (size() < 8)
+                    if (size() < 9)
                         return reject_permanent(
                             Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
-                    NodeID target = data_to_node_id(payload() + 2);
+                    NodeID target = data_to_node_id(payload() + 3);
                     bool resp = train_node()->remove_consist(target);
                     p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
                     p.push_back(TractionDefs::CNSTRESP_DETACH_NODE);
-                    p.push_back(resp ? 1 : 0);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_NOT_FOUND, &p);
                     return send_response();
                 }
                 case TractionDefs::CNSTREQ_QUERY_NODES:
@@ -384,8 +384,8 @@ struct TrainService::Impl
                     p.push_back(sz);
                     if (size() > 2) {
                         uint8_t id = payload()[2];
-                        p.push_back(id);
                         if (id < sz) {
+                            p.push_back(id);
                             NodeID rp = train_node()->query_consist(id);
                             size_t of = p.size();
                             p.resize(of + 6);
@@ -396,7 +396,7 @@ struct TrainService::Impl
                 }
                 default:
                     LOG(VERBOSE, "Unknown Traction consist subcommand %x", cmd);
-                    return reject_permanent();
+                    return reject_permanent(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
             }
         }
 

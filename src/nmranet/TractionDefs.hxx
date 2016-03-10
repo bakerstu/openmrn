@@ -312,28 +312,30 @@ struct TractionDefs {
     }
 
     static Payload consist_add_payload(NodeID slave) {
-        Payload p(8, 0);
+        Payload p(9, 0);
         p[0] = REQ_CONSIST_CONFIG;
         p[1] = CNSTREQ_ATTACH_NODE;
-        node_id_to_data(slave, &p[2]);
+        node_id_to_data(slave, &p[3]);
         return p;
     }
 
     static Payload consist_del_payload(NodeID slave) {
-        Payload p(8, 0);
+        Payload p(9, 0);
         p[0] = REQ_CONSIST_CONFIG;
         p[1] = CNSTREQ_DETACH_NODE;
-        node_id_to_data(slave, &p[2]);
+        node_id_to_data(slave, &p[3]);
         return p;
     }
 
     static Payload consist_qry_payload() {
+        Payload p(2, 0);
         p[0] = REQ_CONSIST_CONFIG;
         p[1] = CNSTREQ_QUERY_NODES;
         return p;
     }
 
     static Payload consist_qry_payload(uint8_t arg) {
+        Payload p(3, 0);
         p[0] = REQ_CONSIST_CONFIG;
         p[1] = CNSTREQ_QUERY_NODES;
         p[2] = arg;
