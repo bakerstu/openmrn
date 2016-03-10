@@ -88,6 +88,12 @@ string error_to_buffer(uint16_t error_code)
     return ret;
 }
 
+void append_error_to_buffer(uint16_t error_code, Payload* p) {
+    p->push_back(error_code >> 8);
+    p->push_back(error_code & 0xff);
+}
+
+
 void buffer_to_error(const Payload &payload, uint16_t *error_code,
     uint16_t *mti, string *error_message)
 {
