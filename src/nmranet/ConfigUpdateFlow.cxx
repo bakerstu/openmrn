@@ -42,6 +42,7 @@ namespace nmranet
 
 int ConfigUpdateFlow::open_file(const char *path)
 {
+    if (fd_ >= 0) return fd_;
     if (!path)
     {
         fd_ = -1;
