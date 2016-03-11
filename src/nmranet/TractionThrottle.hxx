@@ -126,7 +126,8 @@ struct TractionThrottleInput
     void reset(const TractionThrottleCommands::ConsistQry &, uint8_t ofs)
     {
         cmd = CMD_CONSIST_QRY;
-        replyCause = ofs;
+        consistIndex = ofs;
+        replyCause = 0;
     }
 
     Command cmd;
@@ -140,9 +141,12 @@ struct TractionThrottleInput
     /// values are OpenMRN errors.
     int resultCode;
     /// For assign controller reply REJECTED, this is 1 for controller refused
-    /// connection, 2 fortrain refused connection. For consist query replies,
-    /// this contains the total number of slaves for the consist.
+    /// connection, 2 fortrain refused connection.
     uint8_t replyCause;
+    /// Total number of entries in the consisting list.
+    uint8_t consistCount;
+    /// Index of the entry in the consisting list that needs to be returned.
+    uint8_t consistIndex;
 };
 
 /** Interface for a single throttle for running a train node.
@@ -283,18 +287,14 @@ private:
                 }
                 return call_immediately(STATE(consist_del));
             }
-/*            case Command::CMD_CONSIST_QRY:
+            case Command::CMD_CONSIST_QRY:
             {
                 if (!dst_)
                 {
                     return return_with_error(ERROR_UNASSIGNED);
                 }
-                if (!input()->dst)
-                {
-                    return return_with_error(Defs::ERROR_INVALID_ARGS);
-                }
                 return call_immediately(STATE(consist_qry));
-                }*/
+            }
             default:
                 LOG_ERROR("Unknown traction throttle command %d received.",
                     input()->cmd);
@@ -482,6 +482,54 @@ private:
         e |= payload[3];
         input()->replyCause = e ? 1 : 0;
         return return_with_error(e);
+    }
+
+    Action consist_qry()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        if (input()->replyCause == 0xff)
+        {
+            send_traction_message(TractionDefs::consist_qry_payload());
+        }
+        else
+        {
+            send_traction_message(
+                TractionDefs::consist_qry_payload(input()->consistIndex));
+        }
+        return sleep_and_call(
+            &timer_, TIMEOUT_NSEC, STATE(consist_qry_response));
+    }
+
+    Action consist_qry_response()
+    {
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
+        }
+
+        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        const string &payload = handler_.response()->data()->payload;
+        if (payload.size() < 3)
+        {
+            return return_with_error(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+        }
+        if (payload[1] != TractionDefs::CNSTRESP_QUERY_NODES)
+        {
+            // spurious reply message
+            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        input()->consistCount = payload[2];
+        if (payload.size() >= 3 + 6) {
+            input()->consistIndex = payload[3];
+            input()->dst = data_to_node_id(&payload[4]);
+        } else {
+            input()->consistIndex = 0xff;
+            input()->dst = 0;
+        }
+        input()->replyCause = 0;
+        return return_ok();
     }
 
     Action return_ok()
