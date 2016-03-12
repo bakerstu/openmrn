@@ -58,6 +58,7 @@ public:
     CanDatagramClient(IfCan *iface)
         : AddressedCanMessageWriteFlow(iface)
         , listener_(this)
+        , isSleeping_(0)
     {
         /** This flow does not use the incoming queue that we inherited from
          * AddressedCanMessageWriteFlow. We skip the wait state.
@@ -76,9 +77,7 @@ public:
         }
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
-        if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
+        register_handlers();
         reset_message(b, priority);
         /// @TODO(balazs.racz) this will not work for loopback messages because
         /// it calls transfer_message().
@@ -125,6 +124,11 @@ private:
 
     void register_handlers()
     {
+        hasResponse_ = 0;
+        isSleeping_ = 0;
+        if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
+        if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
+        if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
     }
 
     Action fill_can_frame_buffer() OVERRIDE
@@ -192,6 +196,7 @@ private:
 
     Action send_finished() OVERRIDE
     {
+        isSleeping_ = 1;
         return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
                               STATE(timeout_waiting_for_dg_response));
     }
@@ -208,6 +213,7 @@ private:
         LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
                   "destination %012" PRIx64 ".",
             nmsg()->dst.id);
+        isSleeping_ = 0;
         unregister_response_handler();
         result_ |= PERMANENT_ERROR | TIMEOUT;
         return call_immediately(STATE(datagram_finalize));
@@ -377,8 +383,12 @@ private:
     {
         // Avoids duplicate wakeups on the timer.
         unregister_response_handler();
-        // Stops waiting for response and notifies the current flow.
-        timer_.trigger();
+        hasResponse_ = 1;
+        if (isSleeping_) {
+            // Stops waiting for response and notifies the current flow.
+            timer_.trigger();
+            isSleeping_ = 0;
+        }
         /// @TODO(balazs.racz) Here we might want to decide whether to start a
         /// retry.
         LOG(VERBOSE, "restarting at datagram finalize");
@@ -386,6 +396,8 @@ private:
     }
 
     ReplyListener listener_;
+    unsigned isSleeping_ : 1;
+    unsigned hasResponse_ : 1;
 };
 
 /** Frame handler that assembles incoming datagram fragments into a single
