@@ -361,7 +361,7 @@ struct TrainService::Impl
                     bool resp = train_node()->add_consist(target);
                     p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
                     p.push_back(TractionDefs::CNSTRESP_ATTACH_NODE);
-                    append_error_to_buffer(resp ? 0 : Defs::ERROR_ALREADY_EXISTS, &p);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_OPENMRN_ALREADY_EXISTS, &p);
                     return send_response();
                 }
                 case TractionDefs::CNSTREQ_DETACH_NODE:
