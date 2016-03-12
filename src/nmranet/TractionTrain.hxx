@@ -93,10 +93,24 @@ public:
         controllerNodeId_ = id;
     }
 
+    // Thread-safety information
+    //
+    // The consisting functionality is thread-compatible, which means that it
+    // is the responsibility of the caller to ensure that no two threads are
+    // calling these methods concurrently.
+    //
+    // In practice these methods are always called from the TractionService
+    // which only operates on a single thread (the service's executor) and will
+    // only process one request at a time. All traction protocol requests being
+    // forwarded and thus traversing the consist list will be fully processed
+    // before any consist change requests would reach the front of the queue
+    // for the traction flow.
+
     /** Adds a node ID to the consist targets. @return false if the node was
      * already in the target list, true if it was newly added. */
     bool add_consist(NodeID tgt)
     {
+        if (!tgt) return false;
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
             if (it->slave == tgt)

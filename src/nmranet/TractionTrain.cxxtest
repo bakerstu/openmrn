@@ -3,6 +3,8 @@
 #include "nmranet/TractionTrain.hxx"
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TractionClient.hxx"
+#include "nmranet/TractionTestTrain.hxx"
+#include "nmranet/TractionThrottle.hxx"
 
 namespace nmranet
 {
@@ -257,7 +259,7 @@ TEST_F(TractionSingleMockTest, ReleaseControllerOK)
     send_packet(":X195EB551N133A200200050101;");
     send_packet(":X195EB551N233A011827;");
     wait();
-    
+
     h = trainNode_->get_controller();
     EXPECT_EQ(0ULL, h.id);
     EXPECT_EQ(0U, h.alias);
@@ -272,7 +274,7 @@ TEST_F(TractionSingleMockTest, ReleaseControllerFailed)
     send_packet(":X195EB551N133A200200050101;");
     send_packet(":X195EB551N233A011827;");
     wait();
-    
+
     h = trainNode_->get_controller();
     EXPECT_EQ(0x050101011837ULL, h.id);
     EXPECT_EQ(0x123U, h.alias);
