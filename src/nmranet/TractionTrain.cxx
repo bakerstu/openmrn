@@ -373,7 +373,7 @@ struct TrainService::Impl
                     bool resp = train_node()->remove_consist(target);
                     p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
                     p.push_back(TractionDefs::CNSTRESP_DETACH_NODE);
-                    append_error_to_buffer(resp ? 0 : Defs::ERROR_NOT_FOUND, &p);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_OPENMRN_NOT_FOUND, &p);
                     return send_response();
                 }
                 case TractionDefs::CNSTREQ_QUERY_NODES:

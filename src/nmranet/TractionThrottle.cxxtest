@@ -278,7 +278,7 @@ TEST_F(ThrottleClientTest, SendConsistAddDel)
 
     b = invoke_flow(
         &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
-    EXPECT_EQ(Defs::ERROR_NOT_FOUND, b->data()->resultCode);
+    EXPECT_EQ(Defs::ERROR_OPENMRN_NOT_FOUND, b->data()->resultCode);
     EXPECT_EQ(1, trainNode_->query_consist_length());
     EXPECT_EQ(n2, trainNode_->query_consist(0));
 
