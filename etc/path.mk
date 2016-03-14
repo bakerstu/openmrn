@@ -229,6 +229,18 @@ TILINUXSDKPATH:=$(TRYPATH)
 endif
 endif #TILINUXSDKPATH
 
+################### TI-CC3200-SDK #####################
+ifndef TICC3200SDKPATH
+SEARCHPATH := \
+  /opt/ti/CC3200SDK/default/cc3200-sdk
+
+
+TRYPATH:=$(call findfirst,readme.txt,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TICC3200SDKPATH:=$(TRYPATH)
+endif
+endif #TICC3200SDKPATH
+
 ################### PRU-ICSS #####################
 ifndef PRUICSSPATH
 SEARCHPATH := \

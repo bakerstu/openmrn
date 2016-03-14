@@ -1,0 +1,10 @@
+In order to access the CC3200 under Linux using OpenOCD:
+
+sudo vi /etc/udev/rules.d/99-tiftdi.rules
+
+Insert the following text, write, and quit:
+
+
+# For CC3200 Launchpad with FTDI Chip that TI put their codes in. ID = 0x0451, Product ID = 0xc32a
+
+ATTRS{idProduct}=="c32a", ATTRS{idVendor}=="0451", RUN+="echo 0451 c32a > /sys/bus/usb-serial/drivers/ftdi_sio/new_id", MODE="666", GROUP="plugdev"

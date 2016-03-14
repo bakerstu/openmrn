@@ -37,8 +37,7 @@
 
 #include "os/Gpio.hxx"
 #include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/sysctl.h"
+#include "driverlib/prcm.h"
 #include "inc/hw_memmap.h"
 #include "driverlib/rom_map.h"
 
@@ -52,7 +51,7 @@
     static const auto NAME##_PIN = GPIO_PIN_##NUM
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin;
-template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin;
+template <class Defs> struct GpioInputPin;
 
 /// Generic GPIO class implementation.
 template <unsigned GPIO_BASE, unsigned GPIO_PIN> class CC3200Gpio : public Gpio
@@ -228,7 +227,7 @@ struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
     typedef BaseClass<NAME##Defs> NAME##_Pin
 
 /// Common class for GPIO input pins.
-template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin : public Defs
+template <class Defs> struct GpioInputPin : public Defs
 {
 public:
     using Defs::GPIO_PERIPH;

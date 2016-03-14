@@ -1,0 +1,28 @@
+VPATH := $(TICC3200SDKPATH)/simplelink/source \
+         $(TICC3200SDKPATH)/simplelink \
+         $(TICC3200SDKPATH)/oslib
+
+INCLUDES += -I$(TICC3200SDKPATH)/simplelink/include \
+            -I$(TICC3200SDKPATH)/simplelink/source \
+            -I$(TICC3200SDKPATH)/simplelink \
+            -I$(TICC3200SDKPATH)/oslib \
+            -I$(TICC3200SDKPATH)/driverlib \
+            -I$(TICC3200SDKPATH)/inc
+
+CSRCS += device.c \
+         driver.c \
+         flowcont.c \
+         fs.c \
+         netapp.c \
+         netcfg.c \
+         socket.c \
+         spawn.c \
+         wlan.c
+
+CSRCS += cc_pal.c
+
+CSRCS += osi_freertos.c
+         
+CXXSRCS +=
+
+CFLAGS += -Wno-strict-prototypes
