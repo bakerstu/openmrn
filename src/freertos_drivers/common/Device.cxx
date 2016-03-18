@@ -326,7 +326,7 @@ int Device::ioctl(File *, unsigned long int, unsigned long) {
  */
 int Device::fcntl(File *file, int cmd, unsigned long data)
 {
-    return 0;
+    return -EINVAL;
 }
 
 /** Allocate a free file descriptor.
