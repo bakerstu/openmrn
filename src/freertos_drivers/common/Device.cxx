@@ -304,8 +304,7 @@ off_t Device::lseek(File* f, off_t offset, int whence)
             f->offset += offset;
             return f->offset;
     }
-    errno = EINVAL;
-    return (off_t)-1;
+    return (off_t)-EINVAL;
 }
 
 /** Request an ioctl transaction
