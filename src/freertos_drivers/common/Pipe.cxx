@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Pipe.cxx
- * This file imlements POSIX pipe().
+ * This file implements POSIX pipe().
  *
  * @author Stuart W. Baker
  * @date 27 January 2015
