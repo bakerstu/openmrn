@@ -1,0 +1,5 @@
+include $(OPENMRNPATH)/etc/cc32xx.mk
+DEPS += TICC3200SDKPATH
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
+
+CXXSRCS += CC32xxUart.cxx

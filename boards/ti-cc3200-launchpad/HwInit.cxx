@@ -46,6 +46,7 @@
 #include "driverlib/pin.h"
 #include "os/OS.hxx"
 #include "DummyGPIO.hxx"
+#include "CC32xxUart.hxx"
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
@@ -57,10 +58,8 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
-#if 0
 /** UART 0 serial driver instance */
-static CC3200Uart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
-#endif
+static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
 
 extern "C"
 {
@@ -157,12 +156,16 @@ void hw_preinit(void)
      *   PIN_02:  PIN_MODE_0 - GPIO11
      *   PIN_04:  PIN_MODE_0 - GPIO13
      *   PIN_15:  PIN_MODE_0 - GPIO22
+     *   PIN_55:  PIN_MODE_3 - UARTA0_TX
+     *   PIN_57:  PIN_MODE_3 - UARTA0_RX
      *   PIN_64:  PIN_MODE_0 - GPIO9
      */
     MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
+    MAP_PinTypeUART(PIN_55, PIN_MODE_3);
+    MAP_PinTypeUART(PIN_57, PIN_MODE_3);
     MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
     GpioInit::hw_init();
 

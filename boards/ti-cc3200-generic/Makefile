@@ -10,18 +10,12 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 )
 
 # Find driverlib
-include $(OPENMRNPATH)/etc/cc3200.mk
+include $(OPENMRNPATH)/etc/cc32xx.mk
 
-LDFLAGSEXTRA = -L$(TICC3200SDKPATH)/driverlib/gcc/exe
-SYSLIBRARIESEXTRA = -ldriver
+LDFLAGSEXTRA +=
+SYSLIBRARIESEXTRA +=
 OBJEXTRA =
-
-#$(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaCan.o \
-#           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUart.o \
-#           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUsbCdcDevice.o
 
 CXXFLAGSEXTRA += -DTARGET_IS_CC3200
 
-TARGET := freertos.armv7m
-#BOARD := BOARD_LAUNCHPAD_EK
 include $(OPENMRNPATH)/etc/prog.mk
