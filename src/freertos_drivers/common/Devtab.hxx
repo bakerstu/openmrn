@@ -102,7 +102,7 @@ public:
      * @param buf location to find write data
      * @param count number of bytes to write
      * @return number of bytes written upon success, -1 upon failure with errno
-               containing the cause
+     *         containing the cause
      */
     static ssize_t write(struct _reent *reent, int fd, const void *buf, size_t count);
 
@@ -112,7 +112,7 @@ public:
      * @param offset offset within file
      * @param whence type of seek to complete
      * @return resulting offset from beginning of file, -1 upon failure with
-               errno containing the cause
+     *         errno containing the cause
      */
     static _off_t lseek(struct _reent *reent, int fd, _off_t offset, int whence);
 
