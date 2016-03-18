@@ -232,7 +232,7 @@ _off_t Device::lseek(struct _reent *reent, int fd, _off_t offset, int whence)
 int Device::ioctl(int fd, unsigned long int key, unsigned long data)
 {
     File* f = file_lookup(fd);
-    if (!f) 
+    if (!f)
     {
         /* errno should already be set appropriately */
         return -1;
