@@ -94,7 +94,7 @@ ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
  */
 int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
 {
-    return 0;
+    return Device::fstat(reent, fd, stat);
 }
 
 /** Get the tty information of a file or device.

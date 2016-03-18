@@ -223,6 +223,29 @@ _off_t Device::lseek(struct _reent *reent, int fd, _off_t offset, int whence)
     return result;    
 }
 
+/** Get the status information of a file or device.
+ * @param reent thread safe reentrant structure
+ * @param fd file descriptor to get status of
+ * @param stat structure to fill status info into
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int Device::fstat(struct _reent *reent, int fd, struct stat *stat)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return -1;
+    }
+    ssize_t result = f->dev->fstat(f, stat);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
 /** Request and ioctl transaction.
  * @param fd file descriptor
  * @param key ioctl key
@@ -305,6 +328,17 @@ off_t Device::lseek(File* f, off_t offset, int whence)
             return f->offset;
     }
     return (off_t)-EINVAL;
+}
+
+/** Get the status information of a file or device.
+ * @param file file reference for this device
+ * @param stat structure to fill status info into
+ * @return 0 upon successor or negative error number upon error.
+ */
+int Device::fstat(File* file, struct stat *stat)
+{
+    memset(stat, 0, sizeof(stat));
+    return 0;
 }
 
 /** Request an ioctl transaction

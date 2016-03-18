@@ -16,6 +16,7 @@ CXXSRCS += Fileio.cxx \
            EEPROMEmulation.cxx \
            Pipe.cxx \
            CpuLoad.cxx \
+           Socket.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)

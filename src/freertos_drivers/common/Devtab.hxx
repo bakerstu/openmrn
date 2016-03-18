@@ -116,6 +116,14 @@ public:
      */
     static _off_t lseek(struct _reent *reent, int fd, _off_t offset, int whence);
 
+    /** Get the status information of a file or device.
+     * @param reent thread safe reentrant structure
+     * @param fd file descriptor to get status of
+     * @param stat structure to fill status info into
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int fstat(struct _reent *reent, int fd, struct stat *stat);
+
     /** Request and ioctl transaction.
      * @param fd file descriptor
      * @param key ioctl key
@@ -173,6 +181,13 @@ protected:
      * @return current offest or negative error number upon error.
      */
     virtual off_t lseek(File* file, off_t offset, int whence);
+
+    /** Get the status information of a file or device.
+     * @param file file reference for this device
+     * @param stat structure to fill status info into
+     * @return 0 upon successor or negative error number upon error.
+     */
+    virtual int fstat(File* file, struct stat *stat);
 
     /** Request an ioctl transaction
      * @param file file reference for this device
