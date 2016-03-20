@@ -408,6 +408,9 @@ protected:
      */
     Action yield_and_call(Callback c)
     {
+        if (service_->executor()->empty()) {
+            return call_immediately(c);
+        }
         state_ = c;
         notify();
         return wait();
