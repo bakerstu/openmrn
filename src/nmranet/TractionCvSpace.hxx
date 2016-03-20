@@ -129,7 +129,18 @@ private:
         ERROR_UNKNOWN_RESPONSE = 6,
         _ERROR_TIMEOUT = 8,
     };
+
+    enum {
+        OFFSET_CV_INDEX = 0xFF000000,
+        OFFSET_CV_VALUE = 0xFF000004,
+    };
+
     uint8_t spaceId_;
+    /// Stores the last node for which the CV index was written.
+    uint16_t lastIndexedNode_;
+    /// Stores the last CV index (for indirect CV lookup).
+    uint32_t lastIndexedCv_;
+
     Notifiable *done_; //< notify when transfer is done
     StateFlowTimer timer_;
     long long deadline_;  //< time when we should give up and return error.

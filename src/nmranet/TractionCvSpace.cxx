@@ -107,6 +107,23 @@ const unsigned TractionCvSpace::MAX_CV;
 size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
                              errorcode_t *error, Notifiable *again)
 {
+    if (source == OFFSET_CV_INDEX) {
+        lastIndexedNode_ = dccAddress_;
+        uint8_t* lastcv = (uint8_t*)&lastIndexedCv_;
+        if (len > 0) dst[0] = lastcv[3];
+        if (len > 1) dst[1] = lastcv[2];
+        if (len > 2) dst[2] = lastcv[1];
+        if (len > 3) dst[3] = lastcv[0];
+        return std::min(len, size_t(4));
+    }
+    if (source == OFFSET_CV_VALUE) {
+        if (dccAddress_ != lastIndexedNode_) {
+            *error = Defs::ERROR_TEMPORARY;
+            return 0;
+        }
+        source = lastIndexedCv_;
+        // fall through to regular processing
+    }
     LOG(INFO, "cv read %" PRId32, source);
     if (source > MAX_CV)
     {
@@ -199,7 +216,24 @@ StateFlowBase::Action TractionCvSpace::read_returned()
 size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
                               size_t len, errorcode_t *error, Notifiable *again)
 {
-    LOG(INFO, "cv write %" PRId32 " := %d", destination, *src);
+    if (destination == OFFSET_CV_INDEX) {
+        lastIndexedNode_ = dccAddress_;
+        uint8_t* lastcv = (uint8_t*)&lastIndexedCv_;
+        if (len > 0) lastcv[3] = src[0];
+        if (len > 1) lastcv[2] = src[1];
+        if (len > 2) lastcv[1] = src[2];
+        if (len > 3) lastcv[0] = src[3];
+        return std::min(len, size_t(4));
+    }
+    if (destination == OFFSET_CV_VALUE) {
+        if (dccAddress_ != lastIndexedNode_) {
+            *error = Defs::ERROR_TEMPORARY;
+            return 0;
+        }
+        destination = lastIndexedCv_;
+        // fall through to regular processing
+    }
+    LOG(INFO, "cv write %" PRIu32 " := %d", destination, *src);
     if (destination > MAX_CV)
     {
         *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
