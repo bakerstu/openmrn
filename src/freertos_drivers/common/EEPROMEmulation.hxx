@@ -48,7 +48,7 @@ extern const char __eeprom_end;
  * The EEPROM area is an area of the MCU Flash reserved for the EEPROMEmulation
  * driver. This area must fall onto flash erase boundaries. The driver will
  * perform a journal of every write into this flash area by writing (offset,
- * data) pairs in append mode. Reads will go through the journal to find the
+ * data) pairs in append mode. Reads will scan through the journal to find the
  * desired data. When the journal gets full, the data is copied to a second
  * flash area, compacting data by keeping overwrites only once, and then the
  * original area is erased.
@@ -77,9 +77,7 @@ extern const char __eeprom_end;
  * The layout of a slot is very simple: the first two bytes hold the
  * address. The lower two bytes of each 4-byte hold the data payload.
  *
- *
- *
- *  parameters:
+ * Parameters:
  *  @param SECTOR_SIZE: size of independently erased flash areas. Usually in
  *  the range of kilobytes; for example somewhere between 1-16 kbytes.
  *  @param FLASH_SIZE: Automatically detected from the linker symbols. An
@@ -92,7 +90,7 @@ extern const char __eeprom_end;
  *  because programming less than 16 bytes in one go is not supported).
  *  @param BYTES_PER_BLOCK: how many bytes of actual data should be stored in a
  *  block. Must be <= BLOCK_SIZE - 2 (in order to leave space for the address
- *  in the block).
+ *  in the block). Must be a power of two.
  *  @param SHADOW_IN_RAM: a boolean, if set to true, a shadow memory are will
  *  be allocated in RAM that will be pre-filled with the entire eeprom
  *  data. Dramatically speeds up reads, because reads will not have to go
@@ -102,16 +100,28 @@ extern const char __eeprom_end;
  *  than half of one sector, but should be realistically about 35% of the
  *  sector size to avoid too frequent sector erasing.
  *
+ * Limitations:
  *
+ * At any point in time there is only one active sector. This means that all
+ * useful data has to fit in one sector. This limits the max number of bytes to
+ * be sector_size / 2. To work around this is makes sense to set the eepromemu
+ * sector size to be a multiple of what the microcontroller can erase in one
+ * go, and writing the flash_erase in a way that just erases all flash sectors
+ * that fall into the chosen eepromemu sector.
  *
+ * Since there is only one active sector, it makes fairly little sense to have
+ * more than two sectors in total. One spare sector is needed for copying data
+ * over in a power-failure-safe manner. More than two sectors will not extend
+ * the size of available eepromemu space, just round-robin with using the flash
+ * sectors, thereby extending flash lifetime -- which already should not be a
+ * problem on modern MCUs.
  *
+ * The efficiency is not great: only 25% of the allocated flash space can be
+ * used for data storage. Users should leave some additional buffer to avoid
+ * too frequent overflowing of sectors.
  *
- *
- *
- *
- *
- * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2 unless
- * specified otherwise in a device specific specialization.
+ * The file size is limited to 64k - BLOCK_SIZE because the address is stored
+ * on 2 bytes in each block.
  */
 class EEPROMEmulation : public EEPROM
 {
