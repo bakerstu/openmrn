@@ -47,6 +47,7 @@
 #include "os/OS.hxx"
 #include "DummyGPIO.hxx"
 #include "CC32xxUart.hxx"
+#include "CC32xxWiFi.hxx"
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
@@ -58,8 +59,12 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
+
 /** UART 0 serial driver instance */
 static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
+
+/** Wi-Fi instance */
+static CC32xxWiFi wifi;
 
 extern "C"
 {
@@ -138,7 +143,7 @@ void diewith(uint32_t pattern)
         ;
 }
 
-/** Initialize the processor hardware.
+/** Initialize the processor hardware pre C runtime init.
  */
 void hw_preinit(void)
 {
@@ -196,4 +201,11 @@ void hw_preinit(void)
 #endif
 }
 
+/** Initialize the processor hardware post C runtime init.
+ */
+void hw_init(void)
+{
+    //wifi.instance()->start();
 }
+
+} /* extern "C" */

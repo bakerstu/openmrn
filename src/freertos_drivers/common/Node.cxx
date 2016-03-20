@@ -34,12 +34,14 @@
 #include "Devtab.hxx"
 
 #include <algorithm>
+#include <sys/stat.h>
 
 #include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
 
 /** Open method */
-int Node::open(File *, const char *, int, int) {
+int Node::open(File *, const char *, int, int)
+{
     OSMutexLock l(&lock_);
     if (references_++ == 0)
     {
@@ -49,7 +51,8 @@ int Node::open(File *, const char *, int, int) {
 }
 
 /** Close method */
-int Node::close(File *) {
+int Node::close(File *)
+{
     OSMutexLock l(&lock_);
     if (--references_ <= 0)
     {
@@ -59,7 +62,17 @@ int Node::close(File *) {
     return 0;
 }
 
-
+/** Get the status information of a file or device.
+ * @param file file reference for this device
+ * @param stat structure to fill status info into
+ * @return 0 upon successor or negative error number upon error.
+ */
+int Node::fstat(File* file, struct stat *stat)
+{
+    memset(stat, 0, sizeof(stat));
+    stat->st_mode = mode_;
+    return 0;
+}
 
 /** Request an ioctl transaction
  * @param file file reference for this device

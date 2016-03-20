@@ -55,6 +55,7 @@ public:
         , ring(NULL)
         , size(DEFAULT_PIPE_SIZE)
     {
+        mode_ = S_IFIFO;
     }    
 
     /** Destructor.
@@ -96,6 +97,18 @@ private:
     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
+
+    /** Seek method.  Not valid for a socket.
+     * @param file file reference for this device
+     * @param offset offset in bytes from whence directive
+     * @param whence SEEK_SET if to set the file offset to an abosolute position,
+     *               SEEK_CUR if to set the file offset from current position
+     * @return -ESPIPE
+     */
+    off_t lseek(File* f, off_t offset, int whence) override
+    {
+        return (off_t)-ESPIPE;
+    }
 
     /** Manipulate a file descriptor.
      * @param file file reference for this device

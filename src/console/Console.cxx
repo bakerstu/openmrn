@@ -31,7 +31,7 @@
  * @date 10 May 2014
  */
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) && !defined (GCC_ARMCM3)
 #else
 #define CONSOLE_NETWORKING
 #include <netinet/tcp.h>

@@ -280,8 +280,20 @@ int Device::fcntl(int fd, int cmd, unsigned long data)
 {
     File *file = file_lookup(fd);
 
+    if (!file) 
+    {
+        errno = EBADF;
+        return -1;
+    }
+
     switch (cmd)
     {
+        case F_SETFL:
+            /* on this platform, we ignore O_ASYNC, O_DIRECT, and O_NOATIME */
+            data &= (O_APPEND | O_NONBLOCK);
+            file->flags &= ~(O_APPEND | O_NONBLOCK);
+            file->flags |= data;
+            /* fall through */
         default:
         {
             File* f = file_lookup(fd);
@@ -300,12 +312,6 @@ int Device::fcntl(int fd, int cmd, unsigned long data)
         }  
         case F_GETFL:
             return file->flags;
-        case F_SETFL:
-            /* on this platform, we ignore O_ASYNC, O_DIRECT, and O_NOATIME */
-            data &= (O_APPEND | O_NONBLOCK);
-            file->flags &= ~(O_APPEND | O_NONBLOCK);
-            file->flags |= data;
-            return 0;
     }
 }
 
@@ -330,17 +336,6 @@ off_t Device::lseek(File* f, off_t offset, int whence)
     return (off_t)-EINVAL;
 }
 
-/** Get the status information of a file or device.
- * @param file file reference for this device
- * @param stat structure to fill status info into
- * @return 0 upon successor or negative error number upon error.
- */
-int Device::fstat(File* file, struct stat *stat)
-{
-    memset(stat, 0, sizeof(stat));
-    return 0;
-}
-
 /** Request an ioctl transaction
  * @param file file reference for this device
  * @param node node reference for this device
@@ -360,7 +355,14 @@ int Device::ioctl(File *, unsigned long int, unsigned long) {
  */
 int Device::fcntl(File *file, int cmd, unsigned long data)
 {
-    return -EINVAL;
+    if (cmd == F_SETFL)
+    {
+        return 0;
+    }
+    else
+    {
+        return -EINVAL;
+    }
 }
 
 /** Allocate a free file descriptor.

@@ -187,7 +187,7 @@ protected:
      * @param stat structure to fill status info into
      * @return 0 upon successor or negative error number upon error.
      */
-    virtual int fstat(File* file, struct stat *stat);
+    virtual int fstat(File* file, struct stat *stat) = 0;
 
     /** Request an ioctl transaction
      * @param file file reference for this device
@@ -304,6 +304,7 @@ protected:
      */
     Node(const char *name)
         : Device(name)
+        , mode_(0)
         , references_(0)
     {
     }
@@ -329,8 +330,16 @@ protected:
     /** Close method */
     int close(File *) OVERRIDE;
 
+    /** Get the status information of a file or device.
+     * @param file file reference for this device
+     * @param stat structure to fill status info into
+     * @return 0 upon successor or negative error number upon error.
+     */
+    virtual int fstat(File* file, struct stat *stat) override;
+
 protected:
     OSMutex lock_;
+    mode_t mode_;
 
     unsigned int references_; /**< number of open references */
 

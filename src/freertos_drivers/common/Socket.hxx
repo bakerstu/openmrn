@@ -38,48 +38,29 @@
 #include "os/OS.hxx"
 #include "DeviceBuffer.hxx"
 
-/** Private data for a serial device */
+#include <sys/stat.h>
+
+/** Implement a BSD compatible socket device */
 class Socket : public Node
 {
-public:
-    /** Create an unbound socket in a communications domain.
-     * @param domain specifies the communications domain in which a socket is
-     *               to be created
-     * @param type specifies the type of socket to be created
-     * @param protocol specifies a particular protocol to be used with the
-     *                 socket, specifying a protocol of 0 causes socket() to
-     *                 use an unspecified default protocol appropriate for the
-     *                 requested socket type
-     * @return a non-negative integer on success, the socket file descriptor,
-     *         otherwise, a value of -1 shall be returned and errno set to
-     *         indicate the error
-     */
-    static int socket(int domain, int type, int protocol);
-
-    /** Receive a message from a connection-mode or connectionless-mode socket.
-     * @param socket the socket file descriptor
-     * @param buffer buffer where the message should be stored
-     * @param length length in bytes of the buffer pointed to by the buffer
-     *               argument
-     * @param flags Specifies the type of message reception
-     * @return the length of the message in bytes, if no messages are available
-     *         to be received and the peer has performed an orderly shutdown,
-     *         recv() shall return 0, otherwise, -1 shall be returned and errno
-     *         set to indicate the error
-     */
-    static ssize_t recv(int socket, void *buffer, size_t length, int flags);
-
-    /** Initiate transmission of a message from the specified socket.
-     * @param socket the socket file descriptor
-     * @param buffer buffer containing the message to send
-     * @param length length of the message in bytes
-     * @param flags the type of message transmission
-     * @return the number of bytes sent, otherwise, -1 shall be returned and
-     *         errno set to indicate the error
-     */
-    static ssize_t send(int socket, const void *buffer, size_t length, int flags);
-
 protected:
+    /** Constructor
+     * @param name device name in file system
+     */
+    Socket(const char *name)
+        : Node(name)
+        , selInfoRd()
+        , selInfoWr()
+    {
+        mode_ = S_IFSOCK;
+    }    
+
+    /** Destructor.
+     */
+    ~Socket()
+    {
+    }
+
     /** Request an ioctl transaction
      * @param file file reference for this device
      * @param node node reference for this device
@@ -100,12 +81,6 @@ protected:
     SelectInfo selInfoWr; /**< select wakeup metadata for write active */
 
 private:
-    /** Close method. Returns negative errno on failure.
-     * @param file reference to close
-     * @return 0 upon success or negative error number upon error.
-     */
-    int close(File *file) override;
-
     /** Read from a file or device.
      * @param file file reference for this device
      * @param buf location to place read data
@@ -134,52 +109,6 @@ private:
     off_t lseek(File* f, off_t offset, int whence) override
     {
         return (off_t)-ESPIPE;
-    }
-
-    /** Receive a message from a connection-mode or connectionless-mode socket.
-     * @param file file reference for this device
-     * @param buffer buffer where the message should be stored
-     * @param length length in bytes of the buffer pointed to by the buffer
-     *               argument
-     * @param flags Specifies the type of message reception
-     * @return the length of the message in bytes, if no messages are available
-     *         to be received and the peer has performed an orderly shutdown,
-     *         recv() shall return 0. Otherwise, -1 shall be returned and errno
-     *         set to indicate the error
-     */
-    ssize_t recv(File *file, void *buffer, size_t length, int flags);
-
-    /** Initiate transmission of a message from the specified socket.
-     * @param file file reference for this device
-     * @param buffer buffer containing the message to send
-     * @param length length of the message in bytes
-     * @param flags the type of message transmission
-     * @return the number of bytes sent, otherwise, -1 shall be returned and
-     *         errno set to indicate the error
-     */
-    ssize_t send(File *file, const void *buffer, size_t length, int flags);
-
-    /** Get the status information of a file or device.
-     * @param file file reference for this device
-     * @param stat structure to fill status info into
-     * @return 0 upon successor or negative error number upon error.
-     */
-    int fstat(File* file, struct stat *stat) override;
-
-    /** Constructor
-     * @param name device name in file system
-     */
-    Socket(const char *name)
-        : Node(name)
-        , selInfoRd()
-        , selInfoWr()
-    {
-    }    
-
-    /** Destructor.
-     */
-    ~Socket()
-    {
     }
 
     void enable() override {} /**< function to enable device */
