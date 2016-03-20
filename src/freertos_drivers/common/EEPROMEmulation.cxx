@@ -35,7 +35,6 @@
 
 #include <cstring>
 
-const bool __attribute__((weak)) EEPROMEmulation::SHADOW_IN_RAM = false;
 const size_t EEPROMEmulation::HEADER_BLOCK_COUNT = 3;
 
 const uint32_t EEPROMEmulation::MAGIC_DIRTY = 0xaa55aa55;
