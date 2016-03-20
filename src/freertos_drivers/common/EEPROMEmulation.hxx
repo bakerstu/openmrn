@@ -39,7 +39,77 @@
 extern const char __eeprom_start;
 extern const char __eeprom_end;
 
-/** Emulates EEPROM in FLASH for the LPC17xx and LPC40xx platforms.
+/** Emulates EEPROM in FLASH for the Tiva, LPC17xx and LPC40xx
+ * platforms. Applicable in general to any microcontroller with self-writeable
+ * flash.
+ *
+ * Theory of operation:
+ *
+ * The EEPROM area is an area of the MCU Flash reserved for the EEPROMEmulation
+ * driver. This area must fall onto flash erase boundaries. The driver will
+ * perform a journal of every write into this flash area by writing (offset,
+ * data) pairs in append mode. Reads will go through the journal to find the
+ * desired data. When the journal gets full, the data is copied to a second
+ * flash area, compacting data by keeping overwrites only once, and then the
+ * original area is erased.
+ *
+ * Specifics and parameters:
+ *
+ * The flash area is specified by the linker symbols __eeprom_start and
+ * __eeprom_end. It is the responsibility of the memory map linker script to
+ * align these at flash erase boundaries. Inside this area there are
+ * independently eraseable sectors. The requirement is that at least two
+ * independently eraseable sectors be present, in order to allow copying data
+ * from one sector to another without endangering data loss due to power
+ * interruption.
+ *
+ * The layout of each sector is the following: the sector is split into blocks,
+ * where each block can be independently written. Each block will be written
+ * only once between two erase operations. The first few blocks are reserved
+ * for tracking the state of the sector, the rest of the blocks are used as
+ * slots holding data payload. The sectors go through the following states (in
+ * order):
+ *  1) erased. When the sector is all 0xFF.
+ *  2) dirty. The data is being copied over into this sector.
+ *  3) intact. This sector contains all the data.
+ *  4) used. This sector contains old data and can be reused after erasing.
+ *
+ * The layout of a slot is very simple: the first two bytes hold the
+ * address. The lower two bytes of each 4-byte hold the data payload.
+ *
+ *
+ *
+ *  parameters:
+ *  @param SECTOR_SIZE: size of independently erased flash areas. Usually in
+ *  the range of kilobytes; for example somewhere between 1-16 kbytes.
+ *  @param FLASH_SIZE: Automatically detected from the linker symbols. An
+ *  integer (at least 2) multiple of SECTOR_SIZE. Sectors within the
+ *  designatedflash are will be used in a round-robin manner to maximize flash
+ *  endurance.
+ *  @param BLOCK_SIZE: Defines how many bytes shall be flashed in one
+ *  operation. Usually a small integer, at least 4, defined by the hardware
+ *  limitations of the MCU flash (for example on the NXP 17xx it is 16 bytes,
+ *  because programming less than 16 bytes in one go is not supported).
+ *  @param BYTES_PER_BLOCK: how many bytes of actual data should be stored in a
+ *  block. Must be <= BLOCK_SIZE - 2 (in order to leave space for the address
+ *  in the block).
+ *  @param SHADOW_IN_RAM: a boolean, if set to true, a shadow memory are will
+ *  be allocated in RAM that will be pre-filled with the entire eeprom
+ *  data. Dramatically speeds up reads, because reads will not have to go
+ *  through the log anymore.
+ *  @param file_size: The total number of bytes held by the emulated eeprom
+ *  file. Reads from address 0 .. file_size - 1 will be valid. Must be smaller
+ *  than half of one sector, but should be realistically about 35% of the
+ *  sector size to avoid too frequent sector erasing.
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
  * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2 unless
  * specified otherwise in a device specific specialization.
  */
@@ -179,7 +249,7 @@ private:
         return (uint32_t*)(((uintptr_t)sector_address) + (i * BLOCK_SIZE));
     }
 
-    /** Get the block index.
+    /** Get the sector index.
      * @param sector_address pointer to the beginning of the sector
      * @return index of sector relative to start of EERPROM region
      */

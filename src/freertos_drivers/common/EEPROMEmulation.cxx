@@ -50,12 +50,13 @@ const uint32_t EEPROMEmulation::MAGIC_ERASED = 0xFFFFFFFF;
 EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     : EEPROM(name, file_size)
     , shadow_in_ram(false)
-    , shadow(NULL)
+    , shadow(nullptr)
     , activeIndex(0)
     , available(0)
 {
     /* make sure we have an appropriate sized region of memory for our device */
     HASSERT(FLASH_SIZE >= (2 * SECTOR_SIZE));  // at least two of them
+    HASSERT((FLASH_SIZE % SECTOR_SIZE) == 0);  // and nothing remaining
     HASSERT(file_size <= (SECTOR_SIZE >> 1));  // single block fit all the data
     HASSERT(file_size <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
     HASSERT(BLOCK_SIZE >= 4); // we don't support block sizes less than 4 bytes
@@ -377,4 +378,3 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
 
     return false;
 }
-
