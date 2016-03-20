@@ -238,14 +238,14 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
                             (MAGIC_COUNT * (BLOCK_SIZE / sizeof(uint32_t)));
 
         /* move any existing data over */
-        for (unsigned int i = 0; i < (file_size() / BYTES_PER_BLOCK); ++i)
+        for (unsigned int block = 0; block < (file_size() / BYTES_PER_BLOCK); ++block)
         {
             uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
-            if (i == index)
+            if (block == index)
             {
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    slot_data[i] = (index << 16) | 
+                    slot_data[i] = (index << 16) |
                                    (data[(i * 2) + 1] << 8) |
                                    (data[(i * 2) + 0] << 0);
                 }
@@ -254,14 +254,14 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
             {
                 /* this is old data we need to move over */
                 uint8_t read_data[BYTES_PER_BLOCK];
-                if (!read_block(i, read_data))
+                if (!read_block(block, read_data))
                 {
                     /* nothing to write, this is the default "erased" value */
                     continue;
                 }
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    slot_data[i] = (index << 16) | 
+                    slot_data[i] = (block << 16) |
                                    (read_data[(i * 2) + 1] << 8) |
                                    (read_data[(i * 2) + 0] << 0);
                 }
