@@ -210,7 +210,7 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
         for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
         {
-            slot_data[i] = (index << 16) | 
+            slot_data[i] = (index << 16) |
                            (data[(i * 2) + 1] << 8) |
                            (data[(i * 2) + 0] << 0);
         }
@@ -292,51 +292,55 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
     if (shadow_in_ram)
     {
         memcpy(buf, shadow + index, len);
+        return;
     }
-    else
+
+    uint8_t *byte_data = (uint8_t *)buf;
+    memset(byte_data, 0xff, len); // default if data not found
+
+    for (uint32_t *address = slot_first(active());
+         address <= slot_last(active());
+         address += (BLOCK_SIZE / sizeof(uint32_t)))
     {
-        uint8_t* byte_data = (uint8_t*)buf;
-
-        while (len)
-        {
-            /* get the least significant address bits */
-            unsigned int lsa = index & (BYTES_PER_BLOCK - 1);
-            if (lsa)
-            {
-                /* head, (unaligned) address */
-                uint8_t data[BYTES_PER_BLOCK];
-                size_t read_size = len < (BYTES_PER_BLOCK - lsa) ?
-                                   len : (BYTES_PER_BLOCK - lsa);
-
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data + lsa, read_size);
-
-                index     += read_size;
-                len       -= read_size;
-                byte_data += read_size;
-            }
-            else if (len < BYTES_PER_BLOCK)
-            {
-                /* tail, (unaligned) address */
-                uint8_t data[BYTES_PER_BLOCK];
-
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data, len);
-
-                len = 0;
-            }
-            else
-            {
-                /* aligned data */
-                uint8_t data[BYTES_PER_BLOCK];
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data, BYTES_PER_BLOCK);
-
-                index     += BYTES_PER_BLOCK;
-                len       -= BYTES_PER_BLOCK;
-                byte_data += BYTES_PER_BLOCK;
-            }
+        if (*address == MAGIC_ERASED) break;
+        unsigned slot_index = (address[0] >> 16) * BYTES_PER_BLOCK;
+        LOG(VERBOSE, "Testing address %p slot_index %u index %u", address, slot_index, index);
+        // Check if slot overlaps with desired data.
+        if (index + len <= slot_index) {
+            LOG(VERBOSE, "Skipped due to early miss");
+            continue;
         }
+        if (slot_index + BYTES_PER_BLOCK <= index) {
+            LOG(VERBOSE, "Skipped due to late miss");
+            continue;
+        }
+        // Reads the block
+        uint8_t data[BYTES_PER_BLOCK];
+        for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
+        {
+            data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;
+            data[(i * 2) + 1] = (address[i] >> 8) & 0xFF;
+        }
+        LOG(VERBOSE, "Read data from address %p", address);
+        // Copies the right part into the output buffer.
+        unsigned slotofs, bufofs;
+        if (slot_index < index)
+        {
+            slotofs = index - slot_index;
+            bufofs = 0;
+        }
+        else
+        {
+            slotofs = 0;
+            bufofs = slot_index - index;
+        }
+        unsigned copylen = BYTES_PER_BLOCK - slotofs;
+        if (slot_index + BYTES_PER_BLOCK > index + len)
+        {
+            HASSERT(copylen >= (slot_index + BYTES_PER_BLOCK) - (index + len));
+            copylen -= (slot_index + BYTES_PER_BLOCK) - (index + len);
+        }
+        memcpy(byte_data + bufofs, data + slotofs, copylen);
     }
 }
 
@@ -367,8 +371,8 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
                 /* found the data */
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    data[(i * 2) + 0] = (address[i] >> 0) & 0xFF; 
-                    data[(i * 2) + 1] = (address[i] >> 8) & 0xFF; 
+                    data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;
+                    data[(i * 2) + 1] = (address[i] >> 8) & 0xFF;
                 }
                 return true;
             }
