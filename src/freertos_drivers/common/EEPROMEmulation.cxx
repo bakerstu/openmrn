@@ -302,16 +302,16 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
          address <= slot_last(active());
          address += (BLOCK_SIZE / sizeof(uint32_t)))
     {
-        if (*address == MAGIC_ERASED) break;
+        if (*address == MAGIC_ERASED)
+            break;
         unsigned slot_index = (address[0] >> 16) * BYTES_PER_BLOCK;
-        LOG(VERBOSE, "Testing address %p slot_index %u index %u", address, slot_index, index);
         // Check if slot overlaps with desired data.
-        if (index + len <= slot_index) {
-            LOG(VERBOSE, "Skipped due to early miss");
+        if (index + len <= slot_index)
+        {
             continue;
         }
-        if (slot_index + BYTES_PER_BLOCK <= index) {
-            LOG(VERBOSE, "Skipped due to late miss");
+        if (slot_index + BYTES_PER_BLOCK <= index)
+        {
             continue;
         }
         // Reads the block
@@ -321,7 +321,6 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
             data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;
             data[(i * 2) + 1] = (address[i] >> 8) & 0xFF;
         }
-        LOG(VERBOSE, "Read data from address %p", address);
         // Copies the right part into the output buffer.
         unsigned slotofs, bufofs;
         if (slot_index < index)
