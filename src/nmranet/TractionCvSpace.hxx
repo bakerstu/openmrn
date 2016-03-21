@@ -86,7 +86,7 @@ private:
 
     address_t max_address() OVERRIDE
     {
-        return MAX_CV;
+        return OFFSET_CV_VALUE;
     }
 
     size_t write(address_t destination, const uint8_t *data, size_t len,

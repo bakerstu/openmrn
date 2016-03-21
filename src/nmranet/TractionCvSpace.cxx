@@ -121,7 +121,8 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
             *error = Defs::ERROR_TEMPORARY;
             return 0;
         }
-        source = lastIndexedCv_;
+        // Translate from user-visible CV to wire protocol CV.
+        source = lastIndexedCv_ - 1;
         // fall through to regular processing
     }
     LOG(INFO, "cv read %" PRId32, source);
@@ -137,7 +138,7 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
             errorCode_ = ERROR_NOOP;
             return 1;
         } else if (errorCode_ == _ERROR_TIMEOUT) {
-            *error = Defs::ERROR_TEMPORARY;
+            *error = Defs::ERROR_OPENLCB_TIMEOUT;
             errorCode_ = ERROR_NOOP;
             return 0;
         }
@@ -230,7 +231,8 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
             *error = Defs::ERROR_TEMPORARY;
             return 0;
         }
-        destination = lastIndexedCv_;
+        // Translate from user-visible CV to wire protocol CV.
+        destination = lastIndexedCv_ - 1;
         // fall through to regular processing
     }
     LOG(INFO, "cv write %" PRIu32 " := %d", destination, *src);
