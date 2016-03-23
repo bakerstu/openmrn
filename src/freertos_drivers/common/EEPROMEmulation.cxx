@@ -35,7 +35,6 @@
 
 #include <cstring>
 
-const bool __attribute__((weak)) EEPROMEmulation::SHADOW_IN_RAM = false;
 const size_t EEPROMEmulation::HEADER_BLOCK_COUNT = 3;
 
 const uint32_t EEPROMEmulation::MAGIC_DIRTY = 0xaa55aa55;
@@ -50,12 +49,13 @@ const uint32_t EEPROMEmulation::MAGIC_ERASED = 0xFFFFFFFF;
 EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     : EEPROM(name, file_size)
     , shadow_in_ram(false)
-    , shadow(NULL)
+    , shadow(nullptr)
     , activeIndex(0)
     , available(0)
 {
     /* make sure we have an appropriate sized region of memory for our device */
     HASSERT(FLASH_SIZE >= (2 * SECTOR_SIZE));  // at least two of them
+    HASSERT((FLASH_SIZE % SECTOR_SIZE) == 0);  // and nothing remaining
     HASSERT(file_size <= (SECTOR_SIZE >> 1));  // single block fit all the data
     HASSERT(file_size <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
     HASSERT(BLOCK_SIZE >= 4); // we don't support block sizes less than 4 bytes
@@ -210,7 +210,7 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
         uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
         for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
         {
-            slot_data[i] = (index << 16) | 
+            slot_data[i] = (index << 16) |
                            (data[(i * 2) + 1] << 8) |
                            (data[(i * 2) + 0] << 0);
         }
@@ -238,14 +238,14 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
                             (MAGIC_COUNT * (BLOCK_SIZE / sizeof(uint32_t)));
 
         /* move any existing data over */
-        for (unsigned int i = 0; i < (file_size() / BYTES_PER_BLOCK); ++i)
+        for (unsigned int block = 0; block < (file_size() / BYTES_PER_BLOCK); ++block)
         {
             uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
-            if (i == index)
+            if (block == index)
             {
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    slot_data[i] = (index << 16) | 
+                    slot_data[i] = (index << 16) |
                                    (data[(i * 2) + 1] << 8) |
                                    (data[(i * 2) + 0] << 0);
                 }
@@ -254,14 +254,14 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
             {
                 /* this is old data we need to move over */
                 uint8_t read_data[BYTES_PER_BLOCK];
-                if (!read_block(i, read_data))
+                if (!read_block(block, read_data))
                 {
                     /* nothing to write, this is the default "erased" value */
                     continue;
                 }
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    slot_data[i] = (index << 16) | 
+                    slot_data[i] = (block << 16) |
                                    (read_data[(i * 2) + 1] << 8) |
                                    (read_data[(i * 2) + 0] << 0);
                 }
@@ -292,51 +292,54 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
     if (shadow_in_ram)
     {
         memcpy(buf, shadow + index, len);
+        return;
     }
-    else
+
+    uint8_t *byte_data = (uint8_t *)buf;
+    memset(byte_data, 0xff, len); // default if data not found
+
+    for (uint32_t *address = slot_first(active());
+         address <= slot_last(active());
+         address += (BLOCK_SIZE / sizeof(uint32_t)))
     {
-        uint8_t* byte_data = (uint8_t*)buf;
-
-        while (len)
+        if (*address == MAGIC_ERASED)
+            break;
+        unsigned slot_index = (address[0] >> 16) * BYTES_PER_BLOCK;
+        // Check if slot overlaps with desired data.
+        if (index + len <= slot_index)
         {
-            /* get the least significant address bits */
-            unsigned int lsa = index & (BYTES_PER_BLOCK - 1);
-            if (lsa)
-            {
-                /* head, (unaligned) address */
-                uint8_t data[BYTES_PER_BLOCK];
-                size_t read_size = len < (BYTES_PER_BLOCK - lsa) ?
-                                   len : (BYTES_PER_BLOCK - lsa);
-
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data + lsa, read_size);
-
-                index     += read_size;
-                len       -= read_size;
-                byte_data += read_size;
-            }
-            else if (len < BYTES_PER_BLOCK)
-            {
-                /* tail, (unaligned) address */
-                uint8_t data[BYTES_PER_BLOCK];
-
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data, len);
-
-                len = 0;
-            }
-            else
-            {
-                /* aligned data */
-                uint8_t data[BYTES_PER_BLOCK];
-                read_block(index / BYTES_PER_BLOCK, data);
-                memcpy(byte_data, data, BYTES_PER_BLOCK);
-
-                index     += BYTES_PER_BLOCK;
-                len       -= BYTES_PER_BLOCK;
-                byte_data += BYTES_PER_BLOCK;
-            }
+            continue;
         }
+        if (slot_index + BYTES_PER_BLOCK <= index)
+        {
+            continue;
+        }
+        // Reads the block
+        uint8_t data[BYTES_PER_BLOCK];
+        for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
+        {
+            data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;
+            data[(i * 2) + 1] = (address[i] >> 8) & 0xFF;
+        }
+        // Copies the right part into the output buffer.
+        unsigned slotofs, bufofs;
+        if (slot_index < index)
+        {
+            slotofs = index - slot_index;
+            bufofs = 0;
+        }
+        else
+        {
+            slotofs = 0;
+            bufofs = slot_index - index;
+        }
+        unsigned copylen = BYTES_PER_BLOCK - slotofs;
+        if (slot_index + BYTES_PER_BLOCK > index + len)
+        {
+            HASSERT(copylen >= (slot_index + BYTES_PER_BLOCK) - (index + len));
+            copylen -= (slot_index + BYTES_PER_BLOCK) - (index + len);
+        }
+        memcpy(byte_data + bufofs, data + slotofs, copylen);
     }
 }
 
@@ -367,8 +370,8 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
                 /* found the data */
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    data[(i * 2) + 0] = (address[i] >> 0) & 0xFF; 
-                    data[(i * 2) + 1] = (address[i] >> 8) & 0xFF; 
+                    data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;
+                    data[(i * 2) + 1] = (address[i] >> 8) & 0xFF;
                 }
                 return true;
             }
@@ -377,4 +380,3 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
 
     return false;
 }
-
