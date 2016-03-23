@@ -49,7 +49,12 @@
  */
 ssize_t Socket::read(File *file, void *buf, size_t count)
 {
-    return ::recv(fd_lookup(file), buf, count, 0);
+    ssize_t result = ::recv(fd_lookup(file), buf, count, 0);
+    if (result < 0)
+    {
+        return -errno;
+    }
+    return result;
 }
 
 /** Write to a file or device.
@@ -61,7 +66,12 @@ ssize_t Socket::read(File *file, void *buf, size_t count)
  */
 ssize_t Socket::write(File *file, const void *buf, size_t count)
 {
-    return ::send(fd_lookup(file), buf, count, 0);
+    ssize_t result = ::send(fd_lookup(file), buf, count, 0);
+    if (result < 0)
+    {
+        return -errno;
+    }
+    return result;
 }
 
 /** Request an ioctl transaction

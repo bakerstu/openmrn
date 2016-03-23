@@ -69,7 +69,7 @@ Console::Console(bool stdio, int port)
     }
 
     add_command("quit", quit_command, this);
-    start("console", 0, 1024);
+    start("console", 0, 2048);
 }
 
 /** Open and initialize a new session.
@@ -77,7 +77,7 @@ Console::Console(bool stdio, int port)
  */
 void Console::open_session(int fd)
 {
-    fcntl(0, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(fd, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
     Session *new_session = new Session(fd);
 
     if (first == NULL)
@@ -405,7 +405,7 @@ void *Console::entry()
             printf("select failed: %s\n", strerror(errno));
             abort();
         }
-        for (int i = 0; i <= fdHighest && result > 0; i++)
+        for (int i = 0; i <= fdHighest && result > 0; ++i)
         {
             if (FD_ISSET(i, &rfds))
             {
@@ -421,7 +421,7 @@ void *Console::entry()
                         abort();
                     }
 
-                    int yes   = 1;
+                    int yes = 1;
                     result = setsockopt(newfd, IPPROTO_TCP,
                                         TCP_NODELAY, &yes, sizeof(int));
                     if (result != 0)
@@ -438,8 +438,12 @@ void *Console::entry()
                     /* handle an existing connection */
                     char c;
                     ssize_t result = read(i, &c, 1);
-                    if (result == 0)
+                    if (result <= 0)
                     {
+                        if (result < 0 && (errno == EAGAIN || errno == EINTR))
+                        {
+                            continue;
+                        }
                         close_session(get_session(i));
                     }
                     else

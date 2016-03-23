@@ -647,6 +647,9 @@ void main_thread(void *arg)
     taskList.next->next = NULL;
 #endif
 
+    /* Allow any library threads to run that must run ahead of main */
+    taskYIELD();
+
     appl_main(1, argv);
     // If the main thread returns, FreeRTOS usually crashes the CPU in a
     // hard-to-debug state. Let's avoid that.

@@ -34,6 +34,8 @@
 #include "CC32xxWiFi.hxx"
 #include "CC32xxSocket.hxx"
 
+#include <unistd.h>
+
 // Simplelink includes 
 #include "simplelink.h"
 
@@ -74,7 +76,7 @@ void CC32xxWiFi::start()
     //int result = sl_start(0, 0, 0);
     //HASSERT(result >= 0);
     osi_TaskCreate(wlan_task_entry, (const signed char*)"Wlan Task", 2048,
-                   NULL, 1, NULL);
+                   NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
 /*
@@ -89,9 +91,26 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     sec_params.Type = security_type;
 
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0, &sec_params, 0);
-    HASSERT(result != 0);
+    HASSERT(result >= 0);
 
-    //while (
+    while (!connected && !ipAquired)
+    {
+        usleep(10000);
+    }
+}
+
+/*
+ * CC32xxWiFi::set_default_state()
+ */
+void CC32xxWiFi::set_default_state()
+{
+    long result = sl_Start(0, 0, 0);
+    if (result != ROLE_STA)
+    {
+        sl_WlanSetMode(ROLE_STA);
+        sl_Stop(0xFF);
+        sl_Start(0, 0, 0);
+    }
 }
 
 /*
@@ -99,9 +118,13 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
  */
 void CC32xxWiFi::wlan_task()
 {
-    int result = sl_Start(0, 0, 0);
+    int result;
+    set_default_state();
 
-    HASSERT(result == ROLE_STA);
+    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+
+    /* adjust to a lower priority task */
+    vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
 
     SlSockAddrIn_t address;
 
@@ -121,8 +144,8 @@ void CC32xxWiFi::wlan_task()
     for ( ; /* forever */ ; )
     {
         SlFdSet_t rfds_tmp = rfds;
-        SlFdSet_t wfds_tmp = rfds;
-        SlFdSet_t efds_tmp = rfds;
+        SlFdSet_t wfds_tmp = wfds;
+        SlFdSet_t efds_tmp = efds;
         result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, NULL);
 
         if (result < 0)
@@ -130,12 +153,12 @@ void CC32xxWiFi::wlan_task()
             continue;
         }
 
-        for (int i = 0x1F; i >= 0 && result >= 0; --i)
+        for (int i = 0x1F; i >= 0 && result > 0; --i)
         {
             if (SL_FD_ISSET(i, &rfds_tmp))
             {
                 --result;
-                if (i == wakeup)
+                if ((i & BSD_SOCKET_ID_MASK) == wakeup)
                 {
                     /* this is the socket we use as a signal */
                     int16_t data;
@@ -163,8 +186,8 @@ void CC32xxWiFi::wlan_task()
                     /* standard application level socket */
                     SL_FD_CLR(i, &rfds);
                     CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(i);
-                    s->writeActive = false;
-                    s->select_wakeup(&s->selInfoWr);
+                    s->readActive = true;
+                    s->select_wakeup(&s->selInfoRd);
                 }
             }
             if (SL_FD_ISSET(i, &wfds_tmp))
@@ -172,7 +195,7 @@ void CC32xxWiFi::wlan_task()
                 --result;
                 SL_FD_CLR(i, &wfds);
                 CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(i);
-                s->writeActive = false;
+                s->writeActive = true;
                 s->select_wakeup(&s->selInfoWr);
             }
             if (SL_FD_ISSET(i, &efds_tmp))
@@ -191,14 +214,16 @@ void CC32xxWiFi::wlan_task()
  */
 void CC32xxWiFi::select_wakeup(int16_t data)
 {
-    HASSERT(wakeup >= 0);
-    SlSockAddrIn_t address;
-    SlSocklen_t length = sizeof(SlSockAddr_t);
-    address.sin_family = SL_AF_INET;
-    address.sin_port = sl_Htons(8000);
-    address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
+    if (wakeup >= 0)
+    {
+        SlSockAddrIn_t address;
+        SlSocklen_t length = sizeof(SlSockAddr_t);
+        address.sin_family = SL_AF_INET;
+        address.sin_port = sl_Htons(8000);
+        address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
 
-    sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+        sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+    }
 }
 
 /*

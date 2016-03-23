@@ -37,6 +37,8 @@
 
 #include "os/os.h"
 #include "utils/blinker.h"
+#include "console/Console.hxx"
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -46,6 +48,10 @@
 int appl_main(int argc, char *argv[])
 {
     setblink(0);
+
+#if defined (TARGET_IS_CC3200)
+    new Console(false, 2121);
+#endif
     while (1)
     {
         resetblink(1);

@@ -50,12 +50,18 @@ static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
 int CC32xxSocket::socket(int domain, int type, int protocol)
 {
     CC32xxSocket *new_socket = new CC32xxSocket();
+    if (new_socket == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
 
     mutex.lock();
     int fd = fd_alloc();
     mutex.unlock();
     if (fd < 0)
     {
+        delete new_socket;
         errno = EMFILE;
         return -1;
     }
@@ -99,13 +105,13 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
         case 0:
             break;
         case IPPROTO_TCP:
-            type = SL_IPPROTO_TCP;
+            protocol = SL_IPPROTO_TCP;
             break;
         case IPPROTO_UDP:
-            type = SL_IPPROTO_UDP;
+            protocol = SL_IPPROTO_UDP;
             break;
         case IPPROTO_RAW:
-            type = SL_IPPROTO_RAW;
+            protocol = SL_IPPROTO_RAW;
             break;
         default:
             fd_free(fd);
@@ -245,6 +251,9 @@ int CC32xxSocket::listen(int socket, int backlog)
         }
         return -1;
     }
+
+    s->readActive = false;
+    s->listenActive = true;
     return result;  
 }
 
@@ -265,6 +274,12 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     if (!S_ISSOCK(s->mode_))
     {
         errno = ENOTSOCK;
+        return -1;
+    }
+
+    if (!s->listenActive)
+    {
+        errno = EINVAL;
         return -1;
     }
 
@@ -294,7 +309,48 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
         }
         return -1;
     }
-    return result;  
+
+    CC32xxSocket *new_socket = new CC32xxSocket();
+    if (new_socket == nullptr)
+    {
+        sl_Close(result);
+        errno = ENOMEM;
+        return -1;
+    }
+
+    mutex.lock();
+    int fd = fd_alloc();
+    mutex.unlock();
+    if (fd < 0)
+    {
+        sl_Close(result);
+        delete new_socket;
+        errno = EMFILE;
+        return -1;
+    }
+
+    File *file = file_lookup(fd);
+
+    file->dev = new_socket;
+    file->flags = O_RDWR;
+    file->priv = new_socket;
+
+    new_socket->sd = result;
+    new_socket->references_ = 1;
+
+    portENTER_CRITICAL();
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (cc32xxSockets[i] == NULL)
+        {
+            cc32xxSockets[i] = new_socket;
+            break;
+        }
+    }
+    s->readActive = false;
+    portEXIT_CRITICAL();
+
+    return fd;  
 }
 
 /*
@@ -381,6 +437,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
                 /* fall through */
             case SL_EAGAIN:
                 errno = EAGAIN;
+                s->readActive = false;
                 break;
         }
         return -1;
@@ -480,6 +537,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     result = 0;
                     break;
             }
+            break;
         case IPPROTO_TCP:
             switch (option_name)
             {
@@ -491,6 +549,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     result = 0;
                     break;
             }
+            break;
     }
                     
     if (result < 0)
@@ -553,6 +612,7 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     break;
                 }
             }
+            break;
         case IPPROTO_TCP:
             switch (option_name)
             {
@@ -571,6 +631,7 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     break;
                 }
             }
+            break;
     }
                     
     if (result < 0)
@@ -593,11 +654,6 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
 int CC32xxSocket::close(File *file)
 {
     CC32xxSocket *s = static_cast<CC32xxSocket *>(file->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
-    }
 
     mutex.lock();
     if (--references_ == 0)
@@ -632,26 +688,29 @@ bool CC32xxSocket::select(File* file, int mode)
             if (readActive)
             {
                 retval = true;
+                portEXIT_CRITICAL();
             }
             else
             {
                 select_insert(&selInfoRd);
+                portEXIT_CRITICAL();
                 CC32xxWiFi::instance()->fd_set_read(s->sd);
             }
-            portEXIT_CRITICAL();
             break;
         case FWRITE:
             portENTER_CRITICAL();
+            HASSERT(listenActive == false);
             if (writeActive)
             {
                 retval = true;
+                portEXIT_CRITICAL();
             }
             else
             {
                 select_insert(&selInfoWr);
-                CC32xxWiFi::instance()->fd_set_read(s->sd);
+                portEXIT_CRITICAL();
+                CC32xxWiFi::instance()->fd_set_write(s->sd);
             }
-            portEXIT_CRITICAL();
             break;
         default:
         case 0:
@@ -710,21 +769,15 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
             return -EINVAL;  
         }  
         case F_SETFL:
-            /* on this platform, we ignore O_ASYNC, O_DIRECT, and O_NOATIME */
-            if (((data & O_NONBLOCK) && !(file->flags & O_NONBLOCK)) ||
-                (!(data & O_NONBLOCK) && (file->flags & O_NONBLOCK)))
-            {
-                SlSockNonblocking_t sl_option_value;
-                sl_option_value.NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
-                int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
-                                           SL_SO_NONBLOCKING, &sl_option_value,
-                                           sizeof(sl_option_value));
-                HASSERT(result == 0);
-            }
-            data &= (O_APPEND | O_NONBLOCK);
-            file->flags &= ~(O_APPEND | O_NONBLOCK);
-            file->flags |= data;
+        {
+            SlSockNonblocking_t sl_option_value;
+            sl_option_value.NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
+            int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
+                                       SL_SO_NONBLOCKING, &sl_option_value,
+                                       sizeof(sl_option_value));
+            HASSERT(result == 0);
             return 0;
+        }
     }
 }
 

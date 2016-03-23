@@ -104,17 +104,20 @@ int Device::open(struct _reent *reent, const char *path, int flags, int mode)
     files[fd].flags = flags;
     for (Device *dev = first; dev != NULL; dev = dev->next)
     {
-        if (!strcmp(dev->name, path))
+        if (dev->name)
         {
-            files[fd].dev = dev;
-            int result = dev->open(&files[fd], path, flags, mode);
-            if (result < 0)
+            if (!strcmp(dev->name, path))
             {
-                fd_free(fd);
-                errno = -result;
-                return -1;
+                files[fd].dev = dev;
+                int result = dev->open(&files[fd], path, flags, mode);
+                if (result < 0)
+                {
+                    fd_free(fd);
+                    errno = -result;
+                    return -1;
+                }
+                return fd;
             }
-            return fd;
         }
     }
     // No device found.

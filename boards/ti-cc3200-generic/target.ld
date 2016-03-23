@@ -44,6 +44,11 @@ SECTIONS
         __section_table_end = . ;
         /* End of Global Section Table */
 
+        *(SORT(.text*))
+        *(.rodata)
+        *(SORT(.rodata*))
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+
         /* C++ constructors etc */
         . = ALIGN(4);
         KEEP(*(.init))
@@ -74,9 +79,6 @@ SECTIONS
         KEEP (*crtend.o(.dtors))
         /* End C++ */
 
-        *(.text*)
-        *(.rodata*)
-        *(.ARM.extab* .gnu.linkonce.armextab.*)
         __text_section_guard = .;
         LONG(0);
     } > RAM

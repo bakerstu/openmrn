@@ -205,7 +205,7 @@ void hw_preinit(void)
  */
 void hw_init(void)
 {
-    //wifi.instance()->start();
+    wifi.instance()->start();
 }
 
 } /* extern "C" */

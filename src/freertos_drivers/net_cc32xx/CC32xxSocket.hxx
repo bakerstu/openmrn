@@ -190,6 +190,7 @@ private:
         , sd(-1)
         , readActive(true)
         , writeActive(true)
+        , listenActive(false)
     {
     }    
 
@@ -222,6 +223,9 @@ private:
     /** indicates our "best guess" at current socket's write active status
      */
     bool writeActive;
+
+    /** This is a listen socket */
+    bool listenActive;
 
     /** allow access to private members from CC32xxWiFi */
     friend class CC32xxWiFi;

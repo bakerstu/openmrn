@@ -102,6 +102,10 @@ public:
     void sock_event_handler(void *context);
 
 private:
+    /** Set the CC32xx to its default state, including station mode.
+     */
+    void set_default_state();
+
     /** Thread that will manage the WLAN connection.
      * @param context context passed into the stack.
      */
