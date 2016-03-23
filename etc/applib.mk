@@ -74,7 +74,7 @@ all: $(LIBNAME)
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
-	ln -sf -t ../lib ../$(BASENAME)/$(LIBNAME)
+	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) . )
 	touch ../lib/timestamp
 
 
