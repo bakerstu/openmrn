@@ -151,13 +151,14 @@ TEST_F(TractionCvTest, IndirectWrite)
     send_packet(":X1B272883N2000FF000000EF00;");
     expect_packet(":X19A28272N088380;");
     expect_packet(":X1A883272N2010FF000000EF;");
-    send_packet(":X1D272883N000037;");
+    send_packet(":X1D272883N000038;"); // note we write CV 38 ...
     wait();
     send_packet(":X19A28883N027200;");
 
     EXPECT_CALL(
+        // ... to get wire 37
         track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11101100, 0x37, 0x5A),
-                       expected_feedback_key()))
+                          expected_feedback_key()))
         .Times(1);
 
     expect_packet(":X19A28272N088380;");
@@ -178,12 +179,14 @@ TEST_F(TractionCvTest, IndirectRead)
     send_packet(":X1B272883N2000FF000000EF00;");
     expect_packet(":X19A28272N088380;");
     expect_packet(":X1A883272N2010FF000000EF;");
-    send_packet(":X1D272883N000037;");
+    // note we read cv 38 ...
+    send_packet(":X1D272883N000038;");
     wait();
     send_packet(":X19A28883N027200;");
 
     // Send read
     expect_packet(":X19A28272N088380;");
+    // ... to get wire 37
     EXPECT_CALL(track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11100100, 0x37, 0),
                                   expected_feedback_key())).Times(1);
     send_packet(":X1A272883N2040FF000004EF01;");
