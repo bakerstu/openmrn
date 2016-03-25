@@ -111,6 +111,7 @@ public:
     bool add_consist(NodeID tgt)
     {
         if (!tgt) return false;
+        if (tgt == node_id()) return false;
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
             if (it->slave == tgt)

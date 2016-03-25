@@ -103,8 +103,11 @@ protected:
         wait();
     }
 
+    static const NodeID kTrainNodeID = 0x060100003456U;
     std::unique_ptr<TrainNode> trainNode_;
 };
+
+const NodeID TractionSingleMockTest::kTrainNodeID;
 
 TEST_F(TractionSingleMockTest, SetSpeed)
 {
@@ -336,6 +339,13 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_TRUE(trainNode_->remove_consist(n1));
     EXPECT_EQ(0, trainNode_->query_consist_length());
     EXPECT_FALSE(trainNode_->query_consist(0));
+}
+
+TEST_F(TractionSingleMockTest, ConsistSelf)
+{
+    EXPECT_EQ(kTrainNodeID, trainNode_->node_id());    
+    EXPECT_FALSE(trainNode_->add_consist(kTrainNodeID));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
 }
 
 TEST_F(TractionSingleMockTest, RemoteConsisting)
