@@ -9,3 +9,14 @@ CXXSRCS += TivaCan.cxx \
            TivaUsbCdcDevice.cxx \
            TivaFlash.cxx \
            TivaEEPROMEmulation.cxx \
+
+
+ifeq ($FREERTOSTCPPATH,BOARD_LAUNCHPAD_EK)
+
+include $(OPENMRNPATH)/etc/freertos_tcp.mk
+
+CXXSRCS += Tiva1294Ethernet.cxx
+
+DEPS += FREERTOSTCPPATH
+
+endif

@@ -1,0 +1,16 @@
+VPATH := $(FREERTOSTCPPATH)/: \
+         $(FREERTOSTCPPATH)/portable/CompilerGCC/: \
+         $(FREERTOSTCPPATH)/portable/BufferManagement/
+         
+CSRCS += FreeRTOS_ARP.c \
+	 FreeRTOS_DHCP.c \
+	 FreeRTOS_DNS.c \
+	 FreeRTOS_IP.c \
+	 FreeROTS_Sockets.c \
+	 FreeRTOS_StreamBuffer.c \
+	 FreeRTOS_TCP_IP.c \
+	 FreeRTOS_TCP_WIN.c \
+	 FreeERTOS_UDP_IP.c \
+	 BufferAllocation_1.c
+
+CXXSRCS +=

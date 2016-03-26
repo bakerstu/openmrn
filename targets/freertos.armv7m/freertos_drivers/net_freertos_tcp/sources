@@ -1,0 +1,12 @@
+include $(OPENMRNPATH)/etc/freertos_tcp.mk
+DEPS += FREERTOSTCPPATH
+
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/net_freertos_tcp
+
+INCLUDES += -I$(FREERTOSTCPPATH)/include \
+            -I$(FREERTOSTCPPATH)/ \
+            -I$(FREERTOSTCPPATH)/portable/BufferManagement \
+            -I$(FREERTOSTCPPATH)/portable/Compiler/GCC 
+ 
+CXXSRCS += FreeRTOSTCP.cxx \
+           FreeRTOSTCPSocket.cxx

@@ -20,7 +20,6 @@ LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
 # Find FreeRTOSTCP
 include $(OPENMRNPATH)/etc/freertos_tcp.mk
 
-
 SYSLIBRARIESEXTRA = -lusb -ldriver -lfreertos_drivers_freertos_tcp -lfreertos_drivers_net_freertos_tcp
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
@@ -29,6 +28,8 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUsbCdcDevice.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaFlash.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaEEPROMEmulation.o \
+	   $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva1294Ethernet.o \
+
 
 
 CXXFLAGSEXTRA += -DPART_TM4C1294NCPDT

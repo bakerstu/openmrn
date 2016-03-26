@@ -343,6 +343,4 @@ void cpuload_tick(void);
 
 #endif
 
-
-
 #endif /* FREERTOS_CONFIG_H */

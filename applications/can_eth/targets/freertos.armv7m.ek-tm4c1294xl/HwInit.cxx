@@ -80,6 +80,7 @@ const size_t EEPROMEmulation::SECTOR_SIZE = (1024 * 16);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 1024);
 
+/** FreeRTOS TCPIP instance */
 static FreeRTOSTCP tcpip;
 
 extern "C" {
@@ -166,6 +167,7 @@ void hw_preinit(void)
 
 void hw_init()
 {
+    // Start the FreeRTOS TCPIP processes
     tcpip.start();
 }
 

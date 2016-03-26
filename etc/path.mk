@@ -175,6 +175,20 @@ FREERTOSPATH:=$(TRYPATH)
 endif
 endif #FREERTOSPATH
 
+################### FreeRTOS+TCP ################
+ifndef FREERTOSTCPPATH
+SEARCHPATH := \
+  /opt/FreeRTOSPlus/TCP \
+  /opt/FreeRTOSPlus/default/TCP \
+  $(HOME)/FreeRTOSPlus/Source/FreeRTOS-Plus-TCP \
+  /d/FreeRTOSPlus/default/TCP
+
+TRYPATH:=$(call findfirst,include,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+FREERTOSTCPPATH:=$(TRYPATH)
+endif
+endif #FREERTOSTCPPATH
+
 ################# lpcxpresso ####################
 ifndef LPCXPRESSOPATH
 SEARCHPATH := \

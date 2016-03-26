@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2016, Sidney McHarg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
+ * \file Tiva1294Ethernegt.hxx
+ * This file provides the network layer interface to the FreeRTOSPlus TCP stack.
  *
- * An application that blinks an LED.
  *
- * @author Balazs Racz
- * @date 3 Aug 2013
+ * @author Sidney McHarg
+ * @date 23 March 2016
  */
 
-#include <stdio.h>
-#include <unistd.h>
+#ifndef TIVA1294ETHERNET_HXX_
+#define TIVA1294ETHERNET_HXX_
 
-#include "os/os.h"
-#include "utils/blinker.h"
-#include "console/Console.hxx"
+//#define STATIC_BUFFERS
 
-#if defined (TARGET_IS_CC3200) || defined (__linux__) || defined(PART_TM4C1294NCPDT)
-Executor<1> executor("executor", 0, 2048);
-#endif
-
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
-{
-    setblink(0);
-
-#if defined (TARGET_IS_CC3200) || defined (__linux__) || defined(PART_TM4C1294NCPDT)
-    new Console(&executor, false, 2121);
-#endif
-    while (1)
-    {
-        resetblink(1);
-        usleep(500000);
-        resetblink(0);
-        usleep(500000);
-    }
-    return 0;
-}
+#endif /* TIVA1294ETHERNET_HXX_ */
