@@ -75,7 +75,7 @@ public:
     ~TractionCvSpace();
 
 private:
-    static const unsigned MAX_CV = 255;
+    static const unsigned MAX_CV = 1023;
 
     bool set_node(Node *node) OVERRIDE;
 
