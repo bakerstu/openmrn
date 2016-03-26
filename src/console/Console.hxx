@@ -37,7 +37,13 @@
 #include <sys/select.h>
 #include <cstdio>
 
-#include "os/OS.hxx"
+#include "executor/Service.hxx"
+#include "executor/StateFlow.hxx"
+
+#if defined (__FreeRTOS__) && !defined (GCC_ARMCM3)
+#else
+#define CONSOLE_NETWORKING
+#endif
 
 /** This class provides a console available from stdin/stdout as well as via
  * telnet.  Adding a command to the console is as simple as using the @ref
@@ -47,15 +53,17 @@
  * will still have the command name itself, but argv[1] will have an additional
  * parameter that can be used to indent and align multi-line help information.
  */
-class Console : public OSThread
+class Console : public Service
 {
 public:
     /** Constructor.
+     * @param executor the executor thread that the Console flows will execute
+     *                 on
      * @param stdio start a Console connection instance on stdio if true
      * @param port TCP port number to open a telnet listen socket on, -1 mean
      *        do not open a listen port.
      */
-    Console(bool stdio, int port = -1);
+    Console(ExecutorBase *exectutor, bool stdio, int port = -1);
 
     /** Destructor.
      */
@@ -111,37 +119,114 @@ private:
         Command *next;     /**< next Command in list */
     };
 
+#if defined (CONSOLE_NETWORKING)
+    /** State flow that will accept incoming connections.
+     */
+    class Listen : public StateFlowBase
+    {
+    public:
+        /** Constructor.
+         * @param service service instance that this listen socket belongs to
+         * @param port port number to listen on
+         */
+        Listen(Service *service, int port);
+
+    private:
+        /** Entry point to the state machine.
+         * @return next state is accept() pending an active listen socket
+         */
+        StateFlowBase::Action entry()
+        {
+            return listen_and_call(&selectHelper, fdListen, STATE(accept));
+        }
+
+        /** Accept the incoming connection.
+         * @return next state is accept() to accept the next connection
+         */
+        StateFlowBase::Action accept();
+
+        /** listen socket descriptor */
+        int fdListen;
+
+        /** metadata for waiting on the listen socket to become active */
+        StateFlowBase::StateFlowSelectHelper selectHelper;
+
+        DISALLOW_COPY_AND_ASSIGN(Listen);
+    };
+#endif
+
     /** Console session metadata.
      */
-    struct Session
+    class Session : public StateFlowBase
     {
+    public:
         /** Constructor.
+         * @param service service instance that this session belongs to
          * @param fd file descriptor for the session
          */
-        Session(int fd)
-            : fd(fd)
+        Session(Service *service, int fd)
+            : StateFlowBase(service)
+            , fd(fd)
             , fp(fdopen(fd, "r+"))
             , line((char*)malloc(64))
             , line_size(64)
             , pos(0)
-            , next(NULL)
+            , selectHelper(this)
         {
+            prompt(fp);
+            start_flow(STATE(entry));
         }
+
+        /** Desctructor.
+         */
+        ~Session()
+        {
+            fclose(fp);
+            close(fd);
+            free(line);
+        }
+
+    private:
+        /** Entry point to the state machine.
+         * @return next state is accept() pending an active listen socket
+         */
+        StateFlowBase::Action entry()
+        {
+            return read_single(&selectHelper, fd, line + pos,
+                               line_size - pos, STATE(process_read));
+        }
+
+        /** Entry point to the state machine.
+         * @return next state is accept() pending an active listen socket
+         */
+        StateFlowBase::Action process_read();
+
+        /** Print the standard prompt.
+         * @param fp FILE pointer to send prompt to
+         */
+        void prompt(FILE *fp)
+        {
+            fputs("> ", fp);
+            fflush(fp);
+        }
+
         int fd;           /**< file descriptor of session */
         FILE *fp;         /**< file pointer of session */
         char *line;       /**< current line content */
         size_t line_size; /**< current max line size */
         size_t pos;       /**< current line position */
-        Session *next;    /**< next Session in the list */
+
+        /** metadata for waiting on the listen socket to become active */
+        StateFlowBase::StateFlowSelectHelper selectHelper;
+
+        DISALLOW_COPY_AND_ASSIGN(Session);
     };
 
     Command help;     /**< the "help" command instance */
     Command helpMark; /**< the help "?" command instance */
-    Session *first;   /**< the first session in the session list */
-    int fdListen;     /**< file descriptor of the listen socket */
-    int fdHighest;    /**< highest file descriptor in the set */
-    fd_set readfds;   /**< read file descriptor set */
-
+#if defined (CONSOLE_NETWORKING)
+    Listen listen; /**< object that will listen for incoming connections */
+#endif
     /** Print out the help menu by calling the in context helper function.
      * @param fp file pointer to console
      * @param argc number of arguments including the command itself
@@ -183,35 +268,10 @@ private:
      */
     int quit_command(FILE *fp, int argc, const char *argv[]);
 
-    /** Create a listen socket.
-     * @param port port number to listen on
-     */
-    void listen_create(int port);
-
     /** Open and initialize a new session.
      * @param fd file descriptor belonging to session
      */
     void open_session(int fd);
-
-    /** Close a previously established session
-     * @param s Session to close
-     */
-    void close_session(Session *s);
-
-    /** Get the session belonging to a file descriptor.
-     * @param fd file descriptor
-     * @return session belonging to the file descriptor
-     */
-    Session *get_session(int fd);
-
-    /** Print the standard prompt.
-     * @param fp FILE pointer to send prompt to
-     */
-    void prompt(FILE *fp)
-    {
-        fputs("> ", fp);
-        fflush(fp);
-    }
 
     /** Process a potential callback for a given command
      * @param fp file pointer to console
@@ -221,16 +281,11 @@ private:
      */
     bool callback(FILE *fp, int argc, const char *argv[]);
 
-    /** Decode in incoming character.
-     * @param c character to decode
-     * @param session console session the character belongs to
-     */
-    void decode(char c, Session *s);
+    /** Give Listen class access to Console private members */
+    friend class Listen;
 
-    /** Entry point to the thread.
-     * @return should never return
-     */
-    void *entry() override;
+    /** Give Session class access to Console private members */
+    friend class Session;
 };
 
 #endif // _CONSOLE_CONSOLE_HXX_

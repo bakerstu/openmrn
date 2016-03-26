@@ -35,7 +35,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -O0 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
@@ -73,8 +73,8 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
            --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
 
-SYSLIB_SUBDIRS += console
-SYSLIBRARIES += -lconsole
+SYSLIB_SUBDIRS +=
+SYSLIBRARIES +=
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like

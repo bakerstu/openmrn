@@ -34,8 +34,8 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
 
 LDFLAGS = $(ARCHOPTIMIZATION) -pg -Wl,-Map="$(@:%=%.map)" -Wl,--undefined=ignore_fn
 
-SYSLIB_SUBDIRS += console
-SYSLIBRARIES = -lrt -lpthread -lconsole $(SYSLIBRARIESEXTRA)
+SYSLIB_SUBDIRS +=
+SYSLIBRARIES = -lrt -lpthread
 
 EXTENTION =
 

@@ -1,0 +1,82 @@
+#include "console/Console.hxx"
+
+#include "utils/test_main.hxx"
+#include "utils/socket_listener.hxx"
+
+static char buf[1024];
+
+Console g_console(&g_executor, false, 12345);
+
+TEST(ConsoleTest, testHelp)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "help\n", 5), 5);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 154);
+    EXPECT_TRUE(!strncmp(buf, "  help | ? : print out this help menu\n"
+                              "      quit : terminate the current login session, only\n"
+                              "             has an effect on socket based logins sessions\n"
+                              "> ", 154));
+
+    EXPECT_EQ(::write(s, "?\n", 5), 5);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 154);
+    EXPECT_TRUE(!strncmp(buf, "  help | ? : print out this help menu\n"
+                              "      quit : terminate the current login session, only\n"
+                              "             has an effect on socket based logins sessions\n"
+                              "> ", 154));
+
+    close(s);
+}
+
+TEST(ConsoleTest, testQuit)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "quit\n", 5), 5);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 22);
+    EXPECT_TRUE(!strncmp(buf, "shutting down session\n", 22));
+
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 0);
+
+    close(s);
+}
+
+TEST(ConsoleTest, testQuitCommandError)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "quit blagh\n", 11), 11);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 20);
+    EXPECT_TRUE(!strncmp(buf, "invalid arguments\n> ", 20));
+
+    close(s);
+}
+
+TEST(ConsoleTest, testInvalidCommand)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "blagh\n", 6), 6);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "blagh: command not found\n> ", 27));
+
+    close(s);
+}

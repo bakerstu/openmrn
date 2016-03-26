@@ -57,7 +57,7 @@
 #include "utils/JSWebsocketClient.hxx"
 #endif
 
-#ifdef BOARD_LAUNCHPAD_EK
+#if defined (BOARD_LAUNCHPAD_EK) || defined (__linux__)
 #include "console/Console.hxx"
 #endif
 
@@ -188,8 +188,10 @@ void ignore_function() {
  */
 int appl_main(int argc, char* argv[])
 {
-#ifdef BOARD_LAUNCHPAD_EK
-    new Console(true, -1);
+#if defined (BOARD_LAUNCHPAD_EK)
+    new Console(stack.executor(), true, -1);
+#elif defined (__linux__)
+    new Console(stack.executor(), true, 2121);
 #endif
 
 #if defined (__linux__) || defined (__MACH__)

@@ -21,15 +21,15 @@ SECTIONS
         FILL(0xff)
         KEEP(*(.interrupt_vector))
 
-	/* Makes place for the app header to be filled in by the bootloader
-	checksum program. */
-	. = __app_header_offset;
-	QUAD(0); /* App header: checksum for vector table. */
-	QUAD(0);
-	LONG(0); /* App header: data size */
-	QUAD(0); /* App header: checksum for payload. */
-	QUAD(0);
-        
+        /* Makes place for the app header to be filled in by the bootloader
+        checksum program. */
+        . = __app_header_offset;
+        QUAD(0); /* App header: checksum for vector table. */
+        QUAD(0);
+        LONG(0); /* App header: data size */
+        QUAD(0); /* App header: checksum for payload. */
+        QUAD(0);
+
         /* Global Section Table */
         . = ALIGN(4) ;
         __section_table_start = .;
@@ -44,47 +44,46 @@ SECTIONS
         __bss_section_table_end = .;
         __section_table_end = . ;
         /* End of Global Section Table */
-        
 
         *(.after_vectors*)
-        
+
         *(SORT(.text*))
-	*(.rodata)
+        *(.rodata)
         *(SORT(.rodata.*))
         . = ALIGN(4);
-        
+
         /* C++ constructors etc */
         . = ALIGN(4);
         KEEP(*(.init))
-        
+
         . = ALIGN(4);
         __preinit_array_start = .;
         KEEP (*(.preinit_array))
         __preinit_array_end = .;
-        
+
         . = ALIGN(4);
         __init_array_start = .;
         KEEP (*(SORT(.init_array.*)))
         KEEP (*(.init_array))
         __init_array_end = .;
-        
+
         KEEP(*(.fini));
-        
+
         . = ALIGN(4);
         KEEP (*crtbegin.o(.ctors))
         KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
         KEEP (*(SORT(.ctors.*)))
         KEEP (*crtend.o(.ctors))
-        
+
         . = ALIGN(4);
         KEEP (*crtbegin.o(.dtors))
         KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
         KEEP (*(SORT(.dtors.*)))
         KEEP (*crtend.o(.dtors))
         /* End C++ */
-	
-	__text_section_guard = .;
-	LONG( 0 );
+
+        __text_section_guard = .;
+        LONG( 0 );
     } > FLASH
 
     /*
@@ -93,21 +92,21 @@ SECTIONS
      */
     .ARM.extab : ALIGN(4)
     {
-    	*(.ARM.extab* .gnu.linkonce.armextab.*)
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
     } > FLASH
     __exidx_start = .;
-    
+
     .ARM.exidx : ALIGN(4)
     {
-    	*(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
     } > FLASH
     __exidx_end = .;
-    
+
     _etext = .;
-        
-    
+
+
     /* MAIN DATA SECTION */
-    
+
 
     .uninit_RESERVED : ALIGN(4)
     {
@@ -124,12 +123,12 @@ SECTIONS
         FILL(0xff)
         _data = .;
         *(vtable)
-	__impure_data_start = .;
-	*(.data.impure_data)
-	__impure_data_end = .;
+        __impure_data_start = .;
+        *(.data.impure_data)
+        __impure_data_end = .;
         *(.data*)
 
-	/* this magic is needed for the device tables of openMRN */
+        /* this magic is needed for the device tables of openMRN */
         . = ALIGN (8);
         KEEP(*( SORT (.device.table.*))) ;
         . = ALIGN (4);
@@ -148,7 +147,7 @@ SECTIONS
         _ebss = .;
         PROVIDE(end = .);
     } > RAM
-        
+
     
     /* DEFAULT NOINIT SECTION */
     .noinit (NOLOAD): ALIGN(4)
@@ -158,7 +157,7 @@ SECTIONS
          . = ALIGN(4) ;
         _end_noinit = .;
     } > RAM
-    
+
     PROVIDE(_pvHeapStart = .);
     PROVIDE(__cs3_heap_start = .);
     /* This pointer will be written to the SP register at reset. */

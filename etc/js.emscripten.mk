@@ -34,8 +34,8 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
            -D__STDC_LIMIT_MACROS #-D__LINEAR_MAP__
 
 LDFLAGS = -g -m32 -Wl,-Map="$(@:%=%.map)" --em-config $(EMSDKPATH)/../../.emscripten -s ASSERTIONS=2
-SYSLIB_SUBDIRS += console
-SYSLIBRARIES = -lconsole
+SYSLIB_SUBDIRS +=
+SYSLIBRARIES =
 
 EXTENTION ?= .js
 

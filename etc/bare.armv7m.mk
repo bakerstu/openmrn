@@ -55,8 +55,8 @@ LDFLAGS = -g -fdata-sections -ffunction-sections -T target.ld \
           -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) 
 
-SYSLIB_SUBDIRS += console
-SYSLIBRARIES += -lconsole
+SYSLIB_SUBDIRS +=
+SYSLIBRARIES +=
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like

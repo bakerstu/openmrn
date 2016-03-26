@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <type_traits>
 #include <functional>
+#include <sys/stat.h>
 
 #include "executor/Service.hxx"
 #include "executor/Timer.hxx"
@@ -621,6 +622,26 @@ protected:
         // Now: we are at an unknown error or EOF.
         h->rbuf_ = nullptr;
         return call_immediately(h->nextState_);
+    }
+
+    /** Wait for a listen socket to become active and ready to accept an
+     * incoming connection.
+     * @param helper selectable helper for maintaining the select metadata
+     * @param fd file descriptor of a non-blocking listen socket
+     * @param c next state
+     */
+    Action listen_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
+    {
+        // verify that the fd is a socket
+        struct stat stat;
+        fstat(fd, &stat);
+        HASSERT(S_ISSOCK(stat.st_mode));
+
+        helper->reset(Selectable::READ, fd, Selectable::MAX_PRIO);
+        helper->set_wakeup(this);
+
+        service()->executor()->select(helper);
+        return wait_and_call(c);
     }
 
     Action write_repeated(StateFlowSelectHelper* helper, int fd, const void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
