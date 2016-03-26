@@ -134,11 +134,9 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
     HASSERT((index + len) <= file_size());
 
     uint8_t* byte_data = (uint8_t*)buf;
-
-    if (shadow_in_ram)
-    {
-        memcpy(shadow + index, byte_data, len);
-    }
+    uint8_t* shadow_data = (uint8_t*)buf;
+    unsigned shadow_index = index;
+    size_t shadow_len = len;
 
     while (len)
     {
@@ -195,6 +193,11 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
             len       -= BYTES_PER_BLOCK;
             byte_data += BYTES_PER_BLOCK;
         }
+    }
+
+    if (shadow_in_ram)
+    {
+        memcpy(shadow + shadow_index, shadow_data, shadow_len);
     }
 }
 
@@ -353,7 +356,14 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
 {
     if (shadow_in_ram)
     {
-        memcpy(data, shadow + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK);
+        memset(data, 0xff, BYTES_PER_BLOCK);
+        if (memcmp(data, shadow + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK) !=
+            0)
+        {
+            memcpy(data, shadow + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK);
+            return true;
+        }
+        return false;
     }
     else
     {
