@@ -49,8 +49,15 @@ namespace nmranet
 class TrainService;
 
 struct ConsistEntry : public QMember {
-    ConsistEntry(NodeID s) : slave(s) {}
-    NodeID slave;
+    ConsistEntry(NodeID s, uint8_t flags) : payload((s << 8) | flags) {}
+    NodeID get_slave() {
+        return payload >> 8;
+    }
+    uint8_t get_flags() {
+        return payload & 0xff;
+    }
+private:
+    uint64_t payload;
 };
 
 /// Virtual node class for an OpenLCB train protocol node.
@@ -108,18 +115,18 @@ public:
 
     /** Adds a node ID to the consist targets. @return false if the node was
      * already in the target list, true if it was newly added. */
-    bool add_consist(NodeID tgt)
+    bool add_consist(NodeID tgt, uint8_t flags)
     {
         if (!tgt) return false;
         if (tgt == node_id()) return false;
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
-            if (it->slave == tgt)
+            if (it->get_slave() == tgt)
             {
                 return false;
             }
         }
-        consistSlaves_.push_front(new ConsistEntry(tgt));
+        consistSlaves_.push_front(new ConsistEntry(tgt, flags));
         return true;
     }
 
@@ -129,7 +136,7 @@ public:
     {
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
-            if (it->slave == tgt)
+            if (it->get_slave() == tgt)
             {
                 auto* p = it.operator->();
                 consistSlaves_.erase(it);
@@ -142,7 +149,7 @@ public:
 
     /** Returns the consist target with offset id, or NodeID(0) if there are
      * fewer than id consist targets. id is zero-based. */
-    NodeID query_consist(int id)
+    NodeID query_consist(int id, uint8_t* flags)
     {
         int k = 0;
         for (auto it = consistSlaves_.begin();
@@ -150,7 +157,8 @@ public:
         {
             if (k == id)
             {
-                return it->slave;
+                if (flags) *flags = it->get_flags();
+                return it->get_slave();
             }
         }
         return 0;

@@ -291,15 +291,15 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_EQ(0, trainNode_->query_consist_length());
     EXPECT_EQ(0, trainNode_->query_consist_length());
     // add new
-    EXPECT_TRUE(trainNode_->add_consist(n1));
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
     EXPECT_EQ(1, trainNode_->query_consist_length());
     // add existing
-    EXPECT_FALSE(trainNode_->add_consist(n1));
+    EXPECT_FALSE(trainNode_->add_consist(n1, 0));
     EXPECT_EQ(1, trainNode_->query_consist_length());
     // queries
-    EXPECT_EQ(n1, trainNode_->query_consist(0));
-    EXPECT_FALSE(trainNode_->query_consist(1));
-    EXPECT_FALSE(trainNode_->query_consist(2));
+    EXPECT_EQ(n1, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(2, nullptr));
     // remove nonexistent
     EXPECT_FALSE(trainNode_->remove_consist(n2));
     EXPECT_EQ(1, trainNode_->query_consist_length());
@@ -307,44 +307,44 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_TRUE(trainNode_->remove_consist(n1));
     EXPECT_EQ(0, trainNode_->query_consist_length());
     // add again
-    EXPECT_TRUE(trainNode_->add_consist(n1));
-    EXPECT_TRUE(trainNode_->add_consist(n2));
-    EXPECT_FALSE(trainNode_->add_consist(n2));
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
+    EXPECT_TRUE(trainNode_->add_consist(n2, 0));
+    EXPECT_FALSE(trainNode_->add_consist(n2, 0));
     EXPECT_EQ(2, trainNode_->query_consist_length());
 
     // query again
-    EXPECT_EQ(n2, trainNode_->query_consist(0));
-    EXPECT_EQ(n1, trainNode_->query_consist(1));
-    EXPECT_FALSE(trainNode_->query_consist(2));
-    EXPECT_FALSE(trainNode_->query_consist(3));
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
+    EXPECT_EQ(n1, trainNode_->query_consist(1, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(2, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(3, nullptr));
 
     // remove again
     EXPECT_TRUE(trainNode_->remove_consist(n1));
     EXPECT_EQ(1, trainNode_->query_consist_length());
-    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
     EXPECT_FALSE(trainNode_->remove_consist(n1));
     EXPECT_EQ(1, trainNode_->query_consist_length());
-    EXPECT_EQ(n2, trainNode_->query_consist(0));
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
     EXPECT_TRUE(trainNode_->remove_consist(n2));
     EXPECT_EQ(0, trainNode_->query_consist_length());
 
     // Remove front
-    EXPECT_TRUE(trainNode_->add_consist(n1));
-    EXPECT_TRUE(trainNode_->add_consist(n2));
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
+    EXPECT_TRUE(trainNode_->add_consist(n2, 0));
     EXPECT_EQ(2, trainNode_->query_consist_length());
     EXPECT_TRUE(trainNode_->remove_consist(n2));
     EXPECT_EQ(1, trainNode_->query_consist_length());
-    EXPECT_EQ(n1, trainNode_->query_consist(0));
-    EXPECT_FALSE(trainNode_->query_consist(1));
+    EXPECT_EQ(n1, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
     EXPECT_TRUE(trainNode_->remove_consist(n1));
     EXPECT_EQ(0, trainNode_->query_consist_length());
-    EXPECT_FALSE(trainNode_->query_consist(0));
+    EXPECT_FALSE(trainNode_->query_consist(0, nullptr));
 }
 
 TEST_F(TractionSingleMockTest, ConsistSelf)
 {
     EXPECT_EQ(kTrainNodeID, trainNode_->node_id());    
-    EXPECT_FALSE(trainNode_->add_consist(kTrainNodeID));
+    EXPECT_FALSE(trainNode_->add_consist(kTrainNodeID, 0));
     EXPECT_EQ(0, trainNode_->query_consist_length());
 }
 
@@ -353,21 +353,25 @@ TEST_F(TractionSingleMockTest, RemoteConsisting)
     NodeID n1 = 0x050101011837;
     //NodeID n2 = 0x050101012351;
 
-    send_packet(":X195EB551N133A300100050101;");
+    send_packet(":X195EB551N133A30015A050101;");
+    expect_packet(":X191E933AN1551300105010101;");
     send_packet_and_expect_response(":X195EB551N233A011837;",
-        ":X191E933AN055130010000;");
+        ":X191E933AN255118370000;");
     wait();
     EXPECT_EQ(1, trainNode_->query_consist_length());
-    EXPECT_EQ(n1, trainNode_->query_consist(0));
+    uint8_t flags = 0;
+    EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0x5A, flags);
 
-    expect_packet(":X191E933AN1551300301000501;");
+    expect_packet(":X191E933AN1551300301005A05;");
     send_packet_and_expect_response(":X195EB551N033A300300;",
-                                    ":X191E933AN255101011837;");
+                                    ":X191E933AN25510101011837;");
     wait();
 
     send_packet(":X195EB551N133A300200050101;");
+    expect_packet(":X191E933AN1551300205010101;");
     send_packet_and_expect_response(":X195EB551N233A011837;",
-                                    ":X191E933AN055130020000;");
+                                    ":X191E933AN255118370000;");
     wait();
     send_packet_and_expect_response(":X195EB551N033A300300;",
                                     ":X191E933AN0551300300;");
