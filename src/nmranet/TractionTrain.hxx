@@ -50,11 +50,15 @@ class TrainService;
 
 struct ConsistEntry : public QMember {
     ConsistEntry(NodeID s, uint8_t flags) : payload((s << 8) | flags) {}
-    NodeID get_slave() {
+    NodeID get_slave() const {
         return payload >> 8;
     }
-    uint8_t get_flags() {
+    uint8_t get_flags() const {
         return payload & 0xff;
+    }
+    void set_flags(uint8_t new_flags) {
+        payload ^= (payload & 0xff);
+        payload |= new_flags;
     }
 private:
     uint64_t payload;
@@ -123,7 +127,8 @@ public:
         {
             if (it->get_slave() == tgt)
             {
-                return false;
+                it->set_flags(flags);
+                return true;
             }
         }
         consistSlaves_.push_front(new ConsistEntry(tgt, flags));
