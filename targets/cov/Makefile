@@ -25,6 +25,7 @@ TESTDIRS = $(TESTSRCS:.cxxtest=.covdir)
 
 
 COVAGGRDIRS = $(dir $(TESTBINS))
+COVAGGRDIRS_UNIQ = $(shell echo $(COVAGGRDIRS) | tr ' ' '\n' | sort | uniq)
 COVAGGRFILES_DUP = $(foreach DIR,$(dir $(TESTBINS)),$(DIR)cov.info)
 COVAGGRFILES = $(shell echo $(COVAGGRFILES_DUP) | tr ' ' '\n' | sort | uniq)
 
@@ -34,12 +35,14 @@ COVAGGRFILES = $(shell echo $(COVAGGRFILES_DUP) | tr ' ' '\n' | sort | uniq)
 #
 # Adds the per-test coverage.info file to the dependencies to the directory's
 # coverage file.
-define DIRCOV_template
+define TEST_TO_DIR_COV_template
 $(dir $(1))cov.info: $(1:.testout=.covdir/app.info)
+
+$(dir $(1))tests: $(1)
 endef
 
 # Calls the directory template for every .testout file we have.
-$(foreach testout,$(TESTOUTPUTS),$(eval $(call DIRCOV_template,$(testout))))
+$(foreach testout,$(TESTOUTPUTS),$(eval $(call TEST_TO_DIR_COV_template,$(testout))))
 
 $(COVAGGRFILES):
 	rm -f $@
@@ -54,8 +57,26 @@ lcovdir/index.html: $(TESTOUTPUTS) $(TESTMD5) $(COVAGGRFILES)
 	lcov -r app.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info; \
 	genhtml -o . app.info
 
+# Helper function to create per-direcotry coverage summaries.
+#
+# arg 1: a directory name (basename, without anything, on trailing slash)
+define PER_DIR_COV_template
+$(1)cov: $(1)lcovdir/index.html
+
+$(1)lcovdir/index.html: $(1)cov.info
+	cd $(1) ; \
+	mkdir -p lcovdir ; \
+	cd lcovdir ; \
+	lcov -r ../../$$< "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info ; \
+	genhtml -o . app.info
+endef
+
+$(foreach dirname,$(COVAGGRDIRS_UNIQ),$(eval $(call PER_DIR_COV_template,$(dirname))))
+
 veryclean-cov:
 	rm -rf lcovdir/
+	rm -rf $(foreach dirname,$(COVAGGRDIRS_UNIQ),$(dirname)lcovdir/)
+
 
 veryclean: veryclean-cov clean-cov
 
