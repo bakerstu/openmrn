@@ -93,6 +93,7 @@ public:
     using Default = NumericConfigOptions::Default;
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
+    using RepName = GroupConfigOptions::RepName;
     using Manufacturer = IdentificationConfigOptions::Manufacturer;
     using Model = IdentificationConfigOptions::Model;
     using HwVersion = IdentificationConfigOptions::HwVersion;

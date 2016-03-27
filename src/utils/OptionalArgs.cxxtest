@@ -22,8 +22,8 @@ struct ArgsOne : public ArgsOneDecl::BaseType
     INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsOne, BaseType);
 
     // The default values do not need to be prepeated anymore.
-    DEFINE_OPTIONALARG(Foo, foo, int, 0);
-    DEFINE_OPTIONALARG(Bar, bar, const char *, 1);
+    DEFINE_OPTIONALARG(Foo, foo, int);
+    DEFINE_OPTIONALARG(Bar, bar, const char *);
 };
 
 // Instances of the arguments are constructed using the names. If needed, a
@@ -80,9 +80,9 @@ struct ArgsTwo : public ArgsTwoDecl::BaseType
     INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsTwo, BaseType);
 
     // Here we need to repeat all definitions (even the inherited ones).
-    DEFINE_OPTIONALARG(Foo, foo, int, 0);
-    DEFINE_OPTIONALARG(Bar, bar, const char *, 1);
-    DEFINE_OPTIONALARG(Qux, qux, const char *, 2);
+    DEFINE_OPTIONALARG(Foo, foo, int);
+    DEFINE_OPTIONALARG(Bar, bar, const char *);
+    DEFINE_OPTIONALARG(Qux, qux, const char *);
 };
 
 // Example specifying only one value.

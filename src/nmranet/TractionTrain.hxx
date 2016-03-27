@@ -48,6 +48,11 @@ namespace nmranet
 
 class TrainService;
 
+struct ConsistEntry : public QMember {
+    ConsistEntry(NodeID s) : slave(s) {}
+    NodeID slave;
+};
+
 /// Virtual node class for an OpenLCB train protocol node.
 ///
 /// Usage:
@@ -60,6 +65,7 @@ class TrainNode : public Node
 {
 public:
     TrainNode(TrainService *service, TrainImpl *train);
+    ~TrainNode();
 
     NodeID node_id() OVERRIDE;
     If *iface() OVERRIDE;
@@ -87,6 +93,79 @@ public:
         controllerNodeId_ = id;
     }
 
+    // Thread-safety information
+    //
+    // The consisting functionality is thread-compatible, which means that it
+    // is the responsibility of the caller to ensure that no two threads are
+    // calling these methods concurrently.
+    //
+    // In practice these methods are always called from the TractionService
+    // which only operates on a single thread (the service's executor) and will
+    // only process one request at a time. All traction protocol requests being
+    // forwarded and thus traversing the consist list will be fully processed
+    // before any consist change requests would reach the front of the queue
+    // for the traction flow.
+
+    /** Adds a node ID to the consist targets. @return false if the node was
+     * already in the target list, true if it was newly added. */
+    bool add_consist(NodeID tgt)
+    {
+        if (!tgt) return false;
+        for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
+        {
+            if (it->slave == tgt)
+            {
+                return false;
+            }
+        }
+        consistSlaves_.push_front(new ConsistEntry(tgt));
+        return true;
+    }
+
+    /** Removes a node ID from the consist targets. @return true if the target
+     * was removesd, false if the target was not on the list. */
+    bool remove_consist(NodeID tgt)
+    {
+        for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
+        {
+            if (it->slave == tgt)
+            {
+                auto* p = it.operator->();
+                consistSlaves_.erase(it);
+                delete p;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns the consist target with offset id, or NodeID(0) if there are
+     * fewer than id consist targets. id is zero-based. */
+    NodeID query_consist(int id)
+    {
+        int k = 0;
+        for (auto it = consistSlaves_.begin();
+             it != consistSlaves_.end(); ++it, ++k)
+        {
+            if (k == id)
+            {
+                return it->slave;
+            }
+        }
+        return 0;
+    }
+
+    /** Returns the number of slaves in this consist. */
+    int query_consist_length()
+    {
+        int ret = 0;
+        for (auto it = consistSlaves_.begin(); it != consistSlaves_.end();
+             ++it, ++ret)
+        {
+        }
+        return ret;
+    }
+
 private:
     unsigned isInitialized_ : 1;
 
@@ -94,6 +173,7 @@ private:
     TrainImpl *train_;
     /// Controller node that is assigned to run this train. 0 if none.
     NodeHandle controllerNodeId_;
+    TypedQueue<ConsistEntry> consistSlaves_;
 };
 
 /// Collection of control flows necessary for implementing the Traction

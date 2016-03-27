@@ -51,6 +51,13 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
     service_->register_train(this);
 }
 
+TrainNode::~TrainNode()
+{
+    while (!consistSlaves_.empty()) {
+        delete consistSlaves_.pop_front();
+    }
+}
+
 NodeID TrainNode::node_id()
 {
     /** @TODO(balazs.racz) revise how to specify the nodeid for non-legacy
@@ -160,7 +167,8 @@ struct TrainService::Impl
                 {
                     SpeedType sp = fp16_to_speed(payload() + 1);
                     train_node()->train()->set_speed(sp);
-                    return release_and_exit();
+                    nextConsistIndex_ = 0;
+                    return call_immediately(STATE(maybe_forward_consist));
                 }
                 case TractionDefs::REQ_SET_FN:
                 {
@@ -190,6 +198,11 @@ struct TrainService::Impl
                 {
                     return maybe_alloc_response(
                         STATE(handle_controller_config));
+                }
+                case TractionDefs::REQ_CONSIST_CONFIG:
+                {
+                    return maybe_alloc_response(
+                        STATE(handle_consist_config));
                 }
                 case TractionDefs::REQ_TRACTION_MGMT:
                 {
@@ -333,6 +346,110 @@ struct TrainService::Impl
             return reject_permanent();
         }
 
+        Action handle_consist_config()
+        {
+            Payload &p = *initialize_response();
+            uint8_t cmd = payload()[1];
+            switch (cmd)
+            {
+                case TractionDefs::CNSTREQ_ATTACH_NODE:
+                {
+                    if (size() < 9)
+                        return reject_permanent(
+                            Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    NodeID target = data_to_node_id(payload() + 3);
+                    bool resp = train_node()->add_consist(target);
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_ATTACH_NODE);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_OPENMRN_ALREADY_EXISTS, &p);
+                    return send_response();
+                }
+                case TractionDefs::CNSTREQ_DETACH_NODE:
+                {
+                    if (size() < 9)
+                        return reject_permanent(
+                            Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    NodeID target = data_to_node_id(payload() + 3);
+                    bool resp = train_node()->remove_consist(target);
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_DETACH_NODE);
+                    append_error_to_buffer(resp ? 0 : Defs::ERROR_OPENMRN_NOT_FOUND, &p);
+                    return send_response();
+                }
+                case TractionDefs::CNSTREQ_QUERY_NODES:
+                {
+                    p.push_back(TractionDefs::RESP_CONSIST_CONFIG);
+                    p.push_back(TractionDefs::CNSTRESP_QUERY_NODES);
+                    int sz = train_node()->query_consist_length();
+                    if (sz > 255) sz = 255;
+                    p.push_back(sz);
+                    if (size() > 2) {
+                        uint8_t id = payload()[2];
+                        if (id < sz) {
+                            p.push_back(id);
+                            NodeID rp = train_node()->query_consist(id);
+                            size_t of = p.size();
+                            p.resize(of + 6);
+                            node_id_to_data(rp, &p[of]);
+                        }
+                    }
+                    return send_response();
+                }
+                default:
+                    LOG(VERBOSE, "Unknown Traction consist subcommand %x", cmd);
+                    return reject_permanent(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
+            }
+        }
+
+        Action maybe_forward_consist()
+        {
+            auto* train_node = this->train_node();
+            unsigned count = train_node->query_consist_length();
+            if (count <= nextConsistIndex_)
+                return release_and_exit();
+            NodeID dst = train_node->query_consist(nextConsistIndex_);
+            if (iface()->matching_node(nmsg()->src, NodeHandle(dst)))
+            {
+                ++nextConsistIndex_;
+                return again();
+            }
+            if (count == nextConsistIndex_ + 1u)
+            {
+                // last node: we can transfer the message.
+                auto *b = transfer_message();
+                b->data()->src = NodeHandle(train_node->node_id());
+                b->data()->dst = NodeHandle(dst);
+                b->data()->dstNode = nullptr;
+                iface()->addressed_message_write_flow()->send(b);
+                return exit();
+            }
+            else
+            {
+                return allocate_and_call(
+                    iface()->addressed_message_write_flow(),
+                    STATE(forward_consist));
+            }
+        }
+
+        Action forward_consist()
+        {
+            auto *b =
+                get_allocation_result(iface()->addressed_message_write_flow());
+            NodeID dst = train_node()->query_consist(nextConsistIndex_);
+            if (!dst)
+            {
+                // Strange. The consist destination should exist and never be
+                // zero once we got here.
+                b->unref();
+                return release_and_exit();
+            }
+            b->data()->reset(message()->data()->mti, train_node()->node_id(),
+                             NodeHandle(dst), message()->data()->payload);
+            iface()->addressed_message_write_flow()->send(b);
+            ++nextConsistIndex_;
+            return call_immediately(STATE(maybe_forward_consist));
+        }
+
         Action handle_traction_mgmt()
         {
             Payload &p = *initialize_response();
@@ -402,7 +519,7 @@ struct TrainService::Impl
         }
 
         /** Rejects the incoming message with a permanent error. */
-        Action reject_permanent()
+        Action reject_permanent(uint16_t code = Defs::ERROR_PERMANENT)
         {
             return maybe_alloc_response(STATE(send_reject_permanent));
         }
@@ -414,11 +531,15 @@ struct TrainService::Impl
             response_->data()->reset(
                 Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
                 nmsg()->dstNode->node_id(), nmsg()->src,
-                error_to_buffer(Defs::ERROR_PERMANENT, nmsg()->mti));
+                error_to_buffer(errorCode_, nmsg()->mti));
             return send_response();
         }
 
     private:
+        /// error code for reject_permanent().
+        unsigned errorCode_ : 16;
+        unsigned nextConsistIndex_ : 8;
+        /// 1 if the voluntary lock protocol has set this train to be reserved.
         unsigned reserved_ : 1;
         TrainService *trainService_;
         Buffer<NMRAnetMessage> *response_;

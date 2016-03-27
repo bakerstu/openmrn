@@ -60,12 +60,12 @@ public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(AtomConfigOptions, AtomConfigDefs::Base);
 
     /// Represent the value enclosed in the <name> tag of the data element.
-    DEFINE_OPTIONALARG(Name, name, const char *, 0);
+    DEFINE_OPTIONALARG(Name, name, const char *);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
-    DEFINE_OPTIONALARG(Description, description, const char *, 1);
+    DEFINE_OPTIONALARG(Description, description, const char *);
     /// Represent the value enclosed in the <map> tag of the data element.
-    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *, 2);
+    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
 
     void render_cdi(std::string *r) const
     {
@@ -137,15 +137,15 @@ public:
         NumericConfigOptions, NumericConfigDefs::Base);
 
     /// Represent the value enclosed in the <name> tag of the data element.
-    DEFINE_OPTIONALARG(Name, name, const char *, 0);
+    DEFINE_OPTIONALARG(Name, name, const char *);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
-    DEFINE_OPTIONALARG(Description, description, const char *, 1);
+    DEFINE_OPTIONALARG(Description, description, const char *);
     /// Represent the value enclosed in the <map> tag of the data element.
-    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *, 2);
-    DEFINE_OPTIONALARG(Min, minvalue, int, 6);
-    DEFINE_OPTIONALARG(Max, maxvalue, int, 7);
-    DEFINE_OPTIONALARG(Default, defaultvalue, int, 8);
+    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
+    DEFINE_OPTIONALARG(Min, minvalue, int);
+    DEFINE_OPTIONALARG(Max, maxvalue, int);
+    DEFINE_OPTIONALARG(Default, defaultvalue, int);
 
     void render_cdi(std::string *r) const
     {
@@ -244,8 +244,9 @@ struct GroupConfigDefs : public AtomConfigDefs
     using AtomConfigDefs::check_arguments_are_valid;
     DECLARE_OPTIONALARG(Offset, offset, int, 10, INT_MAX);
     DECLARE_OPTIONALARG(Segment, segment, int, 11, -1);
-    using Base =
-        OptionalArg<GroupConfigDefs, Name, Description, Segment, Offset>;
+    DECLARE_OPTIONALARG(RepName, repname, const char*, 12, nullptr);
+    using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
+        Offset, RepName>;
 };
 
 class GroupConfigOptions : public GroupConfigDefs::Base
@@ -253,18 +254,22 @@ class GroupConfigOptions : public GroupConfigDefs::Base
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(GroupConfigOptions, GroupConfigDefs::Base);
 
-    DEFINE_OPTIONALARG(Name, name, const char *, 0);
+    DEFINE_OPTIONALARG(Name, name, const char *);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
-    DEFINE_OPTIONALARG(Description, description, const char *, 1);
+    DEFINE_OPTIONALARG(Description, description, const char *);
 
     /// Represents the 'offset' attribute for groups and the 'origin' attribute
     /// for segments.
-    DEFINE_OPTIONALARG(Offset, offset, int, 2);
+    DEFINE_OPTIONALARG(Offset, offset, int);
 
     /// Declares that the group is a segment (and thus may be used in the
     /// toplevel CDI.
-    DEFINE_OPTIONALARG(Segment, segment, int, 3);
+    DEFINE_OPTIONALARG(Segment, segment, int);
+
+    /// Specifies for the UI what the repetitions of this group should be
+    /// called.
+    DEFINE_OPTIONALARG(RepName, repname, const char*);
 
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
@@ -314,6 +319,11 @@ public:
         {
             *r +=
                 StringPrintf("<description>%s</description>\n", description());
+        }
+        if (repname())
+        {
+            *r +=
+                StringPrintf("<repname>%s</repname>\n", repname());
         }
     }
 };
@@ -401,10 +411,10 @@ public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(
         IdentificationConfigOptions, IdentificationConfigDefs::Base);
 
-    DEFINE_OPTIONALARG(Manufacturer, manufacturer, const char *, 0);
-    DEFINE_OPTIONALARG(Model, model, const char *, 1);
-    DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *, 2);
-    DEFINE_OPTIONALARG(SwVersion, software_version, const char *, 3);
+    DEFINE_OPTIONALARG(Manufacturer, manufacturer, const char *);
+    DEFINE_OPTIONALARG(Model, model, const char *);
+    DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *);
+    DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
 };
 
 /// Helper class for rendering the <identification> tag.
