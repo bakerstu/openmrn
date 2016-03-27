@@ -74,7 +74,7 @@ public:
         return 0;                                                              \
     }
 
-#define DEFINE_OPTIONALARG(SpecName, function_name, DataType, N)               \
+#define DEFINE_OPTIONALARG(SpecName, function_name, DataType)                  \
     constexpr DataType function_name() const                                   \
     {                                                                          \
         return get(SpecName##Get());                                           \

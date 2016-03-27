@@ -115,7 +115,8 @@ TEST(ConfigRenderer, IntWithMax)
     EXPECT_EQ("<int size='1'>\n<name>fffoo</name>\n<max>21</max>\n</int>\n", s);
 }
 
-CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"));
+CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"),
+    RepName("foorep"));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
@@ -170,6 +171,7 @@ TEST(ComplexGroupRender, RenderOk)
 <group replication='3'>
 <name>testgrouprept</name>
 <description>test group desc</description>
+<repname>foorep</repname>
 <int size='1'>
 <name>e1</name>
 </int>

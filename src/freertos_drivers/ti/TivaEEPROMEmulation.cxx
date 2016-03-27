@@ -66,7 +66,8 @@ void TivaEEPROMEmulation::flash_erase(void *address)
     size_t sectors_per_sector = ((file_size() - 1) / (FAMILY >> 1)) + 1;
 
     /* because the first "real" sector is always used to check block integrity,
-     * we need to be sure that we erase that sector last.
+     * we need to be sure that we erase that sector last. We assume that the
+     * driver never tries to erase a sector that is marked as intact.
      */
     while (sectors_per_sector)
     {
@@ -127,4 +128,3 @@ uint32_t *TivaEEPROMEmulation::sector_to_address(const int sector)
 
     return (uint32_t*)(sector * SECTOR_SIZE);
 }
-

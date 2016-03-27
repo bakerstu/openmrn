@@ -258,12 +258,17 @@ protected:
   StrictMock<MockSend> canBus1_;
 };
 
-/*
+/** Helper function for testing flow invocations. */
 template<class T, typename... Args>
-Buffer<T>* invoke_flow(FlowInterface<Buffer<T>>* flow, Args... args) {
-    Buffer<T>* b = flow->alloc();
-    b->data()->reset();
-    }*/
+BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
+    SyncNotifiable n;
+    BufferPtr<T> b(flow->alloc());
+    b->data()->reset(std::forward<Args>(args)...);
+    b->data()->done.reset(&n);
+    flow->send(b->ref());
+    n.wait_for_notification();
+    return b;
+}
 
 namespace nmranet
 {

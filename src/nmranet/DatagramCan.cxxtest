@@ -393,6 +393,28 @@ TEST_F(AsyncDatagramTest, OutgoingTestSmall)
     datagram_support_.client_allocator()->insert(c);
 }
 
+TEST_F(AsyncDatagramTest, DoubleReply)
+{
+    print_all_packets();
+    DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
+    NodeHandle h{0, 0x77C};
+    expect_packet(":X1A77C22AN30313233343536;");
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("0123456"));
+    b->set_done(get_notifiable());
+    c->write_datagram(b);
+    wait();
+    wait();
+    send_packet(":X19A2877CN022A00;"); // Received OK
+    send_packet(":X19A2877CN022A00;"); // Received OK dup
+    wait_for_notification();
+    // Releases client.
+    send_packet(":X19A2877CN022A00;"); // Received OK dup
+    wait();
+    datagram_support_.client_allocator()->insert(c);
+}
+
 TEST_F(AsyncDatagramTest, OutgoingTestOneFull)
 {
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
