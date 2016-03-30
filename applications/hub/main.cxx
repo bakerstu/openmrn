@@ -35,7 +35,6 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
-#include <termios.h> /* tc* functions */
 #include <unistd.h>
 
 #include <memory>
@@ -43,8 +42,8 @@
 #include "os/os.h"
 #include "utils/constants.hxx"
 #include "utils/Hub.hxx"
-#include "utils/GridConnectHub.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/ClientConnection.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -116,124 +115,6 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-class ConnectionClient
-{
-public:
-    /** Test the connection whether it is alive; establish the connection if it
-     * is dead. */
-    virtual void ping() = 0;
-};
-
-class DeviceClosedNotify : public Notifiable
-{
-public:
-    DeviceClosedNotify(int *fd, string name)
-        : fd_(fd)
-        , name_(name)
-    {
-    }
-    void notify() override
-    {
-        LOG_ERROR("Connection to %s closed.", name_.c_str());
-        *fd_ = -1;
-    }
-
-private:
-    int *fd_;
-    string name_;
-};
-
-class FdConnectionClient : public ConnectionClient
-{
-public:
-    FdConnectionClient(const string &name) : closedNotify_(&fd_, name)
-    {
-    }
-
-    void ping() OVERRIDE
-    {
-        if (fd_ < 0)
-        {
-            try_connect();
-        }
-    }
-
-protected:
-    virtual void try_connect() = 0;
-
-    int fd_{-1};
-    DeviceClosedNotify closedNotify_;
-};
-
-class DeviceConnectionClient : public FdConnectionClient
-{
-public:
-    DeviceConnectionClient(const string &name, const string &dev)
-        : FdConnectionClient(name)
-        , dev_(dev)
-    {
-    }
-
-private:
-    void try_connect() OVERRIDE
-    {
-        fd_ = ::open(dev_.c_str(), O_RDWR);
-        if (fd_ >= 0)
-        {
-            // Sets up the terminal in raw mode. Otherwise linux might echo
-            // characters coming in from the device and that will make
-            // packets go back to where they came from.
-            HASSERT(!tcflush(fd_, TCIOFLUSH));
-            struct termios settings;
-            HASSERT(!tcgetattr(fd_, &settings));
-            cfmakeraw(&settings);
-            cfsetspeed(&settings, B115200);
-            HASSERT(!tcsetattr(fd_, TCSANOW, &settings));
-            LOG(INFO, "Opened device %s.\n", device_path);
-            create_gc_port_for_can_hub(&can_hub0, fd_, &closedNotify_);
-        }
-        else
-        {
-            LOG_ERROR("Failed to open device %s: %s\n", device_path,
-                      strerror(errno));
-            fd_ = -1;
-        }
-    }
-
-    string dev_;
-};
-
-class UpstreamConnectionClient : public FdConnectionClient
-{
-public:
-    UpstreamConnectionClient(const string &name, const string &host, int port)
-        : FdConnectionClient(name)
-        , host_(host)
-        , port_(port)
-    {
-    }
-
-private:
-    void try_connect() OVERRIDE
-    {
-        fd_ = ConnectSocket(upstream_host, upstream_port);
-        if (fd_ >= 0)
-        {
-            LOG_ERROR("Connected to %s:%d\n", host_.c_str(), port_);
-            create_gc_port_for_can_hub(&can_hub0, fd_, &closedNotify_);
-        }
-        else
-        {
-            LOG_ERROR("Failed to connect to %s:%d: %s\n", host_.c_str(), port_,
-                      strerror(errno));
-            fd_ = -1;
-        }
-    }
-
-    string host_;
-    int port_;
-};
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -249,13 +130,13 @@ int appl_main(int argc, char *argv[])
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(
-            "upstream", upstream_host, upstream_port));
+                                     "upstream", &can_hub0, upstream_host, upstream_port));
     }
 
     if (device_path)
     {
         connections.emplace_back(
-            new DeviceConnectionClient("device", device_path));
+            new DeviceConnectionClient("device", &can_hub0, device_path));
     }
 
     while (1)
