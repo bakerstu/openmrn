@@ -189,9 +189,9 @@ void ignore_function() {
 int appl_main(int argc, char* argv[])
 {
 #if defined (BOARD_LAUNCHPAD_EK)
-    new Console(stack.executor(), true, -1);
+    new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT);
 #elif defined (__linux__)
-    new Console(stack.executor(), true, 2121);
+    new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT, 2121);
 #endif
 
 #if defined (__linux__) || defined (__MACH__)

@@ -53,7 +53,7 @@ int appl_main(int argc, char *argv[])
     setblink(0);
 
 #if defined (TARGET_IS_CC3200) || defined (__linux__)
-    new Console(&executor, false, 2121);
+    new Console(&executor, Console::FD_STDIN, Console::FD_STDOUT, 2121);
 #endif
     while (1)
     {
