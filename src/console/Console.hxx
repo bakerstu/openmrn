@@ -58,6 +58,13 @@
  * global construction (before main() is called), or within the same executor
  * context as the Console instance they are being attached to in order to avoid
  * a problem with mutual exclusion.
+ *
+ * add_command() is used to generate a standard out of context callback when the
+ * specified command is entered on the console.
+ *
+ * A CommandFlow is specialized in order to generate a state flow based command.
+ * This may be useful for interactive commands, but may also be used with
+ * non-interactive commands.
  */
 class Console : public Service
 {
@@ -134,6 +141,39 @@ public:
     /** State flow base class that handles interactive commands.
      * This may also be used for non-interactive commands that want to use
      * the StateFlow paradigm for responding.
+     *
+     * Example:
+     * @code
+     *  class ExampleCommandFlow : public Console::CommandFlow
+     *  {
+     *  public:
+     *      ExampleCommandFlow()
+     *          : CommandFlow(&console, "test")
+     *      {
+     *      }
+     *
+     *      ~ExampleCommandFlow()
+     *      {
+     *      }
+     *
+     *  private:
+     *      StateFlowBase::Action entry()
+     *      {
+     *          fprintf(fp, "param: ");
+     *          return wait_for_line_and_call(STATE(input));
+     *      }
+     *
+     *      StateFlowBase::Action input()
+     *      {
+     *          if (argc == 1 && strcmp(argv[0])
+     *          {
+     *              // do stuff
+     *              return record_status_and_exit(Console::COMMAND_OK);
+     *          }
+     *          return record_status_and_exit(Console::COMMAND_ERROR);
+     *      }
+     *  };
+     * @endcode
      */
     class CommandFlow : public StateFlowBase
     {
