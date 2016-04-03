@@ -32,9 +32,11 @@
  * @date 18 Mar 2015
  */
 
-#if defined(__linux__) || defined(__MACH__)
+#if defined (__linux__) || defined (__MACH__)
 #include <termios.h> /* tc* functions */
 #include <net/if.h>
+#endif
+#if defined (__linux__)
 #include <linux/sockios.h>
 #endif
 
@@ -198,7 +200,8 @@ void SimpleCanStack::add_gridconnect_tty(
     cfsetspeed(&settings, B115200);
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
-
+#endif
+#if defined (__linux__)
 void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
 {
     int s;
