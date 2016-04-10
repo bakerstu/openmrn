@@ -248,22 +248,27 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         } else {
             overflowed_ = true;
             }*/
+        bool cutout_just_finished = false;
         decoder_.process_data(new_value);
-        if ((status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
-            !prepCutout_)
-        {
-            // The first positive edge after the sample timer expired (but
-            // outside of the cutout).
-            MAP_TimerIntClear(HW::TIMER_BASE, HW::SAMPLE_TIMER_TIMEOUT);
-            railcomDriver_->feedback_sample();
-            HW::after_feedback_hook();
-        }
         if (decoder_.before_dcc_cutout())
         {
             prepCutout_ = true;
             HW::dcc_before_cutout_hook();
         }
+        // If we are at the second half of the last 1 bit and the
+        // value of the input pin is 1, then we cannot recognize when
+        // the first half of the cutout bit disappears thus we'll
+        // never get the DCC cutout signal. We will therefore start
+        // the cutout by hand with a bit of delay.
+        else if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT &&
+                 true) //HW::NRZ_Pin::get())
+        {
+            SysCtlDelay(180);
+            railcomDriver_->start_cutout();
+            inCutout_ = true;
+        }
         else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
+
         {
             railcomDriver_->start_cutout();
             inCutout_ = true;
@@ -277,8 +282,19 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             }
             HW::dcc_packet_finished_hook();
             prepCutout_ = false;
+            cutout_just_finished = true;
         }
         lastTimerValue_ = raw_new_value;
+
+        if ((status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
+            !prepCutout_ && !cutout_just_finished)
+        {
+            // The first positive edge after the sample timer expired (but
+            // outside of the cutout).
+            MAP_TimerIntClear(HW::TIMER_BASE, HW::SAMPLE_TIMER_TIMEOUT);
+            railcomDriver_->feedback_sample();
+            HW::after_feedback_hook();
+        }
         // We are not currently writing anything to the inputData_ queue, thus
         // we don't need to send our OS interrupt either. Once we fix to start
         // emitting the actual packets, we need to reenable this interrupt.
