@@ -311,7 +311,7 @@ void hw_preinit(void)
     MAP_IntEnable(INT_TIMER5A);
 
     /* This interrupt should hit even during kernel operations. */
-    MAP_IntPrioritySet(INT_TIMER5A, 0);
+    MAP_IntPrioritySet(INT_TIMER5A, 0x80);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
@@ -320,7 +320,7 @@ void hw_preinit(void)
     MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
     MAP_IntEnable(INT_TIMER4A);
     // Still above kernel but not prio zero
-    MAP_IntPrioritySet(INT_TIMER4A, 0x10);
+    MAP_IntPrioritySet(INT_TIMER4A, 0x80);
     MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 
