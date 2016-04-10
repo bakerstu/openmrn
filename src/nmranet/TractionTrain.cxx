@@ -403,7 +403,7 @@ struct TrainService::Impl
             unsigned count = train_node->query_consist_length();
             if (count <= nextConsistIndex_)
                 return release_and_exit();
-            uint8_t flags;
+            uint8_t flags = 0;
             NodeID dst = train_node->query_consist(nextConsistIndex_, &flags);
             if (iface()->matching_node(nmsg()->src, NodeHandle(dst)))
             {
@@ -472,7 +472,7 @@ struct TrainService::Impl
             }
             b->data()->reset(message()->data()->mti, train_node()->node_id(),
                              NodeHandle(dst), message()->data()->payload);
-            if ((payload()[0] == TractionDefs::REQ_SET_SPEED) && 
+            if ((payload()[0] == TractionDefs::REQ_SET_SPEED) &&
                 (flags & TractionDefs::CNSTFLAGS_REVERSE)) {
                 b->data()->payload[1] ^= 0x80;
             }
