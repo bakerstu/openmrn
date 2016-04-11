@@ -227,6 +227,13 @@ public:
         return dcc::TrainAddressType::DCC_SHORT_ADDRESS;
     }
 
+    /// Determine if a train is currently assigned to this trottle.
+    /// @return true if a train is assigned, else false
+    bool is_train_assigned()
+    {
+        return assigned_;
+    }
+
 private:
     Action entry() override
     {
