@@ -120,9 +120,9 @@ inline void DCCDecode::dcc_packet_finished_hook() {
 }
 
 inline void DCCDecode::dcc_before_cutout_hook() {
-  RailcomDefs::set_hw();
   extern DacSettings dac_railcom;
   dac.set(dac_railcom);
+  RailcomDefs::set_hw();
 }
 
 inline void DCCDecode::after_feedback_hook() {
