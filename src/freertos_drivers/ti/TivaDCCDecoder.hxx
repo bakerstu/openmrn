@@ -144,6 +144,66 @@ private:
         }
     };
 
+    void set_sample_timer_period()
+    {
+        MAP_TimerDisable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
+        MAP_TimerIntDisable(HW::TIMER_BASE, HW::SAMPLE_TIMER_TIMEOUT);
+        MAP_TimerLoadSet(HW::TIMER_BASE, HW::SAMPLE_TIMER,
+            HW::SAMPLE_PERIOD_CLOCKS & 0xffffU);
+        MAP_TimerPrescaleSet(
+            HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS >> 16);
+        MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
+    }
+
+    void set_cap_timer_delay_usec(int usec)
+    {
+        Debug::DccPacketDelay::toggle();
+        uint32_t new_match_v = usec * 80;
+        MAP_TimerMatchSet(HW::TIMER_BASE, HW::TIMER, 0xfffe - new_match_v);
+        MAP_TimerPrescaleMatchSet(HW::TIMER_BASE, HW::TIMER, 0);
+    }
+
+    void set_cap_timer_capture()
+    {
+        MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
+        MAP_TimerIntDisable(
+            HW::TIMER_BASE, HW::TIMER_TIM_MATCH | HW::TIMER_CAP_EVENT);
+        MAP_TimerIntClear(
+            HW::TIMER_BASE, HW::TIMER_TIM_MATCH | HW::TIMER_CAP_EVENT);
+
+        MAP_TimerConfigure(
+            HW::TIMER_BASE, HW::CFG_TIM_CAPTURE | HW::CFG_SAMPLE);
+        MAP_TimerControlEvent(
+            HW::TIMER_BASE, HW::TIMER, TIMER_EVENT_BOTH_EDGES);
+        MAP_TimerLoadSet(HW::TIMER_BASE, HW::TIMER, HW::TIMER_MAX_VALUE);
+        MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, HW::PS_MAX);
+
+        reloadCount_ = 0;
+        lastTimerValue_ = 0;
+
+        MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
+        MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
+    }
+
+    void set_cap_timer_time()
+    {
+        MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
+
+        MAP_TimerIntDisable(
+            HW::TIMER_BASE, HW::TIMER_TIM_MATCH | HW::TIMER_CAP_EVENT);
+        MAP_TimerIntClear(
+            HW::TIMER_BASE, HW::TIMER_TIM_MATCH | HW::TIMER_CAP_EVENT);
+
+        MAP_TimerConfigure(
+            HW::TIMER_BASE, HW::CFG_TIM_TIME | HW::CFG_SAMPLE);
+        HW::clr_tim_mrsu();
+        MAP_TimerLoadSet(HW::TIMER_BASE, HW::TIMER, 0xfffe);
+        MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, 0);
+
+        MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_TIM_MATCH | HW::TIMER_TIM_CAPMATCH | HW::TIMER_TIM_TIMEOUT);
+        MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
+    }
+
     FixedQueue<uint32_t, HW::Q_SIZE> inputData_;
     uint32_t lastTimerValue_;
     uint32_t reloadCount_;
@@ -151,11 +211,16 @@ private:
     bool overflowed_ = false;
     bool inCutout_ = false;
     bool prepCutout_ = false;
+    uint32_t cutoutState_;
 
     Notifiable *readableNotifiable_ = nullptr;
     RailcomDriver *railcomDriver_; //< notified for cutout events.
 
     dcc::DccDecoder decoder_;
+
+    static const auto RAILCOM_CUTOUT_PRE = 26;
+    static const auto RAILCOM_CUTOUT_MID = 173;
+    static const auto RAILCOM_CUTOUT_END = 470;
 
     DISALLOW_COPY_AND_ASSIGN(TivaDccDecoder);
 };
@@ -176,30 +241,21 @@ template <class HW> void TivaDccDecoder<HW>::enable()
 {
     disable();
     MAP_TimerClockSourceSet(HW::TIMER_BASE, TIMER_CLOCK_SYSTEM);
-    MAP_TimerConfigure(HW::TIMER_BASE, HW::CFG_CAP_TIME_UP);
     MAP_TimerControlStall(HW::TIMER_BASE, HW::TIMER, true);
-    MAP_TimerControlEvent(HW::TIMER_BASE, HW::TIMER, TIMER_EVENT_BOTH_EDGES);
-    MAP_TimerLoadSet(HW::TIMER_BASE, HW::TIMER, HW::TIMER_MAX_VALUE);
-    MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, HW::PS_MAX);
 
-    reloadCount_ = 0;
-    lastTimerValue_ = 0;
+    set_cap_timer_capture();
+    HW::clr_tim_mrsu();
 
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_TIM_TIMEOUT);
 
-    MAP_TimerLoadSet(
-        HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS & 0xffffU);
-    MAP_TimerPrescaleSet(
-        HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS >> 16);
+    set_sample_timer_period();
     MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
 
     MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);
     MAP_IntEnable(HW::TIMER_INTERRUPT);
-
-    MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
 }
 
 template <class HW> void TivaDccDecoder<HW>::disable()
@@ -214,8 +270,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
     // get masked interrupt status
-    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, false);
-    if (status & HW::TIMER_TIM_TIMEOUT)
+    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
+    if (!inCutout_ && (status & HW::TIMER_TIM_TIMEOUT))
     {
         // The timer got reloaded.
         reloadCount_++;
@@ -229,9 +285,9 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         //Debug::DccDecodeInterrupts::toggle();
 
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        static uint32_t raw_new_value;
+        uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
-        static uint32_t new_value;
+        uint32_t new_value;
         new_value = raw_new_value;
         while (reloadCount_ > 0)
         {
@@ -263,21 +319,22 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         else if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT &&
                  true) //HW::NRZ_Pin::get())
         {
-            SysCtlDelay(180);
-            railcomDriver_->start_cutout();
+            //Debug::RailcomDriverCutout::set(true);
+            set_cap_timer_time();
+            set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
             inCutout_ = true;
+            cutoutState_ = 0;
         }
         else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
-
         {
-            railcomDriver_->start_cutout();
-            inCutout_ = true;
+            //railcomDriver_->start_cutout();
+            //inCutout_ = true;
         }
         /// TODO(balazs.racz) recognize middle cutout.
         else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED)
         {
             if (inCutout_) {
-                railcomDriver_->end_cutout();
+                //railcomDriver_->end_cutout();
                 inCutout_ = false;
             }
             HW::dcc_packet_finished_hook();
@@ -285,8 +342,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             cutout_just_finished = true;
         }
         lastTimerValue_ = raw_new_value;
-
-        if ((status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
+        auto raw_status = MAP_TimerIntStatus(HW::TIMER_BASE, false);
+        if ((raw_status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
             !prepCutout_ && !cutout_just_finished)
         {
             // The first positive edge after the sample timer expired (but
@@ -299,6 +356,36 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         // we don't need to send our OS interrupt either. Once we fix to start
         // emitting the actual packets, we need to reenable this interrupt.
         // MAP_IntPendSet(HW::OS_INTERRUPT);
+    }
+    if ((status & HW::TIMER_TIM_CAPMATCH) ||
+        (status & HW::TIMER_TIM_MATCH) ||
+        (inCutout_ && (status & HW::TIMER_TIM_TIMEOUT)))
+    {
+        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_TIM_CAPMATCH);
+        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_TIM_MATCH);
+        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_TIM_TIMEOUT);
+        //Debug::RailcomDriverCutout::set(false);
+        switch(cutoutState_) {
+        case 0: {
+            set_cap_timer_delay_usec(RAILCOM_CUTOUT_MID);
+            railcomDriver_->start_cutout();
+            cutoutState_ = 1;
+            break;
+        }
+        case 1: {
+            set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+            railcomDriver_->middle_cutout();
+            cutoutState_ = 2;
+            break;
+        }
+        default: {
+            set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+            set_cap_timer_capture();
+            railcomDriver_->end_cutout();
+            inCutout_ = false;
+            break;
+        }
+        }
     }
     Debug::DccDecodeInterrupts::set(false);
 }

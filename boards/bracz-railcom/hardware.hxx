@@ -6,6 +6,9 @@
 #include "driverlib/timer.h"
 #include "utils/GpioInitializer.hxx"
 #include "inc/hw_ints.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_timer.h"
 
 // note : this might cause problems in the bootloader compilation
 #include "DummyGPIO.hxx"
@@ -335,12 +338,24 @@ struct DCCDecode
     static const auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER2;
     static const auto TIMER_INTERRUPT = INT_TIMER2B;
     static const auto TIMER = TIMER_B;
-    static const auto CFG_CAP_TIME_UP = TIMER_CFG_SPLIT_PAIR |
-                                        TIMER_CFG_B_CAP_TIME_UP |
-                                        TIMER_CFG_A_PERIODIC_UP;
+    static const auto CFG_TIM_CAPTURE =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME_UP;
+    static const auto CFG_TIM_TIME =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PERIODIC;
+    static const auto CFG_SAMPLE =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC_UP;
+
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
     static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
+    static const auto TIMER_TIM_CAPMATCH = TIMER_CAPB_MATCH;
+    static const auto TIMER_TIM_MATCH = TIMER_TIMB_MATCH;
+
+    // Sets the match register of TIMER to update immediately.
+    static void clr_tim_mrsu() {
+      HWREG(TIMER_BASE + TIMER_O_TBMR) &= ~(TIMER_TBMR_TBMRSU);
+      HWREG(TIMER_BASE + TIMER_O_TBMR) |= (TIMER_TBMR_TBMIE);
+    }
 
     static const auto SAMPLE_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
