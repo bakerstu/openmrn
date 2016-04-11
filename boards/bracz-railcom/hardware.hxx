@@ -110,13 +110,16 @@ struct Debug
     // user-space state flow.
     typedef DummyPin DccPacketDelay;
 
+    // Set to one when we receive data on the 2nd channel of railcom.
+    typedef DEBUG2_Pin RailcomCh2Data;
+
     // High between start_cutout and end_cutout from the TivaRailcom driver.
     // typedef DBG_SIGNAL_Pin RailcomDriverCutout;
-    typedef DummyPin RailcomDriverCutout;
+    typedef DEBUG1_Pin RailcomDriverCutout;
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef LED_BLUE_SW_Pin DccDecodeInterrupts;
-    typedef DummyPin DccDecodeInterrupts;
+    typedef LED_GREEN_Pin DccDecodeInterrupts;
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef DBG_SIGNAL_Pin RailcomE0;
@@ -128,6 +131,7 @@ struct Debug
     // typedef LED_BLUE_SW_Pin RailcomError;
 
     typedef DummyPin RailcomDataReceived;
+
     //typedef LED_BLUE_Pin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
     typedef DummyPin RailcomPackets;
@@ -138,7 +142,7 @@ struct Debug
     //typedef DummyPin MeasurementEnabled;
     typedef LED_BLUE_Pin MeasurementEnabled;
 
-    typedef DEBUG1_Pin NSampling;
+    typedef DummyPin NSampling;
 
 };
 
