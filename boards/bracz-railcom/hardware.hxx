@@ -194,29 +194,41 @@ struct RailcomDefs
 
     static void set_hw()
     {
-        RAILCOM_CH0_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIODirModeSet(RAILCOM_CH0_Pin::GPIO_BASE, RAILCOM_CH0_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH2_Pin::GPIO_BASE, RAILCOM_CH2_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH3_Pin::GPIO_BASE, RAILCOM_CH3_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH4_Pin::GPIO_BASE, RAILCOM_CH4_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+/*        RAILCOM_CH0_Pin::set_hw();
+        GPIOPadConfigSet(
             RAILCOM_CH0_Pin::GPIO_BASE, RAILCOM_CH0_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH1_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH2_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH2_Pin::GPIO_BASE, RAILCOM_CH2_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH3_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH3_Pin::GPIO_BASE, RAILCOM_CH3_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH4_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH4_Pin::GPIO_BASE, RAILCOM_CH4_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH5_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
-            RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+        GPIOPadConfigSet(
+        RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);*/
     }
 
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
