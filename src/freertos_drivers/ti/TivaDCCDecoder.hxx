@@ -206,7 +206,6 @@ private:
 
     FixedQueue<uint32_t, HW::Q_SIZE> inputData_;
     uint32_t lastTimerValue_;
-    uint32_t reloadCount_;
     unsigned lastLevel_;
     bool overflowed_ = false;
     bool inCutout_ = false;
@@ -271,12 +270,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     Debug::DccDecodeInterrupts::set(true);
     // get masked interrupt status
     auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
-    if (!inCutout_ && (status & HW::TIMER_TIM_TIMEOUT))
-    {
-        // The timer got reloaded.
-        reloadCount_++;
-        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_TIM_TIMEOUT);
-    }
+    auto raw_status = MAP_TimerIntStatus(HW::TIMER_BASE, false);
     // TODO(balazs.racz): Technically it is possible that the timer reload
     // happens between the event match and the interrupt entry. In this case we
     // will incorrectly add a full cycle to the event length.
@@ -288,10 +282,8 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
         uint32_t old_value = lastTimerValue_;
-        while (reloadCount_ > 0)
-        {
+        if (raw_new_value > old_value) {
             old_value += HW::TIMER_MAX_VALUE;
-            reloadCount_--;
         }
         // HASSERT(new_value > lastTimerValue_);
         uint32_t new_value = old_value - raw_new_value;
@@ -341,7 +333,6 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             cutout_just_finished = true;
         }
         lastTimerValue_ = raw_new_value;
-        auto raw_status = MAP_TimerIntStatus(HW::TIMER_BASE, false);
         if ((raw_status & HW::SAMPLE_TIMER_TIMEOUT) && HW::NRZ_Pin::get() &&
             !prepCutout_ && !cutout_just_finished)
         {
