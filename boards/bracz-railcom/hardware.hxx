@@ -339,7 +339,7 @@ struct DCCDecode
     static const auto TIMER_INTERRUPT = INT_TIMER2B;
     static const auto TIMER = TIMER_B;
     static const auto CFG_TIM_CAPTURE =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME_UP;
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME;
     static const auto CFG_TIM_TIME =
         TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PERIODIC;
     static const auto CFG_SAMPLE =

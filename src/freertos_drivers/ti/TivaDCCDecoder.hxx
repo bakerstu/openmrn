@@ -179,7 +179,7 @@ private:
         MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, HW::PS_MAX);
 
         reloadCount_ = 0;
-        lastTimerValue_ = 0;
+        lastTimerValue_ = HW::TIMER_MAX_VALUE;
 
         MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
@@ -287,15 +287,14 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
-        uint32_t new_value;
-        new_value = raw_new_value;
+        uint32_t old_value = lastTimerValue_;
         while (reloadCount_ > 0)
         {
-            new_value += HW::TIMER_MAX_VALUE;
+            old_value += HW::TIMER_MAX_VALUE;
             reloadCount_--;
         }
         // HASSERT(new_value > lastTimerValue_);
-        new_value -= lastTimerValue_;
+        uint32_t new_value = old_value - raw_new_value;
         /*if (!inputData_.full())
         {
             inputData_.back() = overflowed_ ? 3 : new_value;
