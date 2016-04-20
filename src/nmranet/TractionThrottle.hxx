@@ -60,6 +60,21 @@ struct TractionThrottleCommands
     {
         LOAD_STATE,
     };
+
+    enum ConsistAdd
+    {
+        CONSIST_ADD,
+    };
+
+    enum ConsistDel
+    {
+        CONSIST_DEL,
+    };
+
+    enum ConsistQry
+    {
+        CONSIST_QRY,
+    };
 };
 
 struct TractionThrottleInput
@@ -69,6 +84,9 @@ struct TractionThrottleInput
         CMD_ASSIGN_TRAIN,
         CMD_RELEASE_TRAIN,
         CMD_LOAD_STATE,
+        CMD_CONSIST_ADD,
+        CMD_CONSIST_DEL,
+        CMD_CONSIST_QRY,
     };
 
     void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst)
@@ -87,8 +105,40 @@ struct TractionThrottleInput
         cmd = CMD_LOAD_STATE;
     }
 
+    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave, uint8_t flags)
+    {
+        cmd = CMD_CONSIST_ADD;
+        dst = slave;
+        this->flags = flags;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistDel &, NodeID slave)
+    {
+        cmd = CMD_CONSIST_DEL;
+        dst = slave;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistQry &)
+    {
+        cmd = CMD_CONSIST_QRY;
+        replyCause = 0xff;
+    }
+
+    void reset(const TractionThrottleCommands::ConsistQry &, uint8_t ofs)
+    {
+        cmd = CMD_CONSIST_QRY;
+        consistIndex = ofs;
+        replyCause = 0;
+    }
+
     Command cmd;
+    /// For assign, this carries the destination node ID. For consisting
+    /// requests, this is an in-out argument.
     NodeID dst;
+    /// Contains the flags for the consist listener. Specified for Attach
+    /// requests, and filled for Query responses.
+    uint8_t flags;
+
 
     BarrierNotifiable done;
     /// If high bits are zero, this is a 16-bit OpenLCB result code. Higher
@@ -97,6 +147,10 @@ struct TractionThrottleInput
     /// For assign controller reply REJECTED, this is 1 for controller refused
     /// connection, 2 fortrain refused connection.
     uint8_t replyCause;
+    /// Total number of entries in the consisting list.
+    uint8_t consistCount;
+    /// Index of the entry in the consisting list that needs to be returned.
+    uint8_t consistIndex;
 };
 
 /** Interface for a single throttle for running a train node.
@@ -129,6 +183,7 @@ public:
         FN_NOT_KNOWN = 0xffff,
         /// Upon a load state request, how far do we go into the function list?
         MAX_FN_QUERY = 8,
+        ERROR_UNASSIGNED = 0x4000000,
     };
 
     void set_speed(SpeedType speed) override
@@ -208,11 +263,42 @@ private:
             {
                 if (!dst_)
                 {
-                    return return_ok();
+                    return return_with_error(ERROR_UNASSIGNED);
                 }
                 return call_immediately(STATE(load_state));
             }
-
+            case Command::CMD_CONSIST_ADD:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED);
+                }
+                if (!input()->dst)
+                {
+                    return return_with_error(Defs::ERROR_INVALID_ARGS);
+                }
+                return call_immediately(STATE(consist_add));
+            }
+            case Command::CMD_CONSIST_DEL:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED);
+                }
+                if (!input()->dst)
+                {
+                    return return_with_error(Defs::ERROR_INVALID_ARGS);
+                }
+                return call_immediately(STATE(consist_del));
+            }
+            case Command::CMD_CONSIST_QRY:
+            {
+                if (!dst_)
+                {
+                    return return_with_error(ERROR_UNASSIGNED);
+                }
+                return call_immediately(STATE(consist_qry));
+            }
             default:
                 LOG_ERROR("Unknown traction throttle command %d received.",
                     input()->cmd);
@@ -347,6 +433,113 @@ private:
                 }
             }
         }
+    }
+
+    Action consist_add()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        send_traction_message(
+            TractionDefs::consist_add_payload(input()->dst, input()->flags));
+        return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
+    }
+
+    Action consist_del()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        send_traction_message(TractionDefs::consist_del_payload(input()->dst));
+        return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
+    }
+
+    Action consist_add_response()
+    {
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
+        }
+
+        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        const string &payload = handler_.response()->data()->payload;
+        if (payload.size() < 9)
+        {
+            return return_with_error(Defs::ERROR_INVALID_ARGS);
+        }
+        if (message()->data()->cmd == Command::CMD_CONSIST_ADD)
+        {
+            if (payload[1] != TractionDefs::CNSTRESP_ATTACH_NODE)
+            {
+                // spurious reply message
+                return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+            }
+        }
+        else if (message()->data()->cmd == Command::CMD_CONSIST_DEL)
+        {
+            if (payload[1] != TractionDefs::CNSTRESP_DETACH_NODE)
+            {
+                // spurious reply message
+                return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+            }
+        } else if (data_to_node_id(&payload[2]) != input()->dst) {
+            // spurious reply message
+            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        uint16_t e = payload[8];
+        e <<= 8;
+        e |= payload[9];
+        input()->replyCause = e ? 1 : 0;
+        return return_with_error(e);
+    }
+
+    Action consist_qry()
+    {
+        handler_.wait_for_response(
+            NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+        if (input()->replyCause == 0xff)
+        {
+            send_traction_message(TractionDefs::consist_qry_payload());
+        }
+        else
+        {
+            send_traction_message(
+                TractionDefs::consist_qry_payload(input()->consistIndex));
+        }
+        return sleep_and_call(
+            &timer_, TIMEOUT_NSEC, STATE(consist_qry_response));
+    }
+
+    Action consist_qry_response()
+    {
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_with_error(Defs::OPENMRN_TIMEOUT);
+        }
+
+        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        const string &payload = handler_.response()->data()->payload;
+        if (payload.size() < 3)
+        {
+            return return_with_error(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+        }
+        if (payload[1] != TractionDefs::CNSTRESP_QUERY_NODES)
+        {
+            // spurious reply message
+            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        input()->consistCount = payload[2];
+        if (payload.size() >= 11) {
+            input()->consistIndex = payload[3];
+            input()->flags = payload[4];
+            input()->dst = data_to_node_id(&payload[5]);
+        } else {
+            input()->consistIndex = 0xff;
+            input()->flags = 0xff;
+            input()->dst = 0;
+        }
+        input()->replyCause = 0;
+        return return_ok();
     }
 
     Action return_ok()

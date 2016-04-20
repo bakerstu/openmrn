@@ -75,7 +75,7 @@ public:
     ~TractionCvSpace();
 
 private:
-    static const unsigned MAX_CV = 255;
+    static const unsigned MAX_CV = 1023;
 
     bool set_node(Node *node) OVERRIDE;
 
@@ -86,7 +86,7 @@ private:
 
     address_t max_address() OVERRIDE
     {
-        return MAX_CV;
+        return OFFSET_CV_VALUE;
     }
 
     size_t write(address_t destination, const uint8_t *data, size_t len,
@@ -129,7 +129,18 @@ private:
         ERROR_UNKNOWN_RESPONSE = 6,
         _ERROR_TIMEOUT = 8,
     };
+
+    enum {
+        OFFSET_CV_INDEX = 0xFF000000,
+        OFFSET_CV_VALUE = 0xFF000004,
+    };
+
     uint8_t spaceId_;
+    /// Stores the last node for which the CV index was written.
+    uint16_t lastIndexedNode_;
+    /// Stores the last CV index (for indirect CV lookup).
+    uint32_t lastIndexedCv_;
+
     Notifiable *done_; //< notify when transfer is done
     StateFlowTimer timer_;
     long long deadline_;  //< time when we should give up and return error.

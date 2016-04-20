@@ -37,6 +37,7 @@
 // Enable this to collect the pointer of all buffers live.
 //#define DEBUG_BUFFER_MEMORY
 
+#include <memory>
 #include <new>
 #include <cstdint>
 #include <cstdlib>
@@ -224,37 +225,16 @@ private:
     T data_;
 };
 
-/** This class will automatically unref a Buffer when going out of scope. */
-template <class T> class AutoReleaseBuffer
-{
-public:
-    AutoReleaseBuffer(Buffer<T> *b)
-        : b_(b)
-    {
-    }
 
-    ~AutoReleaseBuffer()
-    {
-        if (b_)
-        {
-            b_->unref();
-        }
+template<typename T> struct BufferDelete {
+    void operator()(Buffer<T>* b) {
+        if (b) b->unref();
     }
-
-    /** Returns the held buffer pointer and relinquishes ownership. The buffer
-     * will not be unref-ed when *this goes out of scope.
-     *
-     * @returns the buffer pointer held. Transfers ownership to the caller. */
-    Buffer<T> *release()
-    {
-        Buffer<T> *b = b_;
-        b_ = nullptr;
-        return b;
-    }
-
-private:
-    Buffer<T> *b_;
 };
+
+/** This class will automatically unref a Buffer when going out of scope. */
+template<typename T> using AutoReleaseBuffer = std::unique_ptr<Buffer<T>, BufferDelete<T>>;
+template<typename T> using BufferPtr = AutoReleaseBuffer<T>;
 
 /** Pool of previously allocated, but currently unused, items. */
 class Pool

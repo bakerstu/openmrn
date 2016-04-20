@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2014-2016, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,51 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ConfigUpdateFlow.hxx
+ * \file TrainDbCdi.hxx
  *
- * Implementation of the notification flow for all config update
- * listeners. This flow calls each update listener and performs the necessary
- * actions.
+ * CDI entry defining the commandstation traindb entry.
  *
  * @author Balazs Racz
- * @date 13 June 2015
+ * @date 20 Mar 2016
  */
 
-#include "nmranet/ConfigUpdateFlow.hxx"
-#include <fcntl.h>
+#ifndef _NMRANET_TRACTIONCVCDI_HXX_
+#define _NMRANET_TRACTIONCVCDI_HXX_
 
-namespace nmranet
-{
+#include "nmranet/ConfigRepresentation.hxx"
 
-int ConfigUpdateFlow::open_file(const char *path)
-{
-    if (fd_ >= 0) return fd_;
-    if (!path)
-    {
-        fd_ = -1;
-    }
-    else
-    {
-        fd_ = ::open(path, O_RDWR);
-        HASSERT(fd_ >= 0);
-    }
-    return fd_;
-}
+namespace nmranet {
 
-void ConfigUpdateFlow::init_flow()
-{
-    trigger_update();
-    isInitialLoad_ = 1;
-}
+CDI_GROUP(TractionShortCvSpace, Segment(nmranet::MemoryConfigDefs::SPACE_DCC_CV), Offset(0xFF000000), Name("CV access"), Description("Individual CVs can be read and modified for Railcom-enabled locomotives using POM commands. Write the CV index variable first, then write or read the CV data variable."));
+CDI_GROUP_ENTRY(number, Uint32ConfigEntry, Name("CV number"));
+CDI_GROUP_ENTRY(value, Uint8ConfigEntry, Name("CV value"));
+CDI_GROUP_END();
 
-void ConfigUpdateFlow::factory_reset()
-{
-    for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
-        it->factory_reset(fd_);
-    }
-}
+static_assert(TractionShortCvSpace::size() == 5, "Traction CV space's size not as expected.");
 
-extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
-extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
+}  // namespace nmranet
 
-} // namespace nmranet
+#endif // _NMRANET_TRACTIONCVCDI_HXX_

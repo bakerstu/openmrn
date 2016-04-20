@@ -44,6 +44,15 @@ extern "C" {
 
 #define F_SETPIPE_SZ (F_FREERTOS_SPECIFIC_BASE + 0)
 
+
+#ifndef FREAD
+#define FREAD 1
+#endif
+
+#ifndef FWRITE
+#define FWRITE 2
+#endif
+
 #ifdef __cplusplus
 }
 #endif

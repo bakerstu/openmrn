@@ -118,7 +118,7 @@ cdi.o : compile_cdi
 	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
-	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
 
 clean: clean_cdi
 

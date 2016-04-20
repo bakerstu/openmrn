@@ -124,7 +124,7 @@ struct TractionDefs {
         RESP_QUERY_SPEED = REQ_QUERY_SPEED,
         RESP_QUERY_FN = REQ_QUERY_FN,
         RESP_CONTROLLER_CONFIG = REQ_CONTROLLER_CONFIG,
-        RESP_CONSISST_CONFIG = REQ_CONSIST_CONFIG,
+        RESP_CONSIST_CONFIG = REQ_CONSIST_CONFIG,
         RESP_TRACTION_MGMT = REQ_TRACTION_MGMT,
 
         // Byte 1 of Controller Configuration response
@@ -140,6 +140,10 @@ struct TractionDefs {
         CNSTRESP_ATTACH_NODE = CNSTREQ_ATTACH_NODE,
         CNSTRESP_DETACH_NODE = CNSTREQ_DETACH_NODE,
         CNSTRESP_QUERY_NODES = CNSTREQ_QUERY_NODES,
+
+        CNSTFLAGS_REVERSE = 0x02,
+        CNSTFLAGS_LINKF0 = 0x04,
+        CNSTFLAGS_LINKFN = 0x08,
 
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
@@ -293,7 +297,8 @@ struct TractionDefs {
         return true;
     }
 
-    static Payload assign_controller_payload(Node* ctrl) {
+    static Payload assign_controller_payload(Node *ctrl)
+    {
         Payload p(9, 0);
         p[0] = REQ_CONTROLLER_CONFIG;
         p[1] = CTRLREQ_ASSIGN_CONTROLLER;
@@ -302,12 +307,88 @@ struct TractionDefs {
         return p;
     }
 
-    static Payload release_controller_payload(Node* ctrl) {
+    static Payload release_controller_payload(Node *ctrl)
+    {
         Payload p(9, 0);
         p[0] = REQ_CONTROLLER_CONFIG;
         p[1] = CTRLREQ_RELEASE_CONTROLLER;
         p[2] = 0;
         node_id_to_data(ctrl->node_id(), &p[3]);
+        return p;
+    }
+
+    static Payload consist_add_payload(NodeID slave, uint8_t flags)
+    {
+        Payload p(9, 0);
+        p[0] = REQ_CONSIST_CONFIG;
+        p[1] = CNSTREQ_ATTACH_NODE;
+        p[2] = flags;
+        node_id_to_data(slave, &p[3]);
+        return p;
+    }
+
+    static Payload consist_add_response(NodeID slave, uint16_t error_code)
+    {
+        Payload p(10, 0);
+        p[0] = RESP_CONSIST_CONFIG;
+        p[1] = CNSTRESP_ATTACH_NODE;
+        node_id_to_data(slave, &p[2]);
+        error_to_data(error_code, &p[8]);
+        return p;
+    }
+
+    static Payload consist_del_payload(NodeID slave)
+    {
+        Payload p(9, 0);
+        p[0] = REQ_CONSIST_CONFIG;
+        p[1] = CNSTREQ_DETACH_NODE;
+        node_id_to_data(slave, &p[3]);
+        return p;
+    }
+
+    static Payload consist_del_response(NodeID slave, uint16_t error_code)
+    {
+        Payload p = consist_add_response(slave, error_code);
+        p[1] = CNSTRESP_DETACH_NODE;
+        return p;
+    }
+
+    static Payload consist_qry_payload()
+    {
+        Payload p(2, 0);
+        p[0] = REQ_CONSIST_CONFIG;
+        p[1] = CNSTREQ_QUERY_NODES;
+        return p;
+    }
+
+    static Payload consist_qry_payload(uint8_t arg)
+    {
+        Payload p(3, 0);
+        p[0] = REQ_CONSIST_CONFIG;
+        p[1] = CNSTREQ_QUERY_NODES;
+        p[2] = arg;
+        return p;
+    }
+
+    static Payload consist_qry_response_short(uint8_t num_entries)
+    {
+        Payload p(3, 0);
+        p[0] = RESP_CONSIST_CONFIG;
+        p[1] = CNSTRESP_QUERY_NODES;
+        p[2] = num_entries;
+        return p;
+    }
+
+    static Payload consist_qry_response_long(
+        uint8_t num_entries, uint8_t index, uint8_t flags, NodeID slave)
+    {
+        Payload p(11, 0);
+        p[0] = RESP_CONSIST_CONFIG;
+        p[1] = CNSTRESP_QUERY_NODES;
+        p[2] = num_entries;
+        p[3] = index;
+        p[4] = flags;
+        node_id_to_data(slave, &p[5]);
         return p;
     }
 };

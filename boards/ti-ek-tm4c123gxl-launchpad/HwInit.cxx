@@ -254,64 +254,6 @@ struct DccHwDefs {
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 
-GPIO_PIN(TEST, LedPin, A, 3);
-
-class MyTestClass : public Gpio {
-public:
-    constexpr MyTestClass() {}
-
-    void write(Value new_state) const OVERRIDE {} 
-    Value read() const OVERRIDE { return CLR; }
-    void set() const OVERRIDE {}
-    void clr() const OVERRIDE {}
-    void set_direction(Direction dir) const OVERRIDE {}
-    Direction direction() const OVERRIDE { return Direction::OUTPUT; }
-
-    void foo() const {}
-};
-
-const MyTestClass mytestv;
-
-constexpr auto p = TEST_Pin::instance();
-constexpr std::initializer_list<const Gpio* const> ggentries{ &mytestv, &mytestv , p };
-
-const Gpio* const hhentries[] = { &mytestv, p, TEST_Pin::instance()};
-
-//constexpr std::initializer_list<const Gpio* const> ggentries{kGpioList, 3};
-
-//constexpr auto ggge = { TEST_Pin::instance() };
-
-class TestBase {
-public:
-    virtual void set() const = 0;
-    virtual void clr() const = 0;
-};
-
-class OtherClass : public TestBase {
-public:
-    constexpr OtherClass(uint32_t gpio_base, uint8_t gpio_pin)
-        : ptr_(reinterpret_cast<uint8_t *>(gpio_base +
-                                           (((unsigned)gpio_pin) << 2)))
-    {
-    }
-
-    void set() const override {
-        *ptr_ = 0xff;
-    }
-
-    void clr() const override  {
-        *ptr_ = 0;
-    }
-
-private:
-    uint8_t* ptr_;
-};
-
-const OtherClass otherv(GPIO_PORTA_BASE, GPIO_PIN_3);
-
-constexpr std::initializer_list<const TestBase* const> myentries = { &otherv, &otherv };
-
-
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -366,21 +308,6 @@ void diewith(uint32_t pattern)
         ;
 }
 
-void __attribute__((noinline)) ggtestfn(const std::initializer_list<const Gpio* const>& data) {
-    data.begin()[0]->set();
-    data.begin()[1]->clr();
-}
-
-void __attribute__((noinline)) hhtestfn(const Gpio* const* data, size_t size) {
-    data[0]->set();
-    data[1]->clr();
-}
-
-void __attribute__((noinline)) mytestfn(const std::initializer_list<const TestBase* const>& data) {
-    data.begin()[0]->set();
-    data.begin()[1]->clr();
-}
-
 /** Initialize the processor hardware.
  */
 void hw_preinit(void)
@@ -433,10 +360,6 @@ void hw_preinit(void)
       }
     } while (blinker_pattern || rest_pattern);
     asm volatile ("cpsid i\n");
-
-    ggtestfn(ggentries);
-    hhtestfn(hhentries, ARRAYSIZE(hhentries));
-    mytestfn(myentries);
 }
 
 /** Timer interrupt for DCC packet handling.

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2015, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,51 +24,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ConfigUpdateFlow.hxx
- *
- * Implementation of the notification flow for all config update
- * listeners. This flow calls each update listener and performs the necessary
- * actions.
+ * \file EEPROMEmulation_weak.cxx
+ * Weak definitions for eeprom emulation driver.
  *
  * @author Balazs Racz
- * @date 13 June 2015
+ * @date 20 Mar 2016
  */
 
-#include "nmranet/ConfigUpdateFlow.hxx"
-#include <fcntl.h>
+#include "EEPROMEmulation.hxx"
 
-namespace nmranet
-{
-
-int ConfigUpdateFlow::open_file(const char *path)
-{
-    if (fd_ >= 0) return fd_;
-    if (!path)
-    {
-        fd_ = -1;
-    }
-    else
-    {
-        fd_ = ::open(path, O_RDWR);
-        HASSERT(fd_ >= 0);
-    }
-    return fd_;
-}
-
-void ConfigUpdateFlow::init_flow()
-{
-    trigger_update();
-    isInitialLoad_ = 1;
-}
-
-void ConfigUpdateFlow::factory_reset()
-{
-    for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
-        it->factory_reset(fd_);
-    }
-}
-
-extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
-extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
-
-} // namespace nmranet
+// This weak definition was moved out of the compilation unit of eeprom
+// emulation implementation to prevent GCC from mistakenly optimizing away the
+// constant into a linker reference.
+const bool __attribute__((weak)) EEPROMEmulation::SHADOW_IN_RAM = false;

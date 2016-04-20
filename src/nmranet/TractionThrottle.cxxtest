@@ -1,4 +1,4 @@
-#include "utils/async_if_test_helper.hxx"
+#include "utils/async_traction_test_helper.hxx"
 
 #include "nmranet/TractionTrain.hxx"
 #include "nmranet/TractionTestTrain.hxx"
@@ -226,6 +226,153 @@ TEST_F(ThrottleTest, SendQuery)
     EXPECT_EQ(0, flow.throttle_.get_fn(5));
     EXPECT_EQ(0, flow.throttle_.get_fn(6));
     EXPECT_EQ(1, flow.throttle_.get_fn(7));
+}
+
+class ThrottleClientTest : public ThrottleTest {
+protected:
+    TractionThrottle throttle_{node_};
+};
+
+
+#define EXPECT_QRYCONSIST(NODE, FLAGS, index) { uint8_t flags; EXPECT_EQ(NODE, trainNode_->query_consist(index, &flags)); EXPECT_EQ(FLAGS, flags); }
+
+TEST_F(ThrottleClientTest, SendConsistAdd)
+{
+    NodeID n1 = 0x050101011837;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD,
+        0x050101011837, 0x5A);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n1, 0x5A, 0);
+}
+
+TEST_F(ThrottleClientTest, SendConsistAddDel)
+{
+    NodeID n1 = 0x050101011837;
+    NodeID n2 = 0x050101012188;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n1, 0x5A);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n1, 0x5A, 0);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n2, 0x42);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n2, 0x42, 0);
+    EXPECT_QRYCONSIST(n1, 0x5A, 1);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n2, 0x42, 0);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
+    EXPECT_EQ(Defs::ERROR_OPENMRN_NOT_FOUND, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n2, 0x42, 0);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_DEL, n2);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+}
+
+TEST_F(ThrottleClientTest, SendConsistQry)
+{
+    NodeID n1 = 0x050101011837;
+    NodeID n2 = 0x050101012188;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+    wait();
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY);
+    wait();
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, b->data()->consistCount);
+    EXPECT_EQ(0xff, b->data()->consistIndex);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n1, 0x5A);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n1, 0x5A, 0);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, b->data()->consistCount);
+    EXPECT_EQ(0xff, b->data()->consistIndex);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 0);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, b->data()->consistCount);
+    EXPECT_EQ(0, b->data()->consistIndex);
+    EXPECT_EQ(0x5A, b->data()->flags);
+    EXPECT_EQ(n1, b->data()->dst);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 1);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1, b->data()->consistCount);
+    EXPECT_EQ(0xff, b->data()->consistIndex);
+    EXPECT_EQ(0, b->data()->dst);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n2, 0x42);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(n2, 0x42, 0);
+    EXPECT_QRYCONSIST(n1, 0x5A, 1);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 1);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, b->data()->consistCount);
+    EXPECT_EQ(1, b->data()->consistIndex);
+    EXPECT_EQ(0x5A, b->data()->flags);
+    EXPECT_EQ(n1, b->data()->dst);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 0);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, b->data()->consistCount);
+    EXPECT_EQ(0, b->data()->consistIndex);
+    EXPECT_EQ(0x42, b->data()->flags);
+    EXPECT_EQ(n2, b->data()->dst);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 2);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(2, b->data()->consistCount);
+    EXPECT_EQ(0xff, b->data()->consistIndex);
+    EXPECT_EQ(0, b->data()->dst);
+}
+
+TEST_F(ThrottleClientTest, SendSelfConsist)
+{
+    NodeID n1 = TRAIN_NODE_ID;
+
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, n1, 0);
+    // Rejected: already exists.
+    EXPECT_NE(0, b->data()->resultCode);
+    EXPECT_EQ(Defs::ERROR_OPENMRN_ALREADY_EXISTS, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
 }
 
 } // namespace nmranet

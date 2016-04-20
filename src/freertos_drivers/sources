@@ -14,6 +14,7 @@ CXXSRCS += Fileio.cxx \
            I2C.cxx \
            EEPROM.cxx \
            EEPROMEmulation.cxx \
+           EEPROMEmulation_weak.cxx \
            Pipe.cxx \
            CpuLoad.cxx \
            Socket.cxx

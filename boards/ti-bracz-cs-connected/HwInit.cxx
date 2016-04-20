@@ -90,6 +90,7 @@ static TivaFlash flash0("/etc/automata", __automata_start, __automata_end - __au
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C129;
 const size_t EEPROMEmulation::SECTOR_SIZE = (16 * 1024);
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 4*1024);
+const bool EEPROMEmulation::SHADOW_IN_RAM = true;
 
 /** USB Device CDC serial driver instance */
 static TivaCdc cdc0("/dev/serUSB0", INT_RESOLVE(INT_USB0_, 0));

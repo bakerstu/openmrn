@@ -1,0 +1,84 @@
+#include "utils/async_traction_test_helper.hxx"
+
+#include "nmranet/TractionTrain.hxx"
+#include "nmranet/TractionTestTrain.hxx"
+#include "nmranet/TractionThrottle.hxx"
+
+namespace nmranet
+{
+
+static constexpr NodeID nodeIdLead = 0x060100000000 | 1371;
+static constexpr NodeID nodeIdC1 = 0x060100000000 | 1372;
+static constexpr NodeID nodeIdC2 = 0x060100000000 | 1373;
+
+class ConsistTest : public TractionTest {
+protected:
+    ConsistTest() {
+        create_allocated_alias();
+        otherIf_.local_aliases()->add(nodeIdLead, 0x771);
+        otherIf_.local_aliases()->add(nodeIdC1, 0x772);
+        otherIf_.local_aliases()->add(nodeIdC2, 0x773);
+        nodeLead_.reset(new TrainNode(&trainService_, &trainLead_));
+        nodeC1_.reset(new TrainNode(&trainService_, &trainC1_));
+        nodeC2_.reset(new TrainNode(&trainService_, &trainC2_));
+        wait();
+    }
+
+    TractionThrottle throttle_{node_};
+
+    IfCan otherIf_{&g_executor, &can_hub0, 5, 5, 5};
+    TrainService trainService_{&otherIf_};
+
+    LoggingTrain trainLead_{1371};
+    LoggingTrain trainC1_{1372};
+    LoggingTrain trainC2_{1373};
+    std::unique_ptr<TrainNode> nodeLead_;
+    std::unique_ptr<TrainNode> nodeC1_;
+    std::unique_ptr<TrainNode> nodeC2_;
+};
+
+TEST_F(ConsistTest, CreateDestroy) {
+}
+
+TEST_F(ConsistTest, CreateAndRunConsist) {
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, nodeIdLead);
+    ASSERT_EQ(0, b->data()->resultCode);
+    wait();
+
+    b = invoke_flow(
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC1, 0);
+    ASSERT_EQ(0, b->data()->resultCode);
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC2,
+        TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    Velocity v;
+    v.set_mph(37.5);
+    throttle_.set_speed(v);
+    wait();
+
+    EXPECT_NEAR(trainLead_.get_speed().mph(), 37.5, 0.01);
+    EXPECT_NEAR(trainC1_.get_speed().mph(), 37.5, 0.01);
+    EXPECT_NEAR(trainC2_.get_speed().mph(), 37.5, 0.01);
+    EXPECT_EQ(Velocity::FORWARD, trainLead_.get_speed().direction());
+    EXPECT_EQ(Velocity::FORWARD, trainC1_.get_speed().direction());
+    EXPECT_EQ(Velocity::REVERSE, trainC2_.get_speed().direction());
+
+    v.reverse();
+    v.set_mph(13.7);
+    throttle_.set_speed(v);
+    wait();
+
+    EXPECT_NEAR(trainLead_.get_speed().mph(), 13.7, 0.01);
+    EXPECT_NEAR(trainC1_.get_speed().mph(), 13.7, 0.01);
+    EXPECT_NEAR(trainC2_.get_speed().mph(), 13.7, 0.01);
+    EXPECT_EQ(Velocity::REVERSE, trainLead_.get_speed().direction());
+    EXPECT_EQ(Velocity::REVERSE, trainC1_.get_speed().direction());
+    EXPECT_EQ(Velocity::FORWARD, trainC2_.get_speed().direction());
+}
+
+
+
+
+} // namespace nmranet

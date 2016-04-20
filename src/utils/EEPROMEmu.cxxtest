@@ -1,0 +1,3 @@
+#include "utils/EEPROMEmuTest.hxx"
+
+const bool EEPROMEmulation::SHADOW_IN_RAM = false;
