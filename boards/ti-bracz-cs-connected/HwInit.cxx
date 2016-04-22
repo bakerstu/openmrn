@@ -34,6 +34,8 @@
 #include <cstdint>
 #include <new>
 
+#include "hardware.hxx"
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
@@ -53,7 +55,6 @@
 #include "TivaEEPROMEmulation.hxx"
 
 #include "commandstation/dcc_control.hxx"
-#include "hardware.hxx"
 #include "DccHardware.hxx"
 #include "DummyGPIO.hxx"
 
@@ -65,6 +66,7 @@ struct Debug {
   typedef DummyPin RailcomError;
   // Flips every time an 'E0' byte is received in the railcom driver.
   typedef DummyPin RailcomE0;
+  typedef DummyPin RailcomCh2Data;
 
     typedef DummyPin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
@@ -239,6 +241,7 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    GpioInit::hw_init();
 
     /* First we take care of the important pins that control the power
      * transistors */
