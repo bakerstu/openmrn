@@ -257,7 +257,7 @@ void timer2b_interrupt_handler(void)
 
 void timer2a_interrupt_handler(void)
 {
-  nrz0.os_interrupt_handler();
+  nrz0.rcom_interrupt_handler();
 }
 
 void uart1_interrupt_handler(void)

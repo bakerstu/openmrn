@@ -340,33 +340,31 @@ struct DCCDecode
     static const auto TIMER = TIMER_B;
     static const auto CFG_TIM_CAPTURE =
         TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME;
-    static const auto CFG_TIM_TIME =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PERIODIC;
-    static const auto CFG_SAMPLE =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC_UP;
+    static const auto CFG_RCOM_TIMER =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC;
 
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
-    static const auto TIMER_TIM_CAPMATCH = TIMER_CAPB_MATCH;
-    static const auto TIMER_TIM_MATCH = TIMER_TIMB_MATCH;
+    static const auto TIMER_RCOM_MATCH = TIMER_TIMA_MATCH;
 
     // Sets the match register of TIMER to update immediately.
     static void clr_tim_mrsu() {
-      HWREG(TIMER_BASE + TIMER_O_TBMR) &= ~(TIMER_TBMR_TBMRSU);
-      HWREG(TIMER_BASE + TIMER_O_TBMR) |= (TIMER_TBMR_TBMIE);
+      HWREG(TIMER_BASE + TIMER_O_TAMR) &= ~(TIMER_TAMR_TAMRSU);
+      HWREG(TIMER_BASE + TIMER_O_TAMR) |= (TIMER_TAMR_TAMIE);
     }
 
-    static const auto SAMPLE_TIMER = TIMER_A;
+    static const auto RCOM_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
-    static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
-
-    static const auto OS_INTERRUPT = INT_TIMER2A;
+    //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
+    static const auto RCOM_INTERRUPT = INT_TIMER2A;
+    //static const auto OS_INTERRUPT = INT_TIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
 
     // 16-bit timer max + use 7 bits of prescaler.
     static const uint32_t TIMER_MAX_VALUE = 0x800000UL;
     static const uint32_t PS_MAX = 0x80;
+
+    static_assert(SAMPLE_PERIOD_CLOCKS < TIMER_MAX_VALUE, "Cannot sample less often than the timer period");
 
     static const int Q_SIZE = 32;
 
