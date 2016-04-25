@@ -511,8 +511,8 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
     }
 
     int result;
-
-    return 0;
+    TickType_t timeout;
+    const struct timeval *tm;
 
     switch (level)
     {
@@ -520,9 +520,39 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
             errno = EINVAL;
             return -1;
         case SOL_SOCKET:
-            level = SOL_SOCKET;
             switch (option_name)
             {
+            	case SO_REUSEADDR:
+            		// ignore as FreeRTOS semantics different from BSD
+            		return 0;
+            	case SO_RCVTIMEO:
+            		tm = static_cast<const struct timeval *>(option_value);
+            		timeout = ((tm->tv_sec*1000000 + tm->tv_usec))/1000*portTICK_PERIOD_MS;
+            		result = FreeRTOS_setsockopt(s->sd,
+            				0,
+							FREERTOS_SO_RCVTIMEO,
+							&timeout,
+							0);
+            		if (result == -FREERTOS_EINVAL)
+            		{
+            			errno = EINVAL;
+            			return -1;
+            		}
+            		return 0;
+            	case SO_SNDTIMEO:
+            		tm = static_cast<const struct timeval *>(option_value);
+            		timeout = ((tm->tv_sec*1000000 + tm->tv_usec))/1000*portTICK_PERIOD_MS;
+            		result = FreeRTOS_setsockopt(s->sd,
+            				0,
+							FREERTOS_SO_SNDTIMEO,
+							&timeout,
+							0);
+            		if (result == -FREERTOS_EINVAL)
+            		{
+            			errno = EINVAL;
+            			return -1;
+            		}
+            		return 0;
                 default:
                     errno = EINVAL;
                     return -1;
@@ -531,6 +561,9 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
         case IPPROTO_TCP:
             switch (option_name)
             {
+            	case TCP_NODELAY:
+            		// not implemented, return no error
+            		return 0;
                 default:
                     errno = EINVAL;
                     return -1;

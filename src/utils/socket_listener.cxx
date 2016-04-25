@@ -32,15 +32,17 @@
  * @date 3 Aug 2013
  */
 
-#if defined (__linux__) || defined (__MACH__)
+#if defined (__linux__) || defined (__MACH__)  || 1
 
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
+
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+//#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 
 #include "utils/socket_listener.hxx"
 
@@ -60,7 +62,7 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {}
+accept_thread_("accept_thread", 0, 1024, accept_thread_start, this) {}
 
 SocketListener::~SocketListener() {
     if (!shutdownComplete_) {
@@ -93,17 +95,19 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("bind",
              ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
+#if 0 // no getsockname support
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
              getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
-
+#endif
+    
   // This is the actual port that got opened. We could check it against the
   // requested port. listenport = ;
 
   ERRNOCHECK("listen", listen(listenfd, 1));
 
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
-
+    
   {
       struct timeval tm;
       tm.tv_sec = 0;
@@ -131,9 +135,18 @@ void SocketListener::AcceptThreadBody() {
     ERRNOCHECK("setsockopt(nodelay)",
                setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
                           &val, sizeof(val)));
-
+#if 0
     LOG(INFO, "Incoming connection from %s, fd %d.", inet_ntoa(addr.sin_addr),
         connfd);
+#endif
+    printf("incoming connection on %d\n",connfd);
+      {
+          struct timeval tm;
+          tm.tv_sec = 600;
+          tm.tv_usec = 0;
+          setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tm,sizeof(tm));
+      }
+      
     callback_(connfd);
   }
   close(listenfd);

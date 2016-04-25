@@ -64,6 +64,12 @@ extern "C" {
 
 /** socket option to reuse address */
 #define SO_REUSEADDR (2)
+    
+/** socket option receive timout */
+#define SO_RCVTIMEO   (3)
+    
+/** socket option send timeout */
+#define SO_SNDTIMEO   (4)
 
 /** IPv4 socket address */
 struct sockaddr

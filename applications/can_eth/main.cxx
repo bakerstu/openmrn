@@ -46,6 +46,7 @@
 #include "nmranet_config.h"
 #include "os/os.h"
 #include "utils/GridConnectHub.hxx"
+#include "utils/GcTcpHub.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/blinker.h"
@@ -70,44 +71,6 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 OVERRIDE_CONST(main_thread_stack_size, 900);
 #endif
 
-void *client_task(void *param)
-{
-	const char
-		msg1[] = "Hello, you have connected to the test program\n",
-		msg2[] = "\nNow closing connection\n";
-	char buf[32];
-	fd_set rd_set, temp_rd_set;
-	struct timeval timeout = {5,0};
-	int fd = (int) (param);
-	int rslt = send(fd,msg1,sizeof(msg1),0);
-	printf("send rslt=%d\n",rslt);
-	FD_ZERO(&rd_set);
-	FD_SET(fd,&rd_set);
-	if (1)
-	for (int i = 0; i < 5; i++)
-	{
-		temp_rd_set = rd_set;
-		rslt = select(fd+1,&rd_set,nullptr,nullptr,&timeout);
-		printf("select=%d\n",rslt);
-		if (rslt <= 0)
-			continue;
-		if (FD_ISSET(fd,&rd_set))
-		{
-			// data to read
-			rslt = recv(fd,buf,sizeof(buf),0);
-			printf("recv rslt=%d\n",rslt);
-			rslt = send(fd,buf,rslt,0);
-			printf("send rslt=%d\n",rslt);
-			(void) buf;
-		}
-	}
-	FD_CLR(fd,&rd_set);
-	send(fd,msg2,sizeof(msg2),0);
-	sleep(1);
-	close(fd);
-
-	return NULL;
-}
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -120,23 +83,7 @@ int appl_main(int argc, char* argv[])
     HASSERT(serial_fd >= 0);
     printf("Started\n");
 
-    int socket_fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    printf("Socket created: %d (errno=%d)\n",socket_fd,errno);
-    //sleep(5);
-    HASSERT(socket_fd >= 0);
-
-    struct sockaddr_in sin;
-    memset(&sin,0,sizeof(sin));
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(9000);
-    int rslt = bind(socket_fd,(struct sockaddr *) &sin,sizeof(sin));
-    printf("bind rslt=%d (errno=%d)\n",rslt,errno);
-
-    rslt = listen(socket_fd,5);
-    printf("listen rslt=%d errno=%d)\n",rslt,errno);
-
-
-    create_gc_port_for_can_hub(&can_hub0, socket_fd);
+    GcTcpHub hub(&can_hub0,9000);
 
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
@@ -145,14 +92,6 @@ int appl_main(int argc, char* argv[])
         &can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
 
     while(1) {
-    	socklen_t addr_len = sizeof(sin);
-    	int client_fd = accept(socket_fd,(struct sockaddr *) &sin,&addr_len);
-    	if (client_fd > 0)
-    	{
-    		printf("Connection accepted on %d\n",client_fd);
-    		os_thread_create(NULL,"Client",configMAX_PRIORITIES-2,2048,client_task,(void *) client_fd);
-
-    	}
         sleep(1);
         resetblink(1);
         sleep(1);
