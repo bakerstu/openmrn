@@ -181,7 +181,8 @@ struct TrainService::Impl
                     value <<= 8;
                     value |= payload()[5];
                     train_node()->train()->set_fn(address, value);
-                    return release_and_exit();
+                    nextConsistIndex_ = 0;
+                    return call_immediately(STATE(maybe_forward_consist));
                 }
                 case TractionDefs::REQ_EMERGENCY_STOP:
                 {
