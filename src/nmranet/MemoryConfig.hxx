@@ -39,6 +39,7 @@
 #include "nmranet/DatagramHandlerDefault.hxx"
 #include "nmranet/MemoryConfig.hxx"
 #include "utils/Destructable.hxx"
+#include "utils/ConfigUpdateService.hxx"
 
 class Notifiable;
 
@@ -446,6 +447,11 @@ private:
             {
                 enter_bootloader();
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
+            }
+            case MemoryConfigDefs::COMMAND_UPDATE_COMPLETE:
+            {
+                Singleton<ConfigUpdateService>::instance()->trigger_update();
+                return respond_ok(0);
             }
             case MemoryConfigDefs::COMMAND_RESET:
             {
