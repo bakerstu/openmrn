@@ -277,8 +277,6 @@ private:
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
     /// Default service on the particular executor.
     Service service_{&executor_};
-    /// Calls the config listeners with the configuration FD.
-    ConfigUpdateFlow configUpdateFlow_{&service_};
     /// Abstract CAN bus in-memory.
     CanHubFlow canHub0_{&service_};
     /// NMRAnet interface for sending and receiving messages, formatting them
@@ -287,6 +285,8 @@ private:
         &executor_,                      &canHub0_,
         config_local_alias_cache_size(), config_remote_alias_cache_size(),
         config_local_nodes_count()};
+    /// Calls the config listeners with the configuration FD.
+    ConfigUpdateFlow configUpdateFlow_{&ifCan_};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_{&service_};
     /// The actual node.
