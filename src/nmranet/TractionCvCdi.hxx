@@ -39,7 +39,7 @@
 
 namespace nmranet {
 
-CDI_GROUP(TractionShortCvSpace, Segment(nmranet::MemoryConfigDefs::SPACE_DCC_CV), Offset(0xFF000000), Name("CV access"), Description("Individual CVs can be read and modified for Railcom-enabled locomotives using POM commands. Write the CV index variable first, then write or read the CV data variable."));
+CDI_GROUP(TractionShortCvSpace, Segment(nmranet::MemoryConfigDefs::SPACE_DCC_CV), Offset(0x7F000000), Name("CV access"), Description("Individual CVs can be read and modified for Railcom-enabled locomotives using POM commands. Write the CV number variable first, then write or read the CV value variable."));
 CDI_GROUP_ENTRY(number, Uint32ConfigEntry, Name("CV number"));
 CDI_GROUP_ENTRY(value, Uint8ConfigEntry, Name("CV value"));
 CDI_GROUP_END();
