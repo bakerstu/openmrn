@@ -58,6 +58,9 @@ public:
     /// @param listener pointer to the implementation that needs to be removed.
     ///
     virtual void unregister_update_listener(ConfigUpdateListener *listener) = 0;
+
+    /// Executes an update in response to the configuration having changed.
+    virtual void trigger_update() = 0;
 };
 
 #endif // _UTILS_CONFIGUPDATESERVICE_HXX_

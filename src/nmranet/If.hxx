@@ -317,6 +317,40 @@ public:
         return it->second;
     }
 
+    /**
+     * @returns the first node (by nodeID order) that is registered in this
+     * interface as a local node, or nullptr if this interface has no local
+     * nodes.
+     */
+    Node* first_local_node() {
+        auto it = localNodes_.begin();
+        if (it == localNodes_.end()) return nullptr;
+        return it->second;
+    }
+
+    /**
+     * Iterator helper on the local nodes map.
+     *
+     * @param previous is the node ID of a valid local node.
+     *
+     * @returns the node pointer of the next local node (in node ID order) or
+     * null if this was the last node or an invalid argument (not the node ID
+     * of a local node).
+     */
+    Node* next_local_node(NodeID previous) {
+        auto it = localNodes_.find(previous);
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        ++it;
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    }
+
     /** @returns true if the two node handles match as far as we can tell
      * without doing any network traffic. */
     virtual bool matching_node(NodeHandle expected,
