@@ -396,7 +396,7 @@ static bool InitialiseEthernet(void)
     LinkDown = true;
     while ((EMACPHYRead(EMAC0_BASE,PHYAddr,EPHY_BMSR) & EPHY_BMSR_LINKSTAT) == 0)
     {
-    	vTaskDelay(50*portTICK_PERIOD_MS);
+    	vTaskDelay(pdMS_TO_TICKS(50));
     }
     LinkDown = false;
     // set MAC filtering options: self, broadcast, multicast
@@ -567,7 +567,7 @@ BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxDescript
     	/* Don't release the NetworkBufferDescriptor, so we must wait for the send to complete
     	 * below returning to the caller.
     	 */
-    	if (xSemaphoreTake(pxTxIOD->xIOComplete,500*portTICK_PERIOD_MS) == pdFALSE)
+    	if (xSemaphoreTake(pxTxIOD->xIOComplete,pdMS_TO_TICKS(500)) == pdFALSE)
     	{
     		PrintStr("IOComplete timeout\n");
     	}
@@ -636,7 +636,7 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
 					 * replace the buffer of the operation just finished.
 					 */
 
-					pxDescriptor = pxGetNetworkBufferWithDescriptor( ipTOTAL_ETHERNET_FRAME_SIZE, 50*portTICK_PERIOD_MS);
+					pxDescriptor = pxGetNetworkBufferWithDescriptor( ipTOTAL_ETHERNET_FRAME_SIZE, pdMS_TO_TICKS(50));
 					if (pxDescriptor == NULL)
 					{
 						/* No buffer available: break out of receive while loop */

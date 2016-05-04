@@ -108,7 +108,7 @@ void FreeRTOSTCP::net_task()
 
     for ( ; /* forever */ ; )
     {
-    	const TickType_t timeout = 30000*portTICK_PERIOD_MS;
+    	const TickType_t timeout = pdMS_TO_TICKS(30000);
 
         sel_result = FreeRTOS_select(socket_set,timeout);
 

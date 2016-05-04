@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2016, Stuart W Baker
+ * Copyright (c) 2016, Sidney McHarg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,30 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file select.h
- * This file implements POSIX netinet/tcp.h prototypes.
+ * \file netdb.h
+ * This file proides declaractions and defines found in netdb.h.
  *
- * @author Stuart W. Baker
- * @date 19 March 2016
+ * @author Sidney McHarg
+ * @date 01 May 2016
  */
 
-#ifndef _ARPA_INET_H_
-#define _ARPA_INET_H_
+#ifndef _NETDB_H_
+#define _NETDB_H_
 
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int inet_aton (const char *name, struct in_addr *addr);
 
-uint32_t inet_addr (const char *name);
-    
-char *inet_ntoa (struct in_addr addr);
-    
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _ARPA_INET_H_ */
+#endif /* _NETDB_H_ */

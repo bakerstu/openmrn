@@ -32,17 +32,15 @@
  * @date 3 Aug 2013
  */
 
-#if defined (__linux__) || defined (__MACH__)  || 1
+#if defined (__linux__) || defined (__MACH__)  || defined(GCC_ARMCM3)
 
-
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-//#include <netdb.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "utils/socket_listener.hxx"
 
@@ -62,7 +60,7 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-accept_thread_("accept_thread", 0, 1024, accept_thread_start, this) {}
+      accept_thread_("accept_thread", 0, 1024, accept_thread_start, this) {}
 
 SocketListener::~SocketListener() {
     if (!shutdownComplete_) {
@@ -95,7 +93,7 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("bind",
              ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
-#if 0 // no getsockname support
+#if !defined(GCC_ARMCM3) // no getsockname support
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
              getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
@@ -104,8 +102,14 @@ void SocketListener::AcceptThreadBody() {
   // This is the actual port that got opened. We could check it against the
   // requested port. listenport = ;
 
+#if defined(GCC_ARMCM3)
+  // FreeRTOS+TCP uses the parameter to listen to set the maximum number of connections
+  // to the given socket, so allow some room
+  ERRNOCHECK("listen", listen(listenfd, 5));
+#else
   ERRNOCHECK("listen", listen(listenfd, 1));
-
+#endif
+    
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
     
   {
@@ -135,17 +139,16 @@ void SocketListener::AcceptThreadBody() {
     ERRNOCHECK("setsockopt(nodelay)",
                setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
                           &val, sizeof(val)));
-#if 0
     LOG(INFO, "Incoming connection from %s, fd %d.", inet_ntoa(addr.sin_addr),
         connfd);
-#endif
-    printf("incoming connection on %d\n",connfd);
+#if defined(GCC_ARMCM3) // FreeRTOS+TCP will default to zero recv delay
       {
           struct timeval tm;
-          tm.tv_sec = 600;
+          tm.tv_sec = 30*24*3600; // 30 days
           tm.tv_usec = 0;
           setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tm,sizeof(tm));
       }
+#endif
       
     callback_(connfd);
   }

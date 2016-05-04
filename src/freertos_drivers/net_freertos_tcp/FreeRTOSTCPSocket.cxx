@@ -527,7 +527,7 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
             		return 0;
             	case SO_RCVTIMEO:
             		tm = static_cast<const struct timeval *>(option_value);
-            		timeout = ((tm->tv_sec*1000000 + tm->tv_usec))/1000*portTICK_PERIOD_MS;
+            		timeout = pdMS_TO_TICKS((tm->tv_sec*1000000 + tm->tv_usec)/1000);
             		result = FreeRTOS_setsockopt(s->sd,
             				0,
 							FREERTOS_SO_RCVTIMEO,
@@ -541,7 +541,7 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
             		return 0;
             	case SO_SNDTIMEO:
             		tm = static_cast<const struct timeval *>(option_value);
-            		timeout = ((tm->tv_sec*1000000 + tm->tv_usec))/1000*portTICK_PERIOD_MS;
+            		timeout = pdMS_TO_TICKS((tm->tv_sec*1000000 + tm->tv_usec)/1000);
             		result = FreeRTOS_setsockopt(s->sd,
             				0,
 							FREERTOS_SO_SNDTIMEO,
@@ -790,7 +790,7 @@ int FreeRTOSTCPSocket::fcntl(File *file, int cmd, unsigned long data)
     		{
     			// translate set non blocking into zero Recv and Send timeouts
     		    static const TickType_t
-    				timeout = 0*portTICK_PERIOD_MS;
+    				timeout = 0;
     		    FreeRTOS_setsockopt(sd,0,FREERTOS_SO_RCVTIMEO,
     		    		(void *) &timeout,sizeof(timeout));
     		    FreeRTOS_setsockopt(sd,0,FREERTOS_SO_SNDTIMEO,
