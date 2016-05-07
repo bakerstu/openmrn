@@ -1,6 +1,8 @@
 # This makefile contains the lookup path for all the external dependencies to
 # toolchains and libraries.
 
+ifndef OPENMRN_PATH_MK
+OPENMRN_PATH_MK:=1
 
 ################# helper functions ##############
 
@@ -426,5 +428,43 @@ NODEJSPATH:=$(TRYPATH)
 endif
 endif #NODEJSPATH
 
-endif # if  $(OS)  != Windows_NT
+##################### ESPOPENSDK ######################
+ifndef ESPOPENSDKPATH
+SEARCHPATH := \
+  /opt/esp/esp-open-sdk
 
+
+TRYPATH:=$(call findfirst,xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPOPENSDKPATH:=$(TRYPATH)
+endif
+endif #ESPOPENSDKPATH
+
+
+##################### XTENSAGCC ######################
+ifndef XTENSAGCCPATH
+SEARCHPATH := \
+  $(ESPOPENSDKPATH)/xtensa-lx106-elf
+
+
+TRYPATH:=$(call findfirst,bin/xtensa-lx106-elf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+XTENSAGCCPATH:=$(TRYPATH)
+endif
+endif #XTENSAGCCPATH
+
+##################### ESPTOOL ######################
+ifndef ESPTOOLPATH
+SEARCHPATH := \
+  $(ESPOPENSDKPATH)/esptool \
+  $(XTENSAGCCPATH)/bin
+
+
+TRYPATH:=$(call findfirst,esptool.py,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPTOOLPATH:=$(TRYPATH)
+endif
+endif #ESPTOOLPATH
+
+endif # if  $(OS)  != Windows_NT
+endif # ifndef OPENMRN_PATH_MK
