@@ -230,6 +230,12 @@ void disable_dcc() {
     io::TrackOnLed::set(false);
 }
 
+void setshorted_dcc() {
+    g_dcc_on = false;
+    io::TrackOnLed::set(false);
+    dcc_hw.output_set_shorted();
+}
+
 bool query_dcc() {
   return g_dcc_on;
 }

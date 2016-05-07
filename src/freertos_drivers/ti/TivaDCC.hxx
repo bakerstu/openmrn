@@ -257,6 +257,10 @@ public:
         internal_disable_output();
     }
 
+    void output_set_shorted() {
+        state_ = POWER_SHORT_20P;
+    }
+
 private:
     // Helper function for turnon and the cutout.
     static void internal_enable_output() {
@@ -339,6 +343,7 @@ private:
         TURNON_1P,
         TURNON_10P,
         TURNON_50P,
+        SHORT_20P,
 
         NUM_TIMINGS
     } BitEnum;
@@ -414,6 +419,9 @@ private:
         POWER_TURNON_10P,
         // Turnon at 50% output power
         POWER_TURNON_50P,
+
+        // Used during periods when a short is detected on the output
+        POWER_SHORT_20P,
     };
     State state_;
 
@@ -652,26 +660,32 @@ inline void TivaDCC<HW>::interrupt_handler()
         break;
     case POWER_TURNON_1P:
         current_bit = TURNON_1P;
-        if (count++ >= 500) {
+        if (count++ >= 50) {
             count = 0;
             state_ = POWER_TURNON_10P;
         }
         break;
     case POWER_TURNON_10P:
         current_bit = TURNON_10P;
-        if (count++ >= 500) {
+        if (count++ >= 1000) {
             count = 0;
             state_ = POWER_TURNON_50P;
         }
         break;
     case POWER_TURNON_50P:
         current_bit = TURNON_50P;
-        if (count++ >= 500) {
+        if (count++ >= 1000) {
             packet_repeat_count = 0;
             get_next_packet = true;
             resync = true;
         }
         break;
+    case POWER_SHORT_20P:
+        current_bit = SHORT_20P;
+        if (count++ >= 500) {
+            count = 0;
+            resync = true;
+        }
     }
 
     if (resync) {
@@ -841,6 +855,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     fill_timing_turnon(TURNON_1P, 500, 3 + (hDeadbandDelay_ + lDeadbandDelay_) / 2);
     fill_timing_turnon(TURNON_10P, 250, 13);
     fill_timing_turnon(TURNON_50P, 200, 50);
+    fill_timing_turnon(SHORT_20P, 500, 50);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
