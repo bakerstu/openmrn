@@ -47,6 +47,7 @@
 #include <task.h>
 #include <semphr.h>
 #include <event_groups.h>
+#elif defined(ESP_NONOS)
 #else
 #include <pthread.h>
 #include <semaphore.h>
@@ -108,7 +109,7 @@ typedef struct thread_priv
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 typedef struct {
     int locked;
     uint8_t recursive;
@@ -157,7 +158,7 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__)
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 /** @ref os_thread_once states.
  */
 enum
@@ -173,7 +174,7 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__)
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -304,7 +305,7 @@ OS_INLINE os_thread_t os_thread_self(void)
 {
 #if defined (__FreeRTOS__)
     return xTaskGetCurrentTaskHandle();
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 0xdeadbeef;
 #else
     return pthread_self();
@@ -319,7 +320,7 @@ OS_INLINE int os_thread_getpriority(os_thread_t thread)
 {
 #if defined (__FreeRTOS__)
     return uxTaskPriorityGet(thread);
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 2;
 #else
     struct sched_param params;
@@ -369,7 +370,7 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
     mutex->sem = xSemaphoreCreateMutex();
 
     return 0;    
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     mutex->locked = 0;
     mutex->recursive = 0;
     return 0;
@@ -389,7 +390,7 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
     return 0;    
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     mutex->locked = 0;
     mutex->recursive = 1;
     return 0;
@@ -423,7 +424,7 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
     vSemaphoreDelete(mutex->sem);
 
     return 0;    
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     mutex->locked = 0;
     return 0;
 #else
@@ -461,7 +462,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
         xSemaphoreTake(mutex->sem, portMAX_DELAY);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     if (mutex->locked && !mutex->recursive)
     {
         DIE("Mutex deadlock.");
@@ -489,7 +490,7 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
         xSemaphoreGive(mutex->sem);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     if (mutex->locked <= 0)
     {
         DIE("Unlocking a not locked mutex");
@@ -514,7 +515,7 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
       abort();
     }
     return 0;
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     sem->counter = value;
     return 0;
 #else
@@ -534,7 +535,7 @@ OS_INLINE int os_sem_destroy(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 0;
 #else
     pthread_cond_destroy(&sem->cond);
@@ -552,7 +553,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     xSemaphoreGive(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     sem->counter++;
     return 0;
 #else
@@ -595,6 +596,12 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
     }
     --sem->counter;
     return 0;
+#elif defined(ESP_NONOS)
+    if (!sem->counter) {
+        DIE("Semaphore deadlock.");
+    }
+    --sem->counter;
+    return 0;
 #else
     pthread_mutex_lock(&sem->mutex);
     while (sem->counter == 0)
@@ -607,6 +614,7 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
 #endif
 }
 
+#ifndef ESP_NONOS
 /** Wait on a semaphore with a timeout.
  * @param sem address of semaphore to decrement
  * @param timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
@@ -670,6 +678,9 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
     return 0;
 #endif
 }
+
+#endif // #ifndef ESP_NONOS
+
 
 #if !defined (__FreeRTOS__)
 /** Private data structure for a queue, do not use directly

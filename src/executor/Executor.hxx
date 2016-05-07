@@ -145,6 +145,7 @@ protected:
     OSSelectWakeup selectHelper_;
 
 private:
+#ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -152,6 +153,7 @@ private:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
     virtual Executable *timedwait(long long timeout, unsigned *priority) = 0;
+#endif
 
     /** Wait for an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
@@ -298,6 +300,7 @@ public:
     }
 
 private:
+#ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -310,6 +313,7 @@ private:
         *priority = result.index;
         return static_cast<Executable*>(result.item);
     }
+#endif
 
     /** Wait for an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from

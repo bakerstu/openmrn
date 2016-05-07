@@ -213,6 +213,7 @@ public:
         os_sem_wait(&handle);
     }
 
+#ifndef ESP_NONOS
     /** Wait on (decrement) a semaphore with timeout condition.
      * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
@@ -221,6 +222,7 @@ public:
     {
         return os_sem_timedwait(&handle, timeout);
     }
+#endif
 
 private:
     DISALLOW_COPY_AND_ASSIGN(OSSem);
