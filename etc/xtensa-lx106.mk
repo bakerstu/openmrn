@@ -29,7 +29,7 @@ INCLUDES +=
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -mlongcalls
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -mtext-section-literals -mlongcalls
 
 ARCHFLAGS = -g -MD -MP -D__have_long32=0
 

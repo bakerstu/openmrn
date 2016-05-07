@@ -40,21 +40,21 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
         ;
 }
 
-void abort() {
+void ICACHE_FLASH_ATTR abort() {
     diewith(BLINK_DIE_ABORT);
 }
 
-void usleep(useconds_t sleep_usec)
+void ICACHE_FLASH_ATTR usleep(useconds_t sleep_usec)
 {
     extern void ets_delay_us(uint32_t us);
     ets_delay_us(sleep_usec);
 }
 
-void* malloc(size_t bytes) {
+void* ICACHE_FLASH_ATTR malloc(size_t bytes) {
     return os_malloc(bytes);
 }
 
-void free(void* p) {
+void ICACHE_FLASH_ATTR free(void* p) {
     os_free(p);
 }
 
