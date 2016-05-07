@@ -43,7 +43,7 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector \
-             -D_REENT_SMALL -DESP_NONOS
+             -D_REENT_SMALL -DESP_NONOS -DICACHE_FLASH
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wstrict-prototypes -D_REENT_SMALL \
@@ -61,23 +61,18 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
 	   # -D__LINEAR_MAP__
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
-LDFLAGS += -g -fdata-sections -ffunction-sections -T eagle.app.v6.ld \
+LDFLAGS += -g -fdata-sections -ffunction-sections -T $(LDSCRIPT) -L $(ESPOPENSDKPATH)/sdk/ld \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
-           -nostdlib -Wl,--start-group -lmain -lnet80211 -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc \
-           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
+           -nostdlib \
+           -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV)  \
 
 SYSLIB_SUBDIRS += 
-SYSLIBRARIES += 
+SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++ -lc
 
-ifeq (1,0)
-
-# We disable linking against certain components from libc that we don't need
-# and pull in a lot of code dependencies (typically 50-100 kbytes), like
-# exception unwinding, or global destructor handling. On any exception
-# triggering call we just crash. This way we simulate as if newlib had been
-# compiled with -fno-exception. Most of these can be removed once we remove
-# usage of std::string.
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
+          -Wl,--defsym=snprintf=ets_snprintf \
+          -Wl,--defsym=printf=ets_printf \
+          -Wl,--defsym=__assert_func=abort \
           -Wl,--wrap=__cxa_pure_virtual \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
           -Wl,--wrap=__cxa_atexit \
@@ -114,6 +109,20 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr0=abort \
           -Wl,--wrap=__aeabi_unwind_cpp_pr1   \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
+
+
+#	-Wl,--undefined=os_snprintf \
+
+
+ifeq (1,0)
+
+# We disable linking against certain components from libc that we don't need
+# and pull in a lot of code dependencies (typically 50-100 kbytes), like
+# exception unwinding, or global destructor handling. On any exception
+# triggering call we just crash. This way we simulate as if newlib had been
+# compiled with -fno-exception. Most of these can be removed once we remove
+# usage of std::string.
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
 
 endif
 

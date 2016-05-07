@@ -749,3 +749,12 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+
+
+#if 0 && defined(ESP_NONOS)
+struct _reent *_impure_ptr = NULL;
+static int my_errno;
+int* __errno(void) {
+    return &my_errno;
+}
+#endif

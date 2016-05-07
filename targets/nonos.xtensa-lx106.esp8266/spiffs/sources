@@ -1,0 +1,15 @@
+VPATH := $(ESPRTOSSDKPATH)/third_party/spiffs
+         
+CSRCS += esp_spiffs.c \
+      esp_spiffs.c \
+      spiffs_cache.c \
+      spiffs_check.c \
+      spiffs_gc.c \
+      spiffs_hydrogen.c \
+      spiffs_nucleus.c
+
+
+CFLAGS += -include esp_common.h -I $(ESPRTOSSDKPATH)/include/spiffs  -I $(ESPRTOSSDKPATH)/include
+
+
+CXXSRCS +=

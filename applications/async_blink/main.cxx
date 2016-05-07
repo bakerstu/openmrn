@@ -79,9 +79,17 @@ OVERRIDE_CONST(num_memory_spaces, 4);
 
 nmranet::SimpleCanStack stack(NODE_ID);
 
+#ifdef ESP_NONOS
+
+const char *const nmranet::SNIP_DYNAMIC_FILENAME = "/snipconfig";
+
+#else
+
 nmranet::MockSNIPUserFile snip_user_file("Default user name",
                                          "Default user description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
+
+#endif
 
 //static const uint64_t EVENT_ID = 0x0501010114FF2200ULL;
 static const uint64_t EVENT_ID = 0x0502010202000000ULL;
@@ -206,6 +214,8 @@ int appl_main(int argc, char* argv[])
     //new JSWebsocketClient(stack.can_hub(), "ws://bracz2.zrh:50003");
     // No hardware connection for the moment.
     //stack.print_all_packets();
+#elif defined(ESP_NONOS)
+    stack.print_all_packets();
 #else
 #error Define how to connect to your CAN hardware.
 #endif  // default target

@@ -47,6 +47,10 @@
 #include "utils/logging.h"
 #include "os/OSSelectWakeup.hxx"
 
+#ifdef ESP_NONOS
+#include <ets_sys.h>
+#endif
+
 class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
@@ -121,6 +125,14 @@ public:
      * if there is more scheduled work to do. Returns false if the executor
      * loop would block right now. */
     bool loop_once();
+
+    /** Performs a few loops of the executor on the calling thread.
+     *
+     * @return 0 if there is still pending work scheduled on the executor,
+     * non-zero if there is some work to do after a sleep. The returned value
+     * is the nanoseconds to sleep before calling loop_some again.
+     */
+    long long loop_some() ICACHE_FLASH_ATTR;
 
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }

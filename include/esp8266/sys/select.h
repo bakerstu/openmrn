@@ -36,6 +36,7 @@
 
 /* We can actually pull the FD Set macros from here */
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifdef __cplusplus
 extern "C" {

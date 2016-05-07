@@ -3,7 +3,9 @@ extern "C" {
 #include <gpio.h>
 #include <os_type.h>
 #include <osapi.h>
+#include <mem.h>
 #include <user_interface.h>
+#include "ets_rom.h"
 }
 
 #include "os/os.h"
@@ -31,11 +33,31 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
+void __attribute__((noreturn)) diewith(uint32_t pattern)
+{
+    resetblink(pattern);
+    while (1)
+        ;
+}
+
+void abort() {
+    diewith(BLINK_DIE_ABORT);
+}
+
 void usleep(useconds_t sleep_usec)
 {
     extern void ets_delay_us(uint32_t us);
     ets_delay_us(sleep_usec);
 }
+
+void* malloc(size_t bytes) {
+    return os_malloc(bytes);
+}
+
+void free(void* p) {
+    os_free(p);
+}
+
 
 //static os_event_t appl_task_event[1];
 

@@ -466,5 +466,19 @@ ESPTOOLPATH:=$(TRYPATH)
 endif
 endif #ESPTOOLPATH
 
+
+##################### ESPRTOSSDK ######################
+ifndef ESPRTOSSDKPATH
+SEARCHPATH := \
+  /opt/esp/ESP8266_RTOS_SDK
+
+
+TRYPATH:=$(call findfirst,third_party/spiffs/esp_spiffs.c,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPRTOSSDKPATH:=$(TRYPATH)
+endif
+endif #ESPRTOSSDKPATH
+
+
 endif # if  $(OS)  != Windows_NT
 endif # ifndef OPENMRN_PATH_MK

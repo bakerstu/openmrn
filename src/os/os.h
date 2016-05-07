@@ -961,7 +961,7 @@ OS_INLINE unsigned sleep(unsigned seconds)
  * version) that does not forward these function calls to the implementations
  * we have. We are thus forced to override their weak definition of these
  * functions. */
-#ifdef TARGET_PIC32MX
+#if defined(TARGET_PIC32MX) || defined(ESP_NONOS)
 #include "reent.h"
 
 OS_INLINE int open(const char* b, int flags, ...) {
@@ -976,6 +976,10 @@ OS_INLINE ssize_t read(int fd, void* buf, size_t count) {
 OS_INLINE ssize_t write(int fd, const void* buf, size_t count) {
     return _write_r(_impure_ptr, fd, buf, count);
 }
+OS_INLINE off_t lseek(int fd, off_t offset, int whence) {
+    return _lseek_r(_impure_ptr, fd, offset, whence);
+}
+
 #endif
 
 #ifdef __cplusplus
