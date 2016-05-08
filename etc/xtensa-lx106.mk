@@ -25,7 +25,7 @@ OBJDUMPOPTS=-C
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-INCLUDES += 
+INCLUDES += -I$(ESPNONOSSDKPATH)/include
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
@@ -43,10 +43,11 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector \
-             -D_REENT_SMALL -DESP_NONOS -DICACHE_FLASH
+             -D_REENT_SMALL -DESP_NONOS -DICACHE_FLASH \
+             -Wno-parentheses
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
-          -Wstrict-prototypes -D_REENT_SMALL \
+          -Wno-strict-prototypes -D_REENT_SMALL \
           $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 
@@ -61,13 +62,13 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
 	   # -D__LINEAR_MAP__
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
-LDFLAGS += -g -fdata-sections -ffunction-sections -T $(LDSCRIPT) -L $(ESPOPENSDKPATH)/sdk/ld \
+LDFLAGS += -g -fdata-sections -ffunction-sections -T $(LDSCRIPT) -L $(ESPOPENSDKPATH)/sdk/ld -L $(ESPNONOSSDKPATH)/ld -L $(ESPNONOSSDKPATH)/lib \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -nostdlib \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV)  \
 
 SYSLIB_SUBDIRS += 
-SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++ -lc
+SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lcrypto -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++
 
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=snprintf=ets_snprintf \

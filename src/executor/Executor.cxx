@@ -235,8 +235,8 @@ static os_timer_t appl_task_timer;
 static bool timer_pending = false;
 
 extern "C" {
-void ets_timer_setfn(os_timer_t *ptimer, os_timer_func_t *pfunction, void *parg);
-void ets_timer_arm_new(os_timer_t *ptimer, uint32 msec, bool repeat_flag, int is_usec);
+void ets_timer_setfn(os_timer_t *ptimer, os_timer_func_t *pfunction, void *);
+void ets_timer_arm_new(os_timer_t *, int, int, int);
 void ets_timer_disarm(os_timer_t *ptimer);
 }  // extern C
 

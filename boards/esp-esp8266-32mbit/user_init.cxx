@@ -12,7 +12,7 @@ extern "C" {
 
 #include "utils/blinker.h"
 
-static int blinkerpin = 0;
+static int blinkerpin = 2;
 
 extern "C" {
 
@@ -50,15 +50,6 @@ void ICACHE_FLASH_ATTR usleep(useconds_t sleep_usec)
     ets_delay_us(sleep_usec);
 }
 
-void* ICACHE_FLASH_ATTR malloc(size_t bytes) {
-    return os_malloc(bytes);
-}
-
-void ICACHE_FLASH_ATTR free(void* p) {
-    os_free(p);
-}
-
-
 //static os_event_t appl_task_event[1];
 
 void ICACHE_FLASH_ATTR appl_task(os_event_t *e)
@@ -70,6 +61,10 @@ void ICACHE_FLASH_ATTR appl_task(os_event_t *e)
 
 void ICACHE_FLASH_ATTR user_init()
 {
+    //uart_init(74880, 74880);
+    uart_div_modify(0, UART_CLK_FREQ / (115200));
+
+    os_printf("hello,world\n");
     // init gpio subsytem
     gpio_init();
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);

@@ -48,7 +48,9 @@
 #include "os/OSSelectWakeup.hxx"
 
 #ifdef ESP_NONOS
+extern "C" {
 #include <ets_sys.h>
+}
 #endif
 
 class ActiveTimers;

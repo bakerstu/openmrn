@@ -1,5 +1,5 @@
 VPATH := $(ESPRTOSSDKPATH)/third_party/spiffs
-         
+
 CSRCS += esp_spiffs.c \
       esp_spiffs.c \
       spiffs_cache.c \

@@ -1,0 +1,14 @@
+COREPATH=$(ESPARDUINOPATH)/hardware/esp8266/2.2.0/cores/esp8266
+
+VPATH := $(COREPATH):$(COREPATH)/umm_malloc \
+
+
+CSRCS += core_esp8266_noniso.c \
+	heap.c \
+	umm_malloc.c \
+
+
+CFLAGS += -I$(COREPATH) -include ets_sys.h
+
+
+CXXSRCS +=
