@@ -12,9 +12,9 @@ LDSCRIPT = $(ESPNONOSSDKPATH)/ld/eagle.flash.4m.ld
 include $(OPENMRNPATH)/etc/prog.mk
 
 
-ifdef FOOOXXX
 XLATEDLIBS=nmranet spiffs utils os executor
 
+ifdef FOOOXXX
 XLATEDSTDLIBS=stdc++ c
 XLATEDGCCLIBS=gcc
 endif

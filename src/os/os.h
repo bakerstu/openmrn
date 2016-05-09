@@ -979,6 +979,9 @@ OS_INLINE ssize_t write(int fd, const void* buf, size_t count) {
 OS_INLINE off_t lseek(int fd, off_t offset, int whence) {
     return _lseek_r(_impure_ptr, fd, offset, whence);
 }
+OS_INLINE int fstat(int fd, struct stat* buf) {
+    return _fstat_r(_impure_ptr, fd, buf);
+}
 
 #endif
 

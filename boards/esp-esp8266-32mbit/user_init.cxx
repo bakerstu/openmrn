@@ -40,7 +40,7 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
         ;
 }
 
-void ICACHE_FLASH_ATTR abort() {
+void ICACHE_RAM_ATTR abort() {
     diewith(BLINK_DIE_ABORT);
 }
 
@@ -57,6 +57,14 @@ void ICACHE_FLASH_ATTR appl_task(os_event_t *e)
     static int argc = 0;
     static char **argv = {0};
     appl_main(argc, argv);
+}
+
+struct _reent* _impure_ptr = nullptr;
+
+char noerror[] = "strerror output";
+
+char* strerror(int) {
+    return noerror;
 }
 
 void ICACHE_FLASH_ATTR user_init()

@@ -70,9 +70,11 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T $(LDSCRIPT) -L $(ESPOPENSDK
 SYSLIB_SUBDIRS += 
 SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lcrypto -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++
 
+#          -Wl,--defsym=snprintf=ets_snprintf \
+#          -Wl,--defsym=printf=ets_printf \
+
+
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
-          -Wl,--defsym=snprintf=ets_snprintf \
-          -Wl,--defsym=printf=ets_printf \
           -Wl,--defsym=__assert_func=abort \
           -Wl,--wrap=__cxa_pure_virtual \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
