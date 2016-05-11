@@ -188,6 +188,8 @@ void ignore_function() {
 
 #endif
 
+LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
+nmranet::BitEventConsumer consumer(&logger);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -227,9 +229,6 @@ int appl_main(int argc, char* argv[])
 #if defined(SNIFF_ON_SERIAL)
     stack.add_gridconnect_port("/dev/ser0");
 #endif
-
-    LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
-    nmranet::BitEventConsumer consumer(&logger);
 
 #ifdef __EMSCRIPTEN__
     // We delay the start of the stack until the connection is established.

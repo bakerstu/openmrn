@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
-
+#include "ets_rom.h"
 
 int ets_vsprintf(char *str, const char *format, va_list ap);
 

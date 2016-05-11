@@ -31,7 +31,7 @@ INCLUDES += -I$(ESPNONOSSDKPATH)/include
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -mtext-section-literals -mlongcalls
 
-ARCHFLAGS = -g -MD -MP -D__have_long32=0
+ARCHFLAGS = -g -MD -MP 
 
 ifdef DEBUG_MEMORY_USE
 #warning: -funwind-tables adds 10k code size. Needed for malloc debugging.

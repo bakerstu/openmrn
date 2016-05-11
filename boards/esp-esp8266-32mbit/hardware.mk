@@ -6,7 +6,8 @@ export TARGET ?= nonos.xtensa-lx106.esp8266
 #LDSCRIPT ?= eagle.app.v6.new.2048.ld
 #LDSCRIPT ?= eagle.app.v6.ld
 #LDSCRIPT = test.ld
-LDSCRIPT = $(ESPNONOSSDKPATH)/ld/eagle.flash.4m.ld
+#LDSCRIPT = $(ESPNONOSSDKPATH)/ld/eagle.flash.4m.ld
+LDSCRIPT = target.ld
 
 
 include $(OPENMRNPATH)/etc/prog.mk

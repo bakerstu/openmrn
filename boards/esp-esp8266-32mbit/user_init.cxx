@@ -12,7 +12,7 @@ extern "C" {
 
 #include "utils/blinker.h"
 
-static int blinkerpin = 2;
+static int blinkerpin = 0;
 
 extern "C" {
 
@@ -40,7 +40,7 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
         ;
 }
 
-void ICACHE_RAM_ATTR abort() {
+void ICACHE_FLASH_ATTR abort() {
     diewith(BLINK_DIE_ABORT);
 }
 
@@ -67,6 +67,26 @@ char* strerror(int) {
     return noerror;
 }
 
+extern void (*__init_array_start)(void);
+extern void (*__init_array_end)(void);
+
+static void do_global_ctors(void) {
+    void (**p)(void);
+    for(p = &__init_array_start; p != &__init_array_end; ++p)
+        (*p)();
+}
+
+
+
+void init_done() {
+    system_set_os_print(1);
+    //gdb_init();
+    do_global_ctors();
+    appl_task(nullptr);
+}
+
+
+
 void ICACHE_FLASH_ATTR user_init()
 {
     //uart_init(74880, 74880);
@@ -78,10 +98,11 @@ void ICACHE_FLASH_ATTR user_init()
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
     gpio_output_set(0, 0, (1 << blinkerpin), 0);
 
+    system_init_done_cb(&init_done);
+
     // static os_task_t appl_task_struct;
     // system_os_task(appl_task, USER_TASK_PRIO_0, appl_task_event, 1);
 
-    appl_task(nullptr);
 }
 
 

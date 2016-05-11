@@ -431,6 +431,7 @@ endif #NODEJSPATH
 ##################### ESPOPENSDK ######################
 ifndef ESPOPENSDKPATH
 SEARCHPATH := \
+  /opt/esp/patched/esp-open-sdk \
   /opt/esp/esp-open-sdk \
 
 
