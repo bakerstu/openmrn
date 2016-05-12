@@ -16,6 +16,8 @@ static int blinkerpin = 0;
 
 extern "C" {
 
+extern void ets_delay_us(uint32_t us);
+
 void resetblink(uint32_t pattern)
 {
     if (pattern)
@@ -35,9 +37,23 @@ void setblink(uint32_t pattern)
 
 void __attribute__((noreturn)) diewith(uint32_t pattern)
 {
+    extern void ets_wdt_disable();
+    ets_wdt_disable();
+    uint32_t p = 0;
+    while(true) {
+        if (p & 1) {
+            gpio_output_set(0, (1 << blinkerpin), 0, 0);
+        } else {
+            gpio_output_set((1 << blinkerpin), 0, 0, 0);
+        }
+        p >>= 1;
+        if (!p) p = pattern;
+        ets_delay_us(125000);
+    }
+    /*
     resetblink(pattern);
     while (1)
-        ;
+    ;*/
 }
 
 void ICACHE_FLASH_ATTR abort() {
@@ -46,7 +62,6 @@ void ICACHE_FLASH_ATTR abort() {
 
 void ICACHE_FLASH_ATTR usleep(useconds_t sleep_usec)
 {
-    extern void ets_delay_us(uint32_t us);
     ets_delay_us(sleep_usec);
 }
 
@@ -89,15 +104,18 @@ void init_done() {
 
 void ICACHE_FLASH_ATTR user_init()
 {
-    //uart_init(74880, 74880);
-    uart_div_modify(0, UART_CLK_FREQ / (115200));
-
-    os_printf("hello,world\n");
-    // init gpio subsytem
     gpio_init();
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
     gpio_output_set(0, 0, (1 << blinkerpin), 0);
 
+    uart_div_modify(0, UART_CLK_FREQ / (74880));
+
+    //abort();
+
+    //uart_init(74880, 74880);
+
+    os_printf("hello,world\n");
+    // init gpio subsytem
     system_init_done_cb(&init_done);
 
     // static os_task_t appl_task_struct;
