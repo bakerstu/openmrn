@@ -283,7 +283,12 @@ public:
     {
         queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+#ifdef ESP_NONOS
+        extern void wakeup_executor(ExecutorBase* executor);
+        wakeup_executor(this);
+#else
         selectHelper_.wakeup();
+#endif
     }
 
 #ifdef __FreeRTOS__

@@ -245,6 +245,12 @@ static void timer_fun(void* arg) {
     system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)arg);
 }
 
+extern void wakeup_executor(ExecutorBase* executor);
+
+void wakeup_executor(ExecutorBase* arg) {
+    system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)arg);
+}
+
 static void appl_task(os_event_t *e)
 {
     ExecutorBase* eb = (ExecutorBase*)e->par;
@@ -252,7 +258,7 @@ static void appl_task(os_event_t *e)
     if (sleep_time == 0) {
         system_os_post(EXECUTOR_TASK_PRIO, 0, e->par);
     } else {
-        if (timer_pending) {
+        if (true || timer_pending) {
             os_timer_disarm(&appl_task_timer);
         }
         os_timer_arm(&appl_task_timer, sleep_time / 1000000, false);
