@@ -42,6 +42,8 @@ lib/lib$(1).a: $(2) lib/timestamp $$(LIBDIR)/timestamp hardware.mk
 
 $$(LIBDIR)/lib$(1).a: $$(LIBDIR)/timestamp
 
+$(2): $$(LIBDIR)/timestamp
+
 endef
 
 $(eval $(foreach fbase,$(XLATEDLIBS),$(call LIBCOPY_template,$(fbase),$(LIBDIR)/../$(fbase)/lib$(fbase).a)))
