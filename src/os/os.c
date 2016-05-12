@@ -448,9 +448,15 @@ long long os_get_time_monotonic(void)
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
 #elif defined(ESP_NONOS)
-    uint32_t clockmul = system_rtc_clock_cali_proc();
+    static uint32_t clockmul = 0;
+    if (clockmul == 0) {
+        clockmul = system_rtc_clock_cali_proc();
+        clockmul *= 1000;
+        clockmul >>= 10;
+    }
     time = system_get_rtc_time();
     time *= clockmul;
+    time >>= 2;
 #else
     struct timespec ts;
 #if defined (__nuttx__)
