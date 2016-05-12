@@ -1,0 +1,1 @@
+../../../async_blink/targets/nonos.xtensa.esp8266-32mbit/eagle.common.ld
