@@ -77,6 +77,6 @@ clean:
 	rm -f $(EXECUTABLE)-0x00000.bin $(EXECUTABLE)-0x40000.bin lib/*.a lib/*.lst
 
 
-xflash: $(EXECUTABLE)-bload.bin
+xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -vv -cd nodemcu -cb 230400 -cp /dev/ttyUSB0 -ca 0x00000 -cf $<
 
