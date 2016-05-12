@@ -57,6 +57,10 @@
 #include "utils/JSWebsocketClient.hxx"
 #endif
 
+#ifdef ESP_NONOS
+#include "utils/ESPWifiClient.hxx"
+#endif
+
 #ifdef BOARD_LAUNCHPAD_EK
 #include "console/Console.hxx"
 #endif
@@ -228,6 +232,10 @@ int appl_main(int argc, char* argv[])
 #endif
 #if defined(SNIFF_ON_SERIAL)
     stack.add_gridconnect_port("/dev/ser0");
+#endif
+
+#ifdef ESP_NONOS
+    new ESPWifiClient("GoogleGuest", "", stack.can_hub(), "28k.ch", 50002);
 #endif
 
 #ifdef __EMSCRIPTEN__
