@@ -68,7 +68,7 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T $(LDSCRIPT) -L $(ESPOPENSDK
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV)  \
 
 SYSLIB_SUBDIRS += 
-SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lcrypto -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++
+SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lcrypto -lwpa -llwip -lpp -lphy -Wl,--end-group -lgcc -lstdc++ -lm
 
 #          -Wl,--defsym=snprintf=ets_snprintf \
 #          -Wl,--defsym=printf=ets_printf \
