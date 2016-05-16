@@ -43,7 +43,12 @@
 #include "nmranet/TrainInterface.hxx"
 #include "os/os.h"
 #include "utils/ESPWifiClient.hxx"
+#include "utils/GpioInitializer.hxx"
 #include "utils/blinker.h"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
+#include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 
 extern "C" {
 #include <gpio.h>
@@ -55,21 +60,171 @@ extern void ets_delay_us(uint32_t us);
 
 #include "nmranet/TrainInterface.hxx"
 
+struct HW
+{
+    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
+    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
+
+    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
+
+    // forward: A=HI B=LO
+
+    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
+
+    typedef DummyPin F1_Pin;
+
+    typedef GpioInitializer<        //
+        MOT_A_HI_Pin, MOT_A_LO_Pin, //
+        MOT_B_HI_Pin, MOT_B_LO_Pin, //
+        LIGHT_FRONT_Pin, LIGHT_BACK_Pin> GpioInit;
+};
+
+struct SpeedRequest
+{
+    SpeedRequest()
+    {
+        reset();
+    }
+    nmranet::SpeedType speed_;
+    bool emergencyStop_;
+    void reset()
+    {
+        speed_ = 0.0;
+        emergencyStop_ = false;
+    }
+};
+
+class SpeedController : public StateFlow<Buffer<SpeedRequest>, QList<2>>
+{
+public:
+    SpeedController(Service *s)
+        : StateFlow<Buffer<SpeedRequest>, QList<2>>(s)
+    {
+        HW::MOT_A_HI_Pin::set_off();
+        HW::MOT_B_HI_Pin::set_off();
+    }
+
+    void call_speed(nmranet::Velocity speed)
+    {
+        auto *b = alloc();
+        b->data()->speed_ = speed;
+        send(b, 1);
+    }
+
+    void call_estop()
+    {
+        auto *b = alloc();
+        b->data()->emergencyStop_ = true;
+        send(b, 0);
+    }
+
+private:
+    Action entry() override
+    {
+        if (req()->emergencyStop_)
+        {
+            pwm_.pause();
+            HW::MOT_A_HI_Pin::set_off();
+            HW::MOT_B_HI_Pin::set_off();
+            release();
+            return sleep_and_call(
+                &timer_, MSEC_TO_NSEC(1), STATE(eoff_enablelow));
+        }
+        // Check if we need to change the direction.
+        bool desired_dir =
+            (req()->speed_.direction() == nmranet::SpeedType::FORWARD);
+        if (lastDirMotAHi_ != desired_dir)
+        {
+            pwm_.pause();
+            HW::MOT_B_HI_Pin::set_off();
+            HW::MOT_A_HI_Pin::set_off();
+            return sleep_and_call(&timer_, MSEC_TO_NSEC(1), STATE(do_speed));
+        }
+        return call_immediately(STATE(do_speed));
+    }
+
+    Action do_speed()
+    {
+        // We set the pins explicitly for safety
+        bool desired_dir =
+            (req()->speed_.direction() == nmranet::SpeedType::FORWARD);
+        int lo_pin;
+        if (desired_dir)
+        {
+            HW::MOT_B_HI_Pin::set_off();
+            HW::MOT_A_LO_Pin::set_off();
+            lo_pin = HW::MOT_B_LO_Pin::PIN;
+            HW::MOT_A_HI_Pin::set_on();
+        }
+        else
+        {
+            HW::MOT_A_HI_Pin::set_off();
+            HW::MOT_B_LO_Pin::set_off();
+            lo_pin = HW::MOT_A_LO_Pin::PIN;
+            HW::MOT_B_HI_Pin::set_on();
+        }
+
+        int fill_rate = req()->speed_.mph();
+        if (fill_rate > 128)
+            fill_rate = 128;
+        // Let's do a 1khz
+        long long period = USEC_TO_NSEC(1000);
+        long long fill = period * fill_rate >> 7;
+        pwm_.set_state(lo_pin, fill, period);
+        lastDirMotAHi_ = desired_dir;
+        return release_and_exit();
+    }
+
+    Action eoff_enablelow()
+    {
+        // By shorting both motor outputs to ground we turn it to actively
+        // brake.
+        HW::MOT_A_LO_Pin::set_on();
+        HW::MOT_B_LO_Pin::set_on();
+        return exit();
+    }
+
+    SpeedRequest *req()
+    {
+        return message()->data();
+    }
+
+    TimerBasedPwm pwm_;
+    StateFlowTimer timer_{this};
+    bool lastDirMotAHi_{false};
+};
+
+extern SpeedController g_speed_controller;
+
 class ESPHuzzahTrain : public nmranet::TrainImpl
 {
 public:
-    static constexpr int f1pin = 2;
     ESPHuzzahTrain()
     {
-        PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
-        gpio_output_set(0, 0, (1 << f1pin), 0);
-        resetblink(0);
-        gpio_output_set(1 << f1pin, 0, 0, 0);
+        HW::GpioInit::hw_init();
+        HW::LIGHT_FRONT_Pin::set(false);
+        HW::LIGHT_BACK_Pin::set(false);
     }
 
     void set_speed(nmranet::SpeedType speed) override
     {
         lastSpeed_ = speed;
+        g_speed_controller.call_speed(speed);
+        if (f0)
+        {
+            if (speed.direction() == nmranet::SpeedType::FORWARD)
+            {
+                HW::LIGHT_FRONT_Pin::set(true);
+                HW::LIGHT_BACK_Pin::set(false);
+            }
+            else
+            {
+                HW::LIGHT_BACK_Pin::set(true);
+                HW::LIGHT_FRONT_Pin::set(false);
+            }
+        }
     }
     /** Returns the last set speed of the locomotive. */
     nmranet::SpeedType get_speed() override
@@ -80,7 +235,8 @@ public:
     /** Sets the train to emergency stop. */
     void set_emergencystop() override
     {
-        set_speed(0);
+        g_speed_controller.call_estop();
+        lastSpeed_.set_mph(0); // keeps direction
     }
 
     /** Sets the value of a function.
@@ -95,18 +251,25 @@ public:
         {
             case 0:
                 f0 = value;
-                resetblink(f0 ? 1 : 0);
-                break;
-            case 1:
-                f1 = value;
-                if (f1)
+                if (!value)
                 {
-                    gpio_output_set(0, (1 << f1pin), 0, 0);
+                    HW::LIGHT_FRONT_Pin::set(false);
+                    HW::LIGHT_BACK_Pin::set(false);
+                }
+                else if (lastSpeed_.direction() == nmranet::SpeedType::FORWARD)
+                {
+                    HW::LIGHT_FRONT_Pin::set(true);
+                    HW::LIGHT_BACK_Pin::set(false);
                 }
                 else
                 {
-                    gpio_output_set((1 << f1pin), 0, 0, 0);
+                    HW::LIGHT_BACK_Pin::set(true);
+                    HW::LIGHT_FRONT_Pin::set(false);
                 }
+                break;
+            case 1:
+                f1 = value;
+                HW::F1_Pin::set(value);
                 break;
         }
     }
@@ -268,6 +431,8 @@ extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 
 nmranet::DeadrailStack stack;
 
+SpeedController g_speed_controller(&stack.service_);
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -275,8 +440,8 @@ nmranet::DeadrailStack stack;
  */
 int appl_main(int argc, char *argv[])
 {
-    new ESPWifiClient(
-        "GoogleGuest", "", &stack.canHub0_, "28k.ch", 50002, []() {
+    new ESPWifiClient("GoogleGuest", "", &stack.canHub0_, "28k.ch", 50002, []()
+        {
             stack.executor_.thread_body();
             stack.start_stack();
         });
