@@ -37,11 +37,11 @@
 #define _UTILS_ESPWIFICLIENT_HXX_
 
 extern "C" {
-#include "ip_addr.h"
-#include "espconn.h"
-#include "user_interface.h"
 #include "ets_sys.h"
-#define os_printf printf
+#include <ip_addr.h>
+#include <user_interface.h>
+#include <osapi.h>
+#include <espconn.h>
 }
 
 #include "utils/Singleton.hxx"
@@ -49,13 +49,15 @@ extern "C" {
 class ESPWifiClient : public Singleton<ESPWifiClient>, private HubPort
 {
 public:
-    ESPWifiClient(const string &ssid, const string &password,
-        CanHubFlow *hub, const string &hostname, int port)
+    ESPWifiClient(const string &ssid, const string &password, CanHubFlow *hub,
+        const string &hostname, int port,
+        std::function<void()> connect_callback)
         : HubPort(hub->service())
         , host_(hostname)
         , port_(port)
         , hub_(hub)
         , gcHub_(hub_->service())
+        , connectCallback_(std::move(connect_callback))
     {
 
         wifi_set_opmode_current(STATION_MODE);
@@ -63,8 +65,9 @@ public:
         memcpy(&stationConfig_.password, password.c_str(), password.size() + 1);
         wifi_station_set_config(&stationConfig_);
         wifi_set_event_handler_cb(&static_wifi_callback);
-        wifi_station_connect(); // may be avoided if the constructor is still called in
-                        // the user_init.
+        wifi_station_connect(); // may be avoided if the constructor is still
+                                // called in
+                                // the user_init.
     }
 
     static void static_wifi_callback(System_Event_t *evt)
@@ -151,11 +154,14 @@ public:
         Singleton<ESPWifiClient>::instance()->tcp_connected();
     }
 
-    void tcp_connected() {
+    void tcp_connected()
+    {
         gcAdapter_.reset(
             GCAdapterBase::CreateGridConnectAdapter(&gcHub_, hub_, false));
         espconn_regist_recvcb(&conn_, static_data_received);
+        espconn_regist_sentcb(&conn_, static_data_sent);
         gcHub_.register_port(this);
+        connectCallback_();
     }
 
     static void static_tcp_disconnected(void *arg)
@@ -164,7 +170,8 @@ public:
         Singleton<ESPWifiClient>::instance()->tcp_disconnected();
     }
 
-    void tcp_disconnected() {
+    void tcp_disconnected()
+    {
         gcHub_.unregister_port(this);
         gcAdapter_->shutdown();
         wifi_station_disconnect();
@@ -173,6 +180,11 @@ public:
     static void static_data_received(void *arg, char *pdata, unsigned short len)
     {
         Singleton<ESPWifiClient>::instance()->data_received(pdata, len);
+    }
+
+    static void static_data_sent(void *arg)
+    {
+        Singleton<ESPWifiClient>::instance()->data_sent();
     }
 
     void data_received(char *pdata, unsigned short len)
@@ -186,9 +198,19 @@ public:
 private:
     Action entry() override
     {
-        espconn_sent(
-            &conn_, (uint8*)message()->data()->data(), message()->data()->size());
+        espconn_sent(&conn_, (uint8 *)message()->data()->data(),
+            message()->data()->size());
+        return wait_and_call(STATE(send_done));
+    }
+
+    Action send_done()
+    {
         return release_and_exit();
+    }
+
+    void data_sent()
+    {
+        notify();
     }
 
     struct station_config stationConfig_;
@@ -202,6 +224,7 @@ private:
     CanHubFlow *hub_;
     HubFlow gcHub_;
     std::unique_ptr<GCAdapterBase> gcAdapter_;
+    std::function<void()> connectCallback_;
 };
 
 #endif // _UTILS_ESPWIFICLIENT_HXX_
