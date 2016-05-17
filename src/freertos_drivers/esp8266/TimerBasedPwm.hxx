@@ -4,7 +4,10 @@
 extern "C" {
 #include <eagle_soc.h>
 #include <gpio.h>
+extern void NmiTimSetFunc(uint32_t);
 }
+
+#include "utils/blinker.h"
 
 //Register definitions
 
@@ -33,20 +36,33 @@ extern "C" {
 #define GPIO_OUT_CLR GPIO_REG_READ(GPIO_OUT_W1TC_ADDRESS)
 #define GPIO_OUT_SET GPIO_REG_READ(GPIO_OUT_W1TS_ADDRESS)
 
+static void isr_test() {
+    FRC1_INTCLR = 0;
+    resetblink(1);
+}
+
+
 class TimerBasedPwm {
 public:
     TimerBasedPwm() {
     }
 
-    void enable() {
+    void __attribute__((noinline)) enable() {
         ETS_FRC1_INTR_DISABLE();
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpmf-conversions"
-        ETS_FRC_TIMER1_INTR_ATTACH(reinterpret_cast<void*>(&TimerBasedPwm::isr_handler), this);
+        ETS_FRC_TIMER1_INTR_ATTACH(isr_test, nullptr);
+        //ETS_FRC_TIMER1_NMI_INTR_ATTACH(reinterpret_cast<uint32_t>(&TimerBasedPwm::isr_handler));
 #pragma GCC diagnostic pop
     }
 
-    void ICACHE_RAM_ATTR isr_handler() {
+    static void ICACHE_RAM_ATTR isr_handler(void*) {
+        FRC1_INTCLR = 0;
+        resetblink(1);
+    }
+
+    void ICACHE_RAM_ATTR owned_isr_handler() {
+        resetblink(1);
         if (isOn_) {
             isOn_ = false;
             FRC1_LOAD = clockOff_;
@@ -76,6 +92,8 @@ public:
      * @param nsec_on is the time for which the output shall be turned on
      */
     void set_state(int pin, long long nsec_period, long long nsec_on) {
+        resetblink(0);
+        enable();
         ETS_FRC1_INTR_DISABLE();
         gpioValue_ = 1<<pin;
         if (nsec_on <= 0) {
@@ -94,10 +112,12 @@ public:
         HASSERT(clockOff_ < (1<<23));
         GPIO_OUTPUT_SET(pin, 0);
         isOn_ = false;
-        FRC1_CTRL = FRC_CTL_ENABLE | FRC_CTL_DIV_1 | FRC_CTL_INT_EDGE;
-        TM1_EDGE_INT_ENABLE();
+        FRC1_CTRL = FRC_CTL_ENABLE | FRC_CTL_DIV_16 | FRC_CTL_INT_EDGE;
+        FRC1_INTCLR = 0;
         ETS_FRC1_INTR_ENABLE();
-        FRC1_LOAD = 1; // will trigger interrupt immediately
+        TM1_EDGE_INT_ENABLE();
+        FRC1_LOAD = 100; // will trigger interrupt immediately
+        TM1_EDGE_INT_ENABLE();
     }
 
 private:
