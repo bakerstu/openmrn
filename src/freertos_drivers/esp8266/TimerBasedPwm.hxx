@@ -4,7 +4,6 @@
 extern "C" {
 #include <eagle_soc.h>
 #include <gpio.h>
-extern void NmiTimSetFunc(uint32_t);
 }
 
 #include "utils/blinker.h"
@@ -36,7 +35,8 @@ extern void NmiTimSetFunc(uint32_t);
 #define GPIO_OUT_CLR GPIO_REG_READ(GPIO_OUT_W1TC_ADDRESS)
 #define GPIO_OUT_SET GPIO_REG_READ(GPIO_OUT_W1TS_ADDRESS)
 
-static void isr_test() {
+
+void isr_test() {
     FRC1_INTCLR = 0;
     resetblink(1);
 }
@@ -51,7 +51,7 @@ public:
         ETS_FRC1_INTR_DISABLE();
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpmf-conversions"
-        ETS_FRC_TIMER1_INTR_ATTACH(isr_test, nullptr);
+        ETS_FRC_TIMER1_INTR_ATTACH(&TimerBasedPwm::owned_isr_handler, this);
         //ETS_FRC_TIMER1_NMI_INTR_ATTACH(reinterpret_cast<uint32_t>(&TimerBasedPwm::isr_handler));
 #pragma GCC diagnostic pop
     }
@@ -91,7 +91,7 @@ public:
      * @param nsec_period is the total period length of the output
      * @param nsec_on is the time for which the output shall be turned on
      */
-    void set_state(int pin, long long nsec_period, long long nsec_on) {
+    void old_set_state(int pin, long long nsec_period, long long nsec_on) {
         resetblink(0);
         enable();
         ETS_FRC1_INTR_DISABLE();
@@ -112,12 +112,50 @@ public:
         HASSERT(clockOff_ < (1<<23));
         GPIO_OUTPUT_SET(pin, 0);
         isOn_ = false;
-        FRC1_CTRL = FRC_CTL_ENABLE | FRC_CTL_DIV_16 | FRC_CTL_INT_EDGE;
+        FRC1_CTRL = FRC_CTL_ENABLE | FRC_CTL_DIV_1 | FRC_CTL_INT_EDGE;
         FRC1_INTCLR = 0;
         ETS_FRC1_INTR_ENABLE();
         TM1_EDGE_INT_ENABLE();
         FRC1_LOAD = 100; // will trigger interrupt immediately
         TM1_EDGE_INT_ENABLE();
+    }
+
+    static void ICACHE_RAM_ATTR new_isr_handler(void*) {
+        //if ((T1C & ((1 << TCAR) | (1 << TCIT))) == 0) TEIE &= ~TEIE1;//edge int disable
+        FRC1_INTCLR = 0;
+        if (isOn_) {
+            GPIO_OUT_CLR = gpioValue_;
+            isOn_ = false;
+            FRC1_LOAD = clockOff_;
+            //TM1_EDGE_INT_ENABLE();
+        } else {
+            GPIO_OUT_SET = gpioValue_;
+            isOn_ = true;
+            FRC1_LOAD = clockOn_;
+            //TM1_EDGE_INT_ENABLE();
+        }
+    }
+    
+
+    void set_state(int pin, long long nsec_period, long long nsec_on) {
+        gpioValue_ = 1<<pin;
+
+        // CPU clock = 80 MHz, 12.5 nsec per clock.
+        clockOn_ = (nsec_on * 2) / 25;
+        long long nsec_off = nsec_period - nsec_on;
+        clockOff_ = (nsec_off * 2) / 25;
+        HASSERT(clockOn_ < (1<<23));
+        HASSERT(clockOff_ < (1<<23));
+
+	//timer1_disable();
+        ETS_FRC_TIMER1_INTR_ATTACH(&new_isr_handler, NULL);
+        ETS_FRC1_INTR_ENABLE();
+	//timer1_attachInterrupt(&TimerBasedPwm::new_isr_handler);
+        FRC1_CTRL = FRC_CTL_ENABLE | FRC_CTL_DIV_1 | FRC_CTL_INT_EDGE;
+	//timer1_enable(TIM_DIV1, TIM_EDGE, TIM_SINGLE);
+        FRC1_LOAD = 1;
+        TM1_EDGE_INT_ENABLE();
+	//timer1_write(1);
     }
 
 private:

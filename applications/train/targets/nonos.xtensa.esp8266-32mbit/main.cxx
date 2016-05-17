@@ -62,6 +62,7 @@ extern void ets_delay_us(uint32_t us);
 
 struct HW
 {
+/* original / standard definitions.
     GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
     GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
 
@@ -73,12 +74,31 @@ struct HW
     GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
     GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
+    GPIO_PIN(F1, GpioOutputSafeLow, 2);
+
+    //typedef DummyPin F1_Pin;
+
+*/
+
+    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
+    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
+
+    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
+
+    // forward: A=HI B=LO
+
+    //typedef BLINKER_Pin LIGHT_FRONT_Pin;
+    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 2);
+
     typedef DummyPin F1_Pin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
         MOT_B_HI_Pin, MOT_B_LO_Pin, //
-        LIGHT_FRONT_Pin, LIGHT_BACK_Pin> GpioInit;
+        LIGHT_FRONT_Pin, LIGHT_BACK_Pin,
+        F1_Pin> GpioInit;
 };
 
 struct SpeedRequest
@@ -104,6 +124,7 @@ public:
     {
         HW::MOT_A_HI_Pin::set_off();
         HW::MOT_B_HI_Pin::set_off();
+        pwm_.enable();
     }
 
     void call_speed(nmranet::Velocity speed)
@@ -167,11 +188,11 @@ private:
         }
 
         int fill_rate = req()->speed_.mph();
-        if (fill_rate > 128)
-            fill_rate = 128;
+        if (fill_rate >= 128)
+            fill_rate = 127;
         // Let's do a 1khz
-        long long period = USEC_TO_NSEC(1000);
-        long long fill = period * fill_rate >> 7;
+        long long period = MSEC_TO_NSEC(1000);
+        long long fill = (period * fill_rate) >> 7;
         pwm_.set_state(lo_pin, fill, period);
         lastDirMotAHi_ = desired_dir;
         return release_and_exit();
@@ -211,7 +232,7 @@ public:
     void set_speed(nmranet::SpeedType speed) override
     {
         lastSpeed_ = speed;
-        g_speed_controller.call_speed(speed);
+        //g_speed_controller.call_speed(speed);
         if (f0)
         {
             if (speed.direction() == nmranet::SpeedType::FORWARD)
@@ -235,7 +256,7 @@ public:
     /** Sets the train to emergency stop. */
     void set_emergencystop() override
     {
-        g_speed_controller.call_estop();
+        //g_speed_controller.call_estop();
         lastSpeed_.set_mph(0); // keeps direction
     }
 
@@ -268,6 +289,11 @@ public:
                 }
                 break;
             case 1:
+                /*if (value) {
+                    analogWrite(2, 700);
+                } else {
+                    analogWrite(2, 100);
+                    }*/
                 f1 = value;
                 HW::F1_Pin::set(value);
                 break;
@@ -431,7 +457,43 @@ extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 
 nmranet::DeadrailStack stack;
 
-SpeedController g_speed_controller(&stack.service_);
+//SpeedController g_speed_controller(&stack.service_);
+
+extern "C" {
+extern char WIFI_SSID[];
+extern char WIFI_PASS[];
+extern char WIFI_HUB_HOSTNAME[];
+extern int WIFI_HUB_PORT;
+extern void timer1_isr_init();
+}
+
+
+class TestBlinker : public StateFlowBase {
+public:
+    TestBlinker() : StateFlowBase(&stack.service_) {
+        start_flow(STATE(doo));
+        pwm_.enable();
+    }
+
+private:
+    Action doo() {
+        if (isOn_) {
+            isOn_ = false;
+            pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(800));
+            //analogWrite(2, 800);
+        } else {
+            isOn_ = true;
+            pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(200));
+            //analogWrite(2, 200);
+        }
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(doo));
+    }
+
+    TimerBasedPwm pwm_;
+    StateFlowTimer timer_{this};
+    bool isOn_{true};
+} g_bl;
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -440,11 +502,12 @@ SpeedController g_speed_controller(&stack.service_);
  */
 int appl_main(int argc, char *argv[])
 {
-    new ESPWifiClient("GoogleGuest", "", &stack.canHub0_, "28k.ch", 50002, []()
+    new ESPWifiClient(WIFI_SSID, WIFI_PASS, &stack.canHub0_, WIFI_HUB_HOSTNAME,
+        WIFI_HUB_PORT, []()
         {
             stack.executor_.thread_body();
             stack.start_stack();
         });
-
+    //timer1_isr_init();
     return 0;
 }
