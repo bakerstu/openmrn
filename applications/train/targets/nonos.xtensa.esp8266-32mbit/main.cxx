@@ -90,7 +90,7 @@ struct HW
 
     //typedef BLINKER_Pin LIGHT_FRONT_Pin;
     GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
-    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 2);
+    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
     typedef DummyPin F1_Pin;
 
@@ -129,9 +129,20 @@ public:
 
     void call_speed(nmranet::Velocity speed)
     {
+        /*
         auto *b = alloc();
         b->data()->speed_ = speed;
-        send(b, 1);
+        send(b, 1);*/
+        long long period = USEC_TO_NSEC(1000);
+        long long fill = speed_to_fill_rate(speed, period);
+        //pwm_.old_set_state(2, period, period - fill);
+        if (speed.direction() == speed.FORWARD) {
+            GPIO_OUTPUT_SET(2, 1);
+            pwm_.old_set_state(0, period, period - fill);
+        } else {
+            GPIO_OUTPUT_SET(0, 1);
+            pwm_.old_set_state(2, period, period - fill);
+        }
     }
 
     void call_estop()
@@ -142,6 +153,15 @@ public:
     }
 
 private:
+    long long speed_to_fill_rate(nmranet::SpeedType speed, long long period) {
+        int fill_rate = speed.mph();
+        if (fill_rate >= 128)
+            fill_rate = 127;
+        // Let's do a 1khz
+        long long fill = (period * fill_rate) >> 7;
+        return fill;
+    }
+
     Action entry() override
     {
         if (req()->emergencyStop_)
@@ -187,13 +207,8 @@ private:
             HW::MOT_B_HI_Pin::set_on();
         }
 
-        int fill_rate = req()->speed_.mph();
-        if (fill_rate >= 128)
-            fill_rate = 127;
-        // Let's do a 1khz
-        long long period = MSEC_TO_NSEC(1000);
-        long long fill = (period * fill_rate) >> 7;
-        pwm_.set_state(lo_pin, fill, period);
+        long long period = USEC_TO_NSEC(1000);
+        pwm_.set_state(lo_pin, speed_to_fill_rate(req()->speed_, period), period);
         lastDirMotAHi_ = desired_dir;
         return release_and_exit();
     }
@@ -232,7 +247,7 @@ public:
     void set_speed(nmranet::SpeedType speed) override
     {
         lastSpeed_ = speed;
-        //g_speed_controller.call_speed(speed);
+        g_speed_controller.call_speed(speed);
         if (f0)
         {
             if (speed.direction() == nmranet::SpeedType::FORWARD)
@@ -457,7 +472,7 @@ extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 
 nmranet::DeadrailStack stack;
 
-//SpeedController g_speed_controller(&stack.service_);
+SpeedController g_speed_controller(&stack.service_);
 
 extern "C" {
 extern char WIFI_SSID[];
@@ -492,7 +507,7 @@ private:
     TimerBasedPwm pwm_;
     StateFlowTimer timer_{this};
     bool isOn_{true};
-} g_bl;
+};
 
 
 /** Entry point to application.
