@@ -86,6 +86,8 @@ struct HW
     GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
     GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
 
+    static constexpr bool invertLow = false;
+
     // forward: A=HI B=LO
 
     //typedef BLINKER_Pin LIGHT_FRONT_Pin;
@@ -129,20 +131,19 @@ public:
 
     void call_speed(nmranet::Velocity speed)
     {
-        /*
         auto *b = alloc();
         b->data()->speed_ = speed;
-        send(b, 1);*/
+        send(b, 1);
+        /*
         long long period = USEC_TO_NSEC(1000);
         long long fill = speed_to_fill_rate(speed, period);
-        //pwm_.old_set_state(2, period, period - fill);
         if (speed.direction() == speed.FORWARD) {
             GPIO_OUTPUT_SET(2, 1);
             pwm_.old_set_state(0, period, period - fill);
         } else {
             GPIO_OUTPUT_SET(0, 1);
             pwm_.old_set_state(2, period, period - fill);
-        }
+            }*/
     }
 
     void call_estop()
@@ -153,13 +154,15 @@ public:
     }
 
 private:
+    static constexpr bool invertLow_ = HW::invertLow;
+
     long long speed_to_fill_rate(nmranet::SpeedType speed, long long period) {
         int fill_rate = speed.mph();
         if (fill_rate >= 128)
-            fill_rate = 127;
+            fill_rate = 128;
         // Let's do a 1khz
         long long fill = (period * fill_rate) >> 7;
-        return fill;
+        return invertLow_ ? period - fill : fill;
     }
 
     Action entry() override
@@ -195,20 +198,21 @@ private:
         if (desired_dir)
         {
             HW::MOT_B_HI_Pin::set_off();
-            HW::MOT_A_LO_Pin::set_off();
+            HW::MOT_A_LO_Pin::set(invertLow_);
             lo_pin = HW::MOT_B_LO_Pin::PIN;
             HW::MOT_A_HI_Pin::set_on();
         }
         else
         {
             HW::MOT_A_HI_Pin::set_off();
-            HW::MOT_B_LO_Pin::set_off();
+            HW::MOT_B_LO_Pin::set(invertLow_);
             lo_pin = HW::MOT_A_LO_Pin::PIN;
             HW::MOT_B_HI_Pin::set_on();
         }
 
-        long long period = USEC_TO_NSEC(1000);
-        pwm_.set_state(lo_pin, speed_to_fill_rate(req()->speed_, period), period);
+        long long period = USEC_TO_NSEC(50);
+        long long fill = speed_to_fill_rate(req()->speed_, period);
+        pwm_.set_state(lo_pin, period, fill);
         lastDirMotAHi_ = desired_dir;
         return release_and_exit();
     }
@@ -217,8 +221,8 @@ private:
     {
         // By shorting both motor outputs to ground we turn it to actively
         // brake.
-        HW::MOT_A_LO_Pin::set_on();
-        HW::MOT_B_LO_Pin::set_on();
+        HW::MOT_A_LO_Pin::set(!invertLow_);
+        HW::MOT_B_LO_Pin::set(!invertLow_);
         return exit();
     }
 
