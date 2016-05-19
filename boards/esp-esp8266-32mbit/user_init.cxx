@@ -108,7 +108,8 @@ void ICACHE_FLASH_ATTR user_init()
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
     gpio_output_set(0, 0, (1 << blinkerpin), 0);
 
-    uart_div_modify(0, UART_CLK_FREQ / (74880));
+    //uart_div_modify(0, UART_CLK_FREQ / (74880));
+    uart_div_modify(0, UART_CLK_FREQ / (115200));
 
     //abort();
 
