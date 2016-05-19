@@ -94,7 +94,8 @@ struct HW
     GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
     GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
-    typedef DummyPin F1_Pin;
+    GPIO_PIN(F1, GpioOutputSafeHigh, 2);
+    //typedef DummyPin F1_Pin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
@@ -162,7 +163,8 @@ private:
             fill_rate = 128;
         // Let's do a 1khz
         long long fill = (period * fill_rate) >> 7;
-        return invertLow_ ? period - fill : fill;
+        if (invertLow_) fill = period - fill;
+        return fill;
     }
 
     Action entry() override
@@ -212,7 +214,7 @@ private:
 
         long long period = USEC_TO_NSEC(50);
         long long fill = speed_to_fill_rate(req()->speed_, period);
-        pwm_.set_state(lo_pin, period, fill);
+        pwm_.old_set_state(lo_pin, period, fill);
         lastDirMotAHi_ = desired_dir;
         return release_and_exit();
     }
@@ -314,7 +316,7 @@ public:
                     analogWrite(2, 100);
                     }*/
                 f1 = value;
-                HW::F1_Pin::set(value);
+                HW::F1_Pin::set(!value);
                 break;
         }
     }
@@ -404,8 +406,8 @@ nmranet::SimpleInfoDescriptor TrainSnipHandler::snipResponse_[] = {
     {nmranet::SimpleInfoDescriptor::C_STRING, 21, 0, "ESP12"},
     {nmranet::SimpleInfoDescriptor::C_STRING, 21, 0, "0.1"},
     {nmranet::SimpleInfoDescriptor::LITERAL_BYTE, 2, 0, nullptr},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 63, 1, "E12 883"},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 64, 0, "No description"},
+    {nmranet::SimpleInfoDescriptor::C_STRING, 63, 1, "Deadrail 8266"},
+    {nmranet::SimpleInfoDescriptor::C_STRING, 64, 0, "Deadrail train based on an ESP-12 wifi module"},
     {nmranet::SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
 const char kFdiXml[] =
@@ -417,8 +419,8 @@ const char kFdiXml[] =
 <name>Light</name>
 <number>0</number>
 </function>
-<function size='1' kind='binary'>
-<name>BlueL</name>
+<function size='1' kind='momentary'>
+<name>Blue</name>
 <number>1</number>
 </function>
 </group></segment></fdi>)";
@@ -521,9 +523,11 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
+    resetblink(0);
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, &stack.canHub0_, WIFI_HUB_HOSTNAME,
         WIFI_HUB_PORT, []()
         {
+            resetblink(1);
             stack.executor_.thread_body();
             stack.start_stack();
         });
