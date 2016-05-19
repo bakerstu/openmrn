@@ -91,12 +91,13 @@ static void do_global_ctors(void) {
         (*p)();
 }
 
-
+extern void spiffs_init();
 
 void init_done() {
     system_set_os_print(1);
     //gdb_init();
     do_global_ctors();
+    spiffs_init();
     appl_task(nullptr);
 }
 

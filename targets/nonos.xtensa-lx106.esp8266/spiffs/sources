@@ -1,4 +1,4 @@
-VPATH := $(ESPRTOSSDKPATH)/third_party/spiffs
+VPATH := $(ESPRTOSSDKPATH)/third_party/spiffs:$(OPENMRNPATH)/src/freertos_drivers/esp8266
 
 CSRCS += esp_spiffs.c \
       esp_spiffs.c \
@@ -6,10 +6,11 @@ CSRCS += esp_spiffs.c \
       spiffs_check.c \
       spiffs_gc.c \
       spiffs_hydrogen.c \
-      spiffs_nucleus.c
+      spiffs_nucleus.c \
+      spiffs_init.c \
 
 
 CFLAGS += -include esp_common.h -I $(ESPRTOSSDKPATH)/include/spiffs  -I $(ESPRTOSSDKPATH)/include
 
 
-CXXSRCS +=
+CXXSRCS += 
