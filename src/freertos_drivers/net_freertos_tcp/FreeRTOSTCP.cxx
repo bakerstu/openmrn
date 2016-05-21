@@ -137,7 +137,7 @@ void FreeRTOSTCP::net_task()
 
         // there should be a better to way to go about determining which sockets are
         // in the socketset used for the call in select
-        for (int i = 0x1F; i >= 0; --i)
+        for (int i = MAX_SOCKETS-1; i >= 0; --i)
         {
         	FreeRTOSTCPSocket *s = nullptr;
         	Socket_t sd;

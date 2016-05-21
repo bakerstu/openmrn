@@ -315,6 +315,11 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         priority = configMAX_PRIORITIES - 1;
     }
+    
+    if (stack_size == 0)
+    {
+        stack_size = 2048;
+    }
 
     TaskList *current = &taskList;
     vTaskSuspendAll();

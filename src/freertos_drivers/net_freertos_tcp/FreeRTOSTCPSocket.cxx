@@ -52,9 +52,6 @@
 #include "FreeRTOSTCPSocket.hxx"
 #include "FreeRTOSTCP.hxx"
 
-static const int
-	MAX_SOCKETS			= 20;
-
 
 static FreeRTOSTCPSocket *FreeRTOSTCPSockets[MAX_SOCKETS];
 
@@ -252,6 +249,7 @@ int FreeRTOSTCPSocket::listen(int socket, int backlog)
 int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
                          socklen_t *address_len)
 {
+	int result;
 	struct sockaddr_in *sin = (struct sockaddr_in *) (address);
     File* f = file_lookup(socket);
     if (!f) 
@@ -281,8 +279,10 @@ int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
     if (address && address_len)
     {
     	// copy the address across and set the address family
-        memcpy(address->sa_data, &fr_address, *address_len);
+    	sin->sin_port = fr_address.sin_port;
+    	sin->sin_addr.s_addr = fr_address.sin_addr;
         sin->sin_family = AF_INET;
+        *address_len = sizeof(struct sockaddr_in);
     }
 
     if (sd == NULL)
@@ -297,6 +297,29 @@ int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
     	errno = EBADF;
     	return -1;
     }
+
+    // for compatibility reset any timeout values inherited from listening socket
+    const TickType_t timeout = portMAX_DELAY;
+    result = FreeRTOS_setsockopt(sd,
+                				0,
+    							FREERTOS_SO_RCVTIMEO,
+    							&timeout,
+    							0);
+    if (result != 0)
+    {
+    	// error detected
+    }
+    result = FreeRTOS_setsockopt(sd,
+                				0,
+    							FREERTOS_SO_SNDTIMEO,
+    							&timeout,
+    							0);
+    if (result != 0)
+    {
+    	// error detected
+    }
+
+    // set listening socket state
     s->readActive = false;
 
     return alloc_instance(sd);
@@ -696,7 +719,7 @@ FreeRTOSTCPSocket *FreeRTOSTCPSocket::get_sd_by_index(int inx)
 {
 	if ((inx < 0) || (inx > MAX_SOCKETS))
 	{
-		return nullptr;
+		HASSERT(0);
 	}
 	return FreeRTOSTCPSockets[inx];
 }
@@ -946,5 +969,39 @@ int getsockopt(int socket, int level, int option_name,
 {
     return FreeRTOSTCPSocket::getsockopt(socket, level, option_name,
                                     option_value, option_len);
+}
+
+/** Get the socket name.
+ * @param socket the socket file descriptor
+ * @param addr points to a sockaddr structure to receive ane name
+ * @param namelen points to a socklen_t to receive the lenght of the name
+ * @return shall return 0 upon success, otherwise, -1 shall be returned and
+ *         errno set to indicate the error
+ */
+int getsockname(int socket, struct sockaddr &addr, socklen_t &namelen)
+{
+	return 0;
+}
+
+static char str[32];
+
+/** Converts internet address into a dotted decimal string
+ * @param addr an in_addr structure containing the IP address
+ * @return returns a string in dotted decimal representation
+ */
+const char *inet_ntoa(struct in_addr addr)
+{
+	//static char str[32];
+	FreeRTOS_inet_ntoa(addr.s_addr,str);
+	return str;
+}
+
+/** Converts the dotted decmail internet address string into a binary representation
+ * @param name string containing dotted decimal representation
+ * @return binary address representation
+ */
+uint32_t inet_addr (const char *name)
+{
+	return FreeRTOS_inet_addr(name);
 }
 } /* extern "C" */

@@ -15,7 +15,7 @@ CSRCS += FreeRTOS_ARP.c \
 	 FreeRTOS_TCP_IP.c \
 	 FreeRTOS_TCP_WIN.c \
 	 FreeRTOS_UDP_IP.c \
-	 BufferAllocation_2.c \
+	 BufferAllocation_1.c \
 	 FreeRTOS_DHCP.c \
 	 FreeRTOS_Sockets.c \
 

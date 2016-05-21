@@ -60,7 +60,7 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 1024, accept_thread_start, this) {}
+      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {}
 
 SocketListener::~SocketListener() {
     if (!shutdownComplete_) {
@@ -141,14 +141,8 @@ void SocketListener::AcceptThreadBody() {
                           &val, sizeof(val)));
     LOG(INFO, "Incoming connection from %s, fd %d.", inet_ntoa(addr.sin_addr),
         connfd);
-#if defined(GCC_ARMCM3) // FreeRTOS+TCP will default to zero recv delay
-      {
-          struct timeval tm;
-          tm.tv_sec = 30*24*3600; // 30 days
-          tm.tv_usec = 0;
-          setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tm,sizeof(tm));
-      }
-#endif
+      
+      printf("From %s, fd %d\n",inet_ntoa(addr.sin_addr),connfd);
       
     callback_(connfd);
   }
