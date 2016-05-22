@@ -149,6 +149,10 @@ uint8_t
 
 void vNetworkInterfaceAllocateRAMToBuffers(
     NetworkBufferDescriptor_t pxNetworkBuffers[ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS]);
+
+uint8_t
+	RxBuffers[NUM_RX_DESCRIPTORS][ipTOTAL_ETHERNET_FRAME_SIZE],
+	TxBuffers[NUM_TX_DESCRIPTORS][ipTOTAL_ETHERNET_FRAME_SIZE];
 #endif
 
 static bool get_mac_address(uint8_t MACAddr[6]);
@@ -158,7 +162,6 @@ static bool InitialiseDIH(void);
 static EMACIODescriptor *GetNextTxDescriptor(void);
 static EMACIODescriptor *GetNextRxDescriptor(void);
 static void SendData(EMACIODescriptor *pxTxIOD,uint32_t DataLength);
-static void pvFixBufferDescriptorLink(NetworkBufferDescriptor_t *pxDescriptor,uint8_t *Buffer);
 
 extern "C" void prvEMACDeferredInterruptHandlerTask( void *pvParameters );
 
@@ -251,8 +254,6 @@ static bool InitialiseEthernet(void)
 		MACAddr[6];
     int
 		x;
-    uint8_t
-		*Buffer;
 
     RxDescIndex = 0;
     TxDescIndex = NUM_TX_DESCRIPTORS-1;
@@ -361,6 +362,7 @@ static bool InitialiseEthernet(void)
 				DES0_TX_CTRL_INTERRUPT |
 				DES0_TX_CTRL_CHAINED |
 				0; // checksums dont seem to work DES0_TX_CTRL_IP_ALL_CKHSUMS;
+    	TxDescriptor[x].DMA.pvBuffer1 = TxBuffers[x];
     	TxDescriptor[x].Flags = 0;
     	if (TxDescriptor[x].xIOComplete == NULL)
     		TxDescriptor[x].xIOComplete = xSemaphoreCreateBinary();
@@ -369,19 +371,11 @@ static bool InitialiseEthernet(void)
     }
     for (x = 0; x < NUM_RX_DESCRIPTORS; x++)
     {
-    	size_t
-			sz = ipTOTAL_ETHERNET_FRAME_SIZE;
     	RxDescriptor[x].DMA.ui32CtrlStatus = 0;
     	RxDescriptor[x].DMA.ui32Count =
     			DES1_RX_CTRL_CHAINED |
 				(ipTOTAL_ETHERNET_FRAME_SIZE << DES1_RX_CTRL_BUFF1_SIZE_S);
-    	if (RxDescriptor[x].DMA.pvBuffer1 == NULL)
-    	{
-        	Buffer = pucGetNetworkBuffer(&sz);
-        	if (Buffer == NULL)
-        		return(true);
-    		RxDescriptor[x].DMA.pvBuffer1 = Buffer;
-    	}
+    	RxDescriptor[x].DMA.pvBuffer1 = RxBuffers[x];
     	RxDescriptor[x].DMA.DES3.pLink = (tEMACDMADescriptor *)
     			((x == NUM_RX_DESCRIPTORS-1) ? RxDescriptor : &RxDescriptor[x+1]);
     	RxDescriptor[x].Flags = 0;
@@ -541,8 +535,8 @@ BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxDescript
     if (pxTxIOD == NULL)
     	return pdFALSE;
 
-    /* Set the DMA descriptor to reference the NetworkBuffer */
-    pxTxIOD->DMA.pvBuffer1 = pxDescriptor->pucEthernetBuffer;
+    /* copy data to dedicated TxBuffer */
+    memcpy(pxTxIOD->DMA.pvBuffer1,pxDescriptor->pucEthernetBuffer,pxDescriptor->xDataLength);
 
     /* Determine IO complete processing strategy */
     if (xReleaseAfterSend == pdFALSE)
@@ -584,24 +578,13 @@ BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxDescript
     }
     else
     {
-    	/* Release the NetworkBufferDescriptor, however, the associated NetworkBuffer now is
-    	 * under the control of DMA: it will be released when the DMA transmit descriptor is
-    	 * recycled.
+    	/* Release the NetworkBufferDescriptor
     	 */
-        pxDescriptor->pucEthernetBuffer = NULL;
         vReleaseNetworkBufferAndDescriptor( pxDescriptor );
         //PrintStr("No wait\n");
     }
 
     return pdTRUE;
-}
-
-static void pvFixBufferDescriptorLink(NetworkBufferDescriptor_t *pxDescriptor,uint8_t *Buffer)
-{
-	/* Associates a NetworkBufferDescriptor with a NetworkBuffer by establishing a link
-	 * in the preamble space.
-	 */
-	*(NetworkBufferDescriptor_t **)(Buffer-ipBUFFER_PADDING) = pxDescriptor;
 }
 
 void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
@@ -614,8 +597,6 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
 	EMACIODescriptor
 		*pxRxIOD,
 		*pxTxIOD;
-	uint8_t
-		*pucTemp;
 
 	IPStackEvent_t
 		xRxEvent;
@@ -631,9 +612,7 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
         		/* Deal with completed receive DMA descriptors */
 				while ((pxRxIOD = GetNextRxDescriptor()) != NULL)
 				{
-					/* Allocate new NetworkBufferDescriptor with buffer to pass results IPTask;
-					 * the NetworkBuffer obtained will be assigned to the DMX receive descriptor to
-					 * replace the buffer of the operation just finished.
+					/* Allocate new NetworkBufferDescriptor with buffer to pass results IPTask
 					 */
 
 					pxDescriptor = pxGetNetworkBufferWithDescriptor( ipTOTAL_ETHERNET_FRAME_SIZE, pdMS_TO_TICKS(50));
@@ -643,18 +622,12 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
 						//__asm("BKPT #01");
 						break;
 					}
-					/* Save the NetworkBuffer just allocated, as it will be used to replace the one just completed*/
-					pucTemp = pxDescriptor->pucEthernetBuffer;
 
-					/* Now set the NetworkBuffer in the NetworkBufferDescriptor obtained above to address
-					 * the buffer used by the completed DMA receive.
-					 */
 					CtrlStatus = pxRxIOD->DMA.ui32CtrlStatus;
-					pxDescriptor->pucEthernetBuffer = (uint8_t *) pxRxIOD->DMA.pvBuffer1;
 					pxDescriptor->xDataLength =
 							(CtrlStatus&DES0_RX_STAT_FRAME_LENGTH_M) >> DES0_RX_STAT_FRAME_LENGTH_S;
-					/* Update the NetworkBufferDescriptor link in the buffer as well */
-					pvFixBufferDescriptorLink(pxDescriptor,pxDescriptor->pucEthernetBuffer);
+					memcpy(pxDescriptor->pucEthernetBuffer,(uint8_t *) pxRxIOD->DMA.pvBuffer1,
+							pxDescriptor->xDataLength);
 
 					// temp debugging
 					if (TraceNet)
@@ -666,8 +639,6 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
 						PrintBuffer(Frame,FrameLen);
 					}
 
-					/* Now set the DMA receive descriptor to address the newly allocated NetworkBuffer */
-					pxRxIOD->DMA.pvBuffer1 = pucTemp;
 					// mark as available for DMA
 					pxRxIOD->DMA.ui32CtrlStatus = DES0_RX_CTRL_OWN;
 					// and ensure DMA is active for Rx
@@ -743,13 +714,9 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
         				}
         				else if (pxTxIOD->Flags & IORELEASEBUFFER)
         				{
-        					// release the buffer
+        					/* mark buffer as idle
+        					 */
         					pxTxIOD->Flags = 0;
-        					if (pxTxIOD->DMA.pvBuffer1 != NULL)
-        					{
-        						vReleaseNetworkBuffer( (uint8_t *) pxTxIOD->DMA.pvBuffer1);
-        						pxTxIOD->DMA.pvBuffer1 = NULL;
-        					}
         				}
         				else pxTxIOD->Flags = 0;
         			}
