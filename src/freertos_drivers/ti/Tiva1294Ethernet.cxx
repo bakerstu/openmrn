@@ -123,8 +123,8 @@ static uint16_t
 	RxDescIndex,
 	TxDescIndex;
 
-static SemaphoreHandle_t
-	xTxLock = NULL;
+static QueueHandle_t
+	TxBufferQueue = NULL;
 
 static QueueHandle_t
 	xEMACEventQueue = NULL;
@@ -149,13 +149,14 @@ void vNetworkInterfaceAllocateRAMToBuffers(
 uint8_t
 	RxBuffers[NUM_RX_DESCRIPTORS][ipTOTAL_ETHERNET_FRAME_SIZE],
 	TxBuffers[NUM_TX_DESCRIPTORS][ipTOTAL_ETHERNET_FRAME_SIZE];
+#else
+#error "This implementation requires use of STATIC_BUFFERS"
 #endif
 
 static bool get_mac_address(uint8_t MACAddr[6]);
 bool network_layer_preinit(void);
 static bool InitialiseEthernet(void);
 static bool InitialiseDIH(void);
-static EMACIODescriptor *GetNextTxDescriptor(void);
 static EMACIODescriptor *GetNextRxDescriptor(void);
 static void SendData(EMACIODescriptor *pxTxIOD,uint32_t DataLength);
 
@@ -250,6 +251,8 @@ static bool InitialiseEthernet(void)
 		MACAddr[6];
     int
 		x;
+    EMACIODescriptor
+		*TxIOD;
 
     RxDescIndex = 0;
     TxDescIndex = NUM_TX_DESCRIPTORS-1;
@@ -263,12 +266,12 @@ static bool InitialiseEthernet(void)
 			return(true);
 		}
 
-		// create TxLock semaphore
-		if (xTxLock == NULL)
-			xTxLock = xSemaphoreCreateBinary();
-		if (xTxLock == NULL)
+		// create transmit buffer queue
+		if (TxBufferQueue == 0)
+			TxBufferQueue = xQueueCreate(NUM_TX_DESCRIPTORS,sizeof(EMACIODescriptor *));
+		if (TxBufferQueue == 0)
 		{
-			// failed to create TxLock
+			// failed to create transmit buffer queue
 			return(true);
 		}
 
@@ -279,6 +282,9 @@ static bool InitialiseEthernet(void)
     {
     	// reset the device
     	EMACReset(EMAC0_BASE);
+
+    	// reset transmit buffer queue
+    	xQueueReset(TxBufferQueue);
     }
 
     // now run with interrupts disabled
@@ -349,17 +355,24 @@ static bool InitialiseEthernet(void)
     // initialise DMA descriptors
     for (x = 0; x < NUM_TX_DESCRIPTORS; x++)
     {
-    	TxDescriptor[x].DMA.ui32Count = 0;
-    	TxDescriptor[x].DMA.DES3.pLink = (tEMACDMADescriptor *)
+    	TxIOD = &TxDescriptor[x];
+    	TxIOD->DMA.ui32Count = 0;
+    	TxIOD->DMA.DES3.pLink = (tEMACDMADescriptor *)
     			((x == NUM_TX_DESCRIPTORS-1) ? TxDescriptor : &TxDescriptor[x+1]);
-    	TxDescriptor[x].DMA.ui32CtrlStatus =
+    	TxIOD->DMA.ui32CtrlStatus =
     			DES0_TX_CTRL_LAST_SEG |
 				DES0_TX_CTRL_FIRST_SEG |
 				DES0_TX_CTRL_INTERRUPT |
 				DES0_TX_CTRL_CHAINED |
 				0; // checksums dont seem to work DES0_TX_CTRL_IP_ALL_CKHSUMS;
-    	TxDescriptor[x].DMA.pvBuffer1 = TxBuffers[x];
-    	TxDescriptor[x].Flags = 0;
+    	TxIOD->DMA.pvBuffer1 = TxBuffers[x];
+    	TxIOD->Flags = 0;
+    	if (xQueueSend(TxBufferQueue,&TxIOD,0) != pdTRUE)
+    	{
+    		/* error insert buffer into available queue
+    		 *
+    		 */
+    	}
     }
     for (x = 0; x < NUM_RX_DESCRIPTORS; x++)
     {
@@ -423,8 +436,6 @@ static bool InitialiseEthernet(void)
 
     // reenable interrupts
     taskENABLE_INTERRUPTS();
-    // unlock TxLock
-    xSemaphoreGive(xTxLock);
 
     return(false);
 }
@@ -448,33 +459,6 @@ BaseType_t xNetworkInterfaceInitialise( void )
 		return(pdFAIL);
 	else
 		return(pdPASS);
-}
-
-
-
-static EMACIODescriptor *GetNextTxDescriptor(void)
-{
-	uint16_t
-		inx;
-
-	xSemaphoreTake(xTxLock,portMAX_DELAY);
-	inx = (TxDescIndex == NUM_TX_DESCRIPTORS-1) ? 0 : (TxDescIndex+1);
-	if (TxDescriptor[inx].DMA.ui32CtrlStatus & DES0_TX_CTRL_OWN)
-	{
-		PrintStr("Inuse\n");
-		xSemaphoreGive(xTxLock);
-		return(NULL);
-	}
-	if (TxDescriptor[inx].Flags & IOBUSY)
-	{
-		PrintStr("Busy\n");
-		xSemaphoreGive(xTxLock);
-		return(NULL);
-	}
-	TxDescIndex = inx;
-	TxDescriptor[inx].Flags = IOBUSY;
-	xSemaphoreGive(xTxLock);
-	return(&TxDescriptor[inx]);
 }
 
 static EMACIODescriptor *GetNextRxDescriptor(void)
@@ -521,10 +505,13 @@ BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxDescript
 		*pxTxIOD;
 
 	/* Obtain a DMA transmit descriptor */
-    pxTxIOD = GetNextTxDescriptor();
-
-    if (pxTxIOD == NULL)
-    	return pdFALSE;
+	if (xQueueReceive(TxBufferQueue,&pxTxIOD,pdMS_TO_TICKS(5)) != pdTRUE)
+	{
+		// no buffer available
+		return pdFALSE;
+	}
+	/* mark buffer as busy */
+	pxTxIOD->Flags = IOBUSY;
 
     /* copy data to dedicated TxBuffer */
     memcpy(pxTxIOD->DMA.pvBuffer1,pxDescriptor->pucEthernetBuffer,pxDescriptor->xDataLength);
@@ -646,35 +633,6 @@ void prvEMACDeferredInterruptHandlerTask( void *pvParameters )
 					}
 				}
         	}
-#if 0  // transmit finish now handled in ethernet ISR
-        	if ((IntStatus & EMAC_INT_TRANSMIT) || (IntStatus & EMAC_INT_TX_STOPPED))
-        	{
-        		// process transmitted buffers
-        		xSemaphoreTake(xTxLock,portMAX_DELAY);
-        		for (int inx = 0; inx < NUM_TX_DESCRIPTORS; inx++)
-        		{
-        			EMACIODescriptor
-        				*pxTxIOD;
-
-        			pxTxIOD = &TxDescriptor[inx];
-        			if (((pxTxIOD->DMA.ui32CtrlStatus & DES0_TX_CTRL_OWN) == 0)  &&
-        					(pxTxIOD->Flags & IOBUSY))
-        			{
-        				// completed IO
-        				if (TraceNet)
-        				{
-            				PrintHex(pxTxIOD->DMA.ui32CtrlStatus);
-            				PrintStr(":");
-            				PrintHex((uint32_t) pxTxIOD->DMA.pvBuffer1);
-            				PrintStr("\n");
-        				}
-
-        				pxTxIOD->Flags = 0;
-        			}
-        		}
-        		xSemaphoreGive(xTxLock);
-        	}
-#endif
 
         	if (IntStatus & EMAC_INT_ABNORMAL_INT)
         	{
@@ -741,7 +699,6 @@ extern "C" void ethernet_interrupt_handler(void)
 	if ((status & EMAC_INT_TRANSMIT) || (status & EMAC_INT_TX_STOPPED))
 	{
 		// process transmit finish here in ISR
-		xSemaphoreTakeFromISR(xTxLock,&TaskWoken);
 		for (int inx = 0; inx < NUM_TX_DESCRIPTORS; inx++)
 		{
 			pxTxIOD = &TxDescriptor[inx];
@@ -750,9 +707,9 @@ extern "C" void ethernet_interrupt_handler(void)
 			{
 				// completed IO - reset IOBUSY flag
 				pxTxIOD->Flags = 0;
+				xQueueSendFromISR(TxBufferQueue,&pxTxIOD,&TaskWoken);
 			}
 		}
-		xSemaphoreGiveFromISR(xTxLock,&TaskWoken);
 		status &= ~(EMAC_INT_TRANSMIT | EMAC_INT_TX_STOPPED);
 	}
 
