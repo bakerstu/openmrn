@@ -38,13 +38,20 @@
 
 #include "nmranet/RoutingLogic.hxx"
 #include "nmranet/CanDefs.hxx"
+#include "nmranet/Defs.hxx"
+#include "nmranet/If.hxx"
 #include "utils/Hub.hxx"
 #include "utils/GcStreamParser.hxx"
+#include "utils/gc_format.h"
+
+namespace nmranet {
 
 /**
    A hub flow that accepts string HUB ports sending CAN frames via the
    GridConnect protocol, performs routing decisions on the frames and sends out
    to the appropriate ports.
+
+   TODO: need to process consumer and producer identified messages.
  */
 class GcCanRoutingHub : public HubPortInterface, CanHubPortInterface
 {
@@ -54,7 +61,7 @@ public:
     typedef FlowInterface<buffer_type> port_type;
 
     GcCanRoutingHub(Service *s)
-        : deliveryFlow_(s)
+        : deliveryFlow_(s, this)
     {
     }
 
@@ -110,6 +117,7 @@ public:
     }
 
 private:
+    class PortParser;
     typedef std::map<void *, PortParser> PortsMap;
     /**
        Computes the desired priority of a CAN frame.
@@ -156,19 +164,19 @@ private:
             {
                 return release_and_exit();
             }
-            classify_frame();
+            classify_frame(frame);
 
             if (srcAddress_ != 0)
             {
                 parent_->routingTable_.add_node_id_to_route(
-                    message->data()->skipMember_, srcAddress_);
+                    message()->data()->skipMember_, srcAddress_);
             }
 
             gcBuf_ = nullptr;
 
             if (forwardType_ == ADDRESSED && dstAddress_ != 0)
             {
-                void *port = parent_->routingTable_->lookup_port_for_address(
+                void *port = parent_->routingTable_.lookup_port_for_address(
                     dstAddress_);
                 nextIt_ = parent_->ports_.find(port);
                 if (nextIt_ != parent_->ports_.end())
@@ -221,7 +229,7 @@ private:
                 return;
             }
             // At this point: global or addressed message
-            MTI mti = static_cast<MTI>(CanDefs::get_mti(can_id));
+            Defs::MTI mti = static_cast<Defs::MTI>(CanDefs::get_mti(can_id));
             if (Defs::get_mti_address(mti) && frame.can_dlc >= 2)
             {
                 // address present (really).
@@ -253,7 +261,7 @@ private:
             if (forwardType_ == EVENT)
             {
                 if (parent_->routingTable_.check_pcer(
-                        static_cast<HubPortInterface *>(nextIt_->first),
+                        static_cast<CanHubPortInterface *>(nextIt_->first),
                         event_))
                 {
                     forward_to_port();
@@ -276,10 +284,13 @@ private:
             return done_processing();
         }
 
-        Action done_processing() {
-            if (gcBuf_) {
+        Action done_processing()
+        {
+            if (gcBuf_)
+            {
                 gcBuf_->unref();
                 gcBuf_ = nullptr;
+            }
             return release_and_exit();
         }
 
@@ -307,12 +318,13 @@ private:
             char buf[29];
             char *end = gc_format_generate(&message()->data()->frame(), buf, 0);
             gcBuf_->data()->assign(buf, end - buf);
-            gcBuf_->data()->skipMember_ = message()->data()->skipMember_;
+            gcBuf_->data()->skipMember_ = reinterpret_cast<HubPortInterface*>(message()->data()->skipMember_);
         }
 
         enum ForwardType
         {
-            /// Broadcast packet that needs to go out to all ports, unfiltered.
+            /// Broadcast packet that needs to go out to all ports,
+            /// unfiltered.
             FORWARD_ALL,
             /// Addressed packet that needs to check the routing table.
             ADDRESSED,
@@ -328,13 +340,16 @@ private:
         GcCanRoutingHub *parent_;
         /// Gridconnect-rendered frame.
         Buffer<HubData> *gcBuf_;
-    } deliveryFlow_;
+    };
+
+    DeliveryFlow deliveryFlow_;
 
     friend class DeliveryFlow;
 
     struct PortParser
     {
-        /// If true, we must not send any data to this target, because it has
+        /// If true, we must not send any data to this target, because it
+        /// has
         /// been unregistered.
         bool inactive_{false};
         GcStreamParser segmenter_;
@@ -350,5 +365,7 @@ private:
 
     RoutingLogic<CanHubPortInterface, NodeAlias> routingTable_;
 };
+
+} // namespace nmranet
 
 #endif // _NMRANET_CANROUTNGHUB_HXX_

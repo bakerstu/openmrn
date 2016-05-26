@@ -2,13 +2,16 @@
 
 #include "nmranet/CanRoutingHub.hxx"
 
+namespace nmranet {
+namespace {
 
 class CanRoutingHubTest : public ::testing::Test {
 protected:
-
     GcCanRoutingHub hub_{&g_service};
 };
 
 
 TEST_F(CanRoutingHubTest, Construct) {}
 
+} // namespace
+} // namespace nmranet
