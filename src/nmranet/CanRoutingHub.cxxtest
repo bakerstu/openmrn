@@ -1,0 +1,14 @@
+#include "utils/test_main.hxx"
+
+#include "nmranet/CanRoutingHub.hxx"
+
+
+class CanRoutingHubTest : public ::testing::Test {
+protected:
+
+    GcCanRoutingHub hub_{&g_service};
+};
+
+
+TEST_F(CanRoutingHubTest, Construct) {}
+
