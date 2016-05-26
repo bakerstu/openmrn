@@ -87,6 +87,14 @@ extern NodeID data_to_node_id(const void* d);
 /** Converts an Event ID to a Payload suitable to be sent as an event report. */
 extern Payload eventid_to_buffer(uint64_t eventid);
 
+/** Takes 8 bytes (big-endian) from *data, and returns the event id they
+ * represent. */
+inline uint64_t data_to_eventid(const void* data) {
+    uint64_t ret = 0;
+    memcpy(&ret, data, 8);
+    return be64toh(ret);
+}
+
 /** Formats a payload for response of error response messages such as OPtioanl
  * Interaction Rejected or Terminate Due To Error. */
 extern string error_to_buffer(uint16_t error_code, uint16_t mti);
