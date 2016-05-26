@@ -41,6 +41,8 @@
    Parses a sequence of characters; finds GridConnect protocol packet
    boundaries in the sequence of packets. Contains an internal buffer holding
    the partial (or last found) gridconnect packet.
+
+   This class is not thread-safe, but thread-compatible.
  */
 class GcStreamParser
 {

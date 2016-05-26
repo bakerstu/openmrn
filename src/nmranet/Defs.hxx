@@ -60,7 +60,7 @@ struct NodeHandle
     NodeHandle(NodeID _id, NodeAlias _alias) : id(_id), alias(_alias) {}
     NodeHandle() : id(0), alias(0) {}
 
-    /** Compare to NodeHandle instances.
+    /** Compares two NodeHandle instances.
      * @param o object to compare to
      * @return boolean result of compare
      */

@@ -259,7 +259,7 @@ protected:
     /* StateFlow implementations will have to use one of the following commands
      * to return from a state handler to indicate what action to take. */
 
-    /** Call the current state again.
+    /** Call the current state again via call_immediately.
      * @return function pointer to current state handler
      */
     Action again()
