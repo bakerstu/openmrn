@@ -40,6 +40,7 @@
 #include "utils/Buffer.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/Hub.hxx"
+#include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"
 
 /// Actual implementation for the gridconnect bridge between a string-typed Hub
@@ -156,7 +157,6 @@ public:
         GCToBinaryMember(Service *service, CanHubFlow *destination,
                          CanHubPort *skip_member)
             : HubPort(service)
-            , offset_(-1)
             , destination_(destination)
             , skipMember_(skip_member)
         {
@@ -180,13 +180,11 @@ public:
             while (inBufSize_--)
             {
                 char c = *inBuf_++;
-                if (consume_byte(c))
+                if (streamSegmenter_.consume_byte(c))
                 {
                     // End of frame. Allocate an output buffer and parse the
                     // frame.
-                    /// @todo(balazs.racz) use a configurable buffer pool
-                    mainBufferPool->alloc(&outBuf_);
-                    return call_immediately(STATE(parse_to_output_frame));
+                    return allocate_and_call(destination_, STATE(parse_to_output_frame));
                 }
             }
             // Will notify the caller.
@@ -198,76 +196,28 @@ public:
          * process buffer. */
         Action parse_to_output_frame()
         {
-            // CanPipeBuffer *pbuf = GetTypedAllocationResult(&g_can_alloc);
-            // pbuf->Reset();
-            LOG(VERBOSE, "gc packet arrived: %s", cbuf_);
-            int ret = gc_format_parse(cbuf_, outBuf_->data());
-            if (!ret)
+            auto* b = get_allocation_result(destination_);
+            if (streamSegmenter_.parse_frame_to_output(b->data()))
             {
-                outBuf_->data()->skipMember_ = skipMember_;
-                destination_->send(outBuf_);
+                b->data()->skipMember_ = skipMember_;
+                destination_->send(b);
             }
             else
             {
                 // Releases the buffer.
-                outBuf_->unref();
+                b->unref();
             }
             return call_immediately(STATE(parse_more_data));
         }
 
-        /** Adds the next character from the source stream. Returns true if
-         * cbuf_ contains a complete frame. */
-        bool consume_byte(char c)
-        {
-            if (c == ':')
-            {
-                // Frame is starting here.
-                offset_ = 0;
-                return false;
-            }
-            if (c == ';')
-            {
-                if (offset_ < 0)
-                {
-                    return false;
-                }
-                // Frame ends here.
-                cbuf_[offset_] = 0;
-                offset_ = -1;
-                return true;
-            }
-            if (offset_ >= static_cast<int>(sizeof(cbuf_) - 1))
-            {
-                // We overran the buffer, so this can't be a valid frame.
-                // Reset and look for sync byte again.
-                offset_ = -1;
-                return false;
-            }
-            if (offset_ >= 0)
-            {
-                cbuf_[offset_++] = c;
-            }
-            else
-            {
-                // Drop byte to the floor -- we're not in the middle of a
-                // packet.
-            }
-            return false;
-        }
-
     private:
-        /// Collects data from a partial GC packet.
-        char cbuf_[32];
-        /// offset of next byte in cbuf to write.
-        int offset_;
-
+        /// Holds the state of the incoming characters and the boundary.
+        GcStreamParser streamSegmenter_;
+        
         /// The incoming characters.
         const char *inBuf_;
         /// The remaining number of characters in inBuf_.
         size_t inBufSize_;
-
-        /// The buffer to send to the destination hub.
-        Buffer<CanHubData> *outBuf_;
 
         // ==== static data ====
 

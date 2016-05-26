@@ -9,6 +9,7 @@ CXXSRCS += \
 	   StringPrintf.cxx \
            Buffer.cxx \
            ConfigUpdateListener.cxx \
+           GcStreamParser.cxx \
            GcTcpHub.cxx \
            GridConnect.cxx \
            GridConnectHub.cxx \
