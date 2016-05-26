@@ -19,6 +19,7 @@ CXXSRCS += \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
 	   PIPClient.cxx \
+	   RoutingLogic.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionThrottle.cxx \
