@@ -76,7 +76,11 @@ bool GcStreamParser::consume_byte(char c)
 }
 
 void GcStreamParser::frame_buffer(std::string* payload) {
-    payload->assign(cbuf_, offset_);
+    if (offset_ >= 0) {
+        payload->assign(cbuf_, offset_);
+    } else {
+        payload->assign(cbuf_);
+    }
 }
 
 bool GcStreamParser::parse_frame_to_output(struct can_frame* output_frame) {
