@@ -1,4 +1,4 @@
-#include "utils/test_main.hxx"
+#include "utils/async_if_test_helper.hxx"
 
 #include "nmranet/CanRoutingHub.hxx"
 
@@ -7,11 +7,43 @@ namespace {
 
 class CanRoutingHubTest : public ::testing::Test {
 protected:
+    typedef StrictMock<MockSend> PortType;
+    void test_packet(const string& packet, PortType* source, std::initializer_list<PortType*> destinations) {
+        for (PortType* dst : destinations) {
+            EXPECT_CALL(*dst, mwrite(StrCaseEq(packet)));
+        }
+        auto* b = hub_.alloc();
+        b->data()->skipMember_ = source;
+        b->data()->assign(packet);
+        hub_.send(b);
+        wait();
+    }
+
+    ~CanRoutingHubTest() {
+        wait();
+    }
+
+    void wait() {
+        wait_for_main_executor();
+    }
+
     GcCanRoutingHub hub_{&g_service};
+    PortType p1_, p2_, p3_, p4_;
 };
 
 
 TEST_F(CanRoutingHubTest, Construct) {}
+
+TEST_F(CanRoutingHubTest, SimpleStdPacket) {
+    hub_.register_port(&p1_);
+    hub_.register_port(&p2_);
+    hub_.register_port(&p3_);
+    hub_.register_port(&p4_);
+
+    test_packet(":S000N;", &p1_, {&p2_, &p3_, &p4_});
+}
+
+
 
 } // namespace
 } // namespace nmranet
