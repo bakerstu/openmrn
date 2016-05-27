@@ -25,25 +25,62 @@ protected:
 
     void wait() {
         wait_for_main_executor();
+        for (PortType* p : all_ports()) {
+            Mock::VerifyAndClear(p);
+        }
+    }
+
+    const std::vector<PortType*>& all_ports() {
+        return allPorts_;
+    }
+
+    void register_all_ports() {
+        for (PortType* p : allPorts_) {
+            hub_.register_port(p);
+        }
     }
 
     GcCanRoutingHub hub_{&g_service};
     PortType p1_, p2_, p3_, p4_;
+    std::vector<PortType*> allPorts_{&p1_, &p2_, &p3_, &p4_};
 };
 
 
 TEST_F(CanRoutingHubTest, Construct) {}
 
 TEST_F(CanRoutingHubTest, SimpleStdPacket) {
-    hub_.register_port(&p1_);
-    hub_.register_port(&p2_);
-    hub_.register_port(&p3_);
-    hub_.register_port(&p4_);
+    register_all_ports();
 
     test_packet(":S000N;", &p1_, {&p2_, &p3_, &p4_});
 }
 
+TEST_F(CanRoutingHubTest, Unregister) {
+    register_all_ports();
 
+    test_packet(":S000N;", &p1_, {&p2_, &p3_, &p4_});
+
+    hub_.unregister_port(&p3_);
+
+    test_packet(":S000N;", &p1_, {&p2_, &p4_});
+}
+
+TEST_F(CanRoutingHubTest, Addressed) {
+    register_all_ports();
+
+    // This will not add anything to the routing table
+    test_packet(":S111N;", &p1_, {&p2_, &p3_, &p4_});
+    // Addressed packet will be broadcast
+    test_packet(":X19828444N0111;", &p4_, {&p1_, &p2_, &p3_});
+    // We do add to the routing table
+    test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
+    // Addressed packet will be unicast
+    test_packet(":X19828444N0111;", &p4_, {&p1_});
+    // Response too.
+    test_packet(":X19668111N0444000000000000;", &p1_, {&p4_});
+    
+    // a global packet will be still bradcast
+    test_packet(":X19490444N;", &p4_, {&p1_, &p2_, &p3_});
+}
 
 } // namespace
 } // namespace nmranet

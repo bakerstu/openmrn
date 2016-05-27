@@ -53,6 +53,7 @@ namespace nmranet
    to the appropriate ports.
 
    TODO: need to process consumer and producer identified messages.
+   TODO: need to exclude CHECK ID frames from the source address learning.
  */
 class GcCanRoutingHub : public HubPortInterface
 {
@@ -69,7 +70,7 @@ public:
     void send(Buffer<HubData> *b, unsigned priority = UINT_MAX) override
     {
         OSMutexLock l(&lock_);
-        void* port = b->data()->skipMember_;
+        void *port = b->data()->skipMember_;
         auto it = ports_.find(port);
         if (it == ports_.end())
         {
@@ -87,10 +88,10 @@ public:
                 // We have a frame.
                 string ret;
                 it->second.segmenter_.frame_buffer(&ret);
-                LOG(INFO, "sending frame: %s", ret.c_str());
+                LOG(VERBOSE, "sending frame: %s", ret.c_str());
                 auto *cb = deliveryFlow_.alloc();
                 HASSERT(it->second.segmenter_.parse_frame_to_output(
-                            cb->data()->mutable_frame()));
+                    cb->data()->mutable_frame()));
                 cb->data()->skipMember_ = reinterpret_cast<
                     FlowInterface<Buffer<HubContainer<CanFrameContainer>>> *>(
                     b->data()->skipMember_);
@@ -111,6 +112,7 @@ public:
     void register_port(HubPortInterface *port)
     {
         OSMutexLock l(&lock_);
+        HASSERT(port);
         ports_[port].hubPort_ = port;
     }
 
@@ -118,7 +120,8 @@ public:
     {
         OSMutexLock l(&lock_);
         auto it = ports_.find(port);
-        if (it == ports_.end()) {
+        if (it == ports_.end())
+        {
             LOG(INFO, "Trying to remove a nonexistant port: %p", port);
             return;
         }
@@ -310,11 +313,18 @@ private:
                 return;
             if (nextIt_->second.canPort_)
             {
+                if (nextIt_->second.canPort_ == message()->data()->skipMember_)
+                    return;
                 nextIt_->second.canPort_->send(message()->ref(), priority());
             }
             else
             {
                 HASSERT(nextIt_->second.hubPort_);
+                CanHubPortInterface *hpi =
+                    reinterpret_cast<CanHubPortInterface *>(
+                        nextIt_->second.hubPort_);
+                if (hpi == message()->data()->skipMember_)
+                    return;
                 ensure_gc_buf_available();
                 nextIt_->second.hubPort_->send(gcBuf_->ref());
             }
