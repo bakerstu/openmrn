@@ -44,7 +44,8 @@
 #include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"
 
-namespace nmranet {
+namespace nmranet
+{
 
 /**
    A hub flow that accepts string HUB ports sending CAN frames via the
@@ -53,7 +54,7 @@ namespace nmranet {
 
    TODO: need to process consumer and producer identified messages.
  */
-class GcCanRoutingHub : public HubPortInterface, CanHubPortInterface
+class GcCanRoutingHub : public HubPortInterface
 {
 public:
     typedef HubData value_type;
@@ -65,10 +66,11 @@ public:
     {
     }
 
-    void send(Buffer<HubData> *b, unsigned priority) override
+    void send(Buffer<HubData> *b, unsigned priority = UINT_MAX) override
     {
         OSMutexLock l(&lock_);
-        auto it = ports_.find(b->data()->skipMember_);
+        void* port = b->data()->skipMember_;
+        auto it = ports_.find(port);
         if (it == ports_.end())
         {
             LOG(INFO, "Arrived packet to routing hub without recognized source "
@@ -77,15 +79,18 @@ public:
             b->unref();
             return;
         }
-        const string &p = b->data()->data();
+        const string &p = *b->data();
         for (unsigned i = 0; i < p.size(); ++i)
         {
             if (it->second.segmenter_.consume_byte(p[i]))
             {
                 // We have a frame.
+                string ret;
+                it->second.segmenter_.frame_buffer(&ret);
+                LOG(INFO, "sending frame: %s", ret.c_str());
                 auto *cb = deliveryFlow_.alloc();
-                it->second.segmenter_.parse_frame_to_output(
-                    cb->data()->mutable_frame());
+                HASSERT(it->second.segmenter_.parse_frame_to_output(
+                            cb->data()->mutable_frame()));
                 cb->data()->skipMember_ = reinterpret_cast<
                     FlowInterface<Buffer<HubContainer<CanFrameContainer>>> *>(
                     b->data()->skipMember_);
@@ -95,23 +100,28 @@ public:
         }
     }
 
-    void send(Buffer<CanHubData> *b, unsigned priority) override
+    CanHubPortInterface *can_hub()
     {
-        deliveryFlow_.send(b, reprioritize_frame(b->data()->frame(), priority));
+        /// @TODO: need a priority wrapper:
+        // deliveryFlow_.send(b, reprioritize_frame(b->data()->frame(),
+        // priority));
+        return &deliveryFlow_;
     }
 
-    void register_port(HubPort *port)
+    void register_port(HubPortInterface *port)
     {
         OSMutexLock l(&lock_);
         ports_[port].hubPort_ = port;
     }
 
-    void unregister_port(HubPort *port)
+    void unregister_port(HubPortInterface *port)
     {
         OSMutexLock l(&lock_);
         auto it = ports_.find(port);
-        if (it == ports_.end())
+        if (it == ports_.end()) {
+            LOG(INFO, "Trying to remove a nonexistant port: %p", port);
             return;
+        }
         it->second.inactive_ = true;
         pendingRemove_.push_back(port);
     }
@@ -176,8 +186,8 @@ private:
 
             if (forwardType_ == ADDRESSED && dstAddress_ != 0)
             {
-                void *port = parent_->routingTable_.lookup_port_for_address(
-                    dstAddress_);
+                void *port =
+                    parent_->routingTable_.lookup_port_for_address(dstAddress_);
                 nextIt_ = parent_->ports_.find(port);
                 if (nextIt_ != parent_->ports_.end())
                 {
@@ -318,7 +328,8 @@ private:
             char buf[29];
             char *end = gc_format_generate(&message()->data()->frame(), buf, 0);
             gcBuf_->data()->assign(buf, end - buf);
-            gcBuf_->data()->skipMember_ = reinterpret_cast<HubPortInterface*>(message()->data()->skipMember_);
+            gcBuf_->data()->skipMember_ = reinterpret_cast<HubPortInterface *>(
+                message()->data()->skipMember_);
         }
 
         enum ForwardType
