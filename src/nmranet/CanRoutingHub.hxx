@@ -223,11 +223,22 @@ private:
             // At this point: all frames belong to openlcb protocols thus the
             // last 12 bits are the source alias.
             srcAddress_ = CanDefs::get_src(can_id);
-            if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG ||
-                CanDefs::get_can_frame_type(can_id) == 6 ||
+            if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG) {
+                // control frame
+                forwardType_ = FORWARD_ALL;
+                if (CanDefs::is_cid_frame(can_id)) {
+                    // We do not record source address of CHECK_ID frames,
+                    // because they could be in conflict. We only record the ID
+                    // at the reserve alias frame 200 msec later.
+                    srcAddress_ = 0;
+                }
+                return;
+            }
+            // At this point: OpenLCB message.
+            if (CanDefs::get_can_frame_type(can_id) == 6 ||
                 CanDefs::get_can_frame_type(can_id) == 0)
             {
-                // control frame or unknown can frame type
+                // unknown can frame type
                 forwardType_ = FORWARD_ALL;
                 return;
             }

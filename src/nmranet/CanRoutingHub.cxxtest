@@ -95,17 +95,17 @@ TEST_F(CanRoutingHubTest, AddressTransition) {
     test_packet(":X19828444N0111;", &p4_, {&p2_});
 }
 
-TEST_F(CanRoutingHubTest, DISABLED_NoAddressTransitionOnCID) {
+TEST_F(CanRoutingHubTest, NoAddressTransitionOnCID) {
     register_all_ports();
 
     // We do add to the routing table
-    test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
+    test_packet(":X10701111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
     // Addressed packet will be unicast
     test_packet(":X19828444N0111;", &p4_, {&p1_});
-    // Different source
-    test_packet(":X19100111N050101011800;", &p2_, {&p1_, &p3_, &p4_});
-    // Addressed packet will be unicast to new target
-    test_packet(":X19828444N0111;", &p4_, {&p2_});
+    // Different source but CID frame
+    test_packet(":X16999111N;", &p2_, {&p1_, &p3_, &p4_});
+    // Addressed packet will be unicast to oldrget
+    test_packet(":X19828444N0111;", &p4_, {&p1_});
 }
 
 } // namespace
