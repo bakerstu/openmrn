@@ -2,59 +2,74 @@
 
 #include "nmranet/CanRoutingHub.hxx"
 
-namespace nmranet {
-namespace {
+namespace nmranet
+{
+namespace
+{
 
-class CanRoutingHubTest : public ::testing::Test {
+class CanRoutingHubTest : public ::testing::Test
+{
 protected:
     typedef StrictMock<MockSend> PortType;
-    void test_packet(const string& packet, PortType* source, std::initializer_list<PortType*> destinations) {
-        for (PortType* dst : destinations) {
+    void test_packet(const string &packet, PortType *source,
+        std::initializer_list<PortType *> destinations)
+    {
+        for (PortType *dst : destinations)
+        {
             EXPECT_CALL(*dst, mwrite(StrCaseEq(packet)));
         }
-        auto* b = hub_.alloc();
+        auto *b = hub_.alloc();
         b->data()->skipMember_ = source;
         b->data()->assign(packet);
         hub_.send(b);
         wait();
     }
 
-    ~CanRoutingHubTest() {
+    ~CanRoutingHubTest()
+    {
         wait();
     }
 
-    void wait() {
+    void wait()
+    {
         wait_for_main_executor();
-        for (PortType* p : all_ports()) {
+        for (PortType *p : all_ports())
+        {
             Mock::VerifyAndClear(p);
         }
     }
 
-    const std::vector<PortType*>& all_ports() {
+    const std::vector<PortType *> &all_ports()
+    {
         return allPorts_;
     }
 
-    void register_all_ports() {
-        for (PortType* p : allPorts_) {
+    void register_all_ports()
+    {
+        for (PortType *p : allPorts_)
+        {
             hub_.register_port(p);
         }
     }
 
     GcCanRoutingHub hub_{&g_service};
     PortType p1_, p2_, p3_, p4_;
-    std::vector<PortType*> allPorts_{&p1_, &p2_, &p3_, &p4_};
+    std::vector<PortType *> allPorts_{&p1_, &p2_, &p3_, &p4_};
 };
 
+TEST_F(CanRoutingHubTest, Construct)
+{
+}
 
-TEST_F(CanRoutingHubTest, Construct) {}
-
-TEST_F(CanRoutingHubTest, SimpleStdPacket) {
+TEST_F(CanRoutingHubTest, SimpleStdPacket)
+{
     register_all_ports();
 
     test_packet(":S000N;", &p1_, {&p2_, &p3_, &p4_});
 }
 
-TEST_F(CanRoutingHubTest, Unregister) {
+TEST_F(CanRoutingHubTest, Unregister)
+{
     register_all_ports();
 
     test_packet(":S000N;", &p1_, {&p2_, &p3_, &p4_});
@@ -64,7 +79,8 @@ TEST_F(CanRoutingHubTest, Unregister) {
     test_packet(":S000N;", &p1_, {&p2_, &p4_});
 }
 
-TEST_F(CanRoutingHubTest, Addressed) {
+TEST_F(CanRoutingHubTest, Addressed)
+{
     register_all_ports();
 
     // This will not add anything to the routing table
@@ -77,12 +93,16 @@ TEST_F(CanRoutingHubTest, Addressed) {
     test_packet(":X19828444N0111;", &p4_, {&p1_});
     // Response too.
     test_packet(":X19668111N0444000000000000;", &p1_, {&p4_});
-    
+
+    // Addressed packet loopback goes nowhere.
+    test_packet(":X19828222N0111;", &p1_, {});
+
     // a global packet will be still broadcast
     test_packet(":X19490444N;", &p4_, {&p1_, &p2_, &p3_});
 }
 
-TEST_F(CanRoutingHubTest, AddressTransition) {
+TEST_F(CanRoutingHubTest, AddressTransition)
+{
     register_all_ports();
 
     // We do add to the routing table
@@ -95,7 +115,8 @@ TEST_F(CanRoutingHubTest, AddressTransition) {
     test_packet(":X19828444N0111;", &p4_, {&p2_});
 }
 
-TEST_F(CanRoutingHubTest, NoAddressTransitionOnCID) {
+TEST_F(CanRoutingHubTest, NoAddressTransitionOnCID)
+{
     register_all_ports();
 
     // We do add to the routing table
@@ -104,8 +125,61 @@ TEST_F(CanRoutingHubTest, NoAddressTransitionOnCID) {
     test_packet(":X19828444N0111;", &p4_, {&p1_});
     // Different source but CID frame
     test_packet(":X16999111N;", &p2_, {&p1_, &p3_, &p4_});
-    // Addressed packet will be unicast to oldrget
+    // Addressed packet will be unicast to old target
     test_packet(":X19828444N0111;", &p4_, {&p1_});
+}
+
+TEST_F(CanRoutingHubTest, Datagram)
+{
+    register_all_ports();
+
+    // Addressed packet will be broadcast
+    test_packet(":X1A111444N;", &p4_, {&p1_, &p2_, &p3_});
+    // We do add to the routing table
+    test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
+    // Datagram first
+    test_packet(":X1B111444N2020;", &p4_, {&p1_});
+    // Datagram middle
+    test_packet(":X1C111444N2020;", &p4_, {&p1_});
+    // Datagram end
+    test_packet(":X1D111444N2020;", &p4_, {&p1_});
+    // Datagram only
+    test_packet(":X1A111444N2020;", &p4_, {&p1_});
+
+    // Response addressed packet
+    test_packet(":X19A28111N0444;", &p1_, {&p4_});
+}
+
+TEST_F(CanRoutingHubTest, Stream)
+{
+    register_all_ports();
+
+    // Addressed packet will be broadcast
+    test_packet(":X1F111444N;", &p4_, {&p1_, &p2_, &p3_});
+    // We do add to the routing table
+    test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
+    // Stream packet.
+    test_packet(":X1F111444N20;", &p4_, {&p1_});
+}
+
+TEST_F(CanRoutingHubTest, UnknownType)
+{
+    register_all_ports();
+
+    // Add to the routing table
+    test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
+
+    // Nonexistant addressed MTI
+    test_packet(":X19008444N0111;", &p4_, {&p1_});
+    // Nonexistant global MTI
+    test_packet(":X19004444N0111;", &p4_, {&p1_, &p2_, &p3_});
+    // Nonexistant addressed MTI loopback
+    test_packet(":X19008222N0111;", &p1_, {});
+
+    // Unknown frame types
+    test_packet(":X18008444N0111;", &p4_, {&p1_, &p2_, &p3_});
+    // Unknown frame types
+    test_packet(":X1E008444N0111;", &p4_, {&p1_, &p2_, &p3_});
 }
 
 } // namespace
