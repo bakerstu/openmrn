@@ -2,6 +2,7 @@
 #define _HARDWARE_HXX_
 
 #include "TivaGPIO.hxx"
+#include "DummyGPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 
@@ -32,5 +33,11 @@ typedef GpioInitializer<                          //
     USB1_Pin, USB2_Pin,                           //
     UART0RX_Pin, UART0TX_Pin,                     //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
+
+namespace TDebug {
+using Resync = DummyPin;
+using NextPacket = DummyPin;
+};
+
 
 #endif // _HARDWARE_HXX_
