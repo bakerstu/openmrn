@@ -118,7 +118,7 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
     }
     if (source == OFFSET_CV_VALUE) {
         if (dccAddress_ != lastIndexedNode_) {
-            *error = Defs::ERROR_TEMPORARY;
+            *error = Defs::ERROR_PERMANENT;
             return 0;
         }
         // Translate from user-visible CV to wire protocol CV.

@@ -174,7 +174,8 @@ public:
     /// to the device. Echoing data back causes alias allocation problems and
     /// nodes on the bus repeatedly dropping their allocated aliases.
     void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
-
+#endif
+#if defined (__linux__)
     /// Adds a CAN bus port with select-based asynchronous driver API.
     /// @params device CAN device name, for example: "can0" or "can1"
     /// @params loopback 1 to enable loopback localy to other open references,
@@ -276,8 +277,6 @@ private:
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
     /// Default service on the particular executor.
     Service service_{&executor_};
-    /// Calls the config listeners with the configuration FD.
-    ConfigUpdateFlow configUpdateFlow_{&service_};
     /// Abstract CAN bus in-memory.
     CanHubFlow canHub0_{&service_};
     /// NMRAnet interface for sending and receiving messages, formatting them
@@ -286,6 +285,8 @@ private:
         &executor_,                      &canHub0_,
         config_local_alias_cache_size(), config_remote_alias_cache_size(),
         config_local_nodes_count()};
+    /// Calls the config listeners with the configuration FD.
+    ConfigUpdateFlow configUpdateFlow_{&ifCan_};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_{&service_};
     /// The actual node.

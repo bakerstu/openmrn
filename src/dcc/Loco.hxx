@@ -61,7 +61,7 @@ enum DccTrainUpdateCode
     /** @TODO(balazs.racz) choose adaptive max-refresh based on how many
      * functions are actually in use for the loco. */
     MAX_REFRESH = FUNCTION9,
-    MM_MAX_REFRESH = MM_F4,
+    MM_MAX_REFRESH = 7,
     ESTOP = 16,
 };
 
@@ -407,7 +407,7 @@ struct MMNewPayload
         return 4;
     }
 
-    /** @returns the update code to send ot the packet handler for a given
+    /** @returns the update code to send to the packet handler for a given
      * function value change. */
     unsigned get_fn_update_code(unsigned address)
     {

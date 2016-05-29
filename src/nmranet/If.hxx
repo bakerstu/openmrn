@@ -95,6 +95,9 @@ extern string error_to_buffer(uint16_t error_code, uint16_t mti);
  * Rejected. */
 extern string error_to_buffer(uint16_t error_code);
 
+/** Writes an error code into a payload object at a given pointer. */
+extern void error_to_data(uint16_t error_code, void* data);
+
 /** Appends an error to the end of an existing buffer. */
 extern void append_error_to_buffer(uint16_t error_code, Payload* p);
 
@@ -307,6 +310,40 @@ public:
     Node *lookup_local_node(NodeID id)
     {
         auto it = localNodes_.find(id);
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    }
+
+    /**
+     * @returns the first node (by nodeID order) that is registered in this
+     * interface as a local node, or nullptr if this interface has no local
+     * nodes.
+     */
+    Node* first_local_node() {
+        auto it = localNodes_.begin();
+        if (it == localNodes_.end()) return nullptr;
+        return it->second;
+    }
+
+    /**
+     * Iterator helper on the local nodes map.
+     *
+     * @param previous is the node ID of a valid local node.
+     *
+     * @returns the node pointer of the next local node (in node ID order) or
+     * null if this was the last node or an invalid argument (not the node ID
+     * of a local node).
+     */
+    Node* next_local_node(NodeID previous) {
+        auto it = localNodes_.find(previous);
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        ++it;
         if (it == localNodes_.end())
         {
             return nullptr;
