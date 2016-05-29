@@ -188,11 +188,8 @@ TEST_F(CanRoutingHubTest, Events)
 
     // We do add to the routing table
     test_packet(":X19100111N050101011800;", &p1_, {&p2_, &p3_, &p4_});
-    // We do add to the routing table
     test_packet(":X19100222N050101011800;", &p2_, {&p1_, &p3_, &p4_});
-    // We do add to the routing table
     test_packet(":X19100333N050101011800;", &p3_, {&p1_, &p2_, &p4_});
-    // We do add to the routing table
     test_packet(":X19100444N050101011800;", &p4_, {&p1_, &p2_, &p3_});
 
     // Event report
@@ -204,13 +201,15 @@ TEST_F(CanRoutingHubTest, Events)
     // Event report
     test_packet(":X195B4111N0501010118000001;", &p1_, {&p4_});
 
-    // Consumer range identified (irrelevant range)
-    test_packet(":X19   333N0501010118000F00;", &p3_, {&p1_, &p2_, &p4_});
+    // Consumer range identified
+    test_packet(":X194A4333N0501010118000F00;", &p3_, {&p1_, &p2_, &p4_});
+    // Producer range identified
+    test_packet(":X19524333N0501010118000F00;", &p2_, {&p1_, &p3_, &p4_});
 
     // Event report
     test_packet(":X195B4111N0501010118000001;", &p1_, {&p4_});
-    //test_packet(":X195B4111N0501010118000F06;", &p1_, {&p3_});
-
+    // matches the range
+    test_packet(":X195B4111N0501010118000F06;", &p1_, {&p3_});
 }
 
 
