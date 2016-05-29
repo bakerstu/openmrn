@@ -56,7 +56,7 @@ using std::pair;
 #define EXPECT_DEATH(x...) 
 #endif
 
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__)
 
 /**
    Hard assertion facility. These checks will remain in production code, and
@@ -71,6 +71,14 @@ using std::pair;
 
 #define DIE(MSG) abort()
 
+
+#elif defined(ESP_NONOS)
+
+#include <stdio.h>
+
+#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
+
+#define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
 #else
 

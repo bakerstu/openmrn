@@ -47,6 +47,12 @@
 #include "utils/logging.h"
 #include "os/OSSelectWakeup.hxx"
 
+#ifdef ESP_NONOS
+extern "C" {
+#include <ets_sys.h>
+}
+#endif
+
 class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
@@ -122,6 +128,14 @@ public:
      * loop would block right now. */
     bool loop_once();
 
+    /** Performs a few loops of the executor on the calling thread.
+     *
+     * @return 0 if there is still pending work scheduled on the executor,
+     * non-zero if there is some work to do after a sleep. The returned value
+     * is the nanoseconds to sleep before calling loop_some again.
+     */
+    long long loop_some() ICACHE_FLASH_ATTR;
+
     /** @returns the list of active timers. */
     ActiveTimers* active_timers() { return &activeTimers_; }
 
@@ -145,6 +159,7 @@ protected:
     OSSelectWakeup selectHelper_;
 
 private:
+#ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -152,6 +167,7 @@ private:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */
     virtual Executable *timedwait(long long timeout, unsigned *priority) = 0;
+#endif
 
     /** Wait for an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
@@ -267,7 +283,12 @@ public:
     {
         queue_.insert(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+#ifdef ESP_NONOS
+        extern void wakeup_executor(ExecutorBase* executor);
+        wakeup_executor(this);
+#else
         selectHelper_.wakeup();
+#endif
     }
 
 #ifdef __FreeRTOS__
@@ -298,6 +319,7 @@ public:
     }
 
 private:
+#ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -310,6 +332,7 @@ private:
         *priority = result.index;
         return static_cast<Executable*>(result.item);
     }
+#endif
 
     /** Wait for an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from

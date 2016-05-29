@@ -1,0 +1,1 @@
+../../../../boards/esp-esp8266-32mbit/hardware.mk
