@@ -563,15 +563,20 @@ private:
         iface()->addressed_message_write_flow()->send(b);
     }
 
-    void set_assigned() {
-        assigned_ = true;
+    void set_assigned()
+    {
         iface()->dispatcher()->register_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+        assigned_ = true;
     }
 
-    void clear_assigned() {
-        if (!assigned_) return;
-        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+    void clear_assigned()
+    {
+        if (!assigned_)
+        {
+            return;
+        }
         assigned_ = false;
+        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
     }
 
     void clear_cache()
