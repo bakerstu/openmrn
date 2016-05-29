@@ -223,10 +223,12 @@ private:
             // At this point: all frames belong to openlcb protocols thus the
             // last 12 bits are the source alias.
             srcAddress_ = CanDefs::get_src(can_id);
-            if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG) {
+            if (CanDefs::get_frame_type(can_id) == CanDefs::CONTROL_MSG)
+            {
                 // control frame
                 forwardType_ = FORWARD_ALL;
-                if (CanDefs::is_cid_frame(can_id)) {
+                if (CanDefs::is_cid_frame(can_id))
+                {
                     // We do not record source address of CHECK_ID frames,
                     // because they could be in conflict. We only record the ID
                     // at the reserve alias frame 200 msec later.
@@ -263,11 +265,47 @@ private:
                 forwardType_ = ADDRESSED;
                 return;
             }
-            if (mti == Defs::MTI_EVENT_REPORT && frame.can_dlc == 8)
+            bool has_event = false;
+            if (Defs::get_mti_event(mti) && frame.can_dlc == 8)
+            {
+                event_ = data_to_eventid(frame.data);
+                has_event = true;
+            }
+            if (mti == Defs::MTI_EVENT_REPORT && has_event)
             {
                 forwardType_ = EVENT;
-                event_ = data_to_eventid(frame.data);
                 return;
+            }
+            if (has_event)
+            {
+                switch (mti & ~Defs::MTI_MODIFIER_MASK)
+                {
+                    case Defs::MTI_CONSUMER_IDENTIFIED_VALID &
+                        ~Defs::MTI_MODIFIER_MASK:
+                        parent_->routingTable_.register_consumer(
+                            message()->data()->skipMember_, event_);
+                        break;
+                    case Defs::MTI_PRODUCER_IDENTIFIED_VALID &
+                        ~Defs::MTI_MODIFIER_MASK:
+                        parent_->routingTable_.register_producer(
+                            message()->data()->skipMember_, event_);
+                        break;
+                    default:
+                        break;
+                }
+                switch (mti)
+                {
+                    case Defs::MTI_PRODUCER_IDENTIFIED_RANGE:
+                        parent_->routingTable_.register_producer_range(
+                            message()->data()->skipMember_, event_);
+                        break;
+                    case Defs::MTI_CONSUMER_IDENTIFIED_RANGE:
+                        parent_->routingTable_.register_consumer_range(
+                            message()->data()->skipMember_, event_);
+                        break;
+                    default:
+                        break;
+                }
             }
             // Now: we have a non-event global message or a message with an
             // invalid format.
