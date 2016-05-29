@@ -158,4 +158,10 @@ using std::pair;
 #define C_STATIC_ASSERT(expr, name) \
     typedef unsigned char __static_assert_##name[expr ? 0 : -1];
 
+#ifndef ESP_NONOS
+#define ICACHE_FLASH_ATTR
+#define ICACHE_RAM_ATTR
+#endif
+
+
 #endif // _UTILS_MACROS_H_

@@ -45,6 +45,7 @@
 #include "utils/Queue.hxx"
 #include "utils/SimpleQueue.hxx"
 #include "utils/logging.h"
+#include "utils/macros.h"
 #include "os/OSSelectWakeup.hxx"
 
 #ifdef ESP_NONOS
