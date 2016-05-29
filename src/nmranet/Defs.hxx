@@ -225,6 +225,15 @@ struct Defs
         return (mti & MTI_ADDRESS_MASK);
     }
 
+    /** Get the MTI event present value field.
+     * @param mti MTI to extract field value from
+     * @return true if MTI is a message carrying an event as payload, else false
+     */
+    static bool get_mti_event(MTI mti)
+    {
+        return (mti & MTI_EVENT_MASK);
+    }
+
     /** Get the MTI datagram or stream value field.
      * @param mti MTI to extract field value from
      * @return true if MTI is a datagram or stream, else false
