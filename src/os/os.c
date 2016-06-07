@@ -297,6 +297,7 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **pxIdleTaskTCBBuffer,
     *ulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 
+/** Static memory allocators for timer system thread.
  * @param pxTimerTaskTCBBuffer pointer to pointer to TCB
  * @param pxIdelTaskStackBuffer pointer to pointer to Stack
  * @param ulTimerTaskStackSize pointer to stack size
@@ -388,8 +389,56 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     if (thread)
     {
         *thread = xTaskCreateStatic(os_thread_start,
+                                    (const char *const)name,
+                                    stack_size/sizeof(portSTACK_TYPE),
+                                    priv,
+                                    priority,
+                                    (StackType_t *)stack_malloc(stack_size),
+                                    (StaticTask_t *) malloc(sizeof(StaticTask_t)));
+        task_new->task = *thread;
+        task_new->name = (char*)pcTaskGetTaskName(*thread);
+    }
+    else
+    {
+        xTaskHandle task_handle;
+        task_handle = xTaskCreateStatic(os_thread_start,
+                                        (const char *const)name,
+                                        stack_size/sizeof(portSTACK_TYPE),
                                         priv,
                                         priority,
+                                        (StackType_t *) stack_malloc(stack_size),
+                                        (StaticTask_t *) malloc(sizeof(StaticTask_t)));
+        task_new->task = task_handle;
+        task_new->name = (char*)pcTaskGetTaskName(task_handle);
+    }
+#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    if (thread)
+    {
+        xTaskCreate(os_thread_start,
+                    (const char *const)name,
+                    stack_size/sizeof(portSTACK_TYPE),
+                    priv,
+                    priority,
+                    thread);
+        task_new->task = *thread;
+        task_new->name = (char*)pcTaskGetTaskName(*thread);
+    }
+    else
+    {
+        xTaskHandle task_handle;
+        xTaskCreate(os_thread_start,
+                    (const char *const)name,
+                    stack_size/sizeof(portSTACK_TYPE),
+                    priv,
+                    priority,
+                    &task_handle);
+        task_new->task = task_handle;
+        task_new->name = (char*)pcTaskGetTaskName(task_handle);
+    }
+#else  // prior to v9.0.0
+    if (thread)
+    {
+        xTaskCreateGeneric(os_thread_start,
                            (const char *const)name,
                            stack_size/sizeof(portSTACK_TYPE),
                            priv,
@@ -414,6 +463,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         task_new->task = task_handle;
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
+#endif
 
     return 0;
 #else // not freertos
@@ -772,12 +822,24 @@ int main(int argc, char *argv[])
 #endif
 
     /* start the main thread */
-    xTaskGenericCreate(
-        main_thread, (char *)"thread.main",
-        config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
-        priority, &task_handle,
-        (long unsigned int *)stack_malloc(config_main_thread_stack_size()),
-        NULL);
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+    task_handle = xTaskCreateStatic(main_thread, (char *)"thread.main",
+                                    config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
+                                    priority,
+                                    (StackType_t *)stack_malloc(config_main_thread_stack_size()),
+                                    (StaticTask_t *) malloc(sizeof(StaticTask_t)));
+#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    xTaskCreate(main_thread, (char *)"thread.main",
+                config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
+                priority,
+                &task_handle);
+#else
+    xTaskGenericCreate(main_thread, (char *)"thread.main",
+                       config_main_thread_stack_size() / sizeof(portSTACK_TYPE), priv,
+                       priority, &task_handle,
+                       (long unsigned int *)stack_malloc(config_main_thread_stack_size()),
+                       NULL);
+#endif
     taskList.task = task_handle;
     taskList.unused = config_main_thread_stack_size();
     taskList.name = "thread.main";
