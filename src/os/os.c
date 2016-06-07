@@ -438,7 +438,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 #else  // prior to v9.0.0
     if (thread)
     {
-        xTaskCreateGeneric(os_thread_start,
+        xTaskGenericCreate(os_thread_start,
                            (const char *const)name,
                            stack_size/sizeof(portSTACK_TYPE),
                            priv,
