@@ -272,6 +272,55 @@ static void os_thread_start(void *arg)
 #endif
 
 #if !defined (__EMSCRIPTEN__)
+
+#if defined(__FreeRTOS__)
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+/** Static memory allocators for idle system thread.
+ * @param pxIdleTaskTCBBuffer pointer to pointer to TCB
+ * @param pxIdelTaskStackBuffer pointer to pointer to Stack
+ * @param ulIdleTaskStackSize pointer to stack size
+ */
+
+void vApplicationGetIdleTaskMemory(StaticTask_t **pxIdleTaskTCBBuffer,
+                                   StackType_t **pxIdleTaskStackBuffer,
+                                   uint32_t *ulIdleTaskStackSize);
+
+void vApplicationGetIdleTaskMemory(StaticTask_t **pxIdleTaskTCBBuffer,
+                                   StackType_t **pxIdleTaskStackBuffer,
+                                   uint32_t *ulIdleTaskStackSize)
+{
+    const uint32_t stksz = configMINIMAL_STACK_SIZE*sizeof(StackType_t);
+    *pxIdleTaskTCBBuffer = (StaticTask_t *) malloc(sizeof(StaticTask_t));
+    HASSERT(*pxIdleTaskTCBBuffer);
+    *pxIdleTaskStackBuffer = (StackType_t *) malloc(stksz);
+    HASSERT(*pxIdleTaskStackBuffer);
+    *ulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+
+ * @param pxTimerTaskTCBBuffer pointer to pointer to TCB
+ * @param pxIdelTaskStackBuffer pointer to pointer to Stack
+ * @param ulTimerTaskStackSize pointer to stack size
+ */
+
+void vApplicationGetTimeraskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
+                                   StackType_t **pxTimerTaskStackBuffer,
+                                   uint32_t *ulTimerTaskStackSize);
+
+void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
+                                   StackType_t **pxTimerTaskStackBuffer,
+                                   uint32_t *ulTimerTaskStackSize)
+{
+    const uint32_t stksz = configMINIMAL_STACK_SIZE*sizeof(StackType_t);
+    *pxTimerTaskTCBBuffer = (StaticTask_t *) malloc(sizeof(StaticTask_t));
+    HASSERT(*pxTimerTaskTCBBuffer);
+    *pxTimerTaskStackBuffer = (StackType_t *) malloc(stksz);
+    HASSERT(*pxTimerTaskStackBuffer);
+    *ulTimerTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+#endif // configSUPPORT_STATIC_ALLOCATION
+#endif // FreeRTOS
+
+
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -334,10 +383,13 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     task_new->unused = stack_size;
     current->next = task_new;
     xTaskResumeAll();
-
+    
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
     if (thread)
     {
-        xTaskGenericCreate(os_thread_start,
+        *thread = xTaskCreateStatic(os_thread_start,
+                                        priv,
+                                        priority,
                            (const char *const)name,
                            stack_size/sizeof(portSTACK_TYPE),
                            priv,

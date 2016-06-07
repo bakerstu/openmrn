@@ -39,6 +39,7 @@
 
 #ifdef __FreeRTOS__
 #include <stdint.h>
+#include "FreeRTOS.h"
 #include "portmacro.h"
 
 class Atomic {
