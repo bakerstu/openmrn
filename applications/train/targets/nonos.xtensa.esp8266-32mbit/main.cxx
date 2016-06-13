@@ -212,7 +212,8 @@ private:
             HW::MOT_B_HI_Pin::set_on();
         }
 
-        long long period = USEC_TO_NSEC(50);
+        // long long period = USEC_TO_NSEC(50); for 20 khz
+        long long period = MSEC_TO_NSEC(3);  // for 330 hz
         long long fill = speed_to_fill_rate(req()->speed_, period);
         pwm_.old_set_state(lo_pin, period, fill);
         lastDirMotAHi_ = desired_dir;
