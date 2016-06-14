@@ -251,6 +251,19 @@ public:
         executor_.start_thread(name, priority, stack_size);
     }
 
+    /// Tries to open the config file; if not existant, the size too small, or
+    /// the version number is mismatched, then creates a new file of the given
+    /// size with all 0xFF bytes inside. This will internally do everything
+    /// done by the check_version_and_factory_reset call.
+    ///
+    /// @param ofs tells where in the file the versioninfo structure lies.
+    /// 
+    /// @param expected_verison is the correct version of the config file.
+    ///
+    /// @param file_size is the minimum required size of the config file.
+    void create_config_file_if_needed(const InternalConfigData &ofs,
+        uint16_t expected_version, unsigned file_size);
+
     /// Checks the version information in the EEPROM and performs a factory
     /// reset if incorrect or if force is set.
     void check_version_and_factory_reset(const InternalConfigData &ofs,

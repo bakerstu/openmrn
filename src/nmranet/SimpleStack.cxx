@@ -32,11 +32,11 @@
  * @date 18 Mar 2015
  */
 
-#if defined (__linux__) || defined (__MACH__)
+#if defined(__linux__) || defined(__MACH__)
 #include <termios.h> /* tc* functions */
 #include <net/if.h>
 #endif
-#if defined (__linux__)
+#if defined(__linux__)
 #include <linux/sockios.h>
 #endif
 
@@ -126,6 +126,59 @@ void SimpleCanStack::restart_stack()
     StartInitializationFlow(&node_);
 }
 
+void SimpleCanStack::create_config_file_if_needed(const InternalConfigData &cfg,
+    uint16_t expected_version, unsigned file_size)
+{
+    HASSERT(CONFIG_FILENAME);
+    struct stat statbuf;
+    bool reset = false;
+    if (stat(CONFIG_FILENAME, &statbuf) < 0 && (errno == ENOENT))
+    {
+        // Create file.
+        LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
+        if (creat(CONFIG_FILENAME, S_IRUSR | S_IWUSR) < 0)
+        {
+            LOG(LEVEL_ERROR, "Failed to create config file: %s",
+                strerror(errno));
+        }
+        HASSERT(stat(CONFIG_FILENAME, &statbuf) == 0);
+        reset = true;
+    }
+    int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    if (statbuf.st_size < (ssize_t)file_size)
+        reset = true;
+    if (cfg.version().read(fd) != expected_version)
+        reset = true;
+    if (!reset)
+        return;
+
+    // Clears the file.
+    lseek(fd, 0, SEEK_SET);
+    static const unsigned bufsize = 128;
+    char *buf = (char *)malloc(bufsize);
+    HASSERT(buf);
+    memset(buf, 0xff, bufsize);
+    unsigned len = file_size;
+    while (len > 0)
+    {
+        ssize_t c = write(fd, buf, std::min(len, bufsize));
+        HASSERT(c >= 0);
+        len -= c;
+    }
+    free(buf);
+
+    // Initializes basic structures in the file.
+    cfg.version().write(fd, expected_version);
+    cfg.next_event().write(fd, 0);
+    // ACDI version byte. This is not very nice because we cannot be
+    // certain that the EEPROM starts with the ACDI data. We'll check it
+    // though.
+    HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
+    Uint8ConfigEntry(0).write(fd, 2);
+    factory_reset_all_events(cfg, fd);
+    configUpdateFlow_.factory_reset();
+}
+
 void SimpleCanStack::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
@@ -201,7 +254,7 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-#if defined (__linux__)
+#if defined(__linux__)
 void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
 {
     int s;
@@ -218,17 +271,11 @@ void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
 
     // setup error notifications
-    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT |
-                              CAN_ERR_LOSTARB |
-                              CAN_ERR_CRTL |
-                              CAN_ERR_PROT |
-                              CAN_ERR_TRX |
-                              CAN_ERR_ACK |
-                              CAN_ERR_BUSOFF |
-                              CAN_ERR_BUSERROR |
-                              CAN_ERR_RESTARTED;
-    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
-               &err_mask, sizeof(err_mask));    strcpy(ifr.ifr_name, device );
+    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB |
+        CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK |
+        CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED;
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
+    strcpy(ifr.ifr_name, device);
 
     ioctl(s, SIOCGIFINDEX, &ifr);
 
@@ -237,7 +284,7 @@ void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
 
     bind(s, (struct sockaddr *)&addr, sizeof(addr));
 
-    auto* port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
+    auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
     additionalComponents_.emplace_back(port);
 }
 #endif
