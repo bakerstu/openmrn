@@ -28,5 +28,5 @@ void ICACHE_FLASH_ATTR spiffs_init()
     config.cache_buf_size = CACHE_BUF_SIZE;
 
     int r = esp_spiffs_init(&config);
-    printf("spiffs: %d\n", r);
+    printf("spiffs_init: %d\n", r);
 }
