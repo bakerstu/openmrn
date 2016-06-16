@@ -33,12 +33,16 @@
  */
 
 #if defined(__linux__) || defined(__MACH__)
-#include <termios.h> /* tc* functions */
 #include <net/if.h>
+#include <termios.h> /* tc* functions */
 #endif
 #if defined(__linux__)
 #include <linux/sockios.h>
 #endif
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "nmranet/SimpleStack.hxx"
 
@@ -48,13 +52,18 @@
 namespace nmranet
 {
 
-SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
-    : node_(&ifCan_, node_id)
+SimpleCanStackBase::SimpleCanStackBase(const nmranet::NodeID node_id)
 {
     AddAliasAllocator(node_id, &ifCan_);
 }
 
-void SimpleCanStack::start_stack()
+SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
+    : SimpleCanStackBase(node_id)
+    , node_(&ifCan_, node_id)
+{
+}
+
+void SimpleCanStackBase::start_stack()
 {
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
@@ -72,6 +81,13 @@ void SimpleCanStack::start_stack()
             nullptr, MemoryConfigDefs::SPACE_ALL_MEMORY, space);
         additionalComponents_.emplace_back(space);
     }
+
+    // Calls node-specific startup hook.
+    start_node();
+}
+
+void SimpleCanStack::start_node()
+{
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&SNIP_STATIC_DATA),
@@ -103,9 +119,9 @@ void SimpleCanStack::start_stack()
     }
 }
 
-void SimpleCanStack::restart_stack()
+void SimpleCanStackBase::restart_stack()
 {
-    node_.clear_initialized();
+    node()->clear_initialized();
     ifCan_.alias_allocator()->reinit_seed();
     ifCan_.local_aliases()->clear();
     ifCan_.remote_aliases()->clear();
@@ -123,16 +139,18 @@ void SimpleCanStack::restart_stack()
     // Bootstraps the fresh alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
     extern void StartInitializationFlow(Node * node);
-    StartInitializationFlow(&node_);
+    StartInitializationFlow(node());
 }
 
-void SimpleCanStack::create_config_file_if_needed(const InternalConfigData &cfg,
-    uint16_t expected_version, unsigned file_size)
+void SimpleCanStackBase::create_config_file_if_needed(
+    const InternalConfigData &cfg, uint16_t expected_version,
+    unsigned file_size)
 {
     HASSERT(CONFIG_FILENAME);
     struct stat statbuf;
     bool reset = false;
-    if (stat(CONFIG_FILENAME, &statbuf) < 0 && (errno == ENOENT))
+    int st = ::stat(CONFIG_FILENAME, &statbuf);
+    if (st < 0 && (errno == ENOENT))
     {
         // Create file.
         LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
@@ -179,7 +197,7 @@ void SimpleCanStack::create_config_file_if_needed(const InternalConfigData &cfg,
     configUpdateFlow_.factory_reset();
 }
 
-void SimpleCanStack::check_version_and_factory_reset(
+void SimpleCanStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
@@ -207,7 +225,7 @@ void SimpleCanStack::check_version_and_factory_reset(
 
 extern const uint16_t CDI_EVENT_OFFSETS[];
 
-void SimpleCanStack::factory_reset_all_events(
+void SimpleCanStackBase::factory_reset_all_events(
     const InternalConfigData &cfg, int fd)
 {
     // First we find the event count.
@@ -222,14 +240,15 @@ void SimpleCanStack::factory_reset_all_events(
     // Then we write them to eeprom.
     for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
     {
-        EventId id = node_.node_id();
+        EventId id = node()->node_id();
         id <<= 16;
         id |= next_event++;
         EventConfigEntry(CDI_EVENT_OFFSETS[i]).write(fd, id);
     }
 }
 
-void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
+void SimpleCanStackBase::add_gridconnect_port(
+    const char *path, Notifiable *on_exit)
 {
     int fd = ::open(path, O_RDWR);
     HASSERT(fd >= 0);
@@ -238,7 +257,7 @@ void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
 }
 
 #if defined(__linux__) || defined(__MACH__)
-void SimpleCanStack::add_gridconnect_tty(
+void SimpleCanStackBase::add_gridconnect_tty(
     const char *device, Notifiable *on_exit)
 {
     int fd = ::open(device, O_RDWR);
@@ -255,7 +274,8 @@ void SimpleCanStack::add_gridconnect_tty(
 }
 #endif
 #if defined(__linux__)
-void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
+void SimpleCanStackBase::add_socketcan_port_select(
+    const char *device, int loopback)
 {
     int s;
     struct sockaddr_can addr;
@@ -288,7 +308,7 @@ void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
     additionalComponents_.emplace_back(port);
 }
 #endif
-extern Pool *const __attribute__((
-    __weak__)) g_incoming_datagram_allocator = init_main_buffer_pool();
+extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
+    init_main_buffer_pool();
 
 } // namespace nmranet

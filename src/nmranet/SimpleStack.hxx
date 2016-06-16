@@ -81,12 +81,12 @@ extern const size_t CONFIG_FILE_SIZE;
 /// executor by calling either loop_executor() or start_executor_thread().
 ///
 /// Example: applications/async_blink/main.cxx
-class SimpleCanStack
+class SimpleCanStackBase
 {
 public:
     static const unsigned EXECUTOR_PRIORITIES = 5;
 
-    SimpleCanStack(const nmranet::NodeID node_id);
+    SimpleCanStackBase(const nmranet::NodeID node_id);
 
     /// @returns the executor that's controlling the main thread of the OpenLCB
     /// stack.
@@ -113,11 +113,9 @@ public:
         return &datagramService_;
     }
 
-    /// @returns the virtual node pointer of the main virtual node of the stack
-    /// (as defined by the NodeID argument of the constructor).
-    Node *node()
-    {
-        return &node_;
+    /// Accessor for clients that have their custom SNIP-like handler.
+    SimpleInfoFlow* info_flow() {
+        return &infoFlow_;
     }
 
     /// @returns the CanHubFlow to which this stack is talking to. This hub
@@ -128,6 +126,10 @@ public:
     {
         return &canHub0_;
     }
+
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
+    virtual Node *node() = 0;
 
     /// @return the handler for the memory configuration protocol. This is
     /// needed for registering additional memory spaces.
@@ -257,7 +259,7 @@ public:
     /// done by the check_version_and_factory_reset call.
     ///
     /// @param ofs tells where in the file the versioninfo structure lies.
-    /// 
+    ///
     /// @param expected_verison is the correct version of the config file.
     ///
     /// @param file_size is the minimum required size of the config file.
@@ -272,19 +274,13 @@ public:
     /// Overwrites all events in the eeprom with a brand new event ID.
     void factory_reset_all_events(const InternalConfigData &ofs, int fd);
 
-    /// Accessor for clients that have their custom SNIP-like handler.
-    SimpleInfoFlow* info_flow() {
-        return &infoFlow_;
-    }
-
-private:
-    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
-        Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
-        Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
-
+protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
     void start_stack();
+
+    /// Hook for clients to initialize the node-specific components.
+    virtual void start_node() = 0;
 
     /// This executor's threads will be handled
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
@@ -302,16 +298,10 @@ private:
     ConfigUpdateFlow configUpdateFlow_{&ifCan_};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_{&service_};
-    /// The actual node.
-    DefaultNode node_;
     /// Dispatches event protocol requests to the event handlers.
     EventService eventService_{&ifCan_};
-    /// Handles PIP requests.
-    ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
     /// General flow for simple info requests.
     SimpleInfoFlow infoFlow_{&ifCan_};
-    /// Handles SNIP requests.
-    SNIPHandler snipHandler_{&ifCan_, &node_, &infoFlow_};
 
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};
@@ -326,6 +316,33 @@ private:
 
     /// Stores and keeps ownership of optional components.
     std::vector<std::unique_ptr<Destructable>> additionalComponents_;
+};
+
+/// CAN-based stack with DefaultNode.
+class SimpleCanStack : public SimpleCanStackBase {
+public:
+    SimpleCanStack(const nmranet::NodeID node_id);
+
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
+    Node *node() override
+    {
+        return &node_;
+    }
+
+private:
+    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
+        Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
+        Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
+
+    void start_node() override;
+
+    /// The actual node.
+    DefaultNode node_;
+    /// Handles PIP requests.
+    ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_{&ifCan_, &node_, &infoFlow_};
 };
 
 } // namespace nmranet

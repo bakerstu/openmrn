@@ -89,6 +89,12 @@ public:
         isInitialized_ = 1;
     }
 
+    // Used for restarting the stack.
+    void clear_initialized() OVERRIDE
+    {
+        isInitialized_ = 0;
+    }
+
     TrainImpl *train()
     {
         return train_;
