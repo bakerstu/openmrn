@@ -44,11 +44,14 @@
 #include "nmranet/DatagramCan.hxx"
 #include "nmranet/DefaultNode.hxx"
 #include "nmranet/EventService.hxx"
+#include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/IfCan.hxx"
 #include "nmranet/MemoryConfig.hxx"
 #include "nmranet/NodeInitializeFlow.hxx"
 #include "nmranet/ProtocolIdentification.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
+#include "nmranet/TractionTrain.hxx"
+#include "nmranet/TrainInterface.hxx"
 #include "nmranet_config.h"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
@@ -64,7 +67,7 @@ extern const char CDI_DATA[];
 
 /// This symbol must be defined by the application to tell which file to open
 /// for the configuration listener.
-extern const char* const CONFIG_FILENAME;
+extern const char *const CONFIG_FILENAME;
 /// This symbol must be defined by the application. It defines the size of the
 /// config (or eeprom) file in bytes.
 extern const size_t CONFIG_FILE_SIZE;
@@ -109,12 +112,14 @@ public:
 
     /// @returns the datagram service for registering new datagram handlers or
     /// acquiring datagram client objects.
-    DatagramService* dg_service() {
+    DatagramService *dg_service()
+    {
         return &datagramService_;
     }
 
     /// Accessor for clients that have their custom SNIP-like handler.
-    SimpleInfoFlow* info_flow() {
+    SimpleInfoFlow *info_flow()
+    {
         return &infoFlow_;
     }
 
@@ -133,7 +138,8 @@ public:
 
     /// @return the handler for the memory configuration protocol. This is
     /// needed for registering additional memory spaces.
-    MemoryConfigHandler* memory_config_handler() {
+    MemoryConfigHandler *memory_config_handler()
+    {
         return &memoryConfigHandler_;
     }
 
@@ -154,20 +160,20 @@ public:
     /// asynchronous API, so they need add_can_port_select().
     void add_can_port_async(const char *device)
     {
-        auto* port = new HubDeviceNonBlock<CanHubFlow>(&canHub0_, device);
+        auto *port = new HubDeviceNonBlock<CanHubFlow>(&canHub0_, device);
         additionalComponents_.emplace_back(port);
     }
 
     /// Adds a CAN bus port with select-based asynchronous driver API.
     void add_can_port_select(const char *device)
     {
-        auto* port = new HubDeviceSelect<CanHubFlow>(&canHub0_, device);
+        auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, device);
         additionalComponents_.emplace_back(port);
     }
 #endif
 
     /// Adds a gridconnect port to the CAN bus.
-    void add_gridconnect_port(const char* path, Notifiable* on_exit = nullptr);
+    void add_gridconnect_port(const char *path, Notifiable *on_exit = nullptr);
 
 #if defined(__linux__) || defined(__MACH__)
     /// Adds a gridconnect port to the CAN bus with setting the TTY options to
@@ -175,9 +181,9 @@ public:
     /// this call sets is to not echo characters coming in from the device back
     /// to the device. Echoing data back causes alias allocation problems and
     /// nodes on the bus repeatedly dropping their allocated aliases.
-    void add_gridconnect_tty(const char* device, Notifiable* on_exit = nullptr);
+    void add_gridconnect_tty(const char *device, Notifiable *on_exit = nullptr);
 #endif
-#if defined (__linux__)
+#if defined(__linux__)
     /// Adds a CAN bus port with select-based asynchronous driver API.
     /// @params device CAN device name, for example: "can0" or "can1"
     /// @params loopback 1 to enable loopback localy to other open references
@@ -198,7 +204,7 @@ public:
     }
 
     /// Connects to a CAN hub using TCP with the gridconnect protocol.
-    void connect_tcp_gridconnect_hub(const char* host, int port)
+    void connect_tcp_gridconnect_hub(const char *host, int port)
     {
         int fd = ConnectSocket(host, port);
         HASSERT(fd >= 0);
@@ -230,7 +236,8 @@ public:
         return gcHub_.get();
     }
 
-    ConfigUpdateService* config_service() {
+    ConfigUpdateService *config_service()
+    {
         return &configUpdateFlow_;
     }
 
@@ -246,8 +253,8 @@ public:
     }
 
     /// Instructs the executor to create a new thread and run in there.
-    void start_executor_thread(const char *name, int priority,
-                               size_t stack_size)
+    void start_executor_thread(
+        const char *name, int priority, size_t stack_size)
     {
         start_stack();
         executor_.start_thread(name, priority, stack_size);
@@ -282,6 +289,10 @@ protected:
     /// Hook for clients to initialize the node-specific components.
     virtual void start_node() = 0;
 
+    /// Exports the memory config spaces that are typically used for a complex
+    /// node. Expected to be called from start_node().
+    void default_start_node();
+
     /// This executor's threads will be handled
     Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
     /// Default service on the particular executor.
@@ -290,10 +301,8 @@ protected:
     CanHubFlow canHub0_{&service_};
     /// NMRAnet interface for sending and receiving messages, formatting them
     /// to the CAN bus port and maintaining the conversion flows, caches etc.
-    IfCan ifCan_{
-        &executor_,                      &canHub0_,
-        config_local_alias_cache_size(), config_remote_alias_cache_size(),
-        config_local_nodes_count()};
+    IfCan ifCan_{&executor_, &canHub0_, config_local_alias_cache_size(),
+        config_remote_alias_cache_size(), config_local_nodes_count()};
     /// Calls the config listeners with the configuration FD.
     ConfigUpdateFlow configUpdateFlow_{&ifCan_};
     /// The initialization flow takes care for node startup duties.
@@ -305,8 +314,8 @@ protected:
 
     CanDatagramService datagramService_{&ifCan_,
         config_num_datagram_registry_entries(), config_num_datagram_clients()};
-    MemoryConfigHandler memoryConfigHandler_{&datagramService_,
-            nullptr, config_num_memory_spaces()};
+    MemoryConfigHandler memoryConfigHandler_{
+        &datagramService_, nullptr, config_num_memory_spaces()};
 
     /// All packets are forwarded to this hub in gridconnect format, if
     /// needed. Will be initialized upon first use.
@@ -319,7 +328,8 @@ protected:
 };
 
 /// CAN-based stack with DefaultNode.
-class SimpleCanStack : public SimpleCanStackBase {
+class SimpleCanStack : public SimpleCanStackBase
+{
 public:
     SimpleCanStack(const nmranet::NodeID node_id);
 
@@ -335,7 +345,7 @@ private:
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
         Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 
-    void start_node() override;
+    void start_node() override { default_start_node(); }
 
     /// The actual node.
     DefaultNode node_;
@@ -343,6 +353,44 @@ private:
     ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
     /// Handles SNIP requests.
     SNIPHandler snipHandler_{&ifCan_, &node_, &infoFlow_};
+};
+
+/// CAN-based stack with TrainNode.
+class SimpleTrainCanStack : public SimpleCanStackBase
+{
+public:
+    /// Creates a train node OpenLCB stack.
+    ///
+    /// @param train the implementation of the train
+    /// @param fdi_xml XML file to export as the FDI for train functions
+    SimpleTrainCanStack(nmranet::TrainImpl *train, const char *fdi_xml);
+
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
+    Node *node() override
+    {
+        return &trainNode_;
+    }
+
+private:
+    static const auto PIP_RESPONSE = nmranet::Defs::SIMPLE_PROTOCOL_SUBSET |
+        nmranet::Defs::DATAGRAM | nmranet::Defs::MEMORY_CONFIGURATION |
+        nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
+        nmranet::Defs::TRACTION_CONTROL | nmranet::Defs::TRACTION_FDI |
+        Defs::ABBREVIATED_DEFAULT_CDI | Defs::CDI;
+
+    void start_node() override;
+
+    TrainService tractionService_{&ifCan_};
+    /// The actual node.
+    TrainNode trainNode_;
+    FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
+        isTrainEventHandler{&trainNode_};
+    ReadOnlyMemoryBlock fdiBlock_;
+    /// Handles PIP requests.
+    ProtocolIdentificationHandler pipHandler_{&trainNode_, PIP_RESPONSE};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_{&ifCan_, &trainNode_, &infoFlow_};
 };
 
 } // namespace nmranet

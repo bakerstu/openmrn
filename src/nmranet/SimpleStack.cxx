@@ -86,37 +86,56 @@ void SimpleCanStackBase::start_stack()
     start_node();
 }
 
-void SimpleCanStack::start_node()
+void SimpleCanStackBase::default_start_node()
 {
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&SNIP_STATIC_DATA),
             sizeof(SNIP_STATIC_DATA));
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_ACDI_SYS, space);
+            node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_ACDI_USR, space);
+            node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&CDI_DATA), strlen(CDI_DATA) + 1);
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_CDI, space);
+            node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
         memory_config_handler()->registry()->insert(
-            &node_, nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
+            node(), nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
+}
+
+SimpleTrainCanStack::SimpleTrainCanStack(
+    nmranet::TrainImpl *train, const char *fdi_xml)
+    // Note: this code tries to predict what the node id of the trainNode_ will
+    // be. Unfortunately due to initialization order problems we cannot query
+    // it in advance.
+    : SimpleCanStackBase(TractionDefs::train_node_id_from_legacy(
+          train->legacy_address_type(), train->legacy_address())),
+      trainNode_(&tractionService_, train),
+      fdiBlock_(reinterpret_cast<const uint8_t *>(fdi_xml), strlen(fdi_xml))
+{
+}
+
+void SimpleTrainCanStack::start_node()
+{
+    default_start_node();
+    memoryConfigHandler_.registry()->insert(
+        &trainNode_, MemoryConfigDefs::SPACE_FDI, &fdiBlock_);
 }
 
 void SimpleCanStackBase::restart_stack()
@@ -149,23 +168,27 @@ void SimpleCanStackBase::create_config_file_if_needed(
     HASSERT(CONFIG_FILENAME);
     struct stat statbuf;
     bool reset = false;
-    int st = ::stat(CONFIG_FILENAME, &statbuf);
-    if (st < 0 && (errno == ENOENT))
+    int fd = ::open(CONFIG_FILENAME, O_RDONLY);
+    if (fd < 0)
     {
         // Create file.
         LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
-        if (creat(CONFIG_FILENAME, S_IRUSR | S_IWUSR) < 0)
+        reset = true;
+        fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
+        if (fd < 0)
         {
             LOG(LEVEL_ERROR, "Failed to create config file: %s",
                 strerror(errno));
+            DIE();
         }
-        HASSERT(stat(CONFIG_FILENAME, &statbuf) == 0);
         reset = true;
     }
-    int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    ::close(fd);
+    fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    HASSERT(fstat(fd, &statbuf) == 0);
     if (statbuf.st_size < (ssize_t)file_size)
         reset = true;
-    if (cfg.version().read(fd) != expected_version)
+    if (!reset && cfg.version().read(fd) != expected_version)
         reset = true;
     if (!reset)
         return;
