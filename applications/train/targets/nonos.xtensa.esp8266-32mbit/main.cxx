@@ -50,6 +50,8 @@
 #include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 
+#include "config.hxx"
+
 extern "C" {
 #include <gpio.h>
 #include <osapi.h>
@@ -354,8 +356,35 @@ private:
     bool f1 = false;
 };
 
+const char kFdiXml[] =
+    R"(<?xml version='1.0' encoding='UTF-8'?>
+<?xml-stylesheet type='text/xsl' href='xslt/fdi.xsl'?>
+<fdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/trunk/prototypes/xml/schema/fdi.xsd'>
+<segment space='249'><group><name/>
+<function size='1' kind='binary'>
+<name>Light</name>
+<number>0</number>
+</function>
+<function size='1' kind='momentary'>
+<name>Blue</name>
+<number>1</number>
+</function>
+</group></segment></fdi>)";
+
+ESPHuzzahTrain trainImpl;
+nmranet::ConfigDef cfg(0);
+
 namespace nmranet
 {
+
+extern const char *const CONFIG_FILENAME = "openlcb_config";
+// The size of the memory space to export over the above device.
+extern const size_t CONFIG_FILE_SIZE =
+    cfg.seg().size() + cfg.seg().offset();
+extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+
+
+#if 0
 
 class TrainSnipHandler : public IncomingMessageStateFlow
 {
@@ -411,21 +440,6 @@ nmranet::SimpleInfoDescriptor TrainSnipHandler::snipResponse_[] = {
     {nmranet::SimpleInfoDescriptor::C_STRING, 64, 0, "Deadrail train based on an ESP-12 wifi module"},
     {nmranet::SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
-const char kFdiXml[] =
-    R"(<?xml version='1.0' encoding='UTF-8'?>
-<?xml-stylesheet type='text/xsl' href='xslt/fdi.xsl'?>
-<fdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/trunk/prototypes/xml/schema/fdi.xsd'>
-<segment space='249'><group><name/>
-<function size='1' kind='binary'>
-<name>Light</name>
-<number>0</number>
-</function>
-<function size='1' kind='momentary'>
-<name>Blue</name>
-<number>1</number>
-</function>
-</group></segment></fdi>)";
-
 struct DeadrailStack
 {
     DeadrailStack()
@@ -449,7 +463,6 @@ struct DeadrailStack
     EventService eventService_{&ifCan_};
 
     TrainService tractionService_{&ifCan_};
-    ESPHuzzahTrain trainImpl_;
     TrainNode trainNode_{&tractionService_, &trainImpl_};
     FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
         isTrainEventHandler{&trainNode_};
@@ -475,11 +488,13 @@ struct DeadrailStack
 
 extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 
+#endif
+
+
 } // namespace nmranet
 
-nmranet::DeadrailStack stack;
-
-SpeedController g_speed_controller(&stack.service_);
+nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml);
+SpeedController g_speed_controller(stack.service());
 
 extern "C" {
 extern char WIFI_SSID[];
@@ -492,7 +507,7 @@ extern void timer1_isr_init();
 
 class TestBlinker : public StateFlowBase {
 public:
-    TestBlinker() : StateFlowBase(&stack.service_) {
+    TestBlinker() : StateFlowBase(stack.service()) {
         start_flow(STATE(doo));
         pwm_.enable();
     }
@@ -524,13 +539,18 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
+    resetblink(1);
+    if(true) stack.create_config_file_if_needed(cfg.seg().internal_data(),
+        nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
     resetblink(0);
-    new ESPWifiClient(WIFI_SSID, WIFI_PASS, &stack.canHub0_, WIFI_HUB_HOSTNAME,
+
+    new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
         WIFI_HUB_PORT, []()
         {
-            resetblink(1);
-            stack.executor_.thread_body();
-            stack.start_stack();
+            resetblink(0);
+            // This will actually return due to the event-driven OS
+            // implementation of the stack.
+            stack.loop_executor();
         });
     //timer1_isr_init();
     return 0;
