@@ -37,6 +37,10 @@
 
 #include "dcc/Defs.hxx"
 #include "executor/StateFlow.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
+#include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/TractionTrain.hxx"
@@ -45,10 +49,6 @@
 #include "utils/ESPWifiClient.hxx"
 #include "utils/GpioInitializer.hxx"
 #include "utils/blinker.h"
-#include "freertos_drivers/common/BlinkerGPIO.hxx"
-#include "freertos_drivers/common/DummyGPIO.hxx"
-#include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
-#include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 
 #include "config.hxx"
 
@@ -64,23 +64,23 @@ extern void ets_delay_us(uint32_t us);
 
 struct HW
 {
-/* original / standard definitions.
-    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
-    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
+    /* original / standard definitions.
+        GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
+        GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
 
-    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
-    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
+        GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+        GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
 
-    // forward: A=HI B=LO
+        // forward: A=HI B=LO
 
-    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
-    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
+        GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+        GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
-    GPIO_PIN(F1, GpioOutputSafeLow, 2);
+        GPIO_PIN(F1, GpioOutputSafeLow, 2);
 
-    //typedef DummyPin F1_Pin;
+        //typedef DummyPin F1_Pin;
 
-*/
+    */
 
     GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
     GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
@@ -92,18 +92,18 @@ struct HW
 
     // forward: A=HI B=LO
 
-    //typedef BLINKER_Pin LIGHT_FRONT_Pin;
+    // typedef BLINKER_Pin LIGHT_FRONT_Pin;
     GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
     GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
     GPIO_PIN(F1, GpioOutputSafeHigh, 2);
-    //typedef DummyPin F1_Pin;
+    // typedef DummyPin F1_Pin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
         MOT_B_HI_Pin, MOT_B_LO_Pin, //
-        LIGHT_FRONT_Pin, LIGHT_BACK_Pin,
-        F1_Pin> GpioInit;
+        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin>
+        GpioInit;
 };
 
 struct SpeedRequest
@@ -121,7 +121,7 @@ struct SpeedRequest
     }
 };
 
-class SpeedController : public StateFlow<Buffer<SpeedRequest>, QList<2>>
+class SpeedController : public StateFlow<Buffer<SpeedRequest>, QList<2>>, private DefaultUpda
 {
 public:
     SpeedController(Service *s)
@@ -159,13 +159,15 @@ public:
 private:
     static constexpr bool invertLow_ = HW::invertLow;
 
-    long long speed_to_fill_rate(nmranet::SpeedType speed, long long period) {
+    long long speed_to_fill_rate(nmranet::SpeedType speed, long long period)
+    {
         int fill_rate = speed.mph();
         if (fill_rate >= 128)
             fill_rate = 128;
         // Let's do a 1khz
         long long fill = (period * fill_rate) >> 7;
-        if (invertLow_) fill = period - fill;
+        if (invertLow_)
+            fill = period - fill;
         return fill;
     }
 
@@ -215,7 +217,7 @@ private:
         }
 
         // long long period = USEC_TO_NSEC(50); for 20 khz
-        long long period = MSEC_TO_NSEC(3);  // for 330 hz
+        long long period = MSEC_TO_NSEC(3); // for 330 hz
         long long fill = speed_to_fill_rate(req()->speed_, period);
         pwm_.old_set_state(lo_pin, period, fill);
         lastDirMotAHi_ = desired_dir;
@@ -236,6 +238,8 @@ private:
         return message()->data();
     }
 
+    long long period_ =
+        1000000000 / MotorControl::pwm_frequency_options().defaultvalue();
     TimerBasedPwm pwm_;
     StateFlowTimer timer_{this};
     bool lastDirMotAHi_{false};
@@ -280,7 +284,7 @@ public:
     /** Sets the train to emergency stop. */
     void set_emergencystop() override
     {
-        //g_speed_controller.call_estop();
+        // g_speed_controller.call_estop();
         lastSpeed_.set_mph(0); // keeps direction
     }
 
@@ -379,10 +383,8 @@ namespace nmranet
 
 extern const char *const CONFIG_FILENAME = "openlcb_config";
 // The size of the memory space to export over the above device.
-extern const size_t CONFIG_FILE_SIZE =
-    cfg.seg().size() + cfg.seg().offset();
+extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
-
 
 #if 0
 
@@ -490,7 +492,6 @@ extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 
 #endif
 
-
 } // namespace nmranet
 
 nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml);
@@ -504,24 +505,30 @@ extern int WIFI_HUB_PORT;
 extern void timer1_isr_init();
 }
 
-
-class TestBlinker : public StateFlowBase {
+class TestBlinker : public StateFlowBase
+{
 public:
-    TestBlinker() : StateFlowBase(stack.service()) {
+    TestBlinker()
+        : StateFlowBase(stack.service())
+    {
         start_flow(STATE(doo));
         pwm_.enable();
     }
 
 private:
-    Action doo() {
-        if (isOn_) {
+    Action doo()
+    {
+        if (isOn_)
+        {
             isOn_ = false;
             pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(800));
-            //analogWrite(2, 800);
-        } else {
+            // analogWrite(2, 800);
+        }
+        else
+        {
             isOn_ = true;
             pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(200));
-            //analogWrite(2, 200);
+            // analogWrite(2, 200);
         }
         return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(doo));
     }
@@ -531,7 +538,6 @@ private:
     bool isOn_{true};
 };
 
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -540,18 +546,18 @@ private:
 int appl_main(int argc, char *argv[])
 {
     resetblink(1);
-    if(true) stack.create_config_file_if_needed(cfg.seg().internal_data(),
-        nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
+    if (true)
+        stack.create_config_file_if_needed(cfg.seg().internal_data(),
+            nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
     resetblink(0);
 
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
-        WIFI_HUB_PORT, []()
-        {
+        WIFI_HUB_PORT, []() {
             resetblink(0);
             // This will actually return due to the event-driven OS
             // implementation of the stack.
             stack.loop_executor();
         });
-    //timer1_isr_init();
+    // timer1_isr_init();
     return 0;
 }
