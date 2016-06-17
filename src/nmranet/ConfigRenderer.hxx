@@ -94,6 +94,8 @@ public:
         SKIP_SIZE = 0xffffffff,
     };
 
+    typedef AtomConfigOptions OptionsType;
+
     constexpr AtomConfigRenderer(const char *tag, unsigned size)
         : tag_(tag)
         , size_(size)
@@ -186,6 +188,8 @@ public:
         SKIP_SIZE = 0xffffffff,
     };
 
+    typedef NumericConfigOptions OptionsType;
+
     constexpr NumericConfigRenderer(const char *tag, unsigned size)
         : tag_(tag)
         , size_(size)
@@ -208,30 +212,6 @@ private:
     /// XML tag for this atom.
     const char *tag_;
     /// The size attribute of the configuration atom.
-    unsigned size_;
-};
-
-/// Helper class for rendering an empty group of a given size into the cdi.xml.
-class EmptyGroupConfigRenderer
-{
-public:
-    enum
-    {
-        SKIP_SIZE = 0xffffffff,
-    };
-
-    constexpr EmptyGroupConfigRenderer(unsigned size)
-        : size_(size)
-    {
-    }
-
-    void render_cdi(string *s) const
-    {
-        *s += StringPrintf("<group offset='%u'/>", size_);
-    }
-
-private:
-    /// The number of bytes this group has to skip.
     unsigned size_;
 };
 
@@ -328,12 +308,40 @@ public:
     }
 };
 
+/// Helper class for rendering an empty group of a given size into the cdi.xml.
+class EmptyGroupConfigRenderer
+{
+public:
+    enum
+    {
+        SKIP_SIZE = 0xffffffff,
+    };
+
+    typedef GroupConfigOptions OptionsType;
+
+    constexpr EmptyGroupConfigRenderer(unsigned size)
+        : size_(size)
+    {
+    }
+
+    void render_cdi(string *s) const
+    {
+        *s += StringPrintf("<group offset='%u'/>", size_);
+    }
+
+private:
+    /// The number of bytes this group has to skip.
+    unsigned size_;
+};
+
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
 /// CDI node.
 template <class Body> class GroupConfigRenderer
 {
 
 public:
+    typedef GroupConfigOptions OptionsType;
+
     constexpr GroupConfigRenderer(unsigned replication, Body body)
         : replication_(replication)
         , body_(body)
@@ -421,6 +429,8 @@ public:
 class IdentificationRenderer
 {
 public:
+    typedef IdentificationConfigOptions OptionsType;
+
     constexpr IdentificationRenderer()
     {
     }
@@ -460,6 +470,8 @@ public:
     constexpr AcdiRenderer()
     {
     }
+
+    typedef AtomConfigOptions OptionsType;
 
     void render_cdi(string *s) const
     {

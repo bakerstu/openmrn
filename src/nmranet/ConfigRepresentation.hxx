@@ -175,6 +175,11 @@ public:
     {                                                                          \
         return entry(nmranet::EntryMarker<LINE>());                            \
     }                                                                          \
+    static constexpr decltype(                                                 \
+        TYPE::config_renderer())::OptionsType NAME##_options()                 \
+    {                                                                          \
+        return decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);    \
+    }                                                                          \
     static void render_content_cdi(                                            \
         const nmranet::EntryMarker<LINE> &, std::string *s)                    \
     {                                                                          \
@@ -358,9 +363,8 @@ public:
 /// not depend on where the actual data is located.
 CDI_GROUP(
     UserInfoSegment, Segment(MemoryConfigDefs::SPACE_ACDI_USR), Offset(1));
-CDI_GROUP_ENTRY(
-    name, StringConfigEntry<63>, //
-    Name("User name"),           //
+CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
+    Name("User name"),                       //
     Description(
         "This name will appear in network browsers for the current node."));
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
