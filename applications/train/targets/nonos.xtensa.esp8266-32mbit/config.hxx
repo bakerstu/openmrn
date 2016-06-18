@@ -19,6 +19,7 @@ CDI_GROUP_END();
 CDI_GROUP(
     TrainBoardSegment, Segment(nmranet::MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 CDI_GROUP_ENTRY(internal_data, nmranet::InternalConfigData);
+CDI_GROUP_ENTRY(motor_control, MotorControl);
 CDI_GROUP_END();
 
 namespace nmranet
@@ -40,7 +41,7 @@ namespace nmranet
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "Balazs Racz", "Dead-rail train", "ESP12", "0.1"};
 
-static const uint16_t EXPECTED_VERSION = 0x1bd7;
+static const uint16_t EXPECTED_VERSION = 0x1bd6;
 
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
 /// to refer to the configuration defined here.

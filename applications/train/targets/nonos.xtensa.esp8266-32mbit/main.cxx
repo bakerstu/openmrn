@@ -102,8 +102,7 @@ struct HW
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
         MOT_B_HI_Pin, MOT_B_LO_Pin, //
-        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin>
-        GpioInit;
+        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin> GpioInit;
 };
 
 struct SpeedRequest
@@ -121,11 +120,13 @@ struct SpeedRequest
     }
 };
 
-class SpeedController : public StateFlow<Buffer<SpeedRequest>, QList<2>>, private DefaultUpda
+class SpeedController : public StateFlow<Buffer<SpeedRequest>, QList<2>>,
+                        private DefaultConfigUpdateListener
 {
 public:
-    SpeedController(Service *s)
+    SpeedController(Service *s, MotorControl mpar)
         : StateFlow<Buffer<SpeedRequest>, QList<2>>(s)
+        , mpar_(mpar)
     {
         HW::MOT_A_HI_Pin::set_off();
         HW::MOT_B_HI_Pin::set_off();
@@ -217,9 +218,9 @@ private:
         }
 
         // long long period = USEC_TO_NSEC(50); for 20 khz
-        long long period = MSEC_TO_NSEC(3); // for 330 hz
-        long long fill = speed_to_fill_rate(req()->speed_, period);
-        pwm_.old_set_state(lo_pin, period, fill);
+        //long long period = MSEC_TO_NSEC(3); // for 330 hz
+        long long fill = speed_to_fill_rate(req()->speed_, period_);
+        pwm_.old_set_state(lo_pin, period_, fill);
         lastDirMotAHi_ = desired_dir;
         return release_and_exit();
     }
@@ -238,6 +239,22 @@ private:
         return message()->data();
     }
 
+    void factory_reset(int fd) override
+    {
+        mpar_.pwm_frequency().write(
+            fd, mpar_.pwm_frequency_options().defaultvalue());
+    }
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        auto config_freq = mpar_.pwm_frequency().read(fd);
+        printf("pwm freq = %d\n", config_freq);
+        period_ = 1000000000 / config_freq;
+        return UPDATED;
+    }
+
+    MotorControl mpar_;
     long long period_ =
         1000000000 / MotorControl::pwm_frequency_options().defaultvalue();
     TimerBasedPwm pwm_;
@@ -495,7 +512,7 @@ extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
 } // namespace nmranet
 
 nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml);
-SpeedController g_speed_controller(stack.service());
+SpeedController g_speed_controller(stack.service(), cfg.seg().motor_control());
 
 extern "C" {
 extern char WIFI_SSID[];
@@ -552,7 +569,8 @@ int appl_main(int argc, char *argv[])
     resetblink(0);
 
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
-        WIFI_HUB_PORT, []() {
+        WIFI_HUB_PORT, []()
+        {
             resetblink(0);
             // This will actually return due to the event-driven OS
             // implementation of the stack.
