@@ -66,6 +66,18 @@ public:
     DATA_TYPE d_;
 };
 
+/// Use this macro in the Defs structure of an optional args instance to add an
+/// optional argument.
+///
+/// @param SpecName Name by which the user will specify the given argument.
+/// Usually capitalized like a class.
+/// @param function_name function name by which to access the argument in the
+/// final structure. Usually lower_case like a function name.
+/// @param DataType C++ data type of the argument
+/// @param N A unique integer assigned to this argument in the current
+/// optionalargs instance (and its base classes).
+/// @param DEF Default value that should be returned from the structure if the
+/// user does not specify it.
 #define DECLARE_OPTIONALARG(SpecName, function_name, DataType, N, DEF)         \
     using SpecName = Specifier<DataType, N, (DEF)>;                            \
     using SpecName##Get = Fetcher<DataType, N>;                                \
@@ -74,6 +86,12 @@ public:
         return 0;                                                              \
     }
 
+/// Use this macro in the final optionalargs structure. Each entry in the Defs
+/// structure should have a definition with matching options.
+///
+/// @param SpecName same as in @ref DECLARE_OPTIONALARGS
+/// @param function_name same as in @ref DECLARE_OPTIONALARGS
+/// @param DataType same as in @ref DECLARE_OPTIONALARGS
 #define DEFINE_OPTIONALARG(SpecName, function_name, DataType)                  \
     constexpr DataType function_name() const                                   \
     {                                                                          \
@@ -224,8 +242,9 @@ private:
     }
 
     /// This template gets instantiated only if the argument is not an
-    /// OptionalArg and not for the current entry. Then we just ignore the
-    /// first arg.
+    /// OptionalArg (hence not called from the copy constructor) and not a
+    /// Specifier for the current entry. Then we just ignore the first arg and
+    /// recurse into the rest of them.
     template <typename T, typename... Args>
     static constexpr typename std::enable_if<
         !std::is_convertible<typename std::add_lvalue_reference<T>::type,
@@ -250,7 +269,7 @@ private:
     {
         return specifier_type::default_value();
     }
-    // If we've run out of all arguments, there is no entry.
+    // If we've run out of all arguments, there is no specifier.
     static constexpr bool HasFromArgs()
     {
         return false;
