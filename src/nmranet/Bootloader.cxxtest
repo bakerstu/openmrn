@@ -5,6 +5,7 @@
 #define WRITE_BUFFER_SIZE 256
 #include "nmranet/Bootloader.hxx"
 #include "nmranet/BootloaderClient.hxx"
+#include "nmranet/BootloaderPort.hxx"
 #include <string>
 #include <functional>
 
@@ -48,56 +49,6 @@ static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 
-/** Proxy class for sending canbus traffic to the Bootloader HAL. */
-class BootloaderPort : public CanHubPort
-{
-public:
-    BootloaderPort()
-        : CanHubPort(&g_service)
-    {
-        is_waiting_ = false;
-    }
-
-    bool is_waiting()
-    {
-        return is_waiting_;
-    }
-
-    virtual Action entry()
-    {
-        AtomicHolder h(this);
-        is_waiting_ = true;
-        return wait_and_call(STATE(sent));
-    }
-
-    Action sent()
-    {
-        return release_and_exit();
-    }
-
-    bool read_can_frame(struct can_frame *frame)
-    {
-        {
-            AtomicHolder h(this);
-            if (is_waiting_)
-            {
-                *frame = *message()->data();
-                is_waiting_ = false;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        notify();
-        return true;
-    }
-
-private:
-    /** True if an incoming message is ready for dispatching and the current
-     * flow is waiting for a notify. */
-    bool is_waiting_ = false;
-};
 
 BootloaderPort *g_bootloader_port = nullptr;
 
