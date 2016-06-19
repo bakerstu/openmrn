@@ -49,7 +49,6 @@ static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 
-
 BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
@@ -281,7 +280,7 @@ protected:
     os_thread_t bootloader_thread_ = 0;
     bool running_ = false;
     ::testing::StrictMock<MockBootloaderHAL> mock_;
-    BootloaderPort can_port_;
+    BootloaderPort can_port_{&g_service};
 };
 
 class BootloaderTest : public AsyncCanTest, protected BootloaderTestBase

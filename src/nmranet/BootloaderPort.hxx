@@ -42,8 +42,8 @@ namespace nmranet {
 class BootloaderPort : public CanHubPort
 {
 public:
-    BootloaderPort()
-        : CanHubPort(&g_service)
+    BootloaderPort(Service* service)
+        : CanHubPort(service)
     {
         is_waiting_ = false;
     }
