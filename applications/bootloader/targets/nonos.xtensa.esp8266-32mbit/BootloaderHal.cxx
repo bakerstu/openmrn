@@ -1,93 +1,274 @@
+/** \copyright
+ * Copyright (c) 2016, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file BootloaderHal.cxx
+ *
+ * ESP8266-specific implementation of the HAL (Hardware Abstraction Layer) used
+ * by the OpenLCB bootloader.
+ *
+ * @author Balazs Racz
+ * @date 19 Jun 2016
+ */
+
 #include <string.h>
+#include <stdint.h>
 
-#define TARGET_IS_TM4C123_RB1
+#include <c_types.h>
+#include "freertos/bootloader_hal.h"
 
-#include "../boards/ti-tm4c123-generic/BootloaderHal.hxx"
-#include "bootloader_hal.h"
-#include "driverlib/rom.h"
-#include "driverlib/rom_map.h"
-#include "driverlib/gpio.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/can.h"
-#include "inc/hw_memmap.h"
-#include "driverlib/pin_map.h"
+extern "C" {
+#include "eboot_command.h"
+#include "flash.h"
+}
 
+#include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
+#include "utils/ESPWifiClient.hxx"
+#include "utils/Crc.hxx"
+#include "utils/GpioInitializer.hxx"
+#include "utils/blinker.h"
 #include "nmranet_config.h"
 #include "nmranet/Defs.hxx"
-#include "TivaGPIO.hxx"
 #include "nmranet/If.hxx"
-
-//OVERRIDE_CONST(nmranet_can_bitrate, 1000000);
+#include "nmranet/BootloaderPort.hxx"
 
 extern "C" {
 
-GPIO_PIN(SW1, GpioInputPU, F, 4);
-GPIO_PIN(SW2, GpioInputPU, F, 0);
+struct HW
+{
+    /* original / standard definitions.
+        GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
+        GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
 
-GPIO_PIN(RED_LED, LedPin, F, 1);
-GPIO_PIN(GREEN_LED, LedPin, F, 2);
-GPIO_PIN(BLUE_LED, LedPin, F, 3);
+        GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+        GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
+
+        // forward: A=HI B=LO
+
+        GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+        GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
+
+        GPIO_PIN(F1, GpioOutputSafeLow, 2);
+
+        //typedef DummyPin F1_Pin;
+
+    */
+
+    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
+    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
+
+    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
+
+    static constexpr bool invertLow = false;
+
+    // forward: A=HI B=LO
+
+    // typedef BLINKER_Pin LIGHT_FRONT_Pin;
+    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
+
+    GPIO_PIN(F1, GpioOutputSafeHigh, 2);
+    // typedef DummyPin F1_Pin;
+
+    typedef GpioInitializer<        //
+        MOT_A_HI_Pin, MOT_A_LO_Pin, //
+        MOT_B_HI_Pin, MOT_B_LO_Pin, //
+        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin> GpioInit;
+};
 
 void bootloader_hw_set_to_safe(void)
 {
-    SW1_Pin::hw_set_to_safe();
-    SW2_Pin::hw_set_to_safe();
-    RED_LED_Pin::hw_set_to_safe();
-    GREEN_LED_Pin::hw_set_to_safe();
-    BLUE_LED_Pin::hw_set_to_safe();
+    HW::GpioInit::hw_set_to_safe();
 }
-
-extern void bootloader_reset_segments(void);
-//extern unsigned long cm3_cpu_clock_hz;
 
 void bootloader_hw_init()
 {
-    bootloader_reset_segments();
-    ROM_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-                       SYSCTL_XTAL_16MHZ);
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
-    ROM_GPIOPinConfigure(GPIO_PE4_CAN0RX);
-    ROM_GPIOPinConfigure(GPIO_PE5_CAN0TX);
-    ROM_GPIOPinTypeCAN(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-    ROM_CANInit(CAN0_BASE);
-    ROM_CANBitRateSet(CAN0_BASE, cm3_cpu_clock_hz,
-                      config_nmranet_can_bitrate());
-
-    // Sets up CAN message receiving object.
-    tCANMsgObject can_message;
-    can_message.ui32MsgID = 0;
-    can_message.ui32MsgIDMask = 0;
-    can_message.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    can_message.ui32MsgLen = 8;
-    ROM_CANMessageSet(CAN0_BASE, 1, &can_message, MSG_OBJ_TYPE_RX);
-
-    ROM_CANEnable(CAN0_BASE);
 }
 
-void bootloader_led(enum BootloaderLed id, bool value) {
-  switch(id) {
-  case LED_ACTIVE: RED_LED_Pin::set(value); return;
-  case LED_WRITING: BLUE_LED_Pin::set(value); return;
-  case LED_CSUM_ERROR: RED_LED_Pin::set(value); return;
-  case LED_REQUEST: RED_LED_Pin::set(value); BLUE_LED_Pin::set(value); return;
-  case LED_FRAME_LOST: GREEN_LED_Pin::set(1); BLUE_LED_Pin::set(0);
-      RED_LED_Pin::set(0); return;
-  default: ; /* ignore */
-  }
+void bootloader_led(enum BootloaderLed id, bool value)
+{
+    switch (id)
+    {
+        case LED_ACTIVE:
+            HW::F1_Pin::set(value);
+            return;
+        case LED_WRITING:
+            resetblink(value ? 1 : 0);
+            return;
+        case LED_CSUM_ERROR:
+            return;
+        case LED_REQUEST:
+            return;
+        default:
+            ; /* ignore */
+    }
 }
 
 bool request_bootloader()
 {
     extern uint32_t __bootloader_magic_ptr;
-    if (__bootloader_magic_ptr == REQUEST_BOOTLOADER) {
+    if (__bootloader_magic_ptr == REQUEST_BOOTLOADER)
+    {
         __bootloader_magic_ptr = 0;
-        GREEN_LED_Pin::set(true);
         return true;
     }
-    GREEN_LED_Pin::set(SW1_Pin::get());
-    return !SW1_Pin::get();
+    // there is no way to request bootloader mode by pressing a button for now.
+    return false;
 }
 
+/// Pointer in the memory where the SPI flash is mapped.
+#define FLASH_MAP_ADDRESS (0x40200000)
+/// Offset in the SPI flash where the user code block is located. This has to
+/// be larger than the size of the bootloader binary.
+#define USER_CODE_OFFSET (3 * 128 * 1024)
+/// Size of the memory mapped region of flash.
+#define USER_CODE_END (1024 * 1024)
+/// Offset inside the user code block where the application starts. Used to
+/// calculate where to load the application from when booting.
+#define HEADER_LEN (4096)
+
+void get_flash_boundaries(const void **flash_min, const void **flash_max,
+    const struct app_header **app_header)
+{
+    *flash_min = (void *)(FLASH_MAP_ADDRESS + USER_CODE_OFFSET);
+    *flash_max = (void *)(FLASH_MAP_ADDRESS + USER_CODE_END);
+    *app_header = (struct app_header *)(FLASH_MAP_ADDRESS + USER_CODE_OFFSET);
+}
+
+void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
+{
+    memset(checksum, 0, 16);
+    crc3_crc16_ibm(data, size, (uint16_t*) checksum);
+}
+
+extern const uint16_t DEFAULT_ALIAS;
+
+uint16_t nmranet_alias()
+{
+    /// TODO(balazs.racz):  fix this
+    return DEFAULT_ALIAS;
+}
+
+extern const nmranet::NodeID NODE_ID;
+
+uint64_t nmranet_nodeid()
+{
+    /// TODO(balazs.racz):  read some form of EEPROM instead.
+    return NODE_ID;
+}
+
+Executor<1> g_executor{NO_THREAD()};
+Service g_service(&g_executor);
+CanHubFlow g_can_hub(&g_service);
+nmranet::BootloaderPort g_bootloader_port(&g_service);
+
+bool read_can_frame(struct can_frame *frame)
+{
+    return g_bootloader_port.read_can_frame(frame);
+}
+
+bool try_send_can_frame(const struct can_frame &frame)
+{
+    auto *b = g_can_hub.alloc();
+    *b->data()->mutable_frame() = frame;
+    b->data()->skipMember_ = &g_bootloader_port;
+    g_can_hub.send(b);
+    return true;
+}
+
+void bootloader_reboot(void)
+{
+    eboot_command_clear();
+    system_restart();
+}
+
+void application_entry(void)
+{
+    struct eboot_command cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.action = ACTION_LOAD_APP;
+    cmd.args[0] = USER_CODE_OFFSET + HEADER_LEN - APP_START_OFFSET;
+    eboot_command_write(&cmd);
+    system_restart();
+}
+
+void erase_flash_page(const void *address)
+{
+    bootloader_led(LED_ACTIVE, 0);
+    bootloader_led(LED_WRITING, 1);
+    uint32_t a = (uint32_t) address;
+    a -= FLASH_MAP_ADDRESS;
+    SPIEraseSector(a/FLASH_SECTOR_SIZE);
+    bootloader_led(LED_WRITING, 0);
+    bootloader_led(LED_ACTIVE, 1);
+}
+
+void write_flash(const void *address, const void *data, uint32_t size_bytes)
+{
+    bootloader_led(LED_ACTIVE, 0);
+    bootloader_led(LED_WRITING, 1);
+
+    uint32_t a = (uint32_t) address;
+    a -= FLASH_MAP_ADDRESS;
+    SPIWrite(a, (void*)data, size_bytes);
+
+    bootloader_led(LED_WRITING, 0);
+    bootloader_led(LED_ACTIVE, 1);
+}
+
+void get_flash_page_info(
+    const void *address, const void **page_start, uint32_t *page_length_bytes)
+{
+    uint32_t value = (uint32_t)address;
+    value &= (FLASH_SECTOR_SIZE - 1);
+    *page_start = (const void *)value;
+    *page_length_bytes = FLASH_SECTOR_SIZE;
+}
+
+void ignore_fn(void)
+{
+}
+
+extern char WIFI_SSID[];
+extern char WIFI_PASS[];
+extern char WIFI_HUB_HOSTNAME[];
+extern int WIFI_HUB_PORT;
 } // extern "C"
+
+int appl_main(int argc, char**argv) {
+    g_can_hub.register_port(&g_bootloader_port);
+    resetblink(1);
+    new ESPWifiClient(WIFI_SSID, WIFI_PASS, &g_can_hub, WIFI_HUB_HOSTNAME,
+                      WIFI_HUB_PORT, 1200, []()
+        {
+            resetblink(0);
+            // This will actually return due to the event-driven OS
+            // implementation of the stack.
+            g_executor.thread_body();
+        });
+    return 0;
+}
+
