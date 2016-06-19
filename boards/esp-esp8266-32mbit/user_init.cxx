@@ -101,7 +101,12 @@ void init_done() {
     appl_task(nullptr);
 }
 
+extern "C" void system_restart_local();
 
+void reboot_now() {
+    system_restart_local();
+    //(*((volatile uint32_t*) 0x60000700)) |= 0x80000000;
+}
 
 void ICACHE_FLASH_ATTR user_init()
 {
