@@ -92,18 +92,24 @@ struct HW
     GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
     GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
 
+    // Doubles as manual request pin.
+    GPIO_PIN(REQ_BLOAD, GpioInputPU, 13);
+
     GPIO_PIN(F1, GpioOutputSafeHigh, 2);
     // typedef DummyPin F1_Pin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
         MOT_B_HI_Pin, MOT_B_LO_Pin, //
-        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin> GpioInit;
+//        LIGHT_FRONT_Pin, LIGHT_BACK_Pin,        
+        F1_Pin> GpioInit;
 };
 
 void bootloader_hw_set_to_safe(void)
 {
     HW::GpioInit::hw_set_to_safe();
+    HW::GpioInit::hw_init();
+    HW::REQ_BLOAD_Pin::hw_init();
 }
 
 void bootloader_hw_init()
@@ -133,14 +139,17 @@ void bootloader_led(enum BootloaderLed id, bool value)
 
 bool request_bootloader()
 {
+    HW::REQ_BLOAD_Pin::hw_init();
     extern uint32_t __bootloader_magic_ptr;
     if (__bootloader_magic_ptr == REQUEST_BOOTLOADER)
     {
         __bootloader_magic_ptr = 0;
         return true;
     }
+    return !HW::REQ_BLOAD_Pin::get();
+
     // there is no way to request bootloader mode by pressing a button for now.
-    return false;
+    //return false;
 }
 
 /// Pointer in the memory where the SPI flash is mapped.
@@ -166,6 +175,9 @@ void checksum_data(const void *data, uint32_t size, uint32_t *checksum)
 {
     memset(checksum, 0, 16);
     crc3_crc16_ibm(data, size, (uint16_t*) checksum);
+    // We put some magic into the checksum as well.
+    checksum[2] = 0x73a92bd1;
+    checksum[3] = 0x5a5a55aa;
 }
 
 extern const uint16_t DEFAULT_ALIAS;
@@ -226,7 +238,9 @@ void erase_flash_page(const void *address)
     bootloader_led(LED_WRITING, 1);
     uint32_t a = (uint32_t) address;
     a -= FLASH_MAP_ADDRESS;
-    SPIEraseSector(a/FLASH_SECTOR_SIZE);
+    unsigned page = a/FLASH_BLOCK_SIZE; 
+    SPIEraseBlock(page);
+    printf("erase page %u\n", page);
     bootloader_led(LED_WRITING, 0);
     bootloader_led(LED_ACTIVE, 1);
 }
@@ -239,6 +253,7 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
     uint32_t a = (uint32_t) address;
     a -= FLASH_MAP_ADDRESS;
     SPIWrite(a, (void*)data, size_bytes);
+    printf("write addr %06x len %u\n", a, size_bytes);
 
     bootloader_led(LED_WRITING, 0);
     bootloader_led(LED_ACTIVE, 1);
@@ -248,9 +263,9 @@ void get_flash_page_info(
     const void *address, const void **page_start, uint32_t *page_length_bytes)
 {
     uint32_t value = (uint32_t)address;
-    value &= (FLASH_SECTOR_SIZE - 1);
+    value &= ~(FLASH_BLOCK_SIZE - 1);
     *page_start = (const void *)value;
-    *page_length_bytes = FLASH_SECTOR_SIZE;
+    *page_length_bytes = FLASH_BLOCK_SIZE;
 }
 
 extern char WIFI_SSID[];
@@ -269,11 +284,13 @@ public:
 
     void start() {
         start_flow(STATE(loop));
+        HW::REQ_BLOAD_Pin::hw_init();
     }
 
 private:
     Action loop() {
         bootloader_loop();
+        HW::F1_Pin::set(HW::REQ_BLOAD_Pin::get());
         if (bootloader_reset_request) {
             return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(reset));
         }
