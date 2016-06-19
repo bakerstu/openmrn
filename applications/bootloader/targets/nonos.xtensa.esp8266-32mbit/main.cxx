@@ -121,8 +121,10 @@ void bootloader_led(enum BootloaderLed id, bool value)
             resetblink(value ? 1 : 0);
             return;
         case LED_CSUM_ERROR:
+            printf("Checksum: %s\n", value ? "error" : "ok");
             return;
         case LED_REQUEST:
+            printf("Manual request: %s\n", value ? "yes" : "no");
             return;
         default:
             ; /* ignore */
