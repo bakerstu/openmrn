@@ -221,10 +221,33 @@ void maybe_checksum(string *firmware)
             exit(1);
         }
     }
+    else if (algo == "esp8266")
+    {
+        struct app_header hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        string nfirmware(4096, 0);
+        nfirmware += *firmware;
+
+        hdr.app_size = firmware->size() + 4096;
+        crc3_crc16_ibm(
+            nullptr, 0, (uint16_t *)hdr.checksum_pre);
+        hdr.checksum_pre[2] = 0x73a92bd1;
+        hdr.checksum_pre[3] = 0x5a5a55aa;
+
+        unsigned post_size = hdr.app_size - sizeof(hdr);
+        crc3_crc16_ibm(
+            &nfirmware[sizeof(hdr)], post_size, (uint16_t *)hdr.checksum_post);
+        hdr.checksum_post[2] = 0x73a92bd1;
+        hdr.checksum_post[3] = 0x5a5a55aa;
+
+        memcpy(&nfirmware[0], &hdr, sizeof(hdr));
+        swap(*firmware, nfirmware);
+        printf("Checksummed firmware with algorithm esp8266 (p sz %u\n", post_size);
+    }
     else
     {
-        fprintf(stderr,
-            "Unknown checksumming algo %s. Known algorithms are: tiva123.\n",
+        fprintf(stderr, "Unknown checksumming algo %s. Known algorithms are: "
+                        "tiva123, esp8266.\n",
             checksum_algorithm);
         exit(1);
     }
