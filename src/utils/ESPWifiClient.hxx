@@ -45,6 +45,8 @@ extern "C" {
 }
 
 #include "utils/Singleton.hxx"
+#include "utils/Hub.hxx"
+#include "utils/GridConnectHub.hxx"
 
 class ESPWifiClient : public Singleton<ESPWifiClient>, private HubPort
 {
