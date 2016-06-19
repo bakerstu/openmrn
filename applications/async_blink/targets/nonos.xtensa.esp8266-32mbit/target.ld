@@ -1,1 +1,1 @@
-../../../../boards/esp-esp8266-32mbit/bootloader.ld
+../../../../boards/esp-esp8266-32mbit/bload_target.ld
