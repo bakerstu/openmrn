@@ -235,10 +235,14 @@ int appl_main(int argc, char* argv[])
 #endif
 
 #ifdef ESP_NONOS
-    new ESPWifiClient("GoogleGuest", "", stack.can_hub(), "28k.ch", 50002);
-#endif
-
-#ifdef __EMSCRIPTEN__
+    resetblink(1);
+    stack.loop_executor();
+    new ESPWifiClient("GoogleGuest", "", stack.can_hub(), "28k.ch", 50002, 1200,
+        []()
+        {
+            resetblink(0);
+        });
+#elif defined(__EMSCRIPTEN__)
     // We delay the start of the stack until the connection is established.
     emscripten_set_main_loop(&ignore_function, 0, true);
 #else

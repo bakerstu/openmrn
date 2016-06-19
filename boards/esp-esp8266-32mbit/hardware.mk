@@ -74,7 +74,7 @@ flash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPTOOL) write_flash 0 $<
 
 clean:
-	rm -f $(EXECUTABLE)-0x00000.bin $(EXECUTABLE)-0x40000.bin lib/*.a lib/*.lst
+	rm -f $(EXECUTABLE)-{0x00000,0x40000,bload,bloadtarget}.bin lib/*.a lib/*.lst
 
 
 xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
