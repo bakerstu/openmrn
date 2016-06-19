@@ -56,6 +56,8 @@ extern "C" {
 
 extern "C" {
 
+void reboot_now();
+
 struct HW
 {
     /* original / standard definitions.
@@ -184,6 +186,7 @@ Executor<1> g_executor{NO_THREAD()};
 Service g_service(&g_executor);
 CanHubFlow g_can_hub(&g_service);
 nmranet::BootloaderPort g_bootloader_port(&g_service);
+bool bootloader_reset_request = false;
 
 bool read_can_frame(struct can_frame *frame)
 {
@@ -201,18 +204,18 @@ bool try_send_can_frame(const struct can_frame &frame)
 
 void bootloader_reboot(void)
 {
-    eboot_command_clear();
-    system_restart();
+    bootloader_reset_request = true;
 }
 
 void application_entry(void)
 {
+    printf("Starting application.\n");
     struct eboot_command cmd;
     memset(&cmd, 0, sizeof(cmd));
     cmd.action = ACTION_LOAD_APP;
     cmd.args[0] = USER_CODE_OFFSET + HEADER_LEN - APP_START_OFFSET;
     eboot_command_write(&cmd);
-    system_restart();
+    reboot_now();
 }
 
 void erase_flash_page(const void *address)
@@ -252,9 +255,44 @@ extern char WIFI_SSID[];
 extern char WIFI_PASS[];
 extern char WIFI_HUB_HOSTNAME[];
 extern int WIFI_HUB_PORT;
+
+bool bootloader_init();
+bool bootloader_loop();
+
 } // extern "C"
 
+class BootloaderFlow : public StateFlowBase {
+public:
+    BootloaderFlow() : StateFlowBase(&g_service) {}
+
+    void start() {
+        start_flow(STATE(loop));
+    }
+
+private:
+    Action loop() {
+        bootloader_loop();
+        if (bootloader_reset_request) {
+            return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(reset));
+        }
+        return yield_and_call(STATE(loop));
+    }
+
+    Action reset() {
+        printf("Rebooting bootloader.\n");
+        eboot_command_clear();
+        reboot_now();
+        return exit();
+    }
+
+    StateFlowTimer timer_{this};
+};
+
 int appl_main(int argc, char**argv) {
+    bootloader_hw_set_to_safe();
+    bootloader_hw_init();
+    bootloader_init();
+    printf("bootloader init done.\n");
     g_can_hub.register_port(&g_bootloader_port);
     resetblink(1);
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, &g_can_hub, WIFI_HUB_HOSTNAME,
@@ -264,6 +302,7 @@ int appl_main(int argc, char**argv) {
             // This will actually return due to the event-driven OS
             // implementation of the stack.
             g_executor.thread_body();
+            (new BootloaderFlow())->start();
         });
     return 0;
 }
