@@ -951,11 +951,7 @@ void handle_send_datagram()
     }
 }
 
-void bootloader_entry()
-{
-    bootloader_hw_set_to_safe();
-    bootloader_hw_init();
-
+bool bootloader_init() {
     {
         bool request = request_bootloader();
         bootloader_led(LED_REQUEST, request);
@@ -964,70 +960,86 @@ void bootloader_entry()
         if (!request && csum_ok)
         {
             g_bootloader_busy = 0;
-            return application_entry();
+            application_entry();            
+            return true;
         }
     }
     memset(&state_, 0, sizeof(state_));
+    return false;
+}
+
+bool bootloader_loop()
+{
+    {
+#ifdef __linux__
+        AtomicHolder h(&g_bootloader_lock);
+#endif
+        if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
+        {
+            state_.input_frame_full = 1;
+        }
+        unsigned new_busy =
+            (state_.input_frame_full || state_.output_frame_full ||
+                state_.init_state != INITIALIZED ||
+                (state_.datagram_output_pending
+                    /*&& !state_.datagram_reply_waiting*/))
+            ? 1
+            : 0;
+        if (g_bootloader_busy != new_busy)
+        {
+            bootloader_led(LED_ACTIVE, new_busy);
+            g_bootloader_busy = new_busy;
+        }
+    }
+    if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
+    {
+        state_.output_frame_full = 0;
+    }
+    if (state_.request_reset && !g_bootloader_busy)
+    {
+        g_bootloader_busy = 0;
+        bootloader_reboot();
+        return true;
+    }
+    if (state_.input_frame_full)
+    {
+        handle_input_frame();
+    }
+    if (state_.init_state != INITIALIZED && !state_.output_frame_full)
+    {
+        handle_init();
+    }
+#ifdef BOOTLOADER_STREAM
+    if (state_.stream_proceed_pending && !state_.output_frame_full)
+    {
+        set_can_frame_addressed(
+            Defs::MTI_STREAM_PROCEED, state_.write_src_alias);
+        state_.stream_proceed_pending = 0;
+        state_.output_frame.data[state_.output_frame.can_dlc++] =
+            state_.stream_src_id;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
+    }
+#endif
+    if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
+        !state_.output_frame_full)
+    {
+        handle_send_datagram();
+    }
+    return false;
+}
+
+void bootloader_entry()
+{
+    bootloader_hw_set_to_safe();
+    bootloader_hw_init();
+
+    if (bootloader_init()) return;
 
     while (true)
     {
-        {
-#ifdef __linux__
-            AtomicHolder h(&g_bootloader_lock);
-#endif
-            if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
-            {
-                state_.input_frame_full = 1;
-            }
-            unsigned new_busy =
-                (state_.input_frame_full || state_.output_frame_full ||
-                    state_.init_state != INITIALIZED ||
-                    (state_.datagram_output_pending
-                        /*&& !state_.datagram_reply_waiting*/))
-                ? 1
-                : 0;
-            if (g_bootloader_busy != new_busy)
-            {
-                bootloader_led(LED_ACTIVE, new_busy);
-                g_bootloader_busy = new_busy;
-            }
-        }
-        if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
-        {
-            state_.output_frame_full = 0;
-        }
-        if (state_.request_reset && !g_bootloader_busy)
-        {
-            g_bootloader_busy = 0;
-            return bootloader_reboot();
-        }
-        if (state_.input_frame_full)
-        {
-            handle_input_frame();
-        }
-        if (state_.init_state != INITIALIZED && !state_.output_frame_full)
-        {
-            handle_init();
-        }
-#ifdef BOOTLOADER_STREAM
-        if (state_.stream_proceed_pending && !state_.output_frame_full)
-        {
-            set_can_frame_addressed(
-                Defs::MTI_STREAM_PROCEED, state_.write_src_alias);
-            state_.stream_proceed_pending = 0;
-            state_.output_frame.data[state_.output_frame.can_dlc++] =
-                state_.stream_src_id;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
-        }
-#endif
-        if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
-            !state_.output_frame_full)
-        {
-            handle_send_datagram();
-        }
-
+        if (bootloader_loop()) return;
 #ifdef __linux__
         usleep(10);
 #endif
