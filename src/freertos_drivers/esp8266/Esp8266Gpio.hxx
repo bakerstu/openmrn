@@ -97,6 +97,16 @@ public:
         GPIO_REG_WRITE(GPIO_ENABLE_W1TC_ADDRESS, PIN_BIT);
     }
 
+    static void set_pullup_on()
+    {
+        PIN_PULLUP_EN(PIN_MUX_REG);
+    }
+
+    static void set_pullup_off()
+    {
+        PIN_PULLUP_DIS(PIN_MUX_REG);
+    }
+
     static void set_on()
     {
         GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, PIN_BIT);
@@ -109,7 +119,7 @@ public:
 
     static bool get()
     {
-        return GPIO_REG_READ(GPIO_IN_ADDRESS) & PIN_BIT;
+        return (GPIO_REG_READ(GPIO_IN_ADDRESS) & PIN_BIT) != 0;
     }
 
     static void set(bool value)
@@ -163,6 +173,41 @@ struct GpioOutputSafeLow : public GpioOutputPin<Defs, false>
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs>
 struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
+{
+};
+
+template <class Base, bool PUEN> struct GpioInputPar : public Base
+{
+public:
+    static void hw_init()
+    {
+        Base::set_input();
+        if (PUEN) {
+            Base::set_pullup_on();
+        } else {
+            Base::set_pullup_off();
+        }
+        Base::set_gpio();
+    }
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+};
+
+/// Defines a GPIO input pin. No pull-up.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioInputNP : public GpioInputPar<Defs, false>
+{
+};
+
+/// Defines a GPIO input pin with pull-up.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioInputPU : public GpioInputPar<Defs, true>
 {
 };
 
