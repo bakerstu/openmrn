@@ -9,6 +9,9 @@ export TARGET ?= nonos.xtensa-lx106.esp8266
 #LDSCRIPT = $(ESPNONOSSDKPATH)/ld/eagle.flash.4m.ld
 LDSCRIPT = target.ld
 
+ifndef ADDRESS
+ADDRESS=0xDD
+endif
 
 include $(OPENMRNPATH)/etc/prog.mk
 
@@ -70,13 +73,20 @@ $(EXECUTABLE)-0x00000.bin: $(EXECUTABLE)$(EXTENTION)
 $(EXECUTABLE)-bload.bin:  $(EXECUTABLE)$(EXTENTION)
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -eo "$(ESPARDUINOPATH)/hardware/esp8266/2.2.0/bootloaders/eboot/eboot.elf" -bo $@ -bm qio -bf 40 -bz 4M -bs .text -bp 4096 -ec -eo $< -bs .irom0.text -bs .text -bs .iram.text -bs .data -bs .rodata -bc -ec
 
+$(EXECUTABLE)-btgt.bin:  $(EXECUTABLE)$(EXTENTION)
+	$(ESPARDUINOPATH)/tools/esptool/*/esptool -eo $< -bo $@ -bm qio -bf 40 -bz 4M -bs .irom0.text -bs .text -bs .iram.text -bs .data -bs .rodata -bc -ec
+
 flash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPTOOL) write_flash 0 $<
 
 clean:
-	rm -f $(EXECUTABLE)-{0x00000,0x40000,bload,bloadtarget}.bin lib/*.a lib/*.lst
+	rm -f $(EXECUTABLE)-{0x00000,0x40000,bload,btgt}.bin lib/*.a lib/*.lst
 
 
 xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -vv -cd nodemcu -cb 230400 -cp /dev/ttyUSB0 -ca 0x00000 -cf $<
+
+
+rflash: $(EXECUTABLE)-btgt.bin $(EXECUTABLE).lst
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
 
