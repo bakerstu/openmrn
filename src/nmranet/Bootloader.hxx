@@ -176,21 +176,27 @@ bool check_application_checksum()
     uint32_t checksum[CHECKSUM_COUNT];
     const void *flash_min;
     const void *flash_max;
-    const struct app_header *app_header;
-    get_flash_boundaries(&flash_min, &flash_max, &app_header);
-    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header) -
+    const struct app_header *app_header_ptr;
+    get_flash_boundaries(&flash_min, &flash_max, &app_header_ptr);
+
+    struct app_header app_header;
+    memcpy(&app_header, app_header_ptr, sizeof(app_header));
+
+    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header_ptr) -
         static_cast<const uint8_t *>(flash_min);
     checksum_data(flash_min, pre_size, checksum);
-    if (memcmp(app_header->checksum_pre, checksum, sizeof(checksum)))
+    if (memcmp(app_header.checksum_pre, checksum, sizeof(checksum)))
     {
         return false;
     }
-    uint32_t post_size = app_header->app_size -
-        (reinterpret_cast<const uint8_t *>(app_header) -
+    uint32_t flash_size = (uint32_t)flash_max - (uint32_t)flash_min;
+    if (app_header.app_size > flash_size) return false;
+    uint32_t post_size = app_header.app_size -
+        (reinterpret_cast<const uint8_t *>(app_header_ptr) -
                              static_cast<const uint8_t *>(flash_min)) -
         sizeof(struct app_header);
-    checksum_data(app_header + 1, post_size, checksum);
-    if (memcmp(app_header->checksum_post, checksum, sizeof(checksum)))
+    checksum_data(app_header_ptr + 1, post_size, checksum);
+    if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
     {
         return false;
     }
