@@ -401,112 +401,6 @@ extern const char *const CONFIG_FILENAME = "openlcb_config";
 extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 
-#if 0
-
-class TrainSnipHandler : public IncomingMessageStateFlow
-{
-public:
-    TrainSnipHandler(If *parent, SimpleInfoFlow *info_flow)
-        : IncomingMessageStateFlow(parent)
-        , responseFlow_(info_flow)
-    {
-        iface()->dispatcher()->register_handler(this,
-            nmranet::Defs::MTI_IDENT_INFO_REQUEST, nmranet::Defs::MTI_EXACT);
-    }
-    ~TrainSnipHandler()
-    {
-        iface()->dispatcher()->unregister_handler(this,
-            nmranet::Defs::MTI_IDENT_INFO_REQUEST, nmranet::Defs::MTI_EXACT);
-    }
-
-    Action entry() OVERRIDE
-    {
-        return allocate_and_call(responseFlow_, STATE(send_response_request));
-    }
-
-    Action send_response_request()
-    {
-        auto *b = get_allocation_result(responseFlow_);
-        b->data()->reset(
-            nmsg(), snipResponse_, nmranet::Defs::MTI_IDENT_INFO_REPLY);
-        b->set_done(n_.reset(this));
-        responseFlow_->send(b);
-        release();
-        return wait_and_call(STATE(send_done));
-    }
-
-    Action send_done()
-    {
-        return exit();
-    }
-
-private:
-    SimpleInfoFlow *responseFlow_;
-    BarrierNotifiable n_;
-    static SimpleInfoDescriptor snipResponse_[];
-};
-
-nmranet::SimpleInfoDescriptor TrainSnipHandler::snipResponse_[] = {
-    {nmranet::SimpleInfoDescriptor::LITERAL_BYTE, 4, 0, nullptr},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 41, 0, "Balazs Racz"},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 41, 0, "Dead-rail train"},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 21, 0, "ESP12"},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 21, 0, "0.1"},
-    {nmranet::SimpleInfoDescriptor::LITERAL_BYTE, 2, 0, nullptr},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 63, 1, "Deadrail 8266"},
-    {nmranet::SimpleInfoDescriptor::C_STRING, 64, 0, "Deadrail train based on an ESP-12 wifi module"},
-    {nmranet::SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
-
-struct DeadrailStack
-{
-    DeadrailStack()
-    {
-        AddAliasAllocator(trainNode_.node_id(), &ifCan_);
-        memoryConfigHandler_.registry()->insert(
-            &trainNode_, MemoryConfigDefs::SPACE_FDI, &fdiBlock_);
-    }
-
-    void start_stack()
-    {
-        ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
-    }
-
-    Executor<5> executor_{NO_THREAD()};
-    Service service_{&executor_};
-    CanHubFlow canHub0_{&service_};
-    IfCan ifCan_{&executor_, &canHub0_, config_local_alias_cache_size(),
-        config_remote_alias_cache_size(), config_local_nodes_count()};
-    InitializeFlow initFlow_{&service_};
-    EventService eventService_{&ifCan_};
-
-    TrainService tractionService_{&ifCan_};
-    TrainNode trainNode_{&tractionService_, &trainImpl_};
-    FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
-        isTrainEventHandler{&trainNode_};
-
-    SimpleInfoFlow infoFlow_{&ifCan_};
-    TrainSnipHandler snipHandler_{&ifCan_, &infoFlow_};
-
-    ProtocolIdentificationHandler pip{
-        &trainNode_, nmranet::Defs::SIMPLE_PROTOCOL_SUBSET |
-            nmranet::Defs::DATAGRAM | nmranet::Defs::MEMORY_CONFIGURATION |
-            nmranet::Defs::EVENT_EXCHANGE |
-            nmranet::Defs::SIMPLE_NODE_INFORMATION |
-            nmranet::Defs::TRACTION_CONTROL | nmranet::Defs::TRACTION_FDI};
-
-    CanDatagramService datagramService_{&ifCan_,
-        config_num_datagram_registry_entries(), config_num_datagram_clients()};
-    MemoryConfigHandler memoryConfigHandler_{
-        &datagramService_, nullptr, config_num_memory_spaces()};
-
-    ReadOnlyMemoryBlock fdiBlock_{
-        reinterpret_cast<const uint8_t *>(kFdiXml), strlen(kFdiXml)};
-};
-
-extern Pool *const g_incoming_datagram_allocator = init_main_buffer_pool();
-
-#endif
-
 } // namespace nmranet
 
 nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml);
@@ -517,7 +411,6 @@ extern char WIFI_SSID[];
 extern char WIFI_PASS[];
 extern char WIFI_HUB_HOSTNAME[];
 extern int WIFI_HUB_PORT;
-extern void timer1_isr_init();
 }
 
 class TestBlinker : public StateFlowBase
@@ -537,13 +430,11 @@ private:
         {
             isOn_ = false;
             pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(800));
-            // analogWrite(2, 800);
         }
         else
         {
             isOn_ = true;
             pwm_.old_set_state(2, USEC_TO_NSEC(1000), USEC_TO_NSEC(200));
-            // analogWrite(2, 200);
         }
         return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(doo));
     }
@@ -573,6 +464,5 @@ int appl_main(int argc, char *argv[])
             // implementation of the stack.
             stack.loop_executor();
         });
-    // timer1_isr_init();
     return 0;
 }
