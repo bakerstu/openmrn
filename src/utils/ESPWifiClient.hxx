@@ -49,12 +49,30 @@ extern "C" {
 class ESPWifiClient : public Singleton<ESPWifiClient>, private HubPort
 {
 public:
+    /// Creates a wifi+TCP client connection via the ESPConn API.
+    ///
+    /// @param ssid wifi access point name
+    /// @param password passphrase for the wifi access point, or empty string
+    /// for open (unencrypted) connection.
+    /// @param hub CAN hub to connect to the server
+    /// @param hostname hostname of the gridconnect TCP hub server. IP address
+    /// in dot format is not supported.
+    /// @param port port number of the TCP hub server.
+    /// @param send_buf_size in bytes, how much to buffer befone handing over to
+    /// the TCP stack.
+    /// @param connect_callback will be called after the wifi and the TCP
+    /// connection is established. Usually used for starting the OpenLCB stack.
     ESPWifiClient(const string &ssid, const string &password, CanHubFlow *hub,
-        const string &hostname, int port,
+        const string &hostname, int port, unsigned send_buf_size,
         std::function<void()> connect_callback)
         : HubPort(hub->service())
         , host_(hostname)
         , port_(port)
+        , sendPending_(0)
+        , sendBlocked_(0)
+        , timerPending_(0)
+        , sendBuf_((uint8_t*)malloc(send_buf_size))
+        , bufSize_(send_buf_size)
         , hub_(hub)
         , gcHub_(hub_->service())
         , connectCallback_(std::move(connect_callback))
@@ -66,8 +84,7 @@ public:
         wifi_station_set_config(&stationConfig_);
         wifi_set_event_handler_cb(&static_wifi_callback);
         wifi_station_connect(); // may be avoided if the constructor is still
-                                // called in
-                                // the user_init.
+                                // called in the user_init.
     }
 
     static void static_wifi_callback(System_Event_t *evt)
@@ -198,20 +215,108 @@ public:
 private:
     Action entry() override
     {
-        espconn_sent(&conn_, (uint8 *)message()->data()->data(),
+        if (sendPending_)
+        {
+            sendBlocked_ = 1;
+            // Will call again once the wifi notification comes back.
+            return wait();
+        }
+        if (message()->data()->size() > bufSize_)
+        {
+            if (bufEnd_ > 0)
+            {
+                // Cannot copy the data to the buffer. Must send separately.
+                send_buffer();
+                return again();
+            }
+            else
+            {
+                sendPending_ = 1;
+                sendBlocked_ = 1; // will cause notify.
+                espconn_sent(&conn_, (uint8 *)message()->data()->data(),
+                    message()->data()->size());
+                return wait_and_call(STATE(send_done));
+            }
+        }
+        if (message()->data()->size() > bufSize_ - bufEnd_)
+        {
+            // Doesn't fit into the current buffer.
+            send_buffer();
+            return again();
+        }
+        // Copies the data into the buffer.
+        memcpy(sendBuf_ + bufEnd_, message()->data()->data(),
             message()->data()->size());
-        return wait_and_call(STATE(send_done));
+        bufEnd_ += message()->data()->size();
+        release();
+        // Decides whether to send off the buffer now.
+        if (!queue_empty())
+        {
+            // let's process more of the queue
+            return exit();
+        }
+        if (!timerPending_)
+        {
+            timerPending_ = 1;
+            bufferTimer_.start(MSEC_TO_NSEC(3));
+        }
+        return exit();
     }
 
+    /// Called from the timer to signal sending off the buffer's contents.
+    void timeout()
+    {
+        timerPending_ = 0;
+        if (!sendPending_) {
+            send_buffer();
+        }
+    }
+
+    /// Callback state when we are sending directly off of the input buffer
+    /// becuase the data payload is too much to fit into the send assembly
+    /// buffer. Called when the send is completed and the input buffer can be
+    /// releases.
     Action send_done()
     {
         return release_and_exit();
     }
 
+    /// Writes all bytes that are in the send buffer to the TCP socket.
+    void send_buffer()
+    {
+        espconn_sent(&conn_, sendBuf_, bufEnd_);
+        sendPending_ = 1;
+    }
+
+    /// Callback from the TCP stack when the data send has been completed.
     void data_sent()
     {
-        notify();
+        sendPending_ = 0;
+        bufEnd_ = 0;
+        if (sendBlocked_)
+        {
+            sendBlocked_ = 0;
+            notify();
+        }
     }
+
+    class BufferTimer : public ::Timer
+    {
+    public:
+        BufferTimer(ESPWifiClient *parent)
+            : Timer(parent->service()->executor()->active_timers())
+            , parent_(parent)
+        {
+        }
+
+        long long timeout() override
+        {
+            parent_->timeout();
+            return NONE;
+        }
+    private:
+        ESPWifiClient *parent_;
+    } bufferTimer_{this};
 
     struct station_config stationConfig_;
     struct espconn conn_;
@@ -221,6 +326,21 @@ private:
 
     string host_;
     int port_;
+    /// True when the TCP stack is busy.
+    uint16_t sendPending_ : 1;
+    /// True when we are waiting for a notification from the TCP stack send done
+    /// callback.
+    uint16_t sendBlocked_ : 1;
+    /// True when there is a send timer running with the assembly buffer being
+    /// not full.
+    uint16_t timerPending_ : 1;
+
+    /// Offset in sendBuf_ of the first unused byte.
+    uint16_t bufEnd_ : 16;
+    /// Temporarily stores outgoing data until the TCP stack becomes free.
+    uint8_t *sendBuf_;
+    /// How many bytes are there in the send buffer.
+    unsigned bufSize_;
     CanHubFlow *hub_;
     HubFlow gcHub_;
     std::unique_ptr<GCAdapterBase> gcAdapter_;

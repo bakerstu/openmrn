@@ -564,10 +564,9 @@ int appl_main(int argc, char *argv[])
     if (true)
         stack.create_config_file_if_needed(cfg.seg().internal_data(),
             nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
-    resetblink(0);
 
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
-        WIFI_HUB_PORT, []()
+                      WIFI_HUB_PORT, 1200, []()
         {
             resetblink(0);
             // This will actually return due to the event-driven OS
