@@ -248,10 +248,6 @@ void get_flash_page_info(
     *page_length_bytes = FLASH_SECTOR_SIZE;
 }
 
-void ignore_fn(void)
-{
-}
-
 extern char WIFI_SSID[];
 extern char WIFI_PASS[];
 extern char WIFI_HUB_HOSTNAME[];
