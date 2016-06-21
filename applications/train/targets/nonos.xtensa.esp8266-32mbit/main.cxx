@@ -393,6 +393,8 @@ const char kFdiXml[] =
 ESPHuzzahTrain trainImpl;
 nmranet::ConfigDef cfg(0);
 
+extern nmranet::NodeID NODE_ID;
+
 namespace nmranet
 {
 
@@ -403,7 +405,7 @@ extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 
 } // namespace nmranet
 
-nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml);
+nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
 SpeedController g_speed_controller(stack.service(), cfg.seg().motor_control());
 
 extern "C" {
