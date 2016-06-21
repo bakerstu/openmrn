@@ -866,6 +866,9 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     //print_all_packets();
     expect_any_packet();
     startup();
+    // TODO: we should wait for the first startup to complete correctly and
+    // only after that add the following expectation. Otherwise there is a race
+    // condition on which startup this patcher matches.
     expect_packet(":X191004AAN1A2A3A4A5A6A;");
 
     request_->data()->dst.id = 0x1A2A3A4A5A6A;

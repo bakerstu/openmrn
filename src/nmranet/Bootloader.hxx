@@ -189,7 +189,7 @@ bool check_application_checksum()
     {
         return false;
     }
-    uint32_t flash_size = (uint32_t)flash_max - (uint32_t)flash_min;
+    size_t flash_size = (size_t)flash_max - (size_t)flash_min;
     if (app_header.app_size > flash_size) return false;
     uint32_t post_size = app_header.app_size -
         (reinterpret_cast<const uint8_t *>(app_header_ptr) -
