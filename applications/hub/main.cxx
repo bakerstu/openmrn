@@ -52,6 +52,9 @@ Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
 OVERRIDE_CONST(gc_generate_newlines, 0);
+OVERRIDE_CONST(gridconnect_buffer_size, 1300);
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+
 
 int port = 12021;
 const char *device_path = nullptr;
