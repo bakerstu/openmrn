@@ -72,6 +72,7 @@ void os_emscripten_yield() {
 Executor<1> g_executor("ex_thread", 0, 1024);
 #endif
 
+OVERRIDE_CONST(gridconnect_buffer_size, 1);
 
 Service g_service(&g_executor);
 

@@ -109,3 +109,6 @@ DEFAULT_CONST(serial_tx_buffer_size, 16);
 DEFAULT_CONST(serial_rx_buffer_size, 16);
 
 DEFAULT_CONST(gc_generate_newlines, 0);
+
+DEFAULT_CONST(gridconnect_buffer_size, 65);
+DEFAULT_CONST(gridconnect_buffer_delay_usec, 300);

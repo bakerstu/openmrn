@@ -37,7 +37,9 @@
 
 #include "executor/StateFlow.hxx"
 #include "can_frame.h"
+#include "nmranet_config.h"
 #include "utils/Buffer.hxx"
+#include "utils/BufferPort.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/Hub.hxx"
 #include "utils/GcStreamParser.hxx"
@@ -98,8 +100,10 @@ public:
     {
     public:
         BinaryToGCMember(Service *service, HubFlow *destination,
-                         HubPort *skip_member, int double_bytes)
+            HubPort *skip_member, int double_bytes)
             : CanHubPort(service)
+            , delayPort_(service, destination, config_gridconnect_buffer_size(),
+                  USEC_TO_NSEC(config_gridconnect_buffer_delay_usec()))
             , destination_(destination)
             , skipMember_(skip_member)
             , double_bytes_(double_bytes)
@@ -128,7 +132,7 @@ public:
                 /// performance.
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
-                destination_->send(target_buffer, 0);
+                delayPort_.send(target_buffer, 0);
             }
             else
             {
@@ -138,6 +142,7 @@ public:
         }
 
     private:
+        BufferPort delayPort_;
         /// Destination buffer (characters).
         char dbuf_[56];
         /// Pipe to send data to.
