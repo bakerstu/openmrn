@@ -8,11 +8,18 @@ extern "C" {
 #include "ets_rom.h"
 }
 
-#include "os/os.h"
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
+#include "os/os.h"
 #include "utils/blinker.h"
 
 static int blinkerpin = 0;
+
+namespace nmranet {
+extern char CONFIG_FILENAME[];
+}
 
 extern "C" {
 
@@ -98,6 +105,16 @@ void init_done() {
     //gdb_init();
     do_global_ctors();
     spiffs_init();
+    // Try to open the config file
+    int fd = ::open(nmranet::CONFIG_FILENAME, O_RDONLY);
+    if (fd < 0) fd = ::open(nmranet::CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
+    if (fd < 0) {
+        printf("Formatting the SPIFFS fs.");
+        extern void esp_spiffs_deinit(uint8_t);
+        esp_spiffs_deinit(1);
+        spiffs_init();
+    }
+
     appl_task(nullptr);
 }
 
@@ -132,3 +149,8 @@ void ICACHE_FLASH_ATTR user_init()
 
 
 }  // extern "C"
+
+void log_output(char* buf, int size) {
+    if (size <= 0) return;
+    printf("%s\n", buf);
+}
