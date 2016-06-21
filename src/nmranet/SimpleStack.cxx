@@ -32,6 +32,8 @@
  * @date 18 Mar 2015
  */
 
+#define LOGLEVEL INFO
+
 #if defined(__linux__) || defined(__MACH__)
 #include <net/if.h>
 #include <termios.h> /* tc* functions */
@@ -120,13 +122,12 @@ void SimpleCanStackBase::default_start_node()
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(
-    nmranet::TrainImpl *train, const char *fdi_xml)
+    nmranet::TrainImpl *train, const char *fdi_xml, NodeID node_id)
     // Note: this code tries to predict what the node id of the trainNode_ will
     // be. Unfortunately due to initialization order problems we cannot query
     // it in advance.
-    : SimpleCanStackBase(TractionDefs::train_node_id_from_legacy(
-          train->legacy_address_type(), train->legacy_address())),
-      trainNode_(&tractionService_, train),
+    : SimpleCanStackBase(node_id),
+      trainNode_(&tractionService_, train, node_id),
       fdiBlock_(reinterpret_cast<const uint8_t *>(fdi_xml), strlen(fdi_xml))
 {
 }
@@ -177,8 +178,8 @@ void SimpleCanStackBase::create_config_file_if_needed(
         fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
         if (fd < 0)
         {
-            LOG(LEVEL_ERROR, "Failed to create config file: %s",
-                strerror(errno));
+            printf("Failed to create config file: fd %d errno %d: %s\n",
+                   fd, errno, strerror(errno));
             DIE();
         }
         reset = true;

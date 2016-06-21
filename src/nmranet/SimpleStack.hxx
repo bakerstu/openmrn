@@ -363,7 +363,7 @@ public:
     ///
     /// @param train the implementation of the train
     /// @param fdi_xml XML file to export as the FDI for train functions
-    SimpleTrainCanStack(nmranet::TrainImpl *train, const char *fdi_xml);
+    SimpleTrainCanStack(nmranet::TrainImpl *train, const char *fdi_xml, NodeID node_id);
 
     /// @returns the virtual node pointer of the main virtual node of the stack
     /// (as defined by the NodeID argument of the constructor).
@@ -383,7 +383,7 @@ private:
 
     TrainService tractionService_{&ifCan_};
     /// The actual node.
-    TrainNode trainNode_;
+    TrainNodeWithId trainNode_;
     FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
         isTrainEventHandler{&trainNode_};
     ReadOnlyMemoryBlock fdiBlock_;
