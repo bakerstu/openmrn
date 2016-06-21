@@ -1102,7 +1102,7 @@ public:
      */
     void send(MessageType *msg, unsigned priority = UINT_MAX) OVERRIDE
     {
-        Base::send(msg);
+        Base::send(msg, priority);
     }
 
     /** Entry into the StateFlow activity.  Pure virtual which must be
