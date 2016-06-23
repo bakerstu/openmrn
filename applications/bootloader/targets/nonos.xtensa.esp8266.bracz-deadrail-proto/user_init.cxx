@@ -1,1 +1,1 @@
-../../../../boards/esp-bracz-deadrail-huzzah/user_init.cxx
+../../../../boards/esp-bracz-deadrail-proto/user_init.cxx

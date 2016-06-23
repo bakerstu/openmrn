@@ -1,1 +1,1 @@
-../../../../boards/esp-bracz-deadrail-huzzah/eagle.common.ld
+../../../../boards/esp-bracz-deadrail-proto/eagle.common.ld

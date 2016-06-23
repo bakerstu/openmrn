@@ -1,1 +1,1 @@
-../../../../boards/esp-bracz-deadrail-huzzah/hardware.mk
+../../../../boards/esp-bracz-deadrail-proto/hardware.mk

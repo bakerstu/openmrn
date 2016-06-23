@@ -1,1 +1,1 @@
-../../../../boards/esp-bracz-deadrail-huzzah/bload_target.ld
+../../../../boards/esp-bracz-deadrail-proto/bload_target.ld
