@@ -1,1 +1,1 @@
-../../../../boards/esp-esp8266-32mbit/hardware.mk
+../../../../boards/esp-bracz-deadrail-huzzah/hardware.mk
