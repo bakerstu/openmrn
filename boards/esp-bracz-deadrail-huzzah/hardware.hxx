@@ -2,6 +2,8 @@
 #define _ESP_BRACZ_DEADRAIL_PROTO_HARDWARE_HXX_
 
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 struct HW
 {
@@ -24,7 +26,7 @@ struct HW
     */
 
     GPIO_PIN(BLINKER_RAW, GpioOutputSafeHigh, 0);
-    static bool blinker_invert = true;
+    static constexpr bool blinker_invert = true;
 
     GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 14);
     GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 12);
