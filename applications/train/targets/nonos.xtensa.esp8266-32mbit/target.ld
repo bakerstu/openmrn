@@ -1,1 +1,1 @@
-../../../async_blink/targets/nonos.xtensa.esp8266-32mbit/target.ld
+../../../../boards/esp-bracz-deadrail-huzzah/bload_target.ld
