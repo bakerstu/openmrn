@@ -1,2 +1,4 @@
 train.elf
 wifi_settings.c
+address.h
+compile_cdi
