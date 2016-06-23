@@ -4,6 +4,7 @@
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "utils/GpioInitializer.hxx"
 
 struct HW
 {

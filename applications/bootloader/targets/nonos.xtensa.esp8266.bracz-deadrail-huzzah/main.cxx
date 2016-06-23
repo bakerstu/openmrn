@@ -47,7 +47,6 @@ extern "C" {
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "utils/ESPWifiClient.hxx"
 #include "utils/Crc.hxx"
-#include "utils/GpioInitializer.hxx"
 #include "utils/blinker.h"
 #include "nmranet_config.h"
 #include "nmranet/Defs.hxx"

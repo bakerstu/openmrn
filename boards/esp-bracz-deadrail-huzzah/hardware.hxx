@@ -1,9 +1,10 @@
-#ifndef _ESP_BRACZ_DEADRAIL_PROTO_HARDWARE_HXX_
-#define _ESP_BRACZ_DEADRAIL_PROTO_HARDWARE_HXX_
+#ifndef _ESP_BRACZ_DEADRAIL_HUZZAH_HARDWARE_HXX_
+#define _ESP_BRACZ_DEADRAIL_HUZZAH_HARDWARE_HXX_
 
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "utils/GpioInitializer.hxx"
 
 struct HW
 {
@@ -47,7 +48,7 @@ struct HW
     // Doubles as manual request pin.
     GPIO_PIN(REQ_BLOAD, GpioInputPU, 5);
 
-    GPIO_PIN(F1, GpioOutputSafeHigh, 2);
+    GPIO_PIN(F1, GpioOutputSafeHighInvert, 2);
     // typedef DummyPin F1_Pin;
 
     typedef GpioInitializer<        //
@@ -68,4 +69,4 @@ struct HW
 };
 
 
-#endif // _ESP_DEADRAIL_PROTO_HARDWARE_HXX_
+#endif // _ESP_DEADRAIL_HUZZAH_HARDWARE_HXX_

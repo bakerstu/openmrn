@@ -129,6 +129,7 @@ void ICACHE_FLASH_ATTR user_init()
     gpio_init();
     HW::BLINKER_RAW_Pin::hw_init();
     HW::BLINKER_RAW_Pin::hw_set_to_safe();
+    HW::GpioBootloaderInit::hw_init();
 
     //uart_div_modify(0, UART_CLK_FREQ / (74880));
     uart_div_modify(0, UART_CLK_FREQ / (115200));

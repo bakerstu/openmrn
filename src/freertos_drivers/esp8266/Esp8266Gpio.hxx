@@ -145,7 +145,7 @@ public:
     }
 };
 
-template <class Base, bool SAFE_VALUE> struct GpioOutputPin : public Base
+template <class Base, bool SAFE_VALUE, bool INVERT = false> struct GpioOutputPin : public Base
 {
 public:
     static void hw_init()
@@ -153,10 +153,22 @@ public:
         Base::set(SAFE_VALUE);
         Base::set_output();
         Base::set_gpio();
+        Base::set(SAFE_VALUE);
     }
     static void hw_set_to_safe()
     {
         Base::set(SAFE_VALUE);
+    }
+    static void set(bool value)
+    {
+        if (INVERT)
+        {
+            Base::set(!value);
+        }
+        else
+        {
+            Base::set(value);
+        }
     }
 };
 
@@ -168,11 +180,29 @@ struct GpioOutputSafeLow : public GpioOutputPin<Defs, false>
 {
 };
 
+/// Defines a GPIO output pin, initialized to be an output pin with low
+/// level. All set() commands are acted upon by inverting the value.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioOutputSafeLowInvert : public GpioOutputPin<Defs, false, true>
+{
+};
+
 /// Defines a GPIO output pin, initialized to be an output pin with high level.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs>
 struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
+{
+};
+
+/// Defines a GPIO output pin, initialized to be an output pin with high
+/// level. All set() commands are acted upon by inverting the value.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs>
+struct GpioOutputSafeHighInvert : public GpioOutputPin<Defs, true, true>
 {
 };
 
