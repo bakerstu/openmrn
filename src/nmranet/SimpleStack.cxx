@@ -175,7 +175,7 @@ void SimpleCanStackBase::create_config_file_if_needed(
         // Create file.
         LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
         reset = true;
-        fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
+        fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR);
         if (fd < 0)
         {
             printf("Failed to create config file: fd %d errno %d: %s\n",

@@ -77,7 +77,7 @@ protected:
     }
 
     LoggingTrain train_impl_{175};
-    TrainNode train_node_{&trainService_, &train_impl_};
+    TrainNodeForProxy train_node_{&trainService_, &train_impl_};
     CanDatagramService datagram_support_{ifCan_.get(), 10, 2};
     MemoryConfigHandler memory_config_handler_{&datagram_support_, nullptr, 3};
     dcc::RailcomHubFlow railcom_hub_{&g_service};

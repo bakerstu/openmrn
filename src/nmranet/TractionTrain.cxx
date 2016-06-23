@@ -43,12 +43,11 @@ namespace nmranet
 {
 
 TrainNode::TrainNode(TrainService *service, TrainImpl *train)
-    : isInitialized_(0)
-    , service_(service)
+    : service_(service)
     , train_(train)
+    , isInitialized_(0)
     , controllerNodeId_({0, 0})
 {
-    service_->register_train(this);
 }
 
 TrainNode::~TrainNode()
@@ -58,10 +57,18 @@ TrainNode::~TrainNode()
     }
 }
 
-NodeID TrainNode::node_id()
+TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
+    : TrainNode(service, train) {
+    service_->register_train(this);
+}
+
+TrainNodeWithId::TrainNodeWithId(TrainService *service, TrainImpl *train, NodeID node_id)
+    : TrainNode(service, train), nodeId_(node_id) {
+    service_->register_train(this);
+}
+
+NodeID TrainNodeForProxy::node_id()
 {
-    /** @TODO(balazs.racz) revise how to specify the nodeid for non-legacy
-     * trains. */
     return TractionDefs::train_node_id_from_legacy(
         train_->legacy_address_type(), train_->legacy_address());
 }

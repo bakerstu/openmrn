@@ -69,7 +69,7 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo, Trai
         }
     }
     if (!impl) return nullptr;
-    TrainNode *train_node = new TrainNode(traction_service, impl);
+    TrainNode *train_node = new TrainNodeForProxy(traction_service, impl);
     return train_node;
 }
 
