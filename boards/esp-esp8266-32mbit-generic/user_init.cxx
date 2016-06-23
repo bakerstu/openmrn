@@ -14,8 +14,7 @@ extern "C" {
 
 #include "os/os.h"
 #include "utils/blinker.h"
-
-static int blinkerpin = 2;
+#include "hardware.hxx"
 
 namespace nmranet {
 extern char CONFIG_FILENAME[];
@@ -29,11 +28,11 @@ void resetblink(uint32_t pattern)
 {
     if (pattern)
     {
-        gpio_output_set(0, (1 << blinkerpin), 0, 0);
+        HW::BLINKER_RAW_Pin::set(!HW::blinker_invert);
     }
     else
     {
-        gpio_output_set((1 << blinkerpin), 0, 0, 0);
+        HW::BLINKER_RAW_Pin::set(HW::blinker_invert);
     }
 }
 
@@ -49,9 +48,9 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
     uint32_t p = 0;
     while(true) {
         if (p & 1) {
-            gpio_output_set(0, (1 << blinkerpin), 0, 0);
+            HW::BLINKER_RAW_Pin::set(!HW::blinker_invert);
         } else {
-            gpio_output_set((1 << blinkerpin), 0, 0, 0);
+            HW::BLINKER_RAW_Pin::set(HW::blinker_invert);
         }
         p >>= 1;
         if (!p) p = pattern;
@@ -128,8 +127,8 @@ void reboot_now() {
 void ICACHE_FLASH_ATTR user_init()
 {
     gpio_init();
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
-    gpio_output_set(0, 0, (1 << blinkerpin), 0);
+    HW::BLINKER_RAW_Pin::hw_init();
+    HW::BLINKER_RAW_Pin::hw_set_to_safe();
 
     //uart_div_modify(0, UART_CLK_FREQ / (74880));
     uart_div_modify(0, UART_CLK_FREQ / (115200));
