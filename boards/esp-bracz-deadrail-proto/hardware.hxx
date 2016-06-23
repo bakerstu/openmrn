@@ -41,25 +41,37 @@ struct HW
 
     // typedef BLINKER_Pin LIGHT_FRONT_Pin;
     typedef DummyPin LIGHT_FRONT_Pin;
-    //GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
+    //GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, ??? RX pin);
     typedef DummyPin LIGHT_BACK_Pin;
     //GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 5);
 
     // Doubles as manual request pin.
     GPIO_PIN(REQ_BLOAD, GpioInputPU, 5);
 
-    //GPIO_PIN(F1, GpioOutputSafeHigh, 2);
-    typedef BlinkerPin F1_Pin;
-
-    //GPIO_PIN(ASEL1, GpioOutputSafeHigh, 0);
+    GPIO_PIN(ASEL1, GpioOutputSafeHigh, 0);
+    typedef BLINKER_Pin ASEL2_Pin;
     //GPIO_PIN(ASEL2, GpioOutputSafeHigh, 2);
+
+    GPIO_PIN(CHRG_EN, GpioOutputSafeLow, 15);
+
+    typedef DummyPin BootloaderActivePin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //
         MOT_B_HI_Pin, MOT_B_LO_Pin, //
         LIGHT_FRONT_Pin, LIGHT_BACK_Pin, //
+        ASEL1_Pin, ASEL2_Pin, //
+        CHRG_EN_Pin> GpioInit;
+
+
+    typedef GpioInitializer<        //
+        MOT_A_HI_Pin, MOT_A_LO_Pin, //
+        MOT_B_HI_Pin, MOT_B_LO_Pin, //
+        //LIGHT_FRONT_Pin, LIGHT_BACK_Pin, //
+        ASEL1_Pin, ASEL2_Pin, //
         REQ_BLOAD_Pin, //
-        F1_Pin> GpioInit;
+        CHRG_EN_Pin> GpioBootloaderInit;
+
 };
 
 

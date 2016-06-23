@@ -50,7 +50,7 @@ struct HW
     GPIO_PIN(REQ_BLOAD, GpioInputPU, 13);
 
     GPIO_PIN(F1, GpioOutputSafeHighInvert, 2);
-    // typedef DummyPin F1_Pin;
+    typedef F1_Pin BootloaderActivePin;
 
     typedef GpioInitializer<        //
         MOT_A_HI_Pin, MOT_A_LO_Pin, //

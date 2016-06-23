@@ -74,7 +74,7 @@ void bootloader_led(enum BootloaderLed id, bool value)
     switch (id)
     {
         case LED_ACTIVE:
-            HW::F1_Pin::set(value);
+            HW::BootloaderActivePin::set(value);
             return;
         case LED_WRITING:
             resetblink(value ? 1 : 0);
@@ -243,7 +243,6 @@ public:
 private:
     Action loop() {
         bootloader_loop();
-        HW::F1_Pin::set(HW::REQ_BLOAD_Pin::get());
         if (bootloader_reset_request) {
             return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(reset));
         }
