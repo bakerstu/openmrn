@@ -86,6 +86,10 @@ public:
 
     void set_done(BarrierNotifiable *done)
     {
+        if (done_)
+        {
+            done_->notify();
+        }
         done_ = done;
     }
 
@@ -155,6 +159,7 @@ protected:
         if (done_)
         {
             done_->notify();
+            done_ = nullptr;
         }
     }
 
