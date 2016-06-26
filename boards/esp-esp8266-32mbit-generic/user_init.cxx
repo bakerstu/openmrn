@@ -115,6 +115,11 @@ void init_done() {
         spiffs_init();
     }
 
+    printf("userinit pinout: B hi %d; B lo %d; A hi %d; A lo %d;\n",
+           HW::MOT_B_HI_Pin::PIN, 
+           HW::MOT_B_LO_Pin::PIN, 
+           HW::MOT_A_HI_Pin::PIN, 
+           HW::MOT_A_LO_Pin::PIN);
     appl_task(nullptr);
 }
 
