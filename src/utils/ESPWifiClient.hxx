@@ -152,7 +152,7 @@ public:
 
     void do_connect(ip_addr_t *ipaddr)
     {
-        os_printf("Connecting...\n");
+        os_printf("Connecting to %s:%d...\n", host_.c_str(), port_);
 
         conn_.type = ESPCONN_TCP;
         conn_.state = ESPCONN_NONE;
