@@ -453,6 +453,11 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
+    printf("pinout: B hi %d; B lo %d; A hi %d; A lo %d;\n",
+           HW::MOT_B_HI_Pin::PIN, 
+           HW::MOT_B_LO_Pin::PIN, 
+           HW::MOT_A_HI_Pin::PIN, 
+           HW::MOT_A_LO_Pin::PIN);
     resetblink(1);
     if (true)
         stack.create_config_file_if_needed(cfg.seg().internal_data(),
