@@ -32,7 +32,7 @@ struct HW
     GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 14);
     GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 12);
 
-    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 4);
+    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 5);
     GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 13);
 
     static constexpr bool invertLow = false;
@@ -43,10 +43,10 @@ struct HW
     typedef DummyPin LIGHT_FRONT_Pin;
     //GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, ??? RX pin);
     typedef DummyPin LIGHT_BACK_Pin;
-    //GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 5);
+    //GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 4);
 
     // Doubles as manual request pin.
-    GPIO_PIN(REQ_BLOAD, GpioInputPU, 5);
+    GPIO_PIN(REQ_BLOAD, GpioInputPU, 4);
 
     GPIO_PIN(ASEL1, GpioOutputSafeHigh, 0);
     typedef BLINKER_Pin ASEL2_Pin;
