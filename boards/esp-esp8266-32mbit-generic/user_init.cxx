@@ -15,6 +15,7 @@ extern "C" {
 #include "os/os.h"
 #include "utils/blinker.h"
 #include "hardware.hxx"
+#include "freertos/bootloader_hal.h"
 
 namespace nmranet {
 extern char CONFIG_FILENAME[];
@@ -121,7 +122,17 @@ extern "C" void system_restart_local();
 
 void reboot_now() {
     system_restart_local();
-    //(*((volatile uint32_t*) 0x60000700)) |= 0x80000000;
+}
+
+void reboot() {
+    system_restart_local();
+}
+
+void enter_bootloader() {
+    extern uint32_t __bootloader_magic_ptr;
+    __bootloader_magic_ptr = REQUEST_BOOTLOADER;
+    
+    system_restart_local();
 }
 
 void ICACHE_FLASH_ATTR user_init()
