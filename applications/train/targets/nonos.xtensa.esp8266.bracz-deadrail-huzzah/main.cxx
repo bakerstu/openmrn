@@ -61,49 +61,7 @@ extern void ets_delay_us(uint32_t us);
 }
 
 #include "nmranet/TrainInterface.hxx"
-
-struct HW
-{
-    /* original / standard definitions.
-        GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
-        GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
-
-        GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
-        GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
-
-        // forward: A=HI B=LO
-
-        GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
-        GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
-
-        GPIO_PIN(F1, GpioOutputSafeLow, 2);
-
-        //typedef DummyPin F1_Pin;
-
-    */
-
-    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
-    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
-
-    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
-    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
-
-    static constexpr bool invertLow = false;
-
-    // forward: A=HI B=LO
-
-    // typedef BLINKER_Pin LIGHT_FRONT_Pin;
-    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
-    GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
-
-    GPIO_PIN(F1, GpioOutputSafeHigh, 2);
-    // typedef DummyPin F1_Pin;
-
-    typedef GpioInitializer<        //
-        MOT_A_HI_Pin, MOT_A_LO_Pin, //
-        MOT_B_HI_Pin, MOT_B_LO_Pin, //
-        LIGHT_FRONT_Pin, LIGHT_BACK_Pin, F1_Pin> GpioInit;
-};
+#include "hardware.hxx"
 
 struct SpeedRequest
 {

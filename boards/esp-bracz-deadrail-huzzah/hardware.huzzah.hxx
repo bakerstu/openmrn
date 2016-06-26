@@ -6,8 +6,6 @@
 #include "freertos_drivers/common/DummyGPIO.hxx"
 #include "utils/GpioInitializer.hxx"
 
-#error baar
-
 struct HW
 {
     GPIO_PIN(BLINKER_RAW, GpioOutputSafeHigh, 0);
