@@ -124,7 +124,7 @@ public:
             size_t size = (end - dbuf_);
             if (size)
             {
-                Buffer<HubData> *target_buffer;
+                Buffer<HubData> *target_buffer = nullptr;
                 /// @todo(balazs.racz) switch to asynchronous allocation here.
                 mainBufferPool->alloc(&target_buffer);
                 target_buffer->data()->skipMember_ = skipMember_;
