@@ -49,7 +49,7 @@ protected:
         expect_packet(":X1070133AN0601000006C4;");
         // initialized
         expect_packet(":X1910033AN0601000006C4;");
-        trainNode_.reset(new TrainNode(&trainService_, &trainImpl_));
+        trainNode_.reset(new TrainNodeForProxy(&trainService_, &trainImpl_));
         wait();
     }
 
