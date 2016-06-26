@@ -6,26 +6,10 @@
 #include "freertos_drivers/common/DummyGPIO.hxx"
 #include "utils/GpioInitializer.hxx"
 
+#error baar
+
 struct HW
 {
-    /* original / standard definitions.
-        GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 4);
-        GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 5);
-
-        GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
-        GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
-
-        // forward: A=HI B=LO
-
-        GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 13);
-        GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, 15);
-
-        GPIO_PIN(F1, GpioOutputSafeLow, 2);
-
-        //typedef DummyPin F1_Pin;
-
-    */
-
     GPIO_PIN(BLINKER_RAW, GpioOutputSafeHigh, 0);
     static constexpr bool blinker_invert = true;
 
