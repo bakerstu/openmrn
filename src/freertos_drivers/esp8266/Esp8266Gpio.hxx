@@ -40,25 +40,63 @@
 extern "C" {
 #include <gpio.h>
 #include <eagle_soc.h>
+
+/**  
+  * @brief   Enable GPIO16 output.
+  * 
+  * @param   null
+  *  
+  * @return  null
+  */
+void gpio16_output_conf(void);
+
+/**  
+  * @brief   Set GPIO16 output level.
+  * 
+  * @param   uint8 value : GPIO16 output level.
+  *  
+  * @return  null
+  */
+void gpio16_output_set(uint8 value);
+
+/**  
+  * @brief   Enable GPIO pin intput.
+  * 
+  * @param   null
+  *  
+  * @return  null
+  */
+void gpio16_input_conf(void);
+
+/**  
+  * @brief   Sample the value of GPIO16 input.
+  * 
+  * @param   null
+  *  
+  * @return  the level  of GPIO16 input.
+  */
+uint8 gpio16_input_get(void);
+
+
 }
 
 constexpr uint32_t pinmux_to_gpio_arr[] = {
-    PERIPHS_IO_MUX_GPIO0_U, // 0
-    PERIPHS_IO_MUX_U0TXD_U, // 1
-    PERIPHS_IO_MUX_GPIO2_U, // 2
-    PERIPHS_IO_MUX_U0RXD_U, // 3
-    PERIPHS_IO_MUX_GPIO4_U, // 4
-    PERIPHS_IO_MUX_GPIO5_U, // 5
-    PERIPHS_IO_MUX_SD_CLK_U, // 6
+    PERIPHS_IO_MUX_GPIO0_U,    // 0
+    PERIPHS_IO_MUX_U0TXD_U,    // 1
+    PERIPHS_IO_MUX_GPIO2_U,    // 2
+    PERIPHS_IO_MUX_U0RXD_U,    // 3
+    PERIPHS_IO_MUX_GPIO4_U,    // 4
+    PERIPHS_IO_MUX_GPIO5_U,    // 5
+    PERIPHS_IO_MUX_SD_CLK_U,   // 6
     PERIPHS_IO_MUX_SD_DATA0_U, // 7
     PERIPHS_IO_MUX_SD_DATA1_U, // 8
     PERIPHS_IO_MUX_SD_DATA2_U, // 9
     PERIPHS_IO_MUX_SD_DATA3_U, // 10
-    PERIPHS_IO_MUX_SD_CMD_U, // 11
-    PERIPHS_IO_MUX_MTDI_U, // 12
-    PERIPHS_IO_MUX_MTCK_U, // 13
-    PERIPHS_IO_MUX_MTMS_U, // 14
-    PERIPHS_IO_MUX_MTDO_U, // 15
+    PERIPHS_IO_MUX_SD_CMD_U,   // 11
+    PERIPHS_IO_MUX_MTDI_U,     // 12
+    PERIPHS_IO_MUX_MTCK_U,     // 13
+    PERIPHS_IO_MUX_MTMS_U,     // 14
+    PERIPHS_IO_MUX_MTDO_U,     // 15
 };
 
 constexpr uint32_t gpio_num_to_pinmux_reg(int gpio_pin_num)
@@ -99,12 +137,26 @@ public:
 
     static void set_pullup_on()
     {
-        PIN_PULLUP_EN(PIN_MUX_REG);
+        CLEAR_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP2 | PERIPHS_IO_MUX_SLEEP_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP2);
+        SET_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP);
     }
 
     static void set_pullup_off()
     {
-        PIN_PULLUP_DIS(PIN_MUX_REG);
+        CLEAR_PERI_REG_MASK(
+            PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_PULLUP2);
+    }
+
+    static void set_pulldown_on()
+    {
+        CLEAR_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP2);
+        SET_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP2);
+    }
+
+    static void set_pulldown_off()
+    {
+        CLEAR_PERI_REG_MASK(
+            PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_PULLUP2);
     }
 
     static void set_on()
@@ -145,7 +197,8 @@ public:
     }
 };
 
-template <class Base, bool SAFE_VALUE, bool INVERT = false> struct GpioOutputPin : public Base
+template <class Base, bool SAFE_VALUE, bool INVERT = false>
+struct GpioOutputPin : public Base
 {
 public:
     static void hw_init()
@@ -169,6 +222,36 @@ public:
         {
             Base::set(value);
         }
+    }
+};
+
+template <class Base>
+struct GpioPullOutPin : public Base
+{
+public:
+    static void hw_init()
+    {
+        Base::set_input();
+        Base::set_gpio();
+        Base::set_pullup_on();
+    }
+    static void hw_set_to_safe()
+    {
+        Base::set_pullup_on();
+    }
+    static void set(bool value)
+    {
+        if (value) {
+            Base::set_pullup_on();
+        } else {
+            Base::set_pulldown_on();
+        }
+    }
+    static void set_on() {
+        Base::set_pullup_on();
+    }
+    static void set_off() {
+        Base::set_pulldown_on();
     }
 };
 
@@ -212,9 +295,12 @@ public:
     static void hw_init()
     {
         Base::set_input();
-        if (PUEN) {
+        if (PUEN)
+        {
             Base::set_pullup_on();
-        } else {
+        }
+        else
+        {
             Base::set_pullup_off();
         }
         Base::set_gpio();
@@ -228,16 +314,14 @@ public:
 /// Defines a GPIO input pin. No pull-up.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <class Defs>
-struct GpioInputNP : public GpioInputPar<Defs, false>
+template <class Defs> struct GpioInputNP : public GpioInputPar<Defs, false>
 {
 };
 
 /// Defines a GPIO input pin with pull-up.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <class Defs>
-struct GpioInputPU : public GpioInputPar<Defs, true>
+template <class Defs> struct GpioInputPU : public GpioInputPar<Defs, true>
 {
 };
 
