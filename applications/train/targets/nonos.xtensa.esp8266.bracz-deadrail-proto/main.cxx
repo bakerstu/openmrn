@@ -411,6 +411,8 @@ private:
  */
 int appl_main(int argc, char *argv[])
 {
+    gpio16_output_conf();
+    gpio16_output_set(1);
     printf("pinout: B hi %d; B lo %d; A hi %d; A lo %d;\n",
            HW::MOT_B_HI_Pin::PIN, 
            HW::MOT_B_LO_Pin::PIN, 
