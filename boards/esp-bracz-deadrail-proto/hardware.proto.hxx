@@ -26,7 +26,7 @@ struct HW
     //GPIO_PIN(LIGHT_BACK, GpioOutputSafeLow, ??? RX pin);
     //typedef DummyPin LIGHT_FRONT_Pin;
     //GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 4);
-    GPIO_PIN(LIGHT_FRONT, GpioPullOutPin, 4);
+    GPIO_PIN(LIGHT_FRONT, GpioOutputSafeLow, 4);
     typedef DummyPin F1_Pin;
 
     // Doubles as manual request pin.
