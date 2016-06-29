@@ -40,6 +40,9 @@
 namespace dcc
 {
 
+/// Forces compilation of all existing train implementations even though many
+/// are actually templates. This avoid needing to put all this code into a .hxx
+/// file.
 extern void createtrains();
 
 template <> DccTrain<Dcc28Payload>::~DccTrain()

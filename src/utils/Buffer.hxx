@@ -68,7 +68,7 @@ extern DynamicPool *mainBufferPool;
 
 /** Initializes the main buffer pool. The first call is not thread safe, later
  * calls are noops. It is recommended to call this one or more times from the
- * static initialization. */
+ * static initialization. @return the mainBufferPool instance. */
 Pool* init_main_buffer_pool();
 
 /** This pointer will be saved for debugging the current allocation source. */
@@ -230,7 +230,8 @@ private:
     T data_;
 };
 
-
+/// Helper class for correctly deleting a buffer. Implements the Deleter
+/// concept of STL, can be passed to std::unique_ptr.
 template<typename T> struct BufferDelete {
     void operator()(Buffer<T>* b) {
         if (b) b->unref();
@@ -239,6 +240,8 @@ template<typename T> struct BufferDelete {
 
 /** This class will automatically unref a Buffer when going out of scope. */
 template<typename T> using AutoReleaseBuffer = std::unique_ptr<Buffer<T>, BufferDelete<T>>;
+/** Smart pointer for buffers. This class will automatically unref a Buffer
+ * when going out of scope. */
 template<typename T> using BufferPtr = AutoReleaseBuffer<T>;
 
 /** Pool of previously allocated, but currently unused, items. */

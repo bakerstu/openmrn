@@ -145,7 +145,10 @@ private:
 /// InitializeFlow.
 void StartInitializationFlow(Node *node);
 
-
+/// StateFlow that iterates through all local nodes and sends out node
+/// initialization complete for each of them. Used when a TCP disconnect event
+/// causes us to lose network connectivity and later the connection gets
+/// reestablished.
 class ReinitAllNodes : public StateFlowBase {
 public:
     ReinitAllNodes(If* iface) : StateFlowBase(iface) {

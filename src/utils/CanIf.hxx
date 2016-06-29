@@ -108,7 +108,10 @@ struct CanMessageData : public can_frame
  * not easy, because they use different ID functions and their size differs
  * a bit as well. */
 typedef FlowInterface<Buffer<CanMessageData>> IncomingFrameHandler;
+/// StateFlow handling incoming messages as registered to the message
+/// dispatcher.
 typedef StateFlow<Buffer<CanMessageData>, QList<1>> IncomingFrameFlow;
+/// Base class of flow to send outgoing CAN frames to.
 typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
 
 class CanIf;

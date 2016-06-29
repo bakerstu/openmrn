@@ -52,6 +52,7 @@ namespace nmranet
 
 class Node;
 
+/// Container that carries the data bytes in an NMRAnet message.
 typedef string Payload;
 
 /** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
@@ -230,6 +231,8 @@ struct NMRAnetMessage
     };
 };
 
+/// Interface class for all handlers that can be registered in the dispatcher
+/// to receive incoming NMRAnet messages.
 typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
 
 /// Abstract class representing an OpenLCB Interface. All interaction between
@@ -390,6 +393,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(If);
 };
 
+/// Message handlers that are implemented as state flows should derive from
+/// this class.
 typedef StateFlow<Buffer<NMRAnetMessage>, QList<4>> MessageStateFlowBase;
 
 /** Base class for incoming message handler flows. */

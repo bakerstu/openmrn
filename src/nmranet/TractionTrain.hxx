@@ -48,6 +48,8 @@ namespace nmranet
 
 class TrainService;
 
+/// Linked list entry for all registered consist clients for a given train
+/// node.
 struct ConsistEntry : public QMember {
     ConsistEntry(NodeID s, uint8_t flags) : payload((s << 8) | flags) {}
     NodeID get_slave() const {

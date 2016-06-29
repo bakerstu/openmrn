@@ -79,6 +79,7 @@ struct BootloaderRequest
     BootloaderResponse *response{nullptr};
 };
 
+/// How long to wait for a write datagram's response in the bootloader client.
 extern int g_bootloader_timeout_sec;
 int g_bootloader_timeout_sec = 3;
 

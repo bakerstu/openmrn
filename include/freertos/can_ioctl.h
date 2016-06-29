@@ -43,6 +43,7 @@ extern "C" {
 /** Magic number for this driver's ioctl calls */
 #define CAN_IOC_MAGIC ('c')
 
+/// ioctl minor type used for the read/write active notifiable integration.
 #define NOTIFIABLE_TYPE 13
 
 /** read active ioctl. Argument is a literal pointer to a Notifiable. */

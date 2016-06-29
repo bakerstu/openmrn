@@ -32,7 +32,7 @@
  * @date 13 August 2012
  */
 
-// Forces one definition of each inline function to be compliled.
+/// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern
 
 #include <stdint.h>
@@ -678,7 +678,7 @@ void main_thread(void *arg)
 #endif
 
 /** This function does nothing. It can be used to alias other symbols to it via
- * linker flags, such as atexit(). */
+ * linker flags, such as atexit(). @return 0. */
 int ignore_fn(void)
 {
     return 0;

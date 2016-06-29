@@ -89,9 +89,9 @@ public:
 /// Use this macro in the final optionalargs structure. Each entry in the Defs
 /// structure should have a definition with matching options.
 ///
-/// @param SpecName same as in @ref DECLARE_OPTIONALARGS
-/// @param function_name same as in @ref DECLARE_OPTIONALARGS
-/// @param DataType same as in @ref DECLARE_OPTIONALARGS
+/// @param SpecName same as in @ref DECLARE_OPTIONALARG
+/// @param function_name same as in @ref DECLARE_OPTIONALARG
+/// @param DataType same as in @ref DECLARE_OPTIONALARG
 #define DEFINE_OPTIONALARG(SpecName, function_name, DataType)                  \
     constexpr DataType function_name() const                                   \
     {                                                                          \

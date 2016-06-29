@@ -51,38 +51,71 @@
   * @brief This is the list of modules to be used in the HAL driver 
   */
 #define HAL_MODULE_ENABLED
+/// Enable module
 #define HAL_ADC_MODULE_ENABLED
+/// Enable module
 #define HAL_CAN_MODULE_ENABLED
+/// Enable module
 #define HAL_CEC_MODULE_ENABLED
+/// Enable module
 #define HAL_COMP_MODULE_ENABLED
+/// Enable module
 #define HAL_CORTEX_MODULE_ENABLED
+/// Enable module
 #define HAL_CRC_MODULE_ENABLED
+/// Enable module
 #define HAL_DAC_MODULE_ENABLED
+/// Enable module
 #define HAL_DMA_MODULE_ENABLED
+/// Enable module
 #define HAL_FLASH_MODULE_ENABLED
+/// Enable module
 #define HAL_SRAM_MODULE_ENABLED
+/// Enable module
 #define HAL_NOR_MODULE_ENABLED
+/// Enable module
 #define HAL_NAND_MODULE_ENABLED
+/// Enable module
 #define HAL_PCCARD_MODULE_ENABLED
+/// Enable module
 #define HAL_GPIO_MODULE_ENABLED
+/// Enable module
 #define HAL_HRTIM_MODULE_ENABLED
+/// Enable module
 #define HAL_I2C_MODULE_ENABLED
+/// Enable module
 #define HAL_I2S_MODULE_ENABLED
+/// Enable module
 #define HAL_IRDA_MODULE_ENABLED
+/// Enable module
 #define HAL_IWDG_MODULE_ENABLED
+/// Enable module
 #define HAL_OPAMP_MODULE_ENABLED
+/// Enable module
 #define HAL_PCD_MODULE_ENABLED
+/// Enable module
 #define HAL_PWR_MODULE_ENABLED
+/// Enable module
 #define HAL_RCC_MODULE_ENABLED
+/// Enable module
 #define HAL_RTC_MODULE_ENABLED
+/// Enable module
 #define HAL_SDADC_MODULE_ENABLED
+/// Enable module
 #define HAL_SMARTCARD_MODULE_ENABLED
+/// Enable module
 #define HAL_SMBUS_MODULE_ENABLED
+/// Enable module
 #define HAL_SPI_MODULE_ENABLED
+/// Enable module
 #define HAL_TIM_MODULE_ENABLED
+/// Enable module
 #define HAL_TSC_MODULE_ENABLED
+/// Enable module
 #define HAL_UART_MODULE_ENABLED
+/// Enable module
 #define HAL_USART_MODULE_ENABLED
+/// Enable module
 #define HAL_WWDG_MODULE_ENABLED
 
 /* ########################## HSE/HSI Values adaptation ##################### */
@@ -155,9 +188,13 @@
   */     
 #define  VDD_VALUE                    ((uint32_t)3300) /*!< Value of VDD in mv */
 #define  TICK_INT_PRIORITY            ((uint32_t)(1<<__NVIC_PRIO_BITS) - 1)   /*!< tick interrupt priority (lowest by default) */
+/// Do not use the stm32 HAL's RTOS features. (btw: why?)
 #define  USE_RTOS                     0
+/// Enable flash prefetch.
 #define  PREFETCH_ENABLE              1
+/// We do not have an instruction cache in stm32f3 (sure?)
 #define  INSTRUCTION_CACHE_ENABLE     0
+/// We do not have a data cache in stm32f3 (sure?)
 #define  DATA_CACHE_ENABLE            0
 
 /* ########################## Assert Selection ############################## */

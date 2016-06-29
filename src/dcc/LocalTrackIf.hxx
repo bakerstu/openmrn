@@ -86,6 +86,10 @@ protected:
     FixedPool pool_;
 };
 
+/// StateFlow that accepts dcc::Packet structures and sends them to a local
+/// device driver for producing the track signal.
+///
+/// The device driver must support the select() model.
 class LocalTrackIfSelect : public LocalTrackIf
 {
 public:

@@ -54,6 +54,7 @@ private:
   C log_;
 };
 
+/// Actual class that keeps 8 log entries of one byte each.
 typedef SimpleLog<uint64_t> LogBuffer;
 
 #endif // _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_

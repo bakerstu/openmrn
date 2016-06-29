@@ -36,7 +36,11 @@
 
 #include "EEPROM.hxx"
 
+/// Linker-defined symbol where in the memory space (flash) the eeprom
+/// emulation data starts.
 extern const char __eeprom_start;
+/// Linker-defined symbol where in the memory space (flash) the eeprom
+/// emulation data ends.
 extern const char __eeprom_end;
 
 /** Emulates EEPROM in FLASH for the Tiva, LPC17xx and LPC40xx

@@ -44,6 +44,18 @@
 #include "utils/Buffer.hxx"
 #include "utils/Queue.hxx"
 
+/// Turns a function name into an argument to be supplied to functions
+/// expecting a state. Usage:
+/// Action foo() {
+///    ...
+///    return wait_and_call(STATE(next_state));
+/// }
+/// Action next_state() { ... }
+///
+/// This macro exists to avoid writing a lot of boilerplate to correctly with
+/// c++ syntax reference state functions.
+///
+/// @param _fn is the name of a state function on the current class.
 #define STATE(_fn)                                                             \
     (StateFlowBase::Callback)(                                                 \
         &std::remove_reference<decltype(*this)>::type::_fn)
@@ -55,6 +67,7 @@
 
 /** Begin the definition of a StateFlow.
  * @param _name the class name of the StateFlow derived object
+ * @param _message is the type of message that this stateflow can receive.
  * @param _priorities number of input queue priorities
  */
 #define STATE_FLOW_START(_name, _message, _priorities)                         \
@@ -1121,8 +1134,8 @@ protected:
         this->currentMessage_ = nullptr;
     }
 
-    /** For state flows that are operated using invoke_child_flow this is a way
-     * to hand back the buffer to the caller. message() will be null
+    /** For state flows that are operated using invoke_subflow_and_wait this is
+     * a way to hand back the buffer to the caller. message() will be null
      * afterwards. */
     void return_buffer()
     {

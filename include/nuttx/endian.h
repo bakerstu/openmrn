@@ -84,19 +84,31 @@ static inline uint64_t __bswap_64(uint64_t x)
     #define be64toh(x) (x)
     #define le64toh(x) __bswap_64 (x)
 #else
+/// Converts a host endian 16-bit value to big endian.
     #define htobe16(x) __bswap_16 (x)
+/// Converts a host endian 16-bit value to little endian.
     #define htole16(x) (x)
+/// Converts a big endian 16-bit value to host endian.
     #define be16toh(x) __bswap_16 (x)
+/// Converts a little endian 16-bit value to host endian.
     #define le16toh(x) (x)
 
+/// Converts a host endian 32-bit value to big endian.
     #define htobe32(x) __bswap_32 (x)
+/// Converts a host endian 32-bit value to little endian.
     #define htole32(x) (x)
+/// Converts a big endian 32-bit value to host endian.
     #define be32toh(x) __bswap_32 (x)
+/// Converts a little endian 32-bit value to host endian.
     #define le32toh(x) (x)
 
+/// Converts a host endian 64-bit value to big endian.
     #define htobe64(x) __bswap_64 (x)
+/// Converts a host endian 64-bit value to little endian.
     #define htole64(x) (x)
+/// Converts a big endian 64-bit value to host endian.
     #define be64toh(x) __bswap_64 (x)
+/// Converts a little endian 64-bit value to host endian.
     #define le64toh(x) (x)
 #endif
 

@@ -38,6 +38,7 @@
 
 template <unsigned N> struct CharlieplexHelper;
 
+/// Helper structure for the charlieplexing implementation.
 template <> struct CharlieplexHelper<3>
 {
     static const uint8_t pinlist[];
@@ -65,10 +66,28 @@ const uint8_t CharlieplexHelper<3>::pinlist[] = {
     2, 0, //
 };
 
+/// Class that implements a Charlieplexing LED driver, operating N choose 2
+/// output LEDs from N GPIO pins.
+/// 
+/// Usage:
+/// 
+/// Specify the iteration over the pairs of pins like above if you have more
+/// than 3 pins.
+/// 
+/// Create the Charlieplex instance with supplying the Gpio object
+/// pointers. The object pointers could point to flash.
+///
+/// Set the desired values for the individual LEDs through @ref payload(). Bit
+/// 0 in the pointed object will be the output led 0.
+///
+/// From a hardware timer interrupt repeatedly call the @ref tick() function. A
+/// rate of 100 Hz * number of LEDs is advised. It is important that the time
+/// between different calls of tick() be somewhat homogenous or else an equal
+/// intensity of the individual LEDs that are turned on cannot be guaranteed.
 template <unsigned N, class helper = CharlieplexHelper<N>> class Charlieplex
 {
 public:
-    Charlieplex(const Gpio * const pins[N] )
+    Charlieplex(const Gpio * const pins[N])
         : pins_(pins)
         , nextBit_(0)
         , bits_(0)

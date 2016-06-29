@@ -39,6 +39,7 @@
 #ifdef TARGET_LPC11Cxx
 #define NUM_OPEN_FILES     4
 #else
+/// How many concurrently open fd we support.
 #define NUM_OPEN_FILES     12
 #endif
 

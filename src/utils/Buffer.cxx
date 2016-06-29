@@ -103,6 +103,11 @@ void* g_current_alloc;
 #endif
 
 extern "C" {
+/// malloc implementation used for allocating buffer space. Override the weak
+/// definition if the buffer space should be allocated from some other place
+/// than the heap. Useful for MCUs with multiple memory banks.
+/// @param size how much memory to allocate (in bytes)
+/// @return pointer to allcoated memory
 extern void *buffer_malloc(size_t size);
 }
 

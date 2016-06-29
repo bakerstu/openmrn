@@ -44,6 +44,17 @@
 namespace dcc
 {
 
+/// Describes what sort of packet the dcc:PacketSource (usually a single train)
+/// should generate. This is used for two purposes:
+///
+/// - When a user action results in a high priority band packet to be enerated,
+///   we can enqueue a message containing this code to the refreshloop
+///   object. Then when the refresh loop gets to the given packet, the train
+///   will be called with the appropriate code to generate the desired packet
+///   from its internal state (the freshest version of that).
+///
+/// - When a train is on the background refresh loop, it can keep an internal
+///   variable describing what packet to generate next as a refresh packet.
 enum DccTrainUpdateCode
 {
     REFRESH = 0,

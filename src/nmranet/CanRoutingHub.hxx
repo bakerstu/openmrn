@@ -416,16 +416,17 @@ private:
 
     friend class DeliveryFlow;
 
+    /// Data and objects we keep for each port.
     struct PortParser
     {
-        /// If true, we must not send any data to this target, because it
-        /// has
+        /// If true, we must not send any data to this target, because it has
         /// been unregistered.
         bool inactive_{false};
         GcStreamParser segmenter_;
         CanHubPortInterface *canPort_{nullptr};
         HubPortInterface *hubPort_{nullptr};
     };
+    /// Keyed by the skipMember_ value of the incoming data from a given port.
     std::map<void *, PortParser> ports_;
     OSMutex lock_;
     /** Due to race conditions involving iteration and add/remove calls, we

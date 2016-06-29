@@ -36,6 +36,11 @@
 #ifndef _UTILS_BUFFERPORT_HXX_
 #define _UTILS_BUFFERPORT_HXX_
 
+/// A wrapper class around a string-based Hub Port that buffersthe outgoing
+/// bytes for a specified delay timer before sending the data off. This helps
+/// accumulate more data per TCP packet and increase transmission efficiency.
+///
+// Added by default on GridConnect bridges.
 class BufferPort : public HubPort
 {
 public:
@@ -117,6 +122,8 @@ private:
         return *message()->data();
     }
 
+    /// Timer that triggers the parent flow when expiring. Used to flush the
+    /// accumulated gridconnect bytes to the downstream HUB.
     class BufferTimer : public ::Timer
     {
     public:

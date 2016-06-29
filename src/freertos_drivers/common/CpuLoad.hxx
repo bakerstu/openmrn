@@ -37,9 +37,22 @@
 #include "utils/Singleton.hxx"
 
 extern "C" {
+/// Call this function repeatedly from a hardware timer to feed the CPUload
+/// class.
 void cpuload_tick(void);
 }
  
+/// Singleton class that records the CPU load under FreeRTOS.
+///
+/// Usage: 
+///
+/// . create a single (global) instance of this class.
+///
+/// . repeatedly call cpuload_tick() from a hardware timer. A rate of 100 Hz is
+/// usually fine.
+///
+/// . retrieve CPU load when desired from the object of this class or via
+///   Singleton<CpuLoad>::instance().
 class CpuLoad : public Singleton<CpuLoad> {
 public:
     CpuLoad() {}

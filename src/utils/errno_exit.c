@@ -38,6 +38,12 @@
 
 #include "utils/logging.h"
 
+/// Prints an error message about errno to std error and terminates the current
+/// program.
+///
+/// @param where C-style string describing where the error has happened. Will
+/// be printed too.
+///
 void print_errno_and_exit(const char* where) {
   LOG(FATAL, "%s: error (%d) %s\n", where, errno, strerror(errno));
 }

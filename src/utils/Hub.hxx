@@ -120,7 +120,8 @@ typedef HubContainer<string> HubData;
 
 /** This class can be sent via a Buffer to a CAN hub.
  *
- * Access the data content via members \ref mutable_frame and \ref frame.
+ * Access the data content via members \ref CanFrameContainer::mutable_frame
+ * and \ref CanFrameContainer::frame.
  *
  * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
  */
@@ -128,8 +129,11 @@ typedef HubContainer<CanFrameContainer> CanHubData;
 
 /** All ports interfacing via a hub will have to derive from this flow. */
 typedef FlowInterface<Buffer<HubData>> HubPortInterface;
+/// Base class for a port to an ascii hub that is implemented as a stateflow.
 typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
+/// Interface class for a port to an CAN hub.
 typedef FlowInterface<Buffer<CanHubData>> CanHubPortInterface;
+/// Base class for a port to an CAN hub that is implemented as a stateflow.
 typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
 
 /// This should work for both 32 and 64-bit architectures.

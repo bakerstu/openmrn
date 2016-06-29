@@ -37,9 +37,17 @@
 #include "utils/Crc.hxx"
 #include "utils/macros.h"
 
+/// Initialization value for the CRC-16-IBM calculator.
 static const uint16_t crc_16_ibm_init_value = 0x0000; // TODO: check
+/// Polynomial for the CRC-16-IBM calculator.
 static const uint16_t crc_16_ibm_poly = 0xA001; // TODO: check
 
+/// Reverses the bits of a byte.
+///
+/// @param data input byte
+///
+/// @return the input bits reversed (bit 0 exchanged with bit 7 et al.)
+///
 uint8_t reverse(uint8_t data) {
     uint8_t out = 0;
     for (int i = 0; i < 8; i++) {
@@ -77,7 +85,11 @@ inline uint16_t crc_16_ibm_finish(uint16_t state) {
     //return state;
     }*/
 
-
+/// Appends a byte to a CRC16 state machine.
+///
+/// @param state the state machine of the CRC computer.
+/// @param data next byte to add.
+///
 inline void crc_16_ibm_add(uint16_t& state, uint8_t data) {
     state ^= data;
     for (int i = 0; i < 8; i++) {
@@ -89,6 +101,13 @@ inline void crc_16_ibm_add(uint16_t& state, uint8_t data) {
     }
 }
 
+/// Finalizes the state machine of a CRC16-IBM calculator.
+///
+/// @param state internal state of the machine.
+///
+/// @return the CRC-16-IBM value of the byte sequence added to the state
+/// machine during its lifetime.
+///
 inline uint16_t crc_16_ibm_finish(uint16_t state) {
     //return (reverse(state & 0xff) << 8) | reverse(state >> 8);
     //crc_16_ibm_add(state, 0);

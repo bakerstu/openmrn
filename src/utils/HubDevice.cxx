@@ -62,6 +62,7 @@ void FdHubPort<HubFlow>::ReadThread::send_message(const void *buf, int size)
     port()->hub_->send(b);
 }
 
+/// Prefix for thread names created by the FdHubPort for reading and writing.
 static const char kThreadPrefix[] = "thread_fd_";
 
 void FdHubPortBase::fill_thread_name(char *buf, char mode, int fd)

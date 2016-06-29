@@ -43,12 +43,17 @@
 #include "executor/StateFlow.hxx"
 
 extern "C" {
+/// Called when the node needs to be rebooted.
 extern void reboot();
 }
 
 namespace nmranet
 {
 
+/// Implementation of the ConfigUpdateService: state flow issuing all the calls
+/// to the registered ConfigUpdateListener descendants. This flow also handles
+/// any necessary action such as reboot or factory reset. This flow keeps the
+/// file descriptor for the config file that's currently open.
 class ConfigUpdateFlow : public StateFlowBase,
                          public ConfigUpdateService,
                          private Atomic

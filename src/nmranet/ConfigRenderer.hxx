@@ -54,6 +54,8 @@ struct AtomConfigDefs
     using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues>;
 };
 
+/// Configuration implementation class for CDI Atom elements (strings, events
+/// and numbers).
 class AtomConfigOptions : public AtomConfigDefs::Base
 {
 public:
@@ -121,6 +123,7 @@ private:
     unsigned size_;
 };
 
+/// Declarations for the options for numeric CDI entries.
 struct NumericConfigDefs : public AtomConfigDefs
 {
     // This is needed for inheriting declarations.
@@ -132,6 +135,7 @@ struct NumericConfigDefs : public AtomConfigDefs
         Min, Max, Default>;
 };
 
+/// Definitions for the options for numeric CDI entries.
 class NumericConfigOptions : public NumericConfigDefs::Base
 {
 public:
@@ -229,6 +233,7 @@ struct GroupConfigDefs : public AtomConfigDefs
         Offset, RepName>;
 };
 
+/// Implementation class for the condifuration options of a CDI group element.
 class GroupConfigOptions : public GroupConfigDefs::Base
 {
 public:
@@ -413,6 +418,8 @@ struct IdentificationConfigDefs
         HwVersion, SwVersion>;
 };
 
+/// Configuration implementation options for rendering CDI (identification)
+/// data elements.
 class IdentificationConfigOptions : public IdentificationConfigDefs::Base
 {
 public:
@@ -425,7 +432,7 @@ public:
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
 };
 
-/// Helper class for rendering the <identification> tag.
+/// Helper class for rendering the "<identification>" tag.
 class IdentificationRenderer
 {
 public:

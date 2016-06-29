@@ -42,10 +42,11 @@
 #ifdef __cplusplus
 extern "C" {
 #else
+/// Hack to allow compiling this code in C context too.
 typedef unsigned bool;
 #endif
 
-// Number of 32-bit words in one checksum data.
+/// Number of 32-bit words in one checksum data.
 #define CHECKSUM_COUNT 4
 
 /** Static definitions of the application. These will be flashed with the
@@ -69,6 +70,8 @@ struct app_header {
     uint32_t checksum_post[CHECKSUM_COUNT];
 };
 
+/// Parametrizes the @ref bootloader_led function with logical functions that
+/// can be assigned to physical LEDs.
 enum BootloaderLed {
   /* 1 when there is an incoming packet pending, an outgoing packet pending or
      datagram being transmitted or deceived. */
@@ -88,6 +91,8 @@ enum BootloaderLed {
 /** Write this value to __bootloader_magic_ptr and jump to the bootloader entry
  * point in order to explicitly call the bootloader. */
 static const uint32_t REQUEST_BOOTLOADER = 0x76b89b1eU;
+/// This is the place where @ref REQUEST_BOOTLOADER has to be written before
+/// rebooting the MCU to force entering the bootloader.
 extern uint32_t __bootloader_magic_ptr;
 
 /** Initializes the hardware to a safe state of the outputs. This function may
@@ -113,8 +118,10 @@ extern void application_entry(void);
 /** Resets the microcontroller. Never returns. */
 extern void bootloader_reboot(void);
 
-/** Sets the LEDs indicated by @param mask to the value indicated by @param
- *  value. */
+/** Sets status LEDs.
+ * @param led the logical function describing which LED to set.
+ * @param value is 1 to turn LED on, 0 to turn it off.
+ */
 extern void bootloader_led(enum BootloaderLed led, bool value);
 
 /** Checks if there is an incoming CAN frame from the hardware.
@@ -209,10 +216,12 @@ extern void raw_write_flash(
 extern void checksum_data(const void* data, uint32_t size, uint32_t* checksum);
 
 /** Suggests an NMRAnet CAN alias for use. If the running application has saved
- *  the last used alias, this function returns it. */
+ *  the last used alias, this function returns it. 
+ * @return the suggested alias. */
 extern uint16_t nmranet_alias(void);
 
-/** @returns the NMRAnet NodeID for this hardware node. */
+/** @return the NMRAnet NodeID for this hardware node. 
+ */
 extern uint64_t nmranet_nodeid(void);
 
 #ifdef __cplusplus

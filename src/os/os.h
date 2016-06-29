@@ -70,6 +70,7 @@ extern "C" {
 
 
 #ifndef OS_INLINE
+/// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern inline __attribute__((__gnu_inline__))
 #endif
 
@@ -280,7 +281,7 @@ OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 #define SEC_TO_MSEC(_sec) (((long long)_sec) * 1000LL)
 
-/** Create a thread.
+/** Creates a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
  * @param priority priority of created thread, 0 means default

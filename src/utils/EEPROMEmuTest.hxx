@@ -51,6 +51,8 @@ const size_t EEPROMEmulation::BLOCK_SIZE = (EEBLOCKSIZE);
 const size_t EEPROMEmulation::BYTES_PER_BLOCK = (EEBLOCKSIZE / 2);
 static constexpr unsigned blocks_per_sector = EEPROMEmulation::SECTOR_SIZE / EEPROMEmulation::BLOCK_SIZE;
 
+/// Test EEPROM emulation HAL implementation that writes to a block of
+/// (RAM) memory. Used for unittesting the EEPROM Emulation code.
 class MyEEPROM : public EEPROMEmulation
 {
 public:
@@ -107,6 +109,7 @@ TEST(EepromStaticTest, assertions) {
     ASSERT_EQ(0, p1 % 4); // alignment
 }
 
+/// Test fixture class for testing the EEPROM emulation.
 class EepromTest : public ::testing::Test {
 protected:
     void create(bool clear = true) {

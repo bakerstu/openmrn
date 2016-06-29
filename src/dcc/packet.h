@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Packet.h
+ * \file packet.h
  *
  * Defines a DCC Packet structure.
  *
@@ -49,6 +49,8 @@ extern "C" {
 * for marklin-14-step speed commands. */
 #define DCC_PACKET_CHANGE_DIR (0xFFFF)
 
+/// Stores a DCC packet in memory. Used to send data from the packet generation
+/// (usually the command station refresh loop flows) to the DCC track driver.
 typedef struct dcc_packet
 {
     /// Specifies the meaning of the command byte for packets to send.

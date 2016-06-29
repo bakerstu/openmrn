@@ -32,6 +32,7 @@
  * @date 18 Mar 2015
  */
 
+/// Overrides loglevel.
 #define LOGLEVEL INFO
 
 #if defined(__linux__) || defined(__MACH__)
@@ -247,6 +248,11 @@ void SimpleCanStackBase::check_version_and_factory_reset(
     }
 }
 
+/// Contains an array describing each position in the Configuration space that
+/// is occupied by an Event ID from a producer or consumer. These Event IDs
+/// will be reset to increasing event numbers upon factory reset. The array is
+/// exported by the cdi compilation mechanism (in CompileCdiMain.cxx) and
+/// defined by cdi.o for the linker.
 extern const uint16_t CDI_EVENT_OFFSETS[];
 
 void SimpleCanStackBase::factory_reset_all_events(

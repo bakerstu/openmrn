@@ -48,6 +48,10 @@ extern "C" {
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 
+/// Uses the ESPConn API on the ESP8266 wifi-enabled MCU to connect to a wifi
+/// base station, perform a DNS lookup to a given target, and connect to a
+/// given port via TCP. Acts as a HubPort, meaning the data coming from the Hub
+/// (usually gridconnect packets) are sent to the TCP connection.
 class ESPWifiClient : public Singleton<ESPWifiClient>, private HubPort
 {
 public:
@@ -302,6 +306,8 @@ private:
         }
     }
 
+    /// Timer that triggers the parent flow when expiring. Used to flush the
+    /// accumulated gridconnect bytes to the TCP socket.
     class BufferTimer : public ::Timer
     {
     public:

@@ -37,6 +37,11 @@
 #include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/CpuLoad.hxx"
 
+/// Displays the current CPU load on a bicolor LED (red + green) by showing
+/// green when CPU load is light, yellow when moderate, and red when heavy.
+///
+/// Works great for example on the onboard RGB led of the Tiva tm4c123
+/// development board.
 class CpuDisplay : public StateFlowBase
 {
 public:

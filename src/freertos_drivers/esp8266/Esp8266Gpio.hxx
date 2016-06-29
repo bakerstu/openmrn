@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Esp8266GPIO.hxx
+ * \file Esp8266Gpio.hxx
  *
  * Helper declarations for using GPIO pins on the Esp8266 MCU.
  *
@@ -42,37 +42,25 @@ extern "C" {
 #include <eagle_soc.h>
 
 /**  
-  * @brief   Enable GPIO16 output.
-  * 
-  * @param   null
-  *  
-  * @return  null
+  * @brief   Enable GPIO16 pin output.
   */
 void gpio16_output_conf(void);
 
 /**  
   * @brief   Set GPIO16 output level.
   * 
-  * @param   uint8 value : GPIO16 output level.
-  *  
-  * @return  null
+  * @param   value : GPIO16 output level.
   */
 void gpio16_output_set(uint8 value);
 
 /**  
-  * @brief   Enable GPIO pin intput.
-  * 
-  * @param   null
-  *  
-  * @return  null
+  * @brief   Enable GPIO16 pin intput.
   */
 void gpio16_input_conf(void);
 
 /**  
   * @brief   Sample the value of GPIO16 input.
   * 
-  * @param   null
-  *  
   * @return  the level  of GPIO16 input.
   */
 uint8 gpio16_input_get(void);
@@ -80,6 +68,7 @@ uint8 gpio16_input_get(void);
 
 }
 
+/// Static map from gpio number to pinmux register address.
 constexpr uint32_t pinmux_to_gpio_arr[] = {
     PERIPHS_IO_MUX_GPIO0_U,    // 0
     PERIPHS_IO_MUX_U0TXD_U,    // 1
@@ -99,6 +88,11 @@ constexpr uint32_t pinmux_to_gpio_arr[] = {
     PERIPHS_IO_MUX_MTDO_U,     // 15
 };
 
+/// Constexpr function that takes a GPIO number and converts it to the pinmux
+/// register address.
+///
+/// @param gpio_pin_num the number of the pin (0..15).
+/// @return the pinmux register address, e.g. PERIPHS_IO_MUX_U0RXD_U for pin 3.
 constexpr uint32_t gpio_num_to_pinmux_reg(int gpio_pin_num)
 {
     return pinmux_to_gpio_arr[gpio_pin_num];
@@ -225,6 +219,10 @@ public:
     }
 };
 
+/// Output pin that switches between high and low state by turning on pullup
+/// and pulldowns. Useful when an external override like a button is
+/// expected. NOTE: does not seem to work on the esp8266, as the pulldown bit
+/// seems to be doing nothing.
 template <class Base>
 struct GpioPullOutPin : public Base
 {
@@ -289,6 +287,10 @@ struct GpioOutputSafeHighInvert : public GpioOutputPin<Defs, true, true>
 {
 };
 
+/// Parametric GPIO input class.
+/// @param Base is the GPIO pin's definition base class, supplied by the
+/// GPIO_PIN macro.
+/// @param PUEN is true if the pullup should be enabled.
 template <class Base, bool PUEN> struct GpioInputPar : public Base
 {
 public:
@@ -334,7 +336,7 @@ template <class Defs> struct GpioInputPU : public GpioInputPar<Defs, true>
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param pin is the pin number, such as 3 (range: 0..15 GPIO16 is not
+/// @param NUM is the pin number, such as 3 (range: 0..15; GPIO16 is not
 /// supported)
 ///
 /// Example:

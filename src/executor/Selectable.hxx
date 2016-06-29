@@ -40,6 +40,8 @@
 class Selectable : public QMember
 {
 public:
+    /// Which operation this file should be selected upon. (i.e. which fd_set
+    /// the given fd is coming in).
     enum SelectType
     {
         READ = 1,

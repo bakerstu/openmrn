@@ -68,6 +68,7 @@ SDO Abort Codes
 #define SDO_ABORT_LOCAL           0x08000021UL  // Data cannot be transferred or stored to the application because of local control
 #define SDO_ABORT_DEVSTAT         0x08000022UL  // Data cannot be transferred or stored to the application because of the present device state
 
+/// CanOpen message entry.
 typedef struct _CAN_ODCONSTENTRY {
   uint16_t index;
   uint8_t  subindex;
@@ -84,6 +85,7 @@ typedef struct _CAN_ODCONSTENTRY {
 #define OD_SEG_WO  0x50    // Object Dictionary entry segmented, write-only
 #define OD_SEG_RW  0x60    // Object Dictionary entry segmented, read-write
 
+/// helper struct to specify a hardware CAN buffer entry.
 typedef struct _CAN_ODENTRY {
   uint16_t index;
   uint8_t  subindex;
@@ -91,6 +93,7 @@ typedef struct _CAN_ODENTRY {
   uint8_t  *val;
 }CAN_ODENTRY;
 
+/// Helper struct for CANOpen configuration.
 typedef struct _CAN_CANOPENCFG {
   uint8_t   node_id;
   uint8_t   msgobj_rx;
@@ -112,6 +115,7 @@ typedef struct _CAN_CANOPENCFG {
 #define CAN_SDOSEG_OPEN           1  // channel is opened
 #define CAN_SDOSEG_CLOSE          2  // channel is closed
 
+/// Specifies the callbacks from the CAN stack to the application.
 typedef struct _CAN_CALLBACKS {
   void (*CAN_rx)(uint8_t msg_obj_num);
   void (*CAN_tx)(uint8_t msg_obj_num);
@@ -133,6 +137,7 @@ extern void config_canopen(CAN_CANOPENCFG * canopen_cfg);
 extern void canopen_handler(void);
 extern void config_calb(CAN_CALLBACKS * callback_cfg);
 
+/// All API functions of the ROM can driver.
 typedef struct _CAND {
   void (*init_can)(uint32_t * can_cfg, uint8_t isr_ena);
   void (*isr)(void);

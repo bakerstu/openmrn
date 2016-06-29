@@ -79,6 +79,8 @@ protected:
     unsigned offset_;
 };
 
+/// Function declaration that will be called with all event offsets that exist
+/// in the configuration space.
 typedef std::function<void(unsigned)> EventOffsetCallback;
 
 ///
@@ -232,9 +234,13 @@ public:
     }
 };
 
+/// Numeric config entry with 1 byte width.
 using Uint8ConfigEntry = NumericConfigEntry<uint8_t>;
+/// Numeric config entry with 2 bytes width.
 using Uint16ConfigEntry = NumericConfigEntry<uint16_t>;
+/// Numeric config entry with 4 bytes width.
 using Uint32ConfigEntry = NumericConfigEntry<uint32_t>;
+/// Numeric config entry with 8 bytes width.
 using Uint64ConfigEntry = NumericConfigEntry<uint64_t>;
 
 /// Implementation class for event ID configuration entries.

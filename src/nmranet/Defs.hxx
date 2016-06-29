@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Defs.hxx
+ * \file nmranet/Defs.hxx
  * Static declarations, enums and helper functions for the NMRAnet interface.
  *
  * @author Stuart W. Baker
@@ -47,6 +47,8 @@ typedef uint64_t NodeID;
 /** Alias to a 48-bit NMRAnet Node ID type */
 typedef uint16_t NodeAlias;
 
+/// Guard value put into the the internal node alias maps when a node ID could
+/// not be translated to a valid alias.
 static const NodeAlias NOT_RESPONDING = 0xF000;
 
 /** Container of both a NodeID and NodeAlias */

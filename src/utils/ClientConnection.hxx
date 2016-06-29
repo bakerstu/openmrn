@@ -40,6 +40,7 @@
 #include <termios.h> /* tc* functions */
 #include <unistd.h>
 
+/// Abstract base class for the Hub's connections.
 class ConnectionClient
 {
 public:
@@ -48,6 +49,9 @@ public:
     virtual bool ping() = 0;
 };
 
+/// Notification implementation that sets an external variable to -1 when
+/// notified. Supplied as an on-error callback to the gridconnect port creation
+/// method.
 class DeviceClosedNotify : public Notifiable
 {
 public:
@@ -67,6 +71,7 @@ private:
     string name_;
 };
 
+/// Base class for FD-based GridConnect connection clients.
 class GCFdConnectionClient : public ConnectionClient
 {
 public:
@@ -101,6 +106,9 @@ private:
     CanHubFlow *hub_;
 };
 
+/// Connection client that opens a character device (such as an usb-serial) and
+/// sets the termios attributes as appropriate for linux and mac on a
+/// serial-to-can or usb-to-can controller.
 class DeviceConnectionClient : public GCFdConnectionClient
 {
 public:
@@ -140,6 +148,8 @@ private:
     string dev_;
 };
 
+/// Connection client that connects to an upstream GridConnect-TCP hub via TCP
+/// client socket.
 class UpstreamConnectionClient : public GCFdConnectionClient
 {
 public:

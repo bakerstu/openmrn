@@ -135,7 +135,7 @@ public:
         parent_ = parent;
         return this;
     }
-    /// @Returns true if the Notifiable returned by NewCallback has already been
+    /// @return true if the Notifiable returned by NewCallback has already been
     /// called.
     bool HasBeenNotified()
     {
@@ -228,6 +228,11 @@ private:
     Notifiable* done_;
 };
 
+/// Allocates a new barrier notifiable on the heap. The caller must free the
+/// returned pointer when the done notifiable is called.
+///
+/// @param done is the notifiable to call when the barrier is completed.
+/// @return a new heap-allocated barrier notifiable.
 inline BarrierNotifiable* NewBarrierNotifiable(Notifiable* done)
 {
     return new BarrierNotifiable(done);

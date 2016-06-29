@@ -42,6 +42,8 @@ extern "C" {
 
 struct can_frame;
 
+/// Whether gridconnect format should create newline characters at the end of
+/// packets.
 DECLARE_CONST(gc_generate_newlines);
 
 /** Parses a GridConnect packet.

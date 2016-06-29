@@ -167,6 +167,8 @@ private:
 #ifdef TARGET_LPC11Cxx
 #define BASE_NUM_PRIO 4
 #else
+/// Helper macro to override the number of priorities to the same value in
+/// really tiny targets to avoid compiling multiple different DispatchFlows.
 #define BASE_NUM_PRIO NUM_PRIO
 #endif
 

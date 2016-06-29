@@ -221,6 +221,7 @@ private:
     /// Stores all known addresses and which port they route to.
     std::unordered_map<Address, Port *> addressRoutingTable_;
 
+    /// The per-port event information.
     struct EventSet
     {
         /// key: number of bits set in the mask part. Valid values:

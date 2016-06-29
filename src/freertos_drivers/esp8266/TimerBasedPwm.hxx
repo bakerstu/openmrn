@@ -40,7 +40,9 @@ void isr_test() {
     FRC1_INTCLR = 0;
 }
 
-
+/// Single-channel PWM implementation for the ESP8266 that uses the hardware
+/// timer resource. It is very efficient and can support even 20 kHz PWM
+/// frequency.
 class TimerBasedPwm {
 public:
     TimerBasedPwm() {

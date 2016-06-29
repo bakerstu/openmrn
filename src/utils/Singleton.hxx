@@ -88,6 +88,10 @@ private:
 
 template<class T> T* Singleton<T>::instance_ = nullptr;
 
+/// Helper macro the the customer may (but is not required to) use for ensuring
+/// that the singleton instance is found by the linker. Must appear in a single
+/// .cxx file.
+/// @param T the class name that is a Singleton.
 #define DEFINE_SINGLETON_INSTANCE(T) template<> T* Singleton<T>::instance_ = nullptr
 
 #endif // _UTILS_SINGLETON_HXX_

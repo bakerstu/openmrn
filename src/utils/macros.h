@@ -88,9 +88,14 @@ using std::pair;
 #ifdef NDEBUG
 #define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
 #else
+/// Checks that the value of expression x is true, else terminates the current
+/// process.
+/// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { assert(x); } while(0)
 #endif
 
+/// Unconditionally terminates the current process with a message.
+/// @param MSG is the message to print as cause of death.
 #define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
 #endif
@@ -104,6 +109,9 @@ using std::pair;
 
 #else
 
+/** Debug assertion facility. Will terminate the program if the program was
+   compiled without NDEBUG symbol.
+ */
 #define DASSERT(x) HASSERT(x)
 
 #endif
@@ -155,11 +163,17 @@ using std::pair;
     {                                                                          \
     }
 
+/// Static (aka compile-time) assertion for C implementation files. For C++ use
+/// the language's builtin static_assert functionality.
 #define C_STATIC_ASSERT(expr, name) \
     typedef unsigned char __static_assert_##name[expr ? 0 : -1];
 
 #ifndef ESP_NONOS
+/// Declares (on the ESP8266) that the current function is not executed too
+/// often and should be placed in the SPI flash.
 #define ICACHE_FLASH_ATTR
+/// Declares (on the ESP8266) that the current function is executed
+/// often and should be placed in the instruction RAM.
 #define ICACHE_RAM_ATTR
 #endif
 

@@ -120,6 +120,8 @@ private:
 class CountingDebouncer
 {
 public:
+    /// Static parameters for the CountingDebouncer. Passed in at construction
+    /// and kept constant after construction.
     typedef struct
     {
         /// Number of samples to keep. Must be between 1 and 32.

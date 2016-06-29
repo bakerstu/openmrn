@@ -51,7 +51,8 @@
 #include <sys/select.h>
 #endif
 
-void empty_signal_handler(int);
+/// Signal handler that does nothing. @param sig ignored.
+void empty_signal_handler(int sig);
 
 /** Helper class that allows a select to be asynchronously woken up. */
 class OSSelectWakeup : private Atomic
