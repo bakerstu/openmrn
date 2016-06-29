@@ -85,12 +85,16 @@ static void print_packet(const string &pkt)
 class AsyncCanTest : public testing::Test
 {
 public:
+    /// Initializes test case with CAN0. Note: if a child test implements
+    /// SetUpTestCase themself, they must ensure to call this function.
     static void SetUpTestCase()
     {
         g_gc_adapter =
             GCAdapterBase::CreateGridConnectAdapter(&gc_hub0, &can_hub0, false);
     }
 
+    /// De-Initializes test case with CAN0. Note: if a child test implements
+    /// TearDownTestCase themself, they must ensure to call this function.
     static void TearDownTestCase()
     {
         delete g_gc_adapter;
@@ -183,6 +187,14 @@ protected:
         gc_hub0.send(packet);
     }
 
+    /// Clears all existing expectations on the CAN-bus packets. Usually means
+    /// that all previously expressed expectations must have been met by this
+    /// point.
+    ///
+    /// @param strict if true, does not allow any unknown/unexpected/spurious
+    /// packets to have arrived; i.e., fails the test if there was a packet
+    /// coming with no expectation.
+    ///
     void clear_expect(bool strict = false)
     {
         Mock::VerifyAndClear(&canBus_);
@@ -210,6 +222,11 @@ protected:
         send_packet_and_flush_expect(pkt);                                     \
     } while (0)
 
+    /// Sends a packet to the canbus, waits for the executor to clear, and then
+    /// verifies all previous expectations.
+    ///
+    /// @param pkt gridconnnect-formatted packet to send.
+    ///
     void send_packet_and_flush_expect(const string &pkt)
     {
         send_packet(pkt);
@@ -234,18 +251,26 @@ protected:
     gc_hub1.unregister_port(&canBus1_);
   }
   
+    /// Initializes test case with CAN1. Note: if a child test implements
+    /// SetUpTestCase themself, they must ensure to call this function.
   static void SetUpTestCase() {
     g_gc_adapter1 =
         GCAdapterBase::CreateGridConnectAdapter(&gc_hub1, &can_hub1, false);
   }
 
+    /// De-Initializes test case with CAN1. Note: if a child test implements
+    /// TearDownTestCase themself, they must ensure to call this function.
   static void TearDownTestCase() {
     delete g_gc_adapter1;
   }
 
 #define expect_packet1(gc_packet) \
   EXPECT_CALL(canBus1_, mwrite(StrCaseEq(gc_packet)))
-  
+
+  /// Send a gridconnect packet to the second CAN port.
+  ///
+  /// @param gc_packet gridconnect formatted packet string.
+  ///
   void send_packet1(const string &gc_packet) {
     Buffer<HubData> *packet;
     mainBufferPool->alloc(&packet);

@@ -46,6 +46,8 @@
 
 namespace nmranet {
 
+/// Represents an OpenLCB speed value with accessors to convert to and from
+/// various formats.
 typedef Velocity SpeedType;
 
 /** Parses a SpeedType value from an unaligned memory address, typically from

@@ -39,11 +39,6 @@
 
 typedef DummyPin PIN_RailcomCutout;
 
-#define SIGNAL_LEVEL_ONE 0x80000000UL
-
-/*
-*/
-
 /**
   Device driver for decoding a DCC signal on a TI Tiva class microcontroller.
  

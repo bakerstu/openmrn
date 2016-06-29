@@ -223,7 +223,7 @@ private:
 
     /** Decode in incoming character.
      * @param c character to decode
-     * @param session console session the character belongs to
+     * @param s console session the character belongs to
      */
     void decode(char c, Session *s);
 

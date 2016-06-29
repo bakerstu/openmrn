@@ -100,6 +100,7 @@ public:
         return os_thread_getpriority(thread->handle);
     }
 
+    /// @return the thread handle for os_xxx operations.
     os_thread_t get_handle() {
         return handle;
     }

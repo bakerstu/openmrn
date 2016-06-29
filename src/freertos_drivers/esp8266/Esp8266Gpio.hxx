@@ -109,65 +109,80 @@ template <int PIN_NUM, uint32_t MUXREG, uint32_t FUNC_GPIO>
 class Esp8266StaticGpio
 {
 public:
+    /// Number of pin (0..15).
     static constexpr const uint32_t PIN = PIN_NUM;
+    /// Bit in a 16-bit register that is assigned to this pin.
     static constexpr const uint32_t PIN_BIT = (1 << PIN_NUM);
+    /// Address of the pinmux register that belongs to this pin.
     static constexpr const uint32_t PIN_MUX_REG = MUXREG;
+    /// Number of the GPIO function in this specific pinmux register.
     static constexpr const uint32_t PIN_MUX_FUNC_GPIO = FUNC_GPIO;
 
+    /// Chooses GPIO on the pinmux.
     static void set_gpio()
     {
         PIN_FUNC_SELECT(PIN_MUX_REG, PIN_MUX_FUNC_GPIO);
     }
 
+    /// Sets pin to output.
     static void set_output()
     {
         GPIO_REG_WRITE(GPIO_ENABLE_W1TS_ADDRESS, PIN_BIT);
     }
 
+    /// Sets pin to input.
     static void set_input()
     {
         GPIO_REG_WRITE(GPIO_ENABLE_W1TC_ADDRESS, PIN_BIT);
     }
 
+    /// Turns on pullup.
     static void set_pullup_on()
     {
         CLEAR_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP2 | PERIPHS_IO_MUX_SLEEP_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP2);
         SET_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP);
     }
 
+    /// Turns off pullup.
     static void set_pullup_off()
     {
         CLEAR_PERI_REG_MASK(
             PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_PULLUP2);
     }
 
+    /// Turns on pulldown (does not work).
     static void set_pulldown_on()
     {
         CLEAR_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP | PERIPHS_IO_MUX_SLEEP_PULLUP2);
         SET_PERI_REG_MASK(PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP2);
     }
 
+    /// Turns off pulldown (does not work).
     static void set_pulldown_off()
     {
         CLEAR_PERI_REG_MASK(
             PIN_MUX_REG, PERIPHS_IO_MUX_PULLUP | PERIPHS_IO_MUX_PULLUP2);
     }
 
+    /// Sets output to HIGH.
     static void set_on()
     {
         GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, PIN_BIT);
     }
 
+    /// Sets output to LOW.
     static void set_off()
     {
         GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, PIN_BIT);
     }
 
+    /// @return input pin level.
     static bool get()
     {
         return (GPIO_REG_READ(GPIO_IN_ADDRESS) & PIN_BIT) != 0;
     }
 
+    /// Set output pin level. @param value is the level to set to.
     static void set(bool value)
     {
         if (value)
@@ -180,11 +195,13 @@ public:
         }
     }
 
+    /// Toggles output pin value.
     static void toggle()
     {
         set(!get());
     }
 
+    /// @return true if pin is configured as an output pin.
     static bool is_output()
     {
         return GPIO_REG_READ(GPIO_ENABLE_ADDRESS) & PIN_BIT;

@@ -62,8 +62,11 @@ TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
     service_->register_train(this);
 }
 
-TrainNodeWithId::TrainNodeWithId(TrainService *service, TrainImpl *train, NodeID node_id)
-    : TrainNode(service, train), nodeId_(node_id) {
+TrainNodeWithId::TrainNodeWithId(
+    TrainService *service, TrainImpl *train, NodeID node_id)
+    : TrainNode(service, train)
+    , nodeId_(node_id)
+{
     service_->register_train(this);
 }
 

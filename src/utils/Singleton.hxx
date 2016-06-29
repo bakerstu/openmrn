@@ -73,16 +73,19 @@ public:
     instance_ = nullptr;
   }
 
+    /// @return the singleton instance of this object.
   static T* instance() {
     HASSERT(instance_ != nullptr);
     return instance_;
   }
 
+    /// @return true if there is a class of this singleton instantiated.
   static bool exists() {
     return (instance_ != nullptr);
   }
 
 private:
+    /// The singleton instance pointer.
   static T* instance_;
 };
 

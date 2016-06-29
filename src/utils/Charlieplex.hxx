@@ -41,16 +41,22 @@ template <unsigned N> struct CharlieplexHelper;
 /// Helper structure for the charlieplexing implementation.
 template <> struct CharlieplexHelper<3>
 {
+    /// Flattened list of pars of output pin numbers to use for a given LED.
     static const uint8_t pinlist[];
+    /// @return How many LEDs are we driving.
     static unsigned num_bits()
     {
         return 6;
     }
 
+    /// Which pin to drive high for a given LED. @param bit is the number of
+    /// the LED, from 0..num_bits()-1. @return index of the GPIO to drive high.
     static unsigned pin_high(unsigned bit)
     {
         return pinlist[bit << 1];
     }
+    /// Which pin to drive low for a given LED. @param bit is the number of
+    /// the LED, from 0..num_bits()-1. @return index of the GPIO to drive low.
     static unsigned pin_low(unsigned bit)
     {
         return pinlist[(bit << 1) | 1];
@@ -87,7 +93,12 @@ const uint8_t CharlieplexHelper<3>::pinlist[] = {
 template <unsigned N, class helper = CharlieplexHelper<N>> class Charlieplex
 {
 public:
-    Charlieplex(const Gpio * const pins[N])
+    /// Constructor.
+    ///
+    /// @param pins an array of Gpio object pointers defining the output pins to
+    /// use. This array may be in flash (.rodata).
+    ///
+    Charlieplex(const Gpio *const pins[N])
         : pins_(pins)
         , nextBit_(0)
         , bits_(0)
@@ -98,6 +109,9 @@ public:
         }
     }
 
+    /// Switches to the next output configuration of the charlieplexing
+    /// pins. Call this repeatedly, for example from a hardware timer
+    /// interrupt.
     void tick()
     {
         pins_[helper::pin_high(nextBit_)]->set_direction(
@@ -118,15 +132,17 @@ public:
         }
     }
 
+    /// @return the storage representing the state of the output bits. Bit 0 is
+    /// LED0, bit 1 is LED1, etc.
     unsigned *payload()
     {
         return &bits_;
     }
 
 private:
-    const Gpio *const *pins_; //< array of all GPIO pins to use
-    unsigned nextBit_;        //< LED that comes next
-    unsigned bits_;
+    const Gpio *const *pins_; ///< array of all GPIO pins to use
+    unsigned nextBit_;        ///< LED that comes next
+    unsigned bits_;           ///< Desired output state of LEDs.
 };
 
 #endif // _UTILS_CHARLIEPLEXING_HXX_

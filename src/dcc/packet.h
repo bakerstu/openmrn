@@ -72,15 +72,16 @@ typedef struct dcc_packet
         /// The packet will be sent 1 + rept_count times to the wire. default:
         /// 0.
         uint8_t rept_count : 2;
+        /// reserved for future use.
         uint8_t reserved : 1;
     };
 
     /// Specifies the meaning of the command byte for meta-commands to send.
     struct cmd_t
     {
-        // Always 1.
+        /// Always 1.
         uint8_t is_pkt : 1;
-        // Command identifier.
+        /// Command identifier.
         uint8_t cmd : 7;
     };
 

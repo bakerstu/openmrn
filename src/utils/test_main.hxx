@@ -103,27 +103,31 @@ public:
   ~ExecutorStartupFix() {
     wait_for_main_executor();
   }
-} unused_executor_startup_guard_instance; //< actual instance.
+} unused_executor_startup_guard_instance; ///< actual instance.
 
 /** Utility class to help running a "pthread"-like thread in the main
  * executor. Helpful for emscripten compatibility. */
 class ExecuteOnMainExecutor : public Executable {
 public:
+    /// Function type for a thread's main entry point.
     typedef void* thread_fn_t(void*);
     /** Schedules the function fn with argument arg on the main executor. Takes
-     * ownership of *this. */
+     * ownership of *this. @param fn is the entry function of the
+     * "thread". @param arg is the argument to pass to the function. */
     ExecuteOnMainExecutor(thread_fn_t *fn, void* arg)
         : fn_(fn), arg_(arg) {
         g_executor.add(this);
     }
 
+    /// Runs the intended function with the given argument and then deletes
+    /// this when done.
     void run() OVERRIDE {
         (*fn_)(arg_);
         delete this;
     }
 private:
-    thread_fn_t *fn_;
-    void* arg_;
+    thread_fn_t *fn_; ///< pointer to function to run.
+    void* arg_; ///< argument to pass to function.
 };
 
 
@@ -141,7 +145,8 @@ public:
     }
 
     /** Creates a block against executor e and waits until the block
-     * suceeds. If e==null, then blocks g_executor. */
+     * suceeds. @param e is the executor to block; ff e==null, then blocks
+     * g_executor. */
     BlockExecutor(ExecutorBase *e)
     {
         if (e)
@@ -179,7 +184,9 @@ public:
     }
 
 private:
+    /// notified (from the executor thread) when the block gets in place.
     SyncNotifiable n_;
+    /// notified (from the test/operator thread) to release the block.
     SyncNotifiable m_;
 };
 

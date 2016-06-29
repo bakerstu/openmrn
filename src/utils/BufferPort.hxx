@@ -44,6 +44,14 @@
 class BufferPort : public HubPort
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service specifies which thread to operate on. Typically the same
+    /// as the calling Hub's executor.
+    /// @param downstream where to send the (buffered) data onwards.
+    /// @param buffer_bytes how many bytes to buffer up max.
+    /// @param delay_nsec how many nanoseconds long we should buffer the output
+    /// data max.
     BufferPort(Service *service, HubPortInterface *downstream,
         unsigned buffer_bytes, long long delay_nsec)
         : HubPort(service)
@@ -101,6 +109,8 @@ private:
         }
     }
 
+    /// Sends off any data we may have accumulated in the buffer to the
+    /// downstream consumer.
     void flush_buffer()
     {
         if (!bufEnd_) return; // nothing to do
@@ -111,12 +121,14 @@ private:
         downstream_->send(b);
     }
 
+    /// Callback from the timer.
     void timeout()
     {
         timerPending_ = 0;
         flush_buffer();
     }
 
+    /// @return the current message that we are processing.
     const string &msg()
     {
         return *message()->data();
@@ -127,6 +139,7 @@ private:
     class BufferTimer : public ::Timer
     {
     public:
+        /// Constructor. @param parent what to call when expiring.
         BufferTimer(BufferPort *parent)
             : Timer(parent->service()->executor()->active_timers())
             , parent_(parent)
@@ -140,8 +153,8 @@ private:
         }
 
     private:
-        BufferPort *parent_;
-    } bufferTimer_{this};
+        BufferPort *parent_; //< what to notify upon timeout.
+    } bufferTimer_{this}; //< timer instance.
 
     /// Caches one output buffer to fill in the buffer flush method.
     Buffer<HubData> *tgtBuf_{nullptr};
@@ -155,6 +168,8 @@ private:
     unsigned bufSize_;
     /// Offset in sendBuf_ of the first unused byte.
     unsigned bufEnd_ : 24;
+    /// 1 if the timer is running and there will be a timer callback coming in
+    /// the future.
     unsigned timerPending_ : 1;
 };
 

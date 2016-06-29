@@ -48,6 +48,9 @@ class ExecutorBase;
 class ActiveTimers : public Executable
 {
 public:
+    /// Constructor.
+    ///
+    /// @param executor parent that will use this instance.
     ActiveTimers(ExecutorBase *executor)
         : executor_(executor)
         , isPending_(0)
@@ -90,6 +93,8 @@ public:
         return executor_;
     }
 
+    /** Notification callback from the timer. Schedules *this on the
+     * executor. */
     void notify() override;
 
     /** Callback from the executor. Puts all expired timers on the executor. */
@@ -97,18 +102,21 @@ public:
 
 private:
     /** Removes a timer from the active list. Assert fails if it is not
-     * there. Caller must hold the lock. */
+     * there. Caller must hold the lock. 
+     * @param timer what to remove from the active list. */
     void remove_locked(::Timer *timer);
 
-    /** Inserts a timer into the active list. Caller must hold the lock. */
+    /** Inserts a timer into the active list. Caller must hold the lock.
+     * @param timer what to insert into the active list. */
     void insert_locked(::Timer *timer);
 
+    /// Parent.
     ExecutorBase *executor_;
     /// Protects the timer list.
     OSMutex lock_;
     /// List of timers that are scheduled.
     QMember activeTimers_;
-    // 1 if we in the executor's queue.
+    /// 1 if we in the executor's queue.
     unsigned isPending_ : 1;
 
     friend class TimerTest;

@@ -32,6 +32,7 @@
  */
 
 #ifndef gcc
+/// not sure why this is needed
 #define gcc
 #endif
 

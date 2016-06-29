@@ -55,11 +55,18 @@ public:
 class DeviceClosedNotify : public Notifiable
 {
 public:
+    /// Constructor.
+    ///
+    /// @param fd pointer to file descriptor variable that will be set to -1
+    /// upon error notification.
+    /// @param name Info string to print to stderr when the device error causes
+    /// a close event.
     DeviceClosedNotify(int *fd, string name)
         : fd_(fd)
         , name_(name)
     {
     }
+    /// Callback from the application when an error is encountered.
     void notify() override
     {
         LOG_ERROR("Connection to %s closed.", name_.c_str());
@@ -67,20 +74,26 @@ public:
     }
 
 private:
-    int *fd_;
-    string name_;
+    int *fd_; ///< pointer to file descriptor variable.
+    string name_; ///< info to print to stderr upon error.
 };
 
 /// Base class for FD-based GridConnect connection clients.
 class GCFdConnectionClient : public ConnectionClient
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name user-readable name for this port.
+    /// @param hub CAN packet hub to connect this port to
     GCFdConnectionClient(const string &name, CanHubFlow *hub)
         : closedNotify_(&fd_, name)
         , hub_(hub)
     {
     }
 
+    /// Tests if the device is alive or encountered an error. Retries
+    /// connection if an error happens. @return true if the connection is live.
     bool ping() OVERRIDE
     {
         if (fd_ < 0)
@@ -112,6 +125,11 @@ private:
 class DeviceConnectionClient : public GCFdConnectionClient
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name user-readable name of this device
+    /// @param hub CAN packet hub to connect this device to
+    /// @param dev filename of the device node to open
     DeviceConnectionClient(
         const string &name, CanHubFlow *hub, const string &dev)
         : GCFdConnectionClient(name, hub)
@@ -120,6 +138,7 @@ public:
     }
 
 private:
+    /// Attempts to open the device.
     void try_connect() OVERRIDE
     {
         int fd = ::open(dev_.c_str(), O_RDWR);
@@ -145,7 +164,7 @@ private:
         }
     }
 
-    string dev_;
+    string dev_; ///< filename of device to open
 };
 
 /// Connection client that connects to an upstream GridConnect-TCP hub via TCP

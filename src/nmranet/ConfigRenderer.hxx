@@ -142,7 +142,7 @@ public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(
         NumericConfigOptions, NumericConfigDefs::Base);
 
-    /// Represent the value enclosed in the <name> tag of the data element.
+    /// Represent the value enclosed in the "<name>" tag of the data element.
     DEFINE_OPTIONALARG(Name, name, const char *);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.

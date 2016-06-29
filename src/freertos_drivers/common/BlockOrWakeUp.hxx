@@ -37,9 +37,10 @@
 #include "os/OS.hxx"
 #include "executor/Notifiable.hxx"
 
-/** A synchronization primitive for device drivers, Where execution has to
- * happen in an interrupt context and on regular contexts. It supports the
- * following features:
+/** A synchronization primitive for device drivers, where execution has to
+ * happen in an interrupt context and on regular contexts. Helpful to implement
+ * read() and write() calls contending for a single hardware instance / ring
+ * buffer queueing inbound and outbound data. Supports the following features:
  *
  * - Execution on a single regular context when multiple threads might be
  *   contending for this lock.
@@ -64,6 +65,9 @@
 template <class Critical> class BlockOrWakeUp : protected Critical
 {
 public:
+    /// Constructor.
+    ///
+    /// @param t constructor argument to the underlying Critical object.
     template <class T>
     BlockOrWakeUp(const T &t)
         : Critical(t)
@@ -85,6 +89,7 @@ public:
                 parent_->unlock();
         }
 
+        /// Move constructor for the RAII object. @param o c++ movable object.
         CriticalHolder(CriticalHolder &&o)
             : parent_(o.parent_)
         {
@@ -93,14 +98,15 @@ public:
 
     private:
         friend class LockHolder;
-        // This is private so that we can only get a new holder from a
-        // LockHolder.
+        /// Upgrades a lock to a critical section. This is private so that we
+        /// can only get a new holder from a LockHolder.
         CriticalHolder(BlockOrWakeUp<Critical> *parent)
             : parent_(parent)
         {
             parent_->lock();
         }
 
+        /// Pointer to parent.
         BlockOrWakeUp<Critical> *parent_;
     };
 
@@ -108,12 +114,15 @@ public:
     /// section lock.
     struct LockHolder
     {
+        /// Constructor. As a side effect acquires a regular (non-critical)
+        /// lock. @param parent which object to lock.
         LockHolder(BlockOrWakeUp<Critical> *parent)
             : parent_(parent)
         {
             parent_->single_lock();
         }
 
+        /// Move constructor. @param o c++ movable object.
         LockHolder(LockHolder &&o)
             : parent_(o.parent_)
         {
@@ -128,12 +137,16 @@ public:
             }
         }
 
+        /// upgrades a regular lock to a critical section. @return a lock
+        /// holder for the critical section.
         CriticalHolder critical() __attribute__((warn_unused_result))
         {
             auto h = CriticalHolder(parent_);
             return h;
         }
 
+        /// Waits for the core condition to be true (i.e. data available for
+        /// read or space available to write data to). Blocks caller.
         void wait_for_notification()
         {
             parent_->single_unlock();
@@ -141,6 +154,7 @@ public:
             parent_->single_lock();
         }
 
+        /// Hands over the core condition to a next someone waiting in line.
         void notify_next()
         {
             parent_->s_.post();
@@ -157,13 +171,18 @@ public:
     private:
         DISALLOW_COPY_AND_ASSIGN(LockHolder);
 
+        /// Parent object whose lock we are holding.
         BlockOrWakeUp<Critical> *parent_;
     };
 
+    /// Acquires a lock (not critical) and returns an RAII holder object. The
+    /// lock can then be upgraded to critical as needed.
     LockHolder holder() __attribute__((warn_unused_result)) {
         return LockHolder(this);
     }
 
+    /// Called from ISR context to wake up a regular context or a caller
+    /// waiting.
     void notify_from_isr()
     {
         int woken = 0;
@@ -175,6 +194,12 @@ public:
         os_isr_exit_yield_test(true);
     }
 
+    /// Sets the notifiable that will be called from the ISR (or regular)
+    /// context when there is more data to consume or space to fill with data.
+    /// @param n is the notifiable to be called.
+    /// @return the previous notifiable that was registered. If not nullptr,
+    /// then the caller must actually invoke it (or assert fail) to avoid
+    /// deadlocks.
     Notifiable* register_notifiable(Notifiable *n)
     {
         Notifiable *r = notifiable_;
@@ -183,17 +208,22 @@ public:
     }
 
 private:
+    /// Locks the mutex (not the critical).
     void single_lock()
     {
         m_.lock();
     }
+    /// Unlocks the mutex (not the critical).
     void single_unlock()
     {
         m_.unlock();
     }
 
+    /// Mutex holding non-criticla lock.
     OSMutex m_;
+    /// Semaphore used to wake up callers.
     OSSem s_;
+    /// Notifiable to be woken up when an ISR event happens.
     Notifiable *notifiable_;
 };
 

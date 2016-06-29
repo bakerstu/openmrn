@@ -65,14 +65,20 @@ public:
 /// See @ref OSMutexLock in os/OS.hxx
 class AtomicHolder {
 public:
+    /// Constructor. Grabs the mutex as a side effect.
+    ///
+    /// @param parent the mutex (atomic) to hold.
+    ///
   AtomicHolder(Atomic* parent)
     : parent_(parent) {
     parent_->lock();
   }
+    /// Destructor. Releases the mutex as a side effect.
   ~AtomicHolder() {
     parent_->unlock();
   }
 private:
+    /// Parent mutex we are holding.
   Atomic* parent_;
 };
 

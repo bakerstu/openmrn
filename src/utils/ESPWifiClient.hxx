@@ -93,6 +93,8 @@ public:
                                 // called in the user_init.
     }
 
+    /// Callback when an event happens on the wifi port. @param evt describes
+    /// event that happened.
     static void static_wifi_callback(System_Event_t *evt)
     {
         os_printf("%s: %d\n", __FUNCTION__, evt->event);
@@ -138,11 +140,18 @@ public:
         }
     }
 
+    /// Initiates the DNS lookup of the target host.
     void do_dns_lookup()
     {
         espconn_gethostbyname(&conn_, host_.c_str(), &targetIp_, dns_done);
     }
 
+    /// Callback when the DNS lookup is completed.
+    ///
+    /// @param name what we were looking up (ignored)
+    /// @param ipaddr ip address of the host
+    /// @param arg ignored.
+    ///
     static void dns_done(const char *name, ip_addr_t *ipaddr, void *arg)
     {
         if (ipaddr == NULL)
@@ -154,6 +163,8 @@ public:
         Singleton<ESPWifiClient>::instance()->do_connect(ipaddr);
     }
 
+    /// Connects to the specific IP address. @param ipaddr is the address of
+    /// the host we wanted to connect to.
     void do_connect(ip_addr_t *ipaddr)
     {
         os_printf("Connecting to %s:%d...\n", host_.c_str(), port_);
@@ -171,12 +182,14 @@ public:
         espconn_connect(&conn_);
     }
 
+    /// Callback when the TCP connection is established. @param arg ignored.
     static void static_tcp_connected(void *arg)
     {
         os_printf("%s\n", __FUNCTION__);
         Singleton<ESPWifiClient>::instance()->tcp_connected();
     }
 
+    /// Callback when the TCP connection is established.
     void tcp_connected()
     {
         gcAdapter_.reset(
@@ -187,12 +200,14 @@ public:
         connectCallback_();
     }
 
+    /// Callback when the TCP connection is lost. @param arg ignored.
     static void static_tcp_disconnected(void *arg)
     {
         os_printf("%s\n", __FUNCTION__);
         Singleton<ESPWifiClient>::instance()->tcp_disconnected();
     }
 
+    /// Callback when the TCP connection is lost.
     void tcp_disconnected()
     {
         gcHub_.unregister_port(this);
@@ -200,16 +215,28 @@ public:
         wifi_station_disconnect();
     }
 
+    /// Callback for incoming data.
+    ///
+    /// @param arg ignored
+    /// @param pdata pointer to data received.
+    /// @param len number of bytes received.
     static void static_data_received(void *arg, char *pdata, unsigned short len)
     {
         Singleton<ESPWifiClient>::instance()->data_received(pdata, len);
     }
 
+    /// Callback when data that was requested to be sent has completed
+    /// sending. @param arg ignored.
     static void static_data_sent(void *arg)
     {
         Singleton<ESPWifiClient>::instance()->data_sent();
     }
 
+    /// Callback when incoming data is received.
+    ///
+    /// @param pdata incoming data
+    /// @param len number of bytes received.
+    ///
     void data_received(char *pdata, unsigned short len)
     {
         auto *b = gcHub_.alloc();
@@ -219,6 +246,7 @@ public:
     }
 
 private:
+    /// Sending base state. @return next action.
     Action entry() override
     {
         if (sendPending_)
@@ -281,7 +309,7 @@ private:
     /// Callback state when we are sending directly off of the input buffer
     /// becuase the data payload is too much to fit into the send assembly
     /// buffer. Called when the send is completed and the input buffer can be
-    /// releases.
+    /// releases. @return next action
     Action send_done()
     {
         return release_and_exit();
@@ -311,28 +339,35 @@ private:
     class BufferTimer : public ::Timer
     {
     public:
+        /// Constructor. @param parent who owns *this.
         BufferTimer(ESPWifiClient *parent)
             : Timer(parent->service()->executor()->active_timers())
             , parent_(parent)
         {
         }
 
+        /// callback when the timer expires. @return do not restart timer.
         long long timeout() override
         {
             parent_->timeout();
             return NONE;
         }
     private:
-        ESPWifiClient *parent_;
-    } bufferTimer_{this};
+        ESPWifiClient *parent_; ///< parent who owns *this.
+    } bufferTimer_{this}; ///< Instance of the timer we own.
 
+    /// Configuration of the access pint we are connecting to.
     struct station_config stationConfig_;
+    /// IP (including DNS) connection handle.
     struct espconn conn_;
+    /// TCP connection handle.
     esp_tcp tcp_;
 
+    /// IP address of the target host.
     ip_addr_t targetIp_;
-
+    /// Target host we are trying to connect to.
     string host_;
+    /// Port numer we are connecting to on the target host.
     int port_;
     /// True when the TCP stack is busy.
     uint16_t sendPending_ : 1;
@@ -349,9 +384,15 @@ private:
     uint8_t *sendBuf_;
     /// How many bytes are there in the send buffer.
     unsigned bufSize_;
+    /// CAN hub to send incoming packets to and to receive outgoing packets
+    /// from.
     CanHubFlow *hub_;
+    /// String-typed hub for the gridconnect-rendered packets.
     HubFlow gcHub_;
+    /// Transcoder bridge from CAN to GridConnect protocol.
     std::unique_ptr<GCAdapterBase> gcAdapter_;
+    /// Application level callback function to call when the connection has
+    /// been successfully established.
     std::function<void()> connectCallback_;
 };
 

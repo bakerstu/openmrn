@@ -49,7 +49,9 @@ extern char _vStackTop;
 
 /// Freelist overlay for the tiny malloc implementation.
 struct __freelist {
+    /// number of bytes free here.
     size_t sz;
+    /// link pointer
     struct __freelist *nx;
 };
 

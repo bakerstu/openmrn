@@ -63,10 +63,10 @@ struct app_header {
      *
      * checksum_pre: is the checksum of the bytes between application_start and
      * the app_header.
-     *
-     * checksum_post: is the checksum of the bytes between the checksum header
-     * and the application end. */
+     */
     uint32_t checksum_pre[CHECKSUM_COUNT];
+    /** checksum_post: is the checksum of the bytes between the app_header
+     * and the application end. */
     uint32_t checksum_post[CHECKSUM_COUNT];
 };
 

@@ -39,8 +39,8 @@
 ///
 /// This class allows an O(1) representation of an average over a timeseries of
 /// data. This is the algorithm that Linux is using for the loadavg
-/// calculation. The algorithm is parametrized by a coefficient \alpha. The
-/// larger \alpha is, the longer "memory" the average has, meaning that the
+/// calculation. The algorithm is parametrized by a coefficient \\alpha. The
+/// larger \\alpha is, the longer "memory" the average has, meaning that the
 /// slower the average adapts to a changing situation.
 ///
 /// This class is implemented to perform computation of transfer speed. It
@@ -52,19 +52,26 @@
 /// accurate clock readout mechanism under linux and freertos.
 class Ewma {
 public:
-    Ewma(float alpha = 0.8) : alpha_(alpha) {
-
+    /// Constructor. @param alpha coefficient of the EWMA computation. The
+    /// lower the value is the faster the average converges to current
+    /// speed. The higher this value is the more the averaging will smoothe the
+    /// speed values read out.
+    Ewma(float alpha = 0.8)
+        : alpha_(alpha)
+    {
     }
 
     /// Sets the absolute value where the transfer is. Sequential calls must
-    /// have an increasing value of `offset'.
+    /// have an increasing value of `offset'. @param offset tells where the
+    /// transfer is currently.
     void add_absolute(uint32_t offset) {
         add_diff(offset - lastOffset_);
         lastOffset_ = offset;
     }
 
     /// Notifies the average algorithm that since the last call `bytes'
-    /// additional bytes were transferred.
+    /// additional bytes were transferred. @param bytes tell the additional
+    /// number of bytes that arrived since the last call.
     void add_diff(uint32_t bytes) {
         long long t = current_time();
         if (lastMeasurementTimeNsec_) {
@@ -82,6 +89,7 @@ public:
     float avg() { return avg_; }
 
 private:
+    /// Helper function to get the current time. @return current time.
     long long current_time() {
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -90,8 +98,10 @@ private:
         return t;
     }
 
-    float alpha_;
-    float avg_{0.0};
+    float alpha_; ///< coefficient for EWMA
+    float avg_{0.0}; ///< current state of EWMA
+    /// When did we take the last measurement.
     long long lastMeasurementTimeNsec_{0};
+    /// What was the progress offset at the time of the last measurement taken.
     uint32_t lastOffset_{0};
 };

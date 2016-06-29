@@ -98,13 +98,16 @@ public:
     /** Synchronously locks the mutex. Might block the current thread.
     void Lock()
     {
-    @TODO(balazs.racz) we don't have a synchronous mechanism to allocate from a QAsync.
+    @todo(balazs.racz) we don't have a synchronous mechanism to allocate from a QAsync.
         SyncAllocation a(this);
     }
     */
 
 private:
-    class Token : public QMember {} token_;
+    class Token : public QMember {};
+    /// a unique allocation token that can be passed around to signal who owns
+    /// the mutex.
+    Token token_;
 };
 
 #endif // _UTILS_ASYNCMUTEX_HXX_

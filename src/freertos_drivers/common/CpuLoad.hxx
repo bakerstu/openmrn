@@ -65,8 +65,11 @@ public:
 
 private:
     friend void cpuload_tick(void);
+    /// Adds a value to the rolling average. @param value currently observed
+    /// value to add to the average.
     inline void record_value(float value);
 
+    /// Internal state for the rolling average (EWMA).
     float avg_{0.0};
 };
 

@@ -780,10 +780,16 @@ inline void TivaDCC<HW>::interrupt_handler()
     }
 }
 
+/// Converts a time length given in microseconds to the number of clock cycles.
+/// @param usec is time given in microseconds.
+/// @return time given in clock cycles.
 static uint32_t usec_to_clocks(uint32_t usec) {
     return (configCPU_CLOCK_HZ / 1000000) * usec;
 }
 
+/// Converts a time length given in nanoseconds to the number of clock cycles.
+/// @param usec is time given in nanoseconds.
+/// @return time given in clock cycles.
 static uint32_t nsec_to_clocks(uint32_t nsec) {
     // We have to be careful here not to underflow or overflow.
     return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;

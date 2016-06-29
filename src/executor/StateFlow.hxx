@@ -574,6 +574,8 @@ protected:
         return call_immediately(STATE(internal_try_read));
     }
 
+    /// Implementation state that gets repeatedly called upon every wakeup and
+    /// tries to make progress on reading. @return next action.
     Action internal_try_read()
     {
         StateFlowSelectHelper *h =
@@ -636,7 +638,24 @@ protected:
         return call_immediately(h->nextState_);
     }
 
-    Action write_repeated(StateFlowSelectHelper* helper, int fd, const void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+    /// Writes some data into a file descriptor, repeating the operation as
+    /// necessary until all bytes are written.
+    ///
+    /// @param helper temporary storage (usually local to the calling flow)
+    /// @param fd filedes to write into
+    /// @param buf Pointer to data to write. The data must stay alive until the
+    /// next state is called.
+    /// @param size Number of bytes of data to write.
+    /// @param c next state function to call. Use the syntax STATE(my_state_fn)
+    /// @param priority Which priority to schedule the flow's next state when
+    /// the write is complete.
+    ///
+    /// @return action to return.
+    ///
+    Action write_repeated(StateFlowSelectHelper *helper, int fd,
+        const void *buf, size_t size, Callback c,
+        unsigned priority = Selectable::MAX_PRIO)
+    {
         helper->reset(Selectable::WRITE, fd, priority);
         helper->set_wakeup(this);
         helper->wbuf_ = static_cast<const uint8_t*>(buf);
@@ -648,6 +667,8 @@ protected:
         return call_immediately(STATE(internal_try_write));
     }
 
+    /// Implementation state that gets repeatedly called upon every wakeup and
+    /// tries to make progress on writing. @return next action.
     Action internal_try_write()
     {
         StateFlowSelectHelper *h =
@@ -822,6 +843,8 @@ public:
     }
 
 protected:
+    /// Constructor. @param service specifies which thread to execute this
+    /// state flow on.
     StateFlowWithQueue(Service *service);
 
     /** Entry into the StateFlow activity.  Pure virtual which must be defined
@@ -944,6 +967,7 @@ template <class MessageType> class FlowInterface;
 template <class MessageType> class FlowInterface
 {
 public:
+    /// Stores the message template type for external reference.
     typedef MessageType message_type;
 
     virtual ~FlowInterface() {}
@@ -956,6 +980,13 @@ public:
     {
         return mainBufferPool;
     }
+
+    /// Entry point to the flow. Users of the flow should call this mehtod to
+    /// send a buffer to the flow.
+    ///
+    /// @param message buffer to send to the flow
+    /// @param priority which priority back the flow should process it. Lower
+    /// numbers mean process earlier.
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 
     /** Synchronously allocates a message buffer from the pool of this flow. */
@@ -1034,6 +1065,8 @@ StateFlowBase::get_allocation_result(FlowInterface<Buffer<T>> *target_flow)
 template<class QueueType>
 class UntypedStateFlow : public StateFlowWithQueue {
 public:
+    /// Constructor. @param service specifies which thread to execute this
+    /// state flow on.
     UntypedStateFlow(Service* service) : StateFlowWithQueue(service) {}
 
     ~UntypedStateFlow()
@@ -1078,6 +1111,8 @@ protected:
         return r.item;
     }
 
+    /// @return true if this StateFlow does not have any messages pending in
+    /// the queue.
     bool queue_empty() OVERRIDE {
         AtomicHolder h(this);
         return queue_.empty();
@@ -1094,6 +1129,8 @@ template <class MessageType, class Base>
 class TypedStateFlow : public Base, public FlowInterface<MessageType>
 {
 public:
+    /// Allows using Action without having StateFlowBase:: prefix in front of
+    /// it.
     typedef typename Base::Action Action;
 
     /** Constructor.
@@ -1167,6 +1204,8 @@ protected:
 template<class MessageType, class QueueType>
 class StateFlow : public TypedStateFlow<MessageType, UntypedStateFlow<QueueType> > {
 public:
+    /// Constructor. @param service specifies which thread to execute this
+    /// state flow on.
     StateFlow(Service *service)
         : TypedStateFlow<MessageType, UntypedStateFlow<QueueType>>(service)
     {

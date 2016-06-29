@@ -46,18 +46,22 @@ class PipeMember;
 /// Container for an arbitrary structure to pass through a Hub.
 template<class S> class StructContainer : public S {
 public:
+    /// @return the contained data in mutable form (reference).
     S& value() {
         return *this;
     }
 
+    /// @return the contained data as a const void pointer.
     const void* data() const {
         return &value();
     }
 
+    /// @return the contained data as a void pointer.
     void* data() {
         return &value();
     }
 
+    /// @return the size of the contained structure.
     size_t size() {
         return sizeof(S);
     }
@@ -174,6 +178,9 @@ typedef GenericHubFlow<CanHubData> CanHubFlow;
 class DisplayPort : public HubPort
 {
 public:
+    /// Constructor. @param service defines which thread this state flow runs
+    /// on. @param timestamped if true, prints timestamps and other debug info
+    /// for each printed packet.
     DisplayPort(Service *service, bool timestamped)
         : HubPort(service)
         , timestamped_(timestamped)
@@ -194,7 +201,8 @@ public:
     }
 
 private:
-    bool timestamped_;
+    bool timestamped_; ///< true if the timestamp and debug info should be
+                       ///printed.
 };
 
 #endif // _UTILS_HUB_HXX_
