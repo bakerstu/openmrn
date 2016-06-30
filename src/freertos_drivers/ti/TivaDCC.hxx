@@ -788,7 +788,7 @@ static uint32_t usec_to_clocks(uint32_t usec) {
 }
 
 /// Converts a time length given in nanoseconds to the number of clock cycles.
-/// @param usec is time given in nanoseconds.
+/// @param nsec is time given in nanoseconds.
 /// @return time given in clock cycles.
 static uint32_t nsec_to_clocks(uint32_t nsec) {
     // We have to be careful here not to underflow or overflow.

@@ -124,9 +124,11 @@ using std::pair;
    meant to be copied (which is almost all classes), to avoid bugs resulting
    from unintended passing of the objects by value.
  */
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);   \
-  void operator=(const TypeName&)
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                     \
+    /** Private copy constructor to avoid using it. */                         \
+    TypeName(const TypeName &);                                                \
+    /** Private assignment operator to avoid using it. */                      \
+    void operator=(const TypeName &)
 
 /** Function attribute for virtual functions declaring that this funciton is
  * overriding a funciton that should be virtual in the base class. Supported by

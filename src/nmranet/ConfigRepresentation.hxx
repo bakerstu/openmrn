@@ -123,7 +123,7 @@ public:
 /// starts. This line number will be used to terminate the recursion looking
 /// for config entries.
 /// @param GroupName C++ identifier for the name of this group.
-/// @param ARGS... Proxied additional arguments, forwarded to the Options
+/// @param ARGS Proxied additional arguments, forwarded to the Options
 /// class.
 #define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)             \
     struct GroupName : public nmranet::GroupBase                               \
@@ -356,7 +356,7 @@ public:
 };
 
 /// Add this entry to the beginning of the CDI group to render an
-/// <identification> tag at the beginning of the output cdi.xml. Requires a
+/// "<identification>" tag at the beginning of the output cdi.xml. Requires a
 /// global symbol of @ref nmranet::SNIP_STATIC_DATA to fill in the specific
 /// values of the identification tree.
 class Identification : public ToplevelEntryBase
@@ -370,7 +370,7 @@ public:
     }
 };
 
-/// Renders an <acdi> tag in the CDI group.
+/// Renders an "<acdi>" tag in the CDI group.
 class Acdi : public ToplevelEntryBase
 {
 public:

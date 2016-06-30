@@ -99,7 +99,8 @@ public:
     private:
         friend class LockHolder;
         /// Upgrades a lock to a critical section. This is private so that we
-        /// can only get a new holder from a LockHolder.
+        /// can only get a new holder from a LockHolder. @param parent
+        /// represents whose lock we are holding.
         CriticalHolder(BlockOrWakeUp<Critical> *parent)
             : parent_(parent)
         {
@@ -176,7 +177,8 @@ public:
     };
 
     /// Acquires a lock (not critical) and returns an RAII holder object. The
-    /// lock can then be upgraded to critical as needed.
+    /// lock can then be upgraded to critical as needed. @return the holder
+    /// object.
     LockHolder holder() __attribute__((warn_unused_result)) {
         return LockHolder(this);
     }

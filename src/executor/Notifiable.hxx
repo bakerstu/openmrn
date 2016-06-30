@@ -103,8 +103,10 @@ public:
 class CrashNotifiable : public Notifiable
 {
 public:
+    /// Crashes.
     void notify() override;
 
+    /// @returns a static instance of CrashNotifiable.
     static Notifiable* DefaultInstance();
 };
 
@@ -281,7 +283,7 @@ public:
 
     /* Transfers the ownership of the notification; it will NOT be called in
      * the destructor. The caller is now responsible for calling it.
-     * @returns the notification pointer stored in the constructor. */
+     * @return the notification pointer stored in the constructor. */
     Notifiable* Transfer()
     {
         Notifiable* r = n_;

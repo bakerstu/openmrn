@@ -318,7 +318,7 @@ protected:
     int close(File *) OVERRIDE;
 
 protected:
-    OSMutex lock_; //< protects internal structures.
+    OSMutex lock_; ///< protects internal structures.
 
     unsigned int references_; /**< number of open references */
 

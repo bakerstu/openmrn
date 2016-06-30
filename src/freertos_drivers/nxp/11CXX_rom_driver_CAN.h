@@ -42,11 +42,11 @@
 
 /// CAN message object.
 typedef struct _CAN_MSG_OBJ {
-  uint32_t  mode_id;                  ///< 
-  uint32_t  mask;                     ///< 
-  uint8_t   data[8];                  ///< 
-  uint8_t   dlc;                      ///< 
-  uint8_t   msgobj;                   ///< 
+  uint32_t  mode_id;                  ///< ?
+  uint32_t  mask;                     ///< ?
+  uint8_t   data[8];                  ///< ?
+  uint8_t   dlc;                      ///< ?
+  uint8_t   msgobj;                   ///< ?
 }CAN_MSG_OBJ;
 
 /**************************************************************************
@@ -70,20 +70,20 @@ SDO Abort Codes
 
 /// CanOpen message entry.
 typedef struct _CAN_ODCONSTENTRY {
-  uint16_t index;                     ///< 
-  uint8_t  subindex;                  ///< 
-  uint8_t  len;                       ///< 
-  uint32_t val;                       ///< 
+  uint16_t index;                     ///<  ?
+  uint8_t  subindex;                  ///<  ?
+  uint8_t  len;                       ///<  ?
+  uint32_t val;                       ///<  ?
 }CAN_ODCONSTENTRY;
 
 // upper-nibble values for CAN_ODENTRY.entrytype_len
-#define OD_NONE    0x00    // Object Dictionary entry doesn't exist
-#define OD_EXP_RO  0x10    // Object Dictionary entry expedited, read-only
-#define OD_EXP_WO  0x20    // Object Dictionary entry expedited, write-only
-#define OD_EXP_RW  0x30    // Object Dictionary entry expedited, read-write
-#define OD_SEG_RO  0x40    // Object Dictionary entry segmented, read-only
-#define OD_SEG_WO  0x50    // Object Dictionary entry segmented, write-only
-#define OD_SEG_RW  0x60    // Object Dictionary entry segmented, read-write
+#define OD_NONE    0x00    ///< Object Dictionary entry doesn't exist
+#define OD_EXP_RO  0x10    ///< Object Dictionary entry expedited, read-only
+#define OD_EXP_WO  0x20    ///< Object Dictionary entry expedited, write-only
+#define OD_EXP_RW  0x30    ///< Object Dictionary entry expedited, read-write
+#define OD_SEG_RO  0x40    ///< Object Dictionary entry segmented, read-only
+#define OD_SEG_WO  0x50    ///< Object Dictionary entry segmented, write-only
+#define OD_SEG_RW  0x60    ///< Object Dictionary entry segmented, read-write
 
 /// helper struct to specify a hardware CAN buffer entry.
 typedef struct _CAN_ODENTRY {
@@ -95,25 +95,25 @@ typedef struct _CAN_ODENTRY {
 
 /// Helper struct for CANOpen configuration.
 typedef struct _CAN_CANOPENCFG {
-  uint8_t   node_id;                  ///< 
-  uint8_t   msgobj_rx;                ///< 
-  uint8_t   msgobj_tx;                ///< 
-  uint8_t   isr_handled;              ///< 
-  uint32_t  od_const_num;             ///< 
-  CAN_ODCONSTENTRY *od_const_table;   ///< 
-  uint32_t  od_num;                   ///< 
-  CAN_ODENTRY *od_table;              ///< 
+  uint8_t   node_id;                  ///< ?
+  uint8_t   msgobj_rx;                ///< ? 
+  uint8_t   msgobj_tx;                ///< ?
+  uint8_t   isr_handled;              ///< ? 
+  uint32_t  od_const_num;             ///< ? 
+  CAN_ODCONSTENTRY *od_const_table;   ///< ? 
+  uint32_t  od_num;                   ///< ? 
+  CAN_ODENTRY *od_table;              ///< ? 
 }CAN_CANOPENCFG;
 
 // Return values for CANOPEN_sdo_req() callback
-#define CAN_SDOREQ_NOTHANDLED     0  // process regularly, no impact
-#define CAN_SDOREQ_HANDLED_SEND   1  // processed in callback, auto-send returned msg
-#define CAN_SDOREQ_HANDLED_NOSEND 2  // processed in callback, don't send response
+#define CAN_SDOREQ_NOTHANDLED     0  ///< process regularly, no impact
+#define CAN_SDOREQ_HANDLED_SEND   1  ///< processed in callback, auto-send returned msg
+#define CAN_SDOREQ_HANDLED_NOSEND 2  ///< processed in callback, don't send response
 
 // Values for CANOPEN_sdo_seg_read/write() callback 'openclose' parameter
-#define CAN_SDOSEG_SEGMENT        0  // segment read/write
-#define CAN_SDOSEG_OPEN           1  // channel is opened
-#define CAN_SDOSEG_CLOSE          2  // channel is closed
+#define CAN_SDOSEG_SEGMENT        0  ///< segment read/write
+#define CAN_SDOSEG_OPEN           1  ///< channel is opened
+#define CAN_SDOSEG_CLOSE          2  ///< channel is closed
 
 /// Specifies the callbacks from the CAN stack to the application.
 typedef struct _CAN_CALLBACKS {

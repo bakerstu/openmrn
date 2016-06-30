@@ -153,8 +153,8 @@ private:
         }
 
     private:
-        BufferPort *parent_; //< what to notify upon timeout.
-    } bufferTimer_{this}; //< timer instance.
+        BufferPort *parent_; ///< what to notify upon timeout.
+    } bufferTimer_{this}; ///< timer instance.
 
     /// Caches one output buffer to fill in the buffer flush method.
     Buffer<HubData> *tgtBuf_{nullptr};

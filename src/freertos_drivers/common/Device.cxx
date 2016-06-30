@@ -292,7 +292,7 @@ int Device::fcntl(int fd, int cmd, unsigned long data)
  * @param offset offset in bytes from whence directive
  * @param whence SEEK_SET if to set the file offset to an abosolute position,
  *               SEEK_CUR if to set the file offset from current position
- * @return current offest, or -1 with errno set upon error.
+ * @return current offset, or -1 with errno set upon error.
  */
 off_t Device::lseek(File* f, off_t offset, int whence)
 {

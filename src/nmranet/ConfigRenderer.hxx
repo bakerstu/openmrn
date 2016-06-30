@@ -61,12 +61,12 @@ class AtomConfigOptions : public AtomConfigDefs::Base
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(AtomConfigOptions, AtomConfigDefs::Base);
 
-    /// Represent the value enclosed in the <name> tag of the data element.
+    /// Represent the value enclosed in the "<name>" tag of the data element.
     DEFINE_OPTIONALARG(Name, name, const char *);
-    /// Represent the value enclosed in the <description> tag of the data
+    /// Represent the value enclosed in the "<description>" tag of the data
     /// element.
     DEFINE_OPTIONALARG(Description, description, const char *);
-    /// Represent the value enclosed in the <map> tag of the data element.
+    /// Represent the value enclosed in the "<map>" tag of the data element.
     DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
 
     void render_cdi(std::string *r) const
@@ -470,7 +470,7 @@ public:
     }
 };
 
-/// Helper class for rendering the <acdi> tag.
+/// Helper class for rendering the "<acdi>" tag.
 class AcdiRenderer
 {
 public:

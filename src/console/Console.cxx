@@ -313,7 +313,7 @@ bool Console::callback(FILE *fp, int argc, const char *argv[])
 
 /** Decode in incoming character.
  * @param c character to decode
- * @param session console session the character belongs to
+ * @param s console session the character belongs to
  */
 void Console::decode(char c, Session *s)
 {

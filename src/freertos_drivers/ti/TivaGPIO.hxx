@@ -274,9 +274,9 @@ public:
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param port is the letter (e.g. D)
+/// @param PORT is the letter (e.g. D)
 ///
-/// @param pin is the pin number, such as 3
+/// @param NUM is the pin number, such as 3
 ///
 /// Example:
 ///  GPIO_PIN(FOO, LedPin, D, 3);

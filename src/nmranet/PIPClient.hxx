@@ -83,7 +83,7 @@ public:
     }
 
     /** Returns the error code of the last request, or one of the internal
-     * error codes from \ref enum ResultCodes */
+     * error codes from \ref PIPClient::ResultCodes */
     uint32_t error_code()
     {
         return errorCode_;

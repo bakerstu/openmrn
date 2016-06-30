@@ -79,18 +79,6 @@ static int ascii_to_nibble(const char c)
 }
 
 
-/** Parses a GridConnect packet.
-    
-    @param buf points to a character buffer that contains the packet. The
-    leading ":" must be already removed, the tailing ';' must be replaced by a
-    \0 char.
-
-    @param can_frame is the CAN frame that will be filled based on the source
-    packet.
-
-    @return 0 in case of success, -1 if there was a packet format error (in
-    this case the frame is set to an error frame).
-*/
 int gc_format_parse(const char* buf, struct can_frame* can_frame)
 {
     CLR_CAN_FRAME_ERR(*can_frame);
