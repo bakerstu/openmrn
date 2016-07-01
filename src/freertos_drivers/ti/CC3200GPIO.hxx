@@ -36,6 +36,7 @@
 #define _FREERTOS_DRIVERS_TI_CC3200GPIO_HXX_
 
 #include "os/Gpio.hxx"
+#include "inc/hw_types.h"
 #include "driverlib/gpio.h"
 #include "driverlib/prcm.h"
 #include "inc/hw_memmap.h"
@@ -111,7 +112,7 @@ public:
 
 private:
     template <class Defs, bool SAFE_VALUE> friend struct GpioOutputPin;
-    template <class Defs, uint32_t GPIO_PULL> friend struct GpioInputPin;
+    template <class Defs> friend struct GpioInputPin;
     /// Static instance variable that can be used for libraries expectiong a
     /// generic Gpio pointer. This instance variable will be initialized by the
     /// linker and (assuming the application developer initialized the hardware
