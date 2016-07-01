@@ -32,7 +32,7 @@
  * @date 10 May 2014
  */
 
-#define LOGLEVEL WARNING
+//#define LOGLEVEL WARNING
 
 #include "dcc/Packet.hxx"
 
@@ -257,7 +257,9 @@ void Packet::start_mm_packet()
     header_raw_data = MARKLIN_DEFAULT_CMD;
 }
 
+/// Helper array to translate a marklin address to a bit sequence.
 static const uint8_t marklin_address[3] = {0b00, 0b11, 0b10};
+/// Helper array to translate a marklin function set command to a packet.
 static const uint8_t marklin_fn_bits[5] = {0,          0b01010000, 0b00000100,
                                            0b00010100, 0b01010100};
 

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Defs.hxx
+ * \file nmranet/Defs.hxx
  * Static declarations, enums and helper functions for the NMRAnet interface.
  *
  * @author Stuart W. Baker
@@ -47,6 +47,8 @@ typedef uint64_t NodeID;
 /** Alias to a 48-bit NMRAnet Node ID type */
 typedef uint16_t NodeAlias;
 
+/// Guard value put into the the internal node alias maps when a node ID could
+/// not be translated to a valid alias.
 static const NodeAlias NOT_RESPONDING = 0xF000;
 
 /** Container of both a NodeID and NodeAlias */
@@ -60,7 +62,7 @@ struct NodeHandle
     NodeHandle(NodeID _id, NodeAlias _alias) : id(_id), alias(_alias) {}
     NodeHandle() : id(0), alias(0) {}
 
-    /** Compare to NodeHandle instances.
+    /** Compares two NodeHandle instances.
      * @param o object to compare to
      * @return boolean result of compare
      */
@@ -223,6 +225,15 @@ struct Defs
     static bool get_mti_address(MTI mti)
     {
         return (mti & MTI_ADDRESS_MASK);
+    }
+
+    /** Get the MTI event present value field.
+     * @param mti MTI to extract field value from
+     * @return true if MTI is a message carrying an event as payload, else false
+     */
+    static bool get_mti_event(MTI mti)
+    {
+        return (mti & MTI_EVENT_MASK);
     }
 
     /** Get the MTI datagram or stream value field.

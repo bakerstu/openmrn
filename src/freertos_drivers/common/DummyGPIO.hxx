@@ -70,18 +70,19 @@ struct DummyPin
 /// this pin will be silently ignored. Reads will always return false.
 struct DummyPinWithRead : public DummyPin
 {
-    /// Returns the input pin level.
+    /// @return the input pin level.
     static bool get()
     {
         return false;
     }
 
-    /// Returns whether this is an output pin or not.
+    /// @return true if this is an output pin, false if an input pin.
     static bool is_output()
     {
         return false;
     }
 
+    /// @return the static Gpio instance.
     static const Gpio *instance()
     {
         return GpioWrapper<DummyPinWithRead>::instance();

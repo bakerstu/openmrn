@@ -78,8 +78,14 @@ private:
     OSThread accept_thread_;
 };
 
-// Connects a tcp socket to the specified remote host:port. Returns -1 if
-// unsuccessful; returns the fd is successful.
+/// Connects a tcp socket to the specified remote host:port. Returns -1 if
+/// unsuccessful; returns the fd is successful.
+///
+/// @param host hostname to connect to
+/// @param port TCP port number to connect to
+///
+/// @return fd of the connected socket.
+///
 int ConnectSocket(const char *host, int port);
 
 #endif //_UTILS_SOCKET_LISTENER_HXX_

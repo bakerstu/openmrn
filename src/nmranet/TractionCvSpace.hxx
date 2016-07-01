@@ -75,7 +75,7 @@ public:
     ~TractionCvSpace();
 
 private:
-    static const unsigned MAX_CV = 255;
+    static const unsigned MAX_CV = 1023;
 
     bool set_node(Node *node) OVERRIDE;
 
@@ -131,8 +131,8 @@ private:
     };
 
     enum {
-        OFFSET_CV_INDEX = 0xFF000000,
-        OFFSET_CV_VALUE = 0xFF000004,
+        OFFSET_CV_INDEX = 0x7F000000,
+        OFFSET_CV_VALUE = 0x7F000004,
     };
 
     uint8_t spaceId_;

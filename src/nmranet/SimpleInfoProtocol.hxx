@@ -104,6 +104,7 @@ struct SimpleInfoDescriptor
     const char *data;
 };
 
+/// Base class for the SimpleInfoFlow.
 typedef StateFlow<Buffer<SimpleInfoResponse>, QList<1>> SimpleInfoFlowBase;
 
 /// StateFlow for sending out medium-sized data payloads like the Simple Node

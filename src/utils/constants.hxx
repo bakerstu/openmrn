@@ -40,7 +40,9 @@
 #define EXTERNC extern "C" {
 #define EXTERNCEND }
 #else
+/// Allows both C and C++ compilation
 #define EXTERNC
+/// Allows both C and C++ compilation
 #define EXTERNCEND
 #endif
 
@@ -50,21 +52,40 @@
 
 #ifdef NEED_SIMPLE_CONST
 
+/// Declares a constant value. Put this into a header and include that header
+/// to the code which has to access that constant.
+///
+/// @param name name of the constant. For a name NNN Creates a function called
+/// config_NNN() that returns the configured value.
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern const int _sym_##name;                                      \
-    EXTERNCEND typedef unsigned char                                           \
-        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;     \
+    EXTERNCEND                                                                 \
     static inline int config_##name(void)                                      \
     {                                                                          \
         return _sym_##name;                                                    \
-    }
+    }                                                                          \
+    /** internal guard */                                                      \
+    typedef unsigned char                                                      \
+        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;
 
+/// Defines the default value of a constant. Use this is a single .cxx file and
+/// make sure NOT to include the header that has the respective DECLARE_CONST
+/// macros. Best not to incude anything at all.
+///
+/// @param name name of the constant.
+/// @param value is what the default value should be.
 #define DEFAULT_CONST(name, value)                                             \
-    typedef signed char                                                        \
-        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;     \
     EXTERNC extern const int __attribute__((__weak__)) _sym_##name = value;    \
-    EXTERNCEND
+    EXTERNCEND                                                                 \
+    /** internal guard */                                                      \
+    typedef signed char                                                        \
+        _do_not_add_declare_and_default_const_to_the_same_file_for_##name;
 
+/// Overrides the value of a constant. Use this is a single .cxx file (usually
+/// main.cxx).
+///
+/// @param name name of the constant.
+/// @param value is what the actual value should be.
 #define OVERRIDE_CONST(name, value)                                            \
     EXTERNC extern const int _sym_##name;                                      \
     const int _sym_##name = value;                                             \
@@ -94,15 +115,25 @@
 
 #endif // native C
 
-// We cannot compare constants to zero, so we use 1 and 2 as constant values
-// for booleans.
+/// We cannot compare constants to zero, so we use 1 and 2 as constant values
+/// for booleans.
 #define CONSTANT_TRUE 1
+/// We cannot compare constants to zero, so we use 1 and 2 as constant values
+/// for booleans.
 #define CONSTANT_FALSE 2
 
+/// Sets the default value of a boolean constant to true.
+/// @param name is the name of the constant to set.
 #define DEFAULT_CONST_TRUE(name) DEFAULT_CONST(name, 1)
+/// Sets the default value of a boolean constant to false.
+/// @param name is the name of the constant to set.
 #define DEFAULT_CONST_FALSE(name) DEFAULT_CONST(name, 2)
 
+/// Overrides the value of a boolean constant to true.
+/// @param name is the name of the constant to set.
 #define OVERRIDE_CONST_TRUE(name) OVERRIDE_CONST(name, 1)
+/// Overrides the value of a boolean constant to false.
+/// @param name is the name of the constant to set.
 #define OVERRIDE_CONST_FALSE(name) OVERRIDE_CONST(name, 2)
 
 #endif // _UTILS_CONSTANTS_HXX_

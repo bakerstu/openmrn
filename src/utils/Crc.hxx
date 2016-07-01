@@ -38,8 +38,12 @@
 /** Computes the 16-bit CRC value over data using the CRC16-ANSI (aka
  * CRC16-IBM) settings. This involves zero init value, zero terminating value,
  * reversed polynomial 0xA001, reversing input bits and reversing output
- * bits. The example CRC value of "123456789" is 0xbb3d. */
-uint16_t crc_16_ibm(const void* data, size_t length);
+ * bits. The example CRC value of "123456789" is 0xbb3d.
+ * @param data what to compute the checksum over
+ * @param length_bytes how long data is
+ * @return the CRC-16-IBM value of the checksummed data.
+ */
+uint16_t crc_16_ibm(const void* data, size_t length_bytes);
 
 /** Computes the triple-CRC value over a chunk of data. checksum is an array of
  * 3 halfwords. The first halfword will get the CRC of the data array, the
@@ -49,5 +53,9 @@ uint16_t crc_16_ibm(const void* data, size_t length);
  * This routine is helpful, because a similar routine is part of the TIVA
  * microcontroller ROM, thus needs no implementation on an actual part. It is
  * important to note that the TIVA version takes the length in 4-byte words and
- * allows only using data length divisible by 4. */
+ * allows only using data length divisible by 4.
+ * @param data what to compute the checksum over
+ * @param length_bytes how long data is
+ * @param checksum is the output buffer where to store the 48-bit checksum.
+ */
 void crc3_crc16_ibm(const void* data, size_t length_bytes, uint16_t* checksum);

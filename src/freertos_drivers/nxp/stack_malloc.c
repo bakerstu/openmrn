@@ -37,12 +37,19 @@
 #include "utils/blinker.h"
 #include "utils/constants.hxx"
 
+/// Linker symbol defining the address where the ethernet RAM segment starts in
+/// the 32-bit address space.
 extern char __ETHRAM_segment_start__;
+/// Next byte that's free in the stack memory allocation segment.
 static char* sstack_start = &__ETHRAM_segment_start__;
+/// Linker symbol defining the first byte that is used by the interrupt stack in
+/// the stack segment.
 extern char __stacks_min__;
 
 void* usb_malloc(unsigned long length);
 
+/// Set this to true to allocate stacks in a separate memory segment (usually
+/// ethernet RAM). If false, stack will be allocated by malloc() on the heap.
 DECLARE_CONST(use_separate_stack_segment);
 
 /** Custom malloc function for stack spaces.
@@ -69,8 +76,13 @@ void* stack_malloc(unsigned long length)
     }
 }
 
+/// Linker symbol defining the address where the USB RAM segment starts in the
+/// 32-bit address space.
 extern char __USBRAM_segment_start__;
+/// Linker symbol defining the address where the USB RAM segment ends in the
+/// 32-bit address space.
 extern char __USBRAM_segment_end__;
+/// Pointer to the next free (unallocated) byte in the USB_RAM segment.
 static char* ublock_start = &__USBRAM_segment_start__;
 
 /** Custom malloc function for USB space.
@@ -95,6 +107,10 @@ void* usb_malloc(unsigned long length)
     return old_ublock_start;
 }
 
+/// Allocates a buffer. Overrides the (weak) definition to put it to a
+/// separate RAM segment and leave more heap space free.
+/// @param size in bytes, how large chunk we should allocate.
+/// @return a newly allocated buffer. Cannot be freed.
 void *buffer_malloc(size_t size)
 {
     /* We do a trick here to ensure that the compiler will output a stack frame
@@ -105,6 +121,9 @@ void *buffer_malloc(size_t size)
     return v;
 }
 
+/// Allocates a struct reent. Overrides the (weak) definition to put it to a
+/// separate RAM segment and leave more heap space free.
+/// @return a newly allocated struct reent. Cannot be freed.
 struct _reent* allocate_reent(void)
 {
     struct _reent* data = usb_malloc(sizeof(struct _reent));

@@ -152,10 +152,18 @@ public:
 
     Action entry() override
     {
-        if (message()->data()->channel == 0xff && occupancyPort_)
+        if (message()->data()->channel == 0xff)
         {
-            occupancyPort_->send(transfer_message());
+            if (occupancyPort_) {
+                occupancyPort_->send(transfer_message());
+            } else {
+                release();
+            }
             return exit();
+        }
+        if (message()->data()->channel == 0xfe)
+        {
+            return release_and_exit();
         }
         if (message()->data()->ch1Size)
         {

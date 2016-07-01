@@ -33,17 +33,29 @@
 
 #include <architecture/byte_order.h>
 
+/// Converts a host endian 16-bit value to big endian.
 #define htobe16(x) OSSwapHostToBigInt16(x)
+/// Converts a host endian 16-bit value to little endian.
 #define htole16(x) OSSwapHostToLittleInt16(x)
+/// Converts a big endian 16-bit value to host endian.
 #define be16toh(x) OSSwapBigToHostInt16(x)
+/// Converts a little endian 16-bit value to host endian.
 #define le16toh(x) OSSwapLittleToHostInt16(x)
  
+/// Converts a host endian 32-bit value to big endian.
 #define htobe32(x) OSSwapHostToBigInt32(x)
+/// Converts a host endian 32-bit value to little endian.
 #define htole32(x) OSSwapHostToLittleInt32(x)
+/// Converts a big endian 32-bit value to host endian.
 #define be32toh(x) OSSwapBigToHostInt32(x)
+/// Converts a little endian 32-bit value to host endian.
 #define le32toh(x) OSSwapLittleToHostInt32(x)
  
+/// Converts a host endian 64-bit value to big endian.
 #define htobe64(x) OSSwapHostToBigInt64(x)
+/// Converts a host endian 64-bit value to little endian.
 #define htole64(x) OSSwapHostToLittleInt64(x)
+/// Converts a big endian 64-bit value to host endian.
 #define be64toh(x) OSSwapBigToHostInt64(x)
+/// Converts a little endian 64-bit value to host endian.
 #define le64toh(x) OSSwapLittleToHostInt64(x)

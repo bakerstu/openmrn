@@ -8,6 +8,7 @@
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_timer.h"
 #include "driverlib/timer.h"
 
 GPIO_PIN(LED_RED_RAW, LedPin, D, 6);
@@ -79,6 +80,7 @@ struct Debug {
     typedef DummyPin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
     typedef DummyPin RailcomPackets;
+    typedef DummyPin RailcomCh2Data;
 
 
   typedef LED_GOLD_SW_Pin DetectRepeat;
@@ -90,18 +92,30 @@ struct DCCDecode
     static const auto TIMER_PERIPH = SYSCTL_PERIPH_WTIMER4;
     static const auto TIMER_INTERRUPT = INT_WTIMER4A;
     static const auto TIMER = TIMER_A;
-    static const auto CFG_CAP_TIME_UP =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME_UP | TIMER_CFG_B_ONE_SHOT;
+    static const auto CFG_TIM_CAPTURE =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME;
+    static const auto CFG_RCOM_TIMER =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PERIODIC;
+    
+    // Sets the match register of TIMER to update immediately.
+    static void clr_tim_mrsu() {
+      HWREG(TIMER_BASE + TIMER_O_TBMR) &= ~(TIMER_TBMR_TBMRSU);
+      HWREG(TIMER_BASE + TIMER_O_TBMR) |= (TIMER_TBMR_TBMIE);
+    }
+
     // needs to be B_PERIODIC_UP
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPA_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
+    //static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
+    static const auto TIMER_RCOM_MATCH = TIMER_TIMB_MATCH;
 
-    static const auto SAMPLE_TIMER = TIMER_B;
+    //static const auto SAMPLE_TIMER = TIMER_B;
+    static const auto RCOM_TIMER = TIMER_B;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
-    static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMB_TIMEOUT;
+    //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMB_TIMEOUT;
 
-    static const auto OS_INTERRUPT = INT_WTIMER4B;
+    //static const auto OS_INTERRUPT = INT_WTIMER4B;
+    static const auto RCOM_INTERRUPT = INT_WTIMER4B;
     typedef DCC_IN_Pin NRZ_Pin;
 
     static const uint32_t TIMER_MAX_VALUE = 0x8000000UL;
@@ -178,5 +192,10 @@ __attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH
 #if NODEID_LOW_BITS == 0x4E
 //#define USE_WII_CHUCK
 #endif
+
+namespace TDebug {
+using Resync = DummyPin;
+using NextPacket = DummyPin;
+};
 
 #endif // _ACC_TIVA_3_HARDWARE_HXX_

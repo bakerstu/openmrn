@@ -60,6 +60,7 @@ int appl_main(int argc, char *argv[])
     return RUN_ALL_TESTS();
 }
 
+/// Global executor thread for tests.
 extern Executor<1> g_executor;
 
 #ifdef __EMSCRIPTEN__
@@ -69,9 +70,12 @@ void os_emscripten_yield() {
     g_executor.loop_once();
 }
 #else
+/// Global executor thread for tests. @todo maybe this should have 5 bands?
 Executor<1> g_executor("ex_thread", 0, 1024);
 #endif
 
+/// Do not buffer gridconnect bytes when we are running in a test.
+OVERRIDE_CONST(gridconnect_buffer_size, 1);
 
 Service g_service(&g_executor);
 
@@ -99,27 +103,31 @@ public:
   ~ExecutorStartupFix() {
     wait_for_main_executor();
   }
-} unused_executor_startup_guard_instance;
+} unused_executor_startup_guard_instance; ///< actual instance.
 
 /** Utility class to help running a "pthread"-like thread in the main
  * executor. Helpful for emscripten compatibility. */
 class ExecuteOnMainExecutor : public Executable {
 public:
+    /// Function type for a thread's main entry point.
     typedef void* thread_fn_t(void*);
     /** Schedules the function fn with argument arg on the main executor. Takes
-     * ownership of *this. */
+     * ownership of *this. @param fn is the entry function of the
+     * "thread". @param arg is the argument to pass to the function. */
     ExecuteOnMainExecutor(thread_fn_t *fn, void* arg)
         : fn_(fn), arg_(arg) {
         g_executor.add(this);
     }
 
+    /// Runs the intended function with the given argument and then deletes
+    /// this when done.
     void run() OVERRIDE {
         (*fn_)(arg_);
         delete this;
     }
 private:
-    thread_fn_t *fn_;
-    void* arg_;
+    thread_fn_t *fn_; ///< pointer to function to run.
+    void* arg_; ///< argument to pass to function.
 };
 
 
@@ -137,7 +145,8 @@ public:
     }
 
     /** Creates a block against executor e and waits until the block
-     * suceeds. If e==null, then blocks g_executor. */
+     * suceeds. @param e is the executor to block; ff e==null, then blocks
+     * g_executor. */
     BlockExecutor(ExecutorBase *e)
     {
         if (e)
@@ -175,7 +184,9 @@ public:
     }
 
 private:
+    /// notified (from the executor thread) when the block gets in place.
     SyncNotifiable n_;
+    /// notified (from the test/operator thread) to release the block.
     SyncNotifiable m_;
 };
 
@@ -233,27 +244,5 @@ private:
 
     std::unique_ptr<HolderBase> holder_;
 };
-
-
-extern "C" {
-
-const char *nmranet_manufacturer = "Stuart W. Baker";
-const char *nmranet_hardware_rev = "N/A";
-const char *nmranet_software_rev = "0.1";
-
-const size_t main_stack_size = 2560;
-const size_t ALIAS_POOL_SIZE = 2;
-const size_t DOWNSTREAM_ALIAS_CACHE_SIZE = 2;
-const size_t UPSTREAM_ALIAS_CACHE_SIZE = 2;
-const size_t DATAGRAM_POOL_SIZE = 10;
-const size_t CAN_RX_BUFFER_SIZE = 1;
-const size_t CAN_TX_BUFFER_SIZE = 32;
-const size_t SERIAL_RX_BUFFER_SIZE = 16;
-const size_t SERIAL_TX_BUFFER_SIZE = 16;
-const size_t DATAGRAM_THREAD_STACK_SIZE = 512;
-const size_t CAN_IF_READ_THREAD_STACK_SIZE = 1024;
-const size_t COMPAT_EVENT_THREAD_STACK_SIZE = 1024;
-const size_t WRITE_FLOW_THREAD_STACK_SIZE = 1024;
-}
 
 #endif // _UTILS_TEST_MAIN_HXX_

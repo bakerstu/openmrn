@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file select.h
+ * \file include/freertos_select/sys/select.h
  * This file imlements POSIX select() prototypes.
  *
  * @author Stuart W. Baker

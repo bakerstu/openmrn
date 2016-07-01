@@ -44,25 +44,33 @@
 #ifdef TARGET_LPC2368
 #endif
 
+/// Number of bytes in the send buffer.
 #define TX_DATA_SIZE 64
+/// Number of bytes in the receive buffer.
 #define RX_DATA_SIZE 64
 
 #include <stdlib.h>
 
+/// C++ operator (not sure why this is needed).
 void* operator new(size_t size);
+/// C++ operator (not sure why this is needed).
 void* operator new[](size_t size);
+/// C++ operator (not sure why this is needed).
 void operator delete(void* ptr);
+/// C++ operator (not sure why this is needed).
 void operator delete[](void* ptr);
 
+/// not sure why this is needed.
 __extension__ typedef int __guard __attribute__((mode(__DI__)));
 
+/// C++ operator (not sure why this is needed).
 extern "C" int __cxa_guard_acquire(__guard*);
+/// C++ operator (not sure why this is needed).
 extern "C" void __cxa_guard_release(__guard*);
+/// C++ operator (not sure why this is needed).
 extern "C" void __cxa_guard_abort(__guard*);
-
+/// C++ operator (not sure why this is needed).
 extern "C" void __cxa_pure_virtual(void);
-
-extern DigitalOut d2;
 
 /** This class is an empty wrapper around MBed's USB CDC class. The difference
     between this and mbed::USBSerial is that this class does not have any
@@ -259,4 +267,5 @@ void __cxa_guard_abort(__guard*) {};
 void __cxa_pure_virtual(void) {};
 
 
+/// Global object for the mbed usb serial.
 MbedRawUSBSerial g_mbed_usb_serial("/dev/serUSB0");

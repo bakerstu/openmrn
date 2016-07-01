@@ -68,7 +68,7 @@ public:
     }
 
     // Used for restarting the stack.
-    void clear_initialized()
+    void clear_initialized() OVERRIDE
     {
         isInitialized_ = 0;
     }

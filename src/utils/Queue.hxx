@@ -973,6 +973,7 @@ public:
         return result;
     }
 
+#ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @param priority pass back the priority of the queue pulled from
@@ -994,6 +995,7 @@ public:
         }
         return result;
     }
+#endif
 
     /** Wakeup anyone waiting on the wait queue.
      */

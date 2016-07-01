@@ -1,6 +1,8 @@
 # This makefile contains the lookup path for all the external dependencies to
 # toolchains and libraries.
 
+ifndef OPENMRN_PATH_MK
+OPENMRN_PATH_MK:=1
 
 ################# helper functions ##############
 
@@ -426,5 +428,84 @@ NODEJSPATH:=$(TRYPATH)
 endif
 endif #NODEJSPATH
 
-endif # if  $(OS)  != Windows_NT
+##################### ESPOPENSDK ######################
+ifndef ESPOPENSDKPATH
+SEARCHPATH := \
+  /opt/esp/patched/esp-open-sdk \
+  /opt/esp/esp-open-sdk \
 
+
+TRYPATH:=$(call findfirst,xtensa-lx106-elf/bin/xtensa-lx106-elf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPOPENSDKPATH:=$(TRYPATH)
+endif
+endif #ESPOPENSDKPATH
+
+##################### ESPARDUINO ######################
+ifndef ESPARDUINOPATH
+SEARCHPATH := \
+  $(HOME)/.arduino15/packages/esp8266 \
+
+
+TRYPATH:=$(call findfirst,hardware/esp8266/2.2.0/cores/esp8266/core_esp8266_main.cpp,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPARDUINOPATH:=$(TRYPATH)
+endif
+endif #ESPARDUINOPATH
+
+##################### XTENSAGCC ######################
+ifndef XTENSAGCCPATH
+SEARCHPATH := \
+  $(ESPOPENSDKPATH)/xtensa-lx106-elf \
+  $(HOME)/.arduino15/packages/esp8266/tools/xtensa-lx106-elf-gcc/1.20.0-26-gb404fb9-2
+
+
+TRYPATH:=$(call findfirst,bin/xtensa-lx106-elf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+XTENSAGCCPATH:=$(TRYPATH)
+endif
+endif #XTENSAGCCPATH
+
+##################### ESPTOOL ######################
+ifndef ESPTOOLPATH
+SEARCHPATH := \
+  $(ESPOPENSDKPATH)/esptool \
+  $(XTENSAGCCPATH)/bin \
+  $(HOME)/prg/esp/esptool
+
+
+TRYPATH:=$(call findfirst,esptool.py,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPTOOLPATH:=$(TRYPATH)
+endif
+endif #ESPTOOLPATH
+
+##################### ESPNONOSSDK ######################
+ifndef ESPNONOSSDKPATH
+SEARCHPATH := \
+  /opt/esp/ESP8266_NONOS_SDK \
+  $(HOME)/.arduino15/packages/esp8266/hardware/esp8266/2.2.0/tools/sdk \
+
+
+TRYPATH:=$(call findfirst,include/ets_sys.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPNONOSSDKPATH:=$(TRYPATH)
+endif
+endif #ESPNONOSSDKPATH
+
+
+##################### ESPRTOSSDK ######################
+ifndef ESPRTOSSDKPATH
+SEARCHPATH := \
+  /opt/esp/ESP8266_RTOS_SDK
+
+
+TRYPATH:=$(call findfirst,third_party/spiffs/esp_spiffs.c,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPRTOSSDKPATH:=$(TRYPATH)
+endif
+endif #ESPRTOSSDKPATH
+
+
+endif # if  $(OS)  != Windows_NT
+endif # ifndef OPENMRN_PATH_MK

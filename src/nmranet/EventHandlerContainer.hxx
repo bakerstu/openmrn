@@ -43,7 +43,7 @@
 #include <endian.h>
 
 #ifndef LOGLEVEL
-#define LOGLEVEL VERBOSE
+//#define LOGLEVEL VERBOSE
 #endif
 
 #include "utils/Atomic.hxx"
@@ -164,6 +164,7 @@ private:
     class Iterator;
     friend class Iterator;
 
+    /// Comparison operator for event registry entries.
     struct cmpop
     {
         bool operator()(const EventRegistryEntry &d, uint64_t k)

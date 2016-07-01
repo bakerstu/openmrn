@@ -18,9 +18,9 @@ protected:
         otherIf_.local_aliases()->add(nodeIdLead, 0x771);
         otherIf_.local_aliases()->add(nodeIdC1, 0x772);
         otherIf_.local_aliases()->add(nodeIdC2, 0x773);
-        nodeLead_.reset(new TrainNode(&trainService_, &trainLead_));
-        nodeC1_.reset(new TrainNode(&trainService_, &trainC1_));
-        nodeC2_.reset(new TrainNode(&trainService_, &trainC2_));
+        nodeLead_.reset(new TrainNodeForProxy(&trainService_, &trainLead_));
+        nodeC1_.reset(new TrainNodeForProxy(&trainService_, &trainC1_));
+        nodeC2_.reset(new TrainNodeForProxy(&trainService_, &trainC2_));
         wait();
     }
 
@@ -47,10 +47,10 @@ TEST_F(ConsistTest, CreateAndRunConsist) {
     wait();
 
     b = invoke_flow(
-        &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC1);
+        &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC1, 0);
     ASSERT_EQ(0, b->data()->resultCode);
-    b = invoke_flow(
-        &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC2);
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC2,
+        TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0);
     ASSERT_EQ(0, b->data()->resultCode);
 
     Velocity v;
@@ -63,7 +63,7 @@ TEST_F(ConsistTest, CreateAndRunConsist) {
     EXPECT_NEAR(trainC2_.get_speed().mph(), 37.5, 0.01);
     EXPECT_EQ(Velocity::FORWARD, trainLead_.get_speed().direction());
     EXPECT_EQ(Velocity::FORWARD, trainC1_.get_speed().direction());
-    EXPECT_EQ(Velocity::FORWARD, trainC2_.get_speed().direction());
+    EXPECT_EQ(Velocity::REVERSE, trainC2_.get_speed().direction());
 
     v.reverse();
     v.set_mph(13.7);
@@ -75,7 +75,7 @@ TEST_F(ConsistTest, CreateAndRunConsist) {
     EXPECT_NEAR(trainC2_.get_speed().mph(), 13.7, 0.01);
     EXPECT_EQ(Velocity::REVERSE, trainLead_.get_speed().direction());
     EXPECT_EQ(Velocity::REVERSE, trainC1_.get_speed().direction());
-    EXPECT_EQ(Velocity::REVERSE, trainC2_.get_speed().direction());
+    EXPECT_EQ(Velocity::FORWARD, trainC2_.get_speed().direction());
 }
 
 

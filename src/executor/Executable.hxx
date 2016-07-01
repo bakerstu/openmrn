@@ -49,6 +49,9 @@ public:
      * the CPU. */
     virtual void run() = 0;
 
+    /// Crashes the program -- everyone who is expecting notify calls must
+    /// override this function. It is not virtual because not all
+    /// implementation expect Notify calls.
     void notify() override {
         HASSERT(0 && "unexpected call to notify in Executable");
     }

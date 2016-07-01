@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file JSWebsocketclient.hxx
+ * \file JSWebsocketClient.hxx
  *
  * A node.js compatible server component that exports a TCP listening server
  * with a GridConnect hub.

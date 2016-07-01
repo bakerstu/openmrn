@@ -41,6 +41,7 @@
 namespace dcc {
 
 struct Packet;
+/// C++ type encompassing a speed value for OpenLCB.
 typedef nmranet::SpeedType SpeedType;
 
 /// Abstract class for streams of DCC packets. there will be typically one

@@ -70,16 +70,7 @@ StateFlowBase::Action WriteFlowBase::global_entry()
             NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK))
     {
         // We do not pass on the done notifiable with the loopbacked message.
-        BarrierNotifiable *d = message()->new_child();
-        if (d)
-        {
-            // This is abuse of the barriernotifiable code, because we assume
-            // that notifying the child twice will cause the parent to be
-            // notified once.
-            d->notify();
-            d->notify();
-            message()->set_done(nullptr);
-        }
+        message()->set_done(nullptr);
     }
     unsigned loopback_prio = message()->data()->priority();
     async_if()->dispatcher()->send(transfer_message(), loopback_prio);

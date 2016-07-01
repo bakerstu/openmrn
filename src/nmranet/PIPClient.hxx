@@ -45,6 +45,16 @@ namespace nmranet
  * for unittesting purposes. Defaults to 4 seconds. */
 extern long long PIP_CLIENT_TIMEOUT_NSEC;
 
+/// State flow to request PIP information from a remote node on the OpenLCB
+/// network.
+///
+/// Usage:
+/// 
+/// Create a global or local instance of this flow. Call the @ref request()
+/// function with the arguments, supplying as notifiable the calling flow or a
+/// sync notifiable for blocking operation on a thread. Wait for the
+/// notification. Check that @ref error_code() == OPEATION_SUCCESS, then access
+/// the returned protocol bitmask via the @ref response() accessor.
 class PIPClient : public StateFlowBase
 {
 public:
@@ -73,7 +83,7 @@ public:
     }
 
     /** Returns the error code of the last request, or one of the internal
-     * error codes from \ref ResultCodes */
+     * error codes from \ref PIPClient::ResultCodes */
     uint32_t error_code()
     {
         return errorCode_;
@@ -185,6 +195,9 @@ private:
         return exit();
     }
 
+    /// Message handler for incoming PIP responses. Gets registered in the
+    /// input inteface's dispatcher and proxies an incoming PIP response to
+    /// wake up the parent flow.
     class PIPResponseHandler : public MessageHandler
     {
     public:

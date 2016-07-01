@@ -65,6 +65,7 @@ public:
     ssize_t write(File *, const void *, size_t) OVERRIDE;
 };
 
+/// Filesystem node for the null device.
 Null null("/dev/null");
 
 /** Open a device.

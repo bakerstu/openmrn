@@ -69,6 +69,22 @@
  * @brief default stack size of the main()/appl_main() thread
  */
 
+/** @var _sym_executor_max_sleep_msec
+ *
+ * @brief What is the longest time that the exector will sleep. After this time
+ * the executor will wake up and check if there is some work to do. Catches
+ * incorrectly implemented drivers that have some form of external timeout that
+ * is not integrated with waking up the executor.
+ */
+
+/** @var _sym_executor_select_prescaler
+ *
+ * @brief How many state flows we should invoke before checking with a
+ * zero-timeout select() call to see if a new input data has showed up on one
+ * of the FDs. This is a tradeoff between responsiveness to the incoming data
+ * vs the overhead used by the framework.
+ */
+
 /** @var _sym_can_tx_buffer_size
  * @brief default software buffer size for CAN transmission
  */
@@ -90,6 +106,20 @@
  * This improves readability when debugging through a terminal.
  */
 
+/** @var _sym_gridconnect_buffer_size
+ *
+ * @brief How many bytes we should buffer from gridconnect packets before
+ * writing them to the file descriptor. Tradeoff between transmit latency and
+ * efficiency of output data by using fewer packets on the lowlevel transport
+ * (e.g. TCP packets or USB packets).
+ */
+
+/** @var _sym_gridconnect_buffer_delay_usec
+ *
+ * @brief How many microseconds we should delay outgoing gridconnect bytes in
+ * the hope that we can complete the buffers.
+ */
+
 /**
  * @}
  */
@@ -109,3 +139,6 @@ DEFAULT_CONST(serial_tx_buffer_size, 16);
 DEFAULT_CONST(serial_rx_buffer_size, 16);
 
 DEFAULT_CONST(gc_generate_newlines, 0);
+
+DEFAULT_CONST(gridconnect_buffer_size, 65);
+DEFAULT_CONST(gridconnect_buffer_delay_usec, 300);

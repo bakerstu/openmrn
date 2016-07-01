@@ -68,7 +68,7 @@ extern DynamicPool *mainBufferPool;
 
 /** Initializes the main buffer pool. The first call is not thread safe, later
  * calls are noops. It is recommended to call this one or more times from the
- * static initialization. */
+ * static initialization. @return the mainBufferPool instance. */
 Pool* init_main_buffer_pool();
 
 /** This pointer will be saved for debugging the current allocation source. */
@@ -79,13 +79,22 @@ extern void* g_current_alloc;
 class BufferBase : public QMember
 {
 public:
+    /// @return reference count; always >0; >1 if this Buffer is shared by
+    /// multiple owners.
     uint16_t references()
     {
         return count_;
     }
 
+    /// Specifies that a given BarrierNotifiable must be called when the Buffer
+    /// is deallocated (unreffed to zero, meaning that all owners have freed
+    /// it). @param done is the notifiable to call.
     void set_done(BarrierNotifiable *done)
     {
+        if (done_)
+        {
+            done_->notify();
+        }
         done_ = done;
     }
 
@@ -103,6 +112,7 @@ public:
         }
     }
 
+    /// @return the number of payload bytes owned by this buffer.
     size_t size()
     {
         return size_;
@@ -133,6 +143,8 @@ protected:
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
+    /// Notifiable to call when the buffer has finished processing
+    /// everywhere. May be nullptr.
     BarrierNotifiable *done_;
 
     /** Constructor.  Initializes count to 1 and done_ to NULL.
@@ -155,6 +167,7 @@ protected:
         if (done_)
         {
             done_->notify();
+            done_ = nullptr;
         }
     }
 
@@ -225,8 +238,10 @@ private:
     T data_;
 };
 
-
+/// Helper class for correctly deleting a buffer. Implements the Deleter
+/// concept of STL, can be passed to std::unique_ptr.
 template<typename T> struct BufferDelete {
+    /// unrefs the passed-in buffer.
     void operator()(Buffer<T>* b) {
         if (b) b->unref();
     }
@@ -234,6 +249,8 @@ template<typename T> struct BufferDelete {
 
 /** This class will automatically unref a Buffer when going out of scope. */
 template<typename T> using AutoReleaseBuffer = std::unique_ptr<Buffer<T>, BufferDelete<T>>;
+/** Smart pointer for buffers. This class will automatically unref a Buffer
+ * when going out of scope. */
 template<typename T> using BufferPtr = AutoReleaseBuffer<T>;
 
 /** Pool of previously allocated, but currently unused, items. */
@@ -337,6 +354,7 @@ public:
     /** Allocate a Bucket array off of the heap initialized with sizes.
      * @param s size of first bucket
      * @param ... '0' terminated list of additional buckets
+     * @return array of allocated buckets.
      * @todo (Stuart Baker) fix such that sizes do not need to be in strict
      * ascending order
      */
@@ -451,7 +469,7 @@ public:
      */
     size_t free_items(size_t size) override;
 
-    /** Returns the total memory held by this pool. */
+    /** @return the total memory held by this pool. */
     size_t total_size()
     {
         return totalSize;
@@ -469,17 +487,21 @@ private:
      * @param result pointer to a pointer to the result
      * @param flow if !NULL, then the alloc call is considered async and will
      *        behave as if @ref alloc_async() was called.
+     * @return the allocated buffer base. The caller has to run the constructor
+     * on the returned object to initialize to a specific type.
      */
     BufferBase *alloc_untyped(size_t size, Executable *flow) override;
 
-    /** Allocates a large memory block directly from the heap. */
+    /** Allocates a large memory block directly from the heap. @param size is
+     * the block size to allocate from the heap. @return the allocated
+     * block. */
     void* alloc_large(size_t size);
-    /** Frees a large memory block allocated by alloc_large. */
+    /** Frees a large memory block allocated by alloc_large. @param block is
+     * the memory block to free. */
     void free_large(void* block);
 
-    /** Release an item back to the free pool.
+    /** Releases an item back to the free pool.
      * @param item pointer to item to release
-     * @param size size of buffer to free
      */
     void free(BufferBase *item) override;
 

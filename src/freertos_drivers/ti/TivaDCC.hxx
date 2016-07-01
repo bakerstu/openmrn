@@ -230,7 +230,7 @@ public:
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_TRIGGER_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_UART_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_UARTPIN_PERIPH);
-        enable_output();
+        internal_enable_output();
         disable_output();
         MAP_GPIOPinConfigure(HW::RAILCOM_UARTPIN_CONFIG);
         MAP_GPIOPinTypeUART(HW::RAILCOM_UARTPIN_BASE, HW::RAILCOM_UARTPIN_PIN);
@@ -242,16 +242,35 @@ public:
         HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
     }
 
-    static void enable_output() {
+    void enable_output() {
         output_enabled = true;
+        state_ = POWER_TURNON;
+    }
+
+    static void disable_output()
+    {
+        // This prevents a race condition with a dcc interrupt.
+        output_enabled = false;
+        savedOutputEnabled_ = false;
+        output_enabled = false;
+        savedOutputEnabled_ = false;
+        internal_disable_output();
+    }
+
+    void output_set_shorted() {
+        state_ = POWER_SHORT_20P;
+    }
+
+private:
+    // Helper function for turnon and the cutout.
+    static void internal_enable_output() {
         MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
         MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
         MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
         MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
     }
 
-    static void disable_output()
-    {
+    static void internal_disable_output() {
         output_enabled = false;
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
@@ -273,7 +292,6 @@ public:
                          HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
     }
 
-private:
     /** Read from a file or device.
      * @param file file reference for this device
      * @param buf location to place read data
@@ -322,14 +340,90 @@ private:
         MM_PREAMBLE,
         MM_ZERO,
         MM_ONE,
+        TURNON_1P,
+        TURNON_10P,
+        TURNON_50P,
+        SHORT_20P,
 
         NUM_TIMINGS
     } BitEnum;
 
     int hDeadbandDelay_; /**< low->high deadband delay in clock count */
     int lDeadbandDelay_; /**< high->low deadband delay in clock count */
+    static bool savedOutputEnabled_; // for railcom cutout
 
     Timing timings[NUM_TIMINGS];
+
+    enum State
+    {
+        // DCC preamble bits
+        PREAMBLE,
+        // Packet start bit
+        START,
+        // Data bits for DCC
+        DATA_0,
+        DATA_1,
+        DATA_2,
+        DATA_3,
+        DATA_4,
+        DATA_5,
+        DATA_6,
+        DATA_7,
+        // end-of-byte bit for DCC (either middle-of-packet or end-of-packet)
+        FRAME,
+        // Marklin preamble "bit" (constant negative voltage)
+        ST_MM_PREAMBLE,
+        // MM data bits. The bit number here is an offset in the current input
+        // byte, because MM packets contain 18 consecutive bits.
+        MM_DATA_0,
+        MM_DATA_1,
+        MM_DATA_2,
+        MM_DATA_3,
+        MM_DATA_4,
+        MM_DATA_5,
+        MM_DATA_6,
+        MM_DATA_7,
+        // Internal state used for end-of-packet resynchronization of timers.
+        RESYNC,
+        // State at the end of packet where we make a decision whether to go
+        // into a railcom cutout or not.
+        DCC_MAYBE_RAILCOM,
+        // Counts 26 usec into the appropriate preamble bit after which to turn
+        // off output power.
+        DCC_CUTOUT_PRE,
+        // Start of railcom. Turns off output power and enables UART.
+        DCC_START_RAILCOM_RECEIVE,
+        // Point between railcom window 1 and railcom window 2 where we have to
+        // read whatever arrived for channel1.
+        DCC_MIDDLE_RAILCOM_CUTOUT,
+        // Railcom end-of-channel2 window. Reads out the UART values.
+        DCC_STOP_RAILCOM_RECEIVE,
+        // End of railcom cutout. Reenables output power.
+        DCC_ENABLE_AFTER_RAILCOM,
+        // A few one bits after the DCC packet is over in case we didn't go
+        // into railcom cutout. Form here we go into getting the next packet.
+        DCC_LEADOUT,
+        // Same for marklin. A bit of negative voltage after the packet is over
+        // but before loading the next packet. This ensures that old marklin
+        // decoders confirm receiving the packet correctly before we go into a
+        // potential protocol switch from the next packet loaded.
+        MM_LEADOUT,
+
+        // Goes through the turnon sequence
+        POWER_TURNON,
+        // Enables the output as part of the turnon sequence
+        POWER_TURNON_ENABLE,
+        // Turnon at 1% output power
+        POWER_TURNON_1P,
+        // Turnon at 10% output power
+        POWER_TURNON_10P,
+        // Turnon at 50% output power
+        POWER_TURNON_50P,
+
+        // Used during periods when a short is detected on the output
+        POWER_SHORT_20P,
+    };
+    State state_;
 
     /** Prepares a timing entry.
      *
@@ -342,6 +436,21 @@ private:
     void fill_timing(BitEnum ofs, uint32_t period_usec,
                      uint32_t transition_usec);
 
+    /** Prepares a timing entry for the turnon procedure.
+     *
+     * This means that first a short positive pulse is generated, then no
+     * power, then a short negative pulse is generated. The duty cycle of the
+     * powered / nonpowered section can be determined by the parameters, thus
+     * allowing chargin of capacitors without letting the high charge current
+     * through the FET for too long.
+     *
+     * @param ofs is the bit timing that we are defining.
+     * @param period_usec is the total length of one on-off-on cycle.
+     * @param fill_usec is the time of the positive and negative ON cycle. Must
+     * be less than half the period_usec (or else you get a square wave). */
+    void fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
+                            uint32_t fill_usec);
+
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
     RailcomDriver* railcomDriver_; /**< Will be notified for railcom cutout events. */
@@ -353,84 +462,53 @@ private:
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
 
+
+template <class HW>
+bool TivaDCC<HW>::savedOutputEnabled_ = false;
+
 /** Handle an interrupt.
  */
 template <class HW>
 __attribute__((optimize("-O3")))
 inline void TivaDCC<HW>::interrupt_handler()
 {
-    enum State
-    {
-        PREAMBLE,
-        START,
-        DATA_0,
-        DATA_1,
-        DATA_2,
-        DATA_3,
-        DATA_4,
-        DATA_5,
-        DATA_6,
-        DATA_7,
-        FRAME,
-        ST_MM_PREAMBLE,
-        MM_DATA_0,
-        MM_DATA_1,
-        MM_DATA_2,
-        MM_DATA_3,
-        MM_DATA_4,
-        MM_DATA_5,
-        MM_DATA_6,
-        MM_DATA_7,
-        RESYNC,
-        DCC_MAYBE_RAILCOM,
-        DCC_CUTOUT_PRE,
-        DCC_START_RAILCOM_RECEIVE,
-        DCC_MIDDLE_RAILCOM_CUTOUT,
-        DCC_STOP_RAILCOM_RECEIVE,
-        DCC_ENABLE_AFTER_RAILCOM,
-        DCC_LEADOUT,
-        MM_LEADOUT,
-    };
-
-    static State state = PREAMBLE;
     static int preamble_count = 0;
     static BitEnum last_bit = DCC_ONE;
     static int count = 0;
     static int packet_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
     static bool resync = true;
-    static bool saved_output_enabled = true; // for railcom cutout
     BitEnum current_bit;
     bool get_next_packet = false;
 
     MAP_TimerIntClear(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
-    switch (state)
+    switch (state_)
     {
         default:
         case RESYNC:
             current_bit = DCC_ONE;
             if (packet->packet_header.is_marklin)
             {
-                state = ST_MM_PREAMBLE;
+                state_ = ST_MM_PREAMBLE;
             }
             else
             {
-                state = PREAMBLE;
+                state_ = PREAMBLE;
             }
             break;
         case PREAMBLE:
             current_bit = DCC_ONE;
             if (++preamble_count == HW::dcc_preamble_count())
             {
-                state = START;
+                state_ = START;
                 preamble_count = 0;
             }
             break;
         case START:
             current_bit = DCC_ZERO;
             count = 0;
-            state = DATA_0;
+            state_ = DATA_0;
             break;
         case DATA_0:
         case DATA_1:
@@ -440,20 +518,20 @@ inline void TivaDCC<HW>::interrupt_handler()
         case DATA_5:
         case DATA_6:
         case DATA_7:
-            current_bit = static_cast<BitEnum>(DCC_ZERO + ((packet->payload[count] >> (DATA_7 - state)) & 0x01));
-            state = static_cast<State>(static_cast<int>(state) + 1);
+            current_bit = static_cast<BitEnum>(DCC_ZERO + ((packet->payload[count] >> (DATA_7 - state_)) & 0x01));
+            state_ = static_cast<State>(static_cast<int>(state_) + 1);
             break;
         case FRAME:
             if (++count >= packet->dlc)
             {
                 current_bit = DCC_ONE;  // end-of-packet bit
-                state = DCC_MAYBE_RAILCOM;
+                state_ = DCC_MAYBE_RAILCOM;
                 preamble_count = 0;
             }
             else
             {
                 current_bit = DCC_ZERO;  // end-of-byte bit
-                state = DATA_0;
+                state_ = DATA_0;
             }
             break;
         case DCC_MAYBE_RAILCOM:
@@ -463,10 +541,10 @@ inline void TivaDCC<HW>::interrupt_handler()
                 // We change the time of the next IRQ.
                 MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                                  timings[RAILCOM_CUTOUT_PRE].period);
-                state = DCC_CUTOUT_PRE;
+                state_ = DCC_CUTOUT_PRE;
             } else {
                 current_bit = DCC_ONE;
-                state = DCC_LEADOUT;
+                state_ = DCC_LEADOUT;
             }
             break;
         case DCC_LEADOUT:
@@ -480,18 +558,18 @@ inline void TivaDCC<HW>::interrupt_handler()
             // We change the time of the next IRQ.
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_FIRST].period);
-            state = DCC_START_RAILCOM_RECEIVE;
+            state_ = DCC_START_RAILCOM_RECEIVE;
             break;
         case DCC_START_RAILCOM_RECEIVE:
-            saved_output_enabled = output_enabled;
-            disable_output();
+            savedOutputEnabled_ = output_enabled;
+            internal_disable_output();
             current_bit = DCC_ONE;
             // delay 1 usec
             MAP_SysCtlDelay( lDeadbandDelay_ / 3 );
             // current_bit = RAILCOM_CUTOUT_POST;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_SECOND].period);
-            state = DCC_MIDDLE_RAILCOM_CUTOUT;
+            state_ = DCC_MIDDLE_RAILCOM_CUTOUT;
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
@@ -505,11 +583,11 @@ inline void TivaDCC<HW>::interrupt_handler()
             current_bit = DCC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_POST].period);
-            state =  DCC_STOP_RAILCOM_RECEIVE;
+            state_ =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
             current_bit = DCC_ONE;
-            state = DCC_ENABLE_AFTER_RAILCOM;
+            state_ = DCC_ENABLE_AFTER_RAILCOM;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[DCC_ONE].period);
             railcomDriver_->end_cutout();
@@ -518,11 +596,11 @@ inline void TivaDCC<HW>::interrupt_handler()
                              HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
             break;
         case DCC_ENABLE_AFTER_RAILCOM:
-            if (saved_output_enabled) {
-                enable_output();
+            if (savedOutputEnabled_) {
+                internal_enable_output();
             }
             current_bit = DCC_ONE;
-            state = DCC_LEADOUT;
+            state_ = DCC_LEADOUT;
             ++preamble_count;
             break;
         case ST_MM_PREAMBLE:
@@ -534,7 +612,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                 preamble_count == 7 + 6 + 10 + 6)
             {
                 // first byte contains two bits.
-                state = MM_DATA_6;
+                state_ = MM_DATA_6;
             }
             break;
         case MM_LEADOUT:
@@ -552,26 +630,67 @@ inline void TivaDCC<HW>::interrupt_handler()
         case MM_DATA_6:
             current_bit = static_cast<BitEnum>(
                 MM_ZERO +
-                ((packet->payload[count] >> (MM_DATA_7 - state)) & 0x01));
-            state = static_cast<State>(static_cast<int>(state) + 1);
+                ((packet->payload[count] >> (MM_DATA_7 - state_)) & 0x01));
+            state_ = static_cast<State>(static_cast<int>(state_) + 1);
             break;
         case MM_DATA_7:
             current_bit = static_cast<BitEnum>(
                 MM_ZERO +
-                ((packet->payload[count] >> (MM_DATA_7 - state)) & 0x01));
+                ((packet->payload[count] >> (MM_DATA_7 - state_)) & 0x01));
             ++count;
             if (count == 3) {
-                state = ST_MM_PREAMBLE;
+                state_ = ST_MM_PREAMBLE;
             } else if (count >= packet->dlc) {
-                state = MM_LEADOUT;
+                state_ = MM_LEADOUT;
             } else {
-                state = MM_DATA_0;
+                state_ = MM_DATA_0;
             }
             break;
+
+    case POWER_TURNON:
+        resync = true;
+        current_bit = TURNON_1P;
+        count = 0;
+        state_ = POWER_TURNON_ENABLE;
+        break;
+    case POWER_TURNON_ENABLE:
+        current_bit = TURNON_1P;
+        internal_enable_output();
+        state_ = POWER_TURNON_1P;
+        break;
+    case POWER_TURNON_1P:
+        current_bit = TURNON_1P;
+        if (count++ >= 50) {
+            count = 0;
+            state_ = POWER_TURNON_10P;
+        }
+        break;
+    case POWER_TURNON_10P:
+        current_bit = TURNON_10P;
+        if (count++ >= 1000) {
+            count = 0;
+            state_ = POWER_TURNON_50P;
+        }
+        break;
+    case POWER_TURNON_50P:
+        current_bit = TURNON_50P;
+        if (count++ >= 1000) {
+            packet_repeat_count = 0;
+            get_next_packet = true;
+            resync = true;
+        }
+        break;
+    case POWER_SHORT_20P:
+        current_bit = SHORT_20P;
+        if (count++ >= 500) {
+            count = 0;
+            resync = true;
+        }
     }
 
     if (resync) {
         resync = false;
+        TDebug::Resync::toggle();
         auto* timing = &timings[current_bit];
         // We are syncing -- cause timers to restart counting when these
         // execute.
@@ -624,6 +743,7 @@ inline void TivaDCC<HW>::interrupt_handler()
 
     if (get_next_packet)
     {
+        TDebug::NextPacket::toggle();
         if (packet_repeat_count) {
             --packet_repeat_count;
         }
@@ -653,17 +773,23 @@ inline void TivaDCC<HW>::interrupt_handler()
         // If we are in the repeat loop for a marklin packet, we do not do a
         // resync to not disturb the marklin preamble (which is DC_negative).
         if (resync || !packet->packet_header.is_marklin) {
-            state = RESYNC;
+            state_ = RESYNC;
         } else {
-            state = ST_MM_PREAMBLE;
+            state_ = ST_MM_PREAMBLE;
         }
     }
 }
 
+/// Converts a time length given in microseconds to the number of clock cycles.
+/// @param usec is time given in microseconds.
+/// @return time given in clock cycles.
 static uint32_t usec_to_clocks(uint32_t usec) {
     return (configCPU_CLOCK_HZ / 1000000) * usec;
 }
 
+/// Converts a time length given in nanoseconds to the number of clock cycles.
+/// @param nsec is time given in nanoseconds.
+/// @return time given in clock cycles.
 static uint32_t nsec_to_clocks(uint32_t nsec) {
     // We have to be careful here not to underflow or overflow.
     return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;
@@ -695,6 +821,24 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
     }
 }
 
+
+template<class HW>
+void TivaDCC<HW>::fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
+                                     uint32_t fill_usec)
+{
+    auto* timing = &timings[ofs];
+    timing->period = usec_to_clocks(period_usec);
+    HASSERT(timing->period <= 65534);
+    if (fill_usec >= period_usec / 2) {
+        fill_usec = period_usec / 2;
+    }
+    int32_t power_clock = usec_to_clocks(fill_usec);
+    timing->transition_a =
+        timing->period - power_clock + (hDeadbandDelay_ + lDeadbandDelay_) / 2;
+    timing->transition_b =
+        power_clock - (hDeadbandDelay_ + lDeadbandDelay_) / 2;
+}
+
 template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
@@ -706,12 +850,18 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     , writableNotifiable_(nullptr)
     , railcomDriver_(railcom_driver)
 {
+    state_ = PREAMBLE;
+
     fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
     fill_timing(MM_ZERO, 208, 26);
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
     fill_timing(MM_PREAMBLE, 208, 0);
+    fill_timing_turnon(TURNON_1P, 500, 3 + (hDeadbandDelay_ + lDeadbandDelay_) / 2);
+    fill_timing_turnon(TURNON_10P, 250, 13);
+    fill_timing_turnon(TURNON_50P, 200, 50);
+    fill_timing_turnon(SHORT_20P, 500, 50);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;

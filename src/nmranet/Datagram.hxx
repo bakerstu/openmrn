@@ -47,7 +47,7 @@ struct IncomingDatagram;
 /// Defines how long to wait for a Datagram_OK / Datagram_Rejected message.
 extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 
-// cont
+/// Contents of a Datagram message.
 typedef Payload DatagramPayload;
 
 /// Message structure for incoming datagram handlers.
@@ -69,8 +69,9 @@ extern Pool *const g_incoming_datagram_allocator;
  *
  * The datagram handler needs to listen to the incoming queue for arriving
  * datagrams. It is okay to derive a datagram handler from DatagramHandlerFlow
- * as well (they ar ecompatible). */
+ * as well (they are compatible). */
 typedef FlowInterface<Buffer<IncomingDatagram>> DatagramHandler;
+/// Derive datagram handlers that are stateflows from this base class.
 typedef StateFlow<Buffer<IncomingDatagram>, QList<1>> DatagramHandlerFlow;
 
 /** Use this class to send datagrams */

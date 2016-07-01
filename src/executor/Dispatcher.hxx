@@ -56,6 +56,8 @@ public:
      * @param service the Service this flow belongs to. */
     DispatchFlowBase(Service *service);
 
+    /// Allows using Action without having StateFlowBase:: prefix in front of
+    /// it.
     typedef StateFlowBase::Action Action;
 
     ~DispatchFlowBase();
@@ -64,7 +66,10 @@ public:
     size_t size();
 
 protected:
+    /// Proxy the identifier type for customers to use.
     typedef uint32_t ID;
+    /// Generic handler type. Will be cast to specific handlers in the specific
+    /// DispatchFlow<...> template.
     typedef void UntypedHandler;
     /**
        Adds a new handler to this dispatcher.
@@ -82,9 +87,15 @@ protected:
     void register_handler(UntypedHandler *handler, ID id, ID mask);
 
     /// Removes a specific instance of a handler from this dispatcher.
+    ///
+    /// @param handler handler pointer to unregister.
+    /// @param id bits to unregister the handler for
+    /// @param mask mask to unregister the handler for.
+    ///
     void unregister_handler(UntypedHandler *handler, ID id, ID mask);
 
-    /// Removes all instances of a handler from this dispatcher.
+    /// Removes all instances of a handler from this dispatcher. @param handler
+    /// is the handler to unregister from all instances.
     void unregister_handler_all(UntypedHandler *handler);
 
     /// Returns the current message's ID.
@@ -119,12 +130,16 @@ protected:
             return call_immediately(STATE(iterate));
             }*/
 
+    /// Iterate on potential handlers, matching the ID of the incoming message
+    /// to the handlers' masks. @return next action
     STATE_FLOW_STATE(iterate);
+    /// State after a clone-and-send operation is complete.  @return next action
     STATE_FLOW_STATE(clone_done);
+    /// State when the entire iteration is done.  @return next action
     STATE_FLOW_STATE(iteration_done);
 
 private:
-    // true if this flow should negate the match condition.
+    /// true if this flow should negate the match condition.
     bool negateMatch_;
     template<class T>
     friend class GenericHubFlow;
@@ -136,11 +151,20 @@ private:
         HandlerInfo() : handler(nullptr)
         {
         }
-        ID id;
-        ID mask;
-        // NULL if the handler has been removed.
+        ID id; ///< Bits that this handler is registered for.
+        ID mask; ///< Mask that should be applied for the bits check.
+        /// Handler to call. NULL if the handler has been removed.
         UntypedHandler *handler;
 
+        /// Equality comparison function on the handlers. Used for remove()
+        /// calls.
+        ///
+        /// @param id desired id to unregister
+        /// @param mask desired mask to unregister
+        /// @param handler desired handler to unregister
+        ///
+        /// @return true if this is the instance to be removed.
+        ///
         bool Equals(ID id, ID mask, UntypedHandler *handler)
         {
             return (this->id == id && this->mask == mask &&
@@ -148,6 +172,7 @@ private:
         }
     };
 
+    /// Registered handlers.
     vector<HandlerInfo> handlers_;
 
     /// Index of the next handler to look at.
@@ -167,6 +192,8 @@ private:
 #ifdef TARGET_LPC11Cxx
 #define BASE_NUM_PRIO 4
 #else
+/// Helper macro to override the number of priorities to the same value in
+/// really tiny targets to avoid compiling multiple different DispatchFlows.
 #define BASE_NUM_PRIO NUM_PRIO
 #endif
 
@@ -175,17 +202,24 @@ private:
 template <class MessageType, int NUM_PRIO>
 class DispatchFlow : public TypedStateFlow<MessageType, DispatchFlowBase<BASE_NUM_PRIO> > {
 public:
+    /// Helper typedef of the base class of *this.
     typedef TypedStateFlow<MessageType, DispatchFlowBase<BASE_NUM_PRIO> > Base;
 
+    /// Constructor. @param service specifies which thread to execute this
+    /// state flow on.
     DispatchFlow(Service *service)
         :  Base(service) {}
 
+    /// Imports types and functions to allow less typing for the implementation.
     typedef StateFlowBase::Action Action;
     using StateFlowBase::call_immediately;
     using StateFlowBase::allocate_and_call;
     using StateFlowBase::get_allocation_result;
 
+    /// Interface type for handlers that can be registered.
     typedef FlowInterface<MessageType> HandlerType;
+    /// Maskable type of the dispatched messages upon which handlers can
+    /// configure to trigger.
     typedef typename MessageType::value_type::id_type ID;
 
     Action entry() OVERRIDE {
@@ -210,6 +244,11 @@ public:
     }
 
     /// Removes a specific instance of a handler from this dispatcher.
+    ///
+    /// @param handler handler pointer to unregister.
+    /// @param id bits to unregister the handler for
+    /// @param mask mask to unregister the handler for.
+    ///
     void unregister_handler(HandlerType *handler, ID id, ID mask) {
         Base::unregister_handler(handler, id, mask);
     }
@@ -220,15 +259,19 @@ public:
     }
 
 protected:
+    /// @return the identifier bits of the current message.
     typename Base::ID get_message_id() OVERRIDE {
         return this->message()->data()->id();
     }
 
+    /// Requests allocating a new buffer for sending off a clone.
     Action allocate_and_clone() OVERRIDE {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
         return allocate_and_call(h, STATE(clone));
     }
 
+    /// Takes the allocated new buffer, copies the message into it and sends
+    /// off to the clone target. @return next action.
     Action clone() {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
         MessageType *copy = this->get_allocation_result(h);
@@ -238,6 +281,8 @@ protected:
         return call_immediately(STATE(clone_done));
     }
 
+    /// Takes the existing buffer and sends off to the target flow. Only used
+    /// as the last action.
     void send_transfer() OVERRIDE {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
         h->send(this->transfer_message());

@@ -21,7 +21,7 @@ struct ArgsOne : public ArgsOneDecl::BaseType
 {
     INHERIT_CONSTEXPR_CONSTRUCTOR(ArgsOne, BaseType);
 
-    // The default values do not need to be prepeated anymore.
+    // The default values do not need to be repeated anymore.
     DEFINE_OPTIONALARG(Foo, foo, int);
     DEFINE_OPTIONALARG(Bar, bar, const char *);
 };
@@ -38,6 +38,7 @@ TEST(OptionalArg, Get)
     EXPECT_EQ(42, ao.foo());
     EXPECT_EQ(string("abcdef"), ao.bar());
 }
+
 
 constexpr ArgsOne adef;
 
@@ -57,6 +58,18 @@ TEST(OptionalArg, Override)
     EXPECT_EQ(20, aoverride.foo());
     ASSERT_NE(nullptr, aoverride.bar());
     EXPECT_EQ(string("abcdef"), aoverride.bar());
+}
+
+TEST(OptionalArg, ArgsOneHas)
+{
+    EXPECT_TRUE(ao.has_foo());
+    EXPECT_TRUE(ao.has_bar());
+
+    EXPECT_FALSE(adef.has_foo());
+    EXPECT_FALSE(adef.has_bar());
+
+    EXPECT_TRUE(aoverride.has_foo());
+    EXPECT_TRUE(aoverride.has_bar());
 }
 
 // Args objects can extend each other with a moderately clumsy syntax by
@@ -94,6 +107,10 @@ TEST(OptionalArg, Inherit)
     // The rest are defaults.
     EXPECT_EQ(23, at.foo());
     EXPECT_EQ(nullptr, at.bar());
+
+    EXPECT_TRUE(at.has_qux());
+    EXPECT_FALSE(at.has_foo());
+    EXPECT_FALSE(at.has_bar());
 }
 
 // We can mix and match arguments. They can be in various order.
@@ -104,4 +121,8 @@ TEST(OptionalArg, Inherit2)
     EXPECT_EQ(41, att.foo());
     EXPECT_EQ(nullptr, att.bar());
     EXPECT_EQ("fooo", att.qux());
+
+    EXPECT_TRUE(att.has_qux());
+    EXPECT_TRUE(att.has_foo());
+    EXPECT_FALSE(att.has_bar());
 }

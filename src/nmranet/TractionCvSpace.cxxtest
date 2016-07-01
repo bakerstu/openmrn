@@ -77,7 +77,7 @@ protected:
     }
 
     LoggingTrain train_impl_{175};
-    TrainNode train_node_{&trainService_, &train_impl_};
+    TrainNodeForProxy train_node_{&trainService_, &train_impl_};
     CanDatagramService datagram_support_{ifCan_.get(), 10, 2};
     MemoryConfigHandler memory_config_handler_{&datagram_support_, nullptr, 3};
     dcc::RailcomHubFlow railcom_hub_{&g_service};
@@ -148,9 +148,9 @@ TEST_F(TractionCvTest, SingleCvWrite)
 TEST_F(TractionCvTest, IndirectWrite)
 {
     print_all_packets();
-    send_packet(":X1B272883N2000FF000000EF00;");
+    send_packet(":X1B272883N20007F000000EF00;");
     expect_packet(":X19A28272N088380;");
-    expect_packet(":X1A883272N2010FF000000EF;");
+    expect_packet(":X1A883272N20107F000000EF;");
     send_packet(":X1D272883N000038;"); // note we write CV 38 ...
     wait();
     send_packet(":X19A28883N027200;");
@@ -162,9 +162,9 @@ TEST_F(TractionCvTest, IndirectWrite)
         .Times(1);
 
     expect_packet(":X19A28272N088380;");
-    send_packet(":X1A272883N2000FF000004EF5A;");
+    send_packet(":X1A272883N20007F000004EF5A;");
     wait();
-    expect_packet(":X1A883272N2010FF000004EF;");
+    expect_packet(":X1A883272N20107F000004EF;");
     send_railcom_response(expected_feedback_key(), {0b10100101, 0b10100110});
     wait();
     send_packet(":X19A28883N027200;");
@@ -176,9 +176,9 @@ TEST_F(TractionCvTest, IndirectRead)
     print_all_packets();
 
     // Send index.
-    send_packet(":X1B272883N2000FF000000EF00;");
+    send_packet(":X1B272883N20007F000000EF00;");
     expect_packet(":X19A28272N088380;");
-    expect_packet(":X1A883272N2010FF000000EF;");
+    expect_packet(":X1A883272N20107F000000EF;");
     // note we read cv 38 ...
     send_packet(":X1D272883N000038;");
     wait();
@@ -189,9 +189,9 @@ TEST_F(TractionCvTest, IndirectRead)
     // ... to get wire 37
     EXPECT_CALL(track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11100100, 0x37, 0),
                                   expected_feedback_key())).Times(1);
-    send_packet(":X1A272883N2040FF000004EF01;");
+    send_packet(":X1A272883N20407F000004EF01;");
     wait();
-    expect_packet(":X1A883272N2050FF000004EFC5;");
+    expect_packet(":X1A883272N20507F000004EFC5;");
     send_railcom_response(expected_feedback_key(), {0b10100101, 0b10100110});
     wait();
     send_packet(":X19A28883N027200;");

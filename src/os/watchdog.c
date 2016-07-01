@@ -39,7 +39,9 @@
 #include "os/os.h"
 
 
+/// What is the timeout of the watchdog in milliseconds.
 static int watchdog_period_msec;
+/// How many times have we seen the watchdog tick without being fed.
 static int watchdog_ticks = 0;
 
 /// Thread running a watchdog.

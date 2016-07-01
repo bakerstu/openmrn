@@ -43,6 +43,14 @@
 namespace nmranet
 {
 
+/// Event handler implementation class that calls a user-specified
+/// std::function callback every time an event report message for the given
+/// event ID arrives. One event handler can request multiple event IDs to be
+/// listened to. There are separate callbacks for event report and
+/// requesting the current state for producer/consumer identified messages.
+///
+/// This is an alternate design pattern to creating subclasses of @ref
+/// BitEventInterface.
 class CallbackEventHandler : public SimpleEventHandler
 {
 public:

@@ -42,7 +42,7 @@
 namespace nmranet
 {
 
-/** @TODO(balazs.racz) this is a kludgy interface but allows the linux traction
+/** @todo(balazs.racz) this is a kludgy interface but allows the linux traction
  * proxy implementation to override and create test trains. */
 Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo,
     TrainService* traction_service)
@@ -69,7 +69,7 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo, Trai
         }
     }
     if (!impl) return nullptr;
-    TrainNode *train_node = new TrainNode(traction_service, impl);
+    TrainNode *train_node = new TrainNodeForProxy(traction_service, impl);
     return train_node;
 }
 

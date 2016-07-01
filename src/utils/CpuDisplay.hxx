@@ -37,9 +37,19 @@
 #include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/CpuLoad.hxx"
 
+/// Displays the current CPU load on a bicolor LED (red + green) by showing
+/// green when CPU load is light, yellow when moderate, and red when heavy.
+///
+/// Works great for example on the onboard RGB led of the Tiva tm4c123
+/// development board.
 class CpuDisplay : public StateFlowBase
 {
 public:
+    /// Constructor
+    ///
+    /// @param s Service specifying which thread to run this stateflow on.
+    /// @param red Gpio for the red output pin.
+    /// @param green Gpio for the green output pin.
     CpuDisplay(Service *s, const Gpio *red, const Gpio *green)
         : StateFlowBase(s)
         , timer_(this)
@@ -49,11 +59,13 @@ public:
         start_flow(STATE(delay));
     }
 
+    /// Wait for updating the display. @return action.
     Action delay()
     {
         return sleep_and_call(&timer_, MSEC_TO_NSEC(50), STATE(update_display));
     }
 
+    /// Update the display. @return action.
     Action update_display()
     {
         uint8_t load = CpuLoad::instance()->get_load();
@@ -76,10 +88,11 @@ public:
     }
 
 private:
+    /// Helper struct for timer state.
     StateFlowTimer timer_;
-    // Red LED for display.
+    /// Red LED for display.
     const Gpio *red_;
-    // Green LED for display.
+    /// Green LED for display.
     const Gpio *green_;
 };
 

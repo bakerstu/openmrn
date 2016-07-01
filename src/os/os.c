@@ -32,7 +32,7 @@
  * @date 13 August 2012
  */
 
-// Forces one definition of each inline function to be compliled.
+/// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern
 
 #include <stdint.h>
@@ -40,22 +40,35 @@
 #include <fcntl.h>
 #if !defined (GCC_MEGA_AVR)
 #include <unistd.h>
-#endif
+#endif // !GCC_MEGA_AVR
+
 #if defined (__FreeRTOS__)
 #include "devtab.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#else
-#if defined(__WIN32__)
+
+#elif defined(__WIN32__)
+
 #include <winsock2.h>
 #include <ws2tcpip.h> /* socklen_t */
-#else
-#include <sys/select.h>
-#include <sched.h>
-#endif
 #include <time.h>
 #include <signal.h>
-#endif
+
+#elif defined(ESP_NONOS)
+
+#include <sys/select.h>
+#include <sched.h>
+#include <signal.h>
+#include <user_interface.h>
+
+#else
+
+#include <sys/select.h>
+#include <sched.h>
+#include <time.h>
+#include <signal.h>
+
+#endif // switch by OS
 
 #include "nmranet_config.h"
 
@@ -271,7 +284,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
-#if !defined (__EMSCRIPTEN__)
+#if !defined (__EMSCRIPTEN__) && !defined(ESP_NONOS)
 /** Create a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -434,6 +447,16 @@ long long os_get_time_monotonic(void)
     gettimeofday(&tv, NULL);
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
+#elif defined(ESP_NONOS)
+    static uint32_t clockmul = 0;
+    if (clockmul == 0) {
+        clockmul = system_rtc_clock_cali_proc();
+        clockmul *= 1000;
+        clockmul >>= 10;
+    }
+    time = system_get_rtc_time();
+    time *= clockmul;
+    time >>= 2;
 #else
     struct timespec ts;
 #if defined (__nuttx__)
@@ -655,7 +678,7 @@ void main_thread(void *arg)
 #endif
 
 /** This function does nothing. It can be used to alias other symbols to it via
- * linker flags, such as atexit(). */
+ * linker flags, such as atexit(). @return 0. */
 int ignore_fn(void)
 {
     return 0;
@@ -732,3 +755,12 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+
+
+#if 0 && defined(ESP_NONOS)
+struct _reent *_impure_ptr = NULL;
+static int my_errno;
+int* __errno(void) {
+    return &my_errno;
+}
+#endif

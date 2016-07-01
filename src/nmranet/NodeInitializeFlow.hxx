@@ -145,6 +145,51 @@ private:
 /// InitializeFlow.
 void StartInitializationFlow(Node *node);
 
+/// StateFlow that iterates through all local nodes and sends out node
+/// initialization complete for each of them. Used when a TCP disconnect event
+/// causes us to lose network connectivity and later the connection gets
+/// reestablished.
+class ReinitAllNodes : public StateFlowBase {
+public:
+    ReinitAllNodes(If* iface) : StateFlowBase(iface) {
+        nextNode_ = iface->first_local_node();
+        start_flow(STATE(allocate_entry));
+    }
+
+private:
+    Action allocate_entry() {
+        if (!nextNode_) {
+            return delete_this();
+        }
+        return allocate_and_call(tgt(), STATE(send_init_request));
+    }
+
+    Action send_init_request() {
+        auto* b = get_allocation_result(tgt());
+        b->data()->node = nextNode_;
+        b->set_done(bn_.reset(this));
+        tgt()->send(b);
+        return wait_and_call(STATE(init_done));
+    }
+
+    Action init_done() {
+        nextNode_ = iface()->next_local_node(nextNode_->node_id());
+        return call_immediately(STATE(allocate_entry));
+    }
+
+    InitializeFlow* tgt() {
+        return Singleton<InitializeFlow>::instance();
+    }
+
+    If* iface() {
+        return static_cast<If*>(service());
+    }
+
+    /// Which node to send identify next. If nullptr, we're done.
+    Node* nextNode_;
+    BarrierNotifiable bn_;
+};
+
 } // namespace nmranet
 
 #endif // _NMRANET_NODEINITIALIZEFLOW_HXX_

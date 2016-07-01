@@ -37,6 +37,10 @@
 #include <vector>
 #include <algorithm>
 
+/// An mostly std::set<> compatible class that stores the internal data in a
+/// sorted vector. Has low memory overhead; isertion cost is pretty high and
+/// lookup cost is logarithmic. Useful when a few insertions happen (for
+/// example only during initialization) and then lots of lookups are made.
 template <class D, class CMP> class SortedListSet
 {
 public:

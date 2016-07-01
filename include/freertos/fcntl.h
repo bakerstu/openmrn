@@ -40,9 +40,23 @@
 extern "C" {
 #endif
 
+/// ioctl parameter space for our custom defined ioctls in the freertos
+/// drivers.
 #define F_FREERTOS_SPECIFIC_BASE 1000
 
+/// ioctl to set the length of the internal fifo buffer.
 #define F_SETPIPE_SZ (F_FREERTOS_SPECIFIC_BASE + 0)
+
+
+#ifndef FREAD
+/// Workaround for missing header defines on some newlib versions.
+#define FREAD 1
+#endif
+
+#ifndef FWRITE
+/// Workaround for missing header defines on some newlib versions.
+#define FWRITE 2
+#endif
 
 #ifdef __cplusplus
 }

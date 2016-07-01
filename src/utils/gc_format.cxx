@@ -41,7 +41,7 @@
 extern "C" {
 
 /** Build an ASCII character representation of a nibble value (uppercase hex).
- * @param value to convert
+ * @param nibble to convert
  * @return converted value
  */
 static char nibble_to_ascii(int nibble)
@@ -79,16 +79,6 @@ static int ascii_to_nibble(const char c)
 }
 
 
-/** Parses a GridConnect packet.
-    
-    @param s points to a character buffer that contains the packet. The leading
-    ":" is already removed, the tailing ';' is replaced by a \0 char.
-
-    @param dst is the CAN frame that will be filled based on the source packet.
-
-    @returns 0 in case of success, -1 if there was a packet format error (in
-    this case the frame is set to an error frame).
-*/
 int gc_format_parse(const char* buf, struct can_frame* can_frame)
 {
     CLR_CAN_FRAME_ERR(*can_frame);
@@ -162,12 +152,22 @@ int gc_format_parse(const char* buf, struct can_frame* can_frame)
     return 0;
 }
 
-
+/// Helper function for appending to a buffer ONCE.
+///
+/// @param dst buffer to append data to
+/// @param value one character to append to.
+///
 static void output_single(char*& dst, char value)
 {
     *dst++ = value;
 }
 
+/// Helper function for appending to a buffer TWICE. Used in the implementation
+/// of the double-byte gridconnect output protocol.
+///
+/// @param dst buffer to append data to
+/// @param value one character to append to.
+///
 static void output_double(char*& dst, char value)
 {
     *dst++ = value;

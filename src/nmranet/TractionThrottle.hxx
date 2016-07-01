@@ -44,6 +44,8 @@ namespace nmranet
 
 struct TractionThrottleInput;
 
+/// C++ Namespace for collecting all commands that can be sent to the
+/// TractionThrottle flow.
 struct TractionThrottleCommands
 {
     enum AssignTrain
@@ -77,6 +79,9 @@ struct TractionThrottleCommands
     };
 };
 
+/// Request structure used to send requests to the TractionThrottle
+/// class. Contains parametrized reset calls for properly supporting
+/// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
 struct TractionThrottleInput
 {
     enum Command
@@ -105,10 +110,11 @@ struct TractionThrottleInput
         cmd = CMD_LOAD_STATE;
     }
 
-    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave)
+    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave, uint8_t flags)
     {
         cmd = CMD_CONSIST_ADD;
         dst = slave;
+        this->flags = flags;
     }
 
     void reset(const TractionThrottleCommands::ConsistDel &, NodeID slave)
@@ -134,6 +140,9 @@ struct TractionThrottleInput
     /// For assign, this carries the destination node ID. For consisting
     /// requests, this is an in-out argument.
     NodeID dst;
+    /// Contains the flags for the consist listener. Specified for Attach
+    /// requests, and filled for Query responses.
+    uint8_t flags;
 
 
     BarrierNotifiable done;
@@ -435,7 +444,8 @@ private:
     {
         handler_.wait_for_response(
             NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
-        send_traction_message(TractionDefs::consist_add_payload(input()->dst));
+        send_traction_message(
+            TractionDefs::consist_add_payload(input()->dst, input()->flags));
         return sleep_and_call(&timer_, TIMEOUT_NSEC, STATE(consist_add_response));
     }
 
@@ -457,7 +467,7 @@ private:
 
         AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
         const string &payload = handler_.response()->data()->payload;
-        if (payload.size() < 3)
+        if (payload.size() < 9)
         {
             return return_with_error(Defs::ERROR_INVALID_ARGS);
         }
@@ -476,10 +486,13 @@ private:
                 // spurious reply message
                 return return_with_error(Defs::ERROR_OUT_OF_ORDER);
             }
+        } else if (data_to_node_id(&payload[2]) != input()->dst) {
+            // spurious reply message
+            return return_with_error(Defs::ERROR_OUT_OF_ORDER);
         }
-        uint16_t e = payload[2];
+        uint16_t e = payload[8];
         e <<= 8;
-        e |= payload[3];
+        e |= payload[9];
         input()->replyCause = e ? 1 : 0;
         return return_with_error(e);
     }
@@ -521,11 +534,13 @@ private:
             return return_with_error(Defs::ERROR_OUT_OF_ORDER);
         }
         input()->consistCount = payload[2];
-        if (payload.size() >= 3 + 6) {
+        if (payload.size() >= 11) {
             input()->consistIndex = payload[3];
-            input()->dst = data_to_node_id(&payload[4]);
+            input()->flags = payload[4];
+            input()->dst = data_to_node_id(&payload[5]);
         } else {
             input()->consistIndex = 0xff;
+            input()->flags = 0xff;
             input()->dst = 0;
         }
         input()->replyCause = 0;

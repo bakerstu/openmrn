@@ -70,11 +70,16 @@ Payload eventid_to_buffer(uint64_t eventid)
     return string(reinterpret_cast<char*>(&eventid), 8);
 }
 
+void error_to_data(uint16_t error_code, void* data) {
+    uint8_t* p = (uint8_t*) data;
+    p[0] = error_code >> 8;
+    p[1] = error_code & 0xff;
+}
+
 string error_to_buffer(uint16_t error_code, uint16_t mti)
 {
     string ret(4, '\0');
-    ret[0] = error_code >> 8;
-    ret[1] = error_code & 0xff;
+    error_to_data(error_code, &ret[0]);
     ret[2] = mti >> 8;
     ret[3] = mti & 0xff;
     return ret;
@@ -83,8 +88,7 @@ string error_to_buffer(uint16_t error_code, uint16_t mti)
 string error_to_buffer(uint16_t error_code)
 {
     string ret(2, '\0');
-    ret[0] = error_code >> 8;
-    ret[1] = error_code & 0xff;
+    error_to_data(error_code, &ret[0]);
     return ret;
 }
 

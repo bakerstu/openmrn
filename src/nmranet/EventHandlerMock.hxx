@@ -47,6 +47,9 @@ namespace nmranet {
 class MockEventHandler : public EventHandler
 {
 public:
+/// Proxies an event handler function to a gmock function.
+///
+/// @param FN name of the function to proxy.
 #define DEFPROXYFN(FN)                                                         \
     MOCK_METHOD3(FN, void(const EventRegistryEntry &, EventReport *event,      \
                           BarrierNotifiable *done))
