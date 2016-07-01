@@ -10,7 +10,7 @@ SYSLIBRARIESEXTRA += -ldriver \
                      -lfreertos_drivers_cc32xx \
                      -lfreertos_drivers_cc32xxsdk \
                      -lfreertos_drivers_net_cc32xx
-TARGET := freertos.armv7m
+export TARGET := freertos.armv7m
 endif
 
 DEPS += TICC3200SDKPATH

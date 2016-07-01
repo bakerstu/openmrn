@@ -7,9 +7,6 @@ SRCDIR = $(abspath ../../../$(BASENAME))
 VPATH = $(SRCDIR)
 
 INCLUDES += -I./ -I../ -I../include 
-ifdef APP_PATH
-INCLUDES += -I$(APP_PATH)
-endif
 INCLUDES += -I$(OPENMRNPATH)/include
 INCLUDES += -I$(OPENMRNPATH)/src
 include $(OPENMRNPATH)/etc/$(TARGET).mk
@@ -29,6 +26,10 @@ CSRCS = $(notdir $(FULLPATHCSRCS))
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
 CPPSRCS = $(notdir $(FULLPATHCPPSRCS))
 endif
+endif
+
+ifdef APP_PATH
+INCLUDES += -I$(APP_PATH)
 endif
 
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
