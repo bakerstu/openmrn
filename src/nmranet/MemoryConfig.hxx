@@ -938,7 +938,7 @@ private:
     DatagramClient *responseFlow_;
     BarrierNotifiable b_;
 
-    ///@TODO (balazs.racz) implement lock/unlock.
+    ///@todo (balazs.racz) implement lock/unlock.
     //NodeID lockNode_; //< Holds the node ID that locked us.
 
     Registry registry_;         //< holds the known memory spaces

@@ -44,6 +44,8 @@ namespace nmranet
 
 struct TractionThrottleInput;
 
+/// C++ Namespace for collecting all commands that can be sent to the
+/// TractionThrottle flow.
 struct TractionThrottleCommands
 {
     enum AssignTrain
@@ -77,6 +79,9 @@ struct TractionThrottleCommands
     };
 };
 
+/// Request structure used to send requests to the TractionThrottle
+/// class. Contains parametrized reset calls for properly supporting
+/// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
 struct TractionThrottleInput
 {
     enum Command

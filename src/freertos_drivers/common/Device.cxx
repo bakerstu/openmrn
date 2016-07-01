@@ -39,6 +39,7 @@
 #ifdef TARGET_LPC11Cxx
 #define NUM_OPEN_FILES     4
 #else
+/// How many concurrently open fd we support.
 #define NUM_OPEN_FILES     12
 #endif
 
@@ -319,11 +320,11 @@ int Device::fcntl(int fd, int cmd, unsigned long data)
 }
 
 /** Seek method.
- * @param file file reference for this device
+ * @param f file reference for this device
  * @param offset offset in bytes from whence directive
  * @param whence SEEK_SET if to set the file offset to an abosolute position,
  *               SEEK_CUR if to set the file offset from current position
- * @return current offest, or -1 with errno set upon error.
+ * @return current offset, or -1 with errno set upon error.
  */
 off_t Device::lseek(File* f, off_t offset, int whence)
 {

@@ -46,18 +46,22 @@ class PipeMember;
 /// Container for an arbitrary structure to pass through a Hub.
 template<class S> class StructContainer : public S {
 public:
+    /// @return the contained data in mutable form (reference).
     S& value() {
         return *this;
     }
 
+    /// @return the contained data as a const void pointer.
     const void* data() const {
         return &value();
     }
 
+    /// @return the contained data as a void pointer.
     void* data() {
         return &value();
     }
 
+    /// @return the size of the contained structure.
     size_t size() {
         return sizeof(S);
     }
@@ -120,7 +124,8 @@ typedef HubContainer<string> HubData;
 
 /** This class can be sent via a Buffer to a CAN hub.
  *
- * Access the data content via members \ref mutable_frame and \ref frame.
+ * Access the data content via members \ref CanFrameContainer::mutable_frame
+ * and \ref CanFrameContainer::frame.
  *
  * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
  */
@@ -128,8 +133,11 @@ typedef HubContainer<CanFrameContainer> CanHubData;
 
 /** All ports interfacing via a hub will have to derive from this flow. */
 typedef FlowInterface<Buffer<HubData>> HubPortInterface;
+/// Base class for a port to an ascii hub that is implemented as a stateflow.
 typedef StateFlow<Buffer<HubData>, QList<1>> HubPort;
+/// Interface class for a port to an CAN hub.
 typedef FlowInterface<Buffer<CanHubData>> CanHubPortInterface;
+/// Base class for a port to an CAN hub that is implemented as a stateflow.
 typedef StateFlow<Buffer<CanHubData>, QList<1>> CanHubPort;
 
 /// This should work for both 32 and 64-bit architectures.
@@ -170,6 +178,9 @@ typedef GenericHubFlow<CanHubData> CanHubFlow;
 class DisplayPort : public HubPort
 {
 public:
+    /// Constructor. @param service defines which thread this state flow runs
+    /// on. @param timestamped if true, prints timestamps and other debug info
+    /// for each printed packet.
     DisplayPort(Service *service, bool timestamped)
         : HubPort(service)
         , timestamped_(timestamped)
@@ -190,7 +201,8 @@ public:
     }
 
 private:
-    bool timestamped_;
+    bool timestamped_; ///< true if the timestamp and debug info should be
+                       ///printed.
 };
 
 #endif // _UTILS_HUB_HXX_

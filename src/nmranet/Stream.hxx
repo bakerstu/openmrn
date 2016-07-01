@@ -223,6 +223,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Stream);
 };
 
+/// unused.
 struct IdStreamType
 {
     Stream::StreamHandle stream;

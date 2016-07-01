@@ -42,17 +42,20 @@ extern "C" {
 
 struct can_frame;
 
+/// Whether gridconnect format should create newline characters at the end of
+/// packets.
 DECLARE_CONST(gc_generate_newlines);
 
 /** Parses a GridConnect packet.
     
-    @param s points to a character buffer that contains the packet. The leading
-    ":" is already removed, the tailing ';' is replaced by a \0 char. All
-    input characters should occur only once.
+    @param buf points to a character buffer that contains the packet. The
+    leading ":" must be already removed, the tailing ';' must be replaced by a
+    \0 char.
 
-    @param dst is the CAN frame that will be filled based on the source packet.
+    @param can_frame is the CAN frame that will be filled based on the source
+    packet.
 
-    @returns 0 in case of success, -1 if there was a packet format error (in
+    @return 0 in case of success, -1 if there was a packet format error (in
     this case the frame is set to an error frame).
 */
 int gc_format_parse(const char* buf, struct can_frame* can_frame);

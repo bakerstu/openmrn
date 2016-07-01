@@ -54,17 +54,19 @@ struct AtomConfigDefs
     using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues>;
 };
 
+/// Configuration implementation class for CDI Atom elements (strings, events
+/// and numbers).
 class AtomConfigOptions : public AtomConfigDefs::Base
 {
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(AtomConfigOptions, AtomConfigDefs::Base);
 
-    /// Represent the value enclosed in the <name> tag of the data element.
+    /// Represent the value enclosed in the "<name>" tag of the data element.
     DEFINE_OPTIONALARG(Name, name, const char *);
-    /// Represent the value enclosed in the <description> tag of the data
+    /// Represent the value enclosed in the "<description>" tag of the data
     /// element.
     DEFINE_OPTIONALARG(Description, description, const char *);
-    /// Represent the value enclosed in the <map> tag of the data element.
+    /// Represent the value enclosed in the "<map>" tag of the data element.
     DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
 
     void render_cdi(std::string *r) const
@@ -94,6 +96,8 @@ public:
         SKIP_SIZE = 0xffffffff,
     };
 
+    typedef AtomConfigOptions OptionsType;
+
     constexpr AtomConfigRenderer(const char *tag, unsigned size)
         : tag_(tag)
         , size_(size)
@@ -119,6 +123,7 @@ private:
     unsigned size_;
 };
 
+/// Declarations for the options for numeric CDI entries.
 struct NumericConfigDefs : public AtomConfigDefs
 {
     // This is needed for inheriting declarations.
@@ -130,13 +135,14 @@ struct NumericConfigDefs : public AtomConfigDefs
         Min, Max, Default>;
 };
 
+/// Definitions for the options for numeric CDI entries.
 class NumericConfigOptions : public NumericConfigDefs::Base
 {
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(
         NumericConfigOptions, NumericConfigDefs::Base);
 
-    /// Represent the value enclosed in the <name> tag of the data element.
+    /// Represent the value enclosed in the "<name>" tag of the data element.
     DEFINE_OPTIONALARG(Name, name, const char *);
     /// Represent the value enclosed in the <description> tag of the data
     /// element.
@@ -186,6 +192,8 @@ public:
         SKIP_SIZE = 0xffffffff,
     };
 
+    typedef NumericConfigOptions OptionsType;
+
     constexpr NumericConfigRenderer(const char *tag, unsigned size)
         : tag_(tag)
         , size_(size)
@@ -211,30 +219,6 @@ private:
     unsigned size_;
 };
 
-/// Helper class for rendering an empty group of a given size into the cdi.xml.
-class EmptyGroupConfigRenderer
-{
-public:
-    enum
-    {
-        SKIP_SIZE = 0xffffffff,
-    };
-
-    constexpr EmptyGroupConfigRenderer(unsigned size)
-        : size_(size)
-    {
-    }
-
-    void render_cdi(string *s) const
-    {
-        *s += StringPrintf("<group offset='%u'/>", size_);
-    }
-
-private:
-    /// The number of bytes this group has to skip.
-    unsigned size_;
-};
-
 /// Configuration options for the CDI group element, as well as representing
 /// and distinguishing alternate uses of the BEGIN_GROUP/EXTEND_GROUP/END_GROUP
 /// syntax, such as for the toplevel CDI node and for representing segments..
@@ -249,6 +233,7 @@ struct GroupConfigDefs : public AtomConfigDefs
         Offset, RepName>;
 };
 
+/// Implementation class for the condifuration options of a CDI group element.
 class GroupConfigOptions : public GroupConfigDefs::Base
 {
 public:
@@ -328,12 +313,40 @@ public:
     }
 };
 
+/// Helper class for rendering an empty group of a given size into the cdi.xml.
+class EmptyGroupConfigRenderer
+{
+public:
+    enum
+    {
+        SKIP_SIZE = 0xffffffff,
+    };
+
+    typedef GroupConfigOptions OptionsType;
+
+    constexpr EmptyGroupConfigRenderer(unsigned size)
+        : size_(size)
+    {
+    }
+
+    void render_cdi(string *s) const
+    {
+        *s += StringPrintf("<group offset='%u'/>", size_);
+    }
+
+private:
+    /// The number of bytes this group has to skip.
+    unsigned size_;
+};
+
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
 /// CDI node.
 template <class Body> class GroupConfigRenderer
 {
 
 public:
+    typedef GroupConfigOptions OptionsType;
+
     constexpr GroupConfigRenderer(unsigned replication, Body body)
         : replication_(replication)
         , body_(body)
@@ -405,6 +418,8 @@ struct IdentificationConfigDefs
         HwVersion, SwVersion>;
 };
 
+/// Configuration implementation options for rendering CDI (identification)
+/// data elements.
 class IdentificationConfigOptions : public IdentificationConfigDefs::Base
 {
 public:
@@ -417,10 +432,12 @@ public:
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
 };
 
-/// Helper class for rendering the <identification> tag.
+/// Helper class for rendering the "<identification>" tag.
 class IdentificationRenderer
 {
 public:
+    typedef IdentificationConfigOptions OptionsType;
+
     constexpr IdentificationRenderer()
     {
     }
@@ -453,13 +470,15 @@ public:
     }
 };
 
-/// Helper class for rendering the <acdi> tag.
+/// Helper class for rendering the "<acdi>" tag.
 class AcdiRenderer
 {
 public:
     constexpr AcdiRenderer()
     {
     }
+
+    typedef AtomConfigOptions OptionsType;
 
     void render_cdi(string *s) const
     {

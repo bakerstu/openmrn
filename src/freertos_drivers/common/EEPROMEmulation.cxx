@@ -284,9 +284,9 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
 }
 
 /** Read from the EEPROM.
- * @ref index within EEPROM address space to start read
- * @ref buf location to post read data
- * @ref len length in bytes of data to read
+ * @param index within EEPROM address space to start read
+ * @param buf location to post read data
+ * @param len length in bytes of data to read
  */
 void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
 {

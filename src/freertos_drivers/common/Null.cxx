@@ -75,6 +75,7 @@ public:
 
 };
 
+/// Filesystem node for the null device.
 Null null("/dev/null");
 
 /** Open a device.

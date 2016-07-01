@@ -35,14 +35,18 @@
 
 #include "utils/macros.h"
 
+/// Default instance of an empty notifiable.
 static EmptyNotifiable default_empty_notifiable;
 
+/// @return Default instance of an empty notifiable.
 Notifiable* EmptyNotifiable::DefaultInstance() {
   return &default_empty_notifiable;
 }
 
+/// Default instance of a crashing notifiable.
 static CrashNotifiable default_crash_notifiable;
 
+/// @return Default instance of a crashing notifiable.
 Notifiable* CrashNotifiable::DefaultInstance() {
   return &default_crash_notifiable;
 }

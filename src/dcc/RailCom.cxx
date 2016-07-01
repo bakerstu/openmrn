@@ -79,6 +79,18 @@ const uint8_t railcom_decode[256] =
        INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
 };
 
+/// Helper function to parse a part of a railcom packet.
+///
+/// @param fb_channel Which hardware channel did the railcom message arrive
+/// at. typically from 0.. num channels - 1: for a command station always 0,
+/// for a multi-channel railcom decoder it's as many as the number of ports.
+/// @param railcom_channel 1 or 2 depending on which part of the cutout window
+/// the data is from.
+/// @param ptr raw railcom data read from the UART.
+/// @param size how many bytes were read from the UART
+/// @param output where to put the decoded packets (or GARBAGE packets if
+/// decoding fails).
+///
 void parse_internal(uint8_t fb_channel, uint8_t railcom_channel,
     const uint8_t *ptr, unsigned size,
     std::vector<struct RailcomPacket> *output)

@@ -81,8 +81,8 @@ void CanFrameReadFlow::send(Buffer<CanHubData> *message, unsigned priority)
     HASSERT(incoming_buffer->data()->mutable_frame() ==
             message->data()->mutable_frame());
 
-    /** @TODO(balazs.racz): Figure out what priority the new message should be
-     * at. */
+    /// @todo(balazs.racz): Figure out what priority the new message should be
+    /// at.
     ifCan_->frame_dispatcher()->send(incoming_buffer, priority);
 }
 

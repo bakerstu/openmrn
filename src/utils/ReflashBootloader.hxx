@@ -37,6 +37,9 @@
 
 #include <stdint.h>
 
+/// Declares that a given piece of data has to be copied from one place in
+/// memory to a place in flash. A list of such segments defines how to
+/// overwrite the bootloader by the reflash_bootloader application.
 typedef struct
 {
     uint8_t *dst_address; //< address in the flash space where to write

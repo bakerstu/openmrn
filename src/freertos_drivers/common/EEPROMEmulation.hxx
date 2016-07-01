@@ -36,7 +36,11 @@
 
 #include "EEPROM.hxx"
 
+/// Linker-defined symbol where in the memory space (flash) the eeprom
+/// emulation data starts.
 extern const char __eeprom_start;
+/// Linker-defined symbol where in the memory space (flash) the eeprom
+/// emulation data ends.
 extern const char __eeprom_end;
 
 /** Emulates EEPROM in FLASH for the Tiva, LPC17xx and LPC40xx
@@ -209,16 +213,16 @@ private:
     };
 
     /** Write to the EEPROM on a native block boundary.
-     * @ref index block within EEPROM address space to write
-     * @ref data data to write, array size must be @ref BYTES_PER_BLOCK large
+     * @param index block within EEPROM address space to write
+     * @param data data to write, array size must be @ref BYTES_PER_BLOCK large
      */
     void write_block(unsigned int index, const uint8_t data[]);
 
     /** Read from the EEPROM on a native block boundary.
-     * @ref index bock within EEPROM address space to read
-     * @ref data location to place read data, array size must be @ref
+     * @param index bock within EEPROM address space to read
+     * @param data location to place read data, array size must be @ref
      *           BYTES_PER_BLOCK large
-     * @ref return true if any of the data is not "erased", else return false
+     * @param return true if any of the data is not "erased", else return false
      */
     bool read_block(unsigned int index, uint8_t data[]);
 

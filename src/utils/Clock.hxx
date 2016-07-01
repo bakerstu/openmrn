@@ -46,6 +46,7 @@
 class Clock
 {
 public:
+    /// @returns the current time of the clock in nanoseconds.
     virtual long long get_time_nsec() = 0;
 };
 

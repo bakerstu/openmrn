@@ -1,0 +1,156 @@
+/** \copyright
+ * Copyright (c) 2016, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file RoutingLogic.cxxtest
+ *
+ * Unit tests for the routing table data structure.
+ *
+ * @author Balazs Racz
+ * @date 23 May 2016
+ */
+
+#include "nmranet/RoutingLogic.hxx"
+#include "utils/test_main.hxx"
+
+using namespace nmranet;
+
+TEST(RangeToBitCountTest, simple) {
+    EventId e;
+    e = 0b11100;
+    EXPECT_EQ(2, event_range_to_bit_count(&e));
+    EXPECT_EQ(0b11100, e);
+
+    e = 0b11101;
+    EXPECT_EQ(1, event_range_to_bit_count(&e));
+    EXPECT_EQ(0b11100, e);
+
+    e = 0b11101111;
+    EXPECT_EQ(4, event_range_to_bit_count(&e));
+    EXPECT_EQ(0b11100000, e);
+
+    e = 0x50FFFFFFFF;
+    EXPECT_EQ(32, event_range_to_bit_count(&e));
+    EXPECT_EQ(0x5000000000, e);
+
+    e = 0x8000000000000000;
+    EXPECT_EQ(63, event_range_to_bit_count(&e));
+    EXPECT_EQ(0x8000000000000000, e);
+
+    e = 0x7FFFFFFFFFFFFFFF;
+    EXPECT_EQ(63, event_range_to_bit_count(&e));
+    EXPECT_EQ(0, e);
+
+    e = 0xFFFFFFFFFFFFFFFF;
+    EXPECT_EQ(64, event_range_to_bit_count(&e));
+    EXPECT_EQ(0, e);
+
+    e = 0;
+    EXPECT_EQ(64, event_range_to_bit_count(&e));
+    EXPECT_EQ(0, e);
+}
+
+class RoutingLogicTest : public ::testing::Test {
+protected:
+    struct MyPort{};
+    MyPort port1_, port2_, port3_;
+
+    RoutingLogic<MyPort, NodeAlias> tables_;
+};
+
+TEST_F(RoutingLogicTest, Construct) {}
+
+TEST_F(RoutingLogicTest, AddressMap) {
+    EXPECT_NE(&port1_, &port2_);
+    EXPECT_NE(&port2_, &port3_);
+    tables_.add_node_id_to_route(&port1_, 0x123);
+    tables_.add_node_id_to_route(&port1_, 0x124);
+    tables_.add_node_id_to_route(&port1_, 0x125);
+
+    EXPECT_EQ(&port1_, tables_.lookup_port_for_address(0x123));
+
+    tables_.add_node_id_to_route(&port2_, 0x511);
+    tables_.add_node_id_to_route(&port2_, 0x512);
+
+    tables_.add_node_id_to_route(&port3_, 0x123);
+    tables_.add_node_id_to_route(&port3_, 0x611);
+
+    EXPECT_EQ(&port3_, tables_.lookup_port_for_address(0x123));
+    EXPECT_EQ(nullptr, tables_.lookup_port_for_address(0x111));
+    EXPECT_EQ(&port2_, tables_.lookup_port_for_address(0x511));
+    EXPECT_EQ(&port1_, tables_.lookup_port_for_address(0x125));
+    EXPECT_EQ(&port1_, tables_.lookup_port_for_address(0x124));
+    EXPECT_EQ(&port2_, tables_.lookup_port_for_address(0x512));
+    EXPECT_EQ(&port3_, tables_.lookup_port_for_address(0x611));
+
+    tables_.remove_port(&port1_);
+    
+    EXPECT_EQ(nullptr, tables_.lookup_port_for_address(0x125));
+    EXPECT_EQ(nullptr, tables_.lookup_port_for_address(0x124));
+    EXPECT_EQ(&port3_, tables_.lookup_port_for_address(0x123));
+    EXPECT_EQ(&port2_, tables_.lookup_port_for_address(0x512));
+}
+
+TEST_F(RoutingLogicTest, EventLookup) {
+    constexpr EventId BASE = 0x050101011800FF00;
+    tables_.register_consumer(&port1_, BASE + 0x54);
+    tables_.register_consumer(&port1_, BASE + 0x55);
+    tables_.register_consumer(&port1_, BASE + 0x56);
+    tables_.register_consumer(&port2_, BASE + 0x55);
+    tables_.register_consumer(&port3_, BASE + 0x56);
+
+    EXPECT_FALSE(tables_.check_pcer(&port1_, BASE+0x53));
+    EXPECT_TRUE(tables_.check_pcer(&port1_, BASE+0x54));
+    EXPECT_TRUE(tables_.check_pcer(&port1_, BASE+0x55));
+    EXPECT_TRUE(tables_.check_pcer(&port1_, BASE+0x56));
+    EXPECT_FALSE(tables_.check_pcer(&port1_, BASE+0x57));
+
+    EXPECT_FALSE(tables_.check_pcer(&port2_, BASE+0x54));
+    EXPECT_TRUE(tables_.check_pcer(&port2_, BASE+0x55));
+    EXPECT_FALSE(tables_.check_pcer(&port2_, BASE+0x56));
+
+    EXPECT_FALSE(tables_.check_pcer(&port3_, BASE+0x55));
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x56));
+    EXPECT_FALSE(tables_.check_pcer(&port3_, BASE+0x57));
+
+    tables_.register_consumer_range(&port3_, BASE + 0x50);
+
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x55));
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x56));
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x57));
+    EXPECT_FALSE(tables_.check_pcer(&port3_, BASE+0x60));
+    EXPECT_FALSE(tables_.check_pcer(&port3_, BASE+0x4F));
+
+    tables_.register_consumer_range(&port2_, 0x0501010000000000);
+    EXPECT_TRUE(tables_.check_pcer(&port2_, BASE+0x60));
+    EXPECT_TRUE(tables_.check_pcer(&port2_, BASE+0x4F));
+    EXPECT_FALSE(tables_.check_pcer(&port2_, 0xA122334455667788));
+
+
+    tables_.register_consumer_range(&port3_, 0);
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x60));
+    EXPECT_TRUE(tables_.check_pcer(&port3_, BASE+0x4F));
+    EXPECT_TRUE(tables_.check_pcer(&port3_, 0xA122334455667788));
+}

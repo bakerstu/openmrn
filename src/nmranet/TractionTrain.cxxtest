@@ -95,7 +95,7 @@ protected:
         expect_packet(":X1070133AN060100003456;");
         // initialized
         expect_packet(":X1910033AN060100003456;");
-        trainNode_.reset(new TrainNode(&trainService_, &m1_));
+        trainNode_.reset(new TrainNodeForProxy(&trainService_, &m1_));
         wait();
     }
     ~TractionSingleMockTest()

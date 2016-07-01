@@ -5,6 +5,7 @@
 #define WRITE_BUFFER_SIZE 256
 #include "nmranet/Bootloader.hxx"
 #include "nmranet/BootloaderClient.hxx"
+#include "nmranet/BootloaderPort.hxx"
 #include <string>
 #include <functional>
 
@@ -47,57 +48,6 @@ static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 #define FLASH_SIZE 13 * 1024
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
-
-/** Proxy class for sending canbus traffic to the Bootloader HAL. */
-class BootloaderPort : public CanHubPort
-{
-public:
-    BootloaderPort()
-        : CanHubPort(&g_service)
-    {
-        is_waiting_ = false;
-    }
-
-    bool is_waiting()
-    {
-        return is_waiting_;
-    }
-
-    virtual Action entry()
-    {
-        AtomicHolder h(this);
-        is_waiting_ = true;
-        return wait_and_call(STATE(sent));
-    }
-
-    Action sent()
-    {
-        return release_and_exit();
-    }
-
-    bool read_can_frame(struct can_frame *frame)
-    {
-        {
-            AtomicHolder h(this);
-            if (is_waiting_)
-            {
-                *frame = *message()->data();
-                is_waiting_ = false;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        notify();
-        return true;
-    }
-
-private:
-    /** True if an incoming message is ready for dispatching and the current
-     * flow is waiting for a notify. */
-    bool is_waiting_ = false;
-};
 
 BootloaderPort *g_bootloader_port = nullptr;
 
@@ -330,7 +280,7 @@ protected:
     os_thread_t bootloader_thread_ = 0;
     bool running_ = false;
     ::testing::StrictMock<MockBootloaderHAL> mock_;
-    BootloaderPort can_port_;
+    BootloaderPort can_port_{&g_service};
 };
 
 class BootloaderTest : public AsyncCanTest, protected BootloaderTestBase
@@ -916,6 +866,9 @@ TEST_F(BootloaderClientTest, WriteSmallData)
     //print_all_packets();
     expect_any_packet();
     startup();
+    // TODO: we should wait for the first startup to complete correctly and
+    // only after that add the following expectation. Otherwise there is a race
+    // condition on which startup this patcher matches.
     expect_packet(":X191004AAN1A2A3A4A5A6A;");
 
     request_->data()->dst.id = 0x1A2A3A4A5A6A;

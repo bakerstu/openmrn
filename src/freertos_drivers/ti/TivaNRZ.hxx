@@ -27,7 +27,7 @@
  * \file TivaNRZ.hxx
  *
  * Device driver for TivaWare to decode NRZ codes. (DCC, Marklin-Motorola, M4
- * are examples of NRC codes used in model railroading.)  The driver will time
+ * are examples of NRZ codes used in model railroading.)  The driver will time
  * rising and falling edges of the input signal and return the timing data to
  * userspace.
  *
@@ -36,8 +36,6 @@
  */
 
 #include "TivaDCC.hxx" // for FixedQueue
-
-#define SIGNAL_LEVEL_ONE 0x80000000UL
 
 /*
 struct DCCDecode

@@ -45,33 +45,45 @@
 namespace nmranet
 {
 
+/// CDI Configuration for a @ref ConfiguredConsumer.
 CDI_GROUP(ConsumerConfig);
+/// Allows the user to assign a name for this output.
 CDI_GROUP_ENTRY(description, StringConfigEntry<8>, //
                 Name("Description"), Description("User name of this output."));
+/// Specifies the event ID to set the output to ON.
 CDI_GROUP_ENTRY(
     event_on, EventConfigEntry, //
     Name("Event On"),
     Description("Receiving this event ID will turn the output on."));
+/// Specifies the event ID to set the output to OFF.
 CDI_GROUP_ENTRY(
     event_off, EventConfigEntry, //
     Name("Event Off"),
     Description("Receiving this event ID will turn the output off."));
 CDI_GROUP_END();
 
+/// CDI Configuration for a @ref ConfiguredPulseConsumer.
 CDI_GROUP(PulseConsumerConfig);
+/// Allows the user to assign a name for this output.
 CDI_GROUP_ENTRY(description, StringConfigEntry<16>, //
                 Name("Description"), Description("User name of this output."));
+/// Specifies the event ID to trigger the output pulse.
 CDI_GROUP_ENTRY(
     event, EventConfigEntry, //
     Name("Event"),
     Description(
-        "Receiving this event ID will generate a pulso on the output."));
+        "Receiving this event ID will generate a pulse on the output."));
+/// Allows the user to configure the output pulse length.
 CDI_GROUP_ENTRY(
     duration, Uint8ConfigEntry, //
     Name("Pulse duration"),
     Description("Length of the pulse to output (unit of 30 msec)."));
 CDI_GROUP_END();
 
+/// OpenLCB Consumer class integrating a simple CDI-based configuration for two
+/// event IDs, and an output GPIO object that will be turned on or off
+/// depending on the incoming event notifications. This is usually the most
+/// important object for a simple IO node.
 class ConfiguredConsumer : public ConfigUpdateListener
 {
 public:
@@ -117,7 +129,7 @@ public:
         return UPDATED;
     }
 
-    ///@TODO(balazs.racz): implement
+    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
     }
@@ -128,6 +140,10 @@ private:
     const ConsumerConfig cfg_;
 };
 
+/// OpenLCB Consumer class integrating a simple CDI-based configuration for a
+/// single event IDs, and an output GPIO object that will be turned on for a
+/// short period of time when the incoming event notifications arrives. Useful
+/// for driving magnetic coil-based turnouts and signals.
 class ConfiguredPulseConsumer : public ConfigUpdateListener,
                                 private SimpleEventHandler,
                                 public Polling
@@ -175,7 +191,7 @@ public:
         return REINIT_NEEDED; // Causes events identify.
     }
 
-    ///@TODO(balazs.racz): implement
+    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
     }

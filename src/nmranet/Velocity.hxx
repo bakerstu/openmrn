@@ -41,7 +41,9 @@
 
 extern "C" {
 /* These come from the ieeehalfprecision.c */
+/// Converts an IEEE single (float) to a half-precision (float16).
 int singles2halfp(void *target, const void *source, int numel);
+/// Converts an half-precision (float16) to an IEEE single (float).
 int halfp2singles(void *target, const void *source, int numel);
 }
 

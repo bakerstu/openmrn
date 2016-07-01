@@ -1,4 +1,4 @@
-/** \copyright
+	/** \copyright
  * Copyright (c) 2012, Stuart W Baker
  * All rights reserved.
  *
@@ -159,7 +159,8 @@ public:
     static int fcntl(int fd, int cmd, unsigned long data);
 
 protected:
-    /** Open method. Returns negative errno on failure. */
+    /** Open method. @return negative errno on failure, or positive fd on
+     * success. */
     virtual int open(File *, const char *, int, int) = 0;
 
     /** Close method. Returns negative errno on failure.
@@ -168,9 +169,11 @@ protected:
      */
     virtual int close(File *file) = 0;
 
-    /** Read method. Returns negative errno on failure. */
+    /** Read method. @return negative errno on failure, positive number of
+     * bytes read on success. */
     virtual ssize_t read(File *, void *, size_t) = 0;
-    /** Write method. Returns negative errno on failure. */
+    /** Write method. @return negative errno on failure, positive number of
+     * bytes written on success. */
     virtual ssize_t write(File *, const void *, size_t) = 0;
 
     /** Seek method.
@@ -338,7 +341,7 @@ protected:
     virtual int fstat(File* file, struct stat *stat) override;
 
 protected:
-    OSMutex lock_;
+    OSMutex lock_; ///< protects internal structures.
     mode_t mode_;
 
     unsigned int references_; /**< number of open references */
@@ -348,11 +351,14 @@ private:
 };
 
 
-/** Node information.
+/** Node information for a device node in the filesystem that has support for
+ * nonblocking mode via Notifiable pointers for reading and writing.
  */
 class NonBlockNode : public Node
 {
 protected:
+    /// Constructor. @param name is the name of this device node in the
+    /// filesystem.
     NonBlockNode(const char *name)
         : Node(name)
         , readableNotify_(NULL)

@@ -27,6 +27,8 @@
  * \file devtab.h
  * This file represents a newlib stub for device drivers.
  *
+ * @todo: is this dead code?
+ *
  * @author Stuart W. Baker
  * @date 27 December 2012
  */
@@ -36,7 +38,11 @@
 
 #include <sys/types.h>
 
+/** Information about a currently open file.
+ */
 typedef struct file file_t;
+/** Information about an entry in the filesystem (usually a device node).
+ */
 typedef struct node node_t;
 
 /** Device operations pointer structure.
@@ -85,9 +91,13 @@ typedef struct file
 } file_t;
 
 /** Linker generated device table */
-extern devtab_t DEVTAB[], DEVTAB_END;
+extern devtab_t DEVTAB[];
+/** Linker generated device table end */
+extern devtab_t DEVTAB_END;
 
+/// Helper macro to turn a symbol into a string
 #define __string(_x) #_x
+/// Helper macro to turn a symbol into a string
 #define __xstring(_x) __string(_x)
 
 /** Device operations instance

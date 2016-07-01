@@ -39,6 +39,7 @@
 #include <string>
 
 #include <fcntl.h>
+#include <stdlib.h>
 #include "utils/logging.h"
 
 /** This class creates a temporary directory for the test, and removes it when
@@ -49,6 +50,7 @@
  * wherever the test is running). */
 class TempDir {
 public:
+#ifndef __FreeRTOS__
   TempDir() {
 #ifdef __linux__
     dirName_ = "/tmp/openmrntmpdirXXXXXX";
@@ -58,6 +60,7 @@ public:
     dirName_.c_str();
     HASSERT(mkdtemp(&dirName_[0]));
   }
+#endif
 
   ~TempDir() {
     if (rmdir(dirName_.c_str()) != 0) {

@@ -39,6 +39,7 @@
 #include "utils/constants.hxx"
 #include "utils/RingBuffer.hxx"
 
+/// Default value of the buffer size in the pipe implementation for FreeRTOS.
 const size_t DEFAULT_PIPE_SIZE = 256;
 
 /** Private data for a can device */

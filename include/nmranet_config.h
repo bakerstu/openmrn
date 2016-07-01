@@ -90,6 +90,14 @@ DECLARE_CONST(serial_tx_buffer_size);
 /** Number of bytes to queue in the serial driver for receive. */
 DECLARE_CONST(serial_rx_buffer_size);
 
+/** Number of bytes of gridconnect data to buffer before sending off the
+ * lowlevel system (such as TCP socket). */
+DECLARE_CONST(gridconnect_buffer_size);
+
+/** How long (in microsec) to buffer generated gridconnect data before sending
+ * off to the lowlevel system (such as a TCP socket). */
+DECLARE_CONST(gridconnect_buffer_delay_usec);
+
 /** Number of entries in the remote alias cache */
 DECLARE_CONST(remote_alias_cache_size);
 

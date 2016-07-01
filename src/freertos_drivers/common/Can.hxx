@@ -72,12 +72,16 @@ protected:
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
 
     /** @todo (Stuart Baker) remove once we switch over to select().
+     * @return true if there is space in the transmit buffer, false if transmit
+     * buffers are full (i.e. a transmit would block).
      */
     bool has_tx_buffer_space() OVERRIDE {
         return txBuf->space();
     }
 
     /** @todo (Stuart Baker) remove once we switch over to select().
+     * @return true if there is data in the receive buffer, false if all data
+     * has been consumed.
      */
     bool has_rx_buffer_data() OVERRIDE {
         return rxBuf->pending();

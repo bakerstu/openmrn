@@ -172,7 +172,8 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo,
     if (!n.node)
     {
         n.impl.reset(new nmranet::LoggingTrain(address));
-        n.node.reset(new nmranet::TrainNode(traction_service, n.impl.get()));
+        n.node.reset(
+            new nmranet::TrainNodeForProxy(traction_service, n.impl.get()));
         n.is_train_event.reset(new nmranet::FixedEventProducer<
             nmranet::TractionDefs::IS_TRAIN_EVENT>(n.node.get()));
         n.pip_handler.reset(new nmranet::ProtocolIdentificationHandler(

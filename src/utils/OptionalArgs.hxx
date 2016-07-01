@@ -66,6 +66,18 @@ public:
     DATA_TYPE d_;
 };
 
+/// Use this macro in the Defs structure of an optional args instance to add an
+/// optional argument.
+///
+/// @param SpecName Name by which the user will specify the given argument.
+/// Usually capitalized like a class.
+/// @param function_name function name by which to access the argument in the
+/// final structure. Usually lower_case like a function name.
+/// @param DataType C++ data type of the argument
+/// @param N A unique integer assigned to this argument in the current
+/// optionalargs instance (and its base classes).
+/// @param DEF Default value that should be returned from the structure if the
+/// user does not specify it.
 #define DECLARE_OPTIONALARG(SpecName, function_name, DataType, N, DEF)         \
     using SpecName = Specifier<DataType, N, (DEF)>;                            \
     using SpecName##Get = Fetcher<DataType, N>;                                \
@@ -74,10 +86,20 @@ public:
         return 0;                                                              \
     }
 
+/// Use this macro in the final optionalargs structure. Each entry in the Defs
+/// structure should have a definition with matching options.
+///
+/// @param SpecName same as in @ref DECLARE_OPTIONALARG
+/// @param function_name same as in @ref DECLARE_OPTIONALARG
+/// @param DataType same as in @ref DECLARE_OPTIONALARG
 #define DEFINE_OPTIONALARG(SpecName, function_name, DataType)                  \
     constexpr DataType function_name() const                                   \
     {                                                                          \
         return get(SpecName##Get());                                           \
+    }                                                                          \
+    constexpr bool has_##function_name() const                                 \
+    {                                                                          \
+        return has(SpecName##Get());                                           \
     }
 
 /// Declares that a recursive class template is coming.
@@ -104,6 +126,11 @@ public:
     template <class F> constexpr F get(const F f) const
     {
         return tried_to_get_unknown_argument() ? f : F();
+    }
+
+    template <class F> constexpr bool has(const F f) const
+    {
+        return tried_to_get_unknown_argument();
     }
 
 private:
@@ -154,11 +181,13 @@ public:
     constexpr OptionalArg(Args... args)
         : Base(args...)
         , d_(GetFromArgs(args...))
+        , has_(HasFromArgs(args...))
     {
     }
 
     constexpr OptionalArg()
         : d_(GetFromArgs())
+        , has_(false)
     {
     }
 
@@ -167,9 +196,15 @@ public:
         return d_;
     }
 
+    constexpr bool has(const fetcher_type) const
+    {
+        return has_;
+    }
+
     /// Needed due to templated base class; the public inheritance is not
     /// enough.
     using Base::get;
+    using Base::has;
 
 private:
     /// This template gets instantiated when the first argument is for us.
@@ -178,6 +213,11 @@ private:
         const specifier_type spec, Args... args)
     {
         return spec.d_;
+    }
+    template <typename... Args>
+    static constexpr bool HasFromArgs(const specifier_type spec, Args... args)
+    {
+        return true;
     }
 
     /// This template gets instantiated for a copy constructor: when the
@@ -191,10 +231,20 @@ private:
     {
         return me.get(fetcher_type());
     }
+    template <typename U, typename... Args>
+    static constexpr typename std::enable_if<
+        std::is_convertible<typename std::add_lvalue_reference<U>::type,
+            typename std::add_lvalue_reference<Base>::type>::value,
+        bool>::type
+    HasFromArgs(const U me, Args... args)
+    {
+        return me.has(fetcher_type());
+    }
 
     /// This template gets instantiated only if the argument is not an
-    /// OptionalArg and not for the current entry. Then we just ignore the
-    /// first arg.
+    /// OptionalArg (hence not called from the copy constructor) and not a
+    /// Specifier for the current entry. Then we just ignore the first arg and
+    /// recurse into the rest of them.
     template <typename T, typename... Args>
     static constexpr typename std::enable_if<
         !std::is_convertible<typename std::add_lvalue_reference<T>::type,
@@ -204,14 +254,29 @@ private:
     {
         return GetFromArgs(args...);
     }
+    template <typename T, typename... Args>
+    static constexpr typename std::enable_if<
+        !std::is_convertible<typename std::add_lvalue_reference<T>::type,
+            typename std::add_lvalue_reference<Base>::type>::value,
+        bool>::type
+    HasFromArgs(const T t, Args... args)
+    {
+        return HasFromArgs(args...);
+    }
 
     // If we've run out of all arguments, we take the default value.
     static constexpr data_type GetFromArgs()
     {
         return specifier_type::default_value();
     }
+    // If we've run out of all arguments, there is no specifier.
+    static constexpr bool HasFromArgs()
+    {
+        return false;
+    }
 
     data_type d_;
+    bool has_;
 };
 
 #endif // _UTILS_OPTIONALARGS_HXX_

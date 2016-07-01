@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TrainDbCdi.hxx
+ * \file TractionCvCdi.hxx
  *
  * CDI entry defining the commandstation traindb entry.
  *
@@ -39,8 +39,12 @@
 
 namespace nmranet {
 
+/// CDI group that can be used with the TractionCvSpace class to enable CV
+/// access via MemoryConfig protocol.
 CDI_GROUP(TractionShortCvSpace, Segment(nmranet::MemoryConfigDefs::SPACE_DCC_CV), Offset(0x7F000000), Name("CV access"), Description("Individual CVs can be read and modified for Railcom-enabled locomotives using POM commands. Write the CV number variable first, then write or read the CV value variable."));
+/// Which CV number to read/write.
 CDI_GROUP_ENTRY(number, Uint32ConfigEntry, Name("CV number"));
+/// Value of the given CV.
 CDI_GROUP_ENTRY(value, Uint8ConfigEntry, Name("CV value"));
 CDI_GROUP_END();
 

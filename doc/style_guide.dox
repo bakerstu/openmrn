@@ -321,8 +321,8 @@
  * For a given filename of
  * "ExampleFilename.hxx" in the utils directory, see the following example:
  * @code
- * #ifndef _UTILS_EXAMPLEFILENAME_hxx_
- * #define _UTILS_EXAMPLEFILENAME_hxx_
+ * #ifndef _UTILS_EXAMPLEFILENAME_HXX_
+ * #define _UTILS_EXAMPLEFILENAME_HXX_
  *
  * #include <new>
  *

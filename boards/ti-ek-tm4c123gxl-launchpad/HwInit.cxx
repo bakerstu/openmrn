@@ -46,11 +46,13 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
+
+#include "hardware.hxx"
+
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
-#include "hardware.hxx"
 #include "bootloader_hal.h"
 
 struct Debug {
@@ -67,6 +69,8 @@ struct Debug {
   // Flipped for every packet that is sent from the railcom layer to the
   // application.
   typedef DummyPin RailcomPackets;
+
+  typedef DummyPin RailcomCh2Data;
 };
 #include "TivaRailcom.hxx"
 

@@ -7,21 +7,45 @@
 class EEPROM
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name The name of the device node in the filesystem, e.g.
+    /// /dev/eeprom
+    /// @param file_size how many bytes are in the eeprom (real or emulated).
+    ///
     EEPROM(const char *name, size_t file_size)
         : fileSize(file_size)
     {
     }
 
+    /// Override this function to write data to the eeprom. Has to function
+    /// synchronously.
+    ///
+    /// @param index offset where to write data to inside the file.
+    /// [0..file_size).
+    /// @param buf data to write
+    /// @param len how many bytes to write
+    ///
     virtual void write(unsigned int index, const void *buf, size_t len) = 0;
+
+    /// Override this function to read data from the eeprom. Has to function
+    /// synchronously.
+    ///
+    /// @param index offset where to read data from inside the file.
+    /// [0..file_size).
+    /// @param buf where to read data to
+    /// @param len how many bytes to read
+    ///
     virtual void read(unsigned int index, void *buf, size_t len) = 0;
 
+    /// @return the eeprom size.
     size_t file_size()
     {
         return fileSize;
     }
 
 private:
-    size_t fileSize;
+    size_t fileSize; ///< size of the eeprom.
 };
 
 // Terrible hack to test internals of the eeprom emulation.
@@ -51,6 +75,8 @@ const size_t EEPROMEmulation::BLOCK_SIZE = (EEBLOCKSIZE);
 const size_t EEPROMEmulation::BYTES_PER_BLOCK = (EEBLOCKSIZE / 2);
 static constexpr unsigned blocks_per_sector = EEPROMEmulation::SECTOR_SIZE / EEPROMEmulation::BLOCK_SIZE;
 
+/// Test EEPROM emulation HAL implementation that writes to a block of
+/// (RAM) memory. Used for unittesting the EEPROM Emulation code.
 class MyEEPROM : public EEPROMEmulation
 {
 public:
@@ -107,21 +133,32 @@ TEST(EepromStaticTest, assertions) {
     ASSERT_EQ(0, p1 % 4); // alignment
 }
 
+/// Test fixture class for testing the EEPROM emulation.
 class EepromTest : public ::testing::Test {
 protected:
+    /// Creates the eeprom under test. @param clear if true, eeprom starts up
+    /// empty.
     void create(bool clear = true) {
         e.reset(new MyEEPROM(eeprom_size, clear));
     }
 
-    void write_to(unsigned ofs, const string& payload) {
+    /// Helper function to write to the test eeprom.
+    ///
+    /// @param ofs where to write
+    /// @param payload what to write
+    ///
+    void write_to(unsigned ofs, const string &payload)
+    {
         ee()->write(ofs, payload.data(), payload.size());
     }
 
+    /// @return the eeprom implementation under test.
     EEPROM* ee() {
         return static_cast<EEPROM*>(e.operator->());
     }
 
-    /** Returns the data payload in a given block. */
+    /** @return the data payload in a given block. @param block_number which
+     * block's data to return */
     string block_data(unsigned block_number) {
         uint32_t* address = (uint32_t*)&foo::__eeprom_start[block_number * EEBLOCKSIZE];
         uint8_t data[EEBLOCKSIZE / 2];
@@ -132,6 +169,8 @@ protected:
         return string((char*)data, EEBLOCKSIZE / 2);
     }
 
+    /// Write enough much data to the eepromemu under test to overflow the
+    /// current block.
     void overflow_block() {
         unsigned avail = e->avail();
         for (int i = 0; i < 27000; ++i) {
@@ -142,7 +181,8 @@ protected:
         }
     }
 
-    /** Returns the data payload in a given block. */
+    /** @return the address (that is, the file offset) of the payload stored in
+     * a given block. */
     uint32_t block_address(unsigned block_number) {
         uint32_t* address = (uint32_t*)&foo::__eeprom_start[block_number * EEBLOCKSIZE];
         return ((*address) >> 16) * (EEBLOCKSIZE / 2);
@@ -152,8 +192,8 @@ protected:
 
 #define EXPECT_SLOT(block_number, address, payload) { EXPECT_EQ(address, block_address(block_number)); EXPECT_EQ(string(payload), block_data(block_number)); }
 
-    static constexpr unsigned eeprom_size = 1000;
-    std::unique_ptr<MyEEPROM> e;
+    static constexpr unsigned eeprom_size = 1000; ///< test eeprom size
+    std::unique_ptr<MyEEPROM> e; ///< EEPROM under test.
 };
 
 

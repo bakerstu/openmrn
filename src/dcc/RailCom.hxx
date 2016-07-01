@@ -85,12 +85,22 @@ std::string railcom_debug(const Feedback& fb);
 
 /// Special constant values returned by the @ref railcom_decode[] array.
 namespace RailcomDefs {
+/// invalid value (not conforming to the 4bit weighting requirement)
   static const uint8_t INV = 0xff;
+/// Railcom ACK; the decoder received the message ok. NOTE: some early software
+/// versions may have ACK and NACK exchanged.
   static const uint8_t ACK = 0xfe;
+/// The decoder rejected the packet.
   static const uint8_t NACK = 0xfd;
+/// The decoder is busy; send the packet again. This is typically returned when
+/// a POM CV write is still pending; the caller must re-try sendingthe packet
+/// later.
   static const uint8_t BUSY = 0xfc;
+/// Reserved for future expansion.
   static const uint8_t RESVD1 = 0xfb;
+/// Reserved for future expansion.
   static const uint8_t RESVD2 = 0xfa;
+/// Reserved for future expansion.
   static const uint8_t RESVD3 = 0xf8;
 }
 

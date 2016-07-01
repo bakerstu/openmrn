@@ -32,13 +32,20 @@
  * @date 18 Mar 2015
  */
 
-#if defined (__linux__) || defined (__MACH__)
-#include <termios.h> /* tc* functions */
+/// Overrides loglevel.
+#define LOGLEVEL INFO
+
+#if defined(__linux__) || defined(__MACH__)
 #include <net/if.h>
+#include <termios.h> /* tc* functions */
 #endif
-#if defined (__linux__)
+#if defined(__linux__)
 #include <linux/sockios.h>
 #endif
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "nmranet/SimpleStack.hxx"
 
@@ -48,13 +55,18 @@
 namespace nmranet
 {
 
-SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
-    : node_(&ifCan_, node_id)
+SimpleCanStackBase::SimpleCanStackBase(const nmranet::NodeID node_id)
 {
     AddAliasAllocator(node_id, &ifCan_);
 }
 
-void SimpleCanStack::start_stack()
+SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
+    : SimpleCanStackBase(node_id)
+    , node_(&ifCan_, node_id)
+{
+}
+
+void SimpleCanStackBase::start_stack()
 {
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
@@ -72,40 +84,65 @@ void SimpleCanStack::start_stack()
             nullptr, MemoryConfigDefs::SPACE_ALL_MEMORY, space);
         additionalComponents_.emplace_back(space);
     }
+
+    // Calls node-specific startup hook.
+    start_node();
+}
+
+void SimpleCanStackBase::default_start_node()
+{
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&SNIP_STATIC_DATA),
             sizeof(SNIP_STATIC_DATA));
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_ACDI_SYS, space);
+            node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_ACDI_USR, space);
+            node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
     {
         auto *space = new ReadOnlyMemoryBlock(
             reinterpret_cast<const uint8_t *>(&CDI_DATA), strlen(CDI_DATA) + 1);
         memoryConfigHandler_.registry()->insert(
-            &node_, MemoryConfigDefs::SPACE_CDI, space);
+            node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
         memory_config_handler()->registry()->insert(
-            &node_, nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
+            node(), nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
 }
 
-void SimpleCanStack::restart_stack()
+SimpleTrainCanStack::SimpleTrainCanStack(
+    nmranet::TrainImpl *train, const char *fdi_xml, NodeID node_id)
+    // Note: this code tries to predict what the node id of the trainNode_ will
+    // be. Unfortunately due to initialization order problems we cannot query
+    // it in advance.
+    : SimpleCanStackBase(node_id),
+      trainNode_(&tractionService_, train, node_id),
+      fdiBlock_(reinterpret_cast<const uint8_t *>(fdi_xml), strlen(fdi_xml))
 {
-    node_.clear_initialized();
+}
+
+void SimpleTrainCanStack::start_node()
+{
+    default_start_node();
+    memoryConfigHandler_.registry()->insert(
+        &trainNode_, MemoryConfigDefs::SPACE_FDI, &fdiBlock_);
+}
+
+void SimpleCanStackBase::restart_stack()
+{
+    node()->clear_initialized();
     ifCan_.alias_allocator()->reinit_seed();
     ifCan_.local_aliases()->clear();
     ifCan_.remote_aliases()->clear();
@@ -123,10 +160,69 @@ void SimpleCanStack::restart_stack()
     // Bootstraps the fresh alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
     extern void StartInitializationFlow(Node * node);
-    StartInitializationFlow(&node_);
+    StartInitializationFlow(node());
 }
 
-void SimpleCanStack::check_version_and_factory_reset(
+void SimpleCanStackBase::create_config_file_if_needed(
+    const InternalConfigData &cfg, uint16_t expected_version,
+    unsigned file_size)
+{
+    HASSERT(CONFIG_FILENAME);
+    struct stat statbuf;
+    bool reset = false;
+    int fd = ::open(CONFIG_FILENAME, O_RDONLY);
+    if (fd < 0)
+    {
+        // Create file.
+        LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
+        reset = true;
+        fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR);
+        if (fd < 0)
+        {
+            printf("Failed to create config file: fd %d errno %d: %s\n",
+                   fd, errno, strerror(errno));
+            DIE();
+        }
+        reset = true;
+    }
+    ::close(fd);
+    fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    HASSERT(fstat(fd, &statbuf) == 0);
+    if (statbuf.st_size < (ssize_t)file_size)
+        reset = true;
+    if (!reset && cfg.version().read(fd) != expected_version)
+        reset = true;
+    if (!reset)
+        return;
+
+    // Clears the file.
+    lseek(fd, 0, SEEK_SET);
+    static const unsigned bufsize = 128;
+    char *buf = (char *)malloc(bufsize);
+    HASSERT(buf);
+    memset(buf, 0xff, bufsize);
+    unsigned len = file_size;
+    while (len > 0)
+    {
+        ssize_t c = write(fd, buf, std::min(len, bufsize));
+        HASSERT(c >= 0);
+        len -= c;
+    }
+    free(buf);
+
+    // Initializes basic structures in the file.
+    cfg.version().write(fd, expected_version);
+    cfg.next_event().write(fd, 0);
+    // ACDI version byte. This is not very nice because we cannot be
+    // certain that the EEPROM starts with the ACDI data. We'll check it
+    // though.
+    HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
+    Uint8ConfigEntry(0).write(fd, 2);
+    factory_reset_all_events(cfg, fd);
+    configUpdateFlow_.factory_reset();
+}
+
+void SimpleCanStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
@@ -152,9 +248,14 @@ void SimpleCanStack::check_version_and_factory_reset(
     }
 }
 
+/// Contains an array describing each position in the Configuration space that
+/// is occupied by an Event ID from a producer or consumer. These Event IDs
+/// will be reset to increasing event numbers upon factory reset. The array is
+/// exported by the cdi compilation mechanism (in CompileCdiMain.cxx) and
+/// defined by cdi.o for the linker.
 extern const uint16_t CDI_EVENT_OFFSETS[];
 
-void SimpleCanStack::factory_reset_all_events(
+void SimpleCanStackBase::factory_reset_all_events(
     const InternalConfigData &cfg, int fd)
 {
     // First we find the event count.
@@ -169,14 +270,15 @@ void SimpleCanStack::factory_reset_all_events(
     // Then we write them to eeprom.
     for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
     {
-        EventId id = node_.node_id();
+        EventId id = node()->node_id();
         id <<= 16;
         id |= next_event++;
         EventConfigEntry(CDI_EVENT_OFFSETS[i]).write(fd, id);
     }
 }
 
-void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
+void SimpleCanStackBase::add_gridconnect_port(
+    const char *path, Notifiable *on_exit)
 {
     int fd = ::open(path, O_RDWR);
     HASSERT(fd >= 0);
@@ -185,7 +287,7 @@ void SimpleCanStack::add_gridconnect_port(const char *path, Notifiable *on_exit)
 }
 
 #if defined(__linux__) || defined(__MACH__)
-void SimpleCanStack::add_gridconnect_tty(
+void SimpleCanStackBase::add_gridconnect_tty(
     const char *device, Notifiable *on_exit)
 {
     int fd = ::open(device, O_RDWR);
@@ -201,8 +303,9 @@ void SimpleCanStack::add_gridconnect_tty(
     HASSERT(!tcsetattr(fd, TCSANOW, &settings));
 }
 #endif
-#if defined (__linux__)
-void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
+#if defined(__linux__)
+void SimpleCanStackBase::add_socketcan_port_select(
+    const char *device, int loopback)
 {
     int s;
     struct sockaddr_can addr;
@@ -218,17 +321,11 @@ void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
 
     // setup error notifications
-    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT |
-                              CAN_ERR_LOSTARB |
-                              CAN_ERR_CRTL |
-                              CAN_ERR_PROT |
-                              CAN_ERR_TRX |
-                              CAN_ERR_ACK |
-                              CAN_ERR_BUSOFF |
-                              CAN_ERR_BUSERROR |
-                              CAN_ERR_RESTARTED;
-    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
-               &err_mask, sizeof(err_mask));    strcpy(ifr.ifr_name, device );
+    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB |
+        CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK |
+        CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED;
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
+    strcpy(ifr.ifr_name, device);
 
     ioctl(s, SIOCGIFINDEX, &ifr);
 
@@ -237,11 +334,11 @@ void SimpleCanStack::add_socketcan_port_select(const char *device, int loopback)
 
     bind(s, (struct sockaddr *)&addr, sizeof(addr));
 
-    auto* port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
+    auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
     additionalComponents_.emplace_back(port);
 }
 #endif
-extern Pool *const __attribute__((
-    __weak__)) g_incoming_datagram_allocator = init_main_buffer_pool();
+extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
+    init_main_buffer_pool();
 
 } // namespace nmranet

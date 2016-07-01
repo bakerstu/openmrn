@@ -53,6 +53,7 @@ struct CanMessageData : public can_frame
         can_dlc = 0;
     }
 
+    /// This is the maskable identifier of the incoming CAN frames.
     typedef uint32_t id_type;
 
     /** This bit will be set in standard CAN frames when they get to the
@@ -99,7 +100,7 @@ struct CanMessageData : public can_frame
         return *this;
     }
 
-    /* This will be aliased onto CanHubData::skipMember_. It is needed to keep
+    /** This will be aliased onto CanHubData::skipMember_. It is needed to keep
      * the two structures the same size for casting between them. */
     void *unused;
 };
@@ -108,7 +109,10 @@ struct CanMessageData : public can_frame
  * not easy, because they use different ID functions and their size differs
  * a bit as well. */
 typedef FlowInterface<Buffer<CanMessageData>> IncomingFrameHandler;
+/// StateFlow handling incoming messages as registered to the message
+/// dispatcher.
 typedef StateFlow<Buffer<CanMessageData>, QList<1>> IncomingFrameFlow;
+/// Base class of flow to send outgoing CAN frames to.
 typedef FlowInterface<Buffer<CanHubData>> OutgoingFrameHandler;
 
 class CanIf;
@@ -124,16 +128,24 @@ class CanIf;
 class CanFrameWriteFlow : public OutgoingFrameHandler
 {
 public:
+    /// Constructor. @param service is the interface that owns this flow.
     CanFrameWriteFlow(CanIf *service)
         : ifCan_(service)
     {
     }
 
+    /// @return the buffer pool to use for this flow.
     Pool *pool() OVERRIDE;
-    void send(Buffer<CanHubData> *message,
-              unsigned priority = UINT_MAX) OVERRIDE;
+
+    /// Entry point to this flow.
+    /// @param message buffer to send.
+    /// @param priority Priority to use when sending.
+    ///
+    void send(
+        Buffer<CanHubData> *message, unsigned priority = UINT_MAX) OVERRIDE;
 
 private:
+    /// Parent that owns this flow.
     CanIf *ifCan_;
 };
 
@@ -142,16 +154,27 @@ private:
 class CanFrameReadFlow : public OutgoingFrameHandler
 {
 public:
+    /// Constructor. @param service specifies which thread to execute this
+    /// state flow on.
     CanFrameReadFlow(CanIf *service)
         : ifCan_(service)
     {
     }
 
+    /// @return the buffer pool to use for incoming can frames. This is the
+    /// dispatcher's buffer pool, by default the main buffer pool.
     Pool *pool() OVERRIDE;
-    void send(Buffer<CanHubData> *message,
-              unsigned priority = UINT_MAX) OVERRIDE;
+
+    /// Entry point to the flow.
+    ///
+    /// @param message incoming buffer.
+    /// @param priority priority to assign it to
+    ///
+    void send(
+        Buffer<CanHubData> *message, unsigned priority = UINT_MAX) OVERRIDE;
 
 private:
+    /// Interface that owns this flow.
     CanIf *ifCan_;
 };
 
@@ -160,11 +183,21 @@ private:
 class CanIf
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service specifies which thread the flows of this service should
+    /// be executing.
+    /// @param device the Can frame hub that the hardware device is connected
+    /// to.
+    ///
     CanIf(Service *service, CanHubFlow *device);
     ~CanIf();
 
+    /// Type of the dispatcher responsible for routing incoming frames to the
+    /// frome handlers.
     typedef DispatchFlow<Buffer<CanMessageData>, 4> FrameDispatchFlow;
 
+    /// @return the pointer to the service defining which thread to run on.
     Service *service()
     {
         return frameDispatcher_.service();

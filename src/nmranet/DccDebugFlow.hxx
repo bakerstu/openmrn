@@ -37,6 +37,9 @@
 
 namespace nmranet {
 
+/// Sends every incoming DCC packet as a custom OpenLCB message to the OpenLCB
+/// bus. Useful only for debugging, as it generates a lot of noise on the
+/// bus. Also the packets used are totally non-standard.
 class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
  public:
   DccPacketDebugFlow(nmranet::Node* node)
@@ -66,8 +69,13 @@ class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
   nmranet::Node* node_;
 };
 
+/// Global reference to the packet debug flow.
 extern DccPacketDebugFlow g_packet_debug_flow;
 
+/// Debug flow for the DCC decoder driver. The flow stores all captured timing
+/// information in an inmemory ring buffer, and takes all captured DCC and MM
+/// packets and forwards them to the g_packet_debug_flow to be put onto the
+/// OpenLCB bus.
 class DccDebugDecodeFlow : public dcc::DccDecodeFlow {
  public:
   DccDebugDecodeFlow(Service* service, const char* path) : dcc::DccDecodeFlow(service, path) {}

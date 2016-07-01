@@ -43,6 +43,9 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
+/// Static GPIO implementation for the NXP LPC microcontrollers.
+/// @param PORT is the port number (like 0, 1, 2). E.g. for P1.12 this is 1.
+/// @param PIN is the number of th epin in the port. E.g. for P1.12 this is 12.
 template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
 {
     static constexpr uint8_t port()
@@ -91,6 +94,7 @@ protected:
     }
 };
 
+/// GPIO output pin base class for NXP LPC microcontrollers.
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
 {
     using Defs::port;
@@ -196,9 +200,9 @@ struct GpioInputRep : public GpioInputPin<Defs, IOCON_MODE_REPEATER>
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param port is the number of the port, such as 0
+/// @param PORT is the number of the port, such as 0
 ///
-/// @param pin is the pin number, such as 3
+/// @param NUM is the pin number, such as 3
 ///
 /// Example:
 ///  GPIO_PIN(FOO, LedPin, 0, 3);

@@ -32,8 +32,6 @@
  * @date 4 Dec 2013
  */
 
-#define LOGLEVEL INFO
-
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/CanDefs.hxx"
 

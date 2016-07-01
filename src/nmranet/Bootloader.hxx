@@ -37,6 +37,7 @@
 #error Bootlaoder.hxx should be included only once.
 #endif
 
+/// include guard macro
 #define _NMRANET_BOOTLOADER_HXX_
 
 #include <string.h>
@@ -52,6 +53,8 @@
 namespace nmranet
 {
 
+/// State machine states for initializing the bootloader node. Represents what
+/// the next outgoing packet should be.
 enum InitState
 {
     PICK_ALIAS = 0,
@@ -114,50 +117,58 @@ struct BootloaderState
     uintptr_t write_buffer_offset;
     // Offset inside the write buffer for the next incoming data.
     unsigned write_buffer_index;
+};
 
-} state_;
+/// Global state variables.
+BootloaderState state_;
 
 //#define WRITE_BUFFER_SIZE 1024
 
 #ifdef BOOTLOADER_STREAM
 #ifndef WRITE_BUFFER_SIZE
+/// How many bytes the bootloader should buffer before flushing to Flash. Will
+/// influence the stream buffer size negotiation and thus the maximum speed
+/// that the bootloading will work at.
 #define WRITE_BUFFER_SIZE 1024
 #endif
 #else
+/// How many bytes the bootloader should buffer before flushing to Flash. There
+/// is no need to make this bigger than a datagram.
 #define WRITE_BUFFER_SIZE 64
 #endif
+/// Write buffer; the OpenLCB protocol engine collects the incoming bytes into
+/// this buffer and repeatedly flushes to flash.
 uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 
+/// Which OpenLCB Memory Config Space number should the bootloader export.
 #define FLASH_SPACE (MemoryConfigDefs::SPACE_FIRMWARE)
-// local stream ID.
+/// local stream ID.
 #define STREAM_ID 0x5A
 }
 using namespace nmranet;
 
 extern "C" {
 
+/// 1 if the bootloader is active, 0 if the bootloader is not active. Used by
+/// unit tests instead of sleeping to avoid race conditions.
 extern unsigned g_bootloader_busy;
 unsigned g_bootloader_busy = 1;
 #ifdef __linux__
 Atomic g_bootloader_lock;
 #endif
 
-static const char TEST_PATTERN[] = "123456789";
-extern uint32_t g_test_pattern_checksum[CHECKSUM_COUNT];
-uint32_t g_test_pattern_checksum[CHECKSUM_COUNT] = {
-    0,
-};
-
 #ifdef BOOTLOADER_STREAM
+/// Protocol support bitmask that the bootloader should export.
 #define PIP_REPLY_VALUE                                                        \
     (Defs::DATAGRAM | Defs::STREAM | Defs::MEMORY_CONFIGURATION |              \
         Defs::FIRMWARE_UPGRADE_ACTIVE)
 #else
+/// Protocol support bitmask that the bootloader should export.
 #define PIP_REPLY_VALUE                                                        \
     (Defs::DATAGRAM | Defs::MEMORY_CONFIGURATION |                             \
         Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
-// We manually convert to big-endian to store this value in .rodata.
+/// We manually convert to big-endian to store this value in .rodata.
 static const uint64_t PIP_REPLY =        //
     (PIP_REPLY_VALUE >> 40) |            //
     ((PIP_REPLY_VALUE >> 24) & 0xff00) | //
@@ -166,37 +177,43 @@ static const uint64_t PIP_REPLY =        //
     ((PIP_REPLY_VALUE << 24) & 0xff00000000) |
     ((PIP_REPLY_VALUE << 40) & 0xff0000000000);
 
+/** Clears out the stream state in state_. */
 void reset_stream_state();
 
 /** @returns true if the application checksum currently in flash is correct. */
 bool check_application_checksum()
 {
-    checksum_data(TEST_PATTERN, 9, g_test_pattern_checksum);
-
     uint32_t checksum[CHECKSUM_COUNT];
     const void *flash_min;
     const void *flash_max;
-    const struct app_header *app_header;
-    get_flash_boundaries(&flash_min, &flash_max, &app_header);
-    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header) -
+    const struct app_header *app_header_ptr;
+    get_flash_boundaries(&flash_min, &flash_max, &app_header_ptr);
+
+    struct app_header app_header;
+    memcpy(&app_header, app_header_ptr, sizeof(app_header));
+
+    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header_ptr) -
         static_cast<const uint8_t *>(flash_min);
     checksum_data(flash_min, pre_size, checksum);
-    if (memcmp(app_header->checksum_pre, checksum, sizeof(checksum)))
+    if (memcmp(app_header.checksum_pre, checksum, sizeof(checksum)))
     {
         return false;
     }
-    uint32_t post_size = app_header->app_size -
-        (reinterpret_cast<const uint8_t *>(app_header) -
+    size_t flash_size = (size_t)flash_max - (size_t)flash_min;
+    if (app_header.app_size > flash_size) return false;
+    uint32_t post_size = app_header.app_size -
+        (reinterpret_cast<const uint8_t *>(app_header_ptr) -
                              static_cast<const uint8_t *>(flash_min)) -
         sizeof(struct app_header);
-    checksum_data(app_header + 1, post_size, checksum);
-    if (memcmp(app_header->checksum_post, checksum, sizeof(checksum)))
+    checksum_data(app_header_ptr + 1, post_size, checksum);
+    if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
     {
         return false;
     }
     return true;
 }
 
+/// Prepares the outgoing frame buffer for a frame to be sent.
 void setup_can_frame()
 {
     CLR_CAN_FRAME_RTR(state_.output_frame);
@@ -206,6 +223,10 @@ void setup_can_frame()
     state_.output_frame_full = 1;
 }
 
+/// Sets up the outgoing frame buffer for a global OpenLCB packet.
+///
+/// @param mti message transmit indicator to set for the outgoing message.
+///
 void set_can_frame_global(Defs::MTI mti)
 {
     setup_can_frame();
@@ -216,7 +237,11 @@ void set_can_frame_global(Defs::MTI mti)
 }
 
 /** Sets the outgoing CAN frame to addressed, destination taken from the source
- * field of the incoming message or the given alias. */
+ * field of the incoming message or the given alias. 
+ * @param mti the MTI of the outgoing value.
+ * @param alias the destination node alias; defaults to taking the alias of the
+ * incoming frame.
+*/
 void set_can_frame_addressed(
     Defs::MTI mti, NodeAlias alias = CanDefs::get_src(
                        GET_CAN_FRAME_ID_EFF(state_.input_frame)))
@@ -231,7 +256,7 @@ void set_can_frame_addressed(
     state_.output_frame.data[1] = alias & 0xff;
 }
 
-// Adds the node id ad the data payload of the outgoing can frame.
+/// Adds the node id ad the data payload of the outgoing can frame.
 void set_can_frame_nodeid()
 {
     uint64_t node_id = nmranet_nodeid();
@@ -243,7 +268,12 @@ void set_can_frame_nodeid()
     state_.output_frame.can_dlc = 6;
 }
 
-// Adds the node id ad the data payload of the outgoing can frame.
+/// Checks whether the incoming frame contains the current (bootloader) node's
+/// node_id as the data payload.
+///
+///
+/// @return true if the current node's address is in the payload.
+///
 bool is_can_frame_nodeid()
 {
     if (state_.input_frame.can_dlc != 6)
@@ -258,7 +288,8 @@ bool is_can_frame_nodeid()
     return true;
 }
 
-/** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3. */
+/** Sets output frame dlc to 4; adds the given error code to bytes 2 and 3.
+ * @param error_code send this in bytes 2 and 3 of the reply message */
 void set_error_code(uint16_t error_code)
 {
     state_.output_frame.can_dlc = 4;
@@ -266,6 +297,8 @@ void set_error_code(uint16_t error_code)
     state_.output_frame.data[3] = error_code & 0xff;
 }
 
+/// Kills the input frame and sends back a datagram rejected error message with
+/// permanent error.
 void reject_datagram()
 {
     set_can_frame_addressed(Defs::MTI_DATAGRAM_REJECTED);
@@ -273,12 +306,22 @@ void reject_datagram()
     state_.input_frame_full = 0;
 }
 
-/** Loads an unaligned 32-bit value that is network-endian. */
+/** Loads an unaligned 32-bit value that is network-endian. 
+    @param ptr is an unaligned pointer to ram.
+    @return the big-endian interpreted value at the pointed value converted to
+    host endian.
+ */
 uint32_t load_uint32_be(const uint8_t *ptr)
 {
     return (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
 }
 
+/// turns an already prepared memory config response datagram into an error
+/// response.
+///
+/// @param error_code 16-bit OpenLCB error code to report in the response
+/// datagram.
+///
 void add_memory_config_error_response(uint16_t error_code)
 {
     state_.datagram_payload[1] |= 0x08; // Turns success into error reply.
@@ -286,11 +329,19 @@ void add_memory_config_error_response(uint16_t error_code)
     state_.datagram_payload[state_.datagram_dlc++] = error_code & 0xff;
 }
 
+/// Clears out the flash write buffer with all 0xFF values.
 void init_flash_write_buffer()
 {
     memset(g_write_buffer, 0xff, WRITE_BUFFER_SIZE);
 }
 
+/// Translates from the logical address space of the OpenLCB memory config
+/// protocol memory space to the physical address space in the flash.
+///
+///
+/// @return true if the translation is successful, false if the address is out
+/// of bounds.
+///
 bool normalize_write_buffer_offset()
 {
     const void *flash_min;
@@ -307,6 +358,8 @@ bool normalize_write_buffer_offset()
     return true;
 }
 
+/// Writes the flash write buffer into flash, and clears it out for continuing
+/// the bootloading process. This call usually takes quite a few milliseconds.
 void flush_flash_buffer()
 {
     const void *address =
@@ -326,6 +379,7 @@ void flush_flash_buffer()
     init_flash_write_buffer();
 }
 
+/// Decodes the memory config protocol's incoming data.
 void handle_memory_config_frame()
 {
     uint8_t command = state_.input_frame.data[1];
@@ -481,8 +535,10 @@ void handle_memory_config_frame()
     return;
 }
 
+/// Handles incoming stream data complete message.
 void handle_stream_complete();
 
+/// Handles incoming addressed message (non-datagram).
 void handle_addressed_message(Defs::MTI mti)
 {
     switch (mti)
@@ -580,10 +636,12 @@ void handle_addressed_message(Defs::MTI mti)
     return;
 }
 
+/// Handles incoming global message.
 void handle_global_message(Defs::MTI mti)
 {
     // Drop to the floor.
     state_.input_frame_full = 0;
+    /// @todo(balazs.racz) what about global identify messages?
     return;
 }
 
@@ -679,6 +737,7 @@ void handle_stream_complete()
 }
 #endif
 
+/// Handles an incoming CAN frame.
 void handle_input_frame()
 {
     if (IS_CAN_FRAME_ERR(state_.input_frame) ||
@@ -816,6 +875,8 @@ void handle_input_frame()
     return;
 }
 
+/// Initialization state machine. Called repeatedly from the main loop so long
+/// as initialization is not complete.
 void handle_init()
 {
     switch (state_.init_state)
@@ -907,6 +968,7 @@ void handle_init()
     state_.init_state = static_cast<InitState>(state_.init_state + 1);
 }
 
+/// Fills outgoing frame from the pending datagram send buffer.
 void handle_send_datagram()
 {
     setup_can_frame();
@@ -945,11 +1007,10 @@ void handle_send_datagram()
     }
 }
 
-void bootloader_entry()
-{
-    bootloader_hw_set_to_safe();
-    bootloader_hw_init();
-
+/// Called once before starting the bootloader loop.
+///
+/// @return true if the application should be started, false if the bootloader.
+bool bootloader_init() {
     {
         bool request = request_bootloader();
         bootloader_led(LED_REQUEST, request);
@@ -958,70 +1019,91 @@ void bootloader_entry()
         if (!request && csum_ok)
         {
             g_bootloader_busy = 0;
-            return application_entry();
+            application_entry();            
+            return true;
         }
     }
     memset(&state_, 0, sizeof(state_));
+    return false;
+}
+
+/// Called repeatedly in an infinite loop to run the bootloader.
+///
+/// @return true if the board has to be rebooted, false if the bootloader
+/// should keep running (i.e. to call again).
+bool bootloader_loop()
+{
+    {
+#ifdef __linux__
+        AtomicHolder h(&g_bootloader_lock);
+#endif
+        if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
+        {
+            state_.input_frame_full = 1;
+        }
+        unsigned new_busy =
+            (state_.input_frame_full || state_.output_frame_full ||
+                state_.init_state != INITIALIZED ||
+                (state_.datagram_output_pending
+                    /*&& !state_.datagram_reply_waiting*/))
+            ? 1
+            : 0;
+        if (g_bootloader_busy != new_busy)
+        {
+            bootloader_led(LED_ACTIVE, new_busy);
+            g_bootloader_busy = new_busy;
+        }
+    }
+    if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
+    {
+        state_.output_frame_full = 0;
+    }
+    if (state_.request_reset && !g_bootloader_busy)
+    {
+        g_bootloader_busy = 0;
+        bootloader_reboot();
+        return true;
+    }
+    if (state_.input_frame_full)
+    {
+        handle_input_frame();
+    }
+    if (state_.init_state != INITIALIZED && !state_.output_frame_full)
+    {
+        handle_init();
+    }
+#ifdef BOOTLOADER_STREAM
+    if (state_.stream_proceed_pending && !state_.output_frame_full)
+    {
+        set_can_frame_addressed(
+            Defs::MTI_STREAM_PROCEED, state_.write_src_alias);
+        state_.stream_proceed_pending = 0;
+        state_.output_frame.data[state_.output_frame.can_dlc++] =
+            state_.stream_src_id;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
+        state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
+    }
+#endif
+    if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
+        !state_.output_frame_full)
+    {
+        handle_send_datagram();
+    }
+    return false;
+}
+
+/// Main entry point for MCU-based bootloaders. Never returns.
+void bootloader_entry()
+{
+    bootloader_hw_set_to_safe();
+    bootloader_hw_init();
+
+    if (bootloader_init()) return;
 
     while (true)
     {
-        {
-#ifdef __linux__
-            AtomicHolder h(&g_bootloader_lock);
-#endif
-            if (!state_.input_frame_full && read_can_frame(&state_.input_frame))
-            {
-                state_.input_frame_full = 1;
-            }
-            unsigned new_busy =
-                (state_.input_frame_full || state_.output_frame_full ||
-                    state_.init_state != INITIALIZED ||
-                    (state_.datagram_output_pending
-                        /*&& !state_.datagram_reply_waiting*/))
-                ? 1
-                : 0;
-            if (g_bootloader_busy != new_busy)
-            {
-                bootloader_led(LED_ACTIVE, new_busy);
-                g_bootloader_busy = new_busy;
-            }
-        }
-        if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
-        {
-            state_.output_frame_full = 0;
-        }
-        if (state_.request_reset && !g_bootloader_busy)
-        {
-            g_bootloader_busy = 0;
-            return bootloader_reboot();
-        }
-        if (state_.input_frame_full)
-        {
-            handle_input_frame();
-        }
-        if (state_.init_state != INITIALIZED && !state_.output_frame_full)
-        {
-            handle_init();
-        }
-#ifdef BOOTLOADER_STREAM
-        if (state_.stream_proceed_pending && !state_.output_frame_full)
-        {
-            set_can_frame_addressed(
-                Defs::MTI_STREAM_PROCEED, state_.write_src_alias);
-            state_.stream_proceed_pending = 0;
-            state_.output_frame.data[state_.output_frame.can_dlc++] =
-                state_.stream_src_id;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = STREAM_ID;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
-            state_.output_frame.data[state_.output_frame.can_dlc++] = 0;
-        }
-#endif
-        if (state_.datagram_output_pending && !state_.datagram_reply_waiting &&
-            !state_.output_frame_full)
-        {
-            handle_send_datagram();
-        }
-
+        if (bootloader_loop()) return;
 #ifdef __linux__
         usleep(10);
 #endif
