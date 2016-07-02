@@ -134,7 +134,7 @@ private:
     {
         if (req()->emergencyStop_)
         {
-            pwm_.pause();
+            pwm_.set_off();
             HW::MOT_A_HI_Pin::set_off();
             HW::MOT_B_HI_Pin::set_off();
             release();
@@ -146,7 +146,7 @@ private:
             (req()->speed_.direction() == nmranet::SpeedType::FORWARD);
         if (lastDirMotAHi_ != desired_dir)
         {
-            pwm_.pause();
+            pwm_.set_off();
             HW::MOT_B_HI_Pin::set_off();
             HW::MOT_A_HI_Pin::set_off();
             return sleep_and_call(&timer_, MSEC_TO_NSEC(1), STATE(do_speed));

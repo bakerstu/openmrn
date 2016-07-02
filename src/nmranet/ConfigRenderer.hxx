@@ -181,6 +181,16 @@ public:
             *r += StringPrintf("<map>%s</map>\n", mapvalues());
         }
     }
+
+    int clip(int value) {
+        if (has_minvalue() && (value < minvalue())) {
+            value = minvalue();
+        }
+        if (has_maxvalue() && (value > maxvalue())) {
+            value = maxvalue();
+        }
+        return value;
+    }
 };
 
 /// Helper class for rendering a numeric data element into the cdi.xml.

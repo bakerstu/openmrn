@@ -139,7 +139,7 @@ int appl_main(int argc, char *argv[])
     }
 
     nmranet::LoggingTrain train_impl(1732);
-    nmranet::TrainNode train_node(&traction_service, &train_impl);
+    nmranet::TrainNodeForProxy train_node(&traction_service, &train_impl);
     nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
     is_train_event_handler(&train_node);
     nmranet::ProtocolIdentificationHandler pip(

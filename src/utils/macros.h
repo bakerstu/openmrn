@@ -76,7 +76,7 @@ using std::pair;
 
 #include <stdio.h>
 
-#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
+#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)", __LINE__, #x); abort();} } while(0)
 
 #define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
