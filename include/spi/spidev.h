@@ -31,8 +31,8 @@
  * @date 29 May 2016
  */
 
-#ifndef _I2C_DEV_HXX_
-#define _I2C_DEV_HXX_
+#ifndef _INCLUDE_SPI_SPIDEV_H_
+#define _INCLUDE_SPI_SPIDEV_H_
 
 #if defined (__linux__)
     #include <linux/spi/spidev.h>
@@ -133,7 +133,7 @@
     #define SPI_IOC_WR_MAX_SPEED_HZ IOW(SPI_IOC_MAGIC, 4, sizeof(uint32_t))
 
 #else
-    #error I2C drivers not supported on this OS
+    #error SPI drivers not supported on this OS
 #endif
 
-#endif /* _I2C_DEV_HXX_ */
+#endif /* _INCLUDE_SPI_SPIDEV_H_ */
