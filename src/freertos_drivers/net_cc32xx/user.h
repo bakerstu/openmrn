@@ -36,8 +36,8 @@
 
     
 
-#ifndef __USER_H__
-#define __USER_H__
+#ifndef _FREERTOS_DRIVERS_NET_C32XX_USER_H_
+#define _FREERTOS_DRIVERS_NET_C32XX_USER_H_
 
 #ifdef  __cplusplus
 extern "C" {
@@ -142,7 +142,7 @@ extern "C" {
 
     \warning        
 */
-#define SL_INC_STD_BSD_API_NAMING
+//#define SL_INC_STD_BSD_API_NAMING
 
 
 /*!
@@ -352,6 +352,16 @@ extern "C" {
     \note       belongs to \ref configuration_sec
 */
 #define sl_DeviceDisable() 			NwpPowerOff()
+
+/*!
+    \brief      Disable the Network Processor after making sure the network processor has
+                entered low power mode
+
+    \sa         sl_DeviceEnable
+
+    \note       belongs to \ref configuration_sec
+*/
+#define sl_DeviceDisable_WithNwpLpdsPoll()          NwpPowerOff_WithNwpLpdsPoll()
 
 /*!
 
@@ -606,9 +616,9 @@ extern "C" {
  ******************************************************************************
 */
 
-/*
+
 #define SL_PLATFORM_MULTI_THREADED
-*/
+
 
 #ifdef SL_PLATFORM_MULTI_THREADED
 #include "osi.h"
@@ -973,9 +983,9 @@ typedef OsiLockObj_t                            _SlLockObj_t;
     \warning
 */
 
-/*
-#define sl_GeneralEvtHdlr
-*/
+
+#define _SlDrvHandleGeneralEvents       SimpleLinkGeneralEventHandler
+
 
 /*!
     \brief WLAN Async event handler
@@ -1170,4 +1180,4 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 }
 #endif // __cplusplus
 
-#endif // __USER_H__
+#endif // _FREERTOS_DRIVERS_NET_C32XX_USER_H_

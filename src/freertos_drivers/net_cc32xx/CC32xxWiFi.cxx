@@ -36,7 +36,8 @@
 
 #include <unistd.h>
 
-// Simplelink includes 
+// Simplelink includes
+#include "osi.h"
 #include "simplelink.h"
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;

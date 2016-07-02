@@ -12,3 +12,6 @@ INCLUDES += -I$(TICC3200SDKPATH)/simplelink/include \
 
 CXXSRCS += CC32xxWiFi.cxx \
            CC32xxSocket.cxx
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+            -D__USER_H__
