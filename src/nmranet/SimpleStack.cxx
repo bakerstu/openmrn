@@ -170,6 +170,7 @@ void SimpleCanStackBase::create_config_file_if_needed(
     HASSERT(CONFIG_FILENAME);
     struct stat statbuf;
     bool reset = false;
+    bool extend = false;
     int fd = ::open(CONFIG_FILENAME, O_RDONLY);
     if (fd < 0)
     {
@@ -188,15 +189,26 @@ void SimpleCanStackBase::create_config_file_if_needed(
     ::close(fd);
     fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
     HASSERT(fstat(fd, &statbuf) == 0);
-    if (statbuf.st_size < (ssize_t)file_size)
+    if (statbuf.st_size < (ssize_t)file_size) {
+        extend = true;
+    }
+    if (!reset && cfg.version().read(fd) != expected_version) {
         reset = true;
-    if (!reset && cfg.version().read(fd) != expected_version)
-        reset = true;
-    if (!reset)
+    }
+    if (!reset && !extend)
         return;
 
-    // Clears the file.
-    lseek(fd, 0, SEEK_SET);
+    // Clears the file, preserving the node name and desription if any.
+    if (extend && !reset) {
+        lseek(fd, statbuf.st_size, SEEK_SET);
+        file_size -= statbuf.st_size; // Clears nothing, just extends with 0xFF.
+    } else if (statbuf.st_size >= 128) {
+        lseek(fd, 128, SEEK_SET);
+        file_size -= 128; // Clears less.
+    } else {
+        lseek(fd, 0, SEEK_SET);
+    }
+
     static const unsigned bufsize = 128;
     char *buf = (char *)malloc(bufsize);
     HASSERT(buf);
