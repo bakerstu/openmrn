@@ -77,7 +77,7 @@ public:
      *  Turns off the previous output that may have been running. Call
      *  set_state to revert.
      */
-    void pause() {
+    void set_off() {
         ETS_FRC1_INTR_DISABLE();
         if (gpioValue_) {
             GPIO_OUT_CLR = gpioValue_;
@@ -116,6 +116,27 @@ public:
         TM1_EDGE_INT_ENABLE();
         FRC1_LOAD = 100; // will trigger interrupt immediately
         TM1_EDGE_INT_ENABLE();
+    }
+
+    /**
+     *  Pauses updating the PWM for a certain amount of time. After this
+     *  function returns the output pins are guaranteed to not be modified for
+     *  the given amount of time. After the pause the PWM will continue, but
+     *  whether with low or high is unspecified.
+     *
+     *  Calling set_state immediately cancels the pause.
+     *
+     *  @param nsec_pause pause (in nanoseconds) to do. Maximum value is 104
+     *  msec
+     */
+    void pause(long long nsec_pause) {
+        ETS_FRC1_INTR_DISABLE();
+        unsigned clock_pause = (nsec_pause * 2) / 25;
+        HASSERT(clock_pause < (1<<23));
+        FRC1_INTCLR = 0;
+        ETS_FRC1_INTR_ENABLE();
+        TM1_EDGE_INT_ENABLE();
+        FRC1_LOAD = std::max(clock_pause, 1U);
     }
 
     static void ICACHE_RAM_ATTR new_isr_handler(void*) {
