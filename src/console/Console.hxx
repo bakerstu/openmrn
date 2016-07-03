@@ -40,7 +40,7 @@
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 
-#if defined (__FreeRTOS__) && !defined (GCC_ARMCM3)
+#if (defined (__FreeRTOS__) && !defined (GCC_ARMCM3)) || defined(ESP_NONOS)
 #else
 #define CONSOLE_NETWORKING
 #endif
