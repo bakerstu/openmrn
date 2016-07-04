@@ -11,11 +11,11 @@ struct HW
     GPIO_PIN(BLINKER_RAW, GpioOutputSafeHigh, 2);
     static constexpr bool blinker_invert = true;
 
-    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 14);
-    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 12);
+    GPIO_PIN(MOT_A_HI, GpioOutputSafeLow, 5);
+    GPIO_PIN(MOT_A_LO, GpioOutputSafeLow, 13);
 
-    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 5);
-    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 13);
+    GPIO_PIN(MOT_B_HI, GpioOutputSafeLow, 14);
+    GPIO_PIN(MOT_B_LO, GpioOutputSafeLow, 12);
 
     static constexpr bool invertLow = false;
 
