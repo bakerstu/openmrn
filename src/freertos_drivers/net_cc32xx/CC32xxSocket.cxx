@@ -931,6 +931,7 @@ const char *gai_strerror (int __ecode)
 
 void freeaddrinfo(struct addrinfo *ai)
 {
+    free(ai->ai_addr);
     free(ai);
 }
 
@@ -947,6 +948,15 @@ int getaddrinfo(const char *nodename, const char *servname,
         return EAI_MEMORY;
     }
     memset(*res, 0, sizeof(struct addrinfo));
+
+    (*res)->ai_addr =
+        static_cast<struct sockaddr*>(malloc(sizeof(struct sockaddr)));
+    if ((*res)->ai_addr == NULL)
+    {
+        free(*res);
+        return EAI_MEMORY;
+    }
+    memset((*res)->ai_addr, 0, sizeof(struct addrinfo));
 
     switch (hints->ai_family)
     {
@@ -989,17 +999,22 @@ int getaddrinfo(const char *nodename, const char *servname,
     {
         case AF_INET:
         {
-            struct sockaddr_in *addr_in = (struct sockaddr_in*)(*res);
-            addr_in->sin_family = AF_INET;
-            addr_in->sin_port = strtol(servname, NULL, 0);
-            addr_in->sin_addr.s_addr = ip_addr;
-            domain = SL_AF_INET;
+            struct sockaddr_in *addr_in = (struct sockaddr_in*)(*res)->ai_addr;
+            (*res)->ai_flags = 0;
+            (*res)->ai_family = hints->ai_family;
+            (*res)->ai_socktype = hints->ai_socktype;
+            (*res)->ai_protocol = hints->ai_protocol;
+            (*res)->ai_addrlen = sizeof(struct sockaddr_in);
+            addr_in->sin_family = hints->ai_family;
+            addr_in->sin_port = htons((uint16_t)strtol(servname, NULL, 0));
+            addr_in->sin_addr.s_addr = htonl(ip_addr);
             break;
         }
         case AF_INET6:
         case AF_PACKET:
         default:
             errno = EAFNOSUPPORT;
+            free((*res)->ai_addr);
             free(*res);
             return -1;
     }
