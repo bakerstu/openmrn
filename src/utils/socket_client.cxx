@@ -46,13 +46,14 @@
 
 #include "utils/socket_listener.hxx"
 
+#include "utils/format_utils.hxx"
 #include "utils/macros.h"
 #include "utils/logging.h"
 
 int ConnectSocket(const char *host, int port)
 {
     char port_str[30];
-    snprintf(port_str, sizeof(port_str), "%d", port);
+    integer_to_buffer(port, port_str);
 
     struct addrinfo *addr;
     struct addrinfo hints;
