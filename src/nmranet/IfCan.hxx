@@ -159,6 +159,174 @@ public:
     }
 };
 
+struct NodeCanonicalizeRequest
+{
+    /** Requests a NodeHandle to be canonicalized, i.e. look up node ID from
+     * alias. */
+    void reset(Node* node, NodeHandle handle)
+    {
+        srcNode = node;
+        this->handle = handle;
+        resultCode = 0;
+    }
+
+    Node* srcNode;
+    NodeHandle handle;
+
+    BarrierNotifiable done;
+    int resultCode;
+};
+
+class NodeIdLookupFlow
+    : public StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>
+{
+public:
+    NodeIdLookupFlow(IfCan *iface)
+        : StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>(iface)
+    {
+    }
+
+    Action entry() override
+    {
+        if (input()->handle.id != 0)
+        {
+            return return_ok();
+        }
+        if (input()->handle.alias == 0)
+        {
+            // This is an empty handle, say that's OK.
+            return return_ok();
+        }
+        NodeID id = iface()->remote_aliases()->lookup(input()->handle.alias);
+        if (!id)
+        {
+            id = iface()->local_aliases()->lookup(input()->handle.alias);
+        }
+        if (id)
+        {
+            input()->handle.id = id;
+            return return_ok();
+        }
+        return allocate_and_call(
+            iface()->addressed_message_write_flow(), STATE(send_request));
+    }
+
+private:
+    Action send_request()
+    {
+        auto *b =
+            get_allocation_result(iface()->addressed_message_write_flow());
+        b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            input()->srcNode->node_id(), input()->handle, EMPTY_PAYLOAD);
+        replyHandler_.set_alias_waiting(input()->handle.alias);
+        iface()->addressed_message_write_flow()->send(b);
+
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(700), STATE(reply_timeout));
+    }
+
+    Action reply_timeout()
+    {
+        replyHandler_.set_alias_waiting(0);
+        if (!timer_.is_triggered())
+        {
+            return return_with_error(Defs::ERROR_OPENLCB_TIMEOUT);
+        }
+        if (!input()->handle.id)
+        {
+            return return_with_error(Defs::ERROR_OPENMRN_NOT_FOUND);
+        }
+        return return_ok();
+    }
+
+    class ReplyHandler : public MessageHandler
+    {
+    public:
+        ReplyHandler(NodeIdLookupFlow *parent)
+            : parent_(parent)
+        {
+            parent_->iface()->dispatcher()->register_handler(
+                this, Defs::MTI_VERIFIED_NODE_ID_NUMBER, Defs::MTI_EXACT);
+        }
+
+        ~ReplyHandler()
+        {
+            parent_->iface()->dispatcher()->unregister_handler(
+                this, Defs::MTI_VERIFIED_NODE_ID_NUMBER, Defs::MTI_EXACT);
+        }
+
+        /// Handler callback for incoming messages.
+        void send(Buffer<NMRAnetMessage> *message, unsigned priority) OVERRIDE
+        {
+            AutoReleaseBuffer<NMRAnetMessage> ab(message);
+            if (aliasWaiting_ == 0)
+                return;
+
+            NMRAnetMessage *msg = message->data();
+            if (msg->src.alias != aliasWaiting_)
+                return;
+
+            if (msg->src.id != 0)
+            {
+                parent_->input()->handle.id = msg->src.id;
+            }
+            else if (msg->payload.size() == 6)
+            {
+                parent_->input()->handle.id =
+                    data_to_node_id(msg->payload.data());
+            }
+            else
+            {
+                // Node ID verified with no source data. Problem.
+            }
+            set_alias_waiting(0);
+            parent_->timer_.trigger();
+        }
+
+        void set_alias_waiting(NodeAlias a)
+        {
+            aliasWaiting_ = a;
+        }
+
+    private:
+        enum
+        {
+            // AMD frames
+            CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
+            CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+        };
+
+        NodeAlias aliasWaiting_{0};
+        NodeIdLookupFlow *parent_;
+    } replyHandler_{this};
+
+    friend class ReplyHandler;
+
+    Action return_ok()
+    {
+        return return_with_error(0);
+    }
+
+    Action return_with_error(int error)
+    {
+        input()->resultCode = error;
+        return_buffer();
+        return exit();
+    }
+
+    NodeCanonicalizeRequest *input()
+    {
+        return message()->data();
+    }
+
+    IfCan *iface()
+    {
+        return static_cast<IfCan *>(service());
+    }
+
+    BarrierNotifiable bn_;
+    StateFlowTimer timer_{this};
+};
+
 } // namespace nmranet
 
 #endif // _NMRANET_IFCAN_HXX_
