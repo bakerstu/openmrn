@@ -122,7 +122,8 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
+    //wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
