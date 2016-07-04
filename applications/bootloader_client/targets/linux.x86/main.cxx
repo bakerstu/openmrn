@@ -76,6 +76,7 @@ nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 namespace nmranet
 {
 Pool *const g_incoming_datagram_allocator = mainBufferPool;
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 }
 
 int port = 12021;
@@ -94,7 +95,7 @@ void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] (-n nodeid | -a "
+        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] (-n nodeid | -a "
         "alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
@@ -121,13 +122,15 @@ void usage(const char *e)
     fprintf(stderr, "Unless -t is specified the target will be rebooted after "
                     "flashing complete.\n");
     fprintf(stderr, "-x skips the PIP request and uses streams.\n");
+    fprintf(stderr,
+        "-w dg_timeout sets how many seconds to wait for a datagram reply.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:x")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:")) >= 0)
     {
         switch (opt)
         {
@@ -154,6 +157,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 's':
                 memory_space_id = strtol(optarg, nullptr, 16);
+                break;
+            case 'w':
+                nmranet::DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(strtoul(optarg, nullptr, 10));
                 break;
             case 'c':
                 checksum_algorithm = optarg;

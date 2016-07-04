@@ -88,5 +88,5 @@ xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 
 
 rflash: $(EXECUTABLE)-btgt.bin $(EXECUTABLE).lst
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -w 10 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
 
