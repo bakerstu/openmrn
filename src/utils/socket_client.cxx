@@ -32,7 +32,7 @@
  * @date 28 Dec 2013
  */
 
-#if defined(__linux__) || defined (__MACH__)
+#if defined(__linux__) || defined (__MACH__) || defined (__FreeRTOS__)
 
 #define LOGLEVEL INFO
 
