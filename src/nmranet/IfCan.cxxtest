@@ -125,6 +125,44 @@ TEST_F(AsyncIfTest, AMESupport)
     wait();
 }
 
+TEST_F(AsyncNodeTest, NodeIdLookupLocal)
+{
+    NodeIdLookupFlow lflow(ifCan_.get());
+    
+    auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x22A));
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0x02010d000003, b->data()->handle.id);
+}
+
+TEST_F(AsyncNodeTest, NodeIdLookupRemoteMissing)
+{
+    NodeIdLookupFlow lflow(ifCan_.get());
+    
+    auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
+    EXPECT_EQ(0x2030, b->data()->resultCode);
+    EXPECT_EQ(0, b->data()->handle.id);
+}
+
+TEST_F(AsyncNodeTest, NodeIdLookupRemoteFound)
+{
+    NodeIdLookupFlow lflow(ifCan_.get());
+    
+    expect_packet(":X1948822AN0882;").WillOnce(::testing::InvokeWithoutArgs([this](){ send_packet(":X19170882N010203040506;"); }));
+    auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0x010203040506, b->data()->handle.id);
+}
+
+TEST_F(AsyncNodeTest, NodeIdLookupRemoteFake)
+{
+    NodeIdLookupFlow lflow(ifCan_.get());
+    
+    expect_packet(":X1948822AN0882;").WillOnce(::testing::InvokeWithoutArgs([this](){ send_packet(":X19170662N010203040506;"); }));
+    auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
+    EXPECT_EQ(0x2030, b->data()->resultCode);
+    EXPECT_EQ(0, b->data()->handle.id);
+}
+
 class AsyncMessageCanTests : public AsyncIfTest
 {
 protected:
