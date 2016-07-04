@@ -24,67 +24,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file in.h
- * This file implements POSIX netinet/in.h prototypes.
+ * \file netdb.h
+ * This file implements POSIX netdb.h prototypes.
  *
  * @author Stuart W. Baker
- * @date 18 March 2016
+ * @date 2 July 2016
  */
 
-#ifndef _NETINET_IN_H_
-#define _NETINET_IN_H_
+#ifndef _NETDB_H_
+#define _NETDB_H_
 
-#include <sys/socket.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef uint32_t in_addr_t;
-struct in_addr
+/** Structure to contain information about address of a service provider.
+ */
+struct addrinfo
 {
-    in_addr_t s_addr;
+    int ai_flags;             /**< Input flags */
+    int ai_family;            /**< Protocol family for socket */
+    int ai_socktype;          /**< Socket type */
+    int ai_protocol;          /**< Protocol for socket */
+    socklen_t ai_addrlen;     /**< Length of socket address */
+    struct sockaddr *ai_addr; /**< Socket address for socket */
+    char *ai_canonname;       /**< Canonical name for service location */
+    struct addrinfo *ai_next; /**< Pointer to next in list */
 };
 
-/** Structure describing an Internet socket address.  */
-struct sockaddr_in
-{
-    uint16_t sin_family;     /**< protocol family (AF_INET) */
-    uint16_t sin_port;       /**< port number */
-    struct in_addr sin_addr; /**< internet address */
+const char *gai_strerror (int __ecode);
 
-    /* Pad to size of `struct sockaddr'.  */
-    unsigned char sin_zero[sizeof (struct sockaddr) - sizeof(uint16_t) -
-                           sizeof (uint16_t) - sizeof (struct in_addr)];
-};
+void freeaddrinfo(struct addrinfo *ai);
 
-#define INADDR_ANY  (0)
+int getaddrinfo(const char *nodename, const char *servname,
+                const struct addrinfo *hints,
+                struct addrinfo **res);
 
-/** TCP Raw Socket */
-#define IPPROTO_TCP (6)
-
-/** UDP Raw Socket */
-#define IPPROTO_UDP (17)
-
-/** Raw Socket */
-#define IPPROTO_RAW (255)
-
-#include <endian.h>
-
-#ifdef CONFIG_ENDIAN_BIG
-#define ntohl(x)   (x)
-#define ntohs(x)   (x)
-#define htonl(x)   (x)
-#define htons(x)   (x)
-#else
-#define ntohl(x) __bswap_32 (x)
-#define ntohs(x) __bswap_16 (x)
-#define htonl(x) __bswap_32 (x)
-#define htons(x) __bswap_16 (x)
-#endif
+# define EAI_AGAIN    -3    /**< Temporary failure in name resolution */
+# define EAI_FAIL     -4    /**<, Non-recoverable failure in name res */
+# define EAI_MEMORY   -10   /**< Memory allocation failure */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _NETINET_IN_H_ */
+#endif /* _NETDB_ */

@@ -36,6 +36,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -922,4 +923,88 @@ int getsockopt(int socket, int level, int option_name,
     return CC32xxSocket::getsockopt(socket, level, option_name,
                                     option_value, option_len);
 }
+
+const char *gai_strerror (int __ecode)
+{
+    return "gai_strerror unkown";
+}
+
+void freeaddrinfo(struct addrinfo *ai)
+{
+    free(ai);
+}
+
+int getaddrinfo(const char *nodename, const char *servname,
+                const struct addrinfo *hints,
+                struct addrinfo **res)
+{
+    uint32_t ip_addr;
+    uint8_t domain;
+
+    *res = static_cast<struct addrinfo *>(malloc(sizeof(struct addrinfo)));
+    if (*res == NULL)
+    {
+        return EAI_MEMORY;
+    }
+    memset(*res, 0, sizeof(struct addrinfo));
+
+    switch (hints->ai_family)
+    {
+        case AF_INET:
+            domain = SL_AF_INET;
+            break;
+        case AF_INET6:
+            domain = SL_AF_INET6;
+            break;
+        case AF_PACKET:
+            domain = SL_AF_PACKET;
+            break;
+        default:
+            errno = EAFNOSUPPORT;
+            free(*res);
+            return -1;
+    }
+
+    int result = sl_NetAppDnsGetHostByName((int8_t*)nodename, strlen(nodename),
+                                           &ip_addr, domain);
+
+    if (result != 0)
+    {
+        free(*res);
+        switch (result)
+        {
+            default:
+            case SL_POOL_IS_EMPTY:
+                return EAI_AGAIN;
+            case SL_NET_APP_DNS_QUERY_NO_RESPONSE:
+            case SL_NET_APP_DNS_NO_SERVER:
+            case SL_NET_APP_DNS_QUERY_FAILED:
+            case SL_NET_APP_DNS_MALFORMED_PACKET:
+            case SL_NET_APP_DNS_MISMATCHED_RESPONSE:
+                return EAI_FAIL;
+        }
+    }
+
+    switch (hints->ai_family)
+    {
+        case AF_INET:
+        {
+            struct sockaddr_in *addr_in = (struct sockaddr_in*)(*res);
+            addr_in->sin_family = AF_INET;
+            addr_in->sin_port = strtol(servname, NULL, 0);
+            addr_in->sin_addr.s_addr = ip_addr;
+            domain = SL_AF_INET;
+            break;
+        }
+        case AF_INET6:
+        case AF_PACKET:
+        default:
+            errno = EAFNOSUPPORT;
+            free(*res);
+            return -1;
+    }
+
+    return 0;
+}
+
 } /* extern "C" */
