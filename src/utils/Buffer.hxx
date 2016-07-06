@@ -253,6 +253,10 @@ template<typename T> using AutoReleaseBuffer = std::unique_ptr<Buffer<T>, Buffer
  * when going out of scope. */
 template<typename T> using BufferPtr = AutoReleaseBuffer<T>;
 
+template<typename T> BufferPtr<T> get_buffer_deleter(Buffer<T>* b) {
+    return BufferPtr<T>(b);
+}
+
 /** Pool of previously allocated, but currently unused, items. */
 class Pool
 {
