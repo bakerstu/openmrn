@@ -1,4 +1,4 @@
-	/** \copyright
+/** \copyright
  * Copyright (c) 2012, Stuart W Baker
  * All rights reserved.
  *
