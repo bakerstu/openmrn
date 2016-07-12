@@ -179,5 +179,9 @@ using std::pair;
 #define ICACHE_RAM_ATTR
 #endif
 
+#if defined (__linux__) || defined (__MACH__) || defined (GCC_ARMCM3)
+#define HAVE_BSDSOCKET
+#endif
+
 
 #endif // _UTILS_MACROS_H_
