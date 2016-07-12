@@ -1,0 +1,1 @@
+../../../../boards/ti-ek-tm4c1294xl-launchpad/hardware.hxx
