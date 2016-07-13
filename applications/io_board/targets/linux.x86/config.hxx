@@ -29,6 +29,11 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 #define NUM_OUTPUTS 4
 #define NUM_INPUTS 2
 
+/// Used for detecting when the config file stems from a different config.hxx
+/// version and needs to be factory reset before using. Change every time that
+/// the config eeprom file's layout changes.
+static constexpr uint16_t CANONICAL_VERSION = 0x82ae;
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
@@ -42,6 +47,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
+CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
 CDI_GROUP_ENTRY(pulseconsumers, PulseConsumers, Name("Pulsed outputs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
