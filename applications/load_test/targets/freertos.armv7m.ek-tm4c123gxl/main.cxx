@@ -158,7 +158,7 @@ public:
     }
 
     void* entry() override {
-        Ewma speed_avg;
+        Ewma speed_avg(0.5);
         while (true) {
             usleep(1000000);
             speed_avg.add_absolute(load_dev.absolute_offset());
