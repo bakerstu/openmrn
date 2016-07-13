@@ -37,6 +37,7 @@
 #include <unistd.h>
 
 #include "utils/Hub.hxx"
+#include "executor/SemaphoreNotifiableBlock.hxx"
 
 template <class Data> class FdHubWriteFlow;
 
@@ -289,8 +290,13 @@ public:
     public:
         ReadThread(FdHubPort<HFlow> *port) : ReadThreadBase(port)
         {
+            init();
             start(port->fill_thread_name('R', port->fd_), 0,
                   port->kReadThreadStackSize);
+        }
+        
+        ~ReadThread() {
+            delete semaphores_;
         }
 
         FdHubPort<HFlow> *port()
@@ -311,6 +317,12 @@ public:
         }
         /** Sends off a buffer */
         void send_message(const void *buf, int size) OVERRIDE;
+
+    private:
+        /// Initializes the semaphore notifiables.
+        void init();
+        /// If non-null, one slot will be acquired for each incoming message.
+        SemaphoreNotifiableBlock* semaphores_{nullptr};
 
         static const int kUnit;
         static const int kBufSize;
