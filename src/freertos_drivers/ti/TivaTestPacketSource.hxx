@@ -43,6 +43,7 @@
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
 #include "inc/hw_ints.h"
+#include "utils/Ewma.hxx"
 
 struct TivaTestPktDefHw
 {
@@ -55,6 +56,7 @@ struct TivaTestPktDefHw
     static constexpr unsigned PACKET_SIZE = 1500;
     static constexpr unsigned BANDWIDTH = 30000 * 29 / 7; ///< in bytes/sec
     static constexpr unsigned TIMER_PERIOD = UINT64_C(80000000) * PACKET_SIZE / BANDWIDTH;
+    static constexpr unsigned EWMA_PACKET_SIZE = 1000;
 };
 
 template <class HW> class TivaTestPacketSource : public Node
@@ -78,6 +80,11 @@ public:
             bufferedBytes_ += HW::PACKET_SIZE;
             Device::select_wakeup_from_isr(&readSelect_, &woken);
         }
+    }
+
+    /// Returns the total number of bytes produced so far.
+    unsigned absolute_offset() {
+        return absoluteOffset_;
     }
 
 protected:
@@ -149,6 +156,7 @@ protected:
                 rd += tocp;
                 bufferedBytes_ -= tocp;
                 tgt += tocp;
+                absoluteOffset_ += tocp;
                 if (offset_ >= inputPacketLen_)
                 {
                     reset_packet();
@@ -202,6 +210,7 @@ protected:
     char packet_[40];
     /// Length of packet_;
     unsigned inputPacketLen_;
+    uint32_t absoluteOffset_{0};
 };
 
 #endif // _FREERTOS_DRIVERS_TI_TIVATESTPACKETSOURCE_HXX_

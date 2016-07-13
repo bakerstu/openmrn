@@ -150,6 +150,23 @@ Destructable* printport;
 
 CpuDisplay load_display(stack.service(), LED_RED_Pin::instance(), LED_GREEN_Pin::instance());
 
+
+class SpdPrintThread : public OSThread {
+public:
+    SpdPrintThread() {
+        start("spd_print", 0, 900);
+    }
+
+    void* entry() override {
+        Ewma speed_avg;
+        while (true) {
+            usleep(1000000);
+            speed_avg.add_absolute(load_dev.absolute_offset());
+            printf("%d bytes/sec\r\n", (int)speed_avg.avg());
+        }
+    }
+} print_thread;
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
