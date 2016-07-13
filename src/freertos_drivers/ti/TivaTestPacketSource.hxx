@@ -45,23 +45,38 @@
 #include "inc/hw_ints.h"
 #include "utils/Ewma.hxx"
 
+/// Example hardware specification for the TivaTestPacketSource device driver.
 struct TivaTestPktDefHw
 {
+    /// Which timer resource to use. The driver always uses the TIMER_A+B in
+    /// concatenated mode.
     static constexpr auto TIMER_BASE = TIMER3_BASE;
+    /// Peripheral to enable the clock output to.
     static constexpr auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER3;
+    /// GPIO pin structure that turns on the input feed.
     using ENABLE_Pin = SW1_Pin;
+    /// Defines whether the enabe pin is active-high or active-low.
     static constexpr auto ENABLE_PIN_TRUE = false;
+    /// Interrupt number of the timer resource.
     static constexpr auto TIMER_INTERRUPT = INT_TIMER3A;
+    /// How may bytes maximum can be accumulated as pending if the reader is
+    /// not consuming data fast enough.
     static constexpr unsigned MAX_BUFFER_VALUE = 20000;
+    /// How many bytes to generate in one go.
     static constexpr unsigned PACKET_SIZE = 1500;
+    /// Bytes/sec to generate in total as input.
     static constexpr unsigned BANDWIDTH = 30000 * 29 / 7; ///< in bytes/sec
+    /// Number of clock cycles to wait between generating two packets.
     static constexpr unsigned TIMER_PERIOD = UINT64_C(80000000) * PACKET_SIZE / BANDWIDTH;
-    static constexpr unsigned EWMA_PACKET_SIZE = 1000;
 };
 
+/// A dummy device driver that spews out a lot of GC packets when a button is
+/// held. Useful for debugging buffer usage.
 template <class HW> class TivaTestPacketSource : public Node
 {
 public:
+    /// Constructor. @param name is the filesystem device name
+    /// (e.g. "/dev/load")
     TivaTestPacketSource(const char *name)
         : Node(name)
     {
@@ -70,6 +85,7 @@ public:
         reset_packet();
     }
 
+    /// Call this function from extern "C" void timer3a_interrupt_handler()
     void timer_isr()
     {
         MAP_TimerIntClear(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
@@ -82,12 +98,13 @@ public:
         }
     }
 
-    /// Returns the total number of bytes produced so far.
+    /// @return the total number of bytes produced so far.
     unsigned absolute_offset() {
         return absoluteOffset_;
     }
 
 protected:
+    /// Turns on the device.
     void enable() override
     {
         MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
@@ -106,20 +123,25 @@ protected:
         MAP_IntEnable(HW::TIMER_INTERRUPT);
     }
 
+    /// Turns off the device.
     void disable() override
     {
         MAP_TimerDisable(HW::TIMER_BASE, TIMER_A);
     }
 
+    /// Unused.
     void flush_buffers() override
     {
     }
 
+    /// Unused.
     ssize_t write(File *, const void *, size_t len) override
     {
         // Swallow all data.
         return len;
     }
+
+    /// Performs generating the fake data and/or blocking the caller as needed.
     ssize_t read(File *file, void *vtgt, size_t len) override
     {
         char *tgt = (char *)vtgt;
@@ -171,6 +193,7 @@ protected:
         return rd;
     }
 
+    /// Implementation of device-specific select() functionality.
     bool select(File *file, int mode) override
     {
         switch (mode)
@@ -191,6 +214,8 @@ protected:
         return true;
     }
 
+    /// Helper function to clear the input packet buffer and fill in with the
+    /// next packet in line.
     void reset_packet()
     {
         offset_ = 0;
@@ -199,6 +224,7 @@ protected:
         inputPacketLen_ = strlen(packet_);
     }
 
+    /// Helper structure for select() support.
     SelectInfo readSelect_;
     /// Which is the next byte from the INPUT_PACKET to send back.
     unsigned offset_{0};
@@ -210,6 +236,7 @@ protected:
     char packet_[40];
     /// Length of packet_;
     unsigned inputPacketLen_;
+    /// How many bytes in total have been read from this driver since boot.
     uint32_t absoluteOffset_{0};
 };
 

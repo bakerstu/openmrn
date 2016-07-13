@@ -157,16 +157,16 @@ private:
     /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
      * byte boundaries in the case of power loss.  The user should take this
      * into account as it relates to data integrity of a whole block.
-     * @ref index index within EEPROM address space to start write
-     * @ref buf data to write
-     * @ref len length in bytes of data to write
+     * @param index index within EEPROM address space to start write
+     * @param buf data to write
+     * @param len length in bytes of data to write
      */
     void write(unsigned int index, const void *buf, size_t len) OVERRIDE;
 
     /** Read from the EEPROM.
-     * @ref index index within EEPROM address space to start read
-     * @ref buf location to post read data
-     * @ref len length in bytes of data to read
+     * @param index index within EEPROM address space to start read
+     * @param buf location to post read data
+     * @param len length in bytes of data to read
      */
     void read(unsigned int index, void *buf, size_t len) OVERRIDE;
 

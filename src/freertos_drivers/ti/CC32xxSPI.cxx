@@ -102,7 +102,9 @@ int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
     return msg->len;
 }
 
+/// Debugging helper.
 volatile uint32_t g_error;
+/// Debugging helper.
 volatile uint32_t g_status;
 
 /** Common interrupt handler for all SPI devices.

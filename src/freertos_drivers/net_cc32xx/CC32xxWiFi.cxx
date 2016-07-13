@@ -42,11 +42,17 @@
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
-/* these are not class members so that including CC32xxWiFi.hxx does not
+/** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
 static SlFdSet_t rfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t wfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t efds;
 
 /*
@@ -503,8 +509,8 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 /** This function gets triggered when HTTP Server receives Application
  * defined GET and POST HTTP Tokens.
- * @param pHttpServerEvent pointer indicating http server event
- * @param pHttpServerResponse pointer indicating http server response
+ * @param pSlHttpServerEvent pointer indicating http server event
+ * @param pSlHttpServerResponse pointer indicating http server response
  */
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pSlHttpServerEvent, 
                                   SlHttpServerResponse_t *pSlHttpServerResponse)

@@ -43,6 +43,7 @@
 // Simplelink includes
 #include "socket.h"
 
+/// Existing (allocated) sockets.
 static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
 
 /*

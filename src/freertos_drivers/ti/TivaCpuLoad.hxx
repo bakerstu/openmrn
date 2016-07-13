@@ -26,7 +26,7 @@
  *
  * \file TivaCpuLoad.hxx
  *
- * Collect CPU load information using a tiva hardware timer
+ * Collect CPU load information using a tiva hardware timer.
  *
  * @author Balazs Racz
  * @date 11 Jul 2016
@@ -40,6 +40,7 @@
 #include "inc/hw_ints.h"
 #include "freertos_drivers/common/CpuLoad.hxx"
 
+/// Default hardware structure for the TivaCpuLoad driver.
 struct TivaCpuLoadDefHw
 {
     static constexpr auto TIMER_BASE = TIMER4_BASE;
@@ -48,9 +49,12 @@ struct TivaCpuLoadDefHw
     static constexpr unsigned TIMER_PERIOD = 80000000 / 127;
 };
 
+/// Driver to collect CPU load information (in freertos) using a Tiva hardware
+/// timer. At any point in time there can be only one instance of this class.
 template<class HW>
 class TivaCpuLoad {
 public:
+    /// Constructor.
     TivaCpuLoad() {
         MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
         MAP_TimerDisable(HW::TIMER_BASE, TIMER_A);
@@ -67,11 +71,14 @@ public:
         MAP_IntEnable(HW::TIMER_INTERRUPT);
     }
 
+    /// Call this function from extern "C" void timer4a_interrupt_handler().
     void interrupt_handler() {
         MAP_TimerIntClear(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
         cpuload_tick();
     }
 
+    /// The singleton. implementation we delegate collecting the CPULoad
+    /// information.
     CpuLoad load_;
 };
 

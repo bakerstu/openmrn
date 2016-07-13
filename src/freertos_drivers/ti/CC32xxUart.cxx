@@ -95,7 +95,6 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt)
 }
 
 /** Enable use of the device.
- * @param dev device to enable
  */
 void CC32xxUart::enable()
 {

@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file LoggingBit.hxx
+ * \file BlinkerFlow.hxx
  *
- * Simple Bit event implementation that logs to the blinker or stderr.
+ * Reusable test flow that just blinks a pair of events.
  *
  * @author Balazs Racz
  * @date 13 Dec 2015
@@ -35,39 +35,56 @@
 #ifndef _BRACZ_CUSTOM_BLINKERFLOW_HXX_
 #define _BRACZ_CUSTOM_BLINKERFLOW_HXX_
 
-//static const uint64_t BLINKER_EVENT_ID = 0x0501010114FF2B08ULL;
+/// Reusable test flow that just blinks a pair of events.
+class BlinkerFlow : public StateFlowBase
+{
+public:
+    /// Constructor.
+    ///
+    /// @param node source node from which to send the blin events.
+    /// @param BLINKER_EVENT_ID event id for one event; the other will be
+    /// BLINKER_EVENT_ID + 1.
+    BlinkerFlow(nmranet::Node *node, uint64_t BLINKER_EVENT_ID)
+        : StateFlowBase(node->iface())
+        , state_(1)
+        , bit_(
+              node, BLINKER_EVENT_ID, BLINKER_EVENT_ID + 1, &state_, (uint8_t)1)
+        , producer_(&bit_)
+        , sleepData_(this)
+    {
+        start_flow(STATE(blinker));
+    }
 
-class BlinkerFlow : public StateFlowBase {
- public:
-  BlinkerFlow(nmranet::Node* node, uint64_t BLINKER_EVENT_ID)
-      : StateFlowBase(node->iface()),
-        state_(1),
-        bit_(node, BLINKER_EVENT_ID, BLINKER_EVENT_ID + 1, &state_, (uint8_t)1),
-        producer_(&bit_),
-        sleepData_(this) {
-    start_flow(STATE(blinker));
-  }
-
- private:
-  Action blinker() {
-    state_ = !state_;
+private:
+    /// State that handles sending off the produced event. @return action.
+    Action blinker()
+    {
+        state_ = !state_;
 #ifdef __linux__
-    LOG(INFO, "blink produce %d", state_);
+        LOG(INFO, "blink produce %d", state_);
 #endif
-    producer_.Update(&helper_, n_.reset(this));
-    return wait_and_call(STATE(handle_sleep));
-  }
+        producer_.Update(&helper_, n_.reset(this));
+        return wait_and_call(STATE(handle_sleep));
+    }
 
-  Action handle_sleep() {
-    return sleep_and_call(&sleepData_, MSEC_TO_NSEC(1000), STATE(blinker));
-  }
+    /// State that sleeps until the next event is due. @return action.
+    Action handle_sleep()
+    {
+        return sleep_and_call(&sleepData_, MSEC_TO_NSEC(1000), STATE(blinker));
+    }
 
-  uint8_t state_;
-  nmranet::MemoryBit<uint8_t> bit_;
-  nmranet::BitEventProducer producer_;
-  nmranet::WriteHelper helper_;
-  StateFlowTimer sleepData_;
-  BarrierNotifiable n_;
+    /// Which event we produced last.
+    uint8_t state_;
+    /// Helper object for the event producer.
+    nmranet::MemoryBit<uint8_t> bit_;
+    /// The actual producer object.
+    nmranet::BitEventProducer producer_;
+    /// Helper object to write to the bus in an asynchronous way.
+    nmranet::WriteHelper helper_;
+    /// Object needed for sleeping in a state flow.
+    StateFlowTimer sleepData_;
+    /// Helper object for catching callback notifications.
+    BarrierNotifiable n_;
 };
 
-#endif  // _BRACZ_CUSTOM_BLINKERFLOW_HXX_
+#endif // _BRACZ_CUSTOM_BLINKERFLOW_HXX_

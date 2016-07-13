@@ -59,16 +59,20 @@ public:
 class SyncNotifiable : public Notifiable
 {
 public:
+    /// Constructor.
     SyncNotifiable() : sem_(0)
     {
     }
 
+    /// Implementation of notification receive.
     void notify() override
     {
         sem_.post();
     }
 
 #ifdef __FreeRTOS__
+    /// Implementation of notification receive from a FreeRTOS interrupt
+    /// context.
     void notify_from_isr() OVERRIDE
     {
         int woken = 0;
@@ -76,13 +80,14 @@ public:
     }
 #endif
 
-    /* Blocks the current thread until the notification is delivered. */
+    /// Blocks the current thread until the notification is delivered.
     void wait_for_notification()
     {
         sem_.wait();
     }
 
 private:
+    /// Semaphore helping the implementation.
     OSSem sem_;
 
     DISALLOW_COPY_AND_ASSIGN(SyncNotifiable);
@@ -92,10 +97,12 @@ private:
 class EmptyNotifiable : public Notifiable
 {
 public:
+    /// Drops notification to the floor.
     void notify() override
     {
     }
 
+    /// @return a static instance of EmptyNotifiable.
     static Notifiable* DefaultInstance();
 };
 
@@ -281,7 +288,7 @@ public:
         }
     }
 
-    /* Transfers the ownership of the notification; it will NOT be called in
+    /** Transfers the ownership of the notification; it will NOT be called in
      * the destructor. The caller is now responsible for calling it.
      * @return the notification pointer stored in the constructor. */
     Notifiable* Transfer()
