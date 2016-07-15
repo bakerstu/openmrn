@@ -48,7 +48,6 @@
 #include "os/OS.hxx"
 #include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
-#include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
 #include "hardware.hxx"
@@ -57,6 +56,7 @@
 #include "custom/TivaGNDControl.hxx"
 #include "custom/TivaDAC.hxx"
 #include "bootloader_hal.h"
+#include "TivaDCC.hxx"
 
 
 /*struct Debug {

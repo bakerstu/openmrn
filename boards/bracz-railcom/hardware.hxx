@@ -149,6 +149,11 @@ struct Debug
 
 };
 
+namespace TDebug {
+    typedef DummyPin Resync;
+    typedef DummyPin NextPacket;
+};
+
 struct RailcomDefs
 {
     static const uint32_t CHANNEL_COUNT = 6;
