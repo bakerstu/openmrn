@@ -24,7 +24,7 @@ include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
-OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg -f target/cc32xx.cfg
+OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -f interface/ftdi/swd-resistor-hack.cfg -f target/cc32xx.cfg
 
 run: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
