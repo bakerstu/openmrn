@@ -84,6 +84,10 @@ extern const char *STDOUT_DEVICE;
 /** default stderr */
 extern const char *STDERR_DEVICE;
 
+/** Captures point of death (line). */
+int g_death_lineno;
+/** Captures point of death (file). */
+const char* g_death_file;
 
 #if defined (__FreeRTOS__)
 /** Task list entriy */
