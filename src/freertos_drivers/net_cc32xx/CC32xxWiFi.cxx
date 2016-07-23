@@ -122,8 +122,8 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
-    //wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    //wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
+    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -148,10 +148,25 @@ void CC32xxWiFi::wlan_task()
         SlFdSet_t rfds_tmp = rfds;
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
-        result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, NULL);
+        SlTimeval_t tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
         if (result < 0)
         {
+            continue;
+        }
+
+        if (result == 0)
+        {
+            /* timeout, get the RSSI value */
+            SlGetRxStatResponse_t response;
+            if (sl_WlanRxStatGet(&response, 0) == 0)
+            {
+                rssi = response.AvarageMgMntRssi;
+            }
             continue;
         }
 

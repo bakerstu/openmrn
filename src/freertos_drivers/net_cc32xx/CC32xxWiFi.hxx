@@ -73,6 +73,14 @@ public:
     void wlan_connect(const char *ssid, const char* security_key,
                       uint8_t security_type);
 
+    /** Get the receive signal strength indicator.
+     * @return receive signal strength
+     */
+    int wlan_rssi()
+    {
+        return rssi;
+    }
+
     /** Get the singleton instance pointer.
      * @return singleton instance pointer
      */
@@ -138,6 +146,8 @@ private:
     uint32_t ipAddress; /**< assigned IP adress */
 
     int wakeup; /**< loopback socket to wakeup select() */
+
+    int16_t rssi; /**< receive signal strength indicator */
 
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
