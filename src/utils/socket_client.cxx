@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "utils/socket_listener.hxx"
 
@@ -52,6 +53,12 @@
 
 int ConnectSocket(const char *host, int port)
 {
+#ifdef __linux__
+    // We expect write failures to occur but we want to handle them where 
+    // the error occurs rather than in a SIGPIPE handler.
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
     char port_str[30];
     integer_to_buffer(port, port_str);
 

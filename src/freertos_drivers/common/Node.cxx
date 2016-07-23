@@ -69,7 +69,7 @@ int Node::close(File *)
  */
 int Node::fstat(File* file, struct stat *stat)
 {
-    memset(stat, 0, sizeof(stat));
+    memset(stat, 0, sizeof(*stat));
     stat->st_mode = mode_;
     return 0;
 }

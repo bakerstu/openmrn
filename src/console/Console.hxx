@@ -34,14 +34,13 @@
 #ifndef _CONSOLE_CONSOLE_HXX_
 #define _CONSOLE_CONSOLE_HXX_
 
-#include <sys/select.h>
 #include <cstdio>
 
+#include "utils/macros.h"
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 
-#if (defined (__FreeRTOS__) && !defined (GCC_ARMCM3)) || defined(ESP_NONOS)
-#else
+#ifdef HAVE_BSDSOCKET
 #define CONSOLE_NETWORKING
 #endif
 

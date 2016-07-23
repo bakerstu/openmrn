@@ -165,6 +165,7 @@ public:
         {
             // Addressed message.
             srcNode_ = m->dstNode;
+            it_ = iface()->localNodes_.end();
         }
         else if (!m->payload.empty() && m->payload.size() == 6)
         {

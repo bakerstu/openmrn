@@ -35,6 +35,7 @@
 #define _SYS_SOCKET_H_
 
 #include <sys/types.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

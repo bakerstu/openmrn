@@ -122,3 +122,15 @@ ssize_t Null::write(File *file, const void *buf, size_t count)
 {    
     return count;
 }
+
+/** Get the status information of a file or device.
+ * @param file file reference for this device
+ * @param stat structure to fill status info into
+ * @return 0 upon successor or negative error number upon error.
+ */
+int Null::fstat(File* file, struct stat *stat)
+{
+    memset(stat, 0, sizeof(*stat));
+    return 0;
+}
+
