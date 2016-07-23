@@ -114,8 +114,10 @@ OBJS += cdi.o
 $(EXECUTABLE)$(EXTENTION): cdi.o
 
 cdi.o : compile_cdi
-	./compile_cdi > cdi.cxxout
-	$(CXX) $(CXXFLAGS) -MD -MF $*.d -x c++ cdi.cxxout -o $@
+	./compile_cdi > cdi.cxx
+	$(CXX) $(CXXFLAGS) -x c++ cdi.cxx -o $@
+	mv cdi.cxx cdi.cxxout
+	rm -f cdi.d
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
