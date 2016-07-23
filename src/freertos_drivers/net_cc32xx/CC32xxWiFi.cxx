@@ -109,7 +109,6 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
         } else if (!ipAquired) {
             resetblink(WIFI_BLINK_ASSOC_NOIP);
         } else {
-            resetblink(WIFI_BLINK_CONNECTING);
             break;
         }
         usleep(10000);
@@ -138,8 +137,7 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    //wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
-    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -398,6 +396,12 @@ void CC32xxWiFi::net_app_event_handler(void *context)
     switch (event->Event)
     {
         case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+        {
+            SlIpV4AcquiredAsync_t *event_data = NULL;
+            event_data = &event->EventData.ipAcquiredV4;
+            ipAddress = event_data->ip;
+        }
+        // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
             ipAquired = 1;
 
