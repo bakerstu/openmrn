@@ -34,6 +34,8 @@
 #include "CC32xxWiFi.hxx"
 #include "CC32xxSocket.hxx"
 
+#include "freertos_drivers/common/WifiDefs.hxx"
+
 #include <unistd.h>
 
 // Simplelink includes
@@ -100,8 +102,16 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0, &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (!connected && !ipAquired)
+    while (true)
     {
+        if (!connected) {
+            resetblink(WIFI_BLINK_NOTASSOCIATED);
+        } else if (!ipAquired) {
+            resetblink(WIFI_BLINK_ASSOC_NOIP);
+        } else {
+            resetblink(WIFI_BLINK_CONNECTING);
+            break;
+        }
         usleep(10000);
     }
 }
