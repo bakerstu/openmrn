@@ -34,21 +34,35 @@
 
 #include "utils/macros.h"
 
-char* integer_to_buffer(int value, char* buffer) {
-  int num_digits = 0;
-  int tmp = value;
-  do {
-    num_digits++;
-    tmp /= 10;
-  } while (tmp > 0);
-  char* ret = buffer + num_digits--;
-  *ret = 0;
-  tmp = value;
-  do {
-    HASSERT(num_digits >= 0);
-    buffer[num_digits--] = '0' + (tmp % 10);
-    tmp /= 10;
-  } while (tmp);
-  HASSERT(num_digits == -1);
-  return ret;
+char* unsigned_integer_to_buffer(int value, char* buffer)
+{
+    int num_digits = 0;
+    int tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 10;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        buffer[num_digits--] = '0' + (tmp % 10);
+        tmp /= 10;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
+char* integer_to_buffer(int value, char* buffer)
+{
+    if (value < 0)
+    {
+        *buffer = '-';
+        ++buffer;
+        value = -value;
+    }
+    return unsigned_integer_to_buffer(value, buffer);
 }
