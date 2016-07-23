@@ -18,7 +18,8 @@ CXXSRCS += Fileio.cxx \
            EEPROMEmulation_weak.cxx \
            Pipe.cxx \
            CpuLoad.cxx \
-           Socket.cxx
+           Socket.cxx \
+           DeviceFile.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)

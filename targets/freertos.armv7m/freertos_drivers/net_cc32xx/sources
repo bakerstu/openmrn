@@ -13,5 +13,7 @@ INCLUDES += -I$(TICC3200SDKPATH)/simplelink/include \
 CXXSRCS += CC32xxWiFi.cxx \
            CC32xxSocket.cxx
 
+# This magic ensures that our custom user.h file gets included and not the
+# default user.h file from the SDK.
 CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
             -D__USER_H__
