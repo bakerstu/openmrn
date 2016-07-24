@@ -98,7 +98,7 @@ void write_string_to_file(const string &filename, const string &data)
         exit(1);
     }
     size_t nr;
-    size_t offset;
+    size_t offset = 0;
     string ret;
     while ((nr = fwrite(data.data() + offset, 1, data.size() - offset, f)) > 0)
     {

@@ -43,6 +43,7 @@
 // Simplelink includes
 #include "socket.h"
 
+/// Existing (allocated) sockets.
 static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
 
 /*
@@ -385,14 +386,18 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         switch (result)
         {
             default:
+            {
+                volatile int g_bad_result = 0;
+                g_bad_result = g_bad_result + result;
                 HASSERT(0);
                 break;
+            }
             case SL_EALREADY:
                 errno = EALREADY;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
-                /* fall through */
+            /* fall through */
             case SL_EAGAIN:
                 errno = EAGAIN;
                 break;
@@ -971,6 +976,7 @@ int getaddrinfo(const char *nodename, const char *servname,
             break;
         default:
             errno = EAFNOSUPPORT;
+            // todo: this leaks the addrinfo
             free(*res);
             return -1;
     }
@@ -980,6 +986,7 @@ int getaddrinfo(const char *nodename, const char *servname,
 
     if (result != 0)
     {
+        // todo: this leaks the addrinfo
         free(*res);
         switch (result)
         {

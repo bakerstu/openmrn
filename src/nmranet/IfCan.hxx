@@ -159,10 +159,11 @@ public:
     }
 };
 
+/// Request object for the NodeIdLookupFlow.
 struct NodeCanonicalizeRequest
 {
-    /** Requests a NodeHandle to be canonicalized, i.e. look up node ID from
-     * alias. */
+    /// Requests a NodeHandle to be canonicalized, i.e. look up node ID from
+    /// alias.
     void reset(Node* node, NodeHandle handle)
     {
         srcNode = node;
@@ -170,22 +171,34 @@ struct NodeCanonicalizeRequest
         resultCode = 0;
     }
 
+    /// Caller node (in order to talk to the bus)
     Node* srcNode;
+    /// Destination node handle to canonicalize. At request time the alias
+    /// should vbe filled in; at response time the id will be filled in as
+    /// well.
     NodeHandle handle;
 
+    /// Needed for receiveing replies by the customer.
     BarrierNotifiable done;
+    /// Set to 0 on success, or an OpenLCB or OpenMRN error code in case of a
+    /// failure.
     int resultCode;
 };
 
+/// Child flow to be used in parents that need translation from node alias to
+/// node id.
 class NodeIdLookupFlow
     : public StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>
 {
 public:
+    /// Constructor. @param iface is the CAN Interface that the source node is
+    /// connecting to.
     NodeIdLookupFlow(IfCan *iface)
         : StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>(iface)
     {
     }
 
+    /// Starts processing an incoming request. @return next action.
     Action entry() override
     {
         if (input()->handle.id != 0)
@@ -212,6 +225,7 @@ public:
     }
 
 private:
+    /// Send out a ping request to the destination alias. @return next action.
     Action send_request()
     {
         auto *b =
@@ -224,6 +238,8 @@ private:
         return sleep_and_call(&timer_, MSEC_TO_NSEC(700), STATE(reply_timeout));
     }
 
+    /// Called when a reply arrives or the timeout expires. @return next
+    /// action.
     Action reply_timeout()
     {
         replyHandler_.set_alias_waiting(0);
@@ -238,9 +254,11 @@ private:
         return return_ok();
     }
 
+    /// Class for listening to the ping response packets.
     class ReplyHandler : public MessageHandler
     {
     public:
+        /// Constructor. @param parent is the looku flow that owns this handler.
         ReplyHandler(NodeIdLookupFlow *parent)
             : parent_(parent)
         {
@@ -248,6 +266,7 @@ private:
                 this, Defs::MTI_VERIFIED_NODE_ID_NUMBER, Defs::MTI_EXACT);
         }
 
+        /// Destructor. Unregisters the handler.
         ~ReplyHandler()
         {
             parent_->iface()->dispatcher()->unregister_handler(
@@ -282,30 +301,29 @@ private:
             parent_->timer_.trigger();
         }
 
+        /// The parent flow calls this function when the handler needs to be
+        /// activated.
         void set_alias_waiting(NodeAlias a)
         {
             aliasWaiting_ = a;
         }
 
     private:
-        enum
-        {
-            // AMD frames
-            CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
-            CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
-        };
-
+        /// Which node alias we are listening for a reply from.
         NodeAlias aliasWaiting_{0};
+        /// Flow owning *this.
         NodeIdLookupFlow *parent_;
     } replyHandler_{this};
 
     friend class ReplyHandler;
 
+    /// Terminates the current subflow with no error.
     Action return_ok()
     {
         return return_with_error(0);
     }
 
+    /// Terminates the current subflow with an error code.
     Action return_with_error(int error)
     {
         input()->resultCode = error;
@@ -313,17 +331,21 @@ private:
         return exit();
     }
 
+    /// @return the current input request.
     NodeCanonicalizeRequest *input()
     {
         return message()->data();
     }
 
+    /// @return the stored interface
     IfCan *iface()
     {
         return static_cast<IfCan *>(service());
     }
 
+    /// Helper object for calling subflows.
     BarrierNotifiable bn_;
+    /// Helper object for timed wait.
     StateFlowTimer timer_{this};
 };
 

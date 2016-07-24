@@ -40,6 +40,7 @@
 
 class CC32xxWiFi;
 
+/// Socket implementation for the CC32xx class WiFi devices.
 class CC32xxSocket : public Socket
 {
 public:
@@ -183,7 +184,6 @@ private:
     int fcntl(File *file, int cmd, unsigned long data);
 
     /** Constructor
-     * @param name device name in file system
      */
     CC32xxSocket()
         : Socket(NULL)

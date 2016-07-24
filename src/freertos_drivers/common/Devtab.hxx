@@ -1,4 +1,4 @@
-	/** \copyright
+/** \copyright
  * Copyright (c) 2012, Stuart W Baker
  * All rights reserved.
  *
@@ -145,7 +145,7 @@ public:
     static int select(int nfds, fd_set *readfds, fd_set *writefds,
                       fd_set *exceptfds, long long timeout);
 
-    /** Clears the current thread's select bits. This is usedby ::select and
+    /** Clears the current thread's select bits. This is used by ::select and
      * ::pselect to ensure the necessary atomicity. */
     static void select_clear();
 
@@ -342,6 +342,7 @@ protected:
 
 protected:
     OSMutex lock_; ///< protects internal structures.
+    /// File open mode, such as O_NONBLOCK.
     mode_t mode_;
 
     unsigned int references_; /**< number of open references */

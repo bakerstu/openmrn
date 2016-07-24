@@ -34,6 +34,8 @@
 #include "CC32xxWiFi.hxx"
 #include "CC32xxSocket.hxx"
 
+#include "freertos_drivers/common/WifiDefs.hxx"
+
 #include <unistd.h>
 
 // Simplelink includes
@@ -42,11 +44,17 @@
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
-/* these are not class members so that including CC32xxWiFi.hxx does not
+/** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
 static SlFdSet_t rfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t wfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t efds;
 
 /*
@@ -230,8 +238,15 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0, &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (!connected && !ipAquired)
+    while (true)
     {
+        if (!connected) {
+            resetblink(WIFI_BLINK_NOTASSOCIATED);
+        } else if (!ipAquired) {
+            resetblink(WIFI_BLINK_ASSOC_NOIP);
+        } else {
+            break;
+        }
         usleep(10000);
     }
 }
@@ -258,8 +273,7 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    //wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
-    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -518,6 +532,12 @@ void CC32xxWiFi::net_app_event_handler(void *context)
     switch (event->Event)
     {
         case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+        {
+            SlIpV4AcquiredAsync_t *event_data = NULL;
+            event_data = &event->EventData.ipAcquiredV4;
+            ipAddress = event_data->ip;
+        }
+        // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
             ipAquired = 1;
 
@@ -654,8 +674,8 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 /** This function gets triggered when HTTP Server receives Application
  * defined GET and POST HTTP Tokens.
- * @param pHttpServerEvent pointer indicating http server event
- * @param pHttpServerResponse pointer indicating http server response
+ * @param pSlHttpServerEvent pointer indicating http server event
+ * @param pSlHttpServerResponse pointer indicating http server response
  */
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pSlHttpServerEvent, 
                                   SlHttpServerResponse_t *pSlHttpServerResponse)

@@ -91,6 +91,14 @@ public:
     void wlan_connect(const char *ssid, const char* security_key,
                       uint8_t security_type);
 
+
+    /** @return true if the wlan interface is ready to establish outgoing
+     * connections. */
+    bool wlan_ready()
+    {
+        return connected && ipAquired;
+    }
+
     /** Get the singleton instance pointer.
      * @return singleton instance pointer
      */
@@ -211,7 +219,7 @@ private:
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
     unsigned ipAquired        : 1; /**< IP address aquired state */
-    unsigned ipLeased         : 1; /**< IP address lease information */
+    unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 
     /** allow access to private members from CC32xxSocket */

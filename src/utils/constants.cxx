@@ -142,3 +142,7 @@ DEFAULT_CONST(gc_generate_newlines, 0);
 
 DEFAULT_CONST(gridconnect_buffer_size, 65);
 DEFAULT_CONST(gridconnect_buffer_delay_usec, 300);
+
+/// Number of pending packets per inbound gridconnect port. There is memory
+/// cost associated with setting this number high.
+DEFAULT_CONST(gridconnect_port_max_incoming_packets, 6);

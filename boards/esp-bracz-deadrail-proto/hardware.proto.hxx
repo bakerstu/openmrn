@@ -33,6 +33,8 @@ struct HW
     GPIO_PIN(REQ_BLOAD, GpioInputPU, 4);
 
     GPIO_PIN(ASEL1, GpioOutputSafeHigh, 0);
+    static constexpr bool ASEL2_HIGH = false;
+    static constexpr bool ASEL2_LOW = true;
     typedef BLINKER_Pin ASEL2_Pin;
     //GPIO_PIN(ASEL2, GpioOutputSafeHigh, 2);
 

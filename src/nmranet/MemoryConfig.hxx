@@ -301,6 +301,66 @@ private:
     const address_t len_; //< Length of block to serve.
 };
 
+/// Memory space implementation that exports a some memory-mapped data as a
+/// read-write memory space. The data must be given as a void* pointer pointing
+/// to RAM (or other memory-mapped structures).
+class ReadWriteMemoryBlock : public MemorySpace
+{
+public:
+    /** Initializes a memory block with a given block of memory. The address
+     * range [data, data+len) must be dereferenceable for read and write so
+     * long as this object is alive. */
+    ReadWriteMemoryBlock(void *data, address_t len)
+        : data_(reinterpret_cast<uint8_t*>(data))
+        , len_(len)
+    {
+    }
+
+    /// @returns whether the memory space does not accept writes.
+    bool read_only() OVERRIDE
+    {
+        return false;
+    }
+
+    address_t max_address() OVERRIDE
+    {
+        return len_ - 1;
+    }
+
+    size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
+                Notifiable *again) OVERRIDE
+    {
+        if (source >= len_) {
+            *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+            return 0;
+        }
+        size_t count = len;
+        if (source + count > len_)
+        {
+            count = len_ - source;
+        }
+        memcpy(dst, data_ + source, count);
+        return count;
+    }
+
+    size_t write(address_t destination, const uint8_t *data, size_t len,
+                 errorcode_t *error, Notifiable *again) OVERRIDE {
+        if (destination >= len_) {
+            *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+            return 0;
+        }
+        if (destination + len > len_) {
+            len = len_ - destination;
+        }
+        memcpy(data_ + destination, data, len);
+        return len;
+    }
+
+private:
+    uint8_t *data_; //< Data bytes to serve.
+    const address_t len_; //< Length of block to serve.
+};
+
 /// Memory space implementation that exports the contents of a file as a memory
 /// space. The file can be specified either as a path or an fd. By default
 /// writes are also allowed.

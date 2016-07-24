@@ -81,6 +81,7 @@ public:
     {
     }
 
+    /// 
     bool empty() { return size() == 0; }
     bool full() { return size() >= SIZE; }
     size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }

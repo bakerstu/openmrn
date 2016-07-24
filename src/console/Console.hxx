@@ -93,11 +93,10 @@ public:
     /** Constructor.
      * @param executor the executor thread that the Console flows will execute
      *                 on
-     * @param stdio start a Console connection instance on stdio if true
      * @param port TCP port number to open a telnet listen socket on, -1 mean
      *        do not open a listen port.
      */
-    Console(ExecutorBase *exectutor, uint16_t port);
+    Console(ExecutorBase *executor, uint16_t port);
 
     /** Constructor.
      * @param executor the executor thread that the Console flows will execute
@@ -107,7 +106,7 @@ public:
      * @param port TCP port number to open a telnet listen socket on, -1 mean
      *        do not open a listen port.
      */
-    Console(ExecutorBase *exectutor, int fd_in, int fd_out, int port = -1);
+    Console(ExecutorBase *executor, int fd_in, int fd_out, int port = -1);
 
     /** Destructor.
      */
@@ -207,7 +206,7 @@ public:
         FILE *fp;
 
         /** Wait for a complete line of input
-         * @return 
+         * @return next action
          */
         StateFlowBase::Action wait_for_line_and_call(StateFlowBase::Callback c)
         {
@@ -219,6 +218,7 @@ public:
 
         /** Record the CommandStatus and exit the CommandFlow.
          * @param status exit status of the command
+         * @return exit action
          */
         StateFlowBase::Action record_status_and_exit(CommandStatus status)
         {

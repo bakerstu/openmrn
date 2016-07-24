@@ -90,6 +90,11 @@ DECLARE_CONST(serial_tx_buffer_size);
 /** Number of bytes to queue in the serial driver for receive. */
 DECLARE_CONST(serial_rx_buffer_size);
 
+/// Number of pending packets per inbound gridconnect port. There is memory
+/// cost associated with setting this number high. Set to 1'000'000 to make it
+/// infinite.
+DECLARE_CONST(gridconnect_port_max_incoming_packets);
+
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */
 DECLARE_CONST(gridconnect_buffer_size);

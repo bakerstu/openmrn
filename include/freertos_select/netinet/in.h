@@ -40,7 +40,9 @@
 extern "C" {
 #endif
 
+/// Primitive typeholding an ipv4 address.
 typedef uint32_t in_addr_t;
+/** Structure describing an Internet address.  */
 struct in_addr
 {
     in_addr_t s_addr;
@@ -58,6 +60,7 @@ struct sockaddr_in
                            sizeof (uint16_t) - sizeof (struct in_addr)];
 };
 
+/// Listen on all network interfaces for incoming connections.
 #define INADDR_ANY  (0)
 
 /** TCP Raw Socket */
@@ -77,9 +80,13 @@ struct sockaddr_in
 #define htonl(x)   (x)
 #define htons(x)   (x)
 #else
+/// Converts a network endian long value to host endian.
 #define ntohl(x) __bswap_32 (x)
+/// Converts a network endian short value to host endian.
 #define ntohs(x) __bswap_16 (x)
+/// Converts a host endian long value to network endian.
 #define htonl(x) __bswap_32 (x)
+/// Converts a host endian short value to network endian.
 #define htons(x) __bswap_16 (x)
 #endif
 

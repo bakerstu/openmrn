@@ -90,10 +90,6 @@ extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
 
 // Defines the GPIO ports used for the producers and the consumers.
 
-// The first LED is driven by the blinker device from BlinkerGPIO.hxx. We just
-// create an alias for symmetry.
-typedef BLINKER_Pin LED_RED_Pin;
-
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus

@@ -182,7 +182,8 @@ protected:
     }
 
     /** @return the address (that is, the file offset) of the payload stored in
-     * a given block. */
+     * a given block. @param block_number is the index of the block in question
+     * (0.. block count - 1).*/
     uint32_t block_address(unsigned block_number) {
         uint32_t* address = (uint32_t*)&foo::__eeprom_start[block_number * EEBLOCKSIZE];
         return ((*address) >> 16) * (EEBLOCKSIZE / 2);

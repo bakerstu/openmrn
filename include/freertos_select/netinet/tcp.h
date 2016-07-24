@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file select.h
+ * \file tcp.h
  * This file implements POSIX netinet/tcp.h prototypes.
  *
  * @author Stuart W. Baker

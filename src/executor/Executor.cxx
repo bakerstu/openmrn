@@ -61,9 +61,6 @@ extern "C" {
 ExecutorBase *ExecutorBase::list = NULL;
 
 /** Constructor.
- * @param name name of executor
- * @param priority thread priority
- * @param stack_size thread stack size
  */
 ExecutorBase::ExecutorBase()
     : name_(NULL) /** @todo (Stuart Baker) is "name" still in use? */
