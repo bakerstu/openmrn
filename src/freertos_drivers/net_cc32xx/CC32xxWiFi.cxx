@@ -69,6 +69,142 @@ CC32xxWiFi::CC32xxWiFi()
 }
 
 /*
+ * CC32xxWiFi::wlan_profile_add()
+ */
+int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
+                                 const char *key, unsigned priority)
+{
+    SlSecParams_t sec_params;
+    sec_params.Key = (int8_t*)key;
+    sec_params.KeyLen = (key == nullptr) ? 0 : strlen(key);
+    switch (sec_type)
+    {
+        default:
+        case SEC_OPEN:
+            sec_params.Type = SL_SEC_TYPE_OPEN;
+            break;
+        case SEC_WEP:
+            sec_params.Type = SL_SEC_TYPE_WEP;
+            break;
+        case SEC_WPA2:
+            sec_params.Type = SL_SEC_TYPE_WPA_WPA2;
+            break;
+    }
+
+    int16_t result = sl_WlanProfileAdd((const int8_t*)ssid, strlen(ssid),
+                                       nullptr, &sec_params, nullptr,
+                                       priority, 0);
+
+    return (result >= 0) ? result : -1;
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_del()
+ */
+int CC32xxWiFi::wlan_profile_del(int index)
+{
+    return sl_WlanProfileDel(index);
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_del()
+ */
+int CC32xxWiFi::wlan_profile_del(const char *ssid)
+{
+    for (int i = 0; i < 7; ++i)
+    {
+        char name[33];
+        if (wlan_profile_get(i, name, nullptr, nullptr) != 0)
+        {
+            /* invalid entry, move onto the next one */
+            continue;
+        }
+
+        if (strcmp(name, ssid) == 0)
+        {
+            /* found a match */
+            return sl_WlanProfileDel(i);
+        }
+    }
+
+    /* no match found */
+    return -1;
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_get()
+ */
+int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
+                                 SecurityType *sec_type, uint32_t *priority)
+{
+    SlSecParams_t sec_params;
+    int16_t ssid_len;
+    
+    int16_t result = sl_WlanProfileGet(index, (int8_t*)ssid, &ssid_len,
+                                       nullptr, &sec_params, nullptr, priority);
+
+    if (result < 0)
+    {
+        return -1;
+    }
+
+    ssid[ssid_len] = '\0';
+
+    if (sec_type)
+    {
+        switch (sec_params.Type)
+        {
+            default:
+            case SL_SEC_TYPE_OPEN:
+                *sec_type = SEC_OPEN;
+                break;
+            case SL_SEC_TYPE_WEP:
+                *sec_type = SEC_WEP;
+                break;
+            case SL_SEC_TYPE_WPA_WPA2:
+                *sec_type = SEC_WPA2;
+                break;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * CC32xxWiFi::wlan_network_list_get()
+ */
+int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
+{
+    Sl_WlanNetworkEntry_t sl_entries[count];
+
+    int result = sl_WlanGetNetworkList(0, count, sl_entries);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        memcpy(entries[i].ssid, sl_entries[i].ssid, sl_entries[i].ssid_len);
+        entries[i].ssid[sl_entries[i].ssid_len] = '\0';
+
+        switch (sl_entries[i].sec_type)
+        {
+            default:
+            case SL_SEC_TYPE_OPEN:
+                entries[i].sec_type = SEC_OPEN;
+                break;
+            case SL_SEC_TYPE_WEP:
+                entries[i].sec_type = SEC_WEP;
+                break;
+            case SL_SEC_TYPE_WPA_WPA2:
+                entries[i].sec_type = SEC_WPA2;
+                break;
+        }
+
+        entries[i].rssi = sl_entries[i].rssi;
+    }
+
+    return result;
+}
+
+/*
  * CC32xxWiFi::start()
  */
 void CC32xxWiFi::start()
