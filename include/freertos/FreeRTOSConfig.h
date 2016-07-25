@@ -299,8 +299,10 @@ extern unsigned long blinker_pattern;
 #define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 1)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1
 
+#if tskKERNEL_VERSION_MAJOR >= 9
 #define configSUPPORT_STATIC_ALLOCATION     1
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
+#endif
 
 /* backwards compatibility */
 #if !defined(vPortClearInterruptMask)
