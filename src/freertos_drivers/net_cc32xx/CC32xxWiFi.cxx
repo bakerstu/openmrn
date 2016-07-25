@@ -179,6 +179,23 @@ int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
 }
 
 /*
+ * CC32xxWiFi::wlan_profile_text_none()
+ */
+bool CC32xxWiFi::wlan_profile_test_none()
+{
+    for (int i = 0; i < 7; ++i)
+    {
+        char ssid[33];
+        if (wlan_profile_get(i, ssid, nullptr, nullptr) == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
  * CC32xxWiFi::wlan_network_list_get()
  */
 int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
@@ -235,16 +252,22 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     sec_params.KeyLen = strlen(security_key);
     sec_params.Type = security_type;
 
-    int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0, &sec_params, 0);
+    int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
+                                &sec_params, 0);
     HASSERT(result >= 0);
 
     while (true)
     {
-        if (!connected) {
+        if (!connected)
+        {
             resetblink(WIFI_BLINK_NOTASSOCIATED);
-        } else if (!ipAquired) {
+        }
+        else if (!ipAquired)
+        {
             resetblink(WIFI_BLINK_ASSOC_NOIP);
-        } else {
+        }
+        else
+        {
             break;
         }
         usleep(10000);
@@ -257,12 +280,22 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
+    if (wlan_profile_test_none())
+    {
+        /* no profiles saved, add the default profile */
+        wlan_profile_add(WIFI_SSID, strlen(WIFI_PASS) > 0 ? SEC_WPA2 : SEC_OPEN,
+                         WIFI_PASS, 0);
+    }
     if (result != ROLE_STA)
     {
         sl_WlanSetMode(ROLE_STA);
         sl_Stop(0xFF);
         sl_Start(0, 0, 0);
     }
+
+    /* auto connection policy */
+    sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
+                     NULL,0); 
 }
 
 /*
@@ -273,7 +306,7 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
+    //wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);

@@ -127,7 +127,7 @@ public:
     int wlan_profile_del(const char *ssid);
 
     /** Delete a saved WLAN profile.
-     * @param index index within saved profile list to remove
+     * @param index index within saved profile list to remove, 0xFF removes all
      * @return 0 upon success, else -1 on error
      */
     int wlan_profile_del(int index);
@@ -141,6 +141,11 @@ public:
      */
     int wlan_profile_get(int index, char ssid[], SecurityType *sec_type,
                          uint32_t *priority);
+
+    /** Test if there are any saved profiles.
+     * @return true if there are no provides saved, else false
+     */
+    bool wlan_profile_test_none();
 
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
