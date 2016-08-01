@@ -39,6 +39,15 @@ from optparse import OptionParser
 class Block:
   pass
 
+def print_c_array(file_out, name, payload):
+  file_out.write('extern const uint8_t %s[];\n' % name)
+  file_out.write('const uint8_t %s[] =\n{\n  ' % name)
+  for i, c in enumerate(payload):
+    file_out.write("0x%02x, " % ord(c))
+    if (i + 1) % 12 == 0:
+      file_out.write('\n  ')
+  file_out.write('\n};\n\nextern const size_t %s_size;\nconst size_t %s_size = sizeof(%s);\n\n' % (name, name, name))
+
 parser = OptionParser()
 parser.add_option("-i", "--input", dest="input",
                   help="input file that will serve as the source BIN",
@@ -49,6 +58,9 @@ parser.add_option("-o", "--output", dest="output",
 parser.add_option("-x", "--maxsize", dest="maxsize",
                   help="maximum size of binary to read",
                   type="int")
+parser.add_option("-c", "--cname", dest="cname",
+                  help="name of C output variable (skips section table)",
+                  type="string")
 
 (options, args) = parser.parse_args()
 
@@ -65,8 +77,9 @@ file_out = open(options.output, 'w')
 
 file_out.write('/* Generated code based off of ' + options.input + ' */\n\n')
 file_out.write('#include <cstdint>\n#include <unistd.h>\n\n')
-file_out.write('#include "utils/ReflashBootloader.hxx"\n\n')
-file_out.write('extern const SegmentTable table[];\n')
+if options.cname is None:
+  file_out.write('#include "utils/ReflashBootloader.hxx"\n\n')
+  file_out.write('extern const SegmentTable table[];\n')
 
 bin_file = []
 ofs = 0
@@ -83,46 +96,45 @@ file_in.close()
 ofs = 0
 last_end = -10000
 
-blocks = []
-while ofs < len(bin_file):
-  blocks.append(bin_file[ofs:ofs + 1024])
-  ofs = ofs + 1024
+if options.cname is None:
+  blocks = []
+  while ofs < len(bin_file):
+    blocks.append(bin_file[ofs:ofs + 1024])
+    ofs = ofs + 1024
 
-outputblocks = []
+  outputblocks = []
 
-for k, block in enumerate(blocks):
-  if k == 0:
-    b = Block()
-    b.ofs = 0
-    b.data = block
-    b.end_ofs = 0
-    outputblocks.append(b)
-    continue
-  if block.count('\0') == len(block):  # all zeros
-    continue
-  if outputblocks[-1].end_ofs == k - 1:
-    outputblocks[-1].data += block
-    outputblocks[-1].end_ofs = k
-  else:
-    b = Block()
-    b.ofs = k
-    b.data = block
-    b.end_ofs = k
-    outputblocks.append(b)
+  for k, block in enumerate(blocks):
+    if k == 0:
+      b = Block()
+      b.ofs = 0
+      b.data = block
+      b.end_ofs = 0
+      outputblocks.append(b)
+      continue
+    if block.count('\0') == len(block):  # all zeros
+      continue
+    if outputblocks[-1].end_ofs == k - 1:
+      outputblocks[-1].data += block
+      outputblocks[-1].end_ofs = k
+    else:
+      b = Block()
+      b.ofs = k
+      b.data = block
+      b.end_ofs = k
+      outputblocks.append(b)
 
-segmenttable = ''
-for b in outputblocks:
-  file_out.write('const uint8_t payload_%d[] =\n{\n  ' % b.ofs)
-  for i, c in enumerate(b.data):
-    file_out.write("0x%02x, " % ord(c))
-    if (i + 1) % 12 == 0:
-      file_out.write('\n  ')
-  file_out.write('\n};\n\n')
-  segmenttable += '  { (uint8_t*)0x%x, payload_%d, %d},\n' % (b.ofs * 1024, b.ofs, len(b.data))
-segmenttable += '  { 0, NULL, 0},\n'
+  segmenttable = ''
+  for b in outputblocks:
+    print_c_array(file_out, "payload_%d" % b.ofs, b.data);
+    segmenttable += '  { (uint8_t*)0x%x, payload_%d, %d},\n' % (b.ofs * 1024, b.ofs, len(b.data))
+  segmenttable += '  { 0, NULL, 0},\n'
 
-file_out.write('const SegmentTable table[] =\n{\n')
-file_out.write(segmenttable)
-file_out.write('};\n\n')
+  file_out.write('const SegmentTable table[] =\n{\n')
+  file_out.write(segmenttable)
+  file_out.write('};\n\n')
+else:
+  print_c_array(file_out, options.cname, bin_file);
+
 
 file_out.close()
