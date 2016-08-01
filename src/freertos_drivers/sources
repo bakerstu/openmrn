@@ -34,6 +34,10 @@ SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
 CXXSRCS += c++_operators.cxx
 endif
 
+ifeq ($(TARGET),bare.armv7m)
+SUBDIRS += cc32xxsdk
+endif
+
 ifeq ($(TARGET),freertos.armv4t)
 SUBDIRS += drivers_lpc2368
 endif
