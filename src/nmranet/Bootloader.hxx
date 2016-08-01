@@ -201,10 +201,12 @@ bool check_application_checksum()
     }
     size_t flash_size = (size_t)flash_max - (size_t)flash_min;
     if (app_header.app_size > flash_size) return false;
-    uint32_t post_size = app_header.app_size -
+    uint32_t post_offset = sizeof(struct app_header) +
         (reinterpret_cast<const uint8_t *>(app_header_ptr) -
-                             static_cast<const uint8_t *>(flash_min)) -
-        sizeof(struct app_header);
+         static_cast<const uint8_t *>(flash_min));
+    uint32_t post_size = (post_offset < app_header.app_size)
+        ? app_header.app_size - post_offset
+        : 0;
     checksum_data(app_header_ptr + 1, post_size, checksum);
     if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
     {
