@@ -453,14 +453,20 @@ void handle_memory_config_frame()
                 set_error_code(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
                 return;
             }
+
+            state_.write_buffer_offset =
+                load_uint32_be(state_.input_frame.data + 2);
+            if (!normalize_write_buffer_offset()) {
+                reject_datagram();
+                set_error_code(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS);
+                return;
+            }
+
             state_.incoming_datagram_pending = 1;
             state_.datagram_write_pending = 1;
             state_.write_src_alias =
                 CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
 
-            state_.write_buffer_offset =
-                load_uint32_be(state_.input_frame.data + 2);
-            normalize_write_buffer_offset();
             g_write_buffer[0] = state_.input_frame.data[7];
             state_.write_buffer_index = 1;
 
