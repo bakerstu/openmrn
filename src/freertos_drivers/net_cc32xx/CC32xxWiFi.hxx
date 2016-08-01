@@ -45,6 +45,24 @@ class CC32xxSocket;
 class CC32xxWiFi
 {
 public:
+    /** Security types.
+     */
+    enum SecurityType
+    {
+        SEC_OPEN, /**< open (no security) */
+        SEC_WEP,  /**< WEP security mode */
+        SEC_WPA2, /**< WPA2 security mode */
+    };
+
+    /** metadata for a WLAN netowrk entry.
+     */
+    struct WlanNetworkEntry
+    {
+        char ssid[33]; /**< SSID of AP */
+        SecurityType sec_type; /**< security type of the AP */
+        int rssi; /**< receive signal strength indicator of the AP */
+    };
+
     /** Constructor.
      */
     CC32xxWiFi();
@@ -78,13 +96,6 @@ public:
     void wlan_connect(const char *ssid, const char* security_key,
                       uint8_t security_type);
 
-    /** Get the receive signal strength indicator.
-     * @return receive signal strength
-     */
-    int wlan_rssi()
-    {
-        return rssi;
-    }
 
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
@@ -100,6 +111,60 @@ public:
     {
         HASSERT(instance_);
         return instance_;
+    }
+
+    /** Add a saved WLAN profile.
+     * @param ssid WLAN SSID of the profile to save
+     * @param sec_type @ref SecurityType of the profile to be saved
+     * @param key password of the SSID, nullptr allowed if sec_type is
+     *            @ref SEC_OPEN
+     * @param priority connection priority when more than one of the saved
+     *        networks is available, 0 == lowest priority
+     * @return resulting index in the list of profiles, else -1 on error
+     */
+    int wlan_profile_add(const char *ssid, SecurityType sec_type,
+                         const char *key, unsigned priority);
+
+    /** Delete a saved WLAN profile.
+     * @param ssid WLAN SSID of the profile to delete
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_del(const char *ssid);
+
+    /** Delete a saved WLAN profile.
+     * @param index index within saved profile list to remove, 0xFF removes all
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_del(int index);
+
+    /** Get a saved WLAN profile by index.
+     * @param index index within saved profile list to get
+     * @param ssid 33 byte array that will return the ssid of the index
+     * @param sec_type will return the security type of the index
+     * @param priority will return the priority of the index
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_get(int index, char ssid[], SecurityType *sec_type,
+                         uint32_t *priority);
+
+    /** Test if there are any saved profiles.
+     * @return true if there are no provides saved, else false
+     */
+    bool wlan_profile_test_none();
+
+    /** Get a list of available networks.
+     * @param entries returns a list of available network entries
+     * @param count size of entry list in number of elements, max 20
+     * @return number of valid network entries in the list
+     */
+    int wlan_network_list_get(WlanNetworkEntry *entries, size_t count);
+
+    /** Get the receive signal strength indicator.
+     * @return receive signal strength
+     */
+    int wlan_rssi()
+    {
+        return rssi;
     }
 
     /** This function handles WLAN events.  This is public only so that an
