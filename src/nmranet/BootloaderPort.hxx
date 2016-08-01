@@ -36,6 +36,8 @@
 #ifndef _NMRANET_BOOTLOADERPORT_HXX_
 #define _NMRANET_BOOTLOADERPORT_HXX_
 
+#include "utils/Hub.hxx"
+
 namespace nmranet {
 
 /** Proxy class for sending canbus traffic to the Bootloader HAL. */
