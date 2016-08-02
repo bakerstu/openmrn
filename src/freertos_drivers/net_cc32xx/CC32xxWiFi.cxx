@@ -74,6 +74,7 @@ CC32xxWiFi::CC32xxWiFi()
     SL_FD_ZERO(&rfds);
     SL_FD_ZERO(&wfds);
     SL_FD_ZERO(&efds);
+    ssid[0] = '\0';
 }
 
 /*
@@ -227,6 +228,15 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
     }
 
     return result;
+}
+
+/*
+ * CC32xxWiFi::wlan_mac()
+ */
+void CC32xxWiFi::wlan_mac(uint8_t mac[6])
+{
+    uint8_t  len = 6;
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
 
 /*
@@ -459,9 +469,21 @@ void CC32xxWiFi::wlan_event_handler(void *context)
     switch (event->Event)
     {
         case SL_WLAN_CONNECT_EVENT:
+        {
             connected = 1;
             connectionFailed = 0;
 
+            slWlanConnectAsyncResponse_t *event_data;
+            event_data = &event->EventData.STAandP2PModeWlanConnected;
+            if (event_data->connection_type == 0)
+            {
+                /* Station mode */
+                portENTER_CRITICAL();
+                memcpy(ssid, event_data->ssid_name, event_data->ssid_len);
+                ssid[event_data->ssid_len] = '\0';
+                portEXIT_CRITICAL();
+            }
+        
             //
             // Information about the connected AP (like name, MAC etc) will be
             // available in 'slWlanConnectAsyncResponse_t'-Applications
@@ -471,6 +493,7 @@ void CC32xxWiFi::wlan_event_handler(void *context)
             // event_data = &event->EventData.STAandP2PModeWlanConnected;
             //
             break;
+        }
         case SL_WLAN_DISCONNECT_EVENT:
         {
             slWlanConnectAsyncResponse_t *event_data;
@@ -479,6 +502,7 @@ void CC32xxWiFi::wlan_event_handler(void *context)
 
             connected = 0;
             ipAquired = 0;
+            ssid[0] = '\0';
 
 
             // If the user has initiated 'Disconnect' request, 
