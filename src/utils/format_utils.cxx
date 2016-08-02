@@ -34,6 +34,36 @@
 
 #include "utils/macros.h"
 
+char* unsigned_integer_to_buffer_hex(int value, char* buffer)
+{
+    int num_digits = 0;
+    int tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 16;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        int tmp2 = tmp % 16;
+        if (tmp2 <= 9)
+        {
+            buffer[num_digits--] = '0' + tmp2;
+        }
+        else
+        {
+            buffer[num_digits--] = 'a' + (tmp2 - 10);
+        }
+        tmp /= 16;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
 char* unsigned_integer_to_buffer(int value, char* buffer)
 {
     int num_digits = 0;

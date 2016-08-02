@@ -49,4 +49,11 @@ char* integer_to_buffer(int value, char* buffer);
  */
 char* unsigned_integer_to_buffer(int value, char* buffer);
 
+/** Renders an unsigned integer to string, left-justified.
+ * @param buffer must be an at least 10 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+char* unsigned_integer_to_buffer_hex(int value, char* buffer);
+
 #endif // _UTILS_FORMAT_UTILS_HXX_
