@@ -159,6 +159,196 @@ public:
     }
 };
 
+/// Request object for the NodeIdLookupFlow.
+struct NodeCanonicalizeRequest
+{
+    /// Requests a NodeHandle to be canonicalized, i.e. look up node ID from
+    /// alias.
+    void reset(Node* node, NodeHandle handle)
+    {
+        srcNode = node;
+        this->handle = handle;
+        resultCode = 0;
+    }
+
+    /// Caller node (in order to talk to the bus)
+    Node* srcNode;
+    /// Destination node handle to canonicalize. At request time the alias
+    /// should vbe filled in; at response time the id will be filled in as
+    /// well.
+    NodeHandle handle;
+
+    /// Needed for receiveing replies by the customer.
+    BarrierNotifiable done;
+    /// Set to 0 on success, or an OpenLCB or OpenMRN error code in case of a
+    /// failure.
+    int resultCode;
+};
+
+/// Child flow to be used in parents that need translation from node alias to
+/// node id.
+class NodeIdLookupFlow
+    : public StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>
+{
+public:
+    /// Constructor. @param iface is the CAN Interface that the source node is
+    /// connecting to.
+    NodeIdLookupFlow(IfCan *iface)
+        : StateFlow<Buffer<NodeCanonicalizeRequest>, QList<1>>(iface)
+    {
+    }
+
+    /// Starts processing an incoming request. @return next action.
+    Action entry() override
+    {
+        if (input()->handle.id != 0)
+        {
+            return return_ok();
+        }
+        if (input()->handle.alias == 0)
+        {
+            // This is an empty handle, say that's OK.
+            return return_ok();
+        }
+        NodeID id = iface()->remote_aliases()->lookup(input()->handle.alias);
+        if (!id)
+        {
+            id = iface()->local_aliases()->lookup(input()->handle.alias);
+        }
+        if (id)
+        {
+            input()->handle.id = id;
+            return return_ok();
+        }
+        return allocate_and_call(
+            iface()->addressed_message_write_flow(), STATE(send_request));
+    }
+
+private:
+    /// Send out a ping request to the destination alias. @return next action.
+    Action send_request()
+    {
+        auto *b =
+            get_allocation_result(iface()->addressed_message_write_flow());
+        b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
+            input()->srcNode->node_id(), input()->handle, EMPTY_PAYLOAD);
+        replyHandler_.set_alias_waiting(input()->handle.alias);
+        iface()->addressed_message_write_flow()->send(b);
+
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(700), STATE(reply_timeout));
+    }
+
+    /// Called when a reply arrives or the timeout expires. @return next
+    /// action.
+    Action reply_timeout()
+    {
+        replyHandler_.set_alias_waiting(0);
+        if (!timer_.is_triggered())
+        {
+            return return_with_error(Defs::ERROR_OPENLCB_TIMEOUT);
+        }
+        if (!input()->handle.id)
+        {
+            return return_with_error(Defs::ERROR_OPENMRN_NOT_FOUND);
+        }
+        return return_ok();
+    }
+
+    /// Class for listening to the ping response packets.
+    class ReplyHandler : public MessageHandler
+    {
+    public:
+        /// Constructor. @param parent is the looku flow that owns this handler.
+        ReplyHandler(NodeIdLookupFlow *parent)
+            : parent_(parent)
+        {
+            parent_->iface()->dispatcher()->register_handler(
+                this, Defs::MTI_VERIFIED_NODE_ID_NUMBER, Defs::MTI_EXACT);
+        }
+
+        /// Destructor. Unregisters the handler.
+        ~ReplyHandler()
+        {
+            parent_->iface()->dispatcher()->unregister_handler(
+                this, Defs::MTI_VERIFIED_NODE_ID_NUMBER, Defs::MTI_EXACT);
+        }
+
+        /// Handler callback for incoming messages.
+        void send(Buffer<NMRAnetMessage> *message, unsigned priority) OVERRIDE
+        {
+            AutoReleaseBuffer<NMRAnetMessage> ab(message);
+            if (aliasWaiting_ == 0)
+                return;
+
+            NMRAnetMessage *msg = message->data();
+            if (msg->src.alias != aliasWaiting_)
+                return;
+
+            if (msg->src.id != 0)
+            {
+                parent_->input()->handle.id = msg->src.id;
+            }
+            else if (msg->payload.size() == 6)
+            {
+                parent_->input()->handle.id =
+                    data_to_node_id(msg->payload.data());
+            }
+            else
+            {
+                // Node ID verified with no source data. Problem.
+            }
+            set_alias_waiting(0);
+            parent_->timer_.trigger();
+        }
+
+        /// The parent flow calls this function when the handler needs to be
+        /// activated.
+        void set_alias_waiting(NodeAlias a)
+        {
+            aliasWaiting_ = a;
+        }
+
+    private:
+        /// Which node alias we are listening for a reply from.
+        NodeAlias aliasWaiting_{0};
+        /// Flow owning *this.
+        NodeIdLookupFlow *parent_;
+    } replyHandler_{this};
+
+    friend class ReplyHandler;
+
+    /// Terminates the current subflow with no error.
+    Action return_ok()
+    {
+        return return_with_error(0);
+    }
+
+    /// Terminates the current subflow with an error code.
+    Action return_with_error(int error)
+    {
+        input()->resultCode = error;
+        return_buffer();
+        return exit();
+    }
+
+    /// @return the current input request.
+    NodeCanonicalizeRequest *input()
+    {
+        return message()->data();
+    }
+
+    /// @return the stored interface
+    IfCan *iface()
+    {
+        return static_cast<IfCan *>(service());
+    }
+
+    /// Helper object for calling subflows.
+    BarrierNotifiable bn_;
+    /// Helper object for timed wait.
+    StateFlowTimer timer_{this};
+};
+
 } // namespace nmranet
 
 #endif // _NMRANET_IFCAN_HXX_

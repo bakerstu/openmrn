@@ -75,6 +75,7 @@ public:
 
 };
 
+/// Filesystem node for the null device.
 Null null("/dev/null");
 
 /** Open a device.
@@ -127,9 +128,9 @@ ssize_t Null::write(File *file, const void *buf, size_t count)
  * @param stat structure to fill status info into
  * @return 0 upon successor or negative error number upon error.
  */
-int Node::fstat(File* file, struct stat *stat)
+int Null::fstat(File* file, struct stat *stat)
 {
-    memset(stat, 0, sizeof(stat));
-    stat->st_mode = S_IFCHR;
+    memset(stat, 0, sizeof(*stat));
     return 0;
 }
+

@@ -78,4 +78,9 @@ struct Debug {
   typedef LED_GOLD_SW_Pin DetectRepeat;
 };
 
+namespace TDebug {
+using Resync = DummyPin;
+using NextPacket = DummyPin;
+};
+
 #endif // _ACC_TIVA_2_HARDWARE_HXX_

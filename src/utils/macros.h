@@ -56,7 +56,7 @@ using std::pair;
 #define EXPECT_DEATH(x...) 
 #endif
 
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__)
 
 /**
    Hard assertion facility. These checks will remain in production code, and
@@ -72,6 +72,14 @@ using std::pair;
 #define DIE(MSG) abort()
 
 
+#elif defined(ESP_NONOS)
+
+#include <stdio.h>
+
+#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)", __LINE__, #x); abort();} } while(0)
+
+#define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
+
 #else
 
 #include <assert.h>
@@ -80,9 +88,14 @@ using std::pair;
 #ifdef NDEBUG
 #define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
 #else
+/// Checks that the value of expression x is true, else terminates the current
+/// process.
+/// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { assert(x); } while(0)
 #endif
 
+/// Unconditionally terminates the current process with a message.
+/// @param MSG is the message to print as cause of death.
 #define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
 #endif
@@ -96,6 +109,9 @@ using std::pair;
 
 #else
 
+/** Debug assertion facility. Will terminate the program if the program was
+   compiled without NDEBUG symbol.
+ */
 #define DASSERT(x) HASSERT(x)
 
 #endif
@@ -108,9 +124,11 @@ using std::pair;
    meant to be copied (which is almost all classes), to avoid bugs resulting
    from unintended passing of the objects by value.
  */
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);   \
-  void operator=(const TypeName&)
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)                                     \
+    /** Private copy constructor to avoid using it. */                         \
+    TypeName(const TypeName &);                                                \
+    /** Private assignment operator to avoid using it. */                      \
+    void operator=(const TypeName &)
 
 /** Function attribute for virtual functions declaring that this funciton is
  * overriding a funciton that should be virtual in the base class. Supported by
@@ -147,7 +165,23 @@ using std::pair;
     {                                                                          \
     }
 
+/// Static (aka compile-time) assertion for C implementation files. For C++ use
+/// the language's builtin static_assert functionality.
 #define C_STATIC_ASSERT(expr, name) \
     typedef unsigned char __static_assert_##name[expr ? 0 : -1];
+
+#ifndef ESP_NONOS
+/// Declares (on the ESP8266) that the current function is not executed too
+/// often and should be placed in the SPI flash.
+#define ICACHE_FLASH_ATTR
+/// Declares (on the ESP8266) that the current function is executed
+/// often and should be placed in the instruction RAM.
+#define ICACHE_RAM_ATTR
+#endif
+
+#if defined (__linux__) || defined (__MACH__) || defined (GCC_ARMCM3)
+#define HAVE_BSDSOCKET
+#endif
+
 
 #endif // _UTILS_MACROS_H_

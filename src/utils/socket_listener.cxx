@@ -40,6 +40,7 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "utils/socket_listener.hxx"
@@ -60,7 +61,13 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {}
+      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {
+#ifdef __linux__
+    // We expect write failures to occur but we want to handle them where 
+    // the error occurs rather than in a SIGPIPE handler.
+    signal(SIGPIPE, SIG_IGN);
+#endif
+}
 
 SocketListener::~SocketListener() {
     if (!shutdownComplete_) {

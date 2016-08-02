@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Defs.hxx
+ * \file dcc/Defs.hxx
  *
  * Definitions for DCC concepts.
  *
@@ -37,10 +37,15 @@
 
 namespace dcc {
 
+/// Which address type this legacy train node uses. These address types
+/// translate to mutually independent packets on the track.
 enum class TrainAddressType
 {
+    /// DCC packets with short address (1..127)
     DCC_SHORT_ADDRESS,
+    /// DCC packets with long address (128..~10000)
     DCC_LONG_ADDRESS,
+    /// Marklin-motorola packets. Addresses 1..80 are supported.
     MM,
 };
 

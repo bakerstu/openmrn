@@ -41,10 +41,10 @@
 
 /** Though at the surface, this may seem like an unnecessary abstraction of
  * std::multimap, it has the purpose of limiting the implementation to features
- * found only in common to  @ref LinearMultiMap implementation.  In
- * this way, one can use @ref MultiMap and based on compile time settings choose to
- * use any one of @ref StlMultiMap or @ref LinearMultiMap from the same
- * source usage of @ref MultiMap.
+ * found only in common to @ref LinearMap implementation.  In this way,
+ * one can use @ref MultiMap and based on compile time settings choose to use
+ * any one of @ref StlMultiMap or @ref LinearMap from the same source
+ * usage of @ref MultiMap.
  */
 template <typename Key, typename Value> class StlMultiMap
 {

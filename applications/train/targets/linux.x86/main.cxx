@@ -55,8 +55,8 @@ nmranet::SimpleCanStack stack(NODE_ID);
 
 nmranet::TrainService traction_service(stack.iface());
 
-nmranet::MockSNIPUserFile snip_user_file("Train name",
-                                         "Train description");
+nmranet::MockSNIPUserFile snip_user_file("Deadrail Train",
+                                         "Deadrail--description");
 const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
 
 using nmranet::Node;
@@ -139,13 +139,14 @@ int appl_main(int argc, char *argv[])
     }
 
     nmranet::LoggingTrain train_impl(1732);
-    nmranet::TrainNode train_node(&traction_service, &train_impl);
+    nmranet::TrainNodeForProxy train_node(&traction_service, &train_impl);
     nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
     is_train_event_handler(&train_node);
     nmranet::ProtocolIdentificationHandler pip(
         &train_node,
         nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
         nmranet::Defs::TRACTION_CONTROL);
+    nmranet::SNIPHandler snip_handler{stack.iface(), nullptr, stack.info_flow()};
 
     stack.loop_executor();
     return 0;

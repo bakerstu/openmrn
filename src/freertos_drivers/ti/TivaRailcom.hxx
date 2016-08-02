@@ -335,10 +335,7 @@ private:
                 ;
             returnedPackets_[i] = 0;
         }
-        if (!need_ch1_cutout)
-        {
-            Debug::RailcomDriverCutout::set(true);
-        }
+        Debug::RailcomDriverCutout::set(true);
     }
 
     void middle_cutout() OVERRIDE
@@ -377,6 +374,7 @@ private:
             }
             HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
         }
+        Debug::RailcomDriverCutout::set(true);
     }
 
     void end_cutout() OVERRIDE
@@ -388,6 +386,7 @@ private:
             {
                 Debug::RailcomDataReceived::toggle();
                 Debug::RailcomAnyData::set(true);
+                Debug::RailcomCh2Data::set(true);
                 if (!returnedPackets_[i])
                 {
                     returnedPackets_[i] = this->alloc_new_packet(i);
@@ -416,6 +415,7 @@ private:
                 MAP_IntPendSet(HW::OS_INTERRUPT);
             }
         }
+        Debug::RailcomCh2Data::set(false);
         Debug::RailcomDriverCutout::set(false);
     }
 };

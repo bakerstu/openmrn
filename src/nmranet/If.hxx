@@ -52,6 +52,7 @@ namespace nmranet
 
 class Node;
 
+/// Container that carries the data bytes in an NMRAnet message.
 typedef string Payload;
 
 /** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
@@ -86,6 +87,14 @@ extern NodeID data_to_node_id(const void* d);
 
 /** Converts an Event ID to a Payload suitable to be sent as an event report. */
 extern Payload eventid_to_buffer(uint64_t eventid);
+
+/** Takes 8 bytes (big-endian) from *data, and returns the event id they
+ * represent. */
+inline uint64_t data_to_eventid(const void* data) {
+    uint64_t ret = 0;
+    memcpy(&ret, data, 8);
+    return be64toh(ret);
+}
 
 /** Formats a payload for response of error response messages such as OPtioanl
  * Interaction Rejected or Terminate Due To Error. */
@@ -222,6 +231,8 @@ struct NMRAnetMessage
     };
 };
 
+/// Interface class for all handlers that can be registered in the dispatcher
+/// to receive incoming NMRAnet messages.
 typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
 
 /// Abstract class representing an OpenLCB Interface. All interaction between
@@ -317,6 +328,40 @@ public:
         return it->second;
     }
 
+    /**
+     * @returns the first node (by nodeID order) that is registered in this
+     * interface as a local node, or nullptr if this interface has no local
+     * nodes.
+     */
+    Node* first_local_node() {
+        auto it = localNodes_.begin();
+        if (it == localNodes_.end()) return nullptr;
+        return it->second;
+    }
+
+    /**
+     * Iterator helper on the local nodes map.
+     *
+     * @param previous is the node ID of a valid local node.
+     *
+     * @returns the node pointer of the next local node (in node ID order) or
+     * null if this was the last node or an invalid argument (not the node ID
+     * of a local node).
+     */
+    Node* next_local_node(NodeID previous) {
+        auto it = localNodes_.find(previous);
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        ++it;
+        if (it == localNodes_.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    }
+
     /** @returns true if the two node handles match as far as we can tell
      * without doing any network traffic. */
     virtual bool matching_node(NodeHandle expected,
@@ -348,6 +393,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(If);
 };
 
+/// Message handlers that are implemented as state flows should derive from
+/// this class.
 typedef StateFlow<Buffer<NMRAnetMessage>, QList<4>> MessageStateFlowBase;
 
 /** Base class for incoming message handler flows. */

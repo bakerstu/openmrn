@@ -39,18 +39,30 @@
 
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
+#include "nmranet/NodeInitializeFlow.hxx"
 #include "executor/StateFlow.hxx"
+
+#if !defined (__MACH__)
+extern "C" {
+/// Called when the node needs to be rebooted.
+extern void reboot();
+}
+#endif
 
 namespace nmranet
 {
 
+/// Implementation of the ConfigUpdateService: state flow issuing all the calls
+/// to the registered ConfigUpdateListener descendants. This flow also handles
+/// any necessary action such as reboot or factory reset. This flow keeps the
+/// file descriptor for the config file that's currently open.
 class ConfigUpdateFlow : public StateFlowBase,
                          public ConfigUpdateService,
                          private Atomic
 {
 public:
-    ConfigUpdateFlow(Service *service)
-        : StateFlowBase(service)
+    ConfigUpdateFlow(If *iface)
+        : StateFlowBase(iface)
         , nextRefresh_(listeners_.begin())
         , fd_(-1)
     {
@@ -69,7 +81,7 @@ public:
         fd_ = fd;
     }
 
-    void trigger_update()
+    void trigger_update() override
     {
         AtomicHolder h(this);
         nextRefresh_ = listeners_.begin();
@@ -113,6 +125,15 @@ private:
             if (nextRefresh_ == listeners_.end())
             {
                 /// TODO(balazs.racz) apply the changes reported.
+                if (needsReboot_) {
+#ifdef __FreeRTOS__
+                    reboot();
+#endif                    
+                }
+                if (needsReInit_) {
+                    // Takes over ownership of itself, will delete when done.
+                    new ReinitAllNodes(static_cast<If*>(service()));
+                }
                 return exit();
             }
             l = nextRefresh_.operator->();

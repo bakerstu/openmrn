@@ -1,10 +1,10 @@
 /** \copyright
- * Copyright (c) 2014, Stuart W Baker
+ * Copyright (c) 2016, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,23 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TivaDCC.cxx
- * This file implements a DCC packet device driver layer specific to Tivaware.
+ * \file FakeTrackIf.hxx
  *
- * @author Stuart W. Baker
- * @date 25 July 2014
+ * Allows running a full commandstation update loop in a virtual (e.g. linux)
+ * setup for testing.
+ *
+ * @author Balazs Racz
+ * @date 25 Mar 2016
  */
 
-#include "TivaDCC.hxx"
+#ifndef _DCC_FAKETRACKIF_HXX_
+#define _DCC_FAKETRACKIF_HXX_
 
+#include "executor/Executor.hxx"
+#include "executor/StateFlow.hxx"
+#include "dcc/Packet.hxx"
 
-#include "driverlib/interrupt.h"
-#include "driverlib/sysctl.h"
-#include "freertos/can_ioctl.h"
+namespace dcc
+{
 
-#include "inc/hw_memmap.h"
-#include "inc/hw_timer.h"
-#include "inc/hw_types.h"
+/// StateFlow that accepts dcc::Packet structures and drops them to the floor.
+class FakeTrackIf : public StateFlow<Buffer<dcc::Packet>, QList<1>>
+{
+public:
+    FakeTrackIf(Service *service, int pool_size)
+        : StateFlow<Buffer<dcc::Packet>, QList<1>>(service)
+        , pool_(sizeof(Buffer<dcc::Packet>), pool_size)
+    {
+    }
 
+    FixedPool *pool() OVERRIDE
+    {
+        return &pool_;
+    }
 
+protected:
+    Action entry() OVERRIDE
+    {
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(10), STATE(finish));
+    }
 
+    Action finish()
+    {
+        return release_and_exit();
+    }
+
+    FixedPool pool_;
+    StateFlowTimer timer_{this};
+};
+
+} // namespace dcc
+
+#endif // _DCC_FAKETRACKIF_HXX_

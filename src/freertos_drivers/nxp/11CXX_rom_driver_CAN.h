@@ -42,11 +42,11 @@
 
 /// CAN message object.
 typedef struct _CAN_MSG_OBJ {
-  uint32_t  mode_id;
-  uint32_t  mask;
-  uint8_t   data[8];
-  uint8_t   dlc;
-  uint8_t   msgobj;
+  uint32_t  mode_id;                  ///< ?
+  uint32_t  mask;                     ///< ?
+  uint8_t   data[8];                  ///< ?
+  uint8_t   dlc;                      ///< ?
+  uint8_t   msgobj;                   ///< ?
 }CAN_MSG_OBJ;
 
 /**************************************************************************
@@ -68,58 +68,70 @@ SDO Abort Codes
 #define SDO_ABORT_LOCAL           0x08000021UL  // Data cannot be transferred or stored to the application because of local control
 #define SDO_ABORT_DEVSTAT         0x08000022UL  // Data cannot be transferred or stored to the application because of the present device state
 
+/// CanOpen message entry.
 typedef struct _CAN_ODCONSTENTRY {
-  uint16_t index;
-  uint8_t  subindex;
-  uint8_t  len;
-  uint32_t val;
+  uint16_t index;                     ///<  ?
+  uint8_t  subindex;                  ///<  ?
+  uint8_t  len;                       ///<  ?
+  uint32_t val;                       ///<  ?
 }CAN_ODCONSTENTRY;
 
 // upper-nibble values for CAN_ODENTRY.entrytype_len
-#define OD_NONE    0x00    // Object Dictionary entry doesn't exist
-#define OD_EXP_RO  0x10    // Object Dictionary entry expedited, read-only
-#define OD_EXP_WO  0x20    // Object Dictionary entry expedited, write-only
-#define OD_EXP_RW  0x30    // Object Dictionary entry expedited, read-write
-#define OD_SEG_RO  0x40    // Object Dictionary entry segmented, read-only
-#define OD_SEG_WO  0x50    // Object Dictionary entry segmented, write-only
-#define OD_SEG_RW  0x60    // Object Dictionary entry segmented, read-write
+#define OD_NONE    0x00    ///< Object Dictionary entry doesn't exist
+#define OD_EXP_RO  0x10    ///< Object Dictionary entry expedited, read-only
+#define OD_EXP_WO  0x20    ///< Object Dictionary entry expedited, write-only
+#define OD_EXP_RW  0x30    ///< Object Dictionary entry expedited, read-write
+#define OD_SEG_RO  0x40    ///< Object Dictionary entry segmented, read-only
+#define OD_SEG_WO  0x50    ///< Object Dictionary entry segmented, write-only
+#define OD_SEG_RW  0x60    ///< Object Dictionary entry segmented, read-write
 
+/// helper struct to specify a hardware CAN buffer entry.
 typedef struct _CAN_ODENTRY {
-  uint16_t index;
-  uint8_t  subindex;
-  uint8_t  entrytype_len;
-  uint8_t  *val;
+  uint16_t index;                     ///< 
+  uint8_t  subindex;                  ///< 
+  uint8_t  entrytype_len;             ///< 
+  uint8_t  *val;                      ///< 
 }CAN_ODENTRY;
 
+/// Helper struct for CANOpen configuration.
 typedef struct _CAN_CANOPENCFG {
-  uint8_t   node_id;
-  uint8_t   msgobj_rx;
-  uint8_t   msgobj_tx;
-  uint8_t   isr_handled;
-  uint32_t  od_const_num;
-  CAN_ODCONSTENTRY *od_const_table;
-  uint32_t  od_num;
-  CAN_ODENTRY *od_table;
+  uint8_t   node_id;                  ///< ?
+  uint8_t   msgobj_rx;                ///< ? 
+  uint8_t   msgobj_tx;                ///< ?
+  uint8_t   isr_handled;              ///< ? 
+  uint32_t  od_const_num;             ///< ? 
+  CAN_ODCONSTENTRY *od_const_table;   ///< ? 
+  uint32_t  od_num;                   ///< ? 
+  CAN_ODENTRY *od_table;              ///< ? 
 }CAN_CANOPENCFG;
 
 // Return values for CANOPEN_sdo_req() callback
-#define CAN_SDOREQ_NOTHANDLED     0  // process regularly, no impact
-#define CAN_SDOREQ_HANDLED_SEND   1  // processed in callback, auto-send returned msg
-#define CAN_SDOREQ_HANDLED_NOSEND 2  // processed in callback, don't send response
+#define CAN_SDOREQ_NOTHANDLED     0  ///< process regularly, no impact
+#define CAN_SDOREQ_HANDLED_SEND   1  ///< processed in callback, auto-send returned msg
+#define CAN_SDOREQ_HANDLED_NOSEND 2  ///< processed in callback, don't send response
 
 // Values for CANOPEN_sdo_seg_read/write() callback 'openclose' parameter
-#define CAN_SDOSEG_SEGMENT        0  // segment read/write
-#define CAN_SDOSEG_OPEN           1  // channel is opened
-#define CAN_SDOSEG_CLOSE          2  // channel is closed
+#define CAN_SDOSEG_SEGMENT        0  ///< segment read/write
+#define CAN_SDOSEG_OPEN           1  ///< channel is opened
+#define CAN_SDOSEG_CLOSE          2  ///< channel is closed
 
+/// Specifies the callbacks from the CAN stack to the application.
 typedef struct _CAN_CALLBACKS {
+    /// Called when a message object sees a receive.
   void (*CAN_rx)(uint8_t msg_obj_num);
+    /// Called when a message object transmit completes.
   void (*CAN_tx)(uint8_t msg_obj_num);
+    /// Called upon error.
   void (*CAN_error)(uint32_t error_info);
+    /// ?
   uint32_t (*CANOPEN_sdo_read)(uint16_t index, uint8_t subindex);
+    /// ?
   uint32_t (*CANOPEN_sdo_write)(uint16_t index, uint8_t subindex, uint8_t *dat_ptr);
+    /// ?
   uint32_t (*CANOPEN_sdo_seg_read)(uint16_t index, uint8_t subindex, uint8_t openclose, uint8_t *length, uint8_t *data, uint8_t *last);
+    /// ?
   uint32_t (*CANOPEN_sdo_seg_write)(uint16_t index, uint8_t subindex, uint8_t openclose, uint8_t length, uint8_t *data, uint8_t *fast_resp);
+    /// ?
   uint8_t (*CANOPEN_sdo_req)(uint8_t length_req, uint8_t *req_ptr, uint8_t *length_resp, uint8_t *resp_ptr);
 }CAN_CALLBACKS;
 
@@ -133,14 +145,23 @@ extern void config_canopen(CAN_CANOPENCFG * canopen_cfg);
 extern void canopen_handler(void);
 extern void config_calb(CAN_CALLBACKS * callback_cfg);
 
+/// All API functions of the ROM can driver.
 typedef struct _CAND {
+    /// Initialized the CAN driver.
   void (*init_can)(uint32_t * can_cfg, uint8_t isr_ena);
+    /// Call this from the interrupt service routine.
   void (*isr)(void);
+    /// Configure a message object to receive specific can messages.
   void (*config_rxmsgobj)(CAN_MSG_OBJ * msg_obj);
+    /// ?
   uint8_t (*can_receive)(CAN_MSG_OBJ * msg_obj);
+    /// Send a frame
   void (*can_transmit)(CAN_MSG_OBJ * msg_obj);
+    /// ?
   void (*config_canopen)(CAN_CANOPENCFG * canopen_cfg);
+    /// ?
   void (*canopen_handler)(void);
+    /// Specify callbacks from the driver to the application code.
   void (*config_calb)(CAN_CALLBACKS * callback_cfg);
 }CAND;
 

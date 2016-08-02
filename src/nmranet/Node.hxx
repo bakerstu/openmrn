@@ -65,6 +65,10 @@ public:
      * initialization. Nodes are not required to implement if they are not
      * using NodeInitializationFlow. */
     virtual void set_initialized() {}
+
+    /** Callback from the simple stack when the node has to return to
+     * uninitialized state. */
+    virtual void clear_initialized() = 0;
 };
 
 } // namespace nmranet

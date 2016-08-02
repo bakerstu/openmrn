@@ -40,6 +40,9 @@
 namespace dcc
 {
 
+/// Forces compilation of all existing train implementations even though many
+/// are actually templates. This avoid needing to put all this code into a .hxx
+/// file.
 extern void createtrains();
 
 template <> DccTrain<Dcc28Payload>::~DccTrain()
@@ -211,14 +214,21 @@ void MMNewTrain::get_next_packet(unsigned code, Packet *packet)
 
     if (code == REFRESH)
     {
-        /*code = MIN_REFRESH + p.nextRefresh_++;
-        if (p.nextRefresh_ > MM_MAX_REFRESH - MIN_REFRESH)
-        {
+        unsigned r = p.nextRefresh_;
+        if ((r & 1) == 0) {
+            code = SPEED;
+        } else {
+            // TODO(bracz): check if this refresh cycle confuses the marklin
+            // engines' directional state.
+            r >>= 1;
+            r += MM_F1;
+            code = r;
+        }
+        if (p.nextRefresh_ == MM_MAX_REFRESH) {
             p.nextRefresh_ = 0;
-            }*/
-        // We don't refresh function packets for the moment, because they
-        // confuse the directional state of the engine.
-        code = SPEED;
+        } else {
+            ++p.nextRefresh_;
+        }
     }
     else
     {

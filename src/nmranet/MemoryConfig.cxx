@@ -44,12 +44,16 @@
 #endif
 
 extern "C" {
+/// Implement this function (usually in HwInit.cxx) to enter the
+/// bootloader. Usual implementations write some magic value to RAM and the
+/// reboot the MCU.
 void enter_bootloader() __attribute__ ((weak));
 void enter_bootloader()
 {
 }
 
 #if !defined (__MACH__)
+/// Implement this function (usually in HwInit.cxx) to reboot the MCU.
 void reboot() __attribute__ ((weak));
 void reboot()
 {

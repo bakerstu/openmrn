@@ -5,7 +5,7 @@
 
 static char buf[1024];
 
-Console g_console(&g_executor, false, 12345);
+Console g_console(&g_executor, 12345);
 
 TEST(ConsoleTest, testHelp)
 {
@@ -51,6 +51,25 @@ TEST(ConsoleTest, testQuit)
     close(s);
 }
 
+TEST(ConsoleTest, testQuitNonSocket)
+{
+    int read_pair[2];
+    int write_pair[2];
+    pipe(read_pair);
+    pipe(write_pair);
+
+    new Console(&g_executor, read_pair[0], write_pair[1]);
+
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(read_pair[1], "quit\n", 5), 5);
+    usleep(1000);
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 50);
+    EXPECT_TRUE(!strncmp(buf, "session not a socket, "
+                              "aborting session shutdown\n> ", 50));
+}
+
 TEST(ConsoleTest, testQuitCommandError)
 {
     int s = ConnectSocket("localhost", 12345);
@@ -80,3 +99,174 @@ TEST(ConsoleTest, testInvalidCommand)
 
     close(s);
 }
+
+TEST(ConsoleTest, testFdBasedSession)
+{
+    int read_pair[2];
+    int write_pair[2];
+    pipe(read_pair);
+    pipe(write_pair);
+
+    new Console(&g_executor, read_pair[0], write_pair[1]);
+
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(read_pair[1], "blagh\n", 6), 6);
+    usleep(1000);
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "blagh: command not found\n> ", 27));
+}
+
+TEST(ConsoleTest, testAddSession)
+{
+    int read_pair[2];
+    int write_pair[2];
+    pipe(read_pair);
+    pipe(write_pair);
+
+    g_console.add_session(read_pair[0], write_pair[1]);
+
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(read_pair[1], "blagh\n", 6), 6);
+    usleep(1000);
+    EXPECT_EQ(::read(write_pair[0], buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "blagh: command not found\n> ", 27));
+}
+
+TEST(ConsoleTest, testToManyArguments)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "a0 a1 a2 a3 a4 a5 a6 a7 a8 a9\n", 30), 30);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 21);
+    EXPECT_TRUE(!strncmp(buf, "too many arguments\n> ", 21));
+
+    close(s);
+}
+
+TEST(ConsoleTest, testNoArguments)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "\n", 1), 1);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    close(s);
+}
+
+TEST(ConsoleTest, testDoubleLineSize)
+{
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "1234567890" "1234567890" "1234567890" "1234567890"
+                         "1234567890" "1234567890" "1234567890\n", 71), 71);
+
+    close(s);
+}
+
+static Console::CommandStatus new_command(FILE *fp, int argc, const char *argv[], void *context)
+{
+    switch (argc)
+    {
+        case 0:
+            fprintf(fp, "a new command\n");
+            break;
+        case 1:
+            fprintf(fp, "This is a new command\n");
+            break;
+        default:
+            return Console::COMMAND_ERROR;
+    }
+
+    return Console::COMMAND_OK;
+}
+
+TEST(ConsoleTest, testAddCommand)
+{
+    g_console.add_command("new", new_command, nullptr);
+
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "new\n", 4), 4);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 24);
+    EXPECT_TRUE(!strncmp(buf, "This is a new command\n> ", 24));
+
+    close(s);
+}
+
+class TestCommandFlow : public Console::CommandFlow
+{
+public:
+    TestCommandFlow()
+        : CommandFlow(&g_console, "test")
+    {
+    }
+private:
+    StateFlowBase::Action entry()
+    {
+        fprintf(fp, "param: ");
+        return wait_for_line_and_call(STATE(input));
+    }
+
+    StateFlowBase::Action input()
+    {
+        EXPECT_EQ(CommandFlow::argc, 1);
+        EXPECT_TRUE(!strcmp(argv[0], "example"));
+        return record_status_and_exit(Console::COMMAND_OK);
+    }
+};
+
+TEST(ConsoleTest, testAddCommandFlow)
+{
+    TestCommandFlow *test_flow = new TestCommandFlow();
+
+    int s = ConnectSocket("localhost", 12345);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    EXPECT_EQ(::write(s, "test\n", 5), 5);
+    usleep(1000);
+
+    memset(buf, 0, sizeof(buf));
+    EXPECT_EQ(::read(s, buf, 1024), 7);
+    EXPECT_TRUE(!strncmp(buf, "param: ", 7));
+
+    usleep(1000);
+    //printf("%s", buf);
+    EXPECT_EQ(::write(s, "example\n", 8), 8);
+    usleep(1000);
+
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+
+    delete test_flow;
+
+    EXPECT_EQ(::write(s, "test\n", 5), 5);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 26);
+    EXPECT_TRUE(!strncmp(buf, "test: command not found\n> ", 26));
+
+    close(s);
+}
+
+

@@ -36,6 +36,7 @@
 #define _FREERTOS_DRIVERS_TI_CC3200GPIO_HXX_
 
 #include "os/Gpio.hxx"
+#include "inc/hw_types.h"
 #include "driverlib/gpio.h"
 #include "driverlib/prcm.h"
 #include "inc/hw_memmap.h"
@@ -111,7 +112,7 @@ public:
 
 private:
     template <class Defs, bool SAFE_VALUE> friend struct GpioOutputPin;
-    template <class Defs, uint32_t GPIO_PULL> friend struct GpioInputPin;
+    template <class Defs> friend struct GpioInputPin;
     /// Static instance variable that can be used for libraries expectiong a
     /// generic Gpio pointer. This instance variable will be initialized by the
     /// linker and (assuming the application developer initialized the hardware
@@ -123,7 +124,7 @@ private:
     /// accessed. This address is bit-masked to the single individual pin, so
     /// only ever one bit can be read to be non-zero, and setting any other bit
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
-    /// set/clear and read != 0 to test.
+    /// set/clear and read != 0 to test. @return memory address.
     constexpr uint8_t *pin_address() const
     {
         return reinterpret_cast<uint8_t *>(
@@ -211,9 +212,9 @@ struct GpioOutputSafeHigh : public GpioOutputPin<Defs, true>
 /// @param BaseClass is the initialization structure, such as
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param port is the letter/number (e.g A0, A1, A2, A3)
+/// @param PORT is the letter/number (e.g A0, A1, A2, A3)
 ///
-/// @param pin is the pin number, such as 3
+/// @param NUM is the pin number, such as 3
 ///
 /// Example:
 ///  GPIO_PIN(FOO, GpioOutputSafeHigh, A0, 3);

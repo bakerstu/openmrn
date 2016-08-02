@@ -46,9 +46,12 @@
 namespace nmranet
 {
 
+/// CDI Configuration for a @ref ConfiguredProducer.
 CDI_GROUP(ProducerConfig);
+/// Allows the user to assign a name for this input.
 CDI_GROUP_ENTRY(description, StringConfigEntry<15>, //
                 Name("Description"), Description("User name of this input."));
+/// Configures the debounce parameter.
 CDI_GROUP_ENTRY(
     debounce, Uint8ConfigEntry, Name("Debounce parameter"),
     Description("Amount of time to wait for the input to stabilize before "
@@ -60,10 +63,12 @@ CDI_GROUP_ENTRY(
                 "tries, each 30 msec apart, the input must have the same value "
                 "in order for that value to be accepted and the event "
                 "transition produced."));
+/// This event will be produced when the input goes to HIGH.
 CDI_GROUP_ENTRY(
     event_on, EventConfigEntry, //
     Name("Event On"),
     Description("This event will be produced when the input goes to HIGH."));
+/// This event will be produced when the input goes to LOW.
 CDI_GROUP_ENTRY(
     event_off, EventConfigEntry, //
     Name("Event Off"),
@@ -74,6 +79,17 @@ extern "C" {
 void ignore_fn();
 }
 
+/// OpenLCB Producer class integrating a simple CDI-based configuration for two
+/// event IDs, and an input GPIO object whose value will determine when to
+/// produce events. This is usually the most important object for a simple IO
+/// node.
+///
+/// Usage: Must be called repeatedly via the Polling implementation exposed by
+/// @ref polling(). Use for example the @ref RefreshLoop class and supply the
+/// polling argument at the constructor to it:
+/// 
+/// nmranet::RefreshLoop loop(
+///    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 class ConfiguredProducer : public ConfigUpdateListener
 {
 public:
@@ -119,7 +135,7 @@ public:
         return UPDATED;
     }
 
-    ///@TODO(balazs.racz): implement
+    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
     }

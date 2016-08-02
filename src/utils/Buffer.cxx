@@ -103,13 +103,19 @@ void* g_current_alloc;
 #endif
 
 extern "C" {
-extern void *buffer_malloc(size_t size);
+/// malloc implementation used for allocating buffer space. Override the weak
+/// definition if the buffer space should be allocated from some other place
+/// than the heap. Useful for MCUs with multiple memory banks.
+/// @param length how much memory to allocate (in bytes)
+/// @return pointer to allcoated memory
+extern void *buffer_malloc(size_t length);
 }
 
 /** Get a free item out of the pool.
- * @param result pointer to a pointer to the result
+ * @param size tells how much to allocate (in bytes)
  * @param flow if !NULL, then the alloc call is considered async and will
  *        behave as if @ref alloc_async() was called.
+ * @return the allocated buffer.
  */
 BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
 {
@@ -170,7 +176,6 @@ void DynamicPool::free_large(void* buffer) {
 
 /** Release an item back to the free pool.
  * @param item pointer to item to release
- * @param size size of buffer to free
  */
 void DynamicPool::free(BufferBase *item)
 {

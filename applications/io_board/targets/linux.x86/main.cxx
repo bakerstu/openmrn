@@ -73,7 +73,6 @@ extern const char *const nmranet::CONFIG_FILENAME = "/tmp/config_eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t nmranet::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(nmranet::CONFIG_FILE_SIZE <= 512, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -132,6 +131,7 @@ nmranet::RefreshLoop loop(
  */
 int appl_main(int argc, char *argv[])
 {
+    stack.create_config_file_if_needed(cfg.seg().internal_config(), nmranet::CANONICAL_VERSION, nmranet::CONFIG_FILE_SIZE);
     // Connects to a TCP hub on the internet.
     //stack.connect_tcp_gridconnect_hub("28k.ch", 50007);
     stack.connect_tcp_gridconnect_hub("localhost", 12021);

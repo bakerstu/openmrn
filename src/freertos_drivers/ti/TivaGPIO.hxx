@@ -233,9 +233,16 @@ public:
     }
 };
 
+/// Defines a GPIO open-drain output pin with low initialization level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs>
 using GpioOutputODSafeLow = GpioOutputOD<Defs, false>;
 
+/// Defines a GPIO open-drain output pin with high (==not pulled low)
+/// initialization level.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs>
 using GpioOutputODSafeHigh = GpioOutputOD<Defs, true>;
 
@@ -267,9 +274,9 @@ public:
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param port is the letter (e.g. D)
+/// @param PORT is the letter (e.g. D)
 ///
-/// @param pin is the pin number, such as 3
+/// @param NUM is the pin number, such as 3
 ///
 /// Example:
 ///  GPIO_PIN(FOO, LedPin, D, 3);
@@ -462,7 +469,16 @@ template <class Defs> struct GpioHwPin : public Defs
 /// Helper macro for defining GPIO pins with a specific hardware config on the
 /// Tiva microcontrollers.
 ///
-/// For parameters, see @ref GPIO_PIN.
+/// @param NAME is the basename of the declaration. For NAME==FOO the macro
+/// declared FOO_Pin as a structure on which the read-write functions will be
+/// available.
+///
+/// @param BaseClass is the initialization structure, such as @ref LedPin, or
+/// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
+///
+/// @param PORT is the letter (e.g. D)
+///
+/// @param NUM is the pin number, such as 3
 ///
 /// @param CONFIG is the suffix of the symbol that defines the pinmux for the
 /// hardware, e.g. U7TX.

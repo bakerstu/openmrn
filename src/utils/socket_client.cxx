@@ -32,7 +32,7 @@
  * @date 28 Dec 2013
  */
 
-#if defined(__linux__) || defined (__MACH__)
+#if defined(__linux__) || defined (__MACH__) || defined (__FreeRTOS__)
 
 #define LOGLEVEL INFO
 
@@ -43,16 +43,24 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "utils/socket_listener.hxx"
 
+#include "utils/format_utils.hxx"
 #include "utils/macros.h"
 #include "utils/logging.h"
 
 int ConnectSocket(const char *host, int port)
 {
+#ifdef __linux__
+    // We expect write failures to occur but we want to handle them where 
+    // the error occurs rather than in a SIGPIPE handler.
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
     char port_str[30];
-    snprintf(port_str, sizeof(port_str), "%d", port);
+    integer_to_buffer(port, port_str);
 
     struct addrinfo *addr;
     struct addrinfo hints;

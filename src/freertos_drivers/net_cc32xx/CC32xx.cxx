@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Socket.cxx
+ * \file CC32xx.cxx
  * This file intantiates and initilizes the CC32xx Wi-Fi.
  *
  * @author Stuart W. Baker

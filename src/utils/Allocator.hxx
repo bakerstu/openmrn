@@ -74,6 +74,7 @@ public:
     /** typedef for allocator specialization */
     template <typename U> struct rebind
     {
+        /** typedef for allocator specialization */
         typedef Allocator<U> other;
     };
 

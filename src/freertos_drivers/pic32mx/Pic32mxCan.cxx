@@ -92,6 +92,11 @@ int Pic32mxCan::ioctl(File *file, unsigned long int key,
     return -EINVAL;
 }
 
+/// Translates a hardware buffer to a struct can_frame.
+///
+/// @param message hardware buffer.
+/// @param can_frame output can frame.
+///
 static void pic_buffer_to_frame(const CANRxMessageBuffer *message,
                                 struct can_frame *can_frame)
 {
@@ -122,6 +127,11 @@ static void pic_buffer_to_frame(const CANRxMessageBuffer *message,
     memcpy(can_frame->data, message->data, can_frame->can_dlc);
 }
 
+/// Translates a struct can_frame to a hardware buffer.
+///
+/// @param can_frame frame to send
+/// @param message hardware buffer to fill from the frame to send.
+///
 static void frame_to_pic_buffer(const struct can_frame *can_frame,
                                 CANTxMessageBuffer *message)
 {
@@ -391,7 +401,9 @@ void Pic32mxCan::disable()
     CANEnableModule(hw_, FALSE);
 }
 
+/// Filesystem device node for the first CAN device.
 Pic32mxCan can0(CAN1, "/dev/can0");
+/// Filesystem device node for the second CAN device.
 Pic32mxCan can1(CAN2, "/dev/can1");
 
 void Pic32mxCan::isr()
@@ -432,12 +444,14 @@ void Pic32mxCan::isr()
 
 extern "C" {
 
+/// Hardware interrupt for CAN1.
 void __attribute__((interrupt)) can1_interrupt(void)
 {
     can0.isr();
     INTClearFlag(INT_CAN1);
 }
 
+/// Hardware interrupt for CAN2.
 void __attribute__((interrupt)) can2_interrupt(void)
 {
     can1.isr();
@@ -448,10 +462,14 @@ void __attribute__((interrupt)) can2_interrupt(void)
 // void __attribute__((section(".vector_46"))) can1_int_trampoline(void)
 //    asm("b   can1_interrupt");
 
+/// Places a jump instruction to can1_interrupt to the proper interrupt vector
+/// location.
 asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
     "can1_interrupt\n\tnop\n.text\n");
 
+/// Places a jump instruction to can2_interrupt to the proper interrupt vector
+/// location.
 asm("\n\t.section .vector_47,\"ax\",%progbits\n\tj "
     "can2_interrupt\n\tnop\n.text\n");
 
-// TODO: process receive buffer overflow flags.
+/// @todo: process receive buffer overflow flags.

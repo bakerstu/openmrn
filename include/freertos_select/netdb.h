@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2016, Sidney McHarg
+ * Copyright (c) 2016, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,47 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file netdb.h
- * This file proides declaractions and defines found in netdb.h.
+ * This file implements POSIX netdb.h prototypes.
  *
- * @author Sidney McHarg
- * @date 01 May 2016
+ * @author Stuart W. Baker
+ * @date 2 July 2016
  */
 
 #ifndef _NETDB_H_
 #define _NETDB_H_
 
 #include <sys/types.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** Structure to contain information about address of a service provider.
+ */
+struct addrinfo
+{
+    int ai_flags;             /**< Input flags */
+    int ai_family;            /**< Protocol family for socket */
+    int ai_socktype;          /**< Socket type */
+    int ai_protocol;          /**< Protocol for socket */
+    socklen_t ai_addrlen;     /**< Length of socket address */
+    struct sockaddr *ai_addr; /**< Socket address for socket */
+    char *ai_canonname;       /**< Canonical name for service location */
+    struct addrinfo *ai_next; /**< Pointer to next in list */
+};
+
+const char *gai_strerror (int __ecode);
+
+void freeaddrinfo(struct addrinfo *ai);
+
+int getaddrinfo(const char *nodename, const char *servname,
+                const struct addrinfo *hints,
+                struct addrinfo **res);
+
+# define EAI_AGAIN    -3    /**< Temporary failure in name resolution */
+# define EAI_FAIL     -4    /**<, Non-recoverable failure in name res */
+# define EAI_MEMORY   -10   /**< Memory allocation failure */
 
 
 #ifdef __cplusplus

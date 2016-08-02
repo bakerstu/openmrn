@@ -125,9 +125,9 @@ void EEPROMEmulation::mount()
 /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
  * BLOCK_SIZE boundaries in the case of power loss.  The user should take this
  * into account as it relates to data integrity of a whole block.
- * @ref index within EEPROM address space to start write
- * @ref buf data to write
- * @ref len length in bytes of data to write
+ * @param index within EEPROM address space to start write
+ * @param buf data to write
+ * @param len length in bytes of data to write
  */
 void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
 {
@@ -202,8 +202,8 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
 }
 
 /** Write to the EEPROM on a native block boundary.
- * @ref index block within EEPROM address space to write
- * @ref data data to write, array size must be @ref BYTES_PER_BLOCK large
+ * @param index block within EEPROM address space to write
+ * @param data data to write, array size must be @ref BYTES_PER_BLOCK large
  */
 void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
 {
@@ -284,9 +284,9 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
 }
 
 /** Read from the EEPROM.
- * @ref index within EEPROM address space to start read
- * @ref buf location to post read data
- * @ref len length in bytes of data to read
+ * @param index within EEPROM address space to start read
+ * @param buf location to post read data
+ * @param len length in bytes of data to read
  */
 void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
 {
@@ -347,10 +347,10 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
 }
 
 /** Read from the EEPROM on a native block boundary.
- * @ref index bock within EEPROM address space to read
- * @ref data location to place read data, array size must be @ref
+ * @param index bock within EEPROM address space to read
+ * @param data location to place read data, array size must be @ref
  *           BYTES_PER_BLOCK large
- * @ref return true if any of the data is not "erased", else return false
+ * @param return true if any of the data is not "erased", else return false
  */
 bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
 {

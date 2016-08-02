@@ -12,6 +12,7 @@ CXXSRCS += Fileio.cxx \
            Can.cxx \
            Serial.cxx \
            I2C.cxx \
+           SPI.cxx \
            EEPROM.cxx \
            EEPROMEmulation.cxx \
            EEPROMEmulation_weak.cxx \

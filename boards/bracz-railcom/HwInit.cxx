@@ -48,7 +48,6 @@
 #include "os/OS.hxx"
 #include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
-#include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
 #include "hardware.hxx"
@@ -57,6 +56,7 @@
 #include "custom/TivaGNDControl.hxx"
 #include "custom/TivaDAC.hxx"
 #include "bootloader_hal.h"
+#include "TivaDCC.hxx"
 
 
 /*struct Debug {
@@ -120,9 +120,9 @@ inline void DCCDecode::dcc_packet_finished_hook() {
 }
 
 inline void DCCDecode::dcc_before_cutout_hook() {
-  RailcomDefs::set_hw();
   extern DacSettings dac_railcom;
   dac.set(dac_railcom);
+  RailcomDefs::set_hw();
 }
 
 inline void DCCDecode::after_feedback_hook() {
@@ -257,7 +257,7 @@ void timer2b_interrupt_handler(void)
 
 void timer2a_interrupt_handler(void)
 {
-  nrz0.os_interrupt_handler();
+  nrz0.rcom_interrupt_handler();
 }
 
 void uart1_interrupt_handler(void)

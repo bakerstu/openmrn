@@ -36,16 +36,23 @@
 
 #include <unistd.h>
 
-// Simplelink includes 
+// Simplelink includes
+#include "osi.h"
 #include "simplelink.h"
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
-/* these are not class members so that including CC32xxWiFi.hxx does not
+/** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
 static SlFdSet_t rfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t wfds;
+/** these are not class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs
+ */
 static SlFdSet_t efds;
 
 /*
@@ -121,7 +128,8 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
+    //wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -501,8 +509,8 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 /** This function gets triggered when HTTP Server receives Application
  * defined GET and POST HTTP Tokens.
- * @param pHttpServerEvent pointer indicating http server event
- * @param pHttpServerResponse pointer indicating http server response
+ * @param pSlHttpServerEvent pointer indicating http server event
+ * @param pSlHttpServerResponse pointer indicating http server response
  */
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pSlHttpServerEvent, 
                                   SlHttpServerResponse_t *pSlHttpServerResponse)

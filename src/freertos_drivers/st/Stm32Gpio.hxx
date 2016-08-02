@@ -49,6 +49,11 @@
 #error Dont know what STM32 chip you have.
 #endif
 
+/// Static GPIO implementation for the STM32 microcontrollers. Do not use
+/// directly: use @ref GPIO_PIN macro.
+/// @param PORT is the port base address pointer (e.g. GPIOC) 
+/// @param PIN is the GPIO_PIN_# value for the pin number.
+/// @param PIN_NUM is the number of the pin in the port. Zero-based.
 template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
     static GPIO_TypeDef *port()
@@ -207,9 +212,10 @@ struct GpioInputNP : public GpioInputPin<Defs, GPIO_NOPULL>
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param port is the number of the port, such as 0
+/// @param PORTNAME is a letter defining which port this is (like A, B,
+/// C). E.g. for PC8 this is C.
 ///
-/// @param pin is the pin number, such as 3
+/// @param NUM is the pin number, such as 8 for PC8.
 ///
 /// Example:
 ///  GPIO_PIN(FOO, LedPin, 0, 3);

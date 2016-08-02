@@ -41,6 +41,11 @@
 namespace nmranet
 {
 
+/// Version of the @ref ConfiguredConsumer class that can handle many GPIO pins
+/// with two events each. This saves very significan amount of memory compared
+/// to instantiating individual ConfigredConsumer instances -- helpful when a
+/// single small MCU is exporting a large number of IOs via for example shift
+/// register outputs.
 class MultiConfiguredConsumer : public ConfigUpdateListener,
                                 private SimpleEventHandler
 {
@@ -94,7 +99,7 @@ public:
         return REINIT_NEEDED; // Causes events identify.
     }
 
-    ///@TODO(balazs.racz): implement
+    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
     }

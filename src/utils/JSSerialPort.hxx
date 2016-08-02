@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file JSSerialport.hxx
+ * \file JSSerialPort.hxx
  *
  * A node.js compatible device talking to a CANUSB adapter via the serial port.
  *

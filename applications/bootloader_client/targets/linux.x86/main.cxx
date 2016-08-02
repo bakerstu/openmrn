@@ -76,6 +76,7 @@ nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
 namespace nmranet
 {
 Pool *const g_incoming_datagram_allocator = mainBufferPool;
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 }
 
 int port = 12021;
@@ -94,7 +95,7 @@ void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] (-n nodeid | -a "
+        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] (-n nodeid | -a "
         "alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
@@ -121,13 +122,15 @@ void usage(const char *e)
     fprintf(stderr, "Unless -t is specified the target will be rebooted after "
                     "flashing complete.\n");
     fprintf(stderr, "-x skips the PIP request and uses streams.\n");
+    fprintf(stderr,
+        "-w dg_timeout sets how many seconds to wait for a datagram reply.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:rtd:n:a:s:f:c:x")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:")) >= 0)
     {
         switch (opt)
         {
@@ -154,6 +157,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 's':
                 memory_space_id = strtol(optarg, nullptr, 16);
+                break;
+            case 'w':
+                nmranet::DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(strtoul(optarg, nullptr, 10));
                 break;
             case 'c':
                 checksum_algorithm = optarg;
@@ -221,10 +227,33 @@ void maybe_checksum(string *firmware)
             exit(1);
         }
     }
+    else if (algo == "esp8266")
+    {
+        struct app_header hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        string nfirmware(4096, 0);
+        nfirmware += *firmware;
+
+        hdr.app_size = firmware->size() + 4096;
+        crc3_crc16_ibm(
+            nullptr, 0, (uint16_t *)hdr.checksum_pre);
+        hdr.checksum_pre[2] = 0x73a92bd1;
+        hdr.checksum_pre[3] = 0x5a5a55aa;
+
+        unsigned post_size = hdr.app_size - sizeof(hdr);
+        crc3_crc16_ibm(
+            &nfirmware[sizeof(hdr)], post_size, (uint16_t *)hdr.checksum_post);
+        hdr.checksum_post[2] = 0x73a92bd1;
+        hdr.checksum_post[3] = 0x5a5a55aa;
+
+        memcpy(&nfirmware[0], &hdr, sizeof(hdr));
+        swap(*firmware, nfirmware);
+        printf("Checksummed firmware with algorithm esp8266 (p sz %u\n", post_size);
+    }
     else
     {
-        fprintf(stderr,
-            "Unknown checksumming algo %s. Known algorithms are: tiva123.\n",
+        fprintf(stderr, "Unknown checksumming algo %s. Known algorithms are: "
+                        "tiva123, esp8266.\n",
             checksum_algorithm);
         exit(1);
     }

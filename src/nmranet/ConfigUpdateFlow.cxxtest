@@ -51,7 +51,7 @@ public:
     MOCK_METHOD1(factory_reset, void(int fd));
 };
 
-class ConfigUpdateFlowTest : public ::testing::Test
+class ConfigUpdateFlowTest : public AsyncIfTest
 {
 protected:
     ~ConfigUpdateFlowTest() {
@@ -59,7 +59,7 @@ protected:
     }
 
     StrictMock<MockConfigListener> l1, l2;
-    ConfigUpdateFlow updateFlow_{&g_service};
+    ConfigUpdateFlow updateFlow_{ifCan_.get()};
 };
 
 TEST_F(ConfigUpdateFlowTest, CreateDestroy)

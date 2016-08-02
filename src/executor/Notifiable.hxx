@@ -59,16 +59,20 @@ public:
 class SyncNotifiable : public Notifiable
 {
 public:
+    /// Constructor.
     SyncNotifiable() : sem_(0)
     {
     }
 
+    /// Implementation of notification receive.
     void notify() override
     {
         sem_.post();
     }
 
 #ifdef __FreeRTOS__
+    /// Implementation of notification receive from a FreeRTOS interrupt
+    /// context.
     void notify_from_isr() OVERRIDE
     {
         int woken = 0;
@@ -76,13 +80,14 @@ public:
     }
 #endif
 
-    /* Blocks the current thread until the notification is delivered. */
+    /// Blocks the current thread until the notification is delivered.
     void wait_for_notification()
     {
         sem_.wait();
     }
 
 private:
+    /// Semaphore helping the implementation.
     OSSem sem_;
 
     DISALLOW_COPY_AND_ASSIGN(SyncNotifiable);
@@ -92,10 +97,12 @@ private:
 class EmptyNotifiable : public Notifiable
 {
 public:
+    /// Drops notification to the floor.
     void notify() override
     {
     }
 
+    /// @return a static instance of EmptyNotifiable.
     static Notifiable* DefaultInstance();
 };
 
@@ -103,8 +110,10 @@ public:
 class CrashNotifiable : public Notifiable
 {
 public:
+    /// Crashes.
     void notify() override;
 
+    /// @returns a static instance of CrashNotifiable.
     static Notifiable* DefaultInstance();
 };
 
@@ -135,7 +144,7 @@ public:
         parent_ = parent;
         return this;
     }
-    /// @Returns true if the Notifiable returned by NewCallback has already been
+    /// @return true if the Notifiable returned by NewCallback has already been
     /// called.
     bool HasBeenNotified()
     {
@@ -166,6 +175,9 @@ public:
     BarrierNotifiable() : count_(0), done_(nullptr)
     {
     }
+    /** Constructs a barrier notifiable that is live. @param done will be
+     * called when the barrier reaches zero (all children are notified and the
+     * parent is notified). */
     BarrierNotifiable(Notifiable* done) : count_(1), done_(done)
     {
     }
@@ -185,9 +197,10 @@ public:
     {
         notify();
     }
+    /// Implementation of the barrier semantics.
     void notify() override;
 
-    /// Returns true if the barrier condition is true, i.e., the owner has
+    /// @return true if the barrier condition is true, i.e., the owner has
     /// called maybe_done() and all children have called Done.
     bool is_done()
     {
@@ -224,10 +237,18 @@ public:
     }
 
 private:
+    /// How many outstanding notifications we are still waiting for. When 0,
+    /// the barrier is not live; when reaches zero, done_ will be called.
     unsigned count_;
+    /// Notifiable to call when the barrier reaches zero.
     Notifiable* done_;
 };
 
+/// Allocates a new barrier notifiable on the heap. The caller must free the
+/// returned pointer when the done notifiable is called.
+///
+/// @param done is the notifiable to call when the barrier is completed.
+/// @return a new heap-allocated barrier notifiable.
 inline BarrierNotifiable* NewBarrierNotifiable(Notifiable* done)
 {
     return new BarrierNotifiable(done);
@@ -248,10 +269,17 @@ inline BarrierNotifiable* NewBarrierNotifiable(Notifiable* done)
 class AutoNotify
 {
 public:
-    AutoNotify(Notifiable* n) : n_(n)
+    /// Constructor.
+    ///
+    /// @param n Notifiable to notify when *this goes out of scope. May be null
+    /// in which case nothing will be notified.
+    ///
+    AutoNotify(Notifiable *n)
+        : n_(n)
     {
     }
 
+    /// Destructor. Notifies the stored notifiable.
     ~AutoNotify()
     {
         if (n_)
@@ -260,9 +288,9 @@ public:
         }
     }
 
-    /* Transfers the ownership of the notification; it will NOT be called in
+    /** Transfers the ownership of the notification; it will NOT be called in
      * the destructor. The caller is now responsible for calling it.
-     * @returns the notification pointer stored in the constructor. */
+     * @return the notification pointer stored in the constructor. */
     Notifiable* Transfer()
     {
         Notifiable* r = n_;
@@ -271,6 +299,7 @@ public:
     }
 
 private:
+    /// Stored notifiable to notify upon destruction.
     Notifiable* n_;
 };
 

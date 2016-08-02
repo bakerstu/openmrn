@@ -66,18 +66,35 @@ public:
 /// See @ref OSMutexLock in os/OS.hxx
 class AtomicHolder {
 public:
+    /// Constructor. Grabs the mutex as a side effect.
+    ///
+    /// @param parent the mutex (atomic) to hold.
+    ///
   AtomicHolder(Atomic* parent)
     : parent_(parent) {
     parent_->lock();
   }
+    /// Destructor. Releases the mutex as a side effect.
   ~AtomicHolder() {
     parent_->unlock();
   }
 private:
+    /// Parent mutex we are holding.
   Atomic* parent_;
 };
 
-/// See @OSMutexLock in os/OS.hxx
+/// See @ref OSMutexLock in os/OS.hxx. This stanza catches a common bug when
+/// someone allocates an AtomicHolder without specifying the variable name:
+///
+/// BAD:
+/// AtomicHolder(&lock_);
+///
+/// GOOD:
+/// AtomicHolder h(&lock_);
+///
+/// The problem with the first instance is that is creates a temporary obejct
+/// that gets immediately destructed. Thus while the code seems like correct,
+/// it does not actually keep the lock.
 #define AtomicHolder(l) int error_omitted_lock_holder_variable[-1]
 
 #endif // _UTILS_LOCK_HXX_

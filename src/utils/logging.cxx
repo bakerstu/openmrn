@@ -36,6 +36,7 @@
 #if defined(__linux__) || defined(__MACH__)
 char logbuffer[4096];
 #else
+/// Temporary buffer to sprintf() the log lines into.
 char logbuffer[256];
 #endif
 
@@ -65,6 +66,13 @@ void log_output(char* buf, int size) {
 
 #else
 
+/// Prints a line of log to the log output destination.
+///
+/// @param buf is the logging buffer. Guaranteed to be available until this
+/// function returns.
+/// @param size is now many bytes are there in the logging buffer. There is
+/// never a terminating \n in the log buffer. There is a terminating zero at
+/// buf[size].
 __attribute__((weak)) void log_output(char* buf, int size) {}
 
 #endif

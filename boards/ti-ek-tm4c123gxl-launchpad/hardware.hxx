@@ -2,17 +2,20 @@
 #define _HARDWARE_HXX_
 
 #include "TivaGPIO.hxx"
+#include "DummyGPIO.hxx"
+#include "BlinkerGPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
 
-GPIO_PIN(LED_RED_RAW, LedPin, F, 1);
+GPIO_PIN(LED_RED, LedPin, F, 1);
 GPIO_PIN(LED_GREEN, LedPin, F, 3);
-GPIO_PIN(LED_BLUE, LedPin, F, 2);
+GPIO_PIN(LED_BLUE_RAW, LedPin, F, 2);
 
-typedef LED_RED_RAW_Pin BLINKER_RAW_Pin;
+typedef LED_BLUE_RAW_Pin BLINKER_RAW_Pin;
+typedef BLINKER_Pin LED_BLUE_Pin;
 
 GPIO_HWPIN(RAILCOM_CH1, GpioHwPin, B, 0, U1RX, UART);
 
@@ -28,9 +31,15 @@ GPIO_HWPIN(CAN0TX, GpioHwPin, E, 5, CAN0TX, CAN);
 typedef GpioInitializer<                          //
     SW1_Pin, SW2_Pin,                             //
     RAILCOM_CH1_Pin,                              //
-    LED_RED_RAW_Pin, LED_GREEN_Pin, LED_BLUE_Pin, //
+    LED_RED_Pin, LED_GREEN_Pin, LED_BLUE_RAW_Pin, //
     USB1_Pin, USB2_Pin,                           //
     UART0RX_Pin, UART0TX_Pin,                     //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
+
+namespace TDebug {
+using Resync = DummyPin;
+using NextPacket = DummyPin;
+};
+
 
 #endif // _HARDWARE_HXX_

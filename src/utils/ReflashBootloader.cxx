@@ -37,11 +37,13 @@
 
 #include "freertos/bootloader_hal.h"
 
-// The last entry of this table must have a length = 0.
+/// The list of segments to copy from the reflash-bootloader program code to
+/// the flash space occupied by the bootloader (and thus overwriting the
+/// bootloader itself). The last entry of this table must have a length = 0.
 extern const SegmentTable table[];
 
 extern "C" {
-// This function needs to be called from reset_handler (instead of main etc.)
+/// This function needs to be called from reset_handler (instead of main etc.)
 void reflash_bootloader_entry()
 {
     bootloader_hw_set_to_safe();

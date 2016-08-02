@@ -44,6 +44,8 @@ namespace nmranet
 
 struct TractionThrottleInput;
 
+/// C++ Namespace for collecting all commands that can be sent to the
+/// TractionThrottle flow.
 struct TractionThrottleCommands
 {
     enum AssignTrain
@@ -77,6 +79,9 @@ struct TractionThrottleCommands
     };
 };
 
+/// Request structure used to send requests to the TractionThrottle
+/// class. Contains parametrized reset calls for properly supporting
+/// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
 struct TractionThrottleInput
 {
     enum Command
@@ -229,6 +234,13 @@ public:
     dcc::TrainAddressType legacy_address_type() override
     {
         return dcc::TrainAddressType::DCC_SHORT_ADDRESS;
+    }
+
+    /// Determine if a train is currently assigned to this trottle.
+    /// @return true if a train is assigned, else false
+    bool is_train_assigned()
+    {
+        return assigned_;
     }
 
 private:
@@ -566,15 +578,20 @@ private:
         iface()->addressed_message_write_flow()->send(b);
     }
 
-    void set_assigned() {
-        assigned_ = true;
+    void set_assigned()
+    {
         iface()->dispatcher()->register_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+        assigned_ = true;
     }
 
-    void clear_assigned() {
-        if (!assigned_) return;
-        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
+    void clear_assigned()
+    {
+        if (!assigned_)
+        {
+            return;
+        }
         assigned_ = false;
+        iface()->dispatcher()->unregister_handler(&speedReplyHandler_, Defs::MTI_TRACTION_CONTROL_REPLY, Defs::MTI_EXACT);
     }
 
     void clear_cache()

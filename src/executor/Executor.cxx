@@ -47,15 +47,20 @@
 #include <emscripten.h>
 #endif
 
+#ifdef ESP_NONOS
+extern "C" {
+#include <ets_sys.h>
+#include <osapi.h>
+#include <user_interface.h>
+}
+#endif
+
 #include "executor/Service.hxx"
 #include "nmranet_config.h"
 
 ExecutorBase *ExecutorBase::list = NULL;
 
 /** Constructor.
- * @param name name of executor
- * @param priority thread priority
- * @param stack_size thread stack size
  */
 ExecutorBase::ExecutorBase()
     : name_(NULL) /** @todo (Stuart Baker) is "name" still in use? */
@@ -176,6 +181,32 @@ bool ExecutorBase::loop_once()
     return true;
 }
 
+long long ICACHE_FLASH_ATTR  ExecutorBase::loop_some() {
+    for (int i = 12; i > 0; --i) {
+        Executable *msg = nullptr;
+        unsigned priority = UINT_MAX;
+        long long wait_length = activeTimers_.get_next_timeout();
+        if (empty()) {
+            return wait_length;
+        }
+        msg = next(&priority);
+        if (msg == this)
+        {
+            // exit closure
+            done_ = 1;
+            return INT64_MAX;
+        }
+        if (msg != NULL)
+        {
+            current_ = msg;
+            msg->run();
+            current_ = nullptr;
+        }
+    }
+    // Still stuff pending to run.
+    return 0;
+}
+
 #ifdef __EMSCRIPTEN__
 
 void executor_loop_some(void* arg)
@@ -189,6 +220,55 @@ void *ExecutorBase::entry()
     started_ = 1;
     ExecutorBase* b = this;
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
+    return nullptr;
+}
+
+#elif defined(ESP_NONOS)
+
+#define EXECUTOR_TASK_PRIO USER_TASK_PRIO_0
+
+static os_event_t appl_task_queue[1];
+static os_timer_t appl_task_timer;
+static bool timer_pending = false;
+
+extern "C" {
+void ets_timer_setfn(os_timer_t *ptimer, os_timer_func_t *pfunction, void *);
+void ets_timer_arm_new(os_timer_t *, int, int, int);
+void ets_timer_disarm(os_timer_t *ptimer);
+}  // extern C
+
+static void timer_fun(void* arg) {
+    timer_pending = false;
+    system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)arg);
+}
+
+extern void wakeup_executor(ExecutorBase* executor);
+
+void wakeup_executor(ExecutorBase* arg) {
+    system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)arg);
+}
+
+static void appl_task(os_event_t *e)
+{
+    ExecutorBase* eb = (ExecutorBase*)e->par;
+    long long sleep_time = eb->loop_some();
+    if (sleep_time == 0) {
+        system_os_post(EXECUTOR_TASK_PRIO, 0, e->par);
+    } else {
+        if (true || timer_pending) {
+            os_timer_disarm(&appl_task_timer);
+        }
+        os_timer_arm(&appl_task_timer, sleep_time / 1000000, false);
+        timer_pending = true;
+    }
+}
+
+void ICACHE_FLASH_ATTR *ExecutorBase::entry()
+{
+    started_ = 1;
+    os_timer_setfn(&appl_task_timer, &timer_fun, this);
+    system_os_task(appl_task, EXECUTOR_TASK_PRIO, appl_task_queue, 1);
+    system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)this);
     return nullptr;
 }
 

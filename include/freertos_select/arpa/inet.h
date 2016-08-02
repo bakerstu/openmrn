@@ -24,8 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file select.h
- * This file implements POSIX netinet/tcp.h prototypes.
+ * \file inet.h
+ * This file implements POSIX arpa/inet.h prototypes.
  *
  * @author Stuart W. Baker
  * @date 19 March 2016

@@ -65,6 +65,10 @@ public:
                            const EventRegistryEntry &registry_entry,
                            EventReport *event, BarrierNotifiable *done) = 0;
 
+/// Defines an event handler function as a proxy implementation to the single
+/// HandlerFn.
+///
+/// @param FN C++ name of the function to proxy.
 #define DEFPROXYFN(FN)                                                         \
     virtual void FN(const EventRegistryEntry &registry_entry,                  \
                     EventReport *event, BarrierNotifiable *done) override      \
@@ -90,6 +94,9 @@ public:
 class SimpleEventHandler : public EventHandler
 {
 public:
+/// Defines an event handler function as ignored.
+///
+/// @param FN name of the function to define.
 #define IGNOREFN(FN)                                                           \
     virtual void FN(const EventRegistryEntry &registry_entry,                  \
                     EventReport *event, BarrierNotifiable *done) override      \
@@ -183,7 +190,8 @@ public:
     /// returns the current hardware state: true for ON, false for OFF.
     virtual EventState GetCurrentState() = 0;
 
-    /// Get the requested state.
+    /// Get the requested state. @TODO(stbaker): document the difference
+    /// between requested state and current state.
     /// @return requested state
     virtual EventState get_requested_state()
     {
@@ -208,8 +216,7 @@ public:
     }
 
     /// returns the OpenLCB virtual node from which to send the respective
-    /// events
-    /// when the bit changes.
+    /// events when the bit changes.
     virtual Node *node() = 0;
 
 private:
@@ -219,6 +226,8 @@ private:
     DISALLOW_COPY_AND_ASSIGN(BitEventInterface);
 };
 
+/// Implementation of the BitEventInterface that has accessors to the desired
+/// and actual state, but does not perform callback on change.
 class DistributedBit : public BitEventInterface
 {
 public:

@@ -114,6 +114,9 @@ int ioctl(int fd, unsigned long int key, ...);
  */
 #define IOC_SIZE(_num) (((_num) >> 16) & 0x00003FFF)
 
+/** Number of bits that make up the size field */
+#define IOC_SIZEBITS 14
+
 #if defined (__cplusplus)
 }
 #endif

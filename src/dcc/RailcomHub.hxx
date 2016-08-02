@@ -40,9 +40,15 @@
 
 namespace dcc {
 
+/// Data payload sent in the buffers for Railcom dispatchers and hubs.
 typedef HubContainer<StructContainer<dcc::Feedback> > RailcomHubData;
+/// Interface class for consumers of railcom data.
 typedef FlowInterface<Buffer<RailcomHubData> > RailcomHubPortInterface;
+/// Base class for consumers of railcom data that are implemented as state
+/// flows.
 typedef StateFlow<Buffer<RailcomHubData>, QList<1>> RailcomHubPort;
+/// The hub flow that sends a copy of each packet to each listener port
+/// registered.
 typedef GenericHubFlow<RailcomHubData> RailcomHubFlow;
 
 }  // namespace dcc

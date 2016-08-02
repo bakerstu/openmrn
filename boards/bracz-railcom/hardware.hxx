@@ -6,6 +6,9 @@
 #include "driverlib/timer.h"
 #include "utils/GpioInitializer.hxx"
 #include "inc/hw_ints.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_timer.h"
 
 // note : this might cause problems in the bootloader compilation
 #include "DummyGPIO.hxx"
@@ -110,13 +113,16 @@ struct Debug
     // user-space state flow.
     typedef DummyPin DccPacketDelay;
 
+    // Set to one when we receive data on the 2nd channel of railcom.
+    typedef DEBUG2_Pin RailcomCh2Data;
+
     // High between start_cutout and end_cutout from the TivaRailcom driver.
     // typedef DBG_SIGNAL_Pin RailcomDriverCutout;
-    typedef DummyPin RailcomDriverCutout;
+    typedef DEBUG1_Pin RailcomDriverCutout;
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef LED_BLUE_SW_Pin DccDecodeInterrupts;
-    typedef DummyPin DccDecodeInterrupts;
+    typedef LED_GREEN_Pin DccDecodeInterrupts;
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef DBG_SIGNAL_Pin RailcomE0;
@@ -128,6 +134,7 @@ struct Debug
     // typedef LED_BLUE_SW_Pin RailcomError;
 
     typedef DummyPin RailcomDataReceived;
+
     //typedef LED_BLUE_Pin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
     typedef DummyPin RailcomPackets;
@@ -138,8 +145,13 @@ struct Debug
     //typedef DummyPin MeasurementEnabled;
     typedef LED_BLUE_Pin MeasurementEnabled;
 
-    typedef DEBUG1_Pin NSampling;
+    typedef DummyPin NSampling;
 
+};
+
+namespace TDebug {
+    typedef DummyPin Resync;
+    typedef DummyPin NextPacket;
 };
 
 struct RailcomDefs
@@ -190,29 +202,41 @@ struct RailcomDefs
 
     static void set_hw()
     {
-        RAILCOM_CH0_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIODirModeSet(RAILCOM_CH0_Pin::GPIO_BASE, RAILCOM_CH0_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH2_Pin::GPIO_BASE, RAILCOM_CH2_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH3_Pin::GPIO_BASE, RAILCOM_CH3_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH4_Pin::GPIO_BASE, RAILCOM_CH4_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+        GPIODirModeSet(RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN,
+                       GPIO_DIR_MODE_HW);
+/*        RAILCOM_CH0_Pin::set_hw();
+        GPIOPadConfigSet(
             RAILCOM_CH0_Pin::GPIO_BASE, RAILCOM_CH0_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH1_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH2_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH2_Pin::GPIO_BASE, RAILCOM_CH2_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH3_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH3_Pin::GPIO_BASE, RAILCOM_CH3_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH4_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
+        GPIOPadConfigSet(
             RAILCOM_CH4_Pin::GPIO_BASE, RAILCOM_CH4_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
         RAILCOM_CH5_Pin::set_hw();
-        MAP_GPIOPadConfigSet(
-            RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+        GPIOPadConfigSet(
+        RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);*/
     }
 
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
@@ -319,23 +343,33 @@ struct DCCDecode
     static const auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER2;
     static const auto TIMER_INTERRUPT = INT_TIMER2B;
     static const auto TIMER = TIMER_B;
-    static const auto CFG_CAP_TIME_UP = TIMER_CFG_SPLIT_PAIR |
-                                        TIMER_CFG_B_CAP_TIME_UP |
-                                        TIMER_CFG_A_PERIODIC_UP;
+    static const auto CFG_TIM_CAPTURE =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_CAP_TIME;
+    static const auto CFG_RCOM_TIMER =
+        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC;
+
     // Interrupt bits.
     static const auto TIMER_CAP_EVENT = TIMER_CAPB_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMB_TIMEOUT;
+    static const auto TIMER_RCOM_MATCH = TIMER_TIMA_MATCH;
 
-    static const auto SAMPLE_TIMER = TIMER_A;
+    // Sets the match register of TIMER to update immediately.
+    static void clr_tim_mrsu() {
+      HWREG(TIMER_BASE + TIMER_O_TAMR) &= ~(TIMER_TAMR_TAMRSU);
+      HWREG(TIMER_BASE + TIMER_O_TAMR) |= (TIMER_TAMR_TAMIE);
+    }
+
+    static const auto RCOM_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
-    static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
-
-    static const auto OS_INTERRUPT = INT_TIMER2A;
+    //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
+    static const auto RCOM_INTERRUPT = INT_TIMER2A;
+    //static const auto OS_INTERRUPT = INT_TIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
 
     // 16-bit timer max + use 7 bits of prescaler.
     static const uint32_t TIMER_MAX_VALUE = 0x800000UL;
     static const uint32_t PS_MAX = 0x80;
+
+    static_assert(SAMPLE_PERIOD_CLOCKS < TIMER_MAX_VALUE, "Cannot sample less often than the timer period");
 
     static const int Q_SIZE = 32;
 

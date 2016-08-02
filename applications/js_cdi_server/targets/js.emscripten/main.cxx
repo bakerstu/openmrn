@@ -63,9 +63,8 @@ nmranet::MockSNIPUserFile snip_user_file(
 const char *const nmranet::SNIP_DYNAMIC_FILENAME =
     nmranet::MockSNIPUserFile::snip_user_file_path;
 
-const uint64_t node_id = 0x0501010118F3ULL;
-nmranet::SimpleCanStack stack(node_id);
-GcPacketPrinter packet_printer(stack.can_hub(), false);
+const uint64_t node_id_base = 0x050101011800ULL;
+uint64_t node_id = node_id_base | 0xF3;
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 
@@ -82,7 +81,7 @@ const char CDI_DATA[128*1024] = {0,};
 void usage(const char *e)
 {
     fprintf(stderr,
-        "Usage: %s [-p port] [-u hub_host [-q hub_port]] -x cdi_file\n\n", e);
+        "Usage: %s [-p port] [-u hub_host [-q hub_port]] [-n id] -x cdi_file\n\n", e);
     fprintf(stderr, "\n\nArguments:\n");
     fprintf(stderr,
             "\t-c filename   is the filename for the CDI (xml text).\n");
@@ -94,13 +93,15 @@ void usage(const char *e)
                     "hub. If specified, this program will connect to that hub for the CAN-bus.\n");
     fprintf(stderr,
             "\t-q upstream_port   is the port number for the upstream hub.\n");
+    fprintf(stderr,
+            "\t-n id   sets the lowest 8 bits of the node id. Valid values: 0..255. Default: 243.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:u:q:x:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:u:q:x:n:")) >= 0)
     {
         switch (opt)
         {
@@ -118,6 +119,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'q':
                 upstream_port = atoi(optarg);
+                break;
+            case 'n':
+                node_id = node_id_base + atoi(optarg);
                 break;
             case 'x':
                 cdi_file = optarg;
@@ -147,6 +151,13 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
+    nmranet::SimpleCanStack stack(node_id);
+    const size_t configlen = 16*1024;
+    uint8_t* cdispace = new uint8_t[configlen];
+    memset(cdispace, 0, configlen);
+    nmranet::ReadWriteMemoryBlock ramblock(cdispace, configlen);
+    stack.memory_config_handler()->registry()->insert(nullptr, nmranet::MemoryConfigDefs::SPACE_CONFIG, &ramblock);
+    GcPacketPrinter packet_printer(stack.can_hub(), false);
     std::unique_ptr<JSTcpHub> hub;
     if (port > 0) {
         hub.reset(new JSTcpHub(stack.can_hub(), port));

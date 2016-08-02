@@ -1,0 +1,1 @@
+../../../../boards/esp-bracz-deadrail-proto/eagle.common.ld

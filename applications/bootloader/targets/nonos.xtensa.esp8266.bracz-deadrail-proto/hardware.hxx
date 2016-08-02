@@ -1,0 +1,1 @@
+../../../../boards/esp-bracz-deadrail-proto/hardware.proto.hxx

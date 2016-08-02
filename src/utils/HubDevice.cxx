@@ -32,6 +32,7 @@
  */
 
 #include "utils/HubDevice.hxx"
+#include "nmranet_config.h"
 #include <stdlib.h>
 
 template <>
@@ -39,6 +40,13 @@ const int FdHubPort<CanHubFlow>::ReadThread::kUnit = sizeof(struct can_frame);
 template <>
 const int FdHubPort<CanHubFlow>::ReadThread::kBufSize = sizeof(
     struct can_frame);
+
+template <>
+void FdHubPort<CanHubFlow>::ReadThread::init()
+{
+    // No semaphores used for CAN-bus connection. We have to read as fast as we
+    // can or else packet loss will happen.
+}
 
 template <>
 void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
@@ -53,15 +61,36 @@ void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
 template <> const int FdHubPort<HubFlow>::ReadThread::kUnit = 1;
 template <> const int FdHubPort<HubFlow>::ReadThread::kBufSize = 64;
 
+
+template <>
+void FdHubPort<HubFlow>::ReadThread::init()
+{
+    if (config_gridconnect_port_max_incoming_packets() < 1000000)
+    {
+        semaphores_ = new SemaphoreNotifiableBlock(
+            config_gridconnect_port_max_incoming_packets());
+    }
+}
+
 template <>
 void FdHubPort<HubFlow>::ReadThread::send_message(const void *buf, int size)
 {
+    BarrierNotifiable *done = nullptr;
+    if (semaphores_)
+    {
+        done = semaphores_->acquire();
+    }
     auto *b = port()->hub_->alloc();
+    if (done)
+    {
+        b->set_done(done);
+    }
     b->data()->skipMember_ = &port()->writeFlow_;
     b->data()->assign((const char *)buf, size);
     port()->hub_->send(b);
 }
 
+/// Prefix for thread names created by the FdHubPort for reading and writing.
 static const char kThreadPrefix[] = "thread_fd_";
 
 void FdHubPortBase::fill_thread_name(char *buf, char mode, int fd)

@@ -46,11 +46,13 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
+
+#include "hardware.hxx"
+
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
-#include "hardware.hxx"
 #include "bootloader_hal.h"
 
 struct Debug {
@@ -67,6 +69,8 @@ struct Debug {
   // Flipped for every packet that is sent from the railcom layer to the
   // application.
   typedef DummyPin RailcomPackets;
+
+  typedef DummyPin RailcomCh2Data;
 };
 #include "TivaRailcom.hxx"
 
@@ -89,9 +93,9 @@ static TivaUart uart0("/dev/ser0", UART0_BASE, INT_RESOLVE(INT_UART0_, 0));
 static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
-const size_t EEPROMEmulation::SECTOR_SIZE = (1024);
+const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
 
-static TivaEEPROMEmulation eeprom("/dev/eeprom", 512);
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 1500);
 
 
 extern "C" {

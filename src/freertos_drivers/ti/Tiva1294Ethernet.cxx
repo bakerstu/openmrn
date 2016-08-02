@@ -140,7 +140,7 @@ static bool
 #define BUFFER_SIZE ( ipTOTAL_ETHERNET_FRAME_SIZE + ipBUFFER_PADDING )
 #define BUFFER_SIZE_ROUNDED_UP ( ( BUFFER_SIZE + 7 ) & ~0x07UL )
 
-uint8_t
+uint8_t __attribute__((aligned(4)))
 	Buffers[ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS][BUFFER_SIZE_ROUNDED_UP];
 
 void vNetworkInterfaceAllocateRAMToBuffers(

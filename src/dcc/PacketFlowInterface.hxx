@@ -40,6 +40,7 @@
 
 namespace dcc {
 
+/// Interface for flows and ports receiving a sequence of DCC (track) packets.
 typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
 
 }  // namespace dcc

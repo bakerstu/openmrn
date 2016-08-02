@@ -54,6 +54,14 @@ string read_file_to_string(const string &filename)
 
 #include <stdio.h>
 
+/// Opens a file, reads the entire contents, stores it in a c++ std::string and
+/// returns this string. Helper function in some client applications. Exits the
+/// current application if there is an error.
+///
+/// @param filename name of file to open.
+///
+/// @return the file contents.
+///
 string read_file_to_string(const string &filename)
 {
     FILE *f = fopen(filename.c_str(), "rb");
@@ -74,6 +82,12 @@ string read_file_to_string(const string &filename)
     return ret;
 }
 
+/// Opens (or creates) a file, truncates it and overwrites the contents with
+/// what is given in a string. Terminates the application if an error is
+/// encountered.
+///
+/// @param filename name of file to open.
+/// @param data what to write into the file.
 void write_string_to_file(const string &filename, const string &data)
 {
     FILE *f = fopen(filename.c_str(), "wb");
@@ -84,7 +98,7 @@ void write_string_to_file(const string &filename, const string &data)
         exit(1);
     }
     size_t nr;
-    size_t offset;
+    size_t offset = 0;
     string ret;
     while ((nr = fwrite(data.data() + offset, 1, data.size() - offset, f)) > 0)
     {

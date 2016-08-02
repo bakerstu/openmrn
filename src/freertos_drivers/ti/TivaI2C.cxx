@@ -178,7 +178,11 @@ int TivaI2C::transfer(struct i2c_msg *msg, bool stop)
     return count_ < 0 ? count_ : bytes;    
 }
 
+/// Debugging variable that holds the last error encountered by the driver. For
+/// gdb access.
 volatile uint32_t g_error;
+/// Debugging variable that holds the last master int status seen by the
+/// driver. For gdb access.
 volatile uint32_t g_status;
 
 /** Common interrupt handler for all I2C devices.

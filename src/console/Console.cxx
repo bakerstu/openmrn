@@ -46,7 +46,7 @@
 /*
  * Console::Console()
  */
-Console::Console(ExecutorBase *executor, bool stdio, int port)
+Console::Console(ExecutorBase *executor, uint16_t port)
     : Service(executor)
     , help("help", help_command, this, &helpMark)
     , helpMark("?", help_command, this)
@@ -54,21 +54,33 @@ Console::Console(ExecutorBase *executor, bool stdio, int port)
     , listen(this, port)
 #endif
 {
-    if (stdio)
-    {
-        open_session(0);
-    }
+    add_command("quit", quit_command, this);
+}
 
+/*
+ * Console::Console()
+ */
+Console::Console(ExecutorBase *executor, int fd_in, int fd_out, int port)
+    : Service(executor)
+    , help("help", help_command, this, &helpMark)
+    , helpMark("?", help_command, this)
+#if defined (CONSOLE_NETWORKING)
+    , listen(this, port)
+#endif
+{
+    open_session(fd_in, fd_out);
     add_command("quit", quit_command, this);
 }
 
 /*
  * Console::open_session()
  */
-void Console::open_session(int fd)
+void Console::open_session(int fd_in, int fd_out)
 {
-    fcntl(fd, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
-    new Session(this, fd);
+#ifdef HAVE_BSDSOCKET
+    fcntl(fd_in, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
+#endif
+    new Session(this, fd_in, fd_out);
 }
 
 /*
@@ -91,7 +103,7 @@ void Console::add_command(const char *name, Callback callback, void *context)
 /*
  * Console::help_command()
  */
-int Console::help_command(FILE *fp, int argc, const char *argv[])
+Console::CommandStatus Console::help_command(FILE *fp, int argc, const char *argv[])
 {
     fprintf(fp, "%10s : print out this help menu\n", "help | ?");    
 
@@ -109,7 +121,7 @@ int Console::help_command(FILE *fp, int argc, const char *argv[])
 /*
  * Console::quit_command()
  */
-int Console::quit_command(FILE *fp, int argc, const char *argv[])
+Console::CommandStatus Console::quit_command(FILE *fp, int argc, const char *argv[])
 {
     switch (argc)
     {
@@ -126,33 +138,44 @@ int Console::quit_command(FILE *fp, int argc, const char *argv[])
 }
 
 /*
- * Console::Callback()
+ * Console::CommandFlow::CommandFlow()
  */
-bool Console::callback(FILE *fp, int argc, const char *argv[])
+Console::CommandFlow::CommandFlow(Console *console, const char *name)
+    : StateFlowBase(console)
 {
-    /* run through each command */
-    for (Command *current = &help; current; current = current->next)
+    Command *current = &console->helpMark;
+
+    /* seek to the end of the list */
+    while (current->next)
     {
-        /* look for a command match */
-        if (strcmp(current->name, argv[0]) == 0)
-        {
-            /* found a match, call the registered callback */
-            int result = (*current->callback)(fp, argc, argv, current->context);
-            switch (result)
-            {
-                default:
-                    break;
-                case COMMAND_ERROR:
-                    fprintf(fp, "invalid arguments\n");
-                    break;
-                case COMMAND_CLOSE:
-                    return false;
-            }
-            return true;
-        }
+        current = current->next;
     }
-    fprintf(fp, "%s: command not found\n", argv[0]);
-    return true;
+
+    /** add the command to the end of the list */
+    command = new Command(name, this);
+    current->next = command;
+}
+
+/*
+ * Console::CommandFlow::CommandFlow()
+ */
+Console::CommandFlow::~CommandFlow()
+{
+    Console *console = static_cast<Console *>(service());
+    Command *current = &console->helpMark;
+
+    /* seek to just before our command instance */
+    while (current)
+    {
+        if (current->next == command)
+        {
+            /* remove and our command from the list and delete instance */
+            current->next = command->next;
+            delete command;
+            break;
+        }
+        current = current->next;
+    }
 }
 
 #if defined (CONSOLE_NETWORKING)
@@ -219,7 +242,7 @@ StateFlowBase::Action Console::Listen::accept()
         int result = setsockopt(newfd, IPPROTO_TCP,
                                 TCP_NODELAY, &yes, sizeof(int));
         HASSERT(result == 0);
-        static_cast<Console *>(service())->open_session(newfd);
+        static_cast<Console *>(service())->open_session(newfd, newfd);
     }
 
     return listen_and_call(&selectHelper, fdListen, STATE(accept));
@@ -235,8 +258,15 @@ StateFlowBase::Action Console::Session::process_read()
 
     if (count == 0)
     {
-        /* Connection closed */
-        return delete_this();
+        struct stat stat;
+        fstat(fdIn, &stat);
+#ifdef HAVE_BSDSOCKET
+        if (S_ISSOCK(stat.st_mode))
+        {
+            /* Socket connection closed */
+            return delete_this();
+        }
+#endif
     }
 
     while(count--)
@@ -245,7 +275,6 @@ StateFlowBase::Action Console::Session::process_read()
         {
             /* parse the line input into individual arguments */
             unsigned argc = 0;
-            const char *args[MAX_ARGS];
             char last = '\0';
 
             for (size_t i = 0; i < pos; ++i)
@@ -258,6 +287,7 @@ StateFlowBase::Action Console::Session::process_read()
                         line[i] = '\0';
                         break;
                     case '"':
+                        /** @todo quoted arguments not yet supported */
                     default:
                         if (last == '\0')
                         {
@@ -269,6 +299,15 @@ StateFlowBase::Action Console::Session::process_read()
                 last = line[i];
             }
 
+            if (command != nullptr)
+            {
+                command->flow->notify();
+                command->flow->argc = argc;
+                command->flow->argv = args;
+                //printf("%s", args[0]);
+                return wait_and_call(STATE(exit_interactive));
+            }
+
             switch (argc)
             {
                 case 0:
@@ -277,19 +316,20 @@ StateFlowBase::Action Console::Session::process_read()
                     fprintf(fp, "too many arguments\n");
                     break;
                 default:
-                    if (static_cast<Console *>(service())->callback(fp, argc, args) == false)
+                {
+                    CommandStatus status = callback(argc, args);
+                    if (status == COMMAND_NEXT)
                     {
-                        struct stat stat;
-                        fstat(fd, &stat);
-                        if (S_ISSOCK(stat.st_mode))
+                        return wait_and_call(STATE(exit_interactive));
+                    }
+                    else
+                    {
+                        if (callback_result_process(status, args[0]) == false)
                         {
-                            fprintf(fp, "shutting down session\n");
                             return delete_this();
                         }
-                        fprintf(fp, "session not a socket, "
-                                    "aborting session shutdown\n");
                     }
-                    break;
+                }
             }
             pos = 0;
             prompt(fp);
@@ -301,11 +341,95 @@ StateFlowBase::Action Console::Session::process_read()
                 /* double the line buffer size */
                 line_size *= 2;
                 char *new_line = (char*)malloc(line_size);
-                memcpy(line, new_line, pos);
+                memcpy(new_line, line, pos);
                 free(line);
                 line = new_line;
             }
         }
     }
     return call_immediately(STATE(entry));
+}
+
+/*
+ * Console::Session::Callback()
+ */
+Console::CommandStatus Console::Session::callback(int argc, const char *argv[])
+{
+    Console *console = static_cast<Console *>(service());
+
+    /* run through each command */
+    for (Command *current = &console->help; current; current = current->next)
+    {
+        /* look for a command match */
+        if (strcmp(current->name, argv[0]) == 0)
+        {
+            /* found a match, call the registered callback */
+            if (current->interactive)
+            {
+                command = current;
+                return current->flow->callback(this, fdIn, fp, argc, argv);
+            }
+            else
+            {
+                return (*current->callback)(fp, argc, argv, current->context);
+            }
+        }
+    }
+
+    return COMMAND_NOT_FOUND;
+}
+
+/*
+ * Console::Session::exit_interactive()
+ */
+StateFlowBase::Action Console::Session::exit_interactive()
+{
+    if (command->flow->status == COMMAND_NEXT)
+    {
+        pos = 0;
+        return call_immediately(STATE(entry));
+    }
+    HASSERT(callback_result_process(command->flow->status, command->name) == true);
+
+    pos = 0;
+    prompt(fp);
+    
+    command = nullptr;
+
+    return call_immediately(STATE(entry));
+}
+
+/*
+ * Console::Session::callback_result_process()
+ */
+bool Console::Session::callback_result_process(CommandStatus status,
+                                               const char *name)
+{
+    switch (status)
+    {
+        default:
+            break;
+        case COMMAND_ERROR:
+            fprintf(fp, "invalid arguments\n");
+            break;
+        case COMMAND_CLOSE:
+        {
+            struct stat stat;
+            fstat(fdIn, &stat);
+#ifdef HAVE_BSDSOCKET
+            if (S_ISSOCK(stat.st_mode))
+            {
+                fprintf(fp, "shutting down session\n");
+                return false;
+            }
+#endif
+            fprintf(fp, "session not a socket, "
+                        "aborting session shutdown\n");
+            break;
+        }
+        case COMMAND_NOT_FOUND:
+            fprintf(fp, "%s: command not found\n", name);
+    }
+
+    return true;
 }

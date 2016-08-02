@@ -77,4 +77,20 @@ TEST_F(TwoNodeTest, VerifyNodeIdAddressed)
     send_packet(":X19488997N044C;");  // No response.
 }
 
+TEST_F(TwoNodeTest, DISABLED_VerifyNodeIdAddressed2)
+{
+    expect_packet(":X1917022AN02010d000003;");
+    expect_packet(":X1917033AN02010d000004;");
+    send_packet(":X1949033AN;");
+    usleep(250000);
+    wait();
+    // With alias only
+    send_packet_and_expect_response(":X19488997N033A;",
+                                    ":X1917033AN02010d000004;");
+    // With alias only
+    send_packet_and_expect_response(":X19488997N033A;",
+                                    ":X1917033AN02010d000004;");
+    wait();
+}
+
 } // namespace nmranet

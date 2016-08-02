@@ -41,6 +41,7 @@
 namespace nmranet
 {
 
+/// Constexpr base class for all group like structures.
 class GroupBaseEntry : public nmranet::ConfigReference
 {
 public:
@@ -55,6 +56,13 @@ public:
     }
 };
 
+/// Helper class for partial template specialization. EntryMarker<N> is used as
+/// an argument to invoke specific instances of polymorphic functions, thereby
+/// enabling a form of dynamically constructing a procedure from code generated
+/// by macros in different places. Typical pattern is to have a function
+/// foo(const EntryMarker<N>&) do something internally and then call
+/// foo(EntryMarker<N-1>()) to proceed to the next item. Once all these are
+/// inlined, we get a single function.
 template <int N> class EntryMarker
 {
 public:
@@ -63,6 +71,8 @@ public:
     }
 };
 
+/// Empty group entry that can be used for structuring the CDI configs. Does
+/// not seem to be used.
 class NoopGroupEntry : public ConfigReference
 {
 public:
@@ -77,6 +87,8 @@ public:
     }
 };
 
+/// Base class for all CDI Group structures (including segment, and the whole
+/// CDI entry).
 class GroupBase : public nmranet::ConfigReference
 {
 public:
@@ -105,7 +117,15 @@ public:
     // using MainCdi = GroupConfigOptions::MainCdi;
 };
 
-#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
+/// Helper macro for rendering code for CDI groups.
+///
+/// @param START_LINE the line number (in the config.hxx) file where the group
+/// starts. This line number will be used to terminate the recursion looking
+/// for config entries.
+/// @param GroupName C++ identifier for the name of this group.
+/// @param ARGS Proxied additional arguments, forwarded to the Options
+/// class.
+#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)             \
     struct GroupName : public nmranet::GroupBase                               \
     {                                                                          \
         INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
@@ -175,6 +195,11 @@ public:
     {                                                                          \
         return entry(nmranet::EntryMarker<LINE>());                            \
     }                                                                          \
+    static constexpr decltype(                                                 \
+        TYPE::config_renderer())::OptionsType NAME##_options()                 \
+    {                                                                          \
+        return decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);    \
+    }                                                                          \
     static void render_content_cdi(                                            \
         const nmranet::EntryMarker<LINE> &, std::string *s)                    \
     {                                                                          \
@@ -189,6 +214,10 @@ public:
         entry(e).handle_events(fn);                                            \
     }
 
+/// Helper macro to generate the code needed at the end of a group.
+///
+/// @param LINE line number in the config.hxx where this group should end. Used
+/// to start the recursion looking for group entries.
 #define CDI_GROUP_END_HELPER(LINE)                                             \
     constexpr unsigned end_offset() const                                      \
     {                                                                          \
@@ -207,7 +236,7 @@ public:
 
 /// Starts a CDI group.
 ///
-/// @param group is the c++ name of the struct that is being defined.
+/// @param GroupName is the c++ name of the struct that is being defined.
 /// @param ARGS are additional arguments for group options, like Name(...),
 /// Description(...), Segment(...), Offset(...) or MainCdi().
 #define CDI_GROUP(GroupName, ARGS...)                                          \
@@ -221,8 +250,8 @@ public:
 /// Description(...). If a subgroup is added, then group options are also
 /// allowed and they will override the respective values from the group
 /// definition.
-#define CDI_GROUP_ENTRY(NAME, TYPE, ...)                                       \
-    CDI_GROUP_ENTRY_HELPER(__LINE__, NAME, TYPE, ##__VA_ARGS__)
+#define CDI_GROUP_ENTRY(NAME, TYPE, ARGS...)                                   \
+    CDI_GROUP_ENTRY_HELPER(__LINE__, NAME, TYPE, ##ARGS)
 
 /// Closes a CDI group structure definition.
 #define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
@@ -327,7 +356,7 @@ public:
 };
 
 /// Add this entry to the beginning of the CDI group to render an
-/// <identification> tag at the beginning of the output cdi.xml. Requires a
+/// "<identification>" tag at the beginning of the output cdi.xml. Requires a
 /// global symbol of @ref nmranet::SNIP_STATIC_DATA to fill in the specific
 /// values of the identification tree.
 class Identification : public ToplevelEntryBase
@@ -341,7 +370,7 @@ public:
     }
 };
 
-/// Renders an <acdi> tag in the CDI group.
+/// Renders an "<acdi>" tag in the CDI group.
 class Acdi : public ToplevelEntryBase
 {
 public:
@@ -358,15 +387,17 @@ public:
 /// not depend on where the actual data is located.
 CDI_GROUP(
     UserInfoSegment, Segment(MemoryConfigDefs::SPACE_ACDI_USR), Offset(1));
-CDI_GROUP_ENTRY(
-    name, StringConfigEntry<63>, //
-    Name("User name"),           //
+/// User name entry
+CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
+    Name("User name"),                       //
     Description(
         "This name will appear in network browsers for the current node."));
+/// User description entry
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
     Name("User description"),                       //
     Description("This description will appear in network browsers for the "
                 "current node."));
+/// Signals termination of the group.
 CDI_GROUP_END();
 
 /// Configuration description for internal configuration variables. This should
@@ -374,7 +405,11 @@ CDI_GROUP_END();
 /// in the configuration EEPROM.
 CDI_GROUP(InternalConfigData, Name("Internal data"),
     Description("Do not change these settings."));
+/// Used to detect firmwares that have their config layout set in incompatible
+/// ways.
 CDI_GROUP_ENTRY(version, Uint16ConfigEntry, Name("Version"));
+/// Last two bytes ofthe next available event ID that can be assigned in a
+/// factory reset to the producers/consumers.
 CDI_GROUP_ENTRY(next_event, Uint16ConfigEntry, Name("Next event ID"));
 CDI_GROUP_END();
 
@@ -386,6 +421,8 @@ void render_cdi_helper(const CdiType &t, string ns, string name);
 
 template <int N> class CdiRenderHelper;
 
+/// Forward declaration of the recursive helper template for adding multiple
+/// CDIs to a single binary image.
 template <int N> void render_all_cdi();
 
 /// End-of-recursion template instantiation for CDI rendering.
