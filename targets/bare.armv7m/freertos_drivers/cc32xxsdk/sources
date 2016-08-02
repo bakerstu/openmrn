@@ -1,0 +1,37 @@
+include $(OPENMRNPATH)/etc/cc32xx.mk
+DEPS += TICC3200SDKPATH
+
+VPATH := $(TICC3200SDKPATH)/simplelink/source \
+         $(TICC3200SDKPATH)/simplelink \
+         $(TICC3200SDKPATH)/oslib
+
+INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
+            -I$(TICC3200SDKPATH)/simplelink/include \
+            -I$(TICC3200SDKPATH)/simplelink/source \
+            -I$(TICC3200SDKPATH)/simplelink \
+            -I$(TICC3200SDKPATH)/oslib \
+            -I$(TICC3200SDKPATH)/driverlib \
+            -I$(TICC3200SDKPATH)/inc
+
+CSRCS += device.c \
+         driver.c \
+         flowcont.c \
+         fs.c \
+         netapp.c \
+         netcfg.c \
+         socket.c \
+         spawn.c \
+         wlan.c
+
+CSRCS += cc_pal.c
+
+CSRCS += nonos.c
+
+CXXSRCS +=
+
+CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/nonos_user.h \
+          -D__USER_H__ -DTARGET_IS_CC3200 -DNOTERM -Dcc3200
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/nonos_user.h \
+            -D__USER_H__ -DTARGET_IS_CC3200 -DNOTERM -Dcc3200

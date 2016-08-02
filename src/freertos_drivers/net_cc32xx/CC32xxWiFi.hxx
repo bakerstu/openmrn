@@ -77,6 +77,11 @@ public:
      */
     void start();
 
+    /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
+     * called from a critical section?
+     */
+    void stop();
+
     /** Connect to access point.
      * @param ssid access point ssid
      * @param security_key access point security key

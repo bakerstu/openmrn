@@ -251,6 +251,11 @@ void CC32xxWiFi::start()
                    NULL, configMAX_PRIORITIES - 1, NULL);
 }
 
+void CC32xxWiFi::stop()
+{
+    sl_Stop(0xFF);
+}
+
 /*
  * CC32xxWiFi::wlan_connect()
  */
