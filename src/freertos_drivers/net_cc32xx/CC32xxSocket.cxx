@@ -976,7 +976,7 @@ int getaddrinfo(const char *nodename, const char *servname,
             break;
         default:
             errno = EAFNOSUPPORT;
-            // todo: this leaks the addrinfo
+            free((*res)->ai_addr);
             free(*res);
             return -1;
     }
@@ -986,7 +986,7 @@ int getaddrinfo(const char *nodename, const char *servname,
 
     if (result != 0)
     {
-        // todo: this leaks the addrinfo
+        free((*res)->ai_addr);
         free(*res);
         switch (result)
         {
