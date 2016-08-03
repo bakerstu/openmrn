@@ -34,6 +34,7 @@
 #include "CC32xxSocket.hxx"
 #include "CC32xxWiFi.hxx"
 
+#include <memory>
 #include <fcntl.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -931,13 +932,23 @@ int getsockopt(int socket, int level, int option_name,
 
 const char *gai_strerror (int __ecode)
 {
-    return "gai_strerror unkown";
+    switch (__ecode)
+    {
+        default:
+            return "gai_strerror unkown";
+        case EAI_AGAIN:
+            return "temporary failure";
+        case EAI_FAIL:
+            return "non-recoverable failure";
+        case EAI_MEMORY:
+            return "memory allocation failure";
+    }
 }
 
 void freeaddrinfo(struct addrinfo *ai)
 {
-    free(ai->ai_addr);
-    free(ai);
+    delete ai->ai_addr;
+    delete ai;
 }
 
 int getaddrinfo(const char *nodename, const char *servname,
@@ -947,21 +958,20 @@ int getaddrinfo(const char *nodename, const char *servname,
     uint32_t ip_addr;
     uint8_t domain;
 
-    *res = static_cast<struct addrinfo *>(malloc(sizeof(struct addrinfo)));
-    if (*res == NULL)
+    std::unique_ptr<struct addrinfo> ai(new struct addrinfo);
+    if (ai.get() == nullptr)
     {
         return EAI_MEMORY;
     }
-    memset(*res, 0, sizeof(struct addrinfo));
+    memset(ai.get(), 0, sizeof(struct addrinfo));
 
-    (*res)->ai_addr =
-        static_cast<struct sockaddr*>(malloc(sizeof(struct sockaddr)));
-    if ((*res)->ai_addr == NULL)
+    std::unique_ptr<struct sockaddr> sa(new struct sockaddr);
+    if (sa.get() == nullptr)
     {
         free(*res);
         return EAI_MEMORY;
     }
-    memset((*res)->ai_addr, 0, sizeof(struct addrinfo));
+    memset(sa.get(), 0, sizeof(struct addrinfo));
 
     switch (hints->ai_family)
     {
@@ -976,8 +986,6 @@ int getaddrinfo(const char *nodename, const char *servname,
             break;
         default:
             errno = EAFNOSUPPORT;
-            free((*res)->ai_addr);
-            free(*res);
             return -1;
     }
 
@@ -986,8 +994,6 @@ int getaddrinfo(const char *nodename, const char *servname,
 
     if (result != 0)
     {
-        free((*res)->ai_addr);
-        free(*res);
         switch (result)
         {
             default:
@@ -1006,26 +1012,26 @@ int getaddrinfo(const char *nodename, const char *servname,
     {
         case AF_INET:
         {
-            struct sockaddr_in *addr_in = (struct sockaddr_in*)(*res)->ai_addr;
-            (*res)->ai_flags = 0;
-            (*res)->ai_family = hints->ai_family;
-            (*res)->ai_socktype = hints->ai_socktype;
-            (*res)->ai_protocol = hints->ai_protocol;
-            (*res)->ai_addrlen = sizeof(struct sockaddr_in);
-            addr_in->sin_family = hints->ai_family;
-            addr_in->sin_port = htons((uint16_t)strtol(servname, NULL, 0));
-            addr_in->sin_addr.s_addr = htonl(ip_addr);
+            struct sockaddr_in *sa_in = (struct sockaddr_in*)sa.get();
+            ai->ai_flags = 0;
+            ai->ai_family = hints->ai_family;
+            ai->ai_socktype = hints->ai_socktype;
+            ai->ai_protocol = hints->ai_protocol;
+            ai->ai_addrlen = sizeof(struct sockaddr_in);
+            sa_in->sin_family = hints->ai_family;
+            sa_in->sin_port = htons((uint16_t)strtol(servname, NULL, 0));
+            sa_in->sin_addr.s_addr = htonl(ip_addr);
             break;
         }
         case AF_INET6:
         case AF_PACKET:
         default:
             errno = EAFNOSUPPORT;
-            free((*res)->ai_addr);
-            free(*res);
             return -1;
     }
 
+    *res = ai.release();
+    (*res)->ai_addr = sa.release();
     return 0;
 }
 
