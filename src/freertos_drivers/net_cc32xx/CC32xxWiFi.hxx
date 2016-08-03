@@ -159,6 +159,28 @@ public:
      */
     int wlan_network_list_get(WlanNetworkEntry *entries, size_t count);
 
+    /** Get the device MAC address.
+     * @param mac 6 byte array which will hold the resulting MAC address.
+     */
+    void wlan_mac(uint8_t mac[6]);
+
+    /** Get the assigned IP address.
+     * @return assigned IP address, else 0 if not assigned
+     */
+    uint32_t wlan_ip()
+    {
+        return ipAquired ? ipAddress : 0;
+    }
+
+    /** Get the SSID of the access point we are connected to.
+     * @return SSID of the access point we are connected to
+     */
+    const char *wlan_ssid()
+    {
+        ssid[32] = '\0';
+        return ssid;
+    }
+
     /** Get the receive signal strength indicator.
      * @return receive signal strength
      */
@@ -221,6 +243,7 @@ private:
 
     static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
+    char ssid[33]; /**< SSID of AP we are connected to */
 
     int wakeup; /**< loopback socket to wakeup select() */
 
