@@ -40,6 +40,15 @@
 extern "C" {
 #endif
 
+/** Convert the network address in src to a character string in src.
+ * @param af address family, AF_INET or AF_INET6
+ * @param src source address in network byte order
+ * @param dst resulting address string
+ * @param size max number characters allowed for the result
+ * @return on success non-null pointer to dst, else NULL with errno set on error
+ */
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+
 #ifdef __cplusplus
 }
 #endif

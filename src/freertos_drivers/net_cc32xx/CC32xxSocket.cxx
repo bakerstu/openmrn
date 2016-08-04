@@ -44,6 +44,8 @@
 // Simplelink includes
 #include "socket.h"
 
+#include "utils/format_utils.hxx"
+
 /// Existing (allocated) sockets.
 static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
 
@@ -930,6 +932,9 @@ int getsockopt(int socket, int level, int option_name,
                                     option_value, option_len);
 }
 
+/*
+ * ::gai_strerror()
+ */
 const char *gai_strerror (int __ecode)
 {
     switch (__ecode)
@@ -945,18 +950,27 @@ const char *gai_strerror (int __ecode)
     }
 }
 
+/*
+ * ::freeaddrinfo()
+ */
 void freeaddrinfo(struct addrinfo *ai)
 {
     delete ai->ai_addr;
     delete ai;
 }
 
+/*
+ * ::getaddrinfo()
+ */
 int getaddrinfo(const char *nodename, const char *servname,
                 const struct addrinfo *hints,
                 struct addrinfo **res)
 {
-    uint32_t ip_addr;
+    uint32_t ip_addr[4];
+    uint32_t port;
     uint8_t domain;
+    int8_t text[120];
+    uint16_t text_len = 120;
 
     std::unique_ptr<struct addrinfo> ai(new struct addrinfo);
     if (ai.get() == nullptr)
@@ -989,8 +1003,19 @@ int getaddrinfo(const char *nodename, const char *servname,
             return -1;
     }
 
-    int result = sl_NetAppDnsGetHostByName((int8_t*)nodename, strlen(nodename),
-                                           &ip_addr, domain);
+    int result;
+
+    if (nodename)
+    {
+        result = sl_NetAppDnsGetHostByName((int8_t*)nodename, strlen(nodename),
+                                           ip_addr, domain);
+    }
+    else
+    {
+        result = sl_NetAppDnsGetHostByService((int8_t*)servname,
+                                              strlen(servname), domain, ip_addr,
+                                              &port, &text_len, text);
+    }
 
     if (result != 0)
     {
@@ -1019,8 +1044,21 @@ int getaddrinfo(const char *nodename, const char *servname,
             ai->ai_protocol = hints->ai_protocol;
             ai->ai_addrlen = sizeof(struct sockaddr_in);
             sa_in->sin_family = hints->ai_family;
-            sa_in->sin_port = htons((uint16_t)strtol(servname, NULL, 0));
-            sa_in->sin_addr.s_addr = htonl(ip_addr);
+            long port_name = strtol(servname, nullptr, 0);
+            /* the newlib implementation of strtol does not properly implement
+             * errno == EINVAL. We would normally want the if statement to be:
+             * if (port_name == 0 && errno == EINVAL)
+             */
+            if (port_name == 0 && (servname[0] < '0' || servname[0] > '9') &&
+                servname[0] != '+' && servname[0] != '-')
+            {
+                sa_in->sin_port = htons((uint16_t)port);
+            }
+            else
+            {
+                sa_in->sin_port = htons((uint16_t)port_name);
+            }
+            sa_in->sin_addr.s_addr = htonl(ip_addr[0]);
             break;
         }
         case AF_INET6:
@@ -1033,6 +1071,46 @@ int getaddrinfo(const char *nodename, const char *servname,
     *res = ai.release();
     (*res)->ai_addr = sa.release();
     return 0;
+}
+
+/*
+ * ::inet_ntop()
+ */
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
+{
+    char *org = dst;
+
+    switch (af)
+    {
+        default:
+            errno = EAFNOSUPPORT;
+            return nullptr;
+        case AF_INET6:
+            HASSERT(0);
+        case AF_INET:
+        {
+            socklen_t count = 0;
+            uint8_t *ip = (uint8_t*)src;
+            for (int i = 0; i < 4; ++i)
+            {
+                char string[5];
+                char *end = integer_to_buffer(ip[i], string);
+                count += (end - string) + 1;
+                if (count > size)
+                {
+                    errno = ENOSPC;
+                    return nullptr;
+                }
+                strcpy(dst, string);
+                dst += (end - string);
+                *dst++ = '.';
+            }
+            *--dst = '\0';
+            break;
+        }
+    }
+
+    return org;
 }
 
 } /* extern "C" */
