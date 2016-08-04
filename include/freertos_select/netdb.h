@@ -35,6 +35,7 @@
 #define _NETDB_H_
 
 #include <stdint.h>
+#include <netinet/in.h>
 
 #ifdef __cplusplus
 extern "C" {
