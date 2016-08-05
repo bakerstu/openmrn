@@ -159,6 +159,13 @@ public:
     static int getsockopt(int socket, int level, int option_name,
                           void *option_value, socklen_t *option_len);
 
+    /** Destructor.  This is public only so that smart pointers can be used
+     * without having to supply a custom destructor.
+     */
+    ~CC32xxSocket()
+    {
+    }
+
 private:
     /** Close method. Returns negative errno on failure.
      * @param file reference to close
@@ -194,38 +201,45 @@ private:
     {
     }    
 
-    /** Destructor.
-     */
-    ~CC32xxSocket()
-    {
-    }
-
-    /** Get the CC32xxSocket instance given a specific socket descriptor.
+    /** Get the CC32xxSocket instance given a specific CC32xx socket descriptor.
      * Should only be called within a critical section.
      * @param sd socket descriptor we are looking for
-     * @return instance pointer to CC32xxSocket belonging to sd, else NULL
-     */ 
+     * @return instance pointer to CC32xxSocket belonging to sd, else nullptr
+     */
     static CC32xxSocket *get_instance_from_sd(int sd);
+
+    /** Get the CC32xxSocket instance given a file descriptor.
+     * @param fd file descriptor we are looking for
+     * @return instance pointer to CC32xxSocket belonging to fd, else nullptr
+     *         with errno set appropriately
+     */
+    static CC32xxSocket *get_instance_from_fd(int fd);
 
     /** Remove the CC32xxSocket instance from the active CC32xxSocket list.
      * Should only be called within a critical section.
      * @param sd socket descriptor we are looking for
-     */ 
+     */
     static void remove_instance_from_sd(int sd);
+
+    /** Reserve a location in the @ref cc32xxSockets pool.
+     * @return handle to the reserved location in the pool, -1 on error with
+     *         errno set appropriately
+     */
+    static int reserve_socket();
 
     /** CC32xx socket descriptor */
     int16_t sd;
 
     /** indicates our "best guess" at current socket's read active status
      */
-    bool readActive;
+    uint8_t readActive   : 1;
 
     /** indicates our "best guess" at current socket's write active status
      */
-    bool writeActive;
+    uint8_t writeActive  : 1;
 
     /** This is a listen socket */
-    bool listenActive;
+    uint8_t listenActive : 1;
 
     /** allow access to private members from CC32xxWiFi */
     friend class CC32xxWiFi;
