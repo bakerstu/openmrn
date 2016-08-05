@@ -174,6 +174,19 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags);
 int setsockopt(int socket, int level, int option_name,
                const void *option_value, socklen_t option_len);
 
+/** Get the socket options.
+ * @param socket the socket file descriptor
+ * @param level specifies the protocol level at which the option resides
+ * @param option_name specifies a single option to get
+ * @param option_value the metadata that belongs to the option_name
+ * @param option_len the length of the metadata that belongs to the
+ *                   option_name
+ * @return shall return 0 upon success, otherwise, -1 shall be returned and
+ *         errno set to indicate the error
+ */
+int getsockopt(int socket, int level, int option_name,
+               void *option_value, socklen_t *option_len);
+
 #ifdef __cplusplus
 }
 #endif
