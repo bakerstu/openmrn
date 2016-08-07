@@ -87,11 +87,8 @@ all docs clean veryclean tests mksubdirs: print_error_deps
 
 
 print_error_deps:
-	@echo "******************************************************************"
-	@echo "*"
-	@echo "*   Unable to build for $(TARGET), missing dependencies: $(MISSING_DEPS)"
-	@echo "*"
-	@echo "******************************************************************"
+	@echo "** Ignoring target $(TARGET), because the following libraries are not installed: $(MISSING_DEPS). This is not an error, so please do not report as a bug. If you care about target $(TARGET), make sure the quoted libraries are installed. For most libraries you can check $(OPENMRNPATH)/etc/path.mk to see where we looked for these dependencies."
+
 else
 
 # This defines how to create nonexistant directories.
