@@ -42,10 +42,12 @@
 #include "nmranet/NodeInitializeFlow.hxx"
 #include "executor/StateFlow.hxx"
 
+#if !defined (__MACH__)
 extern "C" {
 /// Called when the node needs to be rebooted.
 extern void reboot();
 }
+#endif
 
 namespace nmranet
 {

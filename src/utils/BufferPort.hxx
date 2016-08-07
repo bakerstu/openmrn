@@ -67,7 +67,7 @@ public:
 
     ~BufferPort()
     {
-        delete sendBuf_;
+        delete [] sendBuf_;
     }
 
 private:
