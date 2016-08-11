@@ -1,0 +1,1 @@
+../nxp-lpc175x_6x-generic/startup.c

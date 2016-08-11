@@ -1,0 +1,1 @@
+../../../../boards/nxp-lpc175x-edetector/memory_map.ld
