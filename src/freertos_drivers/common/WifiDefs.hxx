@@ -6,6 +6,8 @@
 #define WIFI_BLINK_ASSOC_NOIP  0b101000
 /// Connecting to hub: long blinks
 #define WIFI_BLINK_CONNECTING  0b1100
+/// Connecting to hub: long blinks
+#define WIFI_BLINK_FAILED  0b10101100
 
 
 extern "C" {
