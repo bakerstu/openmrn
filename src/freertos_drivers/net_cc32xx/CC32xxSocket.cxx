@@ -457,6 +457,9 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         switch (result)
         {
             default:
+                volatile int err = 0;
+                err = err | result;
+                /// @TODO (stbaker): handle errors via the callback.
                 HASSERT(0);
                 break;
         }
