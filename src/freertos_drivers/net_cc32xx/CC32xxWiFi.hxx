@@ -34,6 +34,9 @@
 #ifndef _FREERTOS_DRIVERS_NET_C32XX_CC32XXWIFI_HXX_
 #define _FREERTOS_DRIVERS_NET_C32XX_CC32XXWIFI_HXX_
 
+#include <functional>
+#include <vector>
+
 #include "os/OS.hxx"
 
 class CC32xxSocket;
@@ -189,6 +192,9 @@ public:
         return rssi;
     }
 
+    /** Executes the given function on the network thread. */
+    void run_on_network_thread(std::function<void()> callback);
+
     /** This function handles WLAN events.  This is public only so that an
      * extern "C" method can call it.  DO NOT use directly.
      * @param context pointer to WLAN Event Info
@@ -244,6 +250,11 @@ private:
     static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
     char ssid[33]; /**< SSID of AP we are connected to */
+
+    /// List of callbacks to execute on the network thread.
+    std::vector<std::function<void()> > callbacks_;
+    /// Protects callbacks_ vector.
+    OSMutex lock_;
 
     int wakeup; /**< loopback socket to wakeup select() */
 
