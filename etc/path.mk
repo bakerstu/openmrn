@@ -180,9 +180,11 @@ endif #FREERTOSPATH
 ################# lpcxpresso ####################
 ifndef LPCXPRESSOPATH
 SEARCHPATH := \
+  /opt/lpcxpresso/default/lpcxpresso \
+  /opt/lpcxpresso/lpcxpresso_*/lpcxpresso \
   /usr/local/lpcxpresso_*/lpcxpresso \
 
-TRYPATH:=$(call findfirst,tools/bin,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,bin/LPCXpressoWIN.enc,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 LPCXPRESSOPATH:=$(TRYPATH)
 endif

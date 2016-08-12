@@ -344,6 +344,17 @@ void CC32xxWiFi::wlan_task()
 
     for ( ; /* forever */ ; )
     {
+        std::vector<std::function<void()> > callbacks_to_run;
+        {
+            OSMutexLock l(&lock_);
+            if (callbacks_.size()) {
+                callbacks_to_run.swap(callbacks_);
+            }
+        }
+        for (unsigned i = 0; i < callbacks_to_run.size(); ++i) {
+            callbacks_to_run[i]();
+        }
+
         SlFdSet_t rfds_tmp = rfds;
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
@@ -440,6 +451,15 @@ void CC32xxWiFi::select_wakeup(int16_t data)
 
         sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
     }
+}
+
+void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
+{
+    {
+        OSMutexLock l(&lock_);
+        callbacks_.emplace_back(std::move(callback));
+    }
+    select_wakeup();
 }
 
 /*
