@@ -271,21 +271,22 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                                 &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (true)
+    while (!wlan_ready())
     {
-        if (!connected)
-        {
-            resetblink(WIFI_BLINK_NOTASSOCIATED);
-        }
-        else if (!ipAquired)
-        {
-            resetblink(WIFI_BLINK_ASSOC_NOIP);
-        }
-        else
-        {
-            break;
-        }
+        connecting_update_blinker();
         usleep(10000);
+    }
+}
+
+void CC32xxWiFi::connecting_update_blinker()
+{
+    if (!connected)
+    {
+        resetblink(WIFI_BLINK_NOTASSOCIATED);
+    }
+    else if (!ipAquired)
+    {
+        resetblink(WIFI_BLINK_ASSOC_NOIP);
     }
 }
 
@@ -295,7 +296,7 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
-    if (wlan_profile_test_none())
+    if (true || wlan_profile_test_none())
     {
         /* no profiles saved, add the default profile */
         wlan_profile_add(WIFI_SSID, strlen(WIFI_PASS) > 0 ? SEC_WPA2 : SEC_OPEN,

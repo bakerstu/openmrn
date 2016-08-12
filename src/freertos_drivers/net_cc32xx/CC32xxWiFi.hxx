@@ -104,6 +104,10 @@ public:
         return connected && ipAquired;
     }
 
+    /** Updates the blinker based on connection state. Noop if wlan_ready()
+     * returns true.*/
+    void connecting_update_blinker();
+
     /** Get the singleton instance pointer.
      * @return singleton instance pointer
      */
