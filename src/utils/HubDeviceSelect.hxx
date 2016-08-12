@@ -232,6 +232,8 @@ protected:
 
         Action read_done()
         {
+            /// @TODO check if the selectHelper_.buf == nullptr, indicating an
+            /// error.
             SelectBufferInfo<buffer_type>::check_target_size(
                 b_, selectHelper_.remaining_);
             device()->hub()->send(b_, 0);
