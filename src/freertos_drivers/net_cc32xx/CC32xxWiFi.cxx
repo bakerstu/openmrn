@@ -377,7 +377,9 @@ void CC32xxWiFi::wlan_task()
             SlGetRxStatResponse_t response;
             if (sl_WlanRxStatGet(&response, 0) == 0)
             {
-                rssi = response.AvarageMgMntRssi;
+                if (response.AvarageMgMntRssi) {
+                    rssi = response.AvarageMgMntRssi;
+                }
             }
         }
 
