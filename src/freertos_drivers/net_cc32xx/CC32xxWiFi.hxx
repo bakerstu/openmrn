@@ -226,9 +226,10 @@ private:
     /** Thread that will manage the WLAN connection.
      * @param context context passed into the stack.
      */
-    static void wlan_task_entry(void *context)
+    static void* wlan_task_entry(void *context)
     {
         instance()->wlan_task();
+        return nullptr;
     }
 
     /** Thread that will manage the WLAN connection inside object context.

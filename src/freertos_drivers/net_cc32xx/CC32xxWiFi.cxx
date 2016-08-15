@@ -247,8 +247,7 @@ void CC32xxWiFi::start()
     VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
     //int result = sl_start(0, 0, 0);
     //HASSERT(result >= 0);
-    osi_TaskCreate(wlan_task_entry, (const signed char*)"Wlan Task", 2048,
-                   NULL, configMAX_PRIORITIES - 1, NULL);
+    os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048, wlan_task_entry, nullptr);
 }
 
 void CC32xxWiFi::stop()
