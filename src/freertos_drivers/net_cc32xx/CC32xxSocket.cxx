@@ -463,6 +463,9 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 /// @TODO (stbaker): handle errors via the callback.
                 errno = ECONNRESET;
                 break;
+            case SL_EAGAIN:
+                errno = EAGAIN;
+                break;
             default:
                 volatile int err = 0;
                 err = err | result;
