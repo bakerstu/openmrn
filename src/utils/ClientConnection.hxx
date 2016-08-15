@@ -192,8 +192,8 @@ private:
         }
         else
         {
-            LOG_ERROR("Failed to connect to %s:%d: %s\n", host_.c_str(), port_,
-                strerror(errno));
+            LOG_ERROR("Failed to connect to %s:%d: (%d) %s\n", host_.c_str(),
+                port_, errno, strerror(errno));
         }
     }
 
