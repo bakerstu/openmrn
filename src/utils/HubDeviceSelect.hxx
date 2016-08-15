@@ -126,28 +126,33 @@ public:
 
 #ifndef __WINNT__
     /// Creates a select-aware hub port for the device specified by `path'.
-    HubDeviceSelect(HFlow *hub, const char *path)
+    HubDeviceSelect(
+        HFlow *hub, const char *path, Notifiable *on_error = nullptr)
         : Service(hub->service()->executor())
         , fd_(::open(path, O_RDWR | O_NONBLOCK))
+        , barrier_(on_error)
         , hub_(hub)
         , readFlow_(this)
         , writeFlow_(this)
     {
         HASSERT(fd_ >= 0);
+        barrier_.new_child();
         hub_->register_port(write_port());
     }
 #endif
 
     /// Creates a select-aware hub port for the opened device specified by
     /// `fd'. It can be a hardware device, socket or pipe.
-    HubDeviceSelect(HFlow *hub, int fd)
+    HubDeviceSelect(HFlow *hub, int fd, Notifiable *on_error = nullptr)
         : Service(hub->service()->executor())
         , fd_(fd)
+        , barrier_(on_error)
         , hub_(hub)
         , readFlow_(this)
         , writeFlow_(this)
     {
         HASSERT(fd_ >= 0);
+        barrier_.new_child();
 #ifdef __WINNT__
         unsigned long par = 1;
         ioctlsocket(fd_, FIONBIO, &par);
@@ -159,12 +164,16 @@ public:
 
     virtual ~HubDeviceSelect()
     {
-        hub_->unregister_port(write_port());
-        executor()->sync_run([this]()
-            {
-                readFlow_.shutdown();
-                writeFlow_.shutdown();
-            });
+        if (fd_ >= 0) {
+            unregister_write_port();
+            executor()->sync_run([this]()
+                                 {
+                                     readFlow_.shutdown();
+                                     writeFlow_.shutdown();
+                                 });
+            ::close(fd_);
+            fd_ = -1;
+        }
     }
 
     HFlow *hub()
@@ -180,6 +189,17 @@ public:
     int fd()
     {
         return fd_;
+    }
+
+    void unregister_write_port()
+    {
+        hub_->unregister_port(&writeFlow_);
+        /* We put an empty message at the end of the queue. This will cause
+         * wait until all pending messages are dealt with, and then ping the
+         * barrier notifiable, commencing the shutdown. */
+        auto *b = writeFlow_.alloc();
+        b->set_done(&barrier_);
+        writeFlow_.send(b);
     }
 
 protected:
@@ -198,7 +218,14 @@ protected:
 
         void shutdown()
         {
-            this->service()->executor()->unselect(&selectHelper_);
+            auto* e = this->service()->executor();
+            if (e->is_selected(&selectHelper_)) {
+                e->unselect(&selectHelper_);
+                set_terminated();
+                notify();
+            } else {
+                set_terminated();
+            }
         }
 
         HubDeviceSelect *device()
@@ -232,8 +259,14 @@ protected:
 
         Action read_done()
         {
-            /// @TODO check if the selectHelper_.buf == nullptr, indicating an
-            /// error.
+            if (selectHelper_.hasError_) {
+                /// Error reading the socket.
+                b_->unref();
+                device()->barrier_.notify();
+                set_terminated();
+                device()->report_read_error();
+                return exit();
+            }
             SelectBufferInfo<buffer_type>::check_target_size(
                 b_, selectHelper_.remaining_);
             device()->hub()->send(b_, 0);
@@ -258,7 +291,10 @@ protected:
 
         void shutdown()
         {
-            this->service()->executor()->unselect(&selectHelper_);
+            auto* e = this->service()->executor();
+            if (e->is_selected(&selectHelper_)) {
+                e->unselect(&selectHelper_);
+            }
         }
 
         HubDeviceSelect *device()
@@ -268,6 +304,9 @@ protected:
 
         StateFlowBase::Action entry() OVERRIDE
         {
+            if (device()->fd() < 0) {
+                return this->release_and_exit();
+            }
             return this->write_repeated(&selectHelper_, device()->fd(),
                 this->message()->data()->data(),
                 this->message()->data()->size(), STATE(write_done),
@@ -276,7 +315,9 @@ protected:
 
         StateFlowBase::Action write_done()
         {
-            HASSERT(!selectHelper_.remaining_);
+            if (selectHelper_.hasError_) {
+                device()->report_write_error();
+            }
             return this->release_and_exit();
         }
 
@@ -285,10 +326,42 @@ protected:
     };
 
 protected:
+    friend class ReadFlow;  // for notifying barrier_
+
+    /** The assumption here is that the write flow still has entries in its
+     * queue that need to be removed. */
+    void report_write_error()
+    {
+        readFlow_.shutdown();
+        unregister_write_port();
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
+        }
+    }
+
+    /** Callback fro mthe ReadFlow when the read call has seen an error. The
+     * read count will already have been taken out of the barrier, and the read
+     * flow in terminated state. */
+    void report_read_error()
+    {
+        unregister_write_port();
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
+        }
+    }
+
     /** The device file descriptor. */
     int fd_;
+    /// This notifiable will be called (if not NULL) upon read or write error.
+    BarrierNotifiable barrier_;
+    /// Hub whose data we are trying to send.
     HFlow *hub_;
+    /// StateFlow for reading data from the fd. Woken when data arrives.
     ReadFlow readFlow_;
+    /// StateFlow for writing data to the fd. Woken by data to send or the fd
+    /// being writeable.
     WriteFlow writeFlow_;
 };
 
