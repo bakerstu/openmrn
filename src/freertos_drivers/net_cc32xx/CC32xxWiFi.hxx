@@ -38,6 +38,7 @@
 #include <vector>
 
 #include "os/OS.hxx"
+#include "freertos_drivers/common/WifiDefs.hxx"
 
 class CC32xxSocket;
 
@@ -105,6 +106,14 @@ public:
     bool wlan_ready()
     {
         return connected && ipAquired;
+    }
+
+    /** @return 0 if !wlan_ready, else a debugging status code. */
+    WlanState wlan_startup_state()
+    {
+        if (!connected) return WlanState::NOT_ASSOCIATED;
+        if (!ipAquired) return WlanState::NO_IP;
+        return WlanState::OK;
     }
 
     /** Updates the blinker based on connection state. Noop if wlan_ready()

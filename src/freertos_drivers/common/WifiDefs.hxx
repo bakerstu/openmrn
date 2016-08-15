@@ -1,4 +1,5 @@
-
+#ifndef _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
+#define _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
 
 /// Wifi not associated to access point: continuous short blinks.
 #define WIFI_BLINK_NOTASSOCIATED  0b1010
@@ -9,6 +10,19 @@
 /// Connecting to hub: long blinks
 #define WIFI_BLINK_FAILED  0b10101100
 
+enum class WlanState : uint8_t
+{
+    OK = 0,
+    NOT_ASSOCIATED = 1,
+    NO_IP,
+    NO_CONNECTION,
+    CONNECTING,
+    MDNS_LOOKUP,
+    CONNECT_MDNS,
+    CONNECT_STATIC,
+    CONNECT_FAILED,
+    CONNECTION_LOST,
+};
 
 extern "C" {
 /// Name of wifi accesspoint to connect to.
@@ -20,3 +34,5 @@ extern char WIFI_HUB_HOSTNAME[];
 /// Port number of the OpenLCB hub.
 extern int WIFI_HUB_PORT;
 }
+
+#endif // _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
