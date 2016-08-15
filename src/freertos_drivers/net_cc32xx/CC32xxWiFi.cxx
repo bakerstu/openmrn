@@ -341,6 +341,8 @@ void CC32xxWiFi::wlan_task()
     SL_FD_SET(wakeup, &rfds);
     portEXIT_CRITICAL();
 
+    unsigned next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
+
     for ( ; /* forever */ ; )
     {
         std::vector<std::function<void()> > callbacks_to_run;
@@ -368,15 +370,15 @@ void CC32xxWiFi::wlan_task()
             continue;
         }
 
-        if (result == 0)
+        if (result == 0 || (os_get_time_monotonic() >> 20) > next_wrssi_poll)
         {
+            next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
             /* timeout, get the RSSI value */
             SlGetRxStatResponse_t response;
             if (sl_WlanRxStatGet(&response, 0) == 0)
             {
                 rssi = response.AvarageMgMntRssi;
             }
-            continue;
         }
 
         for (int i = 0x1F; i >= 0 && result > 0; --i)
