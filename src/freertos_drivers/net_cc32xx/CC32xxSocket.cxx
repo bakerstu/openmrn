@@ -377,6 +377,9 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
                 HASSERT(0);
                 break;
             }
+            case SL_ECONNREFUSED:
+                errno = ECONNREFUSED;
+                break;
             case SL_EALREADY:
                 errno = EALREADY;
                 break;
@@ -456,6 +459,10 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     {
         switch (result)
         {
+            case SL_SOC_ERROR:
+                /// @TODO (stbaker): handle errors via the callback.
+                errno = ECONNRESET;
+                break;
             default:
                 volatile int err = 0;
                 err = err | result;
@@ -473,7 +480,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     {
         s->writeActive = true;
     }
-    return result;  
+    return result;
 }
 
 /*
