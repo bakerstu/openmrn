@@ -173,6 +173,13 @@ public:
                                  });
             ::close(fd_);
             fd_ = -1;
+            bool completed = false;
+            while (!completed) {
+                executor()->sync_run([this, &completed]()
+                                 {
+                                     if (barrier_.is_done()) completed = true;
+                                 });
+            }
         }
     }
 
@@ -221,11 +228,9 @@ protected:
             auto* e = this->service()->executor();
             if (e->is_selected(&selectHelper_)) {
                 e->unselect(&selectHelper_);
-                set_terminated();
-                notify();
-            } else {
-                set_terminated();
             }
+            set_terminated();
+            notify_barrier();
         }
 
         HubDeviceSelect *device()
@@ -262,7 +267,7 @@ protected:
             if (selectHelper_.hasError_) {
                 /// Error reading the socket.
                 b_->unref();
-                device()->barrier_.notify();
+                notify_barrier();
                 set_terminated();
                 device()->report_read_error();
                 return exit();
@@ -275,6 +280,18 @@ protected:
         }
 
     private:
+        /** Calls into the parent flow's barrier notify, but makes sure to
+         * only do this once in the lifetime of *this. */
+        void notify_barrier()
+        {
+            if (barrierOwned_)
+            {
+                barrierOwned_ = false;
+                device()->barrier_.notify();
+            }
+        }
+
+        bool barrierOwned_{true};  //< pending parent->barrier_.notify()
         StateFlowSelectHelper selectHelper_{this};
         buffer_type *b_;
     };
