@@ -34,7 +34,7 @@ $(LIBDIR)/timestamp: $(BUILDDIRS)
 
 $(info test deps $(TESTOBJSEXTRA) $(LIBDIR)/timestamp )
 $(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp $(TESTEXTRADEPS) | $(BUILDDIRS)
-	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
+	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(STARTGROUP) $(LINKCORELIBS) $(ENDGROUP) $(SYSLIBRARIES) 
 
 -include $(TESTOBJS:.test.o=.dtest)
 -include $(TESTOBJSEXTRA:.o=.d)
