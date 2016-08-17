@@ -17,7 +17,7 @@ enum class WlanState : uint8_t
     NO_IP,
     NO_CONNECTION,
     CONNECTING,
-    MDNS_LOOKUP,
+    MDNS_LOOKUP = 5,
     CONNECT_MDNS,
     CONNECT_STATIC,
     CONNECT_FAILED,
