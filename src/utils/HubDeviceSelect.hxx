@@ -130,7 +130,7 @@ public:
         HFlow *hub, const char *path, Notifiable *on_error = nullptr)
         : Service(hub->service()->executor())
         , fd_(::open(path, O_RDWR | O_NONBLOCK))
-        , barrier_(on_error)
+        , barrier_(on_error ? on_error : EmptyNotifiable::DefaultInstance())
         , hub_(hub)
         , readFlow_(this)
         , writeFlow_(this)
@@ -146,7 +146,7 @@ public:
     HubDeviceSelect(HFlow *hub, int fd, Notifiable *on_error = nullptr)
         : Service(hub->service()->executor())
         , fd_(fd)
-        , barrier_(on_error)
+        , barrier_(on_error ? on_error : EmptyNotifiable::DefaultInstance())
         , hub_(hub)
         , readFlow_(this)
         , writeFlow_(this)
@@ -166,13 +166,15 @@ public:
     {
         if (fd_ >= 0) {
             unregister_write_port();
-            executor()->sync_run([this]()
+            int fd = -1;
+            executor()->sync_run([this, &fd]()
                                  {
+                                     fd = fd_;
+                                     fd_ = -1;
                                      readFlow_.shutdown();
                                      writeFlow_.shutdown();
                                  });
-            ::close(fd_);
-            fd_ = -1;
+            ::close(fd);
             bool completed = false;
             while (!completed) {
                 executor()->sync_run([this, &completed]()
@@ -308,9 +310,16 @@ protected:
 
         void shutdown()
         {
+            // The fd must be set to negative already to ensure the shutdown
+            // completes successfully.
+            HASSERT(device()->fd() < 0);
             auto* e = this->service()->executor();
-            if (e->is_selected(&selectHelper_)) {
+            if (!selectHelper_.is_empty() && e->is_selected(&selectHelper_)) {
                 e->unselect(&selectHelper_);
+                // will make the internal_try_write exit immediately
+                selectHelper_.remaining_ = 0;
+                // actually wake up the flow
+                this->notify();
             }
         }
 
@@ -357,7 +366,7 @@ protected:
         }
     }
 
-    /** Callback fro mthe ReadFlow when the read call has seen an error. The
+    /** Callback from the ReadFlow when the read call has seen an error. The
      * read count will already have been taken out of the barrier, and the read
      * flow in terminated state. */
     void report_read_error()
