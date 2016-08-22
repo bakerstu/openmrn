@@ -102,7 +102,7 @@ BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
 
-extern unsigned g_bootloader_busy;
+extern volatile unsigned g_bootloader_busy;
 
 void bootloader_led(enum BootloaderLed led, bool value)
 {
@@ -957,8 +957,14 @@ protected:
         EXPECT_CALL(mock_, application_entry()).Times(0);
         expect_packet(":X19100428N05010101146C;");
         run_bootloader();
-        while (g_bootloader_busy)
+        while (true) {
+            {
+                AtomicHolder h(&g_bootloader_lock);
+                if (!g_bootloader_busy) break;
+            }
             usleep(100);
+        }
+        wait(); // Sees all generated packets fly by.
     }
 
     void add_send_expectations(const string &s, unsigned offset = 0)

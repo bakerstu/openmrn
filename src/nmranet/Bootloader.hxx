@@ -151,8 +151,8 @@ extern "C" {
 
 /// 1 if the bootloader is active, 0 if the bootloader is not active. Used by
 /// unit tests instead of sleeping to avoid race conditions.
-extern unsigned g_bootloader_busy;
-unsigned g_bootloader_busy = 1;
+extern volatile unsigned g_bootloader_busy;
+volatile unsigned g_bootloader_busy = 1;
 #ifdef __linux__
 Atomic g_bootloader_lock;
 #endif

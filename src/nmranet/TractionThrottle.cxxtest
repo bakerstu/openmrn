@@ -100,6 +100,8 @@ TEST_F(ThrottleTest, SendAssign)
     EXPECT_EQ(0, flow.response()->resultCode);
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
+
+    wait();
 }
 
 TEST_F(ThrottleTest, SendAssignRelease)
@@ -158,6 +160,8 @@ TEST_F(ThrottleTest, SendAssignRelease)
     EXPECT_EQ(0, flow.response()->resultCode);
     actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(0, actual_ctrl_id);
+
+    wait();
 }
 
 TEST_F(ThrottleTest, SendQuery)
@@ -207,6 +211,8 @@ TEST_F(ThrottleTest, SendQuery)
     NodeID actual_ctrl_id = trainNode_->get_controller().id;
     EXPECT_EQ(TEST_NODE_ID, actual_ctrl_id);
 
+    wait();
+
     trainImpl_.set_speed(Velocity::from_mph(13.2));
     trainImpl_.set_fn(1, 1);
     trainImpl_.set_fn(2, 0);
@@ -215,6 +221,7 @@ TEST_F(ThrottleTest, SendQuery)
 
     flow.load();
     n_.wait_for_notification();
+    wait();
     EXPECT_EQ(0, flow.response()->resultCode);
 
     EXPECT_NEAR(13.2, flow.throttle_.get_speed().mph(), 0.1);
@@ -230,6 +237,10 @@ TEST_F(ThrottleTest, SendQuery)
 
 class ThrottleClientTest : public ThrottleTest {
 protected:
+    ~ThrottleClientTest() {
+        wait();
+    }
+
     TractionThrottle throttle_{node_};
 };
 
