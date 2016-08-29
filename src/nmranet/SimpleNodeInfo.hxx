@@ -128,6 +128,27 @@ private:
     SimpleInfoFlow *responseFlow_;
 };
 
+struct SnipDecodedData {
+    void clear() {
+        manufacturer_name.clear();
+        model_name.clear();
+        hardware_version.clear();
+        software_version.clear();
+        user_name.clear();
+        user_description.clear();
+    }
+    string manufacturer_name;
+    string model_name;
+    string hardware_version;
+    string software_version;
+
+    string user_name;
+    string user_description;
+};
+
+void decode_snip_response(const nmranet::Payload& payload, SnipDecodedData* output);
+
+
 } // namespace nmranet
 
 #endif // _NRMANET_SIMPLENODEINFO_HXX_
