@@ -151,7 +151,7 @@ protected:
     */
     void expect_any_packet()
     {
-        print_all_packets();
+        if (!printer_) { print_all_packets(); }
         EXPECT_CALL(canBus_, mwrite(_)).Times(AtLeast(0));
         //.WillRepeatedly(WithArg<0>(Invoke(print_packet)));
     }
