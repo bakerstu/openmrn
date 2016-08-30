@@ -311,7 +311,7 @@ private:
 ///
 /// Without the variable name the notification gets called immediately (since
 /// the temporary C++ object of type AutoNotifiable gets destructed immediately
-/// when the c++ statement fininshes), thus cuasing subtle concurrency bugs.
+/// when the c++ statement fininshes), thus causing subtle concurrency bugs.
 #define AutoNotify(l) int error_omitted_autonotify_holder_variable[-1]
 
 /** A notifiable class that calls a particular function object once when it is
