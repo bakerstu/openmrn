@@ -96,3 +96,19 @@ char* integer_to_buffer(int value, char* buffer)
     }
     return unsigned_integer_to_buffer(value, buffer);
 }
+
+string mac_to_string(uint8_t mac[6])
+{
+    string ret;
+    ret.reserve(12+6);
+    char tmp[10];
+    for (int i = 0; i < 6; ++i)
+    {
+        unsigned_integer_to_buffer_hex(mac[i], tmp);
+        if (!tmp[1]) ret.push_back('0');
+        ret += tmp;
+        ret.push_back(':');
+    }
+    ret.pop_back();
+    return ret;
+}
