@@ -187,4 +187,19 @@ extern const char* g_death_file;
 #endif
 
 
+/// Retrieve a parent pointer from a member class variable. UNSAFE.
+/// Usage:
+/// class Parent {
+///   ...
+///   class Inner {
+///     void dosth() {
+///       Parent* p = GET_PARENT_PTR(Parent, innerVar_);
+///       p->call();
+///     }
+///   } innerVar_;
+/// };
+#define GET_PARENT_PTR(ParentClass, variable)                                  \
+    reinterpret_cast<ParentClass *>(                                           \
+        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable));
+
 #endif // _UTILS_MACROS_H_
