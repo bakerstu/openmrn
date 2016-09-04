@@ -202,4 +202,7 @@ extern const char* g_death_file;
     reinterpret_cast<ParentClass *>(                                           \
         reinterpret_cast<char *>(this) - offsetof(ParentClass, variable));
 
+
+#define FAKELLP(x)  static_cast<unsigned>((x) >> 32), static_cast<unsigned>((x) & 0xffffffffu)
+
 #endif // _UTILS_MACROS_H_
