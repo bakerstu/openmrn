@@ -182,10 +182,11 @@ ifndef FREERTOSTCPPATH
 SEARCHPATH := \
   /opt/FreeRTOSPlus/TCP \
   /opt/FreeRTOSPlus/default/TCP \
+  /opt/FreeRTOS/plus-tcp \
   $(HOME)/FreeRTOSPlus/Source/FreeRTOS-Plus-TCP \
-  /d/FreeRTOSPlus/default/TCP
+  /d/FreeRTOSPlus/default/TCP \
 
-TRYPATH:=$(call findfirst,include,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,include/FreeRTOS_DNS.h,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 FREERTOSTCPPATH:=$(TRYPATH)
 endif
