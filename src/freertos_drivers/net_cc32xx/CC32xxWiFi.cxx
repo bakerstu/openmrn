@@ -34,6 +34,8 @@
 #include "CC32xxWiFi.hxx"
 #include "CC32xxSocket.hxx"
 
+#include "freertos_drivers/common/WifiDefs.hxx"
+
 #include <unistd.h>
 
 // Simplelink includes
@@ -72,6 +74,169 @@ CC32xxWiFi::CC32xxWiFi()
     SL_FD_ZERO(&rfds);
     SL_FD_ZERO(&wfds);
     SL_FD_ZERO(&efds);
+    ssid[0] = '\0';
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_add()
+ */
+int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
+                                 const char *key, unsigned priority)
+{
+    SlSecParams_t sec_params;
+    sec_params.Key = (int8_t*)key;
+    sec_params.KeyLen = (key == nullptr) ? 0 : strlen(key);
+    switch (sec_type)
+    {
+        default:
+        case SEC_OPEN:
+            sec_params.Type = SL_SEC_TYPE_OPEN;
+            break;
+        case SEC_WEP:
+            sec_params.Type = SL_SEC_TYPE_WEP;
+            break;
+        case SEC_WPA2:
+            sec_params.Type = SL_SEC_TYPE_WPA_WPA2;
+            break;
+    }
+
+    int16_t result = sl_WlanProfileAdd((const int8_t*)ssid, strlen(ssid),
+                                       nullptr, &sec_params, nullptr,
+                                       priority, 0);
+
+    return (result >= 0) ? result : -1;
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_del()
+ */
+int CC32xxWiFi::wlan_profile_del(int index)
+{
+    return sl_WlanProfileDel(index);
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_del()
+ */
+int CC32xxWiFi::wlan_profile_del(const char *ssid)
+{
+    for (int i = 0; i < 7; ++i)
+    {
+        char name[33];
+        if (wlan_profile_get(i, name, nullptr, nullptr) != 0)
+        {
+            /* invalid entry, move onto the next one */
+            continue;
+        }
+
+        if (strcmp(name, ssid) == 0)
+        {
+            /* found a match */
+            return sl_WlanProfileDel(i);
+        }
+    }
+
+    /* no match found */
+    return -1;
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_get()
+ */
+int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
+                                 SecurityType *sec_type, uint32_t *priority)
+{
+    SlSecParams_t sec_params;
+    int16_t ssid_len;
+    
+    int16_t result = sl_WlanProfileGet(index, (int8_t*)ssid, &ssid_len,
+                                       nullptr, &sec_params, nullptr, priority);
+
+    if (result < 0)
+    {
+        return -1;
+    }
+
+    ssid[ssid_len] = '\0';
+
+    if (sec_type)
+    {
+        switch (sec_params.Type)
+        {
+            default:
+            case SL_SEC_TYPE_OPEN:
+                *sec_type = SEC_OPEN;
+                break;
+            case SL_SEC_TYPE_WEP:
+                *sec_type = SEC_WEP;
+                break;
+            case SL_SEC_TYPE_WPA_WPA2:
+                *sec_type = SEC_WPA2;
+                break;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * CC32xxWiFi::wlan_profile_text_none()
+ */
+bool CC32xxWiFi::wlan_profile_test_none()
+{
+    for (int i = 0; i < 7; ++i)
+    {
+        char ssid[33];
+        if (wlan_profile_get(i, ssid, nullptr, nullptr) == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*
+ * CC32xxWiFi::wlan_network_list_get()
+ */
+int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
+{
+    Sl_WlanNetworkEntry_t sl_entries[count];
+
+    int result = sl_WlanGetNetworkList(0, count, sl_entries);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        memcpy(entries[i].ssid, sl_entries[i].ssid, sl_entries[i].ssid_len);
+        entries[i].ssid[sl_entries[i].ssid_len] = '\0';
+
+        switch (sl_entries[i].sec_type)
+        {
+            default:
+            case SL_SEC_TYPE_OPEN:
+                entries[i].sec_type = SEC_OPEN;
+                break;
+            case SL_SEC_TYPE_WEP:
+                entries[i].sec_type = SEC_WEP;
+                break;
+            case SL_SEC_TYPE_WPA_WPA2:
+                entries[i].sec_type = SEC_WPA2;
+                break;
+        }
+
+        entries[i].rssi = sl_entries[i].rssi;
+    }
+
+    return result;
+}
+
+/*
+ * CC32xxWiFi::wlan_mac()
+ */
+void CC32xxWiFi::wlan_mac(uint8_t mac[6])
+{
+    uint8_t  len = 6;
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
 
 /*
@@ -82,8 +247,12 @@ void CC32xxWiFi::start()
     VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
     //int result = sl_start(0, 0, 0);
     //HASSERT(result >= 0);
-    osi_TaskCreate(wlan_task_entry, (const signed char*)"Wlan Task", 2048,
-                   NULL, configMAX_PRIORITIES - 1, NULL);
+    os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048, wlan_task_entry, nullptr);
+}
+
+void CC32xxWiFi::stop()
+{
+    sl_Stop(0xFF);
 }
 
 /*
@@ -97,12 +266,26 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     sec_params.KeyLen = strlen(security_key);
     sec_params.Type = security_type;
 
-    int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0, &sec_params, 0);
+    int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
+                                &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (!connected && !ipAquired)
+    while (!wlan_ready())
     {
+        connecting_update_blinker();
         usleep(10000);
+    }
+}
+
+void CC32xxWiFi::connecting_update_blinker()
+{
+    if (!connected)
+    {
+        resetblink(WIFI_BLINK_NOTASSOCIATED);
+    }
+    else if (!ipAquired)
+    {
+        resetblink(WIFI_BLINK_ASSOC_NOIP);
     }
 }
 
@@ -112,12 +295,22 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
+    if (true || wlan_profile_test_none())
+    {
+        /* no profiles saved, add the default profile */
+        wlan_profile_add(WIFI_SSID, strlen(WIFI_PASS) > 0 ? SEC_WPA2 : SEC_OPEN,
+                         WIFI_PASS, 0);
+    }
     if (result != ROLE_STA)
     {
         sl_WlanSetMode(ROLE_STA);
         sl_Stop(0xFF);
         sl_Start(0, 0, 0);
     }
+
+    /* auto connection policy */
+    sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
+                     NULL,0); 
 }
 
 /*
@@ -128,8 +321,7 @@ void CC32xxWiFi::wlan_task()
     int result;
     set_default_state();
 
-    wlan_connect("GoogleGuest", "", SL_SEC_TYPE_OPEN);
-    //wlan_connect("CC31xxSSID", "testtest", SL_SEC_TYPE_WPA);
+    //wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -149,16 +341,46 @@ void CC32xxWiFi::wlan_task()
     SL_FD_SET(wakeup, &rfds);
     portEXIT_CRITICAL();
 
+    unsigned next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
+
     for ( ; /* forever */ ; )
     {
+        std::vector<std::function<void()> > callbacks_to_run;
+        {
+            OSMutexLock l(&lock_);
+            if (callbacks_.size()) {
+                callbacks_to_run.swap(callbacks_);
+            }
+        }
+        for (unsigned i = 0; i < callbacks_to_run.size(); ++i) {
+            callbacks_to_run[i]();
+        }
+
         SlFdSet_t rfds_tmp = rfds;
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
-        result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, NULL);
+        SlTimeval_t tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
         if (result < 0)
         {
             continue;
+        }
+
+        if (result == 0 || (os_get_time_monotonic() >> 20) > next_wrssi_poll)
+        {
+            next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
+            /* timeout, get the RSSI value */
+            SlGetRxStatResponse_t response;
+            if (sl_WlanRxStatGet(&response, 0) == 0)
+            {
+                if (response.AvarageMgMntRssi) {
+                    rssi = response.AvarageMgMntRssi;
+                }
+            }
         }
 
         for (int i = 0x1F; i >= 0 && result > 0; --i)
@@ -234,6 +456,15 @@ void CC32xxWiFi::select_wakeup(int16_t data)
     }
 }
 
+void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
+{
+    {
+        OSMutexLock l(&lock_);
+        callbacks_.emplace_back(std::move(callback));
+    }
+    select_wakeup();
+}
+
 /*
  * CC32xxWiFi::fd_set_read()
  */
@@ -267,9 +498,21 @@ void CC32xxWiFi::wlan_event_handler(void *context)
     switch (event->Event)
     {
         case SL_WLAN_CONNECT_EVENT:
+        {
             connected = 1;
             connectionFailed = 0;
 
+            slWlanConnectAsyncResponse_t *event_data;
+            event_data = &event->EventData.STAandP2PModeWlanConnected;
+            if (event_data->connection_type == 0)
+            {
+                /* Station mode */
+                portENTER_CRITICAL();
+                memcpy(ssid, event_data->ssid_name, event_data->ssid_len);
+                ssid[event_data->ssid_len] = '\0';
+                portEXIT_CRITICAL();
+            }
+        
             //
             // Information about the connected AP (like name, MAC etc) will be
             // available in 'slWlanConnectAsyncResponse_t'-Applications
@@ -279,6 +522,7 @@ void CC32xxWiFi::wlan_event_handler(void *context)
             // event_data = &event->EventData.STAandP2PModeWlanConnected;
             //
             break;
+        }
         case SL_WLAN_DISCONNECT_EVENT:
         {
             slWlanConnectAsyncResponse_t *event_data;
@@ -287,6 +531,7 @@ void CC32xxWiFi::wlan_event_handler(void *context)
 
             connected = 0;
             ipAquired = 0;
+            ssid[0] = '\0';
 
 
             // If the user has initiated 'Disconnect' request, 
@@ -373,6 +618,12 @@ void CC32xxWiFi::net_app_event_handler(void *context)
     switch (event->Event)
     {
         case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+        {
+            SlIpV4AcquiredAsync_t *event_data = NULL;
+            event_data = &event->EventData.ipAcquiredV4;
+            ipAddress = event_data->ip;
+        }
+        // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
             ipAquired = 1;
 

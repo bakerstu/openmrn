@@ -78,7 +78,7 @@ Console::Console(ExecutorBase *executor, int fd_in, int fd_out, int port)
 void Console::open_session(int fd_in, int fd_out)
 {
 #ifdef HAVE_BSDSOCKET
-    fcntl(fd_in, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(fd_in, F_SETFL, fcntl(fd_in, F_GETFL, 0) | O_NONBLOCK);
 #endif
     new Session(this, fd_in, fd_out);
 }

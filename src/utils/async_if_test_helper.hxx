@@ -151,7 +151,7 @@ protected:
     */
     void expect_any_packet()
     {
-        print_all_packets();
+        if (!printer_) { print_all_packets(); }
         EXPECT_CALL(canBus_, mwrite(_)).Times(AtLeast(0));
         //.WillRepeatedly(WithArg<0>(Invoke(print_packet)));
     }
@@ -310,11 +310,18 @@ static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 class AsyncIfTest : public AsyncCanTest
 {
 protected:
+    static int local_alias_cache_size;
+    static int local_node_count;
+    static int remote_alias_cache_size;
+
     AsyncIfTest()
         : pendingAliasAllocation_(false)
     {
-        ifCan_.reset(new IfCan(&g_executor, &can_hub0, 10, 10, 9));
+        ifCan_.reset(new IfCan(&g_executor, &can_hub0, local_alias_cache_size, remote_alias_cache_size, local_node_count));
         ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
+        ifCan_->set_alias_allocator(
+            new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
+
     }
 
     ~AsyncIfTest()
@@ -409,6 +416,10 @@ protected:
     /// true if we have a pending async alias allocation task.
     bool pendingAliasAllocation_;
 };
+
+int AsyncIfTest::local_alias_cache_size = 10;
+int AsyncIfTest::local_node_count = 9;
+int AsyncIfTest::remote_alias_cache_size = 10;
 
 /// Base class for test cases with one virtual node on a CANbus interface.
 class AsyncNodeTest : public AsyncIfTest

@@ -77,7 +77,7 @@ public:
     void stop()
     {
         set_terminated();
-        timer_.trigger();
+        timer_.ensure_triggered();
     }
 
     Action wait_for_tick()

@@ -34,21 +34,81 @@
 
 #include "utils/macros.h"
 
-char* integer_to_buffer(int value, char* buffer) {
-  int num_digits = 0;
-  int tmp = value;
-  do {
-    num_digits++;
-    tmp /= 10;
-  } while (tmp > 0);
-  char* ret = buffer + num_digits--;
-  *ret = 0;
-  tmp = value;
-  do {
-    HASSERT(num_digits >= 0);
-    buffer[num_digits--] = '0' + (tmp % 10);
-    tmp /= 10;
-  } while (tmp);
-  HASSERT(num_digits == -1);
-  return ret;
+char* unsigned_integer_to_buffer_hex(int value, char* buffer)
+{
+    int num_digits = 0;
+    int tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 16;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        int tmp2 = tmp % 16;
+        if (tmp2 <= 9)
+        {
+            buffer[num_digits--] = '0' + tmp2;
+        }
+        else
+        {
+            buffer[num_digits--] = 'a' + (tmp2 - 10);
+        }
+        tmp /= 16;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
+char* unsigned_integer_to_buffer(int value, char* buffer)
+{
+    int num_digits = 0;
+    int tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 10;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        buffer[num_digits--] = '0' + (tmp % 10);
+        tmp /= 10;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
+char* integer_to_buffer(int value, char* buffer)
+{
+    if (value < 0)
+    {
+        *buffer = '-';
+        ++buffer;
+        value = -value;
+    }
+    return unsigned_integer_to_buffer(value, buffer);
+}
+
+string mac_to_string(uint8_t mac[6])
+{
+    string ret;
+    ret.reserve(12+6);
+    char tmp[10];
+    for (int i = 0; i < 6; ++i)
+    {
+        unsigned_integer_to_buffer_hex(mac[i], tmp);
+        if (!tmp[1]) ret.push_back('0');
+        ret += tmp;
+        ret.push_back(':');
+    }
+    ret.pop_back();
+    return ret;
 }

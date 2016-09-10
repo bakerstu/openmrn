@@ -246,17 +246,27 @@ public:
     void restart_stack();
 
     /// Donates the current thread to the executor. Never returns.
-    void loop_executor()
+    /// @param delay_start if true, then prevents sending traffic to the bus
+    void loop_executor(bool delay_start = false)
     {
-        start_stack();
+        start_stack(delay_start);
         executor_.thread_body();
     }
 
+    /// Call this function when you used delay_start upon starting the
+    /// executor.
+    void start_after_delay();
+
     /// Instructs the executor to create a new thread and run in there.
+    /// @param name is the thread name for the executor thread
+    /// @param priority is the executor thread priority (used only for freertos)
+    /// @param stack_size is the executor stack in bytes (used only for
+    /// freertos)
+    /// @param delay_start if true, then prevents sending traffic to the bus
     void start_executor_thread(
-        const char *name, int priority, size_t stack_size)
+        const char *name, int priority, size_t stack_size, bool delay_start = false)
     {
-        start_stack();
+        start_stack(delay_start);
         executor_.start_thread(name, priority, stack_size);
     }
 
@@ -284,7 +294,7 @@ public:
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
-    void start_stack();
+    void start_stack(bool delay_start);
 
     /// Hook for clients to initialize the node-specific components.
     virtual void start_node() = 0;

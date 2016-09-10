@@ -32,7 +32,7 @@
  * @date 3 Aug 2013
  */
 
-#if defined (__linux__) || defined (__MACH__)  || defined(GCC_ARMCM3)
+#if defined (__linux__) || defined (__MACH__) || defined(__FreeRTOS__)
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -61,7 +61,7 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 0, accept_thread_start, this) {
+      accept_thread_("accept_thread", 0, 1000, accept_thread_start, this) {
 #ifdef __linux__
     // We expect write failures to occur but we want to handle them where 
     // the error occurs rather than in a SIGPIPE handler.
@@ -100,7 +100,7 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("bind",
              ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
-#if !defined(GCC_ARMCM3) // no getsockname support
+#ifndef __FreeRTOS__  // no getsockname support  
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
              getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
@@ -108,17 +108,15 @@ void SocketListener::AcceptThreadBody() {
     
   // This is the actual port that got opened. We could check it against the
   // requested port. listenport = ;
+#endif
 
-#if defined(GCC_ARMCM3)
   // FreeRTOS+TCP uses the parameter to listen to set the maximum number of connections
   // to the given socket, so allow some room
   ERRNOCHECK("listen", listen(listenfd, 5));
-#else
-  ERRNOCHECK("listen", listen(listenfd, 1));
-#endif
-    
+
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
-    
+
+#ifndef __FreeRTOS__   
   {
       struct timeval tm;
       tm.tv_sec = 0;
@@ -127,6 +125,7 @@ void SocketListener::AcceptThreadBody() {
                  setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tm, 
                             sizeof(tm)));
   }
+#endif
 
   int connfd;
 
@@ -146,11 +145,10 @@ void SocketListener::AcceptThreadBody() {
     ERRNOCHECK("setsockopt(nodelay)",
                setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY,
                           &val, sizeof(val)));
+
     LOG(INFO, "Incoming connection from %s, fd %d.", inet_ntoa(addr.sin_addr),
         connfd);
-      
-      printf("From %s, fd %d\n",inet_ntoa(addr.sin_addr),connfd);
-      
+
     callback_(connfd);
   }
   close(listenfd);

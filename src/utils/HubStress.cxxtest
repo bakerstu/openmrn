@@ -1,18 +1,4 @@
-#include "utils/test_main.hxx"
-#include "utils/socket_listener.hxx"
-#include "utils/Hub.hxx"
-#include "utils/HubDeviceSelect.hxx"
-
-struct TestData
-{
-    int from;
-    int payload;
-};
-
-typedef HubContainer<StructContainer<TestData>> TestHubData;
-typedef StateFlow<Buffer<TestHubData>, QList<1>> TestHubPort;
-typedef GenericHubFlow<TestHubData> TestHubFlow;
-typedef HubDeviceSelect<TestHubFlow> TestHubDeviceAsync;
+#include "utils/hub_test_utils.hxx"
 
 static const int PORT = 22029;
 

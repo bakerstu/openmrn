@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <netinet/in.h>
 
 #ifdef __cplusplus
 extern "C" {

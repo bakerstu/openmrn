@@ -227,6 +227,38 @@ void maybe_checksum(string *firmware)
             exit(1);
         }
     }
+    else if (algo == "cc3200")
+    {
+        struct app_header hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        // magic constant that comes from the size of the interrupt table. The
+        // actual target has this in memory_map.ld.
+        uint32_t offset = 0x270;
+        if (firmware->size() < offset + sizeof(hdr))
+        {
+            fprintf(stderr, "Failed to checksum: firmware too small.\n");
+            exit(1);
+        }
+        if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr)))
+        {
+            fprintf(stderr,
+                "Failed to checksum: location of checksum is not empty.\n");
+            exit(1);
+        }
+        hdr.app_size = firmware->size();
+        crc3_crc16_ibm(
+            firmware->data(), offset, (uint16_t *)hdr.checksum_pre);
+        hdr.checksum_pre[2] = 0x73a92bd1;
+        hdr.checksum_pre[3] = 0x5a5a55aa;
+        crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
+            (firmware->size() - offset - sizeof(hdr)) & ~3,
+            (uint16_t *)hdr.checksum_post);
+        hdr.checksum_post[2] = 0x73a92bd1;
+        hdr.checksum_post[3] = 0x5a5a55aa;
+
+        memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
+        printf("Checksummed firmware with algorithm cc3200\n");
+    }
     else if (algo == "esp8266")
     {
         struct app_header hdr;

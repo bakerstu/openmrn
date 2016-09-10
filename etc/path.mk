@@ -194,9 +194,11 @@ endif #FREERTOSTCPPATH
 ################# lpcxpresso ####################
 ifndef LPCXPRESSOPATH
 SEARCHPATH := \
+  /opt/lpcxpresso/default/lpcxpresso \
+  /opt/lpcxpresso/lpcxpresso_*/lpcxpresso \
   /usr/local/lpcxpresso_*/lpcxpresso \
 
-TRYPATH:=$(call findfirst,tools/bin,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,bin/LPCXpressoWIN.enc,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 LPCXPRESSOPATH:=$(TRYPATH)
 endif
@@ -234,6 +236,7 @@ endif #ARMGCCPATH
 ################### TI-LINUX-SDK #####################
 ifndef TILINUXSDKPATH
 SEARCHPATH := \
+  ~/ti-processor-sdk-linux-am335x-evm-03.00.00.04 \
   ~/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
@@ -260,6 +263,7 @@ endif #TICC3200SDKPATH
 ################### PRU-ICSS #####################
 ifndef PRUICSSPATH
 SEARCHPATH := \
+  $(TILINUXSDKPATH)/example-applications/pru-icss-4.0.2 \
   $(TILINUXSDKPATH)/example-applications/pru-icss-4.0.1
 
 TRYPATH:=$(call findfirst,ReadMe.txt,$(SEARCHPATH))

@@ -55,7 +55,7 @@ public:
         MAX_PRIO = (1 << 16) - 1,
     };
 
-    Selectable(Executable *parent) : wakeup_(parent)
+    Selectable(Executable *parent) : selectType_(0), wakeup_(parent)
     {
     }
 
@@ -64,6 +64,11 @@ public:
         HASSERT(fd <= MAX_FD);
         fd_ = fd;
         priority_ = std::min((unsigned)priority, (unsigned)MAX_PRIO);
+    }
+
+    /// @return true if this selectable was never used before.
+    bool is_empty() {
+        return selectType_ == 0;
     }
 
     unsigned priority()

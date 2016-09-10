@@ -256,7 +256,7 @@ public:
             }
             else
             {
-                LOG_ERROR("Error reading fd %d: (%d) %s", port_->fd_, errno,
+                LOG_ERROR("Error writing fd %d: (%d) %s", port_->fd_, errno,
                     strerror(errno));
             }
 #endif

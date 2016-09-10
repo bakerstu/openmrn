@@ -45,6 +45,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <memory>
+
 #include "utils/socket_listener.hxx"
 
 #include "utils/format_utils.hxx"
@@ -77,6 +79,18 @@ int ConnectSocket(const char *host, int port)
         return -1;
     }
 
+    struct AddrInfoDeleter
+    {
+        void operator()(struct addrinfo *s)
+        {
+            if (s)
+            {
+                freeaddrinfo(s);
+            }
+        }
+    };
+    std::unique_ptr<struct addrinfo, AddrInfoDeleter> ai_deleter(addr);
+
     int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (fd < 0)
     {
@@ -91,8 +105,6 @@ int ConnectSocket(const char *host, int port)
         close(fd);
         return -1;
     }
-
-    freeaddrinfo(addr);
 
     int val = 1;
     ERRNOCHECK("setsockopt(nodelay)",

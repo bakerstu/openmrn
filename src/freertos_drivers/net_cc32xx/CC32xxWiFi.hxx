@@ -34,7 +34,11 @@
 #ifndef _FREERTOS_DRIVERS_NET_C32XX_CC32XXWIFI_HXX_
 #define _FREERTOS_DRIVERS_NET_C32XX_CC32XXWIFI_HXX_
 
+#include <functional>
+#include <vector>
+
 #include "os/OS.hxx"
+#include "freertos_drivers/common/WifiDefs.hxx"
 
 class CC32xxSocket;
 
@@ -45,6 +49,24 @@ class CC32xxSocket;
 class CC32xxWiFi
 {
 public:
+    /** Security types.
+     */
+    enum SecurityType
+    {
+        SEC_OPEN, /**< open (no security) */
+        SEC_WEP,  /**< WEP security mode */
+        SEC_WPA2, /**< WPA2 security mode */
+    };
+
+    /** metadata for a WLAN netowrk entry.
+     */
+    struct WlanNetworkEntry
+    {
+        char ssid[33]; /**< SSID of AP */
+        SecurityType sec_type; /**< security type of the AP */
+        int rssi; /**< receive signal strength indicator of the AP */
+    };
+
     /** Constructor.
      */
     CC32xxWiFi();
@@ -58,6 +80,11 @@ public:
     /** Startup the Wi-Fi.
      */
     void start();
+
+    /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
+     * called from a critical section?
+     */
+    void stop();
 
     /** Connect to access point.
      * @param ssid access point ssid
@@ -73,6 +100,26 @@ public:
     void wlan_connect(const char *ssid, const char* security_key,
                       uint8_t security_type);
 
+
+    /** @return true if the wlan interface is ready to establish outgoing
+     * connections. */
+    bool wlan_ready()
+    {
+        return connected && ipAquired;
+    }
+
+    /** @return 0 if !wlan_ready, else a debugging status code. */
+    WlanState wlan_startup_state()
+    {
+        if (!connected) return WlanState::NOT_ASSOCIATED;
+        if (!ipAquired) return WlanState::NO_IP;
+        return WlanState::OK;
+    }
+
+    /** Updates the blinker based on connection state. Noop if wlan_ready()
+     * returns true.*/
+    void connecting_update_blinker();
+
     /** Get the singleton instance pointer.
      * @return singleton instance pointer
      */
@@ -81,6 +128,85 @@ public:
         HASSERT(instance_);
         return instance_;
     }
+
+    /** Add a saved WLAN profile.
+     * @param ssid WLAN SSID of the profile to save
+     * @param sec_type @ref SecurityType of the profile to be saved
+     * @param key password of the SSID, nullptr allowed if sec_type is
+     *            @ref SEC_OPEN
+     * @param priority connection priority when more than one of the saved
+     *        networks is available, 0 == lowest priority
+     * @return resulting index in the list of profiles, else -1 on error
+     */
+    int wlan_profile_add(const char *ssid, SecurityType sec_type,
+                         const char *key, unsigned priority);
+
+    /** Delete a saved WLAN profile.
+     * @param ssid WLAN SSID of the profile to delete
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_del(const char *ssid);
+
+    /** Delete a saved WLAN profile.
+     * @param index index within saved profile list to remove, 0xFF removes all
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_del(int index);
+
+    /** Get a saved WLAN profile by index.
+     * @param index index within saved profile list to get
+     * @param ssid 33 byte array that will return the ssid of the index
+     * @param sec_type will return the security type of the index
+     * @param priority will return the priority of the index
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_profile_get(int index, char ssid[], SecurityType *sec_type,
+                         uint32_t *priority);
+
+    /** Test if there are any saved profiles.
+     * @return true if there are no provides saved, else false
+     */
+    bool wlan_profile_test_none();
+
+    /** Get a list of available networks.
+     * @param entries returns a list of available network entries
+     * @param count size of entry list in number of elements, max 20
+     * @return number of valid network entries in the list
+     */
+    int wlan_network_list_get(WlanNetworkEntry *entries, size_t count);
+
+    /** Get the device MAC address.
+     * @param mac 6 byte array which will hold the resulting MAC address.
+     */
+    void wlan_mac(uint8_t mac[6]);
+
+    /** Get the assigned IP address.
+     * @return assigned IP address, else 0 if not assigned
+     */
+    uint32_t wlan_ip()
+    {
+        return ipAquired ? ipAddress : 0;
+    }
+
+    /** Get the SSID of the access point we are connected to.
+     * @return SSID of the access point we are connected to
+     */
+    const char *wlan_ssid()
+    {
+        ssid[32] = '\0';
+        return ssid;
+    }
+
+    /** Get the receive signal strength indicator.
+     * @return receive signal strength
+     */
+    int wlan_rssi()
+    {
+        return rssi;
+    }
+
+    /** Executes the given function on the network thread. */
+    void run_on_network_thread(std::function<void()> callback);
 
     /** This function handles WLAN events.  This is public only so that an
      * extern "C" method can call it.  DO NOT use directly.
@@ -109,9 +235,10 @@ private:
     /** Thread that will manage the WLAN connection.
      * @param context context passed into the stack.
      */
-    static void wlan_task_entry(void *context)
+    static void* wlan_task_entry(void *context)
     {
         instance()->wlan_task();
+        return nullptr;
     }
 
     /** Thread that will manage the WLAN connection inside object context.
@@ -136,13 +263,21 @@ private:
 
     static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
+    char ssid[33]; /**< SSID of AP we are connected to */
+
+    /// List of callbacks to execute on the network thread.
+    std::vector<std::function<void()> > callbacks_;
+    /// Protects callbacks_ vector.
+    OSMutex lock_;
 
     int wakeup; /**< loopback socket to wakeup select() */
+
+    int16_t rssi; /**< receive signal strength indicator */
 
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
     unsigned ipAquired        : 1; /**< IP address aquired state */
-    unsigned ipLeased         : 1; /**< IP address lease information */
+    unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 
     /** allow access to private members from CC32xxSocket */

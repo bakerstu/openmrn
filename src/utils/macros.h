@@ -56,6 +56,9 @@ using std::pair;
 #define EXPECT_DEATH(x...) 
 #endif
 
+extern int g_death_lineno;
+extern const char* g_death_file;
+
 #if defined(__FreeRTOS__)
 
 /**
@@ -66,7 +69,7 @@ using std::pair;
    An example would be to check a pointer being not-NULL before dereferencing
    it. The resulting fault is typically much harder to debug than an assert.
  */
-#define HASSERT(x) do { if (!(x)) abort(); } while(0)
+#define HASSERT(x) do { if (!(x)) { g_death_file = __FILE__; g_death_lineno = __LINE__; abort(); } } while(0)
 
 
 #define DIE(MSG) abort()
@@ -76,7 +79,7 @@ using std::pair;
 
 #include <stdio.h>
 
-#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)", __LINE__, #x); abort();} } while(0)
+#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
 
 #define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
 
@@ -86,7 +89,7 @@ using std::pair;
 #include <stdio.h>
 
 #ifdef NDEBUG
-#define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); abort();} } while(0)
+#define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
 #else
 /// Checks that the value of expression x is true, else terminates the current
 /// process.
@@ -96,7 +99,7 @@ using std::pair;
 
 /// Unconditionally terminates the current process with a message.
 /// @param MSG is the message to print as cause of death.
-#define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); abort(); } while(0)
+#define DIE(MSG) do { fprintf(stderr, "Crashed in file " __FILE__ " line %d: " MSG, __LINE__); g_death_file = __FILE__; g_death_lineno = __LINE__; abort(); } while(0)
 
 #endif
 
@@ -183,5 +186,23 @@ using std::pair;
 #define HAVE_BSDSOCKET
 #endif
 
+
+/// Retrieve a parent pointer from a member class variable. UNSAFE.
+/// Usage:
+/// class Parent {
+///   ...
+///   class Inner {
+///     void dosth() {
+///       Parent* p = GET_PARENT_PTR(Parent, innerVar_);
+///       p->call();
+///     }
+///   } innerVar_;
+/// };
+#define GET_PARENT_PTR(ParentClass, variable)                                  \
+    reinterpret_cast<ParentClass *>(                                           \
+        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable));
+
+
+#define FAKELLP(x)  static_cast<unsigned>((x) >> 32), static_cast<unsigned>((x) & 0xffffffffu)
 
 #endif // _UTILS_MACROS_H_

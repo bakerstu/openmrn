@@ -66,15 +66,17 @@ SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
 {
 }
 
-void SimpleCanStackBase::start_stack()
+void SimpleCanStackBase::start_stack(bool delay_start)
 {
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
 
-    // Bootstraps the alias allocation process.
-    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    if (!delay_start) {
+        // Bootstraps the alias allocation process.
+        ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    }
 
     // Adds memory spaces.
     if (config_enable_all_memory_space() == CONSTANT_TRUE)
@@ -138,6 +140,12 @@ void SimpleTrainCanStack::start_node()
     default_start_node();
     memoryConfigHandler_.registry()->insert(
         &trainNode_, MemoryConfigDefs::SPACE_FDI, &fdiBlock_);
+}
+
+void SimpleCanStackBase::start_after_delay()
+{
+    // Bootstraps the alias allocation process.
+    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
 }
 
 void SimpleCanStackBase::restart_stack()

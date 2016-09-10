@@ -76,4 +76,44 @@ void init_snip_user_file(int fd, const char *user_name,
     }
 }
 
+static size_t find_string_at(const nmranet::Payload& payload, size_t start_pos, string* output) {
+    if (start_pos == string::npos) {
+        output->clear();
+        return start_pos;
+    }
+    size_t epos = payload.find('\0', start_pos);
+    output->assign(payload.substr(start_pos, epos - start_pos));
+    if (epos == string::npos) {
+        return epos;
+    } else {
+        return epos + 1;
+    }
+}
+
+void decode_snip_response(
+    const nmranet::Payload &payload, SnipDecodedData *output)
+{
+    output->clear();
+    char sys_ver = payload[0];
+    size_t pos = 1;
+    pos = find_string_at(payload, pos, &output->manufacturer_name);
+    pos = find_string_at(payload, pos, &output->model_name);
+    pos = find_string_at(payload, pos, &output->hardware_version);
+    pos = find_string_at(payload, pos, &output->software_version);
+    // Future-proof with the version handling.
+    for (int i = 4; i < sys_ver; ++i)
+    {
+        string discard;
+        pos = find_string_at(payload, pos, &discard);
+    }
+    if (pos == string::npos)
+    {
+        return;
+    }
+    // char usr_ver = payload[pos];
+    pos++;
+    pos = find_string_at(payload, pos, &output->user_name);
+    pos = find_string_at(payload, pos, &output->user_description);
+}
+
 } // namespace nrmanet

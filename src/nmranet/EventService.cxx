@@ -264,9 +264,9 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
         countEvents_++;
         if (countEvents_ >= REPORT_COUNT)
         {
-            long msec = numProcessNsec_ / 1000000;
-            printf("event perf for mti %04x: %ld msec for %d events\n",
-                   mtiValue_, msec, REPORT_COUNT);
+            //long msec = numProcessNsec_ / 1000000;
+            //printf("event perf for mti %04x: %ld msec for %d events\n",
+            //       mtiValue_, msec, REPORT_COUNT);
             countEvents_ = 0;
             numProcessNsec_ = 0;
         }
