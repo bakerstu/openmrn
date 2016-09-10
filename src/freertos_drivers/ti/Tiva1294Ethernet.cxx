@@ -70,12 +70,12 @@
 #include "timers.h"
 
 #include "Tiva1294Ethernet.hxx"
-#include "freeRTOSIPConfig.h"
+#include "FreeRTOSIPConfig.h"
 #include "FreeRTOS_IP.h"
-#include "Networkinterface.h"
+#include "NetworkInterface.h"
 #include "NetworkBufferManagement.h"
-#include "FreeRTOS_IP_private.h"
-#include "FreeRTOS_sockets.h"
+#include "FreeRTOS_IP_Private.h"
+#include "FreeRTOS_Sockets.h"
 
 
 extern const long unsigned
@@ -722,5 +722,3 @@ extern "C" void ethernet_interrupt_handler(void)
 	if (TaskWoken == pdTRUE)
 		taskYIELD();
 }
-
-
