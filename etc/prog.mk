@@ -152,7 +152,12 @@ endif
 # remade.
 FORCE:
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk
+
+rclean: clean
+	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) clean
+
+
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk 
 	$(LD) $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
@@ -161,6 +166,9 @@ endif
 # Makes the executable recompiled if the linker script has changed.
 ifneq ($(strip $(wildcard target.ld)),)
 $(EXECUTABLE)$(EXTENTION): target.ld
+endif
+ifneq ($(strip $(wildcard memory_map.ld)),)
+$(EXECUTABLE)$(EXTENTION): memory_map.ld
 endif
 
 ifdef OBJDUMP
@@ -233,7 +241,7 @@ endif
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS)
+	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local

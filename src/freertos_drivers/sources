@@ -18,7 +18,8 @@ CXXSRCS += Fileio.cxx \
            EEPROMEmulation_weak.cxx \
            Pipe.cxx \
            CpuLoad.cxx \
-           Socket.cxx
+           Socket.cxx \
+           DeviceFile.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
@@ -31,6 +32,10 @@ SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
            net_cc32xx
 # Avoids exception handling from operator new.
 CXXSRCS += c++_operators.cxx
+endif
+
+ifeq ($(TARGET),bare.armv7m)
+SUBDIRS += cc32xxsdk
 endif
 
 ifeq ($(TARGET),freertos.armv4t)

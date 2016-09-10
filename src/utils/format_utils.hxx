@@ -35,10 +35,38 @@
 #ifndef _UTILS_FORMAT_UTILS_HXX_
 #define _UTILS_FORMAT_UTILS_HXX_
 
+#include <string>
+
 /** Renders an integer to string, left-justified. @param buffer must be an at
- * least 10 character long array. @param value will be rendered into the
- * buffer. @returns the pointer to the null character at the end of the
- * rendering. */
+ * @param buffer must be an at least 10 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
 char* integer_to_buffer(int value, char* buffer);
+
+/** Renders an unsigned integer to string, left-justified.
+ * @param buffer must be an at least 10 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+char* unsigned_integer_to_buffer(int value, char* buffer);
+
+/** Renders an unsigned integer to string, left-justified.
+ * @param buffer must be an at least 10 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+char* unsigned_integer_to_buffer_hex(int value, char* buffer);
+
+/// Formats a MAC address to string. Works both for Ethernet addresses as well
+/// as for OpenLCB node IDs.
+///
+/// @param mac a 6-byte array storing the MAC address. mac[0] will be printed
+/// at the beginning.
+///
+/// @return a string containing a colon-separated hexadecimal printout of the
+/// given MAC address.
+///
+string mac_to_string(uint8_t mac[6]);
 
 #endif // _UTILS_FORMAT_UTILS_HXX_

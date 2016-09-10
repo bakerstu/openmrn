@@ -20,7 +20,7 @@ protected:
         wait();
         if (loop_.get())
         {
-            loop_->stop();
+            g_executor.sync_run([this](){loop_->stop();});
             wait();
         }
     }

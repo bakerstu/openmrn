@@ -39,6 +39,7 @@
 #include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/WifiDefs.hxx"
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
@@ -365,13 +366,6 @@ extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 
 nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
 SpeedController g_speed_controller(stack.service(), cfg.seg().motor_control());
-
-extern "C" {
-extern char WIFI_SSID[];
-extern char WIFI_PASS[];
-extern char WIFI_HUB_HOSTNAME[];
-extern int WIFI_HUB_PORT;
-}
 
 class TestBlinker : public StateFlowBase
 {

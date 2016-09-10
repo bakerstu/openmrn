@@ -34,6 +34,7 @@
 #include "CC32xxSocket.hxx"
 #include "CC32xxWiFi.hxx"
 
+#include <memory>
 #include <fcntl.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -43,18 +44,31 @@
 // Simplelink includes
 #include "socket.h"
 
+#include "utils/format_utils.hxx"
+
+/// @todo (Stuart Baker) since there is only a max of 16 sockets, would it be
+/// more memory efficient to just allocate all the memory statically as an
+/// array and perform placement construction instead of incuring the overhead
+/// of a heap allocation?
+///
+/// we would also #define CC32XX_SD_UNUSED -1 and #define CC32XX_SD_RESERVED -2
+
 /// Existing (allocated) sockets.
 static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
+
+/// Dummy pointer address that can be used as a reserved indicator
+static volatile uint8_t reservedPtr;
+
+#define CC32XX_SOCKET_RESERVED ((CC32xxSocket *)(&reservedPtr))
 
 /*
  * CC32xxSocket::socket()
  */
 int CC32xxSocket::socket(int domain, int type, int protocol)
 {
-    CC32xxSocket *new_socket = new CC32xxSocket();
-    if (new_socket == nullptr)
+    int reserved = reserve_socket();
+    if (reserved < 0)
     {
-        errno = ENOMEM;
         return -1;
     }
 
@@ -63,8 +77,17 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
     mutex.unlock();
     if (fd < 0)
     {
-        delete new_socket;
+        cc32xxSockets[reserved] = nullptr;
         errno = EMFILE;
+        return -1;
+    }
+
+    std::unique_ptr<CC32xxSocket> new_socket(new CC32xxSocket());
+    if (new_socket.get() == nullptr)
+    {
+        cc32xxSockets[reserved] = nullptr;
+        fd_free(fd);
+        errno = ENOMEM;
         return -1;
     }
 
@@ -80,6 +103,7 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
             domain = SL_AF_PACKET;
             break;
         default:
+            cc32xxSockets[reserved] = nullptr;
             fd_free(fd);
             errno = EAFNOSUPPORT;
             return -1;
@@ -97,6 +121,7 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
             type = SL_SOCK_RAW;
             break;
         default:
+            cc32xxSockets[reserved] = nullptr;
             fd_free(fd);
             errno = EINVAL;
             return -1;
@@ -116,6 +141,7 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
             protocol = SL_IPPROTO_RAW;
             break;
         default:
+            cc32xxSockets[reserved] = nullptr;
             fd_free(fd);
             errno = EINVAL;
             return -1;
@@ -155,6 +181,8 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
                 errno = EOPNOTSUPP;
                 break;
         }
+
+        cc32xxSockets[reserved] = nullptr;
         fd_free(fd);
         return -1;
     }
@@ -162,23 +190,14 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
 
     File *file = file_lookup(fd);
 
-    file->dev = new_socket;
+    file->dev = new_socket.get();
     file->flags = O_RDWR;
-    file->priv = new_socket;
+    file->priv = new_socket.get();
 
     new_socket->sd = result;
     new_socket->references_ = 1;
 
-    portENTER_CRITICAL();
-    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
-    {
-        if (cc32xxSockets[i] == NULL)
-        {
-            cc32xxSockets[i] = new_socket;
-            break;
-        }
-    }
-    portEXIT_CRITICAL();
+    cc32xxSockets[reserved] = new_socket.release();
 
     return fd;
 }
@@ -189,18 +208,10 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
 int CC32xxSocket::bind(int socket, const struct sockaddr *address,
                        socklen_t address_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     SlSockAddr_t sl_address;
@@ -227,18 +238,10 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
  */
 int CC32xxSocket::listen(int socket, int backlog)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     int result = sl_Listen(s->sd, backlog);
@@ -265,18 +268,10 @@ int CC32xxSocket::listen(int socket, int backlog)
 int CC32xxSocket::accept(int socket, struct sockaddr *address,
                          socklen_t *address_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     if (!s->listenActive)
@@ -312,11 +307,9 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
         return -1;
     }
 
-    CC32xxSocket *new_socket = new CC32xxSocket();
-    if (new_socket == nullptr)
+    int reserved = reserve_socket();
+    if (reserved < 0)
     {
-        sl_Close(result);
-        errno = ENOMEM;
         return -1;
     }
 
@@ -325,32 +318,32 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     mutex.unlock();
     if (fd < 0)
     {
+        cc32xxSockets[reserved] = nullptr;
         sl_Close(result);
-        delete new_socket;
         errno = EMFILE;
+        return -1;
+    }
+
+    std::unique_ptr<CC32xxSocket> new_socket(new CC32xxSocket());
+    if (new_socket.get() == nullptr)
+    {
+        cc32xxSockets[reserved] = nullptr;
+        sl_Close(result);
+        fd_free(fd);
+        errno = ENOMEM;
         return -1;
     }
 
     File *file = file_lookup(fd);
 
-    file->dev = new_socket;
+    file->dev = new_socket.get();
     file->flags = O_RDWR;
-    file->priv = new_socket;
+    file->priv = new_socket.get();
 
     new_socket->sd = result;
     new_socket->references_ = 1;
 
-    portENTER_CRITICAL();
-    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
-    {
-        if (cc32xxSockets[i] == NULL)
-        {
-            cc32xxSockets[i] = new_socket;
-            break;
-        }
-    }
-    s->readActive = false;
-    portEXIT_CRITICAL();
+    cc32xxSockets[reserved] = new_socket.release();
 
     return fd;  
 }
@@ -361,18 +354,10 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
 int CC32xxSocket::connect(int socket, const struct sockaddr *address,
                           socklen_t address_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     SlSockAddr_t sl_address;
@@ -386,14 +371,21 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         switch (result)
         {
             default:
+            {
+                volatile int g_bad_result = 0;
+                g_bad_result = g_bad_result + result;
                 HASSERT(0);
+                break;
+            }
+            case SL_ECONNREFUSED:
+                errno = ECONNREFUSED;
                 break;
             case SL_EALREADY:
                 errno = EALREADY;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
-                /* fall through */
+            /* fall through */
             case SL_EAGAIN:
                 errno = EAGAIN;
                 break;
@@ -411,18 +403,10 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     /* flags are not supported on the CC32xx */
     HASSERT(flags == 0);
 
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     int result = sl_Recv(s->sd, buffer, length, flags);
@@ -463,18 +447,10 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     /* flags are not supported on the CC32xx */
     HASSERT(flags == 0);
 
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     int result = sl_Send(s->sd, buffer, length, flags);
@@ -483,7 +459,17 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     {
         switch (result)
         {
+            case SL_SOC_ERROR:
+                /// @TODO (stbaker): handle errors via the callback.
+                errno = ECONNRESET;
+                break;
+            case SL_EAGAIN:
+                errno = EAGAIN;
+                break;
             default:
+                volatile int err = 0;
+                err = err | result;
+                /// @TODO (stbaker): handle errors via the callback.
                 HASSERT(0);
                 break;
         }
@@ -497,7 +483,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     {
         s->writeActive = true;
     }
-    return result;  
+    return result;
 }
 
 /*
@@ -506,18 +492,10 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
 int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                              const void *option_value, socklen_t option_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     int result;
@@ -574,18 +552,10 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
 int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                              void *option_value, socklen_t *option_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    CC32xxSocket *s = get_instance_from_fd(socket);
+    if (s == nullptr)
     {
-        errno = EBADF;
-        return -1;
-    }
-
-    CC32xxSocket *s = static_cast<CC32xxSocket *>(f->priv);
-    if (!S_ISSOCK(s->mode_))
-    {
-        errno = ENOTSOCK;
-        return -1;
+        return - 1;
     }
 
     int result;
@@ -729,12 +699,40 @@ CC32xxSocket *CC32xxSocket::get_instance_from_sd(int sd)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (sd == cc32xxSockets[i]->sd)
+        if (cc32xxSockets[i] != nullptr &&
+            cc32xxSockets[i] != CC32XX_SOCKET_RESERVED)
         {
-            return cc32xxSockets[i];
+            if (sd == cc32xxSockets[i]->sd)
+            {
+                return cc32xxSockets[i];
+            }
         }
     }
     return nullptr;
+}
+
+/*
+ * CC32xxSocket::get_instance_from_fd(int fd)
+ */
+CC32xxSocket *CC32xxSocket::get_instance_from_fd(int fd)
+{
+    File* f = file_lookup(fd);
+    if (!f) 
+    {
+        errno = EBADF;
+        return nullptr;
+    }
+
+    struct stat stat;
+    ::fstat(fd, &stat);
+
+    if (!S_ISSOCK(stat.st_mode))
+    {
+        errno = ENOTSOCK;
+        return nullptr;
+    }
+
+    return static_cast<CC32xxSocket *>(f->priv);
 }
 
 /*
@@ -744,12 +742,43 @@ void CC32xxSocket::remove_instance_from_sd(int sd)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (sd == cc32xxSockets[i]->sd)
+        if (cc32xxSockets[i] != nullptr &&
+            cc32xxSockets[i] != CC32XX_SOCKET_RESERVED)
         {
-            cc32xxSockets[i] = NULL;
+            if (sd == cc32xxSockets[i]->sd)
+            {
+                cc32xxSockets[i] = nullptr;
+                break;
+            }
+        }
+    }
+}
+
+/*
+ * CC32xxSocket::reserve_socket()
+ */
+int CC32xxSocket::reserve_socket()
+{
+    int i = 0;
+    portENTER_CRITICAL();
+    for (int i; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (cc32xxSockets[i] == nullptr)
+        {
+            /* mark the socket reserved */
+            cc32xxSockets[i] = CC32XX_SOCKET_RESERVED;
             break;
         }
     }
+    portEXIT_CRITICAL();
+    if (i == SL_MAX_SOCKETS)
+    {
+        /* out of free sockets */
+        errno = EMFILE;
+        return -1;
+    }
+
+    return i;
 }
 
 /*
@@ -925,39 +954,60 @@ int getsockopt(int socket, int level, int option_name,
                                     option_value, option_len);
 }
 
+/*
+ * ::gai_strerror()
+ */
 const char *gai_strerror (int __ecode)
 {
-    return "gai_strerror unkown";
+    switch (__ecode)
+    {
+        default:
+            return "gai_strerror unkown";
+        case EAI_AGAIN:
+            return "temporary failure";
+        case EAI_FAIL:
+            return "non-recoverable failure";
+        case EAI_MEMORY:
+            return "memory allocation failure";
+    }
 }
 
+/*
+ * ::freeaddrinfo()
+ */
 void freeaddrinfo(struct addrinfo *ai)
 {
-    free(ai->ai_addr);
-    free(ai);
+    delete ai->ai_addr;
+    delete ai;
 }
 
+/*
+ * ::getaddrinfo()
+ */
 int getaddrinfo(const char *nodename, const char *servname,
                 const struct addrinfo *hints,
                 struct addrinfo **res)
 {
-    uint32_t ip_addr;
+    uint32_t ip_addr[4];
+    uint32_t port;
     uint8_t domain;
+    int8_t text[120];
+    uint16_t text_len = 120;
 
-    *res = static_cast<struct addrinfo *>(malloc(sizeof(struct addrinfo)));
-    if (*res == NULL)
+    std::unique_ptr<struct addrinfo> ai(new struct addrinfo);
+    if (ai.get() == nullptr)
     {
         return EAI_MEMORY;
     }
-    memset(*res, 0, sizeof(struct addrinfo));
+    memset(ai.get(), 0, sizeof(struct addrinfo));
 
-    (*res)->ai_addr =
-        static_cast<struct sockaddr*>(malloc(sizeof(struct sockaddr)));
-    if ((*res)->ai_addr == NULL)
+    std::unique_ptr<struct sockaddr> sa(new struct sockaddr);
+    if (sa.get() == nullptr)
     {
         free(*res);
         return EAI_MEMORY;
     }
-    memset((*res)->ai_addr, 0, sizeof(struct addrinfo));
+    memset(sa.get(), 0, sizeof(struct addrinfo));
 
     switch (hints->ai_family)
     {
@@ -972,16 +1022,25 @@ int getaddrinfo(const char *nodename, const char *servname,
             break;
         default:
             errno = EAFNOSUPPORT;
-            free(*res);
             return -1;
     }
 
-    int result = sl_NetAppDnsGetHostByName((int8_t*)nodename, strlen(nodename),
-                                           &ip_addr, domain);
+    int result;
+
+    if (nodename)
+    {
+        result = sl_NetAppDnsGetHostByName((int8_t*)nodename, strlen(nodename),
+                                           ip_addr, domain);
+    }
+    else
+    {
+        result = sl_NetAppDnsGetHostByService((int8_t*)servname,
+                                              strlen(servname), domain, ip_addr,
+                                              &port, &text_len, text);
+    }
 
     if (result != 0)
     {
-        free(*res);
         switch (result)
         {
             default:
@@ -1000,27 +1059,80 @@ int getaddrinfo(const char *nodename, const char *servname,
     {
         case AF_INET:
         {
-            struct sockaddr_in *addr_in = (struct sockaddr_in*)(*res)->ai_addr;
-            (*res)->ai_flags = 0;
-            (*res)->ai_family = hints->ai_family;
-            (*res)->ai_socktype = hints->ai_socktype;
-            (*res)->ai_protocol = hints->ai_protocol;
-            (*res)->ai_addrlen = sizeof(struct sockaddr_in);
-            addr_in->sin_family = hints->ai_family;
-            addr_in->sin_port = htons((uint16_t)strtol(servname, NULL, 0));
-            addr_in->sin_addr.s_addr = htonl(ip_addr);
+            struct sockaddr_in *sa_in = (struct sockaddr_in*)sa.get();
+            ai->ai_flags = 0;
+            ai->ai_family = hints->ai_family;
+            ai->ai_socktype = hints->ai_socktype;
+            ai->ai_protocol = hints->ai_protocol;
+            ai->ai_addrlen = sizeof(struct sockaddr_in);
+            sa_in->sin_family = hints->ai_family;
+            long port_name = strtol(servname, nullptr, 0);
+            /* the newlib implementation of strtol does not properly implement
+             * errno == EINVAL. We would normally want the if statement to be:
+             * if (port_name == 0 && errno == EINVAL)
+             */
+            if (port_name == 0 && (servname[0] < '0' || servname[0] > '9') &&
+                servname[0] != '+' && servname[0] != '-')
+            {
+                sa_in->sin_port = htons((uint16_t)port);
+            }
+            else
+            {
+                sa_in->sin_port = htons((uint16_t)port_name);
+            }
+            sa_in->sin_addr.s_addr = htonl(ip_addr[0]);
             break;
         }
         case AF_INET6:
         case AF_PACKET:
         default:
             errno = EAFNOSUPPORT;
-            free((*res)->ai_addr);
-            free(*res);
             return -1;
     }
 
+    *res = ai.release();
+    (*res)->ai_addr = sa.release();
     return 0;
+}
+
+/*
+ * ::inet_ntop()
+ */
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
+{
+    char *org = dst;
+
+    switch (af)
+    {
+        default:
+            errno = EAFNOSUPPORT;
+            return nullptr;
+        case AF_INET6:
+            HASSERT(0);
+        case AF_INET:
+        {
+            socklen_t count = 0;
+            uint8_t *ip = (uint8_t*)src;
+            for (int i = 0; i < 4; ++i)
+            {
+                char string[5];
+                char *end = integer_to_buffer(ip[i], string);
+                count += (end - string) + 1;
+                if (count > size)
+                {
+                    errno = ENOSPC;
+                    return nullptr;
+                }
+                strcpy(dst, string);
+                dst += (end - string);
+                *dst++ = '.';
+            }
+            *--dst = '\0';
+            break;
+        }
+    }
+
+    return org;
 }
 
 } /* extern "C" */

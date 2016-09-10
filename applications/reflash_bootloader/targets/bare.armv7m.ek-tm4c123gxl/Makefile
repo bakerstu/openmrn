@@ -23,11 +23,18 @@ endif
 # might have changed.
 NodeId.o: FORCE
 
-payload.cxx: FORCE
+payload.cxxout: FORCE
 	$(MAKE) -C $(realpath bootloader_bin) bootloader.bin
 	$(OPENMRNPATH)/bin/build_bootloader_img.py -i bootloader_bin/bootloader.bin -o $@
 
 FORCE:
+
+.cxxout.o:
+	$(CXX) $(CXXFLAGS) -x c++ -MD -MF $*.d $(abspath $<) -o $@
+
+OBJS += payload.o
+
+$(EXECUTABLE)$(EXTENTION): payload.o
 
 rflash: $(EXECUTABLE).bin
 	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -t -n 0x0501010118$$(printf %02x $(ADDRESS)) -f $<

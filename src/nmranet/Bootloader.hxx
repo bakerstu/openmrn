@@ -151,8 +151,8 @@ extern "C" {
 
 /// 1 if the bootloader is active, 0 if the bootloader is not active. Used by
 /// unit tests instead of sleeping to avoid race conditions.
-extern unsigned g_bootloader_busy;
-unsigned g_bootloader_busy = 1;
+extern volatile unsigned g_bootloader_busy;
+volatile unsigned g_bootloader_busy = 1;
 #ifdef __linux__
 Atomic g_bootloader_lock;
 #endif
@@ -201,10 +201,12 @@ bool check_application_checksum()
     }
     size_t flash_size = (size_t)flash_max - (size_t)flash_min;
     if (app_header.app_size > flash_size) return false;
-    uint32_t post_size = app_header.app_size -
+    uint32_t post_offset = sizeof(struct app_header) +
         (reinterpret_cast<const uint8_t *>(app_header_ptr) -
-                             static_cast<const uint8_t *>(flash_min)) -
-        sizeof(struct app_header);
+         static_cast<const uint8_t *>(flash_min));
+    uint32_t post_size = (post_offset < app_header.app_size)
+        ? app_header.app_size - post_offset
+        : 0;
     checksum_data(app_header_ptr + 1, post_size, checksum);
     if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
     {
@@ -453,14 +455,20 @@ void handle_memory_config_frame()
                 set_error_code(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
                 return;
             }
+
+            state_.write_buffer_offset =
+                load_uint32_be(state_.input_frame.data + 2);
+            if (!normalize_write_buffer_offset()) {
+                reject_datagram();
+                set_error_code(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS);
+                return;
+            }
+
             state_.incoming_datagram_pending = 1;
             state_.datagram_write_pending = 1;
             state_.write_src_alias =
                 CanDefs::get_src(GET_CAN_FRAME_ID_EFF(state_.input_frame));
 
-            state_.write_buffer_offset =
-                load_uint32_be(state_.input_frame.data + 2);
-            normalize_write_buffer_offset();
             g_write_buffer[0] = state_.input_frame.data[7];
             state_.write_buffer_index = 1;
 

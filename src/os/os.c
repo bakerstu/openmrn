@@ -84,6 +84,10 @@ extern const char *STDOUT_DEVICE;
 /** default stderr */
 extern const char *STDERR_DEVICE;
 
+/** Captures point of death (line). */
+int g_death_lineno;
+/** Captures point of death (file). */
+const char* g_death_file;
 
 #if defined (__FreeRTOS__)
 /** Task list entriy */
@@ -580,8 +584,15 @@ void abort(void)
     }
 }
 
+/* magic that allows for an optional second heap region */
+char __attribute__((weak)) __heap2_start_alias;
+extern char __heap2_start __attribute__((weak, alias ("__heap2_start_alias")));
+extern char __heap2_end __attribute__((weak, alias ("__heap2_start_alias")));
+
 extern char *heap_end;
 char *heap_end = 0;
+extern char *heap2_end;
+char *heap2_end = 0;
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
@@ -593,8 +604,23 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
         heap_end = &__cs3_heap_start;
     }
     prev_heap_end = heap_end;
-    if (heap_end + incr > &__cs3_heap_end)
+    if ((heap_end + incr) > &__cs3_heap_end)
     {
+        if (&__heap2_start != &__heap2_end)
+        {
+            /* there is a second heap */
+            char *prev_heap2_end;
+            if (heap2_end == 0)
+            {
+                heap2_end = &__heap2_start;
+            }
+            prev_heap2_end = heap2_end;
+            if ((heap2_end + incr) <= &__heap2_end)
+            {
+                heap2_end += incr;
+                return (caddr_t) prev_heap2_end;
+            }
+        }
         /* Heap and stack collistion */
         diewith(BLINK_DIE_OUTOFMEM);
         return 0;

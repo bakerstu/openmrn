@@ -636,6 +636,7 @@ protected:
         }
         // Now: we are at an unknown error or EOF.
         h->rbuf_ = nullptr;
+        h->hasError_ = 1;
         return call_immediately(h->nextState_);
     }
 
@@ -715,6 +716,7 @@ protected:
             service()->executor()->select(h);
             return wait();
         }
+        h->hasError_ = 1;
 #ifdef STATEFLOW_DEBUG_WRITE_ERRORS
         static volatile int scount;
         static volatile int serrno;
@@ -748,6 +750,7 @@ protected:
     {
         StateFlowSelectHelper(StateFlowBase *parent)
             : Selectable(parent)
+            , hasError_(0)
         {
         }
 
@@ -767,8 +770,10 @@ protected:
         /** 1 if there is also a timer involved; in this case *this must be a
          * StateFlowTimedSelectHelper. */
         unsigned readWithTimeout_ : 1;
+        /** 1 if there was an error reading of writing. */
+        unsigned hasError_ : 1;
         /** Number of bytes still outstanding to read. */
-        unsigned remaining_ : 29;
+        unsigned remaining_ : 28;
     };
 
     /** Use this class to read from an fd with select and timeout. This clas

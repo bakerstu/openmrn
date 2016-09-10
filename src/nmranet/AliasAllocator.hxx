@@ -47,7 +47,7 @@ namespace nmranet
 extern size_t g_alias_test_conflicts;
 
 /** Information we know locally about an NMRAnet CAN alias. */
-struct AliasInfo : public QMember
+struct AliasInfo
 {
     AliasInfo()
         : alias(0)

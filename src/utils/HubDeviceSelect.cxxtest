@@ -1,0 +1,87 @@
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
+#include "utils/hub_test_utils.hxx"
+#include "utils/logging.h"
+
+class SimpleHubTest : public ::testing::Test
+{
+protected:
+    ~SimpleHubTest() {
+        wait_for_main_executor();
+    }
+
+    void send_data(int from, int payload) {
+        auto* b = hub_.alloc();
+        b->data()->from = from;
+        b->data()->payload = payload;
+        b->data()->skipMember_ = nullptr;
+        hub_.send(b);
+    }
+
+    void create_link() {
+        int fd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+        port_.reset(new TestHubDeviceAsync(&hub_, fd[0]));
+        port2_.reset(new TestHubDeviceAsync(&hub2_, fd[1]));
+    }
+
+    class WaitForData : public TestHubPortInterface {
+    public:
+        WaitForData(TestHubFlow* hub, int from, int payload)
+            : hub_(hub), from_(from), payload_(payload) {
+            hub_->register_port(this);
+        }
+
+        ~WaitForData() {
+            HASSERT(found_);
+        }
+
+        void wait() {
+            n_.wait_for_notification();
+        }
+
+    private:
+        void send(Buffer<TestHubData>* b, unsigned prio) override {
+            if (b->data()->from == from_ && b->data()->payload == payload_) {
+                hub_->unregister_port(this);
+                found_ = true;
+                n_.notify();
+            }
+            b->unref();
+        }
+
+        TestHubFlow* hub_;
+        int from_;
+        int payload_;
+        bool found_{false};
+        SyncNotifiable n_;
+    };
+
+    TestHubFlow hub_{&g_service};
+    TestHubFlow hub2_{&g_service};
+    std::unique_ptr<TestHubDeviceAsync> port_;
+    std::unique_ptr<TestHubDeviceAsync> port2_;
+};
+
+
+TEST_F(SimpleHubTest, CreateDestroy) {}
+
+// Sends some traffic with noone listening.
+TEST_F(SimpleHubTest, SendDead) {
+    WaitForData wf(&hub_, 5, 3);
+    send_data(5, 3);
+    send_data(1, 1);
+    wf.wait();
+}
+
+TEST_F(SimpleHubTest, SendSocket) {
+    WaitForData wf(&hub2_, 1, 1);
+    create_link();
+    send_data(5, 3);
+    send_data(1, 1);
+    wf.wait();
+}

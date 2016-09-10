@@ -40,6 +40,7 @@
 #include "nmranet_config.h"
 
 #include "nmranet/If.hxx"
+#include "nmranet/Node.hxx"
 
 namespace nmranet
 {

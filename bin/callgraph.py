@@ -231,11 +231,15 @@ def ReadMapFile(f):
   cpptext_re = re.compile('^ [.]text[.](.*)$')
   obj_re = re.compile('^ ([.]text)?[ \t]+0x([0-9a-f]*)[ \t]+0x([0-9a-f]*)[ \t]+(?:([a-z/A-Z0-9_\.]*[.]a)[\(])?([a-zA-Z_-]*[.]o)[\)]?$')
 
+  section_start_re = re.compile('Linker script and memory map')
+  in_section = False
   section_re = re.compile('^ (?:[.](?P<section>[-a-zA-Z_]+)(?:[.](?P<subsection>[^ \t\n]+))?)?(?:[ \t]+0x(?P<address>[0-9a-fA-F]+)[ \t]+(?:0x(?P<length>[0-9a-fA-F]+) (?:(?P<library>.*[.]a)[\(])?(?P<object>.*[.]o)[\)]?|(?P<function>[^0].*)))?$');
   count = 0;
   entries = []
   end_of_reason_re = re.compile('Allocating common symbols')
   in_reason = True
+  
+
   pulled_re = re.compile('^(?P<library>.*[.]a)[\(](?P<object>.*[.]o)[\)]$');
   caller_re = re.compile('^ {30}(?:(?P<library>.*[.]a)[\(])?(?P<object>.*[.]o)[\)]? [\(](?P<function>.*)[\)]$');
 
@@ -291,7 +295,14 @@ def ReadMapFile(f):
           object_expn[escape(dst_obj)] = symbol
           print >>sys.stderr, ("expn[%s] = %s"% ( escape(dst_obj), symbol.name))
         object_parent[escape(dst_obj)] = escape(src_obj)
-    m = section_re.match(line)
+    m = section_start_re.match(line)
+    if m:
+      in_section = True
+      section = None
+    if in_section:
+      m = section_re.match(line)
+    else:
+      m = None
     if m:
       count = count + 1
       if False and FLAGS.verbose and not printed:
@@ -301,8 +312,8 @@ def ReadMapFile(f):
       if m.group('section'):
         section = m.group('section')
         subsection = None
-      if section[:6] == 'debug_':
-        continue
+        if section[:6] == 'debug_':
+          continue
       if m.group('subsection'):
         subsection = m.group('subsection')
       if m.group('object'):
@@ -311,7 +322,7 @@ def ReadMapFile(f):
       if m.group('length') is not None and m.group('function') is not None:
         print >>sys.stderr, line
         print >>sys.stderr, "length %s and function %s " % (m.group('length'), m.group('function')), m.groups() 
-      if m.group('function') is not None:
+      if section is not None and m.group('function') is not None:
         entry = MapEntry()
         entry.section = section
         entry.subsection = subsection
@@ -323,7 +334,7 @@ def ReadMapFile(f):
         entry.library = library
         entry.function = m.group('function')
         entries.append(entry)
-      if m.group('address') is not None and m.group('length') is not None:
+      if section is not None and m.group('address') is not None and m.group('length') is not None:
         entry = MapEntry()
         entry.section = section
         entry.subsection = subsection

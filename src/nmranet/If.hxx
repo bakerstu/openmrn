@@ -124,6 +124,13 @@ extern void buffer_to_error(const Payload& payload, uint16_t* error_code, uint16
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 
+inline unsigned node_high(NodeID id) {
+    return id >> 32;
+}
+inline unsigned node_low(NodeID id) {
+    return id & 0xffffffffU;
+}
+
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
  * CAN or TCP-specific).

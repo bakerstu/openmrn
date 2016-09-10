@@ -101,6 +101,11 @@ extern os_mutex_t g_log_mutex;
         {                                                                      \
             DIE("log fatal");                                                  \
         }                                                                      \
+        else if (level == FATAL)                                               \
+        {                                                                      \
+            fprintf(stderr, message);                                          \
+            abort();                                                           \
+        }                                                                      \
         else if (LOGLEVEL >= level)                                            \
         {                                                                      \
             LOCK_LOG;                                                          \
