@@ -63,8 +63,8 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       callback_(callback),
       accept_thread_("accept_thread", 0, 1000, accept_thread_start, this) {
 #ifdef __linux__
-    // We expect write failures to occur but we want to handle them where 
-    // the error occurs rather than in a SIGPIPE handler.
+    // We expect write failures to occur but we want to handle them where the
+    // error occurs rather than in a SIGPIPE handler.
     signal(SIGPIPE, SIG_IGN);
 #endif
 }
@@ -100,30 +100,28 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("bind",
              ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
-#ifndef __FreeRTOS__  // no getsockname support  
+#ifndef __FreeRTOS__  // no getsockname support
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
              getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
-#endif
-    
+
   // This is the actual port that got opened. We could check it against the
   // requested port. listenport = ;
 #endif
 
-  // FreeRTOS+TCP uses the parameter to listen to set the maximum number of connections
-  // to the given socket, so allow some room
+  // FreeRTOS+TCP uses the parameter to listen to set the maximum number of
+  // connections to the given socket, so allow some room
   ERRNOCHECK("listen", listen(listenfd, 5));
 
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
 
-#ifndef __FreeRTOS__   
+#ifndef __FreeRTOS__
   {
       struct timeval tm;
       tm.tv_sec = 0;
       tm.tv_usec = MSEC_TO_USEC(100);
       ERRNOCHECK("setsockopt_timeout",
-                 setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tm, 
-                            sizeof(tm)));
+          setsockopt(listenfd, SOL_SOCKET, SO_RCVTIMEO, &tm, sizeof(tm)));
   }
 #endif
 
