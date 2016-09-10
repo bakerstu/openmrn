@@ -6,7 +6,8 @@ INCLUDES += -I$(FREERTOSTCPPATH)/include \
             -I$(FREERTOSTCPPATH)/ \
             -I$(FREERTOSTCPPATH)/portable/BufferManagement \
             -I$(FREERTOSTCPPATH)/portable/Compiler/GCC 
- 
+
+DEPS += FREERTOSTCPPATH
          
 CSRCS += FreeRTOS_ARP.c \
 	 FreeRTOS_DNS.c \
