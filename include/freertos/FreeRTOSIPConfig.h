@@ -19,7 +19,7 @@
 #define ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM			1
 #define ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES		0
 
-//#define ipconfigNETWORK_MTU     						1526
+#define ipconfigNETWORK_MTU     						1526
 #define ipconfigPACKET_FILLER_SIZE						0
 #define ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS			15
 #define ipconfigUSE_LINKED_RX_MESSAGES					0
