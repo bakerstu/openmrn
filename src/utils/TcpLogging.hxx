@@ -49,16 +49,23 @@ struct LogEntry
 
 using FdLoggingServerBase = StateFlow<Buffer<LogEntry>, QList<1>>;
 
+/// Base class that can receive log buffers from the FdLogging implementation
+/// and prints them to a file descriptor.
 class FdLoggingServer : public Singleton<FdLoggingServer>,
                         public FdLoggingServerBase
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service defines which executor to run this state flow.
+    ///
     FdLoggingServer(Service *service)
         : FdLoggingServerBase(service)
     {
     }
 
 private:
+    /// Arrival of new log message. @return new state.
     Action entry()
     {
         if (fd_ < 0)
@@ -69,6 +76,7 @@ private:
             input()->data.size(), STATE(write_done));
     }
 
+    /// Called when the FD write is completed. @return new state
     Action write_done()
     {
         if (selectHelper_.hasError_)
@@ -79,18 +87,29 @@ private:
         return release_and_exit();
     }
 
+    /// Helper function to get typed current message. @return log entry being
+    /// processed.
     LogEntry *input()
     {
         return message()->data();
     }
 
 protected:
+    /// File descriptor to write log entries to.
     int fd_{-1};
 
 private:
+    /// Helper object for asynchronpus writing.
     StateFlowSelectHelper selectHelper_{this};
 };
 
+/// Implementation of the weak symbol to output log lines. This is a definition
+/// fo a C++ symbol, and should be included exactly once into one .cxx file;
+/// typicall into main.cxx.
+///
+/// @param buf pointer to bytes to log. Does not contain a \n.
+/// @param size how may bytes to log.
+///
 void log_output(char *buf, int size)
 {
     if (size <= 0)
@@ -104,9 +123,17 @@ void log_output(char *buf, int size)
     Singleton<FdLoggingServer>::instance()->send(b);
 }
 
+/// Implementation of the logging proxy that listens on a TCP port, waits for
+/// the first incoming connection, and outputs all log lines after that
+/// connection to the given TCP socket.
 class TcpLoggingServer : public FdLoggingServer
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service Defines which thread to run this flow.
+    /// @param port TCP port number to listen on for incoming log client
+    /// connections.
     TcpLoggingServer(Service *service, int port)
         : FdLoggingServer(service)
         , listener_(port, std::bind(&TcpLoggingServer::on_new_connection, this,
@@ -115,6 +142,8 @@ public:
     }
 
 private:
+    /// Callback for the TCP server. @param fd is the file descriptor of the
+    /// newly opened connection.
     void on_new_connection(int fd)
     {
         if (fd_ >= 0)
@@ -124,12 +153,19 @@ private:
         fd_ = fd;
     }
 
+    /// Helper class for listening on a TCP socket.
     SocketListener listener_;
 };
 
+/// Implementation of the logging proxy that outputs all logs to a serial port.
 class SerialLoggingServer : public FdLoggingServer
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service Defines which executor to run in.
+    /// @param name Name of a device to be opened to write the log output
+    /// to. Usually something like "/dev/ser0".
     SerialLoggingServer(Service *service, const char *name)
         : FdLoggingServer(service)
     {

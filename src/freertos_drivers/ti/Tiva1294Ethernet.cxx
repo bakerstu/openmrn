@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Tiva1294Ethernegt.cxx
+ * \file Tiva1294Ethernet.cxx
  * This file provides the network layer interface to the FreeRTOSPlus TCP stack.
  *
  *
