@@ -72,6 +72,8 @@ struct DCCDecode
 template <class HW> class TivaNRZ : public Node
 {
 public:
+    /// Constructor. @param name is the device filesystem name (e.g.
+    /// "/dev/nrz0")
     TivaNRZ(const char *name);
 
     ~TivaNRZ()
@@ -108,7 +110,6 @@ private:
 
     /** Request an ioctl transaction
      * @param file file reference for this device
-     * @param node node reference for this device
      * @param key ioctl key
      * @param data key data
      */
@@ -127,12 +128,17 @@ private:
         }
     };
 
+    /// Data to send measurements back to the application level.
     FixedQueue<uint32_t, HW::Q_SIZE> inputData_;
+    /// Free running timer's last value.
     uint32_t lastTimerValue_;
+    /// How many times the free running timer overflowed.
     uint32_t reloadCount_;
+    /// unused. @todo delete
     unsigned lastLevel_;
+    /// Flags when we lost data due to buffer overrun.
     bool overflowed_ = false;
-
+    /// Notifiable for asynchronous support.
     Notifiable *readableNotifiable_ = nullptr;
 
     DISALLOW_COPY_AND_ASSIGN(TivaNRZ);

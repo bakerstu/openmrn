@@ -201,7 +201,7 @@ public:
      */
     void restart()
     {
-        /// @TODO(balazs.racz) assert here that we are on the given executor.
+        /// @todo(balazs.racz) assert here that we are on the given executor.
         if (isExpired_)
             return;
         when_ = OSTime::get_monotonic() + period_;
@@ -224,7 +224,7 @@ public:
      */
     void trigger()
     {
-        /// @TODO(balazs.racz) assert here that we are on the given executor.
+        /// @todo(balazs.racz) assert here that we are on the given executor.
         if (isExpired_)
             return;
         HASSERT(isActive_);
@@ -310,6 +310,7 @@ private:
  * */
 class SyncTimeout : public ::Timer {
 public:
+    /// @param timers should come from the executor on which we're waiting.
     SyncTimeout(ActiveTimers *timers) : Timer(timers)
     {
     }
@@ -329,6 +330,7 @@ private:
         return NONE;
     }
 
+    /// Blocks the calling thread until triggered or timeout expired.
     SyncNotifiable n_;
 };
 

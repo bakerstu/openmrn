@@ -42,8 +42,9 @@
 template <typename T> class RingBuffer
 {
 public:
-    /** Create a ring buffer instance.
+    /** Factory method to create a ring buffer instance.
      * @param size size in items for the ring buffer
+     * @return the newly cleated RingBuffer object.
      */
     static inline RingBuffer *create(size_t size)
     {

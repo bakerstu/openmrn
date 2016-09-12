@@ -52,19 +52,25 @@
 class TivaFlash : public Node
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name name of th device/file (e.g. "/etc/automata_block"
+    /// @param ptr flash base
+    /// @param length how many bytes of the file to reserve
+    /// @param page_size how often we should erase
     TivaFlash(
         const char *name, const void *ptr, size_t length, uint32_t page_size)
         : Node(name)
-        , base_(static_cast<const uint8_t*>(ptr))
+        , base_(static_cast<const uint8_t *>(ptr))
         , len_(length)
         , pageSize_(page_size)
     {
         HASSERT(!(read_address() & (page_size - 1)));
     }
 
-    /** Read method. Returns negative errno on failure. */
+    /** Read method. @return negative errno on failure. */
     ssize_t read(File *, void *, size_t) OVERRIDE;
-    /** Write method. Returns negative errno on failure. */
+    /** Write method. @return negative errno on failure. */
     ssize_t write(File *, const void *, size_t) OVERRIDE;
 
     void enable() OVERRIDE {}
@@ -92,16 +98,22 @@ private:
         return 0x80;
     }
 
+    /// @return pointer that can be used for reading data from this file
+    /// directly.
     const uint8_t* read_pointer() {
         return base_;
     }
 
+    /// @return address (as uint32) of the base pointer.
     uint32_t read_address() {
         return reinterpret_cast<uint32_t>(base_);
     }
 
+    /// Base pointer.
     const uint8_t *base_;
+    /// Number of bytes in the file.
     size_t len_;
+    /// Page size (how often to erase).
     size_t pageSize_;
 };
 

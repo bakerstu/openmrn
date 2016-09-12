@@ -52,19 +52,21 @@ public:
     {
     }
 
-    /** Adds the next character from the source stream. Returns true if
-     * the internal buffer contains a complete frame. */
+    /** Adds the next character from the source stream. @return true if the
+     * internal buffer contains a complete frame. @param c next character. */
     bool consume_byte(char c);
 
     /** Parses the current contents of the frame buffer to a can_frame
      * struct. Should be called if and inly if the previous consume_char call
      * returned true.
      *
-     * @returns true on success, false if there was a parse error. In this case
+     * @param output_frame is an output argument, non-NULL, into this we will
+     * be writing the binary frame.
+     * @return true on success, false if there was a parse error. In this case
      * the frame is set to an error frame. */
     bool parse_frame_to_output(struct can_frame *output_frame);
 
-    /** Returns the current contents of the frame buffer. */
+    /** @param payload fills with the current contents of the frame buffer. */
     void frame_buffer(std::string *payload);
 
 private:

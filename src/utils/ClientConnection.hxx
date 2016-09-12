@@ -104,9 +104,12 @@ public:
     }
 
 protected:
+    /// Abstrct base function to attempt to connect (or open device) to the
+    /// destination.
     virtual void try_connect() = 0;
-    /** Callback from try_connect to donate the file descriptor. */
 
+    /** Callback from try_connect to donate the file descriptor. @param fd is
+     * the file destriptor of the connection freshly opened.  */
     void connection_complete(int fd)
     {
         fd_ = fd;
@@ -114,8 +117,12 @@ protected:
     }
 
 private:
+    /// Will be called when the descriptor experiences an error (typivcally
+    /// upon device closed or connection lost).
     DeviceClosedNotify closedNotify_;
+    /// Filedes of the currently open device/socket.
     int fd_{-1};
+    /// CAN hub to read-write data to.
     CanHubFlow *hub_;
 };
 
@@ -172,6 +179,12 @@ private:
 class UpstreamConnectionClient : public GCFdConnectionClient
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name user-readable name that will be printed upon an error.
+    /// @param hub CAN hub to connect device to
+    /// @param host where to connect to
+    /// @param port where to connect to
     UpstreamConnectionClient(
         const string &name, CanHubFlow *hub, const string &host, int port)
         : GCFdConnectionClient(name, hub)
@@ -181,6 +194,7 @@ public:
     }
 
 private:
+    /// Implementation of connection method.
     void try_connect() OVERRIDE
     {
         int fd = ConnectSocket(host_.c_str(), port_);
@@ -197,7 +211,9 @@ private:
         }
     }
 
+    /// where to connect to (host name)
     string host_;
+    /// where to connect to (TCP port number)
     int port_;
 };
 

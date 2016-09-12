@@ -80,6 +80,8 @@ static constexpr unsigned blocks_per_sector = EEPROMEmulation::SECTOR_SIZE / EEP
 class MyEEPROM : public EEPROMEmulation
 {
 public:
+    /// Contructor. @param file_size how many bytes @param clear if true, the
+    /// EEPROM will be initialized with all 0xFF bytes.
     MyEEPROM(size_t file_size, bool clear = true)
         : EEPROMEmulation(FILENAME, file_size)
     {
@@ -94,6 +96,7 @@ public:
         LOG(INFO, "active index %d", activeIndex);
     }
 
+    /// @return how many blocks are available in the current sector.
     unsigned avail() {
         return available;
     }

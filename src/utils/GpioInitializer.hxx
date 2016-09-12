@@ -41,9 +41,11 @@ template <class T> struct GpioInitHelper;
 /// Partial template specialization to end the type recursion.
 template <> struct GpioInitHelper<std::tuple<>>
 {
+    /// hw_init part of the end of the recursion.
     static void hw_init()
     {
     }
+    /// hw_set_to_safe part of the end of the recursion.
     static void hw_set_to_safe()
     {
     }
@@ -54,11 +56,13 @@ template <> struct GpioInitHelper<std::tuple<>>
 template <typename Head, typename... Tail>
 struct GpioInitHelper<std::tuple<Head, Tail...>>
 {
+    /// Middle step of the recursion for an individual pin.
     static void hw_init()
     {
         Head::hw_init();
         GpioInitHelper<std::tuple<Tail...>>::hw_init();
     }
+    /// Middle step of the recursion for an individual pin.
     static void hw_set_to_safe()
     {
         Head::hw_set_to_safe();

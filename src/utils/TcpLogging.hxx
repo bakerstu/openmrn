@@ -43,10 +43,11 @@
 /// Buffer content structure for sending log entries.
 struct LogEntry
 {
-    // Log output line. Contains a trailing newline.
+    /// Log output line. Contains a trailing newline.
     string data;
 };
 
+/// Base class for declaring the flow type of the FdLoggingServer.
 using FdLoggingServerBase = StateFlow<Buffer<LogEntry>, QList<1>>;
 
 /// Base class that can receive log buffers from the FdLogging implementation

@@ -52,11 +52,18 @@
 class SocketListener
 {
 public:
+    /// Callback type that will be called when a new incoming connection is
+    /// established. The argument is the filedescriptor of the new connection.
     typedef std::function<void(int)> connection_callback_t;
 
+    /// Constructor. Startsthe listener.
+    ///
+    /// @param port which TCP port number to listen upon.
+    /// @param callback will be called on each incoming connection.
     SocketListener(int port, connection_callback_t callback);
     ~SocketListener();
 
+    /// Implementation of the accept thread.
     void AcceptThreadBody();
 
     /** Shuts down the socket listener. Blocks until the accept thread is
@@ -64,17 +71,24 @@ public:
      * delete *this after this call is returned. */
     void shutdown();
 
+    /// @return true if the accept thread is already listening.
     bool is_started()
     {
         return startupComplete_;
     }
 
 private:
-    volatile unsigned startupComplete_ : 1;   //< 1 if we have completed bind.
-    volatile unsigned shutdownRequested_ : 1; //< 1 if shutting down.
-    volatile unsigned shutdownComplete_ : 1;  //< 1 if accept thread is exited.
+    /// 1 if we have completed bind.
+    volatile unsigned startupComplete_ : 1;
+    /// 1 if shutting down.
+    volatile unsigned shutdownRequested_ : 1;
+    /// 1 if accept thread is exited.
+    volatile unsigned shutdownComplete_ : 1;
+    /// Port to listen on.
     int port_;
+    /// Callback to call with each incoming conneciton.
     connection_callback_t callback_;
+    /// Thread handle / instance for running the listen/accept loop.
     OSThread accept_thread_;
 };
 

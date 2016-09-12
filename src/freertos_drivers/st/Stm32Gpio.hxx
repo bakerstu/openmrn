@@ -56,11 +56,13 @@
 /// @param PIN_NUM is the number of the pin in the port. Zero-based.
 template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
+    /// @return the PIO structure of the give gpio port.
     static GPIO_TypeDef *port()
     {
         return (GPIO_TypeDef *)GPIOx;
     }
 
+    /// @return the pin number within the port.
     static uint16_t pin()
     {
         return PIN;
@@ -93,13 +95,14 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
         return port()->IDR & pin();
     }
 
-    /// Returns a os-indepentent Gpio abstraction instance for use in
+    /// @return a os-indepentent Gpio abstraction instance for use in
     /// libraries.
     static constexpr const Gpio *instance()
     {
         return GpioWrapper<Stm32GpioDefs<GPIOx, PIN, PIN_NUM>>::instance();
     }
 
+    /// @return whether this pin is configured as an output.
     static bool is_output()
     {
         uint8_t* mode = (uint8_t*)port();
@@ -115,6 +118,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
     using Defs::port;
     using Defs::pin;
     using Defs::set;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         GPIO_InitTypeDef gpio_init = {0};
@@ -124,6 +128,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
         gpio_init.Speed = GPIO_SPEED_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
     }
+    /// Sets the output pin to a safe value.
     static void hw_set_to_safe()
     {
         hw_init();
@@ -160,6 +165,7 @@ template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
     using Defs::port;
     using Defs::pin;
     using Defs::set;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         GPIO_InitTypeDef gpio_init = {0};
@@ -169,10 +175,12 @@ template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
         gpio_init.Speed = GPIO_SPEED_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
     }
+    /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
     {
         hw_init();
     }
+    /// @return true if the pin is set to drive an output.
     static bool is_output()
     {
         return false;

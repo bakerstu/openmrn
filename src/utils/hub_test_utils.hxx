@@ -4,9 +4,13 @@
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/HubDevice.hxx"
 
+/// Test payload for the hub unittest.
 struct TestData
 {
+    /// Where this messsage was coming from (identifier or hub source)
     int from;
+    /// Something like a TTL, will be decremented by the default test-hub
+    /// handlers.
     int payload;
 };
 

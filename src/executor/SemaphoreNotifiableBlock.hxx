@@ -45,6 +45,8 @@
 class SemaphoreNotifiableBlock : private Notifiable, private Atomic
 {
 public:
+    /// constructor. @param num_parallelism tells how many BarrierNotifiables
+    /// we should have and hand out to threads requesting them.
     SemaphoreNotifiableBlock(unsigned num_parallelism)
         : count_(num_parallelism)
         , sem_(num_parallelism)
@@ -57,6 +59,8 @@ public:
         delete[] barriers_;
     }
 
+    /// Gets a barrier notifiable. May block the current thread if there isn't
+    /// one ready. @return a fresh BarrierNotifiable.
     BarrierNotifiable* acquire() {
         sem_.wait();
         AtomicHolder h(this);
@@ -68,6 +72,7 @@ public:
         DIE("SempahoreNotifiableBlock: could not find a free barrier.");
     }
 
+    /// Internal: notifies that a barrier has been returned.
     void notify() override
     {
         sem_.post();
@@ -82,8 +87,11 @@ public:
 #endif
 
 private:
+    /// How many barriers did we allocate in total?
     unsigned count_;
+    /// Semaphore holding free barriers.
     OSSem sem_;
+    /// The raw pointer to the block of barriernotifiables.
     BarrierNotifiable *barriers_;
 
     DISALLOW_COPY_AND_ASSIGN(SemaphoreNotifiableBlock);

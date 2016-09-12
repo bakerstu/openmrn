@@ -42,7 +42,6 @@ class QMember
 {
 public:
     /** Initiailize a QMember, in place of a public placement construction.
-     * @param item QMemember to init
      */
     void init()
     {

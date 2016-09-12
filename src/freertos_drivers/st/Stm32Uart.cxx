@@ -131,7 +131,6 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
 }
 
 /** Enable use of the device.
- * @param dev device to enable
  */
 void Stm32Uart::enable()
 {

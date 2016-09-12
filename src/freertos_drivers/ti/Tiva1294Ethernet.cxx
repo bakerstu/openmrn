@@ -100,7 +100,7 @@ const int EMACIODescriptorExtra =
     (sizeof(EMACIODescriptor) - sizeof(tEMACDMADescriptor) + 3) / 4;
 
 // Values for Flags in EMACIODescriptor
-#define IOBUSY 0x01 // IO presently active
+#define IOBUSY 0x01 //< IO presently active
 
 #define NUM_TX_DESCRIPTORS 3
 #define NUM_RX_DESCRIPTORS 5

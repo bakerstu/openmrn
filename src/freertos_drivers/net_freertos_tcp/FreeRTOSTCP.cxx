@@ -53,8 +53,11 @@ static SocketSet_t socket_set = NULL;
 
 static QueueHandle_t close_queue = NULL;
 
+/// Called before the TCP stack is initialized in FreeRTOS.
 bool network_layer_preinit(void);
 
+/// Callback from FreeRTOS network event handler. Called on the network thread.
+/// @param eNetworkEvent see freertos-TCP documentation.
 extern "C" void vApplicationIPNetworkEventHook(
     eIPCallbackEvent_t eNetworkEvent);
 

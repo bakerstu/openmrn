@@ -110,7 +110,8 @@ public:
      * select. This may or may not mean that the specific job is waiting for a
      * select call. If this returns true, it does mean that trying to select()
      * that job will cause a crash, since the same FD cannot be selected more
-     * than once. */
+     * than once.
+     * @param job is the selectable to query. */
     bool is_selected(Selectable* job);
 
     /** Removes a job from the select loop.
@@ -283,6 +284,7 @@ public:
     /// owner should later create a thread to this executor by calling the
     /// start_thread() function or donate a thread by calling thread_body()
     /// function.
+    /// @param unused unused -- just here for polymorphic disalbiguation.
     explicit Executor(const NO_THREAD& unused) {}
 
     /// Creates a new thread for running this executor.

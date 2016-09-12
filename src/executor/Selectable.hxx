@@ -49,17 +49,29 @@ public:
         EXCEPT = 3,
     };
 
+    /// Helper declarations for the certain fields' maximums.
     enum Limits
     {
+        /// Largest FD we accept (otherwise crash with error).
         MAX_FD = (1 << 14) - 1,
+        /// Largest priority we accept (otherwise we clip).
         MAX_PRIO = (1 << 16) - 1,
     };
 
+    /// Constructor. @param parent is the executable that will be woken up when
+    /// this selectable is triggered.
     Selectable(Executable *parent) : selectType_(0), wakeup_(parent)
     {
     }
 
-    void reset(SelectType type, int fd, unsigned priority) {
+    /// Re-initialize a Selectable preparing to add it to select().
+    ///
+    /// @param type whether we waiting for READ, WRITE or EXCEPT.
+    /// @param fd file descriptor to wait for.
+    /// @param priority what priority should the callback be executed at once
+    /// the file triggers.
+    void reset(SelectType type, int fd, unsigned priority)
+    {
         selectType_ = type;
         HASSERT(fd <= MAX_FD);
         fd_ = fd;
@@ -71,28 +83,33 @@ public:
         return selectType_ == 0;
     }
 
+    /// @return priority upon which the executable should be enqueued upon
+    /// trigger.
     unsigned priority()
     {
         return priority_;
     }
 
+    /// @return what we should select this upon, READ, WRITE or EXCEPT.
     SelectType type()
     {
         return static_cast<SelectType>(selectType_);
     }
 
+    /// @return Executable to enqueue upon successful triggering.
     Executable *parent()
     {
         return wakeup_;
     }
 
+    /// @return Filedes to wait for.
     int fd()
     {
         return fd_;
     }
 
     /** Can be used to override the executable to wake up. Make sure to set it
-     * back afterwards. */
+     * back afterwards. @param e is the new executable to trigger. */
     void set_wakeup(Executable *e)
     {
         wakeup_ = e;

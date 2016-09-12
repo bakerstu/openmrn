@@ -69,16 +69,19 @@ public:
     }
   }
 
+    /// @return a global singleton instance of TempDir.
   static TempDir* instance() {
     static TempDir me;
     return &me;
   }
 
+    /// @return name of the temporary directory.
   const string& name() const {
     return dirName_;
   }
 
 private:
+    /// name of the temporary directory.
   string dirName_;
 };
 
@@ -86,6 +89,10 @@ private:
  * test is done. */
 class TempFile {
 public:
+    /// Constructor.
+    /// @param dir isthe temp directory to create the file within.
+    /// @param basename will be the prefix of the name. A unique suffix will be
+    /// appended for each file.
   TempFile(const TempDir& dir, const string& basename) {
     fileName_ = dir.name() + "/" + basename + ".XXXXXX";
     fileName_.c_str();
@@ -97,23 +104,27 @@ public:
     ::unlink(fileName_.c_str());
   }
 
+    /// @return the full path name to this temporary file.
   const string& name() const {
     return fileName_;
   }
 
+    /// @return the file descriptor.
   int fd()
   {
       return fd_;
   }
 
-  /// writes a single byte to the temporary file.
+  /// writes a single byte to the temporary file. @param byte isthe data to
+  /// write.
   void write(const uint8_t byte) {
     string s;
     s.push_back(byte);
     write(s);
   }
 
-  /// writes the given data to the temporary file.
+  /// writes the given data to the temporary file. @param s is the data to
+  /// write.
   void write(const string& s) {
     size_t ofs = 0;
     while (ofs < s.size()) {
@@ -125,7 +136,9 @@ public:
   }
 
 private:
+    /// The full path name.
   string fileName_;
+    /// The file descriptor.
   int fd_;
 };
 

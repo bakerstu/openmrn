@@ -59,15 +59,22 @@ DigitalOut& tx_led = d1;
 class MbedCanDriver : public Can
 {
 public:
+    /// Which hardware device to use.
     enum Instance {
         CAN1,
         CAN2
     };
-    MbedCanDriver(Instance instance, const char* dev, int frequency)
-        : Can(dev),
-          mbedCan_(instance == CAN1 ? P0_0 : P0_4,
-                   instance == CAN1 ? P0_1 : P0_5),
-          SR_(instance == CAN1 ? &LPC_CAN1->SR : &LPC_CAN2->SR) {
+    /// Constructor.
+    ///
+    /// @param instance Which hardware device to use.
+    /// @param dev filename of the device to export (e.g. "/dev/can0");
+    /// @param frequency CAN bus speed (e.g. 125000).
+    MbedCanDriver(Instance instance, const char *dev, int frequency)
+        : Can(dev)
+        , mbedCan_(
+              instance == CAN1 ? P0_0 : P0_4, instance == CAN1 ? P0_1 : P0_5)
+        , SR_(instance == CAN1 ? &LPC_CAN1->SR : &LPC_CAN2->SR)
+    {
         mbedCan_.frequency(frequency);
         mbedCan_.attach(this, &MbedCanDriver::interrupt);
     }
@@ -79,15 +86,17 @@ private:
     void interrupt();
     void tx_msg() OVERRIDE;
 
+    /// mBed CAN implementation object.
     mbed::CAN mbedCan_;
-    // Status register.
+    /// Status register.
     volatile uint32_t* SR_;
+    /// Whether we have an output frame pending (1) or the output frame is free
+    /// (0).
     char txPending_;
 };
 
 /** Try and transmit a message. Does nothing if there is no message to transmit
  *  or no write buffers to transmit via.
- * @param dev device to transmit message on
  */
 void MbedCanDriver::tx_msg()
 {

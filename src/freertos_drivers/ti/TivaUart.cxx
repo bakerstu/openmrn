@@ -117,7 +117,6 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
 }
 
 /** Enable use of the device.
- * @param dev device to enable
  */
 void TivaUart::enable()
 {

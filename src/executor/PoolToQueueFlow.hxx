@@ -26,7 +26,7 @@
  *
  * \file PoolToQueueFlow.hxx
  *
- * Helper control flow for fixed-size buffering. 
+ * Helper control flow for fixed-size buffering.
  *
  * @author Balazs Racz
  * @date 13 May 2014
@@ -56,29 +56,41 @@
  * the next request and send it to the request processor. This will run in an
  * infinite loop with the fixed buffer size.
  */
-template<class T>
-class PoolToQueueFlow : public StateFlowBase {
- public:
-  PoolToQueueFlow(Service* service, FixedPool* source, FlowInterface<T>* dest)
-      : StateFlowBase(service),
-        source_(source),
-        dest_(dest) {
-    get_next_entry();
-  }
+template <class T> class PoolToQueueFlow : public StateFlowBase
+{
+public:
+    /// Constructor.
+    ///
+    /// @param service defines which executor this flow will run in
+    /// @param source the pool to allocate all entries from
+    /// @param dest the queue to send all allocated entries to.
+    PoolToQueueFlow(Service *service, FixedPool *source, FlowInterface<T> *dest)
+        : StateFlowBase(service)
+        , source_(source)
+        , dest_(dest)
+    {
+        get_next_entry();
+    }
 
- private:
-  Action get_next_entry() {
-    return allocate_and_call(dest_, STATE(got_entry), source_);
-  }
+private:
+    /// Allocates the next entry from the pool. @return next state.
+    Action get_next_entry()
+    {
+        return allocate_and_call(dest_, STATE(got_entry), source_);
+    }
 
-  Action got_entry() {
-    auto* b = get_allocation_result(dest_);
-    dest_->send(b);
-    return get_next_entry();
-  }
+    /// Send the entry we got to the queue. @return next state.
+    Action got_entry()
+    {
+        auto *b = get_allocation_result(dest_);
+        dest_->send(b);
+        return get_next_entry();
+    }
 
-  FixedPool* source_;
-  FlowInterface<T>* dest_;
+    /// The pool to read all entries from.
+    FixedPool *source_;
+    /// The queue to send all entries to.
+    FlowInterface<T> *dest_;
 };
 
 #endif // _EXECUTOR_POOLTOQUEUEFLOW_HXX_

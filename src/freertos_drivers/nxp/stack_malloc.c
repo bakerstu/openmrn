@@ -111,13 +111,13 @@ void* usb_malloc(unsigned long length)
 /// separate RAM segment and leave more heap space free.
 /// @param size in bytes, how large chunk we should allocate.
 /// @return a newly allocated buffer. Cannot be freed.
-void *buffer_malloc(size_t size)
+void *buffer_malloc(size_t length)
 {
     /* We do a trick here to ensure that the compiler will output a stack frame
      * for this function. We want to avoid tail-chain optimization in this
      * function or else it disappears from the stack traces done for memory
      * tracing. */
-    void *volatile v = usb_malloc(size);
+    void *volatile v = usb_malloc(length);
     return v;
 }
 

@@ -62,7 +62,7 @@ public:
    *  packets. This feedback key is used by the application layer to correlate
    *  the stream of DCC packets to the stream of Railcom packets. This method
    *  shall be called before start_cutout. The feedback key set here is used
-   *  until this method is called again. */
+   *  until this method is called again. @param key is the new feedback key. */
   virtual void set_feedback_key(uint32_t key) = 0;
 };
 

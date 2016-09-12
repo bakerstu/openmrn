@@ -20,6 +20,7 @@ struct trace
     unsigned hash : 24;
     /// Number of entries in the trace.
     unsigned len : 8;
+    /// Link ot the next trace entry.
     struct trace *next;
     /// total memory (bytes) allocated via this trace.
     unsigned total_size;

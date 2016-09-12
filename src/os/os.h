@@ -134,8 +134,11 @@ typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
 /** Some Operating Systems do not support timeouts with semaphores */
 typedef struct
 {
+    /// Condition variable.
     pthread_cond_t cond;
+    /// Mutex protectin the counter
     pthread_mutex_t mutex;
+    /// How many counts doe the semaphore store.
     int counter;
 } os_sem_t;
 #endif

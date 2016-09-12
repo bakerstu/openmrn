@@ -40,18 +40,25 @@
 /// a few entries of an 8-bit enum value, in a gdb-friendly way.
 ///
 /// C is typically uint64_t.
-template<typename C> class SimpleLog {
+template <typename C> class SimpleLog
+{
 public:
-  SimpleLog()
-    : log_(0) {}
+    SimpleLog()
+        : log_(0)
+    {
+    }
 
-  void log(uint8_t value) {
-    log_ <<= 8;
-    log_ |= value;
-  }
+    /// Append a byte worth of data to the end of the log buffer. Rotates out
+    /// some old data.
+    void log(uint8_t value)
+    {
+        log_ <<= 8;
+        log_ |= value;
+    }
 
 private:
-  C log_;
+    /// The raw log buffer.
+    C log_;
 };
 
 /// Actual class that keeps 8 log entries of one byte each.

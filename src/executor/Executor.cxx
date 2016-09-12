@@ -130,6 +130,9 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
 class SyncExecutable : public Executable
 {
 public:
+    /// @param e is the executor on which to execute the callback
+    /// @param fn is the callback to execute. Caller should use std::move to
+    /// get the callback in here.
     SyncExecutable(ExecutorBase *e, std::function<void()>&& fn)
         : fn_(std::move(fn))
     {
@@ -142,7 +145,9 @@ public:
         fn_();
         n_.notify();
     }
+    /// Callback to run.
     std::function<void()> fn_;
+    /// Blocks the calling thread until the callback is done running.
     SyncNotifiable n_;
 };
 

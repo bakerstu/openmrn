@@ -54,7 +54,7 @@ class TivaGpio : public Gpio
 {
 public:
     /** Constructor.
-     * @param GPIO number
+     * @param number GPIO number
      * @param mode GPIO mode settings
      * @param safe default "safe" value, may go unused for input only pins
      */

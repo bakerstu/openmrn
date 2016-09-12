@@ -194,7 +194,6 @@ private:
     int fcntl(File *file, int cmd, unsigned long data);
 
     /** Constructor
-     * @param name device name in file system
      */
     FreeRTOSTCPSocket()
         : Socket(NULL)

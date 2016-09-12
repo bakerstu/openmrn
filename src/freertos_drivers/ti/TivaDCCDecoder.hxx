@@ -49,7 +49,7 @@ typedef DummyPin PIN_RailcomCutout;
   middle and when it is over. This is necessary for the correct functionality
   of the railcom driver.
 
-  @TODO: implement actual packet decoding and sending back to the application
+  @todo: implement actual packet decoding and sending back to the application
   layer.
 
   Usage: Define a structure declaring your hardware information. See below for
@@ -84,6 +84,11 @@ struct DCCDecode
 template <class HW> class TivaDccDecoder : public Node
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name name of device node, e.g. "/dev/dccdecode0"
+    /// @param railcom_driver is the associated railcom driver, which will get
+    /// the callbacks from the timing of the acquired signal.
     TivaDccDecoder(const char *name, RailcomDriver *railcom_driver);
 
     ~TivaDccDecoder()
@@ -123,7 +128,6 @@ private:
 
     /** Request an ioctl transaction
      * @param file file reference for this device
-     * @param node node reference for this device
      * @param key ioctl key
      * @param data key data
      */
@@ -154,6 +158,9 @@ private:
         MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
         }*/
 
+    /// Delays a give number of usec using the capture timer feature. Needed
+    /// for the timing ofthe railcom cutout.
+    /// @param usec how much to delay.
     void set_cap_timer_delay_usec(int usec)
     {
         Debug::DccPacketDelay::toggle();
@@ -162,6 +169,8 @@ private:
         MAP_TimerPrescaleMatchSet(HW::TIMER_BASE, HW::RCOM_TIMER, 0);
     }
 
+    /// Sets the timer to capture mode. Needed for the digitization of DCC
+    /// signal bits.
     void set_cap_timer_capture()
     {
         MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
@@ -184,6 +193,7 @@ private:
         MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
     }
 
+    /// Sets the timer to oneshot (timer) mode.
     void set_cap_timer_time()
     {
         MAP_TimerDisable(HW::TIMER_BASE, HW::RCOM_TIMER);
@@ -200,23 +210,41 @@ private:
         MAP_TimerEnable(HW::TIMER_BASE, HW::RCOM_TIMER);
     }
 
+    /// Not used yet.
     FixedQueue<uint32_t, HW::Q_SIZE> inputData_;
+    /// Holds the value ofthe free running timer at the time we captured the
+    /// previous edge.
     uint32_t lastTimerValue_;
+    /// Holds the timer value when we should be taking an occupnacy sample the
+    /// next time.
     uint32_t nextSample_;
+    /// true if the next edge we shall sample.
     bool sampleActive_ = false;
+    /// Seems unused? @todo delete.
     unsigned lastLevel_;
+    /// Seems unused? @todo delete.
     bool overflowed_ = false;
+    /// True if the current internal state is the cutout state.
     bool inCutout_ = false;
+    /// True for the last bit time before the cutout, to prevent sampling fro
+    /// colliding with cutout.
     bool prepCutout_ = false;
+    /// Which window of the cutout we are in.
     uint32_t cutoutState_;
 
+    /// Notifiable to mark when the feedback channel becomes readable.
     Notifiable *readableNotifiable_ = nullptr;
-    RailcomDriver *railcomDriver_; //< notified for cutout events.
+    /// notified for cutout events.
+    RailcomDriver *railcomDriver_;
 
+    /// DCC packet decoder state machine and internal state.
     dcc::DccDecoder decoder_;
 
+    /// How many usec the railcom has before the cutout
     static const auto RAILCOM_CUTOUT_PRE = 26;
+    /// How many usec the railcom has to the middle of window
     static const auto RAILCOM_CUTOUT_MID = 173;
+    /// How many usec the railcom has to the end of the window
     static const auto RAILCOM_CUTOUT_END = 470;
 
     DISALLOW_COPY_AND_ASSIGN(TivaDccDecoder);

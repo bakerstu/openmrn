@@ -124,9 +124,11 @@ extern void buffer_to_error(const Payload& payload, uint16_t* error_code, uint16
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 
+/// @return the high 4 bytes of a node ID. @param id is the node ID.
 inline unsigned node_high(NodeID id) {
     return id >> 32;
 }
+/// @return the low 4 bytes of a node ID. @param id is the node ID.
 inline unsigned node_low(NodeID id) {
     return id & 0xffffffffU;
 }

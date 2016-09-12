@@ -103,7 +103,6 @@ protected:
 
     /** Request an ioctl transaction
      * @param file file reference for this device
-     * @param node node reference for this device
      * @param key ioctl key
      * @param data key data
      */

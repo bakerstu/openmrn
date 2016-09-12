@@ -205,7 +205,8 @@ public:
         return rssi;
     }
 
-    /** Executes the given function on the network thread. */
+    /** Executes the given function on the network thread. @param callback
+     * isthe function to execute.*/
     void run_on_network_thread(std::function<void()> callback);
 
     /** This function handles WLAN events.  This is public only so that an

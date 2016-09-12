@@ -62,11 +62,15 @@ class NodeHandlerMapBase
 {
 private:
 #ifdef NODEHANDLER_USE_PAIR
+    /// Standard payload type.
     typedef std::pair<void*, uint32_t> key_type;
 #else
+    /// Compacted payload type.
     typedef uint64_t key_type;
 #endif
+    /// Generic handler type that we'll keep.
     typedef void* value_type;
+    /// Type of the storage object.
     typedef StlMap<key_type, value_type> map_type;
 
 public:
@@ -89,7 +93,13 @@ public:
         entries_[make_key(node, id)] = value;
     }
 
-    void erase(void* node, uint32_t id, void* value)
+    /// Removes a handlerfrom this map.
+    ///
+    /// @param node is the node to unregister handler for (nullptr for all
+    /// nodes)
+    /// @param id is the message ID for which to unregister for.
+    /// @param value is the pointer to the handler.
+    void erase(void *node, uint32_t id, void *value)
     {
         auto it = entries_.find(make_key(node, id));
         if (it == entries_.end()) return;
@@ -97,10 +107,12 @@ public:
             entries_.erase(it);
         }
     }
-
+    
     /** Finds a handler for a particular node and particular messageID.
-     * @returns a handler or nullptr if no node-specific and no globla handler
-     * for that ID is found. */
+     * @return a handler or nullptr if no node-specific and no global handler
+     * for that ID is found.
+     * @param node what to look up for
+     * @param id is the message ID to look up */
     void* lookup(void* node, uint32_t id)
     {
         auto it = entries_.find(make_key(node, id));
@@ -118,17 +130,22 @@ public:
         }
     }
 
+    /// Iterator type.
     typedef typename map_type::Iterator iterator;
+    /// @return begin iterator
     iterator begin()
     {
         return entries_.begin();
     }
 
+    /// @return end iterator
     iterator end()
     {
         return entries_.end();
     }
 
+    /// Decodes a compact key into a pair. @param key is what to
+    /// decode. @return decoded key (classic iterator pair value).
     static pair<void *, uint32_t> read_key(key_type key)
     {
 #ifdef NODEHANDLER_USE_PAIR
@@ -154,6 +171,7 @@ private:
 #endif
     }
 
+    /// The actual storage object.
     map_type entries_;
 };
 
@@ -167,6 +185,8 @@ public:
     {
     }
 
+    /// @param entries is the number of maximum entries in this map (will
+    /// statically allocate).
     TypedNodeHandlerMap(size_t entries) : NodeHandlerMapBase(entries)
     {
     }
@@ -194,7 +214,9 @@ public:
     }
 
     /** Finds a handler for a particular node and particular messageID.
-     * @returns a handler or nullptr if no node-specific and no globla handler
+     * @param node is the node that received the message
+     * @param id is the message's ID
+     * @return a handler or nullptr if no node-specific and no global handler
      * for that ID is found. */
     Handler* lookup(Node* node, uint32_t id)
     {
@@ -204,17 +226,21 @@ public:
     /// Type-safe iterator for NodeHandlerMap.
     class iterator {
     public:
+        /// @param i untyped iterator
         iterator(NodeHandlerMapBase::iterator i)
             : impl_(i) {}
-
+        
+        /// advance
         void operator++() {
             ++impl_;
         }
 
+        /// @return comparison
         bool operator!=(const iterator& o) {
             return impl_ != o.impl_;
         }
 
+        /// Dereference. @return pair
         std::pair<std::pair<Node*, uint32_t>, Handler*> operator*() {
             auto p = NodeHandlerMapBase::read_key(impl_->first);
             return std::make_pair(std::make_pair((Node*) p.first, p.second),
@@ -222,13 +248,16 @@ public:
         }
 
     private:
+        /// untyped iterator
         NodeHandlerMapBase::iterator impl_;
     };
 
+    /// @return begin iterator
     iterator begin() {
         return iterator(NodeHandlerMapBase::begin());
     }
 
+    /// @return end iterator
     iterator end() {
         return iterator(NodeHandlerMapBase::end());
     }

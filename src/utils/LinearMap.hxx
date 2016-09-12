@@ -145,7 +145,7 @@ public:
             return &m->list[index].p;
         }
 
-        /** Overloaded pre-increement operator. */
+        /** Overloaded pre-increement operator. @return new this.*/
         Iterator &operator ++ ()
         {
             if (index < m->used)
@@ -155,13 +155,15 @@ public:
             return *this;
         }
 
-        /** Overloaded not equals operator. */
+        /** Overloaded not equals operator. @param it other oterator to
+         * compare. @return comparison result. */
         bool operator != (const Iterator& it)
         {
             return m != it.m || index != it.index;
         }
 
-        /** Overloaded equals operator. */
+        /** Overloaded equals operator. @param it other iterator to
+         * compare. @return comparison result. */
         bool operator == (const Iterator& it)
         {
             return m == it.m && index == it.index;

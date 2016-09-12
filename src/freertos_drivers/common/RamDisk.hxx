@@ -50,6 +50,12 @@
 class RamDiskBase : public Node
 {
 public:
+    /// Constructor.
+    ///
+    /// @param path device node name (e.g. "/etc/ramdisk_nodeid");
+    /// @param data Blcok of RAM assigned to the file.
+    /// @param size How many bytes should be exported.
+    /// @param read_only if true, writes will be ignored.
     RamDiskBase(const char *path, void *data, unsigned size, bool read_only)
         : Node(path)
         , data_((uint8_t *)data)
@@ -95,9 +101,13 @@ private:
     }
 
 protected:
+    /// Pointer to data content.
     uint8_t *data_;
+    /// How many bytes we are exporting.
     unsigned size_ : 30;
+    /// 1 ifreadonly file.
     unsigned readOnly_ : 1;
+    /// 1 if we own the data bytes and need to free()them upon exit.
     unsigned owned_ : 1;
 };
 
@@ -120,6 +130,9 @@ public:
     /// Uses an existing variable for backing the ramdisk structure. The
     /// variable is usually of a struct type, such as @ref
     /// nmranet::SimpleNodeDynamicValues. The variable may also be in flash.
+    /// @param path is the device node name (e.g "/etc/node_config")
+    /// @param data is the variable to export
+    /// @param read_only if set, writes will be ignored.
     template<class T>
     RamDisk(const char* path, T* data, bool read_only = false)
         : RamDiskBase(path, data, sizeof(T), read_only) {

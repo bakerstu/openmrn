@@ -64,9 +64,9 @@ public:
     {
     }
 
-    /** Handle an interrupt.
-     */
+    /** Handle an interrupt. */
     void rx_interrupt_handler();
+    /** Handle an interrupt. */
     void tx_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */

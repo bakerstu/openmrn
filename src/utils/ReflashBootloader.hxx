@@ -42,9 +42,12 @@
 /// overwrite the bootloader by the reflash_bootloader application.
 typedef struct
 {
-    uint8_t *dst_address; //< address in the flash space where to write
-    const uint8_t *src_address; //< address where to read the golden data from
-    uint32_t length; //< number of bytes to write
+    /// address in the flash space where to write
+    uint8_t *dst_address;
+    /// address where to read the golden data from
+    const uint8_t *src_address;
+    /// number of bytes to write
+    uint32_t length;
 } SegmentTable;
 
 

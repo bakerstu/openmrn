@@ -129,10 +129,10 @@ protected:
         {
         }
 
-        /** This is the minimum number of bytes that we will send. */
+        /** @return the minimum number of bytes that we will send. */
         virtual int unit() = 0;
-        /** We will allocate this many bytes for read buffer. This is the
-         * maximum number of bytes that we'll send. */
+        /** @return we will allocate this many bytes for read buffer. This is
+         * the maximum number of bytes that we'll send. */
         virtual int buf_size() = 0;
         /** Sends off a buffer */
         virtual void send_message(const void *buf, int size) = 0;
@@ -336,13 +336,13 @@ public:
             return static_cast<FdHubPort<HFlow> *>(port_);
         }
 
-        /** This is the minimum number of bytes that we will send. */
+        /** @param this is the minimum number of bytes that we will send. */
         int unit() OVERRIDE
         {
             return kUnit;
         }
-        /** We will allocate this many bytes for read buffer. This is the
-         * maximum number of bytes that we'll send. */
+        /** @return We will allocate this many bytes for read buffer. This is
+         * the maximum number of bytes that we'll send. */
         int buf_size() OVERRIDE
         {
             return kBufSize;

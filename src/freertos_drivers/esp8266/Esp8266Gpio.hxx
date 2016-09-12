@@ -212,6 +212,7 @@ template <class Base, bool SAFE_VALUE, bool INVERT = false>
 struct GpioOutputPin : public Base
 {
 public:
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         Base::set(SAFE_VALUE);
@@ -219,10 +220,13 @@ public:
         Base::set_gpio();
         Base::set(SAFE_VALUE);
     }
+    /// Sets the hardware pin to a safe value.
     static void hw_set_to_safe()
     {
         Base::set(SAFE_VALUE);
     }
+    /// Sets the output pinm @param value if true, output is set to HIGH, if
+    /// false, output is set to LOW.
     static void set(bool value)
     {
         if (INVERT)
@@ -244,16 +248,20 @@ template <class Base>
 struct GpioPullOutPin : public Base
 {
 public:
+    /// Initialized the hardware pin.
     static void hw_init()
     {
         Base::set_input();
         Base::set_gpio();
         Base::set_pullup_on();
     }
+    /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
     {
         Base::set_pullup_on();
     }
+    /// Sets the value of an output pin to a specific state; @param value if
+    /// tru output pin will be set to HIGH else LOW.
     static void set(bool value)
     {
         if (value) {
@@ -262,9 +270,11 @@ public:
             Base::set_pulldown_on();
         }
     }
+    /// Sets the output pin to HIGH.
     static void set_on() {
         Base::set_pullup_on();
     }
+    /// Sets the output pin to LOW.
     static void set_off() {
         Base::set_pulldown_on();
     }
@@ -311,6 +321,7 @@ struct GpioOutputSafeHighInvert : public GpioOutputPin<Defs, true, true>
 template <class Base, bool PUEN> struct GpioInputPar : public Base
 {
 public:
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         Base::set_input();
@@ -324,6 +335,7 @@ public:
         }
         Base::set_gpio();
     }
+    /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
     {
         hw_init();

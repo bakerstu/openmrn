@@ -258,7 +258,7 @@ extern const void* stack_malloc(unsigned long length);
 #endif  // FreeRTOS
 
 /** Entry point to a thread.
- * @param metadata for entering the thread
+ * @param arg metadata for entering the thread
  */
 #if defined (__FreeRTOS__)
 static void os_thread_start(void *arg)

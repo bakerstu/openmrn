@@ -50,6 +50,8 @@
 /// more memory efficient to just allocate all the memory statically as an
 /// array and perform placement construction instead of incuring the overhead
 /// of a heap allocation?
+/// @note(Balazs Racz) I don't think so, because most applications will only
+/// ever use one socket, maybe two.
 ///
 /// we would also #define CC32XX_SD_UNUSED -1 and #define CC32XX_SD_RESERVED -2
 
@@ -59,6 +61,7 @@ static CC32xxSocket *cc32xxSockets[SL_MAX_SOCKETS];
 /// Dummy pointer address that can be used as a reserved indicator
 static volatile uint8_t reservedPtr;
 
+/// Guard value indivating a reserved socket that is currently being allocated.
 #define CC32XX_SOCKET_RESERVED ((CC32xxSocket *)(&reservedPtr))
 
 /*
@@ -460,7 +463,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         switch (result)
         {
             case SL_SOC_ERROR:
-                /// @TODO (stbaker): handle errors via the callback.
+                /// @todo (stbaker): handle errors via the callback.
                 errno = ECONNRESET;
                 break;
             case SL_EAGAIN:
@@ -469,7 +472,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
             default:
                 volatile int err = 0;
                 err = err | result;
-                /// @TODO (stbaker): handle errors via the callback.
+                /// @todo (stbaker): handle errors via the callback.
                 HASSERT(0);
                 break;
         }
@@ -954,8 +957,10 @@ int getsockopt(int socket, int level, int option_name,
                                     option_value, option_len);
 }
 
-/*
- * ::gai_strerror()
+/**
+ * see 'man gai_strerror'
+ * @param __ecode is the error code
+ * @return error string (statically allocated)
  */
 const char *gai_strerror (int __ecode)
 {
@@ -972,8 +977,9 @@ const char *gai_strerror (int __ecode)
     }
 }
 
-/*
- * ::freeaddrinfo()
+/** see 'man freeaddrinfo'
+ * @param ai is the addrinfo structure, allocated by getaddrinfo, to be
+ * released.
  */
 void freeaddrinfo(struct addrinfo *ai)
 {
@@ -981,9 +987,15 @@ void freeaddrinfo(struct addrinfo *ai)
     delete ai;
 }
 
-/*
- * ::getaddrinfo()
- */
+/// see 'man getaddrinfo'
+///
+/// @param nodename what to look up (host name typically)
+/// @param servname local mDNS service name to look up
+/// @param hints not sure
+/// @param res an addrinfo strcture will be allocated into here
+///
+/// @return 0 on success, -1 on error
+///
 int getaddrinfo(const char *nodename, const char *servname,
                 const struct addrinfo *hints,
                 struct addrinfo **res)

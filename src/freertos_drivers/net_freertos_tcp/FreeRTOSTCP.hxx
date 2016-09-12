@@ -39,7 +39,7 @@
 
 class FreeRTOSTCPSocket;
 
-/* local declaraction of Socket_t to avoid dependency on FreeRTOSTCP headers */
+/** local declaraction of Socket_t to avoid dependency on FreeRTOSTCP headers */
 typedef void *Socket_t;
 
 /** Provides the startup and mantainance methods for configuring and using the

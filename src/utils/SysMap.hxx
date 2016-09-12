@@ -91,6 +91,7 @@ private:
     struct Node
     {
     public:
+        /// Pointer structure for the tree.
         RB_ENTRY(Node) entry;
         union
         {

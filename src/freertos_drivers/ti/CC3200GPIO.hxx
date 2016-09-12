@@ -149,38 +149,46 @@ public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         MAP_PRCMPeripheralClkEnable(GPIO_PERIPH, PRCM_RUN_MODE_CLK);
         MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_OUT);
         set(SAFE_VALUE);
     }
+    /// Sets the output pin to a safe value.
     static void hw_set_to_safe()
     {
         hw_init();
     }
+    /// Sets the output pin to a defined value. @param value if true, output
+    /// will be set to HIGH, otherwise to LOW.
     static void set(bool value)
     {
         uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
+    /// @return current value of the input pin: if true HIGH.
     static bool get()
     {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
+    /// Changes the value of an output pin.
     static void toggle()
     {
         set(!get());
     }
 
+    /// @return static Gpio ovject instance that controls this output pin.
     static constexpr const Gpio *instance()
     {
         return &CC3200Gpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
 
+    /// @return true if this pin is an output pin.
     static bool is_output()
     {
         return true;
@@ -234,25 +242,30 @@ public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         MAP_PRCMPeripheralClkEnable(GPIO_PERIPH, PRCM_RUN_MODE_CLK);
         MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_IN);
     }
+    /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
     {
         hw_init();
     }
+    /// @return true if the pin input is seeing HIGH.
     static bool get()
     {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
+    /// @return true if the pin is set to an output.
     static bool is_output()
     {
         return false;
     }
+    /// @return the static Gpio instance controlling this pin.
     static constexpr const Gpio *instance()
     {
         return &CC3200Gpio<GPIO_BASE, GPIO_PIN>::instance_;

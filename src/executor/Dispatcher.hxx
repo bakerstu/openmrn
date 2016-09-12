@@ -222,6 +222,8 @@ public:
     /// configure to trigger.
     typedef typename MessageType::value_type::id_type ID;
 
+    /// Override method that will be called after each incoming message is
+    /// dequeued. @return next state.
     Action entry() OVERRIDE {
         return DispatchFlowBase<BASE_NUM_PRIO>::entry();
     }

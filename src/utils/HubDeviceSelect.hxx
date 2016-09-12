@@ -52,16 +52,21 @@ template <class BType> struct SelectBufferInfo
 /// Partial template specialization of buffer traits for string-typed hubs.
 template <> struct SelectBufferInfo<HubFlow::buffer_type>
 {
+    /// Preps a buffer for receiving data. @param b is the buffer to prep.
     static void resize_target(HubFlow::buffer_type *b)
     {
         b->data()->resize(64);
     }
+    /// Clears out all potential empty space left after a buffer has been
+    /// partially filled. @param b is the buffer, @param remaining is how many
+    /// bytes we did not fill.
     static void check_target_size(HubFlow::buffer_type *b, int remaining)
     {
         HASSERT(remaining >= 0);
         HASSERT(remaining <= 64);
         b->data()->resize(64 - remaining);
     }
+    /// @return false because we can deal with a partial read.
     static bool needs_read_fully()
     {
         return false;
@@ -72,15 +77,22 @@ template <> struct SelectBufferInfo<HubFlow::buffer_type>
 template <class T>
 struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
 {
+    /// Helper type for declaring the payload buffer type.
     typedef Buffer<HubContainer<StructContainer<T>>> buffer_type;
 
+    /// struct buffers do not need to be resized.
     static void resize_target(buffer_type *b)
     {
     }
+    /// a struct buffer is only okay if the entire buffer was read in in one
+    /// go. @param b is the filled buffer, @param remaining tells how many
+    /// bytes are empty.
     static void check_target_size(buffer_type *b, int remaining)
     {
         HASSERT(remaining == 0);
     }
+    /// @return true because struct buffers always need to be completely read
+    /// before forwarding to lower levels.
     static bool needs_read_fully()
     {
         return true;
@@ -93,15 +105,22 @@ struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
 /// inference cannot figure this out.
 template <>
 struct SelectBufferInfo<Buffer<CanHubData>> {
+    /// Helper type for declaring the payload buffer type.
     typedef Buffer<CanHubData> buffer_type;
     
+    /// CAN buffers do not need to be resized.
     static void resize_target(buffer_type *b)
     {
     }
+    /// a CAN buffer is only okay if the entire buffer was read in in one
+    /// go. @param b is the filled buffer, @param remaining tells how many
+    /// bytes are empty.
     static void check_target_size(buffer_type *b, int remaining)
     {
         HASSERT(remaining == 0);
     }
+    /// @return true because CAN buffers always need to be completely read
+    /// before forwarding to lower levels.
     static bool needs_read_fully()
     {
         return true;
@@ -143,6 +162,11 @@ public:
 
     /// Creates a select-aware hub port for the opened device specified by
     /// `fd'. It can be a hardware device, socket or pipe.
+    ///
+    /// @param hub the hub to open the port on
+    /// @param fd the filedes to read/write data from/to.
+    /// @param on_error notifiable that will be called when a write or read
+    /// error is encountered.
     HubDeviceSelect(HFlow *hub, int fd, Notifiable *on_error = nullptr)
         : Service(hub->service()->executor())
         , fd_(fd)
@@ -185,21 +209,25 @@ public:
         }
     }
 
+    /// @return parent hub flow.
     HFlow *hub()
     {
         return hub_;
     }
 
+    /// @return the write flow belonging to this device.
     typename HFlow::port_type *write_port()
     {
         return &writeFlow_;
     }
 
+    /// @return filedes to write to / read from.
     int fd()
     {
         return fd_;
     }
 
+    /// Removes the current write port from the registry of the source hub.
     void unregister_write_port()
     {
         hub_->unregister_port(&writeFlow_);
@@ -216,8 +244,12 @@ protected:
     class ReadFlow : public StateFlowBase
     {
     public:
+        /// Buffer type.
         typedef typename HFlow::buffer_type buffer_type;
 
+        /// Constructor.
+        ///
+        /// @param device parent object.
         ReadFlow(HubDeviceSelect *device)
             : StateFlowBase(device)
             , b_(nullptr)
@@ -225,6 +257,7 @@ protected:
             this->start_flow(STATE(allocate_buffer));
         }
 
+        /// Unregisters the current flow from the hub.
         void shutdown()
         {
             auto* e = this->service()->executor();
@@ -235,16 +268,20 @@ protected:
             notify_barrier();
         }
 
+        /// @return the parent object.
         HubDeviceSelect *device()
         {
             return static_cast<HubDeviceSelect *>(this->service());
         }
 
+        /// Allocates a new buffer for incoming data. @return next state.
         Action allocate_buffer()
         {
             return this->allocate_and_call(device()->hub(), STATE(try_read));
         }
 
+        /// Attempts to read into the current buffer from the target
+        /// fd. @return next state.
         Action try_read()
         {
             b_ = this->get_allocation_result(device()->hub());
@@ -293,21 +330,27 @@ protected:
             }
         }
 
-        bool barrierOwned_{true};  //< pending parent->barrier_.notify()
+        /// true iff pending parent->barrier_.notify()
+        bool barrierOwned_{true};
+        /// Helper object for read/write FD asynchronously.
         StateFlowSelectHelper selectHelper_{this};
+        /// Buffer that we are currently filling.
         buffer_type *b_;
     };
 
+    /// Base stateflow for the WriteFlow.
     typedef StateFlow<typename HFlow::buffer_type, QList<1>> WriteFlowBase;
     /// State flow implementing select-aware fd writes.
     class WriteFlow : public WriteFlowBase
     {
     public:
+        /// Constructor. @param dev is the parent object.
         WriteFlow(HubDeviceSelect *dev)
             : WriteFlowBase(dev)
         {
         }
 
+        /// Unregisters this oebject from the flows.
         void shutdown()
         {
             // The fd must be set to negative already to ensure the shutdown
@@ -323,6 +366,7 @@ protected:
             }
         }
 
+        /// @return parent object.
         HubDeviceSelect *device()
         {
             return static_cast<HubDeviceSelect *>(this->service());
@@ -339,6 +383,7 @@ protected:
                 this->priority());
         }
 
+        /// State flow call. @return next state.
         StateFlowBase::Action write_done()
         {
             if (selectHelper_.hasError_) {
@@ -348,6 +393,7 @@ protected:
         }
 
     private:
+        /// Helper class for asynchronous writes.
         StateFlowBase::StateFlowSelectHelper selectHelper_{this};
     };
 

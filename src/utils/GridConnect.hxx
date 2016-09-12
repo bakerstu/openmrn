@@ -122,14 +122,14 @@ private:
      */
     static ssize_t read_generic(int fd, void *data, size_t len, bool doub);
 
-    /**
+    /** @param frame is the binary CAn frame to encode.
      * @param buf array of at least 28 bytes to place encoded data into
      * @return number of bytes making up the final encoded packet
      */
     static ssize_t encode(struct can_frame *frame, unsigned char buf[]);
 
-    /** Build an ASCII character representation of a nibble value
-     * @param value to convert
+    /** Builds an ASCII character representation of a nibble value
+     * @param nibble value to convert
      * @return converted value
      */
     static char nibble_to_ascii(int nibble)
@@ -146,6 +146,7 @@ private:
 
     /** Take a pair of ASCII characters and convert them to a byte value.
      * pointer to two ASCII characters
+     * @param pair points to two hex digits.
      * @return byte value
      */
     static int ascii_pair_to_byte(const char *pair)

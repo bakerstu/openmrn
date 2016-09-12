@@ -50,6 +50,10 @@ extern "C" {
 class Pic32mxCan : public Node
 {
 public:
+    /// Constructor.
+    ///
+    /// @param module defines which CAN hardware to use. (can0 or can1).
+    /// @param dev filename of the device to create (e.g. "/dev/can0");
     Pic32mxCan(CAN_MODULE module, const char *dev)
         : Node(dev)
         , hw_(module)
@@ -65,6 +69,7 @@ public:
         free(messageFifoArea_);
     }
 
+    /// Implementation of the interrupt handler.
     void isr();
 
 private:
@@ -77,10 +82,16 @@ private:
     int ioctl(File *file, unsigned long int key,
                      unsigned long data);
 
+    /// Hordware (pointer into address space).
     CAN_MODULE hw_;
+    /// How many times did we drop a frame because we did not have enough
+    /// hardware buffers.
     int overrunCount_;
+    /// Points to the shared RAM area between the hardware and the driver.
     void *messageFifoArea_;
+    /// Semaphore for waking up transmitting tasks.
     OSSem txSem_;
+    /// Semaphore for waking up receiving tasks.
     OSSem rxSem_;
 
     DISALLOW_COPY_AND_ASSIGN(Pic32mxCan);
@@ -343,7 +354,7 @@ void Pic32mxCan::enable()
      * message.
      */
 
-    /// @TODO(balazs.racz) why is the tx buffer length 1?
+    /// @todo(balazs.racz) why is the tx buffer length 1?
     CANConfigureChannelForTx(hw_, CAN_CHANNEL0, 1, CAN_TX_RTR_DISABLED,
                              CAN_LOW_MEDIUM_PRIORITY);
     CANConfigureChannelForRx(hw_, CAN_CHANNEL1, config_can_rx_buffer_size(),
