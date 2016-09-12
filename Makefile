@@ -19,6 +19,9 @@ tests-applications: build-targets
 docs:
 	$(MAKE) -C doc docs || exit 1;
 
+docsw:
+	cat $(OPENMRNPATH)/doc/warnings
+
 cov:
 	$(MAKE) -C targets/cov cov
 
