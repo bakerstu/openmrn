@@ -527,7 +527,6 @@ protected:
      * @param c next state to call after write is complete 
      * @param piority what execution priority we should be scheduling the
      * intermediate and next states after the read is complete. */
-     */
     Action read_repeated(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
         helper->set_wakeup(this);
@@ -601,7 +600,6 @@ protected:
      * @param c next state to call after write is complete 
      * @param piority what execution priority we should be scheduling the
      * intermediate and next states after the read is complete. */
-     */
     Action read_repeated_with_timeout(StateFlowTimedSelectHelper *helper,
         long long timeout_nsec, int fd, void *buf, size_t size, Callback c,
         unsigned priority = Selectable::MAX_PRIO)
