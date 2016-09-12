@@ -72,7 +72,6 @@ public:
         return instance_;
     }
 
-
 private:
     /** Thread that will manage the network connection.
      * @param context context passed into the stack.
@@ -104,7 +103,7 @@ private:
     void fd_set_write(Socket_t socket);
 
     static FreeRTOSTCP *instance_; /**< singleton instance pointer. */
-    uint32_t ipAddress; /**< assigned IP adress */
+    uint32_t ipAddress;            /**< assigned IP adress */
 
     Socket_t wakeup; /**< signal socket to wakeup select() */
 

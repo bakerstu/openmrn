@@ -40,14 +40,11 @@
 
 class FreeRTOSTCP;
 
-typedef void
-    *Socket_t;
+typedef void *Socket_t;
 
-static const int
-	MAX_SOCKETS			= 20;
+static const int MAX_SOCKETS = 20;
 
-
-class FreeRTOSTCPSocket: public Socket
+class FreeRTOSTCPSocket : public Socket
 {
 public:
     /** Create an unbound socket in a communications domain.
@@ -73,8 +70,8 @@ public:
      * @return shall return on success, otherwise, -1 shall be returned and
      *         errno set to indicate the error
      */
-    static int bind(int socket, const struct sockaddr *address,
-                    socklen_t address_len);
+    static int bind(
+        int socket, const struct sockaddr *address, socklen_t address_len);
 
     /** Mark a connection-mode socket, specified by the socket argument, as
      * accepting connections.
@@ -101,8 +98,8 @@ public:
      *         socket upon success, otherwise, -1 shall be returned and errno
      *         set to indicate the error
      */
-    static int accept(int socket, struct sockaddr *address,
-                      socklen_t *address_len);
+    static int accept(
+        int socket, struct sockaddr *address, socklen_t *address_len);
 
     /** Connect a socket.
      * @param socket the socket file descriptor
@@ -112,8 +109,8 @@ public:
      * @return shall return 0 upon success, otherwise, -1 shall be returned and
      *         errno set to indicate the error
      */
-    static int connect(int socket, const struct sockaddr *address,
-                       socklen_t address_len);
+    static int connect(
+        int socket, const struct sockaddr *address, socklen_t address_len);
 
     /** Receive a message from a connection-mode or connectionless-mode socket.
      * @param socket the socket file descriptor
@@ -136,8 +133,8 @@ public:
      * @return the number of bytes sent, otherwise, -1 shall be returned and
      *         errno set to indicate the error
      */
-    static ssize_t send(int socket, const void *buffer, size_t length,
-                        int flags);
+    static ssize_t send(
+        int socket, const void *buffer, size_t length, int flags);
 
     /** Set the socket options.
      * @param socket the socket file descriptor
@@ -150,7 +147,7 @@ public:
      *         errno set to indicate the error
      */
     static int setsockopt(int socket, int level, int option_name,
-                          const void *option_value, socklen_t option_len);
+        const void *option_value, socklen_t option_len);
 
     /** Get the socket options.
      * @param socket the socket file descriptor
@@ -163,7 +160,7 @@ public:
      *         errno set to indicate the error
      */
     static int getsockopt(int socket, int level, int option_name,
-                          void *option_value, socklen_t *option_len);
+        void *option_value, socklen_t *option_len);
 
 private:
     /** Get the socket descriptor assoicated with socket index
@@ -185,7 +182,7 @@ private:
      *        exceptions
      * @return true if active, false if inactive
      */
-    bool select(File* file, int mode) override;
+    bool select(File *file, int mode) override;
 
     /** Manipulate a file descriptor.
      * @param file file reference for this device
@@ -204,9 +201,9 @@ private:
         , sd(NULL)
         , readActive(true)
         , writeActive(true)
-    	, listenActive(false)
+        , listenActive(false)
     {
-    }    
+    }
 
     /** Destructor.
      */
@@ -215,22 +212,22 @@ private:
     }
 
     /** Allocate a new FreeRTOSTCPSocket and related structures
-     * @param sd FreeRTOS socket descriptor 
+     * @param sd FreeRTOS socket descriptor
      * @return assigned fd
      */
     static int alloc_instance(Socket_t sd);
-    
+
     /** Get the FreeRTOSTCP instance given a specific socket descriptor.
      * Should only be called within a critical section.
      * @param sd socket descriptor we are looking for
      * @return fd allocated for sd, otherwise -1 and errno set appropriately
-     */ 
+     */
     static FreeRTOSTCPSocket *get_instance_from_sd(Socket_t sd);
 
     /** Remove the FreeRTOSTCP instance from the active FreeRTOSTCP list.
      * Should only be called within a critical section.
      * @param sd socket descriptor we are looking for
-     */ 
+     */
     static void remove_instance_from_sd(Socket_t sd);
 
     /** FreeRTOS socket descriptor */
