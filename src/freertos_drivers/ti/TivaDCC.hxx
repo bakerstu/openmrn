@@ -220,8 +220,11 @@ public:
 
     /** Structure for supporting bit timing. */
     struct Timing {
+        /// In clock cycles: period ofthe timers
         uint32_t period;
+        /// When to transition output A; must be within the period
         uint32_t transition_a;
+        /// When to transition output B; must be within the period
         uint32_t transition_b;
     };
 

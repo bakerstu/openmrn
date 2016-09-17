@@ -98,6 +98,9 @@ public:
     {
     }
 
+    /// Sets the train speed (asking for a high-priority outgoing update packet
+    /// to be generated). @param speed is the desired speed that came from the
+    /// throttle.
     void set_speed(SpeedType speed) OVERRIDE
     {
         float16_t new_speed = speed.get_wire();
@@ -131,16 +134,20 @@ public:
         packet_processor_notify_update(this, SPEED);
     }
 
+    /// @return the last set speed.
     SpeedType get_speed() OVERRIDE
     {
         SpeedType v;
         v.set_wire(p.lastSetSpeed_);
         return v;
     }
+    /// @return the commanded speed (which as of now is interpreted as the last
+    /// set speed).
     SpeedType get_commanded_speed() OVERRIDE
     {
         return get_speed();
     }
+    /// Sets the train to ESTOP state, generating an emergency stop packet.
     void set_emergencystop() OVERRIDE
     {
         p.speed_ = 0;
@@ -150,6 +157,8 @@ public:
         p.directionChanged_ = 1;
         packet_processor_notify_update(this, ESTOP);
     }
+    /// Sets a function to a given value. @param address is the function number
+    /// (0..28), @param value is 0 for funciton OFF, 1 for function ON.
     void set_fn(uint32_t address, uint16_t value) OVERRIDE
     {
         if (address > p.get_max_fn())
@@ -168,6 +177,8 @@ public:
         }
         packet_processor_notify_update(this, p.get_fn_update_code(address));
     }
+    /// @return the last set value of a given function, or 0 if the function is
+    /// not known. @param address is the function address.
     uint16_t get_fn(uint32_t address) OVERRIDE
     {
         if (address > p.get_max_fn())
@@ -177,17 +188,19 @@ public:
         }
         return (p.fn_ & (1 << address)) ? 1 : 0;
     }
+    /// @return the legacy address of this loco.
     uint32_t legacy_address() OVERRIDE
     {
         return p.address_;
     }
+    /// @return the legacy address type.
     TrainAddressType legacy_address_type() OVERRIDE
     {
         return p.get_address_type();
     }
 
 protected:
-    // Payload -- actual data we know about the train.
+    /// Payload -- actual data we know about the train.
     P p;
 };
 
@@ -198,20 +211,24 @@ struct Dcc28Payload
     {
         memset(this, 0, sizeof(*this));
     }
-    // largest address allowed is 10239.
+    /// Track address. largest address allowed is 10239.
     unsigned address_ : 14;
+    /// 1 if this is a short address train.
     unsigned isShortAddress_ : 1;
-    // 0: forward, 1: reverse
+    /// 0: forward, 1: reverse
     unsigned direction_ : 1;
+    /// fp16 value of the last set speed.
     unsigned lastSetSpeed_ : 16;
-    // functions f0-f28.
+    /// functions f0-f28.
     unsigned fn_ : 29;
-    // Which refresh packet should go out next.
+    /// Which refresh packet should go out next.
     unsigned nextRefresh_ : 3;
+    /// Speed step we last set.
     unsigned speed_ : 5;
+    /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
 
-    /** @returns the number of speed steps (in float). */
+    /** @return the number of speed steps (in float). */
     static unsigned get_speed_steps()
     {
         return 28;
@@ -223,22 +240,25 @@ struct Dcc28Payload
         return 28;
     }
 
-    /** @returns the update code to send ot the packet handler for a given
-     * function value change. */
+    /** @return the update code to send ot the packet handler for a given
+     * function value change. @param address is the function number(0..28). */
     static unsigned get_fn_update_code(unsigned address);
 
-    /** Adds the speed payload to a DCC packet. */
+    /** Adds the speed payload to a DCC packet. @param p is the packet to add
+     * the speed payload to. */
     void add_dcc_speed_to_packet(dcc::Packet *p)
     {
         p->add_dcc_speed28(!direction_, speed_);
     }
 
-    /** Adds the speed payload to a DCC packet with value == EMERGENCY_STOP */
+    /** Adds the speed payload to a DCC packet with value == EMERGENCY_STOP
+     * @param p is the packet to add the speed payload to. */
     void add_dcc_estop_to_packet(dcc::Packet *p)
     {
         p->add_dcc_speed28(!direction_, Packet::EMERGENCY_STOP);
     }
 
+    /// @return what type of address this train has.
     TrainAddressType get_address_type()
     {
         return isShortAddress_ ? TrainAddressType::DCC_SHORT_ADDRESS : TrainAddressType::DCC_LONG_ADDRESS;
@@ -249,6 +269,7 @@ struct Dcc28Payload
 template <class Payload> class DccTrain : public AbstractTrain<Payload>
 {
 public:
+    /// Constructor. @param a is the address.
     DccTrain(DccShortAddress a)
     {
         this->p.isShortAddress_ = 1;
@@ -256,6 +277,7 @@ public:
         packet_processor_add_refresh_source(this);
     }
 
+    /// Constructor. @param a is the address.
     DccTrain(DccLongAddress a)
     {
         this->p.isShortAddress_ = 0;
@@ -265,7 +287,9 @@ public:
 
     ~DccTrain();
 
-    // Generates next outgoing packet.
+    /// Generates next outgoing packet. @param code is the packet code (as
+    /// requested by the previous cycle or the on-update notification). @param
+    /// packet needs to be filled in for the output.
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 };
 
@@ -279,50 +303,57 @@ struct Dcc128Payload
     {
         memset(this, 0, sizeof(*this));
     }
-    // largest address allowed is 10239.
+    /// Track address. largest address allowed is 10239.
     unsigned address_ : 14;
+    /// 1 if this is a short address train.
     unsigned isShortAddress_ : 1;
-    // 0: forward, 1: reverse
+    /// 0: forward, 1: reverse
     unsigned direction_ : 1;
+    /// fp16 value of the last set speed.
     unsigned lastSetSpeed_ : 16;
-    // functions f0-f28.
+    /// functions f0-f28.
     unsigned fn_ : 29;
-    // Which refresh packet should go out next.
+    /// Which refresh packet should go out next.
     unsigned nextRefresh_ : 3;
+    /// Speed step we last set.
     unsigned speed_ : 7;
+    /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
 
-    /** @returns the number of speed steps (the largest valid speed step). */
+    /** @return the number of speed steps (the largest valid speed step). */
     static unsigned get_speed_steps()
     {
         return 126;
     }
 
-    /** @returns the largest function number that is still valid. */
+    /** @return the largest function number that is still valid. */
     static unsigned get_max_fn()
     {
         return 28;
     }
 
-    /** @returns the update code to send ot the packet handler for a given
+    /** @return the update code to send ot the packet handler for a given
      * function value change. */
     static unsigned get_fn_update_code(unsigned address)
     {
         return Dcc28Payload::get_fn_update_code(address);
     }
 
-    /** Adds the speed payload to a DCC packet. */
+    /** Adds the speed payload to a DCC packet. @param p is the packet to add
+     * the speed payload to. */
     void add_dcc_speed_to_packet(dcc::Packet *p)
     {
         p->add_dcc_speed128(!direction_, speed_);
     }
 
-    /** Adds the speed payload to a DCC packet with value == EMERGENCY_STOP */
+    /** Adds the speed payload to a DCC packet with value == EMERGENCY_STOP
+     * @param p is the packet to add the speed payload to. */
     void add_dcc_estop_to_packet(dcc::Packet *p)
     {
         p->add_dcc_speed128(!direction_, Packet::EMERGENCY_STOP);
     }
 
+    /// @return what type of address this train has.
     TrainAddressType get_address_type()
     {
         return isShortAddress_ ? TrainAddressType::DCC_SHORT_ADDRESS : TrainAddressType::DCC_LONG_ADDRESS;
@@ -340,35 +371,40 @@ struct MMOldPayload
     {
         memset(this, 0, sizeof(*this));
     }
-    // largest address allowed is 80, but we keep a few more bits around to
-    // allow for an extension to arbitrary MM address packets.
+    /// largest address allowed is 80, but we keep a few more bits around to
+    /// allow for an extension to arbitrary MM address packets.
     unsigned address_ : 8;
+    /// fp16 value of the last set speed.
     unsigned lastSetSpeed_ : 16;
+    /// function f0.
     unsigned fn_ : 1;
-    // 0: forward, 1: reverse
+    /// 0: forward, 1: reverse
     unsigned direction_ : 1;
+    /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
+    /// Speed step we last set.
     unsigned speed_ : 4;
 
-    /** @returns the number of speed steps (in float). */
+    /** @return the number of speed steps (in float). */
     unsigned get_speed_steps()
     {
         return 14;
     }
 
-    /** @returns the largest function number that is still valid. */
+    /** @return the largest function number that is still valid. */
     unsigned get_max_fn()
     {
         return 0;
     }
 
-    /** @returns the update code to send ot the packet handler for a given
-     * function value change. */
+    /** @return the update code to send to the packet handler for a given
+     * function value change. @param address is ignored */
     unsigned get_fn_update_code(unsigned address)
     {
         return SPEED;
     }
 
+    /// @return what type of address this train has.
     static TrainAddressType get_address_type()
     {
         return TrainAddressType::MM;
@@ -379,10 +415,13 @@ struct MMOldPayload
 class MMOldTrain : public AbstractTrain<MMOldPayload>
 {
 public:
+    /// Constructor. @param a is the MM address.
     MMOldTrain(MMAddress a);
     ~MMOldTrain();
 
-    // Generates next outgoing packet.
+    /// Generates next outgoing packet. @param code is the packet code (as
+    /// requested by the previous cycle or the on-update notification). @param
+    /// packet needs to be filled in for the output.
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 };
 
@@ -394,32 +433,38 @@ struct MMNewPayload
     {
         memset(this, 0, sizeof(*this));
     }
-    // largest address allowed is 80, but we keep a few more bits around to
-    // allow for an extension to arbitrary MM address packets.
+    /// largest address allowed is 80, but we keep a few more bits around to
+    /// allow for an extension to arbitrary MM address packets.
     unsigned address_ : 8;
+    /// fp16 value of the last set speed.
     unsigned lastSetSpeed_ : 16;
+    /// function f0-f4.
     unsigned fn_ : 5;
-    // 0: forward, 1: reverse
+    /// 0: forward, 1: reverse
     unsigned direction_ : 1;
+    /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
+    /// reserved
     unsigned resvd1_ : 1;
+    /// Speed step we last set.
     unsigned speed_ : 4;
+    /// internal refresh cycle state machine
     unsigned nextRefresh_ : 3;
 
-    /** @returns the number of speed steps (in float). */
+    /** @return the number of speed steps (in float). */
     unsigned get_speed_steps()
     {
         return 14;
     }
 
-    /** @returns the largest function number that is still valid. */
+    /** @return the largest function number that is still valid. */
     unsigned get_max_fn()
     {
         return 4;
     }
 
-    /** @returns the update code to send to the packet handler for a given
-     * function value change. */
+    /** @return the update code to send to the packet handler for a given
+     * function value change. @param address is the function number (0..4) */
     unsigned get_fn_update_code(unsigned address)
     {
         if (1 <= address && address <= 4)
@@ -432,6 +477,7 @@ struct MMNewPayload
         }
     }
 
+    /// @return what type of address this train has.
     static TrainAddressType get_address_type()
     {
         return TrainAddressType::MM;
@@ -442,10 +488,13 @@ struct MMNewPayload
 class MMNewTrain : public AbstractTrain<MMNewPayload>
 {
 public:
+    /// Constructor. @param a is the MM address.
     MMNewTrain(MMAddress a);
     ~MMNewTrain();
 
-    // Generates next outgoing packet.
+    /// Generates next outgoing packet. @param code is the packet code (as
+    /// requested by the previous cycle or the on-update notification). @param
+    /// packet needs to be filled in for the output.
     void get_next_packet(unsigned code, Packet *packet) OVERRIDE;
 };
 

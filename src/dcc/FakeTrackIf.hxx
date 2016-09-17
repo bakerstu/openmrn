@@ -47,6 +47,10 @@ namespace dcc
 class FakeTrackIf : public StateFlow<Buffer<dcc::Packet>, QList<1>>
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service defines which executor *this should be running on.
+    /// @param pool_size how many packets we should generate ahead of time.
     FakeTrackIf(Service *service, int pool_size)
         : StateFlow<Buffer<dcc::Packet>, QList<1>>(service)
         , pool_(sizeof(Buffer<dcc::Packet>), pool_size)
@@ -64,12 +68,15 @@ protected:
         return sleep_and_call(&timer_, MSEC_TO_NSEC(10), STATE(finish));
     }
 
+    /// Do nothing. @return next action.
     Action finish()
     {
         return release_and_exit();
     }
 
+    /// Pool of unallocated packets.
     FixedPool pool_;
+    /// Helper object for timing.
     StateFlowTimer timer_{this};
 };
 

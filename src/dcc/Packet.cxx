@@ -263,7 +263,8 @@ static const uint8_t marklin_address[3] = {0b00, 0b11, 0b10};
 static const uint8_t marklin_fn_bits[5] = {0,          0b01010000, 0b00000100,
                                            0b00010100, 0b01010100};
 
-/** Sets the address bits of an MM packet to a specific loco address. */
+/** Sets the address bits of an MM packet to a specific loco address. @param a
+ * is the train address @param light if true, light (f0) will be set to ON. */
 void Packet::add_mm_address(MMAddress a, bool light)
 {
     uint8_t address = a.value;

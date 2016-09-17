@@ -248,7 +248,7 @@ template <class Base>
 struct GpioPullOutPin : public Base
 {
 public:
-    /// Initialized the hardware pin.
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         Base::set_input();

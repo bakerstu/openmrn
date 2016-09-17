@@ -79,8 +79,7 @@ private:
 
     ssize_t read(File *file, void *buf, size_t count);
     ssize_t write(File *file, const void *buf, size_t count);
-    int ioctl(File *file, unsigned long int key,
-                     unsigned long data);
+    int ioctl(File *file, unsigned long int key, unsigned long data);
 
     /// Hordware (pointer into address space).
     CAN_MODULE hw_;

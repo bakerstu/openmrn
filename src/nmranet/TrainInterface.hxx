@@ -52,9 +52,9 @@ public:
      * means the direction.
      */
     virtual void set_speed(SpeedType speed) = 0;
-    /** Returns the last set speed of the locomotive. */
+    /** @return the last set speed of the locomotive. */
     virtual SpeedType get_speed() = 0;
-    /** Returns the commanded speed of the locomotive. */
+    /** @return the commanded speed of the locomotive. */
     virtual SpeedType get_commanded_speed() {
         return nan_to_speed();
     }
@@ -75,12 +75,12 @@ public:
      * value sets the function to on, zero sets it to off.*/
     virtual void set_fn(uint32_t address, uint16_t value) = 0;
 
-    /** @returns the value of a function. */
+    /** @return the value of a function. */
     virtual uint16_t get_fn(uint32_t address) = 0;
 
-    /** @returns the legacy (DCC) address of this train. This value is used in
+    /** @return the legacy (DCC) address of this train. This value is used in
      * determining the train's NMRAnet NodeID.
-     * @TODO(balazs.racz) This function should not be here. Specifying the
+     * @todo(balazs.racz) This function should not be here. Specifying the
      * NodeID should be more generic, but it is not clear what would be the
      * best interface for that.
      */

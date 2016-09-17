@@ -45,7 +45,9 @@ namespace dcc {
 /// type inference to decide whether a particular value is a long or short
 /// address.
 struct DccShortAddress {
+    /// Address value.
     uint8_t value;
+    /// Constructor. @param v is the address value (0<=v<128);
     explicit DccShortAddress(uint8_t v)
         : value(v) {
         HASSERT(value < 128);
@@ -56,7 +58,9 @@ struct DccShortAddress {
 /// type inference to decide whether a particular value is a long or short
 /// address.
 struct DccLongAddress {
+    /// Address value.
     uint16_t value;
+    /// Constructor. @param v is the address value (0<=v<10239);
     explicit DccLongAddress(uint16_t v)
         : value(v) {
         HASSERT(value <= 10239);
@@ -66,7 +70,9 @@ struct DccLongAddress {
 /// Strongly typed wrapper representing a marklin-motorola protocol
 /// address. This address is between 0 and 80.
 struct MMAddress {
+    /// Address value.
     uint8_t value;
+    /// Constructor. @param v is the address value (0<=v<81);
     explicit MMAddress(uint8_t v)
         : value(v) {
         HASSERT(v <= 80);
