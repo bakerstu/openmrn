@@ -1,6 +1,8 @@
 #ifndef _PING_PROTOCOL_HXX_
 #define _PING_PROTOCOL_HXX_
 
+#define DEFAULT_PORT 30263
+
 // Protocol: Receive first four bytes: packet length.
 struct Request
 {

@@ -11,67 +11,72 @@
 #include "utils.hxx"
 
 char *host = nullptr;
-int port = 30268;
+int port = DEFAULT_PORT;
 int req_bytes = 20;
 int resp_bytes = 20;
+int sleep_msec = 1000;
 
 void run_client(int fd)
 {
-    Request r;
-    r.payload_length = req_bytes;
-    r.response_length = resp_bytes;
-    long long before_send = os_get_time_monotonic();
-    long long first_hdr;
-    if (!rw_repeated(fd, &r, sizeof(r), &first_hdr, write, "write"))
+    while (true)
     {
-        exit(1);
+        Request r;
+        r.payload_length = req_bytes;
+        r.response_length = resp_bytes;
+        long long before_send = os_get_time_monotonic();
+        long long first_hdr;
+        if (!rw_repeated(fd, &r, sizeof(r), &first_hdr, write, "write"))
+        {
+            exit(1);
+        }
+        long long after_hdr = os_get_time_monotonic();
+        int maxlen = std::max(r.payload_length, r.response_length);
+        std::unique_ptr<uint8_t[]> payload(new uint8_t[maxlen]);
+        memset(payload.get(), 0xAA, maxlen);
+        long long first_write;
+        if (!rw_repeated(fd, payload.get(), r.payload_length, &first_write,
+                write, "write"))
+        {
+            exit(1);
+        }
+        long long write_done = os_get_time_monotonic();
+
+        long long first_response;
+        if (!rw_repeated(fd, payload.get(), r.response_length, &first_response,
+                read, "read"))
+        {
+            exit(1);
+        }
+        long long all_response = os_get_time_monotonic();
+
+        LatencyResponse l;
+        l.latency_usec = (all_response - before_send) / 1000;
+
+        if (!rw_repeated(fd, &l, sizeof(l), nullptr, write, "write"))
+        {
+            exit(1);
+        }
+
+        printstat("before hdr->first hdr", before_send, first_hdr);
+        printstat("first hdr->after_hdr", first_hdr, after_hdr);
+        printstat("after_hdr->first_write", after_hdr, first_write);
+        printstat("first_write->write_done", first_write, write_done);
+
+        printf("\n");
+        printstat("all write", before_send, write_done);
+        printf("\n");
+        printstat("write_done->first_resp", write_done, first_response);
+        printstat("first_resp->all_resp", first_response, all_response);
+
+        printf("\n");
+        printstat("e2e", before_send, all_response);
+        usleep(sleep_msec * 1000);
     }
-    long long after_hdr = os_get_time_monotonic();
-    int maxlen = std::max(r.payload_length, r.response_length);
-    std::unique_ptr<uint8_t[]> payload(new uint8_t[maxlen]);
-    memset(payload.get(), 0xAA, maxlen);
-    long long first_write;
-    if (!rw_repeated(
-            fd, payload.get(), r.payload_length, &first_write, write, "write"))
-    {
-        exit(1);
-    }
-    long long write_done = os_get_time_monotonic();
-
-    long long first_response;
-    if (!rw_repeated(
-            fd, payload.get(), r.response_length, &first_response, read, "read"))
-    {
-        exit(1);
-    }
-    long long all_response = os_get_time_monotonic();
-
-    LatencyResponse l;
-    l.latency_usec = (all_response - before_send) / 1000;
-
-    if (!rw_repeated(fd, &l, sizeof(l), nullptr, write, "write"))
-    {
-        exit(1);
-    }
-
-    printstat("before hdr->first hdr", before_send, first_hdr);
-    printstat("first hdr->after_hdr", first_hdr, after_hdr);
-    printstat("after_hdr->first_write", after_hdr, first_write);
-    printstat("first_write->write_done", first_write, write_done);
-
-    printf("\n");
-    printstat("all write", before_send, write_done);
-    printf("\n");
-    printstat("write_done->first_resp", write_done, first_response);
-    printstat("first_resp->all_resp", first_response, all_response);
-
-    printf("\n");
-    printstat("e2e", before_send, all_response);
 }
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-u host] [-p port]\n\n", e);
+    fprintf(stderr, "Usage: %s [-u host] [-p port] [-w wait_msec]\n\n", e);
     fprintf(stderr, "TCP ping client.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to connect to, "
                     "default is 30268.\n");
