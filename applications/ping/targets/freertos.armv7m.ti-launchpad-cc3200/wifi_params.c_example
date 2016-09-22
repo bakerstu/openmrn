@@ -1,0 +1,11 @@
+#include "protocol.hxx"
+
+/// Name of wifi accesspoint to connect to.
+char WIFI_SSID[] = "YourSSIDHere";
+/// Password of wifi connection. If empty, use no encryption.
+char WIFI_PASS[] = "pass-or-empty-for-open";
+/// Hostname at which the ping server is at.
+char WIFI_HUB_HOSTNAME[] = "10.0.0.7";
+/// Port number of the ping server (or leave at default).
+int WIFI_HUB_PORT = DEFAULT_PORT;
+
