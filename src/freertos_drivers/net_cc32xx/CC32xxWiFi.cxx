@@ -77,6 +77,35 @@ CC32xxWiFi::CC32xxWiFi()
     ssid[0] = '\0';
 }
 
+uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
+{
+    switch (sec_type)
+    {
+        default:
+        case SEC_OPEN:
+            return SL_SEC_TYPE_OPEN;
+        case SEC_WEP:
+            return SL_SEC_TYPE_WEP;
+            break;
+        case SEC_WPA2:
+            return SL_SEC_TYPE_WPA_WPA2;
+    }
+}
+
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_type)
+{
+    switch (sec_type)
+    {
+        default:
+        case SL_SEC_TYPE_OPEN:
+            return SEC_OPEN;
+        case SL_SEC_TYPE_WEP:
+            return SEC_WEP;
+        case SL_SEC_TYPE_WPA_WPA2:
+            return SEC_WPA2;
+    }
+}
+
 /*
  * CC32xxWiFi::wlan_profile_add()
  */
@@ -86,19 +115,7 @@ int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
     SlSecParams_t sec_params;
     sec_params.Key = (int8_t*)key;
     sec_params.KeyLen = (key == nullptr) ? 0 : strlen(key);
-    switch (sec_type)
-    {
-        default:
-        case SEC_OPEN:
-            sec_params.Type = SL_SEC_TYPE_OPEN;
-            break;
-        case SEC_WEP:
-            sec_params.Type = SL_SEC_TYPE_WEP;
-            break;
-        case SEC_WPA2:
-            sec_params.Type = SL_SEC_TYPE_WPA_WPA2;
-            break;
-    }
+    sec_params.Type = security_type_to_simplelink(sec_type);
 
     int16_t result = sl_WlanProfileAdd((const int8_t*)ssid, strlen(ssid),
                                        nullptr, &sec_params, nullptr,
@@ -161,19 +178,7 @@ int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
 
     if (sec_type)
     {
-        switch (sec_params.Type)
-        {
-            default:
-            case SL_SEC_TYPE_OPEN:
-                *sec_type = SEC_OPEN;
-                break;
-            case SL_SEC_TYPE_WEP:
-                *sec_type = SEC_WEP;
-                break;
-            case SL_SEC_TYPE_WPA_WPA2:
-                *sec_type = SEC_WPA2;
-                break;
-        }
+        *sec_type = security_type_from_simplelink(sec_params.Type);
     }
 
     return 0;
@@ -259,12 +264,12 @@ void CC32xxWiFi::stop()
  * CC32xxWiFi::wlan_connect()
  */
 void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
-                         uint8_t security_type)
+                              SecurityType security_type)
 {
     SlSecParams_t sec_params;
     sec_params.Key = (_i8*)security_key;
     sec_params.KeyLen = strlen(security_key);
-    sec_params.Type = security_type;
+    sec_params.Type = security_type_to_simplelink(security_type);
 
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
                                 &sec_params, 0);

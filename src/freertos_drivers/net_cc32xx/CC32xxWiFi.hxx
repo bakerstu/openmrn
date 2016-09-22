@@ -89,16 +89,10 @@ public:
     /** Connect to access point.
      * @param ssid access point ssid
      * @param security_key access point security key
-     * @param security_type access point security type, options:\n
-     *                          - SL_SEC_TYPE_OPEN
-     *                          - SL_SEC_TYPE_WEP
-     *                          - SL_SEC_TYPE_WPA_WPA2
-     *                          - SL_SEC_TYPE_WPA_ENT
-     *                          - SL_SEC_TYPE_WPS_PBC
-     *                          - SL_SEC_TYPE_WPS_PIN 
+     * @param security_type specifies security type 
      */
     void wlan_connect(const char *ssid, const char* security_key,
-                      uint8_t security_type);
+                      SecurityType security_type);
 
 
     /** @return true if the wlan interface is ready to establish outgoing
@@ -229,6 +223,18 @@ public:
     void sock_event_handler(void *context);
 
 private:
+    /** Translates the SecurityType enum to the internal SimpleLink code.
+     * @param sec_type security type
+     * @return simplelink security type
+     */
+    uint8_t security_type_to_simplelink(SecurityType sec_type);
+
+    /** Translates the SimpleLink code to SecurityType enum.
+     * @param sec_type simplelink security type
+     * @return security type
+     */
+    SecurityType security_type_from_simplelink(uint8_t sec_type);
+
     /** Set the CC32xx to its default state, including station mode.
      */
     void set_default_state();
