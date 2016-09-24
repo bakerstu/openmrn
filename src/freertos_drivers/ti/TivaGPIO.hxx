@@ -418,7 +418,7 @@ template <class Defs> struct GpioUSBAPin : public Defs
 /// mode the pin can be read and written using the usual set() and get()
 /// functions.
 ///
-/// Do not use this class directly. Use @ref GPIO_PIN instead.
+/// Do not use this class directly. Use @ref GPIO_HWPIN instead.
 template <class Defs> struct GpioHwPin : public Defs
 {
     using Defs::GPIO_PERIPH;
