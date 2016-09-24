@@ -17,15 +17,6 @@
 int req_bytes = 20;
 int resp_bytes = 20;
 
-#define ERR_WRITE_1 0x800A0CCA
-#define ERR_WRITE_2 0x800A0CCA
-#define ERR_WRITE_3 0x800A0CCA
-#define ERR_READ_1 0x800A0CCA
-
-void testfn(long long b, long long a)
-{
-}
-
 #define printstat(x, bef, after) testfn(bef, after)
 
 void run_client(int fd)

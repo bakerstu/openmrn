@@ -24,18 +24,13 @@ void run_client(int fd)
         r.payload_length = req_bytes;
         r.response_length = resp_bytes;
         long long before_send = os_get_time_monotonic();
-        long long first_hdr;
-        if (!rw_repeated(fd, &r, sizeof(r), &first_hdr, write, "write"))
-        {
-            exit(1);
-        }
-        long long after_hdr = os_get_time_monotonic();
-        int maxlen = std::max(r.payload_length, r.response_length);
+        int maxlen = std::max(r.payload_length + sizeof(r), (size_t)r.response_length);
         std::unique_ptr<uint8_t[]> payload(new uint8_t[maxlen]);
         memset(payload.get(), 0xAA, maxlen);
+        memcpy(payload.get(), &r, sizeof(r));
         long long first_write;
-        if (!rw_repeated(fd, payload.get(), r.payload_length, &first_write,
-                write, "write"))
+        if (!rw_repeated(fd, payload.get(), r.payload_length + sizeof(r),
+                &first_write, write, "write"))
         {
             exit(1);
         }
@@ -57,9 +52,7 @@ void run_client(int fd)
             exit(1);
         }
 
-        printstat("before hdr->first hdr", before_send, first_hdr);
-        printstat("first hdr->after_hdr", first_hdr, after_hdr);
-        printstat("after_hdr->first_write", after_hdr, first_write);
+        printstat("before hdr->first_write", before_send, first_write);
         printstat("first_write->write_done", first_write, write_done);
 
         printf("\n");

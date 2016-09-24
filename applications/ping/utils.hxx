@@ -1,6 +1,20 @@
 #ifndef _PING_UTILS_HXX_
 #define _PING_UTILS_HXX_
 
+#include <unistd.h>
+
+#include "utils/logging.h"
+
+#define ERR_WRITE_1 0x800A0CCA
+#define ERR_WRITE_2 0x800A0CCA
+#define ERR_WRITE_3 0x800A0CCA
+#define ERR_READ_1 0x800A0CCA
+
+
+void testfn(long long b, long long a)
+{
+}
+
 struct ThreadArg
 {
     int fd;
@@ -29,7 +43,7 @@ bool rw_repeated(int fd, ptr_type bufptr, size_t len, long long *time_first,
         }
         else if (ret == 0)
         {
-            fprintf(stderr, "EOF in %s\n", fnname);
+            LOG_ERROR("EOF in %s\n", fnname);
             ::close(fd);
             return false;
         }
@@ -39,8 +53,7 @@ bool rw_repeated(int fd, ptr_type bufptr, size_t len, long long *time_first,
         }
         else
         {
-            fprintf(
-                stderr, "Error in %s: %d %s\n", fnname, errno, strerror(errno));
+            LOG_ERROR("Error in %s: %d %s\n", fnname, errno, strerror(errno));
             ::close(fd);
             return false;
         }
