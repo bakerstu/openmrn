@@ -11,18 +11,28 @@
 
 #include "protocol.hxx"
 #include "utils.hxx"
+#include "histogram.hxx"
 
 bool display_detailed = false;
-const char* device = nullptr;
+const char *device = nullptr;
 int port = DEFAULT_PORT; // 30263
 
 volatile bool is_alive = false;
+volatile long long last_ping_received;
+volatile int num_pings = 0;
+
+Histogram client_latency_histo;
+Histogram server_latency_histo;
 
 void *socket_receive_thread(void *arg)
 {
     std::unique_ptr<ThreadArg> a((ThreadArg *)arg);
-    struct Deleter {
-        ~Deleter() { is_alive = false; }
+    struct Deleter
+    {
+        ~Deleter()
+        {
+            is_alive = false;
+        }
     } guard;
     while (true)
     {
@@ -62,6 +72,11 @@ void *socket_receive_thread(void *arg)
         }
         long long all_latency = os_get_time_monotonic();
 
+        last_ping_received = all_latency;
+        ++num_pings;
+        int server_latency_usec = int(first_latency - all_response) / 1000;
+        client_latency_histo.add(l.latency_usec);
+        server_latency_histo.add(server_latency_usec);
         if (display_detailed)
         {
             printstat("first hdr->all hdr", first_req, all_header);
@@ -85,8 +100,9 @@ void *socket_receive_thread(void *arg)
         }
         else
         {
-            printf("Server latency seen by client: %6d usec; client latency seen by server: %6d usec\n",
-                l.latency_usec, int(first_latency - all_response) / 1000);
+            printf("Server latency seen by client: %6d usec; client latency "
+                   "seen by server: %6d usec\n",
+                l.latency_usec, server_latency_usec);
         }
     }
     ::close(a->fd);
@@ -138,6 +154,23 @@ void parse_args(int argc, char *argv[])
     }
 }
 
+void sleep_or_print_histo() {
+    if (!num_pings) {
+        sleep(1);
+        return;
+    }
+    if (os_get_time_monotonic() - last_ping_received > MSEC_TO_NSEC(1500)) {
+        printf("Server latency seen by client ");
+        client_latency_histo.print();
+        printf("\n");
+        
+        printf("Client latency seen by server ");
+        server_latency_histo.print();
+        printf("\n");
+        num_pings = 0;
+    }
+    sleep(1);
+}
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -147,7 +180,8 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    while (device) {
+    while (device)
+    {
         int fd = ::open(device, O_RDWR);
         if (fd >= 0)
         {
@@ -163,18 +197,22 @@ int appl_main(int argc, char *argv[])
             LOG(INFO, "Opened device %s.\n", device);
             is_alive = true;
             on_new_connection(fd);
-            while (is_alive) {
-                sleep(1);
+            while (is_alive)
+            {
+                sleep_or_print_histo();
             }
-        } else {
+        }
+        else
+        {
             LOG_ERROR("Could not open device %s\n", device);
             sleep(1);
         }
     }
     // else: no device specified.
     SocketListener listener(port, &on_new_connection);
-    while (true) {
-        sleep(1);
+    while (true)
+    {
+        sleep_or_print_histo();
     }
     return 0;
 }
