@@ -282,6 +282,18 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
+static uint32_t nsec_per_clock = 0;
+/// Calculate partial timing information from the tick counter.
+long long hw_get_partial_tick_time_nsec(void)
+{
+    volatile uint32_t * tick_current_reg = (volatile uint32_t *)0xe000e018;
+    long long tick_val = *tick_current_reg;
+    tick_val *= nsec_per_clock;
+    long long elapsed = (1ULL << NSEC_TO_TICK_SHIFT) - tick_val;
+    if (elapsed < 0) elapsed = 0;
+    return elapsed;
+}
+
 void timer5a_interrupt_handler(void)
 {
     //
@@ -319,6 +331,8 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
+    nsec_per_clock = 1000000000 / cm3_cpu_clock_hz;
+    
     //
     // Unlock PF0 so we can change it to a GPIO input
     // Once we have enabled (unlocked) the commit register then re-lock it

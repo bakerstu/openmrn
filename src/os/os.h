@@ -766,7 +766,7 @@ OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout
 {
 #if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
-
+    
     if (xQueueSend(queue, data, ticks) != pdTRUE)
     {
         return OS_MQ_TIMEDOUT;
