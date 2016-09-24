@@ -224,4 +224,7 @@ void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
         wakeup.set_from_isr(info->event, woken);
         info->event = 0;
     }
+    if (woken) {
+        portYIELD_FROM_ISR(*woken);
+    }
 }
