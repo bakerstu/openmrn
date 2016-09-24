@@ -69,7 +69,7 @@ void run_client(int fd)
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-u host] [-p port] [-w wait_msec]\n\n", e);
+    fprintf(stderr, "Usage: %s [-u host] [-p port] [-w wait_msec] [-r resp_bytes] [-q req_bytes]\n\n", e);
     fprintf(stderr, "TCP ping client.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to connect to, "
                     "default is 30268.\n");
@@ -80,7 +80,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hu:p:q:r:")) >= 0)
+    while ((opt = getopt(argc, argv, "hu:p:q:r:w:")) >= 0)
     {
         switch (opt)
         {
@@ -98,6 +98,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'r':
                 resp_bytes = atoi(optarg);
+                break;
+            case 'w':
+                sleep_msec = atoi(optarg);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
