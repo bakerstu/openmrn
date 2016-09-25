@@ -96,6 +96,18 @@ void enter_bootloader()
         " bx  r0\n");
 }
 
+static uint32_t nsec_per_clock = 0;
+/// Calculate partial timing information from the tick counter.
+long long hw_get_partial_tick_time_nsec(void)
+{
+    volatile uint32_t * tick_current_reg = (volatile uint32_t *)0xe000e018;
+    long long tick_val = *tick_current_reg;
+    tick_val *= nsec_per_clock;
+    long long elapsed = (1ULL << NSEC_TO_TICK_SHIFT) - tick_val;
+    if (elapsed < 0) elapsed = 0;
+    return elapsed;
+}
+
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static volatile uint32_t rest_pattern = 0;
@@ -149,6 +161,8 @@ void hw_preinit(void)
 {
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
+
+    nsec_per_clock = 1000000000 / cm3_cpu_clock_hz;
 
     /* Setup the interrupt vector table */
     MAP_IntVTableBaseSet((unsigned long)&__interrupt_vector[0]);
