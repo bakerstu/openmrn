@@ -94,7 +94,10 @@ private:
         }
         int step = p * count() / 100;
         auto it = counter_.begin();
-        std::advance(it, step);
+        while (step > 0 && it != counter_.end()) {
+            step -= it->second;
+            ++it;
+        }
         return it->first;
     }
 
