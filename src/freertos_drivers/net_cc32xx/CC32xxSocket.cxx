@@ -283,6 +283,8 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
         return -1;
     }
 
+    s->readActive = false;
+
     SlSockAddr_t sl_address;
     SlSocklen_t sl_address_len;
 
@@ -299,6 +301,9 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
         {
             default:
                 HASSERT(0);
+                break;
+            case SL_ENSOCK:
+                errno = ENOMEM;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
@@ -762,9 +767,9 @@ void CC32xxSocket::remove_instance_from_sd(int sd)
  */
 int CC32xxSocket::reserve_socket()
 {
-    int i = 0;
+    int i;
     portENTER_CRITICAL();
-    for (int i; i < SL_MAX_SOCKETS; ++i)
+    for (i = 0; i < SL_MAX_SOCKETS; ++i)
     {
         if (cc32xxSockets[i] == nullptr)
         {
