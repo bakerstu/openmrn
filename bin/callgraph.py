@@ -21,6 +21,9 @@ a_re = re.compile('\t.word[ \t]*0x([0-9a-f]*)$')
 # determine how long that block of code is.
 pa_re = re.compile('(^[0-9a-f]*):\t')
 
+# Regexp for finding template arguments
+tmpl_re = re.compile('.*(<[^<>]*>).*')
+
 _blacklist_pre = ['__', 'str', 'f_', 'VIDEO_']
 _blacklist_cont = ['printf']
 
@@ -44,6 +47,7 @@ FLAGS.verbose = False
 FLAGS.map_file = None
 FLAGS.min_size = 0
 FLAGS.demangle = True
+FLAGS.strip_template = True
 
 
 def Blacklist(s):
@@ -95,7 +99,13 @@ class MapEntry(object):
     return "MapEntry section %s subsection %s address 0x%8x length %s lib %s obj %s fun %s" % (
       self.section,self.subsection,self.address,self.length,self.library,self.objfile,self.function) 
 
-
+def StripTemplate(name):
+  while True:
+    m = tmpl_re.match(name)
+    if m is None: break
+    name = name[:m.start(1)] + name[m.end(1):]
+  return name
+  
 class Symbol(object):
   """Represents one linker symbol in the linked executable"""
 
@@ -141,8 +151,12 @@ class Symbol(object):
       print >>sys.stderr,"Not processed? ", self.name
       cyclestring = "N"
       self.total_code_size = self.codesize
+    if FLAGS.strip_template:
+      displayname = StripTemplate(self.displayname)
+    else:
+      displayname = self.displayname
     return ("%s%s [shape=box, label=\"%s\\n%d / %d %s\"];" %
-            (comment, escape(self.name), self.displayname, self.codesize, self.total_code_size,
+            (comment, escape(self.name), displayname, self.codesize, self.total_code_size,
              cyclestring))
 
   def DebugString(self):
@@ -607,6 +621,8 @@ def parseargs():
       print >> sys.stderr, "will read map file ", FLAGS.map_file
     elif o in ("-C", "--demangle"):
       FLAGS.demangle = True
+    elif o in ("-t", "--no-strip-template"):
+      FLAGS.strip_template = False
     elif o in ("--no-demangle"):
       FLAGS.demangle = False
     elif o in ("--min_size"):
