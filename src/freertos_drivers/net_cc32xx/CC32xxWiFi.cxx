@@ -465,6 +465,11 @@ void CC32xxWiFi::wlan_task()
 
         for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
         {
+            if (slSockets[i] == -1)
+            {
+                /* socket slot not in use */
+                continue;
+            }
             if (SL_FD_ISSET(slSockets[i], &rfds_tmp))
             {
                 --result;
