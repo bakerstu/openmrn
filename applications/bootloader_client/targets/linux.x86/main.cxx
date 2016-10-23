@@ -90,12 +90,13 @@ const char *checksum_algorithm = nullptr;
 bool request_reboot = false;
 bool request_reboot_after = true;
 bool skip_pip = false;
+long long stream_timeout_nsec = 3000;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] (-n nodeid | -a "
+        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] [-W stream_timeout] (-n nodeid | -a "
         "alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
@@ -130,7 +131,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:W:")) >= 0)
     {
         switch (opt)
         {
@@ -160,6 +161,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'w':
                 nmranet::DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(strtoul(optarg, nullptr, 10));
+                break;
+            case 'W':
+                nmranet::g_bootloader_timeout_sec = atoi(optarg);
                 break;
             case 'c':
                 checksum_algorithm = optarg;
