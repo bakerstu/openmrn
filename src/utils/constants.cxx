@@ -146,3 +146,5 @@ DEFAULT_CONST(gridconnect_buffer_delay_usec, 300);
 /// Number of pending packets per inbound gridconnect port. There is memory
 /// cost associated with setting this number high.
 DEFAULT_CONST(gridconnect_port_max_incoming_packets, 6);
+/// 1 = infinite, do not preallocate memory
+DEFAULT_CONST(gridconnect_bridge_max_incoming_packets, 1);

@@ -196,6 +196,12 @@ public:
             , destination_(destination)
             , skipMember_(skip_member)
         {
+            int max_frames_to_parse =
+                config_gridconnect_bridge_max_incoming_packets();
+            if (max_frames_to_parse > 1) {
+                frameAllocator_.reset(new FixedPool(
+                    sizeof(CanHubFlow::buffer_type), max_frames_to_parse));
+            }
         }
 
         /// @return the destination to write data to.
@@ -223,7 +229,7 @@ public:
                 {
                     // End of frame. Allocate an output buffer and parse the
                     // frame.
-                    return allocate_and_call(destination_, STATE(parse_to_output_frame));
+                    return allocate_and_call(destination_, STATE(parse_to_output_frame), frameAllocator_.get());
                 }
             }
             // Will notify the caller.
@@ -258,6 +264,10 @@ public:
         /// The remaining number of characters in inBuf_.
         size_t inBufSize_;
 
+        // Allocator to get the frame from. If NULL, the target's default
+        // buffer pool will be used.
+        std::unique_ptr<FixedPool> frameAllocator_;
+        
         // ==== static data ====
 
         /// Pipe to send data to.
