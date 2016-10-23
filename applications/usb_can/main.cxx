@@ -62,6 +62,8 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 OVERRIDE_CONST(main_thread_stack_size, 900);
 #endif
 
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 10);
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
