@@ -343,7 +343,11 @@ struct GcPacketPrinter::Impl : public CanHubPortInterface
                 t.tm_sec, (long)tv.tv_usec, message->data()->skipMember_);
 #endif
         }
-        printf("%s\n", str);
+        printf("%s", str);
+        if (config_gc_generate_newlines() != 1)
+        {
+            printf("\n");
+        }
     }
 
     /// Which hun are we registered to.
