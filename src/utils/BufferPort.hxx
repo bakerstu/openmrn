@@ -70,6 +70,17 @@ public:
         delete [] sendBuf_;
     }
 
+    bool shutdown() {
+        flush_buffer();
+        if (timerPending_) {
+            return false;
+        }
+        if (!is_waiting()) {
+            return false;
+        }
+        return true;
+    }
+    
 private:
     Action entry() override
     {

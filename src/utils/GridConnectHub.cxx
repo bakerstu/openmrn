@@ -104,7 +104,7 @@ public:
     bool shutdown() OVERRIDE
     {
         unregister();
-        return parser_.is_waiting() && formatter_.is_waiting();
+        return formatter_.shutdown() && parser_.is_waiting() && formatter_.is_waiting();
     }
 
     /// HubPort (on a CAN-typed hub) that turns a binary CAN packet into a
@@ -138,6 +138,10 @@ public:
             return destination_;
         }
 
+        bool shutdown() {
+            return delayPort_.shutdown();
+        }
+        
         Action entry() override
         {
             LOG(VERBOSE, "can packet arrived: %" PRIx32,
