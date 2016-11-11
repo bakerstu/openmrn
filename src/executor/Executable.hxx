@@ -42,9 +42,10 @@
 class Executable : public Notifiable, public QMember
 {
 public:
-    virtual ~Executable()
-    {
-    }
+    virtual ~Executable();
+
+    void test_deletion();
+    
     /** Entry point. This funciton will be called when *this gets scheduled on
      * the CPU. */
     virtual void run() = 0;

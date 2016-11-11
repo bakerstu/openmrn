@@ -60,6 +60,13 @@ extern "C" {
 
 ExecutorBase *ExecutorBase::list = NULL;
 
+void __attribute__((weak,noinline)) Executable::test_deletion() {} 
+
+Executable::~Executable() {
+    test_deletion();
+}
+
+
 /** Constructor.
  */
 ExecutorBase::ExecutorBase()

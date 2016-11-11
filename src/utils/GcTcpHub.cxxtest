@@ -191,6 +191,12 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
     // Destructor will expect client count == 1.
 }
 
+
+void Executable::test_deletion() {
+    HASSERT(!next);
+}
+
+
 TEST_F(GcTcpHubTest, LoadTest)
 {
   struct can_frame f;
