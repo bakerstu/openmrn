@@ -35,6 +35,14 @@
 #include "utils/async_if_test_helper.hxx"
 #include "utils/socket_listener.hxx"
 
+void ClearFrame(struct can_frame* frame) {
+  memset(frame, 0, sizeof(*frame));
+  SET_CAN_FRAME_EFF(*frame);
+  CLR_CAN_FRAME_RTR(*frame);
+  CLR_CAN_FRAME_ERR(*frame);
+  frame->can_dlc = 0;
+}
+
 class GcTcpHubTest : public AsyncCanTest
 {
 protected:
@@ -133,6 +141,14 @@ protected:
         }
     }
 
+    void send_can_frame(const struct can_frame* frame) {
+        Buffer<CanHubData> *buffer;
+        mainBufferPool->alloc(&buffer);
+        struct can_frame* out_frame = buffer->data(); 
+        *out_frame = *frame;
+        can_hub0.send(buffer);
+    }
+    
     GcTcpHub tcpHub_;
 };
 
@@ -173,4 +189,32 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
     // Test writing outwards.
     send_packet(":S002N0102;");
     // Destructor will expect client count == 1.
+}
+
+TEST_F(GcTcpHubTest, LoadTest)
+{
+  struct can_frame f;
+  ClearFrame(&f);
+  SET_CAN_FRAME_EFF(f);
+  SET_CAN_FRAME_ID_EFF(f, 0x195b4672);
+  f.can_dlc = 3;
+  f.data[0] = 0xf0; f.data[1] = 0xf1; f.data[2] = 0xf2;
+
+  const int count = 100;
+  
+  vector<std::unique_ptr<Client>> clients;
+  for (int i = 0; i < count; ++i) {
+      clients.emplace_back(new Client);
+  }
+  
+  for (int i = 0; i < count; ++i) {
+      send_can_frame(&f);
+      usleep(1000);
+      send_can_frame(&f);
+      usleep(1000);
+      send_can_frame(&f);
+      usleep(1000);
+      clients[i].reset();
+  }
+  
 }
