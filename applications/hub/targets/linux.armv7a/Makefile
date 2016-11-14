@@ -1,1 +1,3 @@
-../linux.x86/Makefile
+-include ../../config.mk
+include $(OPENMRNPATH)/etc/prog.mk
+
