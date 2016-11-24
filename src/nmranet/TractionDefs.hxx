@@ -83,7 +83,10 @@ struct TractionDefs {
     /// Producing this event resumes all operations (usually by turning power
     /// back on).
     static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFEULL;
-
+    /// Base address of DCC accessory decoder well-known event range (active)
+    static constexpr uint64_t ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FF0000ULL;
+    /// Base address of DCC accessory decoder well-known event range (inactive)
+    static constexpr uint64_t INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FE0000ULL;
     /// Node ID space allocated for DC blocks.
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
     /// Node ID space allocated for DCC locomotives.
