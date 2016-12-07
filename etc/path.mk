@@ -355,9 +355,15 @@ endif #GTESTSRCPATH
 ################### MIPS-ELF-GCC #####################
 ifndef MIPSGCCPATH
 SEARCHPATH := \
+  /opt/CodeSourcery/default_mips_elf \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
   /opt/MentorGraphics/default_mips_elf
 
+# To download go here https://sourcery.mentor.com/GNUToolchain/release3215
+
+# or the aggregate page:
+# https://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
+# and make sure to select the ELF release for MIPS processor.
 
 TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
