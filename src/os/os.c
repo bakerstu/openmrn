@@ -258,7 +258,7 @@ extern const void* stack_malloc(unsigned long length);
 #endif  // FreeRTOS
 
 /** Entry point to a thread.
- * @param metadata for entering the thread
+ * @param arg metadata for entering the thread
  */
 #if defined (__FreeRTOS__)
 static void os_thread_start(void *arg)
@@ -535,6 +535,12 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 }
 #endif // __EMSCRIPTEN__
 
+/// Implement this function to read timing more accurately than 1 msec in
+/// FreeRTOS.
+extern long long hw_get_partial_tick_time_nsec(void);
+/// Default implementation does not provide more accuracy.
+long long __attribute__((weak)) hw_get_partial_tick_time_nsec() { return 0; }
+
 long long os_get_time_monotonic(void)
 {
     static long long last = 0;
@@ -542,6 +548,7 @@ long long os_get_time_monotonic(void)
 #if defined (__FreeRTOS__)
     portTickType tick = xTaskGetTickCount();
     time = ((long long)tick) << NSEC_TO_TICK_SHIFT;
+    time += hw_get_partial_tick_time_nsec();
 #elif defined (__MACH__)
     /* get the timebase info */
     mach_timebase_info_data_t info;

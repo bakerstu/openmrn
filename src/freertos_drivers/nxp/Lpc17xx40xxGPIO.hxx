@@ -48,10 +48,12 @@
 /// @param PIN is the number of th epin in the port. E.g. for P1.12 this is 12.
 template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
 {
+    /// @return the port number on the LPC17xx (e.g. 0 for pin P0_12).
     static constexpr uint8_t port()
     {
         return PORT;
     }
+    /// @return the pin number on the LPC17xx (e.g. 12 for pin P0_12).
     static constexpr uint8_t pin()
     {
         return PIN;
@@ -66,28 +68,33 @@ template <uint8_t PORT, uint8_t PIN> struct LpcGpioPin
     {
         Chip_GPIO_SetPinToggle(LPC_GPIO, port(), pin());
     }
+    /// @return true if the pin is currently seeing HIGH input level, otherwiae
+    /// false.
     static bool get()
     {
         return Chip_GPIO_GetPinState(LPC_GPIO, port(), pin());
     }
 
-    /// Returns a os-indepentent Gpio abstraction instance for use in
+    /// @return an os-indepentent Gpio abstraction instance for use in
     /// libraries.
     static constexpr const Gpio *instance()
     {
         return GpioWrapper<LpcGpioPin<PORT, PIN>>::instance();
     }
 
+    /// @return true if the pin is configured as an output.
     static bool is_output()
     {
         return Chip_GPIO_GetPinDIR(LPC_GPIO, port(), pin());
     }
 
 protected:
+    /// Configures pin as output.
     static void set_output()
     {
         Chip_GPIO_SetPinDIROutput(LPC_GPIO, port(), pin());
     }
+    /// Configures pin as input.
     static void set_input()
     {
         Chip_GPIO_SetPinDIRInput(LPC_GPIO, port(), pin());
@@ -101,6 +108,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
     using Defs::pin;
     using Defs::set_output;
     using Defs::set;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         Chip_GPIO_Init(LPC_GPIO);
@@ -109,6 +117,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
             LPC_IOCON, port(), pin(), IOCON_FUNC0 | IOCON_MODE_INACT);
         hw_set_to_safe();
     }
+    /// Sets the output pin to a safe value.
     static void hw_set_to_safe()
     {
         set_output();
@@ -146,12 +155,14 @@ template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin : public Defs
 public:
     using Defs::port;
     using Defs::pin;
+    /// Initializes the hardware pin.
     static void hw_init()
     {
         Chip_GPIO_Init(LPC_GPIO);
         Chip_IOCON_Init(LPC_IOCON);
         Chip_IOCON_PinMuxSet(LPC_IOCON, port(), pin(), IOCON_FUNC0 | GPIO_PULL);
     }
+    /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
     {
         hw_init();

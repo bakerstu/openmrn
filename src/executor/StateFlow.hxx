@@ -195,7 +195,6 @@ public:
 protected:
     /** Constructor.
      * @param service Service that this state flow is part of
-     * @param size number of queues in the list
      */
     StateFlowBase(Service *service)
         : service_(service)
@@ -248,13 +247,13 @@ protected:
         state_ = c;
     }
 
-    /** Returns true if the state flow is in a specific state. */
+    /** @return true if the state flow is in a specific state. */
     bool is_state(Callback c)
     {
         return state_ == c;
     }
 
-    /** Returns true if the current flow is terminated. */
+    /** @return true if the current flow is terminated. */
     bool is_terminated()
     {
         return is_state(STATE(terminated));
@@ -292,7 +291,8 @@ protected:
     }
 
     /** Terminates the flow and deletes *this. Do not access any member
-     * function after this call has been made. */
+     * function after this call has been made. @return state object to return
+     * from state handle. */
     Action delete_this()
     {
         state_ = STATE(terminated);
@@ -302,7 +302,8 @@ protected:
         return wait();
     }
 
-    /** Sets the flow to terminated state. */
+    /** Sets the flow to terminated state. @return action to return from state
+     * handler. */
     Action set_terminated() {
         state_ = STATE(terminated);
         return wait();
@@ -363,6 +364,7 @@ protected:
      * state once the allocation is complete.
      * @param c is the state to transition to after allocation
      * @param queue is the queue to allocate from.
+     * @return new state object to return from state function.
      */
     Action allocate_and_call(Callback c, QAsync *queue)
     {
@@ -388,7 +390,7 @@ protected:
      * object. This should be the first statement in the state where the
      * allocation transitioned. If you expect an empty object, use
      * \ref get_allocation_result() instead.
-     * @param qasync is the typed queue which we allocated from.
+     * @param queue is the typed queue which we allocated from.
      * @return The object that the queue gave to us. */
     template <class T>
     T *full_allocation_result(TypedQAsync<T> *queue)
@@ -399,7 +401,9 @@ protected:
 
     /** Takes the result of the asynchronous allocation without resetting the
      * object. This should be the first statement in the state where the
-     * allocation transitioned. T must be descendant of QMember. */
+     * allocation transitioned. T must be descendant of QMember.
+     * @param member will be filled with the current / latest allocation result
+     * correctly casted to the given type.*/
     template <class T>
     void cast_allocation_result(T** member)
     {
@@ -444,6 +448,7 @@ protected:
     class StateFlowTimer : public ::Timer
     {
     public:
+        /// Constructor. @param parent is the stateflow owning *this.
         StateFlowTimer(StateFlowBase *parent)
             : Timer(parent->service()->executor()->active_timers())
             , parent_(parent)
@@ -469,6 +474,7 @@ protected:
      * @param timeout_nsec is the timeout with which to start the timer.
      * @param c is the next state to transition to when the timeout expires or
      * the timer gets triggered.
+     * @return state flow action.
      */
     Action sleep_and_call(::Timer *timer, long long timeout_nsec, Callback c)
     {
@@ -491,6 +497,11 @@ protected:
      *   void reset(...);
      *   BarrierNotifiable done;
      * }
+     *
+     * @param target_flow is a pointer to the helper flow to be used
+     * @param c is the next state after the target flow is completed
+     * @param args are forwarded to the reset() method on the target flow's
+     * buffer type.
      */
     template <class T, typename... Args>
     Action invoke_subflow_and_wait(
@@ -508,7 +519,14 @@ protected:
     struct StateFlowSelectHelper;
     struct StateFlowTimedSelectHelper;
 
-    /** Blocks until size bytes are read and then invokes the next state. */
+    /** Blocks until size bytes are read and then invokes the next state. 
+     * @param helper stores intermediate state.
+     * @param fd isthe file to read from 
+     * @param buf where to write data we've read
+     * @param size how many bytes to read
+     * @param c next state to call after write is complete 
+     * @param piority what execution priority we should be scheduling the
+     * intermediate and next states after the read is complete. */
     Action read_repeated(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
         helper->set_wakeup(this);
@@ -524,8 +542,17 @@ protected:
 
     /** Attempts to read at most size_t bytes, and blocks the caller until at
      * least one byte is read. Then the next state is invoked with whatever the
-     * first read returned. */
-    Action read_single(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
+     * first read returned.
+     * @param helper stores intermediate state.
+     * @param fd isthe file to read from 
+     * @param buf where to write data we've read
+     * @param size how many bytes to read maximum
+     * @param c next state to call after write is complete 
+     * @param piority what execution priority we should be scheduling the
+     * intermediate and next states after the read is complete. */
+    Action read_single(StateFlowSelectHelper *helper, int fd, void *buf,
+        size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO)
+    {
         helper->reset(Selectable::READ, fd, priority);
         helper->set_wakeup(this);
         helper->rbuf_ = static_cast<uint8_t*>(buf);
@@ -539,7 +566,14 @@ protected:
     }
 
     /** Attempts to read at most size bytes, and then invokes the next state,
-     * even if only zero bytes are available right now. */
+     * even if only zero bytes are available right now.
+     * @param helper stores intermediate state.
+     * @param fd isthe file to read from 
+     * @param buf where to write data we've read
+     * @param size how many bytes to read
+     * @param c next state to call after write is complete 
+     * @param piority what execution priority we should be scheduling the
+     * intermediate and next states after the read is complete. */
     Action read_nonblocking(StateFlowSelectHelper* helper, int fd, void* buf, size_t size, Callback c, unsigned priority = Selectable::MAX_PRIO) {
         helper->reset(Selectable::READ, fd, priority);
         helper->set_wakeup(this);
@@ -556,7 +590,16 @@ protected:
     /** Blocks until size bytes are read, or a timeout expires. If the timeout
      * expires, jumps to next state with whatever data has been read. To figure
      * out whether the timer expired or the read completed, the caller can
-     * check helper->remaining_ != 0. */
+     * check helper->remaining_ != 0.
+     * @param helper stores intermediate state.
+     * @param timeout_nsec stop waiting for more data after this many
+     * nanoseconds elapsed
+     * @param fd isthe file to read from 
+     * @param buf where to write data we've read
+     * @param size how many bytes to read maximum
+     * @param c next state to call after write is complete 
+     * @param piority what execution priority we should be scheduling the
+     * intermediate and next states after the read is complete. */
     Action read_repeated_with_timeout(StateFlowTimedSelectHelper *helper,
         long long timeout_nsec, int fd, void *buf, size_t size, Callback c,
         unsigned priority = Selectable::MAX_PRIO)
@@ -748,6 +791,7 @@ protected:
     */
     struct StateFlowSelectHelper : public Selectable
     {
+        /// @param parent is the owning stateflow.
         StateFlowSelectHelper(StateFlowBase *parent)
             : Selectable(parent)
             , hasError_(0)
@@ -783,12 +827,15 @@ protected:
     struct StateFlowTimedSelectHelper : public StateFlowSelectHelper,
                                         private Executable
     {
+        /// @param parent owning flow.
         StateFlowTimedSelectHelper(StateFlowBase *parent)
             : StateFlowSelectHelper(parent)
             , timer_(parent)
         {
         }
 
+        /// Called from the stateflow's internal state to instruct to set the
+        /// wakeup target for the timer.
         void set_timed_wakeup() {
             set_wakeup((Executable*)this);
         }
@@ -825,7 +872,8 @@ private:
      */
     Action terminated();
 
-    /** Callback from a Pool in case of an asynchronous allocation. */
+    /** Callback from a Pool in case of an asynchronous allocation. @param b
+     * the newly allocated payload object. */
     void alloc_result(QMember *b) override
     {
         LOG(VERBOSE, "allocation result arrived.");
@@ -890,7 +938,7 @@ protected:
      fomr the queue. */
     virtual QMember *queue_next(unsigned *priority) = 0;
 
-    /** Returns true if there are no messages queued up for later
+    /** @return true if there are no messages queued up for later
      * processing. */
     virtual bool queue_empty() = 0;
 
@@ -900,7 +948,8 @@ protected:
     virtual void release() = 0;
 
     /** Terminates the processing of this flow. Takes the next message and
-     * start processing agian from entry().*/
+     * start processing agian from entry(). @return appropriate action to
+     * return from the state flow state handler. */
     Action exit()
     {
         return call_immediately(STATE(wait_for_message));
@@ -932,7 +981,10 @@ protected:
         return m;
     }
 
-    /** Sets the current message being processed. */
+    /** Sets the current message being processed.
+     * @param message is the buffer of the new message. This request transfers
+     * one reference of ownership.
+     * @param priority what prio to run the flow on.*/
     void reset_message(BufferBase* message, unsigned priority) {
         HASSERT(!currentMessage_);
         currentMessage_ = message;
@@ -953,7 +1005,8 @@ protected:
 
     /** Call this from the constructor of the child class to do some work
      * before the main queue processing loop begins. When the initialization
-     * states are done, call 'return exit()' to start the main loop. */
+     * states are done, call 'return exit()' to start the main loop.
+     * @param c is the state to call before the main loop. */
     void start_flow_at_init(Callback c)
     {
         reset_flow(c);
@@ -964,9 +1017,14 @@ protected:
 private:
     STATE_FLOW_STATE(wait_for_message);
 
+    /// Next flow (global linkage of all state flows).
     StateFlowWithQueue* link_;
+    /// Head of static linked list.
     static StateFlowWithQueue* head_;
+    /// Mutex protecting the state flow linked lists.
     static Atomic headMu_;
+    /// For debugging: how many entries are currently waiting in the queue of
+    /// this stateflow.
     unsigned queueSize_;
 
     /// Message we are currently processing.
@@ -983,6 +1041,7 @@ private:
     template <class M, class B> friend class TypedStateFlow;
     friend class GlobalEventFlow;
 
+    /// Largest acceptable priority value for a stateflow.
     static const unsigned MAX_PRIORITY_ = 0x7FFFFFFFU;
 };
 
@@ -1018,7 +1077,8 @@ public:
     /// numbers mean process earlier.
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 
-    /** Synchronously allocates a message buffer from the pool of this flow. */
+    /** Synchronously allocates a message buffer from the pool of this
+     * flow. @return the newly allocates message. */
     MessageType *alloc()
     {
         MessageType *ret;
@@ -1027,9 +1087,9 @@ public:
     }
 
     /** Asynchronously allocates a message buffer from the pool of this
-     * flow. Will call target->AllocationCallback with the pointer. The callee
-     * shall come back and use cast_alloc to turn the pointer into a usable
-     * object. */
+     * flow. @param target Will call target->AllocationCallback with the
+     * pointer. The callee shall come back and use cast_alloc to turn the
+     * pointer into a usable object. */
     void alloc_async(Executable *target)
     {
         typedef typename MessageType::value_type T;
@@ -1058,22 +1118,32 @@ class FlowInterface<MessageType>::GenericHandler
     : public FlowInterface<MessageType>
 {
 public:
+    /// Interface of the callback function.
     typedef std::function<void(message_type *)> HandlerFn;
+    /// Constructor. @param handler will be called upon every incoming message
+    /// with the argument being set to the arrived message. The handler
+    /// function is typically responsible for unref-ing the incoming message
+    /// buffer.
     GenericHandler(HandlerFn handler)
         : handler_(handler)
     {
     }
 
+    /// Constructor to be called with an object member function. @param ptr is
+    /// the object whose member function to call. @param fn is a member
+    /// function on ptr, which will be called with each incoming message.
     template<class T>
     GenericHandler(T* ptr, void (T::*fn)(message_type*))
         : handler_(std::bind(fn, ptr, std::placeholders::_1)) {}
 
+    /// Overridden method for sending the message.
     void send(MessageType *message, unsigned priority) OVERRIDE
     {
         handler_(message);
     }
 
 private:
+    /// The configured handler callback.
     HandlerFn handler_;
 };
 
@@ -1191,6 +1261,7 @@ public:
     virtual Action entry() override = 0;
 
 protected:
+    /// Unrefs the current buffer.
     void release() OVERRIDE
     {
         if (message())

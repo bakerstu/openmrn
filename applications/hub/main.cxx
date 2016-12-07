@@ -51,7 +51,7 @@ Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-OVERRIDE_CONST(gc_generate_newlines, 0);
+OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_buffer_size, 1300);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
@@ -61,11 +61,13 @@ const char *device_path = nullptr;
 int upstream_port = 12021;
 const char *upstream_host = nullptr;
 bool timestamped = false;
+bool export_mdns = false;
+const char* mdns_name = "openmrn_hub";
 
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
-                    "[-q upstream_port] [-t]\n\n",
+                    "[-q upstream_port] [-m] [-n mdns_name] [-t]\n\n",
             e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
@@ -83,13 +85,19 @@ void usage(const char *e)
             "\t-q upstream_port   is the port number for the upstream hub.\n");
     fprintf(stderr,
             "\t-t prints timestamps for each packet.\n");
+#ifdef HAVE_AVAHI_CLIENT
+    fprintf(stderr,
+            "\t-m exports the current service on mDNS.\n");
+    fprintf(stderr,
+            "\t-n mdns_name sets the exported mDNS name. Implies -m.\n");
+#endif
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:u:q:t")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:u:q:tmn:")) >= 0)
     {
         switch (opt)
         {
@@ -111,6 +119,13 @@ void parse_args(int argc, char *argv[])
             case 't':
                 timestamped = true;
                 break;
+            case 'm':
+                export_mdns = true;
+                break;
+            case 'n':
+                mdns_name = optarg;
+                export_mdns = true;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -130,6 +145,15 @@ int appl_main(int argc, char *argv[])
     GcTcpHub hub(&can_hub0, port);
     vector<std::unique_ptr<ConnectionClient>> connections;
 
+#ifdef HAVE_AVAHI_CLIENT
+
+    void mdns_client_start();
+    void mdns_publish(const char *name, uint16_t port);
+
+    mdns_client_start();
+    mdns_publish(mdns_name, port);
+#endif
+    
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(

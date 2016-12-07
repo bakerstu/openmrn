@@ -85,7 +85,7 @@ public:
     {
     }
 
-    /** Returns true if a thread was already created. */
+    /** @return true if a thread was already created. */
     bool is_created()
     {
         return handle != 0;
@@ -426,12 +426,14 @@ private:
 class OSMutexLock
 {
 public:
+    /// Constructor. @param mutex is the mutex to lock.
     OSMutexLock(OSMutex* mutex)
         : mutex_(&mutex->handle)
     {
         os_mutex_lock(mutex_);
     }
 
+    /// Constructor. @param mutex is the mutex to lock.
     OSMutexLock(os_mutex_t* mutex)
         : mutex_(mutex)
     {
@@ -445,6 +447,7 @@ public:
 private:
     DISALLOW_COPY_AND_ASSIGN(OSMutexLock);
 
+    /// Mutex we are having locked.
     os_mutex_t* mutex_;
 };
 

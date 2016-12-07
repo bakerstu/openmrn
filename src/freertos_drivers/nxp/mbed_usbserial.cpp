@@ -85,6 +85,11 @@ extern "C" void __cxa_pure_virtual(void);
 class MbedRawUSBSerial : public USBCDC, public ::Serial
 {
 public:
+    /// Constructor.
+    /// @param name device path to export (e.g. /dev/usbser0).
+    /// @param vendor_id USB vendor ID to report
+    /// @param product_id USB device ID to report
+    /// @param product_release USB product version to report.
     MbedRawUSBSerial(const char* name, uint16_t vendor_id = 0x1f00,
                      uint16_t product_id = 0x2012,
                      uint16_t product_release = 0x0001)
@@ -103,6 +108,7 @@ public:
     }
 
 protected:
+    /// Callback when EP2_OUT is active
     bool EP2_OUT_callback() override
     {
         //HASSERT(IsEpPending());
@@ -112,6 +118,7 @@ protected:
         return false;
     }
 
+    /// Callback when EP2_IN is active
     bool EP2_IN_callback() override
     {
         configASSERT(txPending);
@@ -160,11 +167,14 @@ private:
         taskEXIT_CRITICAL();
     }
 
+    /// What's the maximum packet length for transmit.
     static const unsigned MAX_TX_PACKET_LENGTH = 64;
+    /// What's the maximum packet length for receive.
     static const unsigned MAX_RX_PACKET_LENGTH = 64;
 
     /** Transmits count bytes from the txData buffer. Sets txPending and
-        bytesLost as needed. */
+        bytesLost as needed. @return true if we consumed some data from the tx
+        buffer. */
     bool TxHelper()
     {
         size_t count;
@@ -218,7 +228,8 @@ private:
             }
             for (uint32_t i = 0; i < rxSize; i++)
             {
-              /// @TODO (balazs.racz) this needs to be replaced with something that works in the new select based model.
+              /// @todo (balazs.racz) this needs to be replaced with something
+              /// that works in the new select based model.
               //os_mq_send(rxQ, rxData + i);
             }
             rxSize = 0;
@@ -227,6 +238,8 @@ private:
         }
     }
 
+    /// Entry point to receiving thread. @param arg is the UsbServial object to
+    /// run upon. @return null.
     static void* _RxThread(void* arg)
     {
         ((MbedRawUSBSerial*)arg)->RxThread();
@@ -238,6 +251,7 @@ private:
     uint8_t rxData
         [MAX_RX_PACKET_LENGTH]; /**< packet assembly buffer from host */
     bool txPending;             /**< transmission currently pending */
+    /// Semaphore to wake up receiving thread.
     os_sem_t rxSem;
 };
 

@@ -64,6 +64,7 @@ public:
     {
     }
 
+    /// @return the thread ID that we are engaged upon.
     os_thread_t main_thread() {
         return thread_;
     }
@@ -118,6 +119,8 @@ public:
         }
     }
 
+    /// Called from the main thread after being woken up. Enables further
+    /// wakeup signals to be colledted.
     void clear_wakeup()
     {
         pendingWakeup_ = false;
@@ -141,11 +144,14 @@ public:
     /** Portable call to a select that can be woken up asynchronously from a
      * different thread or an ISR context.
      *
-     * @param nfds, readfds, writefds, exceptfds is as a regular ::select call.
+     * @param nfds is as a regular ::select call.
+     * @param readfds is as a regular ::select call.
+     * @param writefds is as a regular ::select call.
+     * @param exceptfds is as a regular ::select call.
      * @param deadline_nsec is the maximum time to sleep if no fd activity and
      * no wakeup happens. -1 to sleep indefinitely, 0 to return immediately.
      *
-     * return what select would return (number of live FDs, 0 in case of
+     * @return what select would return (number of live FDs, 0 in case of
      * timeout), or -1 and errno==EINTR if the select was woken up
      * asynchronously
      */
@@ -204,10 +210,13 @@ private:
     bool pendingWakeup_;
     /** True during the duration of a select operation. */
     bool inSelect_;
+    /// ID of the main thread we are engaged upon.
     os_thread_t thread_;
 #if defined(__FreeRTOS__)
     Device::SelectInfo selectInfo_;
 #elif !defined(__WINNT__)
+    /// Original signal mask. Used for pselect to reenable the signal we'll be
+    /// using to wake up.
     sigset_t origMask_;
 #endif
 };

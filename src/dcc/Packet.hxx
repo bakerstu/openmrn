@@ -63,23 +63,27 @@ struct Packet : public DCCPacket
     }
 
     struct DCC_IDLE {};
+    /// Constructor generating a DCC IDLE packet. @param i indicator type.
     Packet(DCC_IDLE i) {
         clear();
         set_dcc_idle();
     }
 
+    /// Resets the packet ot empty.
     void clear()
     {
         memset(this, 0, sizeof(*this));
     }
 
-    /** Returns true if this is a packet, false if it is a command to the
+    /** @return true if this is a packet, false if it is a command to the
      * track processor. */
     bool IsPacket()
     {
         return packet_header.is_pkt;
     }
 
+    /// Sets the packet to a standalone command. @param cmd is the standalone
+    /// command to send.
     void set_cmd(uint8_t cmd)
     {
         dlc = 0;
@@ -94,13 +98,27 @@ struct Packet : public DCCPacket
         dlc = 0;
     }
 
+    /// Adds the header to the packet needed for addressing a DCC
+    /// locomotive. @param address is the DCC (short) address.
     void add_dcc_address(DccShortAddress address);
+    /// Adds the header to the packet needed for addressing a DCC
+    /// locomotive. @param address is the DCC (long) address.
     void add_dcc_address(DccLongAddress address);
 
     /** Adds a speed-and-direction command (dcc baseline command) ot the
      * packet. Speed is maximum 14. This should be called after
      * add_dcc_address. */
+    /// @param is_fwd true for forward speed
+    /// @param light true for light on, false for off
+    /// @param speed the speed step to set (0..14)
     void add_dcc_speed14(bool is_fwd, bool light, unsigned speed);
+    /** Adds a speed-and-direction command (dcc baseline command) ot the
+     * packet. Speed is maximum 14. This should be called after
+     * add_dcc_address. */
+    /// @param a the DCC address
+    /// @param is_fwd true for forward speed
+    /// @param light true for light on, false for off
+    /// @param speed the speed step to set (0..14)
     template <class A>
     void set_dcc_speed14(A a, bool is_fwd, bool light, unsigned speed)
     {
@@ -111,7 +129,12 @@ struct Packet : public DCCPacket
     /** Adds a speed-and-direction command (dcc baseline command) to the
      * packet. Speed is maximum 28. This should be called after
      * add_dcc_address. */
+    /// @param is_fwd true for forward speed
+    /// @param speed the speed step to set (0..14)
     void add_dcc_speed28(bool is_fwd, unsigned speed);
+    /// @param a the DCC address
+    /// @param is_fwd true for forward speed
+    /// @param speed the speed step to set (0..14)
     template <class A> void set_dcc_speed28(A a, bool is_fwd, unsigned speed)
     {
         add_dcc_address(a);
@@ -121,7 +144,12 @@ struct Packet : public DCCPacket
     /** Adds a speed-and-direction command (dcc extended command) for 128 speed
      * steps to the packet. Speed is maximum 126. This shoudl be called after
      * add_dcc_address. */
+    /// @param is_fwd true for forward speed
+    /// @param speed the speed step to set (0..14)
     void add_dcc_speed128(bool is_fwd, unsigned speed);
+    /// @param a the DCC address
+    /// @param is_fwd true for forward speed
+    /// @param speed the speed step to set (0..14)
     template <class A> void set_dcc_speed128(A a, bool is_fwd, unsigned speed)
     {
         add_dcc_address(a);
@@ -129,19 +157,33 @@ struct Packet : public DCCPacket
     }
 
     /** Adds a DCC function group command to the packet. The lowest numbered
-     * function is always at bit zero. */
+     * function is always at bit zero. @param values are bitmask of functions
+     * to send to the loco. */
     void add_dcc_function0_4(unsigned values);
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero. @param values are bitmask of functions
+     * to send to the loco. */
     void add_dcc_function5_8(unsigned values);
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero. @param values are bitmask of functions
+     * to send to the loco. */
     void add_dcc_function9_12(unsigned values);
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero. @param values are bitmask of functions
+     * to send to the loco. */
     void add_dcc_function13_20(unsigned values);
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero. @param values are bitmask of functions
+     * to send to the loco. */
     void add_dcc_function21_28(unsigned values);
 
     /** Adds a DCC POM read single CV command and the xor byte. This should be
-     * called after add_dcc_address. */
+     * called after add_dcc_address. @param cv_number which CV to read. */
     void add_dcc_pom_read1(unsigned cv_number);
 
     /** Adds a DCC POM write single CV command and the xor byte. This should be
-     * called after add_dcc_address. */
+     * called after add_dcc_address. @param cv_number which CV to write, @param
+     * value is the value to set it to. */
     void add_dcc_pom_write1(unsigned cv_number, uint8_t value);
 
     /** Appends one byte to the packet payload that represents the XOR checksum
@@ -169,11 +211,13 @@ struct Packet : public DCCPacket
 
     /** Sets the packet to a direction-aware 14-step MM speed-and-light
      * packet. Max value of speed is 14. */
+    /// @param is_fwd true for forward speed
+    /// @param speed the speed step to set (0..14)
     void add_mm_new_speed(bool is_fwd, unsigned speed);
 
     /** Creates a speed-and-fn packet for the new MM format.
      * @param fn_num is the function, valid values = 1..4
-     * @param is whether the funciton is on or off
+     * @param value is whether the funciton is on or off
      * @param speed is the speed step (0..14). If it is set to emergency stop,
      * then no function packet will be generated.
      */
@@ -186,7 +230,9 @@ struct Packet : public DCCPacket
 
 private:
     /** Sets the speed bits of an MM packet. Clips speed to 15, avoids speed==1
-     * and returns the final speed step number. */
+     * and returns the final speed step number. @param speed is the raw speed
+     * step value (0..14 but more are accepted). @return the final speed step
+     * number */
     unsigned set_mm_speed_bits(unsigned speed);
 };
 

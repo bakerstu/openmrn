@@ -222,7 +222,7 @@ private:
      * @param index bock within EEPROM address space to read
      * @param data location to place read data, array size must be @ref
      *           BYTES_PER_BLOCK large
-     * @param return true if any of the data is not "erased", else return false
+     * @return true if any of the data is not "erased", else return false
      */
     bool read_block(unsigned int index, uint8_t data[]);
 

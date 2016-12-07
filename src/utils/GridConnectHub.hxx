@@ -55,9 +55,10 @@ public:
     {
     }
 
-    /** Unregisters *this from the pipes. Returns true if it is safe to destroy
-     * *this. It is OK to call this multiple times. It should be called on the
-     * executor of the CAN side service. */
+    /// Unregisters *this from the pipes.
+    /// @return true if it is safe to destroy *this. It is OK to call this
+    /// multiple times. It should be called on the executor of the CAN side
+    /// service. */
     virtual bool shutdown() = 0;
 
     /**
@@ -82,22 +83,41 @@ public:
     static GCAdapterBase *CreateGridConnectAdapter(HubFlow *gc_side,
                                                    CanHubFlow *can_side,
                                                    bool double_bytes);
-    /** Creates a gridconnect-CAN bridge with separate pipes for reading
-     * (parsing) from the GC side and writing (formatting) to the GC side. */
+
+    /// Creates a gridconnect-CAN bridge with separate pipes for reading
+    /// (parsing) from the GC side and writing (formatting) to the GC side. */
+    ///
+    /// @param gc_side_read is the Hub that the GridConnect traffic is read
+    /// from, to be converted and sent to binary.
+    /// @param gc_side_write is the Hub that the coverted GridConnect traffic is
+    /// written to.
+    /// @param can_side the hub (of type struct can_frame) that the binary IO
+    /// is done via.
+    /// @param double_bytes  if true, any frame rendered into the GC protocol
+    ///   will have their characters doubled.
+    ///
+    /// @return a pointer to the created object. It can be deleted, which will
+    ///   terminate the link and unregister the link members from both pipes.
+    ///
     static GCAdapterBase *CreateGridConnectAdapter(HubFlow *gc_side_read,
-                                                   HubFlow *gc_side_write,
-                                                   CanHubFlow *can_side,
-                                                   bool double_bytes);
+        HubFlow *gc_side_write, CanHubFlow *can_side, bool double_bytes);
 };
 
 /** Create this port for a CAN hub and all packets will be written to stdout in
  * gridconnect format. */
 class GcPacketPrinter {
 public:
-    GcPacketPrinter(CanHubFlow* can_hub, bool timestamped);
+    /// constructor
+    ///
+    /// @param can_hub Which hub's packets to write to stdout.
+    /// @param timestamped Whether to put timestamps on the packets written.
+    ///
+    GcPacketPrinter(CanHubFlow *can_hub, bool timestamped);
     ~GcPacketPrinter();
 private:
+    /// pImpl class.
     struct Impl;
+    /// pImpl object.
     std::unique_ptr<Impl> impl_;
 };
 

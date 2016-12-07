@@ -224,4 +224,17 @@ void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
         wakeup.set_from_isr(info->event, woken);
         info->event = 0;
     }
+    if (woken)
+    {
+#ifdef GCC_CM3
+        portYIELD_FROM_ISR(*woken);
+#elif defined(THUMB_INTERWORK) // armv4t
+        if (*woken)
+        {
+            portYIELD_FROM_ISR();
+        }
+#else
+        portEND_SWITCHING_ISR(*woken);
+#endif
+    }
 }

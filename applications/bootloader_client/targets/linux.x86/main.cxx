@@ -83,6 +83,7 @@ int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;
 const char *filename = nullptr;
+const char *dump_filename = nullptr;
 uint64_t destination_nodeid = 0;
 uint64_t destination_alias = 0;
 int memory_space_id = nmranet::MemoryConfigDefs::SPACE_FIRMWARE;
@@ -90,13 +91,15 @@ const char *checksum_algorithm = nullptr;
 bool request_reboot = false;
 bool request_reboot_after = true;
 bool skip_pip = false;
+long long stream_timeout_nsec = 3000;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] (-n nodeid | -a "
-        "alias) -f filename\n",
+        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] [-W "
+        "stream_timeout] [-D dump_filename] (-n nodeid | -a alias) -f "
+        "filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
@@ -124,13 +127,14 @@ void usage(const char *e)
     fprintf(stderr, "-x skips the PIP request and uses streams.\n");
     fprintf(stderr,
         "-w dg_timeout sets how many seconds to wait for a datagram reply.\n");
+    fprintf(stderr, "-D filename  writes the checksummed payload to the given file.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:W:D:")) >= 0)
     {
         switch (opt)
         {
@@ -149,6 +153,9 @@ void parse_args(int argc, char *argv[])
             case 'f':
                 filename = optarg;
                 break;
+            case 'D':
+                dump_filename = optarg;
+                break;
             case 'n':
                 destination_nodeid = strtoll(optarg, nullptr, 16);
                 break;
@@ -160,6 +167,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'w':
                 nmranet::DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(strtoul(optarg, nullptr, 10));
+                break;
+            case 'W':
+                nmranet::g_bootloader_timeout_sec = atoi(optarg);
                 break;
             case 'c':
                 checksum_algorithm = optarg;
@@ -178,7 +188,7 @@ void parse_args(int argc, char *argv[])
                 usage(argv[0]);
         }
     }
-    if (!filename || (!destination_nodeid && !destination_alias))
+    if (!filename || (!destination_nodeid && !destination_alias && !dump_filename))
     {
         usage(argv[0]);
     }
@@ -285,7 +295,7 @@ void maybe_checksum(string *firmware)
     else
     {
         fprintf(stderr, "Unknown checksumming algo %s. Known algorithms are: "
-                        "tiva123, esp8266.\n",
+                        "tiva123, cc3200, esp8266.\n",
             checksum_algorithm);
         exit(1);
     }
@@ -339,6 +349,11 @@ int appl_main(int argc, char *argv[])
         b->data()->data.size(), filename, memory_space_id);
     maybe_checksum(&b->data()->data);
 
+    if (dump_filename) {
+        write_string_to_file(dump_filename, b->data()->data);
+        exit(0);
+    }
+    
     bootloader_client.send(b);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,

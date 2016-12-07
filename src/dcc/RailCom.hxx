@@ -136,10 +136,20 @@ struct RailcomPacket {
         MOB_DYN,
         MOB_SUBID
     };
-    uint8_t hw_channel;  //< which detector supplied this data
-    uint8_t railcom_channel;  //< which part of the railcom cutout (1 or 2)
-    uint8_t type;  //< packet type, see enum above
-    uint32_t argument;  //< payload of the railcom packet, justified to LSB.
+    /// which detector supplied this data
+    uint8_t hw_channel;
+    /// which part of the railcom cutout (1 or 2)
+    uint8_t railcom_channel;
+    /// packet type, see enum above
+    uint8_t type;
+    /// payload of the railcom packet, justified to LSB.
+    uint32_t argument;
+    /// Constructor.
+    ///
+    /// @param _hw_channel which detector supplied this data
+    /// @param _railcom_channel which cutout (ch1 or ch2) this is coming from
+    /// @param _type see enum
+    /// @param _argument payload of the railcom packet, justified to LSB.
     RailcomPacket(uint8_t _hw_channel, uint8_t _railcom_channel, uint8_t _type,
         uint32_t _argument)
         : hw_channel(_hw_channel)

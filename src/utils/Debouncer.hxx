@@ -66,8 +66,12 @@
 class QuiesceDebouncer
 {
 public:
+    /// Type declaring what opeions we can supply to this class.
     typedef uint8_t Options;
 
+    /// Constructor. @param wait_count defines how many poll cycles the input
+    /// has to quiesce (not change) before we accept that input and forward to
+    /// the caller.
     QuiesceDebouncer(const Options &wait_count)
         : count_(0)
         , waitCount_(wait_count)
@@ -75,22 +79,29 @@ public:
     {
     }
 
+    /// Initializes the debouncer. @param state is the externally forced state.
     void initialize(bool state)
     {
         currentState_ = state ? 1 : 0;
         count_ = 0;
     }
 
+    /// @param state is the externally forced state.
     void override(bool new_state)
     {
         initialize(new_state);
     }
 
+    /// @return the currently visible (accepted) state.
     bool current_state()
     {
         return currentState_;
     }
 
+    /// Iteration function of the debouncer. @param state is the new state
+    /// read. @return true if the state has just changed (the visible state
+    /// just flipped from being != state to being == state). False if the
+    /// visible state was not changed by this poll cycle.
     bool update_state(bool state)
     {
         unsigned new_state = state ? 1 : 0;
@@ -109,8 +120,11 @@ public:
     }
 
 private:
+    /// How many times we've seen the proposed new state.
     unsigned count_ : 8;
+    /// Configuration: what is the quiesce count we have to reach.
     unsigned waitCount_ : 8;
+    /// Current visible state.
     unsigned currentState_ : 1;
 };
 
@@ -213,31 +227,40 @@ private:
 template <class Debouncer> class ToggleDebouncer
 {
 public:
+    /// Options type.
     typedef typename Debouncer::Options Options;
 
+    /// Constructor. @param options specified options for the debouncer
+    /// strategy.
     ToggleDebouncer(const Options &options)
         : impl_(options)
         , eventState_(0)
     {
     }
 
+    /// Sets the initial state. @param state is the initial (or default) state.
     void initialize(bool state)
     {
         // comes from the hardware
         impl_.initialize(state);
     }
 
+    /// Forces the state to a given value. @param state is the forced state
+    /// value.
     void override(bool state)
     {
         eventState_ = state ? 1 : 0;
     }
 
+    /// @return the current (last advertised / accepted) state.
     bool current_state()
     {
         // We ignore the local state and just publish the network state.
         return eventState_;
     }
 
+    /// Inserts a single poll measurement. @param state is the measured
+    /// state. @return true if the state just changed right now.
     bool update_state(bool state)
     {
         bool press_changed = impl_.update_state(state);
@@ -252,8 +275,10 @@ public:
     }
 
 private:
+    /// Implementation of the debounce logic.
     Debouncer impl_;
-    unsigned eventState_ : 1; // what the world thinks about the event
+    /// what the world thinks about the event
+    unsigned eventState_ : 1;
 };
 
 #endif // _UTILS_DEBOUNCER_HXX_

@@ -85,7 +85,6 @@ LpcUart::LpcUart(const char *name, LPC_USART_T *base, IRQn_Type interrupt)
 }
 
 /** Enable use of the device.
- * @param dev device to enable
  */
 void LpcUart::enable()
 {

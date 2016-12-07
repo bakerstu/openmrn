@@ -46,18 +46,31 @@ class ExecutorBase;
 class GcTcpHub
 {
 public:
+    /// Constructor.
+    ///
+    /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
+    /// onto.
+    /// @param port TCp port number to listen on.
     GcTcpHub(CanHubFlow *can_hub, int port);
     ~GcTcpHub();
 
+    /// @return true of the listener is ready to accept incoming connections.
     bool is_started()
     {
         return tcpListener_.is_started();
     }
 
 private:
+    /// Callback when a new connection arrives.
+    ///
+    /// @param fd filedes of the freshly established incoming connection.
+    ///
     void OnNewConnection(int fd);
 
+    /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
+    /// onto.
     CanHubFlow *canHub_;
+    /// Helper object representing the listening on the socket.
     SocketListener tcpListener_;
 };
 

@@ -70,9 +70,7 @@ StateFlowWithQueue::~StateFlowWithQueue()
 }
 
 
-/** Process an incoming message.
- * @param msg message to process
- * @param priority priority of message
+/** Executes the current state (until we get a wait or yield return).
  */
 void StateFlowBase::run()
 {

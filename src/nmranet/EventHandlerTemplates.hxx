@@ -299,6 +299,91 @@ private:
     DISALLOW_COPY_AND_ASSIGN(DistributedBit);
 };
 
+/// A network-initialized bit is a tri-state bit implementation that starts up
+/// in the UNKNOWN state until either a local state set or a remote state set
+/// occurs. After that transient passes the state will always be definite. The
+/// network state set typically comes from query responses or other nodes
+/// setting the state. The owner of this bit will typically want to actively
+/// send out a query upon boot or network reconnect.
+class NetworkInitializedBit : public BitEventInterface {
+public:
+    /// Constructs a NetworkINitializedBit.
+    ///
+    /// @param node the virtual node who exposes this bit.
+    /// @param event_on event ID to set the state to true
+    /// @param event_off event ID to set the state to false
+    /// @param default_local_state Until there is a definite network state we
+    /// return this state for a local query. Also determines what state a first
+    /// local toggle() call will set to.
+    NetworkInitializedBit(Node *node, uint64_t event_on, uint64_t event_off,
+        bool default_local_state)
+        : BitEventInterface(event_on, event_off)
+        , node_(node)
+        , isKnown_(0)
+        , localState_(default_local_state ? 1 : 0)
+    {
+    }
+
+    /// Get a reference to the owning Node.
+    /// @return Node reference
+    Node *node() override
+    {
+        return node_;
+    }
+
+    /// Accessor from the network stack to return the current state.
+    /// @return tri-stated value
+    EventState GetCurrentState() override
+    {
+        if (!isKnown_) return EventState::UNKNOWN;
+        if (localState_) return EventState::VALID;
+        return EventState::INVALID;
+    }
+
+    /// @return the local state, which defaults to default_local_state if the
+    /// network state is unknown.
+    bool get_local_state() {
+        return localState_;
+    }
+
+    /// @return true if the network state is known; i.e. when we are sure that
+    /// the network state matches the local state.
+    bool is_network_state_known() {
+        return isKnown_;
+    }
+    
+    /// Call from the network stack (or the client before notifying the network
+    /// stack) to set the state. Always sets the state to definite.
+    /// @param new state value
+    ///
+    /// NOTE: this does not send any messages. The caller must use the
+    /// EventHandler object after this function to send out an event.
+    void SetState(bool new_value) override
+    {
+        isKnown_ = 1;
+        localState_ = new_value ? 1 : 0;
+    }
+
+    /// Invert the current state. This also works when the network state is not
+    /// yet known: in that case it sets the state to the opposite of the
+    /// default state.
+    ///
+    /// NOTE: this does not send any messages. The caller must use the
+    /// EventHandler object after this function to send out an event.
+    void toggle_state()
+    {
+        SetState(!get_local_state());
+    }
+    
+protected:
+    Node* node_;
+    /// true when we knowthe network state
+    uint8_t isKnown_ : 1;
+    /// local state; either matches the network state or is the
+    /// constructor-default local state.
+    uint8_t localState_ : 1;
+};
+
 /// Simple implementation of a BitEventInterface when the true state ofthe
 /// variable is mapped in memory (e.g. mmap-ed gpio, or if there is no real
 /// hardware but a bit in RAM).

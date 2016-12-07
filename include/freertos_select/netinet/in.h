@@ -47,6 +47,7 @@ typedef uint32_t in_addr_t;
 /** Structure describing an Internet address.  */
 struct in_addr
 {
+    /// Address.
     in_addr_t s_addr;
 };
 
@@ -57,7 +58,7 @@ struct sockaddr_in
     uint16_t sin_port;       /**< port number */
     struct in_addr sin_addr; /**< internet address */
 
-    /* Pad to size of `struct sockaddr'.  */
+    /** Padding to size of `struct sockaddr'.  */
     unsigned char sin_zero[sizeof (struct sockaddr) - sizeof(uint16_t) -
                            sizeof (uint16_t) - sizeof (struct in_addr)];
 };

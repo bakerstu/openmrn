@@ -342,9 +342,9 @@ off_t Device::lseek(File* f, off_t offset, int whence)
 
 /** Request an ioctl transaction
  * @param file file reference for this device
- * @param node node reference for this device
  * @param key ioctl key
  * @param data key data
+ * @return 0 upon success or negative error number upon error.
  */
 int Device::ioctl(File *, unsigned long int, unsigned long) {
     return -EINVAL;

@@ -42,12 +42,16 @@
 template<const char* message>
 struct LoggingPin
 {
+    /// Empty. No initialization needed.
     static void hw_init()
     {
     }
+    /// Empty. No initialization needed.
     static void hw_set_to_safe()
     {
     }
+    /// Sets the output pin level (generating a log output). @param value is
+    /// true if output should be HIGH.
     static void set(bool value)
     {
         if (lastValue_ == value) return;
@@ -68,6 +72,7 @@ struct LoggingPin
     }
 
 protected:
+    /// Last output value.
     static bool lastValue_;
 };
 
@@ -91,6 +96,7 @@ struct LoggingPinWithRead : public LoggingPin<message>
         return false;
     }
 
+    /// @return the static Gpio instance object controlling this pin.
     static constexpr const Gpio *instance()
     {
         return GpioWrapper<LoggingPinWithRead>::instance();

@@ -38,36 +38,43 @@
 #include <algorithm>
 
 /// An mostly std::set<> compatible class that stores the internal data in a
-/// sorted vector. Has low memory overhead; isertion cost is pretty high and
+/// sorted vector. Has low memory overhead; insertion cost is pretty high and
 /// lookup cost is logarithmic. Useful when a few insertions happen (for
 /// example only during initialization) and then lots of lookups are made.
 template <class D, class CMP> class SortedListSet
 {
 public:
+    /// Type of data stored in the set.
     typedef D data_type;
 
 private:
+    /// Type that we store data in internally.
     typedef std::vector<data_type> container_type;
 
 public:
+    /// Iterator type.
     typedef typename container_type::iterator iterator;
+    /// Const Iterator type.
     typedef typename container_type::const_iterator const_iterator;
 
     SortedListSet()
     {
     }
 
+    /// @return first iterator.
     iterator begin()
     {
         lazy_init();
         return container_.begin();
     }
 
+    /// @return last iterator.
     iterator end()
     {
         return container_.begin() + sortedCount_;
     }
 
+    /// @param key what to search for @return iterator, see std::lower_bound.
     template<class key_type>
     iterator lower_bound(key_type key)
     {
@@ -76,6 +83,7 @@ public:
                                 CMP());
     }
 
+    /// @param key what to search for @return iterator, see std::upper_bound.
     template<class key_type>
     iterator upper_bound(key_type key)
     {
@@ -84,6 +92,7 @@ public:
                                 CMP());
     }
 
+    /// @param key what to search for @return iterators, see std::equal_range.
     template<class key_type>
     pair<iterator, iterator> equal_range(key_type key)
     {
@@ -92,11 +101,13 @@ public:
                                 CMP());
     }
 
+    /// Adds new entry to the vector.
     void insert(data_type &&d)
     {
         container_.push_back(d);
     }
 
+    /// Removes an entry from the vector, pointed by an iterator.
     void erase(const iterator &it)
     {
         container_.erase(it);

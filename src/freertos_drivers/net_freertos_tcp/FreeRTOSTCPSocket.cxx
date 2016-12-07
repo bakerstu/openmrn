@@ -32,7 +32,6 @@
  * @date 21 March 2016
  */
 
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -44,14 +43,12 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-
 // FreeRTOSPTCP includes
 #include "FreeRTOS_IP.h"
 #include "FreeRTOS_Sockets.h"
 
 #include "FreeRTOSTCPSocket.hxx"
 #include "FreeRTOSTCP.hxx"
-
 
 static FreeRTOSTCPSocket *FreeRTOSTCPSockets[MAX_SOCKETS];
 
@@ -63,8 +60,8 @@ int FreeRTOSTCPSocket::socket(int domain, int type, int protocol)
     FreeRTOSTCPSocket *new_socket = new FreeRTOSTCPSocket();
     if (new_socket == nullptr)
     {
-    	errno = ENOMEM;
-    	return -1;
+        errno = ENOMEM;
+        return -1;
     }
 
     mutex.lock();
@@ -72,7 +69,7 @@ int FreeRTOSTCPSocket::socket(int domain, int type, int protocol)
     mutex.unlock();
     if (fd < 0)
     {
-    	delete new_socket;
+        delete new_socket;
         errno = EMFILE;
         return -1;
     }
@@ -122,12 +119,12 @@ int FreeRTOSTCPSocket::socket(int domain, int type, int protocol)
 
     if (sd == FREERTOS_INVALID_SOCKET)
     {
-    	// unable to allocate socket due to no memory
-    	errno = ENOMEM;
+        // unable to allocate socket due to no memory
+        errno = ENOMEM;
         fd_free(fd);
         return -1;
     }
-    
+
     File *file = file_lookup(fd);
 
     file->dev = new_socket;
@@ -154,11 +151,11 @@ int FreeRTOSTCPSocket::socket(int domain, int type, int protocol)
 /*
  * FreeRTOSTCPSocket::bind()
  */
-int FreeRTOSTCPSocket::bind(int socket, const struct sockaddr *address,
-                       socklen_t address_len)
+int FreeRTOSTCPSocket::bind(
+    int socket, const struct sockaddr *address, socklen_t address_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -174,14 +171,14 @@ int FreeRTOSTCPSocket::bind(int socket, const struct sockaddr *address,
     struct freertos_sockaddr fr_address;
     switch (address->sa_family)
     {
-    	case AF_INET:
-    		break;
-    	default:
-    		errno = EINVAL;
-    		return -1;
+        case AF_INET:
+            break;
+        default:
+            errno = EINVAL;
+            return -1;
     }
-    //fr_address.sin_addr = ((const struct sockaddr_in *)(address))->sin_addr;
-    //fr_address.sin_port = address->sin_port;
+    // fr_address.sin_addr = ((const struct sockaddr_in *)(address))->sin_addr;
+    // fr_address.sin_port = address->sin_port;
     memcpy(&fr_address, address->sa_data, sizeof(fr_address));
 
     int result = FreeRTOS_bind(s->sd, &fr_address, address_len);
@@ -190,9 +187,9 @@ int FreeRTOSTCPSocket::bind(int socket, const struct sockaddr *address,
     {
         switch (result)
         {
-        	case -FREERTOS_EINVAL:
-				errno = EINVAL;
-				break;
+            case -FREERTOS_EINVAL:
+                errno = EINVAL;
+                break;
             default:
                 HASSERT(0);
                 break;
@@ -200,7 +197,7 @@ int FreeRTOSTCPSocket::bind(int socket, const struct sockaddr *address,
         return -1;
     }
 
-    return result;  
+    return result;
 }
 
 /*
@@ -208,8 +205,8 @@ int FreeRTOSTCPSocket::bind(int socket, const struct sockaddr *address,
  */
 int FreeRTOSTCPSocket::listen(int socket, int backlog)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -228,9 +225,9 @@ int FreeRTOSTCPSocket::listen(int socket, int backlog)
     {
         switch (result)
         {
-        	case -pdFREERTOS_ERRNO_EOPNOTSUPP:
-        		errno = EBADF;
-        		break;
+            case -pdFREERTOS_ERRNO_EOPNOTSUPP:
+                errno = EBADF;
+                break;
             default:
                 HASSERT(0);
                 break;
@@ -240,19 +237,19 @@ int FreeRTOSTCPSocket::listen(int socket, int backlog)
     s->readActive = false;
     s->listenActive = true;
 
-    return result;  
+    return result;
 }
 
 /*
  * FreeRTOSTCPSocket::accept()
  */
-int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
-                         socklen_t *address_len)
+int FreeRTOSTCPSocket::accept(
+    int socket, struct sockaddr *address, socklen_t *address_len)
 {
-	int result;
-	struct sockaddr_in *sin = (struct sockaddr_in *) (address);
-    File* f = file_lookup(socket);
-    if (!f) 
+    int result;
+    struct sockaddr_in *sin = (struct sockaddr_in *)(address);
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -267,8 +264,8 @@ int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
 
     if (!s->listenActive)
     {
-    	errno = EINVAL;
-    	return -1;
+        errno = EINVAL;
+        return -1;
     }
 
     freertos_sockaddr fr_address;
@@ -278,45 +275,38 @@ int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
 
     if (address && address_len)
     {
-    	// copy the address across and set the address family
-    	sin->sin_port = fr_address.sin_port;
-    	sin->sin_addr.s_addr = fr_address.sin_addr;
+        // copy the address across and set the address family
+        sin->sin_port = fr_address.sin_port;
+        sin->sin_addr.s_addr = fr_address.sin_addr;
         sin->sin_family = AF_INET;
         *address_len = sizeof(struct sockaddr_in);
     }
 
     if (sd == NULL)
     {
-    	// no queued connections
-    	errno = EAGAIN;
-    	return -1;
+        // no queued connections
+        errno = EAGAIN;
+        return -1;
     }
     if (sd == FREERTOS_INVALID_SOCKET)
     {
-    	// bad socket or not listening
-    	errno = EBADF;
-    	return -1;
+        // bad socket or not listening
+        errno = EBADF;
+        return -1;
     }
 
-    // for compatibility reset any timeout values inherited from listening socket
+    // for compatibility reset any timeout values inherited from listening
+    // socket
     const TickType_t timeout = portMAX_DELAY;
-    result = FreeRTOS_setsockopt(sd,
-                				0,
-    							FREERTOS_SO_RCVTIMEO,
-    							&timeout,
-    							0);
+    result = FreeRTOS_setsockopt(sd, 0, FREERTOS_SO_RCVTIMEO, &timeout, 0);
     if (result != 0)
     {
-    	// error detected
+        // error detected
     }
-    result = FreeRTOS_setsockopt(sd,
-                				0,
-    							FREERTOS_SO_SNDTIMEO,
-    							&timeout,
-    							0);
+    result = FreeRTOS_setsockopt(sd, 0, FREERTOS_SO_SNDTIMEO, &timeout, 0);
     if (result != 0)
     {
-    	// error detected
+        // error detected
     }
 
     // set listening socket state
@@ -328,12 +318,12 @@ int FreeRTOSTCPSocket::accept(int socket, struct sockaddr *address,
 /*
  * FreeRTOSTCPSocket::connect()
  */
-int FreeRTOSTCPSocket::connect(int socket, const struct sockaddr *address,
-                          socklen_t address_len)
+int FreeRTOSTCPSocket::connect(
+    int socket, const struct sockaddr *address, socklen_t address_len)
 {
-	const struct sockaddr_in *sin = (const struct sockaddr_in *)(address);
-    File* f = file_lookup(socket);
-    if (!f) 
+    const struct sockaddr_in *sin = (const struct sockaddr_in *)(address);
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -350,13 +340,13 @@ int FreeRTOSTCPSocket::connect(int socket, const struct sockaddr *address,
     socklen_t fr_address_len = sizeof(fr_address);
     switch (sin->sin_family)
     {
-    	case AF_INET:
-    		break;
-    	default:
-    		errno = EINVAL;
-    		return -1;
+        case AF_INET:
+            break;
+        default:
+            errno = EINVAL;
+            return -1;
     }
-    
+
     memcpy(&fr_address, address->sa_data, fr_address_len);
 
     int result = FreeRTOS_connect(s->sd, &fr_address, fr_address_len);
@@ -365,41 +355,42 @@ int FreeRTOSTCPSocket::connect(int socket, const struct sockaddr *address,
     {
         switch (result)
         {
-        	case -pdFREERTOS_ERRNO_EBADF:
-        		errno = EBADF;
-        		break;
-        	case -pdFREERTOS_ERRNO_EISCONN:
-        		errno = EALREADY;
-        		break;
-        	case -pdFREERTOS_ERRNO_EINPROGRESS:
-        	case -pdFREERTOS_ERRNO_EAGAIN:
-        		errno = EAGAIN;
-        		break;
-        	case -FREERTOS_EWOULDBLOCK:
-        		errno = EWOULDBLOCK;
-        		break;
-        	case -pdFREERTOS_ERRNO_ETIMEDOUT:
-        		errno = ETIMEDOUT;
-        		break;
+            case -pdFREERTOS_ERRNO_EBADF:
+                errno = EBADF;
+                break;
+            case -pdFREERTOS_ERRNO_EISCONN:
+                errno = EALREADY;
+                break;
+            case -pdFREERTOS_ERRNO_EINPROGRESS:
+            case -pdFREERTOS_ERRNO_EAGAIN:
+                errno = EAGAIN;
+                break;
+            case -FREERTOS_EWOULDBLOCK:
+                errno = EWOULDBLOCK;
+                break;
+            case -pdFREERTOS_ERRNO_ETIMEDOUT:
+                errno = ETIMEDOUT;
+                break;
             default:
                 HASSERT(0);
                 break;
         }
         return -1;
     }
-    return result;  
+    return result;
 }
 
 /*
  * FreeRTOSTCPSocket::recv()
  */
-ssize_t FreeRTOSTCPSocket::recv(int socket, void *buffer, size_t length, int flags)
+ssize_t FreeRTOSTCPSocket::recv(
+    int socket, void *buffer, size_t length, int flags)
 {
     /* flags are not supported in FreeRTOSTCPSocket */
     HASSERT(flags == 0);
 
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -416,27 +407,27 @@ ssize_t FreeRTOSTCPSocket::recv(int socket, void *buffer, size_t length, int fla
 
     if (result == 0)
     {
-    	s->readActive = false;
-    	errno = EAGAIN;
-    	return -1;
+        s->readActive = false;
+        errno = EAGAIN;
+        return -1;
     }
 
     if (result < 0)
     {
         switch (result)
         {
-        	case -pdFREERTOS_ERRNO_ENOMEM:
-        		errno = ENOMEM;
-				break;
-        	case -pdFREERTOS_ERRNO_ENOTCONN:
-        		errno = ENOTCONN;
-        		break;
-        	case -pdFREERTOS_ERRNO_EINTR:
-        		errno = EINTR;
-        		break;
-        	case -pdFREERTOS_ERRNO_EINVAL:
-        		errno =EINVAL;
-        		break; 		
+            case -pdFREERTOS_ERRNO_ENOMEM:
+                errno = ENOMEM;
+                break;
+            case -pdFREERTOS_ERRNO_ENOTCONN:
+                errno = ENOTCONN;
+                break;
+            case -pdFREERTOS_ERRNO_EINTR:
+                errno = EINTR;
+                break;
+            case -pdFREERTOS_ERRNO_EINVAL:
+                errno = EINVAL;
+                break;
             default:
                 HASSERT(0);
                 break;
@@ -452,19 +443,20 @@ ssize_t FreeRTOSTCPSocket::recv(int socket, void *buffer, size_t length, int fla
         s->readActive = true;
     }
 
-    return result;  
+    return result;
 }
 
 /*
  * FreeRTOSTCPSocket::send()
  */
-ssize_t FreeRTOSTCPSocket::send(int socket, const void *buffer, size_t length, int flags)
+ssize_t FreeRTOSTCPSocket::send(
+    int socket, const void *buffer, size_t length, int flags)
 {
     /* flags are not supported in FreeRTOSTCPSocket */
     HASSERT(flags == 0);
 
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -483,18 +475,18 @@ ssize_t FreeRTOSTCPSocket::send(int socket, const void *buffer, size_t length, i
     {
         switch (result)
         {
-        	case -pdFREERTOS_ERRNO_ENOTCONN:
-        		errno = ENOTCONN;
-        		break;
-        	case -pdFREERTOS_ERRNO_ENOMEM:
-        		errno = ENOMEM;
-        		break;
-        	case -pdFREERTOS_ERRNO_EINVAL:
-        		errno = EINVAL;
-        		break;
-        	case -pdFREERTOS_ERRNO_ENOSPC:
-        		errno = ENOSPC;
-        		break;
+            case -pdFREERTOS_ERRNO_ENOTCONN:
+                errno = ENOTCONN;
+                break;
+            case -pdFREERTOS_ERRNO_ENOMEM:
+                errno = ENOMEM;
+                break;
+            case -pdFREERTOS_ERRNO_EINVAL:
+                errno = EINVAL;
+                break;
+            case -pdFREERTOS_ERRNO_ENOSPC:
+                errno = ENOSPC;
+                break;
             default:
                 HASSERT(0);
                 break;
@@ -510,17 +502,17 @@ ssize_t FreeRTOSTCPSocket::send(int socket, const void *buffer, size_t length, i
         s->writeActive = true;
     }
 
-    return result;  
+    return result;
 }
 
 /*
  * FreeRTOSTCPSocket::setsockopt()
  */
 int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
-                             const void *option_value, socklen_t option_len)
+    const void *option_value, socklen_t option_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -545,37 +537,33 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
         case SOL_SOCKET:
             switch (option_name)
             {
-            	case SO_REUSEADDR:
-            		// ignore as FreeRTOS semantics different from BSD
-            		return 0;
-            	case SO_RCVTIMEO:
-            		tm = static_cast<const struct timeval *>(option_value);
-            		timeout = pdMS_TO_TICKS((tm->tv_sec*1000000 + tm->tv_usec)/1000);
-            		result = FreeRTOS_setsockopt(s->sd,
-            				0,
-							FREERTOS_SO_RCVTIMEO,
-							&timeout,
-							0);
-            		if (result == -FREERTOS_EINVAL)
-            		{
-            			errno = EINVAL;
-            			return -1;
-            		}
-            		return 0;
-            	case SO_SNDTIMEO:
-            		tm = static_cast<const struct timeval *>(option_value);
-            		timeout = pdMS_TO_TICKS((tm->tv_sec*1000000 + tm->tv_usec)/1000);
-            		result = FreeRTOS_setsockopt(s->sd,
-            				0,
-							FREERTOS_SO_SNDTIMEO,
-							&timeout,
-							0);
-            		if (result == -FREERTOS_EINVAL)
-            		{
-            			errno = EINVAL;
-            			return -1;
-            		}
-            		return 0;
+                case SO_REUSEADDR:
+                    // ignore as FreeRTOS semantics different from BSD
+                    return 0;
+                case SO_RCVTIMEO:
+                    tm = static_cast<const struct timeval *>(option_value);
+                    timeout = pdMS_TO_TICKS(
+                        (tm->tv_sec * 1000000 + tm->tv_usec) / 1000);
+                    result = FreeRTOS_setsockopt(
+                        s->sd, 0, FREERTOS_SO_RCVTIMEO, &timeout, 0);
+                    if (result == -FREERTOS_EINVAL)
+                    {
+                        errno = EINVAL;
+                        return -1;
+                    }
+                    return 0;
+                case SO_SNDTIMEO:
+                    tm = static_cast<const struct timeval *>(option_value);
+                    timeout = pdMS_TO_TICKS(
+                        (tm->tv_sec * 1000000 + tm->tv_usec) / 1000);
+                    result = FreeRTOS_setsockopt(
+                        s->sd, 0, FREERTOS_SO_SNDTIMEO, &timeout, 0);
+                    if (result == -FREERTOS_EINVAL)
+                    {
+                        errno = EINVAL;
+                        return -1;
+                    }
+                    return 0;
                 default:
                     errno = EINVAL;
                     return -1;
@@ -584,24 +572,25 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
         case IPPROTO_TCP:
             switch (option_name)
             {
-            	case TCP_NODELAY:
-            		// not implemented, return no error
-            		return 0;
+                case TCP_NODELAY:
+                    // not implemented, return no error
+                    return 0;
                 default:
                     errno = EINVAL;
                     return -1;
             }
     }
-    
-    result = FreeRTOS_setsockopt(s->sd,level,option_name,option_value,option_len);
-                    
+
+    result = FreeRTOS_setsockopt(
+        s->sd, level, option_name, option_value, option_len);
+
     if (result < 0)
     {
         switch (result)
         {
-        	case -FREERTOS_EINVAL:
-        		errno = EINVAL;
-        		break;
+            case -FREERTOS_EINVAL:
+                errno = EINVAL;
+                break;
             default:
                 HASSERT(0);
                 break;
@@ -616,10 +605,10 @@ int FreeRTOSTCPSocket::setsockopt(int socket, int level, int option_name,
  * FreeRTOSTCPSocket::getsockopt()
  */
 int FreeRTOSTCPSocket::getsockopt(int socket, int level, int option_name,
-                             void *option_value, socklen_t *option_len)
+    void *option_value, socklen_t *option_len)
 {
-    File* f = file_lookup(socket);
-    if (!f) 
+    File *f = file_lookup(socket);
+    if (!f)
     {
         errno = EBADF;
         return -1;
@@ -667,7 +656,7 @@ int FreeRTOSTCPSocket::close(File *file)
  *        exceptions
  * @return true if active, false if inactive
  */
-bool FreeRTOSTCPSocket::select(File* file, int mode)
+bool FreeRTOSTCPSocket::select(File *file, int mode)
 {
     FreeRTOSTCPSocket *s = static_cast<FreeRTOSTCPSocket *>(file->priv);
     bool retval = false;
@@ -717,11 +706,11 @@ bool FreeRTOSTCPSocket::select(File* file, int mode)
 
 FreeRTOSTCPSocket *FreeRTOSTCPSocket::get_sd_by_index(int inx)
 {
-	if ((inx < 0) || (inx > MAX_SOCKETS))
-	{
-		HASSERT(0);
-	}
-	return FreeRTOSTCPSockets[inx];
+    if ((inx < 0) || (inx > MAX_SOCKETS))
+    {
+        HASSERT(0);
+    }
+    return FreeRTOSTCPSockets[inx];
 }
 
 /*
@@ -808,29 +797,27 @@ int FreeRTOSTCPSocket::fcntl(File *file, int cmd, unsigned long data)
 
     switch (cmd)
     {
-    	case F_SETFL:
-    		if (data & O_NONBLOCK)
-    		{
-    			// translate set non blocking into zero Recv and Send timeouts
-    		    static const TickType_t
-    				timeout = 0;
-    		    FreeRTOS_setsockopt(sd,0,FREERTOS_SO_RCVTIMEO,
-    		    		(void *) &timeout,sizeof(timeout));
-    		    FreeRTOS_setsockopt(sd,0,FREERTOS_SO_SNDTIMEO,
-    		    		(void *) &timeout,sizeof(timeout));
-    		}
-    		return 0;
-    	case F_GETFL:
-    		return 0;
+        case F_SETFL:
+            if (data & O_NONBLOCK)
+            {
+                // translate set non blocking into zero Recv and Send timeouts
+                static const TickType_t timeout = 0;
+                FreeRTOS_setsockopt(sd, 0, FREERTOS_SO_RCVTIMEO,
+                    (void *)&timeout, sizeof(timeout));
+                FreeRTOS_setsockopt(sd, 0, FREERTOS_SO_SNDTIMEO,
+                    (void *)&timeout, sizeof(timeout));
+            }
+            return 0;
+        case F_GETFL:
+            return 0;
         default:
         {
-            return -EINVAL;  
-        }  
+            return -EINVAL;
+        }
     }
 }
 
-extern "C"
-{
+extern "C" {
 /** Create an unbound socket in a communications domain.
  * @param domain specifies the communications domain in which a socket is
  *               to be created
@@ -947,11 +934,11 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags)
  * @return shall return 0 upon success, otherwise, -1 shall be returned and
  *         errno set to indicate the error
  */
-int setsockopt(int socket, int level, int option_name,
-               const void *option_value, socklen_t option_len)
+int setsockopt(int socket, int level, int option_name, const void *option_value,
+    socklen_t option_len)
 {
-    return FreeRTOSTCPSocket::setsockopt(socket, level, option_name,
-                                    option_value, option_len);
+    return FreeRTOSTCPSocket::setsockopt(
+        socket, level, option_name, option_value, option_len);
 }
 
 /** Get the socket options.
@@ -964,11 +951,11 @@ int setsockopt(int socket, int level, int option_name,
  * @return shall return 0 upon success, otherwise, -1 shall be returned and
  *         errno set to indicate the error
  */
-int getsockopt(int socket, int level, int option_name,
-               void *option_value, socklen_t *option_len)
+int getsockopt(int socket, int level, int option_name, void *option_value,
+    socklen_t *option_len)
 {
-    return FreeRTOSTCPSocket::getsockopt(socket, level, option_name,
-                                    option_value, option_len);
+    return FreeRTOSTCPSocket::getsockopt(
+        socket, level, option_name, option_value, option_len);
 }
 
 /** Get the socket name.
@@ -980,7 +967,7 @@ int getsockopt(int socket, int level, int option_name,
  */
 int getsockname(int socket, struct sockaddr &addr, socklen_t &namelen)
 {
-	return 0;
+    return 0;
 }
 
 static char str[32];
@@ -991,17 +978,18 @@ static char str[32];
  */
 const char *inet_ntoa(struct in_addr addr)
 {
-	//static char str[32];
-	FreeRTOS_inet_ntoa(addr.s_addr,str);
-	return str;
+    // static char str[32];
+    FreeRTOS_inet_ntoa(addr.s_addr, str);
+    return str;
 }
 
-/** Converts the dotted decmail internet address string into a binary representation
+/** Converts the dotted decmail internet address string into a binary
+ * representation
  * @param name string containing dotted decimal representation
  * @return binary address representation
  */
-uint32_t inet_addr (const char *name)
+uint32_t inet_addr(const char *name)
 {
-	return FreeRTOS_inet_addr(name);
+    return FreeRTOS_inet_addr(name);
 }
 } /* extern "C" */

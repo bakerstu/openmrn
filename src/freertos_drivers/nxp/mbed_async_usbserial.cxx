@@ -88,9 +88,14 @@ static Atomic critical_lock;
 class MbedAsyncUSBSerial : public USBCDC, public ::NonBlockNode
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name device path to export (e.g. /dev/usbser0).
+    /// @param vendor_id USB vendor ID to report
+    /// @param product_id USB device ID to report
+    /// @param product_release USB product version to report.
     MbedAsyncUSBSerial(const char *name, uint16_t vendor_id = 0x1f00,
-                       uint16_t product_id = 0x2012,
-                       uint16_t product_release = 0x0001)
+        uint16_t product_id = 0x2012, uint16_t product_release = 0x0001)
         : USBCDC(vendor_id, product_id, product_release)
         , NonBlockNode(name)
         , overrunCount_(0)
@@ -107,6 +112,7 @@ public:
     }
 
 protected:
+    /// Callback when EP2_OUT is ready.
     bool EP2_OUT_callback() override
     {
         // HASSERT(IsEpPending());
@@ -120,6 +126,7 @@ protected:
         return false;
     }
 
+    /// Callback when EP2_IN is ready.
     bool EP2_IN_callback() override
     {
         configASSERT(txPending_);
@@ -300,7 +307,9 @@ private:
         } // while trying to write
     }
 
+    /// What's the maximum packet length for transmit.
     static const int MAX_TX_PACKET_LENGTH = 64;
+    /// What's the maximum packet length for receive.
     static const int MAX_RX_PACKET_LENGTH = 64;
 
     /** Transmits txCount_ bytes from the txData_ buffer. Sets txPending and
@@ -325,11 +334,14 @@ private:
         txCount_ = 0;
     }
 
+    /// How many times have we had to drop data to the floor due to buffer
+    /// overrun.
     unsigned overrunCount_;
-    /** packet assemby buffer to device */
+    /** packet assemby buffer from app to device */
     uint8_t txData_[MAX_TX_PACKET_LENGTH];
-    /** number of valid characters in txData */
+    /** packet assemby buffer from device to app */
     uint8_t rxData_[MAX_RX_PACKET_LENGTH];
+    /** number of valid characters in txData */
     uint8_t txCount_;
     /** First valid character in rxData */
     uint8_t rxBegin_;
@@ -337,7 +349,9 @@ private:
     uint8_t rxEnd_;
     uint8_t txPending_ : 1; /**< transmission currently pending */
     uint8_t rxPending_ : 1; /**< there is a packet in the USB block waiting */
+    /// Helper object to block reader.
     SyncNotifiable readSync_;
+    /// Helper object to block writer.
     SyncNotifiable writeSync_;
 };
 

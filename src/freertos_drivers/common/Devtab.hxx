@@ -177,13 +177,13 @@ protected:
     virtual ssize_t write(File *, const void *, size_t) = 0;
 
     /** Seek method.
-     * @param file file reference for this device
+     * @param f file reference for this device
      * @param offset offset in bytes from whence directive
      * @param whence SEEK_SET if to set the file offset to an abosolute position,
      *               SEEK_CUR if to set the file offset from current position
      * @return current offest or negative error number upon error.
      */
-    virtual off_t lseek(File* file, off_t offset, int whence);
+    virtual off_t lseek(File* f, off_t offset, int whence);
 
     /** Get the status information of a file or device.
      * @param file file reference for this device
@@ -196,7 +196,7 @@ protected:
      * @param file file reference for this device
      * @param key ioctl key
      * @param data key data
-     * @param return 0 upon success or negative error number upon error.
+     * @return 0 upon success or negative error number upon error.
      */
     virtual int ioctl(File *file, unsigned long int key, unsigned long data);
 
@@ -374,7 +374,6 @@ protected:
 
     /** Request an ioctl transaction
     * @param file file reference for this device
-    * @param node node reference for this device
     * @param key ioctl key
     * @param data key data
     */

@@ -77,12 +77,15 @@ public:
 protected:
     Action entry() OVERRIDE;
 
+    /// @return next action.
     Action finish()
     {
         return release_and_exit();
     }
 
+    /// Filedes of the device to which we are writing the generated packets.
     int fd_;
+    /// Packet pool from which to allocate packets.
     FixedPool pool_;
 };
 
@@ -93,6 +96,12 @@ protected:
 class LocalTrackIfSelect : public LocalTrackIf
 {
 public:
+    /** Constructs a TrackInterface from an fd to the mainline.
+     *
+     * @param service Usually the main executor.
+     * @param pool_size will determine how many packets the current flow's
+     * alloc() will have.
+     */
     LocalTrackIfSelect(Service *service, int pool_size)
         : LocalTrackIf(service, pool_size)
     {
@@ -101,6 +110,7 @@ public:
 protected:
     Action entry() OVERRIDE;
 
+    /// Helper class for select() ing the target device.
     StateFlowSelectHelper helper_{this};
 };
 

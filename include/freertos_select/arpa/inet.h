@@ -40,10 +40,23 @@
 extern "C" {
 #endif
 
+/// Converts a number-and-dot notation internet address to binary form.
+///
+/// @param name standard argument
+/// @param addr standard argument
+///
+/// @return error code
+///
 int inet_aton (const char *name, struct in_addr *addr);
 
+/// Converts a number-and-dot notation internet address to network byte order
+/// form. @param name is the text representation. @return the 32-bit address in
+/// ntwork byte order, or -1 if there is an error.
 uint32_t inet_addr (const char *name);
     
+/// Converts an address to tectual representation. Not reentrant. @param addr
+/// is the address. @return the textual form of the address (statically
+/// allocated buffer).
 char *inet_ntoa (struct in_addr addr);
 
 /** Convert the network address in src to a character string in src.

@@ -45,6 +45,7 @@ namespace dcc
 class RailcomPrintfFlow : public dcc::RailcomHubPortInterface
 {
 public:
+    /// Constructor. @param source is the railcom hub to listen to.
     RailcomPrintfFlow(dcc::RailcomHubFlow *source)
         : parent_(source)
     {
@@ -57,6 +58,9 @@ public:
     }
 
 private:
+    /// Helper function to turn some railcom data into string. @param data is
+    /// the pointer to the data. @param len tells how many bytes are there
+    /// valid. @return textual representation of that data (debugging).
     string display_railcom_data(const uint8_t *data, int len)
     {
         static char buf[200];
@@ -97,6 +101,10 @@ private:
         return string(buf, ofs);
     }
 
+    /// Incoming railcom data.
+    ///
+    /// @param d railcom buffer.
+    /// @param prio priority
     void send(Buffer<dcc::RailcomHubData> *d, unsigned prio) OVERRIDE
     {
         AutoReleaseBuffer<dcc::RailcomHubData> rb(d);
@@ -117,6 +125,7 @@ private:
         }
     }
 
+    /// Flow to which we are registered.
     dcc::RailcomHubFlow *parent_;
 };
 

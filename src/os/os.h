@@ -134,8 +134,11 @@ typedef pthread_once_t os_thread_once_t; /**< one time initialization type */
 /** Some Operating Systems do not support timeouts with semaphores */
 typedef struct
 {
+    /// Condition variable.
     pthread_cond_t cond;
+    /// Mutex protectin the counter
     pthread_mutex_t mutex;
+    /// How many counts doe the semaphore store.
     int counter;
 } os_sem_t;
 #endif
@@ -763,7 +766,7 @@ OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout
 {
 #if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
-
+    
     if (xQueueSend(queue, data, ticks) != pdTRUE)
     {
         return OS_MQ_TIMEDOUT;

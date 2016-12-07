@@ -100,11 +100,11 @@ private:
      */
     void tx_char() OVERRIDE {}
 
-    /** Handles CDC driver notifications related to control and setup of the device.
-     * This is called from within interrupt context.
+    /** Handles CDC driver notifications related to control and setup of the
+     * device.  This is called from within interrupt context.
      * @param data private data
      * @param event identifies the event we are being notified about
-     * @param msg_value event-specific value
+     * @param msg_param event-specific value
      * @param msg_data event-specific data
      * @return return value is event specific
      */
@@ -115,7 +115,7 @@ private:
      * This is called from within interrupt context.
      * @param data private data
      * @param event identifies the event we are being notified about
-     * @param msg_value event-specific value
+     * @param msg_param event-specific value
      * @param msg_data event-specific data
      * @return return value is event specific
      */
@@ -126,7 +126,7 @@ private:
      * This is called from within interrupt context.
      * @param data private data
      * @param event identifies the event we are being notified about
-     * @param msg_value event-specific value
+     * @param msg_param event-specific value
      * @param msg_data event-specific data
      * @return return value is event specific
      */

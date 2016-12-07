@@ -92,7 +92,6 @@ int Null::open(File* file, const char *path, int flags, int mode)
 
 /** Close a device.
  * @param file file reference for this device
- * @param node node reference for this device
  * @return 0 upon success, negative errno upon failure
  */
 int Null::close(File *file)

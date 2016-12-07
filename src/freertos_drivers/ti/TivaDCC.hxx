@@ -70,7 +70,7 @@
 ///
 /// @deprecated, use @ref DeviceBuffer instead.
 ///
-/// @TODO(balazs.racz) replace uses of this class with DeviceBuffer (to enable
+/// @todo(balazs.racz) replace uses of this class with DeviceBuffer (to enable
 /// select support for example).
 template<class T, uint8_t SIZE> class FixedQueue {
 public:
@@ -81,9 +81,11 @@ public:
     {
     }
 
-    /// 
+    /// @return true if there is no entry in the queue.
     bool empty() { return size() == 0; }
+    /// @return true if the queue cannot accept more elements.
     bool full() { return size() >= SIZE; }
+    /// @return the current number of entries in the queue.
     size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
 
     /// Returns the head of the FIFO (next element to read).
@@ -140,9 +142,14 @@ public:
     }
 
 private:
+    /// Payload of elements stored.
     T storage_[SIZE];
+    /// The index of the element to return next upon a read. This element is
+    /// typically full (unless the queue is empty itself).
     uint8_t rdIndex_;
+    /// The index of the element where to write the next input to.
     uint8_t wrIndex_;
+    /// How many elements are there in the queue.
     volatile uint8_t count_;
 };
 
@@ -191,6 +198,8 @@ class TivaDCC : public Node
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
+     * @param railcom is the associated railcom driver, which will get the
+     * callbacks from the timing derived by the internal signal generator.
      */
   TivaDCC(const char *name, RailcomDriver *railcom);
 
@@ -211,11 +220,16 @@ public:
 
     /** Structure for supporting bit timing. */
     struct Timing {
+        /// In clock cycles: period ofthe timers
         uint32_t period;
+        /// When to transition output A; must be within the period
         uint32_t transition_a;
+        /// When to transition output B; must be within the period
         uint32_t transition_b;
     };
 
+    /// true if the DCC output signal is generated, false if it is turned off
+    /// (for estop or short).
     static bool output_enabled;
 
     /* WARNING: these functions (hw_init, enable_output, disable_output) MUST
@@ -223,6 +237,7 @@ public:
      * before the C++ constructors have run. This means that at the time of
      * calling these functions the state of the object would be undefined /
      * uninintialized. The only safe solution is to make them static. */
+    /// Initializes the DCC output hardware.
     static void hw_init() {
         MAP_SysCtlPeripheralEnable(HW::CCP_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
@@ -243,11 +258,13 @@ public:
         HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
     }
 
+    /// Turns on DCC output.
     void enable_output() {
         output_enabled = true;
         state_ = POWER_TURNON;
     }
 
+    /// Turns off DCC output.
     static void disable_output()
     {
         // This prevents a race condition with a dcc interrupt.
@@ -258,12 +275,14 @@ public:
         internal_disable_output();
     }
 
+    /// Sets the output to "shorted" state, which will cause it to be pulsed at
+    /// a very low duty cycle, hoping that this is just a capacitive load.
     void output_set_shorted() {
         state_ = POWER_SHORT_20P;
     }
 
 private:
-    // Helper function for turnon and the cutout.
+    /// Helper function for turnon and the cutout.
     static void internal_enable_output() {
         MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
         MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
@@ -271,6 +290,7 @@ private:
         MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
     }
 
+    /// Helper function for turning off the output.
     static void internal_disable_output() {
         output_enabled = false;
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
@@ -311,7 +331,6 @@ private:
 
     /** Request an ioctl transaction
      * @param file file reference for this device
-     * @param node node reference for this device
      * @param key ioctl key
      * @param data key data
      */
@@ -331,6 +350,7 @@ private:
     /** idle packet */
     static dcc::Packet IDLE_PKT;
 
+    /// Bit timings that we store and precalculate.
     typedef enum {
         DCC_ZERO,
         DCC_ONE,
@@ -351,10 +371,15 @@ private:
 
     int hDeadbandDelay_; /**< low->high deadband delay in clock count */
     int lDeadbandDelay_; /**< high->low deadband delay in clock count */
-    static bool savedOutputEnabled_; // for railcom cutout
+    /// Stores the outpu_enabled variable during the railcom cutout to avoid
+    /// accidentally reenabling the output just because there was a railcom
+    /// cutout.
+    static bool savedOutputEnabled_;
 
+    /// Precalculated bit timings (translated to clock cycles).
     Timing timings[NUM_TIMINGS];
 
+    /// Internal state machine states.
     enum State
     {
         // DCC preamble bits
@@ -424,6 +449,7 @@ private:
         // Used during periods when a short is detected on the output
         POWER_SHORT_20P,
     };
+    /// Current state of internal state machine.
     State state_;
 
     /** Prepares a timing entry.
@@ -452,6 +478,7 @@ private:
     void fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
                             uint32_t fill_usec);
 
+    /// Packets still waiting to be sent.
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
     RailcomDriver* railcomDriver_; /**< Will be notified for railcom cutout events. */

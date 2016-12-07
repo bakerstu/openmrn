@@ -94,6 +94,11 @@ DECLARE_CONST(serial_rx_buffer_size);
 /// cost associated with setting this number high. Set to 1'000'000 to make it
 /// infinite.
 DECLARE_CONST(gridconnect_port_max_incoming_packets);
+/// Similar to the above, but:
+///  - allocates all memory upfront. Set to 1 to leave as infinite
+///  - tracks CAN frames coming from gridconnect ports
+/// it works (unlike the above)
+DECLARE_CONST(gridconnect_bridge_max_incoming_packets);
 
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */

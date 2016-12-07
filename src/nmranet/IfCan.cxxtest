@@ -373,7 +373,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
 {
     /** In this test we exercie the case when an alias that was previously
      * reserved by us but not used for any virtual node yet experiences various
-     * comflicts. In the first case we see a regular CID conflict that gets
+     * conflicts. In the first case we see a regular CID conflict that gets
      * replied to. In the second case we see someone else actively using that
      * alias, which will make that alias unusable for us. This will only be
      * detected at the time the next outgoing virtual node tries to allocate

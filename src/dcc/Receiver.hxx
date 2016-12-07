@@ -57,6 +57,7 @@ public:
         timings_[MM_LONG].set(200, 216);
     }
 
+    /// Internal states of the decoding state machine.
     enum State
     {
         UNKNOWN,             // 0
@@ -74,6 +75,7 @@ public:
         MM_PACKET_FINISHED,
     };
 
+    /// @return the current decoding state.
     State state()
     {
         return parseState_;
@@ -336,6 +338,7 @@ private:
         uint32_t max_value;
     };
 
+    /// Indexes the timing array.
     enum TimingInfo
     {
         DCC_ONE = 0,
@@ -345,6 +348,7 @@ private:
         MM_LONG,
         MAX_TIMINGS
     };
+    /// The various timings by the standards.
     Timing timings_[MAX_TIMINGS];
 };
 

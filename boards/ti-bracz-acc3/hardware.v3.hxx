@@ -128,7 +128,7 @@ struct DCCDecode
     static inline void after_feedback_hook() {}
 };
 
-#define HAVE_RAILCOM
+//#define HAVE_RAILCOM
 
 struct RailcomHw
 {

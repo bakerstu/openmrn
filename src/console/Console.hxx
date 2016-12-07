@@ -206,6 +206,7 @@ public:
         FILE *fp;
 
         /** Wait for a complete line of input
+         * @param c state to call when the line is acquired.
          * @return next action
          */
         StateFlowBase::Action wait_for_line_and_call(StateFlowBase::Callback c)
@@ -287,8 +288,7 @@ private:
 
         /** Construct a new command.
          * @param name command name
-         * @param callback callback function for command
-         * @param context context pointer to pass into callback
+         * @param flow ??
          * @param next next command in list
          */
         Command(const char *name, CommandFlow *flow, Command *next = NULL)

@@ -543,8 +543,8 @@ void default_interrupt_handler(void) __attribute__ ((weak));
 void default_interrupt_handler(void)
 {
     _INTCTRL = NVIC_INT_CTRL_R;
-    while(1);
     diewith(BLINK_DIE_UNEXPIRQ);
+    while(1);
 }
 
 void debug_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));

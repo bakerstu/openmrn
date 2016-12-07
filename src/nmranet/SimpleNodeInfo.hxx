@@ -128,7 +128,9 @@ private:
     SimpleInfoFlow *responseFlow_;
 };
 
+/// Holds the data we decoded from a SNIP response.
 struct SnipDecodedData {
+    /// Resets all entries to empty.
     void clear() {
         manufacturer_name.clear();
         model_name.clear();
@@ -137,17 +139,29 @@ struct SnipDecodedData {
         user_name.clear();
         user_description.clear();
     }
+    /// SNIP response field.
     string manufacturer_name;
+    /// SNIP response field.
     string model_name;
+    /// SNIP response field.
     string hardware_version;
+    /// SNIP response field.
     string software_version;
 
+    /// SNIP response field.
     string user_name;
+    /// SNIP response field.
     string user_description;
 };
 
-void decode_snip_response(const nmranet::Payload& payload, SnipDecodedData* output);
-
+/// Takes an NMRANet SNIP repsonse message paylaod and splits it up into
+/// individual fields of the response structure.
+///
+/// @param payload received message payload
+/// @param output will be filled with the individual fields.
+///
+void decode_snip_response(
+    const nmranet::Payload &payload, SnipDecodedData *output);
 
 } // namespace nmranet
 

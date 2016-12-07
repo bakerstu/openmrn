@@ -44,6 +44,7 @@
 class Notifiable : public Destructable
 {
 public:
+    /// Generic callback.
     virtual void notify() = 0;
 #ifdef __FreeRTOS__
     virtual void notify_from_isr()
@@ -136,7 +137,8 @@ public:
     /// point. This function must not be called again until the returned
     /// callback is invoked.
     ///
-    /// @returns a Notifiable to be used as a done callback for some
+    /// @param parent where to proxy notifications to.
+    /// @return a Notifiable to be used as a done callback for some
     /// asynchronous processing.
     Notifiable* NewCallback(Notifiable* parent)
     {
@@ -161,6 +163,8 @@ private:
         p->notify();
     }
 
+    /// Where to proxy notifications. If nullptr, then this was already
+    /// notified and shall not be notified again.
     Notifiable* parent_;
 };
 
@@ -319,11 +323,14 @@ private:
 class TempNotifiable : public Notifiable
 {
 public:
+    /// Constructor. @param body is the function object that will be called
+    /// when *this is notified, just before *this is deleted.
     TempNotifiable(std::function<void()> body)
         : body_(std::move(body))
     {
     }
 
+    /// Calls the notification method.
     void notify() OVERRIDE
     {
         body_();
@@ -331,6 +338,7 @@ public:
     }
 
 private:
+    /// Function object (callback) to call.
     std::function<void()> body_;
 };
 

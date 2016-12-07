@@ -100,7 +100,7 @@ private:
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
     /** Seek method.  Not valid for a socket.
-     * @param file file reference for this device
+     * @param f file reference for this device
      * @param offset offset in bytes from whence directive
      * @param whence SEEK_SET if to set the file offset to an abosolute position,
      *               SEEK_CUR if to set the file offset from current position

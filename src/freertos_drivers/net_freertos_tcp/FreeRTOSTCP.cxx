@@ -49,16 +49,17 @@
 
 FreeRTOSTCP *FreeRTOSTCP::instance_ = nullptr;
 
-static SocketSet_t
-	socket_set = NULL;
+static SocketSet_t socket_set = NULL;
 
-static QueueHandle_t
-	close_queue = NULL;
+static QueueHandle_t close_queue = NULL;
 
+/// Called before the TCP stack is initialized in FreeRTOS.
 bool network_layer_preinit(void);
 
-extern "C" void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent );
-
+/// Callback from FreeRTOS network event handler. Called on the network thread.
+/// @param eNetworkEvent see freertos-TCP documentation.
+extern "C" void vApplicationIPNetworkEventHook(
+    eIPCallbackEvent_t eNetworkEvent);
 
 /*
  * FreeRTOSTCP::FreeRTOSTCP()
@@ -69,7 +70,6 @@ FreeRTOSTCP::FreeRTOSTCP()
 {
     HASSERT(instance_ == nullptr);
     instance_ = this;
-
 }
 
 /*
@@ -77,26 +77,27 @@ FreeRTOSTCP::FreeRTOSTCP()
  */
 void FreeRTOSTCP::start()
 {
-	network_layer_preinit();
-	os_thread_create(NULL,"FreeRTOSTCP Task",configMAX_PRIORITIES-1,2048,net_task_entry,NULL);
+    network_layer_preinit();
+    os_thread_create(NULL, "FreeRTOSTCP Task", configMAX_PRIORITIES - 1, 2048,
+        net_task_entry, NULL);
 }
-
 
 /*
  * FreeRTOSTCP::net_task()
  */
 void FreeRTOSTCP::net_task()
 {
-	int sel_result, result;
+    int sel_result, result;
     struct freertos_sockaddr address;
 
     socket_set = FreeRTOS_CreateSocketSet();
     HASSERT(socket_set != NULL);
 
-    close_queue = xQueueCreate(10,sizeof(Socket_t));
+    close_queue = xQueueCreate(10, sizeof(Socket_t));
     HASSERT(close_queue != 0);
 
-    wakeup = FreeRTOS_socket(FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
+    wakeup = FreeRTOS_socket(
+        FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
     HASSERT(wakeup >= 0);
 
     address.sin_port = FreeRTOS_htons(8000);
@@ -104,13 +105,13 @@ void FreeRTOSTCP::net_task()
     result = FreeRTOS_bind(wakeup, &address, sizeof(address));
     HASSERT(result >= 0);
 
-    FreeRTOS_FD_SET(wakeup, socket_set, eSELECT_READ|eSELECT_INTR);
+    FreeRTOS_FD_SET(wakeup, socket_set, eSELECT_READ | eSELECT_INTR);
 
-    for ( ; /* forever */ ; )
+    for (; /* forever */;)
     {
-    	const TickType_t timeout = pdMS_TO_TICKS(30000);
+        const TickType_t timeout = pdMS_TO_TICKS(30000);
 
-        sel_result = FreeRTOS_select(socket_set,timeout);
+        sel_result = FreeRTOS_select(socket_set, timeout);
 
         if (sel_result < 0)
         {
@@ -119,93 +120,94 @@ void FreeRTOSTCP::net_task()
 
         if (sel_result & eSELECT_INTR)
         {
-        	// wakeup: process close_queue entries
-        	Socket_t sd;
+            // wakeup: process close_queue entries
+            Socket_t sd;
 
-        	while (xQueueReceive(close_queue,&sd,0) == pdTRUE)
-        	{
+            while (xQueueReceive(close_queue, &sd, 0) == pdTRUE)
+            {
                 portENTER_CRITICAL();
-                FreeRTOS_FD_CLR(sd,socket_set,
-                		eSELECT_READ|eSELECT_WRITE|eSELECT_EXCEPT);
+                FreeRTOS_FD_CLR(sd, socket_set,
+                    eSELECT_READ | eSELECT_WRITE | eSELECT_EXCEPT);
                 delete FreeRTOSTCPSocket::get_instance_from_sd(sd);
                 FreeRTOSTCPSocket::remove_instance_from_sd(sd);
                 portEXIT_CRITICAL();
-                FreeRTOS_shutdown(sd,FREERTOS_SHUT_RDWR);
+                FreeRTOS_shutdown(sd, FREERTOS_SHUT_RDWR);
                 FreeRTOS_closesocket(sd);
-        	}
+            }
         }
 
-        // there should be a better to way to go about determining which sockets are
+        // there should be a better to way to go about determining which sockets
+        // are
         // in the socketset used for the call in select
-        for (int i = MAX_SOCKETS-1; i >= 0; --i)
+        for (int i = MAX_SOCKETS - 1; i >= 0; --i)
         {
-        	FreeRTOSTCPSocket *s = nullptr;
-        	Socket_t sd;
-        	BaseType_t evt;
-        	sd = wakeup;
+            FreeRTOSTCPSocket *s = nullptr;
+            Socket_t sd;
+            BaseType_t evt;
+            sd = wakeup;
 
-        	if (i == 0)
-        	{
-        		s = nullptr;
-        		sd = wakeup;
-        	}
-        	else
-        	{
-				s = FreeRTOSTCPSocket::get_sd_by_index(i);
-				if (s == nullptr)
-				{
-					continue;
-				}
-				sd = s->sd;
-        	}
-
-        	/* obtain event mask in evt */
-            evt = FreeRTOS_FD_ISSET(sd,socket_set);
-            if (evt == 0)
+            if (i == 0)
             {
-            	continue;
+                s = nullptr;
+                sd = wakeup;
+            }
+            else
+            {
+                s = FreeRTOSTCPSocket::get_sd_by_index(i);
+                if (s == nullptr)
+                {
+                    continue;
+                }
+                sd = s->sd;
             }
 
-			if (evt & eSELECT_READ)
+            /* obtain event mask in evt */
+            evt = FreeRTOS_FD_ISSET(sd, socket_set);
+            if (evt == 0)
+            {
+                continue;
+            }
+
+            if (evt & eSELECT_READ)
             {
                 if (sd == wakeup)
                 {
-                    /* this is the socket we use as a signal, so discard any data received */
+                    /* this is the socket we use as a signal, so discard any
+                     * data received */
                     char data[4];
-                    FreeRTOS_recvfrom(wakeup, data, sizeof(data), 0, nullptr, nullptr);
+                    FreeRTOS_recvfrom(
+                        wakeup, data, sizeof(data), 0, nullptr, nullptr);
                 }
                 else
                 {
-					// have something to read
-					FreeRTOS_FD_CLR(sd,socket_set,eSELECT_READ);
-					s->readActive = true;
-					s->select_wakeup(&s->selInfoRd);
+                    // have something to read
+                    FreeRTOS_FD_CLR(sd, socket_set, eSELECT_READ);
+                    s->readActive = true;
+                    s->select_wakeup(&s->selInfoRd);
                 }
             }
 
             if (evt & eSELECT_WRITE)
             {
-            	if (sd == wakeup)
-            	{
-            		FreeRTOS_FD_CLR(sd,socket_set,eSELECT_WRITE);
-            		continue;
-            	}
-            	// was the test for the write fdset
-                FreeRTOS_FD_CLR(sd,socket_set,eSELECT_WRITE);
+                if (sd == wakeup)
+                {
+                    FreeRTOS_FD_CLR(sd, socket_set, eSELECT_WRITE);
+                    continue;
+                }
+                // was the test for the write fdset
+                FreeRTOS_FD_CLR(sd, socket_set, eSELECT_WRITE);
                 s->writeActive = false;
                 s->select_wakeup(&s->selInfoWr);
             }
             if (evt & eSELECT_EXCEPT)
             {
-            	// was the test for the except fdset
-            	FreeRTOS_FD_CLR(sd,socket_set,eSELECT_EXCEPT);
+                // was the test for the except fdset
+                FreeRTOS_FD_CLR(sd, socket_set, eSELECT_EXCEPT);
                 /* currently we don't handle any errors */
-            	;
+                ;
             }
-
         }
     }
-
 }
 
 /*
@@ -219,8 +221,8 @@ void FreeRTOSTCP::select_wakeup(Socket_t data)
     // needs FreeRTOSIPConfig to include SUPPORT_SIGNALS = 1
     if (data != nullptr)
     {
-    	// place request in wake_queue
-    	xQueueSend(close_queue,&data,0);
+        // place request in wake_queue
+        xQueueSend(close_queue, &data, 0);
     }
     FreeRTOS_SignalSocket(wakeup);
 #else
@@ -242,12 +244,11 @@ void FreeRTOSTCP::fd_set_read(Socket_t socket)
  */
 void FreeRTOSTCP::fd_set_write(Socket_t socket)
 {
-	FreeRTOS_FD_SET(socket, socket_set, eSELECT_WRITE);
+    FreeRTOS_FD_SET(socket, socket_set, eSELECT_WRITE);
     select_wakeup();
 }
 
-
-extern "C" void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent )
+extern "C" void vApplicationIPNetworkEventHook(eIPCallbackEvent_t eNetworkEvent)
 {
-	return;
+    return;
 }

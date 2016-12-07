@@ -202,9 +202,12 @@ void DynamicPool::free(BufferBase *item)
 }
 
 /** Get a free item out of the pool.
- * @param result pointer to a pointer to the result
+ * @param size how many payload bytes should he allocated buffer have. Usually
+ * sizeof<T> for Buffer<T>.
  * @param flow if !NULL, then the alloc call is considered async and will
  *        behave as if @ref alloc_async() was called.
+ * @return the allocated buffer or NULL if there was no memory and we're doing
+ * asynchronous allocation.
  */
 BufferBase *FixedPool::alloc_untyped(size_t size, Executable *flow)
 {
@@ -239,7 +242,6 @@ BufferBase *FixedPool::alloc_untyped(size_t size, Executable *flow)
 
 /** Release an item back to the free pool.
  * @param item pointer to item to release
- * @param size size of buffer to free
  */
 void FixedPool::free(BufferBase *item)
 {

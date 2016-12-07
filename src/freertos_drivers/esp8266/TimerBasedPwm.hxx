@@ -48,6 +48,7 @@ public:
     TimerBasedPwm() {
     }
 
+    /// Turns on the PWM.
     void __attribute__((noinline)) enable() {
         ETS_FRC1_INTR_DISABLE();
 #pragma GCC diagnostic push
@@ -57,10 +58,12 @@ public:
 #pragma GCC diagnostic pop
     }
 
+    /// Interrupt handler.
     static void ICACHE_RAM_ATTR isr_handler(void*) {
         FRC1_INTCLR = 0;
     }
 
+    /// interrupt handler (to be called with a this pointer externally stored).
     void ICACHE_RAM_ATTR owned_isr_handler() {
         if (isOn_) {
             isOn_ = false;
@@ -139,6 +142,7 @@ public:
         FRC1_LOAD = std::max(clock_pause, 1U);
     }
 
+    /// New implementation of the interrupt handler.
     static void ICACHE_RAM_ATTR new_isr_handler(void*) {
         //if ((T1C & ((1 << TCAR) | (1 << TCIT))) == 0) TEIE &= ~TEIE1;//edge int disable
         FRC1_INTCLR = 0;
@@ -154,9 +158,15 @@ public:
             //TM1_EDGE_INT_ENABLE();
         }
     }
-    
 
-    void set_state(int pin, long long nsec_period, long long nsec_on) {
+    /// Sets the PWM parameters.
+    ///
+    /// @param pin pin number to PWM.
+    /// @param nsec_period what is the period time of the PWM signal
+    /// @param nsec_on how much the signal should be HIGH within the period.
+    ///
+    void set_state(int pin, long long nsec_period, long long nsec_on)
+    {
         gpioValue_ = 1<<pin;
 
         // CPU clock = 80 MHz, 12.5 nsec per clock.
@@ -178,10 +188,16 @@ public:
     }
 
 private:
+    /// Bit-shifted value to send to the GPIO output port.
     static uint32_t gpioValue_;
+    /// How many clock cycles we should wait after switching ON before swithing
+    /// OFF.
     static uint32_t clockOn_;
+    /// How many clock cycles we should wait after switching OFF before swithing
+    /// ON.
     static uint32_t clockOff_;
-    static bool isOn_;  // 1 if output is on, 0 if it is off.
+    /// 1 if output is currently on, 0 if it is off.    
+    static bool isOn_;
 };
 
 

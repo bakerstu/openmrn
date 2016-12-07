@@ -222,6 +222,8 @@ public:
     /// configure to trigger.
     typedef typename MessageType::value_type::id_type ID;
 
+    /// Override method that will be called after each incoming message is
+    /// dequeued. @return next state.
     Action entry() OVERRIDE {
         return DispatchFlowBase<BASE_NUM_PRIO>::entry();
     }
@@ -266,6 +268,10 @@ protected:
 
     /// Requests allocating a new buffer for sending off a clone.
     Action allocate_and_clone() OVERRIDE {
+        if (!this->lastHandlerToCall_) {
+            // got unregistered.
+            return call_immediately(STATE(clone_done));
+        }
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
         return allocate_and_call(h, STATE(clone));
     }
@@ -274,6 +280,12 @@ protected:
     /// off to the clone target. @return next action.
     Action clone() {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
+        if (!this->lastHandlerToCall_) {  // got unregistered
+            BufferBase* b;
+            this->cast_allocation_result(&b);
+            if (b) this->get_allocation_result(h)->unref();
+            return call_immediately(STATE(clone_done));
+        }
         MessageType *copy = this->get_allocation_result(h);
         copy->set_done(this->message()->new_child());
         *copy->data() = *this->message()->data();
@@ -282,7 +294,7 @@ protected:
     }
 
     /// Takes the existing buffer and sends off to the target flow. Only used
-    /// as the last action.
+    /// as the last action. Requires: lastHandlerToCall != nullptr.
     void send_transfer() OVERRIDE {
         HandlerType* h = static_cast<HandlerType *>(this->lastHandlerToCall_);
         h->send(this->transfer_message());
@@ -354,6 +366,9 @@ DispatchFlowBase<NUM_PRIO>::unregister_handler(UntypedHandler *handler,
     // Checks that we found the thing to unregister.
     HASSERT(idx < handlers_.size() &&
             "Tried to unregister a handler not previously registered.");
+    if (lastHandlerToCall_ == handlers_[idx].handler) {
+        lastHandlerToCall_ = nullptr;
+    }
     handlers_[idx].handler = nullptr;
     if (idx == handlers_.size() - 1)
     {

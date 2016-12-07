@@ -43,9 +43,13 @@
 /// Default hardware structure for the TivaCpuLoad driver.
 struct TivaCpuLoadDefHw
 {
+    /// Timer address base to use.
     static constexpr auto TIMER_BASE = TIMER4_BASE;
+    /// Peripheral constant to enable the clock output on.
     static constexpr auto TIMER_PERIPH = SYSCTL_PERIPH_TIMER4;
+    /// Interrupt ID belonging to the given timer.
     static constexpr auto TIMER_INTERRUPT = INT_TIMER4A;
+    /// Period in clock cycles to tick upon for the Cpu Load calculation.
     static constexpr unsigned TIMER_PERIOD = 80000000 / 127;
 };
 

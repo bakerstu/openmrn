@@ -61,16 +61,16 @@ public:
     {
     }
 
-    /** Returns the currently valid DCC address, or zero if no valid address
+    /** @return the currently valid DCC address, or zero if no valid address
      * right now. */
     uint16_t current_address()
     {
         return currentAddress_;
     }
 
-    /** Decodes a packet.
+    /** Decodes a packet. @param packet is what to decode.
      *
-     * @returns true if the packet is garbage or matches a global address
+     * @return true if the packet is garbage or matches a global address
      * broadcast, false if it is a valid packet that is not an address
      * broadcast. */
     bool process_packet(const dcc::Feedback &packet);
@@ -81,19 +81,25 @@ public:
     void set_occupancy(bool value);
 
 private:
+    /// Helper function to process a sequence of bytes (whichever window they
+    /// are coming from). @param data pointer to bytes @param size how many
+    /// bytes arethere to decode. @return dunno.
     bool process_data(const uint8_t *data, unsigned size);
 
+    /// How many times we shall get the same data out of railcom before we
+    /// believe it and report to the bus.
     static const uint8_t REPEAT_COUNT = 3;
 
-    uint8_t currentH_; //< last received high address bits
-    uint8_t currentL_; //< last received low address bits
-    uint8_t countH_;   //< observed repeat count of high address bits
-    uint8_t countL_;   //< observed repeat count of low address bits
+    uint8_t currentH_; ///< last received high address bits
+    uint8_t currentL_; ///< last received low address bits
+    uint8_t countH_;   ///< observed repeat count of high address bits
+    uint8_t countL_;   ///< observed repeat count of low address bits
 
-    uint16_t currentAddress_; //< last valid address (0 if no valid address)
+    uint16_t currentAddress_; ///< last valid address (0 if no valid address)
 
 public:
-    uint16_t lastAddress_; //< usable by clients for storage.
+    /// usable by clients for storage.
+    uint16_t lastAddress_;
 };
 
 } // namespace dcc

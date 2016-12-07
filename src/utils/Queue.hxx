@@ -112,7 +112,6 @@ public:
     virtual size_t pending(unsigned index) = 0;
 
     /** Get the total number of pending items in all queues in the list.
-     * @param index in the list to operate on
      * @return number of total pending items in all queues in the list
      */
     virtual size_t pending() = 0;
@@ -124,7 +123,6 @@ public:
     virtual bool empty(unsigned index) = 0;
 
     /** Test if all the queues are empty.
-     * @param index in the list to operate on
      * @return true if empty, else false
      */
     virtual bool empty() = 0;
@@ -236,7 +234,6 @@ public:
     }
 
     /** Get the total number of pending items in all queues in the list.
-     * @param index in the list to operate on
      * @return number of total pending items in all queues in the list
      */
     size_t pending() override
@@ -254,7 +251,6 @@ public:
     }
 
     /** Test if all the queues are empty.
-     * @param index in the list to operate on
      * @return true if empty, else false
      */
     bool empty() override
@@ -460,7 +456,7 @@ private:
 template <class T> class TypedQAsync : public QAsync
 {
 public:
-    /** Returns the next item from the queue. If the queue is currently empty,
+    /** @return the next item from the queue. If the queue is currently empty,
      * then blocks the current thread until an item is available. MUST NOT BE
      * CALLED ON INTERFACE EXECUTORS. */
     T *next_blocking()
@@ -473,7 +469,7 @@ public:
         insert(entry);
     }
 
-    /// TODO(balazs.racz): add a typed next() command here.
+    /// @todo(balazs.racz): add a typed next() command here.
 
 private:
     /// Helper class for waiting (blocking the current thread) until a message
@@ -481,12 +477,14 @@ private:
     class BlockingWait : public Executable
     {
     public:
+        /// Constructor. @param parent is the queue to take an entry from.
         BlockingWait(TypedQAsync<T> *parent)
         {
             parent->next_async(this);
             n_.wait_for_notification();
         }
 
+        /// @return (typed) result of the queue wait operation.
         T *result()
         {
             return result_;
@@ -505,7 +503,9 @@ private:
         }
 
     private:
+        /// helps blocking the calling thread until the allocation is complete.
         SyncNotifiable n_;
+        /// Response of the allocation.
         T *result_;
     };
 };
@@ -517,7 +517,6 @@ template <unsigned ITEMS> class QList : public QInterface
 {
 public:
     /** Default Constructor.
-     * @pagram size number of queues in the list
      */
     QList()
         : QInterface()
@@ -604,6 +603,7 @@ public:
         return result;
     }
 
+    /// @return how many entries are enqueued right now (across all lists).
     size_t size()
     {
         return pending();
@@ -619,8 +619,7 @@ public:
     }
 
     /** Test if all the queues are empty.
-     * @param index in the list to operate on
-     * @return true if empty, else false
+     * @return true if empty (all lists), else false
      */
     bool empty() override
     {
@@ -648,7 +647,6 @@ class QListProtected : public QList<items>, private Atomic
 {
 public:
     /** Default Constructor.
-     * @param size number of queues in the list
      */
     QListProtected() : QList<items>()
     {
@@ -661,8 +659,8 @@ public:
     }
 
     /** Add an item to the back of the queue.
-     * @param item to add to queue
-     * @return item retrieved from queue, NULL if no item available
+     * @param q item to add to queue
+     * @param index priority to add item to.
      */
     void insert(QMember *q, unsigned index = 0) override
     {
@@ -670,9 +668,9 @@ public:
         QList<items>::insert(q, index);
     }
 
-    /** Add an item to the back of the queue.
-     * @param item to add to queue
-     * @return item retrieved from queue, NULL if no item available
+    /** Add an item to the back of the queue. Caller already holds lock.
+     * @param q item to add to queue
+     * @param index priority to add item to.
      */
     void insert_locked(QMember *q, unsigned index = 0)
     {
@@ -904,7 +902,6 @@ class QListProtectedWait : public QListProtected<items>, public OSSem
 {
 public:
     /** Default Constructor.
-     * @param size number of queues in the list
      */
     QListProtectedWait()
         : QListProtected<items>()
@@ -976,7 +973,6 @@ public:
 #ifndef ESP_NONOS
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
-     * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL with errno set:
      *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
      */

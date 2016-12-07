@@ -81,6 +81,7 @@ public:
     struct Node
     {
     public:
+        /// The pointer structure.
         RB_ENTRY(Node) entry;
         Key key; /**< key by which to sort the node */
         Value value; /**< value of the node */

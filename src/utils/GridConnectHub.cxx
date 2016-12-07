@@ -50,6 +50,12 @@
 class GCAdapter : public GCAdapterBase
 {
 public:
+    /// Constructor.
+    ///
+    /// @param gc_side A hub of type string, the gridconnect side.
+    /// @param can_side A hub of type struct can_frame, the binary side.
+    /// @param double_bytes if true, upon rendering data each byte will be
+    /// doubled. This is an anciant workaround.
     GCAdapter(HubFlow *gc_side, CanHubFlow *can_side, bool double_bytes)
         : parser_(can_side->service(), can_side, &formatter_)
         , formatter_(can_side->service(), gc_side, &parser_, double_bytes)
@@ -59,8 +65,17 @@ public:
         isRegistered_ = 1;
     }
 
+    /// Constructor
+    ///
+    /// @param gc_side_read A hub of type string to read packets from. The read
+    /// packets will be converted to binary and sent to can_side.
+    /// @param gc_side_write A hub of type string to write incoming binary
+    /// packets that were converted to
+    /// @param can_side  A hub of type struct can_frame, the binary side.
+    /// @param double_bytes  if true, upon rendering data each byte will be
+    /// doubled. This is an anciant workaround.
     GCAdapter(HubFlow *gc_side_read, HubFlow *gc_side_write,
-              CanHubFlow *can_side, bool double_bytes)
+        CanHubFlow *can_side, bool double_bytes)
         : parser_(can_side->service(), can_side, &formatter_)
         , formatter_(can_side->service(), gc_side_write, &parser_, double_bytes)
     {
@@ -79,9 +94,8 @@ public:
         if (isRegistered_)
         {
             parser_.destination()->unregister_port(&formatter_);
-            /// @TODO(balazs.racz) This is incorrect if the 3-pipe constructor
-            /// is
-            /// used.
+            /// @todo(balazs.racz) This is incorrect if the 3-pipe constructor
+            /// is used.
             formatter_.destination()->unregister_port(&parser_);
             isRegistered_ = 0;
         }
@@ -90,7 +104,7 @@ public:
     bool shutdown() OVERRIDE
     {
         unregister();
-        return parser_.is_waiting() && formatter_.is_waiting();
+        return formatter_.shutdown() && parser_.is_waiting() && formatter_.is_waiting();
     }
 
     /// HubPort (on a CAN-typed hub) that turns a binary CAN packet into a
@@ -99,6 +113,14 @@ public:
     class BinaryToGCMember : public CanHubPort
     {
     public:
+        /// Constructor.
+        ///
+        /// @param service which executor to run on
+        /// @param destination string hub where to write gridconnecct data to.
+        /// @param skip_member what to set the skipmember_ field of the outgoing
+        /// packets to.
+        /// @param double_bytes if true, upon rendering data each byte will be
+        /// doubled. This is an anciant workaround.
         BinaryToGCMember(Service *service, HubFlow *destination,
             HubPort *skip_member, int double_bytes)
             : CanHubPort(service)
@@ -110,11 +132,16 @@ public:
         {
         }
 
+        /// @return where to write the packets to.
         HubFlow *destination()
         {
             return destination_;
         }
 
+        bool shutdown() {
+            return delayPort_.shutdown();
+        }
+        
         Action entry() override
         {
             LOG(VERBOSE, "can packet arrived: %" PRIx32,
@@ -142,6 +169,8 @@ public:
         }
 
     private:
+        /// Helper class that assembles larger outgoing packets from the
+        /// individual packets by delaying data a little bit.
         BufferPort delayPort_;
         /// Destination buffer (characters).
         char dbuf_[56];
@@ -159,20 +188,33 @@ public:
     class GCToBinaryMember : public HubPort
     {
     public:
-        GCToBinaryMember(Service *service, CanHubFlow *destination,
-                         CanHubPort *skip_member)
+        /// Constructor.
+        ///
+        /// @param service defines the executor to run on.
+        /// @param destination Where to write converted binary packets.
+        /// @param skip_member what to set skipMember_ of the outgoing packets
+        /// to.
+        GCToBinaryMember(
+            Service *service, CanHubFlow *destination, CanHubPort *skip_member)
             : HubPort(service)
             , destination_(destination)
             , skipMember_(skip_member)
         {
+            int max_frames_to_parse =
+                config_gridconnect_bridge_max_incoming_packets();
+            if (max_frames_to_parse > 1) {
+                frameAllocator_.reset(new FixedPool(
+                    sizeof(CanHubFlow::buffer_type), max_frames_to_parse));
+            }
         }
 
+        /// @return the destination to write data to.
         CanHubFlow *destination()
         {
             return destination_;
         }
 
-        /** Takes more characters from the pending incoming buffer. */
+        /** Takes more characters from the pending incoming buffer. @return next state */
         Action entry() override
         {
             inBuf_ = message()->data()->data();
@@ -180,6 +222,8 @@ public:
             return call_immediately(STATE(parse_more_data));
         }
 
+        /// Matches the incoming characters to the pattern to form incoming
+        /// frames. @return next state.
         Action parse_more_data()
         {
             while (inBufSize_--)
@@ -189,7 +233,7 @@ public:
                 {
                     // End of frame. Allocate an output buffer and parse the
                     // frame.
-                    return allocate_and_call(destination_, STATE(parse_to_output_frame));
+                    return allocate_and_call(destination_, STATE(parse_to_output_frame), frameAllocator_.get());
                 }
             }
             // Will notify the caller.
@@ -198,7 +242,7 @@ public:
 
         /** Takes the completed frame in cbuf_, parses it into the allocation
          * result (a can pipe buffer) and sends off frame. Then comes back to
-         * process buffer. */
+         * process buffer. @return next state. */
         Action parse_to_output_frame()
         {
             auto* b = get_allocation_result(destination_);
@@ -224,6 +268,10 @@ public:
         /// The remaining number of characters in inBuf_.
         size_t inBufSize_;
 
+        // Allocator to get the frame from. If NULL, the target's default
+        // buffer pool will be used.
+        std::unique_ptr<FixedPool> frameAllocator_;
+        
         // ==== static data ====
 
         /// Pipe to send data to.
@@ -237,7 +285,8 @@ private:
     GCToBinaryMember parser_;
     /// PipeMember doing the formatting.
     BinaryToGCMember formatter_;
-    unsigned isRegistered_ : 1; //< 1 if the flows are registered.
+    /// 1 if the flows are registered.
+    unsigned isRegistered_ : 1;
 };
 
 GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side,
@@ -260,6 +309,10 @@ GCAdapterBase *GCAdapterBase::CreateGridConnectAdapter(HubFlow *gc_side_read,
 /// destruction of these structures.
 struct GcPacketPrinter::Impl : public CanHubPortInterface
 {
+    /// Constructor.
+    ///
+    /// @param can_hub Which hub's packets to write to stdout.
+    /// @param timestamped Whether to put timestamps on the packets written.
     Impl(CanHubFlow *can_hub, bool timestamped)
         : canHub_(can_hub)
         , timestamped_(timestamped)
@@ -272,6 +325,10 @@ struct GcPacketPrinter::Impl : public CanHubPortInterface
         canHub_->unregister_port(this);
     }
 
+    /// Overridden entry method to send binary data to this hub.
+    ///
+    /// @param message CAN frame buffer.
+    /// @param priority priority
     void send(Buffer<CanHubData> *message, unsigned priority) OVERRIDE
     {
         AutoReleaseBuffer<CanHubData> b(message);
@@ -290,10 +347,16 @@ struct GcPacketPrinter::Impl : public CanHubPortInterface
                 t.tm_sec, (long)tv.tv_usec, message->data()->skipMember_);
 #endif
         }
-        printf("%s\n", str);
+        printf("%s", str);
+        if (config_gc_generate_newlines() != 1)
+        {
+            printf("\n");
+        }
     }
 
+    /// Which hun are we registered to.
     CanHubFlow* canHub_;
+    /// Whether we are printing timestamps of the packets.
     bool timestamped_;
 };
 
@@ -312,6 +375,12 @@ GcPacketPrinter::~GcPacketPrinter()
 /// device and the connection is closed.
 struct GcHubPort : public Executable
 {
+    /// Constructor.
+    ///
+    /// @param can_hub Parent (binary) hub flow.
+    /// @param fd device descriptor of open channel (device or socket)
+    /// @param on_exit Notifiable that will be called when the descriptor
+    /// experiences an error (typically upon device closed or connection lost).
     GcHubPort(CanHubFlow *can_hub, int fd, Notifiable *on_exit)
         : gcHub_(can_hub->service())
         , bridge_(

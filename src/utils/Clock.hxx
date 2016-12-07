@@ -62,21 +62,25 @@ public:
 
 /// Fake implementation of @ref Clock that returns an injected time.
 ///
-/// @TODO(balazs.racz) this should be called FakeClock instead.
+/// @todo(balazs.racz) this should be called FakeClock instead.
 class MockClock : public Clock
 {
 public:
+    /// Consturctor. @param time the clock vale to set.
     MockClock(long long time) : time_(time)
     {
     }
+    /// @return the mock time.
     long long get_time_nsec()
     {
         return time_;
     }
+    /// @param time is the mock time to set.
     void set_time(long long time)
     {
         time_ = time;
     }
 private:
-  long long time_;
+    /// Current mock time.
+    long long time_;
 };

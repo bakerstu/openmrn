@@ -82,7 +82,7 @@ public:
         start_flow(STATE(request_buffer));
     }
 
-    /** Returns the error code of the last request, or one of the internal
+    /** @return the error code of the last request, or one of the internal
      * error codes from \ref PIPClient::ResultCodes */
     uint32_t error_code()
     {

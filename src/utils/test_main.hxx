@@ -203,6 +203,12 @@ private:
 class ScopedOverride
 {
 public:
+    /// Constructor
+    ///
+    /// @param variable what to set temporarily
+    /// @param new_value what should be the new value of variable during this
+    /// code block.
+    ///
     template <class T>
     ScopedOverride(T *variable, T new_value)
         : holder_(new Holder<T>(variable, new_value))
@@ -225,6 +231,9 @@ private:
     template <class T> class Holder : public HolderBase
     {
     public:
+        /// @param variable what to set temporarily
+        /// @param new_value what should be the new value of variable during
+        /// this code block.
         Holder(T *variable, T new_value)
             : variable_(variable)
             , oldValue_(*variable)
@@ -238,10 +247,14 @@ private:
         }
 
     private:
+        /// Points to the variable that needs resetting.
         T *variable_;
+        /// old value to reset variable_ to when destroyed.
         T oldValue_;
     };
 
+    /// Smart ptr that will reset the variable to the previous value when going
+    /// out of scope.
     std::unique_ptr<HolderBase> holder_;
 };
 

@@ -97,6 +97,7 @@ public:
         }
     }
 
+    /// @return the static Gpio object instance controlling this pin.
     static constexpr const Gpio *instance()
     {
         return &instance_;

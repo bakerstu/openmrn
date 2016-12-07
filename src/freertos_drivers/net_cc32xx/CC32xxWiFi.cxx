@@ -47,15 +47,84 @@ CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 /** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
-static SlFdSet_t rfds;
+/*static*/ SlFdSet_t rfds;
 /** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
-static SlFdSet_t wfds;
+/*static*/ SlFdSet_t wfds;
 /** these are not class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs
  */
-static SlFdSet_t efds;
+/*static*/ SlFdSet_t efds;
+
+/** the highest file descriptor to select on */
+/*static*/ int fdHighest;
+
+/*static*/ int16_t slSockets[SL_MAX_SOCKETS];
+
+/** Find the new highest fd to select on.
+ */
+void new_highest()
+{
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (slSockets[i] != -1)
+        {
+            if (slSockets[i] > fdHighest)
+            {
+                if (SL_FD_ISSET(slSockets[i], &rfds) ||
+                    SL_FD_ISSET(slSockets[i], &wfds) ||
+                    SL_FD_ISSET(slSockets[i], &efds))
+                {
+                    fdHighest = slSockets[i];
+                }
+            }
+        }
+    }
+}
+
+/** Add an interesting socket.
+ * @param socket number to add
+ */
+void add_socket(int16_t socket)
+{
+    if (socket > fdHighest)
+    {
+        fdHighest = socket;
+    }
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (slSockets[i] == socket)
+        {
+            /* already known */
+            return;
+        }
+    }
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (slSockets[i] == -1)
+        {
+            slSockets[i] = socket;
+            break;
+        }
+    }
+}
+
+/** Delete an interesting socket.
+ * @parqam socket number to delete
+ */
+void del_socket(int16_t socket)
+{
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        if (slSockets[i] == socket)
+        {
+            slSockets[i] = -1;
+            break;
+        }
+    }
+    new_highest();
+}
 
 /*
  * CC32xxWiFi::CC32xxWiFi()
@@ -71,10 +140,43 @@ CC32xxWiFi::CC32xxWiFi()
 {
     HASSERT(instance_ == nullptr);
     instance_ = this;
+    for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+    {
+        slSockets[i] = -1;
+    }
     SL_FD_ZERO(&rfds);
     SL_FD_ZERO(&wfds);
     SL_FD_ZERO(&efds);
     ssid[0] = '\0';
+}
+
+uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
+{
+    switch (sec_type)
+    {
+        default:
+        case SEC_OPEN:
+            return SL_SEC_TYPE_OPEN;
+        case SEC_WEP:
+            return SL_SEC_TYPE_WEP;
+            break;
+        case SEC_WPA2:
+            return SL_SEC_TYPE_WPA_WPA2;
+    }
+}
+
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_type)
+{
+    switch (sec_type)
+    {
+        default:
+        case SL_SEC_TYPE_OPEN:
+            return SEC_OPEN;
+        case SL_SEC_TYPE_WEP:
+            return SEC_WEP;
+        case SL_SEC_TYPE_WPA_WPA2:
+            return SEC_WPA2;
+    }
 }
 
 /*
@@ -86,19 +188,7 @@ int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
     SlSecParams_t sec_params;
     sec_params.Key = (int8_t*)key;
     sec_params.KeyLen = (key == nullptr) ? 0 : strlen(key);
-    switch (sec_type)
-    {
-        default:
-        case SEC_OPEN:
-            sec_params.Type = SL_SEC_TYPE_OPEN;
-            break;
-        case SEC_WEP:
-            sec_params.Type = SL_SEC_TYPE_WEP;
-            break;
-        case SEC_WPA2:
-            sec_params.Type = SL_SEC_TYPE_WPA_WPA2;
-            break;
-    }
+    sec_params.Type = security_type_to_simplelink(sec_type);
 
     int16_t result = sl_WlanProfileAdd((const int8_t*)ssid, strlen(ssid),
                                        nullptr, &sec_params, nullptr,
@@ -161,19 +251,7 @@ int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
 
     if (sec_type)
     {
-        switch (sec_params.Type)
-        {
-            default:
-            case SL_SEC_TYPE_OPEN:
-                *sec_type = SEC_OPEN;
-                break;
-            case SL_SEC_TYPE_WEP:
-                *sec_type = SEC_WEP;
-                break;
-            case SL_SEC_TYPE_WPA_WPA2:
-                *sec_type = SEC_WPA2;
-                break;
-        }
+        *sec_type = security_type_from_simplelink(sec_params.Type);
     }
 
     return 0;
@@ -259,12 +337,12 @@ void CC32xxWiFi::stop()
  * CC32xxWiFi::wlan_connect()
  */
 void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
-                         uint8_t security_type)
+                              SecurityType security_type)
 {
     SlSecParams_t sec_params;
     sec_params.Key = (_i8*)security_key;
     sec_params.KeyLen = strlen(security_key);
-    sec_params.Type = security_type;
+    sec_params.Type = security_type_to_simplelink(security_type);
 
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
                                 &sec_params, 0);
@@ -339,12 +417,14 @@ void CC32xxWiFi::wlan_task()
 
     portENTER_CRITICAL();
     SL_FD_SET(wakeup, &rfds);
+    add_socket(wakeup);
     portEXIT_CRITICAL();
 
     unsigned next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
 
     for ( ; /* forever */ ; )
     {
+
         std::vector<std::function<void()> > callbacks_to_run;
         {
             OSMutexLock l(&lock_);
@@ -363,7 +443,7 @@ void CC32xxWiFi::wlan_task()
         tv.tv_sec = 1;
         tv.tv_usec = 0;
 
-        result = sl_Select(0x20, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
+        result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
         if (result < 0)
         {
@@ -383,12 +463,17 @@ void CC32xxWiFi::wlan_task()
             }
         }
 
-        for (int i = 0x1F; i >= 0 && result > 0; --i)
+        for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
         {
-            if (SL_FD_ISSET(i, &rfds_tmp))
+            if (slSockets[i] == -1)
+            {
+                /* socket slot not in use */
+                continue;
+            }
+            if (SL_FD_ISSET(slSockets[i], &rfds_tmp))
             {
                 --result;
-                if ((i & BSD_SOCKET_ID_MASK) == wakeup)
+                if (slSockets[i] == wakeup)
                 {
                     /* this is the socket we use as a signal */
                     int16_t data;
@@ -404,6 +489,7 @@ void CC32xxWiFi::wlan_task()
                         SL_FD_CLR(data, &rfds);
                         SL_FD_CLR(data, &wfds);
                         SL_FD_CLR(data, &efds);
+                        del_socket(data);
                         delete CC32xxSocket::get_instance_from_sd(data);
                         CC32xxSocket::remove_instance_from_sd(data);
                         portEXIT_CRITICAL();
@@ -414,25 +500,34 @@ void CC32xxWiFi::wlan_task()
                 else
                 {
                     /* standard application level socket */
-                    SL_FD_CLR(i, &rfds);
-                    CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(i);
+                    portENTER_CRITICAL();
+                    SL_FD_CLR(slSockets[i], &rfds);
+                    new_highest();
+                    CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+                    portEXIT_CRITICAL();
                     s->readActive = true;
                     s->select_wakeup(&s->selInfoRd);
                 }
             }
-            if (SL_FD_ISSET(i, &wfds_tmp))
+            if (SL_FD_ISSET(slSockets[i], &wfds_tmp))
             {
                 --result;
-                SL_FD_CLR(i, &wfds);
-                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(i);
+                portENTER_CRITICAL();
+                SL_FD_CLR(slSockets[i], &wfds);
+                new_highest();
+                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+                portEXIT_CRITICAL();
                 s->writeActive = true;
                 s->select_wakeup(&s->selInfoWr);
             }
-            if (SL_FD_ISSET(i, &efds_tmp))
+            if (SL_FD_ISSET(slSockets[i], &efds_tmp))
             {
-                SL_FD_CLR(i, &efds);
-                /* currently we don't handle any errors */
                 --result;
+                portENTER_CRITICAL();
+                SL_FD_CLR(slSockets[i], &efds);
+                new_highest();
+                portEXIT_CRITICAL();
+                /* currently we don't handle any errors */
             }
         }
     }
@@ -470,7 +565,16 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
  */
 void CC32xxWiFi::fd_set_read(int16_t socket)
 {
+    portENTER_CRITICAL();
+    if (SL_FD_ISSET(socket, &rfds))
+    {
+        /* already set */
+        portEXIT_CRITICAL();
+        return;
+    }
     SL_FD_SET(socket, &rfds);
+    add_socket(socket);
+    portEXIT_CRITICAL();
     select_wakeup();
 }
 
@@ -479,7 +583,16 @@ void CC32xxWiFi::fd_set_read(int16_t socket)
  */
 void CC32xxWiFi::fd_set_write(int16_t socket)
 {
+    portENTER_CRITICAL();
+    if (SL_FD_ISSET(socket, &wfds))
+    {
+        /* already set */
+        portEXIT_CRITICAL();
+        return;
+    }
     SL_FD_SET(socket, &wfds);
+    add_socket(socket);
+    portEXIT_CRITICAL();
     select_wakeup();
 }
 

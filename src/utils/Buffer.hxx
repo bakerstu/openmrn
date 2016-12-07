@@ -261,6 +261,9 @@ template<typename T> using BufferPtr = AutoReleaseBuffer<T>;
 ///   b->data()->qux = 13;  // use b regularly as if it was a pointer.
 ///   barFlow_->send(b.transfer());
 /// }
+///
+/// @param b is the typed raw buffer pointer.
+/// @return a buffer deleter object of the respective type.
 template<typename T> BufferPtr<T> get_buffer_deleter(Buffer<T>* b) {
     return BufferPtr<T>(b);
 }
@@ -337,6 +340,11 @@ protected:
     {
     }
 
+    /// Untyped buffer allocation method, used be descendants. @param size
+    /// isthe number of bytes the buffer should have as payload. @param flow is
+    /// non-null, then asynchronous allocation is performed and the flow is
+    /// called with the new buffer when it is available. @return the new buffer
+    /// or nullptr if out of RAM and async allocation was allowed.
     virtual BufferBase *alloc_untyped(size_t size, Executable *flow) = 0;
 
     /** Release an item back to the free pool.
