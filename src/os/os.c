@@ -159,7 +159,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
             routine();
             once->state = OS_THREAD_ONCE_DONE;
         }
-   }
+    }
 
     return 0;
 }
