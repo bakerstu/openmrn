@@ -76,7 +76,7 @@ public:
         HandlerFn(&EventHandler::FN, registry_entry, event, done);             \
     }
 
-    DEFPROXYFN(HandleEventReport);
+    DEFPROXYFN(handle_event_report);
     DEFPROXYFN(HandleConsumerIdentified);
     DEFPROXYFN(HandleConsumerRangeIdentified);
     DEFPROXYFN(HandleProducerIdentified);
@@ -104,7 +104,7 @@ public:
         done->notify();                                                        \
     }
 
-    IGNOREFN(HandleEventReport);
+    IGNOREFN(handle_event_report);
     IGNOREFN(HandleConsumerIdentified);
     IGNOREFN(HandleConsumerRangeIdentified);
     IGNOREFN(HandleProducerIdentified);
@@ -623,7 +623,7 @@ public:
     /// Queries producers and acquires the current state of the bit.
     void SendQuery(WriteHelper *writer, BarrierNotifiable *done);
 
-    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
     void HandleIdentifyGlobal(const EventRegistryEntry &entry,
                               EventReport *event,
@@ -714,7 +714,7 @@ public:
     /// Sends out a ProducerRangeIdentified.
     void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
-    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
     void HandleIdentifyProducer(const EventRegistryEntry &entry,
                                 EventReport *event,
@@ -764,7 +764,7 @@ public:
     {
     }
 
-    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
     void HandleIdentifyConsumer(const EventRegistryEntry &entry,
                                 EventReport *event,
@@ -818,7 +818,7 @@ public:
     void SendIdentified(WriteHelper *writer, BarrierNotifiable *done);
 
     // Need to override C behavior.
-    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
     void HandleIdentifyConsumer(const EventRegistryEntry &entry,
                                 EventReport *event,

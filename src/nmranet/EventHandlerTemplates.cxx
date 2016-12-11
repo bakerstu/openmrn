@@ -165,7 +165,7 @@ void BitRangeEventPC::Set(unsigned bit, bool new_value, WriteHelper *writer,
     }
 }
 
-void BitRangeEventPC::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
+void BitRangeEventPC::handle_event_report(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     done->notify();
@@ -301,7 +301,7 @@ ByteRangeEventC::~ByteRangeEventC()
     EventRegistry::instance()->unregister_handler(this);
 }
 
-void ByteRangeEventC::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
+void ByteRangeEventC::handle_event_report(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     done->notify();
@@ -384,7 +384,7 @@ ByteRangeEventP::ByteRangeEventP(Node *node, uint64_t event_base,
 {
 }
 
-void ByteRangeEventP::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
+void ByteRangeEventP::handle_event_report(const EventRegistryEntry& entry, EventReport *event,
                                         BarrierNotifiable *done)
 {
     // Nothing to do for producers.
@@ -665,7 +665,7 @@ void BitEventConsumer::SendQuery(WriteHelper *writer, BarrierNotifiable *done)
                        eventid_to_buffer(bit_->event_on()), done);
 }
 
-void BitEventConsumer::HandleEventReport(const EventRegistryEntry& entry, EventReport *event,
+void BitEventConsumer::handle_event_report(const EventRegistryEntry& entry, EventReport *event,
                                          BarrierNotifiable *done)
 {
     if (event->event == bit_->event_on())

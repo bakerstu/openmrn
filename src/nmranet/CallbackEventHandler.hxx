@@ -96,7 +96,7 @@ public:
             EventRegistryEntry(this, event, entry_bits), 0);
     }
 
-    void HandleEventReport(const EventRegistryEntry &entry, EventReport *event,
+    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
         BarrierNotifiable *done) override
     {
         reportHandler_(entry, event, done);

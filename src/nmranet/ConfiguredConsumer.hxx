@@ -246,7 +246,7 @@ private:
         SendConsumerIdentified(done);
     }
 
-    void HandleEventReport(const EventRegistryEntry &registry_entry,
+    void handle_event_report(const EventRegistryEntry &registry_entry,
                            EventReport *event, BarrierNotifiable *done) OVERRIDE
     {
         if (event->event == event_)

@@ -133,7 +133,7 @@ public:
     /// is always 1 (filled in). state is not filled in. @param registry_entry
     /// gives the registry entry for which the current handler is being
     /// called. @param done must be notified when the processing is done.
-    virtual void HandleEventReport(const EventRegistryEntry &registry_entry,
+    virtual void handle_event_report(const EventRegistryEntry &registry_entry,
                                    EventReport *event,
                                    BarrierNotifiable *done) = 0;
 

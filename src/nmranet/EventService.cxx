@@ -162,7 +162,7 @@ StateFlowBase::Action EventIteratorFlow::entry()
     switch (nmsg()->mti)
     {
         case Defs::MTI_EVENT_REPORT:
-            fn_ = &EventHandler::HandleEventReport;
+            fn_ = &EventHandler::handle_event_report;
             break;
         case Defs::MTI_CONSUMER_IDENTIFY:
             fn_ = &EventHandler::HandleIdentifyConsumer;
