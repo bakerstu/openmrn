@@ -557,7 +557,7 @@ void BitEventHandler::unregister_handler()
 
 void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
 {
-    EventState state = bit_->GetCurrentState();
+    EventState state = bit_->get_current_state();
     Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + state;
     event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
@@ -570,7 +570,7 @@ void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
 
 void BitEventHandler::SendConsumerIdentified(BarrierNotifiable *done)
 {
-    EventState state = bit_->GetCurrentState();
+    EventState state = bit_->get_current_state();
     Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + state;
     event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
@@ -611,11 +611,11 @@ void BitEventHandler::HandlePCIdentify(Defs::MTI mti, EventReport *event,
     EventState active;
     if (event->event == bit_->event_on())
     {
-        active = bit_->GetCurrentState();
+        active = bit_->get_current_state();
     }
     else if (event->event == bit_->event_off())
     {
-        active = invert_event_state(bit_->GetCurrentState());
+        active = invert_event_state(bit_->get_current_state());
     }
     else
     {
@@ -646,11 +646,11 @@ void BitEventConsumer::HandleProducerIdentified(const EventRegistryEntry& entry,
     }
     if (event->event == bit_->event_on())
     {
-        bit_->SetState(value);
+        bit_->set_state(value);
     }
     else if (event->event == bit_->event_off())
     {
-        bit_->SetState(!value);
+        bit_->set_state(!value);
     }
     else
     {
@@ -670,11 +670,11 @@ void BitEventConsumer::handle_event_report(const EventRegistryEntry& entry, Even
 {
     if (event->event == bit_->event_on())
     {
-        bit_->SetState(true);
+        bit_->set_state(true);
     }
     else if (event->event == bit_->event_off())
     {
-        bit_->SetState(false);
+        bit_->set_state(false);
     }
     done->notify();
 }
@@ -764,11 +764,11 @@ void BitEventPC::HandleConsumerIdentified(const EventRegistryEntry& entry, Event
     }
     if (event->event == bit_->event_on())
     {
-        bit_->SetState(value);
+        bit_->set_state(value);
     }
     else if (event->event == bit_->event_off())
     {
-        bit_->SetState(!value);
+        bit_->set_state(!value);
     }
     else
     {

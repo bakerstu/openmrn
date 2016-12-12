@@ -188,20 +188,20 @@ public:
     }
 
     /// returns the current hardware state: true for ON, false for OFF.
-    virtual EventState GetCurrentState() = 0;
+    virtual EventState get_current_state() = 0;
 
     /// Get the requested state. @TODO(stbaker): document the difference
     /// between requested state and current state.
     /// @return requested state
     virtual EventState get_requested_state()
     {
-        return GetCurrentState();
+        return get_current_state();
     }
 
     /// Updates the hardware for the new event state.
     ///
     /// @param new_value is true for state ON, false for state OFF.
-    virtual void SetState(bool new_value) = 0;
+    virtual void set_state(bool new_value) = 0;
 
     /// returns the event ID for representing the state transition OFF->ON.
     uint64_t event_on()
@@ -253,7 +253,7 @@ public:
 
     /// Get the current state.
     /// @return current state
-    EventState GetCurrentState() override
+    EventState get_current_state() override
     {
         return state_;
     }
@@ -267,7 +267,7 @@ public:
 
     /// Set the current state.
     /// @param new state value
-    void SetState(bool new_value) override
+    void set_state(bool new_value) override
     {
         state_ = new_value ? EventState::VALID : EventState::INVALID;
     }
@@ -333,7 +333,7 @@ public:
 
     /// Accessor from the network stack to return the current state.
     /// @return tri-stated value
-    EventState GetCurrentState() override
+    EventState get_current_state() override
     {
         if (!isKnown_) return EventState::UNKNOWN;
         if (localState_) return EventState::VALID;
@@ -358,7 +358,7 @@ public:
     ///
     /// NOTE: this does not send any messages. The caller must use the
     /// EventHandler object after this function to send out an event.
-    void SetState(bool new_value) override
+    void set_state(bool new_value) override
     {
         isKnown_ = 1;
         localState_ = new_value ? 1 : 0;
@@ -372,7 +372,7 @@ public:
     /// EventHandler object after this function to send out an event.
     void toggle_state()
     {
-        SetState(!get_local_state());
+        set_state(!get_local_state());
     }
     
 protected:
@@ -411,11 +411,11 @@ public:
     {
         return node_;
     }
-    EventState GetCurrentState() override
+    EventState get_current_state() override
     {
         return ((*ptr_) & mask_) ? EventState::VALID : EventState::INVALID;
     }
-    void SetState(bool new_value) override
+    void set_state(bool new_value) override
     {
         if (new_value)
         {
@@ -453,11 +453,11 @@ public:
     {
     }
 
-    EventState GetCurrentState() OVERRIDE
+    EventState get_current_state() OVERRIDE
     {
         return gpio_->is_set() ? EventState::VALID : EventState::INVALID;
     }
-    void SetState(bool new_value) OVERRIDE
+    void set_state(bool new_value) OVERRIDE
     {
         gpio_->write(new_value);
     }
