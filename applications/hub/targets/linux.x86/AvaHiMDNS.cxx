@@ -39,6 +39,7 @@
 #include <avahi-client/publish.h>
 #include <avahi-common/simple-watch.h>
 #include <avahi-common/malloc.h>
+#include <avahi-common/error.h>
 
 #include "utils/macros.h"
 
@@ -125,6 +126,12 @@ void mdns_publish(const char *name, uint16_t port)
                                                (AvahiPublishFlags)0, name,
                                                "_openlcb._tcp", NULL, NULL,
                                                port, "test=blah", r, NULL);
+
+    if (result != 0)
+    {
+        fprintf(stderr, "Error exporting mDNS name (%d) %s\n", result,
+            avahi_strerror(result));
+    }
 
     HASSERT(result == 0);
     avahi_entry_group_commit(group);
