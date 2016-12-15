@@ -7,7 +7,4 @@ SUBDIRS = \
 	nonos.xtensa.esp8266.bracz-deadrail-proto \
 
 
-# If the customer does not set an address, we build this.
-export DEFAULT_ADDRESS=0x4c
-
 include $(OPENMRNPATH)/etc/recurse.mk

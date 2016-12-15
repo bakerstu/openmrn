@@ -14,6 +14,7 @@ include $(OPENMRNPATH)/etc/tivaware.mk
 
 export TARGET ?= freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
+export DEFAULT_ADDRESS := 0x4c
 
 LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
 

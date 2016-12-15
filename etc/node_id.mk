@@ -19,13 +19,16 @@ ifndef _NODEID_H_INCLUDED
 _NODEID_H_INCLUDED=1
 
 ifndef ADDRESS
+ifndef DEFAULT_ADDRESS
+$(error the DEFAULT_ADDRESS has not been set for $(notdir $(realpath ../..)) target $(notdir $(realpath .)))
+endif
 ADDRESS=$(DEFAULT_ADDRESS)
 endif
 
 .PHONY: FORCE
 
 address.h: FORCE
-	@ADR="#define NODEID_LOW_BITS $(ADDRESS)" ; if [ ! -f $@ ] || [ "$$ADR" != "$$(<$@)" ] ; then echo replacing address file. old: $$(<$@) new $$ADR ; echo "$$ADR" > $@ ; else echo address file up-to-date for $(TARGET):$@ ; fi 
+	@ADR="#define NODEID_LOW_BITS $(ADDRESS)" ; if [ ! -f $@ ] || [ "$$ADR" != "$$(<$@)" ] ; then echo $(notdir $(realpath .)): replacing address file. old: $$(<$@) new $$ADR ; echo "$$ADR" > $@ ; else echo address file up-to-date for $(notdir $(realpath .)):$@ / with $(ADDRESS); fi 
 
 NodeId.o: address.h
 
