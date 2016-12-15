@@ -4,7 +4,7 @@ SUBDIRS = \
 	bare.armv7m.bracz-railcom \
 	bare.armv7m.ek-tm4c123gxl \
 
-# This is needed to avoid compilation errors in the client.
-export ADDRESS=0x4c
+# If the customer does not set an address, we build this.
+export DEFAULT_ADDRESS=0x4c
 
 include $(OPENMRNPATH)/etc/recurse.mk
