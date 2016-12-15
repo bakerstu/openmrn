@@ -55,6 +55,7 @@ doc/warnings
 
 # build artifacts
 timestamp
+build_timestamp
 arpreproc
 ldpreproc
 delete.sym

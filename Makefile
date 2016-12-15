@@ -2,6 +2,9 @@
 OPENMRNPATH:=$(realpath .)
 export OPENMRNPATH
 
+$(shell touch $(OPENMRNPATH)/build_timestamp)
+export HAVE_BUILD_TIMESTAMP=$(OPENMRNPATH)/build_timestamp
+
 SUBDIRS = targets doc applications #test
 
 include $(OPENMRNPATH)/etc/recurse.mk
