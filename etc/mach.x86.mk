@@ -5,8 +5,6 @@ sh -c "if [ -d /usr/include/mach ]; then echo /usr/bin; \
 )
 endif
 
-$(info mach toolpath '$(TOOLPATH)')
-
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 

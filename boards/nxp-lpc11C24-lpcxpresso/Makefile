@@ -36,10 +36,6 @@ arpreproc: delete.sym
 ldpreproc: delete.sym
 	(echo --undef=destructor ; while read a ; do echo --defsym=$${a}=destructor ; done < $< ) > $@
 
-
-delete_destructors:
-	if [ ! -f $@ ] ; then touch $@ ; fi
-
 destructors: cg.svg
 	grep '~' cg.dot | sed s/^[/][/]// | sort > destructors 
 
@@ -48,16 +44,28 @@ define TGTLIBSTRIP_template
 lib/$(notdir $(1)): $(LIBDIR)/$(notdir $(1)) arpreproc $(LIBDIR)/timestamp
 	$(OBJCOPY) @arpreproc $$< $$@
 
-strippedlibs: lib/$(notdir $(1))
+$(EXECUTABLE)$(EXTENTION): lib/$(notdir $(1))
+
+endef
+
+define OBJSTRIP_template
+
+$(1).stripped: $(1) arpreproc
+	$(OBJCOPY) @arpreproc $$<
+	touch $$@
+
+$(EXECUTABLE)$(EXTENTION): $(1).stripped
 
 endef
 
 # Calls the directory template for every .testout file we have.
 $(foreach lib,$(wildcard $(LIBDIR)/*.a),$(eval $(call TGTLIBSTRIP_template,$(lib))))
 
-$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp arpreproc ldpreproc strippedlibs
+# Calls the object template for every .o file we have.
+$(foreach lib,$(OBJS) $(OBJEXTRA),$(eval $(call OBJSTRIP_template,$(lib))))
+
+$(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp arpreproc ldpreproc
 	for f in $(SUBDIRS) ; do $(OBJCOPY) @arpreproc lib/lib$$f.a; done
-	for f in $(OBJS) $(OBJEXTRA) ; do $(OBJCOPY) @arpreproc $$f ; done
 	$(LD) -o $@ $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 ifdef SIZE
 	$(SIZE) $@

@@ -128,6 +128,9 @@ nmranet::RefreshLoop loop(
  */
 int appl_main(int argc, char *argv[])
 {
+    stack.check_version_and_factory_reset(
+        cfg.seg().internal_config(), nmranet::CANONICAL_VERSION, false);
+
     // The necessary physical ports must be added to the stack.
     //
     // It is okay to enable multiple physical ports, in which case the stack

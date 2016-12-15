@@ -146,12 +146,13 @@ int appl_main(int argc, char *argv[])
     vector<std::unique_ptr<ConnectionClient>> connections;
 
 #ifdef HAVE_AVAHI_CLIENT
-
     void mdns_client_start();
     void mdns_publish(const char *name, uint16_t port);
 
-    mdns_client_start();
-    mdns_publish(mdns_name, port);
+    if (export_mdns) {
+        mdns_client_start();
+        mdns_publish(mdns_name, port);
+    }
 #endif
     
     if (upstream_host)

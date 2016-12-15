@@ -48,6 +48,8 @@ FLAGS.map_file = None
 FLAGS.min_size = 0
 FLAGS.demangle = True
 FLAGS.strip_template = True
+FLAGS.objects = False
+FLAGS.max_indep = 1000000000
 
 
 def Blacklist(s):
@@ -415,7 +417,9 @@ def ProcessMapEntries(entries):
       if not (section.address <= sym.address and (section.address + section.length) > sym.address):
         print >>sys.stderr, ("section address mismatch: name %s, address %x, section address %x, section length %d" % (sym.name, sym.address, section.address, section.length))
       elif section.subsection is not None and section.address == sym.address and section.subsection != sym.name and  sym.name != re.sub('D2Ev', 'D1Ev', section.subsection):
-        print >>sys.stderr, ("subsection mismatch: name %s, subsection %s" % (sym.name, section.subsection))
+        print >>sys.stderr, ("subsection mismatch: name '%s', subsection '%s'" % (sym.name, section.subsection))
+        sym.objfile = escape(section.objfile)
+        continue
       else:
         print >>sys.stderr, "objfile found for symbol: ", sym.name, (" :@%x " % section.address), section.objfile
         sym.objfile = escape(section.objfile)
@@ -469,6 +473,7 @@ def BindSymbolsToMain():
       print >>sys.stderr, "symbol %s with no indeps." % symbol.name
       if symbol.objfile is not None:
         objsymbol = GetSymbol(symbol.objfile)
+        if objsymbol.objfile is None: objsymbol.objfile = symbol.objfile
         objsymbol.AddDep(symbol.name)
         if not len(objsymbol.indeps):
           if symbol.objfile in object_expn:
@@ -551,6 +556,7 @@ def PrintObjects():
 
 def PrintOutput():
   print "digraph g {"
+  print "rankdir=LR"
 
   # first print names
   for name, symbol in all_symbols.iteritems():
@@ -560,6 +566,7 @@ def PrintOutput():
     for dname, dep_symbol in symbol.deps.iteritems():
       if dep_symbol.blacklisted: continue
       if dep_symbol.removed_by_filter: continue
+      if len(dep_symbol.indeps) > FLAGS.max_indep: continue
       if symbol.removed_by_filter: continue
       print "%s -> %s;" % (escape(symbol.name), escape(dep_symbol.name));
   print "}"
@@ -591,18 +598,54 @@ def PrintOutput():
   print "}"
 
 
+def PrintObjectGraph():
+  objects = dict()
+  # adds symbols to object mapping and calculate object file codesize
+  for sym in all_symbols.itervalues():
+    if sym.objfile is None:
+      sym.objfile = "None"
+      print >>sys.stderr, ("Symbol with no object file %s size %d" % (sym.name, sym.codesize))
+    if sym.objfile not in objects:
+      obj = Symbol(sym.objfile)
+      objects[sym.objfile] = obj
+    else:
+      obj = objects[sym.objfile]
+    obj.codesize += sym.codesize
+  # adds dependencies
+  for sym in all_symbols.itervalues():
+    obj = objects[sym.objfile]
+    for dep in sym.deps.itervalues():
+      depobj = objects[dep.objfile]
+      print >>sys.stderr, ("OBJDEP %s -> %s  [%s -> %s]" % (obj.name, depobj.name, sym.displayname, dep.displayname))
+      obj.deps[depobj.name] = depobj
+      depobj.indeps[obj.name] = obj
+  # print all objects
+  print "digraph g {"
+  for obj in objects.itervalues():
+    print obj.PrintNode()
+  for obj in objects.itervalues():
+    for dname, dep_symbol in obj.deps.iteritems():
+      print "%s -> %s;" % (escape(obj.name), escape(dep_symbol.name));
+  print "}"
+  return
+  
+
 def usage():
-  print "Usage: callgraph.py [-hC] [(-m|--map) mapfile] > callgraph.dot\n"
+  print "Usage: callgraph.py [-hCto] [--min_size bytes] [--max_indep count] [(-m|--map) mapfile] > callgraph.dot\n"
   print """
 Options:
   -h --help: print this message
   -C --[no-]demangle: turns on/off C++ symbol demangling
+  -t: turns off stripping of c+ template arguments
+  -o: print object-level aggregates
+  --min_size bytes: does not display boxes with less total size than quoted
+  --max_indep count: skips edges that go into boxes with more than this many in-edges
   -m --map file: reads file (format gnu LD .map) for additional information
 """
 
 def parseargs():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "hm:v", ["help", "map=", "demangle", "min_size="])
+    opts, args = getopt.getopt(sys.argv[1:], "hm:vo", ["help", "map=", "demangle", "min_size=", "max_indep=", "objects"])
   except getopt.GetoptError as err:
     # print help information and exit:
     print str(err) # will print something like "option -a not recognized"
@@ -623,11 +666,16 @@ def parseargs():
       FLAGS.demangle = True
     elif o in ("-t", "--no-strip-template"):
       FLAGS.strip_template = False
+    elif o in ("-o", "--objects"):
+      FLAGS.objects = True
     elif o in ("--no-demangle"):
       FLAGS.demangle = False
     elif o in ("--min_size"):
       FLAGS.min_size = int(a)
       print >> sys.stderr, "minimum symbol size ", FLAGS.min_size
+    elif o in ("--max_indep"):
+      FLAGS.max_indep = int(a)
+      print >> sys.stderr, "maximum in-degree ", FLAGS.max_indep
     else:
       assert False, "unhandled option"
 
@@ -659,7 +707,10 @@ def main():
   CollectTotalSizes()
   ApplyFilters()
   PrintObjects()
-  PrintOutput()
+  if FLAGS.objects:
+    PrintObjectGraph()
+  else:
+    PrintOutput()
 
 if __name__ == "__main__":
     main()

@@ -14,6 +14,7 @@ include $(OPENMRNPATH)/etc/tivaware.mk
 
 export TARGET ?= freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
+export DEFAULT_ADDRESS := 0x4c
 
 LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
 
@@ -23,23 +24,12 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaI2C.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaEEPROMEmulation.o \
 
-DEADCODE=1
-
 CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
 
-ifndef ADDRESS
-ADDRESS=0x4a
-endif
-
-CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
-
 OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg --file ~/bin/olcb-myb.cfg
 #OPENOCDARGS = -f interface/olimex-arm-usb-tiny-h.cfg -f  ~/bin/olcb-myb.cfg
-
-
-
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
@@ -51,34 +41,12 @@ gdb:
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
 	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor reset halt"
 
+rflash: $(EXECUTABLE).bin $(EXECUTABLE).lst
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<
+
 else
 
 flash rflash gdb:
 	echo missing openocd backend: $(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH) ; exit 1
 
 endif
-
-ifdef DEADCODE
-
-flash: $(EXECUTABLE).elf $(EXECUTABLE).lst
-	ti-flash.sh $<
-
-rflash: $(EXECUTABLE).bin $(EXECUTABLE).lst
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<
-
-#	train enter-bootloader 354
-
-
-
-gdb:
-	ti-gdb.sh $(EXECUTABLE).elf
-
-
-endif
-
-
-# This will force re-building NodeId.cxx every invocation, because the address
-# might have changed.
-NodeId.o: FORCE
-
-FORCE:
