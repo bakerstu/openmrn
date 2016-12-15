@@ -145,13 +145,13 @@ public:
     {
     }
 
-    nmranet::EventState GetCurrentState() override
+    nmranet::EventState get_current_state() override
     {
         using nmranet::EventState;
         if (!stateKnown_) return EventState::UNKNOWN;
         return state_ ? EventState::VALID : EventState::INVALID;
     }
-    void SetState(bool new_value) override
+    void set_state(bool new_value) override
     {
         state_ = new_value;
         stateKnown_ = true;

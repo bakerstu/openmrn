@@ -193,7 +193,7 @@ private:
         return stack.node();
     }
 
-    void SetState(bool new_value) OVERRIDE
+    void set_state(bool new_value) OVERRIDE
     {
         lastValue_ = new_value;
         hasValue_ = true;
@@ -207,7 +207,7 @@ private:
         }
     }
 
-    nmranet::EventState GetCurrentState() OVERRIDE
+    nmranet::EventState get_current_state() OVERRIDE
     {
         using nmranet::EventState;
         if (!hasValue_)
