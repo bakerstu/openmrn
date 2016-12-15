@@ -13,7 +13,6 @@ TRYPATH:=$(call findmatch,$(MINGWSEARCHPATH))
 ifneq ($(TRYPATH),)
 TOOLPATH:=$(subst g++,,$(TRYPATH))
 endif
-$(info $(TRYPATH) toolpath $(TOOLPATH))
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
