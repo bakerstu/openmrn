@@ -29,17 +29,8 @@ CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
 
-ifndef ADDRESS
-ADDRESS=0x4a
-endif
-
-CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
-
 OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg --file ~/bin/olcb-myb.cfg
 #OPENOCDARGS = -f interface/olimex-arm-usb-tiny-h.cfg -f  ~/bin/olcb-myb.cfg
-
-
-
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
@@ -68,17 +59,8 @@ rflash: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 #	train enter-bootloader 354
 
-
-
 gdb:
 	ti-gdb.sh $(EXECUTABLE).elf
 
 
 endif
-
-
-# This will force re-building NodeId.cxx every invocation, because the address
-# might have changed.
-NodeId.o: FORCE
-
-FORCE:
