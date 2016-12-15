@@ -36,10 +36,6 @@ arpreproc: delete.sym
 ldpreproc: delete.sym
 	(echo --undef=destructor ; while read a ; do echo --defsym=$${a}=destructor ; done < $< ) > $@
 
-
-delete_destructors:
-	if [ ! -f $@ ] ; then touch $@ ; fi
-
 destructors: cg.svg
 	grep '~' cg.dot | sed s/^[/][/]// | sort > destructors 
 
