@@ -1,4 +1,1 @@
-#include "openlcb/If.hxx"
-
-extern const openlcb::NodeID NODE_ID;
-const openlcb::NodeID NODE_ID = 0x050101011400ULL | NODEID_LOW_BITS;
+../freertos.armv7m.bracz-acc3/NodeId.cxx
