@@ -165,50 +165,50 @@ StateFlowBase::Action EventIteratorFlow::entry()
             fn_ = &EventHandler::handle_event_report;
             break;
         case Defs::MTI_CONSUMER_IDENTIFY:
-            fn_ = &EventHandler::HandleIdentifyConsumer;
+            fn_ = &EventHandler::handle_identify_consumer;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn_ = &EventHandler::HandleConsumerRangeIdentified;
+            fn_ = &EventHandler::handle_consumer_range_identified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN:
             rep->state = EventState::UNKNOWN;
-            fn_ = &EventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::handle_consumer_identified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_VALID:
             rep->state = EventState::VALID;
-            fn_ = &EventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::handle_consumer_identified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_INVALID:
             rep->state = EventState::INVALID;
-            fn_ = &EventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::handle_consumer_identified;
             break;
         case Defs::MTI_CONSUMER_IDENTIFIED_RESERVED:
             rep->state = EventState::RESERVED;
-            fn_ = &EventHandler::HandleConsumerIdentified;
+            fn_ = &EventHandler::handle_consumer_identified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFY:
-            fn_ = &EventHandler::HandleIdentifyProducer;
+            fn_ = &EventHandler::handle_identify_producer;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_RANGE:
             DecodeRange(rep);
-            fn_ = &EventHandler::HandleProducerRangeIdentified;
+            fn_ = &EventHandler::handle_producer_range_identified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN:
             rep->state = EventState::UNKNOWN;
-            fn_ = &EventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::handle_producer_identified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_VALID:
             rep->state = EventState::VALID;
-            fn_ = &EventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::handle_producer_identified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_INVALID:
             rep->state = EventState::INVALID;
-            fn_ = &EventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::handle_producer_identified;
             break;
         case Defs::MTI_PRODUCER_IDENTIFIED_RESERVED:
             rep->state = EventState::RESERVED;
-            fn_ = &EventHandler::HandleProducerIdentified;
+            fn_ = &EventHandler::handle_producer_identified;
             break;
         case Defs::MTI_EVENTS_IDENTIFY_ADDRESSED:
             if (!rep->dst_node)
@@ -219,7 +219,7 @@ StateFlowBase::Action EventIteratorFlow::entry()
             }
         // fall through
         case Defs::MTI_EVENTS_IDENTIFY_GLOBAL:
-            fn_ = &EventHandler::HandleIdentifyGlobal;
+            fn_ = &EventHandler::handle_identify_global;
             // Reduces the priority so that we let the priority 3 event messages
             // be processed before the global identify events makes any
             // progress.

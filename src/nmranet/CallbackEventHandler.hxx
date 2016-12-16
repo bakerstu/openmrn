@@ -103,7 +103,7 @@ public:
         done->notify();
     }
 
-    void HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
+    void handle_identify_consumer(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override
     {
         if (registry_entry.user_arg & IS_CONSUMER)
@@ -113,7 +113,7 @@ public:
         done->notify();
     };
 
-    void HandleIdentifyProducer(const EventRegistryEntry &registry_entry,
+    void handle_identify_producer(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override
     {
         if (registry_entry.user_arg & IS_PRODUCER)
@@ -123,7 +123,7 @@ public:
         done->notify();
     };
 
-    void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
+    void handle_identify_global(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override
     {
         if (registry_entry.user_arg & IS_PRODUCER)

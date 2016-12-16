@@ -77,13 +77,13 @@ public:
     }
 
     DEFPROXYFN(handle_event_report);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
+    DEFPROXYFN(handle_consumer_identified);
+    DEFPROXYFN(handle_consumer_range_identified);
+    DEFPROXYFN(handle_producer_identified);
+    DEFPROXYFN(handle_producer_range_identified);
+    DEFPROXYFN(handle_identify_global);
+    DEFPROXYFN(handle_identify_consumer);
+    DEFPROXYFN(handle_identify_producer);
 
 #undef DEFPROXYFN
 };
@@ -105,12 +105,12 @@ public:
     }
 
     IGNOREFN(handle_event_report);
-    IGNOREFN(HandleConsumerIdentified);
-    IGNOREFN(HandleConsumerRangeIdentified);
-    IGNOREFN(HandleProducerIdentified);
-    IGNOREFN(HandleProducerRangeIdentified);
-    IGNOREFN(HandleIdentifyConsumer);
-    IGNOREFN(HandleIdentifyProducer);
+    IGNOREFN(handle_consumer_identified);
+    IGNOREFN(handle_consumer_range_identified);
+    IGNOREFN(handle_producer_identified);
+    IGNOREFN(handle_producer_range_identified);
+    IGNOREFN(handle_identify_consumer);
+    IGNOREFN(handle_identify_producer);
 
 #undef IGNOREFN
 };
@@ -144,7 +144,7 @@ public:
         EventRegistry::instance()->unregister_handler(this);
     }
 
-    void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
+    void handle_identify_global(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
         if (event->dst_node && event->dst_node != node_)
@@ -156,10 +156,10 @@ public:
             WriteHelper::global(), nmranet::eventid_to_buffer(EVENT_ID), done);
     }
 
-    void HandleIdentifyProducer(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
+    void handle_identify_producer(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
-        return HandleIdentifyGlobal(registry_entry, event, done);
+        return handle_identify_global(registry_entry, event, done);
     }
 
 private:
@@ -585,10 +585,10 @@ public:
     /// Queries consumers and acquires the current state of the bit.
     void SendQuery(WriteHelper *writer, BarrierNotifiable *done);
 
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
-    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+    void handle_identify_producer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
 
@@ -625,13 +625,13 @@ public:
 
     void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
-    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+    void handle_identify_consumer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleProducerIdentified(const EventRegistryEntry &entry,
+    void handle_producer_identified(const EventRegistryEntry &entry,
                                   EventReport *event,
                                   BarrierNotifiable *done) override;
 };
@@ -665,13 +665,13 @@ public:
     /// Queries consumer and acquires the current state of the bit.
     void SendQueryConsumer(WriteHelper *writer, BarrierNotifiable *done);
 
-    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+    void handle_identify_producer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
-    void HandleConsumerIdentified(const EventRegistryEntry &entry,
+    void handle_consumer_identified(const EventRegistryEntry &entry,
                                   EventReport *event,
                                   BarrierNotifiable *done) override;
 };
@@ -716,13 +716,13 @@ public:
 
     void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
-    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+    void handle_identify_producer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+    void handle_identify_consumer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
 
@@ -766,10 +766,10 @@ public:
 
     void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
-    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+    void handle_identify_consumer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
 
@@ -820,21 +820,21 @@ public:
     // Need to override C behavior.
     void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
                            BarrierNotifiable *done) override;
-    void HandleIdentifyConsumer(const EventRegistryEntry &entry,
+    void handle_identify_consumer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
     // Own behavior.
-    void HandleIdentifyProducer(const EventRegistryEntry &entry,
+    void handle_identify_producer(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
-    void HandleIdentifyGlobal(const EventRegistryEntry &entry,
+    void handle_identify_global(const EventRegistryEntry &entry,
                               EventReport *event,
                               BarrierNotifiable *done) override;
     // Responses to possible queries.
-    void HandleConsumerIdentified(const EventRegistryEntry &entry,
+    void handle_consumer_identified(const EventRegistryEntry &entry,
                                   EventReport *event,
                                   BarrierNotifiable *done) override;
-    void HandleConsumerRangeIdentified(const EventRegistryEntry &entry,
+    void handle_consumer_range_identified(const EventRegistryEntry &entry,
                                        EventReport *event,
                                        BarrierNotifiable *done) override;
 

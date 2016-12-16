@@ -55,13 +55,13 @@ public:
                           BarrierNotifiable *done))
 
     DEFPROXYFN(HandleEventReport);
-    DEFPROXYFN(HandleConsumerIdentified);
-    DEFPROXYFN(HandleConsumerRangeIdentified);
-    DEFPROXYFN(HandleProducerIdentified);
-    DEFPROXYFN(HandleProducerRangeIdentified);
-    DEFPROXYFN(HandleIdentifyGlobal);
-    DEFPROXYFN(HandleIdentifyConsumer);
-    DEFPROXYFN(HandleIdentifyProducer);
+    DEFPROXYFN(handle_consumer_identified);
+    DEFPROXYFN(handle_consumer_range_identified);
+    DEFPROXYFN(handle_producer_identified);
+    DEFPROXYFN(handle_producer_range_identified);
+    DEFPROXYFN(handle_identify_global);
+    DEFPROXYFN(handle_identify_consumer);
+    DEFPROXYFN(handle_identify_producer);
 
 #undef DEFPROXYFN
 };

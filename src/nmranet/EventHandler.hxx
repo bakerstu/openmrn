@@ -143,7 +143,7 @@ public:
     /// registry entry for which the current handler is being called. @param
     /// done must be notified when the processing is done.
     virtual void
-    HandleConsumerIdentified(const EventRegistryEntry &registry_entry,
+    handle_consumer_identified(const EventRegistryEntry &registry_entry,
                              EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
@@ -155,7 +155,7 @@ public:
     /// registry entry for which the current handler is being called. @param
     /// done must be notified when the processing is done.
     virtual void
-    HandleConsumerRangeIdentified(const EventRegistryEntry &registry_entry,
+    handle_consumer_range_identified(const EventRegistryEntry &registry_entry,
                                   EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
@@ -168,7 +168,7 @@ public:
     /// user_arg is an opaque argument passed in from the registration. @param
     /// done must be notified when the processing is done.
     virtual void
-    HandleProducerIdentified(const EventRegistryEntry &registry_entry,
+    handle_producer_identified(const EventRegistryEntry &registry_entry,
                              EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
@@ -181,7 +181,7 @@ public:
     /// handler is being called. @param done must be notified when the
     /// processing is done.
     virtual void
-    HandleProducerRangeIdentified(const EventRegistryEntry &registry_entry,
+    handle_producer_range_identified(const EventRegistryEntry &registry_entry,
                                   EventReport *event, BarrierNotifiable *done)
     {
         done->notify();
@@ -193,7 +193,7 @@ public:
     /// registry_entry gives the registry entry for which the current handler
     /// is being called. @param done must be notified when the processing is
     /// done.
-    virtual void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
+    virtual void handle_identify_global(const EventRegistryEntry &registry_entry,
                                       EventReport *event,
                                       BarrierNotifiable *done) = 0;
 
@@ -203,7 +203,7 @@ public:
     /// entry for which the current handler is being called. @param done must
     /// be notified when the processing is done.
     virtual void
-    HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
+    handle_identify_consumer(const EventRegistryEntry &registry_entry,
                            EventReport *event, BarrierNotifiable *done) = 0;
 
     /// Called on another node sending IdentifyProducer. @param event stores
@@ -212,7 +212,7 @@ public:
     /// entry for which the current handler is being called. @param done must
     /// be notified when the processing is done.
     virtual void
-    HandleIdentifyProducer(const EventRegistryEntry &registry_entry,
+    handle_identify_producer(const EventRegistryEntry &registry_entry,
                            EventReport *event, BarrierNotifiable *done) = 0;
 };
 

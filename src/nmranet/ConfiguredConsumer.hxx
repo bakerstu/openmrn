@@ -213,7 +213,7 @@ private:
 
     // Implementations for the event handler functions.
 
-    void HandleIdentifyGlobal(const EventRegistryEntry &registry_entry,
+    void handle_identify_global(const EventRegistryEntry &registry_entry,
                               EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
@@ -235,7 +235,7 @@ private:
                                        eventid_to_buffer(event_), done);
     }
 
-    void HandleIdentifyConsumer(const EventRegistryEntry &registry_entry,
+    void handle_identify_consumer(const EventRegistryEntry &registry_entry,
                                 EventReport *event, BarrierNotifiable *done)
         OVERRIDE
     {
