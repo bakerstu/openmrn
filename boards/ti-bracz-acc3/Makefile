@@ -27,6 +27,7 @@ OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/Tiva
 CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 
 include $(OPENMRNPATH)/etc/prog.mk
+include $(OPENMRNPATH)/etc/node_id.mk
 
 OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg --file ~/bin/olcb-myb.cfg
 #OPENOCDARGS = -f interface/olimex-arm-usb-tiny-h.cfg -f  ~/bin/olcb-myb.cfg
