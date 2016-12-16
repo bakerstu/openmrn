@@ -2,7 +2,7 @@
 
 #include "nmranet/CallbackEventHandler.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 void PrintTo(const EventRegistryEntry &entry, ::std::ostream *os)
@@ -76,4 +76,4 @@ TEST_F(CallbackHandlerTest, HandleEvent)
 }
 
 } // namespace
-} // namespace nmranet
+} // namespace openlcb

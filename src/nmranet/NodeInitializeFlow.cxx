@@ -34,7 +34,7 @@
 
 #include "nmranet/NodeInitializeFlow.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 InitializeFlow::~InitializeFlow()
@@ -49,6 +49,6 @@ void StartInitializationFlow(Node *node)
     g_initialize_flow->send(b);
 }
 
-} // namespace nmranet
+} // namespace openlcb
 
-//DEFINE_SINGLETON_INSTANCE(nmranet::InitializeFlow);
+//DEFINE_SINGLETON_INSTANCE(openlcb::InitializeFlow);

@@ -6,7 +6,7 @@
 #include "nmranet/TractionTrain.hxx"
 #include "dcc/Defs.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Test helper class for TrainImpl using GoogleMock. Allows creating a train
 /// node without an implementation. All calls have to have an explicit
@@ -25,6 +25,6 @@ public:
     MOCK_METHOD0(legacy_address_type, dcc::TrainAddressType());
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif // _UTILS_MOCKTRAIN_HXX_

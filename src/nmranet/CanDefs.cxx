@@ -33,7 +33,7 @@
 
 #include "nmranet/CanDefs.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Get the NMRAnet MTI from a can identifier.
@@ -75,4 +75,4 @@ uint32_t CanDefs::can_identifier(Defs::MTI mti, NodeAlias src)
            ((1   << PRIORITY_SHIFT      )           );
 }
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */

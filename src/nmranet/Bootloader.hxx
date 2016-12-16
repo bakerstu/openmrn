@@ -50,7 +50,7 @@
 #include "nmranet/MemoryConfig.hxx"
 #include "can_frame.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// State machine states for initializing the bootloader node. Represents what
@@ -145,7 +145,7 @@ uint8_t g_write_buffer[WRITE_BUFFER_SIZE];
 /// local stream ID.
 #define STREAM_ID 0x5A
 }
-using namespace nmranet;
+using namespace openlcb;
 
 extern "C" {
 

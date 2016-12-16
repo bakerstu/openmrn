@@ -40,7 +40,7 @@
 #include "nmranet_config.h"
 #include "utils/Singleton.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Request to send to instruct @ref InitializeFlow to perform the
@@ -190,6 +190,6 @@ private:
     BarrierNotifiable bn_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_NODEINITIALIZEFLOW_HXX_

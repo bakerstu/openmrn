@@ -26,7 +26,7 @@
  *
  * \file PIPClient.hxx
  *
- * A client library for talking to an arbitrary nmranet Node and ask it for the
+ * A client library for talking to an arbitrary openlcb Node and ask it for the
  * supported protocol data.
  *
  * @author Balazs Racz
@@ -38,7 +38,7 @@
 #include "nmranet/If.hxx"
 #include "os/os.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Specifies how long to wait for a PIP request to get a response. Writable
@@ -229,4 +229,4 @@ private:
     PIPResponseHandler responseHandler_{this};
 };
 
-} // namespace nmranet
+} // namespace openlcb

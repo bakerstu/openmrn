@@ -37,7 +37,7 @@
 
 #include "nmranet/Datagram.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Base class with utility functionality that implements some common
@@ -135,7 +135,7 @@ protected:
 
 private:
     uint16_t responseErrorCode_;
-    nmranet::Defs::MTI responseMti_;
+    openlcb::Defs::MTI responseMti_;
 };
 
 } // namespace

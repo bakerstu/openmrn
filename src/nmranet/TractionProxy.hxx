@@ -37,7 +37,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TractionTrain.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Implements the unapproved Traction Proxy Protocol for dynamic allocation of
@@ -53,4 +53,4 @@ private:
     Impl *impl_;
 };
 
-} // namespace nmranet
+} // namespace openlcb

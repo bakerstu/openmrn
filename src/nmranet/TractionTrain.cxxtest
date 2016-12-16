@@ -6,7 +6,7 @@
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionThrottle.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 TEST(Fp16Test, NanToSpeedIsNan)
@@ -461,4 +461,4 @@ TEST_F(TractionClientTest, SimpleResponse)
     handler_.response()->unref();
 }
 
-} // namespace nmranet
+} // namespace openlcb

@@ -2,7 +2,7 @@
 
 #include "nmranet/WriteHelper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Mocks of this handler can be registered into the frame dispatcher. */
@@ -803,4 +803,4 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     // The expectation here is that no more can frames are generated.
 }
 
-} // namespace nmranet
+} // namespace openlcb

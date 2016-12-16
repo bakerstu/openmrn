@@ -43,7 +43,7 @@
 
 using ::testing::StartsWith;
 
-namespace nmranet
+namespace openlcb
 {
 
 const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
@@ -118,4 +118,4 @@ TEST_F(SNIPTest, Send)
 }
 
 } // anonymous namespace
-} // namespace nmranet
+} // namespace openlcb

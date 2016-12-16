@@ -37,7 +37,7 @@
 
 #include "nmranet/Defs.hxx"  // for NodeID
 
-namespace nmranet
+namespace openlcb
 {
 
 class If;
@@ -71,6 +71,6 @@ public:
     virtual void clear_initialized() = 0;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_NODE_HXX_

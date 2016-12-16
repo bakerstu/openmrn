@@ -35,14 +35,14 @@
 #ifndef _NMRANET_DCCDEBUGFLOW_HXX_
 #define _NMRANET_DCCDEBUGFLOW_HXX_
 
-namespace nmranet {
+namespace openlcb {
 
 /// Sends every incoming DCC packet as a custom OpenLCB message to the OpenLCB
 /// bus. Useful only for debugging, as it generates a lot of noise on the
 /// bus. Also the packets used are totally non-standard.
 class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
  public:
-  DccPacketDebugFlow(nmranet::Node* node)
+  DccPacketDebugFlow(openlcb::Node* node)
       : StateFlow<Buffer<dcc::Packet>, QList<1>>(
             node->iface()->dispatcher()->service()),
         node_(node) {}
@@ -59,14 +59,14 @@ class DccPacketDebugFlow : public StateFlow<Buffer<dcc::Packet>, QList<1>> {
         get_allocation_result(node_->iface()->global_message_write_flow());
 
     b->data()->reset(
-        static_cast<nmranet::Defs::MTI>(nmranet::Defs::MTI_XPRESSNET + 1),
+        static_cast<openlcb::Defs::MTI>(openlcb::Defs::MTI_XPRESSNET + 1),
         node_->node_id(),
         string((char*)message()->data()->payload, message()->data()->dlc));
     node_->iface()->global_message_write_flow()->send(b);
     return release_and_exit();
   }
 
-  nmranet::Node* node_;
+  openlcb::Node* node_;
 };
 
 /// Global reference to the packet debug flow.

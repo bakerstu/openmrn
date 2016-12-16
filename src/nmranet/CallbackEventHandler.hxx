@@ -40,7 +40,7 @@
 
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Event handler implementation class that calls a user-specified
@@ -162,6 +162,6 @@ private:
     Node *node_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CALLBACKEVENTHANDLER_HXX_

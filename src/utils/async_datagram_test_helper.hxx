@@ -39,7 +39,7 @@
 #include "nmranet/Datagram.hxx"
 #include "nmranet/DatagramCan.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Test base class for OpenLCB unittests that need a datagram handler.
 class AsyncDatagramTest : public AsyncNodeTest

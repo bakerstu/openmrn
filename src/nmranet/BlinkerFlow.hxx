@@ -44,7 +44,7 @@ public:
     /// @param node source node from which to send the blin events.
     /// @param BLINKER_EVENT_ID event id for one event; the other will be
     /// BLINKER_EVENT_ID + 1.
-    BlinkerFlow(nmranet::Node *node, uint64_t BLINKER_EVENT_ID)
+    BlinkerFlow(openlcb::Node *node, uint64_t BLINKER_EVENT_ID)
         : StateFlowBase(node->iface())
         , state_(1)
         , bit_(
@@ -76,11 +76,11 @@ private:
     /// Which event we produced last.
     uint8_t state_;
     /// Helper object for the event producer.
-    nmranet::MemoryBit<uint8_t> bit_;
+    openlcb::MemoryBit<uint8_t> bit_;
     /// The actual producer object.
-    nmranet::BitEventProducer producer_;
+    openlcb::BitEventProducer producer_;
     /// Helper object to write to the bus in an asynchronous way.
-    nmranet::WriteHelper helper_;
+    openlcb::WriteHelper helper_;
     /// Object needed for sleeping in a state flow.
     StateFlowTimer sleepData_;
     /// Helper object for catching callback notifications.

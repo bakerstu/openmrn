@@ -8,7 +8,7 @@
 
 using ::testing::ElementsAre;
 
-namespace nmranet
+namespace openlcb
 {
 
 extern Pool *const g_incoming_datagram_allocator = mainBufferPool;
@@ -198,4 +198,4 @@ TEST_F(TractionCvTest, IndirectRead)
     wait();
 }
 
-} // namespace nmranet
+} // namespace openlcb

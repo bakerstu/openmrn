@@ -38,7 +38,7 @@
 #include "endian.h"
 #include "nmranet/Defs.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /** Takes six bytes (big-endian) from *data, and returns the node ID they
  * represent. */

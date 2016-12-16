@@ -17,7 +17,7 @@ using testing::WithArg;
 using testing::_;
 using testing::ElementsAre;
 
-namespace nmranet
+namespace openlcb
 {
 
 extern void DecodeRange(EventReport *r);
@@ -392,4 +392,4 @@ TEST_F(TreeEventHandlerTest, MultiLookup)
     EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
 }
 
-} // namespace nmranet
+} // namespace openlcb

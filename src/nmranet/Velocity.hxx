@@ -54,7 +54,7 @@ int halfp2singles(void *target, const void *source, int numel);
  */
 typedef uint16_t float16_t;
 
-namespace nmranet
+namespace openlcb
 {
 
 /** This class provides a mechanism for working with velocity in different
@@ -487,6 +487,6 @@ private:
 };
 
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif /* _NMRANET_VELOCITY_HXX_ */

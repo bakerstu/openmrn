@@ -39,7 +39,7 @@
 #include "nmranet/Defs.hxx"
 #include "executor/StateFlow.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Counts the number of aliases that were given up because a conflict has
@@ -208,7 +208,7 @@ public:
     }
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 
 #endif // _NMRANET_ALIASALLOCATOR_HXX_

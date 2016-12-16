@@ -36,7 +36,7 @@
 
 #include <stdint.h>
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Static constants and functions related to the Datagram protocol. */
@@ -153,7 +153,7 @@ private:
 };
 
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 
 #endif // _NMRANET_DATAGRAMDEFS_HXX_

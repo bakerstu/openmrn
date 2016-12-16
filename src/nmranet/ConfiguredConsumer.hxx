@@ -42,7 +42,7 @@
 #include "utils/ConfigUpdateService.hxx"
 #include "nmranet/RefreshLoop.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// CDI Configuration for a @ref ConfiguredConsumer.
@@ -279,6 +279,6 @@ private:
     uint8_t pulseRemaining_{0};     //< remaining polling count to keep pulse on
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CONFIGUREDCONSUMER_HXX_

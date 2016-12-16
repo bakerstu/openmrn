@@ -34,8 +34,8 @@
 
 #include "nmranet/PIPClient.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 long long PIP_CLIENT_TIMEOUT_NSEC = SEC_TO_NSEC(4);
 
-} // namespace nmranet
+} // namespace openlcb

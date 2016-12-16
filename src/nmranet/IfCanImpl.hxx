@@ -40,7 +40,7 @@
 #include "nmranet/IfImpl.hxx"
 #include "nmranet/AliasAllocator.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 extern long long ADDRESSED_MESSAGE_LOOKUP_TIMEOUT_NSEC;
@@ -507,6 +507,6 @@ protected:
 
     StateFlowTimer timer_;
 };
-} // namespace nmranet
+} // namespace openlcb
 
 #endif //_NMRANET_IFCANIMPL_HXX_

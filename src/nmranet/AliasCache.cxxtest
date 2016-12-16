@@ -36,7 +36,7 @@
 #include "gtest/gtest.h"
 #include "nmranet/AliasCache.hxx"
 
-using namespace nmranet;
+using namespace openlcb;
 
 static volatile int count = 0;
 /* We use this array to test the reorderd newest/oldest list */

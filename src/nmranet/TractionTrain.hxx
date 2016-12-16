@@ -42,7 +42,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 
@@ -252,6 +252,6 @@ private:
     std::set<TrainNode *> nodes_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_TRACTIONTRAIN_HXX_

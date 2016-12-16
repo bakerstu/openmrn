@@ -39,7 +39,7 @@
 #include "dcc/Loco.hxx"
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** @todo(balazs.racz) this is a kludgy interface but allows the linux traction
@@ -311,4 +311,4 @@ TractionProxyService::~TractionProxyService()
     delete impl_;
 }
 
-} // namespace nmranet
+} // namespace openlcb

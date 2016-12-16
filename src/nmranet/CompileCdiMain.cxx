@@ -10,9 +10,9 @@ using std::string;
 
 bool raw_render = false;
 
-// nmranet::ConfigDef def(0);
+// openlcb::ConfigDef def(0);
 
-RENDER_CDI(nmranet, ConfigDef, "CDI", 1);
+RENDER_CDI(openlcb, ConfigDef, "CDI", 1);
 
 template <int N> void render_all_cdi()
 {

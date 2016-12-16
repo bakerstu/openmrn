@@ -34,7 +34,7 @@
 
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 string node_id_to_buffer(NodeID id)
@@ -152,4 +152,4 @@ If::If(ExecutorBase *executor, int local_nodes_count)
 {
 }
 
-} // namespace nmranet
+} // namespace openlcb

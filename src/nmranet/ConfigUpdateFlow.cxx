@@ -37,7 +37,7 @@
 #include "nmranet/ConfigUpdateFlow.hxx"
 #include <fcntl.h>
 
-namespace nmranet
+namespace openlcb
 {
 
 int ConfigUpdateFlow::open_file(const char *path)
@@ -71,4 +71,4 @@ void ConfigUpdateFlow::factory_reset()
 extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
 extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
 
-} // namespace nmranet
+} // namespace openlcb

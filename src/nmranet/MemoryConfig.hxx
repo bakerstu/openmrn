@@ -51,7 +51,7 @@ extern void reboot();
 #endif
 }
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Static constants and helper functions related to the Memory Configuration
@@ -1008,6 +1008,6 @@ private:
     uint8_t currentOffset_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_MEMORYCONFIG_HXX_

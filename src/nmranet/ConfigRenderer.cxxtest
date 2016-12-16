@@ -39,15 +39,15 @@
 #include "nmranet/ConfigRepresentation.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 
-const char *const nmranet::SNIP_DYNAMIC_FILENAME =
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     "/dev/null";
 
 
-extern const nmranet::SimpleNodeStaticValues nmranet::SNIP_STATIC_DATA = {
+extern const openlcb::SimpleNodeStaticValues openlcb::SNIP_STATIC_DATA = {
     4, "Manuf", "XXmodel", "NHWversion", "1.42"};
 
 
-namespace nmranet
+namespace openlcb
 {
 namespace
 {
@@ -302,4 +302,4 @@ TEST(CdiRender, RenderIdent)
 }
 
 } // namespace
-} // namespace nmranet
+} // namespace openlcb

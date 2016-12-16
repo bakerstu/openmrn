@@ -19,7 +19,7 @@ extern void bootloader_entry();
 extern Atomic g_bootloader_lock;
 }
 
-namespace nmranet
+namespace openlcb
 {
 
 extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
@@ -975,4 +975,4 @@ TEST_F(BootloaderClientTest, FindByNodeId)
 }
 
 } // namespace
-} // namespace nmranet
+} // namespace openlcb

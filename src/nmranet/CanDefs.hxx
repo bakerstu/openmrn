@@ -40,7 +40,7 @@
 #include "can_frame.h"
 #include "nmranet_config.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Static values and helper functions for CAN-bus interfaces.
@@ -368,6 +368,6 @@ private:
     CanDefs();
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif /* _NMRAnetIfCan_hxx_ */

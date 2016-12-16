@@ -42,7 +42,7 @@
 #include "utils/OptionalArgs.hxx"
 #include "utils/StringPrintf.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Configuration options for rendering CDI (atom) data elements.
@@ -496,6 +496,6 @@ public:
     }
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CONFIGRENDERER_HXX_

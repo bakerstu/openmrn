@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 TEST_F(AsyncNodeTest, VerifyNodeIdGlobalSingleNode)
@@ -93,4 +93,4 @@ TEST_F(TwoNodeTest, DISABLED_VerifyNodeIdAddressed2)
     wait();
 }
 
-} // namespace nmranet
+} // namespace openlcb

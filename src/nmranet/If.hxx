@@ -47,7 +47,7 @@
 #include "utils/Queue.hxx"
 #include "utils/Map.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class Node;
@@ -428,6 +428,6 @@ public:
     }
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_IF_HXX_

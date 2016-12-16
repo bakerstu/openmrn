@@ -40,7 +40,7 @@
 #include "nmranet/WriteHelper.hxx"
 #include "os/Gpio.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Creates a single encoded event range from the beginning of the range and
@@ -152,8 +152,8 @@ public:
             return done->notify();
         }
         event_write_helper1.WriteAsync(
-            node_, nmranet::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
-            WriteHelper::global(), nmranet::eventid_to_buffer(EVENT_ID), done);
+            node_, openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+            WriteHelper::global(), openlcb::eventid_to_buffer(EVENT_ID), done);
     }
 
     void handle_identify_producer(const EventRegistryEntry &registry_entry, EventReport *event, BarrierNotifiable *done)
@@ -843,6 +843,6 @@ private:
     uint64_t CurrentEventId(unsigned byte);
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_EVENTHANDLERTEMPLATES_HXX_

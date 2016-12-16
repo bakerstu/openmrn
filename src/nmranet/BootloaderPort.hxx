@@ -38,7 +38,7 @@
 
 #include "utils/Hub.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /** Proxy class for sending canbus traffic to the Bootloader HAL. */
 class BootloaderPort : public CanHubPort
@@ -91,7 +91,7 @@ private:
     bool is_waiting_ = false;
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif //_NMRANET_BOOTLOADERPORT_HXX_
 

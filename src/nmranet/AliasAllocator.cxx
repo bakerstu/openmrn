@@ -35,7 +35,7 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/CanDefs.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 size_t g_alias_test_conflicts = 0;
@@ -247,4 +247,4 @@ void AliasAllocator::TEST_finish_pending_allocation() {
     }
 }
 
-} // namespace nmranet
+} // namespace openlcb

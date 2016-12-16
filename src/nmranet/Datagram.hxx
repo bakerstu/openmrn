@@ -39,7 +39,7 @@
 #include "utils/Queue.hxx"
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 struct IncomingDatagram;
@@ -246,6 +246,6 @@ private:
     DatagramDispatcher dispatcher_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_DATAGRAM_HXX_

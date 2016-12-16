@@ -44,7 +44,7 @@
 #include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /**
@@ -244,7 +244,7 @@ private:
                 forwardType_ = FORWARD_ALL;
                 return;
             }
-            // At this point: nmranet message with a known frame type (1, 2..5,
+            // At this point: openlcb message with a known frame type (1, 2..5,
             // 7)
             if (CanDefs::get_can_frame_type(can_id) !=
                 CanDefs::GLOBAL_ADDRESSED)
@@ -437,6 +437,6 @@ private:
     RoutingLogic<CanHubPortInterface, NodeAlias> routingTable_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CANROUTNGHUB_HXX_

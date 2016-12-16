@@ -35,7 +35,7 @@
 #include "utils/async_traction_test_helper.hxx"
 #include "nmranet/TractionTestTrain.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class LoggingTrainTest : public TractionTest
@@ -80,4 +80,4 @@ TEST_F(LoggingTrainTest, SetFn)
     send_packet(":X195EA551N033A010000050000;");
 }
 
-} // namespace nmranet
+} // namespace openlcb

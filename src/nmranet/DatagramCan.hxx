@@ -38,7 +38,7 @@
 #include "nmranet/IfCan.hxx"
 #include "nmranet/Datagram.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Implementation of the DatagramService with the CANbus-specific OpenLCB
@@ -66,6 +66,6 @@ public:
 /// Creates a CAN datagram parser flow. Exposed for testing only.
 Executable *TEST_CreateCanDatagramParser(IfCan *if_can);
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_DATAGRAMCAN_HXX_

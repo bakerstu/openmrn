@@ -38,7 +38,7 @@
 #include <unistd.h>
 #include "utils/logging.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 void ConfigEntryBase::repeated_read(int fd, void *buf, size_t size) const
@@ -77,4 +77,4 @@ void ConfigEntryBase::repeated_write(int fd, const void *buf, size_t size) const
     }
 }
 
-} // namespace nmranet
+} // namespace openlcb

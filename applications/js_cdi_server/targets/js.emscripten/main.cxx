@@ -52,16 +52,16 @@
 #include "nmranet/SimpleStack.hxx"
 #include "nmranet/SimpleNodeInfoMockUserFile.hxx"
 
-namespace nmranet {
+namespace openlcb {
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,               "OpenMRN", "CDI test server",
     "node.js", "1.00"};
 }
 
-nmranet::MockSNIPUserFile snip_user_file(
+openlcb::MockSNIPUserFile snip_user_file(
     "Default user name", "Default user description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::MockSNIPUserFile::snip_user_file_path;
 
 const uint64_t node_id_base = 0x050101011800ULL;
 uint64_t node_id = node_id_base | 0xF3;
@@ -73,7 +73,7 @@ int upstream_port = 12021;
 const char *upstream_host = nullptr;
 const char *cdi_file = nullptr;
 
-namespace nmranet {
+namespace openlcb {
 /// This symbol contains the embedded text of the CDI xml file.
 const char CDI_DATA[128*1024] = {0,};
 }
@@ -136,8 +136,8 @@ void parse_args(int argc, char *argv[])
         usage(argv[0]);
     }
     string contents = read_file_to_string(cdi_file);
-    if (contents.size() + 1 <= sizeof(nmranet::CDI_DATA)) {
-        memcpy((char*)nmranet::CDI_DATA, contents.c_str(), contents.size() + 1);
+    if (contents.size() + 1 <= sizeof(openlcb::CDI_DATA)) {
+        memcpy((char*)openlcb::CDI_DATA, contents.c_str(), contents.size() + 1);
     } else {
         DIE("CDI file too large.");
     }
@@ -151,12 +151,12 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    nmranet::SimpleCanStack stack(node_id);
+    openlcb::SimpleCanStack stack(node_id);
     const size_t configlen = 16*1024;
     uint8_t* cdispace = new uint8_t[configlen];
     memset(cdispace, 0, configlen);
-    nmranet::ReadWriteMemoryBlock ramblock(cdispace, configlen);
-    stack.memory_config_handler()->registry()->insert(nullptr, nmranet::MemoryConfigDefs::SPACE_CONFIG, &ramblock);
+    openlcb::ReadWriteMemoryBlock ramblock(cdispace, configlen);
+    stack.memory_config_handler()->registry()->insert(nullptr, openlcb::MemoryConfigDefs::SPACE_CONFIG, &ramblock);
     GcPacketPrinter packet_printer(stack.can_hub(), false);
     std::unique_ptr<JSTcpHub> hub;
     if (port > 0) {

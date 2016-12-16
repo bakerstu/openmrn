@@ -38,7 +38,7 @@
 
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Implementation of the hardware-independent parts of the write flows. */
@@ -266,6 +266,6 @@ private:
     If::VNodeMap::Iterator it_;
 #endif
 };
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_IFIMPL_HXX_

@@ -38,8 +38,8 @@
 #include "nmranet_config.h"
 #include "endian.h"
 
-namespace nmranet
+namespace openlcb
 {
 
-} /* namespace nmranet */
+} /* namespace openlcb */
 

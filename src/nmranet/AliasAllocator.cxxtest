@@ -4,7 +4,7 @@
 #include "nmranet/AliasAllocator.hxx"
 #include "nmranet/AliasCache.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 class AsyncAliasAllocatorTest : public AsyncIfTest
 {
@@ -215,4 +215,4 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     // Makes sure 'other' disappears from the executor before destructing it.
     wait();
 }
-} // namespace nmranet
+} // namespace openlcb

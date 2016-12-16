@@ -37,7 +37,7 @@
 
 #include "nmranet/Node.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Trivial implementation of a virtual Node. Stores all dynamic information in
@@ -82,6 +82,6 @@ private:
     If* iface_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_DEFAULTNODE_HXX_

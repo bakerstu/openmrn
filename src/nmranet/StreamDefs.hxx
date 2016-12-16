@@ -33,7 +33,7 @@
 
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Static constants and helper functions for the OpenLCB streaming protocol.
@@ -81,4 +81,4 @@ struct StreamDefs
     }
 };
 
-} // namespace nmranet
+} // namespace openlcb

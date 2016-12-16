@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 #include "nmranet/RefreshLoop.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 namespace
 {
@@ -50,4 +50,4 @@ TEST_F(RefreshLoopTest, CallsBoth)
 }
 
 } // namespace
-} // namespace nmranet
+} // namespace openlcb

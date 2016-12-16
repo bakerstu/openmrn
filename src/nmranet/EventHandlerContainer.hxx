@@ -52,7 +52,7 @@
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/EventHandlerTemplates.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Abstract class for representing iteration through a container for event
@@ -189,6 +189,6 @@ private:
     MaskLookupMap handlers_;
 };
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif  // _NMRANET_EVENTHANDLERCONTAINER_HXX_

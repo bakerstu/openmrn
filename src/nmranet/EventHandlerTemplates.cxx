@@ -46,7 +46,7 @@
 extern int debug_variables;
 int debug_variables = 0;
 #include <string>
-namespace nmranet
+namespace openlcb
 {
 extern const string &GetNameForEvent(uint64_t);
 
@@ -58,7 +58,7 @@ __attribute__((weak)) const string &GetNameForEvent(uint64_t)
 }
 #endif
 
-namespace nmranet
+namespace openlcb
 {
 
 BitRangeEventPC::BitRangeEventPC(Node *node, uint64_t event_base,
@@ -777,4 +777,4 @@ void BitEventPC::handle_consumer_identified(const EventRegistryEntry& entry, Eve
 }
 
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */

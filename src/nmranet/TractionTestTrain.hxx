@@ -39,7 +39,7 @@
 
 #include "nmranet/TrainInterface.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Test train implementation that just logs every action to the info log. */
@@ -62,6 +62,6 @@ private:
     map<uint32_t, uint16_t> fnValues_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif

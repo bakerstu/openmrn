@@ -141,7 +141,7 @@ uint16_t nmranet_alias()
     return DEFAULT_ALIAS;
 }
 
-extern const nmranet::NodeID NODE_ID;
+extern const openlcb::NodeID NODE_ID;
 
 uint64_t nmranet_nodeid()
 {
@@ -152,7 +152,7 @@ uint64_t nmranet_nodeid()
 Executor<1> g_executor{NO_THREAD()};
 Service g_service(&g_executor);
 CanHubFlow g_can_hub(&g_service);
-nmranet::BootloaderPort g_bootloader_port(&g_service);
+openlcb::BootloaderPort g_bootloader_port(&g_service);
 bool bootloader_reset_request = false;
 
 bool read_can_frame(struct can_frame *frame)

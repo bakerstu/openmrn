@@ -36,7 +36,7 @@
 #include "nmranet/NMRAnetMessageID.hxx"
 #include "utils/macros.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Open a stream.

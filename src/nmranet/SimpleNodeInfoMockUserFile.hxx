@@ -45,7 +45,7 @@
 #ifndef __WINNT__
 #include "os/TempFile.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /** Helper class for mock implementations. Creates a mock file with the SNIP
  * user-modifiable data inside that can be used as SNIP_DYNAMIC_FILENAME.
@@ -77,7 +77,7 @@ private:
 #endif
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif // !winnt
 #endif // _NMRANET_SIMPLENODEINFOMOCKUSERFILE_HXX_

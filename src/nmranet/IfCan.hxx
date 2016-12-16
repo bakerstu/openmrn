@@ -43,7 +43,7 @@
 #include "nmranet/Defs.hxx"
 #include "utils/CanIf.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class IfCan;
@@ -349,6 +349,6 @@ private:
     StateFlowTimer timer_{this};
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_IFCAN_HXX_

@@ -41,7 +41,7 @@
 #include "nmranet/If.hxx"
 #include "executor/StateFlow.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 struct SimpleInfoDescriptor;
@@ -418,6 +418,6 @@ private:
     BarrierNotifiable n_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_SIMPLEINFOPROTOCOL_HXX_

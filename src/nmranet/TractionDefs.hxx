@@ -44,7 +44,7 @@
 #include "nmranet/If.hxx"
 #include "dcc/Defs.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Represents an OpenLCB speed value with accessors to convert to and from
 /// various formats.
@@ -398,6 +398,6 @@ struct TractionDefs {
     }
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif //_NMRANET_TRACTIONDEFS_HXX_

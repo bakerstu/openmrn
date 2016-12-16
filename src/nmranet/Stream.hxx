@@ -38,7 +38,7 @@
 #include "utils/RBTree.hxx"
 #include "utils/RingBuffer.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /**

@@ -42,7 +42,7 @@
 #include "dcc/RailCom.hxx"
 #include "dcc/RailcomHub.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Memory Space implementation for a CV (configuration variable) access on a
@@ -147,6 +147,6 @@ private:
     vector<dcc::RailcomPacket> interpretedResponse_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_TRACTIONCVSPACE_HXX_

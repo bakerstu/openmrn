@@ -34,7 +34,7 @@
 
 #include "nmranet/Datagram.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 DatagramService::DatagramService(If* iface,
@@ -123,4 +123,4 @@ DatagramService::DatagramDispatcher::respond_rejection()
     return exit();
 }
 
-} // namespace nmranet
+} // namespace openlcb

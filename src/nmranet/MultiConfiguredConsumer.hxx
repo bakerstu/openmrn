@@ -38,7 +38,7 @@
 
 #include "nmranet/ConfigRepresentation.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Version of the @ref ConfiguredConsumer class that can handle many GPIO pins
@@ -171,6 +171,6 @@ private:
     // configs.
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_MULTICONFIGUREDCONSUMER_HXX_

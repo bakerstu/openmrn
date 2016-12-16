@@ -43,7 +43,7 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandler.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class IncomingEventFlow;
@@ -197,6 +197,6 @@ private:
     const EventRegistryEntry *currentEntry_{nullptr};
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_

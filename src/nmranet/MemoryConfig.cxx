@@ -61,7 +61,7 @@ void reboot()
 #endif
 }
 
-namespace nmranet
+namespace openlcb
 {
 
 FileMemorySpace::FileMemorySpace(int fd, address_t len)
@@ -185,4 +185,4 @@ size_t FileMemorySpace::read(address_t destination, uint8_t *dst, size_t len,
     }
 }
 
-} // namespace nmranet
+} // namespace openlcb

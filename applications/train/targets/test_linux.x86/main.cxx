@@ -50,10 +50,10 @@
 #include "utils/constants.hxx"
 #include "config.hxx"
 
-static const nmranet::NodeID NODE_ID = 0x0501010118F5ULL;
+static const openlcb::NodeID NODE_ID = 0x0501010118F5ULL;
 
-nmranet::ConfigDef cfg(0);
-namespace nmranet
+openlcb::ConfigDef cfg(0);
+namespace openlcb
 {
 extern const char *const CONFIG_FILENAME = "openlcb_test_train_config";
 // The size of the memory space to export over the above device.
@@ -75,15 +75,15 @@ const char kFdiXml[] =
 </function>
 </group></segment></fdi>)";
 
-nmranet::LoggingTrain trainImpl(1732);
-nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
+openlcb::LoggingTrain trainImpl(1732);
+openlcb::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
 
-using nmranet::Node;
-using nmranet::SimpleEventHandler;
-using nmranet::EventRegistry;
-using nmranet::EventReport;
-using nmranet::event_write_helper1;
-using nmranet::WriteHelper;
+using openlcb::Node;
+using openlcb::SimpleEventHandler;
+using openlcb::EventRegistry;
+using openlcb::EventReport;
+using openlcb::event_write_helper1;
+using openlcb::WriteHelper;
 
 int port = 12021;
 const char *host = "localhost";
@@ -142,7 +142,7 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     stack.create_config_file_if_needed(cfg.seg().internal_data(),
-                                       nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
+                                       openlcb::EXPECTED_VERSION, openlcb::CONFIG_FILE_SIZE);
     parse_args(argc, argv);
     if (device_path)
     {

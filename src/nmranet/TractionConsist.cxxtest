@@ -4,7 +4,7 @@
 #include "nmranet/TractionTestTrain.hxx"
 #include "nmranet/TractionThrottle.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 static constexpr NodeID nodeIdLead = 0x060100000000 | 1371;
@@ -81,4 +81,4 @@ TEST_F(ConsistTest, CreateAndRunConsist) {
 
 
 
-} // namespace nmranet
+} // namespace openlcb

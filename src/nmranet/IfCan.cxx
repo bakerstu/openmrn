@@ -41,7 +41,7 @@
 #include "nmranet/CanDefs.hxx"
 #include "can_frame.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 size_t g_alias_use_conflicts = 0;
@@ -765,4 +765,4 @@ bool IfCan::matching_node(NodeHandle expected, NodeHandle actual)
     return false;
 }
 
-} // namespace nmranet
+} // namespace openlcb

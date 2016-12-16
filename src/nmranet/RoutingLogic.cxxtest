@@ -35,7 +35,7 @@
 #include "nmranet/RoutingLogic.hxx"
 #include "utils/test_main.hxx"
 
-using namespace nmranet;
+using namespace openlcb;
 
 TEST(RangeToBitCountTest, simple) {
     EventId e;

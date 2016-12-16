@@ -43,7 +43,7 @@
 #include "os/OS.hxx"
 #include "nmranet/EventHandler.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** Decodes an event range, encoded according to the Event Transport protocol
@@ -233,6 +233,6 @@ private:
     std::map<Port *, EventSet> eventRoutingTable_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_ROUTNGLOGIC_HXX_

@@ -34,7 +34,7 @@
 
 #include "nmranet/EventHandlerContainer.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 void TreeEventHandlers::register_handler(const EventRegistryEntry &entry,
@@ -146,4 +146,4 @@ TreeEventHandlers::TreeEventHandlers()
 {
 }
 
-} // namespace nmranet
+} // namespace openlcb

@@ -62,15 +62,15 @@ Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-static const nmranet::NodeID NODE_ID = 0x05010101181FULL;
+static const openlcb::NodeID NODE_ID = 0x05010101181FULL;
 
-nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-nmranet::InitializeFlow g_init_flow{&g_service};
-nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
-static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
-nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
+openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+openlcb::InitializeFlow g_init_flow{&g_service};
+openlcb::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
+static openlcb::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
+openlcb::DefaultNode g_node(&g_if_can, NODE_ID);
 
-namespace nmranet
+namespace openlcb
 {
 Pool *const g_incoming_datagram_allocator = mainBufferPool;
 }
@@ -81,7 +81,7 @@ const char *host = "localhost";
 const char *filename = nullptr;
 uint64_t destination_nodeid = 0;
 uint64_t destination_alias = 0;
-int memory_space_id = nmranet::MemoryConfigDefs::SPACE_FIRMWARE;
+int memory_space_id = openlcb::MemoryConfigDefs::SPACE_FIRMWARE;
 const char *checksum_algorithm = nullptr;
 bool request_reboot = false;
 bool request_reboot_after = true;
@@ -215,9 +215,9 @@ void maybe_checksum(string *firmware)
     }
 }
 
-nmranet::BootloaderClient bootloader_client(
+openlcb::BootloaderClient bootloader_client(
     &g_node, &g_datagram_can, &g_if_can);
-nmranet::BootloaderResponse response;
+openlcb::BootloaderResponse response;
 
 class BootloaderClientStateFlow : public StateFlowBase
 {
@@ -236,7 +236,7 @@ private:
 
     Action fill_request()
     {
-        Buffer<nmranet::BootloaderRequest> *b;
+        Buffer<openlcb::BootloaderRequest> *b;
         mainBufferPool->alloc(&b);
 
         b->set_done(bn_.reset(this));

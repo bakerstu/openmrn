@@ -36,7 +36,7 @@
 #include "nmranet/DefaultNode.hxx"
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 extern void StartInitializationFlow(Node* node);
@@ -52,4 +52,4 @@ DefaultNode::~DefaultNode()
 {
 }
 
-} // namespace nmranet
+} // namespace openlcb

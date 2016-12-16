@@ -40,7 +40,7 @@
 #include "gmock/gmock.h"
 #include "nmranet/EventHandler.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Test handler for receiving incoming event related messages via the
 /// EventService. Incoming messages need GoogleMock expectations.
@@ -66,7 +66,7 @@ public:
 #undef DEFPROXYFN
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif // _NMRAnetEventHandlerTemplates_hxx_
 

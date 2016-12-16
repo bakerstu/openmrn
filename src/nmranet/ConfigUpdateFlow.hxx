@@ -49,7 +49,7 @@ extern void reboot();
 }
 #endif
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Implementation of the ConfigUpdateService: state flow issuing all the calls
@@ -184,6 +184,6 @@ private:
     BarrierNotifiable n_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CONFIGUPDATEFLOW_HXX_

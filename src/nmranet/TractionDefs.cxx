@@ -37,7 +37,7 @@
 #include <string.h>
 #include "utils/macros.h"
 
-namespace nmranet {
+namespace openlcb {
 
 SpeedType fp16_to_speed(const void *fp16) {
     Velocity speed;
@@ -71,4 +71,4 @@ const uint64_t TractionDefs::NODE_ID_TMCC;
 const uint64_t TractionDefs::NODE_ID_MARKLIN_MOTOROLA;
 const uint64_t TractionDefs::NODE_ID_MTH_DCS;
 
-}  // namespace nmranet
+}  // namespace openlcb

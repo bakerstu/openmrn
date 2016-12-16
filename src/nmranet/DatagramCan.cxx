@@ -37,7 +37,7 @@
 #include "nmranet/DatagramDefs.hxx"
 #include "nmranet/IfCanImpl.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Defines how long the datagram client flow should wait for the datagram
@@ -649,4 +649,4 @@ CanDatagramParser::~CanDatagramParser()
                                                      CAN_MASK);
 }
 
-} // namespace nmranet
+} // namespace openlcb

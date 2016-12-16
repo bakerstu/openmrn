@@ -36,7 +36,7 @@
 #include "nmranet/ProtocolIdentification.hxx"
 #include "nmranet/AliasAllocator.hxx"
 
-using namespace nmranet;
+using namespace openlcb;
 
 class ProtocolIdentificationTest : public AsyncNodeTest
 {

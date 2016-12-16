@@ -42,7 +42,7 @@
 #include "nmranet/If.hxx"
 #include "nmranet/Node.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// A statically allocated buffer for sending one message to the OpenLCB
@@ -160,6 +160,6 @@ private:
     BarrierNotifiable done_;
 };
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif /* _NMRANET_WRITEHELPER_HXX_ */

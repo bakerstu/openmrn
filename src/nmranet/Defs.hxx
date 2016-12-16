@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file nmranet/Defs.hxx
+ * \file openlcb/Defs.hxx
  * Static declarations, enums and helper functions for the NMRAnet interface.
  *
  * @author Stuart W. Baker
@@ -38,7 +38,7 @@
 
 #include "utils/macros.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** 48-bit NMRAnet Node ID type */
@@ -323,6 +323,6 @@ inline Defs::MTI& operator -- (Defs::MTI &value)
     return value;
 }
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif /* _NMRANET_DEFS_HXX_ */

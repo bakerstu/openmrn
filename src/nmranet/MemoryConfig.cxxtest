@@ -42,7 +42,7 @@
 using ::testing::InvokeWithoutArgs;
 using ::testing::SetArgPointee;
 
-namespace nmranet
+namespace openlcb
 {
 
 class MockMemorySpace : public MemorySpace

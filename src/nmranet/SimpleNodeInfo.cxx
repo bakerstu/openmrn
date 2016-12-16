@@ -34,7 +34,7 @@
 
 #include "nmranet/SimpleNodeInfo.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 extern const SimpleNodeStaticValues __attribute__((weak)) SNIP_STATIC_DATA = {
@@ -76,7 +76,7 @@ void init_snip_user_file(int fd, const char *user_name,
     }
 }
 
-static size_t find_string_at(const nmranet::Payload& payload, size_t start_pos, string* output) {
+static size_t find_string_at(const openlcb::Payload& payload, size_t start_pos, string* output) {
     if (start_pos == string::npos) {
         output->clear();
         return start_pos;
@@ -91,7 +91,7 @@ static size_t find_string_at(const nmranet::Payload& payload, size_t start_pos, 
 }
 
 void decode_snip_response(
-    const nmranet::Payload &payload, SnipDecodedData *output)
+    const openlcb::Payload &payload, SnipDecodedData *output)
 {
     output->clear();
     char sys_ver = payload[0];

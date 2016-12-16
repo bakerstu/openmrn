@@ -63,33 +63,33 @@ OVERRIDE_CONST(enable_all_memory_space, CONSTANT_TRUE);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const nmranet::NodeID NODE_ID = 0x050101011F65ULL;
+extern const openlcb::NodeID NODE_ID = 0x050101011F65ULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
 // CAN-bus-specific components, a virtual node, PIP, SNIP, Memory configuration
 // protocol, ACDI, CDI, a bunch of memory spaces, etc.
-nmranet::SimpleCanStack stack(NODE_ID);
+openlcb::SimpleCanStack stack(NODE_ID);
 
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
 // used to generate the cdi.xml file. Here we instantiate the configuration
 // layout. The argument of offset zero is ignored and will be removed later.
-nmranet::ConfigDef cfg(0);
+openlcb::ConfigDef cfg(0);
 // Defines weak constants used by the stack to tell it which device contains
 // the volatile configuration information. This device name appears in
 // HwInit.cxx that creates the device drivers.
-extern const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
+extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
-extern const size_t nmranet::CONFIG_FILE_SIZE =
+extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-//RamDisk eeprom(nmranet::CONFIG_FILENAME, nmranet::CONFIG_FILE_SIZE);
+//RamDisk eeprom(openlcb::CONFIG_FILENAME, openlcb::CONFIG_FILE_SIZE);
 
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
-extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::CONFIG_FILENAME;
+extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::CONFIG_FILENAME;
 
 // Defines the GPIO ports used for the producers and the consumers.
 
@@ -115,25 +115,25 @@ GPIO_PIN(SW2, GpioInputPU, 0, 28);
 // segment 'seg', in which there is a repeated group 'consumers', and we assign
 // the individual entries to the individual consumers. Each consumer gets its
 // own GPIO pin.
-nmranet::ConfiguredConsumer consumer_1(
+openlcb::ConfiguredConsumer consumer_1(
     stack.node(), cfg.seg().consumers().entry<0>(), LED_B1_Pin());
-nmranet::ConfiguredConsumer consumer_2(
+openlcb::ConfiguredConsumer consumer_2(
     stack.node(), cfg.seg().consumers().entry<1>(), LED_B2_Pin());
-nmranet::ConfiguredConsumer consumer_3(
+openlcb::ConfiguredConsumer consumer_3(
     stack.node(), cfg.seg().consumers().entry<2>(), LED_B3_Pin());
-nmranet::ConfiguredConsumer consumer_4(
+openlcb::ConfiguredConsumer consumer_4(
     stack.node(), cfg.seg().consumers().entry<3>(), LED_B4_Pin());
 
 // Similar syntax for the producers.
-nmranet::ConfiguredProducer producer_sw1(
+openlcb::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
-nmranet::ConfiguredProducer producer_sw2(
+openlcb::ConfiguredProducer producer_sw2(
     stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
-nmranet::RefreshLoop loop(
+openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 /** Entry point to application.

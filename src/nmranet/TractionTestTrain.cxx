@@ -36,7 +36,7 @@
 
 #include "utils/logging.h"
 
-namespace nmranet
+namespace openlcb
 {
 
 LoggingTrain::LoggingTrain(uint32_t legacy_address)
@@ -97,4 +97,4 @@ dcc::TrainAddressType LoggingTrain::legacy_address_type()
     return dcc::TrainAddressType::DCC_LONG_ADDRESS;
 }
 
-} // namespace nmranet
+} // namespace openlcb

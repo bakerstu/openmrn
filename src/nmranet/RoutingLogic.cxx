@@ -35,7 +35,7 @@
 
 #include "nmranet/RoutingLogic.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /** Decodes an event range, encoded according to the Event Transport protocol
  * specification.
@@ -60,4 +60,4 @@ uint8_t event_range_to_bit_count(EventId* event) {
     return ret;
 }
 
-} // namespace nmranet
+} // namespace openlcb

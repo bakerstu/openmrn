@@ -39,7 +39,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "nmranet/TrainInterface.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 struct TractionThrottleInput;
@@ -163,10 +163,10 @@ struct TractionThrottleInput
  */
 class TractionThrottle
     : public StateFlow<Buffer<TractionThrottleInput>, QList<1>>,
-      public nmranet::TrainImpl
+      public openlcb::TrainImpl
 {
 public:
-    /// @param node is the nmranet node from which this throttle will be
+    /// @param node is the openlcb node from which this throttle will be
     /// sending its messages.
     TractionThrottle(Node *node)
         : StateFlow<Buffer<TractionThrottleInput>, QList<1>>(node->iface())
@@ -566,7 +566,7 @@ private:
         return exit();
     }
 
-    /** Allocates (synchronously) an outgoing nmranet buffer with traction
+    /** Allocates (synchronously) an outgoing openlcb buffer with traction
      * request MTI and the given payload and sends off the message to the bus
      * for dst_. */
     void send_traction_message(const Payload &payload)
@@ -630,6 +630,6 @@ private:
     std::map<uint32_t, uint16_t> lastKnownFn_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_TRACTIONTHROTTLE_HXX_

@@ -53,7 +53,7 @@
 #include "nmranet/Defs.hxx"
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class Node;
@@ -94,6 +94,6 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif // _NMRANET_EVENTSERVICE_HXX_

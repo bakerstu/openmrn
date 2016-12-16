@@ -38,7 +38,7 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "nmranet/RefreshLoop.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Producer class for GPIO bits. Polls the hardware state at a given
 /// frequency, applies a debouncing algorithm, and when the output of the
@@ -85,6 +85,6 @@ private:
     BitEventPC producer_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_POLLEDPRODUCER_HXX_

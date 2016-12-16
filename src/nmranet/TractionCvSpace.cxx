@@ -48,7 +48,7 @@ static const int READ_RETRY_COUNT_ON_UNKNOWN = 10;
 static const int RAILCOM_POM_OP_TIMEOUT_MSEC = 2000;
 
 
-namespace nmranet
+namespace openlcb
 {
 
 TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
@@ -380,4 +380,4 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
     return record_railcom_status(new_status);
 }
 
-} // namespace nmranet
+} // namespace openlcb

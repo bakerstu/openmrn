@@ -59,7 +59,7 @@
 #include "utils/HubDeviceNonBlock.hxx"
 #include "utils/HubDeviceSelect.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// This symbol contains the embedded text of the CDI xml file.
@@ -89,7 +89,7 @@ class SimpleCanStackBase
 public:
     static const unsigned EXECUTOR_PRIORITIES = 5;
 
-    SimpleCanStackBase(const nmranet::NodeID node_id);
+    SimpleCanStackBase(const openlcb::NodeID node_id);
 
     /// @returns the executor that's controlling the main thread of the OpenLCB
     /// stack.
@@ -104,7 +104,7 @@ public:
         return &service_;
     }
 
-    /// @returns the nmranet Interface object.
+    /// @returns the openlcb Interface object.
     IfCan *iface()
     {
         return &ifCan_;
@@ -341,7 +341,7 @@ protected:
 class SimpleCanStack : public SimpleCanStackBase
 {
 public:
-    SimpleCanStack(const nmranet::NodeID node_id);
+    SimpleCanStack(const openlcb::NodeID node_id);
 
     /// @returns the virtual node pointer of the main virtual node of the stack
     /// (as defined by the NodeID argument of the constructor).
@@ -373,7 +373,7 @@ public:
     ///
     /// @param train the implementation of the train
     /// @param fdi_xml XML file to export as the FDI for train functions
-    SimpleTrainCanStack(nmranet::TrainImpl *train, const char *fdi_xml, NodeID node_id);
+    SimpleTrainCanStack(openlcb::TrainImpl *train, const char *fdi_xml, NodeID node_id);
 
     /// @returns the virtual node pointer of the main virtual node of the stack
     /// (as defined by the NodeID argument of the constructor).
@@ -383,10 +383,10 @@ public:
     }
 
 private:
-    static const auto PIP_RESPONSE = nmranet::Defs::SIMPLE_PROTOCOL_SUBSET |
-        nmranet::Defs::DATAGRAM | nmranet::Defs::MEMORY_CONFIGURATION |
-        nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
-        nmranet::Defs::TRACTION_CONTROL | nmranet::Defs::TRACTION_FDI |
+    static const auto PIP_RESPONSE = openlcb::Defs::SIMPLE_PROTOCOL_SUBSET |
+        openlcb::Defs::DATAGRAM | openlcb::Defs::MEMORY_CONFIGURATION |
+        openlcb::Defs::EVENT_EXCHANGE | openlcb::Defs::SIMPLE_NODE_INFORMATION |
+        openlcb::Defs::TRACTION_CONTROL | openlcb::Defs::TRACTION_FDI |
         Defs::ABBREVIATED_DEFAULT_CDI | Defs::CDI;
 
     void start_node() override;
@@ -394,7 +394,7 @@ private:
     TrainService tractionService_{&ifCan_};
     /// The actual node.
     TrainNodeWithId trainNode_;
-    FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
+    FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
         isTrainEventHandler{&trainNode_};
     ReadOnlyMemoryBlock fdiBlock_;
     /// Handles PIP requests.
@@ -403,6 +403,6 @@ private:
     SNIPHandler snipHandler_{&ifCan_, &trainNode_, &infoFlow_};
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif //  _NMRANET_SIMPLESTACK_HXX_

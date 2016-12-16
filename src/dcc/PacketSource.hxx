@@ -42,13 +42,13 @@ namespace dcc {
 
 struct Packet;
 /// C++ type encompassing a speed value for OpenLCB.
-typedef nmranet::SpeedType SpeedType;
+typedef openlcb::SpeedType SpeedType;
 
 /// Abstract class for streams of DCC packets. there will be typically one
 /// object of a child type for every decoder on the track voltage that needs an
 /// infinite set of repeating packets. This interface will be polled in a
 /// round-robin manner by the @ref UpdateLoopBase.
-class PacketSource : public nmranet::TrainImpl {
+class PacketSource : public openlcb::TrainImpl {
 public:
     /** Generates the next packet to send out to the track. 
      * @param code if 0, then the next background refresh packet shold be

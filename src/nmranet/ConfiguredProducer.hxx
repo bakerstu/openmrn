@@ -43,7 +43,7 @@
 #include "utils/ConfigUpdateService.hxx"
 #include "utils/Debouncer.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// CDI Configuration for a @ref ConfiguredProducer.
@@ -88,7 +88,7 @@ void ignore_fn();
 /// @ref polling(). Use for example the @ref RefreshLoop class and supply the
 /// polling argument at the constructor to it:
 /// 
-/// nmranet::RefreshLoop loop(
+/// openlcb::RefreshLoop loop(
 ///    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 class ConfiguredProducer : public ConfigUpdateListener
 {
@@ -150,6 +150,6 @@ private:
     const ProducerConfig cfg_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CONFIGUREDPRODUCER_HXX_

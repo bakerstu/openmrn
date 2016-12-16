@@ -3,7 +3,7 @@
 #include "nmranet/EventService.hxx"
 #include "nmranet/EventHandlerMock.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 class AsyncEventTest : public AsyncNodeTest
@@ -114,4 +114,4 @@ TEST_F(AsyncEventTest, ManyEvents)
     }
 }
 
-} // namespace nmranet
+} // namespace openlcb

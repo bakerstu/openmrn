@@ -14,7 +14,7 @@
 #include "nmranet/Defs.hxx"
 #include "nmranet/EndianHelper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /*static*/
@@ -334,4 +334,4 @@ StateFlowBase::Action InlineEventIteratorFlow::perform_call()
     }
 }
 
-} /* namespace nmranet */
+} /* namespace openlcb */

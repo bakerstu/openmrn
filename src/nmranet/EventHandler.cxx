@@ -34,7 +34,7 @@
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/WriteHelper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 EventRegistry *EventRegistry::instance_ = nullptr;
@@ -90,4 +90,4 @@ unsigned EventRegistry::align_mask(EventId *event, unsigned size)
     return log2;
 }
 
-} /* namespace nmranet */
+} /* namespace openlcb */

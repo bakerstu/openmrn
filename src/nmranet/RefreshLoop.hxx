@@ -40,7 +40,7 @@
 #include "executor/Timer.hxx"
 #include "nmranet/WriteHelper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Abstract base class for components that need repeated execution (with a
@@ -110,6 +110,6 @@ private:
     members_type::iterator nextMember_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_REFRESHLOOP_HXX_

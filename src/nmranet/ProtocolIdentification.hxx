@@ -36,9 +36,9 @@
 #define _NMRANET_PROTOCOLIDENTIFICATION_HXX_
 
 #include "nmranet/Defs.hxx"
-//#include "nmranet/
+//#include "openlcb/
 
-namespace nmranet
+namespace openlcb
 {
 
 /** An instance of this class will add Protocol Identification Protocol to
@@ -119,6 +119,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(ProtocolIdentificationHandler);
 };
 
-} /* namespace nmranet */
+} /* namespace openlcb */
 
 #endif // _NMRANET_PROTOCOLIDENTIFICATION_HXX_

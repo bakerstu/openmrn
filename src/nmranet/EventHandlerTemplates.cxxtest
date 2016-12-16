@@ -7,7 +7,7 @@ using ::testing::_;
 using ::testing::Mock;
 using ::testing::StrictMock;
 
-namespace nmranet {
+namespace openlcb {
 
 class SimpleEventProxy : public ProxyEventHandler
 {
@@ -42,4 +42,4 @@ TEST(EventProxy, ConsumerRange) {
   proxy.HandleConsumerRangeIdentified(e, NULL, NULL);
 }
 
-}  // namespace nmranet
+}  // namespace openlcb

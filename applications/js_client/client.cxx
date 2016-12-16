@@ -51,14 +51,14 @@
 #include "nmranet/EventHandlerTemplates.hxx"
 #include "utils/JSWebsocketClient.hxx"
 
-const nmranet::NodeID NODE_ID = 0x0501010114DFULL;
+const openlcb::NodeID NODE_ID = 0x0501010114DFULL;
 
-nmranet::SimpleCanStack stack(NODE_ID);
+openlcb::SimpleCanStack stack(NODE_ID);
 
-nmranet::MockSNIPUserFile snip_user_file(
+openlcb::MockSNIPUserFile snip_user_file(
     "Javascript app", "No description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::MockSNIPUserFile::snip_user_file_path;
 
 bool stack_started = false;
 
@@ -129,9 +129,9 @@ private:
     {
         auto *f = stack.node()->iface()->global_message_write_flow();
         auto *b = get_allocation_result(f);
-        b->data()->reset(nmranet::Defs::MTI_PRODUCER_IDENTIFY, stack.node()->node_id(),
-                         nmranet::eventid_to_buffer(*nextEvent_));
-        b->data()->set_flag_dst(nmranet::GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
+        b->data()->reset(openlcb::Defs::MTI_PRODUCER_IDENTIFY, stack.node()->node_id(),
+                         openlcb::eventid_to_buffer(*nextEvent_));
+        b->data()->set_flag_dst(openlcb::GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(n_.reset(this));
         f->send(b);
         nextEvent_++;
@@ -149,7 +149,7 @@ private:
     StateFlowTimer timer_{this};
 } g_query_flow;
 
-class JSBitEventPC : private nmranet::BitEventInterface
+class JSBitEventPC : private openlcb::BitEventInterface
 {
 public:
     JSBitEventPC(std::string event_on, emscripten::val fn_on_cb,
@@ -176,9 +176,9 @@ public:
         lastValue_ = !lastValue_;
         auto *f = stack.node()->iface()->global_message_write_flow();
         auto *b = f->alloc();
-        b->data()->reset(nmranet::Defs::MTI_EVENT_REPORT,
+        b->data()->reset(openlcb::Defs::MTI_EVENT_REPORT,
             stack.node()->node_id(),
-            nmranet::eventid_to_buffer(lastValue_ ? event_on() : event_off()));
+            openlcb::eventid_to_buffer(lastValue_ ? event_on() : event_off()));
         f->send(b);
     }
 
@@ -188,7 +188,7 @@ private:
         return strtoll(s.c_str(), nullptr, 16);
     }
 
-    nmranet::Node *node() OVERRIDE
+    openlcb::Node *node() OVERRIDE
     {
         return stack.node();
     }
@@ -207,9 +207,9 @@ private:
         }
     }
 
-    nmranet::EventState get_current_state() OVERRIDE
+    openlcb::EventState get_current_state() OVERRIDE
     {
-        using nmranet::EventState;
+        using openlcb::EventState;
         if (!hasValue_)
             return EventState::UNKNOWN;
         return lastValue_ ? EventState::VALID : EventState::INVALID;
@@ -219,7 +219,7 @@ private:
     bool lastValue_{false};
     emscripten::val eventOnCallback_;
     emscripten::val eventOffCallback_;
-    nmranet::BitEventPC consumer_;
+    openlcb::BitEventPC consumer_;
 };
 
 void start_stack()

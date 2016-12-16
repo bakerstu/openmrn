@@ -43,7 +43,7 @@
 
 #include "nmranet/ConfigRenderer.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Class representing a particular location in the configuration space. All
@@ -301,6 +301,6 @@ public:
     }
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_CONFIGENTRY_HXX_

@@ -38,7 +38,7 @@
 #include "nmranet/If.hxx"
 #include "nmranet/SimpleInfoProtocol.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Structure representing the layout of the memory space for Simple Node
@@ -161,8 +161,8 @@ struct SnipDecodedData {
 /// @param output will be filled with the individual fields.
 ///
 void decode_snip_response(
-    const nmranet::Payload &payload, SnipDecodedData *output);
+    const openlcb::Payload &payload, SnipDecodedData *output);
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NRMANET_SIMPLENODEINFO_HXX_

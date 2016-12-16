@@ -52,15 +52,15 @@
 #include "nmranet/EventHandler.hxx"
 #include "nmranet/SimpleNodeInfo.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
-SimpleCanStackBase::SimpleCanStackBase(const nmranet::NodeID node_id)
+SimpleCanStackBase::SimpleCanStackBase(const openlcb::NodeID node_id)
 {
     AddAliasAllocator(node_id, &ifCan_);
 }
 
-SimpleCanStack::SimpleCanStack(const nmranet::NodeID node_id)
+SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
     , node_(&ifCan_, node_id)
 {
@@ -119,13 +119,13 @@ void SimpleCanStackBase::default_start_node()
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
         memory_config_handler()->registry()->insert(
-            node(), nmranet::MemoryConfigDefs::SPACE_CONFIG, space);
+            node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(
-    nmranet::TrainImpl *train, const char *fdi_xml, NodeID node_id)
+    openlcb::TrainImpl *train, const char *fdi_xml, NodeID node_id)
     // Note: this code tries to predict what the node id of the trainNode_ will
     // be. Unfortunately due to initialization order problems we cannot query
     // it in advance.
@@ -361,4 +361,4 @@ void SimpleCanStackBase::add_socketcan_port_select(
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
     init_main_buffer_pool();
 
-} // namespace nmranet
+} // namespace openlcb

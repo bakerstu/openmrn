@@ -38,7 +38,7 @@
 #include "nmranet/TractionDefs.hxx"
 #include "dcc/Defs.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Abstract base class for train implementations. This interface links the
 /// OpenLCB trains to the dcc packet sources.
@@ -90,7 +90,7 @@ public:
     virtual dcc::TrainAddressType legacy_address_type() = 0;
 };
 
-}  // namespace nmranet
+}  // namespace openlcb
 
 #endif // _NMRANET_TRAININTERFACE_HXX_
  

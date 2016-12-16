@@ -42,7 +42,7 @@
 #include "nmranet/MemoryConfig.hxx"
 #include "utils/Ewma.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// This structure will be filled in by BootloaderClient when the bootloading
@@ -760,4 +760,4 @@ private:
     PIPClient pipClient_{ifCan_};
 };
 
-} // namespace nmranet
+} // namespace openlcb

@@ -37,7 +37,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-namespace nmranet {
+namespace openlcb {
 
 extern const uint16_t __attribute__((weak)) CDI_EVENT_OFFSETS[] = {0};
 
@@ -86,4 +86,4 @@ R"cdi(<?xml version="1.0"?>
 )cdi";
 
 
-} // namespace nmranet
+} // namespace openlcb

@@ -39,7 +39,7 @@
 #include "utils/logging.h"
 #include "nmranet/If.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 TrainNode::TrainNode(TrainService *service, TrainImpl *train)
@@ -622,4 +622,4 @@ void TrainService::register_train(TrainNode *node)
     HASSERT(nodes_.find(node) != nodes_.end());
 }
 
-} // namespace nmranet
+} // namespace openlcb

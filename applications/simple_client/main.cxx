@@ -60,10 +60,10 @@ struct DummyPin
     }
 };
 
-nmranet::MockSNIPUserFile snip_user_file(
+openlcb::MockSNIPUserFile snip_user_file(
     "Default user name", "Default user description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::MockSNIPUserFile::snip_user_file_path;
 
 uint64_t node_id = 0;
 const char *hostname = "localhost";
@@ -121,10 +121,10 @@ int appl_main(int argc, char *argv[])
     parse_args(argc, argv);
 
     // Sets up the stack with the dynamic node ID and a fixed consumer.
-    nmranet::SimpleCanStack stack(node_id);
-    nmranet::GPIOBit bit(stack.node(), 0x0501010118010203, 0x0501010118010204,
+    openlcb::SimpleCanStack stack(node_id);
+    openlcb::GPIOBit bit(stack.node(), 0x0501010118010203, 0x0501010118010204,
                          GpioWrapper<DummyPin>::instance());
-    nmranet::BitEventConsumer consumer(&bit);
+    openlcb::BitEventConsumer consumer(&bit);
 
     // Connects to a TCP hub.
     stack.connect_tcp_gridconnect_hub(hostname, port);

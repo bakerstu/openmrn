@@ -49,22 +49,22 @@
 #include "os/os.h"
 #include "utils/constants.hxx"
 
-static const nmranet::NodeID NODE_ID = 0x0501010100F5ULL;
+static const openlcb::NodeID NODE_ID = 0x0501010100F5ULL;
 
-nmranet::SimpleCanStack stack(NODE_ID);
+openlcb::SimpleCanStack stack(NODE_ID);
 
-nmranet::TrainService traction_service(stack.iface());
+openlcb::TrainService traction_service(stack.iface());
 
-nmranet::MockSNIPUserFile snip_user_file("Deadrail Train",
+openlcb::MockSNIPUserFile snip_user_file("Deadrail Train",
                                          "Deadrail--description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
 
-using nmranet::Node;
-using nmranet::SimpleEventHandler;
-using nmranet::EventRegistry;
-using nmranet::EventReport;
-using nmranet::event_write_helper1;
-using nmranet::WriteHelper;
+using openlcb::Node;
+using openlcb::SimpleEventHandler;
+using openlcb::EventRegistry;
+using openlcb::EventReport;
+using openlcb::event_write_helper1;
+using openlcb::WriteHelper;
 
 int port = 12021;
 const char *host = "localhost";
@@ -72,7 +72,7 @@ const char *device_path = nullptr;
 int address = 1726;
 OVERRIDE_CONST(num_memory_spaces, 4);
 
-namespace nmranet
+namespace openlcb
 {
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "OpenMRN", "Logical train node", "No hardware here", "0.91"};
@@ -138,15 +138,15 @@ int appl_main(int argc, char *argv[])
         stack.connect_tcp_gridconnect_hub(host, port);
     }
 
-    nmranet::LoggingTrain train_impl(1732);
-    nmranet::TrainNodeForProxy train_node(&traction_service, &train_impl);
-    nmranet::FixedEventProducer<nmranet::TractionDefs::IS_TRAIN_EVENT>
+    openlcb::LoggingTrain train_impl(1732);
+    openlcb::TrainNodeForProxy train_node(&traction_service, &train_impl);
+    openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
     is_train_event_handler(&train_node);
-    nmranet::ProtocolIdentificationHandler pip(
+    openlcb::ProtocolIdentificationHandler pip(
         &train_node,
-        nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::SIMPLE_NODE_INFORMATION |
-        nmranet::Defs::TRACTION_CONTROL);
-    nmranet::SNIPHandler snip_handler{stack.iface(), nullptr, stack.info_flow()};
+        openlcb::Defs::EVENT_EXCHANGE | openlcb::Defs::SIMPLE_NODE_INFORMATION |
+        openlcb::Defs::TRACTION_CONTROL);
+    openlcb::SNIPHandler snip_handler{stack.iface(), nullptr, stack.info_flow()};
 
     stack.loop_executor();
     return 0;

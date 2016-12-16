@@ -38,10 +38,10 @@
 
 #include <string>
 
-namespace nmranet {
+namespace openlcb {
 
 typedef string Payload;
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_PAYLOAD_HXX_

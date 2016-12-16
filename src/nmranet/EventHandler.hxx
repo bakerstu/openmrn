@@ -41,7 +41,7 @@
 #include "utils/macros.h"
 #include "nmranet/WriteHelper.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 typedef uint64_t EventId;
@@ -120,9 +120,9 @@ extern WriteHelper event_write_helper4;
 class EventHandler
 {
 public:
-    using EventReport = nmranet::EventReport;
-    using EventRegistryEntry = nmranet::EventRegistryEntry;
-    using EventId = nmranet::EventId;
+    using EventReport = openlcb::EventReport;
+    using EventRegistryEntry = openlcb::EventRegistryEntry;
+    using EventId = openlcb::EventId;
 
     virtual ~EventHandler()
     {
@@ -287,6 +287,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(EventRegistry);
 };
 
-}; /* namespace nmranet */
+}; /* namespace openlcb */
 
 #endif // _NMRANET_EVENTHANDLER_HXX_

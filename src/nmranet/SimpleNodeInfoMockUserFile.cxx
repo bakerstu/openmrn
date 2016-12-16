@@ -36,7 +36,7 @@
 #include "SimpleNodeInfoMockUserFile.hxx"
 
 #ifdef __FreeRTOS__
-nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
+openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
                                             const char *user_description)
     : snipData_{2}
     , userFile_(MockSNIPUserFile::snip_user_file_path, &snipData_, false)
@@ -46,14 +46,14 @@ nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
             sizeof(snipData_.user_description));
 }
 
-nmranet::MockSNIPUserFile::~MockSNIPUserFile()
+openlcb::MockSNIPUserFile::~MockSNIPUserFile()
 {
 }
 
 #elif !defined(__WINNT__)
 #include "os/TempFile.hxx"
 
-nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
+openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
                                             const char *user_description)
   : userFile_(*TempDir::instance(), "snip_user_file")
 {
@@ -63,9 +63,9 @@ nmranet::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
             sizeof(snip_user_file_path));
 }
 
-char nmranet::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
+char openlcb::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
 
-nmranet::MockSNIPUserFile::~MockSNIPUserFile()
+openlcb::MockSNIPUserFile::~MockSNIPUserFile()
 {
 }
 

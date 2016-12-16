@@ -37,7 +37,7 @@
 #include "nmranet/ConfigUpdateFlow.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 namespace
 {
@@ -130,4 +130,4 @@ TEST_F(ConfigUpdateFlowTest, InitialLoad)
 }
 
 } // namespace
-} // namespace nmranet
+} // namespace openlcb

@@ -38,11 +38,11 @@
 #include "nmranet/ConfigEntry.hxx"
 #include "nmranet/MemoryConfig.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Constexpr base class for all group like structures.
-class GroupBaseEntry : public nmranet::ConfigReference
+class GroupBaseEntry : public openlcb::ConfigReference
 {
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBaseEntry, ConfigReference)
@@ -89,7 +89,7 @@ public:
 
 /// Base class for all CDI Group structures (including segment, and the whole
 /// CDI entry).
-class GroupBase : public nmranet::ConfigReference
+class GroupBase : public openlcb::ConfigReference
 {
 public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(GroupBase, ConfigReference)
@@ -126,74 +126,74 @@ public:
 /// @param ARGS Proxied additional arguments, forwarded to the Options
 /// class.
 #define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)             \
-    struct GroupName : public nmranet::GroupBase                               \
+    struct GroupName : public openlcb::GroupBase                               \
     {                                                                          \
         INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
-        constexpr nmranet::GroupBaseEntry entry(                               \
-            const nmranet::EntryMarker<START_LINE> &) const                    \
+        constexpr openlcb::GroupBaseEntry entry(                               \
+            const openlcb::EntryMarker<START_LINE> &) const                    \
         {                                                                      \
-            return nmranet::GroupBaseEntry(offset_);                           \
+            return openlcb::GroupBaseEntry(offset_);                           \
         }                                                                      \
-        static constexpr nmranet::GroupConfigOptions group_opts()              \
+        static constexpr openlcb::GroupConfigOptions group_opts()              \
         {                                                                      \
-            return nmranet::GroupConfigOptions(ARGS);                          \
+            return openlcb::GroupConfigOptions(ARGS);                          \
         }                                                                      \
         static constexpr unsigned size()                                       \
         {                                                                      \
             return GroupName(0).end_offset();                                  \
         }                                                                      \
         template <int LINE>                                                    \
-        constexpr nmranet::NoopGroupEntry entry(                               \
-            const nmranet::EntryMarker<LINE> &) const                          \
+        constexpr openlcb::NoopGroupEntry entry(                               \
+            const openlcb::EntryMarker<LINE> &) const                          \
         {                                                                      \
-            return nmranet::NoopGroupEntry(                                    \
-                entry(nmranet::EntryMarker<LINE - 1>()).end_offset());         \
+            return openlcb::NoopGroupEntry(                                    \
+                entry(openlcb::EntryMarker<LINE - 1>()).end_offset());         \
         }                                                                      \
         template <int LINE>                                                    \
         static void render_content_cdi(                                        \
-            const nmranet::EntryMarker<LINE> &, std::string *s)                \
+            const openlcb::EntryMarker<LINE> &, std::string *s)                \
         {                                                                      \
-            render_content_cdi(nmranet::EntryMarker<LINE - 1>(), s);           \
+            render_content_cdi(openlcb::EntryMarker<LINE - 1>(), s);           \
         }                                                                      \
         static void render_content_cdi(                                        \
-            const nmranet::EntryMarker<START_LINE> &, std::string *s)          \
+            const openlcb::EntryMarker<START_LINE> &, std::string *s)          \
         {                                                                      \
         }                                                                      \
         template <int LINE>                                                    \
         void __attribute__((always_inline))                                    \
-            recursive_handle_events(const nmranet::EntryMarker<LINE> &,        \
-                const nmranet::EventOffsetCallback &fn)                        \
+            recursive_handle_events(const openlcb::EntryMarker<LINE> &,        \
+                const openlcb::EventOffsetCallback &fn)                        \
         {                                                                      \
-            recursive_handle_events(nmranet::EntryMarker<LINE - 1>(), fn);     \
+            recursive_handle_events(openlcb::EntryMarker<LINE - 1>(), fn);     \
         }                                                                      \
         void __attribute__((always_inline))                                    \
-            recursive_handle_events(const nmranet::EntryMarker<START_LINE> &,  \
-                const nmranet::EventOffsetCallback &fn)                        \
+            recursive_handle_events(const openlcb::EntryMarker<START_LINE> &,  \
+                const openlcb::EventOffsetCallback &fn)                        \
         {                                                                      \
         }                                                                      \
                                                                                \
-        static constexpr nmranet::GroupConfigRenderer<GroupName>               \
+        static constexpr openlcb::GroupConfigRenderer<GroupName>               \
         config_renderer()                                                      \
         {                                                                      \
-            return nmranet::GroupConfigRenderer<GroupName>(1, GroupName(0));   \
+            return openlcb::GroupConfigRenderer<GroupName>(1, GroupName(0));   \
         }
 
 /// @todo (balazs.racz) the group config renderer should not get an instance of
 /// the current group.
 
 #define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
-    constexpr TYPE entry(const nmranet::EntryMarker<LINE> &) const             \
+    constexpr TYPE entry(const openlcb::EntryMarker<LINE> &) const             \
     {                                                                          \
         static_assert(                                                         \
             !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
             "May only have segments inside CDI.");                             \
         return TYPE(group_opts().is_cdi()                                      \
                 ? TYPE(0).group_opts().get_segment_offset()                    \
-                : entry(nmranet::EntryMarker<LINE - 1>()).end_offset());       \
+                : entry(openlcb::EntryMarker<LINE - 1>()).end_offset());       \
     }                                                                          \
     constexpr TYPE NAME() const                                                \
     {                                                                          \
-        return entry(nmranet::EntryMarker<LINE>());                            \
+        return entry(openlcb::EntryMarker<LINE>());                            \
     }                                                                          \
     static constexpr decltype(                                                 \
         TYPE::config_renderer())::OptionsType NAME##_options()                 \
@@ -201,16 +201,16 @@ public:
         return decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);    \
     }                                                                          \
     static void render_content_cdi(                                            \
-        const nmranet::EntryMarker<LINE> &, std::string *s)                    \
+        const openlcb::EntryMarker<LINE> &, std::string *s)                    \
     {                                                                          \
-        render_content_cdi(nmranet::EntryMarker<LINE - 1>(), s);               \
+        render_content_cdi(openlcb::EntryMarker<LINE - 1>(), s);               \
         TYPE::config_renderer().render_cdi(s, ##__VA_ARGS__);                  \
     }                                                                          \
     void __attribute__((always_inline))                                        \
-        recursive_handle_events(const nmranet::EntryMarker<LINE> &e,           \
-            const nmranet::EventOffsetCallback &fn)                            \
+        recursive_handle_events(const openlcb::EntryMarker<LINE> &e,           \
+            const openlcb::EventOffsetCallback &fn)                            \
     {                                                                          \
-        recursive_handle_events(nmranet::EntryMarker<LINE - 1>(), fn);         \
+        recursive_handle_events(openlcb::EntryMarker<LINE - 1>(), fn);         \
         entry(e).handle_events(fn);                                            \
     }
 
@@ -221,16 +221,16 @@ public:
 #define CDI_GROUP_END_HELPER(LINE)                                             \
     constexpr unsigned end_offset() const                                      \
     {                                                                          \
-        return entry(nmranet::EntryMarker<LINE>()).end_offset();               \
+        return entry(openlcb::EntryMarker<LINE>()).end_offset();               \
     }                                                                          \
     static void render_content_cdi(std::string *s)                             \
     {                                                                          \
-        return render_content_cdi(nmranet::EntryMarker<LINE>(), s);            \
+        return render_content_cdi(openlcb::EntryMarker<LINE>(), s);            \
     }                                                                          \
     void __attribute__((always_inline))                                        \
-        handle_events(const nmranet::EventOffsetCallback &fn)                  \
+        handle_events(const openlcb::EventOffsetCallback &fn)                  \
     {                                                                          \
-        recursive_handle_events(nmranet::EntryMarker<LINE>(), fn);             \
+        recursive_handle_events(openlcb::EntryMarker<LINE>(), fn);             \
     }                                                                          \
     }
 
@@ -357,7 +357,7 @@ public:
 
 /// Add this entry to the beginning of the CDI group to render an
 /// "<identification>" tag at the beginning of the output cdi.xml. Requires a
-/// global symbol of @ref nmranet::SNIP_STATIC_DATA to fill in the specific
+/// global symbol of @ref openlcb::SNIP_STATIC_DATA to fill in the specific
 /// values of the identification tree.
 class Identification : public ToplevelEntryBase
 {
@@ -413,7 +413,7 @@ CDI_GROUP_ENTRY(version, Uint16ConfigEntry, Name("Version"));
 CDI_GROUP_ENTRY(next_event, Uint16ConfigEntry, Name("Next event ID"));
 CDI_GROUP_END();
 
-} // namespace nmranet
+} // namespace openlcb
 
 /// Helper function defined in CompileCdiMain.cxx.
 template <typename CdiType>
@@ -431,11 +431,11 @@ template <> inline void render_all_cdi<0>()
 }
 
 /** Use this macro if additional CDI entries need to be rendered, in addition
- * to the nmranet::ConfigDef. Example usage:
+ * to the openlcb::ConfigDef. Example usage:
  *
  * } // namespace XXX -- RENDER_CDI will work only if at toplevel!
  *
- * RENDER_CDI(nmranet, ConfigDef, "CDI", 3);
+ * RENDER_CDI(openlcb, ConfigDef, "CDI", 3);
  *   this will create CDI_DATA and CDI_SIZE symbols.
  *
  * @param NS is the namespace without quotes

@@ -33,7 +33,7 @@
 
 #include "nmranet/Velocity.hxx"
 
-namespace nmranet
+namespace openlcb
 {
     
 /** Get the speed in DCC 128 speed step format.
@@ -219,4 +219,4 @@ void Velocity::set_dcc_14(uint8_t value)
     }
 }
     
-}; /* namespace nmranet */
+}; /* namespace openlcb */

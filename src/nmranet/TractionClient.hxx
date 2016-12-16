@@ -38,7 +38,7 @@
 #include "nmranet/If.hxx"
 #include "nmranet/Defs.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /** This class helps waiting for traction responses.
@@ -95,8 +95,8 @@ namespace nmranet
 class TractionResponseHandler : public IncomingMessageStateFlow
 {
 public:
-    TractionResponseHandler(nmranet::If *iface,
-                            nmranet::Node *local_node)
+    TractionResponseHandler(openlcb::If *iface,
+                            openlcb::Node *local_node)
         : IncomingMessageStateFlow(iface)
         , expectedDst_(local_node)
         , trigger_(nullptr)
@@ -140,15 +140,15 @@ private:
     void start_listening()
     {
         iface()->dispatcher()->register_handler(
-            this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
-            nmranet::Defs::MTI_EXACT);
+            this, openlcb::Defs::MTI_TRACTION_CONTROL_REPLY,
+            openlcb::Defs::MTI_EXACT);
     }
 
     void stop_listening()
     {
         iface()->dispatcher()->unregister_handler(
-            this, nmranet::Defs::MTI_TRACTION_CONTROL_REPLY,
-            nmranet::Defs::MTI_EXACT);
+            this, openlcb::Defs::MTI_TRACTION_CONTROL_REPLY,
+            openlcb::Defs::MTI_EXACT);
     }
 
     Action entry() OVERRIDE
@@ -209,14 +209,14 @@ private:
         return exit();
     }
 
-    nmranet::NodeHandle expectedSrc_;
-    nmranet::Node *expectedDst_;
+    openlcb::NodeHandle expectedSrc_;
+    openlcb::Node *expectedDst_;
     // First byte of the response message.
     uint8_t expectedType_;
     ::Timer *trigger_;
     Buffer<GenMessage> *response_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _NMRANET_TRACTIONCLIENT_HXX_

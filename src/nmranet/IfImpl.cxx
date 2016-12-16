@@ -35,7 +35,7 @@
 
 #include "nmranet/IfImpl.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 StateFlowBase::Action WriteFlowBase::addressed_entry()
@@ -185,4 +185,4 @@ void Node::protocol_support_reply(NodeHandle dst)
 
 #endif // if 0
 
-} // namespace nmranet
+} // namespace openlcb
