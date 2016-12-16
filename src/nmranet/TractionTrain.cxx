@@ -593,7 +593,7 @@ struct TrainService::Impl
         /// 1 if the voluntary lock protocol has set this train to be reserved.
         unsigned reserved_ : 1;
         TrainService *trainService_;
-        Buffer<NMRAnetMessage> *response_;
+        Buffer<GenMessage> *response_;
     };
 
     TractionRequestFlow traction_;

@@ -289,7 +289,7 @@ public:
 
     private:
         Impl *impl_;
-        Buffer<NMRAnetMessage> *response_;
+        Buffer<GenMessage> *response_;
         unsigned reserved_ : 1;
     };
 

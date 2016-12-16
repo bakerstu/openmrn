@@ -484,7 +484,7 @@ public:
     Action send_to_if()
     {
         auto *b = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage *m = b->data();
+        GenMessage *m = b->data();
         m->mti = static_cast<Defs::MTI>(
             (id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload = buf_;
@@ -628,7 +628,7 @@ public:
     Action send_to_if()
     {
         auto *b = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage *m = b->data();
+        GenMessage *m = b->data();
         m->mti = static_cast<Defs::MTI>(
             (id_ & CanDefs::MTI_MASK) >> CanDefs::MTI_SHIFT);
         m->payload.swap(buf_);

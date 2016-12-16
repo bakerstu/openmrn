@@ -69,7 +69,7 @@ public:
         set_terminated();
     }
 
-    void write_datagram(Buffer<NMRAnetMessage> *b, unsigned priority) OVERRIDE
+    void write_datagram(Buffer<GenMessage> *b, unsigned priority) OVERRIDE
     {
         if (!b->data()->mti)
         {
@@ -254,7 +254,7 @@ private:
     };
 
     /// Callback when a matching response comes in on the bus.
-    void handle_response(NMRAnetMessage *message)
+    void handle_response(GenMessage *message)
     {
         //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
         //    (int)message->mti, (int)message->src.alias);
@@ -575,7 +575,7 @@ public:
     {
         HASSERT(!errorCode_);
         auto *f = get_allocation_result(if_can()->dispatcher());
-        NMRAnetMessage *m = f->data();
+        GenMessage *m = f->data();
         m->mti = Defs::MTI_DATAGRAM;
         m->payload.swap(localBuffer_);
         m->dst = dst_;

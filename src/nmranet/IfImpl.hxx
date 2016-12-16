@@ -42,11 +42,11 @@ namespace nmranet
 {
 
 /** Implementation of the hardware-independent parts of the write flows. */
-class WriteFlowBase : public StateFlow<Buffer<NMRAnetMessage>, QList<4>>
+class WriteFlowBase : public StateFlow<Buffer<GenMessage>, QList<4>>
 {
 public:
     WriteFlowBase(If *async_if)
-        : StateFlow<Buffer<NMRAnetMessage>, QList<4>>(async_if)
+        : StateFlow<Buffer<GenMessage>, QList<4>>(async_if)
     {
     }
 
@@ -85,7 +85,7 @@ protected:
     // void cleanup();
 
     /// Returns the NMRAnet message we are trying to send.
-    NMRAnetMessage *nmsg()
+    GenMessage *nmsg()
     {
         return message()->data();
     }
@@ -160,7 +160,7 @@ public:
     /// Handler callback for incoming messages.
     Action entry() override
     {
-        NMRAnetMessage *m = message()->data();
+        GenMessage *m = message()->data();
         if (m->dst.id)
         {
             // Addressed message.
@@ -222,7 +222,7 @@ public:
     {
         auto *b =
             get_allocation_result(iface()->global_message_write_flow());
-        NMRAnetMessage *m = b->data();
+        GenMessage *m = b->data();
         NodeID id = srcNode_->node_id();
         m->reset(Defs::MTI_VERIFIED_NODE_ID_NUMBER, id, node_id_to_buffer(id));
         iface()->global_message_write_flow()->send(b);
@@ -233,7 +233,7 @@ public:
     {
         auto *b =
             get_allocation_result(iface()->global_message_write_flow());
-        NMRAnetMessage *m = b->data();
+        GenMessage *m = b->data();
         // This is called on the main executor of the interface, this we are
         // allowed to access the local nodes cache.
         NodeID id = srcNode_->node_id();

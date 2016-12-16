@@ -122,12 +122,12 @@ private:
         if (dst_ == global())
         {
             auto *f = node_->iface()->global_message_write_flow();
-            Buffer<NMRAnetMessage> *b = f->cast_alloc(entry);
+            Buffer<GenMessage> *b = f->cast_alloc(entry);
             b->data()->reset(mti_, node_->node_id(), buffer_);
             if (waitForLocalLoopback_)
             {
                 b->data()->set_flag_dst(
-                    NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+                    GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
             }
             b->set_done(&done_);
             f->send(b, b->data()->priority());
@@ -140,7 +140,7 @@ private:
             if (waitForLocalLoopback_)
             {
                 b->data()->set_flag_dst(
-                    NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+                    GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
             }
             b->set_done(&done_);
             f->send(b, b->data()->priority());

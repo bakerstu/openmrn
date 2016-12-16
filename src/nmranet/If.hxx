@@ -141,9 +141,9 @@ inline unsigned node_low(NodeID id) {
  * sent to all handlers that expressed interest in that MTI. When all those
  * handlers are done, the instance should be freed. Currently the instance is
  * copied by the dispatcher separately for each handler. */
-struct NMRAnetMessage
+struct GenMessage
 {
-    NMRAnetMessage()
+    GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
     void reset(Defs::MTI mti, NodeID src, NodeHandle dst, const string &payload)
@@ -242,7 +242,7 @@ struct NMRAnetMessage
 
 /// Interface class for all handlers that can be registered in the dispatcher
 /// to receive incoming NMRAnet messages.
-typedef FlowInterface<Buffer<NMRAnetMessage>> MessageHandler;
+typedef FlowInterface<Buffer<GenMessage>> MessageHandler;
 
 /// Abstract class representing an OpenLCB Interface. All interaction between
 /// the local software stack and the physical bus has to go through this
@@ -278,7 +278,7 @@ public:
     }
 
     /** Type of the dispatcher of incoming NMRAnet messages. */
-    typedef DispatchFlow<Buffer<NMRAnetMessage>, 4> MessageDispatchFlow;
+    typedef DispatchFlow<Buffer<GenMessage>, 4> MessageDispatchFlow;
 
     /** @return Dispatcher of incoming NMRAnet messages. */
     MessageDispatchFlow *dispatcher()
@@ -404,7 +404,7 @@ private:
 
 /// Message handlers that are implemented as state flows should derive from
 /// this class.
-typedef StateFlow<Buffer<NMRAnetMessage>, QList<4>> MessageStateFlowBase;
+typedef StateFlow<Buffer<GenMessage>, QList<4>> MessageStateFlowBase;
 
 /** Base class for incoming message handler flows. */
 class IncomingMessageStateFlow
@@ -422,7 +422,7 @@ public:
     }
 
     /// Returns the NMRAnet message we received.
-    NMRAnetMessage *nmsg()
+    GenMessage *nmsg()
     {
         return message()->data();
     }

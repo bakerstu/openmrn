@@ -77,10 +77,10 @@ TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValue(0xFF01020304050607ULL)) //,
                           )),
             _));
@@ -92,10 +92,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
@@ -126,10 +126,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
@@ -176,9 +176,9 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramThenStartMiddle)
     return o;
 }
 
-::std::ostream &operator<<(::std::ostream &o, const NMRAnetMessage &m)
+::std::ostream &operator<<(::std::ostream &o, const GenMessage &m)
 {
-    o << "an NMRAnetMessage"
+    o << "a GenMessage"
       << " of MTI " << StringPrintf("%04x", m.mti) << " from " << m.src
       << " to " << m.dst << " to node " << m.dstNode << " with payload "
       << m.payload;
@@ -195,10 +195,10 @@ TEST_F(AsyncRawDatagramTest, MaxSizeDatagram)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValueString("01234567112345672123456731"
                                                     "23456741234567512345676123"
                                                     "45677123456781234567")) //,
@@ -236,10 +236,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValueString(
                                     "01234567112345672123456731234567")) //,
                           )),
@@ -247,10 +247,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesInterleavedSingle)
     EXPECT_CALL(
         handler_,
         handle_message(
-            Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                          Field(&NMRAnetMessage::dstNode, node_),
-                          // Field(&NMRAnetMessage::payload, NotNull()),
-                          Field(&NMRAnetMessage::payload,
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          // Field(&GenMessage::payload, NotNull()),
+                          Field(&GenMessage::payload,
                                 IsBufferValueString("01234")) //,
                           )),
             _));
@@ -270,11 +270,11 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x577)),
-                // Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x577)),
+                // Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
             _));
@@ -283,12 +283,12 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                // Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x555)),
+                // Field(&GenMessage::payload, NotNull()),
                 Field(
-                    &NMRAnetMessage::payload,
+                    &GenMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
             _));
@@ -309,11 +309,11 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&NMRAnetMessage::dstNode, &other_node),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                // Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&GenMessage::dstNode, &other_node),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x555)),
+                // Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValueString("0123456711234567")) //,
                 )),
             _));
@@ -322,12 +322,12 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
         handler_,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_DATAGRAM),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x555)),
-                // Field(&NMRAnetMessage::payload, NotNull()),
+                Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x555)),
+                // Field(&GenMessage::payload, NotNull()),
                 Field(
-                    &NMRAnetMessage::payload,
+                    &GenMessage::payload,
                     IsBufferValueString("01234567112345672123456731234567")) //,
                 )),
             _));

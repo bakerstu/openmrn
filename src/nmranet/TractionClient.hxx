@@ -118,7 +118,7 @@ public:
     }
 
     /** Caller must unref this buffer when done with it. */
-    Buffer<NMRAnetMessage> *response()
+    Buffer<GenMessage> *response()
     {
         return response_;
     }
@@ -214,7 +214,7 @@ private:
     // First byte of the response message.
     uint8_t expectedType_;
     ::Timer *trigger_;
-    Buffer<NMRAnetMessage> *response_;
+    Buffer<GenMessage> *response_;
 };
 
 } // namespace nmranet

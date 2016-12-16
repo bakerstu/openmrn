@@ -94,7 +94,7 @@ private:
         NodeID id = node()->node_id();
         b->data()->reset(
             Defs::MTI_INITIALIZATION_COMPLETE, id, node_id_to_buffer(id));
-        b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+        b->data()->set_flag_dst(GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(&done_);
         node()->iface()->global_message_write_flow()->send(
             b, b->data()->priority());
@@ -122,7 +122,7 @@ private:
     {
         auto *b = get_allocation_result(node()->iface()->dispatcher());
         b->set_done(done_.reset(this));
-        NMRAnetMessage *m = b->data();
+        GenMessage *m = b->data();
         m->mti = Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
         m->payload.clear();
         m->dst.id = node()->node_id();

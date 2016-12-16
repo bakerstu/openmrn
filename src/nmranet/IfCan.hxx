@@ -274,13 +274,13 @@ private:
         }
 
         /// Handler callback for incoming messages.
-        void send(Buffer<NMRAnetMessage> *message, unsigned priority) OVERRIDE
+        void send(Buffer<GenMessage> *message, unsigned priority) OVERRIDE
         {
-            AutoReleaseBuffer<NMRAnetMessage> ab(message);
+            AutoReleaseBuffer<GenMessage> ab(message);
             if (aliasWaiting_ == 0)
                 return;
 
-            NMRAnetMessage *msg = message->data();
+            GenMessage *msg = message->data();
             if (msg->src.alias != aliasWaiting_)
                 return;
 

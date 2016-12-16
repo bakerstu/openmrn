@@ -151,7 +151,7 @@ private:
         {
             return call_immediately(STATE(send_pip_request));
         }
-        Buffer<NMRAnetMessage> *b;
+        Buffer<GenMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
@@ -203,7 +203,7 @@ private:
 
     Action bootload_using_stream()
     {
-        Buffer<NMRAnetMessage> *b;
+        Buffer<GenMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);
@@ -412,7 +412,7 @@ private:
             STATE(received_init_stream));
     }
 
-    void stream_initiate_replied(Buffer<NMRAnetMessage> *message)
+    void stream_initiate_replied(Buffer<GenMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst(), message->data()->src))
@@ -535,7 +535,7 @@ private:
             STATE(stream_proceed_timeout));
     }
 
-    void stream_proceed_received(Buffer<NMRAnetMessage> *message)
+    void stream_proceed_received(Buffer<GenMessage> *message)
     {
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst(), message->data()->src))
@@ -635,7 +635,7 @@ private:
 
     Action next_dg_write_datagram()
     {
-        Buffer<NMRAnetMessage> *b;
+        Buffer<GenMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload = MemoryConfigDefs::write_datagram(message()->data()->memory_space, message()->data()->offset + bufferOffset_);
         unsigned len = message()->data()->data.size() - bufferOffset_;
@@ -695,7 +695,7 @@ private:
 
     Action reboot_with_dg_client()
     {
-        Buffer<NMRAnetMessage> *b;
+        Buffer<GenMessage> *b;
         mainBufferPool->alloc(&b);
         DatagramPayload payload;
         payload.push_back(DatagramDefs::CONFIGURATION);

@@ -468,8 +468,8 @@ class MockMessageHandler : public MessageHandler
 {
 public:
     MOCK_METHOD2(handle_message,
-                 void(NMRAnetMessage *message, unsigned priority));
-    virtual void send(Buffer<NMRAnetMessage> *message, unsigned priority)
+                 void(GenMessage *message, unsigned priority));
+    virtual void send(Buffer<GenMessage> *message, unsigned priority)
     {
         handle_message(message->data(), priority);
         message->unref();

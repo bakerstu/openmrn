@@ -67,7 +67,7 @@ StateFlowBase::Action WriteFlowBase::send_to_local_node()
 StateFlowBase::Action WriteFlowBase::global_entry()
 {
     if (!message()->data()->has_flag_dst(
-            NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK))
+            GenMessage::WAIT_FOR_LOCAL_LOOPBACK))
     {
         // We do not pass on the done notifiable with the loopbacked message.
         message()->set_done(nullptr);

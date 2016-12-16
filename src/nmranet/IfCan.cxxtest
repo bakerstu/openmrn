@@ -243,9 +243,9 @@ TEST_F(AsyncMessageCanTests, WriteByMTIGlobalDoesLoopback)
     StrictMock<MockMessageHandler> h;
     EXPECT_CALL(
         h, handle_message(
-               Pointee(AllOf(Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
-                             // Field(&NMRAnetMessage::payload, NotNull()),
-                             Field(&NMRAnetMessage::payload,
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             // Field(&GenMessage::payload, NotNull()),
+                             Field(&GenMessage::payload,
                                    IsBufferValue(UINT64_C(0x0102030405060708))))),
                _));
     ifCan_->dispatcher()->register_handler(&h, 0, 0);
@@ -266,15 +266,15 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedDoesLoopback)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
-                //Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                //Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValue(UINT64_C(0x0102030405060708))),
-//                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+//                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
                 /// @TODO(balazs.racz): reenable node check.
-                Field(&NMRAnetMessage::dstNode, node_))),
+                Field(&GenMessage::dstNode, node_))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
@@ -298,15 +298,15 @@ TEST_F(AsyncNodeTest, WriteByMTIAddressedByAliasDoesLoopback)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
-                //Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                //Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValue(UINT64_C(0x0102030405060708))),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
                 /// @TODO(balazs.racz): reenable node check.
-                Field(&NMRAnetMessage::dstNode, node_))),
+                Field(&GenMessage::dstNode, node_))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0, 0);
 
@@ -436,13 +436,13 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
-                Field(&NMRAnetMessage::dst, NodeHandle({0, 0})),
-                Field(&NMRAnetMessage::dstNode, IsNull()),
-//                Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, id)),
+                Field(&GenMessage::dst, NodeHandle({0, 0})),
+                Field(&GenMessage::dstNode, IsNull()),
+//                Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValue(UINT64_C(0x0102030405060708))))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x5B4, 0xffff);
@@ -461,13 +461,13 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_EVENT_REPORT),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
-                Field(&NMRAnetMessage::dst, NodeHandle({0,0})),
-                Field(&NMRAnetMessage::dstNode, IsNull()),
-                //  Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&GenMessage::dst, NodeHandle({0,0})),
+                Field(&GenMessage::dstNode, IsNull()),
+                //  Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       IsBufferValue(UINT64_C(0x0102030405060708))))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x5B4, 0xffff);
@@ -486,13 +486,13 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, id)),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, id)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_))),
+                Field(&GenMessage::dstNode, node_))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
 
@@ -518,13 +518,13 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfMultiFrameOK)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, (Defs::MTI)0x5E8),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::mti, (Defs::MTI)0x5E8),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::payload,
                       IsBufferValueString("123456789012345678")))),
             _));
 
@@ -547,26 +547,26 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfMultiFrameConcurrentReassembly)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, (Defs::MTI)0x5E8),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x210)),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::mti, (Defs::MTI)0x5E8),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x210)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::payload,
                       IsBufferValueString("123456789012345678")))),
             _));
     EXPECT_CALL(
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, (Defs::MTI)0x5E8),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, 0x211)),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::mti, (Defs::MTI)0x5E8),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, 0x211)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::dstNode, node_),
+                Field(&GenMessage::payload,
                       IsBufferValueString("abcdefghijabcdef")))),
             _));
 
@@ -583,15 +583,15 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
         h,
         handle_message(
             Pointee(AllOf(
-                Field(&NMRAnetMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::alias, alias)),
-                Field(&NMRAnetMessage::src, Field(&NodeHandle::id, 0)),
-                Field(&NMRAnetMessage::dst, Field(&NodeHandle::alias, 0x22A)),
-                Field(&NMRAnetMessage::dst,
+                Field(&GenMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, 0)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
                       Field(&NodeHandle::id, TEST_NODE_ID)),
-                Field(&NMRAnetMessage::dstNode, node_),
-                //Field(&NMRAnetMessage::payload, NotNull()),
-                Field(&NMRAnetMessage::payload,
+                Field(&GenMessage::dstNode, node_),
+                //Field(&GenMessage::payload, NotNull()),
+                Field(&GenMessage::payload,
                       node_id_to_buffer(UINT64_C(0x010203040506))))),
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);

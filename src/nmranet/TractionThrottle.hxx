@@ -351,7 +351,7 @@ private:
             return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
 
-        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        AutoReleaseBuffer<GenMessage> rb(handler_.response());
         const string &payload = handler_.response()->data()->payload;
         if (payload.size() < 3)
         {
@@ -407,9 +407,9 @@ private:
         }
     }
 
-    void speed_reply(Buffer<NMRAnetMessage> *msg)
+    void speed_reply(Buffer<GenMessage> *msg)
     {
-        AutoReleaseBuffer<NMRAnetMessage> rb(msg);
+        AutoReleaseBuffer<GenMessage> rb(msg);
         if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
         {
             return;
@@ -472,7 +472,7 @@ private:
             return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
 
-        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        AutoReleaseBuffer<GenMessage> rb(handler_.response());
         const string &payload = handler_.response()->data()->payload;
         if (payload.size() < 9)
         {
@@ -529,7 +529,7 @@ private:
             return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
 
-        AutoReleaseBuffer<NMRAnetMessage> rb(handler_.response());
+        AutoReleaseBuffer<GenMessage> rb(handler_.response());
         const string &payload = handler_.response()->data()->payload;
         if (payload.size() < 3)
         {

@@ -144,9 +144,9 @@ private:
     }
 
     // Callback from the response handler.
-    void handle_response(Buffer<NMRAnetMessage> *message)
+    void handle_response(Buffer<GenMessage> *message)
     {
-        AutoReleaseBuffer<NMRAnetMessage> rb(message);
+        AutoReleaseBuffer<GenMessage> rb(message);
         if (src_ != message->data()->dstNode ||
             !iface()->matching_node(dst_, message->data()->src))
         {
@@ -206,7 +206,7 @@ private:
         {
         }
 
-        void send(Buffer<NMRAnetMessage> *message, unsigned priority) OVERRIDE
+        void send(Buffer<GenMessage> *message, unsigned priority) OVERRIDE
         {
             parent_->handle_response(message);
         }

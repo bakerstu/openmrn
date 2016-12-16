@@ -60,7 +60,7 @@ struct SimpleInfoResponse
      * NMRAnetMessage (i.e., flips destination and source from that
      * message). The descriptor array must end with an EOF entry and must stay
      * alive so long as the message is not sent. */
-    void reset(const NMRAnetMessage *msg_to_respond,
+    void reset(const GenMessage *msg_to_respond,
                const SimpleInfoDescriptor *desc,
                Defs::MTI response_mti)
     {
@@ -366,13 +366,13 @@ private:
         {
             b->data()->payload.push_back(current_byte());
         }
-        b->data()->set_flag_dst(NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+        b->data()->set_flag_dst(GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
         if (useContinueBits_)
         {
             if (!is_eof())
             {
                 b->data()->set_flag_dst(
-                    NMRAnetMessage::DSTFLAG_NOT_LAST_MESSAGE);
+                    GenMessage::DSTFLAG_NOT_LAST_MESSAGE);
             }
 
             if (isFirstMessage_)
@@ -382,7 +382,7 @@ private:
             else
             {
                 b->data()->set_flag_dst(
-                    NMRAnetMessage::DSTFLAG_NOT_FIRST_MESSAGE);
+                    GenMessage::DSTFLAG_NOT_FIRST_MESSAGE);
             }
         }
         b->set_done(n_.reset(this));

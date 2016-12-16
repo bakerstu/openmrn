@@ -94,7 +94,7 @@ public:
      * @TODO(balazs.racz): revisit the type of DatagramPayload and ensure that
      * there will be no extra copy of the data happening.
      */
-    virtual void write_datagram(Buffer<NMRAnetMessage> *b,
+    virtual void write_datagram(Buffer<GenMessage> *b,
                                 unsigned priority = UINT_MAX) = 0;
 
     /** Requests cancelling the datagram send operation. Will notify the done

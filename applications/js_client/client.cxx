@@ -131,7 +131,7 @@ private:
         auto *b = get_allocation_result(f);
         b->data()->reset(nmranet::Defs::MTI_PRODUCER_IDENTIFY, stack.node()->node_id(),
                          nmranet::eventid_to_buffer(*nextEvent_));
-        b->data()->set_flag_dst(nmranet::NMRAnetMessage::WAIT_FOR_LOCAL_LOOPBACK);
+        b->data()->set_flag_dst(nmranet::GenMessage::WAIT_FOR_LOCAL_LOOPBACK);
         b->set_done(n_.reset(this));
         f->send(b);
         nextEvent_++;

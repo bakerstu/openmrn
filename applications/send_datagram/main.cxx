@@ -242,7 +242,7 @@ int appl_main(int argc, char *argv[])
         if (wait_for_response) {
             g_datagram_can.registry()->insert(&g_node, payload[0], &printer);
         }
-        Buffer<nmranet::NMRAnetMessage> *b;
+        Buffer<nmranet::GenMessage> *b;
         mainBufferPool->alloc(&b);
 
         NodeHandle dst;
