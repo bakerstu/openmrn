@@ -54,7 +54,7 @@ public:
     MOCK_METHOD3(FN, void(const EventRegistryEntry &, EventReport *event,      \
                           BarrierNotifiable *done))
 
-    DEFPROXYFN(HandleEventReport);
+    DEFPROXYFN(handle_event_report);
     DEFPROXYFN(handle_consumer_identified);
     DEFPROXYFN(handle_consumer_range_identified);
     DEFPROXYFN(handle_producer_identified);

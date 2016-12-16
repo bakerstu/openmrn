@@ -37,7 +37,7 @@ TEST_F(AsyncEventTest, Setup)
 TEST_F(AsyncEventTest, MockEventHandler)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
-    EXPECT_CALL(h1_, HandleEventReport(_, _, _))
+    EXPECT_CALL(h1_, handle_event_report(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     send_packet(":X195B4621N0102030405060702;");
 }
@@ -46,7 +46,7 @@ TEST_F(AsyncEventTest, EventReportEventField)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
-        h1_, HandleEventReport(_,
+        h1_, handle_event_report(_,
                  Pointee(Field(&EventReport::event, 0x0102030405060702ULL)), _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     send_packet(":X195B4621N0102030405060702;");
@@ -60,7 +60,7 @@ TEST_F(AsyncEventTest, EventReportFields)
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
         h1_,
-        HandleEventReport(_,
+        handle_event_report(_,
             Pointee(AllOf(
                 Field(&EventReport::src_node, Field(&NodeHandle::alias, alias)),
                 Field(&EventReport::src_node, Field(&NodeHandle::id, node_id)),
@@ -77,7 +77,7 @@ TEST_F(AsyncEventTest, EventReportUnknownNode)
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
         h1_,
-        HandleEventReport(_,
+        handle_event_report(_,
             Pointee(AllOf(
                 Field(&EventReport::src_node, Field(&NodeHandle::alias, alias)),
                 Field(&EventReport::src_node, Field(&NodeHandle::id, 0)),
@@ -93,7 +93,7 @@ TEST_F(AsyncEventTest, ProducerRangeIdentified)
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
         h1_,
-        HandleProducerRangeIdentified(_,
+        handle_producer_range_identified(_,
             Pointee(AllOf(Field(&EventReport::event, 0x0102030405060000ULL),
                           Field(&EventReport::mask, 0xFFFF))),
             _)).WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
@@ -104,7 +104,7 @@ TEST_F(AsyncEventTest, ManyEvents)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
-        h1_, HandleEventReport(_,
+        h1_, handle_event_report(_,
                  Pointee(Field(&EventReport::event, 0x01020304050655aaULL)), _))
         .Times(100)
         .WillRepeatedly(WithArg<2>(Invoke(&InvokeNotification)));

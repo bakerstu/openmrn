@@ -22,12 +22,12 @@ protected:
         {
         }
 
-        virtual EventState GetCurrentState()
+        EventState get_current_state() override
         {
             return parent_->hwState_ ? EventState::VALID : EventState::INVALID;
         }
 
-        void SetState(bool new_value) OVERRIDE
+        void set_state(bool new_value) override
         {
             DIE("setstate should not be implemented");
         }

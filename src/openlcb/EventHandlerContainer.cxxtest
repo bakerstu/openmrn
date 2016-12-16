@@ -209,9 +209,9 @@ TEST_F(EventHandlerTests, SimpleRunTest)
                                                 64);
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0),
                                                 64);
-    EXPECT_CALL(h1_, HandleEventReport(_, _, _))
+    EXPECT_CALL(h1_, handle_event_report(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleEventReport(_, _, _))
+    EXPECT_CALL(h2_, handle_event_report(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     send_message(kEventReportMti, kTestEventId);
     wait();
@@ -221,9 +221,9 @@ TEST_F(EventHandlerTests, SimpleRunTest2)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
-    EXPECT_CALL(h1_, HandleEventReport(_, _, _))
+    EXPECT_CALL(h1_, handle_event_report(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleEventReport(_, _, _))
+    EXPECT_CALL(h2_, handle_event_report(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     send_packet(":X195B4111N0102030405060708;");
     wait();
@@ -233,9 +233,9 @@ TEST_F(EventHandlerTests, Run100EventsTest)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
-    EXPECT_CALL(h1_, HandleEventReport(_, _, _)).Times(100).WillRepeatedly(
+    EXPECT_CALL(h1_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
         WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleEventReport(_, _, _)).Times(100).WillRepeatedly(
+    EXPECT_CALL(h2_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
         WithArg<2>(Invoke(&InvokeNotification)));
     for (int i = 0; i < 100; i++)
     {
@@ -250,13 +250,13 @@ TEST_F(EventHandlerTests, EventsOrderTest)
     {
         InSequence s;
 
-        EXPECT_CALL(h1_, HandleEventReport(_,
+        EXPECT_CALL(h1_, handle_event_report(_,
                              Field(&EventReport::event, kTestEventId + 0), _))
             .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-        EXPECT_CALL(h1_, HandleEventReport(_,
+        EXPECT_CALL(h1_, handle_event_report(_,
                              Field(&EventReport::event, kTestEventId + 1), _))
             .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-        EXPECT_CALL(h1_, HandleEventReport(_,
+        EXPECT_CALL(h1_, handle_event_report(_,
                              Field(&EventReport::event, kTestEventId + 2), _))
             .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     }
@@ -273,9 +273,9 @@ TEST_F(EventHandlerTests, GlobalRunTest1)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
-    EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _, _))
+    EXPECT_CALL(h1_, handle_identify_global(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _, _))
+    EXPECT_CALL(h2_, handle_identify_global(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
     auto *b = ifCan_->dispatcher()->alloc();
     b->data()->reset(kGlobalIdentifyEvents, 0, "");
@@ -287,13 +287,13 @@ TEST_F(EventHandlerTests, GlobalAndLocal)
 {
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
-    EXPECT_CALL(h1_, HandleIdentifyGlobal(_, _, _))
+    EXPECT_CALL(h1_, handle_identify_global(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleIdentifyGlobal(_, _, _))
+    EXPECT_CALL(h2_, handle_identify_global(_, _, _))
         .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h1_, HandleEventReport(_, _, _)).Times(100).WillRepeatedly(
+    EXPECT_CALL(h1_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
         WithArg<2>(Invoke(&InvokeNotification)));
-    EXPECT_CALL(h2_, HandleEventReport(_, _, _)).Times(100).WillRepeatedly(
+    EXPECT_CALL(h2_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
         WithArg<2>(Invoke(&InvokeNotification)));
     send_packet(":X19970111N;");
     for (int i = 0; i < 100; i++)

@@ -29,17 +29,17 @@ private:
 TEST(EventProxy, TestHandleEvent) {
   StrictMock<MockEventHandler> inner_handler;
   SimpleEventProxy proxy(&inner_handler);
-  EXPECT_CALL(inner_handler, HandleEventReport(_, _, _)).Times(1);
+  EXPECT_CALL(inner_handler, handle_event_report(_, _, _)).Times(1);
   EventRegistryEntry e(nullptr, 0);
-  proxy.HandleEventReport(e, NULL, NULL);
+  proxy.handle_event_report(e, NULL, NULL);
 }
 
 TEST(EventProxy, ConsumerRange) {
   StrictMock<MockEventHandler> inner_handler;
   SimpleEventProxy proxy(&inner_handler);
-  EXPECT_CALL(inner_handler, HandleConsumerRangeIdentified(_, _, _)).Times(1);
+  EXPECT_CALL(inner_handler, handle_consumer_range_identified(_, _, _)).Times(1);
   EventRegistryEntry e(nullptr, 0);
-  proxy.HandleConsumerRangeIdentified(e, NULL, NULL);
+  proxy.handle_consumer_range_identified(e, NULL, NULL);
 }
 
 }  // namespace openlcb

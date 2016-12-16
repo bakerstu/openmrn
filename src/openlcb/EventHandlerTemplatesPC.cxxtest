@@ -142,10 +142,10 @@ TEST_F(NetworkInitializedBitTest, InitialGlobalIdentifyUnknown) {
 }
 
 TEST_F(NetworkInitializedBitTest, LocalSetToExport) {
-    bit_.SetState(true);
+    bit_.set_state(true);
     EXPECT_TRUE(bit_.get_local_state());
     EXPECT_TRUE(bit_.is_network_state_known());
-    bit_.SetState(false);
+    bit_.set_state(false);
     EXPECT_FALSE(bit_.get_local_state());
     EXPECT_TRUE(bit_.is_network_state_known());
     // Since we haven't communicated to the bus yet, the other object has not
@@ -176,7 +176,7 @@ TEST_F(NetworkInitializedBitTest, LocalSetToExport) {
 }
 
 TEST_F(NetworkInitializedBitTest, LocalSetToQueryResponse) {
-    bit_.SetState(false);
+    bit_.set_state(false);
     EXPECT_FALSE(bit_.get_local_state());
     EXPECT_TRUE(bit2_.get_local_state());
     EXPECT_TRUE(bit_.is_network_state_known());
@@ -224,8 +224,8 @@ TEST_F(NetworkInitializedBitTest, Toggle) {
 
     EXPECT_FALSE(bit_.get_local_state());
     EXPECT_TRUE(bit2_.get_local_state());
-    EXPECT_EQ(EventState::UNKNOWN, bit_.GetCurrentState());
-    EXPECT_EQ(EventState::UNKNOWN, bit2_.GetCurrentState());
+    EXPECT_EQ(EventState::UNKNOWN, bit_.get_current_state());
+    EXPECT_EQ(EventState::UNKNOWN, bit2_.get_current_state());
 
     bit_.toggle_state();
 
@@ -235,8 +235,8 @@ TEST_F(NetworkInitializedBitTest, Toggle) {
     EXPECT_TRUE(bit_.get_local_state());
     EXPECT_TRUE(bit2_.get_local_state());
 
-    EXPECT_EQ(EventState::VALID, bit_.GetCurrentState());
-    EXPECT_EQ(EventState::UNKNOWN, bit2_.GetCurrentState());
+    EXPECT_EQ(EventState::VALID, bit_.get_current_state());
+    EXPECT_EQ(EventState::UNKNOWN, bit2_.get_current_state());
 
     bit2_.toggle_state();
     EXPECT_TRUE(bit_.is_network_state_known());
@@ -245,8 +245,8 @@ TEST_F(NetworkInitializedBitTest, Toggle) {
     EXPECT_TRUE(bit_.get_local_state());
     EXPECT_FALSE(bit2_.get_local_state());
 
-    EXPECT_EQ(EventState::VALID, bit_.GetCurrentState());
-    EXPECT_EQ(EventState::INVALID, bit2_.GetCurrentState());
+    EXPECT_EQ(EventState::VALID, bit_.get_current_state());
+    EXPECT_EQ(EventState::INVALID, bit2_.get_current_state());
 
     bit_.toggle_state();
     bit2_.toggle_state();
@@ -257,8 +257,8 @@ TEST_F(NetworkInitializedBitTest, Toggle) {
     EXPECT_FALSE(bit_.get_local_state());
     EXPECT_TRUE(bit2_.get_local_state());
 
-    EXPECT_EQ(EventState::INVALID, bit_.GetCurrentState());
-    EXPECT_EQ(EventState::VALID, bit2_.GetCurrentState());
+    EXPECT_EQ(EventState::INVALID, bit_.get_current_state());
+    EXPECT_EQ(EventState::VALID, bit2_.get_current_state());
 }
     
 
