@@ -34,9 +34,9 @@
 
 #include "utils/test_main.hxx"
 
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 #include "os/TempFile.hxx"
-#include "nmranet/EventHandler.hxx"
+#include "openlcb/EventHandler.hxx"
 
 namespace openlcb
 {

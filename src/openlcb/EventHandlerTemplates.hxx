@@ -36,8 +36,8 @@
 #ifndef _NMRANET_EVENTHANDLERTEMPLATES_HXX_
 #define _NMRANET_EVENTHANDLERTEMPLATES_HXX_
 
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/WriteHelper.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/WriteHelper.hxx"
 #include "os/Gpio.hxx"
 
 namespace openlcb

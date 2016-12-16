@@ -32,8 +32,8 @@
  * @date 4 Dec 2013
  */
 
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/CanDefs.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/CanDefs.hxx"
 
 namespace openlcb
 {

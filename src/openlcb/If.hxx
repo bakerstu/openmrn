@@ -38,8 +38,8 @@
 /// @todo(balazs.racz) remove this dep
 #include <string>
 
-#include "nmranet/Node.hxx"
-#include "nmranet/Defs.hxx"
+#include "openlcb/Node.hxx"
+#include "openlcb/Defs.hxx"
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
 #include "executor/Executor.hxx"

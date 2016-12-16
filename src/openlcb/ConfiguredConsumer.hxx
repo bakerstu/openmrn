@@ -36,11 +36,11 @@
 #ifndef _NMRANET_CONFIGUREDCONSUMER_HXX_
 #define _NMRANET_CONFIGUREDCONSUMER_HXX_
 
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
-#include "nmranet/RefreshLoop.hxx"
+#include "openlcb/RefreshLoop.hxx"
 
 namespace openlcb
 {

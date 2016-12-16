@@ -39,7 +39,7 @@
 
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
-#include "nmranet/NodeInitializeFlow.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 #include "executor/StateFlow.hxx"
 
 #if !defined (__MACH__)

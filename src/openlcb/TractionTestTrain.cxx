@@ -32,7 +32,7 @@
  * @date 4 Aug 2014
  */
 
-#include "nmranet/TractionTestTrain.hxx"
+#include "openlcb/TractionTestTrain.hxx"
 
 #include "utils/logging.h"
 

@@ -31,8 +31,8 @@
  * @date 19 October 2013
  */
 
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/WriteHelper.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
 {

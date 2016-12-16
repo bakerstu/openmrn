@@ -50,8 +50,8 @@
 
 #include "utils/macros.h"
 #include "executor/Service.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

@@ -35,7 +35,7 @@
 #ifndef _NMRANET_DATAGRAMHANDLERDEFAULT_HXX_
 #define _NMRANET_DATAGRAMHANDLERDEFAULT_HXX_
 
-#include "nmranet/Datagram.hxx"
+#include "openlcb/Datagram.hxx"
 
 namespace openlcb
 {

@@ -32,7 +32,7 @@
  * @date 2 Nov 2015
  */
 
-#include "nmranet/PIPClient.hxx"
+#include "openlcb/PIPClient.hxx"
 
 namespace openlcb {
 

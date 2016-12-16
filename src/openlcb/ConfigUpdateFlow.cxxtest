@@ -34,7 +34,7 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/ConfigUpdateFlow.hxx"
+#include "openlcb/ConfigUpdateFlow.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 
 namespace openlcb

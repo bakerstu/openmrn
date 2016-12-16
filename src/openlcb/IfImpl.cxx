@@ -33,7 +33,7 @@
  * @date 4 Dec 2013
  */
 
-#include "nmranet/IfImpl.hxx"
+#include "openlcb/IfImpl.hxx"
 
 namespace openlcb
 {

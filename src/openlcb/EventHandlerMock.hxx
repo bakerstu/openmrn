@@ -38,7 +38,7 @@
 #define _NMRANET_EVENTHANDLERMOCK_HXX_
 
 #include "gmock/gmock.h"
-#include "nmranet/EventHandler.hxx"
+#include "openlcb/EventHandler.hxx"
 
 namespace openlcb {
 

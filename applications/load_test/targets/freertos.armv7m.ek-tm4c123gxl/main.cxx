@@ -35,10 +35,10 @@
 #include "os/os.h"
 #include "nmranet_config.h"
 
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/MultiConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/MultiConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"

@@ -1,8 +1,8 @@
 #include <map>
 
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/AliasCache.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/AliasCache.hxx"
 
 namespace openlcb
 {

@@ -32,7 +32,7 @@
  * @date 23 Feb 2014
  */
 
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 #include <fcntl.h>
 #include <sys/types.h>

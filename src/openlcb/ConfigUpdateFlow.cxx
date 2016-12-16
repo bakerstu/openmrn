@@ -34,7 +34,7 @@
  * @date 13 June 2015
  */
 
-#include "nmranet/ConfigUpdateFlow.hxx"
+#include "openlcb/ConfigUpdateFlow.hxx"
 #include <fcntl.h>
 
 namespace openlcb

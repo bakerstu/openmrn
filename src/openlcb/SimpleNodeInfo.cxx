@@ -32,7 +32,7 @@
  * @date 24 Jul 2013
  */
 
-#include "nmranet/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
 
 namespace openlcb
 {

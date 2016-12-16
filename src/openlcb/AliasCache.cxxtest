@@ -34,7 +34,7 @@
 
 #include "os/os.h"
 #include "gtest/gtest.h"
-#include "nmranet/AliasCache.hxx"
+#include "openlcb/AliasCache.hxx"
 
 using namespace openlcb;
 

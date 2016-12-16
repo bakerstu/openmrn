@@ -35,8 +35,8 @@
 #ifndef _NMRANET_TRACTIONCLIENT_HXX_
 #define _NMRANET_TRACTIONCLIENT_HXX_
 
-#include "nmranet/If.hxx"
-#include "nmranet/Defs.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/Defs.hxx"
 
 namespace openlcb
 {

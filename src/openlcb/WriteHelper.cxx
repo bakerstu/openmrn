@@ -34,7 +34,7 @@
 
 #include <string>
 
-#include "nmranet/WriteHelper.hxx"
+#include "openlcb/WriteHelper.hxx"
 #include "nmranet_config.h"
 #include "endian.h"
 

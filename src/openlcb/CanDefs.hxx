@@ -36,7 +36,7 @@
 
 #include <cstdint>
 
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 

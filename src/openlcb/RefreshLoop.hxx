@@ -38,7 +38,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
-#include "nmranet/WriteHelper.hxx"
+#include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
 {

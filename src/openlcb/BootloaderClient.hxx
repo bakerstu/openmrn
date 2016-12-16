@@ -35,11 +35,11 @@
 
 #include <time.h>
 
-#include "nmranet/DatagramDefs.hxx"
-#include "nmranet/StreamDefs.hxx"
-#include "nmranet/PIPClient.hxx"
-#include "nmranet/CanDefs.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/DatagramDefs.hxx"
+#include "openlcb/StreamDefs.hxx"
+#include "openlcb/PIPClient.hxx"
+#include "openlcb/CanDefs.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "utils/Ewma.hxx"
 
 namespace openlcb

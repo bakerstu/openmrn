@@ -34,8 +34,8 @@
 
 #include "os/os.h"
 #include "gtest/gtest.h"
-#include "nmranet/Velocity.hxx"
-#include "nmranet/TractionDefs.hxx"
+#include "openlcb/Velocity.hxx"
+#include "openlcb/TractionDefs.hxx"
 
 using namespace openlcb;
 

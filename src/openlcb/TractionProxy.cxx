@@ -33,11 +33,11 @@
  * @date 1 Feb 2015
  */
 
-#include "nmranet/TractionProxy.hxx"
+#include "openlcb/TractionProxy.hxx"
 
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 #include "dcc/Loco.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

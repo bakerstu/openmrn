@@ -35,7 +35,7 @@
 #ifndef _NMRANET_TRACTIONCVCDI_HXX_
 #define _NMRANET_TRACTIONCVCDI_HXX_
 
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 
 namespace openlcb {
 

@@ -32,7 +32,7 @@
  * @date 7 December 2013
  */
 
-#include "nmranet/NodeInitializeFlow.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 
 namespace openlcb
 {

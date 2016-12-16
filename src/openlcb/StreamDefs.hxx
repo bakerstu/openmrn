@@ -31,7 +31,7 @@
  * @date 14 December 2014
  */
 
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

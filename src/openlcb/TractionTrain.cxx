@@ -34,10 +34,10 @@
 
 //#define LOGLEVEL VERBOSE
 
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/TractionTrain.hxx"
 
 #include "utils/logging.h"
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

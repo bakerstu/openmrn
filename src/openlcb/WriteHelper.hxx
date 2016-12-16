@@ -39,8 +39,8 @@
 
 #include "nmranet_config.h"
 
-#include "nmranet/If.hxx"
-#include "nmranet/Node.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/Node.hxx"
 
 namespace openlcb
 {

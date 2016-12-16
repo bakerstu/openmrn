@@ -1,8 +1,8 @@
 #include "utils/async_traction_test_helper.hxx"
-#include "nmranet/TractionTestTrain.hxx"
-#include "nmranet/TractionCvSpace.hxx"
-#include "nmranet/MemoryConfig.hxx"
-#include "nmranet/DatagramCan.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "openlcb/TractionCvSpace.hxx"
+#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/DatagramCan.hxx"
 #include "dcc/PacketFlowInterface.hxx"
 #include "dcc/RailcomHub.hxx"
 

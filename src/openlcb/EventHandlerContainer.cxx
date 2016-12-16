@@ -32,7 +32,7 @@
  * @date 3 May 2014
  */
 
-#include "nmranet/EventHandlerContainer.hxx"
+#include "openlcb/EventHandlerContainer.hxx"
 
 namespace openlcb
 {

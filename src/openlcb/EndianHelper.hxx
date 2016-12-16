@@ -36,7 +36,7 @@
 #define _NMRANET_ENDIANHELPER_HXX_
 
 #include "endian.h"
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 
 namespace openlcb {
 

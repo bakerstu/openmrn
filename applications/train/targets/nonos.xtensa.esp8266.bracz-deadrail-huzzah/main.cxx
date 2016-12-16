@@ -42,10 +42,10 @@
 #include "freertos_drivers/common/WifiDefs.hxx"
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/TractionTrain.hxx"
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/TractionTrain.hxx"
+#include "openlcb/TrainInterface.hxx"
 #include "os/os.h"
 #include "utils/ESPWifiClient.hxx"
 #include "utils/GpioInitializer.hxx"
@@ -61,7 +61,7 @@ extern void ets_delay_us(uint32_t us);
 #define os_delay_us ets_delay_us
 }
 
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/TrainInterface.hxx"
 #include "hardware.hxx"
 
 struct SpeedRequest

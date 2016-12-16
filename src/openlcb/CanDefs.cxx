@@ -31,7 +31,7 @@
  * @date 18 September 2013
  */
 
-#include "nmranet/CanDefs.hxx"
+#include "openlcb/CanDefs.hxx"
 
 namespace openlcb
 {

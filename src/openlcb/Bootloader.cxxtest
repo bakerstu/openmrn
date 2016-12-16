@@ -3,9 +3,9 @@
 
 #define BOOTLOADER_STREAM
 #define WRITE_BUFFER_SIZE 256
-#include "nmranet/Bootloader.hxx"
-#include "nmranet/BootloaderClient.hxx"
-#include "nmranet/BootloaderPort.hxx"
+#include "openlcb/Bootloader.hxx"
+#include "openlcb/BootloaderClient.hxx"
+#include "openlcb/BootloaderPort.hxx"
 #include <string>
 #include <functional>
 

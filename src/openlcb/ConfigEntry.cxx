@@ -32,7 +32,7 @@
  * @date 5 June 2014
  */
 
-#include "nmranet/ConfigEntry.hxx"
+#include "openlcb/ConfigEntry.hxx"
 
 #include <sys/types.h>
 #include <unistd.h>

@@ -41,7 +41,7 @@
 #include <unordered_map>
 
 #include "os/OS.hxx"
-#include "nmranet/EventHandler.hxx"
+#include "openlcb/EventHandler.hxx"
 
 namespace openlcb
 {

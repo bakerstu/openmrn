@@ -37,7 +37,7 @@
 
 #include "utils/NodeHandlerMap.hxx"
 #include "utils/Queue.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

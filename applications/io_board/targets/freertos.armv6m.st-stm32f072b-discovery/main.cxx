@@ -35,9 +35,9 @@
 #include "os/os.h"
 #include "nmranet_config.h"
 
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"

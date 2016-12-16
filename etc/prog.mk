@@ -114,8 +114,8 @@ cdi.o : compile_cdi
 	mv cdi.cxx cdi.cxxout
 	rm -f cdi.d
 
-compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
-	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
 clean: clean_cdi
 

@@ -38,7 +38,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 #include "executor/StateFlow.hxx"
 
 namespace openlcb

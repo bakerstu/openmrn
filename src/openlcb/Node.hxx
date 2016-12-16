@@ -35,7 +35,7 @@
 #ifndef _NMRANET_NODE_HXX_
 #define _NMRANET_NODE_HXX_
 
-#include "nmranet/Defs.hxx"  // for NodeID
+#include "openlcb/Defs.hxx"  // for NodeID
 
 namespace openlcb
 {

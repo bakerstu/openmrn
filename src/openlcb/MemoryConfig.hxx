@@ -35,9 +35,9 @@
 #ifndef _NMRANET_MEMORYCONFIG_HXX_
 #define _NMRANET_MEMORYCONFIG_HXX_
 
-#include "nmranet/DatagramDefs.hxx"
-#include "nmranet/DatagramHandlerDefault.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/DatagramDefs.hxx"
+#include "openlcb/DatagramHandlerDefault.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "utils/Destructable.hxx"
 #include "utils/ConfigUpdateService.hxx"
 

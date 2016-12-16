@@ -34,7 +34,7 @@
 #ifndef _NMRANET_ALIASCACHE_HXX_
 #define _NMRANET_ALIASCACHE_HXX_
 
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 #include "utils/macros.h"
 #include "utils/Map.hxx"
 #include "utils/RBTree.hxx"

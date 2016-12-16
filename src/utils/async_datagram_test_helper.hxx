@@ -36,8 +36,8 @@
 #define _UTILS_ASYNC_DATAGRAM_TEST_HELPER_HXX_
 
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/Datagram.hxx"
-#include "nmranet/DatagramCan.hxx"
+#include "openlcb/Datagram.hxx"
+#include "openlcb/DatagramCan.hxx"
 
 namespace openlcb {
 

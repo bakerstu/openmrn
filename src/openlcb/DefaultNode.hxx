@@ -35,7 +35,7 @@
 #ifndef _NMRANET_DEFAULTNODE_HXX_
 #define _NMRANET_DEFAULTNODE_HXX_
 
-#include "nmranet/Node.hxx"
+#include "openlcb/Node.hxx"
 
 namespace openlcb
 {

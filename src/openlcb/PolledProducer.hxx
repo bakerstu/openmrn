@@ -35,8 +35,8 @@
 #ifndef _NMRANET_POLLEDPRODUCER_HXX_
 #define _NMRANET_POLLEDPRODUCER_HXX_
 
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/RefreshLoop.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/RefreshLoop.hxx"
 
 namespace openlcb {
 

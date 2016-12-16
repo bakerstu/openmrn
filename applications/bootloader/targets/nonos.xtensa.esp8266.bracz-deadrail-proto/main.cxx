@@ -49,9 +49,9 @@ extern "C" {
 #include "utils/Crc.hxx"
 #include "utils/blinker.h"
 #include "nmranet_config.h"
-#include "nmranet/Defs.hxx"
-#include "nmranet/If.hxx"
-#include "nmranet/BootloaderPort.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/BootloaderPort.hxx"
 #include "hardware.hxx"
 
 extern "C" {

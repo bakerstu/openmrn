@@ -41,7 +41,7 @@
 
 #include <functional>
 
-#include "nmranet/ConfigRenderer.hxx"
+#include "openlcb/ConfigRenderer.hxx"
 
 namespace openlcb
 {

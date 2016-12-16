@@ -37,7 +37,7 @@
 
 #include <map>
 
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/TrainInterface.hxx"
 
 namespace openlcb
 {

@@ -32,7 +32,7 @@
  * @date 25 Jan 2013
  */
 
-#include "nmranet/Datagram.hxx"
+#include "openlcb/Datagram.hxx"
 
 namespace openlcb
 {

@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 #include "config.hxx"
 
 #include "utils/StringPrintf.cxx"

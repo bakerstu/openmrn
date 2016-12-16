@@ -35,7 +35,7 @@
 #ifndef _NMRANET_PROTOCOLIDENTIFICATION_HXX_
 #define _NMRANET_PROTOCOLIDENTIFICATION_HXX_
 
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 //#include "openlcb/
 
 namespace openlcb

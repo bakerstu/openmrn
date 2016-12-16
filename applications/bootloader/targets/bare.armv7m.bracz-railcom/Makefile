@@ -2,7 +2,7 @@ export BOARD := BOARD_BRACZ_RAILCOM
 APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
 -include $(OPENMRNPATH)/etc/config.mk
-LINKCORELIBS = -lnmranet -lutils
+LINKCORELIBS = -lopenlcb -lutils
 
 TARGET := bare.armv7m
 

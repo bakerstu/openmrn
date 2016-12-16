@@ -34,8 +34,8 @@
  */
 
 #include "executor/Service.hxx"
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionTrain.hxx"
 
 namespace openlcb
 {

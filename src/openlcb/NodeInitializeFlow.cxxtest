@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/WriteHelper.hxx"
-#include "nmranet/DefaultNode.hxx"
+#include "openlcb/WriteHelper.hxx"
+#include "openlcb/DefaultNode.hxx"
 
 namespace openlcb
 {

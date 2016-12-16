@@ -5,14 +5,14 @@
 #include <vector>
 #include <endian.h>
 
-#include "nmranet/EventService.hxx"
+#include "openlcb/EventService.hxx"
 
-#include "nmranet/EventServiceImpl.hxx"
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/EventHandlerContainer.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/EndianHelper.hxx"
+#include "openlcb/EventServiceImpl.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandlerContainer.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/EndianHelper.hxx"
 
 namespace openlcb
 {

@@ -33,7 +33,7 @@
  */
 
 #include "utils/async_datagram_test_helper.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 #include <fcntl.h>
 #include <sys/stat.h>

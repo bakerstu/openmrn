@@ -49,8 +49,8 @@
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 
 namespace openlcb {
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {

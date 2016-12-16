@@ -32,7 +32,7 @@
  * @date 23 May 2016
  */
 
-#include "nmranet/RoutingLogic.hxx"
+#include "openlcb/RoutingLogic.hxx"
 #include "utils/test_main.hxx"
 
 using namespace openlcb;

@@ -32,9 +32,9 @@
  * @date 2 Nov 2015
  */
 
-#include "nmranet/PIPClient.hxx"
-#include "nmranet/ProtocolIdentification.hxx"
-#include "nmranet/IfCanImpl.hxx"
+#include "openlcb/PIPClient.hxx"
+#include "openlcb/ProtocolIdentification.hxx"
+#include "openlcb/IfCanImpl.hxx"
 #include "utils/async_if_test_helper.hxx"
 
 namespace openlcb

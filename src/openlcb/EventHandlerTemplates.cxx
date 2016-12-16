@@ -35,8 +35,8 @@
 #include <unistd.h>
 
 #include "utils/logging.h"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/EventService.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/EventService.hxx"
 
 #ifdef __linux__
 //#define DESCRIBE_VAR

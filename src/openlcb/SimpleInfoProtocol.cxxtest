@@ -34,8 +34,8 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/SimpleInfoProtocol.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/SimpleInfoProtocol.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

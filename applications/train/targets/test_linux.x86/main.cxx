@@ -39,13 +39,13 @@
 
 #include <memory>
 
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/ProtocolIdentification.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/TractionTestTrain.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/ProtocolIdentification.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "openlcb/TractionTrain.hxx"
 #include "os/os.h"
 #include "utils/constants.hxx"
 #include "config.hxx"

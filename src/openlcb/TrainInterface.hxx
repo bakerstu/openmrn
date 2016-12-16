@@ -35,7 +35,7 @@
 #ifndef _NMRANET_TRAININTERFACE_HXX_
 #define _NMRANET_TRAININTERFACE_HXX_
 
-#include "nmranet/TractionDefs.hxx"
+#include "openlcb/TractionDefs.hxx"
 #include "dcc/Defs.hxx"
 
 namespace openlcb {

@@ -1,8 +1,8 @@
 #include "utils/async_traction_test_helper.hxx"
 
-#include "nmranet/TractionTrain.hxx"
-#include "nmranet/TractionTestTrain.hxx"
-#include "nmranet/TractionThrottle.hxx"
+#include "openlcb/TractionTrain.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "openlcb/TractionThrottle.hxx"
 
 namespace openlcb
 {

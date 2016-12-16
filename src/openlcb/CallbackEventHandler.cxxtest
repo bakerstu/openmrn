@@ -1,6 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/CallbackEventHandler.hxx"
+#include "openlcb/CallbackEventHandler.hxx"
 
 namespace openlcb
 {

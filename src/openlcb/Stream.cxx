@@ -31,9 +31,9 @@
  * @date 20 October 2013
  */
 
-#include "nmranet/Stream.hxx"
-#include "nmranet/NMRAnetNode.hxx"
-#include "nmranet/NMRAnetMessageID.hxx"
+#include "openlcb/Stream.hxx"
+#include "openlcb/NMRAnetNode.hxx"
+#include "openlcb/NMRAnetMessageID.hxx"
 #include "utils/macros.h"
 
 namespace openlcb

@@ -35,9 +35,9 @@
 #ifndef _NMRANET_TRACTIONTHROTTLE_HXX_
 #define _NMRANET_TRACTIONTHROTTLE_HXX_
 
-#include "nmranet/TractionClient.hxx"
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/TractionClient.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TrainInterface.hxx"
 
 namespace openlcb
 {

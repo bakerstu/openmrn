@@ -47,10 +47,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "nmranet/SimpleStack.hxx"
+#include "openlcb/SimpleStack.hxx"
 
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
 
 namespace openlcb
 {

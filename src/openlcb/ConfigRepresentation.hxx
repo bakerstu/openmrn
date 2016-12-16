@@ -35,8 +35,8 @@
 #ifndef _NMRANET_CONFIGREPRESENTATION_HXX_
 #define _NMRANET_CONFIGREPRESENTATION_HXX_
 
-#include "nmranet/ConfigEntry.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/ConfigEntry.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 namespace openlcb
 {

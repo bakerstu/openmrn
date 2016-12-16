@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 

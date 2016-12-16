@@ -31,7 +31,7 @@
  * @date 21 September 2013
  */
 
-#include "nmranet/AliasCache.hxx"
+#include "openlcb/AliasCache.hxx"
 
 #include "os/OS.hxx"
 

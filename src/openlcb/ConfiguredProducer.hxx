@@ -36,9 +36,9 @@
 #ifndef _NMRANET_CONFIGUREDPRODUCER_HXX_
 #define _NMRANET_CONFIGUREDPRODUCER_HXX_
 
-#include "nmranet/PolledProducer.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/PolledProducer.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
 #include "utils/Debouncer.hxx"

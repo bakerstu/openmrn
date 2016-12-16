@@ -38,9 +38,9 @@
 #include <set>
 
 #include "executor/Service.hxx"
-#include "nmranet/Node.hxx"
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/Node.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TrainInterface.hxx"
 
 namespace openlcb
 {

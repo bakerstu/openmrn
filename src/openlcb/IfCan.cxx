@@ -32,13 +32,13 @@
  * @date 3 Dec 2013
  */
 
-#include "nmranet/IfCan.hxx"
+#include "openlcb/IfCan.hxx"
 
 #include "utils/StlMap.hxx"
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/IfImpl.hxx"
-#include "nmranet/IfCanImpl.hxx"
-#include "nmranet/CanDefs.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/IfImpl.hxx"
+#include "openlcb/IfCanImpl.hxx"
+#include "openlcb/CanDefs.hxx"
 #include "can_frame.h"
 
 namespace openlcb

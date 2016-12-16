@@ -35,9 +35,9 @@
 #include "os/os.h"
 #include "nmranet_config.h"
 
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 #include "freertos_drivers/common/GpioWrapper.hxx"
 
 // Changes the default behavior by adding a newline after each gridconnect

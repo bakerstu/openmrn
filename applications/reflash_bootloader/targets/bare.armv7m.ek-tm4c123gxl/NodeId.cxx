@@ -1,4 +1,4 @@
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 #include "address.h"
 
 extern const openlcb::NodeID NODE_ID;

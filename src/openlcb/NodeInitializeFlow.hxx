@@ -35,8 +35,8 @@
 #ifndef _NMRANET_NODEINITIALIZEFLOW_HXX_
 #define _NMRANET_NODEINITIALIZEFLOW_HXX_
 
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/If.hxx"
 #include "nmranet_config.h"
 #include "utils/Singleton.hxx"
 

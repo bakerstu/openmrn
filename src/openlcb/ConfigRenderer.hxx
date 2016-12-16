@@ -38,7 +38,7 @@
 #include <climits>
 #include <string>
 
-#include "nmranet/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
 #include "utils/OptionalArgs.hxx"
 #include "utils/StringPrintf.hxx"
 

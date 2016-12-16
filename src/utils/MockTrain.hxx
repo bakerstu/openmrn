@@ -2,8 +2,8 @@
 #define _UTILS_MOCKTRAIN_HXX_
 
 #include "gmock/gmock.h"
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionTrain.hxx"
 #include "dcc/Defs.hxx"
 
 namespace openlcb {

@@ -44,10 +44,10 @@
 #include <unistd.h>
 
 #include "freertos/bootloader_hal.h"
-#include "nmranet/Defs.hxx"
-#include "nmranet/CanDefs.hxx"
-#include "nmranet/DatagramDefs.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/CanDefs.hxx"
+#include "openlcb/DatagramDefs.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "can_frame.h"
 
 namespace openlcb

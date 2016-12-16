@@ -49,8 +49,8 @@
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
 #include "utils/SortedListMap.hxx"
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 
 namespace openlcb
 {

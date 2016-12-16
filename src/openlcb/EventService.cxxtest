@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/EventService.hxx"
-#include "nmranet/EventHandlerMock.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/EventHandlerMock.hxx"
 
 namespace openlcb
 {

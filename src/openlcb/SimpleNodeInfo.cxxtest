@@ -36,10 +36,10 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/SimpleInfoProtocol.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/SimpleInfoProtocol.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/If.hxx"
 
 using ::testing::StartsWith;
 

@@ -32,10 +32,10 @@
  * @date 27 Jan 2013
  */
 
-#include "nmranet/DatagramCan.hxx"
+#include "openlcb/DatagramCan.hxx"
 
-#include "nmranet/DatagramDefs.hxx"
-#include "nmranet/IfCanImpl.hxx"
+#include "openlcb/DatagramDefs.hxx"
+#include "openlcb/IfCanImpl.hxx"
 
 namespace openlcb
 {

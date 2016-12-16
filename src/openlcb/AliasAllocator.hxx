@@ -35,8 +35,8 @@
 #ifndef _NMRANET_ALIASALLOCATOR_HXX_
 #define _NMRANET_ALIASALLOCATOR_HXX_
 
-#include "nmranet/IfCan.hxx"
-#include "nmranet/Defs.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/Defs.hxx"
 #include "executor/StateFlow.hxx"
 
 namespace openlcb

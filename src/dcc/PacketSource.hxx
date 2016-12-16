@@ -36,7 +36,7 @@
 #ifndef _DCC_PACKETSOURCE_HXX_
 #define _DCC_PACKETSOURCE_HXX_
 
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/TrainInterface.hxx"
 
 namespace dcc {
 

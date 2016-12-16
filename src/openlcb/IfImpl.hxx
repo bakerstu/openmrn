@@ -36,7 +36,7 @@
 #ifndef _NMRANET_IFIMPL_HXX_
 #define _NMRANET_IFIMPL_HXX_
 
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

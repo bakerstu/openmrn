@@ -1,4 +1,4 @@
-#include "nmranet/If.hxx"
+#include "openlcb/If.hxx"
 #include "address.h"
 
 extern const openlcb::NodeID NODE_ID;
@@ -7,4 +7,4 @@ extern const uint16_t DEFAULT_ALIAS;
 const uint16_t DEFAULT_ALIAS = 0x400 | NODEID_LOW_BITS;
 
 #define BOOTLOADER_STREAM
-#include "nmranet/Bootloader.hxx"
+#include "openlcb/Bootloader.hxx"

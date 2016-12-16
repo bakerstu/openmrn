@@ -2,8 +2,8 @@
 #include "freertos/bootloader_hal.h"
 
 #define BOOTLOADER_DATAGRAM
-#include "nmranet/Bootloader.hxx"
-#include "nmranet/BootloaderClient.hxx"
+#include "openlcb/Bootloader.hxx"
+#include "openlcb/BootloaderClient.hxx"
 #include <string>
 #include <functional>
 

@@ -35,8 +35,8 @@
 #ifndef _NRMANET_SIMPLENODEINFO_HXX_
 #define _NRMANET_SIMPLENODEINFO_HXX_
 
-#include "nmranet/If.hxx"
-#include "nmranet/SimpleInfoProtocol.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/SimpleInfoProtocol.hxx"
 
 namespace openlcb
 {

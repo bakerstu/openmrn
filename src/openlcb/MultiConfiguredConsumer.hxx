@@ -36,7 +36,7 @@
 #ifndef _NMRANET_MULTICONFIGUREDCONSUMER_HXX_
 #define _NMRANET_MULTICONFIGUREDCONSUMER_HXX_
 
-#include "nmranet/ConfigRepresentation.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 
 namespace openlcb
 {

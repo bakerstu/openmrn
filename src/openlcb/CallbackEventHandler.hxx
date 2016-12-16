@@ -38,7 +38,7 @@
 
 #include <functional>
 
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 
 namespace openlcb
 {

@@ -35,8 +35,8 @@
 #ifndef _NMRANET_DATAGRAMCAN_HXX_
 #define _NMRANET_DATAGRAMCAN_HXX_
 
-#include "nmranet/IfCan.hxx"
-#include "nmranet/Datagram.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/Datagram.hxx"
 
 namespace openlcb
 {

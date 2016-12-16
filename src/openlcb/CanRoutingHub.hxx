@@ -36,10 +36,10 @@
 #ifndef _NMRANET_CANROUTNGHUB_HXX_
 #define _NMRANET_CANROUTNGHUB_HXX_
 
-#include "nmranet/RoutingLogic.hxx"
-#include "nmranet/CanDefs.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/RoutingLogic.hxx"
+#include "openlcb/CanDefs.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/If.hxx"
 #include "utils/Hub.hxx"
 #include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"

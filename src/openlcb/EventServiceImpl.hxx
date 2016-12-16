@@ -40,8 +40,8 @@
 #include <memory>
 #include <vector>
 
-#include "nmranet/EventService.hxx"
-#include "nmranet/EventHandler.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/EventHandler.hxx"
 
 namespace openlcb
 {

@@ -36,7 +36,7 @@
 #ifndef _NMRANET_TRACTIONCVSPACE_HXX_
 #define _NMRANET_TRACTIONCVSPACE_HXX_
 
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "executor/StateFlow.hxx"
 #include "dcc/PacketFlowInterface.hxx"
 #include "dcc/RailCom.hxx"

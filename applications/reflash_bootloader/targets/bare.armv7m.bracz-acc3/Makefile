@@ -2,7 +2,7 @@ export BOARD := BOARD_BRACZ_CS_TIVA
 APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
 -include $(OPENMRNPATH)/etc/config.mk
-LINKCORELIBS = -lnmranet -lutils
+LINKCORELIBS = -lopenlcb -lutils
 
 TARGET := bare.armv7m
 include hardware.mk

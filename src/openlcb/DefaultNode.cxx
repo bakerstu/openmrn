@@ -33,8 +33,8 @@
  */
 
 #include "utils/logging.h"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/If.hxx"
 
 namespace openlcb
 {

@@ -34,8 +34,8 @@
  */
 
 #include "executor/StateFlow.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/If.hxx"
 #include "os/os.h"
 
 namespace openlcb

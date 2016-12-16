@@ -31,7 +31,7 @@
  * @date 2 August 2013
  */
 
-#include "nmranet/Velocity.hxx"
+#include "openlcb/Velocity.hxx"
 
 namespace openlcb
 {

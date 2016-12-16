@@ -43,9 +43,9 @@
 #include "nmranet_config.h"
 
 #include "os/TempFile.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
 #endif

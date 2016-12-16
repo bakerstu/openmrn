@@ -3,8 +3,8 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionTrain.hxx"
 #include "utils/MockTrain.hxx"
 
 namespace openlcb

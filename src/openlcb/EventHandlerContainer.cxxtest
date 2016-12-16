@@ -1,10 +1,10 @@
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/EventHandlerContainer.hxx"
-#include "nmranet/EventService.hxx"
-#include "nmranet/EventServiceImpl.hxx"
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/EventHandlerMock.hxx"
-#include "nmranet/EndianHelper.hxx"
+#include "openlcb/EventHandlerContainer.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/EventServiceImpl.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerMock.hxx"
+#include "openlcb/EndianHelper.hxx"
 #include "gmock/gmock.h"
 
 using testing::Eq;

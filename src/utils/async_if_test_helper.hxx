@@ -7,11 +7,11 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/IfCan.hxx"
-#include "nmranet/EventService.hxx"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/NodeInitializeFlow.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"

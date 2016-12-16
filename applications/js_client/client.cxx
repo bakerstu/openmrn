@@ -45,10 +45,10 @@
 #include "nmranet_config.h"
 
 #include "os/TempFile.hxx"
-#include "nmranet/Defs.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 #include "utils/JSWebsocketClient.hxx"
 
 const openlcb::NodeID NODE_ID = 0x0501010114DFULL;

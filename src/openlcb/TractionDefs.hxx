@@ -39,9 +39,9 @@
 #include <cmath>
 #include <stdint.h>
 
-#include "nmranet/Velocity.hxx"
-#include "nmranet/Payload.hxx"
-#include "nmranet/If.hxx"
+#include "openlcb/Velocity.hxx"
+#include "openlcb/Payload.hxx"
+#include "openlcb/If.hxx"
 #include "dcc/Defs.hxx"
 
 namespace openlcb {

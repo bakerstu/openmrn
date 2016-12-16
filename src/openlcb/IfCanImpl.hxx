@@ -35,10 +35,10 @@
 #ifndef _NMRANET_IFCANIMPL_HXX_
 #define _NMRANET_IFCANIMPL_HXX_
 
-#include "nmranet/CanDefs.hxx"
+#include "openlcb/CanDefs.hxx"
 #include "executor/StateFlow.hxx"
-#include "nmranet/IfImpl.hxx"
-#include "nmranet/AliasAllocator.hxx"
+#include "openlcb/IfImpl.hxx"
+#include "openlcb/AliasAllocator.hxx"
 
 namespace openlcb
 {

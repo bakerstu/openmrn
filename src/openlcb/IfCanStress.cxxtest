@@ -2,9 +2,9 @@
 
 #include <set>
 
-#include "nmranet/WriteHelper.hxx"
-#include "nmranet/IfCan.hxx"
-#include "nmranet/AliasAllocator.hxx"
+#include "openlcb/WriteHelper.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/AliasAllocator.hxx"
 #include "os/OS.hxx"
 
 namespace openlcb

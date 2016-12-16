@@ -33,8 +33,8 @@
  * @date 16 May 2015
  */
 
-#include "nmranet/TractionCvSpace.hxx"
-#include "nmranet/TractionDefs.hxx"
+#include "openlcb/TractionCvSpace.hxx"
+#include "openlcb/TractionDefs.hxx"
 
 
 // We try this many times to write a CV using railcom if we keep getting an

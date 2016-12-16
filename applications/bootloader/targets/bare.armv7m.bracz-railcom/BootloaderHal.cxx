@@ -13,7 +13,7 @@
 #include "driverlib/pin_map.h"
 
 #include "nmranet_config.h"
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 #include "TivaGPIO.hxx"
 #define PINDEFS_ONLY
 #include "hardware.hxx"

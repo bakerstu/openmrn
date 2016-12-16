@@ -16,7 +16,7 @@ endif
 include $(OPENMRNPATH)/etc/prog.mk
 
 
-XLATEDLIBS=nmranet spiffs utils os executor
+XLATEDLIBS=openlcb spiffs utils os executor
 
 ifdef FOOOXXX
 XLATEDSTDLIBS=stdc++ c

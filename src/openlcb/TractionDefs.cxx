@@ -32,7 +32,7 @@
  * @date 5 May 2014
  */
 
-#include "nmranet/TractionDefs.hxx"
+#include "openlcb/TractionDefs.hxx"
 
 #include <string.h>
 #include "utils/macros.h"

@@ -39,7 +39,7 @@
 #include "executor/Notifiable.hxx"
 #include "utils/AsyncMutex.hxx"
 #include "utils/macros.h"
-#include "nmranet/WriteHelper.hxx"
+#include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
 {

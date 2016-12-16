@@ -38,9 +38,9 @@
 #include <memory>
 
 #include "executor/StateFlow.hxx"
-#include "nmranet/If.hxx"
-#include "nmranet/AliasCache.hxx"
-#include "nmranet/Defs.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/AliasCache.hxx"
+#include "openlcb/Defs.hxx"
 #include "utils/CanIf.hxx"
 
 namespace openlcb
