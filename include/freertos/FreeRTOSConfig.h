@@ -234,12 +234,15 @@ standard names - or at least those used in the unmodified vector table. */
 
 #elif TARGET_PIC32MX
 
+#define MIPSNO16 __attribute__((nomips16))
+
 #define configCPU_CLOCK_HZ             ( ( unsigned long ) 80000000 )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 190 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 32000 ) )
 #define configTIMER_TASK_STACK_DEPTH   1500
 #define configISR_STACK_SIZE					( 400 )
 #define configPERIPHERAL_CLOCK_HZ      ( ( unsigned long ) configCPU_CLOCK_HZ/2 )
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 
 /* The priority at which the tick interrupt runs.  This should probably be
 kept at 1. */
@@ -351,6 +354,10 @@ void cpuload_tick(void);
 #define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
 #endif
 
+#endif
+
+#ifndef MIPSNO16
+#define MIPSNO16
 #endif
 
 #endif /* FREERTOS_CONFIG_H */
