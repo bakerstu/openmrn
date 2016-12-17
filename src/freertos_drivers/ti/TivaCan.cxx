@@ -205,6 +205,7 @@ void TivaCan::interrupt_handler()
             can_frame->can_err = 0;
             can_frame->can_dlc = can_message.ui32MsgLen;
             rxBuf->advance(1);
+            ++numReceivedPackets_;
             rxBuf->signal_condition_from_isr();
 
             /** @todo (Stuart Baker) remove notify logic once we switch over to
@@ -232,6 +233,7 @@ void TivaCan::interrupt_handler()
         MAP_CANIntClear(base, 2);
         /* previous (zero copy) message from buffer no longer needed */
         txBuf->consume(1);
+        ++numTransmittedPackets_;
         txBuf->signal_condition_from_isr();
 
         /** @todo (Stuart Baker) remove notify logic once we switch over to

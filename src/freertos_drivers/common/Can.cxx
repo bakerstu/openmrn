@@ -38,6 +38,9 @@
 #include "Can.hxx"
 #include "can_frame.h"
 
+unsigned Can::numReceivedPackets_{0};
+unsigned Can::numTransmittedPackets_{0};
+
 /** Flush the receive and transmit buffers for this device.
  */
 void Can::flush_buffers()
