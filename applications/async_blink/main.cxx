@@ -32,7 +32,9 @@
  * @date 7 Dec 2013
  */
 
+#ifndef __FreeRTOS__
 #define LOGLEVEL INFO
+#endif
 
 #include <fcntl.h>
 #include <stdio.h>
