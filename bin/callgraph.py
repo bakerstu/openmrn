@@ -685,11 +685,13 @@ def ApplyFilters():
     if symbol.total_code_size < FLAGS.min_size:
       symbol.removed_by_filter = True
     else:
+      if len(symbol.indeps) > FLAGS.max_indep: continue
       for dname, dep_symbol in symbol.indeps.iteritems():
         l.append(dep_symbol)
   # We go into all inwards dependencies and make them show
   for symbol in l:
     if symbol.removed_by_filter:
+      if len(symbol.indeps) > FLAGS.max_indep: continue
       for dname, dep_symbol in symbol.indeps.iteritems():
         l.append(dep_symbol)
     symbol.removed_by_filter = False
