@@ -68,7 +68,7 @@ void diewith(uint32_t pattern) {
 uint32_t blinker_pattern = 0;
 static uint32_t rest_pattern = 0;
 
-void __attribute__((interrupt)) tmr2_interrupt(void)
+void __attribute__((interrupt, nomips16)) tmr2_interrupt(void)
 {
     // Set output LED.
     if (rest_pattern & 1) {
@@ -87,12 +87,16 @@ void __attribute__((interrupt)) tmr2_interrupt(void)
 asm("\n\t.section .vector_8,\"ax\",%progbits\n\tj "
     "tmr2_interrupt\n\tnop\n.text\n");
 
-void setblink(uint32_t pattern) {
+static void __attribute__((nomips16)) enable_blinker() {
     // Adds a filter to not get interrupts at freertos priorities.
     portDISABLE_INTERRUPTS();
     // This will enable hardware interrupts.
     INTEnableInterrupts();
     portDISABLE_INTERRUPTS();
+}
+
+void setblink(uint32_t pattern) {
+    enable_blinker();
     resetblink(pattern);
 }
 
@@ -106,7 +110,7 @@ static unsigned int _excep_code;
 static unsigned int _excep_addr; 
 static unsigned int _excep_vaddr;
 
-void _general_exception_context(void)
+void __attribute__((nomips16)) _general_exception_context(void)
 {
   asm volatile("mfc0 %0,$8" : "=r" (_excep_vaddr)); 
   asm volatile("mfc0 %0,$13" : "=r" (_excep_code)); 
@@ -115,8 +119,7 @@ void _general_exception_context(void)
   diewith(0x8000A0CA); //3-1-2
 }
 
-
-void lowlevel_hw_init(void) {
+void hw_preinit(void) {
   mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
 
 

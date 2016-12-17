@@ -198,8 +198,9 @@ __cs3_reset_PIC32MX:
 	# Branch to _start, which is CS3 C-environment initialization
 	##################################################################
 	//jal _start
-        .global lowlevel_hw_init
-        jal     lowlevel_hw_init
+
+        .global hw_preinit
+        jal     hw_preinit
         nop
 
         .global _cinit
