@@ -26,4 +26,8 @@ all: $(EXECUTABLE).hex $(EXECUTABLE).delf $(EXECUTABLE).lst
 	$(OBJDUMP) -h $<
 	$(OBJCOPY) -O ihex $< $@
 
+
+flash: $(EXECUTABLE).hex
+	misc/pic32prog $<
+
 endif  #MISSING_DEPS
