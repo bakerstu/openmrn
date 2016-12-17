@@ -33,7 +33,9 @@
  */
 
 /// Overrides loglevel.
+#ifndef __FreeRTOS__
 #define LOGLEVEL INFO
+#endif
 
 #if defined(__linux__) || defined(__MACH__)
 #include <net/if.h>
