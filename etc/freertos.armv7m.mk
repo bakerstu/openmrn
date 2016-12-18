@@ -99,6 +99,8 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap__ZSt17__throw_bad_allocv=abort \
           -Wl,--wrap=_ZSt20__throw_out_of_rangePKc   \
           -Wl,--defsym=__wrap__ZSt20__throw_out_of_rangePKc=abort \
+          -Wl,--wrap=_ZSt24__throw_out_of_range_fmtPKcz   \
+          -Wl,--defsym=__wrap__ZSt24__throw_out_of_range_fmtPKcz=abort \
           -Wl,--wrap=_ZSt25__throw_bad_function_callv   \
           -Wl,--defsym=__wrap__ZSt25__throw_bad_function_callv=abort \
           -Wl,--wrap=__cxa_allocate_exception   \
