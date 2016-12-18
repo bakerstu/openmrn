@@ -64,9 +64,12 @@ delete_destructors
 snip_user_file.*
 demangled.txt
 *.ndlst
+*.stripped
+objcopy.params
 
 # files that are local to the build environment
 set250k.c
+set250k.nc
 openmrnpath.mk
 
 #Mac OS X file system artifacts

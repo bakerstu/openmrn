@@ -249,7 +249,7 @@ endif
 clean: clean-local
 
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst
+	rm -rf $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.stripped ) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local

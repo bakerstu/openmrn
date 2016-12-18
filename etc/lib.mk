@@ -97,7 +97,7 @@ $(LIBNAME): $(OBJS)
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.d *.a *.so *.dll *.otest *.dtest *.test *.gcda *.map *.gcno *.md5
+	rm -rf $(wildcard *.o *.d *.a *.so *.dll *.otest *.dtest *.test *.gcda *.map *.gcno *.md5 *.stripped)
 
 .PHONY: veryclean
 veryclean: clean
