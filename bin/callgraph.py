@@ -564,11 +564,12 @@ def PrintOutput():
   # then print links
   for name, symbol in all_symbols.iteritems():
     for dname, dep_symbol in symbol.deps.iteritems():
-      if dep_symbol.blacklisted: continue
-      if dep_symbol.removed_by_filter: continue
-      if len(dep_symbol.indeps) > FLAGS.max_indep: continue
-      if symbol.removed_by_filter: continue
-      print "%s -> %s;" % (escape(symbol.name), escape(dep_symbol.name));
+      do_kill = False
+      if dep_symbol.blacklisted: do_kill = True
+      if dep_symbol.removed_by_filter: do_kill = True
+      if len(dep_symbol.indeps) > FLAGS.max_indep: do_kill = True
+      if symbol.removed_by_filter: do_kill = True
+      print "%s%s -> %s;" % ("//" if do_kill else "" ,escape(symbol.name), escape(dep_symbol.name));
   print "}"
   return
 
