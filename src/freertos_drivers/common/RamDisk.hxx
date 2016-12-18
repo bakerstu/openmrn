@@ -129,7 +129,7 @@ public:
 
     /// Uses an existing variable for backing the ramdisk structure. The
     /// variable is usually of a struct type, such as @ref
-    /// nmranet::SimpleNodeDynamicValues. The variable may also be in flash.
+    /// openlcb::SimpleNodeDynamicValues. The variable may also be in flash.
     /// @param path is the device node name (e.g "/etc/node_config")
     /// @param data is the variable to export
     /// @param read_only if set, writes will be ignored.

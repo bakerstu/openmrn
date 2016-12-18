@@ -51,7 +51,7 @@
 #include "driverlib/pin_map.h"
 
 #include "nmranet_config.h"
-#include "nmranet/Defs.hxx"
+#include "openlcb/Defs.hxx"
 #include "TivaGPIO.hxx"
 
 extern "C" {
@@ -87,7 +87,7 @@ uint16_t nmranet_alias()
     return DEFAULT_ALIAS;
 }
 
-extern const nmranet::NodeID NODE_ID;
+extern const openlcb::NodeID NODE_ID;
 
 uint64_t nmranet_nodeid()
 {

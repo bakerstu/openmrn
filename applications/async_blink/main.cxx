@@ -32,7 +32,9 @@
  * @date 7 Dec 2013
  */
 
+#ifndef __FreeRTOS__
 #define LOGLEVEL INFO
+#endif
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -43,9 +45,9 @@
 #include "nmranet_config.h"
 
 #include "os/TempFile.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 #ifdef TARGET_LPC11Cxx
 #include "freertos_drivers/nxp/11cxx_async_can.hxx"
 #endif
@@ -65,7 +67,7 @@
 #include "console/Console.hxx"
 #endif
 
-extern const nmranet::NodeID NODE_ID;
+extern const openlcb::NodeID NODE_ID;
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 
@@ -81,17 +83,17 @@ OVERRIDE_CONST(main_thread_stack_size, 1200);
 #endif
 OVERRIDE_CONST(num_memory_spaces, 4);
 
-nmranet::SimpleCanStack stack(NODE_ID);
+openlcb::SimpleCanStack stack(NODE_ID);
 
 #ifdef ESP_NONOS
 
-const char *const nmranet::SNIP_DYNAMIC_FILENAME = "/snipconfig";
+const char *const openlcb::SNIP_DYNAMIC_FILENAME = "/snipconfig";
 
 #else
 
-nmranet::MockSNIPUserFile snip_user_file("Default user name",
+openlcb::MockSNIPUserFile snip_user_file("Default user name",
                                          "Default user description");
-const char *const nmranet::SNIP_DYNAMIC_FILENAME = nmranet::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
 
 #endif
 
@@ -101,7 +103,7 @@ static const uint64_t EVENT_ID = 0x0502010202000000ULL;
 class BlinkerFlow : public StateFlowBase
 {
 public:
-    BlinkerFlow(nmranet::Node* node)
+    BlinkerFlow(openlcb::Node* node)
         : StateFlowBase(node->iface()),
           state_(1),
           bit_(node, EVENT_ID, EVENT_ID + 1, &state_, (uint8_t)1),
@@ -128,16 +130,16 @@ private:
     }
 
     uint8_t state_;
-    nmranet::MemoryBit<uint8_t> bit_;
-    nmranet::BitEventProducer producer_;
-    nmranet::WriteHelper helper_;
+    openlcb::MemoryBit<uint8_t> bit_;
+    openlcb::BitEventProducer producer_;
+    openlcb::WriteHelper helper_;
     StateFlowTimer sleepData_;
     BarrierNotifiable n_;
 };
 
 extern "C" { void resetblink(uint32_t pattern); }
 
-class LoggingBit: public nmranet::BitEventInterface
+class LoggingBit: public openlcb::BitEventInterface
 {
 public:
     LoggingBit(uint64_t event_on, uint64_t event_off, const char* name)
@@ -145,13 +147,13 @@ public:
     {
     }
 
-    nmranet::EventState GetCurrentState() override
+    openlcb::EventState get_current_state() override
     {
-        using nmranet::EventState;
+        using openlcb::EventState;
         if (!stateKnown_) return EventState::UNKNOWN;
         return state_ ? EventState::VALID : EventState::INVALID;
     }
-    void SetState(bool new_value) override
+    void set_state(bool new_value) override
     {
         state_ = new_value;
         stateKnown_ = true;
@@ -163,7 +165,7 @@ public:
 #endif
     }
 
-    nmranet::Node* node() override
+    openlcb::Node* node() override
     {
         return stack.node();
     }
@@ -193,7 +195,7 @@ void ignore_function() {
 #endif
 
 LoggingBit logger(EVENT_ID, EVENT_ID + 1, "blinker");
-nmranet::BitEventConsumer consumer(&logger);
+openlcb::BitEventConsumer consumer(&logger);
 
 /** Entry point to application.
  * @param argc number of command line arguments

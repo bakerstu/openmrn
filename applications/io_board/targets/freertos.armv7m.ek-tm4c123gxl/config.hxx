@@ -1,12 +1,12 @@
 #ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 #define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Defines the identification information for the node. The arguments are:
@@ -36,21 +36,19 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
+/// Modify this value every time the EEPROM needs to be cleared on the node
+/// after an update.
+static constexpr uint16_t CANONICAL_VERSION = 0x184f;
+
+
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
+CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
-CDI_GROUP_END();
-
-/// This segment is only needed temporarily until there is program code to set
-/// the ACDI user data version byte.
-CDI_GROUP(VersionSeg, Segment(MemoryConfigDefs::SPACE_CONFIG),
-    Name("Version information"));
-CDI_GROUP_ENTRY(acdi_user_version, Uint8ConfigEntry,
-    Name("ACDI User Data version"), Description("Set to 2 and do not change."));
 CDI_GROUP_END();
 
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
@@ -65,10 +63,8 @@ CDI_GROUP_ENTRY(acdi, Acdi);
 CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
 /// Adds the main configuration segment.
 CDI_GROUP_ENTRY(seg, IoBoardSegment);
-/// Adds the versioning segment.
-CDI_GROUP_ENTRY(version, VersionSeg);
 CDI_GROUP_END();
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_

@@ -48,14 +48,14 @@
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
-#include "nmranet/IfCan.hxx"
-#include "nmranet/DatagramCan.hxx"
-#include "nmranet/BootloaderClient.hxx"
-#include "nmranet/If.hxx"
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/NodeInitializeFlow.hxx"
-#include "nmranet/DatagramHandlerDefault.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/DatagramCan.hxx"
+#include "openlcb/BootloaderClient.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
+#include "openlcb/DatagramHandlerDefault.hxx"
 #include "utils/socket_listener.hxx"
 #include "utils/StringPrintf.hxx"
 
@@ -66,16 +66,16 @@ Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-static const nmranet::NodeID NODE_ID = 0x05010101181EULL;
+static const openlcb::NodeID NODE_ID = 0x05010101181EULL;
 
-nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-nmranet::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
-nmranet::InitializeFlow g_init_flow(&g_if_can);
+openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+openlcb::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
+openlcb::InitializeFlow g_init_flow(&g_if_can);
 
-static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
-nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
+static openlcb::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
+openlcb::DefaultNode g_node(&g_if_can, NODE_ID);
 
-namespace nmranet
+namespace openlcb
 {
 Pool *const g_incoming_datagram_allocator = mainBufferPool;
 }
@@ -160,12 +160,12 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-using nmranet::DatagramPayload;
-using nmranet::DatagramClient;
-using nmranet::Defs;
-using nmranet::NodeHandle;
-using nmranet::DefaultDatagramHandler;
-using nmranet::DatagramService;
+using openlcb::DatagramPayload;
+using openlcb::DatagramClient;
+using openlcb::Defs;
+using openlcb::NodeHandle;
+using openlcb::DefaultDatagramHandler;
+using openlcb::DatagramService;
 
 class DatagramPrinter : public DefaultDatagramHandler {
 public:
@@ -242,7 +242,7 @@ int appl_main(int argc, char *argv[])
         if (wait_for_response) {
             g_datagram_can.registry()->insert(&g_node, payload[0], &printer);
         }
-        Buffer<nmranet::NMRAnetMessage> *b;
+        Buffer<openlcb::GenMessage> *b;
         mainBufferPool->alloc(&b);
 
         NodeHandle dst;

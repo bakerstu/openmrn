@@ -1,0 +1,45 @@
+#include "utils/test_main.hxx"
+
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/EventHandlerMock.hxx"
+
+using ::testing::_;
+using ::testing::Mock;
+using ::testing::StrictMock;
+
+namespace openlcb {
+
+class SimpleEventProxy : public ProxyEventHandler
+{
+public:
+    SimpleEventProxy(EventHandler *handler) : handler_(handler)
+    {
+    }
+
+    void HandlerFn(EventHandlerFunction fn, const EventRegistryEntry &entry,
+                   EventReport *event, BarrierNotifiable *done) override
+    {
+        (handler_->*fn)(entry, event, done);
+    }
+
+private:
+    EventHandler *handler_;
+};
+
+TEST(EventProxy, TestHandleEvent) {
+  StrictMock<MockEventHandler> inner_handler;
+  SimpleEventProxy proxy(&inner_handler);
+  EXPECT_CALL(inner_handler, handle_event_report(_, _, _)).Times(1);
+  EventRegistryEntry e(nullptr, 0);
+  proxy.handle_event_report(e, NULL, NULL);
+}
+
+TEST(EventProxy, ConsumerRange) {
+  StrictMock<MockEventHandler> inner_handler;
+  SimpleEventProxy proxy(&inner_handler);
+  EXPECT_CALL(inner_handler, handle_consumer_range_identified(_, _, _)).Times(1);
+  EventRegistryEntry e(nullptr, 0);
+  proxy.handle_consumer_range_identified(e, NULL, NULL);
+}
+
+}  // namespace openlcb

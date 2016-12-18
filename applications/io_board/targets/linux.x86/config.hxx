@@ -1,12 +1,12 @@
 #ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 #define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Defines the identification information for the node. The arguments are:
@@ -77,6 +77,6 @@ CDI_GROUP_ENTRY(seg, IoBoardSegment);
 CDI_GROUP_ENTRY(version, VersionSeg);
 CDI_GROUP_END();
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_

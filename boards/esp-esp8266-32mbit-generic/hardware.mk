@@ -16,7 +16,7 @@ endif
 include $(OPENMRNPATH)/etc/prog.mk
 
 
-XLATEDLIBS=nmranet spiffs utils os executor
+XLATEDLIBS=openlcb spiffs utils os executor
 
 ifdef FOOOXXX
 XLATEDSTDLIBS=stdc++ c
@@ -57,11 +57,10 @@ $(eval $(foreach fbase,$(XLATEDGCCLIBS),$(call LIBCOPY_template,$(fbase),$(wildc
 
 $(EXECUTABLE)$(EXTENTION): $(FULLP_XLATEDLIBS) scrape_main_o
 
-.PHONY: scrape_main_o
-
 scrape_main_o: main.o
 	$(OBJDUMP) -h $<  | grep [.]text[.] | cut -d . -f 3- | cut -d " " -f 1 | sed 's/.*/--rename-section .text.\0=.irom0.text --rename-section .literal.\0=.irom0.literal/g' > lib/flagfilemaino.lst
 	$(OBJCOPY) @lib/flagfilemaino.lst $<
+	touch $@
 
 
 $(EXECUTABLE)-0x00000.bin: $(EXECUTABLE)$(EXTENTION)

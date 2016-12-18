@@ -35,10 +35,10 @@
 #include "os/os.h"
 #include "nmranet_config.h"
 
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/MultiConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/MultiConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
@@ -61,32 +61,32 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const nmranet::NodeID NODE_ID = 0x050101011804ULL;
+extern const openlcb::NodeID NODE_ID = 0x050101011804ULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
 // CAN-bus-specific components, a virtual node, PIP, SNIP, Memory configuration
 // protocol, ACDI, CDI, a bunch of memory spaces, etc.
-nmranet::SimpleCanStack stack(NODE_ID);
+openlcb::SimpleCanStack stack(NODE_ID);
 
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
 // used to generate the cdi.xml file. Here we instantiate the configuration
 // layout. The argument of offset zero is ignored and will be removed later.
-nmranet::ConfigDef cfg(0);
+openlcb::ConfigDef cfg(0);
 // Defines weak constants used by the stack to tell it which device contains
 // the volatile configuration information. This device name appears in
 // HwInit.cxx that creates the device drivers.
-extern const char *const nmranet::CONFIG_FILENAME = "/dev/eeprom";
+extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
-extern const size_t nmranet::CONFIG_FILE_SIZE =
+extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(nmranet::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
-extern const char *const nmranet::SNIP_DYNAMIC_FILENAME =
-    nmranet::CONFIG_FILENAME;
+extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::CONFIG_FILENAME;
 
 // Defines the GPIO ports used for the producers and the consumers.
 
@@ -106,19 +106,19 @@ constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
 // configuration structure comes from the CDI definition object, segment 'seg',
 // in which there is a repeated group 'consumers'. The GPIO pins get assigned
 // to the repetitions in the group in order.
-nmranet::MultiConfiguredConsumer consumers(
+openlcb::MultiConfiguredConsumer consumers(
     stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
 
 // Similar syntax for the producers.
-nmranet::ConfiguredProducer producer_sw1(
+openlcb::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
-nmranet::ConfiguredProducer producer_sw2(
+openlcb::ConfiguredProducer producer_sw2(
     stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
-nmranet::RefreshLoop loop(
+openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 /** Entry point to application.
@@ -128,6 +128,9 @@ nmranet::RefreshLoop loop(
  */
 int appl_main(int argc, char *argv[])
 {
+    stack.check_version_and_factory_reset(
+        cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
+
     // The necessary physical ports must be added to the stack.
     //
     // It is okay to enable multiple physical ports, in which case the stack

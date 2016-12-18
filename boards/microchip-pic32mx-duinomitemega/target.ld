@@ -80,8 +80,8 @@ _ebase_address  = 0xBD000000; /* must be on a 4kb page boundary; rounded down */
  * overrides are picked up
  */
 EXTERN(__cs3_reset_PIC32MX)
-EXTERN(_start)
-EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end)
+/* EXTERN(_start)
+EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
 
 /*
  * Provide for a minimum stack and heap size

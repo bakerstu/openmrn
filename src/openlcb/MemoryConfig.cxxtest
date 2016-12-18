@@ -1,0 +1,523 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file memory_config_test.cc
+ *
+ * Unit tests for the Memory Config protocol support.
+ *
+ * @author Balazs Racz
+ * @date 23 Feb 2014
+ */
+
+#include "utils/async_datagram_test_helper.hxx"
+#include "openlcb/MemoryConfig.hxx"
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+using ::testing::InvokeWithoutArgs;
+using ::testing::SetArgPointee;
+
+namespace openlcb
+{
+
+class MockMemorySpace : public MemorySpace
+{
+public:
+    MOCK_METHOD0(read_only, bool());
+    MOCK_METHOD0(min_address, address_t());
+    MOCK_METHOD0(max_address, address_t());
+
+    MOCK_METHOD5(write, size_t(address_t destination, const uint8_t* data,
+                               size_t len, errorcode_t* error, Notifiable*));
+    MOCK_METHOD5(read, size_t(address_t source, uint8_t* dst, size_t len,
+                              errorcode_t* error, Notifiable*));
+};
+
+class MemoryConfigTest : public TwoNodeDatagramTest
+{
+protected:
+    MemoryConfigTest() : memoryOne_(&datagram_support_, node_, 10)
+    {
+        ON_CALL(space, write(_, _, _, _, _))
+            .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
+        ON_CALL(space, read(_, _, _, _, _))
+            .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
+    }
+
+    ~MemoryConfigTest()
+    {
+    }
+
+public:
+    void AckResponse() {
+        send_packet(":X19A2877CN022A00;");
+    }
+
+protected:
+    MemoryConfigHandler memoryOne_;
+    std::unique_ptr<MemoryConfigHandler> memory_two;
+    StrictMock<MockMemorySpace> space;
+};
+
+void FillPayload(uint8_t* dst, size_t len)
+{
+    for (size_t i = 0; i < len; ++i)
+    {
+        dst[i] = '0' + (i % 10);
+    }
+}
+
+MATCHER_P(IsRawData, s, "") {
+    string p(s);
+    *result_listener << "actual data is 0x";
+    for (char c : p) {
+        *result_listener << StringPrintf("%02x", c);
+    }
+    return memcmp(p.data(), arg, p.size()) == 0;
+}
+
+using testing::DoAll;
+using testing::WithArgs;
+using testing::SetArgPointee;
+
+TEST_F(MemoryConfigTest, MockMemoryConfigRead)
+{
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    EXPECT_CALL(space, read(0x100, _, 10, _, _))
+        .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2050000001002730;");
+    expect_packet(":X1C77C22AN3132333435363738;");
+    expect_packet(":X1D77C22AN39;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN204000000100270A;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, InvalidSpace)
+{
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    send_packet_and_expect_response(":X1A22A77CN204000000100330A;",
+                                    ":X19A4822AN077C1081;"); // Space not known
+    wait();
+}
+
+TEST_F(MemoryConfigTest, InvalidSpecialSpace)
+{
+    memoryOne_.registry()->insert(node_, 0xFE, &space);
+
+    send_packet_and_expect_response(":X1A22A77CN2043000001000A;",
+                                    ":X19A4822AN077C1081;"); // Permanent error.
+    wait();
+}
+
+TEST_F(MemoryConfigTest, MockSpecialSpaceRead)
+{
+    memoryOne_.registry()->insert(node_, 0xFE, &space);
+
+    EXPECT_CALL(space, read(0x100, _, 10, _, _))
+        .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2052000001003031;");
+    expect_packet(":X1D77C22AN3233343536373839;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2042000001000A;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
+{
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    // The read reaches EOF early.
+    EXPECT_CALL(space, read(0x100, _, 10, _, _))
+        .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(8)));
+
+    EXPECT_CALL(space, read(0x108, _, 2, _, _))
+        .WillOnce(DoAll(SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS), Return(0)));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2050000001002730;");
+    expect_packet(":X1D77C22AN31323334353637;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN204000000100270A;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, MockMemoryConfigReadEof)
+{
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    // The read reaches EOF early.
+    EXPECT_CALL(space, read(0x100, _, 10, _, _)).WillOnce(DoAll(SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS), Return(0)));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2058000001002710;");
+    expect_packet(":X1D77C22AN82;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN204000000100270A;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, MockMemoryConfigWrite)
+{
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+
+    EXPECT_CALL(space, read_only())
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(space, write(0x100, IsRawData("01234567"), 8, _, _))
+        .WillOnce(Return(8));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20100000010027;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+    send_packet(":X1B22A77CN2000000001002730;");
+    send_packet(":X1D22A77CN31323334353637;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, Options)
+{
+    // First run a query on an empty registry.
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826000E2FFFD;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds a couple of memory spaces and checks the boundary information.
+    memoryOne_.registry()->insert(node_, 0x27, &space);
+    memoryOne_.registry()->insert(nullptr, 0x35, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0x42, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0xFB, &space);
+    memoryOne_.registry()->insert((Node*) 0x4, 0xFC, &space);
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826000E23527;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds a read-only ACDI space for 0xFB
+    memoryOne_.registry()->insert(node_, 0xFB, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826400E2FB27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Makes ACDI space read-write.
+    memoryOne_.registry()->insert(node_, 0xFB, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826600E2FB27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+
+    // Adds the other ACDI space.
+    memoryOne_.registry()->insert(nullptr, 0xFC, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN20826E00E2FC27;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2080;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoUnknown)
+{
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN208621;").WillOnce(InvokeWithoutArgs(
+        this, &MemoryConfigTest::AckResponse)); // space not existent
+    send_packet(":X1A22A77CN208421;"); // query space 0x21
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoZLA)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(false));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN2087211122334400;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoRO)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1A77C22AN2087211122334401;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, GetSpaceInfoRO_NZLA)
+{
+    memoryOne_.registry()->insert(nullptr, 0x21, &space);
+    EXPECT_CALL(space, read_only()).WillOnce(Return(true));
+    EXPECT_CALL(space, min_address()).WillOnce(Return(0x55443322));
+    EXPECT_CALL(space, max_address()).WillOnce(Return(0x11223344));
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    expect_packet(":X1B77C22AN2087211122334403;");
+    expect_packet(":X1D77C22AN55443322;")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+static const char MEMORY_BLOCK_DATA[] = "abrakadabra12345678xxxxyyyyzzzzwww.";
+
+class StaticBlockTest : public MemoryConfigTest
+{
+protected:
+    StaticBlockTest() : block_(MEMORY_BLOCK_DATA)
+    {
+        memoryOne_.registry()->insert(node_, 0x33, &block_);
+    }
+    ~StaticBlockTest()
+    {
+        wait();
+    }
+
+    ReadOnlyMemoryBlock block_;
+};
+
+string StringToHex(const char* s) {
+    string ret;
+    while (*s) {
+        ret += StringPrintf("%02X", *s);
+        s++;
+    }
+    return ret;
+}
+
+TEST_F(StaticBlockTest, CreateDestroy) { print_all_packets(); }
+
+
+TEST_F(StaticBlockTest, ReadBeginning) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("bra") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000003304;");
+    wait();
+}
+
+TEST_F(StaticBlockTest, ReadMiddle) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000333" + StringToHex("a") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("kadabra1") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("2345678") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000033310;");
+    wait();
+}
+
+TEST_F(StaticBlockTest, ReadEnd) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000203303;");
+    wait();
+}
+
+TEST_F(StaticBlockTest, ReadLong) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000203310;");
+    wait();
+}
+
+TEST_F(StaticBlockTest, ReadAll) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("brakadab") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("ra123456") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("78xxxxyy") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("yyzzzzww") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000003340;");
+    wait();
+}
+
+class FileBlockTest : public MemoryConfigTest
+{
+protected:
+    FileBlockTest() : block_(fd_)
+    {
+        memoryOne_.registry()->insert(node_, 0x33, &block_);
+    }
+
+    ~FileBlockTest()
+    {
+        wait();
+        prepare_file();
+    }
+
+    static void SetUpTestCase() {
+        MemoryConfigTest::SetUpTestCase();
+        strcpy(tempName_, "memblktestXXXXXX");
+        mktemp(tempName_);
+        ASSERT_TRUE(tempName_[0]);
+        fd_ = open(tempName_, O_CREAT | O_RDWR, S_IRWXU);
+        ASSERT_LT(0, fd_);
+        prepare_file();
+    }
+
+    static void TearDownTestCase() {
+        close(fd_);
+        unlink(tempName_);
+        MemoryConfigTest::TearDownTestCase();
+    }
+
+    static void prepare_file() {
+        fprintf(stderr, "re-setting temp file %s (fd %d).\n", tempName_, fd_);
+        ASSERT_EQ(0, lseek(fd_, 0, SEEK_SET));
+        ASSERT_EQ(0, ftruncate(fd_, 0)) << strerror(errno);
+        int len = strlen(MEMORY_BLOCK_DATA);
+        ASSERT_EQ(len, write(fd_, MEMORY_BLOCK_DATA, len)) << strerror(errno);
+    }
+
+    static int fd_;
+    static char tempName_[];
+    FileMemorySpace block_;
+};
+
+int FileBlockTest::fd_ = -1;
+char FileBlockTest::tempName_[30];
+
+TEST_F(FileBlockTest, CreateDestroy) { print_all_packets(); wait(); }
+
+TEST_F(FileBlockTest, ReadBeginning) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("bra") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000003304;");
+    wait();
+}
+
+TEST_F(FileBlockTest, ReadMiddle) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000333" + StringToHex("a") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("kadabra1") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("2345678") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000033310;");
+    wait();
+}
+
+TEST_F(FileBlockTest, ReadEnd) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000203303;");
+    wait();
+}
+
+TEST_F(FileBlockTest, ReadLong) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000002033" + StringToHex("w") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000203310;");
+    wait();
+}
+
+TEST_F(FileBlockTest, ReadAll) {
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    expect_packet(":X1B77C22AN20500000000033" + StringToHex("a") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("brakadab") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("ra123456") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("78xxxxyy") + ";");
+    expect_packet(":X1C77C22AN" + StringToHex("yyzzzzww") + ";");
+    expect_packet(":X1D77C22AN" + StringToHex("w.") + ";")
+        .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
+
+    send_packet(":X1A22A77CN2040000000003340;");
+    wait();
+}
+
+} // namespace

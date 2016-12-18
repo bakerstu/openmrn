@@ -1,14 +1,14 @@
 #ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 #define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 
-#include "nmranet/ConfigRepresentation.hxx"
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 
 CDI_GROUP(MotorControl, Name("Motor control"));
-CDI_GROUP_ENTRY(pwm_frequency, nmranet::Uint16ConfigEntry, Name("PWM frequency"),
+CDI_GROUP_ENTRY(pwm_frequency, openlcb::Uint16ConfigEntry, Name("PWM frequency"),
     Description("Specifies what frequency the motor should be driven at. "
                 "Typical values are in the 3000-20000 range."),
     Min(3), Max(50000), Default(13000));
@@ -17,12 +17,12 @@ CDI_GROUP_END();
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
 CDI_GROUP(
-    TrainBoardSegment, Segment(nmranet::MemoryConfigDefs::SPACE_CONFIG), Offset(128));
-CDI_GROUP_ENTRY(internal_data, nmranet::InternalConfigData);
+    TrainBoardSegment, Segment(openlcb::MemoryConfigDefs::SPACE_CONFIG), Offset(128));
+CDI_GROUP_ENTRY(internal_data, openlcb::InternalConfigData);
 CDI_GROUP_ENTRY(motor_control, MotorControl);
 CDI_GROUP_END();
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Defines the identification information for the node. The arguments are:
@@ -57,6 +57,6 @@ CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
 CDI_GROUP_ENTRY(seg, TrainBoardSegment);
 CDI_GROUP_END();
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_

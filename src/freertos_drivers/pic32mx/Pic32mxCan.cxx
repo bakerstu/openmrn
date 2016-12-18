@@ -455,14 +455,14 @@ void Pic32mxCan::isr()
 extern "C" {
 
 /// Hardware interrupt for CAN1.
-void __attribute__((interrupt)) can1_interrupt(void)
+void __attribute__((interrupt,nomips16)) can1_interrupt(void)
 {
     can0.isr();
     INTClearFlag(INT_CAN1);
 }
 
 /// Hardware interrupt for CAN2.
-void __attribute__((interrupt)) can2_interrupt(void)
+void __attribute__((interrupt,nomips16)) can2_interrupt(void)
 {
     can1.isr();
     INTClearFlag(INT_CAN2);

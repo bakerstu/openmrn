@@ -1,0 +1,395 @@
+#include "utils/async_if_test_helper.hxx"
+#include "openlcb/EventHandlerContainer.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/EventServiceImpl.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerMock.hxx"
+#include "openlcb/EndianHelper.hxx"
+#include "gmock/gmock.h"
+
+using testing::Eq;
+using testing::Field;
+using testing::InSequence;
+using testing::Invoke;
+using testing::InvokeWithoutArgs;
+using testing::StrictMock;
+using testing::WithArg;
+using testing::_;
+using testing::ElementsAre;
+
+namespace openlcb
+{
+
+extern void DecodeRange(EventReport *r);
+
+class DecodeRangeTest : public testing::Test
+{
+protected:
+    void ExpectDecode(uint64_t complex, uint64_t exp_event, uint64_t exp_mask)
+    {
+        EventReport r;
+        r.event = complex;
+        DecodeRange(&r);
+        EXPECT_EQ(exp_event, r.event);
+        EXPECT_EQ(exp_mask, r.mask);
+    }
+
+    uint64_t eventid_;
+    uint64_t mask_;
+};
+
+TEST_F(DecodeRangeTest, TrivPositive)
+{
+    ExpectDecode(0b1100, 0b1100, 0b0011);
+}
+
+TEST_F(DecodeRangeTest, TrivNegative)
+{
+    ExpectDecode(0b110011, 0b110000, 0b0011);
+}
+
+TEST_F(DecodeRangeTest, SimplePositive)
+{
+    ExpectDecode(0b1010101110000, 0b1010101110000, 0b1111);
+}
+
+TEST_F(DecodeRangeTest, SimpleNegative)
+{
+    ExpectDecode(0b101010111000011111, 0b101010111000000000, 0b11111);
+}
+
+TEST_F(DecodeRangeTest, LongPositive)
+{
+    ExpectDecode(0xfffffffffffffff0ULL, 0xfffffffffffffff0ULL, 0xf);
+}
+
+TEST_F(DecodeRangeTest, LongNegative)
+{
+    ExpectDecode(0xffffffffffffff0fULL, 0xffffffffffffff00ULL, 0xf);
+}
+
+class AlignMaskTest : public testing::Test
+{
+protected:
+    void ExpectAlign(uint64_t event, unsigned size, unsigned expected_mask)
+    {
+        tmp_event = event;
+        unsigned actual_mask =
+            EventRegistry::align_mask(&tmp_event, size);
+        string dbg = StringPrintf(
+            "event 0x%llx size %u actual event 0x%llx actual mask %u", event,
+            size, tmp_event, actual_mask);
+        EXPECT_LE(tmp_event, event) << dbg;
+        if (actual_mask < 64)
+        {
+            EXPECT_LE(event + size - 1, tmp_event + ((1ULL << actual_mask) - 1))
+                << dbg;
+            EXPECT_EQ(0ULL, tmp_event & ((1ULL << actual_mask) - 1)) << dbg;
+        }
+        else
+        {
+            EXPECT_EQ(0U, tmp_event);
+        }
+        EXPECT_EQ(expected_mask, actual_mask) << dbg;
+    }
+
+    uint64_t tmp_event;
+};
+
+TEST_F(AlignMaskTest, Zeros)
+{
+    ExpectAlign(0xA, 0, 0);
+    ExpectAlign(0xB, 0, 0);
+    ExpectAlign(0xF, 0, 0);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 0, 0);
+
+    ExpectAlign(0xA, 1, 0);
+    ExpectAlign(0xB, 1, 0);
+    ExpectAlign(0xF, 1, 0);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 1, 0);
+}
+
+TEST_F(AlignMaskTest, Twos)
+{
+    ExpectAlign(0xA, 2, 1);
+    ExpectAlign(0xB, 2, 3);
+    EXPECT_EQ(0x8U, tmp_event);
+    ExpectAlign(0xF, 2, 5);
+    EXPECT_EQ(0x0U, tmp_event);
+    ExpectAlign(0xBF, 2, 7);
+    EXPECT_EQ(0x80U, tmp_event);
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 2, 64);
+    EXPECT_EQ(0ULL, tmp_event);
+    ExpectAlign(0xBFFFFFFFFFFFFFFFULL, 2, 63);
+    EXPECT_EQ(0x8000000000000000ULL, tmp_event);
+    ExpectAlign(0x3FFFFFFFFFFFFFFFULL, 2, 63);
+    EXPECT_EQ(0x0000000000000000ULL, tmp_event);
+}
+
+TEST_F(AlignMaskTest, Aligned)
+{
+    ExpectAlign(0x70, 16, 4);
+    EXPECT_EQ(0x70U, tmp_event);
+
+    ExpectAlign(0x100, 256, 8);
+    EXPECT_EQ(0x100U, tmp_event);
+}
+
+TEST_F(AlignMaskTest, Unaligned)
+{
+    ExpectAlign(0x65, 16, 5);
+    EXPECT_EQ(0x60U, tmp_event);
+
+    ExpectAlign(0x55, 8, 4);
+    EXPECT_EQ(0x50U, tmp_event);
+
+    ExpectAlign(0x55, 16, 6);
+    EXPECT_EQ(0x40U, tmp_event);
+
+    ExpectAlign(0x3F0121, 175, 8);
+    EXPECT_EQ(0x3F0100ULL, tmp_event);
+
+    ExpectAlign(0x3F0121, 37, 7);
+    EXPECT_EQ(0x3F0100ULL, tmp_event);
+
+    ExpectAlign(0x7FFFFFFFFFFFFFFFULL, 175, 64);
+    EXPECT_EQ(0x0ULL, tmp_event);
+
+    ExpectAlign(0x0501010114FF07FFULL, 175, 12);
+    EXPECT_EQ(0x0501010114FF0000ULL, tmp_event);
+}
+
+static const uint64_t kTestEventId = 0x0102030405060708ULL;
+static const Defs::MTI kEventReportMti = Defs::MTI_EVENT_REPORT;
+//static const Defs::MTI kProducerIdentifiedResvdMti =
+//    Defs::MTI_PRODUCER_IDENTIFIED_RESERVED;
+static const Defs::MTI kGlobalIdentifyEvents = Defs::MTI_EVENTS_IDENTIFY_GLOBAL;
+//static const Defs::MTI kAddressedIdentifyEvents =
+//    Defs::MTI_EVENTS_IDENTIFY_ADDRESSED;
+
+class EventHandlerTests : public AsyncIfTest
+{
+protected:
+    EventHandlerTests()
+        : service_(ifCan_.get())
+    {
+    }
+
+    ~EventHandlerTests()
+    {
+        wait();
+    }
+
+    void wait()
+    {
+        while (service_.event_processing_pending())
+        {
+            usleep(100);
+        }
+        AsyncIfTest::wait();
+    }
+
+    void send_message(Defs::MTI mti, uint64_t event)
+    {
+        auto *b = ifCan_->dispatcher()->alloc();
+        b->data()->reset(mti, 0, {0, 0}, EventIDToPayload(event));
+        ifCan_->dispatcher()->send(b);
+    }
+
+    EventService service_;
+    StrictMock<MockEventHandler> h1_;
+    StrictMock<MockEventHandler> h2_;
+    StrictMock<MockEventHandler> h3_;
+    StrictMock<MockEventHandler> h4_;
+};
+
+TEST_F(EventHandlerTests, SimpleRunTest)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0),
+                                                64);
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0),
+                                                64);
+    EXPECT_CALL(h1_, handle_event_report(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_event_report(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    send_message(kEventReportMti, kTestEventId);
+    wait();
+}
+
+TEST_F(EventHandlerTests, SimpleRunTest2)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
+    EXPECT_CALL(h1_, handle_event_report(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_event_report(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    send_packet(":X195B4111N0102030405060708;");
+    wait();
+}
+
+TEST_F(EventHandlerTests, Run100EventsTest)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
+    EXPECT_CALL(h1_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
+        WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
+        WithArg<2>(Invoke(&InvokeNotification)));
+    for (int i = 0; i < 100; i++)
+    {
+        send_message(kEventReportMti, 0x0102030405060708ULL);
+    }
+    wait();
+}
+
+TEST_F(EventHandlerTests, EventsOrderTest)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
+    {
+        InSequence s;
+
+        EXPECT_CALL(h1_, handle_event_report(_,
+                             Field(&EventReport::event, kTestEventId + 0), _))
+            .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+        EXPECT_CALL(h1_, handle_event_report(_,
+                             Field(&EventReport::event, kTestEventId + 1), _))
+            .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+        EXPECT_CALL(h1_, handle_event_report(_,
+                             Field(&EventReport::event, kTestEventId + 2), _))
+            .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    }
+    BlockExecutor block(nullptr);
+    for (int i = 0; i < 3; i++)
+    {
+        send_message(kEventReportMti, kTestEventId + i);
+    }
+    block.release_block();
+    wait();
+}
+
+TEST_F(EventHandlerTests, GlobalRunTest1)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
+    EXPECT_CALL(h1_, handle_identify_global(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_identify_global(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(kGlobalIdentifyEvents, 0, "");
+    ifCan_->dispatcher()->send(b);
+    wait();
+}
+
+TEST_F(EventHandlerTests, GlobalAndLocal)
+{
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
+    EventRegistry::instance()->register_handler(EventRegistryEntry(&h2_, 0), 64);
+    EXPECT_CALL(h1_, handle_identify_global(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_identify_global(_, _, _))
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h1_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
+        WithArg<2>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(h2_, handle_event_report(_, _, _)).Times(100).WillRepeatedly(
+        WithArg<2>(Invoke(&InvokeNotification)));
+    send_packet(":X19970111N;");
+    for (int i = 0; i < 100; i++)
+    {
+        send_message(kEventReportMti, 0x0102030405060708ULL);
+    }
+    wait();
+}
+
+class TreeEventHandlerTest : public ::testing::Test
+{
+public:
+    TreeEventHandlerTest()
+        : iter_(handlers_.create_iterator())
+    {
+    }
+
+    vector<EventHandler *> get_all_matching(uint64_t event,
+                                            uint64_t mask = 1)
+    {
+        report_.event = event;
+        report_.mask = mask;
+        iter_->init_iteration(&report_);
+        vector<EventHandler *> r;
+        while (const EventRegistryEntry *h = iter_->next_entry())
+        {
+            r.push_back(h->handler);
+        }
+        sort(r.begin(), r.end());
+        return r;
+    }
+
+    EventHandler *h(int n)
+    {
+        return reinterpret_cast<EventHandler *>(0x100 + n);
+    }
+
+    void add_handler(int n, uint64_t eventid, unsigned mask)
+    {
+        handlers_.register_handler(EventRegistryEntry(h(n), eventid), mask);
+    }
+
+private:
+    EventReport report_;
+    TreeEventHandlers handlers_;
+    std::unique_ptr<EventIterator> iter_;
+};
+
+TEST_F(TreeEventHandlerTest, Empty)
+{
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre());
+}
+
+TEST_F(TreeEventHandlerTest, MatchAllCorrect)
+{
+    add_handler(1, 0, 64);
+    add_handler(3, 0, 64);
+    add_handler(2, 0, 64);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+                ElementsAre(h(1), h(2), h(3)));
+}
+
+TEST_F(TreeEventHandlerTest, SingleLookup)
+{
+    add_handler(1, 0x3FF, 0);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x300, 0xFF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x300, 0x7F), ElementsAre());
+    EXPECT_THAT(get_all_matching(0x3FF, 0), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre());
+
+    EXPECT_THAT(get_all_matching(0x103FF, 0), ElementsAre());
+}
+
+TEST_F(TreeEventHandlerTest, MultiLookup)
+{
+    add_handler(1, 0x3FF, 0);
+    add_handler(12, 0x10300, 8);
+    add_handler(13, 0x10300, 5);
+    add_handler(14, 0x10300, 4);
+    add_handler(15, 0x300, 8);
+    add_handler(16, 0x300, 5);
+    add_handler(17, 0x300, 4);
+    add_handler(3, 0x3F0, 4);
+    add_handler(4, 0x3E0, 4);
+    add_handler(5, 0x3E0, 5);
+    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+                ElementsAre(h(1), h(3), h(4), h(5), h(12), h(13), h(14), h(15),
+                            h(16), h(17)));
+    EXPECT_THAT(get_all_matching(0x300, 0x7F),
+                ElementsAre(h(15), h(16), h(17)));
+    EXPECT_THAT(get_all_matching(0x380, 0x7F),
+                ElementsAre(h(1), h(3), h(4), h(5), h(15)));
+    EXPECT_THAT(get_all_matching(0x3FF, 0),
+                ElementsAre(h(1), h(3), h(5), h(15)));
+    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
+}
+
+} // namespace openlcb

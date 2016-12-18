@@ -44,6 +44,9 @@
 /** Private data for a can device */
 class Can : public NonBlockNode
 {
+public:
+    static unsigned numReceivedPackets_;
+    static unsigned numTransmittedPackets_;
 protected:
     /** Constructor
      * @param name device name in file system

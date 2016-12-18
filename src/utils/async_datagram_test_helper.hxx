@@ -36,10 +36,10 @@
 #define _UTILS_ASYNC_DATAGRAM_TEST_HELPER_HXX_
 
 #include "utils/async_if_test_helper.hxx"
-#include "nmranet/Datagram.hxx"
-#include "nmranet/DatagramCan.hxx"
+#include "openlcb/Datagram.hxx"
+#include "openlcb/DatagramCan.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 /// Test base class for OpenLCB unittests that need a datagram handler.
 class AsyncDatagramTest : public AsyncNodeTest

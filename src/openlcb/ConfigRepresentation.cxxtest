@@ -1,0 +1,300 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file ConfigRepresentation.cxxtest
+ *
+ * Unittests for the representation of config files
+ *
+ * @author Balazs Racz
+ * @date 31 May 2015
+ */
+
+#include "utils/test_main.hxx"
+
+#include "openlcb/ConfigRepresentation.hxx"
+#include "os/TempFile.hxx"
+#include "openlcb/EventHandler.hxx"
+
+namespace openlcb
+{
+namespace
+{
+
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry);
+CDI_GROUP_END();
+
+CDI_GROUP(TestNodeConfig);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(test64, Uint64ConfigEntry);
+CDI_GROUP_ENTRY(test32, Uint32ConfigEntry);
+using TestRepeat = RepeatedGroup<TestGroup, 3>;
+CDI_GROUP_ENTRY(testgroup, TestRepeat);
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+TEST(GroupConfig, LengthAndOffsetsAreCorrect)
+{
+    EXPECT_EQ(25, TestNodeConfig::size());
+    EXPECT_EQ(3, TestGroup::size());
+    EXPECT_EQ(9, TestNodeConfig::TestRepeat::size());
+    TestNodeConfig cfg(11);
+    EXPECT_EQ(4, sizeof(cfg));
+
+    EXPECT_EQ(11, cfg.offset());
+
+    EXPECT_EQ(11, cfg.version().offset());
+    EXPECT_EQ(12, cfg.test_short().offset());
+    EXPECT_EQ(14, cfg.test64().offset());
+    EXPECT_EQ(22, cfg.test32().offset());
+
+    EXPECT_EQ(26, cfg.testgroup().offset());
+
+    EXPECT_EQ(26, cfg.testgroup().entry<0>().offset());
+    EXPECT_EQ(26, cfg.testgroup().entry<0>().e1().offset());
+    EXPECT_EQ(27, cfg.testgroup().entry<0>().e2().offset());
+
+    EXPECT_EQ(29, cfg.testgroup().entry<1>().offset());
+
+    EXPECT_EQ(29, cfg.testgroup().entry<1>().e1().offset());
+    EXPECT_EQ(33, cfg.testgroup().entry<2>().e2().offset());
+
+    EXPECT_EQ(35, cfg.last().offset());
+}
+
+CDI_GROUP(HoleTestGroup);
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(blocked, EmptyGroup<5>);
+CDI_GROUP_ENTRY(event, EventConfigEntry);
+CDI_GROUP_ENTRY(last, Uint32ConfigEntry);
+CDI_GROUP_END();
+
+TEST(GroupConfig, WithHoles)
+{
+    HoleTestGroup cfg(17);
+    EXPECT_EQ(18, HoleTestGroup::size());
+    EXPECT_EQ(18, cfg.size());
+    EXPECT_EQ(17, cfg.version().offset());
+    EXPECT_EQ(18, cfg.blocked().offset());
+    EXPECT_EQ(23, cfg.event().offset());
+    EXPECT_EQ(31, cfg.last().offset());
+}
+
+CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
+          Offset(128));
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+CDI_GROUP(SecondSegment, Segment(MemoryConfigDefs::SPACE_CONFIG));
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+
+CDI_GROUP(ConfigDef, MainCdi());
+CDI_GROUP_ENTRY(ident, Identification);
+CDI_GROUP_ENTRY(acdi, Acdi);
+CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
+CDI_GROUP_ENTRY(seg, IoBoardSegment);
+CDI_GROUP_ENTRY(seg2, SecondSegment);
+CDI_GROUP_END();
+
+TEST(FullCdi, SegmentOffset)
+{
+    ConfigDef def(0);
+    EXPECT_TRUE(def.group_opts().is_cdi());
+    EXPECT_EQ(-2, def.group_opts().segment());
+
+    EXPECT_EQ(INT_MAX, def.ident().group_opts().offset());
+    EXPECT_EQ(0, def.ident().group_opts().get_segment_offset());
+    EXPECT_EQ(0, def.ident().offset());
+    EXPECT_EQ(1000, def.ident().group_opts().segment());
+    EXPECT_EQ(1000, def.acdi().group_opts().segment());
+
+    EXPECT_EQ(1, def.userinfo().offset());
+    EXPECT_EQ(0xFB, def.userinfo().group_opts().segment());
+    EXPECT_EQ(1, def.userinfo().name().offset());
+
+    EXPECT_EQ(128, def.seg().group_opts().offset());
+    EXPECT_EQ(128, def.seg().offset());
+
+    EXPECT_EQ(128, def.seg().first().offset());
+    EXPECT_EQ(0, def.seg2().first().offset());
+}
+
+TempDir dir;
+
+TEST(ReadTest, Integers)
+{
+    TempFile f(dir, "cfg_integers");
+    f.write(0x75);
+    // Blocked space
+    f.write("12345");
+    // Event
+    f.write(0x11);
+    f.write(0x22);
+    f.write(0x33);
+    f.write(0x44);
+    f.write(0x55);
+    f.write(0x66);
+    f.write(0x77);
+    f.write(0x88);
+
+    uint32_t value = 1843926331;
+    f.write((value >> 24) & 0xff);
+    f.write((value >> 16) & 0xff);
+    f.write((value >> 8) & 0xff);
+    f.write((value >> 0) & 0xff);
+
+    HoleTestGroup grp(0);
+    EXPECT_EQ(value, grp.last().read(f.fd()));
+
+    EXPECT_EQ(0x1122334455667788ULL, grp.event().read(f.fd()));
+    EXPECT_EQ(0x75U, grp.version().read(f.fd()));
+}
+
+CDI_GROUP(ProducerGroup);
+CDI_GROUP_ENTRY(bounce_timeout, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(zero_event, EventConfigEntry);
+CDI_GROUP_ENTRY(one_event, EventConfigEntry);
+CDI_GROUP_END();
+
+using MyProducers = RepeatedGroup<ProducerGroup, 8>;
+
+CDI_GROUP(ConfigGroup);
+CDI_GROUP_ENTRY(producers, MyProducers);
+CDI_GROUP_END();
+
+string event_id_to_string(EventId id)
+{
+    id = htobe64(id);
+    string s(reinterpret_cast<const char *>(&id), 8);
+    return s;
+}
+
+TEST(ReadTest, Events)
+{
+    TempFile f(dir, "cfg_events");
+    for (int i = 0; i < 8; i++)
+    {
+        f.write(13);
+        f.write(event_id_to_string(0x050101011833FF00ULL + i * 2));
+        f.write(event_id_to_string(0x050101011833FF00ULL + i * 2 + 1));
+    }
+    ConfigGroup grp(0);
+
+    class ProducerImpl
+    {
+    public:
+        ProducerImpl(ProducerGroup g, int idx)
+            : ref_(g.offset())
+            , idx_(idx)
+        {
+        }
+
+        void test(int fd)
+        {
+            ProducerGroup g(ref_.offset());
+            EXPECT_EQ(13, g.bounce_timeout().read(fd));
+            EXPECT_EQ(
+                0x050101011833FF00ULL + idx_ * 2 + 1, g.one_event().read(fd));
+            EXPECT_EQ(
+                0x050101011833FF00ULL + idx_ * 2, g.zero_event().read(fd));
+        }
+
+    private:
+        ConfigReference ref_;
+        int idx_;
+    };
+
+    ProducerImpl impl5(grp.producers().entry<5>(), 5);
+    ProducerImpl impl2(grp.producers().entry<2>(), 2);
+    ProducerImpl impl0(grp.producers().entry<0>(), 0);
+    impl5.test(f.fd());
+    impl2.test(f.fd());
+    impl0.test(f.fd());
+}
+
+
+namespace test {
+
+
+/*class TestGroup : public ConfigReference {
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(TestGroup, ConfigReference);
+
+    template<int LINE> constexpr NoopGroupEntry entry(const EntryMarker<LINE>&) {
+        return NoopGroupEntry(entry(EntryMarker<LINE - 1>()).end_offset());
+    }
+
+    constexpr GroupBaseEntry entry(EntryMarker<40>) {
+        return GroupBaseEntry(offset_);
+    }
+
+    constexpr Uint8ConfigEntry entry(EntryMarker<56>) {
+        return Uint8ConfigEntry(entry(EntryMarker<55>()).end_offset());
+    }
+
+    constexpr Uint8ConfigEntry testi8() { return entry(EntryMarker<56>()); }
+    constexpr NoopGroupEntry last_entry() { return entry(EntryMarker<60>()); }
+    constexpr unsigned size() { return last_entry().end_offset() - offset_; }
+    constexpr unsigned end_offset() { return last_entry().end_offset(); }
+};
+
+TEST(TestGroupTest, SizeOkay) {
+    TestGroup grp(34);
+    EXPECT_EQ(1, grp.size());
+    EXPECT_EQ(34, grp.testi8().offset());
+    EXPECT_EQ(35, grp.end_offset());
+}
+*/
+
+
+} // namespace test
+
+namespace test2 {
+
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(testi8, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(testi32, Uint32ConfigEntry);
+// some comment in here
+CDI_GROUP_ENTRY(testi64, Uint64ConfigEntry);
+CDI_GROUP_END();
+
+TEST(Test2GroupTest, Offsets) {
+    TestGroup grp(11);
+    EXPECT_EQ(13, TestGroup::size());
+    EXPECT_EQ(11, grp.testi8().offset());
+    EXPECT_EQ(12, grp.testi32().offset());
+    EXPECT_EQ(16, grp.testi64().offset());
+    EXPECT_EQ(24, grp.end_offset());
+}
+
+} // namespace test2
+
+} // namespace
+} // namespace openlcb

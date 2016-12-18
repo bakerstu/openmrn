@@ -58,7 +58,7 @@ class Pool;
 template <class T> class Buffer;
 class BufferBase;
 
-namespace nmranet
+namespace openlcb
 {
 class AsyncIfTest;
 }
@@ -171,7 +171,7 @@ protected:
         }
     }
 
-    friend class nmranet::AsyncIfTest;
+    friend class openlcb::AsyncIfTest;
 
     /** Allow Pool access to our constructor */
     friend class Pool;

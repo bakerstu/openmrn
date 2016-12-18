@@ -1,0 +1,53 @@
+#include "utils/async_if_test_helper.hxx"
+#include "openlcb/RefreshLoop.hxx"
+
+namespace openlcb
+{
+namespace
+{
+
+class MockPolling : public Polling
+{
+public:
+    MOCK_METHOD2(poll_33hz, void(WriteHelper *helper, Notifiable *done));
+};
+
+class RefreshLoopTest : public AsyncNodeTest
+{
+protected:
+    ~RefreshLoopTest()
+    {
+        wait();
+        if (loop_.get())
+        {
+            g_executor.sync_run([this](){loop_->stop();});
+            wait();
+        }
+    }
+
+    vector<Polling *> entries_;
+    MockPolling mp1_;
+    MockPolling mp2_;
+    std::unique_ptr<RefreshLoop> loop_;
+};
+
+TEST_F(RefreshLoopTest, Calls)
+{
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    loop_.reset(new RefreshLoop(node_, {&mp1_}));
+    usleep(150000);
+}
+
+TEST_F(RefreshLoopTest, CallsBoth)
+{
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    EXPECT_CALL(mp2_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    loop_.reset(new RefreshLoop(node_, {&mp1_, &mp2_}));
+    usleep(120000);
+}
+
+} // namespace
+} // namespace openlcb

@@ -39,69 +39,66 @@
 #include <string>
 #include <vector>
 
-namespace dcc {
+#include "dcc/railcom.h"
+
+namespace dcc
+{
 
 /// Structure used for reading (railcom) feedback data from DCC / Railcom
 ///  device drivers.
-struct Feedback {
+struct Feedback : public DCCFeedback
+{
     /// Clears the structure and sets the feedback key to a specific value.
-    void reset(uint32_t feedback_key) {
+    void reset(uint32_t feedback_key)
+    {
         this->feedbackKey = feedback_key;
         ch1Size = 0;
         ch2Size = 0;
         channel = 0;
     }
+
     /// Appends a byte to the channel 1 payload.
-    void add_ch1_data(uint8_t data) {
-        if (ch1Size < sizeof(ch1Data)) {
+    void add_ch1_data(uint8_t data)
+    {
+        if (ch1Size < sizeof(ch1Data))
+        {
             ch1Data[ch1Size++] = data;
         }
     }
+
     /// Appends a byte to the channel 2 payload.
-    void add_ch2_data(uint8_t data) {
-        if (ch2Size < sizeof(ch2Data)) {
+    void add_ch2_data(uint8_t data)
+    {
+        if (ch2Size < sizeof(ch2Data))
+        {
             ch2Data[ch2Size++] = data;
         }
     }
-    /// Number of bytes in channel one.
-    uint8_t ch1Size;
-    /// Payload of channel 1.
-    uint8_t ch1Data[2];
-    /// Number of bytes in channel two.
-    uint8_t ch2Size;
-    /// Payload of channel 2.
-    uint8_t ch2Data[6];
-    /// Used by multi-channel railcom receiver drivers. Specifies which
-    /// hardware channel captured this data.
-    uint8_t channel;
-    /// Opaque identifier that allows linking outgoing dcc::Packet sent to the
-    /// DCC waveform generator to the incoming dcc::Feedback structure read
-    /// back from the railcom driver.
-    uint32_t feedbackKey;
 };
 
 /// Formats a dcc::Feedback message into a debug string.
 std::string railcom_debug(const Feedback& fb);
 
 /// Special constant values returned by the @ref railcom_decode[] array.
-namespace RailcomDefs {
-/// invalid value (not conforming to the 4bit weighting requirement)
-  static const uint8_t INV = 0xff;
-/// Railcom ACK; the decoder received the message ok. NOTE: some early software
-/// versions may have ACK and NACK exchanged.
-  static const uint8_t ACK = 0xfe;
-/// The decoder rejected the packet.
-  static const uint8_t NACK = 0xfd;
-/// The decoder is busy; send the packet again. This is typically returned when
-/// a POM CV write is still pending; the caller must re-try sendingthe packet
-/// later.
-  static const uint8_t BUSY = 0xfc;
-/// Reserved for future expansion.
-  static const uint8_t RESVD1 = 0xfb;
-/// Reserved for future expansion.
-  static const uint8_t RESVD2 = 0xfa;
-/// Reserved for future expansion.
-  static const uint8_t RESVD3 = 0xf8;
+namespace RailcomDefs
+{
+    /// invalid value (not conforming to the 4bit weighting requirement)
+    static const uint8_t INV = 0xff;
+    /// Railcom ACK; the decoder received the message ok. NOTE: some early
+    /// software versions may have ACK and NACK exchanged.
+    static const uint8_t ACK = 0xfe;
+    /// The decoder rejected the packet.
+    static const uint8_t NACK = 0xfd;
+    /// The decoder is busy; send the packet again. This is typically returned
+    /// when a POM CV write is still pending; the caller must re-try sending the
+    /// packet later.
+    static const uint8_t BUSY = 0xfc;
+    /// Reserved for future expansion.
+    static const uint8_t RESVD1 = 0xfb;
+    /// Reserved for future expansion.
+    static const uint8_t RESVD2 = 0xfa;
+    /// Reserved for future expansion.
+    static const uint8_t RESVD3 = 0xf8;
 }
 
 /** Table for 8-to-6 decoding of railcom data. This table can be indexed by the
@@ -111,7 +108,8 @@ namespace RailcomDefs {
 extern const uint8_t railcom_decode[256];
 
 /// Packet identifiers from Mobile Decoders.
-enum RailcomMobilePacketId {
+enum RailcomMobilePacketId
+{
     RMOB_POM = 0,
     RMOB_ADRHIGH = 1,
     RMOB_ADRLOW = 2,
@@ -123,8 +121,10 @@ enum RailcomMobilePacketId {
 /// Represents a single Railcom datagram. There can be multiple railcom
 /// datagrams in the cutout of one railcom packet: usually zero or one in
 /// channel 1 and up to four datagrams in channel 2.
-struct RailcomPacket {
-    enum {
+struct RailcomPacket
+{
+    enum
+    {
         GARBAGE,
         ACK,
         NACK,

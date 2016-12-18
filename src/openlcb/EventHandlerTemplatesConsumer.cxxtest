@@ -1,0 +1,125 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+
+namespace openlcb {
+
+static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
+
+class BitEventConsumerTest : public AsyncNodeTest {
+ protected:
+  BitEventConsumerTest()
+      : storage_(0),
+        bit_(node_, kEventBase, kEventBase + 1, &storage_, 1),
+        consumer_(&bit_),
+        bit2_(node_, kEventBase + 2, kEventBase + 3, &storage_, 2),
+        consumer2_(&bit2_) {}
+
+  uint8_t storage_;
+  MemoryBit<uint8_t> bit_;
+  BitEventConsumer consumer_;
+  MemoryBit<uint8_t> bit2_;
+  BitEventConsumer consumer2_;
+};
+
+TEST_F(BitEventConsumerTest, SimpleOnOff) {
+  storage_ = 0;
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X195B4001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X195B4001N05010101FFFF0001;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
+  EXPECT_EQ(2, storage_);
+
+  send_packet(":X195B4001N05010101FFFF0002;");
+  wait_for_event_thread();
+  EXPECT_EQ(2, storage_);
+
+  send_packet(":X195B4001N05010101FFFF0003;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+}
+
+TEST_F(BitEventConsumerTest, ProducerIdentifiedOnOff) {
+  storage_ = 0;
+  send_packet(":X19544001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X19544001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X19544001N05010101FFFF0001;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+
+  send_packet(":X19544001N05010101FFFF0001;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+
+  send_packet(":X19545001N05010101FFFF0001;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X19545001N05010101FFFF0001;");
+  wait_for_event_thread();
+  EXPECT_EQ(1, storage_);
+
+  send_packet(":X19545001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+
+  send_packet(":X19545001N05010101FFFF0000;");
+  wait_for_event_thread();
+  EXPECT_EQ(0, storage_);
+}
+
+TEST_F(BitEventConsumerTest, GlobalIdentify) {
+  storage_ = 1;
+  expect_packet(":X194C522AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0003;");
+  expect_packet(":X194C522AN05010101FFFF0002;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+  storage_ = 2;
+  expect_packet(":X194C522AN05010101FFFF0000;");
+  expect_packet(":X194C422AN05010101FFFF0001;");
+  expect_packet(":X194C422AN05010101FFFF0002;");
+  expect_packet(":X194C522AN05010101FFFF0003;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitEventConsumerTest, Query) {
+  expect_packet(":X1991422AN05010101FFFF0000;");
+  WriteHelper h;
+  consumer_.SendQuery(&h, get_notifiable());
+  wait_for_notification();
+  wait_for_event_thread();
+}
+
+TEST_F(BitEventConsumerTest, IdentifyConsumer) {
+  storage_ = 1;
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                              ":X194C422AN05010101FFFF0000;");
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0001;",
+                              ":X194C522AN05010101FFFF0001;");
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0002;",
+                              ":X194C522AN05010101FFFF0002;");
+  send_packet_and_expect_response(":X198F4001N05010101FFFF0003;",
+                              ":X194C422AN05010101FFFF0003;");
+}
+}  // namespace openlcb

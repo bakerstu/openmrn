@@ -934,6 +934,11 @@ OS_INLINE int os_mq_num_spaces(os_mq_t queue)
     }
 #endif
 
+#ifdef TARGET_PIC32MX
+
+void __attribute__((nomips16)) os_isr_exit_yield_test(int woken);
+
+#else
 /** Test if we have woken up a higher priority task as the end of an interrupt.
  * @param _woken test value
  */
@@ -942,6 +947,8 @@ do                                     \
 {                                      \
     portEND_SWITCHING_ISR(_woken);     \
 } while(0);
+
+#endif // PIC32 or general
 #endif
 
 /** Get the monotonic time since the system started.

@@ -1,1 +1,1 @@
-../../../../boards/esp-bracz-deadrail-huzzah/hardware.hxx
+../../../../boards/esp-bracz-deadrail-huzzah/hardware.huzzah.hxx

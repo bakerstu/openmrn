@@ -40,17 +40,17 @@
 
 #include <memory>
 
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/EventService.hxx"
-#include "nmranet/IfCan.hxx"
-#include "nmranet/ProtocolIdentification.hxx"
-#include "nmranet/SimpleNodeInfo.hxx"
-#include "nmranet/SimpleNodeInfoMockUserFile.hxx"
-#include "nmranet/TractionProxy.hxx"
-#include "nmranet/TractionTestTrain.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/ProtocolIdentification.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/TractionProxy.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "openlcb/TractionTrain.hxx"
 #include "os/os.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Hub.hxx"
@@ -62,30 +62,30 @@ Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-nmranet::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-static const nmranet::NodeID NODE_ID = 0x050101011807ULL;
-static nmranet::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
-nmranet::DefaultNode g_node(&g_if_can, NODE_ID);
-nmranet::SimpleInfoFlow gInfoFlow(&g_if_can);
-nmranet::SNIPHandler snip(&g_if_can, &g_node, &gInfoFlow);
+openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
+static const openlcb::NodeID NODE_ID = 0x050101011807ULL;
+static openlcb::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
+openlcb::DefaultNode g_node(&g_if_can, NODE_ID);
+openlcb::SimpleInfoFlow gInfoFlow(&g_if_can);
+openlcb::SNIPHandler snip(&g_if_can, &g_node, &gInfoFlow);
 
-nmranet::ProtocolIdentificationHandler
-pip(&g_node, nmranet::Defs::EVENT_EXCHANGE |
-                 nmranet::Defs::SIMPLE_NODE_INFORMATION |
-                 nmranet::Defs::TRACTION_PROXY);
+openlcb::ProtocolIdentificationHandler
+pip(&g_node, openlcb::Defs::EVENT_EXCHANGE |
+                 openlcb::Defs::SIMPLE_NODE_INFORMATION |
+                 openlcb::Defs::TRACTION_PROXY);
 
-nmranet::EventService g_event_service(&g_if_can);
-nmranet::TrainService traction_service(&g_if_can);
-nmranet::TractionProxyService traction_proxy(&traction_service, &g_node);
+openlcb::EventService g_event_service(&g_if_can);
+openlcb::TrainService traction_service(&g_if_can);
+openlcb::TractionProxyService traction_proxy(&traction_service, &g_node);
 
-using nmranet::Node;
-using nmranet::SimpleEventHandler;
-using nmranet::EventRegistry;
-using nmranet::EventReport;
-using nmranet::event_write_helper1;
-using nmranet::WriteHelper;
+using openlcb::Node;
+using openlcb::SimpleEventHandler;
+using openlcb::EventRegistry;
+using openlcb::EventReport;
+using openlcb::event_write_helper1;
+using openlcb::WriteHelper;
 
-namespace nmranet
+namespace openlcb
 {
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "OpenMRN", "Virtual command station", "No hardware here", "0.92"};
@@ -148,15 +148,15 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-namespace nmranet
+namespace openlcb
 {
 
 struct TrainNodeImpl
 {
-    std::unique_ptr<nmranet::TrainImpl> impl;
-    std::unique_ptr<nmranet::TrainNode> node;
+    std::unique_ptr<openlcb::TrainImpl> impl;
+    std::unique_ptr<openlcb::TrainNode> node;
     std::unique_ptr<EventHandler> is_train_event;
-    std::unique_ptr<nmranet::IncomingMessageStateFlow> pip_handler;
+    std::unique_ptr<openlcb::IncomingMessageStateFlow> pip_handler;
 };
 
 map<uint16_t, TrainNodeImpl> trains;
@@ -171,14 +171,14 @@ Node *allocate_train_node(uint8_t system, uint8_t addr_hi, uint8_t addr_lo,
     TrainNodeImpl &n = trains[address];
     if (!n.node)
     {
-        n.impl.reset(new nmranet::LoggingTrain(address));
+        n.impl.reset(new openlcb::LoggingTrain(address));
         n.node.reset(
-            new nmranet::TrainNodeForProxy(traction_service, n.impl.get()));
-        n.is_train_event.reset(new nmranet::FixedEventProducer<
-            nmranet::TractionDefs::IS_TRAIN_EVENT>(n.node.get()));
-        n.pip_handler.reset(new nmranet::ProtocolIdentificationHandler(
+            new openlcb::TrainNodeForProxy(traction_service, n.impl.get()));
+        n.is_train_event.reset(new openlcb::FixedEventProducer<
+            openlcb::TractionDefs::IS_TRAIN_EVENT>(n.node.get()));
+        n.pip_handler.reset(new openlcb::ProtocolIdentificationHandler(
             n.node.get(),
-            nmranet::Defs::EVENT_EXCHANGE | nmranet::Defs::TRACTION_CONTROL));
+            openlcb::Defs::EVENT_EXCHANGE | openlcb::Defs::TRACTION_CONTROL));
     }
     return n.node.get();
 }

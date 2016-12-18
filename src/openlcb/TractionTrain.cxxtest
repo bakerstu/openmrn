@@ -1,0 +1,464 @@
+#include "utils/async_traction_test_helper.hxx"
+
+#include "openlcb/TractionTrain.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionClient.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "openlcb/TractionThrottle.hxx"
+
+namespace openlcb
+{
+
+TEST(Fp16Test, NanToSpeedIsNan)
+{
+    SpeedType nan_speed = nan_to_speed();
+    EXPECT_TRUE(isnan(nan_speed.speed()));
+}
+
+TEST(Fp16Test, FFFFToSpeedIsNan)
+{
+    uint16_t nan_fp16 = 0xffffU;
+    SpeedType nan_speed = fp16_to_speed(&nan_fp16);
+    EXPECT_TRUE(isnan(nan_speed.speed()));
+
+    uint32_t fp_nan = 0;
+    memcpy(&fp_nan, &nan_speed, 4);
+    fprintf(stderr, "%08" PRIx32 "\n", fp_nan);
+}
+
+TEST(Fp16Test, NanToSpeedTo16Correct)
+{
+    SpeedType nan_speed = nan_to_speed();
+    uint32_t nan_speed_raw;
+    memcpy(&nan_speed_raw, &nan_speed, 4);
+    EXPECT_EQ(0xffff0000U, nan_speed_raw);
+
+    uint16_t nan_in_fp16;
+    speed_to_fp16(nan_speed, &nan_in_fp16);
+    EXPECT_EQ(0xffffU, nan_in_fp16);
+}
+
+TEST(Fp16Test, FFFFToSpeedTofp16IsFFFF)
+{
+    uint16_t original = 0xffffU;
+    SpeedType sp = fp16_to_speed(&original);
+    uint16_t reconv_fp16;
+    speed_to_fp16(sp, &reconv_fp16);
+    EXPECT_EQ(0xffffU, reconv_fp16);
+}
+
+TEST(Fp16Test, UnalignedSave)
+{
+    SpeedType s = 37.5;
+    uint32_t v = 0;
+    uint8_t *b = reinterpret_cast<uint8_t *>(&v);
+    speed_to_fp16(s, b + 1);
+    EXPECT_EQ(0U, v & 0xFF0000FFU);
+    SpeedType ss = fp16_to_speed(b + 1);
+    EXPECT_EQ(37.5, ss.speed());
+}
+
+TEST(Fp16Test, MaintainsDirection)
+{
+    uint16_t fp_f0 = 0x0000;
+    SpeedType fwd0 = fp16_to_speed(&fp_f0);
+    EXPECT_EQ(0, fwd0.direction());
+
+    // It's important that the test case be big-endian.
+    uint8_t fp_b0[] = {0x80, 0};
+    SpeedType bk0 = fp16_to_speed(fp_b0);
+    EXPECT_EQ(1, bk0.direction());
+}
+
+// The wire format shall be big endian. This is binary 1.001011 * 2^-5
+uint8_t k37_5[] = {0x50, 0xB0};
+
+TEST(Fp16Test, ThirtySevenAndAHalf)
+{
+    SpeedType s = fp16_to_speed(k37_5);
+    EXPECT_EQ(37.5, s.speed());
+}
+
+class TractionSingleMockTest : public TractionTest
+{
+protected:
+    TractionSingleMockTest()
+    {
+        create_allocated_alias();
+        expect_next_alias_allocation();
+        EXPECT_CALL(m1_, legacy_address()).Times(AtLeast(0)).WillRepeatedly(
+            Return(0x00003456U));
+        EXPECT_CALL(m1_, legacy_address_type())
+            .Times(AtLeast(0))
+            .WillRepeatedly(Return(dcc::TrainAddressType::DCC_LONG_ADDRESS));
+        // alias reservation
+        expect_packet(":X1070133AN060100003456;");
+        // initialized
+        expect_packet(":X1910033AN060100003456;");
+        trainNode_.reset(new TrainNodeForProxy(&trainService_, &m1_));
+        wait();
+    }
+    ~TractionSingleMockTest()
+    {
+        wait();
+    }
+
+    static const NodeID kTrainNodeID = 0x060100003456U;
+    std::unique_ptr<TrainNode> trainNode_;
+};
+
+const NodeID TractionSingleMockTest::kTrainNodeID;
+
+TEST_F(TractionSingleMockTest, SetSpeed)
+{
+    LOG(INFO, "node %p", trainNode_.get());
+    EXPECT_CALL(m1_, set_speed(Velocity(37.5)));
+    send_packet(":X195EB551N033A0050B0;");
+}
+
+TEST_F(TractionSingleMockTest, GetSpeed)
+{
+    EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(nan_to_speed()));
+    EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
+    expect_packet(":X191E933AN15511050B000FFFF;");
+    expect_packet(":X191E933AN2551FFFF;");
+    send_packet(":X195EB551N033A10;");
+}
+
+TEST_F(TractionSingleMockTest, GetSpeedTestWithCommandedSpeed)
+{
+    EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
+    EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
+    expect_packet(":X191E933AN15511050B00050A0;");
+    expect_packet(":X191E933AN2551FFFF;");
+    send_packet(":X195EB551N033A10;");
+}
+
+TEST_F(TractionSingleMockTest, GetSpeedTestWithActualSpeed)
+{
+    EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
+    EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(38.0));
+    expect_packet(":X191E933AN15511050B00050A0;");
+    expect_packet(":X191E933AN255150C0;");
+    send_packet(":X195EB551N033A10;");
+}
+
+TEST_F(TractionSingleMockTest, SetFn)
+{
+    EXPECT_CALL(m1_, set_fn(0x112233, 0x4384));
+    send_packet(":X195EB551N033A011122334384;");
+}
+
+TEST_F(TractionSingleMockTest, GetFn)
+{
+    EXPECT_CALL(m1_, get_fn(0x332244)).WillOnce(Return(0x6622));
+    send_packet_and_expect_response(":X195EB551N033A11332244;",
+                                    ":X191E933AN0551113322446622;");
+}
+
+TEST_F(TractionSingleMockTest, ReserveRelease)
+{
+    // First reserve succeeds.
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400100;");
+    // Second reserve fails.
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400101;");
+    // Reserve from another node fails.
+    send_packet_and_expect_response(":X195EB557N033A4001;",
+                                    ":X191E933AN0557400101;");
+    // Send a release. No response.
+    send_packet_and_flush_expect(":X195EB551N033A4002;");
+
+    // Now I can reserve from another node.
+    send_packet_and_expect_response(":X195EB557N033A4001;",
+                                    ":X191E933AN0557400100;");
+
+    // Reserve-release is a voluntary protocol. Source is not checked, so
+    // another source can release.
+    send_packet_and_flush_expect(":X195EB551N033A4002;");
+
+    // Another reserve succeeds.
+    send_packet_and_expect_response(":X195EB551N033A4001;",
+                                    ":X191E933AN0551400100;");
+
+    // Release at the end of the interaction.
+    send_packet_and_flush_expect(":X195EB567N033A4002;");
+}
+
+TEST_F(TractionSingleMockTest, AssignController)
+{
+    // Assign controller 050101011827
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
+
+    NodeHandle h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011827ULL, h.id);
+    EXPECT_EQ(0, h.alias);
+}
+
+TEST_F(TractionSingleMockTest, DoubleAssignController)
+{
+    // Assign controller 050101011827
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
+
+    NodeHandle h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011827ULL, h.id);
+    EXPECT_EQ(0, h.alias);
+
+    wait();
+
+    // Again: should succeed.
+    // Assign controller 050101011827
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
+}
+
+TEST_F(TractionSingleMockTest, QueryController)
+{
+    expect_packet(":X191E933AN1551200300000000;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551000000;");
+
+    NodeHandle h{0,0};
+    h.id = 0x112233445566ULL;
+    trainNode_->set_controller(h);
+    expect_packet(":X191E933AN1551200300112233;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551445566;");
+}
+
+TEST_F(TractionSingleMockTest, AssignAndQueryController)
+{
+    // Query controller
+    expect_packet(":X191E933AN1551200300000000;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551000000;");
+
+    // Assign controller 050101011827
+    send_packet(":X195EB551N133A200100050101;");
+    send_packet_and_expect_response(":X195EB551N233A011827;",
+                                    ":X191E933AN0551200100;");
+
+    // Query controller
+    expect_packet(":X191E933AN1551200300050101;");
+    send_packet_and_expect_response(":X195EB551N033A2003;",
+                                    ":X191E933AN2551011827;");
+}
+
+TEST_F(TractionSingleMockTest, ReleaseControllerOK)
+{
+    NodeHandle h = {0x050101011827, 0x123};
+    trainNode_->set_controller(h);
+
+    // Release controller
+    send_packet(":X195EB551N133A200200050101;");
+    send_packet(":X195EB551N233A011827;");
+    wait();
+
+    h = trainNode_->get_controller();
+    EXPECT_EQ(0ULL, h.id);
+    EXPECT_EQ(0U, h.alias);
+}
+
+TEST_F(TractionSingleMockTest, ReleaseControllerFailed)
+{
+    NodeHandle h = {0x050101011837, 0x123};
+    trainNode_->set_controller(h);
+
+    // Release controller
+    send_packet(":X195EB551N133A200200050101;");
+    send_packet(":X195EB551N233A011827;");
+    wait();
+
+    h = trainNode_->get_controller();
+    EXPECT_EQ(0x050101011837ULL, h.id);
+    EXPECT_EQ(0x123U, h.alias);
+}
+
+TEST_F(TractionSingleMockTest, Consisting)
+{
+    NodeID n1 = 0x050101011837;
+    NodeID n2 = 0x050101012351;
+
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    // add new
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    uint8_t flags = 0;
+    EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0, flags);
+    // add existing with flags update
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0x5A));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0x5A, flags);
+    // queries
+    EXPECT_EQ(n1, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(2, nullptr));
+    // remove nonexistent
+    EXPECT_FALSE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    // remove real
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    // add again
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
+    EXPECT_TRUE(trainNode_->add_consist(n2, 0));
+    EXPECT_TRUE(trainNode_->add_consist(n2, 0x3A));
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+
+    // query again
+    EXPECT_EQ(n2, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0x3A, flags);
+    EXPECT_EQ(n1, trainNode_->query_consist(1, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(2, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(3, nullptr));
+
+    // remove again
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
+    EXPECT_TRUE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+
+    // Remove front
+    EXPECT_TRUE(trainNode_->add_consist(n1, 0));
+    EXPECT_TRUE(trainNode_->add_consist(n2, 0));
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_TRUE(trainNode_->remove_consist(n2));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n1, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
+    EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_FALSE(trainNode_->query_consist(0, nullptr));
+}
+
+TEST_F(TractionSingleMockTest, ConsistSelf)
+{
+    EXPECT_EQ(kTrainNodeID, trainNode_->node_id());    
+    EXPECT_FALSE(trainNode_->add_consist(kTrainNodeID, 0));
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+}
+
+TEST_F(TractionSingleMockTest, RemoteConsisting)
+{
+    NodeID n1 = 0x050101011837;
+    //NodeID n2 = 0x050101012351;
+
+    send_packet(":X195EB551N133A30015A050101;");
+    expect_packet(":X191E933AN1551300105010101;");
+    send_packet_and_expect_response(":X195EB551N233A011837;",
+        ":X191E933AN255118370000;");
+    wait();
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    uint8_t flags = 0;
+    EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0x5A, flags);
+
+    expect_packet(":X191E933AN1551300301005A05;");
+    send_packet_and_expect_response(":X195EB551N033A300300;",
+                                    ":X191E933AN25510101011837;");
+    wait();
+
+    send_packet(":X195EB551N133A300200050101;");
+    expect_packet(":X191E933AN1551300205010101;");
+    send_packet_and_expect_response(":X195EB551N233A011837;",
+                                    ":X191E933AN255118370000;");
+    wait();
+    send_packet_and_expect_response(":X195EB551N033A300300;",
+                                    ":X191E933AN0551300300;");
+    wait();
+}
+
+class ClientFlow : public StateFlowBase
+{
+public:
+    ClientFlow(TractionResponseHandler *handler)
+        : StateFlowBase(handler->service())
+        , timer_(this)
+        , handler_(handler)
+    {
+    }
+
+    void enter()
+    {
+        bn_.reset(&n_);
+        start_flow(STATE(entry));
+    }
+
+    void block()
+    {
+        n_.wait_for_notification();
+    }
+
+    Action entry()
+    {
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(100), STATE(called));
+    }
+
+    Action called()
+    {
+        handler_->wait_timeout(); // or success
+        bn_.notify();
+        return set_terminated();
+    }
+
+    ::Timer* trigger() { return &timer_; }
+
+private:
+    StateFlowTimer timer_;
+    TractionResponseHandler *handler_;
+    BarrierNotifiable bn_;
+    SyncNotifiable n_;
+};
+
+class TractionClientTest : public AsyncNodeTest
+{
+protected:
+    TractionClientTest()
+        : handler_(ifCan_.get(), node_)
+        , flow_(&handler_)
+    {
+    }
+
+    TractionResponseHandler handler_;
+    ClientFlow flow_;
+};
+
+TEST_F(TractionClientTest, CreateDestroy)
+{
+}
+
+TEST_F(TractionClientTest, SimpleTimeout)
+{
+    flow_.enter();
+    flow_.block();
+    EXPECT_EQ(nullptr, handler_.response());
+}
+
+TEST_F(TractionClientTest, SimpleResponse)
+{
+    flow_.enter();
+    handler_.wait_for_response({0, 0x33C}, 65, flow_.trigger());
+    send_packet(":X191E933CN022A414243;");
+    flow_.block();
+    ASSERT_NE(nullptr, handler_.response());
+    EXPECT_EQ("ABC", handler_.response()->data()->payload);
+    handler_.response()->unref();
+}
+
+} // namespace openlcb

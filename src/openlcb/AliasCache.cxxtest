@@ -1,0 +1,408 @@
+/** \copyright
+ * Copyright (c) 2013, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ * 
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file AliasCache.cxxtest
+ * This file contains a unit test for classes in NMRAnetAliasCache.hxx and
+ * NMRAnetAliasCache.cxx.
+ *
+ * @author Stuart W. Baker
+ * @date 5 December 2013
+ */
+
+#include "os/os.h"
+#include "gtest/gtest.h"
+#include "openlcb/AliasCache.hxx"
+
+using namespace openlcb;
+
+static volatile int count = 0;
+/* We use this array to test the reorderd newest/oldest list */
+static NodeAlias aliases[] = {10, 11, 6, 84, 56, 72};
+static NodeID node_ids[] = {101, 102, 103, 104, 105, 106};
+
+static void alias_callback(void *context, NodeID node_id, NodeAlias alias)
+{
+    EXPECT_TRUE(aliases[count] == alias);
+    EXPECT_TRUE(node_ids[count] == node_id);
+    count++;
+}
+
+TEST(NMRAnetAliasCacheTest, constructor)
+{
+    /* construct an object, map in a node, and run the for_each */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 2);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+    EXPECT_EQ(2, aliasCache->size());
+
+    aliasCache->add(101, 10);
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+    EXPECT_EQ(count, 1);
+}
+
+TEST(NMRAnetAliasCacheTest, ordering)
+{
+    /* add mappings and check that they are in the correct order. */ 
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 10);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)106, (NodeAlias)72);
+    aliasCache->add((NodeID)105, (NodeAlias)56);
+    aliasCache->add((NodeID)104, (NodeAlias)84);
+    aliasCache->add((NodeID)103, (NodeAlias)6);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 6);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)72) == 106);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)56) == 105);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)106) == 72);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)105) == 56);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)104) == 84);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);
+}
+
+TEST(NMRAnetAliasCacheTest, reordering)
+{
+    /* make sure mapping order changes based on last accessed mapping */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 10);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)105, (NodeAlias)56);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)104, (NodeAlias)84);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)103, (NodeAlias)6);
+    aliasCache->add((NodeID)106, (NodeAlias)72);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)56) == 105);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 6);
+    
+    aliasCache->add((NodeID)200, (NodeAlias)36);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)36) == 200);
+    
+    aliasCache->remove(36);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)36) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)200) == 0);
+
+    count = 0;
+
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 6);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)106) == 72);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)105) == 56);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)104) == 84);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);    
+}
+
+TEST(NMRAnetAliasCacheTest, generate)
+{
+    /* check that we can generate a reasonable number of sequencial aliases
+     * whithout having too many duplicates.
+     */
+    AliasCache *aliasCache = new AliasCache(123456789, 10);
+    
+    static const int ITERATIONS = 100;
+    NodeAlias a[ITERATIONS];
+    int same = 0;
+
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        a[i] = aliasCache->generate();
+    }
+    
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        EXPECT_TRUE(a[i] != 0);
+        for (int j = i + 1; j < (ITERATIONS - 1); ++j)
+        {
+            if (a[i] == a[j])
+            {
+                ++same;
+            }
+        }
+    }
+    /* make sure we don't have to many a repeat alias values */
+    EXPECT_TRUE(same < 3);
+}
+
+TEST(NMRAnetAliasCacheTest, generate_first)
+{
+    /* The firest alias values generated by nodes of the same type with Node ID
+     * values within 255 of each other shall not be identical
+     */
+    static const int ITERATIONS = 256;
+
+    AliasCache *aliasCache[256];
+    NodeAlias a[ITERATIONS];
+    
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        aliasCache[i] = new AliasCache(i + i, 10);
+    }
+    
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        a[i] = aliasCache[i]->generate();
+    }
+    
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        EXPECT_TRUE(a[i] != 0);
+        for (int j = i + 1; j < (ITERATIONS - 1); ++j)
+        {
+            EXPECT_TRUE(a[i] != a[j]);
+        }
+    }
+}
+
+TEST(NMRAnetAliasCacheTest, kick_out_duplicate_alias)
+{
+    /* kick out a duplicate alias by adding in a new one on top */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 2);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)105, (NodeAlias)56);
+    aliasCache->add((NodeID)104, (NodeAlias)84);
+    aliasCache->add((NodeID)103, (NodeAlias)6);
+    aliasCache->add((NodeID)106, (NodeAlias)72);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    
+    count = 0;
+
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 2);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)106) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)105) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)104) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);    
+
+    aliasCache->add((NodeID)201, (NodeAlias)10);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 0);    
+    EXPECT_TRUE(aliasCache->lookup((NodeID)201) == 10);    
+}
+
+TEST(NMRAnetAliasCacheTest, kick_out_newest)
+{
+    /* kick out the newest alias to make room */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 1);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+}
+
+static void remove_callback(NodeID node_id, NodeAlias alias, void *context)
+{
+    EXPECT_TRUE(context == (void*)0xABCD0123);
+    
+    EXPECT_TRUE(10 == alias);
+    EXPECT_TRUE(101 == node_id);
+}
+
+TEST(NMRAnetAliasCacheTest, kick_out_duplicate_alias_callback)
+{
+    /* kick out duplicate alias and get a callback when removed */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 2, remove_callback, (void*)0xABCD0123);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    
+    count = 0;
+
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 2);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);    
+
+    aliasCache->add((NodeID)201, (NodeAlias)10);
+
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 0);   
+    EXPECT_TRUE(aliasCache->lookup((NodeID)201) == 10);   
+}
+
+TEST(NMRAnetAliasCacheTest, kick_out_oldest_callback)
+{
+    /* kick out the oldest alias and get a callback once removed */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 1, remove_callback, (void*)0xABCD0123);
+    
+    aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
+    
+    EXPECT_EQ(count, 0);
+
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 0);    
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 0);    
+}
+
+TEST(NMRAnetAliasCacheTest, remove)
+{
+    /* remove an alias that is not mapped */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 5);
+    
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)13) == 0);
+    
+    /* remove an alias that should not be mapped */
+    aliasCache->remove(13);
+    
+    /* make sure everything is still in the map and nothing was removed */
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)13) == 0);
+}
+
+TEST(NMRAnetAliasCacheTest, remove_middle)
+{
+    /* remove an alias out of the middle of the mappings */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 5);
+    
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+    
+    /* remove something in the middle */
+    aliasCache->remove(11);
+    
+    /* make sure just the removed node was actually removed */
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 0);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+}
+
+TEST(NMRAnetAliasCacheTest, remove_last)
+{
+    /* remove the last (oldest) alias touched */
+    count = 0;
+    AliasCache *aliasCache = new AliasCache(0, 5);
+    
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+    
+    /* remove something at the end */
+    aliasCache->remove(10);
+    
+    /* make sure just the removed node was actually removed */
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 0);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
+}
+
+
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

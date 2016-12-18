@@ -131,7 +131,7 @@ private:
 
 } // namespace dcc
 
-namespace nmranet
+namespace openlcb
 {
 
 /** This flow proxies all incoming railcom traffic to the openlcb bus in
@@ -192,7 +192,7 @@ public:
             get_allocation_result(node_->iface()->global_message_write_flow());
 
         b->data()->reset(
-            static_cast<nmranet::Defs::MTI>(nmranet::Defs::MTI_XPRESSNET + 2),
+            static_cast<openlcb::Defs::MTI>(openlcb::Defs::MTI_XPRESSNET + 2),
             node_->node_id(), string());
         b->data()->payload.push_back(message()->data()->channel | 0x10);
         b->data()->payload.append(
@@ -222,7 +222,7 @@ public:
             get_allocation_result(node_->iface()->global_message_write_flow());
 
         b->data()->reset(
-            static_cast<nmranet::Defs::MTI>(nmranet::Defs::MTI_XPRESSNET + 3),
+            static_cast<openlcb::Defs::MTI>(openlcb::Defs::MTI_XPRESSNET + 3),
             node_->node_id(), string());
         b->data()->payload.push_back(message()->data()->channel | 0x20);
         b->data()->payload.append(
@@ -237,6 +237,6 @@ public:
     dcc::RailcomHubPort *occupancyPort_;
 };
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _DCC_RAILCOMPORTDEBUG_HXX

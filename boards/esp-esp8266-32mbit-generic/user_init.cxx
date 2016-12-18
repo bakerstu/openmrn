@@ -17,7 +17,7 @@ extern "C" {
 #include "hardware.hxx"
 #include "freertos/bootloader_hal.h"
 
-namespace nmranet {
+namespace openlcb {
 extern char CONFIG_FILENAME[];
 }
 
@@ -141,8 +141,8 @@ void init_done() {
     do_global_ctors();
     spiffs_init();
     // Try to open the config file
-    int fd = ::open(nmranet::CONFIG_FILENAME, O_RDONLY);
-    if (fd < 0) fd = ::open(nmranet::CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
+    int fd = ::open(openlcb::CONFIG_FILENAME, O_RDONLY);
+    if (fd < 0) fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
     if (fd < 0) {
         printf("Formatting the SPIFFS fs.");
         extern void esp_spiffs_deinit(uint8_t);
