@@ -80,7 +80,8 @@ _ebase_address  = 0xBD000000; /* must be on a 4kb page boundary; rounded down */
  * overrides are picked up
  */
 EXTERN(__cs3_reset_PIC32MX)
-/* EXTERN(_start)
+/* NOT NEEDED -- we have our own entry routine, not using cs3's
+EXTERN(_start)
 EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
 
 /*
@@ -287,7 +288,7 @@ SECTIONS
   /*__cs3_region_end_ram = __cs3_region_start_ram + LENGTH(ram);*/
   __cs3_region_size_ram = LENGTH(ram);
   /* WRONG: load address is PHYSICAL, not logical address:  __cs3_region_init_ram = LOADADDR (.data);  WRONG */
-  /*  __cs3_region_init_ram = _etext; /* DRN updated this; seems correct... */
+  /*  __cs3_region_init_ram = _etext; DRN updated this; seems correct...  bracz: not really. */
   __cs3_region_init_ram = LOADADDR(.data);
   __cs3_region_init_size_ram = _edata - ADDR (.data);
   __cs3_region_zero_size_ram = _end - _edata;
