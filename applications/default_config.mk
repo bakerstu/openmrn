@@ -8,5 +8,3 @@ ifndef OPENMRNPATH
 OPENMRNPATH := $(realpath $(APP_PATH)/../..)
 endif
 export OPENMRNPATH
-
-$(info app_path $(APP_PATH) openmrnpath $(OPENMRNPATH) )

@@ -16,7 +16,7 @@ using testing::WithArg;
 using testing::Return;
 using testing::_;
 
-namespace nmranet
+namespace openlcb
 {
 
 struct CanMessagePayload : public can_frame
@@ -255,4 +255,4 @@ TEST_F(DispatcherTest, TestUnregister)
     wait();
 }
 
-} // namespace nmranet
+} // namespace openlcb

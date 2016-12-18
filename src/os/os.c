@@ -159,7 +159,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
             routine();
             once->state = OS_THREAD_ONCE_DONE;
         }
-   }
+    }
 
     return 0;
 }
@@ -783,6 +783,21 @@ void vApplicationIdleHook( void )
     }
 }
 
+#ifdef TARGET_PIC32MX
+static void __attribute__((nomips16)) os_yield_trampoline(void) {
+    taskYIELD();
+}
+
+void __attribute__((nomips16)) os_isr_exit_yield_test(int woken) {
+   portEND_SWITCHING_ISR(woken); 
+}
+
+#else
+static inline void __attribute__((always_inline)) os_yield_trampoline(void) {
+    taskYIELD();
+}
+#endif
+
 /** Entry point to the main thread.
  * @param arg unused argument
  * @return NULL;
@@ -811,7 +826,7 @@ void main_thread(void *arg)
 #endif
 
     /* Allow any library threads to run that must run ahead of main */
-    taskYIELD();
+    os_yield_trampoline();
 
     appl_main(1, argv);
     // If the main thread returns, FreeRTOS usually crashes the CPU in a

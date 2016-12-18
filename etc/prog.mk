@@ -32,8 +32,6 @@ CXXSRCS  = $(notdir $(FULLPATHCXXSRCS)) $(wildcard *.cxx)
 CPPSRCS  = $(notdir $(FULLPATHCPPSRCS)) $(wildcard *.cpp)
 XMLSRCS  = $(notdir $(FULLPATHXMLSRCS)) $(wildcard *.xml)
 
-$(info fullptest=$(FULLPATHTESTSRCS) test=$(TESTSRCS))
-
 OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
        $(XMLSRCS:.xml=.o)
 
@@ -116,8 +114,8 @@ cdi.o : compile_cdi
 	mv cdi.cxx cdi.cxxout
 	rm -f cdi.d
 
-compile_cdi: config.hxx $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
-	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/nmranet/CompileCdiMain.cxx
+compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
 clean: clean_cdi
 
@@ -135,16 +133,26 @@ endif
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
 lib/timestamp : FORCE $(BUILDDIRS)
-	if [ -h lib -o ! -d lib ] ; then rm -f lib ; mkdir lib ; fi  # creates the lib directory
-	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+	@if [ -h lib -o ! -d lib ] ; then rm -f lib ; mkdir lib ; fi  # creates the lib directory
+	@if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+
+# Detect when we have a compound toplevel build and use the toplevel build
+# timestamp to decide whether we need to recurse into the target
+# directory. Tihs saves a lot of makefile recursion when there are multiple
+# application targets built together that refer of the same openmrn lib target.
+ifdef HAVE_BUILD_TIMESTAMP
+LIBBUILDDEP:=$(HAVE_BUILD_TIMESTAMP)
+else
+LIBBUILDDEP:=FORCE
+endif
 
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
-$(LIBDIR)/timestamp: FORCE $(BUILDDIRS)
+$(LIBDIR)/timestamp: $(LIBBUILDDEP) $(BUILDDIRS)
 ifdef FLOCKPATH
-	$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all"
+	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $< -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build ; fi"
 else
-	echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
+	@echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
 	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
 endif
 
@@ -198,7 +206,7 @@ CGMINSIZE=300
 endif
 
 cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
-	$(OPENMRNPATH)/bin/callgraph.py --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
+	$(OPENMRNPATH)/bin/callgraph.py --max_indep 6 --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)
@@ -297,8 +305,6 @@ $(TEST_OUTPUTS) : %_test.output : %_test
 
 $(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
 	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
-
-$(info test deps: $(FULLPATHLIBS) )
 
 %_test.o : %_test.cc
 	$(CXX) $(CXXFLAGS:-Werror=) -DTESTING -fpermissive  $< -o $*_test.o

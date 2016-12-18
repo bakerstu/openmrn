@@ -52,7 +52,7 @@ void CanFrameWriteFlow::send(Buffer<CanHubData> *message, unsigned priority)
 Pool *CanFrameReadFlow::pool()
 {
     /* NOTE(balazs.racz) This pool should rather be the application-level
-     * buffer pool (for example nmranet::AsyncIf::dispatcher()::pool(), but
+     * buffer pool (for example openlcb::AsyncIf::dispatcher()::pool(), but
      * that pointer is not available here. At the moment applications use the
      * mainBufferPool. */
     return ifCan_->frame_dispatcher()->pool();

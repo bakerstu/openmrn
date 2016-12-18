@@ -3,11 +3,11 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/TractionDefs.hxx"
-#include "nmranet/TractionTrain.hxx"
+#include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionTrain.hxx"
 #include "utils/MockTrain.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Test fixture base for traction tests.
@@ -24,6 +24,6 @@ protected:
 };
 
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _UTILS_ASYNC_TRACTION_TEST_HELPER_HXX_

@@ -7,11 +7,11 @@
 #ifndef _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 #define _UTILS_ASYNC_IF_TEST_HELPER_HXX_
 
-#include "nmranet/AliasAllocator.hxx"
-#include "nmranet/IfCan.hxx"
-#include "nmranet/EventService.hxx"
-#include "nmranet/DefaultNode.hxx"
-#include "nmranet/NodeInitializeFlow.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/EventService.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"
@@ -46,7 +46,7 @@ HubFlow gc_hub1(&g_service);
 CanHubFlow can_hub1(&g_service);
 GCAdapterBase *g_gc_adapter1 = nullptr;
 
-nmranet::InitializeFlow g_init_flow(&g_service);
+openlcb::InitializeFlow g_init_flow(&g_service);
 
 /** Helper class for setting expectation on the CANbus traffic in unit
  * tests. */
@@ -295,7 +295,7 @@ BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
     return b;
 }
 
-namespace nmranet
+namespace openlcb
 {
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
@@ -460,16 +460,16 @@ protected:
     Node *node_;
 };
 
-/// Test handler for receiving incoming nmranet Message objects from a bus. The
+/// Test handler for receiving incoming openlcb Message objects from a bus. The
 /// incoming messages need GoogleMock expectations.
 ///
-/// Usage: see file src/nmranet/IfCan.cxxtest
+/// Usage: see file src/openlcb/IfCan.cxxtest
 class MockMessageHandler : public MessageHandler
 {
 public:
     MOCK_METHOD2(handle_message,
-                 void(NMRAnetMessage *message, unsigned priority));
-    virtual void send(Buffer<NMRAnetMessage> *message, unsigned priority)
+                 void(GenMessage *message, unsigned priority));
+    virtual void send(Buffer<GenMessage> *message, unsigned priority)
     {
         handle_message(message->data(), priority);
         message->unref();
@@ -543,6 +543,6 @@ MATCHER_P(IsBufferNodeValueString, id, "")
     return true;
 }
 
-} // namespace nmranet
+} // namespace openlcb
 
 #endif // _UTILS_ASYNC_IF_TEST_HELPER_HXX_

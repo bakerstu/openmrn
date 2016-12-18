@@ -2,10 +2,10 @@
 
 #include "utils/async_if_test_helper.hxx"
 
-#include "nmranet/EventHandler.hxx"
-#include "nmranet/Defs.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/Defs.hxx"
 
-namespace nmranet {
+namespace openlcb {
 
 TEST_F(AsyncNodeTest, Setup) {}
 
@@ -35,4 +35,4 @@ TEST_F(AsyncNodeTest, DISABLED_ReadMessageAndReply) {
   send_packet(  ":X10702001N;");
 }
 
-}  // namespace nmranet
+}  // namespace openlcb

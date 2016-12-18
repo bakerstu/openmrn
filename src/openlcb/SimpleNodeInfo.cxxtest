@@ -1,0 +1,121 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file SimpleNodeInfo.cxxtest
+ *
+ * Unit tests for SNIP handler
+ *
+ * @author Balazs Racz
+ * @date 27 Jul 2013
+ */
+
+#include <functional>
+
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/SimpleInfoProtocol.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/If.hxx"
+
+using ::testing::StartsWith;
+
+namespace openlcb
+{
+
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
+
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
+
+namespace
+{
+
+class SNIPTest : public AsyncNodeTest
+{
+protected:
+    SNIPTest()
+        : infoFlow_(ifCan_.get())
+        , handler_(ifCan_.get(), nullptr, &infoFlow_)
+    {
+    }
+
+    MockSNIPUserFile userFile_{"Undefined node name",
+                               "Undefined node descr"};
+    SimpleInfoFlow infoFlow_;
+    SNIPHandler handler_;
+};
+
+TEST_F(SNIPTest, CreateDestroy)
+{
+}
+
+/** Records the payload of incoming addressed packet (in gridconnect format)
+ * into the string dest. */
+void record_packet(string *dest, const string &packet)
+{
+    size_t pos = packet.find('N');
+    if (pos == string::npos)
+        return;
+    pos += 5; // skips destination address
+    while (pos < packet.size() - 1 && packet[pos] != ';')
+    {
+        char c[5];
+        c[0] = packet[pos];
+        c[1] = packet[pos + 1];
+        c[2] = 0;
+        int d = strtol(c, nullptr, 16);
+        dest->push_back(d & 0xff);
+        pos += 2;
+    }
+}
+
+TEST_F(SNIPTest, Send)
+{
+    using std::placeholders::_1;
+    string payload;
+    EXPECT_CALL(canBus_, mwrite(StartsWith(":X19A0822AN"))).WillRepeatedly(
+        WithArg<0>(Invoke(std::bind(&record_packet, &payload, _1))));
+    send_packet(":X19DE8754N022A;");
+    wait();
+    const char kExpectedData[] =
+        "\x04TestingTesting\0Undefined model\0Undefined HW version\0"
+        "0.9\0"
+        "\x02Undefined node name\0Undefined node descr"; // C adds another \0.
+    EXPECT_EQ(string(kExpectedData, sizeof(kExpectedData)), payload);
+
+    SnipDecodedData decoded;
+    decode_snip_response(payload, &decoded);
+    EXPECT_EQ("TestingTesting", decoded.manufacturer_name);
+    EXPECT_EQ("Undefined model",decoded.model_name);
+    EXPECT_EQ("Undefined HW version",decoded.hardware_version);
+    EXPECT_EQ("0.9", decoded.software_version);
+    EXPECT_EQ("Undefined node name", decoded.user_name);
+    EXPECT_EQ("Undefined node descr", decoded.user_description);
+}
+
+} // anonymous namespace
+} // namespace openlcb

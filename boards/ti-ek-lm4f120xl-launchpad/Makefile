@@ -28,6 +28,8 @@ BOARD := BOARD_LAUNCHPAD_EK
 
 include $(OPENMRNPATH)/etc/prog.mk
 
+ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
+
 OPENOCDARGS = -f board/ek-lm4f120xl.cfg
 
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
@@ -37,3 +39,5 @@ flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 gdb:
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
 	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)"
+
+endif

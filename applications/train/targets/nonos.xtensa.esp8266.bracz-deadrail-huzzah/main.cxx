@@ -42,10 +42,10 @@
 #include "freertos_drivers/common/WifiDefs.hxx"
 #include "freertos_drivers/esp8266/Esp8266Gpio.hxx"
 #include "freertos_drivers/esp8266/TimerBasedPwm.hxx"
-#include "nmranet/EventHandlerTemplates.hxx"
-#include "nmranet/SimpleStack.hxx"
-#include "nmranet/TractionTrain.hxx"
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/TractionTrain.hxx"
+#include "openlcb/TrainInterface.hxx"
 #include "os/os.h"
 #include "utils/ESPWifiClient.hxx"
 #include "utils/GpioInitializer.hxx"
@@ -61,7 +61,7 @@ extern void ets_delay_us(uint32_t us);
 #define os_delay_us ets_delay_us
 }
 
-#include "nmranet/TrainInterface.hxx"
+#include "openlcb/TrainInterface.hxx"
 #include "hardware.hxx"
 
 struct SpeedRequest
@@ -70,7 +70,7 @@ struct SpeedRequest
     {
         reset();
     }
-    nmranet::SpeedType speed_;
+    openlcb::SpeedType speed_;
     bool emergencyStop_;
     void reset()
     {
@@ -92,7 +92,7 @@ public:
         pwm_.enable();
     }
 
-    void call_speed(nmranet::Velocity speed)
+    void call_speed(openlcb::Velocity speed)
     {
         auto *b = alloc();
         b->data()->speed_ = speed;
@@ -119,7 +119,7 @@ public:
 private:
     static constexpr bool invertLow_ = HW::invertLow;
 
-    long long speed_to_fill_rate(nmranet::SpeedType speed, long long period)
+    long long speed_to_fill_rate(openlcb::SpeedType speed, long long period)
     {
         int fill_rate = speed.mph();
         if (fill_rate >= 128)
@@ -144,7 +144,7 @@ private:
         }
         // Check if we need to change the direction.
         bool desired_dir =
-            (req()->speed_.direction() == nmranet::SpeedType::FORWARD);
+            (req()->speed_.direction() == openlcb::SpeedType::FORWARD);
         if (lastDirMotAHi_ != desired_dir)
         {
             pwm_.pause();
@@ -159,7 +159,7 @@ private:
     {
         // We set the pins explicitly for safety
         bool desired_dir =
-            (req()->speed_.direction() == nmranet::SpeedType::FORWARD);
+            (req()->speed_.direction() == openlcb::SpeedType::FORWARD);
         int lo_pin;
         if (desired_dir)
         {
@@ -221,7 +221,7 @@ private:
 
 extern SpeedController g_speed_controller;
 
-class ESPHuzzahTrain : public nmranet::TrainImpl
+class ESPHuzzahTrain : public openlcb::TrainImpl
 {
 public:
     ESPHuzzahTrain()
@@ -231,13 +231,13 @@ public:
         HW::LIGHT_BACK_Pin::set(false);
     }
 
-    void set_speed(nmranet::SpeedType speed) override
+    void set_speed(openlcb::SpeedType speed) override
     {
         lastSpeed_ = speed;
         g_speed_controller.call_speed(speed);
         if (f0)
         {
-            if (speed.direction() == nmranet::SpeedType::FORWARD)
+            if (speed.direction() == openlcb::SpeedType::FORWARD)
             {
                 HW::LIGHT_FRONT_Pin::set(true);
                 HW::LIGHT_BACK_Pin::set(false);
@@ -250,7 +250,7 @@ public:
         }
     }
     /** Returns the last set speed of the locomotive. */
-    nmranet::SpeedType get_speed() override
+    openlcb::SpeedType get_speed() override
     {
         return lastSpeed_;
     }
@@ -279,7 +279,7 @@ public:
                     HW::LIGHT_FRONT_Pin::set(false);
                     HW::LIGHT_BACK_Pin::set(false);
                 }
-                else if (lastSpeed_.direction() == nmranet::SpeedType::FORWARD)
+                else if (lastSpeed_.direction() == openlcb::SpeedType::FORWARD)
                 {
                     HW::LIGHT_FRONT_Pin::set(true);
                     HW::LIGHT_BACK_Pin::set(false);
@@ -329,7 +329,7 @@ public:
     }
 
 private:
-    nmranet::SpeedType lastSpeed_ = 0.0;
+    openlcb::SpeedType lastSpeed_ = 0.0;
     bool f0 = false;
     bool f1 = false;
 };
@@ -350,11 +350,11 @@ const char kFdiXml[] =
 </group></segment></fdi>)";
 
 ESPHuzzahTrain trainImpl;
-nmranet::ConfigDef cfg(0);
+openlcb::ConfigDef cfg(0);
 
-extern nmranet::NodeID NODE_ID;
+extern openlcb::NodeID NODE_ID;
 
-namespace nmranet
+namespace openlcb
 {
 
 extern const char *const CONFIG_FILENAME = "openlcb_config";
@@ -362,9 +362,9 @@ extern const char *const CONFIG_FILENAME = "openlcb_config";
 extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 
-} // namespace nmranet
+} // namespace openlcb
 
-nmranet::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
+openlcb::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
 SpeedController g_speed_controller(stack.service(), cfg.seg().motor_control());
 
 class TestBlinker : public StateFlowBase
@@ -408,7 +408,7 @@ int appl_main(int argc, char *argv[])
     resetblink(1);
     if (true)
         stack.create_config_file_if_needed(cfg.seg().internal_data(),
-            nmranet::EXPECTED_VERSION, nmranet::CONFIG_FILE_SIZE);
+            openlcb::EXPECTED_VERSION, openlcb::CONFIG_FILE_SIZE);
 
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
                       WIFI_HUB_PORT, 1200, []()

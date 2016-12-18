@@ -1,0 +1,77 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+
+static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
+
+namespace openlcb {
+
+class BitEventProducerTest : public AsyncNodeTest {
+ protected:
+  BitEventProducerTest()
+      : storage_(0),
+        bit_(node_, kEventBase, kEventBase + 1, &storage_, 1),
+        producer_(&bit_),
+        bit2_(node_, kEventBase + 2, kEventBase + 3, &storage_, 2),
+        producer2_(&bit2_) {}
+
+  uint8_t storage_;
+  MemoryBit<uint8_t> bit_;
+  BitEventProducer producer_;
+  MemoryBit<uint8_t> bit2_;
+  BitEventProducer producer2_;
+};
+
+TEST_F(BitEventProducerTest, SimpleOnOff) {
+  storage_ = 0;
+  expect_packet(":X195B422AN05010101FFFF0001;");
+  producer_.Update(&event_write_helper1, get_notifiable());
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+  storage_ = 1;
+  expect_packet(":X195B422AN05010101FFFF0000;");
+  producer_.Update(&event_write_helper1, get_notifiable());
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+  expect_packet(":X195B422AN05010101FFFF0003;");
+  producer2_.Update(&event_write_helper1, get_notifiable());
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+  storage_ = 3;
+  expect_packet(":X195B422AN05010101FFFF0002;");
+  producer2_.Update(&event_write_helper1, get_notifiable());
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitEventProducerTest, GlobalIdentify) {
+  storage_ = 1;
+  expect_packet(":X1954522AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0003;");
+  expect_packet(":X1954522AN05010101FFFF0002;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+  storage_ = 2;
+  expect_packet(":X1954522AN05010101FFFF0000;");
+  expect_packet(":X1954422AN05010101FFFF0001;");
+  expect_packet(":X1954422AN05010101FFFF0002;");
+  expect_packet(":X1954522AN05010101FFFF0003;");
+  send_packet(":X19970001N;");
+  wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitEventProducerTest, IdentifyProducer) {
+  storage_ = 1;
+  send_packet_and_expect_response(":X19914001N05010101FFFF0000;",
+                              ":X1954422AN05010101FFFF0000;");
+  send_packet_and_expect_response(":X19914001N05010101FFFF0001;",
+                              ":X1954522AN05010101FFFF0001;");
+  send_packet_and_expect_response(":X19914001N05010101FFFF0002;",
+                              ":X1954522AN05010101FFFF0002;");
+  send_packet_and_expect_response(":X19914001N05010101FFFF0003;",
+                              ":X1954422AN05010101FFFF0003;");
+}
+
+}  // namespace openlcb

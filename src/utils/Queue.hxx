@@ -46,7 +46,7 @@
 #include "utils/QMember.hxx"
 #include "utils/macros.h"
 
-namespace nmranet
+namespace openlcb
 {
 class AsyncIfTest;
 }

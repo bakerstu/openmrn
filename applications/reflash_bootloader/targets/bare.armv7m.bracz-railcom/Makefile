@@ -2,16 +2,12 @@ export BOARD := BOARD_BRACZ_RAILCOM
 APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
 -include $(OPENMRNPATH)/etc/config.mk
-LINKCORELIBS = -lnmranet -lutils
+LINKCORELIBS = -lopenlcb -lutils
 
 TARGET := bare.armv7m
 
-ifndef ADDRESS
-ADDRESS=0x62
-$(warning Using default address 0x62 override with ADDRESS=0x3f)
-endif
-
 include hardware.mk
+include $(OPENMRNPATH)/etc/node_id.mk
 
 ARCHOPTIMIZATION += -Os
 
@@ -21,17 +17,12 @@ SYSLIB_SUBDIRS=
 OBJEXTRA=
 LDFLAGSEXTRA+= --specs=nano.specs
 
-CXXFLAGS+= -DNODEID_LOW_BITS=$(ADDRESS)
 
-# This will force re-building NodeId.cxx every invocation, because the address
-# might have changed.
-NodeId.o: FORCE
-
-payload.cxxout: FORCE
+bootloader_bin/bootloader.bin: FORCE
 	$(MAKE) -C $(realpath bootloader_bin) bootloader.bin
-	$(OPENMRNPATH)/bin/build_bootloader_img.py -i bootloader_bin/bootloader.bin -o $@
 
-FORCE:
+payload.cxxout: bootloader_bin/bootloader.bin
+	$(OPENMRNPATH)/bin/build_bootloader_img.py -i bootloader_bin/bootloader.bin -o $@
 
 .cxxout.o:
 	$(CXX) $(CXXFLAGS) -x c++ -MD -MF $*.d $(abspath $<) -o $@
@@ -39,3 +30,6 @@ FORCE:
 OBJS += payload.o
 
 $(EXECUTABLE)$(EXTENTION): payload.o
+
+rflash: $(EXECUTABLE).bin
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -t -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $<

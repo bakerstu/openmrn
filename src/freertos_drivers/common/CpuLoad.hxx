@@ -59,18 +59,18 @@ public:
 
     /// @returns the CPU load as an integer between 0 and 100. The load is
     /// averaged over the past short amount of time.
-    uint8_t get_load() {
-        return avg_;
-    }
+    uint8_t get_load();
 
 private:
     friend void cpuload_tick(void);
-    /// Adds a value to the rolling average. @param value currently observed
-    /// value to add to the average.
-    inline void record_value(float value);
+    /// Adds a value to the rolling average.
+    /// @param true if CPU is busy at this time, false if it is free.
+    inline void record_value(bool busy);
 
-    /// Internal state for the rolling average (EWMA).
-    float avg_{0.0};
+    /// Internal state for the rolling average (EWMA). This is a 0+24bit fixed
+    /// point format, the top 8 bits are always 0 to allow overflow-less
+    /// multiplication. 0x01000000 would be 1.0, 0x00ffffff is 0.99999...
+    uint32_t avg_{0};
 };
 
 #endif // _OS_CPULOAD_HXX_

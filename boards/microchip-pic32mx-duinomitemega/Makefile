@@ -17,12 +17,17 @@ ifeq ($(MISSING_DEPS),)
 all: $(EXECUTABLE).hex $(EXECUTABLE).delf $(EXECUTABLE).lst
 
 %.delf: %.elf
-	$(OBJCOPY) $$($(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ') $< $@
+	$(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ' > objcopy.params
+	$(OBJCOPY) @objcopy.params $< $@
 #	$(OBJDUMP) -h $< | grep ' b[df]'
 #	cp -f $< $@
 
 %.hex: %.delf
 	$(OBJDUMP) -h $<
 	$(OBJCOPY) -O ihex $< $@
+
+
+flash: $(EXECUTABLE).hex
+	misc/pic32prog $<
 
 endif  #MISSING_DEPS

@@ -34,7 +34,8 @@ BOARD := BOARD_LAUNCHPAD_EK
 endif
 export BOARD
 
-OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ek-tm4c1294xl.cfg
+# -c 'set TRANSPORT swd'
+OPENOCDARGS =  -f board/ek-tm4c1294xl.cfg
 
 
 include $(OPENMRNPATH)/etc/prog.mk

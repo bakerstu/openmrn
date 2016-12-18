@@ -234,7 +234,7 @@ void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
             portYIELD_FROM_ISR();
         }
 #else
-        portEND_SWITCHING_ISR(*woken);
+        os_isr_exit_yield_test(*woken);
 #endif
     }
 }
