@@ -64,6 +64,7 @@ delete_destructors
 snip_user_file.*
 demangled.txt
 *.ndlst
+*.stripped
 
 # files that are local to the build environment
 set250k.c
