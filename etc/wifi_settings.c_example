@@ -1,0 +1,12 @@
+
+
+extern char WIFI_SSID[];
+extern char WIFI_PASS[];
+extern char WIFI_HUB_HOSTNAME[];
+extern int WIFI_HUB_PORT;
+
+
+char WIFI_SSID[] = "MySSID_Here";
+char WIFI_PASS[] = ""; // Empty for open, else the passphrase
+char WIFI_HUB_HOSTNAME[] = "10.0.0.1";
+int WIFI_HUB_PORT = 12021;

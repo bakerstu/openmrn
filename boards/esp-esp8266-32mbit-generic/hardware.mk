@@ -55,9 +55,9 @@ $(eval $(foreach fbase,$(XLATEDSTDLIBS),$(call LIBCOPY_template,$(fbase),$(XTENS
 
 $(eval $(foreach fbase,$(XLATEDGCCLIBS),$(call LIBCOPY_template,$(fbase),$(wildcard $(XTENSAGCCPATH)/lib/gcc/xtensa-lx106-elf/*/lib$(fbase).a))))
 
-$(EXECUTABLE)$(EXTENTION): $(FULLP_XLATEDLIBS) scrape_main_o
+$(EXECUTABLE)$(EXTENTION): $(FULLP_XLATEDLIBS) main.o.stripped
 
-scrape_main_o: main.o
+main.o.stripped: main.o
 	$(OBJDUMP) -h $<  | grep [.]text[.] | cut -d . -f 3- | cut -d " " -f 1 | sed 's/.*/--rename-section .text.\0=.irom0.text --rename-section .literal.\0=.irom0.literal/g' > lib/flagfilemaino.lst
 	$(OBJCOPY) @lib/flagfilemaino.lst $<
 	touch $@
