@@ -1,10 +1,10 @@
 include $(OPENMRNPATH)/etc/path.mk
 
 ifndef TARGET
-TARGET := $(shell basename `cd ../; pwd`)
+TARGET := $(notdir $(realpath $(CURDIR)/..))
 export TARGET
 endif
-BASENAME := $(shell basename `pwd`)
+BASENAME := $(notdir $(CURDIR))
 
 ifdef PARENTDIR
 LIBBASENAME := $(PARENTLIB)_$(BASENAME)
@@ -63,6 +63,7 @@ all docs clean veryclean tests mksubdirs:
 
 else
 .PHONY: all
+
 all: $(LIBNAME)
 
 ifneq ($(SUBDIRS),)
@@ -92,7 +93,11 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
+ifeq ($(OS),Windows_NT)
+	cp -f $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+else
 	ln -sf $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+endif
 	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 
 .PHONY: clean

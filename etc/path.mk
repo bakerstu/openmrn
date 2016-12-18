@@ -357,7 +357,8 @@ ifndef MIPSGCCPATH
 SEARCHPATH := \
   /opt/CodeSourcery/default_mips_elf \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
-  /opt/MentorGraphics/default_mips_elf
+  /opt/MentorGraphics/default_mips_elf \
+
 
 # To download go here https://sourcery.mentor.com/GNUToolchain/release3215
 

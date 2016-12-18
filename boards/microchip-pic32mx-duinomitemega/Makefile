@@ -16,11 +16,22 @@ ifeq ($(MISSING_DEPS),)
 
 all: $(EXECUTABLE).hex $(EXECUTABLE).delf $(EXECUTABLE).lst
 
+
 %.delf: %.elf
+ifeq ($(OS),Windows_NT)
+	$(OBJDUMP) -h $< > objcopy.input
+	$(OPENMRNPATH)/bin/pic32_change_lma < objcopy.input > objcopy.params
+else
 	$(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xA0000000/' | tr '\n' ' ' > objcopy.params
+endif
 	$(OBJCOPY) @objcopy.params $< $@
-#	$(OBJDUMP) -h $< | grep ' b[df]'
-#	cp -f $< $@
+	rm -f objcopy.params objcopy.input
+
+clean: clean-objcopy-params
+	
+clean-objcopy-params:
+	rm -f objcopy.params objcopy.input
+
 
 %.hex: %.delf
 	$(OBJDUMP) -h $<

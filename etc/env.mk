@@ -1,15 +1,11 @@
-CFLAGSENV ?= $(shell \
-sh -c "if [ \"X`printenv CFLAGSENV`\" != \"X\" ]; then printenv CFLAGSENV; \
-     else echo ; fi" \
-)
+ifndef CFLAGSENV
+CFLAGSENV:=
+endif
 
-CXXFLAGSENV ?= $(shell \
-sh -c "if [ \"X`printenv CXXFLAGSENV`\" != \"X\" ]; then printenv CXXFLAGSENV; \
-     else echo ; fi" \
-)
+ifndef CXXFLAGSENV
+CXXFLAGSENV:=
+endif
 
-LDFLAGSENV ?= $(shell \
-sh -c "if [ \"X`printenv LDFLAGSENV`\" != \"X\" ]; then printenv LDFLAGSENV; \
-     else echo ; fi" \
-)
-
+ifndef LDFLAGSENV
+LDFLAGSENV:=
+endif

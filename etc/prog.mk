@@ -1,7 +1,7 @@
 
 ifeq ($(TARGET),)
 # if the target is so far undefined
-TARGET := $(shell basename `pwd`)
+TARGET := $(notdir $(CURDIR))
 endif
 
 include $(OPENMRNPATH)/etc/config.mk
@@ -66,7 +66,7 @@ else
 LDFLAGS += -Llib -L$(LIBDIR)
 endif
 
-EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
+EXECUTABLE ?= $(notdir $(realpath $(CURDIR)/../..))
 
 
 ifeq ($(OS),Windows_NT)
@@ -133,8 +133,10 @@ endif
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
 lib/timestamp : FORCE $(BUILDDIRS)
-	@if [ -h lib -o ! -d lib ] ; then rm -f lib ; mkdir lib ; fi  # creates the lib directory
-	@if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+#	 creates the lib directory
+	@[ -d lib ] || mkdir lib
+# in case there are not applibs.
+	@[ -f $@ ] || touch $@  
 
 # Detect when we have a compound toplevel build and use the toplevel build
 # timestamp to decide whether we need to recurse into the target
@@ -249,7 +251,7 @@ endif
 clean: clean-local
 
 clean-local:
-	rm -rf $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.stripped ) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
+	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local

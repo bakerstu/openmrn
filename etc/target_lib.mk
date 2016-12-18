@@ -4,7 +4,7 @@
 all:
 
 clean::
-	rm -rf $(wildcard *.a *.so *.dll *.stripped) timestamp
+	rm -rf $(wildcard *.a *.so *.dll *.lnk *.stripped) timestamp
 
 veryclean:: clean
 
