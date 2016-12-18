@@ -1,8 +1,8 @@
 ifeq ($(TARGET),)
 # if the target is so far undefined
-TARGET := $(basename $(realpath $(CURDIR)/..))
+TARGET := $(notdir $(realpath $(CURDIR)/..))
 endif
-BASENAME := $(basename $(CURDIR))
+BASENAME := $(notdir $(CURDIR))
 SRCDIR = $(abspath ../../../$(BASENAME))
 VPATH = $(SRCDIR)
 
@@ -72,7 +72,11 @@ all: $(LIBNAME)
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
+ifeq ($(OS),Windows_NT)
 	cp -f $(LIBNAME) ../lib/
+else
+	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) . )	
+endif
 	touch ../lib/timestamp
 
 

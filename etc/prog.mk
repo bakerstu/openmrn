@@ -1,7 +1,7 @@
 
 ifeq ($(TARGET),)
 # if the target is so far undefined
-TARGET := $(basename $(CURDIR))
+TARGET := $(notdir $(CURDIR))
 endif
 
 include $(OPENMRNPATH)/etc/config.mk
@@ -130,8 +130,6 @@ endif
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 #$(FULLPATHLIBS): $(BUILDDIRS)
 
-$(warning version $(shell false || echo hello))
-
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
 lib/timestamp : FORCE $(BUILDDIRS)
@@ -251,8 +249,6 @@ else
 endif
 
 clean: clean-local
-
-$(warning clean where $(shell pwd) args $(shell echo *.a) arg2 $(shell echo $(wildcard *.a *.o *.cout)))
 
 clean-local:
 	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst

@@ -63,7 +63,7 @@ all docs clean veryclean tests mksubdirs:
 
 else
 .PHONY: all
-	
+
 all: $(LIBNAME)
 
 ifneq ($(SUBDIRS),)
@@ -93,7 +93,11 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
+ifeq ($(OS),Windows_NT)
 	cp -f $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+else
+	ln -sf $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+endif
 	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 
 .PHONY: clean

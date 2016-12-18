@@ -30,8 +30,6 @@ findfirst=$(firstword $(foreach dir,$(2),$(if $(wildcard $(dir)/$(1)),$(wildcard
 find_missing_deps=$(strip $(foreach depvar,$(1),$(if $(value $(depvar)),,$(depvar))))
 
 ifeq ($(OS),Windows_NT)
-
-
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
@@ -360,7 +358,6 @@ SEARCHPATH := \
   /opt/CodeSourcery/default_mips_elf \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
   /opt/MentorGraphics/default_mips_elf \
-  c:/mgc/embedded/codebench
 
 
 # To download go here https://sourcery.mentor.com/GNUToolchain/release3215
@@ -369,13 +366,11 @@ SEARCHPATH := \
 # https://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
 # and make sure to select the ELF release for MIPS processor.
 
-TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++.exe,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 MIPSGCCPATH:=$(TRYPATH)
 endif
 endif #MIPSGCCPATH
-
-$(info MIPSGCCPATH $(MIPSGCCPATH) find $(wildcard c:/mgc/embedded/codebench/bin/*.exe) )
 
 ################### PIC32MXLIB #####################
 ifndef PIC32MXLIBPATH
@@ -521,7 +516,7 @@ TRYPATH:=$(call findfirst,esptool.py,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 ESPTOOLPATH:=$(TRYPATH)
 endif
-	endif #ESPTOOLPATH
+endif #ESPTOOLPATH
 
 ##################### ESPNONOSSDK ######################
 ifndef ESPNONOSSDKPATH

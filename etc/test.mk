@@ -1,6 +1,6 @@
 ifeq ($(BASENAME),)
 # if the basename is so far undefined
-BASENAME := $(basename $(CURDIR))
+BASENAME := $(notdir $(CURDIR))
 endif
 
 include $(OPENMRNPATH)/etc/config.mk

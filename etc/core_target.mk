@@ -1,5 +1,5 @@
 ifeq ($(strip $(TARGET)),)
-TARGET := $(basename $(CURDIR))
+TARGET := $(notdir $(CURDIR))
 endif
 ifndef OPENMRNPATH
 OPENMRNPATH:=$(realpath ../..)
