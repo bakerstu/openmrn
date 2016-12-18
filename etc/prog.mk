@@ -1,7 +1,7 @@
 
 ifeq ($(TARGET),)
 # if the target is so far undefined
-TARGET := $(shell basename `pwd`)
+TARGET := $(basename $(CURDIR))
 endif
 
 include $(OPENMRNPATH)/etc/config.mk
@@ -68,7 +68,7 @@ else
 LDFLAGS += -Llib -L$(LIBDIR)
 endif
 
-EXECUTABLE ?= $(shell basename `cd ../../; pwd`)
+EXECUTABLE ?= $(notdir $(realpath $(CURDIR)/../..))
 
 
 ifeq ($(OS),Windows_NT)
@@ -132,11 +132,15 @@ endif
 # The targets and variable BUILDDIRS are defined in recurse.mk.
 #$(FULLPATHLIBS): $(BUILDDIRS)
 
+$(warning version $(shell false || echo hello))
+
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
 lib/timestamp : FORCE $(BUILDDIRS)
-	if [ -h lib -o ! -d lib ] ; then rm -f lib ; mkdir lib ; fi  # creates the lib directory
-	if [ ! -f $@ ] ; then touch $@ ; fi  # in case there are not applibs.
+#	 creates the lib directory
+	[ -d lib ] || mkdir lib
+# in case there are not applibs.
+	[ -f $@ ] || touch $@  
 
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
@@ -240,8 +244,10 @@ endif
 
 clean: clean-local
 
+$(warning clean where $(shell pwd) args $(shell echo *.a) arg2 $(shell echo $(wildcard *.a *.o *.cout)))
+
 clean-local:
-	rm -rf *.o *.d *.a *.so *.output *.cout *.cxxout $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst
+	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local

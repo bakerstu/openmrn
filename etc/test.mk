@@ -1,6 +1,6 @@
 ifeq ($(BASENAME),)
 # if the basename is so far undefined
-BASENAME := $(shell basename `pwd`)
+BASENAME := $(basename $(CURDIR))
 endif
 
 include $(OPENMRNPATH)/etc/config.mk
