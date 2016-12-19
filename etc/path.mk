@@ -251,6 +251,18 @@ TILINUXSDKPATH:=$(TRYPATH)
 endif
 endif #TILINUXSDKPATH
 
+################### ARM-LINUX GCC PATH #####################
+ifndef ARMLINUXGCCPATH
+SEARCHPATH := \
+    $(TILINUXSDKPATH)/linux-devkit/sysroots/x86_64-arago-linux/usr/bin \
+    /usr/bin \
+
+TRYPATH:=$(call findfirst,arm-linux-gnueabihf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ARMLINUXGCCPATH:=$(TRYPATH)
+endif
+endif #ARMLINUXGCCPATH
+
 ################### TI-CC3200-SDK #####################
 ifndef TICC3200SDKPATH
 SEARCHPATH := \

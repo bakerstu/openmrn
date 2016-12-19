@@ -1,20 +1,24 @@
+# Get the toolchain paths for openmrn
+include $(OPENMRNPATH)/etc/path.mk
+
+
 ifndef TOOLPATH
-TOOLPATHCOMMAND := $(shell \
-sh -c "which arm-linux-gnueabihf-gcc" \
-)
-TOOLPATH := $(dir $(TOOLPATHCOMMAND))
+#TOOLPATHCOMMAND := $(shell \
+#sh -c "which arm-linux-gnueabihf-gcc" \
+#)
+TOOLPATH := $(ARMLINUXGCCPATH)
 endif
 
-$(info mach toolpath '$(TOOLPATH)')
+$(info armv7alinux toolpath '$(TOOLPATH)')
 
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-CC = arm-linux-gnueabihf-gcc
-CXX = arm-linux-gnueabihf-g++
-AR = arm-linux-gnueabihf-ar
-LD = arm-linux-gnueabihf-g++
-OBJDUMP = arm-linux-gnueabihf-objdump
+CC = $(TOOLPATH)/arm-linux-gnueabihf-gcc
+CXX = $(TOOLPATH)/arm-linux-gnueabihf-g++
+AR = $(TOOLPATH)/arm-linux-gnueabihf-ar
+LD = $(TOOLPATH)/arm-linux-gnueabihf-g++
+OBJDUMP = $(TOOLPATH)/cd .arm-linux-gnueabihf-objdump
 
 AROPTS=D
 
