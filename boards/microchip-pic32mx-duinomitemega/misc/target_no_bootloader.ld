@@ -60,15 +60,15 @@ MEMORY
   ** Boot flash contains the configuration words required for reset.
   ** The following are KSEG1 logical addresses (??? should change to KSEG0 to enable caches).
   */
-  PIC32MX_flash_user (rx) : ORIGIN = 0xBD000000, LENGTH = 128K /* to BD020000-1, bootloader gets first 128k */
+  PIC32MX_flash_user (rx) : ORIGIN = 0x9D000000, LENGTH = 128K /* to BD020000-1, bootloader gets first 128k */
   /*
   ** When PIC32MX comes out of reset, it branches to the start of the boot flash
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
   ** use by (some) debugger tool while debugging (by convention, not by hardware).
   */
-  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x180 /* The beginning of the interrupt vector table is empty. */
-  PIC32MX_flash_boot_remaining (rx): ORIGIN = 0xBFC00A00, LENGTH = 3K-0x10-0xA00 /* Skipped flash_cfg rgister and 0xa00 at the beginning for the interupt vector table. NOTE(bracz): also one debug page might need to be reserved here, which would directly prevent us from placing the interrupt vector table here. -- need 2K + 1k debug. Maybe the vector table could be trimmed. Calculations give that 48 vectors would fit. */
-  PIC32MX_flash_cfg  (r!x): ORIGIN = 0xBFC00BF0, LENGTH = 0x0010
+  PIC32MX_flash_boot (rx) : ORIGIN = 0x9FC00000, LENGTH = 0x180 /* The beginning of the interrupt vector table is empty. */
+  PIC32MX_flash_boot_remaining (rx): ORIGIN = 0x9FC00A00, LENGTH = 3K-0x10-0xA00 /* Skipped flash_cfg rgister and 0xa00 at the beginning for the interupt vector table. NOTE(bracz): also one debug page might need to be reserved here, which would directly prevent us from placing the interrupt vector table here. -- need 2K + 1k debug. Maybe the vector table could be trimmed. Calculations give that 48 vectors would fit. */
+  PIC32MX_flash_cfg  (r!x): ORIGIN = 0x9FC00BF0, LENGTH = 0x0010
 }
 
 /*
@@ -77,7 +77,7 @@ MEMORY
 ** 0xBFC00000 + 0x200 + (64 vectors * x20)) = 0xBFC00A00
 */
 _vector_spacing = 0x00000001;
-_ebase_address  = 0xBFC00000; /* must be on a 4kb page boundary; rounded down */
+_ebase_address  = 0x9FC00000; /* must be on a 4kb page boundary; rounded down */
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's

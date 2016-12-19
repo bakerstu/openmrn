@@ -57,8 +57,8 @@ MEMORY
   ** Boot flash contains the configuration words required for reset.
   ** The following are KSEG1 logical addresses (??? should change to KSEG0 to enable caches).
   */
-  PIC32MX_flash_userboot (rx) : ORIGIN = 0xBD000000, LENGTH = 0x1000
-  PIC32MX_flash_user (rx) : ORIGIN = 0xBD001000, LENGTH = 512K - 4K /*we skipped the first page to allow for the interrupt vector table. There is a lot of free space there, but linking needs to flow around existing absolute sections there. */
+  PIC32MX_flash_userboot (rx) : ORIGIN = 0x9D000000, LENGTH = 0x1000
+  PIC32MX_flash_user (rx) : ORIGIN = 0x9D001000, LENGTH = 512K - 4K /*we skipped the first page to allow for the interrupt vector table. There is a lot of free space there, but linking needs to flow around existing absolute sections there. */
   /*
   ** When PIC32MX comes out of reset, it branches to the start of the boot flash
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
@@ -73,7 +73,7 @@ MEMORY
 ** 0xBFC03000-(0x10 config registers + 0x200+ (64 vectors * x20))= 0xBFC025F0
 */
 _vector_spacing = 0x00000001;
-_ebase_address  = 0xBD000000; /* must be on a 4kb page boundary; rounded down */
+_ebase_address  = 0x9D000000; /* must be on a 4kb page boundary; rounded down */
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's
