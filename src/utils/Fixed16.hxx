@@ -40,53 +40,63 @@
 class Fixed16
 {
 public:
-    Fixed16(uint16_t integer, uint16_t frac = 0)
+    Fixed16(int16_t integer, uint16_t frac = 0)
     {
-        uint32_t v = integer;
+        value_ = 0;
+        if (integer < 0)
+        {
+            sign_ = 1;
+            integer = -integer;
+        }
+        else
+        {
+            sign_ = 0;
+        }
+        uint32_t v = integer & 0x7fff;
         v <<= 16;
-        v |= frac;
-        value_ = v;
+        value_ |= v | frac;
     }
 
-    Fixed16(const Fixed16& o) = default;
-    Fixed16 &operator=(const Fixed16& o) = default;
+    Fixed16(const Fixed16 &o) = default;
+    Fixed16 &operator=(const Fixed16 &o) = default;
 
     Fixed16 &operator+=(Fixed16 o)
     {
-        value_ += o.value_;
+        from_int(to_int() + o.to_int());
         return *this;
     }
 
-    template<class T> Fixed16 operator+(T o)
+    template <class T> Fixed16 operator+(T o)
     {
         Fixed16 ret(*this);
         ret += o;
         return ret;
     }
-    
+
     Fixed16 &operator-=(Fixed16 o)
     {
-        value_ -= o.value_;
+        from_int(to_int() - o.to_int());
         return *this;
     }
 
-    template<typename T> Fixed16 operator-(T o)
+    template <typename T> Fixed16 operator-(T o)
     {
         Fixed16 ret(*this);
         ret -= o;
         return ret;
     }
-    
+
     Fixed16 &operator*=(Fixed16 o)
     {
         uint64_t v = value_;
         v *= o.value_;
         v >>= 16;
         value_ = v;
+        sign_ ^= o.sign_;
         return *this;
     }
 
-    template<typename T> Fixed16 operator*(T o)
+    template <typename T> Fixed16 operator*(T o)
     {
         Fixed16 ret(*this);
         ret *= o;
@@ -95,15 +105,16 @@ public:
 
     Fixed16 &operator/=(Fixed16 o)
     {
-        uint32_t rec = UINT32_C(0xFFFFFFFF) / o.value_;
+        uint32_t rec = UINT32_C(0x80000000) / o.value_;
         uint64_t v = rec;
         v *= value_;
-        v >>= 16;
+        v >>= 15;
         value_ = v;
+        sign_ ^= o.sign_;
         return *this;
     }
 
-    template<typename T> Fixed16 operator/(T o)
+    template <typename T> Fixed16 operator/(T o)
     {
         Fixed16 ret(*this);
         ret /= o;
@@ -111,43 +122,103 @@ public:
     }
 
     /// @return the rounded value to the nearest integer
-    operator uint16_t() {
-        return (value_ + 0x8000) >> 16;
+    operator uint16_t() const
+    {
+        return round();
     }
 
+    /// @return the value rounded to nearest integer.
+    int16_t round() const {
+        int16_t b = (value_ + 0x8000) >> 16;
+        if (sign_) return -b;
+        return b;
+    }
+    
     /// @return the integer part, rounded down
-    uint16_t trunc() {
-        return value_ >> 16;
+    int16_t trunc()
+    {
+        int16_t b = value_ >> 16;
+        if (sign_) return -b;
+        return b;
     }
 
     /// @return the fractional part, as an uint16 value between 0 and 0xffff
-    uint16_t frac() {
+    uint16_t frac()
+    {
         return value_ & 0xffff;
     }
 
-    float to_float() {
-        if (!value_) return 0.0f;
+    float to_float()
+    {
+        if (!value_) {
+            if (sign_)
+            {
+                return -0.0f;
+            }
+            else
+            {
+                return 0.0f;
+            }
+        }
         uint32_t f = 0;
+        if (sign_) f |= 0x80000000u;
         int lz = __builtin_clz(value_);
-        if (lz <= 8) {
-            HASSERT(((value_ >> (8-lz)) & 0xFF800000U) == 0x800000U);
-            f |= (value_ >> (8-lz)) & 0x7FFFFF;
-        } else {
-            HASSERT(((value_ << (lz-8)) & 0xFF800000U) == 0x800000U);
-            f |= (value_ << (lz-8)) & 0x7FFFFF;
+        if (lz <= 8)
+        {
+            HASSERT(((value_ >> (8 - lz)) & 0xFF800000U) == 0x800000U);
+            f |= (value_ >> (8 - lz)) & 0x7FFFFF;
+        }
+        else
+        {
+            HASSERT(((value_ << (lz - 8)) & 0xFF800000U) == 0x800000U);
+            f |= (value_ << (lz - 8)) & 0x7FFFFF;
         }
         uint32_t exp = (127 + 15 - lz) & 0xFF;
         f |= exp << 23;
-        return *reinterpret_cast<float*>(&f);
+        return *reinterpret_cast<float *>(&f);
     }
 
-/*    uint16_t to_float16() {
-        if (!value_) return 0;
-        
-        }*/
+    /*    uint16_t to_float16() {
+            if (!value_) return 0;
+
+            }*/
+
+    bool is_positive() const {
+        return sign_ == 0;
+    }
+
+    void negate() {
+        sign_ ^= 1;
+    }
     
 private:
-    uint32_t value_;
+    /// Translates the current value to a signed fixed-point 32-bit integer.
+    int32_t to_int() const
+    {
+        int32_t r = value_;
+        if (sign_)
+        {
+            return -r;
+        }
+        else
+        {
+            return r;
+        }
+    }
+
+    /// Overwritesthe current value from a signed fixed-point 32-bit integer.
+    void from_int(int32_t v) {
+        if (v<0) {
+            sign_ = 1;
+            v = -v;
+        } else {
+            sign_ = 0;
+        }
+        value_ = v & 0x7fffffffu;
+    }
+    
+    uint32_t value_ : 31;
+    uint32_t sign_ : 1;
 };
 
 #endif // _UTILS_FIXED16_HXX_

@@ -46,6 +46,7 @@ TEST(Fixed16Test, CreateRound)
 
     v1 = Fixed16(13, 0x8000);
     EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, (int)v1);
 
     v1 = Fixed16(13, 0xff00);
     EXPECT_EQ(14, (uint16_t)v1);
@@ -76,11 +77,11 @@ TEST(Fixed16Test, ToFloat)
     v1 = Fixed16(13, 0xFFFF);
     EXPECT_THAT(v1.to_float(), FloatNear(14.0, 1e-4));
 
-    v1 = Fixed16(65535);
-    EXPECT_THAT(v1.to_float(), FloatNear(65535.0, 1e-5));
+    v1 = Fixed16(32767);
+    EXPECT_THAT(v1.to_float(), FloatNear(32767.0, 1e-5));
 
-    v1 = Fixed16(65535, 0x8000);
-    EXPECT_THAT(v1.to_float(), FloatNear(65535.5, 1e-5));
+    v1 = Fixed16(32767, 0x8000);
+    EXPECT_THAT(v1.to_float(), FloatNear(32767.5, 1e-5));
 
     v1 = Fixed16(0, 0x0100);
     EXPECT_THAT(v1.to_float(), FloatNear(0.00390625, 1e-5));
@@ -115,15 +116,59 @@ TEST(Fixed16Test, Arithmetics)
     v1 /= 2;
     EXPECT_THAT(v1.to_float(), FloatNear(15.5, 1e-3));
     EXPECT_EQ(15, v1.trunc());
-    EXPECT_NEAR(0x8000, v1.frac(), 50);
+    EXPECT_NEAR(0x8000, v1.frac(), 1);
 
     Fixed16 v2 = 1;
     v2 /= 2;
     v1 += v2;
     EXPECT_EQ(16, (uint16_t)v1);
-    EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-3));
+    EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-5));
 
     v1 += Fixed16(1) / 2;
     EXPECT_EQ(16, v1.trunc());
-    EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-3));
+    EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
+}
+
+TEST(Fixed16Test, Sign)
+{
+    Fixed16 v1(13);
+    EXPECT_TRUE(v1.is_positive());
+
+    v1 /= -2;
+    EXPECT_THAT(v1.to_float(), FloatNear(-6.5, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+    
+    v1 *= 2;
+    EXPECT_THAT(v1.to_float(), FloatNear(-13.0, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+
+    v1 += 15;
+    EXPECT_THAT(v1.to_float(), FloatNear(2.0, 1e-4));
+    EXPECT_TRUE(v1.is_positive());
+    
+    v1.negate();
+    EXPECT_THAT(v1.to_float(), FloatNear(-2.0, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+}
+
+TEST(Fixed16Test, SignedZero)
+{
+    Fixed16 v1(13);
+    EXPECT_TRUE(v1.is_positive());
+
+    v1 -= 13;
+    EXPECT_THAT(v1.to_float(), FloatNear(0.0, 1e-10));
+    EXPECT_TRUE(v1.is_positive());
+    EXPECT_TRUE(std::copysign(1.0, v1.to_float()) > 0);
+
+    v1.negate();
+    EXPECT_THAT(v1.to_float(), FloatNear(0.0, 1e-10));
+    EXPECT_FALSE(v1.is_positive());
+    EXPECT_TRUE(std::copysign(1.0, v1.to_float()) < 0);
+    
+    EXPECT_EQ(0, v1.trunc());
+    v1 -= 1;
+    v1 += 1;
+    // Adding and subtracting does not preserve the sign.
+    EXPECT_TRUE(v1.is_positive());
 }
