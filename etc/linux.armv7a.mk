@@ -18,7 +18,7 @@ CC = $(TOOLPATH)/arm-linux-gnueabihf-gcc
 CXX = $(TOOLPATH)/arm-linux-gnueabihf-g++
 AR = $(TOOLPATH)/arm-linux-gnueabihf-ar
 LD = $(TOOLPATH)/arm-linux-gnueabihf-g++
-OBJDUMP = $(TOOLPATH)/cd .arm-linux-gnueabihf-objdump
+OBJDUMP = $(TOOLPATH)/arm-linux-gnueabihf-objdump
 
 AROPTS=D
 
