@@ -1,8 +1,8 @@
 ifeq ($(TARGET),)
 # if the target is so far undefined
-TARGET := $(shell basename `cd ../; pwd`)
+TARGET := $(notdir $(realpath $(CURDIR)/..))
 endif
-BASENAME = $(shell basename `pwd`)
+BASENAME := $(notdir $(CURDIR))
 SRCDIR = $(abspath ../../../$(BASENAME))
 VPATH = $(SRCDIR)
 
@@ -72,13 +72,17 @@ all: $(LIBNAME)
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
-	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) . )
+ifeq ($(OS),Windows_NT)
+	cp -f $(LIBNAME) ../lib/
+else
+	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) . )	
+endif
 	touch ../lib/timestamp
 
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.d *.a *.so *.dll timestamp
+	rm -rf $(wildcard *.o *.d *.a *.so *.dll) timestamp
 
 .PHONY: veryclean
 veryclean: clean

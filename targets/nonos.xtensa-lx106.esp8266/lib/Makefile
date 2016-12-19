@@ -1,1 +1,1 @@
-include $(OPENMRNPATH)/etc/lib.mk
+include $(OPENMRNPATH)/etc/target_lib.mk

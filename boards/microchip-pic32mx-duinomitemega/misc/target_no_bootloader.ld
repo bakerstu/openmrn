@@ -13,6 +13,9 @@
 ** - CodeSourcery G++ 4.3-80 linker script for malta-24kc
 ** - Microchip "elf32pic32mx.x" generic PIC32 link script
 ** - Microchip 32MX440F256H processor-specific "procdef.ld" definitions
+**
+** This file was adjusted for memory regions of the PIC32MX530F128 device which
+** has 128+3K flash and 16K ram.  
 */
 
 
@@ -50,7 +53,7 @@ GROUP(-lcs3hal -lgcc -lc -lcs3 -lcs3unhosted)
 MEMORY
 {
   ram0 (!r!x) : ORIGIN = 0xA0000000, LENGTH = 16     /* tiny part of RAM reserved for startup code */
-  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = 32K-16 /* not read-only, not executable */
+  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = 16K-16 /* not read-only, not executable */
   /*
   ** Memory map here is based on executing in KSEG1 mode.
   ** PIC32MX flash is broken into user flash and boot flash.
@@ -63,25 +66,27 @@ MEMORY
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
   ** use by (some) debugger tool while debugging (by convention, not by hardware).
   */
-  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x2000 /* 12k - 4k debug page */
-  PIC32MX_flash_cfg  (r!x): ORIGIN = 0xBFC02FF0, LENGTH = 0x0010
+  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x180 /* The beginning of the interrupt vector table is empty. */
+  PIC32MX_flash_boot_remaining (rx): ORIGIN = 0xBFC00A00, LENGTH = 3K-0x10-0xA00 /* Skipped flash_cfg rgister and 0xa00 at the beginning for the interupt vector table. NOTE(bracz): also one debug page might need to be reserved here, which would directly prevent us from placing the interrupt vector table here. -- need 2K + 1k debug. Maybe the vector table could be trimmed. Calculations give that 48 vectors would fit. */
+  PIC32MX_flash_cfg  (r!x): ORIGIN = 0xBFC00BF0, LENGTH = 0x0010
 }
 
 /*
 ** Interrupt vector spacing 1 (ie 0x20 or 32 bytes/vector).
-** TEMPORARY: located at end of bootflash for now (this is "debug page")...
-** 0xBFC03000-(0x10 config registers + 0x200+ (64 vectors * x20))= 0xBFC025F0
+** Located at the beginning of bootflash for now.
+** 0xBFC00000 + 0x200 + (64 vectors * x20)) = 0xBFC00A00
 */
 _vector_spacing = 0x00000001;
-_ebase_address  = 0xBFC02000; /* must be on a 4kb page boundary; rounded down */
+_ebase_address  = 0xBFC00000; /* must be on a 4kb page boundary; rounded down */
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's
  * overrides are picked up
  */
 EXTERN(__cs3_reset_PIC32MX)
+/* NOT NEEDED -- we have our own entry routine, not using cs3's
 EXTERN(_start)
-EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end)
+EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
 
 /*
  * Provide for a minimum stack and heap size
@@ -160,6 +165,7 @@ SECTIONS
 
     . = ALIGN(0x4);
     *(.gcc_except_table .gcc_except_table.*)
+    *(.gnu_extab .gnu_extab.*)
   } >PIC32MX_flash_user
   
   .eh_frame_hdr : ALIGN (4)
@@ -170,7 +176,7 @@ SECTIONS
   
   .eh_frame : ALIGN (4)
   {
-    KEEP (*(.eh_frame))
+    KEEP (*(.eh_frame .eh_frame.*))
   }  >PIC32MX_flash_user
   
   /* MDI semihosting uses a pointer in this section.  */
@@ -304,7 +310,8 @@ SECTIONS
   /*__cs3_region_end_ram = __cs3_region_start_ram + LENGTH(ram);*/
   __cs3_region_size_ram = LENGTH(ram);
   /* WRONG: load address is PHYSICAL, not logical address:  __cs3_region_init_ram = LOADADDR (.data);  WRONG */
-  __cs3_region_init_ram = _etext; /* DRN updated this; seems correct... */
+  /*  __cs3_region_init_ram = _etext; DRN updated this; seems correct...  bracz: not really. */
+  __cs3_region_init_ram = LOADADDR(.data);
   __cs3_region_init_size_ram = _edata - ADDR (.data);
   __cs3_region_zero_size_ram = _end - _edata;
 
