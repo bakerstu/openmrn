@@ -237,10 +237,12 @@ endif #ARMGCCPATH
 ################### TI-LINUX-SDK #####################
 ifndef TILINUXSDKPATH
 SEARCHPATH := \
+  /opt/ti/ti-processor-sdk-linux/default \
   ~/ti-processor-sdk-linux-am335x-evm-03.00.00.04 \
   ~/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
+
 
 
 TRYPATH:=$(call findfirst,setup.sh,$(SEARCHPATH))
