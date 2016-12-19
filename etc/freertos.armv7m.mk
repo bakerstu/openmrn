@@ -37,7 +37,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
-ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
+ARCHFLAGS = -g -MD -MP -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
 ifdef DEBUG_MEMORY_USE
 #warning: -funwind-tables adds 10k code size. Needed for malloc debugging.
@@ -62,13 +62,12 @@ CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
 #            -Wsuggest-override \
-
-
 	   # -D__LINEAR_MAP__
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
+
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
-           -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv7-m \
+           $(ARCHFLAGS) -Os \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
            --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
@@ -99,6 +98,8 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap__ZSt17__throw_bad_allocv=abort \
           -Wl,--wrap=_ZSt20__throw_out_of_rangePKc   \
           -Wl,--defsym=__wrap__ZSt20__throw_out_of_rangePKc=abort \
+          -Wl,--wrap=_ZSt24__throw_out_of_range_fmtPKcz   \
+          -Wl,--defsym=__wrap__ZSt24__throw_out_of_range_fmtPKcz=abort \
           -Wl,--wrap=_ZSt25__throw_bad_function_callv   \
           -Wl,--defsym=__wrap__ZSt25__throw_bad_function_callv=abort \
           -Wl,--wrap=__cxa_allocate_exception   \

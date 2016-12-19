@@ -1,0 +1,174 @@
+/** \copyright
+ * Copyright (c) 2016, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file Fixed16.cxxtest
+ *
+ * Unit tests for the fixed-point arithmetic type.
+ *
+ * @author Balazs Racz
+ * @date 19 Dec 2016
+ */
+
+#include "utils/test_main.hxx"
+#include "utils/Fixed16.hxx"
+
+using ::testing::FloatNear;
+
+TEST(Fixed16Test, CreateRound)
+{
+    Fixed16 v1(13);
+    EXPECT_EQ(13, (uint16_t)v1);
+    v1 = Fixed16(13, 0x7fff);
+    EXPECT_EQ(13, (uint16_t)v1);
+
+    v1 = Fixed16(13, 0x8000);
+    EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, (int)v1);
+
+    v1 = Fixed16(13, 0xff00);
+    EXPECT_EQ(14, (uint16_t)v1);
+
+    v1 = Fixed16(13, 0xffff);
+    EXPECT_EQ(14, (uint16_t)v1);
+}
+
+TEST(Fixed16Test, ToFloat)
+{
+    Fixed16 v1(13);
+    union
+    {
+        float f;
+        uint32_t fu;
+    };
+    f = v1.to_float();
+    printf("orig 0x%04x sign %x exp %u (%d) mant %x\n", 13, fu >> 31,
+        (fu >> 23) & 0xff, int((fu >> 23) & 0xff) - 127, fu & ((1 << 23) - 1));
+    EXPECT_THAT(v1.to_float(), FloatNear(13.0, 1e-5));
+
+    v1 = Fixed16(13, 0x8000);
+    EXPECT_THAT(v1.to_float(), FloatNear(13.5, 1e-5));
+
+    v1 = Fixed16(13, 0x0100); //
+    EXPECT_THAT(v1.to_float(), FloatNear(13.00390625, 1e-5));
+
+    v1 = Fixed16(13, 0xFFFF);
+    EXPECT_THAT(v1.to_float(), FloatNear(14.0, 1e-4));
+
+    v1 = Fixed16(32767);
+    EXPECT_THAT(v1.to_float(), FloatNear(32767.0, 1e-5));
+
+    v1 = Fixed16(32767, 0x8000);
+    EXPECT_THAT(v1.to_float(), FloatNear(32767.5, 1e-5));
+
+    v1 = Fixed16(0, 0x0100);
+    EXPECT_THAT(v1.to_float(), FloatNear(0.00390625, 1e-5));
+
+    v1 = Fixed16(0, 0);
+    EXPECT_THAT(v1.to_float(), FloatNear(0, 1e-9));
+
+    v1 = Fixed16(0, 0x0001);
+    EXPECT_THAT(v1.to_float(), FloatNear(1.52588e-05, 1e-6));
+}
+
+TEST(Fixed16Test, Arithmetics)
+{
+    Fixed16 v1(13);
+    EXPECT_EQ(13, (uint16_t)v1);
+
+    v1 += 4;
+    EXPECT_EQ(17, (uint16_t)v1);
+
+    v1 -= 2;
+    EXPECT_EQ(15, (uint16_t)v1);
+
+    v1 += Fixed16(0, 0x8000);
+    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_EQ(15, v1.trunc());
+
+    v1 *= 2;
+    EXPECT_EQ(31, (uint16_t)v1);
+    EXPECT_EQ(31, v1.trunc());
+    EXPECT_EQ(0, v1.frac());
+
+    v1 /= 2;
+    EXPECT_THAT(v1.to_float(), FloatNear(15.5, 1e-3));
+    EXPECT_EQ(15, v1.trunc());
+    EXPECT_NEAR(0x8000, v1.frac(), 1);
+
+    Fixed16 v2 = 1;
+    v2 /= 2;
+    v1 += v2;
+    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-5));
+
+    v1 += Fixed16(1) / 2;
+    EXPECT_EQ(16, v1.trunc());
+    EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
+}
+
+TEST(Fixed16Test, Sign)
+{
+    Fixed16 v1(13);
+    EXPECT_TRUE(v1.is_positive());
+
+    v1 /= -2;
+    EXPECT_THAT(v1.to_float(), FloatNear(-6.5, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+    
+    v1 *= 2;
+    EXPECT_THAT(v1.to_float(), FloatNear(-13.0, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+
+    v1 += 15;
+    EXPECT_THAT(v1.to_float(), FloatNear(2.0, 1e-4));
+    EXPECT_TRUE(v1.is_positive());
+    
+    v1.negate();
+    EXPECT_THAT(v1.to_float(), FloatNear(-2.0, 1e-4));
+    EXPECT_FALSE(v1.is_positive());
+}
+
+TEST(Fixed16Test, SignedZero)
+{
+    Fixed16 v1(13);
+    EXPECT_TRUE(v1.is_positive());
+
+    v1 -= 13;
+    EXPECT_THAT(v1.to_float(), FloatNear(0.0, 1e-10));
+    EXPECT_TRUE(v1.is_positive());
+    EXPECT_TRUE(std::copysign(1.0, v1.to_float()) > 0);
+
+    v1.negate();
+    EXPECT_THAT(v1.to_float(), FloatNear(0.0, 1e-10));
+    EXPECT_FALSE(v1.is_positive());
+    EXPECT_TRUE(std::copysign(1.0, v1.to_float()) < 0);
+    
+    EXPECT_EQ(0, v1.trunc());
+    v1 -= 1;
+    v1 += 1;
+    // Adding and subtracting does not preserve the sign.
+    EXPECT_TRUE(v1.is_positive());
+}
