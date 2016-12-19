@@ -95,9 +95,10 @@ public:
 
     Fixed16 &operator/=(Fixed16 o)
     {
-        uint64_t v = value_;
-        v <<= 16;
-        v /= o.value_;
+        uint32_t rec = UINT32_C(0xFFFFFFFF) / o.value_;
+        uint64_t v = rec;
+        v *= value_;
+        v >>= 16;
         value_ = v;
         return *this;
     }
@@ -123,6 +124,27 @@ public:
     uint16_t frac() {
         return value_ & 0xffff;
     }
+
+    float to_float() {
+        if (!value_) return 0.0f;
+        uint32_t f = 0;
+        int lz = __builtin_clz(value_);
+        if (lz <= 8) {
+            HASSERT(((value_ >> (8-lz)) & 0xFF800000U) == 0x800000U);
+            f |= (value_ >> (8-lz)) & 0x7FFFFF;
+        } else {
+            HASSERT(((value_ << (lz-8)) & 0xFF800000U) == 0x800000U);
+            f |= (value_ << (lz-8)) & 0x7FFFFF;
+        }
+        uint32_t exp = (127 + 15 - lz) & 0xFF;
+        f |= exp << 23;
+        return *reinterpret_cast<float*>(&f);
+    }
+
+/*    uint16_t to_float16() {
+        if (!value_) return 0;
+        
+        }*/
     
 private:
     uint32_t value_;

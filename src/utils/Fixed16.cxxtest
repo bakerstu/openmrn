@@ -35,54 +35,95 @@
 #include "utils/test_main.hxx"
 #include "utils/Fixed16.hxx"
 
-TEST(Fixed16Test, CreateRound) {
+using ::testing::FloatNear;
+
+TEST(Fixed16Test, CreateRound)
+{
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t) v1);
+    EXPECT_EQ(13, (uint16_t)v1);
     v1 = Fixed16(13, 0x7fff);
-    EXPECT_EQ(13, (uint16_t) v1);
+    EXPECT_EQ(13, (uint16_t)v1);
 
     v1 = Fixed16(13, 0x8000);
-    EXPECT_EQ(14, (uint16_t) v1);
+    EXPECT_EQ(14, (uint16_t)v1);
 
     v1 = Fixed16(13, 0xff00);
-    EXPECT_EQ(14, (uint16_t) v1);
+    EXPECT_EQ(14, (uint16_t)v1);
 
     v1 = Fixed16(13, 0xffff);
-    EXPECT_EQ(14, (uint16_t) v1);
+    EXPECT_EQ(14, (uint16_t)v1);
 }
 
-TEST(Fixed16Test, Arithmetics) {
+TEST(Fixed16Test, ToFloat)
+{
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t) v1);
+    union
+    {
+        float f;
+        uint32_t fu;
+    };
+    f = v1.to_float();
+    printf("orig 0x%04x sign %x exp %u (%d) mant %x\n", 13, fu >> 31,
+        (fu >> 23) & 0xff, int((fu >> 23) & 0xff) - 127, fu & ((1 << 23) - 1));
+    EXPECT_THAT(v1.to_float(), FloatNear(13.0, 1e-5));
+
+    v1 = Fixed16(13, 0x8000);
+    EXPECT_THAT(v1.to_float(), FloatNear(13.5, 1e-5));
+
+    v1 = Fixed16(13, 0x0100); //
+    EXPECT_THAT(v1.to_float(), FloatNear(13.00390625, 1e-5));
+
+    v1 = Fixed16(13, 0xFFFF);
+    EXPECT_THAT(v1.to_float(), FloatNear(14.0, 1e-4));
+
+    v1 = Fixed16(65535);
+    EXPECT_THAT(v1.to_float(), FloatNear(65535.0, 1e-5));
+
+    v1 = Fixed16(65535, 0x8000);
+    EXPECT_THAT(v1.to_float(), FloatNear(65535.5, 1e-5));
+
+    v1 = Fixed16(0, 0x0100);
+    EXPECT_THAT(v1.to_float(), FloatNear(0.00390625, 1e-5));
+
+    v1 = Fixed16(0, 0);
+    EXPECT_THAT(v1.to_float(), FloatNear(0, 1e-9));
+
+    v1 = Fixed16(0, 0x0001);
+    EXPECT_THAT(v1.to_float(), FloatNear(1.52588e-05, 1e-6));
+}
+
+TEST(Fixed16Test, Arithmetics)
+{
+    Fixed16 v1(13);
+    EXPECT_EQ(13, (uint16_t)v1);
 
     v1 += 4;
-    EXPECT_EQ(17, (uint16_t) v1);
+    EXPECT_EQ(17, (uint16_t)v1);
 
     v1 -= 2;
-    EXPECT_EQ(15, (uint16_t) v1);
+    EXPECT_EQ(15, (uint16_t)v1);
 
     v1 += Fixed16(0, 0x8000);
-    EXPECT_EQ(16, (uint16_t) v1);
+    EXPECT_EQ(16, (uint16_t)v1);
     EXPECT_EQ(15, v1.trunc());
 
     v1 *= 2;
-    EXPECT_EQ(31, (uint16_t) v1);
+    EXPECT_EQ(31, (uint16_t)v1);
     EXPECT_EQ(31, v1.trunc());
     EXPECT_EQ(0, v1.frac());
 
     v1 /= 2;
-    EXPECT_EQ(16, (uint16_t) v1);
+    EXPECT_THAT(v1.to_float(), FloatNear(15.5, 1e-3));
     EXPECT_EQ(15, v1.trunc());
-    EXPECT_EQ(0x8000, v1.frac());
-    Fixed16 v3=v1;
-    
+    EXPECT_NEAR(0x8000, v1.frac(), 50);
+
     Fixed16 v2 = 1;
     v2 /= 2;
     v1 += v2;
-    EXPECT_EQ(16, v1.trunc());
-    EXPECT_EQ(0, v1.frac());
+    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-3));
 
-    v3 += Fixed16(1)/2;
-    EXPECT_EQ(16, v3.trunc());
-    EXPECT_EQ(0, v3.frac());
+    v1 += Fixed16(1) / 2;
+    EXPECT_EQ(16, v1.trunc());
+    EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-3));
 }
