@@ -237,10 +237,12 @@ endif #ARMGCCPATH
 ################### TI-LINUX-SDK #####################
 ifndef TILINUXSDKPATH
 SEARCHPATH := \
+  /opt/ti/ti-processor-sdk-linux/default \
   ~/ti-processor-sdk-linux-am335x-evm-03.00.00.04 \
   ~/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
   /opt/ti/ti-processor-sdk-linux-am335x-evm-02.00.01.07 \
+
 
 
 TRYPATH:=$(call findfirst,setup.sh,$(SEARCHPATH))
@@ -248,6 +250,18 @@ ifneq ($(TRYPATH),)
 TILINUXSDKPATH:=$(TRYPATH)
 endif
 endif #TILINUXSDKPATH
+
+################### ARM-LINUX GCC PATH #####################
+ifndef ARMLINUXGCCPATH
+SEARCHPATH := \
+    $(TILINUXSDKPATH)/linux-devkit/sysroots/x86_64-arago-linux/usr/bin \
+    /usr/bin \
+
+TRYPATH:=$(call findfirst,arm-linux-gnueabihf-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ARMLINUXGCCPATH:=$(TRYPATH)
+endif
+endif #ARMLINUXGCCPATH
 
 ################### TI-CC3200-SDK #####################
 ifndef TICC3200SDKPATH
