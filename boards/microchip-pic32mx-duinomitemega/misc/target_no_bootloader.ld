@@ -98,7 +98,7 @@ EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
  *                     the command line using the linker's --defsym option.
  */
 EXTERN (_min_stack_size _min_heap_size)
-PROVIDE(_min_stack_size = 9k) ;
+PROVIDE(_min_stack_size = 2k) ;
 PROVIDE(_min_heap_size  = 9k) ;
 PROVIDE(__cs3_heap_start = _end );
 PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size);
@@ -118,10 +118,11 @@ SECTIONS
   */
   .PIC32MX_cfg_init :
   {
-    *(PIC32MX_cfg_init)
+    KEEP(*(.PIC32MX_cfg_init))
   } >PIC32MX_flash_cfg /*AT>PIC32MX_physical_flash_cfg*/
   /* Assert exactly 4 words are placed in configuration area */
   /* Note: terminating semicolon causes syntax error for ASSERT in following line ! */
+
   ASSERT (SIZEOF(.PIC32MX_cfg_init) == 0x10, "PIC32MX configuration register set must be 4 words long")
 
   /*
@@ -138,9 +139,9 @@ SECTIONS
     /*
     ** While the PIC32MX is in Bootstrap mode, all interrupts are disabled
     ** and all general exceptions are redirected to address 0xBFC00380
-    */
-    . = __cs3_reset + 0x0380;
+    . = __cs3_reset_PIC32MX + 0x0380;
     KEEP(*(.bev_handler)) /* optional boot exception handler */
+    
 
   } >PIC32MX_flash_boot
 

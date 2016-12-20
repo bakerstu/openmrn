@@ -51,7 +51,7 @@
 // - fill in your desired value for the "userid" word
 // - uncomment EXACTLY ONE of the bitfield definitions for each bitfield
 
-unsigned int cfg_words[4] __attribute__((section("PIC32MX_cfg_init"))) = {
+const unsigned int cfg_words[4] __attribute__((section(".PIC32MX_cfg_init"))) = {
     // DEVCFG3 at .2FF0 - user-defined ID word
     0x0000BEEF |
 
