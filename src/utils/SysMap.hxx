@@ -337,9 +337,11 @@ private:
      * @param b second of two nodes to compare
      * @return difference between node keys (a->key - b->key)
      */
-    Key compare(Node *a, Node *b)
+    int compare(Node *a, Node *b)
     {
-        return a->key - b->key;
+        if (a->key > b->key) return 1;
+        if (a->key == b->key) return 0;
+        return -1;
     }
 
     /** total number of entries for this instance */
