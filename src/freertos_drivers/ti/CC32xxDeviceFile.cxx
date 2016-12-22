@@ -61,7 +61,7 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
 
     if ((flags & O_CREAT) && (flags & O_EXCL))
     {
-        /* we don't support this flag combo, just to hard */
+        /* we don't support this flag combo, just too hard */
         return -EINVAL;
     }
 
@@ -95,6 +95,7 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
             result = sl_FsOpen((const unsigned char *)path,
                                FS_MODE_OPEN_CREATE(maxSizeOnCreate, 0),
                                nullptr, &handle);
+            writeEnable = true;
         }
         else if (mode & O_WRONLY)
         {
@@ -116,6 +117,8 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
             switch (result)
             {
                 default:
+                    static volatile int err = result;
+                    err;
                     HASSERT(0);
                     return -ENOENT;
             }
@@ -187,3 +190,12 @@ ssize_t CC32xxDeviceFile::read(unsigned int index, void *buf, size_t len)
     return result;
 }
 
+int CC32xxDeviceFile::fstat(File* file, struct stat *stat) {
+    Node::fstat(file, stat);
+    SlFsFileInfo_t fs_file_info;
+    int ret = sl_FsGetInfo((const uint8_t*)name, 0, &fs_file_info);
+    HASSERT(ret == 0);
+    stat->st_size = fs_file_info.FileLen;
+    stat->st_blocks = fs_file_info.AllocatedLen / 512;
+    return 0;
+}

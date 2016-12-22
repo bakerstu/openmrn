@@ -283,9 +283,10 @@ protected:
     friend class DeviceBufferBase;
     friend class OSSelectWakeup;
 
-private:
+protected:
     const char *name; /**< device name */
 
+private:
     /** first device in linked list */
     static Device *first;
 

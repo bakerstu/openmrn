@@ -40,7 +40,7 @@
  */
 class CC32xxDeviceFile : public DeviceFile
 {
-protected:
+public:
     /** Constructor.
      * @param name device file name
      * @param max_size_on_create this is the maximum size of the file allocated
@@ -62,6 +62,7 @@ protected:
     {
     }
 
+protected:
     /** Write to the CC32xxDeviceFile.  NOTE!!! This is not necessarily atomic
      * across
      * byte boundaries in the case of power loss.  The user should take this
@@ -91,6 +92,14 @@ private:
      */
     int open(File* file, const char *path, int flags, int mode) override;
 
+
+    /** Get the status information of a file or device.
+     * @param file file reference for this device
+     * @param stat structure to fill status info into
+     * @return 0 upon successor or negative error number upon error.
+     */
+    int fstat(File* file, struct stat *stat) override;
+    
     void disable() OVERRIDE; /**< function to disable device */
 
     /** file handle */

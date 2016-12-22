@@ -86,7 +86,7 @@ ssize_t DeviceFile::read(File *file, void *buf, size_t count)
     }
     lock_.unlock();
 
-    return count;
+    return result;
 }
 
 /** Write to a file or device.
