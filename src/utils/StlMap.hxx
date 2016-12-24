@@ -61,8 +61,8 @@ public:
      * @param entries number of nodes to statically create and track
      */
     StlMap(size_t entries) 
-        : mappingAllocator(new MappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries))),
-          mapping(NULL)
+        : mappingAllocator(entries > 0 ? new MappingAllocator(std::less<Key>(), Allocator<std::pair<const Key, Value>>(entries)) : NULL),
+          mapping(entries > 0 ? NULL : new Mapping())
     {
     }
 
