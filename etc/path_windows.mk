@@ -1,16 +1,16 @@
 # Path definitions that are specific to Windows builds
 
 ################### FreeRTOS #####################
-FREERTOSPATH ?= $(shell \
-sh -c "if [ -d /a/openmrn/FreeRTOS/default/Source ]; then echo a:/openmrn/FreeRTOS/default; \
-     elif [ -d /b/openmrn/FreeRTOS/default/Source ]; then echo b:/openmrn/FreeRTOS/default; \
-     elif [ -d /c/openmrn/FreeRTOS/default/Source ]; then echo c:/openmrn/FreeRTOS/default; \
-     elif [ -d /d/openmrn/FreeRTOS/default/Source ]; then echo d:/openmrn/FreeRTOS/default; \
-     elif [ -d /e/openmrn/FreeRTOS/default/Source ]; then echo e:/openmrn/FreeRTOS/default; \
-     elif [ -d /f/openmrn/FreeRTOS/default/Source ]; then echo f:/openmrn/FreeRTOS/default; \
-     elif [ -d /g/openmrn/FreeRTOS/default/Source ]; then echo g:/openmrn/FreeRTOS/default; \
-     else echo ; fi" \
-)
+#FREERTOSPATH ?= $(shell \
+#sh -c "if [ -d /a/openmrn/FreeRTOS/default/Source ]; then echo a:/openmrn/FreeRTOS/default; \
+#     elif [ -d /b/openmrn/FreeRTOS/default/Source ]; then echo b:/openmrn/FreeRTOS/default; \
+#     elif [ -d /c/openmrn/FreeRTOS/default/Source ]; then echo c:/openmrn/FreeRTOS/default; \
+#     elif [ -d /d/openmrn/FreeRTOS/default/Source ]; then echo d:/openmrn/FreeRTOS/default; \
+#     elif [ -d /e/openmrn/FreeRTOS/default/Source ]; then echo e:/openmrn/FreeRTOS/default; \
+#     elif [ -d /f/openmrn/FreeRTOS/default/Source ]; then echo f:/openmrn/FreeRTOS/default; \
+#     elif [ -d /g/openmrn/FreeRTOS/default/Source ]; then echo g:/openmrn/FreeRTOS/default; \
+#     else echo ; fi" \
+#)
 
 ################### ARM-GCC #####################
 ARMGCCPATH ?= $(shell \
