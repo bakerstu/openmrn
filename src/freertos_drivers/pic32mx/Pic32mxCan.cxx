@@ -380,13 +380,14 @@ void Pic32mxCan::enable()
         INTSetVectorSubPriority(INT_CAN_1_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
         INTEnable(INT_CAN1, INT_ENABLED);
     }
+    /*
     else
     {
         INTSetVectorPriority(INT_CAN_2_VECTOR, INT_PRIORITY_LEVEL_3);
         INTSetVectorSubPriority(INT_CAN_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
         INTEnable(INT_CAN2, INT_ENABLED);
     }
-
+    */
     /* Step 7: Switch the CAN mode
      * to normal mode. */
 
@@ -404,18 +405,21 @@ void Pic32mxCan::disable()
     {
         INTEnable(INT_CAN1, INT_DISABLED);
     }
+    /*
     else
     {
         INTEnable(INT_CAN2, INT_DISABLED);
     }
+    */
     CANEnableModule(hw_, FALSE);
 }
 
 /// Filesystem device node for the first CAN device.
 Pic32mxCan can0(CAN1, "/dev/can0");
+/*
 /// Filesystem device node for the second CAN device.
 Pic32mxCan can1(CAN2, "/dev/can1");
-
+*/
 void Pic32mxCan::isr()
 {
     if ((CANGetModuleEvent(hw_) & CAN_RX_EVENT) != 0)
@@ -460,13 +464,14 @@ void __attribute__((interrupt,nomips16)) can1_interrupt(void)
     can0.isr();
     INTClearFlag(INT_CAN1);
 }
-
+/*
 /// Hardware interrupt for CAN2.
 void __attribute__((interrupt,nomips16)) can2_interrupt(void)
 {
     can1.isr();
     INTClearFlag(INT_CAN2);
 }
+*/
 }
 
 // void __attribute__((section(".vector_46"))) can1_int_trampoline(void)
@@ -476,10 +481,10 @@ void __attribute__((interrupt,nomips16)) can2_interrupt(void)
 /// location.
 asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
     "can1_interrupt\n\tnop\n.text\n");
-
+/*
 /// Places a jump instruction to can2_interrupt to the proper interrupt vector
 /// location.
 asm("\n\t.section .vector_47,\"ax\",%progbits\n\tj "
     "can2_interrupt\n\tnop\n.text\n");
-
+*/
 /// @todo: process receive buffer overflow flags.
