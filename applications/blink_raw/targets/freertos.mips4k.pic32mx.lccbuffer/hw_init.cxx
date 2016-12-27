@@ -1,0 +1,1 @@
+../../../../boards/mc-pic32mx-lccbuffer/hw_init.cxx

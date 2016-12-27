@@ -57,7 +57,7 @@ ASFLAGS = -c -g -EL -MD -MP $(BASEDEFS) -D__LANGUAGE_ASSEMBLY__ -fdollars-in-ide
 #           -march=armv7-m -mthumb -mfloat-abi=soft
 
 CORECFLAGS = -c -EL -g -msoft-float -march=mips32r2 $(ARCHOPTIMIZATION) \
-	     -Wall -Werror -Wno-unknown-pragmas -MD -MP \
+             -Wall -Werror -Wno-unknown-pragmas -MD -MP \
              -fno-stack-protector -DTARGET_PIC32MX \
              -D_POSIX_C_SOURCE=200112 $(BASEDEFS) -D__LANGUAGE_C__ \
              -ffunction-sections -fdata-sections
