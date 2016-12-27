@@ -1,7 +1,5 @@
 DEPS += PIC32MXLEGACYPLIBPATH
 
-$(warning legacy plib $(PIC32MXLEGACYPLIBPATH))
-
 PLIBS := can int osc pcache
 
 PLIBDIRS := $(foreach PNAME,$(PLIBS),$(PIC32MXLEGACYPLIBPATH)/pic32-libs/peripheral/$(PNAME)/source )
@@ -12,7 +10,8 @@ endef
 
 $(foreach PNAME,$(PLIBS),$(eval $(call PDIR_INCLUDE_template,$(PNAME))))
 
-CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
+PIC32PROC=795F512H
+CORECFLAGS += -D_SUPPRESS_PLIB_WARNING -D__PIC32_FEATURE_SET__=795
 CFLAGS += -fgnu89-inline -Wno-strict-prototypes
 
 empty:=

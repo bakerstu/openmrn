@@ -36,8 +36,8 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 ARCH = -mips16
 ARCHOPTIMIZATION = $(ARCH) -Os -fno-strict-aliasing
 #ARCHOPTIMIZATION = -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-
-BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__XC -D__FreeRTOS__
+PIC32PROC?=GENERIC
+BASEDEFS= -D__PIC32MX__ -D__XC__ -D__XC32 -D__XC -D__FreeRTOS__ -D__32MX$(PIC32PROC)__
 
 # @TODO(balazs.racz) consider moving this to the drivers compile makefile. It
 # is important to search this dir after the system include directories, because
@@ -47,8 +47,7 @@ INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32mx/include \
 	-idirafter $(PIC32MXLEGACYPLIBPATH)/pic32mx/include \
 	-D_DISABLE_OPENADC10_CONFIGPORT_WARNING 
 
-BASEDEFS += -DTARGET_PIC32MX  -D__32MX795F512H__ \
-	-D__PIC32_FEATURE_SET__=795
+BASEDEFS += -DTARGET_PIC32MX
 
 # This will create macros for the functions __builtin_mfc0 et al.
 INCLUDES += -include freertos_drivers/pic32mx/builtins.h
