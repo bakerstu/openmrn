@@ -32,6 +32,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 #include "utils/macros.h"
 #include "FreeRTOSConfig.h"

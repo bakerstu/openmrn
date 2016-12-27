@@ -58,6 +58,17 @@ PIC32MXLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLIBPATH
 
+################### PIC32MXLEGACYPLIB #####################
+ifndef PIC32MXLEGACYPLIBPATH
+SEARCHPATH := \
+  $(PIC32MXLIBPATH) \
+
+TRYPATH:=$(call findfirst,pic32mx/include/peripheral/CAN.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
+endif
+endif #PIC32MXLEGACYPLIBPATH
+
 ################### FreeRTOS ####################
 ifndef FREERTOSPATH
 SEARCHPATH := \

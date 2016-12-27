@@ -398,6 +398,20 @@ PIC32MXLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLIBPATH
 
+################### PIC32MXLEGACYPLIB #####################
+ifndef PIC32MXLEGACYPLIBPATH
+SEARCHPATH := \
+  $(PIC32MXLIBPATH) \
+  /opt/microchip/pic32-plib/default \
+  /opt/microchip/xc32/v1.32 \
+  $(HOME)/train/git/pic32/includes \
+
+TRYPATH:=$(call findfirst,pic32mx/include/peripheral/CAN.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
+endif
+endif #PIC32MXLEGACYPLIBPATH
+
 ##################### OPENOCD ######################
 ifndef OPENOCDPATH
 SEARCHPATH := \

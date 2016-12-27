@@ -1,22 +1,16 @@
-DEPS += PIC32MXLIBPATH
+DEPS += PIC32MXLEGACYPLIBPATH
+
+$(warning legacy plib $(PIC32MXLEGACYPLIBPATH))
 
 PLIBS := can int osc pcache
 
-PLIBDIRS := $(foreach PNAME,$(PLIBS),$(PIC32MXLIBPATH)/pic32-libs/peripheral/$(PNAME)/source )
-
-#CSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.c)),$(notdir $(file)))
-#CXXSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.cxx)),$(notdir $(file)))
-#CPPSRCS=$(foreach file,$(foreach dir,$(PLIBDIRS),$(wildcard $(dir)/*.cpp)),$(notdir $(file)))
+PLIBDIRS := $(foreach PNAME,$(PLIBS),$(PIC32MXLEGACYPLIBPATH)/pic32-libs/peripheral/$(PNAME)/source )
 
 define PDIR_INCLUDE_template
-include $(PIC32MXLIBPATH)/pic32-libs/peripheral/$(1)/source/Makefile.inc
+include $(PIC32MXLEGACYPLIBPATH)/pic32-libs/peripheral/$(1)/source/Makefile.inc
 endef
 
 $(foreach PNAME,$(PLIBS),$(eval $(call PDIR_INCLUDE_template,$(PNAME))))
-
-#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/can/source/Makefile.inc
-#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/int/source/Makefile.inc
-#include $(PIC32MXLIBPATH)/pic32-libs/peripheral/osc/source/Makefile.inc
 
 CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
 CFLAGS += -fgnu89-inline -Wno-strict-prototypes
@@ -34,3 +28,4 @@ CSRCS += $(TMPOBJ:.o=.c)
 
 # The code in this file is wrong.
 int_get_pending_int_lib.o : CFLAGS += -Wno-error=unused-but-set-variable
+
