@@ -57,37 +57,28 @@ public:
     }
 
 private:
-    /** write size in bytes, must be macro to use as an array size */
-    #define WRITE_SIZE 256
-
     /** Start address of FLASH */
     static const uintptr_t FLASH_START;
 
-    /** Lookup sector number from address.
-     * @param address sector address;
-     * @return sector number.
-     */
-    int address_to_sector(const void *address) OVERRIDE;
+    /** The erase page length for the particular MCU. SECTOR_SIZE must be a
+     * multiple of this. */
+    static const uintptr_t PAGE_SIZE;
 
-    /** Lookup address number from sector number.
-     * @param sector sector number;
-     * @return sector address.
-     */
-    uint32_t *sector_to_address(const int sector) OVERRIDE;
+    static inline const uint32_t* get_block(unsigned sector, unsigned offset);
 
     /** Simple hardware abstraction for FLASH erase API.
-     * @param address the start address of the flash block to be erased
+     * @param sector Number of sector [0.. sectorCount_ - 1] to erase
      */
-    void flash_erase(void *address) override;
+    void flash_erase(unsigned sector) override;
 
     /** Simple hardware abstraction for FLASH program API.
+     * @param sector the sector to write to [0..sectorCount_ - 1]
+     * @param start_block the block index to start writing to [0..rawBlockCount_ - 1]
      * @param data a pointer to the data to be programmed
-     * @param address the starting address in flash to be programmed.
-     *                Must be a multiple of BLOCK_SIZE
-     * @param count the number of bytes to be programmed.
+     * @param byte_count the number of bytes to be programmed.
      *              Must be a multiple of BLOCK_SIZE
      */
-    void flash_program(uint32_t *data, void *address, uint32_t count) OVERRIDE;
+    void flash_program(unsigned sector, unsigned start_block, uint32_t *data, uint32_t byte_count) override;
 
     /** Default constructor.
      */

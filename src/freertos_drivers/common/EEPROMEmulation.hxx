@@ -290,16 +290,19 @@ private:
     virtual const uint32_t* block(unsigned sector, unsigned offset) = 0;
 
     /** Simple hardware abstraction for FLASH erase API.
-     * @param address the start address of the flash block to be erased
+     * @param sector Number of sector [0.. sectorCount_ - 1] to erase
      */
     virtual void flash_erase(unsigned sector) = 0;
 
     /** Simple hardware abstraction for FLASH program API.
-     * @param sector the sector to write to
-     * @param start_block the block index to start writing to
+     * @param sector the sector to write to [0..sectorCount_ - 1]
+     * @param start_block the block index to start writing to [0..rawBlockCount_ - 1]
      * @param data a pointer to the data to be programmed
      * @param byte_count the number of bytes to be programmed.
      *              Must be a multiple of BLOCK_SIZE
+     *
+     * The bytes to program cannot overflow beyond the end of sector, so
+     * start_block + byte_count / BLOCK_SIZE <= rawBlockCount_ must hold.
      */
     virtual void flash_program(unsigned sector, unsigned start_block, uint32_t *data, uint32_t byte_count) = 0;
 
