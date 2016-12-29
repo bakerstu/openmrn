@@ -87,6 +87,16 @@ inline const uint32_t *LpcEEPROMEmulation::get_block(
     return (uint32_t*)(&__eeprom_start + sector * EEPROMEmulation::SECTOR_SIZE + offset * EEPROMEmulation::BLOCK_SIZE);
 }
 
+/**
+ * Computes the pointer to load the data stored in a specific block from.
+ * @param sector sector number [0..sectorCount_ - 1]
+ * @param offset block index within sector, [0..rawBlockCount_ - 1]
+ * @return pointer to the beginning of the data in the block. Must be alive until the next call to this function.
+ */
+const uint32_t* LpcEEPROMEmulation::block(unsigned sector, unsigned offset) {
+    return get_block(sector, offset);
+}
+
 /** Simple hardware abstraction for FLASH erase API.
  * @param sector Number of sector [0.. sectorCount_ - 1] to erase
  */

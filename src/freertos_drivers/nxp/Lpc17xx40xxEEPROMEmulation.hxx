@@ -60,6 +60,14 @@ private:
 
     static inline const uint32_t* get_block(unsigned sector, unsigned offset);
 
+    /**
+     * Computes the pointer to load the data stored in a specific block from.
+     * @param sector sector number [0..sectorCount_ - 1]
+     * @param offset block index within sector, [0..rawBlockCount_ - 1]
+     * @return pointer to the beginning of the data in the block. Must be alive until the next call to this function.
+     */
+    const uint32_t* block(unsigned sector, unsigned offset) override;
+
     /** Simple hardware abstraction for FLASH erase API.
      * @param sector Number of sector [0.. sectorCount_ - 1] to erase
      */
