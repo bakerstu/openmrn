@@ -75,3 +75,5 @@ openmrnpath.mk
 #Mac OS X file system artifacts
 .DS_Store
 
+/applications/async_blink/targets/freertos.mips4k.pic32mx-duinomitemega/async_blink_hex.X/nbproject/private/
+/applications/async_blink/targets/freertos.mips4k.pic32mx-duinomitemega/async_blink_make.X/nbproject/private/

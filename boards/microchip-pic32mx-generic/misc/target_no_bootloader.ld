@@ -33,6 +33,7 @@
  * the new terms are clearly indicated on the first page of each file where
  * they apply.
  */
+OUTPUT_FORMAT("elf32-tradlittlemips")
 OUTPUT_ARCH(mips)
 ENTRY(__cs3_reset_PIC32MX) /* for debugger support, use actual HW-level entry and not _start */
 SEARCH_DIR(.)
@@ -66,7 +67,7 @@ MEMORY
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
   ** use by (some) debugger tool while debugging (by convention, not by hardware).
   */
-  PIC32MX_flash_boot (rx) : ORIGIN = 0x9FC00000, LENGTH = 0x180 /* The beginning of the interrupt vector table is empty. */
+  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x180 /* The beginning of the interrupt vector table is empty. */
   PIC32MX_flash_boot_remaining (rx): ORIGIN = 0x9FC00A00, LENGTH = 3K-0x10-0xA00 /* Skipped flash_cfg rgister and 0xa00 at the beginning for the interupt vector table. NOTE(bracz): also one debug page might need to be reserved here, which would directly prevent us from placing the interrupt vector table here. -- need 2K + 1k debug. Maybe the vector table could be trimmed. Calculations give that 48 vectors would fit. */
   PIC32MX_flash_cfg  (r!x): ORIGIN = 0x9FC00BF0, LENGTH = 0x0010
 }
@@ -99,7 +100,7 @@ EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
  */
 EXTERN (_min_stack_size _min_heap_size)
 PROVIDE(_min_stack_size = 2k) ;
-PROVIDE(_min_heap_size  = 9k) ;
+PROVIDE(_min_heap_size  = 4k) ;
 PROVIDE(__cs3_heap_start = _end );
 PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size);
 PROVIDE(__cs3_stack = __cs3_region_start_ram + __cs3_region_size_ram); /* stack grows down from end of RAM */
@@ -650,12 +651,29 @@ SECTIONS
   /* ============================  End Interrupt Branch Vectors  =========================== */
   
 
-
-  .stab 0 (NOLOAD) : { *(.stab) }
-  .stabstr 0 (NOLOAD) : { *(.stabstr) }
+    /* The .pdr section belongs in the absolute section */
+    /DISCARD/ : { *(.pdr) }
+  .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
+  .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
+  .mdebug.abi32 : { KEEP(*(.mdebug.abi32)) }
+  .mdebug.abiN32 : { KEEP(*(.mdebug.abiN32)) }
+  .mdebug.abi64 : { KEEP(*(.mdebug.abi64)) }
+  .mdebug.abiO64 : { KEEP(*(.mdebug.abiO64)) }
+  .mdebug.eabi32 : { KEEP(*(.mdebug.eabi32)) }
+  .mdebug.eabi64 : { KEEP(*(.mdebug.eabi64)) }
+  .gcc_compiled_long32 : { KEEP(*(.gcc_compiled_long32)) }
+  .gcc_compiled_long64 : { KEEP(*(.gcc_compiled_long64)) }
+  /* Stabs debugging sections.  */
+  .stab          0 : { *(.stab) }
+  .stabstr       0 : { *(.stabstr) }
+  .stab.excl     0 : { *(.stab.excl) }
+  .stab.exclstr  0 : { *(.stab.exclstr) }
+  .stab.index    0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment       0 : { *(.comment) }
   /* DWARF debug sections.
-   * Symbols in the DWARF debugging sections are relative to the beginning
-   * of the section so we begin them at 0.  */
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section so we begin them at 0.  */
   /* DWARF 1 */
   .debug          0 : { *(.debug) }
   .line           0 : { *(.line) }
@@ -678,4 +696,10 @@ SECTIONS
   .debug_funcnames 0 : { *(.debug_funcnames) }
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
+  .debug_pubtypes 0 : { *(.debug_pubtypes) }
+  .debug_ranges   0 : { *(.debug_ranges) }
+  /DISCARD/ : { *(.rel.dyn) }
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  /DISCARD/ : { *(.note.GNU-stack) }
+  /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) *(.discard) }
 }

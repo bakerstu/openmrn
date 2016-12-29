@@ -27,6 +27,7 @@ else
 #	$(OBJDUMP) -h $< > objcopy.input
 #	$(OPENMRNPATH)/bin/pic32_change_lma < objcopy.input > objcopy.params
 	$(OBJDUMP) -h $< | grep ' 9[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0x80000000/' | tr '\n' ' ' > objcopy.params
+	$(OBJDUMP) -h $< | grep ' b[df]' | cut  -b 5- | sed -e 's/^\([^ ]*\) .*$$/--change-section-lma \1-0xa0000000/' | tr '\n' ' ' >> objcopy.params
 endif
 	$(OBJCOPY) @objcopy.params $< $@
 	rm -f objcopy.params objcopy.input
@@ -38,7 +39,7 @@ clean-objcopy-params:
 
 
 %.hex: %.elf
-	$(OBJDUMP) -h $<
+#	$(OBJDUMP) -h $<
 	$(OBJCOPY) -O ihex $< $@
 
 

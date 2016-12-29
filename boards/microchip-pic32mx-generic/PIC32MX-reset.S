@@ -200,15 +200,18 @@ __cs3_reset_PIC32MX:
 	//jal _start
 
         .global hw_preinit
-        jal     hw_preinit
+        la      t0, hw_preinit
+        jalr    t0
+        //jal     hw_preinit
         nop
 
         .global _cinit
-        jal     _cinit
+        la      t0, _cinit
+        jalr    t0
         nop
         
-        jal     __cs3_premain
-
+        la      t0, __cs3_premain
+        jr    t0
 
 #	===== Skip BEV and General Exception branch code for now =====
 #
