@@ -9,8 +9,10 @@ SYSLIBRARIESEXTRA = -lfreertos_drivers_plib_pic32mx530
 
 include $(OPENMRNPATH)/etc/prog.mk
 
-CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
+CORECFLAGS += -D_SUPPRESS_PLIB_WARNING -D_DISABLE_OPENADC10_CONFIGSCAN_WARNING
 CFLAGS += -fgnu89-inline
+PIC32PROC=530F128H
+BASEDEFS += -D__PIC32_FEATURE_SET__=530
 
 ifeq ($(MISSING_DEPS),)
 
@@ -28,7 +30,7 @@ endif
 	rm -f objcopy.params objcopy.input
 
 clean: clean-objcopy-params
-	
+
 clean-objcopy-params:
 	rm -f objcopy.params objcopy.input
 
