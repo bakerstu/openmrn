@@ -74,23 +74,17 @@ int main(int argc, char *argv[])
         render_all_cdi<2>();
         render_all_cdi<1>();*/
 
-    /*
-      string cdi;
-    def.config_renderer().render_cdi(&cdi);
-
-    printf("%s", cdi.c_str());
-
     std::vector<unsigned> event_offsets;
+    openlcb::ConfigDef def(0);
     def.handle_events([&event_offsets](unsigned o)
         {
             event_offsets.push_back(o);
         });
-    printf("<!-- events: ");
+    printf("namespace openlcb {\nextern const uint16_t CDI_EVENT_OFFSETS[] = {\n  ");
     for (unsigned o : event_offsets)
     {
-        printf("%u,", o);
+        printf("%u, ", o);
     }
-    printf("-->\n");
-    */
+    printf("0};\n}  // namespace openlcb\n");
     return 0;
 }
