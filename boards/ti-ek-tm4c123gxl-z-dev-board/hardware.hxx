@@ -7,17 +7,7 @@
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 
-GPIO_PIN(SW1, GpioInputPU, F, 4);
-GPIO_PIN(SW2, GpioInputPU, F, 0);
-
-GPIO_PIN(LED_RED, LedPin, F, 1);
-GPIO_PIN(LED_GREEN, LedPin, F, 3);
-GPIO_PIN(LED_BLUE_RAW, LedPin, F, 2);
-
-typedef LED_BLUE_RAW_Pin BLINKER_RAW_Pin;
-typedef BLINKER_Pin LED_BLUE_Pin;
-
-GPIO_HWPIN(RAILCOM_CH1, GpioHwPin, B, 0, U1RX, UART);
+typedef DummyPin BLINKER_RAW_Pin;
 
 GPIO_HWPIN(UART0RX, GpioHwPin, A, 0, U0RX, UART);
 GPIO_HWPIN(UART0TX, GpioHwPin, A, 1, U0TX, UART);
@@ -25,15 +15,24 @@ GPIO_HWPIN(UART0TX, GpioHwPin, A, 1, U0TX, UART);
 GPIO_PIN(USB1, GpioUSBAPin, D, 4);
 GPIO_PIN(USB2, GpioUSBAPin, D, 5);
 
-GPIO_HWPIN(CAN0RX, GpioHwPin, E, 4, CAN0RX, CAN);
-GPIO_HWPIN(CAN0TX, GpioHwPin, E, 5, CAN0TX, CAN);
+GPIO_HWPIN(CAN0RX, GpioHwPin, E, 4, CAN0RX, CAN);  //ok
+GPIO_HWPIN(CAN0TX, GpioHwPin, E, 5, CAN0TX, CAN);  //ok
 
-typedef GpioInitializer<                          //
-    SW1_Pin, SW2_Pin,                             //
-    RAILCOM_CH1_Pin,                              //
-    LED_RED_Pin, LED_GREEN_Pin, LED_BLUE_RAW_Pin, //
-    USB1_Pin, USB2_Pin,                           //
-    UART0RX_Pin, UART0TX_Pin,                     //
+// Directly driven output pins.
+GPIO_PIN(O1, GpioOutputSafeLow, F, 0);
+GPIO_PIN(O2, GpioOutputSafeLow, F, 1);
+GPIO_PIN(O3, GpioOutputSafeLow, F, 2);
+GPIO_PIN(O4, GpioOutputSafeLow, F, 3);
+GPIO_PIN(O5, GpioOutputSafeLow, F, 4);
+GPIO_PIN(O6, GpioOutputSafeLow, D, 0);
+GPIO_PIN(O7, GpioOutputSafeLow, D, 1);
+GPIO_PIN(O8, GpioOutputSafeLow, D, 6);
+
+typedef GpioInitializer<            //
+    O1_Pin, O2_Pin, O3_Pin, O4_Pin, //
+    O5_Pin, O6_Pin, O7_Pin, O8_Pin, //
+    USB1_Pin, USB2_Pin,             //
+    UART0RX_Pin, UART0TX_Pin,       //
     CAN0RX_Pin, CAN0TX_Pin> GpioInit;
 
 namespace TDebug {
