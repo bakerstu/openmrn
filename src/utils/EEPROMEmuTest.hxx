@@ -93,35 +93,37 @@ public:
 
         LOG(INFO, "sector count %d", sector_count());
         LOG(INFO, "slot count %d", slot_count());
-        LOG(INFO, "active index %d", activeIndex);
+        LOG(INFO, "active index %d", activeSector_);
     }
 
     /// @return how many blocks are available in the current sector.
     unsigned avail() {
-        return available;
+        return availableSlots_;
     }
 
 private:
-    void flash_erase(void *address) override {
-        ASSERT_LE((void*)&foo::__eeprom_start[0], address);
-        ASSERT_GT((void*)&foo::__eeprom_start[EELEN], address);
-        ASSERT_EQ(0, (((uint8_t*)address) - foo::__eeprom_start)  % EEPROMEmulation::SECTOR_SIZE);
-        memset(address, 0xff, EEPROMEmulation::SECTOR_SIZE);
+    void flash_erase(unsigned sector) override {
+        ASSERT_LE(0, sector);
+        ASSERT_GT(EELEN / SECTOR_SIZE, sector);
+        void* address = &foo::__eeprom_start[sector * SECTOR_SIZE];
+        memset(address, 0xff, SECTOR_SIZE);
     }
 
-    void flash_program(uint32_t *data, void *address, uint32_t count) override {
-        ASSERT_LE((void*)&__eeprom_start, address);
-        ASSERT_GE((void*)(&foo::__eeprom_start[EELEN]), address);
-        memcpy(address, data, count);
+    void flash_program(unsigned sector, unsigned block, uint32_t *data, uint32_t byte_count) override {
+        ASSERT_LE(0, sector);
+        ASSERT_GT(EELEN / SECTOR_SIZE, sector);
+        ASSERT_LE(0, block);
+        ASSERT_GT(SECTOR_SIZE/BLOCK_SIZE, block);
+        ASSERT_EQ(0, byte_count % BLOCK_SIZE);
+        uint8_t* address = &foo::__eeprom_start[sector * SECTOR_SIZE + block * BLOCK_SIZE];
+        memcpy(address, data, byte_count);
     }
 
-    int address_to_sector(const void *address) override {
-        uint8_t* a = (uint8_t*)address;
-        return (a - &foo::__eeprom_start[0]) / SECTOR_SIZE;
-    }
-
-    uint32_t *sector_to_address(const int sector) override {
-        return (uint32_t*) &(foo::__eeprom_start[sector * SECTOR_SIZE]);
+    const uint32_t* block(unsigned sector, unsigned index) override {
+        EXPECT_GT(EELEN / SECTOR_SIZE, sector);
+        EXPECT_GT(SECTOR_SIZE / BLOCK_SIZE, index);
+        void* address = &foo::__eeprom_start[sector * SECTOR_SIZE + index * BLOCK_SIZE];
+        return (uint32_t*) address;
     }
 };
 
@@ -203,11 +205,10 @@ protected:
 
 TEST_F(EepromTest, create) {
     create();
-    EXPECT_EQ(0, e->activeIndex);
+    EXPECT_EQ(0, e->activeSector_);
     EXPECT_EQ(8, e->sector_count());
-    EXPECT_EQ(0, e->address_to_sector(&__eeprom_start));
-    EXPECT_EQ((uint32_t*)&__eeprom_start, e->sector(0));
-    EXPECT_EQ((uint32_t*)&foo::__eeprom_start[4*1024], e->sector(1));
+    EXPECT_EQ((uint32_t*)&__eeprom_start, e->block(0, 0));
+    EXPECT_EQ((uint32_t*)&foo::__eeprom_start[4*1024], e->block(1, 0));
 }
 
 TEST_F(EepromTest, readwrite) {
@@ -243,7 +244,7 @@ TEST_F(EepromTest, smalloverflow) {
     EXPECT_SLOT(4, 14, "bc");
     EXPECT_SLOT(5, 16, "d\xFF");
     overflow_block();
-    EXPECT_EQ(e->sector(1), e->active());
+    EXPECT_EQ(1, e->activeSector_);
     EXPECT_SLOT(3, 12, "\xFF""a");
     EXPECT_SLOT(4, 14, "bc");
     EXPECT_SLOT(5, 16, "d\xFF");

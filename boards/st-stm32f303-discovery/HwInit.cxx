@@ -69,6 +69,7 @@ static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 
 extern "C" {
 
