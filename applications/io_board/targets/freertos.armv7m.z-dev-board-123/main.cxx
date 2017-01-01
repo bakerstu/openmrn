@@ -154,6 +154,7 @@ public:
         }
         for (int i = 0; i < 8; ++i) {
             cfg.seg().di_producers().entry(i).description().write(fd, "");
+            cfg.seg().di_producers().entry(i).debounce().write(fd, 3);
         }
     }
 
