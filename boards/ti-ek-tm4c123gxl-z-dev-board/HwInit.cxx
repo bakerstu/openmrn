@@ -126,148 +126,13 @@ void enter_bootloader()
 }
 }
 
-#define ONE_BIT_HALF_PERIOD  4480
-#define ZERO_BIT_HALF_PERIOD 8000
-#define STARTUP_DELAY_CYCLES 2
-#define DEADBAND_ADJUST      80
-
-#define DECL_PIN(NAME, PORT, NUM)                \
-  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
-  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
-  static const auto NAME##_PIN = GPIO_PIN_##NUM
-
-
-struct RailcomDefs
-{
-    static const uint32_t CHANNEL_COUNT = 1;
-    static const uint32_t UART_PERIPH[CHANNEL_COUNT];
-    static const uint32_t UART_BASE[CHANNEL_COUNT];
-    // Make sure there are enough entries here for all the channels times a few
-    // DCC packets.
-    static const uint32_t Q_SIZE = 6;
-
-    static const auto OS_INTERRUPT = INT_UART1;
-
-    typedef RAILCOM_CH1_Pin CH1_Pin;
-
-    static void hw_init() {
-         CH1_Pin::hw_init();
-    }
-
-    static void set_input() {
-        CH1_Pin::set_input();
-    }
-
-    static void set_hw() {
-        CH1_Pin::set_hw();
-    }
-
-    static void enable_measurement() {}
-    static void disable_measurement() {}
-    static bool need_ch1_cutout() { return true; }
-    static uint8_t get_feedback_channel() { return 0xff; }
-
-    /** @returns a bitmask telling which pins are active. Bit 0 will be set if
-     * channel 0 is active (drawing current).*/
-    static uint8_t sample() {
-        uint8_t ret = 0;
-        if (!CH1_Pin::get()) ret |= 1;
-        return ret;
-    }
-};
-
-const uint32_t RailcomDefs::UART_BASE[] = {UART1_BASE};
-const uint32_t RailcomDefs::UART_PERIPH[] = {SYSCTL_PERIPH_UART1};
-
-static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
-
-struct DccHwDefs {
-  /// base address of a capture compare pwm timer pair
-  static const unsigned long CCP_BASE = TIMER0_BASE;
-  /// an otherwise unused interrupt number (could be that of the capture compare pwm timer)
-  static const unsigned long OS_INTERRUPT = INT_TIMER0A;
-  /// base address of an interval timer
-  static const unsigned long INTERVAL_BASE = TIMER1_BASE;
-  /// interrupt number of the interval timer
-  static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
-
-  /** These timer blocks will be synchronized once per packet, when the
-   *  deadband delay is set up. */
-  static const auto TIMER_SYNC = TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC;
-
-  // Peripherals to enable at boot.
-  static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
-  static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
-  static const auto PIN_H_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
-  static const auto PIN_L_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
-
-  static const auto PIN_H_GPIO_CONFIG = GPIO_PB6_T0CCP0;
-  static const auto PIN_L_GPIO_CONFIG = GPIO_PB7_T0CCP1;
-
-  static const auto PIN_H_GPIO_BASE = GPIO_PORTB_BASE;
-  static const auto PIN_L_GPIO_BASE = GPIO_PORTB_BASE;
-
-  static const auto PIN_H_GPIO_PIN = GPIO_PIN_6;
-  static const auto PIN_L_GPIO_PIN = GPIO_PIN_7;
-
-  /** Defines whether the high driver pin is inverted or not. A non-inverted
-   *  (value==false) pin will be driven high during the first half of the DCC
-   *  bit (minus H_DEADBAND_DELAY_NSEC at the end), and low during the second
-   *  half.  A non-inverted pin will be driven low as safe setting at
-   *  startup. */
-  static const bool PIN_H_INVERT = false;
-
-  /** Defines whether the drive-low pin is inverted or not. A non-inverted pin
-   *  (value==false) will be driven high during the second half of the DCC bit
-   *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
-   *  non-inverted pin will be driven low as safe setting at startup. */
-  static const bool PIN_L_INVERT = false;
-  
-  /** @returns the number of preamble bits to send exclusive of end of packet
-   *  '1' bit */
-  static int dcc_preamble_count() { return 16; }
-
-  static void flip_led() {}
-
-  /** the time (in nanoseconds) to wait between turning off the low driver and
-   * turning on the high driver. */
-  static const int H_DEADBAND_DELAY_NSEC = 250;
-  /** the time (in nanoseconds) to wait between turning off the high driver and
-   * turning on the low driver. */
-  static const int L_DEADBAND_DELAY_NSEC = 250;
-
-  /** @returns true to produce the RailCom cutout, else false */
-  static bool railcom_cutout() { return false; }
-
-  /** number of outgoing messages we can queue */
-  static const size_t Q_SIZE = 4;
-
-
-  // Pins defined for railcom
-  //DECL_PIN(RAILCOM_TRIGGER, B, 4);
-    /// @todo (balazs.racz) move these to tivagpio.
-  DECL_PIN(RAILCOM_TRIGGER, D, 6);
-  static const auto RAILCOM_TRIGGER_INVERT = true;
-
-  static const auto RAILCOM_UART_BASE = UART1_BASE;
-  static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
-  DECL_PIN(RAILCOM_UARTPIN, B, 0);
-  static const auto RAILCOM_UARTPIN_CONFIG = GPIO_PB0_U1RX;
-};
-
-
-static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
-
 extern "C" {
 /** Blink LED */
 uint32_t blinker_pattern = 0;
 static volatile uint32_t rest_pattern = 0;
 
-void dcc_generator_init(void);
-
 void hw_set_to_safe(void)
 {
-    tivaDCC.disable_output();
     GpioInit::hw_set_to_safe();
 }
 
@@ -289,7 +154,7 @@ long long hw_get_partial_tick_time_nsec(void)
     volatile uint32_t * tick_current_reg = (volatile uint32_t *)0xe000e018;
     long long tick_val = *tick_current_reg;
     tick_val *= nsec_per_clock;
-    long long elapsed = (1ULL << NSEC_TO_TICK_SHIFT) - tick_val;
+    long long elapsed = (1LL << NSEC_TO_TICK_SHIFT) - tick_val;
     if (elapsed < 0) elapsed = 0;
     return elapsed;
 }
@@ -307,11 +172,6 @@ void timer5a_interrupt_handler(void)
     rest_pattern >>= 1;
     if (!rest_pattern)
         rest_pattern = blinker_pattern;
-}
-
-void uart1_interrupt_handler(void)
-{
-  railcom_driver.os_interrupt_handler();
 }
 
 void diewith(uint32_t pattern)
@@ -338,10 +198,10 @@ void hw_preinit(void)
     // Once we have enabled (unlocked) the commit register then re-lock it
     // to prevent further changes.  PF0 is muxed with NMI thus a special case.
     //
-    MAP_SysCtlPeripheralEnable(SW2_Pin::GPIO_PERIPH);
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_CR) |= 0x01;
-    HWREG(SW2_Pin::GPIO_BASE + GPIO_O_LOCK) = 0;
+    MAP_SysCtlPeripheralEnable(O1_Pin::GPIO_PERIPH);
+    HWREG(O1_Pin::GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(O1_Pin::GPIO_BASE + GPIO_O_CR) |= 0x01;
+    HWREG(O1_Pin::GPIO_BASE + GPIO_O_LOCK) = 0;
 
     // Initializes all GPIO and hardware pins.
     GpioInit::hw_init();
@@ -354,21 +214,24 @@ void hw_preinit(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
     MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
     MAP_TimerLoadSet(TIMER5_BASE, TIMER_A, MAP_SysCtlClockGet() / 8);
-    MAP_IntEnable(INT_TIMER5A);
+    //MAP_IntEnable(INT_TIMER5A);
 
     /* This interrupt should hit even during kernel operations. */
     MAP_IntPrioritySet(INT_TIMER5A, 0);
     MAP_TimerIntEnable(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
-    MAP_TimerEnable(TIMER5_BASE, TIMER_A);
+    //MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
     /* USB interrupt priority */
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
-    /* Initialize the DCC Timers and GPIO outputs */
-    tivaDCC.hw_init();
-
-    /* Checks the SW1 pin at boot time in case we want to allow for a debugger
-     * to connect. */
+    /* Checks the SW2 pin at boot time in case we want to allow for a debugger
+     * to connect.  */
+    /*
+      This is not possible to do becase the SW1 and SW2 pin are overlaid to a
+      different hardware purpose that has OutputSafeLow purpose. Turning on as
+      input weak-pull-up would supply current to the output pin. That's not
+      good.
+      
     asm volatile ("cpsie i\n");
     do {
       if (!SW2_Pin::get()) {
@@ -377,14 +240,8 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
+    */
     asm volatile ("cpsid i\n");
-}
-
-/** Timer interrupt for DCC packet handling.
- */
-void timer1a_interrupt_handler(void)
-{
-    tivaDCC.interrupt_handler();
 }
 
 }

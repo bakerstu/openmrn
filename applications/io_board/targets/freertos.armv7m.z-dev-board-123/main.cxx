@@ -61,7 +61,7 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const openlcb::NodeID NODE_ID = 0x050101011804ULL;
+extern const openlcb::NodeID NODE_ID = 0x05010101183FULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
@@ -81,7 +81,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 1500, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -94,9 +94,11 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
-                                             LED_GREEN_Pin::instance(),
-                                             LED_BLUE_Pin::instance()};
+constexpr const Gpio *const kOutputGpio[] = { //
+    O1_Pin::instance(), O2_Pin::instance(),   //
+    O3_Pin::instance(), O4_Pin::instance(),   //
+    O5_Pin::instance(), O6_Pin::instance(),   //
+    O7_Pin::instance(), O8_Pin::instance()};
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the
@@ -106,20 +108,62 @@ constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
 // configuration structure comes from the CDI definition object, segment 'seg',
 // in which there is a repeated group 'consumers'. The GPIO pins get assigned
 // to the repetitions in the group in order.
-openlcb::MultiConfiguredConsumer consumers(
-    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
+openlcb::MultiConfiguredConsumer hi_consumers(stack.node(), kOutputGpio,
+    ARRAYSIZE(kOutputGpio), cfg.seg().hi_consumers());
 
 // Similar syntax for the producers.
-openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
-openlcb::ConfiguredProducer producer_sw2(
-    stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
+openlcb::ConfiguredProducer producer_I1(
+    stack.node(), cfg.seg().di_producers().entry<0>(), I1_Pin());
+openlcb::ConfiguredProducer producer_I2(
+    stack.node(), cfg.seg().di_producers().entry<1>(), I2_Pin());
+openlcb::ConfiguredProducer producer_I3(
+    stack.node(), cfg.seg().di_producers().entry<2>(), I3_Pin());
+openlcb::ConfiguredProducer producer_I4(
+    stack.node(), cfg.seg().di_producers().entry<3>(), I4_Pin());
+openlcb::ConfiguredProducer producer_I5(
+    stack.node(), cfg.seg().di_producers().entry<4>(), I5_Pin());
+openlcb::ConfiguredProducer producer_I6(
+    stack.node(), cfg.seg().di_producers().entry<5>(), I6_Pin());
+openlcb::ConfiguredProducer producer_I7(
+    stack.node(), cfg.seg().di_producers().entry<6>(), I7_Pin());
+openlcb::ConfiguredProducer producer_I8(
+    stack.node(), cfg.seg().di_producers().entry<7>(), I8_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+    stack.node(), {
+                   producer_I1.polling(), producer_I2.polling(), //
+                   producer_I3.polling(), producer_I4.polling(), //
+                   producer_I5.polling(), producer_I6.polling(), //
+                   producer_I7.polling(), producer_I8.polling(), //
+                  });
+
+// Object that handles facctory reset for our config setup.
+class CustomFactoryReset : public DefaultConfigUpdateListener {
+public:
+    void factory_reset(int fd) override
+    {
+        // Resets user names.
+        cfg.userinfo().name().write(fd, "Default user name");
+        cfg.userinfo().description().write(fd, "Default user description");
+        // Makes the IO pin descriptions empty.
+        for (int i = 0; i < 8; ++i) {
+            cfg.seg().hi_consumers().entry(i).description().write(fd, "");
+        }
+        for (int i = 0; i < 8; ++i) {
+            cfg.seg().di_producers().entry(i).description().write(fd, "");
+        }
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override {
+        // Nothing to do; we don't read the configuration.
+        return UPDATED;
+    }
+    
+} g_custom_factory_reset;
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -131,15 +175,15 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
-    // The necessary physical ports must be added to the stack.
-    //
-    // It is okay to enable multiple physical ports, in which case the stack
-    // will behave as a bridge between them. For example enabling both the
-    // physical CAN port and the USB port will make this firmware act as an
-    // USB-CAN adapter in addition to the producers/consumers created above.
-    //
-    // If a port is enabled, it must be functional or else the stack will
-    // freeze waiting for that port to send the packets out.
+// The necessary physical ports must be added to the stack.
+//
+// It is okay to enable multiple physical ports, in which case the stack
+// will behave as a bridge between them. For example enabling both the
+// physical CAN port and the USB port will make this firmware act as an
+// USB-CAN adapter in addition to the producers/consumers created above.
+//
+// If a port is enabled, it must be functional or else the stack will
+// freeze waiting for that port to send the packets out.
 #if defined(HAVE_PHYSICAL_CAN_PORT)
     stack.add_can_port_select("/dev/can0");
 #endif
