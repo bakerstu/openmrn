@@ -159,10 +159,10 @@ public:
 
     UpdateAction apply_configuration(
         int fd, bool initial_load, BarrierNotifiable *done) override {
+        done->notify();
         // Nothing to do; we don't read the configuration.
         return UPDATED;
     }
-    
 } g_custom_factory_reset;
 
 /** Entry point to application.
