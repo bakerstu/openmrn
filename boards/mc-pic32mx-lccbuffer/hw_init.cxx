@@ -46,6 +46,8 @@
 
 extern "C" {
 
+const unsigned long pic32_cpu_clock_hz = 40000000UL;
+const unsigned long pic32_periph_clock_hz = 40000000UL;
 
 void _cinit(void) {
   extern unsigned __cs3_regions[];

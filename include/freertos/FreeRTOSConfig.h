@@ -237,8 +237,8 @@ standard names - or at least those used in the unmodified vector table. */
 
 #define MIPSNO16 __attribute__((nomips16))
 
-#define configCPU_CLOCK_HZ             ( 40000000UL )
-#define configPERIPHERAL_CLOCK_HZ      ( 40000000UL )
+#define configCPU_CLOCK_HZ             ( pic32_cpu_clock_hz )
+#define configPERIPHERAL_CLOCK_HZ      ( pic32_periph_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( 190 )
 #define configISR_STACK_SIZE           ( 250 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) 9000 )
@@ -259,6 +259,8 @@ interrupts. */
 #ifdef __cplusplus
 extern "C" {
 #endif
+extern const unsigned long pic32_cpu_clock_hz;
+extern const unsigned long pic32_periph_clock_hz;
 extern void diewith(unsigned long);
 extern unsigned long blinker_pattern;
 #ifdef __cplusplus

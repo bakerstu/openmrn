@@ -1,0 +1,1 @@
+../ti-tm4c123-generic/target.ld
