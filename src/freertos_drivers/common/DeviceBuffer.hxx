@@ -48,7 +48,7 @@ public:
      * @param file file to wait on
      * @param read true if this is a read operation, false for write operation
      */
-    void block_until_condition(File *file, bool read);
+    static void block_until_condition(File *file, bool read);
 
     /** Signal the wakeup condition.  This will also wakeup select.
      */

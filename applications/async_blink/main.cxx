@@ -205,7 +205,7 @@ openlcb::BitEventConsumer consumer(&logger);
 int appl_main(int argc, char* argv[])
 {
 #if defined (BOARD_LAUNCHPAD_EK)
-    new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT);
+    //new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT);
 #elif defined (__linux__)
     new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT, 2121);
 #endif
@@ -215,8 +215,6 @@ int appl_main(int argc, char* argv[])
     stack.connect_tcp_gridconnect_hub("localhost",12021);
 #elif defined(TARGET_LPC11Cxx)
     lpc11cxx::CreateCanDriver(stack.can_hub());
-#elif defined(TARGET_PIC32MX)
-    stack.add_can_port_blocking("/dev/can0");
 #elif defined(__FreeRTOS__)
     stack.add_can_port_select("/dev/can0");
 #elif defined(__EMSCRIPTEN__)
