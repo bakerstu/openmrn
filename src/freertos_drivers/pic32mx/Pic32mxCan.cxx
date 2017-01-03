@@ -515,7 +515,7 @@ void Pic32mxCan::isr()
 extern "C" {
 
 /// Hardware interrupt for CAN1.
-void __attribute__((interrupt,nomips16)) can1_interrupt(void)
+void can1_interrupt(void)
 {
     can0.isr();
     INTClearFlag(INT_CAN1);
@@ -535,8 +535,8 @@ void __attribute__((interrupt,nomips16)) can2_interrupt(void)
 
 /// Places a jump instruction to can1_interrupt to the proper interrupt vector
 /// location.
-asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
-    "can1_interrupt\n\tnop\n.text\n");
+//asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
+//    "can1_interrupt\n\tnop\n.text\n");
 /*
 /// Places a jump instruction to can2_interrupt to the proper interrupt vector
 /// location.
