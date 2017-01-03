@@ -208,8 +208,17 @@ const uint32_t *CC32xxEEPROMEmulation::block(unsigned sector, unsigned offset)
         handle = roSLFileHandle_;
     }
     // Refills the cache.
-    SlCheckResult(sl_FsRead(handle, cacheStartBlock_ * INT_BLOCK_SIZE,
-                            (uint8_t *)cache_, CACHE_SIZE), CACHE_SIZE);
+    int ret = sl_FsRead(handle, cacheStartBlock_ * INT_BLOCK_SIZE,
+                        (uint8_t *)cache_, CACHE_SIZE);
+    if (ret == SL_FS_ERR_OFFSET_OUT_OF_RANGE) {
+        // We probably haven't written this part of the file yet. Let's jsut
+        // fill it with erased bytes.
+        memset(cache_, 0xff, CACHE_SIZE);
+    } else if (ret > 0 && (unsigned)ret < CACHE_SIZE) {
+        memset(((uint8_t*)cache_) + ret, 0xff, CACHE_SIZE - ret);
+    } else {        
+        SlCheckResult(ret, CACHE_SIZE);
+    }
     // Check if have the used magic in the cache. If yes, we need to fake it.
     if (cacheStartBlock_ == MAGIC_FIRST_INDEX)
     {
