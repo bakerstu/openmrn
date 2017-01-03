@@ -73,6 +73,7 @@
 #include "utils/blinker.h"
 #endif
 
+
 /*-----------------------------------------------------------
  * Application specific definitions.
  *
@@ -232,16 +233,16 @@ standard names - or at least those used in the unmodified vector table. */
 #define xPortPendSVHandler PendSV_Handler
 #define xPortSysTickHandler SysTick_Handler
 
-#elif TARGET_PIC32MX
+#elif defined(TARGET_PIC32MX)
 
 #define MIPSNO16 __attribute__((nomips16))
 
-#define configCPU_CLOCK_HZ             ( ( unsigned long ) 80000000 )
-#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 190 )
-#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 32000 ) )
-#define configTIMER_TASK_STACK_DEPTH   1500
-#define configISR_STACK_SIZE					( 400 )
-#define configPERIPHERAL_CLOCK_HZ      ( ( unsigned long ) configCPU_CLOCK_HZ/2 )
+#define configCPU_CLOCK_HZ             ( pic32_cpu_clock_hz )
+#define configPERIPHERAL_CLOCK_HZ      ( pic32_periph_clock_hz )
+#define configMINIMAL_STACK_SIZE       ( 190 )
+#define configISR_STACK_SIZE           ( 250 )
+#define configTOTAL_HEAP_SIZE          ( ( size_t ) 9000 )
+#define configTIMER_TASK_STACK_DEPTH   ( configMINIMAL_STACK_SIZE * 2 )
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 
 /* The priority at which the tick interrupt runs.  This should probably be
@@ -258,6 +259,8 @@ interrupts. */
 #ifdef __cplusplus
 extern "C" {
 #endif
+extern const unsigned long pic32_cpu_clock_hz;
+extern const unsigned long pic32_periph_clock_hz;
 extern void diewith(unsigned long);
 extern unsigned long blinker_pattern;
 #ifdef __cplusplus
@@ -272,9 +275,8 @@ extern unsigned long blinker_pattern;
 
 #endif // Switch target
 
-
 /* ***************************************************************************
- * Common defines used foer all targets
+ * Common defines used for all targets
  *************************************************************************** */
 #define configTICK_RATE_HZ             ( ( portTickType ) 953 )
 #define NSEC_TO_TICK_SHIFT             20

@@ -95,7 +95,7 @@ extern const char __eeprom_end;
  *  @param BYTES_PER_BLOCK: how many bytes of actual data should be stored in a
  *  block. Must be <= BLOCK_SIZE - 2 (in order to leave space for the address
  *  in the block). Must be a power of two.
- *  @param SHADOW_IN_RAM: a boolean, if set to true, a shadow memory are will
+ *  @param SHADOW_IN_RAM: a boolean, if set to true, a shadow_ memory are will
  *  be allocated in RAM that will be pre-filled with the entire eeprom
  *  data. Dramatically speeds up reads, because reads will not have to go
  *  through the log anymore.
@@ -157,18 +157,18 @@ private:
     /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
      * byte boundaries in the case of power loss.  The user should take this
      * into account as it relates to data integrity of a whole block.
-     * @param index index within EEPROM address space to start write
+     * @param offset index within EEPROM address space to start write
      * @param buf data to write
      * @param len length in bytes of data to write
      */
-    void write(unsigned int index, const void *buf, size_t len) OVERRIDE;
+    void write(unsigned int offset, const void *buf, size_t len) OVERRIDE;
 
     /** Read from the EEPROM.
-     * @param index index within EEPROM address space to start read
+     * @param offset index within EEPROM address space to start read
      * @param buf location to post read data
      * @param len length in bytes of data to read
      */
-    void read(unsigned int index, void *buf, size_t len) OVERRIDE;
+    void read(unsigned int offset, void *buf, size_t len) OVERRIDE;
 
     /** Total FLASH memory size to use for EEPROM Emulation.  Must be at least
      * 2 sectors large and at least 4x the total amount of EEPROM address space
@@ -202,13 +202,16 @@ private:
     /** magic marker for an erased block */
     static const uint32_t MAGIC_ERASED;
 
-    /** metadata indexes for magic block markers */
+    /** Raw block indexes within a sector to mark the state of the sector. */
     enum MagicBlockIndex
     {
          MAGIC_FIRST_INDEX = 0, /**< first metadata block index */
-         MAGIC_DIRTY_INDEX = 0, /**< dirty metadata block index */
-         MAGIC_INTACT_INDEX, /**< intact metadata block index */
-         MAGIC_USED_INDEX, /**< used metadata block index */
+         /** dirty metadata block index: programmed when we start writing to the sector (i.e. it is not erased). */
+         MAGIC_DIRTY_INDEX = 0,
+         /** intact metadata block index: programmed when the data in this sector is authoritative. */
+         MAGIC_INTACT_INDEX,
+         /** used metadata block index: programmed when the data has been copied to a new sector. */
+         MAGIC_USED_INDEX,
          MAGIC_COUNT /**< total metadata block count */
     };
 
@@ -216,51 +219,24 @@ private:
      * @param index block within EEPROM address space to write
      * @param data data to write, array size must be @ref BYTES_PER_BLOCK large
      */
-    void write_block(unsigned int index, const uint8_t data[]);
+    void write_fblock(unsigned int index, const uint8_t data[]);
 
     /** Read from the EEPROM on a native block boundary.
-     * @param index bock within EEPROM address space to read
+     * @param index block within EEPROM address space to read
      * @param data location to place read data, array size must be @ref
      *           BYTES_PER_BLOCK large
      * @return true if any of the data is not "erased", else return false
      */
-    bool read_block(unsigned int index, uint8_t data[]);
+    bool read_fblock(unsigned int index, uint8_t data[]);
 
-    /** Get the next active block pointer.
-     * @return a pointer to the beginning of the next active block
+    /** Get the next active sector pointer.
+     * @return sector index for the next sector to use.
      */
-    uint32_t *next_active()
+    unsigned next_active()
     {
-        return ((activeIndex + 1) < sector_count()) ? sector(activeIndex + 1) :
-                                                      sector(0);
-    }
-
-    /** Get the active block pointer.
-     * @return a pointer to the beginning of the active block
-     */
-    uint32_t *active()
-    {
-        return sector(activeIndex);
-    }
-
-    /** Get sector data pointer.
-     * @param i index of sector to get a data pointer to relative to 1st EEPROM
-     *          sector
-     * @return a pointer to the beginning of the sector
-     */
-    uint32_t *sector(int i)
-    {
-        return sector_to_address(i + address_to_sector(&__eeprom_start));
-    }
-
-    /** Get block data pointer based on sector address and block index.
-     * @param i = block index within sector
-     * @param sector_address absolute sector address to get block from
-     * @return a pointer to the beginning of the block
-     */
-    uint32_t *block(int i, void *sector_address)
-    {
-        return (uint32_t*)(((uintptr_t)sector_address) + (i * BLOCK_SIZE));
+    	unsigned next = activeSector_ + 1;
+    	if (next >= sectorCount_) next = 0;
+    	return next;
     }
 
     /** Get the sector index.
@@ -275,88 +251,80 @@ private:
     /** Total number of FLASH sectors being used for emulation.
      * @return number of FLASH sectors being used for emulation
      */
-    int sector_count()
+    unsigned sector_count()
     {
-        return FLASH_SIZE / SECTOR_SIZE;
+        return sectorCount_;
     }
 
-    /** Total number of EEPROM slots in a FLASH sector.  A slot is the same
-     * as a block, except that it excludes any metadata blocks.
-     * @return number of EEPROM slots in a FLASH block.
+    /** Total number of EEPROM slots in a FLASH sector.  A slot is a block
+     * that contains user data (i.e., excludes any metadata blocks).
+     * @return number of EEPROM slots in a FLASH sector.
      */
-    int slot_count()
+    unsigned slot_count()
     {
-        return (SECTOR_SIZE / BLOCK_SIZE) - MAGIC_COUNT;
+        return rawBlockCount_ - MAGIC_COUNT;
     }
 
-    /** Slot data pointer pointing to the last slot in a given sector
-     * as a block, except that it excludes any metadata blocks.
-     * @param sector_address pointer to the beginning of the sector
-     * @return address pointing to the last slot in the sector.
+    /**
+     * @return raw block index of the last block containing user data.
      */
-    uint32_t *slot_last(uint32_t *sector_address)
+    unsigned slot_last()
     {
-        return sector_address + ((MAGIC_COUNT + slot_count() - 1) *
-                                 (BLOCK_SIZE / sizeof(uint32_t)));
+    	return rawBlockCount_ - 1;
     }
 
-    /** Slot data pointer pointing to the first slot in a given sector
-     * as a block, except that is exludes any metadata blocks.
-     * @param sector_address pointer to the beginning of the sector
-     * @return address pointer to the last slot in the sector.
+    /**
+     * @return raw block index of the first block containing user data.
      */
-    uint32_t *slot_first(uint32_t *sector_address)
+    unsigned slot_first()
     {
-        return sector_address + (MAGIC_COUNT * (BLOCK_SIZE / sizeof(uint32_t)));
+        return MAGIC_COUNT;
     }
 
-    /** Block data pointer pointing to the last magic block in a given sector.
-     * @param sector_address pointer to the beginning of the sector
-     * @return address pointer to the last magic block in the sector.
+    /**
+     * Computes the pointer to load the data stored in a specific block from.
+     * @param sector sector number [0..sectorCount_ - 1]
+     * @param offset block index within sector, [0..rawBlockCount_ - 1]
+     * @return pointer to the beginning of the data in the block. Must be alive until the next call to this function.
      */
-    uint32_t *magic_last(uint32_t *sector_address)
-    {
-        return sector_address + ((MAGIC_COUNT - 1) *
-                                 (BLOCK_SIZE / sizeof(uint32_t)));
-    }
-
-    /** Lookup sector number from address.
-     * @param address sector address;
-     * @return sector number.
-     */
-    virtual int address_to_sector(const void *address) = 0;
-
-    /** Lookup address number from sector number.
-     * @param sector sector number;
-     * @return sector address.
-     */
-    virtual uint32_t *sector_to_address(const int sector) = 0;
+    virtual const uint32_t* block(unsigned sector, unsigned offset) = 0;
 
     /** Simple hardware abstraction for FLASH erase API.
-     * @param address the start address of the flash block to be erased
+     * @param sector Number of sector [0.. sectorCount_ - 1] to erase
      */
-    virtual void flash_erase(void *address) = 0;
+    virtual void flash_erase(unsigned sector) = 0;
 
     /** Simple hardware abstraction for FLASH program API.
+     * @param sector the sector to write to [0..sectorCount_ - 1]
+     * @param start_block the block index to start writing to [0..rawBlockCount_ - 1]
      * @param data a pointer to the data to be programmed
-     * @param address the starting address in flash to be programmed.
-     *                Must be a multiple of BLOCK_SIZE
-     * @param count the number of bytes to be programmed.
+     * @param byte_count the number of bytes to be programmed.
      *              Must be a multiple of BLOCK_SIZE
+     *
+     * The bytes to program cannot overflow beyond the end of sector, so
+     * start_block + byte_count / BLOCK_SIZE <= rawBlockCount_ must hold.
      */
-    virtual void flash_program(uint32_t *data, void *address, uint32_t count) = 0;
+    virtual void flash_program(unsigned sector, unsigned start_block, uint32_t *data, uint32_t byte_count) = 0;
 
-    /** local copy of SHADOW_IN_RAM which we can manipulate at run time */
-    bool shadow_in_ram;
+protected:
+    /** Total number of sectors available. */
+    const uint8_t sectorCount_{(uint8_t)(FLASH_SIZE / SECTOR_SIZE)};
+
+    /** Index of the active sector. */
+    uint8_t activeSector_{0};
+
+    /** How many blocks are there in a sector. */
+    const uint16_t rawBlockCount_{(uint16_t)(SECTOR_SIZE / BLOCK_SIZE)};
+
+    /** Number of available (writable) slots for new data in the active sector. */
+    size_t availableSlots_{0};
+
+    /** local copy of SHADOW_IN_RAM which we can manipulate at run time. Specifies whether the shadowing is active. */
+    bool shadowInRam_{false};
 
     /** pointer to RAM for shadowing EEPROM. */
-    uint8_t *shadow;
+    uint8_t *shadow_{nullptr};
 
-    /** index of the active block */
-    int activeIndex;
-
-    /** number of available slots for new data */
-    size_t available;
 
     /** Default constructor.
      */

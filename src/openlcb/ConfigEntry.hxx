@@ -299,6 +299,14 @@ public:
         s.resize(real_len);
         return s;
     }
+
+    void write(int fd, string data) const
+    {
+        if (data.size() > size() - 1) {
+            data.resize(size() - 1);
+        }
+        repeated_write(fd, data.c_str(), data.size() + 1);
+    }
 };
 
 } // namespace openlcb

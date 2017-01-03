@@ -48,10 +48,6 @@ const uint32_t EEPROMEmulation::MAGIC_ERASED = 0xFFFFFFFF;
  */
 EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     : EEPROM(name, file_size)
-    , shadow_in_ram(false)
-    , shadow(nullptr)
-    , activeIndex(0)
-    , available(0)
 {
     /* make sure we have an appropriate sized region of memory for our device */
     HASSERT(FLASH_SIZE >= (2 * SECTOR_SIZE));  // at least two of them
@@ -67,58 +63,57 @@ EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
 void EEPROMEmulation::mount()
 {
     /* look for an active block that is not used up */
-    for (int i = 0; i < sector_count(); ++i)
+    for (unsigned i = 0; i < sector_count(); ++i)
     {
-        if (*block(MAGIC_DIRTY_INDEX,  sector(i)) == MAGIC_DIRTY  &&
-            *block(MAGIC_INTACT_INDEX, sector(i)) == MAGIC_INTACT &&
-            *block(MAGIC_USED_INDEX,   sector(i)) == MAGIC_ERASED )
+        if (*block(i, MAGIC_DIRTY_INDEX) == MAGIC_DIRTY  &&
+            *block(i, MAGIC_INTACT_INDEX) == MAGIC_INTACT &&
+            *block(i, MAGIC_USED_INDEX) == MAGIC_ERASED )
         {
-            activeIndex = i;
+            activeSector_ = i;
             break;
         }
     }
 
-    if (*block(MAGIC_DIRTY_INDEX,  active()) != MAGIC_DIRTY  ||
-        *block(MAGIC_INTACT_INDEX, active()) != MAGIC_INTACT ||
-        *block(MAGIC_USED_INDEX,   active()) != MAGIC_ERASED )
+    if (*block(activeSector_, MAGIC_DIRTY_INDEX) != MAGIC_DIRTY  ||
+        *block(activeSector_, MAGIC_INTACT_INDEX) != MAGIC_INTACT ||
+        *block(activeSector_, MAGIC_USED_INDEX) != MAGIC_ERASED )
     {
         /* our active block is corrupted, we are starting over */
         uint32_t data[4] = {MAGIC_DIRTY, 0, 0, 0};
 
-        flash_erase(active());
-        flash_program(data, block(0, active()), BLOCK_SIZE);
+        flash_erase(activeSector_);
+        flash_program(activeSector_, MAGIC_DIRTY_INDEX, data, BLOCK_SIZE);
 
         data[0] = MAGIC_INTACT;
-        flash_program(data, block(1, active()), BLOCK_SIZE);
+        flash_program(activeSector_, MAGIC_INTACT_INDEX, data, BLOCK_SIZE);
 
-        available = slot_count();
+        availableSlots_ = slot_count();
     }
     else
     {
         /* look for first data block */
-        for (uint32_t *address = slot_last(active());
-             address != magic_last(active());
-             address -= (BLOCK_SIZE / sizeof(uint32_t)))
+        for (unsigned block_index = rawBlockCount_ - 1;
+        	 block_index != MAGIC_COUNT; --block_index)
         {
-            if (*address != MAGIC_ERASED)
+            if (*block(activeSector_, block_index) != MAGIC_ERASED)
             {
                 break;
             }
-            ++available;
+            ++availableSlots_;
         }
     }
 
-    /* do we shadow the data in RAM to speed up reads */
+    /* do we shadow_ the data in RAM to speed up reads */
     if (SHADOW_IN_RAM)
     {
-        /* copy EEPROM data into shadow ram */
-        shadow = new uint8_t[file_size()];
+        /* copy EEPROM data into shadow_ ram */
+        shadow_ = new uint8_t[file_size()];
 
-        /* prime the shadow RAM with the EEPROM data */
-        read(0, shadow, file_size());
+        /* prime the shadow_ RAM with the EEPROM data */
+        read(0, shadow_, file_size());
 
         /* turn on shadowing */
-        shadow_in_ram = true;
+        shadowInRam_ = true;
     }
 }
 
@@ -148,13 +143,13 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
             uint8_t data[BYTES_PER_BLOCK];
             size_t write_size = len < (BYTES_PER_BLOCK - lsa) ?
                                 len : (BYTES_PER_BLOCK - lsa);
-            read_block(index / BYTES_PER_BLOCK, data);
+            read_fblock(index / BYTES_PER_BLOCK, data);
 
             if (memcmp(data + lsa, byte_data, write_size) != 0)
             {
                 /* at least some data has changed */
                 memcpy(data + lsa, byte_data, write_size);
-                write_block(index / BYTES_PER_BLOCK, data);
+                write_fblock(index / BYTES_PER_BLOCK, data);
             }
 
             index     += write_size;
@@ -165,13 +160,13 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         {
             /* tail, (unaligned) address */
             uint8_t data[BYTES_PER_BLOCK];
-            read_block(index / BYTES_PER_BLOCK, data);
+            read_fblock(index / BYTES_PER_BLOCK, data);
 
             if (memcmp(data, byte_data, len) != 0)
             {
                 /* at least some data has changed */
                 memcpy(data, byte_data, len);
-                write_block(index / BYTES_PER_BLOCK, data);
+                write_fblock(index / BYTES_PER_BLOCK, data);
             }
 
             len = 0;
@@ -180,13 +175,13 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         {
             /* aligned data */
             uint8_t data[BYTES_PER_BLOCK];
-            read_block(index / BYTES_PER_BLOCK, data);
+            read_fblock(index / BYTES_PER_BLOCK, data);
 
             if (memcmp(data, byte_data, BYTES_PER_BLOCK) != 0)
             {
                 /* at least some data has changed */
                 memcpy(data, byte_data, BYTES_PER_BLOCK);
-                write_block(index / BYTES_PER_BLOCK, data);
+                write_fblock(index / BYTES_PER_BLOCK, data);
             }
 
             index     += BYTES_PER_BLOCK;
@@ -195,9 +190,9 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         }
     }
 
-    if (shadow_in_ram)
+    if (shadowInRam_)
     {
-        memcpy(shadow + shadow_index, shadow_data, shadow_len);
+        memcpy(shadow_ + shadow_index, shadow_data, shadow_len);
     }
 }
 
@@ -205,11 +200,11 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
  * @param index block within EEPROM address space to write
  * @param data data to write, array size must be @ref BYTES_PER_BLOCK large
  */
-void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
+void EEPROMEmulation::write_fblock(unsigned int index, const uint8_t data[])
 {
-    if (available)
+    if (availableSlots_)
     {
-        /* still have room in this block for at least one more write */
+        /* still have room in this sector for at least one more write */
         uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
         for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
         {
@@ -217,34 +212,27 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
                            (data[(i * 2) + 1] << 8) |
                            (data[(i * 2) + 0] << 0);
         }
-        uint32_t *address = block(MAGIC_COUNT + slot_count() - available,
-                                  active());
-        flash_program(slot_data, address, sizeof(slot_data));
-        --available;
+        flash_program(activeSector_, rawBlockCount_ - availableSlots_, slot_data, BLOCK_SIZE);
+        --availableSlots_;
     }
     else
     {
-        /* we need to overflow into the next block */
-        uint32_t *new_block = next_active();
+        /* we need to overflow into the next sector */
+        unsigned new_sector = next_active();
         uint32_t magic[4] = {MAGIC_DIRTY, 0, 0, 0};
 
         /* prep the new block */
-        flash_erase(new_block);
-        flash_program(magic,
-                      block(MAGIC_DIRTY_INDEX, new_block),
-                      BLOCK_SIZE);
+        flash_erase(new_sector);
+        flash_program(new_sector, MAGIC_DIRTY_INDEX, magic, BLOCK_SIZE);
 
         /* reset the available count */
-        available = slot_count();
-
-        uint32_t *address = new_block +
-                            (MAGIC_COUNT * (BLOCK_SIZE / sizeof(uint32_t)));
+        unsigned available_slots = slot_count();
 
         /* move any existing data over */
-        for (unsigned int block = 0; block < (file_size() / BYTES_PER_BLOCK); ++block)
+        for (unsigned int fblock = 0; fblock < (file_size() / BYTES_PER_BLOCK); ++fblock)
         {
             uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
-            if (block == index)
+            if (fblock == index) // the new data to be written
             {
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
@@ -257,63 +245,64 @@ void EEPROMEmulation::write_block(unsigned int index, const uint8_t data[])
             {
                 /* this is old data we need to move over */
                 uint8_t read_data[BYTES_PER_BLOCK];
-                if (!read_block(block, read_data))
+                if (!read_fblock(fblock, read_data))
                 {
                     /* nothing to write, this is the default "erased" value */
                     continue;
                 }
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
                 {
-                    slot_data[i] = (block << 16) |
+                    slot_data[i] = (fblock << 16) |
                                    (read_data[(i * 2) + 1] << 8) |
                                    (read_data[(i * 2) + 0] << 0);
                 }
             }
             /* commit the write */
-            flash_program(slot_data, address, sizeof(slot_data));
-            address += BLOCK_SIZE / sizeof(uint32_t);
-            --available;
+            flash_program(new_sector, rawBlockCount_ - available_slots, slot_data, BLOCK_SIZE);
+            --available_slots;
         }
         /* finalize the data move and write */
         magic[0] = MAGIC_INTACT;
-        flash_program(magic, block(MAGIC_INTACT_INDEX, new_block), BLOCK_SIZE);
+        flash_program(new_sector, MAGIC_INTACT_INDEX, magic, BLOCK_SIZE);
         magic[0] = MAGIC_USED;
-        flash_program(magic, block(MAGIC_USED_INDEX, active()), BLOCK_SIZE);
-        activeIndex = sector_index(new_block);
+        flash_program(activeSector_, MAGIC_USED_INDEX, magic, BLOCK_SIZE);
+        activeSector_ = new_sector;
+        availableSlots_ = available_slots;
     }
 }
 
 /** Read from the EEPROM.
- * @param index within EEPROM address space to start read
+ * @param offset within EEPROM address space to start read
  * @param buf location to post read data
  * @param len length in bytes of data to read
  */
-void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
+void EEPROMEmulation::read(unsigned int offset, void *buf, size_t len)
 {
-    HASSERT((index + len) <= file_size());
+    HASSERT((offset + len) <= file_size());
 
-    if (shadow_in_ram)
+    if (shadowInRam_)
     {
-        memcpy(buf, shadow + index, len);
+        memcpy(buf, shadow_ + offset, len);
         return;
     }
 
     uint8_t *byte_data = (uint8_t *)buf;
     memset(byte_data, 0xff, len); // default if data not found
 
-    for (uint32_t *address = slot_first(active());
-         address <= slot_last(active());
-         address += (BLOCK_SIZE / sizeof(uint32_t)))
+    for (unsigned block_index = slot_first();
+         block_index <= slot_last();
+         ++block_index)
     {
-        if (*address == MAGIC_ERASED)
+    	const uint32_t *address = block(activeSector_, block_index);
+    	if (*address == MAGIC_ERASED)
             break;
-        unsigned slot_index = (address[0] >> 16) * BYTES_PER_BLOCK;
+        unsigned slot_offset = (address[0] >> 16) * BYTES_PER_BLOCK;
         // Check if slot overlaps with desired data.
-        if (index + len <= slot_index)
+        if (offset + len <= slot_offset)
         {
             continue;
         }
-        if (slot_index + BYTES_PER_BLOCK <= index)
+        if (slot_offset + BYTES_PER_BLOCK <= offset)
         {
             continue;
         }
@@ -326,41 +315,41 @@ void EEPROMEmulation::read(unsigned int index, void *buf, size_t len)
         }
         // Copies the right part into the output buffer.
         unsigned slotofs, bufofs;
-        if (slot_index < index)
+        if (slot_offset < offset)
         {
-            slotofs = index - slot_index;
+            slotofs = offset - slot_offset;
             bufofs = 0;
         }
         else
         {
             slotofs = 0;
-            bufofs = slot_index - index;
+            bufofs = slot_offset - offset;
         }
         unsigned copylen = BYTES_PER_BLOCK - slotofs;
-        if (slot_index + BYTES_PER_BLOCK > index + len)
+        if (slot_offset + BYTES_PER_BLOCK > offset + len)
         {
-            HASSERT(copylen >= (slot_index + BYTES_PER_BLOCK) - (index + len));
-            copylen -= (slot_index + BYTES_PER_BLOCK) - (index + len);
+            HASSERT(copylen >= (slot_offset + BYTES_PER_BLOCK) - (offset + len));
+            copylen -= (slot_offset + BYTES_PER_BLOCK) - (offset + len);
         }
         memcpy(byte_data + bufofs, data + slotofs, copylen);
     }
 }
 
 /** Read from the EEPROM on a native block boundary.
- * @param index bock within EEPROM address space to read
+ * @param index block within EEPROM address space to read
  * @param data location to place read data, array size must be @ref
  *           BYTES_PER_BLOCK large
  * @param return true if any of the data is not "erased", else return false
  */
-bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
+bool EEPROMEmulation::read_fblock(unsigned int index, uint8_t data[])
 {
-    if (shadow_in_ram)
+    if (shadowInRam_)
     {
         memset(data, 0xff, BYTES_PER_BLOCK);
-        if (memcmp(data, shadow + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK) !=
+        if (memcmp(data, shadow_ + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK) !=
             0)
         {
-            memcpy(data, shadow + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK);
+            memcpy(data, shadow_ + (index * BYTES_PER_BLOCK), BYTES_PER_BLOCK);
             return true;
         }
         return false;
@@ -371,10 +360,11 @@ bool EEPROMEmulation::read_block(unsigned int index, uint8_t data[])
         memset(data, 0xFF, BYTES_PER_BLOCK);
 
         /* look for data */
-        for (uint32_t *address = slot_last(active());
-             address != magic_last(active());
-             address -= (BLOCK_SIZE / sizeof(uint32_t)))
+        for (unsigned raw_block = slot_last();
+             raw_block >= slot_first();
+             --raw_block)
         {
+        	const uint32_t* address = block(activeSector_, raw_block);
             if (index == (*address >> 16))
             {
                 /* found the data */

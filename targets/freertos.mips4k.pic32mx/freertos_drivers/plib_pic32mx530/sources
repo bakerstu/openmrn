@@ -1,0 +1,29 @@
+DEPS += PIC32MXLEGACYPLIBPATH
+
+PLIBS := can int osc pcache
+
+PLIBDIRS := $(foreach PNAME,$(PLIBS),$(PIC32MXLEGACYPLIBPATH)/pic32-libs/peripheral/$(PNAME)/source )
+
+define PDIR_INCLUDE_template
+include $(PIC32MXLEGACYPLIBPATH)/pic32-libs/peripheral/$(1)/source/Makefile.inc
+endef
+
+$(foreach PNAME,$(PLIBS),$(eval $(call PDIR_INCLUDE_template,$(PNAME))))
+
+PIC32PROC=530F128H
+CORECFLAGS += -D_SUPPRESS_PLIB_WARNING -D__PIC32_FEATURE_SET__=530 -D_DISABLE_OPENADC10_CONFIGSCAN_WARNING
+CFLAGS += -fgnu89-inline -Wno-strict-prototypes
+
+empty:=
+space:= $(empty) $(empty)
+VPATH=$(subst $(space),:,$(strip $(PLIBDIRS)))
+
+$(info vpath $(VPATH))
+
+# These files don't compile with vanilla GCC because they use a special builtin.
+BLACKLIST = int_set_ebase_lib.o int_set_ebase_vs_lib.o int_set_vector_spacing_lib.o
+TMPOBJ = $(filter-out $(BLACKLIST),$(PROCOBJ))
+CSRCS += $(TMPOBJ:.o=.c)
+
+# The code in this file is wrong.
+int_get_pending_int_lib.o : CFLAGS += -Wno-error=unused-but-set-variable

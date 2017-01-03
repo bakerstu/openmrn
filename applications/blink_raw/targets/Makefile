@@ -10,6 +10,7 @@ SUBDIRS = \
 	freertos.armv7m.ti-launchpad-tm4c129 \
 	freertos.armv7m.ti-launchpad-cc3200 \
 	freertos.mips4k.pic32mx.duinomitemega \
+	freertos.mips4k.pic32mx.lccbuffer \
 
 
 include $(OPENMRNPATH)/etc/recurse.mk

@@ -49,22 +49,38 @@ TivaEEPROMEmulation::TivaEEPROMEmulation(const char *name, size_t file_size_byte
     mount();
 }
 
+inline const uint32_t *TivaEEPROMEmulation::get_block(
+    unsigned sector, unsigned offset)
+{
+    return (uint32_t*)(&__eeprom_start + sector * EEPROMEmulation::SECTOR_SIZE + offset * EEPROMEmulation::BLOCK_SIZE);
+}
+
+/**
+ * Computes the pointer to load the data stored in a specific block from.
+ * @param sector sector number [0..sectorCount_ - 1]
+ * @param offset block index within sector, [0..rawBlockCount_ - 1]
+ * @return pointer to the beginning of the data in the block. Must be alive until the next call to this function.
+ */
+const uint32_t* TivaEEPROMEmulation::block(unsigned sector, unsigned offset) {
+    return get_block(sector, offset);
+}
+
+
 /** Simple hardware abstraction for FLASH erase API.
  * @param address the start address of the flash block to be erased
  */
-void TivaEEPROMEmulation::flash_erase(void *address)
+void TivaEEPROMEmulation::flash_erase(unsigned sector)
 {
-
-    HASSERT(((uintptr_t)address % SECTOR_SIZE) == 0);
-    HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
+    HASSERT(sector < sectorCount_);
 
     /* because the TM4C123 device family has small flash sectors, we allow
      * multiple physical sectors to be ganged together to form one bigger
      * virtual sector for larger EEPROM file storage.
      */
-    size_t sectors_per_sector = ((file_size() - 1) / (FAMILY >> 1)) + 1;
+    size_t sectors_per_sector = (SECTOR_SIZE /  FAMILY);
 
+    auto* address = get_block(sector, 0);
+    
     /* because the first "real" sector is always used to check block integrity,
      * we need to be sure that we erase that sector last. We assume that the
      * driver never tries to erase a sector that is marked as intact.
@@ -77,54 +93,22 @@ void TivaEEPROMEmulation::flash_erase(void *address)
     }
 }
 
-/** Simple hardware abstraction for FLASH program API.
- * @param data a pointer to the data to be programmed
- * @param address the starting address in flash to be programmed.
- *                Must be a multiple of BLOCK_SIZE
- * @param count the number of bytes to be programmed.
- *              Must be a multiple of BLOCK_SIZE
- */
-void TivaEEPROMEmulation::flash_program(uint32_t *data, void *address,
-                                        uint32_t count)
+    /** Simple hardware abstraction for FLASH program API.
+     * @param sector the sector to write to
+     * @param start_block the block index to start writing to
+     * @param data a pointer to the data to be programmed
+     * @param byte_count the number of bytes to be programmed.
+     *              Must be a multiple of BLOCK_SIZE
+     */
+void TivaEEPROMEmulation::flash_program(
+    unsigned sector, unsigned start_block, uint32_t *data, uint32_t byte_count)
 {
-    HASSERT(((uintptr_t)address % BLOCK_SIZE) == 0);
-    HASSERT((uintptr_t)address >= (uintptr_t)&__eeprom_start);
-    HASSERT((uintptr_t)address < (uintptr_t)(&__eeprom_start + FLASH_SIZE));
-    HASSERT((count % BLOCK_SIZE) == 0);
+    HASSERT(sector < sectorCount_);
+    HASSERT((byte_count % BLOCK_SIZE) == 0);
+    HASSERT(start_block + (byte_count / BLOCK_SIZE) < rawBlockCount_);
+    auto* address = get_block(sector, start_block);
 
     portENTER_CRITICAL();
-    MAP_FlashProgram(data, (uint32_t)address, count);
+    MAP_FlashProgram(data, (uint32_t)address, byte_count);
     portEXIT_CRITICAL();
-}
-
-/** Lookup sector number from address.
- * @param address sector address;
- * @return sector number.
- */
-int TivaEEPROMEmulation::address_to_sector(const void *address)
-{
-    const uintptr_t uint_address = (const uintptr_t)address;
-
-    int sector = uint_address / SECTOR_SIZE;
-
-    HASSERT((FAMILY == TM4C129 &&
-             (sector < (int)((FAMILY *  64) / SECTOR_SIZE))) ||
-            (FAMILY == TM4C123 &&
-             (sector < (int)((FAMILY * 256) / SECTOR_SIZE))));
-
-    return sector;
-}
-
-/** Lookup address number from sector number.
- * @param sector sector number;
- * @return sector address.
- */
-uint32_t *TivaEEPROMEmulation::sector_to_address(const int sector)
-{
-    HASSERT((FAMILY == TM4C129 &&
-             (sector < (int)((FAMILY *  64) / SECTOR_SIZE))) ||
-            (FAMILY == TM4C123 &&
-             (sector < (int)((FAMILY * 256) / SECTOR_SIZE))));
-
-    return (uint32_t*)(sector * SECTOR_SIZE);
 }
