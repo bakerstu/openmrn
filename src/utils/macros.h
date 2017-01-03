@@ -61,6 +61,8 @@ extern const char* g_death_file;
 
 #if defined(__FreeRTOS__)
 
+#define RECORD_DEATH() do { g_death_lineno = __LINE__; } while(0)
+
 /**
    Hard assertion facility. These checks will remain in production code, and
    they should guard logic errors that make it impossible to continue the
@@ -69,7 +71,7 @@ extern const char* g_death_file;
    An example would be to check a pointer being not-NULL before dereferencing
    it. The resulting fault is typically much harder to debug than an assert.
  */
-#define HASSERT(x) do { if (!(x)) { g_death_file = __FILE__; g_death_lineno = __LINE__; abort(); } } while(0)
+#define HASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
 
 
 #define DIE(MSG) abort()
