@@ -386,6 +386,18 @@ MIPSGCCPATH:=$(TRYPATH)
 endif
 endif #MIPSGCCPATH
 
+################### MIPS-ELF-NEWLIB #####################
+ifndef MIPSNEWLIBPATH
+SEARCHPATH := \
+  /opt/newlib/mips-sde-elf \
+  $(MIPSGCCPATH)/mips-sde-elf
+
+TRYPATH:=$(call findfirst,lib/el/mips16/sof/libc.a,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+MIPSNEWLIBPATH:=$(TRYPATH)
+endif
+endif #MIPSNEWLIBPATH
+
 ################### PIC32MXLIB #####################
 ifndef PIC32MXLIBPATH
 SEARCHPATH := \

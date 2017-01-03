@@ -34,7 +34,7 @@ OUTPUT_ARCH(mips)
 ENTRY(__cs3_reset_PIC32MX) /* for debugger support, use actual HW-level entry and not _start */
 SEARCH_DIR(.)
 /* Force repeated search of CS3 and GCC libraries */
-GROUP(-lcs3hal -lgcc -lc -lcs3 -lcs3unhosted)
+GROUP(-lcs3hal -lgcc -lc -lcs3)
 /**/
 
 /*

@@ -9,7 +9,7 @@ ifeq ($(TOOLPATH),)
 TOOLPATH=$(MIPSGCCPATH)
 endif
 
-DEPS+= MIPSGCCPATH PIC32MXLIBPATH PIC32MXLEGACYPLIBPATH
+DEPS+= MIPSGCCPATH PIC32MXLIBPATH PIC32MXLEGACYPLIBPATH MIPSNEWLIBPATH
 
 PREFIX = $(TOOLPATH)/bin/mips-sde-elf-
 
@@ -31,7 +31,8 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(FREERTOSPATH)/Source/portable/MPLAB/PIC32MX \
             -I$(OPENMRNPATH)/include/freertos \
             -idirafter $(OPENMRNPATH)/include/freertos_select \
-            -I$(OPENMRNPATH)/src/freertos_drivers/common
+            -I$(OPENMRNPATH)/src/freertos_drivers/common \
+            -isystem $(MIPSNEWLIBPATH)/include
 
 ARCH = -mips16
 ARCHOPTIMIZATION = $(ARCH) -Os -fno-strict-aliasing
@@ -75,6 +76,7 @@ LDFLAGS = -EL $(ARCH) -g -T target.ld -fdata-sections -ffunction-sections  -Xlin
 	-Map="$(@:%.elf=%.map)"  \
 	-msoft-float -Wl,--defsym,__cs3_mips_float_type=2 \
 	-Wl,--gc-sections -Wl,--undefined=ignore_fn \
+	-L$(MIPSNEWLIBPATH)/lib/el/mips16/sof \
           $(LDFLAGSEXTRA) $(LDFLAGSENV)
 
 ifdef TRACE_MALLOC
