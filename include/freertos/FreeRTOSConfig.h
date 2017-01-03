@@ -244,6 +244,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) 9000 )
 #define configTIMER_TASK_STACK_DEPTH   ( configMINIMAL_STACK_SIZE * 2 )
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
+#define configCHECK_FOR_STACK_OVERFLOW 3
 
 /* The priority at which the tick interrupt runs.  This should probably be
 kept at 1. */
@@ -292,7 +293,9 @@ extern unsigned long blinker_pattern;
 #define configUSE_RECURSIVE_MUTEXES    1
 #define configUSE_COUNTING_SEMAPHORES  1
 #define configUSE_CO_ROUTINES          0
+#ifndef configCHECK_FOR_STACK_OVERFLOW
 #define configCHECK_FOR_STACK_OVERFLOW 2
+#endif
 
 #define configMAX_PRIORITIES        ( 5 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )

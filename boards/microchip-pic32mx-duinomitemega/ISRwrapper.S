@@ -36,8 +36,9 @@
 .text
         // CAN1 interrupt
 /* Ensure correct instructions is used. */
-.set	nomips16
-.set 	noreorder
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
 
 /* Interrupt entry point. */
 vCan1InterruptWrapper:
