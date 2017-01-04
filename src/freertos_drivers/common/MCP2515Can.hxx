@@ -216,6 +216,7 @@ private:
         LOAD_TX_BUF = 0x40, /**< load a transmit buffer */
         STATUS      = 0xA0, /**< read status */
         RX_STATUS   = 0xB0, /**< read rx status */
+        RTS         = 0x80, /**< request to send a tramsmit buffer */
         BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
     };
 
@@ -280,7 +281,7 @@ private:
         return rd_data[0];
     }
 
-    /** Read from a SPI register.
+    /** Read from a RX buffer.
      * @param index buffer index to read from (valid values are 0 and 1)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
@@ -307,8 +308,8 @@ private:
         ::write(spi, payload, sizeof(payload));
     }
 
-    /** Read from a SPI register.
-     * @param index buffer index to read from (valid values are 0 through 2)
+    /** Write to a TX buffer.
+     * @param index buffer index to write to (valid values are 0 through 2)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
     void buffer_write(int index, Buffer *buffer)
@@ -324,7 +325,27 @@ private:
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
 
-    bool txPending; /**< transmission in flight */
+    /** Bit modify to a SPI register.
+     * @param address address to modify
+     * @param data data to modify
+     * @param mask mask of data to modify
+     */
+    void bit_modify(Registers address, uint8_t data, uint8_t mask)
+    {
+        uint8_t payload[] = {BIT_MODIFY, address, mask, data};
+        ::write(spi, payload, sizeof(payload));
+    }
+
+    /** Request a transmit buffer to send.
+     * @param index buffer index to request (valid values are 0 through 2)
+     */
+    void request_to_send(int index)
+    {
+        uint8_t rts = RTS | (0x01 << index);
+        ::write(spi, &rts, 1);
+    }
+
+    unsigned txPending; /**< transmission in flight */
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 

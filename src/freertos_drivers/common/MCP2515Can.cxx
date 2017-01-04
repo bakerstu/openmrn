@@ -45,7 +45,7 @@ MCP2515Can::MCP2515Can(const char *name, const char *spi_name,
     , OSThread()
     , interrupt_enable(interrupt_enable)
     , interrupt_disable(interrupt_disable)
-    , txPending(false)
+    , txPending(0)
     , spi(::open(spi_name, O_RDWR))
     , sem()
 {
@@ -97,6 +97,63 @@ void MCP2515Can::disable()
  */
 void MCP2515Can::tx_msg()
 {
+    lock_.lock();
+    if (txPending < 3)
+    {
+        struct can_frame *can_frame;
+
+        if (txBuf->data_read_pointer(&can_frame))
+        {
+            /* find an empty buffer */
+            int index = 0;
+            if (txPending & 0x1)
+            {
+                /* buffer 0 already in use */
+                index = 1;
+            }
+
+            Buffer tx_buf;
+            memset(&tx_buf, 0, sizeof(tx_buf));
+
+            if (can_frame->can_eff)
+            {
+                /* extended frame */
+                tx_buf.eid0 = ((can_frame->can_id & 0x000000FF) >> 0);
+                tx_buf.eid8 = ((can_frame->can_id & 0x0000FF00) >> 8);
+                tx_buf.sidl = ((can_frame->can_id & 0x00030000) >> 16) +
+                              ((can_frame->can_id & 0x001C0000) >> 13);
+                tx_buf.sidh = ((can_frame->can_id & 0x1FE00000) >> 19);
+                tx_buf.sidl |= 0x08;
+                tx_buf.sidh |= 0x08;
+            }
+            else
+            {
+                /* standard frame */
+                tx_buf.sidl = (can_frame->can_id & 0x00000007) << 5;
+                tx_buf.sidh = (can_frame->can_id & 0x000007F8) >> 3;
+            }
+            memcpy(&tx_buf.d0, can_frame->data, 8);
+            tx_buf.dlc = can_frame->can_dlc;
+            if (can_frame->can_rtr)
+            {
+                tx_buf.dlc |= 0x40;
+            }
+            txPending |= (0x1 << index);
+
+            portEXIT_CRITICAL();
+            /* bump up priority of the other buffer so it will transmit first
+             * if it is pending
+             */
+            bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
+            /* load the tranmsit buffer */
+            buffer_write(index, &tx_buf);
+            /* request to send at lowest priority */
+            bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
+            portENTER_CRITICAL();
+        }
+    }
+
+    lock_.unlock();
 }
 
 /*
@@ -111,7 +168,7 @@ void MCP2515Can::rx_msg(int index)
     portENTER_CRITICAL();
     if (rxBuf->data_write_pointer(&can_frame))
     {
-        can_frame->can_rtr = rx_buf.dlc & 0x40;
+        can_frame->can_rtr = (rx_buf.dlc & 0x40) ? 1 : 0;
         if (can_frame->can_eff == (rx_buf.sidl & 0x08))
         {
             /* extended frame */
@@ -133,6 +190,7 @@ void MCP2515Can::rx_msg(int index)
         }
         can_frame->can_err = 0;
         memcpy(can_frame->data, &rx_buf.d0, 8);
+        can_frame->can_dlc = rx_buf.dlc & 0x0F;
 
         rxBuf->advance(1);
         ++numReceivedPackets_;
@@ -140,6 +198,7 @@ void MCP2515Can::rx_msg(int index)
     }
     else
     {
+        /* receive overrun occured */
         ++overrunCount;
     }
     portEXIT_CRITICAL();
@@ -157,9 +216,24 @@ void *MCP2515Can::entry()
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
 
+        if (canintf & MERR)
+        {
+            /* message error interrupt active */
+        }
         if (canintf & ERRI)
         {
             /* error interrupt active */
+            lock_.lock();
+            register_write(TXB0CTRL, 0x00);
+            register_write(TXB1CTRL, 0x00);
+            portENTER_CRITICAL();
+            ++softErrorCount;
+            /* flush out any transmit data in the pipleline */
+            txBuf->flush();
+            txPending = 0;
+            txBuf->signal_condition();
+            portEXIT_CRITICAL();
+            lock_.unlock();
         }
         if (canintf & RX0I)
         {
@@ -168,10 +242,18 @@ void *MCP2515Can::entry()
         }
 
         portENTER_CRITICAL();
-        if (txPending && canintf & (TX0I | TX1I))
+        if (txPending)
         {
+            /* transmit interrupt active and transmission complete */
+            if (canintf & TX0I)
+            {
+                txPending &= ~0x1;
+            }
+            if (canintf & TX1I)
+            {
+                txPending &= ~0x2;
+            }
             tx_msg();
-
         }
         portEXIT_CRITICAL();
 
