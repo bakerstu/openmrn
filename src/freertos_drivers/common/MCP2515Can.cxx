@@ -34,7 +34,6 @@
 #include "MCP2515Can.hxx"
 
 #include <fcntl.h>
-#include <unistd.h>
 
 /*
  * MCP2515Can()
@@ -67,14 +66,18 @@ void MCP2515Can::enable()
     }
 
     /* reset device */
-    uint8_t reset = RESET;
-    ::write(spi, &reset, 1);
+    reset();
 
     /* setup RX Buf 0 and 1 to receive any message */
-    Write rxb0ctrl(RXB0CTRL, 0x60);
-    ::write(spi, rxb0ctrl.packet, sizeof(rxb0ctrl.packet));
-    Write rxb1ctrl(RXB1CTRL, 0x60);
-    ::write(spi, rxb1ctrl.packet, sizeof(rxb1ctrl.packet));
+    register_write(RXB0CTRL, 0x60);
+    register_write(RXB1CTRL, 0x60);
+
+    /* enable error and receive interrupts */
+    register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
+
+    /* put the device into normal operation mode */
+    register_write(CANCTRL, 0x00);
+
     interrupt_enable();
 }
 
@@ -86,8 +89,7 @@ void MCP2515Can::disable()
     interrupt_disable();
 
     /* reset device */
-    uint8_t reset = RESET;
-    ::write(spi, &reset, 1);
+    reset();
 }
 
 /* 
@@ -105,6 +107,8 @@ void MCP2515Can::rx_msg(int buffer)
     ReadRxBuf rx_buf(buffer);
     ::read(spi, rx_buf.packet, sizeof(rx_buf.packet));
     struct can_frame *can_frame;
+
+    portENTER_CRITICAL();
     if (rxBuf->data_write_pointer(&can_frame))
     {
         can_frame->can_rtr = rx_buf.dlc & 0x40;
@@ -127,9 +131,9 @@ void MCP2515Can::rx_msg(int buffer)
             can_frame->can_id = ((uint32_t)rx_buf.sidl >> 5) +
                                 ((uint32_t)rx_buf.sidh << 3);
         }
-
         can_frame->can_err = 0;
         memcpy(can_frame->data, &rx_buf.d0, 8);
+
         rxBuf->advance(1);
         ++numReceivedPackets_;
         rxBuf->signal_condition();
@@ -138,6 +142,7 @@ void MCP2515Can::rx_msg(int buffer)
     {
         ++overrunCount;
     }
+    portEXIT_CRITICAL();
 }
 
 /*
@@ -149,37 +154,39 @@ void *MCP2515Can::entry()
     {
         sem.wait();
 
-        Read canintf(CANINTF);
-        do
+        /* read status flags */
+        uint8_t canintf = register_read(CANINTF);
+
+        if (canintf & ERRI)
         {
-            /* read status flags */
-            ::read(spi, canintf.packet, sizeof(canintf.packet));
+            /* error interrupt active */
+        }
+        if (canintf & RX0I)
+        {
+            /* receive interrupt active */
+            rx_msg(0);
+        }
 
-            if (canintf.data & ERRI)
-            {
-                /* error interrupt active */
-            }
-            if (canintf.data & RX0I)
-            {
-                /* receive interrupt active */
-                rx_msg(0);
-            }
+        portENTER_CRITICAL();
+        if (txPending && canintf & (TX0I | TX1I))
+        {
+            tx_msg();
 
-            if (txPending)
-            {
-            }
+        }
+        portEXIT_CRITICAL();
 
-            /* refresh status flags just in case RX1 buffer became active
-             * before we could finish reading out RX0 buffer
-             */
-            ::read(spi, canintf.packet, sizeof(canintf.packet));
-            if (canintf.data & RX1I)
-            {
-                /* receive interrupt active */
-                rx_msg(1);
-            }
-
-        } while (canintf.data);
+        /* Refresh status flags just in case RX1 buffer became active
+         * before we could finish reading out RX0 buffer.  This ussually
+         * won't happen because we should be able to respond to incoming
+         * messages fast enough to only use RX0 buffer.
+         */
+        /* read status flags */
+        canintf = register_read(CANINTF);
+        if (canintf & RX1I)
+        {
+            /* receive interrupt active */
+            rx_msg(1);
+        }
 
         interrupt_enable();
     }

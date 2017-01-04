@@ -34,6 +34,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_MCP2515CAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_MCP2515CAN_HXX_
 
+#include <unistd.h>
+
 #include "Can.hxx"
 #include "SPI.hxx"
 
@@ -217,31 +219,6 @@ private:
     };
 
     /** Read command structure. */
-    class Read
-    {
-    public:
-        /** Constructor.
-         * @param address address to read from
-         */
-        Read(Registers address)
-            : instruction(READ)
-            , address(address)
-        {
-        }
-
-        union
-        {
-            uint8_t packet[3]; /** raw packet data */
-            struct
-            {
-                uint8_t instruction; /**< read instruction */
-                uint8_t address; /**< address to read from */
-                uint8_t data; /**< resulting read data */
-            };
-        };
-    };
-
-    /** Read command structure. */
     class ReadRxBuf
     {
     public:
@@ -276,33 +253,6 @@ private:
         };
     };
 
-    /** Write command structure. */
-    class Write
-    {
-    public:
-        /** Constructor.
-         * @param address address to write to
-         * @param data data to write
-         */
-        Write(Registers address, const uint8_t data)
-            : instruction(WRITE)
-            , address(address)
-            , data(data)
-        {
-        }
-
-        union
-        {
-            uint8_t packet[3]; /** raw packet data */
-            struct
-            {
-                uint8_t instruction; /**< read instruction */
-                uint8_t address; /**< address to read from */
-                const uint8_t data; /**< resulting read data */
-            };
-        };
-    };
-
     /** User entry point for the created thread.
      * @return exit status
      */
@@ -319,6 +269,42 @@ private:
      * @param buffer buffer index, 0 or 1
      */
     void rx_msg(int buffer);
+
+    /** Reset the device.
+     */
+    void reset()
+    {
+        uint8_t reset = RESET;
+        ::write(spi, &reset, 1);
+    }
+
+    /** Read from a SPI register.
+     * @param address address to read from
+     * @return data read
+     */
+    uint8_t register_read(Registers address)
+    {
+        spi_ioc_transfer xfer[2];
+        uint8_t wr_data[2] = {WRITE, address};
+        uint8_t rd_data[1];
+        xfer[0].tx_buf = (unsigned long)wr_data;
+        xfer[0].len = sizeof(wr_data);
+        xfer[1].rx_buf = (unsigned long)rd_data;
+        xfer[1].len = sizeof(rd_data);
+        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+
+        return rd_data[0];
+    }
+
+    /** Write to a SPI register.
+     * @param address address to write to
+     * @param data data to write
+     */
+    void register_write(Registers address, uint8_t data)
+    {
+        uint8_t payload[] = {WRITE, address, data};
+        ::write(spi, payload, sizeof(payload));
+    }
 
     bool txPending; /**< transmission in flight */
     int spi; /**< SPI bus that accesses MCP2515 */
