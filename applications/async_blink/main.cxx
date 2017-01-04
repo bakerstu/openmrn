@@ -80,6 +80,8 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 OVERRIDE_CONST(main_thread_stack_size, 1200);
 #elif defined(STM32F072xB) || defined(STM32F10X_MD)
 OVERRIDE_CONST(main_thread_stack_size, 1200);
+#elif defined(TARGET_PIC32MX)
+OVERRIDE_CONST(main_thread_stack_size, 1400);
 #endif
 OVERRIDE_CONST(num_memory_spaces, 4);
 
