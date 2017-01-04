@@ -102,10 +102,10 @@ void MCP2515Can::tx_msg()
 /*
  * rx_msg()
  */
-void MCP2515Can::rx_msg(int buffer)
+void MCP2515Can::rx_msg(int index)
 {
-    ReadRxBuf rx_buf(buffer);
-    ::read(spi, rx_buf.packet, sizeof(rx_buf.packet));
+    Buffer rx_buf;
+    buffer_read(index, &rx_buf);
     struct can_frame *can_frame;
 
     portENTER_CRITICAL();

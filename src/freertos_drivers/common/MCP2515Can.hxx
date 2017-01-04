@@ -218,39 +218,21 @@ private:
         BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
     };
 
-    /** Read command structure. */
-    class ReadRxBuf
+    struct Buffer
     {
-    public:
-        /** Constructor.
-         * @param address address to read from
-         */
-        ReadRxBuf(int buffer)
-            : instruction(READ_RX_BUF | (buffer == 0 ? 0x00 : 0x40))
-        {
-        }
-
-        union
-        {
-            uint8_t packet[14]; /** raw packet data */
-            struct
-            {
-                uint8_t instruction; /**< read instruction */
-                uint8_t sidh; /**< standard identifier high byte */
-                uint8_t sidl; /**< standard identifier low byte */
-                uint8_t eid8; /**< extended identifier high byte */
-                uint8_t eid0; /**< extended identifier low byte */
-                uint8_t dlc; /**< data length code */
-                uint8_t d0; /**< data 0 byte */
-                uint8_t d1; /**< data 1 byte */
-                uint8_t d2; /**< data 2 byte */
-                uint8_t d3; /**< data 3 byte */
-                uint8_t d4; /**< data 4 byte */
-                uint8_t d5; /**< data 5 byte */
-                uint8_t d6; /**< data 6 byte */
-                uint8_t d7; /**< data 7 byte */
-            };
-        };
+        uint8_t sidh; /**< standard identifier high byte */
+        uint8_t sidl; /**< standard identifier low byte */
+        uint8_t eid8; /**< extended identifier high byte */
+        uint8_t eid0; /**< extended identifier low byte */
+        uint8_t dlc; /**< data length code */
+        uint8_t d0; /**< data 0 byte */
+        uint8_t d1; /**< data 1 byte */
+        uint8_t d2; /**< data 2 byte */
+        uint8_t d3; /**< data 3 byte */
+        uint8_t d4; /**< data 4 byte */
+        uint8_t d5; /**< data 5 byte */
+        uint8_t d6; /**< data 6 byte */
+        uint8_t d7; /**< data 7 byte */
     };
 
     /** User entry point for the created thread.
@@ -266,9 +248,9 @@ private:
     void tx_msg() override; /**< function to try and transmit a message */
 
     /** Function to receive a message.
-     * @param buffer buffer index, 0 or 1
+     * @param index buffer index, 0 or 1
      */
-    void rx_msg(int buffer);
+    void rx_msg(int index);
 
     /** Reset the device.
      */
@@ -294,6 +276,22 @@ private:
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
 
         return rd_data[0];
+    }
+
+    /** Read from a SPI register.
+     * @param index buffer index to read from (valid values are 0 and 1)
+     * @param buffer pointer to a buffer structure to fill in with the result
+     */
+    void buffer_read(int index, Buffer *buffer)
+    {
+        spi_ioc_transfer xfer[2];
+        uint8_t wr_data[1];
+        wr_data[0] = READ_RX_BUF | (index == 0 ? 0x00 : 0x40);
+        xfer[0].tx_buf = (unsigned long)wr_data;
+        xfer[0].len = sizeof(wr_data);
+        xfer[1].rx_buf = (unsigned long)buffer;
+        xfer[1].len = sizeof(buffer);
+        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
 
     /** Write to a SPI register.
