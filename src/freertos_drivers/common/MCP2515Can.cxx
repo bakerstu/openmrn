@@ -46,6 +46,7 @@ MCP2515Can::MCP2515Can(const char *name, const char *spi_name,
     , OSThread()
     , interrupt_enable(interrupt_enable)
     , interrupt_disable(interrupt_disable)
+    , txPending(false)
     , spi(::open(spi_name, O_RDWR))
     , sem()
 {
@@ -69,9 +70,11 @@ void MCP2515Can::enable()
     uint8_t reset = RESET;
     ::write(spi, &reset, 1);
 
-    /* setup RX Buf 0 to receive any message */
+    /* setup RX Buf 0 and 1 to receive any message */
     Write rxb0ctrl(RXB0CTRL, 0x60);
     ::write(spi, rxb0ctrl.packet, sizeof(rxb0ctrl.packet));
+    Write rxb1ctrl(RXB1CTRL, 0x60);
+    ::write(spi, rxb1ctrl.packet, sizeof(rxb1ctrl.packet));
     interrupt_enable();
 }
 
@@ -95,6 +98,49 @@ void MCP2515Can::tx_msg()
 }
 
 /*
+ * rx_msg()
+ */
+void MCP2515Can::rx_msg(int buffer)
+{
+    ReadRxBuf rx_buf(buffer);
+    ::read(spi, rx_buf.packet, sizeof(rx_buf.packet));
+    struct can_frame *can_frame;
+    if (rxBuf->data_write_pointer(&can_frame))
+    {
+        can_frame->can_rtr = rx_buf.dlc & 0x40;
+        if (can_frame->can_eff == (rx_buf.sidl & 0x08))
+        {
+            /* extended frame */
+            can_frame->can_eff = 1;
+            can_frame->can_rtr = rx_buf.dlc & 0x40;
+            can_frame->can_id = (((uint32_t)rx_buf.eid0 & 0xFF) <<  0) +
+                                (((uint32_t)rx_buf.eid8 & 0xFF) <<  8) +
+                                (((uint32_t)rx_buf.sidl & 0x03) << 16) +
+                                (((uint32_t)rx_buf.sidl & 0xE0) << 13) +
+                                (((uint32_t)rx_buf.sidh & 0xFF) << 19);
+        }
+        else
+        {
+            /* standard frame */
+            can_frame->can_eff = 0;
+            can_frame->can_rtr = rx_buf.sidl & 0x01;
+            can_frame->can_id = ((uint32_t)rx_buf.sidl >> 5) +
+                                ((uint32_t)rx_buf.sidh << 3);
+        }
+
+        can_frame->can_err = 0;
+        memcpy(can_frame->data, &rx_buf.d0, 8);
+        rxBuf->advance(1);
+        ++numReceivedPackets_;
+        rxBuf->signal_condition();
+    }
+    else
+    {
+        ++overrunCount;
+    }
+}
+
+/*
  * entry()
  */
 void *MCP2515Can::entry()
@@ -103,27 +149,37 @@ void *MCP2515Can::entry()
     {
         sem.wait();
 
-        uint8_t active;
+        Read canintf(CANINTF);
         do
         {
-            {
-                Read caninte(CANINTE);
-                ::read(spi, caninte.packet, sizeof(caninte.packet));
+            /* read status flags */
+            ::read(spi, canintf.packet, sizeof(canintf.packet));
 
-                Read canintf(CANINTF);
-                ::read(spi, canintf.packet, sizeof(canintf.packet));
-
-                active = caninte.data & canintf.data;
-            }
-            if (active & ERRI)
+            if (canintf.data & ERRI)
             {
                 /* error interrupt active */
             }
-            if (active & RX0I)
+            if (canintf.data & RX0I)
             {
                 /* receive interrupt active */
+                rx_msg(0);
             }
-        } while (active);
+
+            if (txPending)
+            {
+            }
+
+            /* refresh status flags just in case RX1 buffer became active
+             * before we could finish reading out RX0 buffer
+             */
+            ::read(spi, canintf.packet, sizeof(canintf.packet));
+            if (canintf.data & RX1I)
+            {
+                /* receive interrupt active */
+                rx_msg(1);
+            }
+
+        } while (canintf.data);
 
         interrupt_enable();
     }

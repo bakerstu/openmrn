@@ -207,12 +207,13 @@ private:
     /** SPI transaction instructions */
     enum Instructions
     {
-        RESET      = 0xC0, /**< resets internal registers to default state */
-        READ       = 0x03, /**< read data from register at selected address */
-        WRITE      = 0x02, /**< write data to register at selected address */
-        STATUS     = 0xA0, /**< read status */
-        RX_STATUS  = 0xB0, /**< read rx status */
-        BIT_MODIFY = 0x05, /**< perform a bit manipulation */
+        RESET       = 0xC0, /**< resets internal registers to default state */
+        READ        = 0x03, /**< read data from register at selected address */
+        READ_RX_BUF = 0x90, /**< read a the receive buffer */
+        WRITE       = 0x02, /**< write data to register at selected address */
+        STATUS      = 0xA0, /**< read status */
+        RX_STATUS   = 0xB0, /**< read rx status */
+        BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
     };
 
     /** Read command structure. */
@@ -225,7 +226,6 @@ private:
         Read(Registers address)
             : instruction(READ)
             , address(address)
-            , data(0)
         {
         }
 
@@ -237,6 +237,41 @@ private:
                 uint8_t instruction; /**< read instruction */
                 uint8_t address; /**< address to read from */
                 uint8_t data; /**< resulting read data */
+            };
+        };
+    };
+
+    /** Read command structure. */
+    class ReadRxBuf
+    {
+    public:
+        /** Constructor.
+         * @param address address to read from
+         */
+        ReadRxBuf(int buffer)
+            : instruction(READ_RX_BUF | (buffer == 0 ? 0x00 : 0x40))
+        {
+        }
+
+        union
+        {
+            uint8_t packet[14]; /** raw packet data */
+            struct
+            {
+                uint8_t instruction; /**< read instruction */
+                uint8_t sidh; /**< standard identifier high byte */
+                uint8_t sidl; /**< standard identifier low byte */
+                uint8_t eid8; /**< extended identifier high byte */
+                uint8_t eid0; /**< extended identifier low byte */
+                uint8_t dlc; /**< data length code */
+                uint8_t d0; /**< data 0 byte */
+                uint8_t d1; /**< data 1 byte */
+                uint8_t d2; /**< data 2 byte */
+                uint8_t d3; /**< data 3 byte */
+                uint8_t d4; /**< data 4 byte */
+                uint8_t d5; /**< data 5 byte */
+                uint8_t d6; /**< data 6 byte */
+                uint8_t d7; /**< data 7 byte */
             };
         };
     };
@@ -280,6 +315,12 @@ private:
     void disable() override; /**< function to disable device */
     void tx_msg() override; /**< function to try and transmit a message */
 
+    /** Function to receive a message.
+     * @param buffer buffer index, 0 or 1
+     */
+    void rx_msg(int buffer);
+
+    bool txPending; /**< transmission in flight */
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 
