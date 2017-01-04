@@ -180,7 +180,6 @@ void *MCP2515Can::entry()
          * won't happen because we should be able to respond to incoming
          * messages fast enough to only use RX0 buffer.
          */
-        /* read status flags */
         canintf = register_read(CANINTF);
         if (canintf & RX1I)
         {

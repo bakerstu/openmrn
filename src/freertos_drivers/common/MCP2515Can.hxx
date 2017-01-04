@@ -211,8 +211,9 @@ private:
     {
         RESET       = 0xC0, /**< resets internal registers to default state */
         READ        = 0x03, /**< read data from register at selected address */
-        READ_RX_BUF = 0x90, /**< read a the receive buffer */
+        READ_RX_BUF = 0x90, /**< read a receive buffer */
         WRITE       = 0x02, /**< write data to register at selected address */
+        LOAD_TX_BUF = 0x40, /**< load a transmit buffer */
         STATUS      = 0xA0, /**< read status */
         RX_STATUS   = 0xB0, /**< read rx status */
         BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
@@ -267,7 +268,8 @@ private:
     uint8_t register_read(Registers address)
     {
         spi_ioc_transfer xfer[2];
-        uint8_t wr_data[2] = {WRITE, address};
+        memset(xfer, 0, sizeof(xfer));
+        uint8_t wr_data[2] = {READ, address};
         uint8_t rd_data[1];
         xfer[0].tx_buf = (unsigned long)wr_data;
         xfer[0].len = sizeof(wr_data);
@@ -285,6 +287,7 @@ private:
     void buffer_read(int index, Buffer *buffer)
     {
         spi_ioc_transfer xfer[2];
+        memset(xfer, 0, sizeof(xfer));
         uint8_t wr_data[1];
         wr_data[0] = READ_RX_BUF | (index == 0 ? 0x00 : 0x40);
         xfer[0].tx_buf = (unsigned long)wr_data;
@@ -302,6 +305,23 @@ private:
     {
         uint8_t payload[] = {WRITE, address, data};
         ::write(spi, payload, sizeof(payload));
+    }
+
+    /** Read from a SPI register.
+     * @param index buffer index to read from (valid values are 0 through 2)
+     * @param buffer pointer to a buffer structure to fill in with the result
+     */
+    void buffer_write(int index, Buffer *buffer)
+    {
+        spi_ioc_transfer xfer[2];
+        memset(xfer, 0, sizeof(xfer));
+        uint8_t instruction[1];
+        instruction[0] = LOAD_TX_BUF + (0x01 << index);
+        xfer[0].tx_buf = (unsigned long)instruction;
+        xfer[0].len = sizeof(instruction);
+        xfer[1].tx_buf = (unsigned long)buffer;
+        xfer[1].len = sizeof(buffer);
+        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
 
     bool txPending; /**< transmission in flight */
