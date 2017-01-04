@@ -1,1 +1,0 @@
-../ti-ek-tm4c123gxl-launchpad/memory_map.ld

@@ -1,1 +1,0 @@
-../microchip-pic32mx-generic/PIC32MX-reset.S
