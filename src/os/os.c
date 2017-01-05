@@ -89,6 +89,41 @@ int g_death_lineno;
 /** Captures point of death (file). */
 const char* g_death_file;
 
+
+/* This section of code is required because CodeSourcery's mips-gcc
+ * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
+ * version) that does not forward these function calls to the implementations
+ * we have. We are thus forced to override their weak definition of these
+ * functions. */
+#if defined(TARGET_PIC32MX) || defined(ESP_NONOS)
+#include "reent.h"
+
+#ifndef _READ_WRITE_RETURN_TYPE
+#define _READ_WRITE_RETURN_TYPE ssize_t
+#endif
+
+int open(const char* b, int flags, ...) {
+    return _open_r(_impure_ptr, b, flags, 0);
+}
+int close(int fd) {
+    return _close_r(_impure_ptr, fd);
+}
+_READ_WRITE_RETURN_TYPE read(int fd, void* buf, size_t count) {
+    return _read_r(_impure_ptr, fd, buf, count);
+}
+_READ_WRITE_RETURN_TYPE write(int fd, const void* buf, size_t count) {
+    return _write_r(_impure_ptr, fd, buf, count);
+}
+off_t lseek(int fd, off_t offset, int whence) {
+    return _lseek_r(_impure_ptr, fd, offset, whence);
+}
+int fstat(int fd, struct stat* buf) {
+    return _fstat_r(_impure_ptr, fd, buf);
+}
+
+#endif
+
+
 #if defined (__FreeRTOS__)
 /** Task list entriy */
 typedef struct task_list
