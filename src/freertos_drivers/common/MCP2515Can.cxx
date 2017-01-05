@@ -45,6 +45,7 @@ struct MCP2515Baud
 
 static const MCP2515Baud baudTable[] =
 {
+#if 0
     /* 20 MHz clock source
      * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
      * Baud = 125 kHz
@@ -53,10 +54,25 @@ static const MCP2515Baud baudTable[] =
      * PropSeg = 4 TQ
      * PS1 = 8 TQ
      * PS2 = 3 TQ
-     * sample time = (1 TQ + 4 TQ + 8 TQ) / 3 TQ = 81.25%
+     * sample time = (1 TQ + 4 TQ + 8 TQ) / 16 TQ = 81.25%
      * SJW = PS2 - 1 = 3 - 1 = 2
+     * SJW = 2 * 500 nsec = 1 usec
      */
     {20000000, 125000, {0x44, 0xBB, 0x02}}
+#endif
+    /* 20 MHz clock source
+     * TQ = (2 * BRP) / freq = (2 * 4) / 20 MHz = 400 nsec
+     * Baud = 125 kHz
+     * bit time = 1 / 125 kHz = 8 usec = 20 TQ
+     * SyncSeg = 1 TQ
+     * PropSeg = 7 TQ
+     * PS1 = 8 TQ
+     * PS2 = 4 TQ
+     * sample time = (1 TQ + 7 TQ + 8 TQ) / 20 TQ = 80%
+     * SJW = PS2 - 1 = 4 - 1 = 3
+     * SJW = 3 * 400 nsec = 1.2 usec
+     */
+    {20000000, 125000, {0x83, 0xBE, 0x03}}
 };
 
 /*
