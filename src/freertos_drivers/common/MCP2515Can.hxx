@@ -49,10 +49,11 @@ public:
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param spi_name spi interface that the MCP2515Can is on
+     * @param freq frequency in Hz that the MCP2515 clock runs at
      * @param interrupt_enable callback to enable the interrupt
      * @param interrupt_disable callback to disable the interrupt
      */
-    MCP2515Can(const char *name, const char *spi_name,
+    MCP2515Can(const char *name, const char *spi_name, uint32_t freq,
                void (*interrupt_enable)(void),
                void (*interrupt_disable)(void));
 
@@ -220,6 +221,7 @@ private:
         BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
     };
 
+    /** CAN TX and RX buffer structure */
     struct Buffer
     {
         uint8_t sidh; /**< standard identifier high byte */
@@ -242,12 +244,24 @@ private:
      */
     void *entry() override; /**< entry point to thread */
 
-    void (*interrupt_enable)(void);
-    void (*interrupt_disable)(void);
+    void (*interrupt_enable)(void); /**< enable interrupt callback */
+    void (*interrupt_disable)(void); /**< disable interrupt callback */
 
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-    void tx_msg() override; /**< function to try and transmit a message */
+
+    /** Function to try and transmit a message with the mutex already locked.
+     */
+    void tx_msg_locked();
+
+    /** Function to try and transmit a message.
+     */
+    void tx_msg() override
+    {
+        lock_.lock();
+        tx_msg_locked();
+        lock_.unlock();
+    }
 
     /** Function to receive a message.
      * @param index buffer index, 0 or 1
