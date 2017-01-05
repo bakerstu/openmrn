@@ -50,10 +50,12 @@ public:
      * @param name name of this device instance in the file system
      * @param spi_name spi interface that the MCP2515Can is on
      * @param freq frequency in Hz that the MCP2515 clock runs at
+     * @param target baud rate in Hz
      * @param interrupt_enable callback to enable the interrupt
      * @param interrupt_disable callback to disable the interrupt
      */
-    MCP2515Can(const char *name, const char *spi_name, uint32_t freq,
+    MCP2515Can(const char *name, const char *spi_name,
+               uint32_t freq, uint32_t baud,
                void (*interrupt_enable)(void),
                void (*interrupt_disable)(void));
 

@@ -35,10 +35,35 @@
 
 #include <fcntl.h>
 
+/** Baud rate table entry */
+struct MCP2515Baud
+{
+    uint32_t freq; /**< incoming frequency */
+    uint32_t baud; /**< target baud rate */
+    uint8_t cnf[3]; /**< Configuration registers CNF1, CNF2, and CNF3 */
+};
+
+static const MCP2515Baud baudTable[] =
+{
+    /* 20 MHz clock source
+     * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
+     * Baud = 125 kHz
+     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+     * SyncSeg = 1 TQ
+     * PropSeg = 4 TQ
+     * PS1 = 8 TQ
+     * PS2 = 3 TQ
+     * sample time = (1 TQ + 4 TQ + 8 TQ) / 3 TQ = 81.25%
+     * SJW = PS2 - 1 = 3 - 1 = 2
+     */
+    {20000000, 125000, {0x44, 0xBB, 0x02}}
+};
+
 /*
  * MCP2515Can()
  */
-MCP2515Can::MCP2515Can(const char *name, const char *spi_name, uint32_t freq,
+MCP2515Can::MCP2515Can(const char *name, const char *spi_name,
+                       uint32_t freq, uint32_t baud,
                        void (*interrupt_enable)(void),
                        void (*interrupt_disable)(void))
     : Can(name)
@@ -51,28 +76,20 @@ MCP2515Can::MCP2515Can(const char *name, const char *spi_name, uint32_t freq,
 {
     HASSERT(spi >= 0);
 
-    switch (freq)
+    /* find valid timing settings for the requested frequency and buad rates */
+    for (size_t i = 0; i < (sizeof(baudTable) / sizeof(baudTable[0])); ++i)
     {
-        default:
-            /* unsupported frequency */
-            HASSERT(0);
-        case 20000000:
-            /* 20 MHz clock source
-             * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
-             * Baud = 125 kHz
-             * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-             * SyncSeg = 1 TQ
-             * PropSeg = 4 TQ
-             * PS1 = 8 TQ
-             * PS2 = 3 TQ
-             * sample time = (1 TQ + 4 TQ + 8 TQ) / 3 TQ = 81.25%
-             * SJW = PS2 - 1 = 3 - 1 = 2
-             */
-            register_write(CNF1, 0x44);
-            register_write(CNF2, 0xBB);
-            register_write(CNF3, 0x02);
-            break;
+        if (baudTable[i].freq == freq && baudTable[i].baud == baud)
+        {
+            register_write(CNF1, baudTable[i].cnf[0]);
+            register_write(CNF2, baudTable[i].cnf[1]);
+            register_write(CNF3, baudTable[i].cnf[2]);
+            return;
+        }
     }
+
+    /* unsupported frequency */
+    HASSERT(0);
 }
 
 /*
