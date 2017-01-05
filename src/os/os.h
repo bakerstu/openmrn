@@ -967,34 +967,6 @@ OS_INLINE unsigned sleep(unsigned seconds)
 }
 #endif
 
-/* This section of code is required because CodeSourcery's mips-gcc
- * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
- * version) that does not forward these function calls to the implementations
- * we have. We are thus forced to override their weak definition of these
- * functions. */
-#if defined(TARGET_PIC32MX) || defined(ESP_NONOS)
-#include "reent.h"
-
-OS_INLINE int open(const char* b, int flags, ...) {
-    return _open_r(_impure_ptr, b, flags, 0);
-}
-OS_INLINE int close(int fd) {
-    return _close_r(_impure_ptr, fd);
-}
-OS_INLINE ssize_t read(int fd, void* buf, size_t count) {
-    return _read_r(_impure_ptr, fd, buf, count);
-}
-OS_INLINE ssize_t write(int fd, const void* buf, size_t count) {
-    return _write_r(_impure_ptr, fd, buf, count);
-}
-OS_INLINE off_t lseek(int fd, off_t offset, int whence) {
-    return _lseek_r(_impure_ptr, fd, offset, whence);
-}
-OS_INLINE int fstat(int fd, struct stat* buf) {
-    return _fstat_r(_impure_ptr, fd, buf);
-}
-
-#endif
 
 #ifdef __cplusplus
 }
