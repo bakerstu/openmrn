@@ -72,7 +72,20 @@ static const MCP2515Baud baudTable[] =
      * SJW = PS2 - 1 = 4 - 1 = 3
      * SJW = 3 * 400 nsec = 1.2 usec
      */
-    {20000000, 125000, {0x83, 0xBE, 0x03}}
+    {20000000, 125000, {0x83, 0xBE, 0x03}},
+    /* 8 MHz clock source
+     * TQ = (2 * BRP) / freq = (2 * 2) / 8 MHz = 500 nsec
+     * Baud = 125 kHz
+     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+     * SyncSeg = 1 TQ
+     * PropSeg = 4 TQ
+     * PS1 = 8 TQ
+     * PS2 = 3 TQ
+     * sample time = (1 TQ + 4 TQ + 8 TQ) / 16 TQ = 81.25%
+     * SJW = PS2 - 1 = 3 - 1 = 2
+     * SJW = 2 * 500 nsec = 1 usec
+     */
+    {8000000, 125000, {0x41, 0xBB, 0x02}}
 };
 
 /*
@@ -80,8 +93,8 @@ static const MCP2515Baud baudTable[] =
  */
 MCP2515Can::MCP2515Can(const char *name, const char *spi_name,
                        uint32_t freq, uint32_t baud,
-                       void (*interrupt_enable)(void),
-                       void (*interrupt_disable)(void))
+                       void (*interrupt_enable)(),
+                       void (*interrupt_disable)())
     : Can(name)
     , OSThread()
     , interrupt_enable(interrupt_enable)

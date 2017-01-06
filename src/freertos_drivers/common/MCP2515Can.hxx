@@ -56,8 +56,8 @@ public:
      */
     MCP2515Can(const char *name, const char *spi_name,
                uint32_t freq, uint32_t baud,
-               void (*interrupt_enable)(void),
-               void (*interrupt_disable)(void));
+               void (*interrupt_enable)(),
+               void (*interrupt_disable)());
 
     /** Destructor.
      */
@@ -246,8 +246,8 @@ private:
      */
     void *entry() override; /**< entry point to thread */
 
-    void (*interrupt_enable)(void); /**< enable interrupt callback */
-    void (*interrupt_disable)(void); /**< disable interrupt callback */
+    void (*interrupt_enable)(); /**< enable interrupt callback */
+    void (*interrupt_disable)(); /**< disable interrupt callback */
 
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */

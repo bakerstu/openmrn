@@ -1,0 +1,1 @@
+../../../../boards/ti-cc3200-launchpad/memory_map.ld

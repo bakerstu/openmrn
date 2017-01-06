@@ -1,0 +1,1 @@
+../../../../boards/ti-cc3200-launchpad/hardware.hxx

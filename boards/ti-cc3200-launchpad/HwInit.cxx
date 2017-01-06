@@ -47,7 +47,9 @@
 #include "os/OS.hxx"
 #include "DummyGPIO.hxx"
 #include "CC32xxUart.hxx"
+#include "CC32xxSPI.hxx"
 #include "CC32xxWiFi.hxx"
+#include "MCP2515Can.hxx"
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
@@ -62,6 +64,48 @@ const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
 static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
+
+static void mcp2515_cs_assert();
+static void mcp2515_cs_deassert();
+static void mcp2515_int_enable();
+static void mcp2515_int_disable();
+
+/** SPI 0.0 driver instance */
+static CC32xxSPI spi0_0("/dev/spidev0.0", GSPI_BASE, INT_GSPI,
+                        mcp2515_cs_assert, mcp2515_cs_deassert);
+
+
+static MCP2515Can can0("/dev/can0", "/dev/spidev0.0", 8000000,
+                       config_nmranet_can_bitrate(),
+                       mcp2515_int_enable, mcp2515_int_disable);
+
+/** Assert the chip select for the MCP2515 CAN controller.
+ */
+static void mcp2515_cs_assert()
+{
+    MCP2515_CS_N_Pin::set(false);
+}
+
+/** Deassert the chip select for the MCP2515 CAN controller.
+ */
+static void mcp2515_cs_deassert()
+{
+    MCP2515_CS_N_Pin::set(true);
+}
+
+/** Enable MCP2515 CAN controller interrupt.
+ */
+static void mcp2515_int_enable()
+{
+    GPIOIntEnable(GPIOA0_BASE, GPIO_INT_PIN_7);
+}
+
+/** Disable MCP2515 CAN controller interrupt.
+ */
+static void mcp2515_int_disable()
+{
+    GPIOIntDisable(GPIOA0_BASE, GPIO_INT_PIN_7);
+}
 
 /** Wi-Fi instance */
 static CC32xxWiFi wifi;
@@ -130,7 +174,7 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
-void timer3a_interrupt_handler(void)
+void timer2a_interrupt_handler(void)
 {
     //
     // Clear the timer interrupt.
@@ -143,6 +187,19 @@ void timer3a_interrupt_handler(void)
     rest_pattern >>= 1;
     if (!rest_pattern)
         rest_pattern = blinker_pattern;
+}
+
+/** PORTA0 interrupt handler.
+ */
+void porta0_interrupt_handler(void)
+{
+    long status = GPIOIntStatus(GPIOA0_BASE, true);
+
+    if (status & GPIO_INT_PIN_7)
+    {
+        /* MCP2515 CAN Controller interrupt */
+        can0.interrupt_handler();
+    }
 }
 
 void diewith(uint32_t pattern)
@@ -171,17 +228,25 @@ void hw_preinit(void)
     PRCMCC3200MCUInit();
 
     /* initilize pin modes:
-     *   PIN_01:  PIN_MODE_0 - GPIO10
+     *   PIN_01:  PIN_MODE_3 - GT_PWM07
      *   PIN_02:  PIN_MODE_0 - GPIO11
      *   PIN_04:  PIN_MODE_0 - GPIO13
+     *   PIN_05:  PIN_MODE_7 - GSPI_CLK
+     *   PIN_06:  PIN_MODE_7 - GSPI_MISO
+     *   PIN_07:  PIN_MODE_7 - GSPI_MOSI
+     *   PIN_08:  PIN_MODE_0 - GPIO17
      *   PIN_15:  PIN_MODE_0 - GPIO22
      *   PIN_55:  PIN_MODE_3 - UARTA0_TX
      *   PIN_57:  PIN_MODE_3 - UARTA0_RX
      *   PIN_64:  PIN_MODE_0 - GPIO9
      */
-    MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
+    MAP_PinTypeTimer(PIN_01, PIN_MODE_3);
     MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
+    MAP_PinTypeSPI(PIN_06, PIN_MODE_7);
+    MAP_PinTypeSPI(PIN_07, PIN_MODE_7);
+    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
@@ -189,16 +254,33 @@ void hw_preinit(void)
     GpioInit::hw_init();
 
     /* Blinker timer initialization. */
-    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA3, PRCM_RUN_MODE_CLK);
-    MAP_TimerConfigure(TIMERA3_BASE, TIMER_CFG_PERIODIC);
-    MAP_TimerLoadSet(TIMERA3_BASE, TIMER_A, cm3_cpu_clock_hz / 8);
-    MAP_IntEnable(INT_TIMERA3A);
+    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
+    MAP_TimerConfigure(TIMERA2_BASE, TIMER_CFG_PERIODIC);
+    MAP_TimerLoadSet(TIMERA2_BASE, TIMER_A, cm3_cpu_clock_hz / 8);
+    MAP_IntEnable(INT_TIMERA2A);
 
     /* This interrupt should hit even during kernel operations. */
-    MAP_IntPrioritySet(INT_TIMERA3A, 0);
-    MAP_TimerIntEnable(TIMERA3_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_IntPrioritySet(INT_TIMERA2A, 0);
+    MAP_TimerIntEnable(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
+
+    /* MCP2515 CAN Controller reset hold */
+    MCP2515_RESET_N_Pin::set(false);
+
+    /* MCP2515 CAN Controller clock timer initialization. */
+    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA3, PRCM_RUN_MODE_CLK);
+    MAP_TimerConfigure(TIMERA3_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PWM);
+    MAP_TimerLoadSet(TIMERA3_BASE, TIMER_A, 3);
+    MAP_TimerMatchSet(TIMERA3_BASE, TIMER_A, 1);
     MAP_TimerEnable(TIMERA3_BASE, TIMER_A);
 
+    /* MCP2515 CAN Controller gpio interrupt initialization */
+    GPIOIntTypeSet(GPIOA0_BASE, GPIO_PIN_7, GPIO_LOW_LEVEL);
+
+    /* MCP2515 CAN Controller reset release */
+    MCP2515_RESET_N_Pin::set(true);
+
+    while (1);
     //GPIOPinWrite(unsigned long GPIO, unsigned char ucPins, unsigned char ucVal)
 #if 0
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger

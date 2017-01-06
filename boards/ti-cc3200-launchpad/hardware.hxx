@@ -12,6 +12,10 @@ GPIO_PIN(LED_RED_RAW, GpioOutputSafeLow, A1, 1);
 GPIO_PIN(LED_GREEN, GpioOutputSafeLow, A1, 3);
 GPIO_PIN(LED_YELLOW, GpioOutputSafeLow, A1, 2);
 
+GPIO_PIN(MCP2515_RESET_N, GpioOutputSafeLow,  A0, 6);
+GPIO_PIN(MCP2515_CS_N,    GpioOutputSafeHigh, A2, 1);
+GPIO_PIN(MCP2515_INT_N,   GpioInputPin,       A0, 7);
+
 typedef LED_RED_RAW_Pin BLINKER_RAW_Pin;
 
 #if 0
@@ -32,6 +36,9 @@ typedef GpioInitializer<SW2_Pin,
                         SW3_Pin,
                         LED_RED_RAW_Pin,
                         LED_GREEN_Pin,
-                        LED_YELLOW_Pin> GpioInit;
+                        LED_YELLOW_Pin,
+                        MCP2515_RESET_N_Pin,
+                        MCP2515_CS_N_Pin,
+                        MCP2515_INT_N_Pin> GpioInit;
 
 #endif // _HARDWARE_HXX_
