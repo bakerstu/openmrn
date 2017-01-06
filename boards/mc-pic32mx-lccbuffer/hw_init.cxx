@@ -57,11 +57,17 @@ void _cinit(void) {
 }
 
 
-#define SET_LED1() mPORTDSetBits(BIT_1)     // Gold
-#define CLR_LED1() mPORTDClearBits(BIT_1)
+#define SET_LED_Y() mPORTDClearBits(BIT_1)  // Gold
+#define CLR_LED_Y() mPORTDSetBits(BIT_1)
 
-#define SET_LED2() mPORTDSetBits(BIT_2)     // Blue
-#define CLR_LED2() mPORTDClearBits(BIT_2)
+#define SET_LED_B() mPORTDClearBits(BIT_2)  // Blue
+#define CLR_LED_B() mPORTDSetBits(BIT_2)
+
+#define SET_LED_R() mPORTFClearBits(BIT_4)  // Red
+#define CLR_LED_R() mPORTFSetBits(BIT_4)
+
+#define SET_LED_G() mPORTFClearBits(BIT_5)  // Green
+#define CLR_LED_G() mPORTFSetBits(BIT_5)
 
 void diewith(uint32_t pattern) {
     setblink(pattern);
@@ -75,9 +81,9 @@ void __attribute__((interrupt, nomips16)) tmr2_interrupt(void)
 {
     // Set output LED.
     if (rest_pattern & 1) {
-        CLR_LED2();
+        SET_LED_B();
     } else {
-        SET_LED2();
+        CLR_LED_B();
     }
     rest_pattern >>= 1;
     if (!rest_pattern)
@@ -122,26 +128,29 @@ void __attribute__((nomips16)) _general_exception_context(void)
   diewith(0x8000A0CA); //3-1-2
 }
 
+/** Initializes the processor hardware.
+ */
 void hw_preinit(void) 
 {
+  // Define output pins.
   mPORTDSetPinsDigitalOut( BIT_1 | BIT_2 );
-  mPORTDClearBits( BIT_1 | BIT_2 );         // Blue and Gold LED ON
-
   mPORTFSetPinsDigitalOut( BIT_4 | BIT_5 );
-  mPORTFSetBits  ( BIT_4 );                 // Red LED OFF
-  mPORTFClearBits( BIT_5 );                 // Green LED ON
-
+  
+  // Remap CAN Rx and Tx pins.
+  PPSInput ( 2, C1RX, RPF0 );
+  PPSOutput( 1, RPF1, C1TX );
 
   // We want 8 ticks per second.
-  OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF | T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);
+  OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF
+                   |T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);
   ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_6 | T2_INT_SUB_PRIOR_0);
   
   setblink(0x8000CA);
 
   // Sets the main clock ot 40 MHz through PLL. 
   // Not needed here, configuration bits are set in pic32mx_cfg_init.c  (robh)
-  //OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_15, OSC_PLL_POST_1, OSC_FRC_POST_1); ????
-  //OSCConfig(OSC_FRC_PLL, OSC_PLL_MULT_15, OSC_PLL_POST_1, OSC_FRC_POST_1);  ????
+  //OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_15, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  //OSCConfig(OSC_FRC_PLL, OSC_PLL_MULT_15, OSC_PLL_POST_1, OSC_FRC_POST_1);
   HASSERT(configCPU_CLOCK_HZ == 40000000);
 
   // Configure the device for maximum performance but do not change PBDIV
@@ -155,13 +164,14 @@ void hw_preinit(void)
 
 }
 
-/** Initializes the processor hardware.
+/** Initializes the board hardware.
  */
 void hw_init(void)
 {
-    mPORTDSetBits( BIT_1 | BIT_2 );         // Blue and Gold LED OFF
-	
-    mPORTFClearBits( BIT_4 );               // Red LED ON
+	CLR_LED_Y();    // Gold  LED OFF
+    CLR_LED_B();    // Blue  LED OFF
+    SET_LED_G();    // Green LED ON
+    SET_LED_R();    // Red   LED ON
 }
 
 }  // extern C

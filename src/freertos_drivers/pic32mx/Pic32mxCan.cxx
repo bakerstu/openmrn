@@ -62,8 +62,7 @@ public:
         , hw_(module)
         , overrunCount_(0)
     {
-        messageFifoArea_ = malloc(
-            (config_can_tx_buffer_size() + config_can_rx_buffer_size()) * 16);
+        messageFifoArea_ = malloc(2 * 16 * CAN_TX_RX_MESSAGE_SIZE_BYTES);
     }
 
     ~Pic32mxCan()
@@ -400,8 +399,7 @@ void Pic32mxCan::enable()
      */
 
     CANAssignMemoryBuffer(
-        hw_, messageFifoArea_,
-        16 * (config_can_tx_buffer_size() + config_can_rx_buffer_size()));
+        hw_, messageFifoArea_, (2 * 16 * CAN_TX_RX_MESSAGE_SIZE_BYTES));
 
     /* Step 4: Configure channel 0 for TX and size of tx_queue_len message
      * buffers with RTR disabled and low medium priority. Configure channel 1
@@ -412,8 +410,7 @@ void Pic32mxCan::enable()
     /// @todo(balazs.racz) why is the tx buffer length 1?
     CANConfigureChannelForTx(hw_, CAN_CHANNEL0, 1, CAN_TX_RTR_DISABLED,
                              CAN_LOW_MEDIUM_PRIORITY);
-    CANConfigureChannelForRx(hw_, CAN_CHANNEL1, config_can_rx_buffer_size(),
-                             CAN_RX_FULL_RECEIVE);
+    CANConfigureChannelForRx(hw_, CAN_CHANNEL1, 16, CAN_RX_FULL_RECEIVE);
 
     // We create a catch-all filter for channel 1.
     CANConfigureFilterMask(hw_, CAN_FILTER_MASK0, 0, CAN_EID, CAN_FILTER_MASK_ANY_TYPE);
