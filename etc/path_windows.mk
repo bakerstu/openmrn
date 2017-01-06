@@ -75,7 +75,7 @@ ifndef PIC32MXLIBPATH
 SEARCHPATH := \
   /opt/microchip/xc32/default \
   $(HOME)/train/git/pic32/includes \
-  c:/mgc/xc32/v1.32
+  c:/mgc/xc32/v1.42
 
 TRYPATH:=$(call findfirst,pic32mx/include/p32xxxx.h,$(SEARCHPATH))
 ifneq ($(TRYPATH),)

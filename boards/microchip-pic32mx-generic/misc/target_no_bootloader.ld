@@ -37,7 +37,7 @@ OUTPUT_ARCH(mips)
 ENTRY(__cs3_reset_PIC32MX) /* for debugger support, use actual HW-level entry and not _start */
 SEARCH_DIR(.)
 /* Force repeated search of CS3 and GCC libraries */
-GROUP(-lcs3hal -lgcc -lc -lcs3 -lcs3unhosted)
+GROUP(-lcs3hal -lgcc -lc -lcs3)
 /**/
 
 /*
@@ -101,7 +101,8 @@ EXTERN (_min_stack_size _min_heap_size)
 PROVIDE(_min_stack_size = 2k) ;
 PROVIDE(_min_heap_size  = 9k) ;
 PROVIDE(__cs3_heap_start = _end );
-PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size);
+/* PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size); */
+PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram);
 PROVIDE(__cs3_stack = __cs3_region_start_ram + __cs3_region_size_ram); /* stack grows down from end of RAM */
 
 HEAP_SPACE_AVAILABLE = (__cs3_heap_end - __cs3_heap_start);
