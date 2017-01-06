@@ -34,6 +34,7 @@
  */
 
 #include "Devtab.hxx"
+#include "DeviceBuffer.hxx"
 #include "nmranet_config.h"
 #include "can_frame.h"
 #include <fcntl.h>
@@ -45,6 +46,8 @@ extern "C" {
 #include "peripheral/CAN.h"
 #include "peripheral/int.h"
 }
+
+volatile int* g_pic32_last_stack_ptr;
 
 /// CAN-bus device driver for the Pic32MX.
 class Pic32mxCan : public Node
@@ -79,7 +82,13 @@ private:
 
     ssize_t read(File *file, void *buf, size_t count);
     ssize_t write(File *file, const void *buf, size_t count);
-    int ioctl(File *file, unsigned long int key, unsigned long data);
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
+     */
+    bool select(File* file, int mode) OVERRIDE;
 
     /// Hordware (pointer into address space).
     CAN_MODULE hw_;
@@ -88,19 +97,13 @@ private:
     int overrunCount_;
     /// Points to the shared RAM area between the hardware and the driver.
     void *messageFifoArea_;
-    /// Semaphore for waking up transmitting tasks.
-    OSSem txSem_;
-    /// Semaphore for waking up receiving tasks.
-    OSSem rxSem_;
+    // Select for the transmit buffers.
+    SelectInfo txSelect_;
+    // Select for the receive buffers.
+    SelectInfo rxSelect_;
 
     DISALLOW_COPY_AND_ASSIGN(Pic32mxCan);
 };
-
-int Pic32mxCan::ioctl(File *file, unsigned long int key,
-                      unsigned long data)
-{
-    return -EINVAL;
-}
 
 /// Translates a hardware buffer to a struct can_frame.
 ///
@@ -236,7 +239,7 @@ ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
 
         CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                               TRUE);
-        rxSem_.wait();
+        DeviceBufferBase::block_until_condition(file, true);
     }
 
     /* As a good-bye we wake up the interrupt handler once more to post on the
@@ -244,6 +247,11 @@ ssize_t Pic32mxCan::read(File *file, void *buf, size_t count)
     CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                           TRUE);
 
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+    
     return result;
 }
 
@@ -299,7 +307,7 @@ ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
          * us up. */
         CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                               TRUE);
-        txSem_.wait();
+        DeviceBufferBase::block_until_condition(file, false);
     }
 
     /* As a good-bye we wake up the interrupt handler once more to post on the
@@ -307,7 +315,55 @@ ssize_t Pic32mxCan::write(File *file, const void *buf, size_t count)
     CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                           TRUE);
 
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
     return result;
+}
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool Pic32mxCan::select(File* file, int mode)
+{
+    portENTER_CRITICAL();
+    bool retval = false;
+    switch (mode)
+    {
+        case FREAD:
+            if (CANGetChannelEvent(hw_, CAN_CHANNEL1) &
+                CAN_RX_CHANNEL_NOT_EMPTY)
+            {
+                retval = true;
+            }
+            else
+            {
+                Device::select_insert(&rxSelect_);
+            }
+            break;
+        case FWRITE:
+            if (CANGetChannelEvent(hw_, CAN_CHANNEL0) & CAN_TX_CHANNEL_NOT_FULL)
+            {
+                retval = true;
+            }
+            else
+            {
+                Device::select_insert(&txSelect_);
+            }
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    portEXIT_CRITICAL();
+
+    return retval;
 }
 
 void Pic32mxCan::enable()
@@ -422,6 +478,7 @@ Pic32mxCan can1(CAN2, "/dev/can1");
 */
 void Pic32mxCan::isr()
 {
+    int woken = 0;
     if ((CANGetModuleEvent(hw_) & CAN_RX_EVENT) != 0)
     //    if(CANGetPendingEventCode(hw_) == CAN_CHANNEL1_EVENT)
     {
@@ -442,8 +499,7 @@ void Pic32mxCan::isr()
          * */
         CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
                               FALSE);
-        int woken;
-        rxSem_.post_from_isr(&woken);
+        Device::select_wakeup_from_isr(&rxSelect_, &woken);
     }
     if ((CANGetModuleEvent(hw_) & CAN_TX_EVENT) != 0)
     //    if(CANGetPendingEventCode(hw_) == CAN_CHANNEL0_EVENT)
@@ -451,15 +507,15 @@ void Pic32mxCan::isr()
         /* Same with the TX event. */
         CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
                               FALSE);
-        int woken;
-        txSem_.post_from_isr(&woken);
+        Device::select_wakeup_from_isr(&txSelect_, &woken);
     }
+    g_pic32_last_stack_ptr = &woken;
 }
 
 extern "C" {
 
 /// Hardware interrupt for CAN1.
-void __attribute__((interrupt,nomips16)) can1_interrupt(void)
+void can1_interrupt(void)
 {
     can0.isr();
     INTClearFlag(INT_CAN1);
@@ -479,8 +535,8 @@ void __attribute__((interrupt,nomips16)) can2_interrupt(void)
 
 /// Places a jump instruction to can1_interrupt to the proper interrupt vector
 /// location.
-asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
-    "can1_interrupt\n\tnop\n.text\n");
+//asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
+//    "can1_interrupt\n\tnop\n.text\n");
 /*
 /// Places a jump instruction to can2_interrupt to the proper interrupt vector
 /// location.

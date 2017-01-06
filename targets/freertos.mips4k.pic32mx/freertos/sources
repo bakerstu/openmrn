@@ -17,5 +17,7 @@ port.o queue.o tasks.o croutine.o timers.o event_groups.o: ARCH = -mips32r2 -min
 
 CXXSRCS +=
 
+# Bug in port.c causes compile error because string.h is not #included
+CFLAGS += -include string.h
 
 ASMSRCS += port_asm.S

@@ -19,7 +19,8 @@ CXXSRCS += Fileio.cxx \
            Pipe.cxx \
            CpuLoad.cxx \
            Socket.cxx \
-           DeviceFile.cxx
+           DeviceFile.cxx \
+           MCP2515Can.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
