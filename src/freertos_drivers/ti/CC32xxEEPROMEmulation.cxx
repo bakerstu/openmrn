@@ -35,128 +35,69 @@
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "fs.h"
 
-const size_t EEPROMEmulation::BLOCK_SIZE =
-    CC32xxEEPROMEmulation::INT_BLOCK_SIZE;
-const size_t EEPROMEmulation::BYTES_PER_BLOCK =
-    CC32xxEEPROMEmulation::INT_BLOCK_SIZE / 2;
+const uint8_t CC32xxEEPROMEmulation::SECTOR_COUNT = 8;
+
+extern "C" {
+void eeprom_updated_notification();
+}
 
 CC32xxEEPROMEmulation::CC32xxEEPROMEmulation(
     const char *name, size_t file_size_bytes)
     : EEPROMEmulation(name, file_size_bytes)
 {
+    data_ = malloc(file_size_bytes);
+    HASSERT(data_);
+    memset(data_, 0xff, file_size_bytes);
     bool have_rot = false;
     // First we need to find what was the last written segment.
     for (unsigned sector = 0; sector < sectorCount_; ++sector)
     {
-        // Creates all files if they don't exist yet.
-        int handle =
-            open_file(sector, FS_MODE_OPEN_CREATE(SECTOR_SIZE + 4, 0), true);
-        if (handle >= 0)
+        int handle = open_file(sector, FS_MODE_OPEN_READ, true);
+        if (handle < 0)
         {
-            unsigned b = 0xaa55aaaa;
-            sl_FsWrite(handle, SECTOR_SIZE, (uint8_t *)&b, 4);
-            sl_FsClose(handle, nullptr, nullptr, 0);
             continue;
         }
-
-        handle = open_file(sector, FS_MODE_OPEN_READ);
-        unsigned count = MAGIC_COUNT * INT_BLOCK_SIZE;
-        SlCheckResult(sl_FsRead(handle, MAGIC_FIRST_INDEX * INT_BLOCK_SIZE,
-                          (uint8_t *)cache_, count),
-            count);
-        SlCheckResult(sl_FsClose(handle, nullptr, nullptr, 0));
-        if (cache_[MAGIC_INTACT_INDEX * CACHE_BLOCK_MULT] != MAGIC_INTACT)
+        unsigned b = 0xaa55aaaa;
+        SlCheckResult(sl_FsRead(handle, 0, &b, 4), 4);
+        sl_FsClose(handle, nullptr, nullptr, 0);
+        if (b >= fileVersion_)
         {
-            // Messed up or empty block.
-            continue;
-        }
-        uint32_t current_rot = cache_[MAGIC_USED_INDEX * CACHE_BLOCK_MULT];
-        if (current_rot > 0xff)
-        {
-            // maybe erased. We didn't write this, that's sure.
-            continue;
-        }
-        if (!have_rot)
-        {
+            readSector_ = sector;
             have_rot = true;
-            fileRotation_ = current_rot;
-            intactSector_ = sector;
-        }
-        else if (fileRotation_ == current_rot)
-        {
-            intactSector_ = sector;
         }
     }
-    if (!have_rot)
-        fileRotation_ = 0;
-    mount();
-    // This forces the first write to copy over everything to a new sector.
-    availableSlots_ = 0;
+
+    if (have_rot)
+    {
+        int handle = open_file(readSector_, FS_MODE_OPEN_READ);
+        int ret = sl_FsRead(handle, 4, data, file_size_bytes);
+        if (ret < 0)
+        {
+            SlCheckResult(ret);
+        }
+    }
 }
 
 CC32xxEEPROMEmulation::~CC32xxEEPROMEmulation()
 {
-    if (roSLFileHandle_ >= 0)
-    {
-        sl_FsClose(roSLFileHandle_, nullptr, nullptr, 0);
-    }
-    if (rwSLFileHandle_ >= 0)
-    {
-        sl_FsClose(rwSLFileHandle_, nullptr, nullptr, 0);
-    }
+    flush_buffers();
+    free(data_);
 }
 
-void CC32xxEEPROMEmulation::flash_erase(unsigned sector)
+void CC32xxEEPROMEmulation::flush_buffers()
 {
-    if (roSLFileHandle_ >= 0)
+    ++readSector_;
+    ++fileVersion_;
+    if (readSector_ >= SECTOR_COUNT)
+        readSector_ = 0;
+    int handle = open_file(readSector_, FS_MODE_OPEN_WRITE, true);
+    if (handle < 0)
     {
-        sl_FsClose(roSLFileHandle_, nullptr, nullptr, 0);
-        roSLFileHandle_ = -1;
+        handle = open_file(sector, FS_MODE_OPEN_CREATE(file_size() + 4, 0));
     }
-    if (rwSLFileHandle_ >= 0)
-    {
-        roSLFileHandle_ = rwSLFileHandle_;
-        roSector_ = rwSector_;
-    }
-    if (roSLFileHandle_ >= 0 && roSector_ == sector)
-    {
-        sl_FsClose(roSLFileHandle_, nullptr, nullptr, 0);
-        roSLFileHandle_ = -1;
-    }
-    rwSector_ = sector;
-    rwSLFileHandle_ = open_file(sector, FS_MODE_OPEN_WRITE);
-    if (sector == 0)
-    {
-        fileRotation_++;
-    }
-    uint32_t rot = fileRotation_;
-    SlCheckResult(
-        sl_FsWrite(rwSLFileHandle_, get_rotation_offset(), (uint8_t *)&rot, 4), 4);
-    intactSector_ = sector;
-}
-
-void CC32xxEEPROMEmulation::flash_program(
-    unsigned sector, unsigned start_block, uint32_t *data, uint32_t byte_count)
-{
-    if (start_block == MAGIC_USED_INDEX)
-    {
-        HASSERT(byte_count == BLOCK_SIZE);
-        // the used magic is handled internally.
-        return;
-    }
-    HASSERT(sector == rwSector_);
-    HASSERT(rwSLFileHandle_ >= 0);
-    SlCheckResult(sl_FsWrite(rwSLFileHandle_, start_block * BLOCK_SIZE,
-                             (uint8_t *)data, byte_count), byte_count);
-    // Shadow write to the cache.
-    if (sector == cacheSector_ && start_block >= cacheStartBlock_ &&
-        start_block < (cacheStartBlock_ + CACHE_SIZE / INT_BLOCK_SIZE))
-    {
-        unsigned cache_offset =
-            (start_block - cacheStartBlock_) * INT_BLOCK_SIZE;
-        HASSERT(byte_count + cache_offset <= CACHE_SIZE);
-        memcpy(((uint8_t *)cache_) + cache_offset, data, byte_count);
-    }
+    SlCheckResult(sl_FsWrite(handle, 0, (uint8_t *)&fileVersion_, 4), 4);
+    SlCheckResult(sl_FsWrite(handle, 4, data_, file_size()), 4);
+    SlCheckResult(sl_FsClose(handle));
 }
 
 int CC32xxEEPROMEmulation::open_file(
@@ -175,62 +116,16 @@ int CC32xxEEPROMEmulation::open_file(
     return handle;
 }
 
-const uint32_t *CC32xxEEPROMEmulation::block(unsigned sector, unsigned offset)
+void CC32xxEEPROMEmulation::write(
+    unsigned int index, const void *buf, size_t len)
 {
-    if (sector == cacheSector_ && offset >= cacheStartBlock_ &&
-        offset < (cacheStartBlock_ + CACHE_SIZE / INT_BLOCK_SIZE))
-    {
-        // We have a cache hit.
-        return cache_ + (offset - cacheStartBlock_) / CACHE_BLOCK_MULT;
-    }
-    cacheSector_ = sector;
-    cacheStartBlock_ = offset & CACHE_BLOCK_MASK;
-    // Finds the correct file handle.
-    int handle = -1;
-    if (sector == rwSector_ && rwSLFileHandle_ >= 0)
-    {
-        handle = rwSLFileHandle_;
-    }
-    else if (sector == roSector_ && roSLFileHandle_ >= 0)
-    {
-        handle = roSLFileHandle_;
-    }
-    else
-    {
-        // Need to open file.
-        if (roSLFileHandle_ >= 0)
-        {
-            sl_FsClose(roSLFileHandle_, nullptr, nullptr, 0);
-            roSLFileHandle_ = -1;
-        }
-        roSLFileHandle_ = open_file(sector, FS_MODE_OPEN_READ);
-        roSector_ = sector;
-        handle = roSLFileHandle_;
-    }
-    // Refills the cache.
-    int ret = sl_FsRead(handle, cacheStartBlock_ * INT_BLOCK_SIZE,
-                        (uint8_t *)cache_, CACHE_SIZE);
-    if (ret == SL_FS_ERR_OFFSET_OUT_OF_RANGE) {
-        // We probably haven't written this part of the file yet. Let's jsut
-        // fill it with erased bytes.
-        memset(cache_, 0xff, CACHE_SIZE);
-    } else if (ret > 0 && (unsigned)ret < CACHE_SIZE) {
-        memset(((uint8_t*)cache_) + ret, 0xff, CACHE_SIZE - ret);
-    } else {        
-        SlCheckResult(ret, CACHE_SIZE);
-    }
-    // Check if have the used magic in the cache. If yes, we need to fake it.
-    if (cacheStartBlock_ == MAGIC_FIRST_INDEX)
-    {
-        if (sector != intactSector_)
-        {
-            cache_[MAGIC_USED_INDEX * CACHE_BLOCK_MULT] = MAGIC_USED;
-        }
-        else
-        {
-            cache_[MAGIC_USED_INDEX * CACHE_BLOCK_MULT] = MAGIC_ERASED;
-        }
-    }
-    // Now we have the data in the cache.
-    return cache_ + (offset - cacheStartBlock_) / CACHE_BLOCK_MULT;
+    // Boundary checks are performed by the EEPROM class.
+    memcpy(data_ + index, buf, len);
+    eeprom_updated_notification();
+}
+
+void CC32xxEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
+{
+    // Boundary checks are performed by the EEPROM class.
+    memcpy(buf, data_ + index, len);
 }

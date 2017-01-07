@@ -66,7 +66,7 @@
  * last erased.
  *
  */
-class CC32xxEEPROMEmulation : public EEPROMEmulation
+class CC32xxEEPROMEmulation : public EEPROM
 {
 public:
     /** Constructor.
@@ -79,36 +79,24 @@ public:
      */
     ~CC32xxEEPROMEmulation();
 
+    void flush_buffers() OVERRIDE;
+
 private:
-    /** Simple hardware abstraction for FLASH erase API.
-     * @param address the start address of the flash block to be erased
+    /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
+     * byte boundaries in the case of power loss.  The user should take this
+     * into account as it relates to data integrity of a whole block.
+     * @param index index within EEPROM address space to start write
+     * @param buf data to write
+     * @param len length in bytes of data to write
      */
-    void flash_erase(unsigned sector) override;
+    void write(unsigned int index, const void *buf, size_t len) override;
 
-    /** Simple hardware abstraction for FLASH program API.
-     * @param sector the sector to write to
-     * @param start_block the block index to start writing to
-     * @param data a pointer to the data to be programmed
-     * @param byte_count the number of bytes to be programmed.
-     *              Must be a multiple of BLOCK_SIZE
+    /** Read from the EEPROM.
+     * @param index index within EEPROM address space to start read
+     * @param buf location to post read data
+     * @param len length in bytes of data to read
      */
-    void flash_program(unsigned sector, unsigned start_block, uint32_t *data,
-        uint32_t byte_count) override;
-
-    /**
-     * Computes the pointer to load the data stored in a specific block from.
-     * @param sector sector number [0..sectorCount_ - 1]
-     * @param offset block index within sector, [0..rawBlockCount_ - 1]
-     * @return pointer to the beginning of the data in the block. Must be alive
-     * until the next call to this function.
-     */
-    const uint32_t *block(unsigned sector, unsigned offset) override;
-
-    /// @return the file offset where the rotation byte is written.
-    size_t get_rotation_offset()
-    {
-        return MAGIC_USED_INDEX * BLOCK_SIZE;
-    }
+    void read(unsigned int index, void *buf, size_t len) override;
 
     /// Opens a SL file.
     ///
@@ -121,54 +109,20 @@ private:
     int open_file(
         unsigned sector, uint32_t open_mode, bool ignore_error = false);
 
-    /** Default constructor.
-     */
-    CC32xxEEPROMEmulation();
-
-public:
-    /// How many bytes we cache in one read from the filesystem.
-    static constexpr unsigned CACHE_SIZE = 256;
-
-    /// A constexpr value for BLOCK_SIZE.
-    static constexpr unsigned INT_BLOCK_SIZE = 16;
-    /// How may blocks does the cache hold.
-    static constexpr unsigned CACHE_BLOCK_COUNT = CACHE_SIZE / INT_BLOCK_SIZE;
-    /// Bitmask to AND on a raw block index to get the cache line it belongs
-    /// to.
-    static constexpr unsigned CACHE_BLOCK_MASK =
-        ~((CACHE_SIZE / INT_BLOCK_SIZE) - 1);
-
 private:
-    /// When overwriting files we are adding an always increasing number to one
-    /// of the magic slots. This allows us to determine where we are with the
-    /// overwrites. We use this to fake the USED magic slot.
-    uint8_t fileRotation_;
-    /// The sector number of the last intact (i.e. not USED) sector.
-    uint8_t intactSector_{0xff};
-    
-    /// The sector number of the read-only file.
-    uint8_t roSector_{0xff};
-    /// The sector number for the read-write file.
-    uint8_t rwSector_{0xff};
-    /// The SL file descriptor for the read-only file.
-    int32_t roSLFileHandle_{-1};
-    /// The SL file descriptor for the read-only file.
-    int32_t rwSLFileHandle_{-1};
+    /// The total number of files which we are round-robining.
+    static const uint8_t SECTOR_COUNT;
 
-    /// Which sector we have populated the cache from.
-    uint8_t cacheSector_{0xff};
-    /// Starting offset of the cache in the device file. This is the raw block
-    /// number of the beginning of the cache.
-    uint16_t cacheStartBlock_{0};
-    /// The cached data.
-    uint32_t cache_[CACHE_SIZE / 4];
+    /// This number is increased by one every time the contents are flushed to
+    /// a file. The version gets written to the file so that we can recognize
+    /// which is the latest file.
+    unsigned fileVersion_{0};
 
-    /// Multiplier for a block index to get the beginning of that block in the
-    /// cache (using the cache_ variables native indexing).
-    static constexpr unsigned CACHE_BLOCK_MULT =
-        INT_BLOCK_SIZE / sizeof(cache_[0]);
+    /// The sector number of the last sector we used for reading.
+    uint8_t readSector_{0xff};
 
-    DISALLOW_COPY_AND_ASSIGN(CC32xxEEPROMEmulation);
+    /// Holds the file payload in memory.
+    uint8_t *data_;
 };
 
 #endif // _FREERTOS_DRIVERS_TI_CC32XXEEPROMEMULATION_HXX_
