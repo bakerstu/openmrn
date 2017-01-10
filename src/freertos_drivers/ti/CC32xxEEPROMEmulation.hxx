@@ -79,8 +79,16 @@ public:
      */
     ~CC32xxEEPROMEmulation();
 
-    void flush_buffers() OVERRIDE;
+    /// Instructs the driver to write all changed data to disk.
+    void flush() {
+        OSMutexLock l(&lock_);
+        flush_buffers();
+    }
 
+    /// Must be called exactly once after creation, after the simplelink stack
+    /// has been started.
+    void mount();
+    
 private:
     /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
      * byte boundaries in the case of power loss.  The user should take this
@@ -109,6 +117,9 @@ private:
     int open_file(
         unsigned sector, uint32_t open_mode, bool ignore_error = false);
 
+    /// REQUIRED: lock_ is held.
+    void flush_buffers() OVERRIDE;
+    
 private:
     /// The total number of files which we are round-robining.
     static const uint8_t SECTOR_COUNT;
@@ -121,6 +132,9 @@ private:
     /// The sector number of the last sector we used for reading.
     uint8_t readSector_{0xff};
 
+    /// non-zero if we have unflushed writes.
+    uint8_t isDirty_{0};
+    
     /// Holds the file payload in memory.
     uint8_t *data_;
 };

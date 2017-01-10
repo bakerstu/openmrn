@@ -43,14 +43,18 @@ void eeprom_updated_notification();
 
 CC32xxEEPROMEmulation::CC32xxEEPROMEmulation(
     const char *name, size_t file_size_bytes)
-    : EEPROMEmulation(name, file_size_bytes)
+    : EEPROM(name, file_size_bytes)
 {
-    data_ = malloc(file_size_bytes);
+    data_ = (uint8_t *)malloc(file_size_bytes);
     HASSERT(data_);
     memset(data_, 0xff, file_size_bytes);
+}
+
+void CC32xxEEPROMEmulation::mount()
+{
     bool have_rot = false;
     // First we need to find what was the last written segment.
-    for (unsigned sector = 0; sector < sectorCount_; ++sector)
+    for (unsigned sector = 0; sector < SECTOR_COUNT; ++sector)
     {
         int handle = open_file(sector, FS_MODE_OPEN_READ, true);
         if (handle < 0)
@@ -58,7 +62,7 @@ CC32xxEEPROMEmulation::CC32xxEEPROMEmulation(
             continue;
         }
         unsigned b = 0xaa55aaaa;
-        SlCheckResult(sl_FsRead(handle, 0, &b, 4), 4);
+        SlCheckResult(sl_FsRead(handle, 0, (uint8_t *)&b, 4), 4);
         sl_FsClose(handle, nullptr, nullptr, 0);
         if (b >= fileVersion_)
         {
@@ -70,7 +74,7 @@ CC32xxEEPROMEmulation::CC32xxEEPROMEmulation(
     if (have_rot)
     {
         int handle = open_file(readSector_, FS_MODE_OPEN_READ);
-        int ret = sl_FsRead(handle, 4, data, file_size_bytes);
+        int ret = sl_FsRead(handle, 4, data_, file_size());
         if (ret < 0)
         {
             SlCheckResult(ret);
@@ -80,24 +84,28 @@ CC32xxEEPROMEmulation::CC32xxEEPROMEmulation(
 
 CC32xxEEPROMEmulation::~CC32xxEEPROMEmulation()
 {
-    flush_buffers();
+    flush();
     free(data_);
 }
 
 void CC32xxEEPROMEmulation::flush_buffers()
 {
-    ++readSector_;
+    if (!isDirty_)
+        return;
     ++fileVersion_;
+    ++readSector_;
     if (readSector_ >= SECTOR_COUNT)
         readSector_ = 0;
     int handle = open_file(readSector_, FS_MODE_OPEN_WRITE, true);
     if (handle < 0)
     {
-        handle = open_file(sector, FS_MODE_OPEN_CREATE(file_size() + 4, 0));
+        handle =
+            open_file(readSector_, FS_MODE_OPEN_CREATE(file_size() + 4, 0));
     }
     SlCheckResult(sl_FsWrite(handle, 0, (uint8_t *)&fileVersion_, 4), 4);
-    SlCheckResult(sl_FsWrite(handle, 4, data_, file_size()), 4);
-    SlCheckResult(sl_FsClose(handle));
+    SlCheckResult(sl_FsWrite(handle, 4, data_, file_size()), file_size());
+    SlCheckResult(sl_FsClose(handle, nullptr, nullptr, 0));
+    isDirty_ = 0;
 }
 
 int CC32xxEEPROMEmulation::open_file(
@@ -120,8 +128,12 @@ void CC32xxEEPROMEmulation::write(
     unsigned int index, const void *buf, size_t len)
 {
     // Boundary checks are performed by the EEPROM class.
-    memcpy(data_ + index, buf, len);
-    eeprom_updated_notification();
+    if (isDirty_ || (memcmp(data_ + index, buf, len) != 0))
+    {
+        isDirty_ = 1;
+        memcpy(data_ + index, buf, len);
+        eeprom_updated_notification();
+    }
 }
 
 void CC32xxEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
