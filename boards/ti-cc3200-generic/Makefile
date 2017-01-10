@@ -1,13 +1,7 @@
 APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
 
-OPENMRNPATH ?= $(shell \
-sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
-     elif [ -d /opt/openmrn/src ]; then echo /opt/openmrn; \
-     elif [ -d ~/openmrn/src ]; then echo ~/openmrn; \
-     elif [ -d ../../../src ]; then echo ../../..; \
-     else echo OPENMRNPATH not found; fi" \
-)
+OPENMRNPATH ?= $(realpath ../../../..)
 
 TARGET := freertos.armv7m
 
@@ -21,6 +15,20 @@ OBJEXTRA =
 CXXFLAGSEXTRA += -DTARGET_IS_CC3200
 
 include $(OPENMRNPATH)/etc/prog.mk
+
+
+INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
+            -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/dummy \
+            -I$(TICC3200SDKPATH)/simplelink/include \
+            -I$(TICC3200SDKPATH)/simplelink/source \
+            -I$(TICC3200SDKPATH)/simplelink \
+            -I$(TICC3200SDKPATH)/oslib \
+            -I$(TICC3200SDKPATH)/driverlib \
+            -I$(TICC3200SDKPATH)/inc
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+            -D__USER_H__
+
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
