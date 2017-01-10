@@ -8,7 +8,7 @@ CXXSRCS += TivaCan.cxx \
            TivaUsbCdcDevice.cxx \
            TivaFlash.cxx \
            TivaEEPROMEmulation.cxx \
-
+           CC32xxHelper.cxx \
 
 ifeq ($FREERTOSTCPPATH,BOARD_LAUNCHPAD_EK)
 

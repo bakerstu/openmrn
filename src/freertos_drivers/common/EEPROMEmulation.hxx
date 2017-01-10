@@ -36,12 +36,14 @@
 
 #include "EEPROM.hxx"
 
+#ifndef FLASH_SIZE
 /// Linker-defined symbol where in the memory space (flash) the eeprom
 /// emulation data starts.
 extern const char __eeprom_start;
 /// Linker-defined symbol where in the memory space (flash) the eeprom
 /// emulation data ends.
 extern const char __eeprom_end;
+#endif
 
 /** Emulates EEPROM in FLASH for the Tiva, LPC17xx and LPC40xx
  * platforms. Applicable in general to any microcontroller with self-writeable
@@ -170,13 +172,17 @@ private:
      */
     void read(unsigned int offset, void *buf, size_t len) OVERRIDE;
 
+#ifndef FLASH_SIZE
     /** Total FLASH memory size to use for EEPROM Emulation.  Must be at least
      * 2 sectors large and at least 4x the total amount of EEPROM address space
      * that will be emulated.  Larger sizes will result in greater endurance.
      * must be a macro in order to calculate from link time constants.
      */
     #define FLASH_SIZE ((uintptr_t)(&__eeprom_end - &__eeprom_start))
-
+#else
+    static const size_t FLASH_SIZE;
+#endif
+    
     /** useful data bytes size in bytes 
      *  @todo maybe this should be a macro of BLOCK_SIZE / 2
      */
@@ -190,6 +196,7 @@ private:
      */
     static const bool SHADOW_IN_RAM;
 
+protected:
     /** magic marker for an intact block */
     static const uint32_t MAGIC_INTACT;
 
@@ -215,6 +222,7 @@ private:
          MAGIC_COUNT /**< total metadata block count */
     };
 
+private:
     /** Write to the EEPROM on a native block boundary.
      * @param index block within EEPROM address space to write
      * @param data data to write, array size must be @ref BYTES_PER_BLOCK large
@@ -237,15 +245,6 @@ private:
     	unsigned next = activeSector_ + 1;
     	if (next >= sectorCount_) next = 0;
     	return next;
-    }
-
-    /** Get the sector index.
-     * @param sector_address pointer to the beginning of the sector
-     * @return index of sector relative to start of EERPROM region
-     */
-    int sector_index(uint32_t *sector_address)
-    {
-        return ((uintptr_t)sector_address - (uintptr_t)&__eeprom_start) / SECTOR_SIZE;
     }
 
     /** Total number of FLASH sectors being used for emulation.
